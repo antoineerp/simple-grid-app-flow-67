@@ -1,6 +1,5 @@
-
 import React, { useState } from 'react';
-import { Pencil, Trash, ChevronDown, Plus, FolderPlus } from 'lucide-react';
+import { Pencil, Trash, ChevronDown, Plus, FolderPlus, GripVertical } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import {
   Dialog,
@@ -13,6 +12,14 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow
+} from "@/components/ui/table";
 
 interface DocumentGroup {
   id: number;
@@ -73,17 +80,14 @@ const Bibliotheque = () => {
     );
   };
 
-  // Fonction pour éditer un document
   const handleEditDocument = (doc: Document) => {
     setCurrentDocument({ ...doc });
     setIsEditing(true);
     setIsDialogOpen(true);
   };
 
-  // Fonction pour supprimer un document
   const handleDeleteDocument = (id: number) => {
     setDocuments(docs => docs.filter(doc => doc.id !== id));
-    // Aussi supprimer des groupes si nécessaire
     setDocumentGroups(groups => 
       groups.map(group => ({
         ...group,
@@ -96,16 +100,13 @@ const Bibliotheque = () => {
     });
   };
 
-  // Fonction pour éditer un groupe
   const handleEditGroup = (group: DocumentGroup) => {
     setCurrentGroup({ ...group });
     setIsEditing(true);
     setIsGroupDialogOpen(true);
   };
 
-  // Fonction pour supprimer un groupe
   const handleDeleteGroup = (id: number) => {
-    // Déplacer tous les documents du groupe vers la liste principale
     const groupToDelete = documentGroups.find(g => g.id === id);
     if (groupToDelete && groupToDelete.items.length > 0) {
       const docsToMove = [...groupToDelete.items];
@@ -119,7 +120,6 @@ const Bibliotheque = () => {
     });
   };
 
-  // Fonction pour ajouter un nouveau document
   const handleAddDocument = () => {
     const newId = Math.max(...documents.map(d => d.id), ...documentGroups.flatMap(g => g.items.map(d => d.id)), 0) + 1;
     setCurrentDocument({
@@ -131,7 +131,6 @@ const Bibliotheque = () => {
     setIsDialogOpen(true);
   };
 
-  // Fonction pour ajouter un nouveau groupe
   const handleAddGroup = () => {
     const newId = documentGroups.length > 0 
       ? Math.max(...documentGroups.map(g => g.id)) + 1 
@@ -146,7 +145,6 @@ const Bibliotheque = () => {
     setIsGroupDialogOpen(true);
   };
 
-  // Handler pour les changements dans le formulaire de document
   const handleDocumentInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setCurrentDocument({
@@ -155,7 +153,6 @@ const Bibliotheque = () => {
     });
   };
 
-  // Handler pour les changements dans le formulaire de groupe
   const handleGroupInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setCurrentGroup({
@@ -164,7 +161,6 @@ const Bibliotheque = () => {
     });
   };
 
-  // Fonction pour sauvegarder un document
   const handleSaveDocument = () => {
     if (currentDocument.name.trim() === '') {
       toast({
@@ -176,9 +172,7 @@ const Bibliotheque = () => {
     }
 
     if (isEditing) {
-      // Mise à jour d'un document existant
       if (currentDocument.groupId) {
-        // Le document est dans un groupe
         setDocumentGroups(groups => 
           groups.map(group => 
             group.id === currentDocument.groupId 
@@ -192,7 +186,6 @@ const Bibliotheque = () => {
           )
         );
       } else {
-        // Le document est dans la liste principale
         setDocuments(docs => 
           docs.map(doc => doc.id === currentDocument.id ? currentDocument : doc)
         );
@@ -202,7 +195,6 @@ const Bibliotheque = () => {
         description: "Le document a été modifié",
       });
     } else {
-      // Ajout d'un nouveau document
       setDocuments(docs => [...docs, currentDocument]);
       toast({
         title: "Ajout",
@@ -213,7 +205,6 @@ const Bibliotheque = () => {
     setIsDialogOpen(false);
   };
 
-  // Fonction pour sauvegarder un groupe
   const handleSaveGroup = () => {
     if (currentGroup.name.trim() === '') {
       toast({
@@ -225,7 +216,6 @@ const Bibliotheque = () => {
     }
 
     if (isEditing) {
-      // Mise à jour d'un groupe existant
       setDocumentGroups(groups => 
         groups.map(group => group.id === currentGroup.id ? currentGroup : group)
       );
@@ -234,7 +224,6 @@ const Bibliotheque = () => {
         description: "Le groupe a été modifié",
       });
     } else {
-      // Ajout d'un nouveau groupe
       setDocumentGroups(groups => [...groups, currentGroup]);
       toast({
         title: "Ajout",
@@ -243,6 +232,34 @@ const Bibliotheque = () => {
     }
     
     setIsGroupDialogOpen(false);
+  };
+
+  const handleReorder = (startIndex: number, endIndex: number) => {
+    setDocuments(prev => {
+      const result = Array.from(prev);
+      const [removed] = result.splice(startIndex, 1);
+      result.splice(endIndex, 0, removed);
+      return result;
+    });
+
+    toast({
+      title: "Réorganisation",
+      description: "L'ordre des documents a été mis à jour",
+    });
+  };
+
+  const handleGroupReorder = (startIndex: number, endIndex: number) => {
+    setDocumentGroups(prev => {
+      const result = Array.from(prev);
+      const [removed] = result.splice(startIndex, 1);
+      result.splice(endIndex, 0, removed);
+      return result;
+    });
+
+    toast({
+      title: "Réorganisation",
+      description: "L'ordre des groupes a été mis à jour",
+    });
   };
 
   return (
@@ -255,25 +272,29 @@ const Bibliotheque = () => {
       </div>
 
       <div className="bg-white rounded-md shadow overflow-hidden mt-6">
-        <table className="w-full">
-          <thead>
-            <tr className="bg-app-light-blue text-left">
-              <th className="w-8 py-3 px-4"></th>
-              <th className="py-3 px-4 text-app-blue font-semibold">Nom du document</th>
-              <th className="py-3 px-4 text-app-blue font-semibold">Lien</th>
-              <th className="py-3 px-4 text-app-blue font-semibold text-right">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="w-10"></TableHead>
+              <TableHead className="w-8 py-3 px-4"></TableHead>
+              <TableHead className="py-3 px-4 text-app-blue font-semibold">Nom du document</TableHead>
+              <TableHead className="py-3 px-4 text-app-blue font-semibold">Lien</TableHead>
+              <TableHead className="py-3 px-4 text-app-blue font-semibold text-right">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody onReorder={handleGroupReorder}>
             {documentGroups.map((group) => (
               <React.Fragment key={group.id}>
-                <tr className="border-b hover:bg-gray-50 cursor-pointer" onClick={() => toggleGroup(group.id)}>
-                  <td className="py-3 px-4 text-center">
+                <TableRow className="border-b hover:bg-gray-50 cursor-pointer" onClick={() => toggleGroup(group.id)}>
+                  <TableCell className="py-3 px-2 w-10">
+                    <GripVertical className="h-5 w-5 text-gray-400" />
+                  </TableCell>
+                  <TableCell className="py-3 px-4 text-center">
                     <ChevronDown className={`h-4 w-4 inline-block transition-transform ${group.expanded ? 'rotate-180' : ''}`} />
-                  </td>
-                  <td className="py-3 px-4 font-medium">{group.name}</td>
-                  <td className="py-3 px-4"></td>
-                  <td className="py-3 px-4 text-right">
+                  </TableCell>
+                  <TableCell className="py-3 px-4 font-medium">{group.name}</TableCell>
+                  <TableCell className="py-3 px-4"></TableCell>
+                  <TableCell className="py-3 px-4 text-right">
                     <button 
                       className="text-gray-600 hover:text-app-blue mr-3"
                       onClick={(e) => {
@@ -292,38 +313,61 @@ const Bibliotheque = () => {
                     >
                       <Trash className="h-5 w-5 inline-block" />
                     </button>
-                  </td>
-                </tr>
-                {group.expanded && group.items.map(item => (
-                  <tr key={item.id} className="border-b hover:bg-gray-50 bg-gray-50">
-                    <td className="py-3 px-4"></td>
-                    <td className="py-3 px-4 pl-8">{item.name}</td>
-                    <td className="py-3 px-4">
-                      {item.link && <a href="#" className="text-app-blue hover:underline">{item.link}</a>}
-                    </td>
-                    <td className="py-3 px-4 text-right">
-                      <button 
-                        className="text-gray-600 hover:text-app-blue mr-3"
-                        onClick={() => handleEditDocument({...item, groupId: group.id})}
-                      >
-                        <Pencil className="h-5 w-5 inline-block" />
-                      </button>
-                      <button 
-                        className="text-gray-600 hover:text-red-500"
-                        onClick={() => handleDeleteDocument(item.id)}
-                      >
-                        <Trash className="h-5 w-5 inline-block" />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
+                  </TableCell>
+                </TableRow>
+                {group.expanded && (
+                  <TableBody onReorder={(start, end) => {
+                    const newItems = [...group.items];
+                    const [removed] = newItems.splice(start, 1);
+                    newItems.splice(end, 0, removed);
+                    setDocumentGroups(prev => 
+                      prev.map(g => g.id === group.id ? {...g, items: newItems} : g)
+                    );
+                    toast({
+                      title: "Réorganisation",
+                      description: `L'ordre des documents dans le groupe ${group.name} a été mis à jour`,
+                    });
+                  }}>
+                    {group.items.map(item => (
+                      <TableRow key={item.id} className="border-b hover:bg-gray-50 bg-gray-50">
+                        <TableCell className="py-3 px-2 w-10">
+                          <GripVertical className="h-5 w-5 text-gray-400" />
+                        </TableCell>
+                        <TableCell className="py-3 px-4"></TableCell>
+                        <TableCell className="py-3 px-4 pl-8">{item.name}</TableCell>
+                        <TableCell className="py-3 px-4">
+                          {item.link && <a href="#" className="text-app-blue hover:underline">{item.link}</a>}
+                        </TableCell>
+                        <TableCell className="py-3 px-4 text-right">
+                          <button 
+                            className="text-gray-600 hover:text-app-blue mr-3"
+                            onClick={() => handleEditDocument({...item, groupId: group.id})}
+                          >
+                            <Pencil className="h-5 w-5 inline-block" />
+                          </button>
+                          <button 
+                            className="text-gray-600 hover:text-red-500"
+                            onClick={() => handleDeleteDocument(item.id)}
+                          >
+                            <Trash className="h-5 w-5 inline-block" />
+                          </button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                )}
               </React.Fragment>
             ))}
+          </TableBody>
+          <TableBody onReorder={handleReorder}>
             {documents.map((doc) => (
-              <tr key={doc.id} className="border-b hover:bg-gray-50">
-                <td className="py-3 px-4"></td>
-                <td className="py-3 px-4">{doc.name}</td>
-                <td className="py-3 px-4">
+              <TableRow key={doc.id} className="border-b hover:bg-gray-50">
+                <TableCell className="py-3 px-2 w-10">
+                  <GripVertical className="h-5 w-5 text-gray-400" />
+                </TableCell>
+                <TableCell className="py-3 px-4"></TableCell>
+                <TableCell className="py-3 px-4">{doc.name}</TableCell>
+                <TableCell className="py-3 px-4">
                   {doc.link === 'Voir le document' ? (
                     <a href="#" className="text-app-blue hover:underline">
                       Voir le document
@@ -331,8 +375,8 @@ const Bibliotheque = () => {
                   ) : (
                     <span className="text-gray-500">-</span>
                   )}
-                </td>
-                <td className="py-3 px-4 text-right">
+                </TableCell>
+                <TableCell className="py-3 px-4 text-right">
                   <button 
                     className="text-gray-600 hover:text-app-blue mr-3"
                     onClick={() => handleEditDocument(doc)}
@@ -345,11 +389,11 @@ const Bibliotheque = () => {
                   >
                     <Trash className="h-5 w-5 inline-block" />
                   </button>
-                </td>
-              </tr>
+                </TableCell>
+              </TableRow>
             ))}
-          </tbody>
-        </table>
+          </TableBody>
+        </Table>
       </div>
 
       <div className="flex justify-end mt-4 space-x-3">
@@ -369,7 +413,6 @@ const Bibliotheque = () => {
         </button>
       </div>
 
-      {/* Modal pour ajouter/modifier un document */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent>
           <DialogHeader>
@@ -423,7 +466,6 @@ const Bibliotheque = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Modal pour ajouter/modifier un groupe */}
       <Dialog open={isGroupDialogOpen} onOpenChange={setIsGroupDialogOpen}>
         <DialogContent>
           <DialogHeader>

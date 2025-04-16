@@ -1,16 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { Pencil, Trash, FileText, Plus } from 'lucide-react';
+import { Pencil, Trash, FileText, Plus, GripVertical } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
+import { MembresProvider } from '@/contexts/MembresContext';
+import ResponsableSelector from '@/components/ResponsableSelector';
 import {
   Table,
   TableBody,
   TableCell,
   TableHead,
   TableHeader,
-  TableRow,
+  TableRow
 } from "@/components/ui/table";
-import ResponsableSelector from '@/components/ResponsableSelector';
-import { MembresProvider } from '@/contexts/MembresContext';
 import DocumentForm from '@/components/gestion-documentaire/DocumentForm';
 
 interface Document {
@@ -58,7 +58,6 @@ const GestionDocumentaireContent = () => {
   const [editingDocument, setEditingDocument] = useState<Document | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
 
-  // Sauvegarde des documents dans le localStorage
   useEffect(() => {
     localStorage.setItem('documents', JSON.stringify(documents));
   }, [documents]);
@@ -71,7 +70,6 @@ const GestionDocumentaireContent = () => {
     total: 0
   });
 
-  // Mise à jour des statistiques quand les documents changent
   useEffect(() => {
     const newStats = {
       exclusion: documents.filter(d => d.etat === 'EX').length,
@@ -83,7 +81,6 @@ const GestionDocumentaireContent = () => {
     setStats(newStats);
   }, [documents]);
 
-  // Handler pour les responsabilités
   const handleResponsabiliteChange = (id: number, type: 'r' | 'a' | 'c' | 'i', values: string[]) => {
     setDocuments(prev => 
       prev.map(doc => 
@@ -100,7 +97,6 @@ const GestionDocumentaireContent = () => {
     );
   };
 
-  // Modifier le handler d'édition pour ouvrir la modale
   const handleEdit = (id: number) => {
     const documentToEdit = documents.find(doc => doc.id === id);
     if (documentToEdit) {
@@ -115,7 +111,6 @@ const GestionDocumentaireContent = () => {
     }
   };
 
-  // Fonction pour enregistrer les modifications
   const handleSaveDocument = (updatedDocument: Document) => {
     setDocuments(prev => 
       prev.map(doc => 
@@ -128,7 +123,6 @@ const GestionDocumentaireContent = () => {
     });
   };
 
-  // Handler pour la gestion d'exclusion
   const handleExclusionChange = (id: number) => {
     setDocuments(prev => 
       prev.map(doc => 
@@ -139,7 +133,6 @@ const GestionDocumentaireContent = () => {
     );
   };
 
-  // Handler pour l'atteinte
   const handleAtteinteChange = (id: number, atteinte: 'NC' | 'PC' | 'C' | null) => {
     setDocuments(prev => 
       prev.map(doc => 
@@ -150,7 +143,6 @@ const GestionDocumentaireContent = () => {
     );
   };
 
-  // Handler pour ajouter un nouveau document
   const handleAddDocument = () => {
     const newId = documents.length > 0 
       ? Math.max(...documents.map(d => d.id)) + 1 
@@ -172,12 +164,26 @@ const GestionDocumentaireContent = () => {
     });
   };
 
-  // Handle row reordering with drag and drop
+  const handleDelete = (id: number) => {
+    setDocuments(prev => prev.filter(doc => doc.id !== id));
+    toast({
+      title: "Suppression",
+      description: `Le document ${id} a été supprimé`,
+    });
+  };
+
   const handleReorder = (startIndex: number, endIndex: number) => {
-    const result = Array.from(documents);
-    const [removed] = result.splice(startIndex, 1);
-    result.splice(endIndex, 0, removed);
-    setDocuments(result);
+    setDocuments(prev => {
+      const result = Array.from(prev);
+      const [removed] = result.splice(startIndex, 1);
+      result.splice(endIndex, 0, removed);
+      return result;
+    });
+
+    toast({
+      title: "Réorganisation",
+      description: "L'ordre des documents a été mis à jour",
+    });
   };
 
   return (
@@ -211,7 +217,8 @@ const GestionDocumentaireContent = () => {
       <div className="bg-white rounded-md shadow overflow-hidden">
         <Table>
           <TableHeader>
-            <TableRow className="bg-app-light-blue text-left">
+            <TableRow>
+              <TableHead className="w-10"></TableHead>
               <TableHead className="py-3 px-4 text-app-blue font-semibold">Nom</TableHead>
               <TableHead className="py-3 px-4 text-app-blue font-semibold">Lien</TableHead>
               <TableHead className="py-3 px-4 text-app-blue font-semibold text-center" colSpan={4}>
@@ -223,18 +230,19 @@ const GestionDocumentaireContent = () => {
               </TableHead>
               <TableHead className="py-3 px-4 text-app-blue font-semibold text-right">Actions</TableHead>
             </TableRow>
-            <TableRow className="bg-app-light-blue text-left">
-              <TableHead className="py-2"></TableHead>
-              <TableHead className="py-2"></TableHead>
+            <TableRow>
+              <TableHead></TableHead>
+              <TableHead></TableHead>
+              <TableHead></TableHead>
               <TableHead className="py-2 px-2 text-center text-sm font-medium">R</TableHead>
               <TableHead className="py-2 px-2 text-center text-sm font-medium">A</TableHead>
               <TableHead className="py-2 px-2 text-center text-sm font-medium">C</TableHead>
               <TableHead className="py-2 px-2 text-center text-sm font-medium">I</TableHead>
-              <TableHead className="py-2"></TableHead>
+              <TableHead></TableHead>
               <TableHead className="py-2 px-2 text-center text-sm font-medium text-red-500">NC</TableHead>
               <TableHead className="py-2 px-2 text-center text-sm font-medium text-yellow-500">PC</TableHead>
               <TableHead className="py-2 px-2 text-center text-sm font-medium text-green-500">C</TableHead>
-              <TableHead className="py-2"></TableHead>
+              <TableHead></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody onReorder={handleReorder}>
@@ -247,6 +255,9 @@ const GestionDocumentaireContent = () => {
             ) : (
               documents.map((doc) => (
                 <TableRow key={doc.id} className="border-b hover:bg-gray-50">
+                  <TableCell className="py-3 px-2 w-10">
+                    <GripVertical className="h-5 w-5 text-gray-400" />
+                  </TableCell>
                   <TableCell className="py-3 px-4">{doc.nom}</TableCell>
                   <TableCell className="py-3 px-4">
                     {doc.lien ? (
@@ -257,34 +268,36 @@ const GestionDocumentaireContent = () => {
                       <span className="text-gray-500">-</span>
                     )}
                   </TableCell>
-                  <TableCell className="py-3 px-2 text-center">
+                  
+                  <TableCell className="py-3 px-1 text-center">
                     <ResponsableSelector 
                       selectedInitiales={doc.responsabilites.r}
                       onChange={(values) => handleResponsabiliteChange(doc.id, 'r', values)}
                       type="r"
                     />
                   </TableCell>
-                  <TableCell className="py-3 px-2 text-center">
+                  <TableCell className="py-3 px-1 text-center">
                     <ResponsableSelector 
                       selectedInitiales={doc.responsabilites.a}
                       onChange={(values) => handleResponsabiliteChange(doc.id, 'a', values)}
                       type="a"
                     />
                   </TableCell>
-                  <TableCell className="py-3 px-2 text-center">
+                  <TableCell className="py-3 px-1 text-center">
                     <ResponsableSelector 
                       selectedInitiales={doc.responsabilites.c}
                       onChange={(values) => handleResponsabiliteChange(doc.id, 'c', values)}
                       type="c"
                     />
                   </TableCell>
-                  <TableCell className="py-3 px-2 text-center">
+                  <TableCell className="py-3 px-1 text-center">
                     <ResponsableSelector 
                       selectedInitiales={doc.responsabilites.i}
                       onChange={(values) => handleResponsabiliteChange(doc.id, 'i', values)}
                       type="i"
                     />
                   </TableCell>
+                  
                   <TableCell className="py-3 px-4 text-center">
                     <input 
                       type="checkbox" 
@@ -329,19 +342,13 @@ const GestionDocumentaireContent = () => {
                   <TableCell className="py-3 px-4 text-right">
                     <button 
                       className="text-gray-600 hover:text-app-blue mr-3"
-                      onClick={(e) => {
-                        e.stopPropagation(); // Prevent row drag
-                        handleEdit(doc.id);
-                      }}
+                      onClick={() => handleEdit(doc.id)}
                     >
                       <Pencil className="h-5 w-5 inline-block" />
                     </button>
                     <button 
                       className="text-gray-600 hover:text-red-500"
-                      onClick={(e) => {
-                        e.stopPropagation(); // Prevent row drag
-                        handleDelete(doc.id);
-                      }}
+                      onClick={() => handleDelete(doc.id)}
                     >
                       <Trash className="h-5 w-5 inline-block" />
                     </button>
@@ -372,7 +379,6 @@ const GestionDocumentaireContent = () => {
   );
 };
 
-// Composant wrapper pour fournir le contexte
 const GestionDocumentaire = () => (
   <MembresProvider>
     <GestionDocumentaireContent />
