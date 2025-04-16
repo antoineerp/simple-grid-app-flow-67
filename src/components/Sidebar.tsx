@@ -64,9 +64,9 @@ const Sidebar = () => {
         
         <div className="mt-auto pt-8 flex items-center">
           <img 
-            src="/public/logo-swiss.svg" 
-            alt="Logo suisse" 
-            className="w-8 h-8 mr-2" 
+            src="/lovable-uploads/swiss-army-knife-logo.png" 
+            alt="Qualite.cloud Logo" 
+            className="w-10 h-10 mr-2 object-contain" 
           />
           <div className="text-sm">Qualite.cloud</div>
         </div>
