@@ -5,19 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-
-interface Document {
-  id: number;
-  nom: string;
-  lien: string | null;
-  responsabilites: {
-    r: string[];
-    a: string[];
-    c: string[];
-    i: string[];
-  };
-  etat: string;
-}
+import { Document } from '@/types/documents';
 
 interface DocumentFormProps {
   document: Document | null;
