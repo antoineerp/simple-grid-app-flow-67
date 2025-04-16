@@ -1,3 +1,4 @@
+
 import * as React from "react"
 
 import { cn } from "@/lib/utils"
@@ -26,14 +27,62 @@ TableHeader.displayName = "TableHeader"
 
 const TableBody = React.forwardRef<
   HTMLTableSectionElement,
-  React.HTMLAttributes<HTMLTableSectionElement>
->(({ className, ...props }, ref) => (
-  <tbody
-    ref={ref}
-    className={cn("[&_tr:last-child]:border-0", className)}
-    {...props}
-  />
-))
+  React.HTMLAttributes<HTMLTableSectionElement> & { onReorder?: (startIndex: number, endIndex: number) => void }
+>(({ className, onReorder, ...props }, ref) => {
+  // Add drag and drop logic
+  const handleDragStart = (e: React.DragEvent<HTMLTableRowElement>, index: number) => {
+    e.dataTransfer.setData('text/plain', index.toString());
+    e.currentTarget.classList.add('bg-muted');
+  };
+
+  const handleDragOver = (e: React.DragEvent<HTMLTableRowElement>) => {
+    e.preventDefault();
+    e.currentTarget.classList.add('border-dashed', 'border-2', 'border-primary');
+  };
+
+  const handleDragLeave = (e: React.DragEvent<HTMLTableRowElement>) => {
+    e.currentTarget.classList.remove('border-dashed', 'border-2', 'border-primary');
+  };
+
+  const handleDrop = (e: React.DragEvent<HTMLTableRowElement>, endIndex: number) => {
+    e.preventDefault();
+    e.currentTarget.classList.remove('border-dashed', 'border-2', 'border-primary');
+    
+    const startIndex = parseInt(e.dataTransfer.getData('text/plain'));
+    if (startIndex !== endIndex && onReorder) {
+      onReorder(startIndex, endIndex);
+    }
+  };
+
+  const handleDragEnd = (e: React.DragEvent<HTMLTableRowElement>) => {
+    e.currentTarget.classList.remove('bg-muted');
+  };
+
+  const childrenWithProps = React.Children.map(props.children as React.ReactNode, (child, index) => {
+    if (React.isValidElement(child)) {
+      return React.cloneElement(child, {
+        draggable: true,
+        onDragStart: (e: React.DragEvent<HTMLTableRowElement>) => handleDragStart(e, index),
+        onDragOver: (e: React.DragEvent<HTMLTableRowElement>) => handleDragOver(e),
+        onDragLeave: (e: React.DragEvent<HTMLTableRowElement>) => handleDragLeave(e),
+        onDrop: (e: React.DragEvent<HTMLTableRowElement>) => handleDrop(e, index),
+        onDragEnd: (e: React.DragEvent<HTMLTableRowElement>) => handleDragEnd(e),
+        className: cn(child.props.className, 'cursor-move')
+      });
+    }
+    return child;
+  });
+
+  return (
+    <tbody
+      ref={ref}
+      className={cn("[&_tr:last-child]:border-0", className)}
+      {...props}
+    >
+      {childrenWithProps}
+    </tbody>
+  );
+})
 TableBody.displayName = "TableBody"
 
 const TableFooter = React.forwardRef<

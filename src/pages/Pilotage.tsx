@@ -124,6 +124,26 @@ const Pilotage = () => {
     setIsDialogOpen(false);
   };
 
+  // Handle row reordering with drag and drop
+  const handleReorder = (startIndex: number, endIndex: number) => {
+    const result = Array.from(documents);
+    const [removed] = result.splice(startIndex, 1);
+    result.splice(endIndex, 0, removed);
+    
+    // Update ordre for all items
+    const updatedDocuments = result.map((doc, index) => ({
+      ...doc,
+      ordre: index + 1
+    }));
+    
+    setDocuments(updatedDocuments);
+    
+    toast({
+      title: "Ordre mis à jour",
+      description: "L'ordre des documents a été mis à jour avec succès",
+    });
+  };
+
   return (
     <div className="p-8">
       <div className="flex items-center justify-between mb-2">
@@ -144,40 +164,42 @@ const Pilotage = () => {
               <TableHead className="text-app-blue font-semibold text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
-          <TableBody>
-            {documents.map((doc) => (
-              <TableRow key={doc.id} className="border-b hover:bg-gray-50">
-                <TableCell>{doc.ordre}</TableCell>
-                <TableCell>{doc.nom}</TableCell>
-                <TableCell>
-                  {doc.lien ? (
-                    <a href="#" className="text-app-blue hover:underline">
-                      Voir le document
-                    </a>
-                  ) : (
-                    <span className="text-gray-500">Aucun lien</span>
-                  )}
-                </TableCell>
-                <TableCell className="text-right">
-                  <Button 
-                    variant="ghost" 
-                    size="icon" 
-                    className="text-gray-600 hover:text-app-blue"
-                    onClick={() => handleEditDocument(doc)}
-                  >
-                    <Pencil className="h-5 w-5" />
-                  </Button>
-                  <Button 
-                    variant="ghost" 
-                    size="icon" 
-                    className="text-gray-600 hover:text-red-500"
-                    onClick={() => handleDeleteDocument(doc.id)}
-                  >
-                    <Trash className="h-5 w-5" />
-                  </Button>
-                </TableCell>
-              </TableRow>
-            ))}
+          <TableBody onReorder={handleReorder}>
+            {documents
+              .sort((a, b) => a.ordre - b.ordre)
+              .map((doc) => (
+                <TableRow key={doc.id} className="border-b hover:bg-gray-50">
+                  <TableCell>{doc.ordre}</TableCell>
+                  <TableCell>{doc.nom}</TableCell>
+                  <TableCell>
+                    {doc.lien ? (
+                      <a href="#" className="text-app-blue hover:underline">
+                        Voir le document
+                      </a>
+                    ) : (
+                      <span className="text-gray-500">Aucun lien</span>
+                    )}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className="text-gray-600 hover:text-app-blue"
+                      onClick={() => handleEditDocument(doc)}
+                    >
+                      <Pencil className="h-5 w-5" />
+                    </Button>
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className="text-gray-600 hover:text-red-500"
+                      onClick={() => handleDeleteDocument(doc.id)}
+                    >
+                      <Trash className="h-5 w-5" />
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
           </TableBody>
         </Table>
       </div>

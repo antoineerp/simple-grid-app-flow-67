@@ -1,6 +1,14 @@
 
 import React, { useState } from 'react';
 import { Pencil, Trash, FileText } from 'lucide-react';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 interface Document {
   id: number;
@@ -16,15 +24,45 @@ interface Document {
 }
 
 const GestionDocumentaire = () => {
-  const [documents, setDocuments] = useState<Document[]>([]);
+  const [documents, setDocuments] = useState<Document[]>([
+    { 
+      id: 1, 
+      nom: 'Document 1', 
+      lien: 'Voir le document', 
+      responsabilites: { r: true, a: false, c: true, i: false },
+      etat: 'C' 
+    },
+    { 
+      id: 2, 
+      nom: 'Document 2', 
+      lien: null, 
+      responsabilites: { r: false, a: true, c: false, i: true },
+      etat: 'PC' 
+    },
+    { 
+      id: 3, 
+      nom: 'Document 3', 
+      lien: 'Voir le document', 
+      responsabilites: { r: true, a: true, c: false, i: false },
+      etat: 'NC' 
+    },
+  ]);
 
   const [stats, setStats] = useState({
     exclusion: 0,
-    nonConforme: 0,
-    partiellementConforme: 0,
-    conforme: 0,
+    nonConforme: 1,
+    partiellementConforme: 1,
+    conforme: 1,
     total: 3
   });
+
+  // Handle row reordering with drag and drop
+  const handleReorder = (startIndex: number, endIndex: number) => {
+    const result = Array.from(documents);
+    const [removed] = result.splice(startIndex, 1);
+    result.splice(endIndex, 0, removed);
+    setDocuments(result);
+  };
 
   return (
     <div className="p-8">
@@ -55,42 +93,42 @@ const GestionDocumentaire = () => {
       </div>
 
       <div className="bg-white rounded-md shadow overflow-hidden">
-        <table className="w-full">
-          <thead>
-            <tr className="bg-app-light-blue text-left">
-              <th className="py-3 px-4 text-app-blue font-semibold">Nom</th>
-              <th className="py-3 px-4 text-app-blue font-semibold">Lien</th>
-              <th className="py-3 px-4 text-app-blue font-semibold text-center" colSpan={4}>
+        <Table>
+          <TableHeader>
+            <TableRow className="bg-app-light-blue text-left">
+              <TableHead className="py-3 px-4 text-app-blue font-semibold">Nom</TableHead>
+              <TableHead className="py-3 px-4 text-app-blue font-semibold">Lien</TableHead>
+              <TableHead className="py-3 px-4 text-app-blue font-semibold text-center" colSpan={4}>
                 Responsabilités
-              </th>
-              <th className="py-3 px-4 text-app-blue font-semibold">Exclusion</th>
-              <th className="py-3 px-4 text-app-blue font-semibold">État</th>
-              <th className="py-3 px-4 text-app-blue font-semibold text-right">Actions</th>
-            </tr>
-            <tr className="bg-app-light-blue text-left">
-              <th className="py-2"></th>
-              <th className="py-2"></th>
-              <th className="py-2 px-2 text-center text-sm font-medium">R</th>
-              <th className="py-2 px-2 text-center text-sm font-medium">A</th>
-              <th className="py-2 px-2 text-center text-sm font-medium">C</th>
-              <th className="py-2 px-2 text-center text-sm font-medium">I</th>
-              <th className="py-2"></th>
-              <th className="py-2 px-4 text-sm font-medium">NCPCC</th>
-              <th className="py-2"></th>
-            </tr>
-          </thead>
-          <tbody>
+              </TableHead>
+              <TableHead className="py-3 px-4 text-app-blue font-semibold">Exclusion</TableHead>
+              <TableHead className="py-3 px-4 text-app-blue font-semibold">État</TableHead>
+              <TableHead className="py-3 px-4 text-app-blue font-semibold text-right">Actions</TableHead>
+            </TableRow>
+            <TableRow className="bg-app-light-blue text-left">
+              <TableHead className="py-2"></TableHead>
+              <TableHead className="py-2"></TableHead>
+              <TableHead className="py-2 px-2 text-center text-sm font-medium">R</TableHead>
+              <TableHead className="py-2 px-2 text-center text-sm font-medium">A</TableHead>
+              <TableHead className="py-2 px-2 text-center text-sm font-medium">C</TableHead>
+              <TableHead className="py-2 px-2 text-center text-sm font-medium">I</TableHead>
+              <TableHead className="py-2"></TableHead>
+              <TableHead className="py-2 px-4 text-sm font-medium">NCPCC</TableHead>
+              <TableHead className="py-2"></TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody onReorder={handleReorder}>
             {documents.length === 0 ? (
-              <tr className="border-b">
-                <td colSpan={10} className="py-4 px-4 text-center text-gray-500">
+              <TableRow className="border-b">
+                <TableCell colSpan={10} className="py-4 px-4 text-center text-gray-500">
                   Aucun document disponible
-                </td>
-              </tr>
+                </TableCell>
+              </TableRow>
             ) : (
               documents.map((doc) => (
-                <tr key={doc.id} className="border-b hover:bg-gray-50">
-                  <td className="py-3 px-4">{doc.nom}</td>
-                  <td className="py-3 px-4">
+                <TableRow key={doc.id} className="border-b hover:bg-gray-50">
+                  <TableCell className="py-3 px-4">{doc.nom}</TableCell>
+                  <TableCell className="py-3 px-4">
                     {doc.lien ? (
                       <a href="#" className="text-app-blue hover:underline">
                         {doc.lien}
@@ -98,39 +136,39 @@ const GestionDocumentaire = () => {
                     ) : (
                       <span className="text-gray-500">-</span>
                     )}
-                  </td>
-                  <td className="py-3 px-2 text-center">
+                  </TableCell>
+                  <TableCell className="py-3 px-2 text-center">
                     {doc.responsabilites.r ? "+" : "-"}
-                  </td>
-                  <td className="py-3 px-2 text-center">
+                  </TableCell>
+                  <TableCell className="py-3 px-2 text-center">
                     {doc.responsabilites.a ? "+" : "-"}
-                  </td>
-                  <td className="py-3 px-2 text-center">
+                  </TableCell>
+                  <TableCell className="py-3 px-2 text-center">
                     {doc.responsabilites.c ? "+" : "-"}
-                  </td>
-                  <td className="py-3 px-2 text-center">
+                  </TableCell>
+                  <TableCell className="py-3 px-2 text-center">
                     {doc.responsabilites.i ? "+" : "-"}
-                  </td>
-                  <td className="py-3 px-4 text-center">
+                  </TableCell>
+                  <TableCell className="py-3 px-4 text-center">
                     <input 
                       type="checkbox" 
                       className="form-checkbox h-4 w-4 text-app-blue rounded"
                     />
-                  </td>
-                  <td className="py-3 px-4">{doc.etat}</td>
-                  <td className="py-3 px-4 text-right">
+                  </TableCell>
+                  <TableCell className="py-3 px-4">{doc.etat}</TableCell>
+                  <TableCell className="py-3 px-4 text-right">
                     <button className="text-gray-600 hover:text-app-blue mr-3">
                       <Pencil className="h-5 w-5 inline-block" />
                     </button>
                     <button className="text-gray-600 hover:text-red-500">
                       <Trash className="h-5 w-5 inline-block" />
                     </button>
-                  </td>
-                </tr>
+                  </TableCell>
+                </TableRow>
               ))
             )}
-          </tbody>
-        </table>
+          </TableBody>
+        </Table>
       </div>
 
       <div className="flex justify-end mt-4">
