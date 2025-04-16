@@ -2,6 +2,17 @@
 import React, { useState } from 'react';
 import { Pencil, Trash, FileText, UserPlus } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
 
 interface Membre {
   id: number;
@@ -22,16 +33,28 @@ const RessourcesHumaines = () => {
       initiales: 'RB' 
     },
   ]);
+  
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [currentMembre, setCurrentMembre] = useState<Membre>({
+    id: 0,
+    nom: '',
+    prenom: '',
+    fonction: '',
+    initiales: ''
+  });
+  const [isEditing, setIsEditing] = useState(false);
 
-  // Add handlers for edit and delete actions
+  // Handler for edit action
   const handleEdit = (id: number) => {
-    toast({
-      title: "Modification",
-      description: `Édition du membre ${id}`,
-    });
-    // Implementation of edit functionality would go here
+    const membre = membres.find(m => m.id === id);
+    if (membre) {
+      setCurrentMembre({ ...membre });
+      setIsEditing(true);
+      setIsDialogOpen(true);
+    }
   };
 
+  // Handler for delete action
   const handleDelete = (id: number) => {
     setMembres(prev => prev.filter(membre => membre.id !== id));
     toast({
@@ -40,12 +63,69 @@ const RessourcesHumaines = () => {
     });
   };
 
+  // Handler for adding a new member
   const handleAddMember = () => {
-    toast({
-      title: "Nouveau membre",
-      description: "Ajout d'un nouveau membre",
+    // Generate a new ID for the new member
+    const newId = membres.length > 0 
+      ? Math.max(...membres.map(membre => membre.id)) + 1 
+      : 1;
+    
+    setCurrentMembre({
+      id: newId,
+      nom: '',
+      prenom: '',
+      fonction: '',
+      initiales: ''
     });
-    // Implementation of add functionality would go here
+    setIsEditing(false);
+    setIsDialogOpen(true);
+  };
+
+  // Handler for input changes in the form
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setCurrentMembre({
+      ...currentMembre,
+      [name]: value
+    });
+  };
+
+  // Handler for saving member (add or update)
+  const handleSaveMember = () => {
+    if (currentMembre.nom.trim() === '' || currentMembre.prenom.trim() === '') {
+      toast({
+        title: "Erreur",
+        description: "Le nom et le prénom sont requis",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Calculate initials if not provided
+    if (currentMembre.initiales.trim() === '') {
+      const initiales = `${currentMembre.prenom.charAt(0)}${currentMembre.nom.charAt(0)}`;
+      currentMembre.initiales = initiales.toUpperCase();
+    }
+
+    if (isEditing) {
+      // Update existing member
+      setMembres(prev => 
+        prev.map(membre => membre.id === currentMembre.id ? currentMembre : membre)
+      );
+      toast({
+        title: "Modification",
+        description: `Le membre ${currentMembre.id} a été modifié`,
+      });
+    } else {
+      // Add new member
+      setMembres(prev => [...prev, currentMembre]);
+      toast({
+        title: "Ajout",
+        description: `Le membre ${currentMembre.id} a été ajouté`,
+      });
+    }
+    
+    setIsDialogOpen(false);
   };
 
   return (
@@ -111,6 +191,86 @@ const RessourcesHumaines = () => {
           Ajouter un membre
         </button>
       </div>
+
+      {/* Modal pour ajouter/modifier un membre */}
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {isEditing ? "Modifier le membre" : "Ajouter un membre"}
+            </DialogTitle>
+            <DialogDescription>
+              {isEditing 
+                ? "Modifiez les informations du membre ci-dessous." 
+                : "Remplissez les informations pour ajouter un nouveau membre."}
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="nom" className="text-right">
+                Nom
+              </Label>
+              <Input
+                id="nom"
+                name="nom"
+                className="col-span-3"
+                value={currentMembre.nom}
+                onChange={handleInputChange}
+              />
+            </div>
+            
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="prenom" className="text-right">
+                Prénom
+              </Label>
+              <Input
+                id="prenom"
+                name="prenom"
+                className="col-span-3"
+                value={currentMembre.prenom}
+                onChange={handleInputChange}
+              />
+            </div>
+            
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="fonction" className="text-right">
+                Fonction
+              </Label>
+              <Input
+                id="fonction"
+                name="fonction"
+                className="col-span-3"
+                value={currentMembre.fonction}
+                onChange={handleInputChange}
+              />
+            </div>
+            
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="initiales" className="text-right">
+                Initiales
+              </Label>
+              <Input
+                id="initiales"
+                name="initiales"
+                className="col-span-3"
+                value={currentMembre.initiales}
+                onChange={handleInputChange}
+                placeholder="Laisser vide pour générer automatiquement"
+              />
+            </div>
+          </div>
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
+              Annuler
+            </Button>
+            <Button onClick={handleSaveMember}>
+              {isEditing ? "Mettre à jour" : "Ajouter"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
