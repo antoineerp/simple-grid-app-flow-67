@@ -1,9 +1,9 @@
-
 import React, { useState, useEffect } from 'react';
-import { Pencil, Trash, FileText, Check, Plus, Minus } from 'lucide-react';
+import { Pencil, Trash, FileText, Plus } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import ResponsableSelector from '@/components/ResponsableSelector';
 import { MembresProvider } from '@/contexts/MembresContext';
+import ExigenceForm from '@/components/exigences/ExigenceForm';
 
 interface Exigence {
   id: number;
@@ -40,7 +40,9 @@ const ExigencesContent = () => {
     ];
   });
 
-  // Sauvegarde des exigences dans le localStorage
+  const [editingExigence, setEditingExigence] = useState<Exigence | null>(null);
+  const [dialogOpen, setDialogOpen] = useState(false);
+
   useEffect(() => {
     localStorage.setItem('exigences', JSON.stringify(exigences));
   }, [exigences]);
@@ -53,7 +55,6 @@ const ExigencesContent = () => {
     total: 2
   });
 
-  // Mise à jour des statistiques quand les exigences changent
   useEffect(() => {
     const newStats = {
       exclusion: exigences.filter(e => e.exclusion).length,
@@ -101,13 +102,30 @@ const ExigencesContent = () => {
     );
   };
 
-  // Add handlers for edit and delete actions
   const handleEdit = (id: number) => {
+    const exigenceToEdit = exigences.find(exigence => exigence.id === id);
+    if (exigenceToEdit) {
+      setEditingExigence(exigenceToEdit);
+      setDialogOpen(true);
+    } else {
+      toast({
+        title: "Erreur",
+        description: `L'exigence ${id} n'a pas été trouvée`,
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleSaveExigence = (updatedExigence: Exigence) => {
+    setExigences(prev => 
+      prev.map(exigence => 
+        exigence.id === updatedExigence.id ? updatedExigence : exigence
+      )
+    );
     toast({
-      title: "Modification",
-      description: `Édition de l'exigence ${id}`,
+      title: "Exigence mise à jour",
+      description: `L'exigence ${updatedExigence.id} a été mise à jour avec succès`
     });
-    // Implementation of edit functionality would go here
   };
 
   const handleDelete = (id: number) => {
@@ -118,7 +136,6 @@ const ExigencesContent = () => {
     });
   };
 
-  // Handler pour ajouter une nouvelle exigence
   const handleAddExigence = () => {
     const newId = exigences.length > 0 
       ? Math.max(...exigences.map(e => e.id)) + 1 
@@ -299,11 +316,17 @@ const ExigencesContent = () => {
           Ajouter une exigence
         </button>
       </div>
+
+      <ExigenceForm 
+        exigence={editingExigence}
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        onSave={handleSaveExigence}
+      />
     </div>
   );
 };
 
-// Composant wrapper pour fournir le contexte
 const Exigences = () => (
   <MembresProvider>
     <ExigencesContent />

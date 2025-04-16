@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Pencil, Trash, FileText, Plus } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
@@ -12,6 +11,7 @@ import {
 } from "@/components/ui/table";
 import ResponsableSelector from '@/components/ResponsableSelector';
 import { MembresProvider } from '@/contexts/MembresContext';
+import DocumentForm from '@/components/gestion-documentaire/DocumentForm';
 
 interface Document {
   id: number;
@@ -55,6 +55,9 @@ const GestionDocumentaireContent = () => {
     ];
   });
 
+  const [editingDocument, setEditingDocument] = useState<Document | null>(null);
+  const [dialogOpen, setDialogOpen] = useState(false);
+
   // Sauvegarde des documents dans le localStorage
   useEffect(() => {
     localStorage.setItem('documents', JSON.stringify(documents));
@@ -97,15 +100,35 @@ const GestionDocumentaireContent = () => {
     );
   };
 
-  // Add handlers for edit and delete actions
+  // Modifier le handler d'édition pour ouvrir la modale
   const handleEdit = (id: number) => {
-    toast({
-      title: "Modification",
-      description: `Édition du document ${id}`,
-    });
-    // Implementation of edit functionality would go here
+    const documentToEdit = documents.find(doc => doc.id === id);
+    if (documentToEdit) {
+      setEditingDocument(documentToEdit);
+      setDialogOpen(true);
+    } else {
+      toast({
+        title: "Erreur",
+        description: `Le document ${id} n'a pas été trouvé`,
+        variant: "destructive"
+      });
+    }
   };
 
+  // Fonction pour enregistrer les modifications
+  const handleSaveDocument = (updatedDocument: Document) => {
+    setDocuments(prev => 
+      prev.map(doc => 
+        doc.id === updatedDocument.id ? updatedDocument : doc
+      )
+    );
+    toast({
+      title: "Document mis à jour",
+      description: `Le document ${updatedDocument.id} a été mis à jour avec succès`
+    });
+  };
+
+  // Add handlers for edit and delete actions
   const handleDelete = (id: number) => {
     setDocuments(prev => prev.filter(doc => doc.id !== id));
     toast({
@@ -293,6 +316,13 @@ const GestionDocumentaireContent = () => {
           Nouveau document
         </button>
       </div>
+
+      <DocumentForm 
+        document={editingDocument}
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        onSave={handleSaveDocument}
+      />
     </div>
   );
 };
