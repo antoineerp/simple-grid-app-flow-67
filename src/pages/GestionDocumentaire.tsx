@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Pencil, Trash, FileText, Plus } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
@@ -23,7 +24,7 @@ interface Document {
     c: string[];
     i: string[];
   };
-  etat: string;
+  etat: 'NC' | 'PC' | 'C' | 'EX' | null;
 }
 
 const GestionDocumentaireContent = () => {
@@ -137,6 +138,17 @@ const GestionDocumentaireContent = () => {
     });
   };
 
+  // Handler pour l'atteinte (même que dans Exigences.tsx)
+  const handleAtteinteChange = (id: number, atteinte: 'NC' | 'PC' | 'C' | null) => {
+    setDocuments(prev => 
+      prev.map(doc => 
+        doc.id === id 
+          ? { ...doc, etat: atteinte } 
+          : doc
+      )
+    );
+  };
+
   // Handler pour ajouter un nouveau document
   const handleAddDocument = () => {
     const newId = documents.length > 0 
@@ -210,7 +222,9 @@ const GestionDocumentaireContent = () => {
                 Responsabilités
               </TableHead>
               <TableHead className="py-3 px-4 text-app-blue font-semibold">Exclusion</TableHead>
-              <TableHead className="py-3 px-4 text-app-blue font-semibold">État</TableHead>
+              <TableHead className="py-3 px-4 text-app-blue font-semibold text-center" colSpan={3}>
+                Atteinte
+              </TableHead>
               <TableHead className="py-3 px-4 text-app-blue font-semibold text-right">Actions</TableHead>
             </TableRow>
             <TableRow className="bg-app-light-blue text-left">
@@ -221,14 +235,16 @@ const GestionDocumentaireContent = () => {
               <TableHead className="py-2 px-2 text-center text-sm font-medium">C</TableHead>
               <TableHead className="py-2 px-2 text-center text-sm font-medium">I</TableHead>
               <TableHead className="py-2"></TableHead>
-              <TableHead className="py-2 px-4 text-sm font-medium">NCPCC</TableHead>
+              <TableHead className="py-2 px-2 text-center text-sm font-medium text-red-500">NC</TableHead>
+              <TableHead className="py-2 px-2 text-center text-sm font-medium text-yellow-500">PC</TableHead>
+              <TableHead className="py-2 px-2 text-center text-sm font-medium text-green-500">C</TableHead>
               <TableHead className="py-2"></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody onReorder={handleReorder}>
             {documents.length === 0 ? (
               <TableRow className="border-b">
-                <TableCell colSpan={10} className="py-4 px-4 text-center text-gray-500">
+                <TableCell colSpan={12} className="py-4 px-4 text-center text-gray-500">
                   Aucun document disponible
                 </TableCell>
               </TableRow>
@@ -280,7 +296,39 @@ const GestionDocumentaireContent = () => {
                       onClick={(e) => e.stopPropagation()} // Prevent row drag
                     />
                   </TableCell>
-                  <TableCell className="py-3 px-4">{doc.etat}</TableCell>
+                  
+                  {/* Remplacer la colonne État unique par 3 sous-colonnes radio pour atteinte */}
+                  <TableCell className="py-3 px-1 text-center">
+                    <input 
+                      type="radio" 
+                      name={`atteinte-${doc.id}`}
+                      checked={doc.etat === 'NC'}
+                      onChange={() => handleAtteinteChange(doc.id, 'NC')}
+                      className="form-radio h-4 w-4 text-red-500"
+                      onClick={(e) => e.stopPropagation()} // Prevent row drag
+                    />
+                  </TableCell>
+                  <TableCell className="py-3 px-1 text-center">
+                    <input 
+                      type="radio" 
+                      name={`atteinte-${doc.id}`}
+                      checked={doc.etat === 'PC'}
+                      onChange={() => handleAtteinteChange(doc.id, 'PC')}
+                      className="form-radio h-4 w-4 text-yellow-500"
+                      onClick={(e) => e.stopPropagation()} // Prevent row drag
+                    />
+                  </TableCell>
+                  <TableCell className="py-3 px-1 text-center">
+                    <input 
+                      type="radio" 
+                      name={`atteinte-${doc.id}`}
+                      checked={doc.etat === 'C'}
+                      onChange={() => handleAtteinteChange(doc.id, 'C')}
+                      className="form-radio h-4 w-4 text-green-500"
+                      onClick={(e) => e.stopPropagation()} // Prevent row drag
+                    />
+                  </TableCell>
+                  
                   <TableCell className="py-3 px-4 text-right">
                     <button 
                       className="text-gray-600 hover:text-app-blue mr-3"
