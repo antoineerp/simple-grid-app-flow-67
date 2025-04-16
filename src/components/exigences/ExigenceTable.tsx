@@ -37,7 +37,7 @@ const ExigenceTable: React.FC<ExigenceTableProps> = ({
         <TableHeader>
           <TableRow>
             <TableHead className="w-10"></TableHead>
-            <TableHead className="py-3 px-4 text-app-blue font-semibold">Nom</TableHead>
+            <TableHead className="py-3 px-4 text-app-blue font-semibold w-1/3">Nom</TableHead>
             <TableHead className="py-3 px-4 text-app-blue font-semibold text-center" colSpan={4}>
               Responsabilités
             </TableHead>
@@ -115,6 +115,7 @@ const ExigenceTable: React.FC<ExigenceTableProps> = ({
                   checked={exigence.atteinte === 'NC'}
                   onChange={() => onAtteinteChange(exigence.id, 'NC')}
                   className="form-radio h-4 w-4 text-red-500"
+                  disabled={exigence.exclusion}
                   onClick={(e) => e.stopPropagation()} // Prevent row drag
                 />
               </TableCell>
@@ -125,6 +126,7 @@ const ExigenceTable: React.FC<ExigenceTableProps> = ({
                   checked={exigence.atteinte === 'PC'}
                   onChange={() => onAtteinteChange(exigence.id, 'PC')}
                   className="form-radio h-4 w-4 text-yellow-500"
+                  disabled={exigence.exclusion}
                   onClick={(e) => e.stopPropagation()} // Prevent row drag
                 />
               </TableCell>
@@ -135,6 +137,7 @@ const ExigenceTable: React.FC<ExigenceTableProps> = ({
                   checked={exigence.atteinte === 'C'}
                   onChange={() => onAtteinteChange(exigence.id, 'C')}
                   className="form-radio h-4 w-4 text-green-500"
+                  disabled={exigence.exclusion}
                   onClick={(e) => e.stopPropagation()} // Prevent row drag
                 />
               </TableCell>

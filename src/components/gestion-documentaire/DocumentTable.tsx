@@ -37,7 +37,7 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
         <TableHeader>
           <TableRow>
             <TableHead className="w-10"></TableHead>
-            <TableHead className="py-3 px-4 text-app-blue font-semibold">Nom</TableHead>
+            <TableHead className="py-3 px-4 text-app-blue font-semibold w-1/3">Nom</TableHead>
             <TableHead className="py-3 px-4 text-app-blue font-semibold">Lien</TableHead>
             <TableHead className="py-3 px-4 text-app-blue font-semibold text-center" colSpan={4}>
               Responsabilités
@@ -133,6 +133,7 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
                     checked={doc.etat === 'NC'}
                     onChange={() => onAtteinteChange(doc.id, 'NC')}
                     className="form-radio h-4 w-4 text-red-500"
+                    disabled={doc.etat === 'EX'}
                     onClick={(e) => e.stopPropagation()} // Prevent row drag
                   />
                 </TableCell>
@@ -143,6 +144,7 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
                     checked={doc.etat === 'PC'}
                     onChange={() => onAtteinteChange(doc.id, 'PC')}
                     className="form-radio h-4 w-4 text-yellow-500"
+                    disabled={doc.etat === 'EX'}
                     onClick={(e) => e.stopPropagation()} // Prevent row drag
                   />
                 </TableCell>
@@ -153,6 +155,7 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
                     checked={doc.etat === 'C'}
                     onChange={() => onAtteinteChange(doc.id, 'C')}
                     className="form-radio h-4 w-4 text-green-500"
+                    disabled={doc.etat === 'EX'}
                     onClick={(e) => e.stopPropagation()} // Prevent row drag
                   />
                 </TableCell>

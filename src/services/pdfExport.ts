@@ -1,0 +1,145 @@
+
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
+import { format } from 'date-fns';
+import { fr } from 'date-fns/locale';
+
+// Ajout de la déclaration pour TypeScript
+declare module 'jspdf' {
+  interface jsPDF {
+    autoTable: (options: any) => jsPDF;
+  }
+}
+
+// Fonction pour obtenir le logo actuel
+const getCurrentLogo = (): string => {
+  const savedLogo = localStorage.getItem('appLogo');
+  return savedLogo || "/lovable-uploads/4425c340-2ce3-416b-abc9-b75906ca8705.png";
+};
+
+// Fonction pour formater l'état
+const formatState = (state: string | null | boolean): string => {
+  if (state === 'NC') return 'Non Conforme';
+  if (state === 'PC') return 'Partiellement Conforme';
+  if (state === 'C') return 'Conforme';
+  if (state === 'EX' || state === true) return 'Exclusion';
+  return 'Non défini';
+};
+
+// Fonction pour formater les responsabilités
+const formatResponsabilities = (responsabilites: { r: string[], a: string[], c: string[], i: string[] }): string => {
+  let result = '';
+  if (responsabilites.r.length > 0) result += `R: ${responsabilites.r.join(', ')} `;
+  if (responsabilites.a.length > 0) result += `A: ${responsabilites.a.join(', ')} `;
+  if (responsabilites.c.length > 0) result += `C: ${responsabilites.c.join(', ')} `;
+  if (responsabilites.i.length > 0) result += `I: ${responsabilites.i.join(', ')}`;
+  return result.trim();
+};
+
+// Fonction pour exporter les exigences en PDF
+export const exportExigencesToPdf = (exigences: any[], title: string = 'Liste des exigences') => {
+  const doc = new jsPDF();
+  const logoPath = getCurrentLogo();
+  
+  // Date de génération
+  const currentDate = format(new Date(), 'dd MMMM yyyy à HH:mm', { locale: fr });
+  
+  // Ajout du logo (s'adapte à l'image)
+  const img = new Image();
+  img.src = logoPath;
+  
+  img.onload = function() {
+    const imgWidth = 30;
+    const imgHeight = (img.height * imgWidth) / img.width;
+    doc.addImage(img, 'PNG', 10, 10, imgWidth, imgHeight);
+    
+    // Ajout du titre
+    doc.setFontSize(18);
+    doc.text(title, 50, 20);
+    
+    // Ajout de la date
+    doc.setFontSize(10);
+    doc.text(`Généré le: ${currentDate}`, 10, 40);
+    
+    // Tableau des exigences
+    const headers = [['Nom', 'Responsabilités', 'État']];
+    
+    const data = exigences.map(exigence => [
+      exigence.nom,
+      formatResponsabilities(exigence.responsabilites),
+      exigence.exclusion ? 'Exclusion' : formatState(exigence.atteinte)
+    ]);
+    
+    doc.autoTable({
+      startY: 45,
+      head: headers,
+      body: data,
+      theme: 'grid',
+      styles: { fontSize: 10, cellPadding: 5 },
+      headStyles: { fillColor: [0, 48, 135], textColor: [255, 255, 255] },
+      columnStyles: {
+        0: { cellWidth: 70 },
+        1: { cellWidth: 70 },
+        2: { cellWidth: 50 }
+      }
+    });
+    
+    // Enregistrement du PDF
+    doc.save(`${title.toLowerCase().replace(/ /g, '_')}_${format(new Date(), 'yyyyMMdd_HHmm')}.pdf`);
+  };
+};
+
+// Fonction pour exporter les documents en PDF
+export const exportDocumentsToPdf = (documents: any[], title: string = 'Gestion Documentaire') => {
+  const doc = new jsPDF();
+  const logoPath = getCurrentLogo();
+  
+  // Date de génération
+  const currentDate = format(new Date(), 'dd MMMM yyyy à HH:mm', { locale: fr });
+  
+  // Ajout du logo (s'adapte à l'image)
+  const img = new Image();
+  img.src = logoPath;
+  
+  img.onload = function() {
+    const imgWidth = 30;
+    const imgHeight = (img.height * imgWidth) / img.width;
+    doc.addImage(img, 'PNG', 10, 10, imgWidth, imgHeight);
+    
+    // Ajout du titre
+    doc.setFontSize(18);
+    doc.text(title, 50, 20);
+    
+    // Ajout de la date
+    doc.setFontSize(10);
+    doc.text(`Généré le: ${currentDate}`, 10, 40);
+    
+    // Tableau des documents
+    const headers = [['Nom', 'Lien', 'Responsabilités', 'État']];
+    
+    const data = documents.map(doc => [
+      doc.nom,
+      doc.lien || '-',
+      formatResponsabilities(doc.responsabilites),
+      formatState(doc.etat)
+    ]);
+    
+    doc.autoTable({
+      startY: 45,
+      head: headers,
+      body: data,
+      theme: 'grid',
+      styles: { fontSize: 10, cellPadding: 5 },
+      headStyles: { fillColor: [0, 48, 135], textColor: [255, 255, 255] },
+      columnStyles: {
+        0: { cellWidth: 60 },
+        1: { cellWidth: 40 },
+        2: { cellWidth: 60 },
+        3: { cellWidth: 30 }
+      }
+    });
+    
+    // Enregistrement du PDF
+    doc.save(`${title.toLowerCase().replace(/ /g, '_')}_${format(new Date(), 'yyyyMMdd_HHmm')}.pdf`);
+  };
+};

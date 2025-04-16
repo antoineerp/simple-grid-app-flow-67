@@ -1,12 +1,21 @@
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { ChevronDown, Upload, LogOut } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useToast } from "@/hooks/use-toast";
+import LogoSelector from './LogoSelector';
 
 const Header = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const [logo, setLogo] = useState(() => {
+    const savedLogo = localStorage.getItem('appLogo');
+    return savedLogo || "/lovable-uploads/4425c340-2ce3-416b-abc9-b75906ca8705.png";
+  });
+
+  useEffect(() => {
+    localStorage.setItem('appLogo', logo);
+  }, [logo]);
 
   const handleLogout = () => {
     // Supprimer l'information de connexion
@@ -21,16 +30,16 @@ const Header = () => {
     navigate('/');
   };
 
+  const handleLogoChange = (newLogo: string) => {
+    setLogo(newLogo);
+  };
+
   return (
     <header className="border-b bg-white">
       <div className="flex items-center justify-between h-14 px-4">
         <div className="flex items-center">
-          <img 
-            src="/lovable-uploads/4425c340-2ce3-416b-abc9-b75906ca8705.png" 
-            alt="FormaCart Logo" 
-            className="h-10 mr-4" 
-          />
-          <Link to="/pilotage" className="text-app-blue text-xl font-semibold">
+          <LogoSelector currentLogo={logo} onLogoChange={handleLogoChange} />
+          <Link to="/pilotage" className="text-app-blue text-xl font-semibold ml-4">
             FormaCart
           </Link>
         </div>
