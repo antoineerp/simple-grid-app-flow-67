@@ -1,39 +1,49 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Pencil, Trash, FileText, Check, Plus, Minus } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
+import ResponsableSelector from '@/components/ResponsableSelector';
+import { MembresProvider } from '@/contexts/MembresContext';
 
 interface Exigence {
   id: number;
   nom: string;
   responsabilites: {
-    r: boolean;
-    a: boolean;
-    c: boolean;
-    i: boolean;
+    r: string[];
+    a: string[];
+    c: string[];
+    i: string[];
   };
   exclusion: boolean;
   atteinte: 'NC' | 'PC' | 'C' | null;
 }
 
-const Exigences = () => {
+const ExigencesContent = () => {
   const { toast } = useToast();
-  const [exigences, setExigences] = useState<Exigence[]>([
-    { 
-      id: 1, 
-      nom: 'Levée du courrier', 
-      responsabilites: { r: true, a: true, c: true, i: true },
-      exclusion: false,
-      atteinte: null
-    },
-    { 
-      id: 2, 
-      nom: 'Ouverture du courrier', 
-      responsabilites: { r: true, a: true, c: true, i: true },
-      exclusion: false,
-      atteinte: null
-    },
-  ]);
+  const [exigences, setExigences] = useState<Exigence[]>(() => {
+    const storedExigences = localStorage.getItem('exigences');
+    return storedExigences ? JSON.parse(storedExigences) : [
+      { 
+        id: 1, 
+        nom: 'Levée du courrier', 
+        responsabilites: { r: [], a: [], c: [], i: [] },
+        exclusion: false,
+        atteinte: null
+      },
+      { 
+        id: 2, 
+        nom: 'Ouverture du courrier', 
+        responsabilites: { r: [], a: [], c: [], i: [] },
+        exclusion: false,
+        atteinte: null
+      },
+    ];
+  });
+
+  // Sauvegarde des exigences dans le localStorage
+  useEffect(() => {
+    localStorage.setItem('exigences', JSON.stringify(exigences));
+  }, [exigences]);
 
   const [stats, setStats] = useState({
     exclusion: 0,
@@ -43,7 +53,19 @@ const Exigences = () => {
     total: 2
   });
 
-  const handleResponsabiliteChange = (id: number, type: 'r' | 'a' | 'c' | 'i') => {
+  // Mise à jour des statistiques quand les exigences changent
+  useEffect(() => {
+    const newStats = {
+      exclusion: exigences.filter(e => e.exclusion).length,
+      nonConforme: exigences.filter(e => e.atteinte === 'NC').length,
+      partiellementConforme: exigences.filter(e => e.atteinte === 'PC').length,
+      conforme: exigences.filter(e => e.atteinte === 'C').length,
+      total: exigences.length
+    };
+    setStats(newStats);
+  }, [exigences]);
+
+  const handleResponsabiliteChange = (id: number, type: 'r' | 'a' | 'c' | 'i', values: string[]) => {
     setExigences(prev => 
       prev.map(exigence => 
         exigence.id === id 
@@ -51,7 +73,7 @@ const Exigences = () => {
               ...exigence, 
               responsabilites: { 
                 ...exigence.responsabilites, 
-                [type]: !exigence.responsabilites[type] 
+                [type]: values
               } 
             } 
           : exigence
@@ -93,6 +115,27 @@ const Exigences = () => {
     toast({
       title: "Suppression",
       description: `L'exigence ${id} a été supprimée`,
+    });
+  };
+
+  // Handler pour ajouter une nouvelle exigence
+  const handleAddExigence = () => {
+    const newId = exigences.length > 0 
+      ? Math.max(...exigences.map(e => e.id)) + 1 
+      : 1;
+    
+    const newExigence: Exigence = {
+      id: newId,
+      nom: `Nouvelle exigence ${newId}`,
+      responsabilites: { r: [], a: [], c: [], i: [] },
+      exclusion: false,
+      atteinte: null
+    };
+    
+    setExigences(prev => [...prev, newExigence]);
+    toast({
+      title: "Nouvelle exigence",
+      description: `L'exigence ${newId} a été ajoutée`,
     });
   };
 
@@ -157,36 +200,32 @@ const Exigences = () => {
                 <td className="py-3 px-4">{exigence.nom}</td>
                 
                 <td className="py-3 px-1 text-center">
-                  <button 
-                    onClick={() => handleResponsabiliteChange(exigence.id, 'r')}
-                    className="text-gray-400 hover:text-gray-600"
-                  >
-                    {exigence.responsabilites.r ? <Plus className="h-4 w-4 inline-block" /> : <Minus className="h-4 w-4 inline-block" />}
-                  </button>
+                  <ResponsableSelector 
+                    selectedInitiales={exigence.responsabilites.r}
+                    onChange={(values) => handleResponsabiliteChange(exigence.id, 'r', values)}
+                    type="r"
+                  />
                 </td>
                 <td className="py-3 px-1 text-center">
-                  <button 
-                    onClick={() => handleResponsabiliteChange(exigence.id, 'a')}
-                    className="text-gray-400 hover:text-gray-600"
-                  >
-                    {exigence.responsabilites.a ? <Plus className="h-4 w-4 inline-block" /> : <Minus className="h-4 w-4 inline-block" />}
-                  </button>
+                  <ResponsableSelector 
+                    selectedInitiales={exigence.responsabilites.a}
+                    onChange={(values) => handleResponsabiliteChange(exigence.id, 'a', values)}
+                    type="a"
+                  />
                 </td>
                 <td className="py-3 px-1 text-center">
-                  <button 
-                    onClick={() => handleResponsabiliteChange(exigence.id, 'c')}
-                    className="text-gray-400 hover:text-gray-600"
-                  >
-                    {exigence.responsabilites.c ? <Plus className="h-4 w-4 inline-block" /> : <Minus className="h-4 w-4 inline-block" />}
-                  </button>
+                  <ResponsableSelector 
+                    selectedInitiales={exigence.responsabilites.c}
+                    onChange={(values) => handleResponsabiliteChange(exigence.id, 'c', values)}
+                    type="c"
+                  />
                 </td>
                 <td className="py-3 px-1 text-center">
-                  <button 
-                    onClick={() => handleResponsabiliteChange(exigence.id, 'i')}
-                    className="text-gray-400 hover:text-gray-600"
-                  >
-                    {exigence.responsabilites.i ? <Plus className="h-4 w-4 inline-block" /> : <Minus className="h-4 w-4 inline-block" />}
-                  </button>
+                  <ResponsableSelector 
+                    selectedInitiales={exigence.responsabilites.i}
+                    onChange={(values) => handleResponsabiliteChange(exigence.id, 'i', values)}
+                    type="i"
+                  />
                 </td>
                 
                 <td className="py-3 px-4 text-center">
@@ -230,7 +269,7 @@ const Exigences = () => {
                   <button 
                     className="text-gray-600 hover:text-app-blue mr-3"
                     onClick={(e) => {
-                      e.stopPropagation(); // Prevent row drag when clicking the button
+                      e.stopPropagation();
                       handleEdit(exigence.id);
                     }}
                   >
@@ -239,7 +278,7 @@ const Exigences = () => {
                   <button 
                     className="text-gray-600 hover:text-red-500"
                     onClick={(e) => {
-                      e.stopPropagation(); // Prevent row drag when clicking the button
+                      e.stopPropagation();
                       handleDelete(exigence.id);
                     }}
                   >
@@ -255,13 +294,7 @@ const Exigences = () => {
       <div className="flex justify-end mt-4">
         <button 
           className="btn-primary"
-          onClick={() => {
-            toast({
-              title: "Nouvelle exigence",
-              description: "Ajout d'une nouvelle exigence",
-            });
-            // Implementation of add functionality would go here
-          }}
+          onClick={handleAddExigence}
         >
           Ajouter une exigence
         </button>
@@ -269,5 +302,12 @@ const Exigences = () => {
     </div>
   );
 };
+
+// Composant wrapper pour fournir le contexte
+const Exigences = () => (
+  <MembresProvider>
+    <ExigencesContent />
+  </MembresProvider>
+);
 
 export default Exigences;

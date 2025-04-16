@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Pencil, Trash, FileText, Plus } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -10,45 +10,55 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import ResponsableSelector from '@/components/ResponsableSelector';
+import { MembresProvider } from '@/contexts/MembresContext';
 
 interface Document {
   id: number;
   nom: string;
   lien: string | null;
   responsabilites: {
-    r: boolean;
-    a: boolean;
-    c: boolean;
-    i: boolean;
+    r: string[];
+    a: string[];
+    c: string[];
+    i: string[];
   };
   etat: string;
 }
 
-const GestionDocumentaire = () => {
+const GestionDocumentaireContent = () => {
   const { toast } = useToast();
-  const [documents, setDocuments] = useState<Document[]>([
-    { 
-      id: 1, 
-      nom: 'Document 1', 
-      lien: 'Voir le document', 
-      responsabilites: { r: true, a: false, c: true, i: false },
-      etat: 'C' 
-    },
-    { 
-      id: 2, 
-      nom: 'Document 2', 
-      lien: null, 
-      responsabilites: { r: false, a: true, c: false, i: true },
-      etat: 'PC' 
-    },
-    { 
-      id: 3, 
-      nom: 'Document 3', 
-      lien: 'Voir le document', 
-      responsabilites: { r: true, a: true, c: false, i: false },
-      etat: 'NC' 
-    },
-  ]);
+  const [documents, setDocuments] = useState<Document[]>(() => {
+    const storedDocuments = localStorage.getItem('documents');
+    return storedDocuments ? JSON.parse(storedDocuments) : [
+      { 
+        id: 1, 
+        nom: 'Document 1', 
+        lien: 'Voir le document', 
+        responsabilites: { r: [], a: [], c: [], i: [] },
+        etat: 'C' 
+      },
+      { 
+        id: 2, 
+        nom: 'Document 2', 
+        lien: null, 
+        responsabilites: { r: [], a: [], c: [], i: [] },
+        etat: 'PC' 
+      },
+      { 
+        id: 3, 
+        nom: 'Document 3', 
+        lien: 'Voir le document', 
+        responsabilites: { r: [], a: [], c: [], i: [] },
+        etat: 'NC' 
+      },
+    ];
+  });
+
+  // Sauvegarde des documents dans le localStorage
+  useEffect(() => {
+    localStorage.setItem('documents', JSON.stringify(documents));
+  }, [documents]);
 
   const [stats, setStats] = useState({
     exclusion: 0,
@@ -57,6 +67,35 @@ const GestionDocumentaire = () => {
     conforme: 1,
     total: 3
   });
+
+  // Mise à jour des statistiques quand les documents changent
+  useEffect(() => {
+    const newStats = {
+      exclusion: documents.filter(d => d.etat === 'EX').length,
+      nonConforme: documents.filter(d => d.etat === 'NC').length,
+      partiellementConforme: documents.filter(d => d.etat === 'PC').length,
+      conforme: documents.filter(d => d.etat === 'C').length,
+      total: documents.length
+    };
+    setStats(newStats);
+  }, [documents]);
+
+  // Handler pour les responsabilités
+  const handleResponsabiliteChange = (id: number, type: 'r' | 'a' | 'c' | 'i', values: string[]) => {
+    setDocuments(prev => 
+      prev.map(doc => 
+        doc.id === id 
+          ? { 
+              ...doc, 
+              responsabilites: { 
+                ...doc.responsabilites, 
+                [type]: values
+              } 
+            } 
+          : doc
+      )
+    );
+  };
 
   // Add handlers for edit and delete actions
   const handleEdit = (id: number) => {
@@ -69,13 +108,36 @@ const GestionDocumentaire = () => {
 
   const handleDelete = (id: number) => {
     setDocuments(prev => prev.filter(doc => doc.id !== id));
-    setStats(prev => ({
-      ...prev,
-      total: prev.total - 1
-    }));
     toast({
       title: "Suppression",
       description: `Le document ${id} a été supprimé`,
+    });
+  };
+
+  // Handler pour ajouter un nouveau document
+  const handleAddDocument = () => {
+    const newId = documents.length > 0 
+      ? Math.max(...documents.map(d => d.id)) + 1 
+      : 1;
+    
+    const newDocument: Document = {
+      id: newId,
+      nom: `Document ${newId}`,
+      lien: null,
+      responsabilites: { r: [], a: [], c: [], i: [] },
+      etat: 'NC'
+    };
+    
+    setDocuments(prev => [...prev, newDocument]);
+    setStats(prev => ({
+      ...prev,
+      nonConforme: prev.nonConforme + 1,
+      total: prev.total + 1
+    }));
+    
+    toast({
+      title: "Nouveau document",
+      description: `Le document ${newId} a été ajouté`,
     });
   };
 
@@ -161,16 +223,32 @@ const GestionDocumentaire = () => {
                     )}
                   </TableCell>
                   <TableCell className="py-3 px-2 text-center">
-                    {doc.responsabilites.r ? "+" : "-"}
+                    <ResponsableSelector 
+                      selectedInitiales={doc.responsabilites.r}
+                      onChange={(values) => handleResponsabiliteChange(doc.id, 'r', values)}
+                      type="r"
+                    />
                   </TableCell>
                   <TableCell className="py-3 px-2 text-center">
-                    {doc.responsabilites.a ? "+" : "-"}
+                    <ResponsableSelector 
+                      selectedInitiales={doc.responsabilites.a}
+                      onChange={(values) => handleResponsabiliteChange(doc.id, 'a', values)}
+                      type="a"
+                    />
                   </TableCell>
                   <TableCell className="py-3 px-2 text-center">
-                    {doc.responsabilites.c ? "+" : "-"}
+                    <ResponsableSelector 
+                      selectedInitiales={doc.responsabilites.c}
+                      onChange={(values) => handleResponsabiliteChange(doc.id, 'c', values)}
+                      type="c"
+                    />
                   </TableCell>
                   <TableCell className="py-3 px-2 text-center">
-                    {doc.responsabilites.i ? "+" : "-"}
+                    <ResponsableSelector 
+                      selectedInitiales={doc.responsabilites.i}
+                      onChange={(values) => handleResponsabiliteChange(doc.id, 'i', values)}
+                      type="i"
+                    />
                   </TableCell>
                   <TableCell className="py-3 px-4 text-center">
                     <input 
@@ -210,13 +288,7 @@ const GestionDocumentaire = () => {
       <div className="flex justify-end mt-4">
         <button 
           className="btn-primary"
-          onClick={() => {
-            toast({
-              title: "Nouveau document",
-              description: "Ajout d'un nouveau document",
-            });
-            // Implementation would go here
-          }}
+          onClick={handleAddDocument}
         >
           Nouveau document
         </button>
@@ -224,5 +296,12 @@ const GestionDocumentaire = () => {
     </div>
   );
 };
+
+// Composant wrapper pour fournir le contexte
+const GestionDocumentaire = () => (
+  <MembresProvider>
+    <GestionDocumentaireContent />
+  </MembresProvider>
+);
 
 export default GestionDocumentaire;

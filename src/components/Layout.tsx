@@ -3,6 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import Header from './Header';
 import Sidebar from './Sidebar';
+import { MembresProvider } from '@/contexts/MembresContext';
 
 const Layout = () => {
   const navigate = useNavigate();
@@ -26,15 +27,17 @@ const Layout = () => {
   }
 
   return (
-    <div className="flex min-h-screen flex-col">
-      <Header />
-      <div className="flex flex-1">
-        <Sidebar />
-        <main className="flex-1 bg-gray-50 overflow-auto">
-          <Outlet />
-        </main>
+    <MembresProvider>
+      <div className="flex min-h-screen flex-col">
+        <Header />
+        <div className="flex flex-1">
+          <Sidebar />
+          <main className="flex-1 bg-gray-50 overflow-auto">
+            <Outlet />
+          </main>
+        </div>
       </div>
-    </div>
+    </MembresProvider>
   );
 };
 

@@ -1,5 +1,4 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Pencil, Trash, FileText, UserPlus } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -13,6 +12,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import { useMembres } from '@/contexts/MembresContext';
 
 interface Membre {
   id: number;
@@ -24,15 +24,7 @@ interface Membre {
 
 const RessourcesHumaines = () => {
   const { toast } = useToast();
-  const [membres, setMembres] = useState<Membre[]>([
-    { 
-      id: 1, 
-      nom: 'BONNET', 
-      prenom: 'RICHARD', 
-      fonction: 'DXDXD', 
-      initiales: 'RB' 
-    },
-  ]);
+  const { membres, setMembres } = useMembres();
   
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [currentMembre, setCurrentMembre] = useState<Membre>({
