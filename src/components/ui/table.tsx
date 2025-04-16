@@ -60,7 +60,7 @@ const TableBody = React.forwardRef<
 
   const childrenWithProps = React.Children.map(props.children as React.ReactNode, (child, index) => {
     if (React.isValidElement(child)) {
-      return React.cloneElement(child, {
+      return React.cloneElement(child as React.ReactElement<any>, {
         draggable: true,
         onDragStart: (e: React.DragEvent<HTMLTableRowElement>) => handleDragStart(e, index),
         onDragOver: (e: React.DragEvent<HTMLTableRowElement>) => handleDragOver(e),
