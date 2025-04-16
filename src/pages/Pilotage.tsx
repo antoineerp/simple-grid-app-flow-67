@@ -20,6 +20,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import ExigenceSummary from '@/components/pilotage/ExigenceSummary';
+import DocumentSummary from '@/components/pilotage/DocumentSummary';
 
 interface Document {
   id: number;
@@ -204,6 +205,8 @@ const Pilotage = () => {
       </div>
 
       <ExigenceSummary />
+      
+      <DocumentSummary />
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent>
