@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Pencil, Trash, FileText, Plus } from 'lucide-react';
+import { Pencil, Trash, FileText, Plus, FileDown } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -20,6 +20,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import ExigenceSummary from '@/components/pilotage/ExigenceSummary';
 
 interface Document {
   id: number;
@@ -213,7 +214,10 @@ const Pilotage = () => {
         </Button>
       </div>
 
-      {/* Modal pour ajouter/modifier un document */}
+      {/* Add the ExigenceSummary component here */}
+      <ExigenceSummary />
+
+      {/* Modal for adding/editing a document */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent>
           <DialogHeader>

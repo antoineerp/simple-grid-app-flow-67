@@ -1,6 +1,5 @@
-
 import React from 'react';
-import { FileText, FilePdf } from 'lucide-react';
+import { FileText, FileDown } from 'lucide-react';
 import { MembresProvider } from '@/contexts/MembresContext';
 import ExigenceForm from '@/components/exigences/ExigenceForm';
 import ExigenceStats from '@/components/exigences/ExigenceStats';
@@ -48,7 +47,7 @@ const ExigencesContent = () => {
           className="text-red-500 hover:text-red-700 transition-colors"
           title="Exporter en PDF"
         >
-          <FilePdf className="h-6 w-6" />
+          <FileDown className="h-6 w-6" />
         </button>
       </div>
 
