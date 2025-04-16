@@ -1,24 +1,10 @@
+
 import React, { useState } from 'react';
-import { Pencil, Trash, FileText, Plus } from 'lucide-react';
+import { FileText, Plus } from 'lucide-react';
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import PilotageDocumentsTable from '@/components/pilotage/PilotageDocumentsTable';
+import DocumentDialog from '@/components/pilotage/DocumentDialog';
 import ExigenceSummary from '@/components/pilotage/ExigenceSummary';
 import DocumentSummary from '@/components/pilotage/DocumentSummary';
 
@@ -145,55 +131,12 @@ const Pilotage = () => {
         <FileText className="text-red-500 h-6 w-6" />
       </div>
 
-      <div className="bg-white rounded-md shadow overflow-hidden mt-6">
-        <Table>
-          <TableHeader>
-            <TableRow className="bg-app-light-blue">
-              <TableHead className="text-app-blue font-semibold">Ordre</TableHead>
-              <TableHead className="text-app-blue font-semibold">Nom du document</TableHead>
-              <TableHead className="text-app-blue font-semibold">Lien</TableHead>
-              <TableHead className="text-app-blue font-semibold text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody onReorder={handleReorder}>
-            {documents
-              .sort((a, b) => a.ordre - b.ordre)
-              .map((doc) => (
-                <TableRow key={doc.id} className="border-b hover:bg-gray-50">
-                  <TableCell>{doc.ordre}</TableCell>
-                  <TableCell>{doc.nom}</TableCell>
-                  <TableCell>
-                    {doc.lien ? (
-                      <a href="#" className="text-app-blue hover:underline">
-                        Voir le document
-                      </a>
-                    ) : (
-                      <span className="text-gray-500">Aucun lien</span>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Button 
-                      variant="ghost" 
-                      size="icon" 
-                      className="text-gray-600 hover:text-app-blue"
-                      onClick={() => handleEditDocument(doc)}
-                    >
-                      <Pencil className="h-5 w-5" />
-                    </Button>
-                    <Button 
-                      variant="ghost" 
-                      size="icon" 
-                      className="text-gray-600 hover:text-red-500"
-                      onClick={() => handleDeleteDocument(doc.id)}
-                    >
-                      <Trash className="h-5 w-5" />
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
-          </TableBody>
-        </Table>
-      </div>
+      <PilotageDocumentsTable 
+        documents={documents}
+        onEditDocument={handleEditDocument}
+        onDeleteDocument={handleDeleteDocument}
+        onReorder={handleReorder}
+      />
 
       <div className="flex justify-end mt-4">
         <Button 
@@ -208,67 +151,14 @@ const Pilotage = () => {
       
       <DocumentSummary />
 
-      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>
-              {isEditing ? "Modifier le document" : "Ajouter un document"}
-            </DialogTitle>
-          </DialogHeader>
-          
-          <div className="grid gap-4 py-4">
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="ordre" className="text-right">
-                Ordre
-              </Label>
-              <Input
-                id="ordre"
-                name="ordre"
-                type="number"
-                className="col-span-3"
-                value={currentDocument.ordre}
-                onChange={handleInputChange}
-              />
-            </div>
-            
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="nom" className="text-right">
-                Nom
-              </Label>
-              <Input
-                id="nom"
-                name="nom"
-                className="col-span-3"
-                value={currentDocument.nom}
-                onChange={handleInputChange}
-              />
-            </div>
-            
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="lien" className="text-right">
-                Lien
-              </Label>
-              <Input
-                id="lien"
-                name="lien"
-                className="col-span-3"
-                value={currentDocument.lien || ''}
-                onChange={handleInputChange}
-                placeholder="Laisser vide si aucun lien"
-              />
-            </div>
-          </div>
-          
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
-              Annuler
-            </Button>
-            <Button onClick={handleSaveDocument}>
-              {isEditing ? "Mettre à jour" : "Ajouter"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <DocumentDialog 
+        isOpen={isDialogOpen}
+        onOpenChange={setIsDialogOpen}
+        currentDocument={currentDocument}
+        onInputChange={handleInputChange}
+        onSave={handleSaveDocument}
+        isEditing={isEditing}
+      />
     </div>
   );
 };
