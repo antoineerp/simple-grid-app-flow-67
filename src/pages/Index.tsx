@@ -61,9 +61,6 @@ const Index = () => {
             className="w-48 mb-4" 
           />
           <h1 className="text-2xl font-bold text-gray-800">Bienvenue sur FormaCart</h1>
-          <p className="text-gray-600 text-center mt-2">
-            Veuillez vous connecter pour accéder à votre espace
-          </p>
         </div>
         
         <Form {...form}>
@@ -106,15 +103,6 @@ const Index = () => {
           <a href="#" className="text-sm text-app-blue hover:underline">
             Mot de passe oublié?
           </a>
-        </div>
-      </div>
-      
-      <div className="hidden md:block max-w-md">
-        <div className="text-center">
-          <h2 className="text-2xl font-bold text-app-blue mb-4">Gestion de la Qualité Simplifiée</h2>
-          <p className="text-gray-700">
-            FormaCart vous permet de gérer efficacement tous les aspects de la qualité dans votre organisation.
-          </p>
         </div>
       </div>
     </div>
