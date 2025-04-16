@@ -1,67 +1,121 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { BarChart2, FileCheck, FileText, Users, BookOpen } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { useToast } from "@/hooks/use-toast";
+
+const loginSchema = z.object({
+  username: z.string().min(3, { message: "Le nom d'utilisateur doit comporter au moins 3 caractères" }),
+  password: z.string().min(6, { message: "Le mot de passe doit comporter au moins 6 caractères" }),
+});
+
+type LoginFormValues = z.infer<typeof loginSchema>;
 
 const Index = () => {
   const navigate = useNavigate();
+  const { toast } = useToast();
+  
+  const form = useForm<LoginFormValues>({
+    resolver: zodResolver(loginSchema),
+    defaultValues: {
+      username: "",
+      password: "",
+    },
+  });
 
-  const modules = [
-    {
-      name: 'Pilotage',
-      description: 'Documents de pilotage',
-      icon: BarChart2,
-      path: '/pilotage',
-      color: 'bg-blue-100 text-blue-600'
-    },
-    {
-      name: 'Exigences',
-      description: 'Liste des exigences',
-      icon: FileCheck,
-      path: '/exigences',
-      color: 'bg-green-100 text-green-600'
-    },
-    {
-      name: 'Gestion Documentaire',
-      description: 'Documentation des tâches',
-      icon: FileText,
-      path: '/gestion-documentaire',
-      color: 'bg-purple-100 text-purple-600'
-    },
-    {
-      name: 'Ressources Humaines',
-      description: 'Collaborateurs/trices du projet',
-      icon: Users,
-      path: '/ressources-humaines',
-      color: 'bg-orange-100 text-orange-600'
-    },
-    {
-      name: 'Bibliothèque',
-      description: 'Gestion des documents administratifs',
-      icon: BookOpen,
-      path: '/bibliotheque',
-      color: 'bg-red-100 text-red-600'
+  const onSubmit = (data: LoginFormValues) => {
+    // Simuler une authentification (à remplacer par une vraie authentification)
+    if (data.username === "admin" && data.password === "password") {
+      // Stocker une info de connexion dans le localStorage
+      localStorage.setItem("isLoggedIn", "true");
+      
+      toast({
+        title: "Connexion réussie",
+        description: "Bienvenue sur FormaCart",
+      });
+      
+      // Rediriger vers le tableau de bord
+      navigate("/pilotage");
+    } else {
+      toast({
+        title: "Échec de la connexion",
+        description: "Nom d'utilisateur ou mot de passe incorrect",
+        variant: "destructive",
+      });
     }
-  ];
+  };
 
   return (
-    <div className="p-8">
-      <h1 className="text-3xl font-bold text-app-blue mb-8">Tableau de bord</h1>
+    <div className="min-h-screen flex flex-col md:flex-row items-center justify-center bg-gray-50 p-6">
+      <div className="w-full max-w-md bg-white rounded-lg shadow-lg p-8 md:mr-8">
+        <div className="flex flex-col items-center mb-8">
+          <img 
+            src="/lovable-uploads/4425c340-2ce3-416b-abc9-b75906ca8705.png" 
+            alt="FormaCart Logo" 
+            className="w-48 mb-4" 
+          />
+          <h1 className="text-2xl font-bold text-gray-800">Bienvenue sur FormaCart</h1>
+          <p className="text-gray-600 text-center mt-2">
+            Veuillez vous connecter pour accéder à votre espace
+          </p>
+        </div>
+        
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+            <FormField
+              control={form.control}
+              name="username"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Nom d'utilisateur</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Entrez votre nom d'utilisateur" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            
+            <FormField
+              control={form.control}
+              name="password"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Mot de passe</FormLabel>
+                  <FormControl>
+                    <Input type="password" placeholder="Entrez votre mot de passe" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            
+            <Button type="submit" className="w-full">
+              Se connecter
+            </Button>
+          </form>
+        </Form>
+        
+        <div className="mt-6 text-center">
+          <a href="#" className="text-sm text-app-blue hover:underline">
+            Mot de passe oublié?
+          </a>
+        </div>
+      </div>
       
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {modules.map((module, index) => (
-          <div 
-            key={index} 
-            className="bg-white rounded-lg shadow-sm p-6 cursor-pointer hover:shadow-md transition-shadow"
-            onClick={() => navigate(module.path)}
-          >
-            <div className={`rounded-full w-12 h-12 flex items-center justify-center mb-4 ${module.color}`}>
-              <module.icon className="h-6 w-6" />
-            </div>
-            <h2 className="text-xl font-semibold mb-2">{module.name}</h2>
-            <p className="text-gray-600">{module.description}</p>
-          </div>
-        ))}
+      <div className="hidden md:block max-w-md">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold text-app-blue mb-4">Gestion de la Qualité Simplifiée</h2>
+          <p className="text-gray-700">
+            FormaCart vous permet de gérer efficacement tous les aspects de la qualité dans votre organisation.
+          </p>
+        </div>
       </div>
     </div>
   );
