@@ -1,184 +1,28 @@
 
-import React, { useState, useEffect } from 'react';
-import { Pencil, Trash, FileText, Plus, GripVertical } from 'lucide-react';
-import { useToast } from "@/hooks/use-toast";
-import ResponsableSelector from '@/components/ResponsableSelector';
+import React from 'react';
+import { FileText, Plus } from 'lucide-react';
 import { MembresProvider } from '@/contexts/MembresContext';
 import ExigenceForm from '@/components/exigences/ExigenceForm';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow
-} from "@/components/ui/table";
-
-interface Exigence {
-  id: number;
-  nom: string;
-  responsabilites: {
-    r: string[];
-    a: string[];
-    c: string[];
-    i: string[];
-  };
-  exclusion: boolean;
-  atteinte: 'NC' | 'PC' | 'C' | null;
-}
+import ExigenceStats from '@/components/exigences/ExigenceStats';
+import ExigenceTable from '@/components/exigences/ExigenceTable';
+import { useExigences } from '@/hooks/useExigences';
 
 const ExigencesContent = () => {
-  const { toast } = useToast();
-  const [exigences, setExigences] = useState<Exigence[]>(() => {
-    const storedExigences = localStorage.getItem('exigences');
-    return storedExigences ? JSON.parse(storedExigences) : [
-      { 
-        id: 1, 
-        nom: 'Levée du courrier', 
-        responsabilites: { r: [], a: [], c: [], i: [] },
-        exclusion: false,
-        atteinte: null
-      },
-      { 
-        id: 2, 
-        nom: 'Ouverture du courrier', 
-        responsabilites: { r: [], a: [], c: [], i: [] },
-        exclusion: false,
-        atteinte: null
-      },
-    ];
-  });
-
-  const [editingExigence, setEditingExigence] = useState<Exigence | null>(null);
-  const [dialogOpen, setDialogOpen] = useState(false);
-
-  useEffect(() => {
-    localStorage.setItem('exigences', JSON.stringify(exigences));
-  }, [exigences]);
-
-  const [stats, setStats] = useState({
-    exclusion: 0,
-    nonConforme: 0,
-    partiellementConforme: 0,
-    conforme: 0,
-    total: 0
-  });
-
-  useEffect(() => {
-    const newStats = {
-      exclusion: exigences.filter(e => e.exclusion).length,
-      nonConforme: exigences.filter(e => e.atteinte === 'NC').length,
-      partiellementConforme: exigences.filter(e => e.atteinte === 'PC').length,
-      conforme: exigences.filter(e => e.atteinte === 'C').length,
-      total: exigences.length
-    };
-    setStats(newStats);
-  }, [exigences]);
-
-  const handleResponsabiliteChange = (id: number, type: 'r' | 'a' | 'c' | 'i', values: string[]) => {
-    setExigences(prev => 
-      prev.map(exigence => 
-        exigence.id === id 
-          ? { 
-              ...exigence, 
-              responsabilites: { 
-                ...exigence.responsabilites, 
-                [type]: values
-              } 
-            } 
-          : exigence
-      )
-    );
-  };
-
-  const handleAtteinteChange = (id: number, atteinte: 'NC' | 'PC' | 'C' | null) => {
-    setExigences(prev => 
-      prev.map(exigence => 
-        exigence.id === id 
-          ? { ...exigence, atteinte } 
-          : exigence
-      )
-    );
-  };
-
-  const handleExclusionChange = (id: number) => {
-    setExigences(prev => 
-      prev.map(exigence => 
-        exigence.id === id 
-          ? { ...exigence, exclusion: !exigence.exclusion } 
-          : exigence
-      )
-    );
-  };
-
-  const handleEdit = (id: number) => {
-    const exigenceToEdit = exigences.find(exigence => exigence.id === id);
-    if (exigenceToEdit) {
-      setEditingExigence(exigenceToEdit);
-      setDialogOpen(true);
-    } else {
-      toast({
-        title: "Erreur",
-        description: `L'exigence ${id} n'a pas été trouvée`,
-        variant: "destructive"
-      });
-    }
-  };
-
-  const handleSaveExigence = (updatedExigence: Exigence) => {
-    setExigences(prev => 
-      prev.map(exigence => 
-        exigence.id === updatedExigence.id ? updatedExigence : exigence
-      )
-    );
-    toast({
-      title: "Exigence mise à jour",
-      description: `L'exigence ${updatedExigence.id} a été mise à jour avec succès`
-    });
-  };
-
-  const handleDelete = (id: number) => {
-    setExigences(prev => prev.filter(exigence => exigence.id !== id));
-    toast({
-      title: "Suppression",
-      description: `L'exigence ${id} a été supprimée`,
-    });
-  };
-
-  const handleAddExigence = () => {
-    const newId = exigences.length > 0 
-      ? Math.max(...exigences.map(e => e.id)) + 1 
-      : 1;
-    
-    const newExigence: Exigence = {
-      id: newId,
-      nom: `Nouvelle exigence ${newId}`,
-      responsabilites: { r: [], a: [], c: [], i: [] },
-      exclusion: false,
-      atteinte: null
-    };
-    
-    setExigences(prev => [...prev, newExigence]);
-    toast({
-      title: "Nouvelle exigence",
-      description: `L'exigence ${newId} a été ajoutée`,
-    });
-  };
-
-  // Add reorder function for drag and drop
-  const handleReorder = (startIndex: number, endIndex: number) => {
-    setExigences(prev => {
-      const result = Array.from(prev);
-      const [removed] = result.splice(startIndex, 1);
-      result.splice(endIndex, 0, removed);
-      return result;
-    });
-
-    toast({
-      title: "Réorganisation",
-      description: "L'ordre des exigences a été mis à jour",
-    });
-  };
+  const {
+    exigences,
+    stats,
+    editingExigence,
+    dialogOpen,
+    setDialogOpen,
+    handleResponsabiliteChange,
+    handleAtteinteChange,
+    handleExclusionChange,
+    handleEdit,
+    handleSaveExigence,
+    handleDelete,
+    handleAddExigence,
+    handleReorder
+  } = useExigences();
 
   return (
     <div className="p-8">
@@ -190,156 +34,17 @@ const ExigencesContent = () => {
         <FileText className="text-red-500 h-6 w-6" />
       </div>
 
-      <div className="flex space-x-2 mb-4 mt-4">
-        <div className="badge bg-gray-200 text-gray-800">
-          Exclusion: {stats.exclusion}
-        </div>
-        <div className="badge bg-red-100 text-red-800">
-          Non conforme: {stats.nonConforme}
-        </div>
-        <div className="badge bg-yellow-100 text-yellow-800">
-          Partiellement conforme: {stats.partiellementConforme}
-        </div>
-        <div className="badge bg-green-100 text-green-800">
-          Conforme: {stats.conforme}
-        </div>
-        <div className="badge bg-blue-100 text-blue-800">
-          Total: {stats.total}
-        </div>
-      </div>
+      <ExigenceStats stats={stats} />
 
-      <div className="bg-white rounded-md shadow overflow-hidden">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="w-10"></TableHead>
-              <TableHead className="py-3 px-4 text-app-blue font-semibold">Nom</TableHead>
-              <TableHead className="py-3 px-4 text-app-blue font-semibold text-center" colSpan={4}>
-                Responsabilités
-              </TableHead>
-              <TableHead className="py-3 px-4 text-app-blue font-semibold">Exclusion</TableHead>
-              <TableHead className="py-3 px-4 text-app-blue font-semibold text-center" colSpan={3}>
-                Atteinte
-              </TableHead>
-              <TableHead className="py-3 px-4 text-app-blue font-semibold text-right">Actions</TableHead>
-            </TableRow>
-            <TableRow>
-              <TableHead></TableHead>
-              <TableHead className="py-2"></TableHead>
-              <TableHead className="py-2 px-2 text-center text-sm font-medium">R</TableHead>
-              <TableHead className="py-2 px-2 text-center text-sm font-medium">A</TableHead>
-              <TableHead className="py-2 px-2 text-center text-sm font-medium">C</TableHead>
-              <TableHead className="py-2 px-2 text-center text-sm font-medium">I</TableHead>
-              <TableHead className="py-2"></TableHead>
-              <TableHead className="py-2 px-2 text-center text-sm font-medium text-red-500">NC</TableHead>
-              <TableHead className="py-2 px-2 text-center text-sm font-medium text-yellow-500">PC</TableHead>
-              <TableHead className="py-2 px-2 text-center text-sm font-medium text-green-500">C</TableHead>
-              <TableHead className="py-2"></TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody onReorder={handleReorder}>
-            {exigences.map((exigence) => (
-              <TableRow key={exigence.id} className="border-b">
-                <TableCell className="py-3 px-2 w-10">
-                  <GripVertical className="h-5 w-5 text-gray-400" />
-                </TableCell>
-                <TableCell className="py-3 px-4">{exigence.nom}</TableCell>
-                
-                <TableCell className="py-3 px-1 text-center">
-                  <ResponsableSelector 
-                    selectedInitiales={exigence.responsabilites.r}
-                    onChange={(values) => handleResponsabiliteChange(exigence.id, 'r', values)}
-                    type="r"
-                  />
-                </TableCell>
-                <TableCell className="py-3 px-1 text-center">
-                  <ResponsableSelector 
-                    selectedInitiales={exigence.responsabilites.a}
-                    onChange={(values) => handleResponsabiliteChange(exigence.id, 'a', values)}
-                    type="a"
-                  />
-                </TableCell>
-                <TableCell className="py-3 px-1 text-center">
-                  <ResponsableSelector 
-                    selectedInitiales={exigence.responsabilites.c}
-                    onChange={(values) => handleResponsabiliteChange(exigence.id, 'c', values)}
-                    type="c"
-                  />
-                </TableCell>
-                <TableCell className="py-3 px-1 text-center">
-                  <ResponsableSelector 
-                    selectedInitiales={exigence.responsabilites.i}
-                    onChange={(values) => handleResponsabiliteChange(exigence.id, 'i', values)}
-                    type="i"
-                  />
-                </TableCell>
-                
-                <TableCell className="py-3 px-4 text-center">
-                  <input 
-                    type="checkbox" 
-                    checked={exigence.exclusion}
-                    onChange={() => handleExclusionChange(exigence.id)}
-                    className="form-checkbox h-4 w-4 text-app-blue rounded"
-                    onClick={(e) => e.stopPropagation()} // Prevent row drag
-                  />
-                </TableCell>
-
-                <TableCell className="py-3 px-1 text-center">
-                  <input 
-                    type="radio" 
-                    name={`atteinte-${exigence.id}`}
-                    checked={exigence.atteinte === 'NC'}
-                    onChange={() => handleAtteinteChange(exigence.id, 'NC')}
-                    className="form-radio h-4 w-4 text-red-500"
-                    onClick={(e) => e.stopPropagation()} // Prevent row drag
-                  />
-                </TableCell>
-                <TableCell className="py-3 px-1 text-center">
-                  <input 
-                    type="radio" 
-                    name={`atteinte-${exigence.id}`}
-                    checked={exigence.atteinte === 'PC'}
-                    onChange={() => handleAtteinteChange(exigence.id, 'PC')}
-                    className="form-radio h-4 w-4 text-yellow-500"
-                    onClick={(e) => e.stopPropagation()} // Prevent row drag
-                  />
-                </TableCell>
-                <TableCell className="py-3 px-1 text-center">
-                  <input 
-                    type="radio" 
-                    name={`atteinte-${exigence.id}`}
-                    checked={exigence.atteinte === 'C'}
-                    onChange={() => handleAtteinteChange(exigence.id, 'C')}
-                    className="form-radio h-4 w-4 text-green-500"
-                    onClick={(e) => e.stopPropagation()} // Prevent row drag
-                  />
-                </TableCell>
-                
-                <TableCell className="py-3 px-4 text-right">
-                  <button 
-                    className="text-gray-600 hover:text-app-blue mr-3"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleEdit(exigence.id);
-                    }}
-                  >
-                    <Pencil className="h-5 w-5 inline-block" />
-                  </button>
-                  <button 
-                    className="text-gray-600 hover:text-red-500"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleDelete(exigence.id);
-                    }}
-                  >
-                    <Trash className="h-5 w-5 inline-block" />
-                  </button>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
+      <ExigenceTable 
+        exigences={exigences}
+        onResponsabiliteChange={handleResponsabiliteChange}
+        onAtteinteChange={handleAtteinteChange}
+        onExclusionChange={handleExclusionChange}
+        onEdit={handleEdit}
+        onDelete={handleDelete}
+        onReorder={handleReorder}
+      />
 
       <div className="flex justify-end mt-4">
         <button 
