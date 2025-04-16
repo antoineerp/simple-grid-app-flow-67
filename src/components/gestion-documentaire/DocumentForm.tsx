@@ -1,8 +1,8 @@
+
 import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 
@@ -56,13 +56,6 @@ const DocumentForm: React.FC<DocumentFormProps> = ({ document, open, onOpenChang
     }));
   };
 
-  const handleSelectChange = (value: string) => {
-    setFormData(prev => ({
-      ...prev,
-      etat: value
-    }));
-  };
-
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     onSave(formData);
@@ -105,25 +98,6 @@ const DocumentForm: React.FC<DocumentFormProps> = ({ document, open, onOpenChang
                 className="col-span-3"
                 placeholder="URL du document"
               />
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="etat" className="text-right">
-                État
-              </Label>
-              <Select 
-                value={formData.etat} 
-                onValueChange={handleSelectChange}
-              >
-                <SelectTrigger className="col-span-3">
-                  <SelectValue placeholder="Sélectionner un état" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="NC">Non Conforme</SelectItem>
-                  <SelectItem value="PC">Partiellement Conforme</SelectItem>
-                  <SelectItem value="C">Conforme</SelectItem>
-                  <SelectItem value="EX">Exclusion</SelectItem>
-                </SelectContent>
-              </Select>
             </div>
           </div>
           <DialogFooter>
