@@ -1,6 +1,5 @@
-
 import React, { useState } from 'react';
-import { Pencil, Trash, FileText, Plus, FileDown } from 'lucide-react';
+import { Pencil, Trash, FileText, Plus } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -47,9 +46,7 @@ const Pilotage = () => {
     lien: null
   });
 
-  // Ouvrir le dialogue pour ajouter un nouveau document
   const handleAddDocument = () => {
-    // Trouver le dernier ordre + 1
     const nextOrdre = documents.length > 0 
       ? Math.max(...documents.map(doc => doc.ordre)) + 1 
       : 1;
@@ -64,14 +61,12 @@ const Pilotage = () => {
     setIsDialogOpen(true);
   };
 
-  // Ouvrir le dialogue pour modifier un document existant
   const handleEditDocument = (doc: Document) => {
     setCurrentDocument({ ...doc });
     setIsEditing(true);
     setIsDialogOpen(true);
   };
 
-  // Supprimer un document
   const handleDeleteDocument = (id: number) => {
     setDocuments(documents.filter(doc => doc.id !== id));
     toast({
@@ -80,7 +75,6 @@ const Pilotage = () => {
     });
   };
 
-  // Gérer les changements dans le formulaire
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setCurrentDocument({
@@ -89,7 +83,6 @@ const Pilotage = () => {
     });
   };
 
-  // Sauvegarder le document (ajouter ou modifier)
   const handleSaveDocument = () => {
     if (currentDocument.nom.trim() === '') {
       toast({
@@ -101,7 +94,6 @@ const Pilotage = () => {
     }
 
     if (isEditing) {
-      // Mise à jour du document existant
       setDocuments(documents.map(doc => 
         doc.id === currentDocument.id ? currentDocument : doc
       ));
@@ -110,7 +102,6 @@ const Pilotage = () => {
         description: "Le document a été mis à jour avec succès",
       });
     } else {
-      // Ajout d'un nouveau document
       const newId = documents.length > 0 
         ? Math.max(...documents.map(doc => doc.id)) + 1 
         : 1;
@@ -125,13 +116,11 @@ const Pilotage = () => {
     setIsDialogOpen(false);
   };
 
-  // Handle row reordering with drag and drop
   const handleReorder = (startIndex: number, endIndex: number) => {
     const result = Array.from(documents);
     const [removed] = result.splice(startIndex, 1);
     result.splice(endIndex, 0, removed);
     
-    // Update ordre for all items
     const updatedDocuments = result.map((doc, index) => ({
       ...doc,
       ordre: index + 1
@@ -214,10 +203,8 @@ const Pilotage = () => {
         </Button>
       </div>
 
-      {/* Add the ExigenceSummary component here */}
       <ExigenceSummary />
 
-      {/* Modal for adding/editing a document */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent>
           <DialogHeader>
