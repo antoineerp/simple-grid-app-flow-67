@@ -52,7 +52,7 @@ const ExigencesContent = () => {
     nonConforme: 0,
     partiellementConforme: 0,
     conforme: 0,
-    total: 2
+    total: 0
   });
 
   useEffect(() => {

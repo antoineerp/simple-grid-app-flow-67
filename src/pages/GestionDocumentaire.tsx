@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Pencil, Trash, FileText, Plus } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
@@ -66,10 +65,10 @@ const GestionDocumentaireContent = () => {
 
   const [stats, setStats] = useState({
     exclusion: 0,
-    nonConforme: 1,
-    partiellementConforme: 1,
-    conforme: 1,
-    total: 3
+    nonConforme: 0,
+    partiellementConforme: 0,
+    conforme: 0,
+    total: 0
   });
 
   // Mise à jour des statistiques quand les documents changent
@@ -129,16 +128,18 @@ const GestionDocumentaireContent = () => {
     });
   };
 
-  // Add handlers for edit and delete actions
-  const handleDelete = (id: number) => {
-    setDocuments(prev => prev.filter(doc => doc.id !== id));
-    toast({
-      title: "Suppression",
-      description: `Le document ${id} a été supprimé`,
-    });
+  // Handler pour la gestion d'exclusion
+  const handleExclusionChange = (id: number) => {
+    setDocuments(prev => 
+      prev.map(doc => 
+        doc.id === id 
+          ? { ...doc, etat: doc.etat === 'EX' ? null : 'EX' } 
+          : doc
+      )
+    );
   };
 
-  // Handler pour l'atteinte (même que dans Exigences.tsx)
+  // Handler pour l'atteinte
   const handleAtteinteChange = (id: number, atteinte: 'NC' | 'PC' | 'C' | null) => {
     setDocuments(prev => 
       prev.map(doc => 
@@ -160,15 +161,10 @@ const GestionDocumentaireContent = () => {
       nom: `Document ${newId}`,
       lien: null,
       responsabilites: { r: [], a: [], c: [], i: [] },
-      etat: 'NC'
+      etat: null
     };
     
     setDocuments(prev => [...prev, newDocument]);
-    setStats(prev => ({
-      ...prev,
-      nonConforme: prev.nonConforme + 1,
-      total: prev.total + 1
-    }));
     
     toast({
       title: "Nouveau document",
@@ -293,11 +289,12 @@ const GestionDocumentaireContent = () => {
                     <input 
                       type="checkbox" 
                       className="form-checkbox h-4 w-4 text-app-blue rounded"
+                      checked={doc.etat === 'EX'}
+                      onChange={() => handleExclusionChange(doc.id)}
                       onClick={(e) => e.stopPropagation()} // Prevent row drag
                     />
                   </TableCell>
                   
-                  {/* Remplacer la colonne État unique par 3 sous-colonnes radio pour atteinte */}
                   <TableCell className="py-3 px-1 text-center">
                     <input 
                       type="radio" 
