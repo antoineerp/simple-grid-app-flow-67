@@ -1,6 +1,7 @@
 
 import React, { useState } from 'react';
 import { Pencil, Trash, FileText, Check, Plus, Minus } from 'lucide-react';
+import { useToast } from "@/hooks/use-toast";
 
 interface Exigence {
   id: number;
@@ -16,6 +17,7 @@ interface Exigence {
 }
 
 const Exigences = () => {
+  const { toast } = useToast();
   const [exigences, setExigences] = useState<Exigence[]>([
     { 
       id: 1, 
@@ -75,6 +77,23 @@ const Exigences = () => {
           : exigence
       )
     );
+  };
+
+  // Add handlers for edit and delete actions
+  const handleEdit = (id: number) => {
+    toast({
+      title: "Modification",
+      description: `Édition de l'exigence ${id}`,
+    });
+    // Implementation of edit functionality would go here
+  };
+
+  const handleDelete = (id: number) => {
+    setExigences(prev => prev.filter(exigence => exigence.id !== id));
+    toast({
+      title: "Suppression",
+      description: `L'exigence ${id} a été supprimée`,
+    });
   };
 
   return (
@@ -208,10 +227,22 @@ const Exigences = () => {
                 </td>
                 
                 <td className="py-3 px-4 text-right">
-                  <button className="text-gray-600 hover:text-app-blue mr-3">
+                  <button 
+                    className="text-gray-600 hover:text-app-blue mr-3"
+                    onClick={(e) => {
+                      e.stopPropagation(); // Prevent row drag when clicking the button
+                      handleEdit(exigence.id);
+                    }}
+                  >
                     <Pencil className="h-5 w-5 inline-block" />
                   </button>
-                  <button className="text-gray-600 hover:text-red-500">
+                  <button 
+                    className="text-gray-600 hover:text-red-500"
+                    onClick={(e) => {
+                      e.stopPropagation(); // Prevent row drag when clicking the button
+                      handleDelete(exigence.id);
+                    }}
+                  >
                     <Trash className="h-5 w-5 inline-block" />
                   </button>
                 </td>
@@ -222,7 +253,16 @@ const Exigences = () => {
       </div>
 
       <div className="flex justify-end mt-4">
-        <button className="btn-primary">
+        <button 
+          className="btn-primary"
+          onClick={() => {
+            toast({
+              title: "Nouvelle exigence",
+              description: "Ajout d'une nouvelle exigence",
+            });
+            // Implementation of add functionality would go here
+          }}
+        >
           Ajouter une exigence
         </button>
       </div>

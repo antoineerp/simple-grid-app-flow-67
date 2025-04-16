@@ -1,6 +1,7 @@
 
 import React, { useState } from 'react';
-import { Pencil, Trash, FileText } from 'lucide-react';
+import { Pencil, Trash, FileText, Plus } from 'lucide-react';
+import { useToast } from "@/hooks/use-toast";
 import {
   Table,
   TableBody,
@@ -24,6 +25,7 @@ interface Document {
 }
 
 const GestionDocumentaire = () => {
+  const { toast } = useToast();
   const [documents, setDocuments] = useState<Document[]>([
     { 
       id: 1, 
@@ -55,6 +57,27 @@ const GestionDocumentaire = () => {
     conforme: 1,
     total: 3
   });
+
+  // Add handlers for edit and delete actions
+  const handleEdit = (id: number) => {
+    toast({
+      title: "Modification",
+      description: `Édition du document ${id}`,
+    });
+    // Implementation of edit functionality would go here
+  };
+
+  const handleDelete = (id: number) => {
+    setDocuments(prev => prev.filter(doc => doc.id !== id));
+    setStats(prev => ({
+      ...prev,
+      total: prev.total - 1
+    }));
+    toast({
+      title: "Suppression",
+      description: `Le document ${id} a été supprimé`,
+    });
+  };
 
   // Handle row reordering with drag and drop
   const handleReorder = (startIndex: number, endIndex: number) => {
@@ -153,14 +176,27 @@ const GestionDocumentaire = () => {
                     <input 
                       type="checkbox" 
                       className="form-checkbox h-4 w-4 text-app-blue rounded"
+                      onClick={(e) => e.stopPropagation()} // Prevent row drag
                     />
                   </TableCell>
                   <TableCell className="py-3 px-4">{doc.etat}</TableCell>
                   <TableCell className="py-3 px-4 text-right">
-                    <button className="text-gray-600 hover:text-app-blue mr-3">
+                    <button 
+                      className="text-gray-600 hover:text-app-blue mr-3"
+                      onClick={(e) => {
+                        e.stopPropagation(); // Prevent row drag
+                        handleEdit(doc.id);
+                      }}
+                    >
                       <Pencil className="h-5 w-5 inline-block" />
                     </button>
-                    <button className="text-gray-600 hover:text-red-500">
+                    <button 
+                      className="text-gray-600 hover:text-red-500"
+                      onClick={(e) => {
+                        e.stopPropagation(); // Prevent row drag
+                        handleDelete(doc.id);
+                      }}
+                    >
                       <Trash className="h-5 w-5 inline-block" />
                     </button>
                   </TableCell>
@@ -172,7 +208,16 @@ const GestionDocumentaire = () => {
       </div>
 
       <div className="flex justify-end mt-4">
-        <button className="btn-primary">
+        <button 
+          className="btn-primary"
+          onClick={() => {
+            toast({
+              title: "Nouveau document",
+              description: "Ajout d'un nouveau document",
+            });
+            // Implementation would go here
+          }}
+        >
           Nouveau document
         </button>
       </div>

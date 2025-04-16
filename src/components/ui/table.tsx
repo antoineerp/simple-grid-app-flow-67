@@ -31,7 +31,9 @@ const TableBody = React.forwardRef<
 >(({ className, onReorder, ...props }, ref) => {
   // Add drag and drop logic
   const handleDragStart = (e: React.DragEvent<HTMLTableRowElement>, index: number) => {
+    // Store the source index
     e.dataTransfer.setData('text/plain', index.toString());
+    // Add visual feedback
     e.currentTarget.classList.add('bg-muted');
   };
 
@@ -60,6 +62,8 @@ const TableBody = React.forwardRef<
 
   const childrenWithProps = React.Children.map(props.children as React.ReactNode, (child, index) => {
     if (React.isValidElement(child)) {
+      // The key change is here - we need to preserve the original onClick handlers
+      // from the row's children (like buttons) while adding drag and drop functionality
       return React.cloneElement(child as React.ReactElement<any>, {
         draggable: true,
         onDragStart: (e: React.DragEvent<HTMLTableRowElement>) => handleDragStart(e, index),
@@ -67,7 +71,8 @@ const TableBody = React.forwardRef<
         onDragLeave: (e: React.DragEvent<HTMLTableRowElement>) => handleDragLeave(e),
         onDrop: (e: React.DragEvent<HTMLTableRowElement>) => handleDrop(e, index),
         onDragEnd: (e: React.DragEvent<HTMLTableRowElement>) => handleDragEnd(e),
-        className: cn(child.props.className, 'cursor-move')
+        className: cn(child.props.className, 'cursor-move'),
+        // We're not overriding any existing onClick handlers on the row itself
       });
     }
     return child;
