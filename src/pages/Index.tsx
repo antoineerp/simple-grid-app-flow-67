@@ -1,9 +1,8 @@
 
-import React, { useState } from 'react';
+import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -30,17 +29,26 @@ const Index = () => {
   });
 
   const onSubmit = (data: LoginFormValues) => {
-    // Simuler une authentification (à remplacer par une vraie authentification)
-    if (data.username === "admin" && data.password === "password") {
-      // Stocker une info de connexion dans le localStorage
+    // Identifiants de test
+    const validCredentials = [
+      { username: "admin", password: "admin123", role: "administrateur" },
+      { username: "manager", password: "manager456", role: "gestionnaire" },
+      { username: "user", password: "user789", role: "utilisateur" }
+    ];
+
+    const matchedUser = validCredentials.find(
+      cred => cred.username === data.username && cred.password === data.password
+    );
+
+    if (matchedUser) {
       localStorage.setItem("isLoggedIn", "true");
+      localStorage.setItem("userRole", matchedUser.role);
       
       toast({
-        title: "Connexion réussie",
-        description: "Bienvenue sur FormaCart",
+        title: `Connexion réussie`,
+        description: `Bienvenue, ${matchedUser.role}`,
       });
       
-      // Rediriger vers le tableau de bord
       navigate("/pilotage");
     } else {
       toast({
