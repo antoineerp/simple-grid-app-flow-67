@@ -59,7 +59,7 @@ jobs:
       run: |
         echo "Starting build process..."
         # Utilisation de npx pour s'assurer que vite est accessible
-        CI=false npx vite build --debug
+        npx vite build --debug
         echo "Build process completed"
     
     - name: Debug - Post build files
