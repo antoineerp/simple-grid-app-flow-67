@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { ChevronDown, Upload, LogOut, Settings, Database, Users, LogIn } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
@@ -14,7 +13,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { getCurrentUser, disconnectUser } from '@/services/databaseService';
+import { getCurrentUser, disconnectUser } from '@/services/core/databaseConnectionService';
 
 const Header = () => {
   const navigate = useNavigate();
@@ -26,13 +25,11 @@ const Header = () => {
   const [userRole, setUserRole] = useState(() => {
     return localStorage.getItem('userRole') || 'utilisateur';
   });
-  // État pour suivre l'utilisateur de base de données actuellement connecté
   const [currentDatabaseUser, setCurrentDatabaseUser] = useState<string | null>(getCurrentUser());
 
   useEffect(() => {
     localStorage.setItem('appLogo', logo);
     
-    // Vérifier périodiquement si l'utilisateur de base de données a changé
     const checkDatabaseUser = () => {
       const dbUser = getCurrentUser();
       if (dbUser !== currentDatabaseUser) {
@@ -46,7 +43,6 @@ const Header = () => {
   }, [logo, currentDatabaseUser]);
 
   const handleLogout = () => {
-    // Supprimer l'information de connexion
     localStorage.removeItem('isLoggedIn');
     localStorage.removeItem('authToken');
     localStorage.removeItem('currentDatabaseUser');
@@ -56,7 +52,6 @@ const Header = () => {
       description: "Vous avez été déconnecté avec succès",
     });
     
-    // Rediriger vers la page de connexion
     navigate('/');
   };
 
@@ -79,7 +74,6 @@ const Header = () => {
           </Link>
         </div>
         <div className="flex items-center space-x-4">
-          {/* Indicateur de connexion à la base de données */}
           {currentDatabaseUser && (
             <div className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-md flex items-center">
               <Database className="w-3 h-3 mr-1" />
@@ -126,7 +120,6 @@ const Header = () => {
               </DropdownMenuGroup>
               <DropdownMenuSeparator />
               
-              {/* Si l'utilisateur est connecté à une base de données, afficher l'option de déconnexion */}
               {currentDatabaseUser && (
                 <DropdownMenuItem onClick={handleDatabaseDisconnect}>
                   <LogIn className="mr-2 h-4 w-4 rotate-180" />
