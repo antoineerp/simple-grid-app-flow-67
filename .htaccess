@@ -9,7 +9,7 @@ Options +FollowSymLinks
 # Définir le point d'entrée principal
 DirectoryIndex index.html index.php
 
-# Bloquer l'accès direct aux fichiers src
+# Bloquer l'accès direct aux fichiers source
 RewriteRule ^src/ - [F,L]
 
 # Définir les types MIME corrects
