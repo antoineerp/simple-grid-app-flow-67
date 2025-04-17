@@ -10,7 +10,12 @@ export default defineConfig(({ mode }) => ({
     port: 8080,
   },
   plugins: [
-    react(),
+    react({
+      // Optimisation pour React en production
+      babel: {
+        plugins: mode === 'production' ? ['babel-plugin-jsx-remove-data-test-id'] : []
+      }
+    }),
     mode === 'development' && componentTagger(),
   ].filter(Boolean),
   resolve: {
@@ -20,20 +25,30 @@ export default defineConfig(({ mode }) => ({
   },
   build: {
     outDir: 'dist',
-    assetsDir: 'assets', // Les fichiers JS seront dans assets/
+    assetsDir: 'assets',
     sourcemap: false,
     minify: true,
     rollupOptions: {
       output: {
         manualChunks(id) {
-          // Séparer les dépendances des modules de l'application
           if (id.includes('node_modules')) {
             return 'vendor';
           }
-        }
+        },
+        // Optimisation des noms de fichiers pour le cache
+        entryFileNames: 'assets/[name].[hash].js',
+        chunkFileNames: 'assets/[name].[hash].js',
+        assetFileNames: 'assets/[name].[hash].[ext]'
       }
-    }
+    },
+    // Optimisations TypeScript
+    target: 'es2015',
+    cssCodeSplit: true,
   },
   publicDir: 'public',
-  base: '/', // Important pour les chemins relatifs
+  base: '/',
+  // Configuration TypeScript
+  esbuild: {
+    logOverride: { 'this-is-undefined-in-esm': 'silent' }
+  }
 }));
