@@ -8,9 +8,6 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    env:
-      # Définir cette variable pour permettre à la construction de réussir même avec des avertissements
-      CI: false
     
     steps:
     - name: Checkout repository
@@ -61,8 +58,7 @@ jobs:
     - name: Build project
       run: |
         echo "Starting build process..."
-        # Construction avec CI=false défini au niveau du job pour ignorer les avertissements
-        npx vite build --debug
+        npx vite build
         echo "Build process completed"
     
     - name: Debug - Post build files
