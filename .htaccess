@@ -1,4 +1,5 @@
-ver le moteur de réécriture
+
+# Activer le moteur de réécriture
 RewriteEngine On
 
 # Configuration spécifique pour Infomaniak
@@ -23,7 +24,7 @@ AddType image/svg+xml .svg
     Allow from all
 </FilesMatch>
 
-# Traitement spécial pour lovable-uploads
+# Traitement spécial pour lovable-uploads - CORRECTION DU DOUBLE SLASH
 RewriteRule ^lovable-uploads/(.*)$ public/lovable-uploads/$1 [L]
 
 # Diagnostic des requêtes API en mode production

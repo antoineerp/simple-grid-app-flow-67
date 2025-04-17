@@ -7,14 +7,17 @@ export const getApiUrl = (): string => {
     return localStorage.getItem('customApiUrl') as string;
   }
   // Utiliser un chemin relatif par défaut pour fonctionner sur tout domaine
+  // Assurons-nous qu'il n'y a pas de double slash
   return '/api';
 };
 
 // Définir une URL d'API personnalisée (utile pour le développement ou tests)
 export const setCustomApiUrl = (url: string): void => {
   if (url && url.trim() !== '') {
-    localStorage.setItem('customApiUrl', url.trim());
-    console.log(`URL d'API personnalisée définie: ${url}`);
+    // Normaliser l'URL pour éviter les double slashes
+    const normalizedUrl = url.trim().replace(/\/+$/, '');
+    localStorage.setItem('customApiUrl', normalizedUrl);
+    console.log(`URL d'API personnalisée définie: ${normalizedUrl}`);
   }
 };
 
@@ -35,5 +38,6 @@ export const getFullApiUrl = (): string => {
     ? localStorage.getItem('customApiUrl') as string
     : window.location.origin + '/api';
   
-  return baseUrl;
+  // Normaliser l'URL pour éviter les double slashes
+  return baseUrl.replace(/([^:]\/)\/+/g, "$1");
 };
