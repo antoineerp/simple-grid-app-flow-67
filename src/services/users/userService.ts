@@ -1,3 +1,4 @@
+
 import { getApiUrl } from '@/config/apiConfig';
 import { toast } from '@/hooks/use-toast';
 import { getAuthHeaders } from '../auth/authService';
@@ -22,7 +23,7 @@ class UserService {
   private static instance: UserService;
 
   private constructor() {
-    console.log("User service initialized");
+    console.log("User service initialized with API URL:", getApiUrl());
   }
 
   // Singleton pattern to get the instance
@@ -41,7 +42,11 @@ class UserService {
         throw new Error("Not authenticated");
       }
       
-      const response = await fetch(`${API_URL}/utilisateurs`, {
+      // Utiliser l'URL d'API actuelle
+      const currentApiUrl = getApiUrl();
+      console.log(`Récupération des utilisateurs depuis: ${currentApiUrl}/utilisateurs`);
+      
+      const response = await fetch(`${currentApiUrl}/utilisateurs`, {
         method: 'GET',
         headers: getAuthHeaders()
       });

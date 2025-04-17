@@ -5,9 +5,10 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { getApiUrl, setCustomApiUrl, resetToDefaultApiUrl } from '@/config/apiConfig';
+import { getApiUrl, setCustomApiUrl, resetToDefaultApiUrl, isUsingCustomApiUrl, getFullApiUrl } from '@/config/apiConfig';
 import { getAuthHeaders } from '@/services/auth/authService';
 import { useToast } from "@/hooks/use-toast";
+import { Badge } from "@/components/ui/badge";
 
 interface ApiConfig {
   api_urls: {
@@ -25,16 +26,16 @@ const ApiConfiguration = () => {
   const [config, setConfig] = useState<ApiConfig>({
     api_urls: {
       development: 'http://localhost:8080/api',
-      production: 'https://www.qualiopi.ch/api'
+      production: 'https://qualiopi.ch/api'
     },
     allowed_origins: {
       development: 'http://localhost:8080',
-      production: 'https://www.qualiopi.ch'
+      production: 'https://qualiopi.ch'
     }
   });
   const [loading, setLoading] = useState(false);
-  const [customUrl, setCustomUrl] = useState(getApiUrl());
-  const [useCustomUrl, setUseCustomUrl] = useState(!!localStorage.getItem('customApiUrl'));
+  const [customUrl, setCustomUrl] = useState(getFullApiUrl());
+  const [useCustomUrl, setUseCustomUrl] = useState(isUsingCustomApiUrl());
 
   // Charger la configuration depuis l'API
   const loadConfig = async () => {
@@ -111,6 +112,7 @@ const ApiConfiguration = () => {
       // Désactiver l'URL personnalisée
       resetToDefaultApiUrl();
       setUseCustomUrl(false);
+      setCustomUrl(window.location.origin + '/api'); // Réinitialiser l'input avec l'URL par défaut
       toast({
         title: "URL réinitialisée",
         description: "Utilisation de l'URL par défaut selon l'environnement",
@@ -125,6 +127,12 @@ const ApiConfiguration = () => {
       });
     }
   };
+
+  // Mettre à jour l'état useCustomUrl quand il change dans localStorage
+  useEffect(() => {
+    setUseCustomUrl(isUsingCustomApiUrl());
+    setCustomUrl(getFullApiUrl());
+  }, []);
 
   // Charger la configuration au chargement du composant
   useEffect(() => {
@@ -157,7 +165,15 @@ const ApiConfiguration = () => {
         <div className="space-y-6">
           {/* Configuration temporaire (pour cette session uniquement) */}
           <div className="space-y-4 p-4 border rounded-md bg-slate-50">
-            <h3 className="text-lg font-medium">Configuration temporaire (cette session uniquement)</h3>
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-medium">Configuration temporaire (cette session uniquement)</h3>
+              {useCustomUrl && (
+                <Badge variant="destructive">URL personnalisée active</Badge>
+              )}
+              {!useCustomUrl && (
+                <Badge variant="outline">URL relative standard</Badge>
+              )}
+            </div>
             <p className="text-sm text-gray-500">Cette configuration est stockée dans le navigateur et n'affecte que votre session actuelle</p>
             
             <div className="grid gap-3">
@@ -175,7 +191,7 @@ const ApiConfiguration = () => {
                   </Button>
                 </div>
                 <p className="text-xs text-gray-500 mt-1">
-                  URL actuelle: <span className="font-mono">{getApiUrl()}</span>
+                  URL actuelle: <span className="font-mono">{getFullApiUrl()}</span>
                 </p>
               </div>
             </div>

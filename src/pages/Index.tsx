@@ -32,11 +32,15 @@ const Index = () => {
 
   // Try to load FormaCert logo, with fallback to Swiss logo
   useEffect(() => {
+    // Essayer de charger le logo FormaCert
     const img = new Image();
     img.src = "/lovable-uploads/formacert-logo.png";
-    img.onload = () => setLogoSrc("/lovable-uploads/formacert-logo.png");
-    img.onerror = () => {
-      console.log("Using fallback logo");
+    img.onload = () => {
+      console.log("Logo FormaCert chargé avec succès");
+      setLogoSrc("/lovable-uploads/formacert-logo.png");
+    };
+    img.onerror = (e) => {
+      console.log("Échec du chargement du logo FormaCert, utilisation du logo de secours", e);
       setLogoSrc("/logo-swiss.svg");
     };
   }, []);

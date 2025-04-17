@@ -60,9 +60,10 @@ class AuthService {
   // Login with username and password
   public async login(username: string, password: string): Promise<any> {
     try {
-      console.log(`Tentative de connexion à l'API: ${API_URL}/login`);
+      const currentApiUrl = getApiUrl();
+      console.log(`Tentative de connexion à l'API: ${currentApiUrl}/login`);
       
-      const response = await fetch(`${API_URL}/login`, {
+      const response = await fetch(`${currentApiUrl}/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
