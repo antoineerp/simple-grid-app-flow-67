@@ -52,10 +52,13 @@ export const useResponsabilityMatrix = () => {
           if (document.responsabilites.i.includes(initiales)) documentsCount.i++;
         });
         
+        // Include all properties from the membre and add the new properties
         return {
           ...membre,
           exigences: exigencesCount,
-          documents: documentsCount
+          documents: documentsCount,
+          // Ensure date_creation is included (use existing or create a new one)
+          date_creation: membre.date_creation || new Date()
         } as MembreResponsabilite;
       });
       
