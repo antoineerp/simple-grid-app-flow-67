@@ -20,10 +20,6 @@ AddType image/svg+xml .svg
 # Traitement spécial pour lovable-uploads
 RewriteRule ^lovable-uploads/(.*)$ public/lovable-uploads/$1 [L]
 
-# Ne pas rediriger les requêtes vers des fichiers ou dossiers réels
-RewriteCond %{REQUEST_FILENAME} !-f
-RewriteCond %{REQUEST_FILENAME} !-d
-
 # Rediriger les requêtes vers /api vers le dossier api
 RewriteRule ^api/(.*)$ api/$1 [QSA,L]
 
