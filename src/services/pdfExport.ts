@@ -17,5 +17,5 @@ export { exportDocumentsToPdf } from './documentsExport';
 // Export collaborateur stats PDF generation
 export { exportCollaborateurStatsToPdf } from './collaborateurExport';
 
-// Export pilotage documents to ODF format
+// Export pilotage documents to PDF format
 export { exportPilotageToOdf } from './pilotageExport';

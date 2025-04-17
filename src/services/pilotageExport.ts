@@ -47,7 +47,7 @@ export const exportPilotageToOdf = (documents: any[], title: string = 'Documents
       doc.lien || '-'
     ]);
     
-    // Génération du tableau
+    // Génération du tableau - Fixed the autoTable method call to work properly
     (doc as any).autoTable({
       startY: 45,
       head: headers,

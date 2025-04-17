@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { FileText, Plus } from 'lucide-react';
+import { FileDown, Plus } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import PilotageDocumentsTable from '@/components/pilotage/PilotageDocumentsTable';
@@ -140,7 +140,7 @@ const Pilotage = () => {
             <h1 className="text-3xl font-bold text-app-blue">Pilotage</h1>
             <p className="text-gray-600">Documents de pilotage</p>
           </div>
-          <FileText 
+          <FileDown 
             className="text-red-500 h-6 w-6 cursor-pointer hover:text-red-600" 
             onClick={handleExportPdf}
           />

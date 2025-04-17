@@ -1,7 +1,8 @@
+
 import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { useResponsabilityMatrix } from '@/hooks/useResponsabilityMatrix';
-import { FileText, BarChart3, FileDown } from 'lucide-react';
+import { FileDown, BarChart3 } from 'lucide-react';
 import {
   HoverCard,
   HoverCardTrigger,
@@ -33,7 +34,7 @@ const ResponsabilityMatrix: React.FC = () => {
     <div className="mt-8">
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-2xl font-bold">Matrice des responsabilités</h2>
-        <FileText className="text-red-500 h-5 w-5" />
+        <FileDown className="text-red-500 h-5 w-5 cursor-pointer hover:text-red-600" />
       </div>
       
       <Card className="overflow-hidden border border-gray-200">
