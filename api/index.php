@@ -9,30 +9,13 @@ require_once 'config/env.php';
 
 // Journaliser la méthode et l'URL de la requête
 error_log('API Request: ' . $_SERVER['REQUEST_METHOD'] . ' ' . $_SERVER['REQUEST_URI']);
-error_log('Script filename: ' . $_SERVER['SCRIPT_FILENAME']);
-error_log('Document root: ' . $_SERVER['DOCUMENT_ROOT']);
 
-// Fonction pour nettoyer les données UTF-8
-function cleanUTF8($input) {
-    if (is_string($input)) {
-        return mb_convert_encoding($input, 'UTF-8', 'UTF-8');
-    } elseif (is_array($input)) {
-        foreach ($input as $key => $value) {
-            $input[$key] = cleanUTF8($value);
-        }
-    }
-    return $input;
-}
-
-// CORS - Accepter toutes les origines pour éviter les problèmes
+// CORS - Accepter toutes les origines
 header("Access-Control-Allow-Origin: *");
 header("Content-Type: application/json; charset=UTF-8");
 header("Access-Control-Allow-Methods: OPTIONS,GET,POST,PUT,DELETE");
-header("Access-Control-Max-Age: 3600");
 header("Access-Control-Allow-Headers: Content-Type, Access-Control-Allow-Headers, Authorization, X-Requested-With");
 header("Cache-Control: no-cache, no-store, must-revalidate");
-header("Pragma: no-cache");
-header("Expires: 0");
 
 // Réponse pour les requêtes OPTIONS (CORS preflight)
 if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
@@ -52,38 +35,17 @@ error_log('URL segments: ' . print_r($url_segments, true));
 // Vérifier si la requête est pour auth.php directement
 if (strpos($request_uri, 'auth.php') !== false) {
     error_log('Requête d\'authentification directe détectée');
-    // Ne rien faire ici car auth.php sera exécuté directement
-    exit;
-}
-
-// Vérifier si la requête contient "auth.php"
-$auth_request = false;
-foreach ($url_segments as $segment) {
-    if ($segment === 'auth.php') {
-        $auth_request = true;
-        break;
-    }
-}
-
-if ($auth_request) {
-    error_log('Requête d\'authentification détectée via auth.php');
     require_once 'controllers/AuthController.php';
     exit;
 }
 
-// Traitement spécial pour la connexion en mode production
-$login_request = false;
+// Vérifier si le segment "auth" est présent
 foreach ($url_segments as $segment) {
-    if ($segment === 'login') {
-        $login_request = true;
-        break;
+    if ($segment === 'auth' || $segment === 'auth.php' || $segment === 'login') {
+        error_log('Requête d\'authentification détectée via segment: ' . $segment);
+        require_once 'controllers/AuthController.php';
+        exit;
     }
-}
-
-if ($login_request) {
-    error_log('Requête de connexion détectée');
-    require_once 'controllers/AuthController.php';
-    exit;
 }
 
 // Trouver le point d'entrée de l'API
@@ -99,9 +61,6 @@ if ($api_index !== false) {
         try {
             switch ($endpoint) {
                 case 'login':
-                    require_once 'controllers/AuthController.php';
-                    break;
-                    
                 case 'auth':
                 case 'auth.php':
                     require_once 'controllers/AuthController.php';

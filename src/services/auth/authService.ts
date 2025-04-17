@@ -61,6 +61,14 @@ class AuthService {
             
             console.log("URL de requête complète:", loginUrl);
             
+            // Tracer les détails de la requête
+            console.log("Données de connexion:", { username });
+            console.log("En-têtes de la requête:", {
+                'Content-Type': 'application/json',
+                'Cache-Control': 'no-cache, no-store, must-revalidate',
+                'Accept': 'application/json'
+            });
+            
             const response = await fetch(loginUrl, {
                 method: 'POST',
                 headers: {
@@ -81,7 +89,11 @@ class AuthService {
             
             // Vérifier si la réponse est vide
             if (!responseText || responseText.trim() === '') {
-                throw new Error("Réponse vide du serveur");
+                console.error("Réponse vide du serveur");
+                return {
+                    success: false,
+                    error: "Le serveur a renvoyé une réponse vide"
+                };
             }
             
             // Essayer de parser la réponse JSON
@@ -91,13 +103,19 @@ class AuthService {
             } catch (parseError) {
                 console.error("Erreur de parsing JSON:", parseError);
                 console.log("Contenu non-JSON reçu:", responseText);
-                throw new Error("Format de réponse invalide. Contenu reçu: " + 
-                    (responseText.length > 100 ? responseText.substring(0, 100) + "..." : responseText));
+                return {
+                    success: false,
+                    error: "Format de réponse invalide. Veuillez vérifier les logs du serveur."
+                };
             }
             
             if (!response.ok) {
                 const errorMessage = data?.message || `Erreur HTTP ${response.status}`;
-                throw new Error(errorMessage);
+                console.error("Erreur API:", errorMessage);
+                return {
+                    success: false,
+                    error: errorMessage
+                };
             }
             
             if (data.token && data.user) {
@@ -114,7 +132,11 @@ class AuthService {
                     user: data.user
                 };
             } else {
-                throw new Error("Réponse d'authentification invalide");
+                console.error("Réponse d'authentification invalide:", data);
+                return {
+                    success: false,
+                    error: "Réponse d'authentification incomplète"
+                };
             }
         } catch (error) {
             console.error("Erreur d'authentification:", error);
@@ -122,6 +144,10 @@ class AuthService {
             // Ajouter plus de détails de diagnostic
             if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
                 console.error("Erreur réseau: impossible de contacter le serveur");
+                return {
+                    success: false,
+                    error: "Impossible de contacter le serveur d'authentification"
+                };
             }
             
             return {
