@@ -1,11 +1,36 @@
 
 <?php
-// Headers requis
-header("Access-Control-Allow-Origin: *");
+// Configuration des en-têtes CORS selon l'environnement
+$allowedOrigins = [
+    'development' => 'http://localhost:8080',
+    'production' => 'https://www.qualiopi.ch'
+];
+
+// Déterminer l'environnement
+$environment = getenv('APP_ENV') ?: 'development';
+$allowedOrigin = $allowedOrigins[$environment];
+
+// Obtenir l'origine de la requête
+$origin = isset($_SERVER['HTTP_ORIGIN']) ? $_SERVER['HTTP_ORIGIN'] : '';
+
+// Vérifier si l'origine est autorisée
+if ($origin === $allowedOrigin || $environment === 'development') {
+    header("Access-Control-Allow-Origin: $origin");
+} else {
+    header("Access-Control-Allow-Origin: " . $allowedOrigins['production']);
+}
+
+// Autres en-têtes CORS
 header("Content-Type: application/json; charset=UTF-8");
 header("Access-Control-Allow-Methods: POST");
 header("Access-Control-Max-Age: 3600");
 header("Access-Control-Allow-Headers: Content-Type, Access-Control-Allow-Headers, Authorization, X-Requested-With");
+
+// Si c'est une requête OPTIONS (preflight), nous la terminons ici
+if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
+    header("HTTP/1.1 200 OK");
+    exit;
+}
 
 // Inclusion des fichiers nécessaires
 include_once '../config/database.php';

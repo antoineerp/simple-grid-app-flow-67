@@ -1,8 +1,10 @@
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import UserManagement from '@/components/admin/UserManagement';
 import DatabaseInfo from '@/components/admin/DatabaseInfo';
+import ApiConfiguration from '@/components/admin/ApiConfiguration';
 import { getCurrentUser } from '@/services';
 import { useToast } from "@/hooks/use-toast";
 import { hasPermission, UserRole } from '@/types/roles';
@@ -48,6 +50,7 @@ const Administration = () => {
         <TabsList className="mb-8">
           <TabsTrigger value="utilisateurs">Utilisateurs</TabsTrigger>
           <TabsTrigger value="database">Base de données</TabsTrigger>
+          <TabsTrigger value="api">Configuration API</TabsTrigger>
         </TabsList>
         
         <TabsContent value="utilisateurs">
@@ -59,6 +62,10 @@ const Administration = () => {
 
         <TabsContent value="database">
           <DatabaseInfo />
+        </TabsContent>
+        
+        <TabsContent value="api">
+          <ApiConfiguration />
         </TabsContent>
       </Tabs>
     </div>
