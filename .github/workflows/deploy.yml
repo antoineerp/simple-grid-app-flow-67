@@ -76,6 +76,11 @@ jobs:
       run: |
         # Création du répertoire api dans dist si nécessaire
         mkdir -p dist/api
+        mkdir -p dist/api/config
+        mkdir -p dist/api/controllers
+        mkdir -p dist/api/models
+        mkdir -p dist/api/middleware
+        mkdir -p dist/api/utils
         
         # Copier tous les fichiers nécessaires pour le déploiement dans dist
         cp -r api/* dist/api/ 2>/dev/null || echo "Pas de fichiers api à copier"
@@ -102,6 +107,10 @@ jobs:
           echo ".htaccess existe déjà dans dist:"
           cat dist/.htaccess
         fi
+    
+    - name: Create test file to verify deployment
+      run: |
+        echo '<?php echo "Deployment successful at " . date("Y-m-d H:i:s"); ?>' > dist/deploy-test.php
     
     - name: Verify final artifacts
       run: |
