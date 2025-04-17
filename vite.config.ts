@@ -21,6 +21,8 @@ export default defineConfig(({ mode }) => ({
     alias: {
       "@": path.resolve(__dirname, "./src"),
     },
+    // Ensure proper module resolution for all browsers
+    dedupe: ['react', 'react-dom']
   },
   build: {
     outDir: 'dist',
@@ -39,7 +41,7 @@ export default defineConfig(({ mode }) => ({
         assetFileNames: 'assets/[name].[hash].[ext]'
       }
     },
-    target: 'es2015',
+    target: 'es2018', // Lower target for better browser compatibility
     cssCodeSplit: true,
   },
   publicDir: 'public',
