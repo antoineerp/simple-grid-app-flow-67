@@ -19,11 +19,12 @@ class Database {
     private function loadConfig() {
         $configFile = __DIR__ . '/db_config.json';
         
-        // Configuration par défaut
+        // Configuration par défaut - ne sera utilisée que si db_config.json n'existe pas
+        // Ces informations devraient être mises à jour avec les informations correctes d'Infomaniak
         $this->host = "p71x6d.myd.infomaniak.com";
         $this->db_name = "p71x6d_system";
         $this->username = "p71x6d_system";
-        $this->password = "Trottinette43!";
+        $this->password = "***********"; // Masqué pour des raisons de sécurité
         
         // Si le fichier de configuration existe, charger les valeurs
         if (file_exists($configFile)) {
@@ -83,7 +84,7 @@ class Database {
             
         } catch(PDOException $exception) {
             error_log("Erreur de connexion à la base de données: " . $exception->getMessage());
-            echo "Erreur de connexion: " . $exception->getMessage();
+            throw new Exception("Erreur de connexion à la base de données: " . $exception->getMessage());
         }
 
         return $this->conn;
@@ -95,7 +96,7 @@ class Database {
             'host' => $this->host,
             'db_name' => $this->db_name,
             'username' => $this->username,
-            'password' => $this->password
+            'password' => '********' // Masqué pour des raisons de sécurité
         ];
     }
 

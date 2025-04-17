@@ -1,17 +1,15 @@
+
 <?php
 // Fichier de configuration d'environnement
-// Ne pas versionner ce fichier dans git
 
 // Déterminer l'environnement en fonction du nom d'hôte
 $currentHost = $_SERVER['HTTP_HOST'] ?? '';
 
 // Définir l'environnement par défaut
-$environment = 'development';
+$environment = 'production'; // Changé à 'production' par défaut pour Infomaniak
 
 // Détecter l'environnement en fonction du nom d'hôte
-if (strpos($currentHost, 'qualiopi.ch') !== false) {
-    $environment = 'production';
-} elseif (strpos($currentHost, 'localhost') !== false) {
+if (strpos($currentHost, 'localhost') !== false || strpos($currentHost, '127.0.0.1') !== false) {
     $environment = 'development';
 }
 
@@ -20,11 +18,11 @@ $_ENV['APP_ENV'] = $environment;
 
 // Configuration API
 $_ENV['API_URL_DEV'] = 'http://localhost:8080/api';
-$_ENV['API_URL_PROD'] = 'https://www.qualiopi.ch/api';
+$_ENV['API_URL_PROD'] = 'https://www.qualiopi.ch/api'; // Assurez-vous que cette URL est correcte
 
 // Configuration CORS
 $_ENV['ALLOWED_ORIGIN_DEV'] = 'http://localhost:8080';
-$_ENV['ALLOWED_ORIGIN_PROD'] = 'https://www.qualiopi.ch';
+$_ENV['ALLOWED_ORIGIN_PROD'] = 'https://www.qualiopi.ch'; // Assurez-vous que cette URL est correcte
 
 // Charger la configuration depuis le fichier app_config.json s'il existe
 $configFile = __DIR__ . '/app_config.json';
@@ -53,6 +51,17 @@ if (file_exists($configFile)) {
 // Configuration de l'encodage
 ini_set('default_charset', 'UTF-8');
 mb_internal_encoding('UTF-8');
+
+// Ajout d'une configuration spécifique pour Infomaniak
+if ($environment === 'production') {
+    // Désactiver l'affichage des erreurs en production
+    ini_set('display_errors', 0);
+    error_reporting(E_ALL & ~E_DEPRECATED & ~E_STRICT);
+} else {
+    // Activer l'affichage des erreurs en développement
+    ini_set('display_errors', 1);
+    error_reporting(E_ALL);
+}
 
 // Fonction pour nettoyer et convertir en UTF-8
 function cleanUTF8($input) {
