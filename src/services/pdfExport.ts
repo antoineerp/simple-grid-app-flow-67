@@ -1,15 +1,8 @@
 
 import jsPDF from 'jspdf';
-import 'jspdf-autotable';
+import autoTable from 'jspdf-autotable';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
-
-// Ajout de la déclaration pour TypeScript
-declare module 'jspdf' {
-  interface jsPDF {
-    autoTable: (options: any) => jsPDF;
-  }
-}
 
 // Fonction pour obtenir le logo actuel
 const getCurrentLogo = (): string => {
@@ -70,7 +63,7 @@ export const exportExigencesToPdf = (exigences: any[], title: string = 'Liste de
       exigence.exclusion ? 'Exclusion' : formatState(exigence.atteinte)
     ]);
     
-    doc.autoTable({
+    autoTable(doc, {
       startY: 45,
       head: headers,
       body: data,
@@ -124,7 +117,7 @@ export const exportDocumentsToPdf = (documents: any[], title: string = 'Gestion 
       formatState(doc.etat)
     ]);
     
-    doc.autoTable({
+    autoTable(doc, {
       startY: 45,
       head: headers,
       body: data,
