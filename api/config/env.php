@@ -11,6 +11,9 @@ $environment = 'production'; // Environnement par défaut pour Infomaniak
 // Détecter l'environnement en fonction du nom d'hôte
 if (strpos($currentHost, 'localhost') !== false || strpos($currentHost, '127.0.0.1') !== false) {
     $environment = 'development';
+} else if (strpos($currentHost, 'qualiopi.ch') !== false) {
+    $environment = 'production';
+    error_log("Détection d'environnement: Production sur qualiopi.ch");
 }
 
 // Définir les variables d'environnement
