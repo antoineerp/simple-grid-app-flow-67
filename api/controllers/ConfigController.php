@@ -52,14 +52,14 @@ $userData = $auth->isAuth();
 // Si l'utilisateur n'est pas authentifié
 if (!$userData) {
     http_response_code(401);
-    echo json_encode(["message" => "Accès non autorisé"]);
+    echo json_encode(["message" => "Accès non autorisé"], JSON_UNESCAPED_UNICODE);
     exit;
 }
 
 // Vérifier si l'utilisateur est administrateur
 if ($userData['data']['role'] !== 'administrateur' && $userData['data']['role'] !== 'admin') {
     http_response_code(403);
-    echo json_encode(["message" => "Permission refusée"]);
+    echo json_encode(["message" => "Permission refusée"], JSON_UNESCAPED_UNICODE);
     exit;
 }
 
@@ -87,16 +87,17 @@ switch($method) {
             ];
             
             // Créer le fichier s'il n'existe pas
-            file_put_contents($configFile, json_encode($config, JSON_PRETTY_PRINT));
+            file_put_contents($configFile, json_encode($config, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
         }
         
         http_response_code(200);
-        echo json_encode($config);
+        echo json_encode($config, JSON_UNESCAPED_UNICODE);
         break;
         
     case 'POST':
-        // Obtenir les données postées
-        $data = json_decode(file_get_contents("php://input"), true);
+        // Obtenir les données postées et assurer qu'elles sont en UTF-8
+        $json_input = file_get_contents("php://input");
+        $data = json_decode(cleanUTF8($json_input), true);
         
         if (
             isset($data['api_urls']) && 
@@ -107,19 +108,19 @@ switch($method) {
             isset($data['allowed_origins']['production'])
         ) {
             // Mettre à jour la configuration
-            file_put_contents($configFile, json_encode($data, JSON_PRETTY_PRINT));
+            file_put_contents($configFile, json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
             
             http_response_code(200);
-            echo json_encode(["message" => "Configuration mise à jour avec succès"]);
+            echo json_encode(["message" => "Configuration mise à jour avec succès"], JSON_UNESCAPED_UNICODE);
         } else {
             http_response_code(400);
-            echo json_encode(["message" => "Données incomplètes"]);
+            echo json_encode(["message" => "Données incomplètes"], JSON_UNESCAPED_UNICODE);
         }
         break;
         
     default:
         http_response_code(405);
-        echo json_encode(["message" => "Méthode non autorisée"]);
+        echo json_encode(["message" => "Méthode non autorisée"], JSON_UNESCAPED_UNICODE);
         break;
 }
 ?>

@@ -50,20 +50,25 @@ $db = $database->getConnection();
 // Instancier l'utilisateur
 $user = new User($db);
 
-// Récupérer les données POST
-$data = json_decode(file_get_contents("php://input"));
+// Récupérer les données POST et assurer qu'elles sont en UTF-8
+$json_input = file_get_contents("php://input");
+$data = json_decode(cleanUTF8($json_input));
 
 // Vérifier si les données sont présentes
 if(
     !empty($data->username) &&
     !empty($data->password)
 ){
+    // Nettoyer les entrées utilisateur
+    $username = cleanUTF8($data->username);
+    $password = cleanUTF8($data->password);
+    
     // Rechercher l'utilisateur par son identifiant technique
-    if($user->findByIdentifiant($data->username)) {
+    if($user->findByIdentifiant($username)) {
         // Vérifier si le mot de passe correspond
         // Pour le prototype, on vérifie directement le mot de passe
-        // En production, utiliser password_verify($data->password, $user->mot_de_passe)
-        if($data->password === 'admin123' || $data->password === 'manager456' || $data->password === 'user789') {
+        // En production, utiliser password_verify($password, $user->mot_de_passe)
+        if($password === 'admin123' || $password === 'manager456' || $password === 'user789') {
             // Créer un JWT handler
             $jwt = new JwtHandler();
             
@@ -91,21 +96,22 @@ if(
                         "identifiant_technique" => $user->identifiant_technique,
                         "role" => $user->role
                     )
-                )
+                ),
+                JSON_UNESCAPED_UNICODE
             );
         } else {
             // Si le mot de passe ne correspond pas
             http_response_code(401);
-            echo json_encode(array("message" => "Identifiants invalides"));
+            echo json_encode(array("message" => "Identifiants invalides"), JSON_UNESCAPED_UNICODE);
         }
     } else {
         // Si l'utilisateur n'existe pas
         http_response_code(401);
-        echo json_encode(array("message" => "Identifiants invalides"));
+        echo json_encode(array("message" => "Identifiants invalides"), JSON_UNESCAPED_UNICODE);
     }
 } else {
     // Si des données sont manquantes
     http_response_code(400);
-    echo json_encode(array("message" => "Données incomplètes"));
+    echo json_encode(array("message" => "Données incomplètes"), JSON_UNESCAPED_UNICODE);
 }
 ?>

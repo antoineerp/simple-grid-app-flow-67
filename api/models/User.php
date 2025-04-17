@@ -62,6 +62,13 @@ class User {
         $this->identifiant_technique = htmlspecialchars(strip_tags($this->identifiant_technique));
         $this->role = htmlspecialchars(strip_tags($this->role));
 
+        // Convertir explicitement en UTF-8 et s'assurer que les chaînes sont valides
+        $this->nom = cleanUTF8($this->nom);
+        $this->prenom = cleanUTF8($this->prenom);
+        $this->email = cleanUTF8($this->email);
+        $this->identifiant_technique = cleanUTF8($this->identifiant_technique);
+        $this->role = cleanUTF8($this->role);
+
         // Hachage du mot de passe
         $this->mot_de_passe = password_hash($this->mot_de_passe, PASSWORD_BCRYPT);
 
@@ -103,6 +110,13 @@ class User {
         $this->email = htmlspecialchars(strip_tags($this->email));
         $this->role = htmlspecialchars(strip_tags($this->role));
 
+        // Convertir explicitement en UTF-8
+        $this->id = cleanUTF8($this->id);
+        $this->nom = cleanUTF8($this->nom);
+        $this->prenom = cleanUTF8($this->prenom);
+        $this->email = cleanUTF8($this->email);
+        $this->role = cleanUTF8($this->role);
+
         // Liaison des valeurs
         $stmt->bindParam(":id", $this->id);
         $stmt->bindParam(":nom", $this->nom);
@@ -128,6 +142,7 @@ class User {
 
         // Nettoyage et sécurisation de l'ID
         $this->id = htmlspecialchars(strip_tags($this->id));
+        $this->id = cleanUTF8($this->id);
 
         // Liaison de l'ID
         $stmt->bindParam(1, $this->id);
@@ -142,6 +157,9 @@ class User {
 
     // Rechercher un utilisateur par son identifiant technique
     public function findByIdentifiant($identifiant) {
+        // Nettoyer et convertir l'identifiant en UTF-8
+        $identifiant = cleanUTF8(htmlspecialchars(strip_tags($identifiant)));
+        
         // Requête pour trouver l'utilisateur
         $query = "SELECT id, nom, prenom, email, mot_de_passe, identifiant_technique, role, date_creation
                 FROM " . $this->table_name . "
