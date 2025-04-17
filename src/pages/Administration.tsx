@@ -1,5 +1,5 @@
-
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -20,6 +20,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 
 const Administration = () => {
+  const navigate = useNavigate();
   const { toast } = useToast();
   const [utilisateurs, setUtilisateurs] = useState<Utilisateur[]>([]);
   const [dbInfo, setDbInfo] = useState<any>(null);
@@ -27,8 +28,24 @@ const Administration = () => {
   const [newUserOpen, setNewUserOpen] = useState(false);
   const [formData, setFormData] = useState({ nom: '', prenom: '', email: '', role: 'utilisateur' });
   
-  // État pour suivre l'utilisateur de base de données actuellement connecté
   const [currentDatabaseUser, setCurrentDatabaseUser] = useState<string | null>(getCurrentUser());
+
+  useEffect(() => {
+    const userRole = localStorage.getItem('userRole');
+    if (userRole !== 'admin' && userRole !== 'administrateur') {
+      toast({
+        title: "Accès refusé",
+        description: "Vous n'avez pas les droits pour accéder à cette page.",
+        variant: "destructive",
+      });
+      navigate('/pilotage');
+      return;
+    }
+
+    loadUtilisateurs();
+    loadDatabaseInfo();
+    setCurrentDatabaseUser(getCurrentUser());
+  }, [navigate]);
 
   const loadUtilisateurs = async () => {
     setLoading(prev => ({ ...prev, users: true }));
@@ -93,14 +110,6 @@ const Administration = () => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
   };
-
-  useEffect(() => {
-    loadUtilisateurs();
-    loadDatabaseInfo();
-    
-    // Mise à jour de l'état à chaque fois que la page se charge
-    setCurrentDatabaseUser(getCurrentUser());
-  }, []);
 
   const getInitials = (nom: string, prenom: string) => {
     return `${prenom.charAt(0)}${nom.charAt(0)}`.toUpperCase();
