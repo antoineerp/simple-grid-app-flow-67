@@ -5,6 +5,9 @@ RewriteEngine On
 # Configuration spécifique pour Infomaniak
 Options -MultiViews
 
+# Définir le point d'entrée principal
+DirectoryIndex index.html index.php
+
 # Ne pas rediriger les requêtes vers des fichiers ou dossiers réels
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
