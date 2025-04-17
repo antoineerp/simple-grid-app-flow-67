@@ -1,16 +1,21 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2, RefreshCw, Database, AlertTriangle, ServerCrash, CheckCircle2 } from 'lucide-react';
+import { Loader2, RefreshCw, Database, AlertTriangle, ServerCrash, CheckCircle2, Table } from 'lucide-react';
 import { useAdminDatabase } from '@/hooks/useAdminDatabase';
 import DatabaseConfig from './DatabaseConfig';
 
 const DatabaseInfo = () => {
   const { dbInfo, loading, testingConnection, loadDatabaseInfo, handleTestConnection } = useAdminDatabase();
   const [activeTab, setActiveTab] = useState("info");
+  
+  // Charger les informations de la base de données au chargement du composant
+  useEffect(() => {
+    loadDatabaseInfo();
+  }, []);
 
   const getStatusBadge = (status: string) => {
     if (status === "Online") {
@@ -77,6 +82,18 @@ const DatabaseInfo = () => {
                       <div>
                         {getStatusBadge(dbInfo.status)}
                       </div>
+                      {dbInfo.encoding && (
+                        <>
+                          <div className="font-medium">Encodage:</div>
+                          <div>{dbInfo.encoding}</div>
+                        </>
+                      )}
+                      {dbInfo.collation && (
+                        <>
+                          <div className="font-medium">Collation:</div>
+                          <div>{dbInfo.collation}</div>
+                        </>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -94,6 +111,23 @@ const DatabaseInfo = () => {
                     </div>
                   </div>
                 </div>
+                
+                {dbInfo.tableList && dbInfo.tableList.length > 0 && (
+                  <div className="col-span-1 md:col-span-2 mt-4">
+                    <h3 className="text-sm font-medium text-muted-foreground mb-2">Tables de la base de données</h3>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2">
+                      {dbInfo.tableList.map((table, index) => (
+                        <div 
+                          key={index} 
+                          className="flex items-center gap-2 p-2 rounded-md bg-slate-50 border border-slate-200"
+                        >
+                          <Table className="h-4 w-4 text-slate-500" />
+                          <span className="text-sm truncate">{table}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             ) : (
               <div className="flex justify-center items-center h-40">

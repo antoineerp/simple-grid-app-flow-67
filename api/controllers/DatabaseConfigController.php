@@ -66,6 +66,21 @@ if ($userData['data']['role'] !== 'administrateur' && $userData['data']['role'] 
 // Instancier l'objet Database
 $database = new Database();
 
+// Fonction pour vérifier si une base de données existe
+function databaseExists($host, $username, $password, $dbName) {
+    try {
+        // Tenter de se connecter au serveur MySQL sans spécifier de base de données
+        $conn = new PDO("mysql:host=$host", $username, $password);
+        $conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+        
+        // Vérifier si la base de données existe
+        $stmt = $conn->query("SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = '$dbName'");
+        return $stmt->rowCount() > 0;
+    } catch (PDOException $e) {
+        return false;
+    }
+}
+
 // Détermininer la méthode de requête
 $method = $_SERVER['REQUEST_METHOD'];
 
@@ -76,6 +91,28 @@ switch($method) {
         
         // Masquer le mot de passe pour la sécurité
         $config['password'] = "********";
+        
+        // Ajouter une liste des bases de données disponibles si possible
+        try {
+            $conn = new PDO(
+                "mysql:host=" . $config['host'],
+                $config['username'],
+                $database->getConfig()['password']
+            );
+            $stmt = $conn->query("SHOW DATABASES");
+            $databases = $stmt->fetchAll(PDO::FETCH_COLUMN);
+            
+            // Filtrer les bases de données système
+            $databases = array_filter($databases, function($db) {
+                return $db != 'information_schema' && $db != 'performance_schema' && 
+                       $db != 'mysql' && $db != 'sys';
+            });
+            
+            $config['available_databases'] = array_values($databases);
+        } catch (PDOException $e) {
+            // Si on ne peut pas récupérer la liste, on l'ignore simplement
+            $config['available_databases'] = [];
+        }
         
         http_response_code(200);
         echo json_encode($config, JSON_UNESCAPED_UNICODE);
@@ -92,10 +129,27 @@ switch($method) {
             isset($data['username']) && 
             isset($data['password'])
         ) {
+            // Récupérer la configuration actuelle pour comparer
+            $currentConfig = $database->getConfig();
+            
             // Ne mettre à jour le mot de passe que s'il n'est pas masqué
             if ($data['password'] === "********") {
-                $currentConfig = $database->getConfig();
                 $data['password'] = $currentConfig['password'];
+            }
+            
+            // Vérifier si la base de données a changé
+            $dbChanged = $currentConfig['db_name'] !== $data['db_name'];
+            
+            // Si la base de données a changé, vérifier si elle existe
+            if ($dbChanged) {
+                if (!databaseExists($data['host'], $data['username'], $data['password'], $data['db_name'])) {
+                    http_response_code(400);
+                    echo json_encode([
+                        "message" => "La base de données spécifiée n'existe pas ou n'est pas accessible.",
+                        "status" => "error"
+                    ], JSON_UNESCAPED_UNICODE);
+                    exit;
+                }
             }
             
             // Mettre à jour la configuration
@@ -106,7 +160,11 @@ switch($method) {
                 $data['password']
             )) {
                 http_response_code(200);
-                echo json_encode(["message" => "Configuration de la base de données mise à jour avec succès"], JSON_UNESCAPED_UNICODE);
+                echo json_encode([
+                    "message" => "Configuration de la base de données mise à jour avec succès",
+                    "database_changed" => $dbChanged,
+                    "new_database" => $data['db_name']
+                ], JSON_UNESCAPED_UNICODE);
             } else {
                 http_response_code(500);
                 echo json_encode(["message" => "Erreur lors de la mise à jour de la configuration"], JSON_UNESCAPED_UNICODE);

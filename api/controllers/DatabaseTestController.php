@@ -79,11 +79,50 @@ if ($method === 'GET') {
             $stmt = $conn->query("SELECT 1");
             
             if ($stmt) {
+                // Collecter des informations sur la base de données
+                $dbInfo = [];
+                
+                // Obtenir la liste des tables
+                $tablesStmt = $conn->query("SHOW TABLES");
+                $tables = $tablesStmt->fetchAll(PDO::FETCH_COLUMN);
+                
+                // Obtenir la taille de la base de données
+                $sizeStmt = $conn->query("
+                    SELECT 
+                        SUM(data_length + index_length) as size,
+                        COUNT(*) as table_count
+                    FROM 
+                        information_schema.TABLES 
+                    WHERE 
+                        table_schema = '" . $database->getConfig()['db_name'] . "'
+                ");
+                $sizeInfo = $sizeStmt->fetch(PDO::FETCH_ASSOC);
+                
+                // Convertir la taille en MB
+                $sizeMB = round($sizeInfo['size'] / (1024 * 1024), 2) . ' MB';
+                
+                // Vérifier l'encodage de la base de données
+                $encodingStmt = $conn->query("
+                    SELECT default_character_set_name, default_collation_name
+                    FROM information_schema.SCHEMATA
+                    WHERE schema_name = '" . $database->getConfig()['db_name'] . "'
+                ");
+                $encodingInfo = $encodingStmt->fetch(PDO::FETCH_ASSOC);
+                
                 // La connexion est établie et la requête a fonctionné
                 http_response_code(200);
                 echo json_encode([
                     "message" => "Connexion réussie à la base de données",
-                    "status" => "success"
+                    "status" => "success",
+                    "info" => [
+                        "database_name" => $database->getConfig()['db_name'],
+                        "host" => $database->getConfig()['host'],
+                        "tables" => $tables,
+                        "table_count" => count($tables),
+                        "size" => $sizeMB,
+                        "encoding" => $encodingInfo['default_character_set_name'],
+                        "collation" => $encodingInfo['default_collation_name']
+                    ]
                 ], JSON_UNESCAPED_UNICODE);
             } else {
                 throw new Exception("Impossible d'exécuter une requête de test");

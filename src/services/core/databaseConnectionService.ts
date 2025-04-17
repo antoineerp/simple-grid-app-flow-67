@@ -1,6 +1,8 @@
 
 import { toast } from '@/hooks/use-toast';
 import { initializeUserData } from './userInitializationService';
+import { getApiUrl } from '@/config/apiConfig';
+import { getAuthHeaders } from '@/services/auth/authService';
 
 // Type for the database information
 export interface DatabaseInfo {
@@ -10,6 +12,9 @@ export interface DatabaseInfo {
   tables: number;
   lastBackup: string;
   status: string;
+  encoding?: string;
+  collation?: string;
+  tableList?: string[];
 }
 
 // Class for handling database connection
@@ -83,8 +88,19 @@ class DatabaseConnectionService {
   public async testConnection(): Promise<boolean> {
     try {
       console.log("Testing database connection...");
+      const API_URL = getApiUrl();
       
-      // Simulate a successful test
+      const response = await fetch(`${API_URL}/database-test`, {
+        method: 'GET',
+        headers: getAuthHeaders()
+      });
+      
+      if (!response.ok) {
+        throw new Error("Failed to test database connection");
+      }
+      
+      const data = await response.json();
+      
       toast({
         title: "Connection successful",
         description: `Connection established with the database`,
@@ -115,14 +131,40 @@ class DatabaseConnectionService {
   public async getDatabaseInfo(): Promise<DatabaseInfo | null> {
     try {
       console.log("Retrieving database information...");
+      const API_URL = getApiUrl();
       
-      // In a real application, this would come from an API backend
+      const response = await fetch(`${API_URL}/database-test`, {
+        method: 'GET',
+        headers: getAuthHeaders()
+      });
+      
+      if (!response.ok) {
+        throw new Error("Failed to get database information");
+      }
+      
+      const data = await response.json();
+      
+      if (data.info) {
+        return {
+          host: data.info.host || "Unknown host",
+          database: data.info.database_name || "Unknown database",
+          size: data.info.size || "Unknown size",
+          tables: data.info.table_count || 0,
+          lastBackup: "N/A", // We don't have this information from the API yet
+          status: data.status === "success" ? "Online" : "Offline",
+          encoding: data.info.encoding || "UTF-8",
+          collation: data.info.collation || "N/A",
+          tableList: data.info.tables || []
+        };
+      }
+      
+      // Fallback to simulated data if API doesn't return proper info
       return {
         host: "p71x6d.myd.infomaniak.com",
         database: "p71x6d_system",
-        size: "125 MB", // Simulated size
-        tables: 10, // Simulated number
-        lastBackup: "2025-04-17 08:00:00", // Simulated date
+        size: "125 MB",
+        tables: 10,
+        lastBackup: "2025-04-17 08:00:00",
         status: "Online"
       };
     } catch (error) {
