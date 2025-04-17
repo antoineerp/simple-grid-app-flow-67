@@ -1,10 +1,10 @@
-
+import { getApiUrl } from '@/config/apiConfig';
 import { toast } from '@/hooks/use-toast';
 import { disconnectUser } from '../core/databaseConnectionService';
 import { initializeUserData } from '../core/userInitializationService';
 
-// URL of the API
-const API_URL = 'https://votre-domaine.com/api';
+// URL de l'API
+const API_URL = getApiUrl();
 
 // Authentication service class
 class AuthService {

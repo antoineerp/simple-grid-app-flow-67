@@ -1,9 +1,9 @@
-
+import { getApiUrl } from '@/config/apiConfig';
 import { toast } from '@/hooks/use-toast';
 import { getAuthHeaders } from '../auth/authService';
 
-// URL of the API
-const API_URL = 'https://votre-domaine.com/api';
+// URL de l'API
+const API_URL = getApiUrl();
 
 // User type
 export interface Utilisateur {
