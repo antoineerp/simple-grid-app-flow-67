@@ -9,9 +9,6 @@ Options +FollowSymLinks
 # Définir le point d'entrée principal
 DirectoryIndex index.html index.php
 
-# Bloquer l'accès direct aux fichiers source
-RewriteRule ^src/ - [F,L]
-
 # Définir les types MIME corrects
 AddType application/javascript .js
 AddType text/css .css
@@ -19,7 +16,7 @@ AddType application/json .json
 AddType image/svg+xml .svg
 
 # Permettre l'accès aux assets
-<FilesMatch "\.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot|map)$">
+<FilesMatch "\.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot|map|tsx?)$">
     Order Allow,Deny
     Allow from all
 </FilesMatch>
@@ -42,8 +39,12 @@ RewriteRule ^api/(.*)$ api/index.php [QSA,L]
 RewriteRule ^assets/(.*)$ dist/assets/$1 [L]
 
 # Permettre l'accès direct aux autres ressources statiques
-RewriteCond %{REQUEST_URI} \.(js|css|png|jpe?g|gif|svg|ico|webp|woff2?|ttf|eot|map)$
+RewriteCond %{REQUEST_URI} \.(js|css|png|jpe?g|gif|svg|ico|webp|woff2?|ttf|eot|map|tsx?)$
 RewriteRule ^ - [L]
+
+# En mode développement, permettre l'accès aux fichiers source
+RewriteCond %{REQUEST_FILENAME} -f
+RewriteRule ^src/ - [L]
 
 # Rediriger toutes les autres requêtes vers index.html pour React Router
 RewriteRule ^(?!api/).*$ index.html [QSA,L]
