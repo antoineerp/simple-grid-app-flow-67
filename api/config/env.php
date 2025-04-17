@@ -6,7 +6,7 @@
 $currentHost = $_SERVER['HTTP_HOST'] ?? '';
 
 // Définir l'environnement par défaut
-$environment = 'production'; // Changé à 'production' par défaut pour Infomaniak
+$environment = 'production'; // Environnement par défaut pour Infomaniak
 
 // Détecter l'environnement en fonction du nom d'hôte
 if (strpos($currentHost, 'localhost') !== false || strpos($currentHost, '127.0.0.1') !== false) {
@@ -18,11 +18,16 @@ $_ENV['APP_ENV'] = $environment;
 
 // Configuration API
 $_ENV['API_URL_DEV'] = 'http://localhost:8080/api';
-$_ENV['API_URL_PROD'] = 'https://www.qualiopi.ch/api'; // Assurez-vous que cette URL est correcte
+$_ENV['API_URL_PROD'] = 'https://www.qualiopi.ch/api'; 
 
 // Configuration CORS
 $_ENV['ALLOWED_ORIGIN_DEV'] = 'http://localhost:8080';
-$_ENV['ALLOWED_ORIGIN_PROD'] = 'https://www.qualiopi.ch'; // Assurez-vous que cette URL est correcte
+$_ENV['ALLOWED_ORIGIN_PROD'] = 'https://www.qualiopi.ch';
+
+// Journaliser l'environnement détecté en production (pour le débogage initial)
+if ($environment === 'production') {
+    error_log("Application démarrée en environnement de PRODUCTION sur l'hôte: " . $currentHost);
+}
 
 // Charger la configuration depuis le fichier app_config.json s'il existe
 $configFile = __DIR__ . '/app_config.json';
@@ -57,6 +62,10 @@ if ($environment === 'production') {
     // Désactiver l'affichage des erreurs en production
     ini_set('display_errors', 0);
     error_reporting(E_ALL & ~E_DEPRECATED & ~E_STRICT);
+    
+    // Journaliser les erreurs dans le fichier de log
+    ini_set('log_errors', 1);
+    ini_set('error_log', '/tmp/php-errors.log'); // Chemin typique pour Infomaniak
 } else {
     // Activer l'affichage des erreurs en développement
     ini_set('display_errors', 1);
