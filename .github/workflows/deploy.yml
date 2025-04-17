@@ -19,11 +19,35 @@ jobs:
         node-version: '18'
         cache: 'npm'
     
+    - name: Debug - List files
+      run: ls -la
+      
     - name: Install dependencies
       run: npm ci
     
+    - name: Debug - Node and NPM versions
+      run: |
+        node -v
+        npm -v
+    
     - name: Build project
       run: npm run build
+      
+    - name: Debug - List build output
+      run: |
+        echo "Contenu du répertoire dist :"
+        ls -la dist || echo "Le répertoire dist n'existe pas"
+        echo "Contenu du répertoire api :"
+        ls -la api || echo "Le répertoire api n'existe pas"
+    
+    - name: Check if .htaccess exists
+      run: |
+        if [ -f .htaccess ]; then
+          echo ".htaccess trouvé"
+        else
+          echo ".htaccess non trouvé - création d'un fichier vide"
+          touch .htaccess
+        fi
       
     - name: Upload build artifacts
       uses: actions/upload-artifact@v3
@@ -33,4 +57,3 @@ jobs:
           dist
           api
           .htaccess
-
