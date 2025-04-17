@@ -69,15 +69,15 @@ const Index = () => {
       <div className="w-full max-w-md bg-white rounded-lg shadow-lg p-8 md:mr-8">
         <div className="flex flex-col items-center mb-8">
           <img 
-            src="/logo-swiss.svg" 
-            alt="FormaCart Logo" 
+            src="/lovable-uploads/formacert-logo.png" 
+            alt="FormaCert Logo" 
             className="w-48 mb-4" 
             onError={(e) => {
               console.error("Failed to load primary logo");
               (e.target as HTMLImageElement).src = "/logo-swiss.svg";
             }}
           />
-          <h1 className="text-2xl font-bold text-gray-800">Bienvenue sur FormaCart</h1>
+          <h1 className="text-2xl font-bold text-gray-800">Bienvenue sur FormaCert</h1>
         </div>
         
         <Form {...form}>
