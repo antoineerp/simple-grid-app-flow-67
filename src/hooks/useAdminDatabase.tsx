@@ -9,15 +9,18 @@ export const useAdminDatabase = () => {
   const [loading, setLoading] = useState(false);
   const [testingConnection, setTestingConnection] = useState(false);
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const loadDatabaseInfo = async () => {
     setLoading(true);
+    setError(null);
     try {
       const info = await getDatabaseInfo();
       setDbInfo(info);
       setLastUpdate(new Date());
     } catch (error) {
       console.error("Erreur lors du chargement des informations de la base de données", error);
+      setError("Impossible de charger les informations de la base de données");
       toast({
         title: "Erreur",
         description: "Impossible de charger les informations de la base de données.",
@@ -30,12 +33,25 @@ export const useAdminDatabase = () => {
 
   const handleTestConnection = async () => {
     setTestingConnection(true);
+    setError(null);
     try {
       const result = await testDatabaseConnection();
       if (result) {
         // Recharger les informations de la base de données après un test réussi
         await loadDatabaseInfo();
+        toast({
+          title: "Succès",
+          description: "La connexion à la base de données est établie.",
+        });
       }
+    } catch (error) {
+      console.error("Erreur lors du test de connexion à la base de données", error);
+      setError("Échec du test de connexion à la base de données");
+      toast({
+        title: "Échec",
+        description: "Impossible de se connecter à la base de données.",
+        variant: "destructive",
+      });
     } finally {
       setTestingConnection(false);
     }
@@ -51,6 +67,7 @@ export const useAdminDatabase = () => {
     loading,
     testingConnection,
     lastUpdate,
+    error,
     loadDatabaseInfo,
     handleTestConnection
   };
