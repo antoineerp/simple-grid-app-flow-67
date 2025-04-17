@@ -1,40 +1,26 @@
-
 import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { useResponsabilityMatrix } from '@/hooks/useResponsabilityMatrix';
-import { FileDown, BarChart3 } from 'lucide-react';
+import { BarChart3 } from 'lucide-react';
 import {
   HoverCard,
   HoverCardTrigger,
   HoverCardContent
 } from '@/components/ui/hover-card';
-import { exportCollaborateurStatsToPdf } from '@/services/pdfExport';
-import { useToast } from '@/hooks/use-toast';
 
-const ResponsabilityMatrix: React.FC = () => {
+const ResponsibilityMatrix: React.FC = () => {
   const { membreResponsabilites } = useResponsabilityMatrix();
-  const { toast } = useToast();
 
   const getTotalResponsibilities = (membre) => {
     const exigencesTotal = membre.exigences.r + membre.exigences.a + membre.exigences.c + membre.exigences.i;
     const documentsTotal = membre.documents.r + membre.documents.a + membre.documents.c + membre.documents.i;
     return exigencesTotal + documentsTotal;
   };
-  
-  const handleExportPDF = (membre, e) => {
-    e.stopPropagation(); // Empêcher la fermeture de la HoverCard
-    exportCollaborateurStatsToPdf(membre);
-    toast({
-      title: "Export PDF",
-      description: `Les statistiques de ${membre.prenom} ${membre.nom} ont été exportées en PDF`,
-    });
-  };
 
   return (
     <div className="mt-8">
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-2xl font-bold">Matrice des responsabilités</h2>
-        <FileDown className="text-red-500 h-5 w-5 cursor-pointer hover:text-red-600" />
       </div>
       
       <Card className="overflow-hidden border border-gray-200">
@@ -49,12 +35,10 @@ const ResponsabilityMatrix: React.FC = () => {
                 </tr>
                 <tr className="bg-gray-100">
                   <th className="px-6 py-3"></th>
-                  {/* Exigences Headers */}
                   <th className="px-6 py-3 text-center text-sm font-medium text-gray-500 bg-blue-50">R</th>
                   <th className="px-6 py-3 text-center text-sm font-medium text-gray-500 bg-blue-50">A</th>
                   <th className="px-6 py-3 text-center text-sm font-medium text-gray-500 bg-blue-50">C</th>
                   <th className="px-6 py-3 text-center text-sm font-medium text-gray-500 bg-blue-50">I</th>
-                  {/* Documents Headers */}
                   <th className="px-6 py-3 text-center text-sm font-medium text-gray-500 bg-green-50">R</th>
                   <th className="px-6 py-3 text-center text-sm font-medium text-gray-500 bg-green-50">A</th>
                   <th className="px-6 py-3 text-center text-sm font-medium text-gray-500 bg-green-50">C</th>
@@ -78,13 +62,6 @@ const ResponsabilityMatrix: React.FC = () => {
                             <div className="space-y-2">
                               <div className="flex items-center justify-between">
                                 <h4 className="text-sm font-semibold">{membre.prenom} {membre.nom}</h4>
-                                <button 
-                                  onClick={(e) => handleExportPDF(membre, e)}
-                                  className="hover:bg-gray-100 p-1 rounded-full"
-                                  title="Exporter en PDF"
-                                >
-                                  <FileDown className="h-4 w-4 text-red-500" />
-                                </button>
                               </div>
                               <div className="text-sm">
                                 <p className="font-medium">Exigences:</p>
@@ -109,13 +86,11 @@ const ResponsabilityMatrix: React.FC = () => {
                       </div>
                     </td>
                     
-                    {/* Exigences Counts */}
                     <td className="px-6 py-3 text-center bg-blue-50">{membre.exigences.r || '-'}</td>
                     <td className="px-6 py-3 text-center bg-blue-50">{membre.exigences.a || '-'}</td>
                     <td className="px-6 py-3 text-center bg-blue-50">{membre.exigences.c || '-'}</td>
                     <td className="px-6 py-3 text-center bg-blue-50">{membre.exigences.i || '-'}</td>
                     
-                    {/* Documents Counts */}
                     <td className="px-6 py-3 text-center bg-green-50">{membre.documents.r || '-'}</td>
                     <td className="px-6 py-3 text-center bg-green-50">{membre.documents.a || '-'}</td>
                     <td className="px-6 py-3 text-center bg-green-50">{membre.documents.c || '-'}</td>
@@ -139,4 +114,4 @@ const ResponsabilityMatrix: React.FC = () => {
   );
 };
 
-export default ResponsabilityMatrix;
+export default ResponsibilityMatrix;
