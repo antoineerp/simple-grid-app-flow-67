@@ -2,10 +2,21 @@
 import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { useResponsabilityMatrix } from '@/hooks/useResponsabilityMatrix';
-import { FileText } from 'lucide-react';
+import { FileText, BarChart3 } from 'lucide-react';
+import {
+  HoverCard,
+  HoverCardTrigger,
+  HoverCardContent
+} from '@/components/ui/hover-card';
 
 const ResponsabilityMatrix: React.FC = () => {
   const { membreResponsabilites } = useResponsabilityMatrix();
+
+  const getTotalResponsibilities = (membre) => {
+    const exigencesTotal = membre.exigences.r + membre.exigences.a + membre.exigences.c + membre.exigences.i;
+    const documentsTotal = membre.documents.r + membre.documents.a + membre.documents.c + membre.documents.i;
+    return exigencesTotal + documentsTotal;
+  };
 
   return (
     <div className="mt-8">
@@ -42,8 +53,39 @@ const ResponsabilityMatrix: React.FC = () => {
                 {membreResponsabilites.map((membre) => (
                   <tr key={membre.id} className="border-b bg-yellow-50 hover:bg-yellow-100">
                     <td className="px-6 py-3 whitespace-nowrap">
-                      <div className="font-medium">{membre.fonction}</div>
-                      <div className="text-gray-500 text-xs">({membre.initiales})</div>
+                      <div className="flex items-center">
+                        <div className="font-medium">{membre.fonction}</div>
+                        <div className="text-gray-500 text-xs ml-2">({membre.initiales})</div>
+                        <HoverCard>
+                          <HoverCardTrigger asChild>
+                            <button className="ml-2 p-1 hover:bg-gray-200 rounded-full">
+                              <BarChart3 className="h-4 w-4 text-gray-500" />
+                            </button>
+                          </HoverCardTrigger>
+                          <HoverCardContent className="w-60">
+                            <div className="space-y-2">
+                              <h4 className="text-sm font-semibold">{membre.prenom} {membre.nom}</h4>
+                              <div className="text-sm">
+                                <p className="font-medium">Exigences:</p>
+                                <ul className="pl-4 text-xs">
+                                  <li>Responsable: {membre.exigences.r}</li>
+                                  <li>Approbateur: {membre.exigences.a}</li>
+                                  <li>Consulté: {membre.exigences.c}</li>
+                                  <li>Informé: {membre.exigences.i}</li>
+                                </ul>
+                                <p className="font-medium mt-2">Documents:</p>
+                                <ul className="pl-4 text-xs">
+                                  <li>Responsable: {membre.documents.r}</li>
+                                  <li>Approbateur: {membre.documents.a}</li>
+                                  <li>Consulté: {membre.documents.c}</li>
+                                  <li>Informé: {membre.documents.i}</li>
+                                </ul>
+                                <p className="font-medium mt-2">Total des responsabilités: {getTotalResponsibilities(membre)}</p>
+                              </div>
+                            </div>
+                          </HoverCardContent>
+                        </HoverCard>
+                      </div>
                     </td>
                     
                     {/* Exigences Counts */}
