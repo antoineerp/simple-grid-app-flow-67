@@ -12,14 +12,7 @@ import {
 import { useMembres } from '@/contexts/MembresContext';
 import MemberList from '@/components/ressources-humaines/MemberList';
 import MemberForm from '@/components/ressources-humaines/MemberForm';
-
-interface Membre {
-  id: number;
-  nom: string;
-  prenom: string;
-  fonction: string;
-  initiales: string;
-}
+import { Membre } from '@/types/membres';
 
 const RessourcesHumaines = () => {
   const { toast } = useToast();
@@ -27,16 +20,17 @@ const RessourcesHumaines = () => {
   
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [currentMembre, setCurrentMembre] = useState<Membre>({
-    id: 0,
+    id: '',
     nom: '',
     prenom: '',
     fonction: '',
-    initiales: ''
+    initiales: '',
+    date_creation: new Date()
   });
   const [isEditing, setIsEditing] = useState(false);
 
   // Handler for edit action
-  const handleEdit = (id: number) => {
+  const handleEdit = (id: string) => {
     const membre = membres.find(m => m.id === id);
     if (membre) {
       setCurrentMembre({ ...membre });
@@ -46,7 +40,7 @@ const RessourcesHumaines = () => {
   };
 
   // Handler for delete action
-  const handleDelete = (id: number) => {
+  const handleDelete = (id: string) => {
     setMembres(prev => prev.filter(membre => membre.id !== id));
     toast({
       title: "Suppression",
@@ -56,17 +50,18 @@ const RessourcesHumaines = () => {
 
   // Handler for adding a new member
   const handleAddMember = () => {
-    // Generate a new ID for the new member
+    // Generate a new ID for the new member - convert to string
     const newId = membres.length > 0 
-      ? Math.max(...membres.map(membre => membre.id)) + 1 
-      : 1;
+      ? String(Math.max(...membres.map(membre => parseInt(membre.id))) + 1)
+      : '1';
     
     setCurrentMembre({
       id: newId,
       nom: '',
       prenom: '',
       fonction: '',
-      initiales: ''
+      initiales: '',
+      date_creation: new Date()
     });
     setIsEditing(false);
     setIsDialogOpen(true);

@@ -6,14 +6,7 @@ import { Button } from "@/components/ui/button";
 import {
   DialogFooter,
 } from "@/components/ui/dialog";
-
-interface Membre {
-  id: number;
-  nom: string;
-  prenom: string;
-  fonction: string;
-  initiales: string;
-}
+import { Membre } from '@/types/membres';
 
 interface MemberFormProps {
   currentMembre: Membre;

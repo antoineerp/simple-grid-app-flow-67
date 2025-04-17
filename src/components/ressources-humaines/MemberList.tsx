@@ -1,19 +1,12 @@
 
 import React from 'react';
 import { Pencil, Trash } from 'lucide-react';
-
-interface Membre {
-  id: number;
-  nom: string;
-  prenom: string;
-  fonction: string;
-  initiales: string;
-}
+import { Membre } from '@/types/membres';
 
 interface MemberListProps {
   membres: Membre[];
-  onEdit: (id: number) => void;
-  onDelete: (id: number) => void;
+  onEdit: (id: string) => void;
+  onDelete: (id: string) => void;
 }
 
 const MemberList = ({ membres, onEdit, onDelete }: MemberListProps) => {
