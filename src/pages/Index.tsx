@@ -20,6 +20,7 @@ type LoginFormValues = z.infer<typeof loginSchema>;
 const Index = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const [logoSrc, setLogoSrc] = useState("/logo-swiss.svg");
   
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
@@ -28,6 +29,17 @@ const Index = () => {
       password: "",
     },
   });
+
+  // Try to load FormaCert logo, with fallback to Swiss logo
+  React.useEffect(() => {
+    const img = new Image();
+    img.src = "/lovable-uploads/formacert-logo.png";
+    img.onload = () => setLogoSrc("/lovable-uploads/formacert-logo.png");
+    img.onerror = () => {
+      console.log("Using fallback logo");
+      setLogoSrc("/logo-swiss.svg");
+    };
+  }, []);
 
   const onSubmit = async (data: LoginFormValues) => {
     try {
@@ -70,9 +82,13 @@ const Index = () => {
       <div className="w-full max-w-md bg-white rounded-lg shadow-lg p-8 md:mr-8">
         <div className="flex flex-col items-center mb-8">
           <img 
-            src="/logo-swiss.svg" 
+            src={logoSrc} 
             alt="FormaCert Logo" 
             className="w-48 mb-4"
+            onError={(e) => {
+              console.error("Logo failed to load:", (e.target as HTMLImageElement).src);
+              (e.target as HTMLImageElement).src = "/logo-swiss.svg";
+            }}
           />
           <h1 className="text-2xl font-bold text-gray-800">Bienvenue sur FormaCert</h1>
         </div>
