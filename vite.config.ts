@@ -2,6 +2,7 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
+import { componentTagger } from "lovable-tagger";
 
 export default defineConfig(({ mode }) => ({
   server: {
@@ -9,9 +10,9 @@ export default defineConfig(({ mode }) => ({
     port: 8080,
   },
   plugins: [
-    react(), // Suppression de la configuration babel non supportée
-    // Le plugin lovable-tagger est complètement désactivé pour compatibilité avec Node.js 16
-  ],
+    react(),
+    mode === 'development' && componentTagger(),
+  ].filter(Boolean),
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
@@ -29,20 +30,18 @@ export default defineConfig(({ mode }) => ({
             return 'vendor';
           }
         },
-        // Optimisation des noms de fichiers pour le cache
         entryFileNames: 'assets/[name].[hash].js',
         chunkFileNames: 'assets/[name].[hash].js',
         assetFileNames: 'assets/[name].[hash].[ext]'
       }
     },
-    // Optimisations TypeScript
     target: 'es2015',
     cssCodeSplit: true,
   },
   publicDir: 'public',
   base: '/',
-  // Configuration TypeScript
   esbuild: {
     logOverride: { 'this-is-undefined-in-esm': 'silent' }
   }
 }));
+

@@ -1,5 +1,5 @@
 
-// Configuration ESLint simplifiée compatible avec Node.js 16
+// Configuration ESLint compatible with Node.js
 export default {
   root: true,
   env: {
@@ -7,11 +7,16 @@ export default {
     es2020: true
   },
   extends: [
-    'eslint:recommended'
+    'eslint:recommended',
+    'plugin:@typescript-eslint/recommended',
+    'plugin:react-hooks/recommended'
   ],
   ignorePatterns: ["dist"],
+  parser: '@typescript-eslint/parser',
+  plugins: ['react-refresh'],
   rules: {
-    "@typescript-eslint/no-unused-vars": "off",
-    "react-refresh/only-export-components": ["warn", { allowConstantExport: true }]
+    'react-refresh/only-export-components': ['warn', { allowConstantExport: true }],
+    '@typescript-eslint/no-unused-vars': 'warn'
   }
 };
+
