@@ -1,12 +1,12 @@
 
-name: Deploy to Infomaniak
+name: Build Application
 
 on:
   push:
     branches: [ main ]  # Déclenche le workflow quand il y a un push sur la branche main
 
 jobs:
-  build-and-deploy:
+  build:
     runs-on: ubuntu-latest
     
     steps:
@@ -24,42 +24,13 @@ jobs:
     
     - name: Build project
       run: npm run build
-    
-    - name: Deploy to Infomaniak
-      uses: SamKirkland/FTP-Deploy-Action@v4.3.4
+      
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v3
       with:
-        server: ${{ secrets.FTP_SERVER }}
-        username: ${{ secrets.FTP_USERNAME }}
-        password: ${{ secrets.FTP_PASSWORD }}
-        local-dir: ./dist/
-        server-dir: /www/
-        dangerous-clean-slate: false
-        exclude: |
-          **/.git*
-          **/.git*/**
-          **/node_modules/**
-    
-    - name: Deploy API folder
-      uses: SamKirkland/FTP-Deploy-Action@v4.3.4
-      with:
-        server: ${{ secrets.FTP_SERVER }}
-        username: ${{ secrets.FTP_USERNAME }}
-        password: ${{ secrets.FTP_PASSWORD }}
-        local-dir: ./api/
-        server-dir: /www/api/
-        dangerous-clean-slate: false
-        exclude: |
-          **/.git*
-          **/.git*/**
-          
-    - name: Deploy .htaccess
-      uses: SamKirkland/FTP-Deploy-Action@v4.3.4
-      with:
-        server: ${{ secrets.FTP_SERVER }}
-        username: ${{ secrets.FTP_USERNAME }}
-        password: ${{ secrets.FTP_PASSWORD }}
-        local-dir: ./
-        server-dir: /www/
-        include: |
+        name: build-files
+        path: |
+          dist
+          api
           .htaccess
-        dangerous-clean-slate: false
+
