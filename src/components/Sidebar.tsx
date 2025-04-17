@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { BarChart2, FileCheck, FileText, Users, BookOpen } from 'lucide-react';
@@ -65,7 +66,7 @@ const Sidebar = () => {
           <img 
             src="/lovable-uploads/swiss-army-knife-logo.png" 
             alt="Swiss Army Knife Logo" 
-            className="w-24 h-24 object-contain" 
+            className="w-32 h-32 object-contain" 
           />
         </div>
       </nav>
