@@ -20,36 +20,9 @@ function cleanUTF8($input) {
     return $input;
 }
 
-// Déterminer l'environnement
-$environment = env('APP_ENV', 'development');
-
-// Configuration des en-têtes CORS selon l'environnement
-$allowedOrigins = [
-    'development' => env('ALLOWED_ORIGIN_DEV', 'http://localhost:8080'),
-    'production' => env('ALLOWED_ORIGIN_PROD', 'https://qualiopi.ch')
-];
-
-$allowedOrigin = $allowedOrigins[$environment];
-
-// Obtenir l'origine de la requête
-$origin = isset($_SERVER['HTTP_ORIGIN']) ? $_SERVER['HTTP_ORIGIN'] : '';
-
-// Log de l'origine pour le débogage
-error_log("AuthController - Requête depuis l'origine: " . $origin);
-error_log("AuthController - Environnement détecté: " . $environment);
-error_log("AuthController - Origine autorisée: " . $allowedOrigin);
-
-// Vérifier si l'origine est autorisée
-if ($origin === $allowedOrigin || $environment === 'development') {
-    header("Access-Control-Allow-Origin: $origin");
-} else {
-    // En production, accepter toutes les origines pour éviter les problèmes CORS
-    header("Access-Control-Allow-Origin: *");
-    error_log("AuthController - Origine non reconnue, utilisation de CORS permissif");
-}
-
-// Autres en-têtes CORS
+// Configuration des en-têtes CORS et de la réponse JSON
 header("Content-Type: application/json; charset=UTF-8");
+header("Access-Control-Allow-Origin: *");
 header("Access-Control-Allow-Methods: POST, OPTIONS");
 header("Access-Control-Max-Age: 3600");
 header("Access-Control-Allow-Headers: Content-Type, Access-Control-Allow-Headers, Authorization, X-Requested-With");
@@ -60,66 +33,57 @@ header("Expires: 0");
 // Si c'est une requête OPTIONS (preflight), nous la terminons ici
 if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
     header("HTTP/1.1 200 OK");
-    exit;
+    exit(json_encode(['status' => 200, 'message' => 'Preflight OK']));
 }
-
-// Vérifier si la méthode est POST
-if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-    error_log("Méthode non autorisée: " . $_SERVER['REQUEST_METHOD']);
-    http_response_code(405);
-    echo json_encode(['message' => 'Méthode non autorisée. Utilisez POST pour l\'authentification.', 'status' => 405], JSON_UNESCAPED_UNICODE);
-    exit;
-}
-
-// Inclusion des fichiers nécessaires
-$basePath = __DIR__ . '/../';
-error_log("Chemin de base: " . $basePath);
-
-// Vérifier si les fichiers existent avant de les inclure
-$configFile = $basePath . 'config/database.php';
-$userFile = $basePath . 'models/User.php';
-$jwtFile = $basePath . 'utils/JwtHandler.php';
-
-if (!file_exists($configFile)) {
-    error_log("Fichier config/database.php non trouvé");
-    http_response_code(500);
-    echo json_encode(['message' => 'Configuration non trouvée', 'path' => $configFile], JSON_UNESCAPED_UNICODE);
-    exit;
-}
-
-if (!file_exists($userFile)) {
-    error_log("Fichier models/User.php non trouvé");
-    http_response_code(500);
-    echo json_encode(['message' => 'Modèle utilisateur non trouvé', 'path' => $userFile], JSON_UNESCAPED_UNICODE);
-    exit;
-}
-
-if (!file_exists($jwtFile)) {
-    error_log("Fichier utils/JwtHandler.php non trouvé");
-    http_response_code(500);
-    echo json_encode(['message' => 'Gestionnaire JWT non trouvé', 'path' => $jwtFile], JSON_UNESCAPED_UNICODE);
-    exit;
-}
-
-// Inclure les fichiers requis
-include_once $configFile;
-include_once $userFile;
-include_once $jwtFile;
-
-// Obtenir la connexion à la base de données
-$database = new Database();
-$db = $database->getConnection();
-
-// Instancier l'utilisateur
-$user = new User($db);
-
-// Récupérer les données POST et assurer qu'elles sont en UTF-8
-$json_input = file_get_contents("php://input");
-
-// Log la réception des données
-error_log("Données reçues: " . $json_input);
 
 try {
+    // Vérifier si la méthode est POST
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+        error_log("Méthode non autorisée: " . $_SERVER['REQUEST_METHOD']);
+        http_response_code(405);
+        echo json_encode(['message' => 'Méthode non autorisée. Utilisez POST pour l\'authentification.', 'status' => 405], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+
+    // Inclusion des fichiers nécessaires
+    $basePath = __DIR__ . '/../';
+    error_log("Chemin de base: " . $basePath);
+
+    // Vérifier si les fichiers existent avant de les inclure
+    $configFile = $basePath . 'config/database.php';
+    $userFile = $basePath . 'models/User.php';
+    $jwtFile = $basePath . 'utils/JwtHandler.php';
+
+    if (!file_exists($configFile)) {
+        throw new Exception("Fichier config/database.php non trouvé");
+    }
+
+    if (!file_exists($userFile)) {
+        throw new Exception("Fichier models/User.php non trouvé");
+    }
+
+    if (!file_exists($jwtFile)) {
+        throw new Exception("Fichier utils/JwtHandler.php non trouvé");
+    }
+
+    // Inclure les fichiers requis
+    include_once $configFile;
+    include_once $userFile;
+    include_once $jwtFile;
+
+    // Obtenir la connexion à la base de données
+    $database = new Database();
+    $db = $database->getConnection();
+
+    // Instancier l'utilisateur
+    $user = new User($db);
+
+    // Récupérer les données POST et assurer qu'elles sont en UTF-8
+    $json_input = file_get_contents("php://input");
+
+    // Log la réception des données
+    error_log("Données reçues: " . $json_input);
+
     // Vérifier si les données sont vides
     if (empty($json_input)) {
         throw new Exception("Aucune donnée reçue");
@@ -129,13 +93,7 @@ try {
 
     // Vérifier si le décodage a réussi
     if (json_last_error() !== JSON_ERROR_NONE) {
-        error_log("Erreur de décodage JSON: " . json_last_error_msg());
-        http_response_code(400);
-        echo json_encode([
-            "message" => "Erreur de décodage JSON: " . json_last_error_msg(),
-            "input" => $json_input
-        ], JSON_UNESCAPED_UNICODE);
-        exit;
+        throw new Exception("Erreur de décodage JSON: " . json_last_error_msg());
     }
 
     // Vérifier si les données sont présentes

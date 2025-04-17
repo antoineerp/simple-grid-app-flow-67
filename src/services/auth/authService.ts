@@ -71,45 +71,26 @@ class AuthService {
             });
             
             console.log("Réponse de l'API reçue:", response.status, response.statusText);
+            console.log("Type de contenu reçu:", response.headers.get('Content-Type'));
             
-            if (!response.ok) {
-                let errorText;
-                try {
-                    errorText = await response.text();
-                    console.error("Réponse d'erreur:", errorText);
-                } catch (e) {
-                    errorText = "Impossible de lire la réponse d'erreur";
-                    console.error("Impossible de lire la réponse d'erreur:", e);
-                }
-                
-                let errorMessage;
-                try {
-                    if (errorText && errorText.trim() !== '') {
-                        const errorData = JSON.parse(errorText);
-                        errorMessage = errorData.message || `Erreur HTTP ${response.status}`;
-                    } else {
-                        errorMessage = `Erreur HTTP ${response.status}: ${response.statusText || 'Pas de détails'}`;
-                    }
-                } catch (e) {
-                    errorMessage = `Erreur HTTP ${response.status}: ${response.statusText || 'Pas de détails'}`;
-                }
-                
-                throw new Error(errorMessage);
+            const responseText = await response.text();
+            console.log("Texte de réponse brut:", responseText);
+            
+            if (!responseText || responseText.trim() === '') {
+                throw new Error("Réponse vide du serveur");
             }
             
             let data;
             try {
-                const responseText = await response.text();
-                console.log("Texte de réponse:", responseText);
-                
-                if (!responseText || responseText.trim() === '') {
-                    throw new Error("Réponse vide du serveur");
-                }
-                
                 data = JSON.parse(responseText);
             } catch (parseError) {
                 console.error("Erreur de parsing JSON:", parseError);
-                throw new Error("Réponse invalide du serveur");
+                throw new Error("Réponse invalide du serveur: " + responseText.substring(0, 100));
+            }
+            
+            if (!response.ok) {
+                const errorMessage = data.message || `Erreur HTTP ${response.status}`;
+                throw new Error(errorMessage);
             }
             
             if (data.token && data.user) {
