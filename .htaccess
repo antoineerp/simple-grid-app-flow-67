@@ -11,6 +11,12 @@ DirectoryIndex index.html index.php
 # Bloquer l'accès direct aux fichiers src
 RewriteRule ^src/ - [F,L]
 
+# Définir les types MIME corrects
+AddType application/javascript .js
+AddType text/css .css
+AddType application/json .json
+AddType image/svg+xml .svg
+
 # Traitement spécial pour les assets
 RewriteCond %{REQUEST_URI} ^/assets/
 RewriteCond %{REQUEST_FILENAME} !-f

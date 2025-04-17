@@ -36,13 +36,35 @@ if ($environment === 'production') {
     error_log("API URL: " . $_ENV['API_URL_PROD']);
     error_log("ALLOWED ORIGIN: " . $_ENV['ALLOWED_ORIGIN_PROD']);
     
-    // Journal des informations sur les requêtes statiques
-    if (strpos($_SERVER['REQUEST_URI'] ?? '', '.js') !== false || 
-        strpos($_SERVER['REQUEST_URI'] ?? '', '.css') !== false || 
-        strpos($_SERVER['REQUEST_URI'] ?? '', '/assets/') !== false) {
-        error_log("Requête d'asset détectée: " . ($_SERVER['REQUEST_URI'] ?? 'non défini'));
-        error_log("Document root: " . ($_SERVER['DOCUMENT_ROOT'] ?? 'non défini'));
-        error_log("Fichier physique: " . ($_SERVER['SCRIPT_FILENAME'] ?? 'non défini'));
+    // Journaliser les informations sur les demandes de ressources statiques
+    $uri = $_SERVER['REQUEST_URI'] ?? '';
+    if (strpos($uri, '.js') !== false || 
+        strpos($uri, '.css') !== false || 
+        strpos($uri, '/assets/') !== false) {
+        
+        error_log("[Asset diagnostics] Requête d'asset détectée: " . $uri);
+        error_log("[Asset diagnostics] Document root: " . ($_SERVER['DOCUMENT_ROOT'] ?? 'non défini'));
+        error_log("[Asset diagnostics] Fichier physique: " . ($_SERVER['SCRIPT_FILENAME'] ?? 'non défini'));
+        error_log("[Asset diagnostics] Accept: " . ($_SERVER['HTTP_ACCEPT'] ?? 'non défini'));
+        error_log("[Asset diagnostics] User Agent: " . ($_SERVER['HTTP_USER_AGENT'] ?? 'non défini'));
+        
+        // Vérifiez si le fichier existe
+        $file_path = $_SERVER['DOCUMENT_ROOT'] . $uri;
+        if (file_exists($file_path)) {
+            error_log("[Asset diagnostics] Le fichier existe sur le disque: " . $file_path);
+            error_log("[Asset diagnostics] Taille du fichier: " . filesize($file_path) . " octets");
+        } else {
+            error_log("[Asset diagnostics] Le fichier N'EXISTE PAS sur le disque: " . $file_path);
+            
+            // Recherche de fichiers similaires
+            $directory = dirname($file_path);
+            if (is_dir($directory)) {
+                $files = scandir($directory);
+                error_log("[Asset diagnostics] Fichiers dans le même dossier: " . implode(", ", $files));
+            } else {
+                error_log("[Asset diagnostics] Le dossier n'existe pas: " . $directory);
+            }
+        }
     }
 }
 
