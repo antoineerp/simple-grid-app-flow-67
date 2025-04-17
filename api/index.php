@@ -1,5 +1,8 @@
-
 <?php
+// Définir explicitement l'encodage UTF-8
+header('Content-Type: application/json; charset=utf-8');
+mb_internal_encoding('UTF-8');
+
 // Point d'entrée principal de l'API
 
 // Inclure notre fichier de configuration d'environnement

@@ -1,4 +1,3 @@
-
 <?php
 // Fichier de configuration d'environnement
 // Ne pas versionner ce fichier dans git
@@ -49,6 +48,15 @@ if (file_exists($configFile)) {
             $_ENV['ALLOWED_ORIGIN_PROD'] = $configData['allowed_origins']['production'];
         }
     }
+}
+
+// Configuration de l'encodage
+ini_set('default_charset', 'UTF-8');
+mb_internal_encoding('UTF-8');
+
+// Fonction pour nettoyer et convertir en UTF-8
+function cleanUTF8($input) {
+    return mb_convert_encoding($input, 'UTF-8', 'UTF-8');
 }
 
 // Fonction d'aide pour obtenir une variable d'environnement
