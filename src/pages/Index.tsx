@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -73,9 +74,10 @@ const Index = () => {
             alt="FormaCert Logo" 
             className="w-48 mb-4" 
             onError={(e) => {
-              console.error("Failed to load primary logo");
+              console.error("Logo chargement échoué:", (e.target as HTMLImageElement).src);
               (e.target as HTMLImageElement).src = "/logo-swiss.svg";
             }}
+            onLoad={() => console.log("Logo chargé avec succès")}
           />
           <h1 className="text-2xl font-bold text-gray-800">Bienvenue sur FormaCert</h1>
         </div>
@@ -127,3 +129,4 @@ const Index = () => {
 };
 
 export default Index;
+
