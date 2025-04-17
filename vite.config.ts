@@ -10,7 +10,7 @@ export default defineConfig(({ mode }) => ({
     port: 8080,
   },
   plugins: [
-    react(),
+    react(), // Suppression de la configuration babel non supportée
     mode === 'development' && componentTagger(),
   ].filter(Boolean),
   resolve: {
