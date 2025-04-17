@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { BarChart2, FileText, Users, BookOpen, FileCheck } from 'lucide-react';
+import { BarChart2, FileCheck, FileText, Users, BookOpen } from 'lucide-react';
 
 const Sidebar = () => {
   return (
@@ -62,13 +62,12 @@ const Sidebar = () => {
           <span>Bibliothèque</span>
         </NavLink>
         
-        <div className="mt-auto pt-8 flex items-center">
+        <div className="mt-auto pt-8 flex items-center justify-center">
           <img 
             src="/lovable-uploads/swiss-army-knife-logo.png" 
             alt="Qualite.cloud Logo" 
-            className="w-10 h-10 mr-2 object-contain" 
+            className="w-10 h-10 object-contain" 
           />
-          <div className="text-sm">Qualite.cloud</div>
         </div>
       </nav>
     </aside>
