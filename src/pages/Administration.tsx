@@ -15,8 +15,8 @@ import {
   connectAsUser, 
   testDatabaseConnection,
   getCurrentUser,
-  type Utilisateur 
-} from '@/services/databaseService';
+  type Utilisateur
+} from '@/services';
 import { useToast } from "@/hooks/use-toast";
 
 const Administration = () => {
