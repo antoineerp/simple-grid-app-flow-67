@@ -1,5 +1,5 @@
 
-import jsPDF from 'jspdf';
+import { Document } from '@/types/documents';
 import { 
   formatState, 
   formatResponsabilities,
@@ -11,7 +11,7 @@ import { fr } from 'date-fns/locale';
 /**
  * Exports documents to PDF format
  */
-export const exportDocumentsToPdf = (documents: any[], title: string = 'Gestion Documentaire') => {
+export const exportDocumentsToPdf = (documents: Document[], title: string = 'Gestion Documentaire') => {
   createAndDownloadPdf((doc) => {
     // Date de génération
     const currentDate = format(new Date(), 'dd MMMM yyyy à HH:mm', { locale: fr });
@@ -29,7 +29,7 @@ export const exportDocumentsToPdf = (documents: any[], title: string = 'Gestion 
     
     const data = documents.map(doc => [
       doc.nom,
-      doc.lien || '-',
+      doc.fichier_path || '-',
       formatResponsabilities(doc.responsabilites),
       formatState(doc.etat)
     ]);

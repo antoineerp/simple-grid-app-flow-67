@@ -1,149 +1,33 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useToast } from "@/hooks/use-toast";
-import { Document, DocumentStats } from '@/types/documents';
+import { Document } from '@/types/documents';
+import { 
+  loadDocumentsFromStorage, 
+  saveDocumentsToStorage, 
+  calculateDocumentStats,
+  syncDocumentsWithServer
+} from '@/services/documents';
 
 export const useDocuments = () => {
   const { toast } = useToast();
   const currentUser = localStorage.getItem('currentUser') || 'default';
   
-  const [documents, setDocuments] = useState<Document[]>(() => loadDocumentsFromStorage());
+  const [documents, setDocuments] = useState<Document[]>(() => loadDocumentsFromStorage(currentUser));
   const [editingDocument, setEditingDocument] = useState<Document | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [stats, setStats] = useState<DocumentStats>({
-    exclusion: 0,
-    nonConforme: 0,
-    partiellementConforme: 0,
-    conforme: 0,
-    total: 0
-  });
+  const [stats, setStats] = useState(calculateDocumentStats(documents));
   const [isSyncing, setIsSyncing] = useState(false);
-
-  // Load documents from storage
-  function loadDocumentsFromStorage(): Document[] {
-    const storedDocuments = localStorage.getItem(`documents_${currentUser}`);
-    
-    if (storedDocuments) {
-      return JSON.parse(storedDocuments);
-    } else {
-      const defaultDocuments = localStorage.getItem('documents_template') || localStorage.getItem('documents');
-      
-      if (defaultDocuments) {
-        return JSON.parse(defaultDocuments);
-      }
-      
-      return getDefaultDocuments();
-    }
-  }
-  
-  // Get default documents if no existing data
-  function getDefaultDocuments(): Document[] {
-    return [
-      { 
-        id: '1', 
-        nom: 'Document 1',
-        fichier_path: 'Voir le document',
-        responsabilites: { r: [], a: [], c: [], i: [] },
-        etat: 'C',
-        date_creation: new Date(),
-        date_modification: new Date()
-      },
-      { 
-        id: '2', 
-        nom: 'Document 2',
-        fichier_path: null,
-        responsabilites: { r: [], a: [], c: [], i: [] },
-        etat: 'PC',
-        date_creation: new Date(),
-        date_modification: new Date()
-      },
-      { 
-        id: '3', 
-        nom: 'Document 3',
-        fichier_path: 'Voir le document',
-        responsabilites: { r: [], a: [], c: [], i: [] },
-        etat: 'NC',
-        date_creation: new Date(),
-        date_modification: new Date()
-      },
-    ];
-  }
-
-  // Notify other components of document updates
-  const notifyDocumentUpdate = useCallback(() => {
-    window.dispatchEvent(new Event('documentUpdate'));
-  }, []);
-
-  // Save documents to storage
-  const saveDocumentsToStorage = useCallback((docs: Document[]) => {
-    localStorage.setItem(`documents_${currentUser}`, JSON.stringify(docs));
-    
-    const userRole = localStorage.getItem('userRole');
-    if (userRole === 'admin' || userRole === 'administrateur') {
-      localStorage.setItem('documents_template', JSON.stringify(docs));
-    }
-    
-    notifyDocumentUpdate();
-  }, [currentUser, notifyDocumentUpdate]);
-
-  // Sync with server (placeholder for future implementation)
-  const syncWithServer = useCallback(async () => {
-    try {
-      setIsSyncing(true);
-      
-      // Simulate server request
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // TODO: Replace with actual API call
-      // const response = await fetch('/api/documents', {
-      //   method: 'POST',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify({ userId: currentUser, documents })
-      // });
-      // if (!response.ok) throw new Error('Failed to sync documents');
-      
-      toast({
-        title: "Synchronisation réussie",
-        description: "Vos documents ont été synchronisés avec le serveur",
-      });
-      
-      return true;
-    } catch (error) {
-      console.error('Sync error:', error);
-      toast({
-        title: "Erreur de synchronisation",
-        description: "Impossible de synchroniser vos documents",
-        variant: "destructive"
-      });
-      return false;
-    } finally {
-      setIsSyncing(false);
-    }
-  }, [currentUser, toast]);
-
-  // Calculate document statistics
-  const calculateStats = useCallback((docs: Document[]) => {
-    const exclusionCount = docs.filter(d => d.etat === 'EX').length;
-    const nonExcludedDocuments = docs.filter(d => d.etat !== 'EX');
-    
-    return {
-      exclusion: exclusionCount,
-      nonConforme: nonExcludedDocuments.filter(d => d.etat === 'NC').length,
-      partiellementConforme: nonExcludedDocuments.filter(d => d.etat === 'PC').length,
-      conforme: nonExcludedDocuments.filter(d => d.etat === 'C').length,
-      total: nonExcludedDocuments.length
-    };
-  }, []);
 
   // Update statistics when documents change
   useEffect(() => {
-    setStats(calculateStats(documents));
-  }, [documents, calculateStats]);
+    setStats(calculateDocumentStats(documents));
+  }, [documents]);
 
   // Save documents to storage when they change
   useEffect(() => {
-    saveDocumentsToStorage(documents);
-  }, [documents, saveDocumentsToStorage]);
+    saveDocumentsToStorage(documents, currentUser);
+  }, [documents, currentUser]);
 
   // Document manipulation functions
   const handleResponsabiliteChange = useCallback((id: string, type: 'r' | 'a' | 'c' | 'i', values: string[]) => {
@@ -268,6 +152,28 @@ export const useDocuments = () => {
       description: "L'ordre des documents a été mis à jour",
     });
   }, [toast]);
+
+  const syncWithServer = useCallback(async () => {
+    setIsSyncing(true);
+    
+    const success = await syncDocumentsWithServer(documents, currentUser);
+    
+    if (success) {
+      toast({
+        title: "Synchronisation réussie",
+        description: "Vos documents ont été synchronisés avec le serveur",
+      });
+    } else {
+      toast({
+        title: "Erreur de synchronisation",
+        description: "Impossible de synchroniser vos documents",
+        variant: "destructive"
+      });
+    }
+    
+    setIsSyncing(false);
+    return success;
+  }, [documents, currentUser, toast]);
 
   return {
     documents,

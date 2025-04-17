@@ -1,6 +1,7 @@
 
 import { useState, useEffect } from 'react';
 import { DocumentStats } from '@/types/documents';
+import { loadDocumentsFromStorage, calculateDocumentStats } from '@/services/documents';
 
 export const useDocumentSummary = () => {
   const [stats, setStats] = useState<DocumentStats>({
@@ -17,25 +18,12 @@ export const useDocumentSummary = () => {
     // Function to load documents and calculate stats
     const loadDocuments = () => {
       // Retrieve documents from local storage for the current user
-      const storedDocuments = localStorage.getItem(`documents_${currentUser}`);
+      const documents = loadDocumentsFromStorage(currentUser);
       
-      if (storedDocuments) {
-        const documents = JSON.parse(storedDocuments);
-        
-        // Calculate stats
-        const exclusionCount = documents.filter((d: any) => d.etat === 'EX').length;
-        const nonExcludedDocuments = documents.filter((d: any) => d.etat !== 'EX');
-        
-        const newStats = {
-          exclusion: exclusionCount,
-          nonConforme: nonExcludedDocuments.filter((d: any) => d.etat === 'NC').length,
-          partiellementConforme: nonExcludedDocuments.filter((d: any) => d.etat === 'PC').length,
-          conforme: nonExcludedDocuments.filter((d: any) => d.etat === 'C').length,
-          total: nonExcludedDocuments.length
-        };
-        
-        setStats(newStats);
-      }
+      // Calculate stats
+      const newStats = calculateDocumentStats(documents);
+      
+      setStats(newStats);
     };
 
     // Load documents initially
