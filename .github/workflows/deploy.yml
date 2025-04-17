@@ -12,6 +12,8 @@ jobs:
     steps:
     - name: Checkout repository
       uses: actions/checkout@v3
+      with:
+        fetch-depth: 0  # Récupère tout l'historique pour une meilleure compatibilité
       
     - name: Set up Node.js
       uses: actions/setup-node@v3
@@ -57,7 +59,7 @@ jobs:
       run: |
         echo "Starting build process..."
         # Utilisation de npx pour s'assurer que vite est accessible
-        npx vite build --debug
+        CI=false npx vite build --debug
         echo "Build process completed"
     
     - name: Debug - Post build files
@@ -73,8 +75,11 @@ jobs:
     
     - name: Copy necessary files to dist
       run: |
+        # Création du répertoire api dans dist si nécessaire
+        mkdir -p dist/api
+        
         # Copier tous les fichiers nécessaires pour le déploiement dans dist
-        cp -r api dist/ || echo "Pas de répertoire api à copier"
+        cp -r api/* dist/api/ 2>/dev/null || echo "Pas de fichiers api à copier"
         cp .htaccess dist/ 2>/dev/null || echo "Pas de fichier .htaccess à copier"
     
     - name: Ensure .htaccess exists
@@ -100,6 +105,8 @@ jobs:
         ls -la dist
         echo "Contenu du répertoire api dans dist (s'il existe):"
         ls -la dist/api || echo "Le répertoire api n'existe pas dans dist"
+        echo "Vérification des fichiers dans dist/api:"
+        find dist/api -type f | sort || echo "Aucun fichier trouvé dans dist/api"
         echo "Contenu du fichier .htaccess dans dist:"
         cat dist/.htaccess || echo ".htaccess n'existe pas dans dist"
     
