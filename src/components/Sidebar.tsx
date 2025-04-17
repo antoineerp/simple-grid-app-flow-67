@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { BarChart2, FileCheck, FileText, Users, BookOpen } from 'lucide-react';
@@ -64,9 +63,9 @@ const Sidebar = () => {
         
         <div className="mt-auto pt-8 flex items-center justify-center">
           <img 
-            src="/lovable-uploads/dcc732be-ae86-404b-bad6-740fee728aaf.png" 
-            alt="" 
-            className="w-10 h-10 object-contain" 
+            src="/lovable-uploads/swiss-army-knife-logo.png" 
+            alt="Swiss Army Knife Logo" 
+            className="w-24 h-24 object-contain" 
           />
         </div>
       </nav>
@@ -75,4 +74,3 @@ const Sidebar = () => {
 };
 
 export default Sidebar;
-
