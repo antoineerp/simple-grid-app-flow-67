@@ -35,6 +35,13 @@ jobs:
       run: npm ci
       # Nous retirons continue-on-error pour s'assurer que les dépendances s'installent correctement
     
+    - name: Verify Vite installation
+      run: |
+        echo "Vérification de l'installation de Vite..."
+        npx vite --version || npm list vite
+        echo "Contenu du répertoire node_modules/.bin:"
+        ls -la node_modules/.bin
+    
     - name: Create build directories first
       run: |
         mkdir -p dist
@@ -45,7 +52,8 @@ jobs:
     - name: Build project
       run: |
         echo "Starting build process..."
-        npm run build
+        # Utilisation de npx pour s'assurer que vite est accessible
+        npx vite build
         echo "Build process completed"
     
     - name: Debug - Post build files
