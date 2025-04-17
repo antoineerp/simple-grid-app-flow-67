@@ -2,14 +2,18 @@
 <?php
 // Point d'entrée principal de l'API
 
-// Configuration des en-têtes CORS selon l'environnement
-$allowedOrigins = [
-    'development' => 'http://localhost:8080',
-    'production' => 'https://www.qualiopi.ch'
-];
+// Inclure notre fichier de configuration d'environnement
+require_once 'config/env.php';
 
 // Déterminer l'environnement
-$environment = getenv('APP_ENV') ?: 'development';
+$environment = env('APP_ENV', 'development');
+
+// Configuration des en-têtes CORS selon l'environnement
+$allowedOrigins = [
+    'development' => env('ALLOWED_ORIGIN_DEV', 'http://localhost:8080'),
+    'production' => env('ALLOWED_ORIGIN_PROD', 'https://www.qualiopi.ch')
+];
+
 $allowedOrigin = $allowedOrigins[$environment];
 
 // Obtenir l'origine de la requête

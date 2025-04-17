@@ -1,7 +1,32 @@
 
 <?php
-// Headers requis
-header("Access-Control-Allow-Origin: *");
+// Inclure notre fichier de configuration d'environnement s'il n'est pas déjà inclus
+if (!function_exists('env')) {
+    require_once '../config/env.php';
+}
+
+// Déterminer l'environnement
+$environment = env('APP_ENV', 'development');
+
+// Configuration des en-têtes CORS selon l'environnement
+$allowedOrigins = [
+    'development' => env('ALLOWED_ORIGIN_DEV', 'http://localhost:8080'),
+    'production' => env('ALLOWED_ORIGIN_PROD', 'https://www.qualiopi.ch')
+];
+
+$allowedOrigin = $allowedOrigins[$environment];
+
+// Obtenir l'origine de la requête
+$origin = isset($_SERVER['HTTP_ORIGIN']) ? $_SERVER['HTTP_ORIGIN'] : '';
+
+// Vérifier si l'origine est autorisée
+if ($origin === $allowedOrigin || $environment === 'development') {
+    header("Access-Control-Allow-Origin: $origin");
+} else {
+    header("Access-Control-Allow-Origin: " . $allowedOrigins['production']);
+}
+
+// Autres en-têtes CORS
 header("Content-Type: application/json; charset=UTF-8");
 header("Access-Control-Allow-Methods: GET, POST");
 header("Access-Control-Max-Age: 3600");

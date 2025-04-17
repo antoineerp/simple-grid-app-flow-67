@@ -1,0 +1,17 @@
+
+# Activer le moteur de réécriture
+RewriteEngine On
+
+# Rediriger les requêtes vers le fichier index.php
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^(.*)$ index.php [QSA,L]
+
+# Protéger les fichiers de configuration
+<FilesMatch "^(env\.php|app_config\.json|database\.php)$">
+    Order Allow,Deny
+    Deny from all
+</FilesMatch>
+
+# Désactiver l'index de répertoire
+Options -Indexes
