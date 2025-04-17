@@ -21,12 +21,15 @@ export const useDocumentSummary = () => {
         const documents = JSON.parse(storedDocuments);
         
         // Calculate stats
+        const exclusionCount = documents.filter((d: any) => d.etat === 'EX').length;
+        const nonExcludedDocuments = documents.filter((d: any) => d.etat !== 'EX');
+        
         const newStats = {
-          exclusion: documents.filter((d: any) => d.etat === 'EX').length,
-          nonConforme: documents.filter((d: any) => d.etat === 'NC').length,
-          partiellementConforme: documents.filter((d: any) => d.etat === 'PC').length,
-          conforme: documents.filter((d: any) => d.etat === 'C').length,
-          total: documents.filter((d: any) => d.etat !== 'EX').length
+          exclusion: exclusionCount,
+          nonConforme: nonExcludedDocuments.filter((d: any) => d.etat === 'NC').length,
+          partiellementConforme: nonExcludedDocuments.filter((d: any) => d.etat === 'PC').length,
+          conforme: nonExcludedDocuments.filter((d: any) => d.etat === 'C').length,
+          total: nonExcludedDocuments.length
         };
         
         setStats(newStats);
@@ -38,10 +41,13 @@ export const useDocumentSummary = () => {
 
     // Set up event listener for storage changes
     window.addEventListener('storage', loadDocuments);
+    // Add custom event listener for document updates
+    window.addEventListener('documentUpdate', loadDocuments);
 
-    // Clean up event listener
+    // Clean up event listeners
     return () => {
       window.removeEventListener('storage', loadDocuments);
+      window.removeEventListener('documentUpdate', loadDocuments);
     };
   }, []);
 

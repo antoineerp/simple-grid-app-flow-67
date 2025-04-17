@@ -43,17 +43,26 @@ export const useDocuments = () => {
     total: 0
   });
 
+  // Helper function to notify about document updates
+  const notifyDocumentUpdate = () => {
+    window.dispatchEvent(new Event('documentUpdate'));
+  };
+
   useEffect(() => {
     localStorage.setItem('documents', JSON.stringify(documents));
+    notifyDocumentUpdate();
   }, [documents]);
 
   useEffect(() => {
+    const exclusionCount = documents.filter(d => d.etat === 'EX').length;
+    const nonExcludedDocuments = documents.filter(d => d.etat !== 'EX');
+    
     const newStats = {
-      exclusion: documents.filter(d => d.etat === 'EX').length,
-      nonConforme: documents.filter(d => d.etat === 'NC').length,
-      partiellementConforme: documents.filter(d => d.etat === 'PC').length,
-      conforme: documents.filter(d => d.etat === 'C').length,
-      total: documents.length
+      exclusion: exclusionCount,
+      nonConforme: nonExcludedDocuments.filter(d => d.etat === 'NC').length,
+      partiellementConforme: nonExcludedDocuments.filter(d => d.etat === 'PC').length,
+      conforme: nonExcludedDocuments.filter(d => d.etat === 'C').length,
+      total: nonExcludedDocuments.length
     };
     setStats(newStats);
   }, [documents]);
