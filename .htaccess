@@ -20,11 +20,16 @@ AddType image/svg+xml .svg
 # Traitement spécial pour lovable-uploads
 RewriteRule ^lovable-uploads/(.*)$ public/lovable-uploads/$1 [L]
 
-# Rediriger les requêtes vers /api vers le dossier api avec un slash de fin
+# Diagnostic des requêtes API en mode production
+RewriteCond %{REQUEST_URI} ^/api
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteRule .* - [E=API_DEBUG:1]
+
+# Rediriger les requêtes vers /api vers le dossier api (sans slash final)
 RewriteRule ^api$ api/ [R=301,L]
 
-# Rediriger les requêtes vers /api/ vers le dossier api
-RewriteRule ^api/(.*)$ api/$1 [QSA,L]
+# Rediriger les requêtes vers /api/ vers le fichier index.php dans le dossier api
+RewriteRule ^api/(.*)$ api/index.php [QSA,L]
 
 # Permettre l'accès direct aux ressources statiques
 RewriteCond %{REQUEST_URI} \.(js|css|png|jpe?g|gif|svg|ico|webp|woff2?|ttf|eot|map)$
