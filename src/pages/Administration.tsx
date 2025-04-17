@@ -1,20 +1,34 @@
 
 import React, { useState, useEffect } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, RefreshCw, Database, UserPlus, LogIn } from 'lucide-react';
-import { getUtilisateurs, getDatabaseInfo, connectAsUser, type Utilisateur } from '@/services/databaseService';
+import { Input } from "@/components/ui/input";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Loader2, RefreshCw, Database, UserPlus, LogIn, AlertTriangle, ServerCrash, CheckCircle2 } from 'lucide-react';
+import { 
+  getUtilisateurs, 
+  getDatabaseInfo, 
+  connectAsUser, 
+  testDatabaseConnection,
+  getCurrentUser,
+  type Utilisateur 
+} from '@/services/databaseService';
 import { useToast } from "@/hooks/use-toast";
 
 const Administration = () => {
   const { toast } = useToast();
   const [utilisateurs, setUtilisateurs] = useState<Utilisateur[]>([]);
   const [dbInfo, setDbInfo] = useState<any>(null);
-  const [loading, setLoading] = useState({ users: false, dbInfo: false });
+  const [loading, setLoading] = useState({ users: false, dbInfo: false, connection: false });
+  const [newUserOpen, setNewUserOpen] = useState(false);
+  const [formData, setFormData] = useState({ nom: '', prenom: '', email: '', role: 'utilisateur' });
+  
+  // État pour suivre l'utilisateur de base de données actuellement connecté
+  const [currentDatabaseUser, setCurrentDatabaseUser] = useState<string | null>(getCurrentUser());
 
   const loadUtilisateurs = async () => {
     setLoading(prev => ({ ...prev, users: true }));
@@ -51,21 +65,83 @@ const Administration = () => {
   };
 
   const handleConnectAsUser = async (identifiantTechnique: string) => {
-    await connectAsUser(identifiantTechnique);
+    const success = await connectAsUser(identifiantTechnique);
+    if (success) {
+      setCurrentDatabaseUser(identifiantTechnique);
+    }
+  };
+
+  const handleTestConnection = async () => {
+    setLoading(prev => ({ ...prev, connection: true }));
+    try {
+      await testDatabaseConnection();
+    } finally {
+      setLoading(prev => ({ ...prev, connection: false }));
+    }
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    toast({
+      title: "Fonctionnalité en développement",
+      description: "La création d'utilisateur sera disponible dans une prochaine version.",
+    });
+    setNewUserOpen(false);
+  };
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
   };
 
   useEffect(() => {
     loadUtilisateurs();
     loadDatabaseInfo();
+    
+    // Mise à jour de l'état à chaque fois que la page se charge
+    setCurrentDatabaseUser(getCurrentUser());
   }, []);
 
   const getInitials = (nom: string, prenom: string) => {
     return `${prenom.charAt(0)}${nom.charAt(0)}`.toUpperCase();
   };
 
+  const getStatusBadge = (status: string) => {
+    if (status === "Online") {
+      return (
+        <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+          <CheckCircle2 className="h-3 w-3 mr-1" />
+          {status}
+        </Badge>
+      );
+    } else if (status === "Warning") {
+      return (
+        <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200">
+          <AlertTriangle className="h-3 w-3 mr-1" />
+          {status}
+        </Badge>
+      );
+    } else {
+      return (
+        <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">
+          <ServerCrash className="h-3 w-3 mr-1" />
+          {status}
+        </Badge>
+      );
+    }
+  };
+
   return (
     <div className="container mx-auto py-8">
       <h1 className="text-3xl font-bold mb-8">Administration du système</h1>
+      
+      {currentDatabaseUser && (
+        <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-md">
+          <p className="font-medium text-blue-800">
+            Vous êtes actuellement connecté à la base de données en tant que: <span className="font-bold">{currentDatabaseUser}</span>
+          </p>
+        </div>
+      )}
       
       <Tabs defaultValue="utilisateurs">
         <TabsList className="mb-8">
@@ -85,10 +161,78 @@ const Administration = () => {
                   {loading.users ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
                   <span className="ml-2">Actualiser</span>
                 </Button>
-                <Button size="sm">
-                  <UserPlus className="h-4 w-4 mr-2" />
-                  Nouvel utilisateur
-                </Button>
+                <Dialog open={newUserOpen} onOpenChange={setNewUserOpen}>
+                  <DialogTrigger asChild>
+                    <Button size="sm">
+                      <UserPlus className="h-4 w-4 mr-2" />
+                      Nouvel utilisateur
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Créer un nouvel utilisateur</DialogTitle>
+                      <DialogDescription>
+                        Ajoutez un nouvel utilisateur au système.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <form onSubmit={handleSubmit}>
+                      <div className="grid gap-4 py-4">
+                        <div className="grid grid-cols-4 items-center gap-4">
+                          <label htmlFor="nom" className="text-right text-sm">Nom</label>
+                          <Input
+                            id="nom"
+                            name="nom"
+                            value={formData.nom}
+                            onChange={handleChange}
+                            className="col-span-3"
+                            required
+                          />
+                        </div>
+                        <div className="grid grid-cols-4 items-center gap-4">
+                          <label htmlFor="prenom" className="text-right text-sm">Prénom</label>
+                          <Input
+                            id="prenom"
+                            name="prenom"
+                            value={formData.prenom}
+                            onChange={handleChange}
+                            className="col-span-3"
+                            required
+                          />
+                        </div>
+                        <div className="grid grid-cols-4 items-center gap-4">
+                          <label htmlFor="email" className="text-right text-sm">Email</label>
+                          <Input
+                            id="email"
+                            name="email"
+                            type="email"
+                            value={formData.email}
+                            onChange={handleChange}
+                            className="col-span-3"
+                            required
+                          />
+                        </div>
+                        <div className="grid grid-cols-4 items-center gap-4">
+                          <label htmlFor="role" className="text-right text-sm">Rôle</label>
+                          <select
+                            id="role"
+                            name="role"
+                            value={formData.role}
+                            onChange={handleChange}
+                            className="col-span-3 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                            required
+                          >
+                            <option value="utilisateur">Utilisateur</option>
+                            <option value="gestionnaire">Gestionnaire</option>
+                            <option value="admin">Administrateur</option>
+                          </select>
+                        </div>
+                      </div>
+                      <DialogFooter>
+                        <Button type="submit">Créer l'utilisateur</Button>
+                      </DialogFooter>
+                    </form>
+                  </DialogContent>
+                </Dialog>
               </div>
             </CardHeader>
             <CardContent>
@@ -135,9 +279,10 @@ const Administration = () => {
                             variant="ghost" 
                             size="sm"
                             onClick={() => handleConnectAsUser(user.identifiant_technique)}
+                            disabled={currentDatabaseUser === user.identifiant_technique}
                           >
                             <LogIn className="h-4 w-4 mr-1" />
-                            Connecter
+                            {currentDatabaseUser === user.identifiant_technique ? 'Connecté' : 'Connecter'}
                           </Button>
                         </TableCell>
                       </TableRow>
@@ -156,10 +301,16 @@ const Administration = () => {
                 <CardTitle>Informations sur la base de données</CardTitle>
                 <CardDescription>Détails de la connexion et statistiques</CardDescription>
               </div>
-              <Button variant="outline" size="sm" onClick={loadDatabaseInfo} disabled={loading.dbInfo}>
-                {loading.dbInfo ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-                <span className="ml-2">Actualiser</span>
-              </Button>
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" onClick={loadDatabaseInfo} disabled={loading.dbInfo}>
+                  {loading.dbInfo ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+                  <span className="ml-2">Actualiser</span>
+                </Button>
+                <Button variant="outline" size="sm" onClick={handleTestConnection} disabled={loading.connection}>
+                  {loading.connection ? <Loader2 className="h-4 w-4 animate-spin" /> : <Database className="h-4 w-4" />}
+                  <span className="ml-2">Tester la connexion</span>
+                </Button>
+              </div>
             </CardHeader>
             <CardContent>
               {dbInfo ? (
@@ -174,9 +325,7 @@ const Administration = () => {
                         <div>{dbInfo.database}</div>
                         <div className="font-medium">Statut:</div>
                         <div>
-                          <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
-                            {dbInfo.status}
-                          </Badge>
+                          {getStatusBadge(dbInfo.status)}
                         </div>
                       </div>
                     </div>
@@ -202,6 +351,14 @@ const Administration = () => {
                 </div>
               )}
             </CardContent>
+            <CardFooter className="flex justify-between bg-muted/10">
+              <p className="text-xs text-muted-foreground">
+                Les informations présentées ici sont obtenues en temps réel depuis la base de données.
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Dernière mise à jour: {new Date().toLocaleString()}
+              </p>
+            </CardFooter>
           </Card>
         </TabsContent>
       </Tabs>

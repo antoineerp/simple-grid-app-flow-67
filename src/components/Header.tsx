@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { ChevronDown, Upload, LogOut, Settings, Database, Users } from 'lucide-react';
+import { ChevronDown, Upload, LogOut, Settings, Database, Users, LogIn } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useToast } from "@/hooks/use-toast";
 import LogoSelector from './LogoSelector';
@@ -14,6 +14,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { getCurrentUser, disconnectUser } from '@/services/databaseService';
 
 const Header = () => {
   const navigate = useNavigate();
@@ -25,10 +26,24 @@ const Header = () => {
   const [userRole, setUserRole] = useState(() => {
     return localStorage.getItem('userRole') || 'utilisateur';
   });
+  // État pour suivre l'utilisateur de base de données actuellement connecté
+  const [currentDatabaseUser, setCurrentDatabaseUser] = useState<string | null>(getCurrentUser());
 
   useEffect(() => {
     localStorage.setItem('appLogo', logo);
-  }, [logo]);
+    
+    // Vérifier périodiquement si l'utilisateur de base de données a changé
+    const checkDatabaseUser = () => {
+      const dbUser = getCurrentUser();
+      if (dbUser !== currentDatabaseUser) {
+        setCurrentDatabaseUser(dbUser);
+      }
+    };
+    
+    const interval = setInterval(checkDatabaseUser, 2000);
+    
+    return () => clearInterval(interval);
+  }, [logo, currentDatabaseUser]);
 
   const handleLogout = () => {
     // Supprimer l'information de connexion
@@ -41,6 +56,11 @@ const Header = () => {
     
     // Rediriger vers la page de connexion
     navigate('/');
+  };
+
+  const handleDatabaseDisconnect = () => {
+    disconnectUser();
+    setCurrentDatabaseUser(null);
   };
 
   const handleLogoChange = (newLogo: string) => {
@@ -57,12 +77,20 @@ const Header = () => {
           </Link>
         </div>
         <div className="flex items-center space-x-4">
+          {/* Indicateur de connexion à la base de données */}
+          {currentDatabaseUser && (
+            <div className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-md flex items-center">
+              <Database className="w-3 h-3 mr-1" />
+              <span>DB: {currentDatabaseUser}</span>
+            </div>
+          )}
+          
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <div className="flex items-center space-x-2 cursor-pointer rounded-md px-2 py-1 hover:bg-gray-100">
                 <Avatar className="h-8 w-8">
                   <AvatarFallback className="bg-app-blue text-white">
-                    {userRole === 'administrateur' ? 'AD' : userRole === 'gestionnaire' ? 'GE' : 'UT'}
+                    {userRole === 'administrateur' || userRole === 'admin' ? 'AD' : userRole === 'gestionnaire' ? 'GE' : 'UT'}
                   </AvatarFallback>
                 </Avatar>
                 <div>
@@ -87,7 +115,7 @@ const Header = () => {
                       <Users className="mr-2 h-4 w-4" />
                       <span>Administration</span>
                     </DropdownMenuItem>
-                    <DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => navigate('/administration')}>
                       <Database className="mr-2 h-4 w-4" />
                       <span>Base de données</span>
                     </DropdownMenuItem>
@@ -95,6 +123,15 @@ const Header = () => {
                 )}
               </DropdownMenuGroup>
               <DropdownMenuSeparator />
+              
+              {/* Si l'utilisateur est connecté à une base de données, afficher l'option de déconnexion */}
+              {currentDatabaseUser && (
+                <DropdownMenuItem onClick={handleDatabaseDisconnect}>
+                  <LogIn className="mr-2 h-4 w-4 rotate-180" />
+                  <span>Déconnexion BDD</span>
+                </DropdownMenuItem>
+              )}
+              
               <DropdownMenuItem onClick={handleLogout}>
                 <LogOut className="mr-2 h-4 w-4" />
                 <span>Déconnexion</span>
