@@ -26,23 +26,23 @@ const ExigenceSummary: React.FC = () => {
           {/* Status cards */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
             <div className="bg-[#FFDEE2] rounded-md p-4 text-center">
-              <div className="text-4xl font-bold text-red-600">{nonConforme}</div>
-              <div className="text-red-600">Non Conforme</div>
+              <div className="text-2xl font-bold text-red-600">{nonConforme}</div>
+              <div className="text-sm text-red-600">Non Conforme</div>
             </div>
             
             <div className="bg-[#FEF7CD] rounded-md p-4 text-center">
-              <div className="text-4xl font-bold text-yellow-600">{partiellementConforme}</div>
-              <div className="text-yellow-600">Part. Conforme</div>
+              <div className="text-2xl font-bold text-yellow-600">{partiellementConforme}</div>
+              <div className="text-sm text-yellow-600">Part. Conforme</div>
             </div>
             
             <div className="bg-[#F2FCE2] rounded-md p-4 text-center">
-              <div className="text-4xl font-bold text-green-600">{conforme}</div>
-              <div className="text-green-600">Conforme</div>
+              <div className="text-2xl font-bold text-green-600">{conforme}</div>
+              <div className="text-sm text-green-600">Conforme</div>
             </div>
             
             <div className="bg-[#D3E4FD] rounded-md p-4 text-center">
-              <div className="text-4xl font-bold text-blue-600">{total}</div>
-              <div className="text-blue-600">Total (sans exclusion)</div>
+              <div className="text-2xl font-bold text-blue-600">{total}</div>
+              <div className="text-sm text-blue-600">Total (sans exclusion)</div>
             </div>
           </div>
           

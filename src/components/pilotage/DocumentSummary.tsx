@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { useDocumentSummary } from '@/hooks/useDocumentSummary';
 import { Card, CardContent } from '@/components/ui/card';
@@ -35,23 +34,23 @@ const DocumentSummary: React.FC = () => {
           {/* Status cards */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
             <div className="bg-[#F5F5F5] rounded-md p-4 text-center">
-              <div className="text-4xl font-bold text-gray-800">{exclusion}</div>
-              <div className="text-gray-800">Exclusion</div>
+              <div className="text-2xl font-bold text-gray-800">{exclusion}</div>
+              <div className="text-sm text-gray-800">Exclusion</div>
             </div>
             
             <div className="bg-[#FFDEE2] rounded-md p-4 text-center">
-              <div className="text-4xl font-bold text-red-600">{nonConforme}</div>
-              <div className="text-red-600">Non Conforme</div>
+              <div className="text-2xl font-bold text-red-600">{nonConforme}</div>
+              <div className="text-sm text-red-600">Non Conforme</div>
             </div>
             
             <div className="bg-[#FEF7CD] rounded-md p-4 text-center">
-              <div className="text-4xl font-bold text-yellow-600">{partiellementConforme}</div>
-              <div className="text-yellow-600">Part. Conforme</div>
+              <div className="text-2xl font-bold text-yellow-600">{partiellementConforme}</div>
+              <div className="text-sm text-yellow-600">Part. Conforme</div>
             </div>
             
             <div className="bg-[#F2FCE2] rounded-md p-4 text-center">
-              <div className="text-4xl font-bold text-green-600">{conforme}</div>
-              <div className="text-green-600">Conforme</div>
+              <div className="text-2xl font-bold text-green-600">{conforme}</div>
+              <div className="text-sm text-green-600">Conforme</div>
             </div>
           </div>
           
