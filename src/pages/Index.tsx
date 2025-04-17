@@ -8,6 +8,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useToast } from "@/hooks/use-toast";
+import { loginUser } from '@/services/databaseService';
 
 const loginSchema = z.object({
   username: z.string().min(3, { message: "Le nom d'utilisateur doit comporter au moins 3 caractères" }),
@@ -28,32 +29,30 @@ const Index = () => {
     },
   });
 
-  const onSubmit = (data: LoginFormValues) => {
-    // Identifiants de test
-    const validCredentials = [
-      { username: "admin", password: "admin123", role: "administrateur" },
-      { username: "manager", password: "manager456", role: "gestionnaire" },
-      { username: "user", password: "user789", role: "utilisateur" }
-    ];
-
-    const matchedUser = validCredentials.find(
-      cred => cred.username === data.username && cred.password === data.password
-    );
-
-    if (matchedUser) {
-      localStorage.setItem("isLoggedIn", "true");
-      localStorage.setItem("userRole", matchedUser.role);
+  const onSubmit = async (data: LoginFormValues) => {
+    try {
+      const result = await loginUser(data.username, data.password);
       
+      if (result.success) {
+        localStorage.setItem("isLoggedIn", "true");
+        
+        toast({
+          title: `Connexion réussie`,
+          description: `Bienvenue, ${result.user.role}`,
+        });
+        
+        navigate("/pilotage");
+      } else {
+        toast({
+          title: "Échec de la connexion",
+          description: result.error || "Identifiants incorrects",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
       toast({
-        title: `Connexion réussie`,
-        description: `Bienvenue, ${matchedUser.role}`,
-      });
-      
-      navigate("/pilotage");
-    } else {
-      toast({
-        title: "Échec de la connexion",
-        description: "Nom d'utilisateur ou mot de passe incorrect",
+        title: "Erreur",
+        description: "Une erreur est survenue lors de la connexion",
         variant: "destructive",
       });
     }

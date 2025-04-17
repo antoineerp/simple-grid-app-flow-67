@@ -48,6 +48,8 @@ const Header = () => {
   const handleLogout = () => {
     // Supprimer l'information de connexion
     localStorage.removeItem('isLoggedIn');
+    localStorage.removeItem('authToken');
+    localStorage.removeItem('currentDatabaseUser');
     
     toast({
       title: "Déconnexion réussie",

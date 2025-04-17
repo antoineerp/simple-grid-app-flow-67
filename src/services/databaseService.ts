@@ -23,25 +23,20 @@ export interface DatabaseInfo {
   status: string;
 }
 
-// Configuration de la connexion à la base de données
-// Ces informations ne devraient idéalement pas être exposées côté client
-// et devraient être gérées par un backend sécurisé
-const DB_CONFIG = {
-  host: 'p71x6d.myd.infomaniak.com',
-  port: 3306,
-  database: 'p71x6d_system',
-  user: 'p71x6d_system',
-  password: 'Trottinette43!'
-};
+// URL de base de l'API
+const API_URL = 'https://votre-domaine.com/api';
 
 // Classe pour gérer les connexions et les requêtes à la base de données
 class DatabaseService {
   private static instance: DatabaseService;
   private currentUser: string | null = null;
+  private token: string | null = null;
 
   private constructor() {
     // Constructeur privé pour le singleton
     console.log("Service de base de données initialisé");
+    this.token = localStorage.getItem('authToken');
+    this.currentUser = localStorage.getItem('currentDatabaseUser');
   }
 
   // Méthode pour obtenir l'instance du service (singleton)
@@ -60,7 +55,19 @@ class DatabaseService {
       console.log(`Utilisateur connecté à la base de données: ${identifiantTechnique}`);
     } else {
       localStorage.removeItem('currentDatabaseUser');
+      localStorage.removeItem('authToken');
+      this.token = null;
       console.log('Utilisateur déconnecté de la base de données');
+    }
+  }
+
+  // Définir le token d'authentification
+  public setToken(token: string | null): void {
+    this.token = token;
+    if (token) {
+      localStorage.setItem('authToken', token);
+    } else {
+      localStorage.removeItem('authToken');
     }
   }
 
@@ -72,21 +79,63 @@ class DatabaseService {
     return this.currentUser;
   }
 
+  // Obtenir le token d'authentification
+  public getToken(): string | null {
+    if (!this.token) {
+      this.token = localStorage.getItem('authToken');
+    }
+    return this.token;
+  }
+
+  // Headers pour les requêtes API authentifiées
+  private getAuthHeaders(): HeadersInit {
+    const headers: HeadersInit = {
+      'Content-Type': 'application/json'
+    };
+    
+    const token = this.getToken();
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+    
+    return headers;
+  }
+
   // Cette fonction récupère les utilisateurs depuis la base de données
   async getUtilisateurs(): Promise<Utilisateur[]> {
     try {
-      // Dans une application réelle, cette requête devrait être effectuée par un backend
-      console.log("Récupération des utilisateurs de la base de données...");
+      if (!this.getToken()) {
+        throw new Error("Non authentifié");
+      }
       
-      // Simulons la récupération des utilisateurs (à remplacer par une vraie requête API)
-      // Dans un vrai cas, on appellerait une API backend qui effectuerait la requête SQL sécurisée
+      const response = await fetch(`${API_URL}/utilisateurs`, {
+        method: 'GET',
+        headers: this.getAuthHeaders()
+      });
+      
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || "Erreur lors de la récupération des utilisateurs");
+      }
+      
+      const data = await response.json();
+      return data.records || [];
+    } catch (error) {
+      console.error("Erreur lors de la récupération des utilisateurs:", error);
+      toast({
+        title: "Erreur de connexion",
+        description: "Impossible de récupérer les utilisateurs depuis la base de données.",
+        variant: "destructive",
+      });
+      
+      // Fallback pour le développement
       return [
         {
           id: 1,
           nom: "Cirier",
           prenom: "Antoine",
           email: "antcirier@gmail.com",
-          mot_de_passe: "****", // On ne renvoie jamais les mots de passe en clair
+          mot_de_passe: "****",
           identifiant_technique: "p71x6d_system",
           role: "admin",
           date_creation: "2025-03-31 16:10:09"
@@ -112,14 +161,6 @@ class DatabaseService {
           date_creation: "2025-04-02 14:30:00"
         }
       ];
-    } catch (error) {
-      console.error("Erreur lors de la récupération des utilisateurs:", error);
-      toast({
-        title: "Erreur de connexion",
-        description: "Impossible de récupérer les utilisateurs depuis la base de données.",
-        variant: "destructive",
-      });
-      return [];
     }
   }
 
@@ -128,10 +169,8 @@ class DatabaseService {
     try {
       console.log(`Tentative de connexion en tant que ${identifiantTechnique}...`);
       
-      // Dans une application réelle, cette authentification passerait par un backend
-      // qui vérifierait les identifiants et renverrait un token d'authentification
-      
-      // Simuler une connexion réussie
+      // Pour l'instant, simulons une connexion réussie
+      // Dans une implémentation réelle, nous ferions une requête API
       this.setCurrentUser(identifiantTechnique);
       
       toast({
@@ -158,8 +197,8 @@ class DatabaseService {
       
       // Dans une application réelle, ces informations viendraient d'une API backend
       return {
-        host: DB_CONFIG.host,
-        database: DB_CONFIG.database,
+        host: "p71x6d.myd.infomaniak.com",
+        database: "p71x6d_system",
         size: "125 MB", // Taille simulée
         tables: 10, // Nombre simulé
         lastBackup: "2025-04-17 08:00:00", // Date simulée
@@ -179,6 +218,7 @@ class DatabaseService {
   // Fonction pour déconnecter l'utilisateur actuel
   disconnectUser(): void {
     this.setCurrentUser(null);
+    this.setToken(null);
     toast({
       title: "Déconnexion réussie",
       description: "Vous avez été déconnecté de la base de données.",
@@ -194,7 +234,7 @@ class DatabaseService {
       // Simuler un test réussi
       toast({
         title: "Connexion réussie",
-        description: `Connexion établie avec ${DB_CONFIG.host}:${DB_CONFIG.port}/${DB_CONFIG.database}`,
+        description: `Connexion établie avec la base de données`,
       });
       
       return true;
@@ -206,6 +246,46 @@ class DatabaseService {
         variant: "destructive",
       });
       return false;
+    }
+  }
+
+  // Authentification avec nom d'utilisateur et mot de passe
+  async login(username: string, password: string): Promise<any> {
+    try {
+      const response = await fetch(`${API_URL}/login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ username, password })
+      });
+      
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || "Erreur d'authentification");
+      }
+      
+      const data = await response.json();
+      
+      if (data.token && data.user) {
+        // Stocker le token et les informations utilisateur
+        this.setToken(data.token);
+        this.setCurrentUser(data.user.identifiant_technique);
+        localStorage.setItem('userRole', data.user.role);
+        
+        return {
+          success: true,
+          user: data.user
+        };
+      } else {
+        throw new Error("Réponse d'authentification invalide");
+      }
+    } catch (error) {
+      console.error("Erreur d'authentification:", error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : "Erreur d'authentification inconnue"
+      };
     }
   }
 }
@@ -238,3 +318,6 @@ export const testDatabaseConnection = (): Promise<boolean> => {
   return dbService.testConnection();
 };
 
+export const loginUser = (username: string, password: string): Promise<any> => {
+  return dbService.login(username, password);
+};
