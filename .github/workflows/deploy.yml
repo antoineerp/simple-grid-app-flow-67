@@ -33,7 +33,7 @@ jobs:
     
     - name: Install dependencies
       run: npm ci
-      continue-on-error: true
+      # Nous retirons continue-on-error pour s'assurer que les dépendances s'installent correctement
     
     - name: Create build directories first
       run: |
@@ -42,10 +42,10 @@ jobs:
         echo "Created directories structure"
         ls -la
     
-    - name: Build project - with fallback
+    - name: Build project
       run: |
         echo "Starting build process..."
-        npm run build || echo "Build process had issues, continuing with workflow"
+        npm run build
         echo "Build process completed"
     
     - name: Debug - Post build files
@@ -58,23 +58,6 @@ jobs:
         
         echo "Contenu du répertoire api (s'il existe):"
         ls -la api || echo "Le répertoire api n'existe pas ou est inaccessible"
-    
-    - name: Create fallback content if build failed
-      run: |
-        # Vérifier si le build a généré du contenu, sinon créer des fichiers minimaux
-        if [ ! -d "dist" ] || [ ! "$(ls -A dist 2>/dev/null)" ]; then
-          echo "Création de contenu minimal pour dist..."
-          mkdir -p dist
-          echo "<html><body><h1>Site en maintenance</h1></body></html>" > dist/index.html
-        fi
-        
-        if [ ! -d "api" ] || [ ! "$(ls -A api 2>/dev/null)" ]; then
-          echo "Vérification du contenu api..."
-          mkdir -p api
-          if [ ! -f "api/index.php" ]; then
-            echo "<?php echo 'API en maintenance'; ?>" > api/index.php
-          fi
-        fi
     
     - name: Ensure .htaccess exists
       run: |
