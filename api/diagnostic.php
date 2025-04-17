@@ -67,7 +67,15 @@ $response = [
 
 // Si l'API est configurée, inclure les informations de configuration
 if ($configExists) {
-    // Inclure le fichier de configuration sans exécuter de code potentiellement dangereux
+    // Vérifier si la fonction env() existe déjà, sinon la définir
+    if (!function_exists('env')) {
+        function env($key, $default = null) {
+            // Fonction minimale de secours
+            return $default;
+        }
+    }
+    
+    // Essayer d'inclure le fichier de configuration sans planter
     try {
         include_once './config/env.php';
         
