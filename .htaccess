@@ -1,5 +1,4 @@
-
-# Activer le moteur de réécriture
+ver le moteur de réécriture
 RewriteEngine On
 
 # Configuration spécifique pour Infomaniak
@@ -38,11 +37,7 @@ RewriteRule ^api$ api/ [R=301,L]
 # Rediriger les requêtes vers /api/ vers le fichier index.php dans le dossier api
 RewriteRule ^api/(.*)$ api/index.php [QSA,L]
 
-<<<<<<< HEAD
-# Règle spécifique pour les assets compilés
-=======
 # Règle pour servir les assets compilés
->>>>>>> 018ba45bc3fdffd9e5befd00fe58c0725b37f020
 RewriteRule ^assets/(.*)$ dist/assets/$1 [L]
 
 # Permettre l'accès direct aux autres ressources statiques
