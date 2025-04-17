@@ -7,6 +7,8 @@ import PilotageDocumentsTable from '@/components/pilotage/PilotageDocumentsTable
 import DocumentDialog from '@/components/pilotage/DocumentDialog';
 import ExigenceSummary from '@/components/pilotage/ExigenceSummary';
 import DocumentSummary from '@/components/pilotage/DocumentSummary';
+import ResponsabilityMatrix from '@/components/pilotage/ResponsabilityMatrix';
+import { MembresProvider } from '@/contexts/MembresContext';
 
 interface Document {
   id: number;
@@ -122,44 +124,48 @@ const Pilotage = () => {
   };
 
   return (
-    <div className="p-8">
-      <div className="flex items-center justify-between mb-2">
-        <div>
-          <h1 className="text-3xl font-bold text-app-blue">Pilotage</h1>
-          <p className="text-gray-600">Documents de pilotage</p>
+    <MembresProvider>
+      <div className="p-8">
+        <div className="flex items-center justify-between mb-2">
+          <div>
+            <h1 className="text-3xl font-bold text-app-blue">Pilotage</h1>
+            <p className="text-gray-600">Documents de pilotage</p>
+          </div>
+          <FileText className="text-red-500 h-6 w-6" />
         </div>
-        <FileText className="text-red-500 h-6 w-6" />
+
+        <PilotageDocumentsTable 
+          documents={documents}
+          onEditDocument={handleEditDocument}
+          onDeleteDocument={handleDeleteDocument}
+          onReorder={handleReorder}
+        />
+
+        <div className="flex justify-end mt-4">
+          <Button 
+            className="bg-app-blue hover:bg-app-blue/90 text-white" 
+            onClick={handleAddDocument}
+          >
+            <Plus className="h-4 w-4 mr-2" /> Ajouter un document
+          </Button>
+        </div>
+
+        <ExigenceSummary />
+        
+        <DocumentSummary />
+        
+        <ResponsabilityMatrix />
+
+        <DocumentDialog 
+          isOpen={isDialogOpen}
+          onOpenChange={setIsDialogOpen}
+          currentDocument={currentDocument}
+          onInputChange={handleInputChange}
+          onSave={handleSaveDocument}
+          isEditing={isEditing}
+        />
       </div>
-
-      <PilotageDocumentsTable 
-        documents={documents}
-        onEditDocument={handleEditDocument}
-        onDeleteDocument={handleDeleteDocument}
-        onReorder={handleReorder}
-      />
-
-      <div className="flex justify-end mt-4">
-        <Button 
-          className="bg-app-blue hover:bg-app-blue/90 text-white" 
-          onClick={handleAddDocument}
-        >
-          <Plus className="h-4 w-4 mr-2" /> Ajouter un document
-        </Button>
-      </div>
-
-      <ExigenceSummary />
-      
-      <DocumentSummary />
-
-      <DocumentDialog 
-        isOpen={isDialogOpen}
-        onOpenChange={setIsDialogOpen}
-        currentDocument={currentDocument}
-        onInputChange={handleInputChange}
-        onSave={handleSaveDocument}
-        isEditing={isEditing}
-      />
-    </div>
+    </MembresProvider>
   );
 };
 
