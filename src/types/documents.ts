@@ -1,15 +1,20 @@
 
 export interface Document {
-  id: number;
+  id: string;
   nom: string;
-  lien: string | null;
+  type?: string;
+  date_creation: Date;
+  date_modification: Date;
+  contenu?: string;
+  fichier_path?: string;
+  createur_id?: string;
+  etat?: 'NC' | 'PC' | 'C' | 'EX';
   responsabilites: {
     r: string[];
     a: string[];
     c: string[];
     i: string[];
   };
-  etat: 'NC' | 'PC' | 'C' | 'EX' | null;
 }
 
 export interface DocumentStats {
