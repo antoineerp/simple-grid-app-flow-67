@@ -34,7 +34,7 @@ export default defineConfig(({ mode }) => ({
             return 'vendor';
           }
         },
-        entryFileNames: 'assets/[name].[hash].js',
+        entryFileNames: 'assets/[name].js',
         chunkFileNames: 'assets/[name].[hash].js',
         assetFileNames: 'assets/[name].[hash].[ext]'
       }
@@ -48,3 +48,4 @@ export default defineConfig(({ mode }) => ({
     logOverride: { 'this-is-undefined-in-esm': 'silent' }
   }
 }));
+
