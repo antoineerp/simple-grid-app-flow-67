@@ -13,7 +13,7 @@ export default defineConfig(({ mode }) => ({
     react(),
     mode === 'development' && {
       name: 'dev-only-plugin',
-      apply: 'serve',
+      apply: 'serve' as const,
       // Suppression du composant tagger en production
     },
   ].filter(Boolean),
