@@ -8,6 +8,13 @@ Options -MultiViews
 # Définir le point d'entrée principal
 DirectoryIndex index.html index.php
 
+# Traitement spécial pour les assets - AJOUT IMPORTANT
+# Assurer que les requêtes vers /assets/ fonctionnent correctement
+RewriteCond %{REQUEST_URI} ^/assets/
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^assets/(.*)$ assets/$1 [L]
+
 # Ne pas rediriger les requêtes vers des fichiers ou dossiers réels
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d

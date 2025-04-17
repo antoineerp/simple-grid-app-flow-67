@@ -8,6 +8,9 @@ $currentHost = $_SERVER['HTTP_HOST'] ?? '';
 // Définir l'environnement par défaut
 $environment = 'production'; // Environnement par défaut pour Infomaniak
 
+// Journaliser l'hôte détecté (pour débogage)
+error_log("Détection d'environnement sur hôte: " . $currentHost);
+
 // Détecter l'environnement en fonction du nom d'hôte
 if (strpos($currentHost, 'localhost') !== false || strpos($currentHost, '127.0.0.1') !== false) {
     $environment = 'development';
@@ -21,15 +24,17 @@ $_ENV['APP_ENV'] = $environment;
 
 // Configuration API
 $_ENV['API_URL_DEV'] = 'http://localhost:8080/api';
-$_ENV['API_URL_PROD'] = 'https://qualiopi.ch/api'; // Changé pour utiliser qualiopi.ch sans www
+$_ENV['API_URL_PROD'] = 'https://qualiopi.ch/api'; // URL sans www
 
 // Configuration CORS
 $_ENV['ALLOWED_ORIGIN_DEV'] = 'http://localhost:8080';
-$_ENV['ALLOWED_ORIGIN_PROD'] = 'https://qualiopi.ch'; // Changé pour utiliser qualiopi.ch sans www
+$_ENV['ALLOWED_ORIGIN_PROD'] = 'https://qualiopi.ch'; // URL sans www
 
 // Journaliser l'environnement détecté en production (pour le débogage initial)
 if ($environment === 'production') {
     error_log("Application démarrée en environnement de PRODUCTION sur l'hôte: " . $currentHost);
+    error_log("API URL: " . $_ENV['API_URL_PROD']);
+    error_log("ALLOWED ORIGIN: " . $_ENV['ALLOWED_ORIGIN_PROD']);
 }
 
 // Charger la configuration depuis le fichier app_config.json s'il existe
