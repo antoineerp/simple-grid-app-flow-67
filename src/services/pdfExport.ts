@@ -1,6 +1,6 @@
 
 import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
+import 'jspdf-autotable';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 
@@ -63,7 +63,7 @@ export const exportExigencesToPdf = (exigences: any[], title: string = 'Liste de
       exigence.exclusion ? 'Exclusion' : formatState(exigence.atteinte)
     ]);
     
-    autoTable(doc, {
+    (doc as any).autoTable({
       startY: 45,
       head: headers,
       body: data,
@@ -117,7 +117,7 @@ export const exportDocumentsToPdf = (documents: any[], title: string = 'Gestion 
       formatState(doc.etat)
     ]);
     
-    autoTable(doc, {
+    (doc as any).autoTable({
       startY: 45,
       head: headers,
       body: data,
@@ -177,7 +177,7 @@ export const exportCollaborateurStatsToPdf = (membre: any) => {
       ['Total', membre.exigences.r + membre.exigences.a + membre.exigences.c + membre.exigences.i]
     ];
     
-    autoTable(doc, {
+    (doc as any).autoTable({
       startY: 50,
       head: headersExigences,
       body: dataExigences,
@@ -190,7 +190,7 @@ export const exportCollaborateurStatsToPdf = (membre: any) => {
     
     // Titre pour les documents
     doc.setFontSize(14);
-    doc.text('Documents', 50, doc.autoTable.previous.finalY + 15);
+    doc.text('Documents', 50, (doc as any).lastAutoTable.finalY + 15);
     
     // Table des statistiques pour les documents
     const headersDocuments = [['Type', 'Nombre']];
@@ -202,8 +202,8 @@ export const exportCollaborateurStatsToPdf = (membre: any) => {
       ['Total', membre.documents.r + membre.documents.a + membre.documents.c + membre.documents.i]
     ];
     
-    autoTable(doc, {
-      startY: doc.autoTable.previous.finalY + 20,
+    (doc as any).autoTable({
+      startY: (doc as any).lastAutoTable.finalY + 20,
       head: headersDocuments,
       body: dataDocuments,
       theme: 'grid',
@@ -219,10 +219,11 @@ export const exportCollaborateurStatsToPdf = (membre: any) => {
       membre.documents.r + membre.documents.a + membre.documents.c + membre.documents.i;
     
     doc.setFontSize(14);
-    doc.text(`Total des responsabilités: ${totalGeneral}`, 50, doc.autoTable.previous.finalY + 15);
+    doc.text(`Total des responsabilités: ${totalGeneral}`, 50, (doc as any).lastAutoTable.finalY + 15);
     
     // Enregistrement du PDF
     const filename = `statistiques_${membre.prenom}_${membre.nom}_${format(new Date(), 'yyyyMMdd_HHmm')}.pdf`;
     doc.save(filename.toLowerCase().replace(/ /g, '_'));
   };
 };
+
