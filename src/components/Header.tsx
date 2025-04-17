@@ -40,7 +40,7 @@ const Header = () => {
         <div className="flex items-center">
           <LogoSelector currentLogo={logo} onLogoChange={handleLogoChange} />
           <Link to="/pilotage" className="text-app-blue text-xl font-semibold ml-4">
-            FormaCart
+            Qualite.cloud - Système de Management de la Qualité
           </Link>
         </div>
         <div className="flex items-center space-x-4">
