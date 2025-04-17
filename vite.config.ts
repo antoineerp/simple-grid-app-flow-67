@@ -6,11 +6,11 @@ import { componentTagger } from "lovable-tagger";
 
 export default defineConfig(({ mode }) => ({
   server: {
-    host: "0.0.0.0",  // Changé de "::" à "0.0.0.0" pour une meilleure compatibilité
+    host: "0.0.0.0",  // Changed from "::" to "0.0.0.0" for better compatibility
     port: 8080,
-    strictPort: true, // Assure que Vite n'essaie pas un autre port si 8080 est occupé
+    strictPort: true, // Ensures Vite doesn't try another port if 8080 is busy
     hmr: {
-      clientPort: 443  // Pour le hot-reloading dans Codespaces
+      clientPort: 443  // For hot-reloading in Codespaces
     }
   },
   plugins: [
