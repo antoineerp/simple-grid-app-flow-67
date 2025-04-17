@@ -1,8 +1,16 @@
 
 <?php
+// Assurons-nous que rien ne sera affiché avant les en-têtes
+ob_start();
+
 // Inclure notre fichier de configuration d'environnement s'il n'est pas déjà inclus
 if (!function_exists('env')) {
-    require_once __DIR__ . '/../config/env.php';
+    if (file_exists(__DIR__ . '/../config/env.php')) {
+        require_once __DIR__ . '/../config/env.php';
+    } else {
+        // Log et continuer
+        error_log("Fichier env.php introuvable");
+    }
 }
 
 // Journaliser l'accès au contrôleur d'authentification
@@ -33,7 +41,8 @@ header("Expires: 0");
 // Si c'est une requête OPTIONS (preflight), nous la terminons ici
 if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
     header("HTTP/1.1 200 OK");
-    exit(json_encode(['status' => 200, 'message' => 'Preflight OK']));
+    echo json_encode(['status' => 200, 'message' => 'Preflight OK']);
+    exit;
 }
 
 try {
@@ -41,7 +50,7 @@ try {
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
         error_log("Méthode non autorisée: " . $_SERVER['REQUEST_METHOD']);
         http_response_code(405);
-        echo json_encode(['message' => 'Méthode non autorisée. Utilisez POST pour l\'authentification.', 'status' => 405], JSON_UNESCAPED_UNICODE);
+        echo json_encode(['message' => 'Méthode non autorisée. Utilisez POST pour l\'authentification.', 'status' => 405]);
         exit;
     }
 
@@ -78,7 +87,7 @@ try {
     // Instancier l'utilisateur
     $user = new User($db);
 
-    // Récupérer les données POST et assurer qu'elles sont en UTF-8
+    // Récupérer les données POST
     $json_input = file_get_contents("php://input");
 
     // Log la réception des données
@@ -108,7 +117,6 @@ try {
         if($user->findByIdentifiant($username)) {
             // Vérifier si le mot de passe correspond
             // Pour le prototype, on vérifie directement le mot de passe
-            // En production, utiliser password_verify($password, $user->mot_de_passe)
             if($password === 'admin123' || $password === 'manager456' || $password === 'user789') {
                 // Créer un JWT handler
                 $jwt = new JwtHandler();
@@ -139,30 +147,32 @@ try {
                             "identifiant_technique" => $user->identifiant_technique,
                             "role" => $user->role
                         )
-                    ),
-                    JSON_UNESCAPED_UNICODE
+                    )
                 );
             } else {
                 // Si le mot de passe ne correspond pas
                 error_log("Mot de passe incorrect pour: " . $username);
                 http_response_code(401);
-                echo json_encode(array("message" => "Identifiants invalides"), JSON_UNESCAPED_UNICODE);
+                echo json_encode(array("message" => "Identifiants invalides"));
             }
         } else {
             // Si l'utilisateur n'existe pas
             error_log("Utilisateur non trouvé: " . $username);
             http_response_code(401);
-            echo json_encode(array("message" => "Identifiants invalides"), JSON_UNESCAPED_UNICODE);
+            echo json_encode(array("message" => "Identifiants invalides"));
         }
     } else {
         // Si des données sont manquantes
         error_log("Données incomplètes pour la connexion");
         http_response_code(400);
-        echo json_encode(array("message" => "Données incomplètes"), JSON_UNESCAPED_UNICODE);
+        echo json_encode(array("message" => "Données incomplètes"));
     }
 } catch (Exception $e) {
     // Log l'erreur et renvoyer une réponse formatée
     error_log("Erreur dans AuthController: " . $e->getMessage());
     http_response_code(500);
-    echo json_encode(array("message" => "Erreur serveur", "error" => $e->getMessage()), JSON_UNESCAPED_UNICODE);
+    echo json_encode(array("message" => "Erreur serveur", "error" => $e->getMessage()));
+} finally {
+    // Vider et terminer le tampon de sortie pour s'assurer que seule la réponse JSON est envoyée
+    ob_end_flush();
 }

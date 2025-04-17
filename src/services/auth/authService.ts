@@ -59,6 +59,8 @@ class AuthService {
             const cacheBuster = new Date().getTime();
             const loginUrl = `${currentApiUrl}/auth.php?_=${cacheBuster}`;
             
+            console.log("URL de requête complète:", loginUrl);
+            
             const response = await fetch(loginUrl, {
                 method: 'POST',
                 headers: {
@@ -73,23 +75,28 @@ class AuthService {
             console.log("Réponse de l'API reçue:", response.status, response.statusText);
             console.log("Type de contenu reçu:", response.headers.get('Content-Type'));
             
+            // Récupérer le texte brut de la réponse
             const responseText = await response.text();
             console.log("Texte de réponse brut:", responseText);
             
+            // Vérifier si la réponse est vide
             if (!responseText || responseText.trim() === '') {
                 throw new Error("Réponse vide du serveur");
             }
             
+            // Essayer de parser la réponse JSON
             let data;
             try {
                 data = JSON.parse(responseText);
             } catch (parseError) {
                 console.error("Erreur de parsing JSON:", parseError);
-                throw new Error("Réponse invalide du serveur: " + responseText.substring(0, 100));
+                console.log("Contenu non-JSON reçu:", responseText);
+                throw new Error("Format de réponse invalide. Contenu reçu: " + 
+                    (responseText.length > 100 ? responseText.substring(0, 100) + "..." : responseText));
             }
             
             if (!response.ok) {
-                const errorMessage = data.message || `Erreur HTTP ${response.status}`;
+                const errorMessage = data?.message || `Erreur HTTP ${response.status}`;
                 throw new Error(errorMessage);
             }
             
@@ -111,6 +118,11 @@ class AuthService {
             }
         } catch (error) {
             console.error("Erreur d'authentification:", error);
+            
+            // Ajouter plus de détails de diagnostic
+            if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
+                console.error("Erreur réseau: impossible de contacter le serveur");
+            }
             
             return {
                 success: false,

@@ -24,35 +24,8 @@ function cleanUTF8($input) {
     return $input;
 }
 
-// Déterminer l'environnement
-$environment = env('APP_ENV', 'development');
-
-// Configuration des en-têtes CORS selon l'environnement
-$allowedOrigins = [
-    'development' => env('ALLOWED_ORIGIN_DEV', 'http://localhost:8080'),
-    'production' => env('ALLOWED_ORIGIN_PROD', 'https://qualiopi.ch')
-];
-
-$allowedOrigin = $allowedOrigins[$environment];
-
-// Obtenir l'origine de la requête
-$origin = isset($_SERVER['HTTP_ORIGIN']) ? $_SERVER['HTTP_ORIGIN'] : '';
-
-// Log de l'origine pour le débogage
-error_log("Requête depuis l'origine: " . $origin);
-error_log("Environnement détecté: " . $environment);
-error_log("Origine autorisée: " . $allowedOrigin);
-
-// Vérifier si l'origine est autorisée
-if ($origin === $allowedOrigin || $environment === 'development') {
-    header("Access-Control-Allow-Origin: $origin");
-} else {
-    // En production, accepter toutes les origines pour éviter les problèmes CORS
-    header("Access-Control-Allow-Origin: *");
-    error_log("Origine non reconnue, utilisation de CORS permissif");
-}
-
-// Autres en-têtes CORS et cache
+// CORS - Accepter toutes les origines pour éviter les problèmes
+header("Access-Control-Allow-Origin: *");
 header("Content-Type: application/json; charset=UTF-8");
 header("Access-Control-Allow-Methods: OPTIONS,GET,POST,PUT,DELETE");
 header("Access-Control-Max-Age: 3600");
@@ -64,7 +37,7 @@ header("Expires: 0");
 // Réponse pour les requêtes OPTIONS (CORS preflight)
 if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
     header("HTTP/1.1 200 OK");
-    exit;
+    exit(json_encode(['status' => 200, 'message' => 'Preflight OK']));
 }
 
 // URL de la requête
@@ -75,6 +48,13 @@ $url_segments = explode('/', trim(parse_url($request_uri, PHP_URL_PATH), '/'));
 // Journalisation des segments d'URL
 error_log('URL complète: ' . $request_uri);
 error_log('URL segments: ' . print_r($url_segments, true));
+
+// Vérifier si la requête est pour auth.php directement
+if (strpos($request_uri, 'auth.php') !== false) {
+    error_log('Requête d\'authentification directe détectée');
+    // Ne rien faire ici car auth.php sera exécuté directement
+    exit;
+}
 
 // Vérifier si la requête contient "auth.php"
 $auth_request = false;
@@ -155,7 +135,7 @@ if ($api_index !== false) {
         echo json_encode([
             'message' => 'API PHP disponible',
             'status' => 200,
-            'environment' => $environment
+            'environment' => 'production'
         ], JSON_UNESCAPED_UNICODE);
     }
 } else {
