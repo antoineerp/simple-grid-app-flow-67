@@ -10,12 +10,7 @@ export default defineConfig(({ mode }) => ({
     port: 8080,
   },
   plugins: [
-    react({
-      // Optimisation pour React en production
-      babel: {
-        plugins: mode === 'production' ? ['babel-plugin-jsx-remove-data-test-id'] : []
-      }
-    }),
+    react(),
     mode === 'development' && componentTagger(),
   ].filter(Boolean),
   resolve: {
