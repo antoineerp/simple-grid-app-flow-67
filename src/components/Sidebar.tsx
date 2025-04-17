@@ -20,7 +20,7 @@ const Sidebar = () => {
           <img 
             src="/lovable-uploads/swiss-army-knife-logo.png" 
             alt="Swiss Army Knife Logo" 
-            className="w-32 h-32 object-contain" 
+            className="w-48 h-48 object-contain" 
           />
         </div>
       </nav>
