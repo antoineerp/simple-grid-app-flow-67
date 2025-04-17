@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -17,11 +17,13 @@ interface DocumentFormProps {
 const DocumentForm: React.FC<DocumentFormProps> = ({ document, open, onOpenChange, onSave }) => {
   const { toast } = useToast();
   const [formData, setFormData] = useState<Document>({
-    id: document?.id || 0,
+    id: document?.id || '',
     nom: document?.nom || '',
-    lien: document?.lien || null,
+    fichier_path: document?.fichier_path || null,
     responsabilites: document?.responsabilites || { r: [], a: [], c: [], i: [] },
-    etat: document?.etat || 'NC'
+    etat: document?.etat || null,
+    date_creation: document?.date_creation || new Date(),
+    date_modification: document?.date_modification || new Date()
   });
 
   React.useEffect(() => {
@@ -29,9 +31,11 @@ const DocumentForm: React.FC<DocumentFormProps> = ({ document, open, onOpenChang
       setFormData({
         id: document.id,
         nom: document.nom,
-        lien: document.lien,
+        fichier_path: document.fichier_path,
         responsabilites: document.responsabilites,
-        etat: document.etat
+        etat: document.etat,
+        date_creation: document.date_creation,
+        date_modification: document.date_modification
       });
     }
   }, [document]);
@@ -75,16 +79,16 @@ const DocumentForm: React.FC<DocumentFormProps> = ({ document, open, onOpenChang
               />
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="lien" className="text-right">
-                Lien
+              <Label htmlFor="fichier_path" className="text-right">
+                Chemin du fichier
               </Label>
               <Input
-                id="lien"
-                name="lien"
-                value={formData.lien || ''}
+                id="fichier_path"
+                name="fichier_path"
+                value={formData.fichier_path || ''}
                 onChange={handleInputChange}
                 className="col-span-3"
-                placeholder="URL du document"
+                placeholder="URL ou chemin du document"
               />
             </div>
           </div>

@@ -14,11 +14,11 @@ import {
 
 interface ExigenceTableProps {
   exigences: Exigence[];
-  onResponsabiliteChange: (id: number, type: 'r' | 'a' | 'c' | 'i', values: string[]) => void;
-  onAtteinteChange: (id: number, atteinte: 'NC' | 'PC' | 'C' | null) => void;
-  onExclusionChange: (id: number) => void;
-  onEdit: (id: number) => void;
-  onDelete: (id: number) => void;
+  onResponsabiliteChange: (id: string, type: 'r' | 'a' | 'c' | 'i', values: string[]) => void;
+  onAtteinteChange: (id: string, atteinte: 'NC' | 'PC' | 'C' | null) => void;
+  onExclusionChange: (id: string) => void;
+  onEdit: (id: string) => void;
+  onDelete: (id: string) => void;
   onReorder: (startIndex: number, endIndex: number) => void;
 }
 

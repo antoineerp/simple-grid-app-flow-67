@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Pencil, Trash, GripVertical } from 'lucide-react';
 import ResponsableSelector from '@/components/ResponsableSelector';
@@ -13,11 +14,11 @@ import { Document } from '@/types/documents';
 
 interface DocumentTableProps {
   documents: Document[];
-  onResponsabiliteChange: (id: number, type: 'r' | 'a' | 'c' | 'i', values: string[]) => void;
-  onAtteinteChange: (id: number, atteinte: 'NC' | 'PC' | 'C' | null) => void;
-  onExclusionChange: (id: number) => void;
-  onEdit: (id: number) => void;
-  onDelete: (id: number) => void;
+  onResponsabiliteChange: (id: string, type: 'r' | 'a' | 'c' | 'i', values: string[]) => void;
+  onAtteinteChange: (id: string, atteinte: 'NC' | 'PC' | 'C' | null) => void;
+  onExclusionChange: (id: string) => void;
+  onEdit: (id: string) => void;
+  onDelete: (id: string) => void;
   onReorder: (startIndex: number, endIndex: number) => void;
 }
 
@@ -37,7 +38,7 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
           <TableRow>
             <TableHead className="w-10"></TableHead>
             <TableHead className="py-3 px-4 text-app-blue font-semibold w-1/3">Nom</TableHead>
-            <TableHead className="py-3 px-4 text-app-blue font-semibold">Lien</TableHead>
+            <TableHead className="py-3 px-4 text-app-blue font-semibold">Fichier</TableHead>
             <TableHead className="py-3 px-4 text-app-blue font-semibold text-center" colSpan={4}>
               Responsabilités
             </TableHead>
@@ -78,9 +79,9 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
               </TableCell>
               <TableCell className="py-3 px-4">{doc.nom}</TableCell>
               <TableCell className="py-3 px-4">
-                {doc.lien ? (
+                {doc.fichier_path ? (
                   <a href="#" className="text-app-blue hover:underline">
-                    {doc.lien}
+                    {doc.fichier_path}
                   </a>
                 ) : (
                   <span className="text-gray-500">-</span>

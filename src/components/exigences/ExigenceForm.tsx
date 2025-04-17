@@ -5,19 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-
-interface Exigence {
-  id: number;
-  nom: string;
-  responsabilites: {
-    r: string[];
-    a: string[];
-    c: string[];
-    i: string[];
-  };
-  exclusion: boolean;
-  atteinte: 'NC' | 'PC' | 'C' | null;
-}
+import { Exigence } from '@/types/exigences';
 
 interface ExigenceFormProps {
   exigence: Exigence | null;
@@ -29,11 +17,13 @@ interface ExigenceFormProps {
 const ExigenceForm: React.FC<ExigenceFormProps> = ({ exigence, open, onOpenChange, onSave }) => {
   const { toast } = useToast();
   const [formData, setFormData] = useState<Exigence>({
-    id: exigence?.id || 0,
+    id: exigence?.id || '',
     nom: exigence?.nom || '',
     responsabilites: exigence?.responsabilites || { r: [], a: [], c: [], i: [] },
     exclusion: exigence?.exclusion || false,
-    atteinte: exigence?.atteinte || null
+    atteinte: exigence?.atteinte || null,
+    date_creation: exigence?.date_creation || new Date(),
+    date_modification: exigence?.date_modification || new Date()
   });
 
   useEffect(() => {
@@ -43,7 +33,9 @@ const ExigenceForm: React.FC<ExigenceFormProps> = ({ exigence, open, onOpenChang
         nom: exigence.nom,
         responsabilites: exigence.responsabilites,
         exclusion: exigence.exclusion,
-        atteinte: exigence.atteinte
+        atteinte: exigence.atteinte,
+        date_creation: exigence.date_creation,
+        date_modification: exigence.date_modification
       });
     }
   }, [exigence]);

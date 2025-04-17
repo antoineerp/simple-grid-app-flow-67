@@ -10,25 +10,31 @@ export const useDocuments = () => {
     const storedDocuments = localStorage.getItem('documents');
     return storedDocuments ? JSON.parse(storedDocuments) : [
       { 
-        id: 1, 
-        nom: 'Document 1', 
-        lien: 'Voir le document', 
+        id: '1', 
+        nom: 'Document 1',
+        fichier_path: 'Voir le document',
         responsabilites: { r: [], a: [], c: [], i: [] },
-        etat: 'C' 
+        etat: 'C',
+        date_creation: new Date(),
+        date_modification: new Date()
       },
       { 
-        id: 2, 
-        nom: 'Document 2', 
-        lien: null, 
+        id: '2', 
+        nom: 'Document 2',
+        fichier_path: null,
         responsabilites: { r: [], a: [], c: [], i: [] },
-        etat: 'PC' 
+        etat: 'PC',
+        date_creation: new Date(),
+        date_modification: new Date()
       },
       { 
-        id: 3, 
-        nom: 'Document 3', 
-        lien: 'Voir le document', 
+        id: '3', 
+        nom: 'Document 3',
+        fichier_path: 'Voir le document',
         responsabilites: { r: [], a: [], c: [], i: [] },
-        etat: 'NC' 
+        etat: 'NC',
+        date_creation: new Date(),
+        date_modification: new Date()
       },
     ];
   });
@@ -67,7 +73,7 @@ export const useDocuments = () => {
     setStats(newStats);
   }, [documents]);
 
-  const handleResponsabiliteChange = (id: number, type: 'r' | 'a' | 'c' | 'i', values: string[]) => {
+  const handleResponsabiliteChange = (id: string, type: 'r' | 'a' | 'c' | 'i', values: string[]) => {
     setDocuments(prev => 
       prev.map(doc => 
         doc.id === id 
@@ -83,7 +89,7 @@ export const useDocuments = () => {
     );
   };
 
-  const handleEdit = (id: number) => {
+  const handleEdit = (id: string) => {
     const documentToEdit = documents.find(doc => doc.id === id);
     if (documentToEdit) {
       setEditingDocument(documentToEdit);
@@ -109,7 +115,7 @@ export const useDocuments = () => {
     });
   };
 
-  const handleExclusionChange = (id: number) => {
+  const handleExclusionChange = (id: string) => {
     setDocuments(prev => 
       prev.map(doc => 
         doc.id === id 
@@ -119,7 +125,7 @@ export const useDocuments = () => {
     );
   };
 
-  const handleAtteinteChange = (id: number, atteinte: 'NC' | 'PC' | 'C' | null) => {
+  const handleAtteinteChange = (id: string, atteinte: 'NC' | 'PC' | 'C' | null) => {
     setDocuments(prev => 
       prev.map(doc => 
         doc.id === id 
@@ -130,16 +136,20 @@ export const useDocuments = () => {
   };
 
   const handleAddDocument = () => {
-    const newId = documents.length > 0 
-      ? Math.max(...documents.map(d => d.id)) + 1 
-      : 1;
+    const maxId = documents.length > 0 
+      ? Math.max(...documents.map(d => parseInt(d.id)))
+      : 0;
+    
+    const newId = (maxId + 1).toString();
     
     const newDocument: Document = {
       id: newId,
       nom: `Document ${newId}`,
-      lien: null,
+      fichier_path: null,
       responsabilites: { r: [], a: [], c: [], i: [] },
-      etat: null
+      etat: null,
+      date_creation: new Date(),
+      date_modification: new Date()
     };
     
     setDocuments(prev => [...prev, newDocument]);
@@ -150,7 +160,7 @@ export const useDocuments = () => {
     });
   };
 
-  const handleDelete = (id: number) => {
+  const handleDelete = (id: string) => {
     setDocuments(prev => prev.filter(doc => doc.id !== id));
     toast({
       title: "Suppression",

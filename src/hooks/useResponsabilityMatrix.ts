@@ -56,7 +56,7 @@ export const useResponsabilityMatrix = () => {
           ...membre,
           exigences: exigencesCount,
           documents: documentsCount
-        };
+        } as MembreResponsabilite;
       });
       
       setMembreResponsabilites(membresWithResponsabilites);

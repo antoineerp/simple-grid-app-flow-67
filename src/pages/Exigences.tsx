@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { FileDown } from 'lucide-react';
 import { MembresProvider } from '@/contexts/MembresContext';
@@ -5,6 +6,7 @@ import ExigenceForm from '@/components/exigences/ExigenceForm';
 import ExigenceStats from '@/components/exigences/ExigenceStats';
 import ExigenceTable from '@/components/exigences/ExigenceTable';
 import { useExigences } from '@/hooks/useExigences';
+import { Exigence } from '@/types/exigences';
 import { exportExigencesToPdf } from '@/services/pdfExport';
 import { useToast } from "@/hooks/use-toast";
 

@@ -10,18 +10,22 @@ export const useExigences = () => {
     const storedExigences = localStorage.getItem('exigences');
     return storedExigences ? JSON.parse(storedExigences) : [
       { 
-        id: 1, 
+        id: '1', 
         nom: 'Levée du courrier', 
         responsabilites: { r: [], a: [], c: [], i: [] },
         exclusion: false,
-        atteinte: null
+        atteinte: null,
+        date_creation: new Date(),
+        date_modification: new Date()
       },
       { 
-        id: 2, 
+        id: '2', 
         nom: 'Ouverture du courrier', 
         responsabilites: { r: [], a: [], c: [], i: [] },
         exclusion: false,
-        atteinte: null
+        atteinte: null,
+        date_creation: new Date(),
+        date_modification: new Date()
       },
     ];
   });
@@ -60,7 +64,7 @@ export const useExigences = () => {
     setStats(newStats);
   }, [exigences]);
 
-  const handleResponsabiliteChange = (id: number, type: 'r' | 'a' | 'c' | 'i', values: string[]) => {
+  const handleResponsabiliteChange = (id: string, type: 'r' | 'a' | 'c' | 'i', values: string[]) => {
     setExigences(prev => 
       prev.map(exigence => 
         exigence.id === id 
@@ -76,7 +80,7 @@ export const useExigences = () => {
     );
   };
 
-  const handleAtteinteChange = (id: number, atteinte: 'NC' | 'PC' | 'C' | null) => {
+  const handleAtteinteChange = (id: string, atteinte: 'NC' | 'PC' | 'C' | null) => {
     setExigences(prev => 
       prev.map(exigence => 
         exigence.id === id 
@@ -86,7 +90,7 @@ export const useExigences = () => {
     );
   };
 
-  const handleExclusionChange = (id: number) => {
+  const handleExclusionChange = (id: string) => {
     setExigences(prev => 
       prev.map(exigence => 
         exigence.id === id 
@@ -96,7 +100,7 @@ export const useExigences = () => {
     );
   };
 
-  const handleEdit = (id: number) => {
+  const handleEdit = (id: string) => {
     const exigenceToEdit = exigences.find(exigence => exigence.id === id);
     if (exigenceToEdit) {
       setEditingExigence(exigenceToEdit);
@@ -122,7 +126,7 @@ export const useExigences = () => {
     });
   };
 
-  const handleDelete = (id: number) => {
+  const handleDelete = (id: string) => {
     setExigences(prev => prev.filter(exigence => exigence.id !== id));
     toast({
       title: "Suppression",
@@ -131,16 +135,20 @@ export const useExigences = () => {
   };
 
   const handleAddExigence = () => {
-    const newId = exigences.length > 0 
-      ? Math.max(...exigences.map(e => e.id)) + 1 
-      : 1;
+    const maxId = exigences.length > 0 
+      ? Math.max(...exigences.map(e => parseInt(e.id)))
+      : 0;
+    
+    const newId = (maxId + 1).toString();
     
     const newExigence: Exigence = {
       id: newId,
       nom: `Nouvelle exigence ${newId}`,
       responsabilites: { r: [], a: [], c: [], i: [] },
       exclusion: false,
-      atteinte: null
+      atteinte: null,
+      date_creation: new Date(),
+      date_modification: new Date()
     };
     
     setExigences(prev => [...prev, newExigence]);
