@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
-import { useResponsabilityMatrix, MembreResponsabilite } from '@/hooks/useResponsabilityMatrix';
+import { useResponsabilityMatrix } from '@/hooks/useResponsabilityMatrix';
 import { FileText } from 'lucide-react';
 
 const ResponsabilityMatrix: React.FC = () => {
@@ -16,10 +16,6 @@ const ResponsabilityMatrix: React.FC = () => {
       
       <Card className="overflow-hidden border border-gray-200">
         <CardContent className="p-0">
-          <div className="p-4 border-b border-gray-200">
-            <h3 className="text-xl font-semibold">Matrice des responsabilités</h3>
-          </div>
-          
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
