@@ -1,4 +1,3 @@
-
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import { format } from 'date-fns';
@@ -12,7 +11,7 @@ import { fr } from 'date-fns/locale';
 // Get the current logo from localStorage or return default
 export const getCurrentLogo = (): string => {
   const savedLogo = localStorage.getItem('appLogo');
-  return savedLogo || "/lovable-uploads/dc7ee49f-a088-465d-b6f2-f61dd9714254.png";
+  return savedLogo || "/lovable-uploads/aba57440-1db2-49ba-8273-c60d6a77b6ee.png";
 };
 
 // Format state to human-readable text
