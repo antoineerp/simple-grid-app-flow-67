@@ -57,8 +57,6 @@ export const useResponsabilityMatrix = () => {
           ...membre,
           exigences: exigencesCount,
           documents: documentsCount,
-          // Ensure date_creation is included (use existing or create a new one)
-          date_creation: membre.date_creation || new Date()
         } as MembreResponsabilite;
       });
       

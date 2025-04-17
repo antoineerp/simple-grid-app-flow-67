@@ -1,13 +1,6 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-
-interface Membre {
-  id: number;
-  nom: string;
-  prenom: string;
-  fonction: string;
-  initiales: string;
-}
+import { Membre } from '@/types/membres';
 
 interface MembresContextType {
   membres: Membre[];
@@ -22,11 +15,12 @@ export const MembresProvider = ({ children }: { children: ReactNode }) => {
     const storedMembres = localStorage.getItem('membres');
     return storedMembres ? JSON.parse(storedMembres) : [
       { 
-        id: 1, 
+        id: "1", 
         nom: 'BONNET', 
         prenom: 'RICHARD', 
         fonction: 'DXDXD', 
-        initiales: 'RB' 
+        initiales: 'RB',
+        date_creation: new Date()
       }
     ];
   });
