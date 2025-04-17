@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { FileDown, Plus } from 'lucide-react';
 import { Button } from "@/components/ui/button";
@@ -140,10 +139,13 @@ const Pilotage = () => {
             <h1 className="text-3xl font-bold text-app-blue">Pilotage</h1>
             <p className="text-gray-600">Documents de pilotage</p>
           </div>
-          <FileDown 
-            className="text-red-500 h-6 w-6 cursor-pointer hover:text-red-600" 
+          <button 
             onClick={handleExportPdf}
-          />
+            className="text-red-500 hover:text-red-700 transition-colors"
+            title="Exporter en PDF"
+          >
+            <FileDown className="h-6 w-6" />
+          </button>
         </div>
 
         <PilotageDocumentsTable 

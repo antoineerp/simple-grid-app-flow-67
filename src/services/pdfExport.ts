@@ -3,10 +3,11 @@
 
 // Export utility functions
 export { 
-  getCurrentLogo, 
   formatState, 
-  formatResponsabilities 
-} from './pdfUtils';
+  formatResponsabilities,
+  getCurrentLogo,
+  generateFilename
+} from './pdfManager';
 
 // Export exigences PDF generation
 export { exportExigencesToPdf } from './exigencesExport';

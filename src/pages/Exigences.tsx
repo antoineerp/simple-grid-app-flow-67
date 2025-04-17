@@ -1,5 +1,5 @@
 import React from 'react';
-import { FileText, FileDown } from 'lucide-react';
+import { FileDown } from 'lucide-react';
 import { MembresProvider } from '@/contexts/MembresContext';
 import ExigenceForm from '@/components/exigences/ExigenceForm';
 import ExigenceStats from '@/components/exigences/ExigenceStats';
