@@ -11,6 +11,7 @@ import Exigences from "./pages/Exigences";
 import GestionDocumentaire from "./pages/GestionDocumentaire";
 import RessourcesHumaines from "./pages/RessourcesHumaines";
 import Bibliotheque from "./pages/Bibliotheque";
+import Administration from "./pages/Administration";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -27,6 +28,7 @@ const App = () => (
             <Route path="gestion-documentaire" element={<GestionDocumentaire />} />
             <Route path="ressources-humaines" element={<RessourcesHumaines />} />
             <Route path="bibliotheque" element={<Bibliotheque />} />
+            <Route path="administration" element={<Administration />} />
           </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>
