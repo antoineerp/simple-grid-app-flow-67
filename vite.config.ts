@@ -2,7 +2,6 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
-import { componentTagger } from "lovable-tagger";
 
 export default defineConfig(({ mode }) => ({
   server: {
@@ -11,7 +10,8 @@ export default defineConfig(({ mode }) => ({
   },
   plugins: [
     react(), // Suppression de la configuration babel non supportée
-    mode === 'development' && componentTagger(),
+    // Désactivation temporaire du plugin lovable-tagger
+    // mode === 'development' && componentTagger(),
   ].filter(Boolean),
   resolve: {
     alias: {
