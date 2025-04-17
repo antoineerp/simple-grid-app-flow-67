@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -50,7 +49,7 @@ const Index = () => {
   useEffect(() => {
     const checkApiStatus = async () => {
       try {
-        const response = await fetch('/api?_=' + new Date().getTime(), {
+        const response = await fetch('/api/test.php?_=' + new Date().getTime(), {
           method: 'GET',
           headers: {
             'Cache-Control': 'no-cache'
@@ -63,7 +62,7 @@ const Index = () => {
           console.log("API disponible");
         } else {
           setApiStatus('unavailable');
-          console.error("API non disponible");
+          console.error("API non disponible, code:", response.status);
         }
       } catch (error) {
         console.error("Erreur lors de la vérification de l'API:", error);
