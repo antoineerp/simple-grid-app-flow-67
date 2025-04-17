@@ -1,5 +1,6 @@
+
 import React from 'react';
-import { FileDown } from 'lucide-react';
+import { FileDown, CloudSync } from 'lucide-react';
 import { MembresProvider } from '@/contexts/MembresContext';
 import DocumentForm from '@/components/gestion-documentaire/DocumentForm';
 import DocumentStats from '@/components/gestion-documentaire/DocumentStats';
@@ -7,6 +8,7 @@ import DocumentTable from '@/components/gestion-documentaire/DocumentTable';
 import { useDocuments } from '@/hooks/useDocuments';
 import { exportDocumentsToPdf } from '@/services/pdfExport';
 import { useToast } from "@/hooks/use-toast";
+import { Button } from "@/components/ui/button";
 
 const GestionDocumentaireContent = () => {
   const {
@@ -14,6 +16,7 @@ const GestionDocumentaireContent = () => {
     stats,
     editingDocument,
     dialogOpen,
+    isSyncing,
     setDialogOpen,
     handleResponsabiliteChange,
     handleAtteinteChange,
@@ -22,7 +25,8 @@ const GestionDocumentaireContent = () => {
     handleSaveDocument,
     handleDelete,
     handleAddDocument,
-    handleReorder
+    handleReorder,
+    syncWithServer
   } = useDocuments();
   
   const { toast } = useToast();
@@ -42,13 +46,26 @@ const GestionDocumentaireContent = () => {
           <h1 className="text-3xl font-bold text-app-blue">Gestion Documentaire</h1>
           <p className="text-gray-600">Documentation des tâches</p>
         </div>
-        <button 
-          onClick={handleExportPdf}
-          className="text-red-500 hover:text-red-700 transition-colors"
-          title="Exporter en PDF"
-        >
-          <FileDown className="h-6 w-6" />
-        </button>
+        <div className="flex space-x-2">
+          <Button
+            variant="outline"
+            onClick={syncWithServer}
+            disabled={isSyncing}
+            className="flex items-center gap-1"
+            title="Synchroniser avec le serveur"
+          >
+            <CloudSync className="h-5 w-5" />
+            {isSyncing ? "Synchronisation..." : "Synchroniser"}
+          </Button>
+          <Button 
+            variant="outline"
+            onClick={handleExportPdf}
+            className="text-red-500 hover:text-red-700 transition-colors"
+            title="Exporter en PDF"
+          >
+            <FileDown className="h-5 w-5" />
+          </Button>
+        </div>
       </div>
 
       <DocumentStats stats={stats} />
@@ -64,12 +81,11 @@ const GestionDocumentaireContent = () => {
       />
 
       <div className="flex justify-end mt-4">
-        <button 
-          className="btn-primary"
+        <Button 
           onClick={handleAddDocument}
         >
           Nouveau document
-        </button>
+        </Button>
       </div>
 
       <DocumentForm 
