@@ -36,17 +36,26 @@ export const useExigences = () => {
     total: 0
   });
 
+  // Helper function to notify about exigence updates
+  const notifyExigenceUpdate = () => {
+    window.dispatchEvent(new Event('exigenceUpdate'));
+  };
+
   useEffect(() => {
     localStorage.setItem('exigences', JSON.stringify(exigences));
+    notifyExigenceUpdate();
   }, [exigences]);
 
   useEffect(() => {
+    const exclusionCount = exigences.filter(e => e.exclusion).length;
+    const nonExcludedExigences = exigences.filter(e => !e.exclusion);
+    
     const newStats = {
-      exclusion: exigences.filter(e => e.exclusion).length,
-      nonConforme: exigences.filter(e => e.atteinte === 'NC').length,
-      partiellementConforme: exigences.filter(e => e.atteinte === 'PC').length,
-      conforme: exigences.filter(e => e.atteinte === 'C').length,
-      total: exigences.length
+      exclusion: exclusionCount,
+      nonConforme: nonExcludedExigences.filter(e => e.atteinte === 'NC').length,
+      partiellementConforme: nonExcludedExigences.filter(e => e.atteinte === 'PC').length,
+      conforme: nonExcludedExigences.filter(e => e.atteinte === 'C').length,
+      total: nonExcludedExigences.length
     };
     setStats(newStats);
   }, [exigences]);

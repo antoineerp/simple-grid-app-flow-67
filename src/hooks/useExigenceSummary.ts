@@ -21,12 +21,15 @@ export const useExigenceSummary = () => {
         const exigences = JSON.parse(storedExigences);
         
         // Calculate stats
+        const exclusionCount = exigences.filter((e: any) => e.exclusion).length;
+        const nonExcludedExigences = exigences.filter((e: any) => !e.exclusion);
+        
         const newStats = {
-          exclusion: exigences.filter((e: any) => e.exclusion).length,
-          nonConforme: exigences.filter((e: any) => !e.exclusion && e.atteinte === 'NC').length,
-          partiellementConforme: exigences.filter((e: any) => !e.exclusion && e.atteinte === 'PC').length,
-          conforme: exigences.filter((e: any) => !e.exclusion && e.atteinte === 'C').length,
-          total: exigences.filter((e: any) => !e.exclusion).length
+          exclusion: exclusionCount,
+          nonConforme: nonExcludedExigences.filter((e: any) => e.atteinte === 'NC').length,
+          partiellementConforme: nonExcludedExigences.filter((e: any) => e.atteinte === 'PC').length,
+          conforme: nonExcludedExigences.filter((e: any) => e.atteinte === 'C').length,
+          total: nonExcludedExigences.length
         };
         
         setStats(newStats);
@@ -38,10 +41,13 @@ export const useExigenceSummary = () => {
 
     // Set up event listener for storage changes
     window.addEventListener('storage', loadExigences);
+    // Add custom event listener for exigence updates
+    window.addEventListener('exigenceUpdate', loadExigences);
 
-    // Clean up event listener
+    // Clean up event listeners
     return () => {
       window.removeEventListener('storage', loadExigences);
+      window.removeEventListener('exigenceUpdate', loadExigences);
     };
   }, []);
 
