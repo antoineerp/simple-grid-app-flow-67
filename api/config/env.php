@@ -35,6 +35,15 @@ if ($environment === 'production') {
     error_log("Application démarrée en environnement de PRODUCTION sur l'hôte: " . $currentHost);
     error_log("API URL: " . $_ENV['API_URL_PROD']);
     error_log("ALLOWED ORIGIN: " . $_ENV['ALLOWED_ORIGIN_PROD']);
+    
+    // Journal des informations sur les requêtes statiques
+    if (strpos($_SERVER['REQUEST_URI'] ?? '', '.js') !== false || 
+        strpos($_SERVER['REQUEST_URI'] ?? '', '.css') !== false || 
+        strpos($_SERVER['REQUEST_URI'] ?? '', '/assets/') !== false) {
+        error_log("Requête d'asset détectée: " . ($_SERVER['REQUEST_URI'] ?? 'non défini'));
+        error_log("Document root: " . ($_SERVER['DOCUMENT_ROOT'] ?? 'non défini'));
+        error_log("Fichier physique: " . ($_SERVER['SCRIPT_FILENAME'] ?? 'non défini'));
+    }
 }
 
 // Charger la configuration depuis le fichier app_config.json s'il existe
