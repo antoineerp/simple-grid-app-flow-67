@@ -4,7 +4,6 @@ import react from "@vitejs/plugin-react-swc";
 import path from "path";
 import { componentTagger } from "lovable-tagger";
 
-// https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
   server: {
     host: "::",
@@ -21,10 +20,20 @@ export default defineConfig(({ mode }) => ({
   },
   build: {
     outDir: 'dist',
-    assetsDir: 'assets',
+    assetsDir: 'assets', // Les fichiers JS seront dans assets/
     sourcemap: false,
     minify: true,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          // Séparer les dépendances des modules de l'application
+          if (id.includes('node_modules')) {
+            return 'vendor';
+          }
+        }
+      }
+    }
   },
   publicDir: 'public',
-  base: '/',
+  base: '/', // Important pour les chemins relatifs
 }));
