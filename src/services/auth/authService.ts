@@ -101,28 +101,6 @@ class AuthService {
     } catch (error) {
       console.error("Authentication error:", error);
       
-      // Si l'erreur est "Failed to fetch", c'est probablement un problème de connectivité avec l'API
-      if (error instanceof Error && error.message === "Failed to fetch") {
-        console.log("Erreur de connexion à l'API - Mode de développement activé");
-        
-        // Pour le développement uniquement: connexion simulée
-        localStorage.setItem('isLoggedIn', 'true');
-        localStorage.setItem('currentUser', username);
-        localStorage.setItem('userRole', 'admin');
-        
-        return {
-          success: true,
-          user: {
-            id: 1,
-            nom: "Développeur",
-            prenom: "Test",
-            email: "dev@formacert.test",
-            identifiant_technique: username,
-            role: "admin"
-          }
-        };
-      }
-      
       return {
         success: false,
         error: error instanceof Error ? error.message : "Unknown authentication error"

@@ -9,7 +9,6 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useToast } from "@/hooks/use-toast";
 import { loginUser } from '@/services';
-import { getApiUrl } from '@/config/apiConfig';
 
 const loginSchema = z.object({
   username: z.string().min(3, { message: "Le nom d'utilisateur doit comporter au moins 3 caractères" }),
@@ -22,7 +21,6 @@ const Index = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [logoSrc, setLogoSrc] = useState("/logo-swiss.svg");
-  const [apiStatus, setApiStatus] = useState<string>('En attente');
   
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
@@ -41,25 +39,6 @@ const Index = () => {
       console.log("Using fallback logo");
       setLogoSrc("/logo-swiss.svg");
     };
-    
-    // Vérifier si l'API est accessible
-    const checkApiStatus = async () => {
-      try {
-        setApiStatus('Vérification...');
-        const apiUrl = getApiUrl();
-        const response = await fetch(`${apiUrl}/info.php`, { method: 'HEAD' });
-        if (response.ok) {
-          setApiStatus('API accessible');
-        } else {
-          setApiStatus(`API inaccessible (${response.status})`);
-        }
-      } catch (error) {
-        setApiStatus('API inaccessible (erreur de connexion)');
-        console.error('Erreur lors de la vérification de l\'API:', error);
-      }
-    };
-    
-    checkApiStatus();
   }, []);
 
   const onSubmit = async (data: LoginFormValues) => {
@@ -114,7 +93,6 @@ const Index = () => {
             }}
           />
           <h1 className="text-2xl font-bold text-gray-800">Bienvenue sur FormaCert</h1>
-          <p className="text-sm text-gray-500 mt-1">Statut API: {apiStatus}</p>
         </div>
         
         <Form {...form}>
@@ -150,26 +128,6 @@ const Index = () => {
             <Button type="submit" className="w-full">
               Se connecter
             </Button>
-            
-            {/* Options de compte de démonstration pour le développement */}
-            <div className="grid grid-cols-2 gap-2 mt-2">
-              <Button type="button" variant="outline" size="sm" 
-                onClick={() => {
-                  form.setValue("username", "admin");
-                  form.setValue("password", "admin123");
-                }}
-              >
-                Compte Admin
-              </Button>
-              <Button type="button" variant="outline" size="sm"
-                onClick={() => {
-                  form.setValue("username", "user");
-                  form.setValue("password", "user789");
-                }}
-              >
-                Compte Utilisateur
-              </Button>
-            </div>
           </form>
         </Form>
         
