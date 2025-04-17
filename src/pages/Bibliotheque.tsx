@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { Pencil, Trash, ChevronDown, Plus, FolderPlus, GripVertical } from 'lucide-react';
+import { Pencil, Trash, ChevronDown, Plus, FolderPlus, GripVertical, FileDown } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
+import { exportBibliothecaireDocsToPdf } from '@/services/pdfExport';
 import {
   Dialog,
   DialogContent,
@@ -262,6 +263,14 @@ const Bibliotheque = () => {
     });
   };
 
+  const handleExportPdf = () => {
+    exportBibliothecaireDocsToPdf(documents, documentGroups);
+    toast({
+      title: "Export PDF réussi",
+      description: "Le document a été généré et téléchargé",
+    });
+  };
+
   return (
     <div className="p-8">
       <div className="flex items-center justify-between mb-2">
@@ -269,6 +278,13 @@ const Bibliotheque = () => {
           <h1 className="text-3xl font-bold text-app-blue">Bibliothèque</h1>
           <p className="text-gray-600">Gestion des documents administratifs</p>
         </div>
+        <button 
+          onClick={handleExportPdf}
+          className="text-red-500 hover:text-red-700 transition-colors"
+          title="Exporter en PDF"
+        >
+          <FileDown className="h-6 w-6" />
+        </button>
       </div>
 
       <div className="bg-white rounded-md shadow overflow-hidden mt-6">
