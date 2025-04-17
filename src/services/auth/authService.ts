@@ -1,4 +1,3 @@
-
 import { getApiUrl } from '@/config/apiConfig';
 import { toast } from '@/hooks/use-toast';
 import { disconnectUser } from '../core/databaseConnectionService';
@@ -57,29 +56,7 @@ class AuthService {
             console.log(`Tentative de connexion à l'API: ${currentApiUrl}/login`);
             
             const cacheBuster = new Date().getTime();
-            // Utiliser directement /login au lieu de /api/login en production
             const loginUrl = `${currentApiUrl}/login?_=${cacheBuster}`;
-            
-            // Vérification préalable que l'API est disponible
-            try {
-                const apiCheckResponse = await fetch(`${currentApiUrl}?_=${cacheBuster}`, {
-                    method: 'GET',
-                    headers: {
-                        'Cache-Control': 'no-cache'
-                    },
-                    cache: 'no-cache'
-                });
-                
-                if (!apiCheckResponse.ok) {
-                    console.error("API non disponible:", apiCheckResponse.status);
-                    console.log("Tentative de connexion directe sans vérification préalable");
-                    // Continuer malgré l'échec pour tenter la connexion directement
-                }
-            } catch (apiCheckError) {
-                console.error("Erreur lors de la vérification de l'API:", apiCheckError);
-                console.log("Tentative de connexion directe malgré l'erreur de vérification");
-                // Continuer malgré l'erreur pour tenter la connexion directement
-            }
             
             // Procéder à la connexion
             const response = await fetch(loginUrl, {
@@ -116,12 +93,6 @@ class AuthService {
                     }
                 } catch (e) {
                     errorMessage = `Erreur HTTP ${response.status}: ${response.statusText || 'Pas de détails'}`;
-                }
-                
-                // Pour les erreurs 404 en production, tenter une connexion avec un chemin relatif
-                if (response.status === 404 && window.location.hostname !== 'localhost') {
-                    console.log("Tentative de connexion alternative avec chemin relatif");
-                    return this.tryAlternativeLogin(username, password);
                 }
                 
                 throw new Error(errorMessage);
@@ -163,56 +134,6 @@ class AuthService {
         } catch (error) {
             console.error("Erreur d'authentification:", error);
             
-            return {
-                success: false,
-                error: error instanceof Error ? error.message : "Erreur d'authentification inconnue"
-            };
-        }
-    }
-    
-    // Méthode alternative pour la connexion en production
-    private async tryAlternativeLogin(username: string, password: string): Promise<any> {
-        try {
-            // Tenter d'utiliser un chemin relatif pour la connexion
-            const loginUrl = `/api/login?_=${new Date().getTime()}`;
-            
-            console.log("Tentative de connexion alternative à:", loginUrl);
-            
-            const response = await fetch(loginUrl, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Cache-Control': 'no-cache, no-store, must-revalidate',
-                    'Accept': 'application/json'
-                },
-                body: JSON.stringify({ username, password }),
-                cache: 'no-cache'
-            });
-            
-            if (!response.ok) {
-                throw new Error(`Erreur HTTP ${response.status} lors de la tentative alternative`);
-            }
-            
-            const data = await response.json();
-            
-            if (data.token && data.user) {
-                this.setToken(data.token);
-                localStorage.setItem('userRole', data.user.role);
-                localStorage.setItem('currentUser', data.user.identifiant_technique || username);
-                localStorage.setItem('isLoggedIn', 'true');
-                
-                const userId = data.user.identifiant_technique || username;
-                await initializeUserData(userId);
-                
-                return {
-                    success: true,
-                    user: data.user
-                };
-            } else {
-                throw new Error("Réponse d'authentification alternative invalide");
-            }
-        } catch (error) {
-            console.error("Erreur d'authentification alternative:", error);
             return {
                 success: false,
                 error: error instanceof Error ? error.message : "Erreur d'authentification inconnue"
