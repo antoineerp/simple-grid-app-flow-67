@@ -64,8 +64,8 @@ const Sidebar = () => {
         
         <div className="mt-auto pt-8 flex items-center justify-center">
           <img 
-            src="/lovable-uploads/swiss-army-knife-logo.png" 
-            alt="Qualite.cloud Logo" 
+            src="/lovable-uploads/dcc732be-ae86-404b-bad6-740fee728aaf.png" 
+            alt="" 
             className="w-10 h-10 object-contain" 
           />
         </div>
@@ -75,3 +75,4 @@ const Sidebar = () => {
 };
 
 export default Sidebar;
+
