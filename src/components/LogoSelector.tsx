@@ -13,16 +13,26 @@ interface LogoSelectorProps {
 const LogoSelector: React.FC<LogoSelectorProps> = ({ currentLogo, onLogoChange }) => {
   const [open, setOpen] = useState(false);
   const [selectedLogo, setSelectedLogo] = useState(currentLogo);
+  const [imageError, setImageError] = useState(false);
   const { toast } = useToast();
 
-  // Logos prédéfinis
+  // Logos prédéfinis avec fallbacks
   const predefinedLogos = [
-    "/lovable-uploads/4425c340-2ce3-416b-abc9-b75906ca8705.png",
+    "/public/lovable-uploads/4425c340-2ce3-416b-abc9-b75906ca8705.png",
     "/logo-swiss.svg",
   ];
 
+  // Fallback logo
+  const fallbackLogo = "/logo-swiss.svg";
+
   const handleLogoSelect = (logo: string) => {
     setSelectedLogo(logo);
+    setImageError(false);
+  };
+
+  const handleImageError = () => {
+    console.error("Logo image failed to load:", currentLogo);
+    setImageError(true);
   };
 
   const handleSave = () => {
@@ -39,7 +49,12 @@ const LogoSelector: React.FC<LogoSelectorProps> = ({ currentLogo, onLogoChange }
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <button className="hover:opacity-80 focus:outline-none">
-          <img src={currentLogo} alt="Logo" className="h-10" />
+          <img 
+            src={imageError ? fallbackLogo : currentLogo}
+            alt="Logo" 
+            className="h-10"
+            onError={handleImageError}
+          />
         </button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-md">
@@ -56,7 +71,11 @@ const LogoSelector: React.FC<LogoSelectorProps> = ({ currentLogo, onLogoChange }
               <img 
                 src={logo} 
                 alt={`Logo ${index + 1}`} 
-                className="h-12" 
+                className="h-12"
+                onError={(e) => {
+                  console.error("Failed to load logo:", logo);
+                  (e.target as HTMLImageElement).src = fallbackLogo;
+                }}
               />
             </div>
           ))}

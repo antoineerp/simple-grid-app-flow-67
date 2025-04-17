@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -70,9 +69,13 @@ const Index = () => {
       <div className="w-full max-w-md bg-white rounded-lg shadow-lg p-8 md:mr-8">
         <div className="flex flex-col items-center mb-8">
           <img 
-            src="/lovable-uploads/4425c340-2ce3-416b-abc9-b75906ca8705.png" 
+            src="/logo-swiss.svg" 
             alt="FormaCart Logo" 
             className="w-48 mb-4" 
+            onError={(e) => {
+              console.error("Failed to load primary logo");
+              (e.target as HTMLImageElement).src = "/logo-swiss.svg";
+            }}
           />
           <h1 className="text-2xl font-bold text-gray-800">Bienvenue sur FormaCart</h1>
         </div>

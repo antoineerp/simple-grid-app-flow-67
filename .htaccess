@@ -17,6 +17,9 @@ AddType text/css .css
 AddType application/json .json
 AddType image/svg+xml .svg
 
+# Traitement spécial pour lovable-uploads
+RewriteRule ^lovable-uploads/(.*)$ public/lovable-uploads/$1 [L]
+
 # Traitement spécial pour les assets
 RewriteCond %{REQUEST_URI} ^/assets/
 RewriteCond %{REQUEST_FILENAME} !-f
