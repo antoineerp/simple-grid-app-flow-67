@@ -1,14 +1,23 @@
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { 
+  Form, 
+  FormControl, 
+  FormField, 
+  FormItem, 
+  FormLabel, 
+  FormMessage 
+} from "@/components/ui/form";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useToast } from "@/hooks/use-toast";
 import { loginUser } from '@/services';
 
+// Séparation des schémas et types
 const loginSchema = z.object({
   username: z.string().min(3, { message: "Le nom d'utilisateur doit comporter au moins 3 caractères" }),
   password: z.string().min(6, { message: "Le mot de passe doit comporter au moins 6 caractères" }),
@@ -16,22 +25,10 @@ const loginSchema = z.object({
 
 type LoginFormValues = z.infer<typeof loginSchema>;
 
-const Index = () => {
-  const navigate = useNavigate();
-  const { toast } = useToast();
+// Extraction de la logique de vérification du logo
+const useLogoLoader = () => {
   const [logoSrc, setLogoSrc] = useState("/lovable-uploads/aba57440-1db2-49ba-8273-c60d6a77b6ee.png");
-  const [isLoading, setIsLoading] = useState(false);
-  const [apiStatus, setApiStatus] = useState<'checking' | 'available' | 'unavailable'>('checking');
-  
-  const form = useForm<LoginFormValues>({
-    resolver: zodResolver(loginSchema),
-    defaultValues: {
-      username: "",
-      password: "",
-    },
-  });
 
-  // Simplified logo loading logic
   useEffect(() => {
     const img = new Image();
     img.src = "/lovable-uploads/aba57440-1db2-49ba-8273-c60d6a77b6ee.png";
@@ -45,7 +42,13 @@ const Index = () => {
     };
   }, []);
 
-  // Vérifier l'état de l'API
+  return logoSrc;
+};
+
+// Extraction de la logique de vérification de l'API
+const useApiStatusCheck = () => {
+  const [apiStatus, setApiStatus] = useState<'checking' | 'available' | 'unavailable'>('checking');
+
   useEffect(() => {
     const checkApiStatus = async () => {
       try {
@@ -73,11 +76,28 @@ const Index = () => {
     checkApiStatus();
   }, []);
 
+  return apiStatus;
+};
+
+const Index = () => {
+  const navigate = useNavigate();
+  const { toast } = useToast();
+  const logoSrc = useLogoLoader();
+  const apiStatus = useApiStatusCheck();
+  const [isLoading, setIsLoading] = useState(false);
+  
+  const form = useForm<LoginFormValues>({
+    resolver: zodResolver(loginSchema),
+    defaultValues: {
+      username: "",
+      password: "",
+    },
+  });
+
   const onSubmit = async (data: LoginFormValues) => {
     try {
       setIsLoading(true);
       
-      // Show loading toast
       toast({
         title: "Connexion en cours",
         description: "Veuillez patienter...",
@@ -115,7 +135,6 @@ const Index = () => {
     }
   };
 
-  // Données de test pour le mode démo
   const handleFillTestData = (role: string) => {
     switch(role) {
       case 'admin':
@@ -201,7 +220,6 @@ const Index = () => {
           </a>
         </div>
         
-        {/* Section de démo pour remplir rapidement les identifiants */}
         <div className="mt-8 pt-6 border-t border-gray-200">
           <p className="text-sm text-gray-500 mb-2 text-center">Connexion rapide (mode démo)</p>
           <div className="flex justify-center space-x-2">
