@@ -54,4 +54,3 @@ RewriteRule ^(?!api/).*$ index.html [QSA,L]
         Header set Expires "0"
     </FilesMatch>
 </IfModule>
-
