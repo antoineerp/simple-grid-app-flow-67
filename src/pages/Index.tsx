@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -30,10 +31,17 @@ const Index = () => {
 
   const onSubmit = async (data: LoginFormValues) => {
     try {
+      // Show loading toast
+      toast({
+        title: "Connexion en cours",
+        description: "Veuillez patienter...",
+      });
+      
       const result = await loginUser(data.username, data.password);
       
       if (result.success) {
         localStorage.setItem("isLoggedIn", "true");
+        localStorage.setItem("currentUser", result.user.identifiant_technique || data.username);
         
         toast({
           title: `Connexion réussie`,

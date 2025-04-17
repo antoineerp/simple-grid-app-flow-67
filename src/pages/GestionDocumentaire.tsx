@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { FileDown, CloudSync } from 'lucide-react';
+import { FileDown, Cloud } from 'lucide-react';
 import { MembresProvider } from '@/contexts/MembresContext';
 import DocumentForm from '@/components/gestion-documentaire/DocumentForm';
 import DocumentStats from '@/components/gestion-documentaire/DocumentStats';
@@ -54,7 +54,7 @@ const GestionDocumentaireContent = () => {
             className="flex items-center gap-1"
             title="Synchroniser avec le serveur"
           >
-            <CloudSync className="h-5 w-5" />
+            <Cloud className="h-5 w-5" />
             {isSyncing ? "Synchronisation..." : "Synchroniser"}
           </Button>
           <Button 

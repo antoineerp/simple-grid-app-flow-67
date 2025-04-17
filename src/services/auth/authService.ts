@@ -1,6 +1,7 @@
 
 import { toast } from '@/hooks/use-toast';
 import { disconnectUser } from '../core/databaseConnectionService';
+import { initializeUserData } from '../core/userInitializationService';
 
 // URL of the API
 const API_URL = 'https://votre-domaine.com/api';
@@ -77,6 +78,11 @@ class AuthService {
         // Store token and user information
         this.setToken(data.token);
         localStorage.setItem('userRole', data.user.role);
+        localStorage.setItem('currentUser', data.user.identifiant_technique || username);
+        
+        // Initialize user data if needed
+        const userId = data.user.identifiant_technique || username;
+        await initializeUserData(userId);
         
         return {
           success: true,
@@ -99,6 +105,7 @@ class AuthService {
     this.setToken(null);
     localStorage.removeItem('userRole');
     localStorage.removeItem('isLoggedIn');
+    localStorage.removeItem('currentUser');
     disconnectUser();
   }
 }

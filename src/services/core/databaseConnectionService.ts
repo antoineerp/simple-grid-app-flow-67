@@ -1,5 +1,6 @@
 
 import { toast } from '@/hooks/use-toast';
+import { initializeUserData } from './userInitializationService';
 
 // Type for the database information
 export interface DatabaseInfo {
@@ -34,6 +35,7 @@ class DatabaseConnectionService {
     this.currentUser = identifiantTechnique;
     if (identifiantTechnique) {
       localStorage.setItem('currentDatabaseUser', identifiantTechnique);
+      localStorage.setItem('currentUser', identifiantTechnique);
       console.log(`User connected to the database: ${identifiantTechnique}`);
     } else {
       localStorage.removeItem('currentDatabaseUser');
@@ -54,8 +56,11 @@ class DatabaseConnectionService {
     try {
       console.log(`Attempting to connect as ${identifiantTechnique}...`);
       
-      // For now, simulate a successful connection
+      // Set the current user
       this.setCurrentUser(identifiantTechnique);
+      
+      // Initialize user data if needed
+      await initializeUserData(identifiantTechnique);
       
       toast({
         title: "Connection successful",
