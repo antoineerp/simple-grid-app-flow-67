@@ -20,6 +20,7 @@ type LoginFormValues = z.infer<typeof loginSchema>;
 const Index = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const [logoSrc, setLogoSrc] = React.useState("/logo-swiss.svg");
   
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
@@ -28,6 +29,17 @@ const Index = () => {
       password: "",
     },
   });
+
+  // Tente de charger le logo FormaCert, avec fallback vers le logo Swiss
+  React.useEffect(() => {
+    const img = new Image();
+    img.src = "/lovable-uploads/formacert-logo.png";
+    img.onload = () => setLogoSrc("/lovable-uploads/formacert-logo.png");
+    img.onerror = () => {
+      console.log("Utilisation du logo de secours");
+      setLogoSrc("/logo-swiss.svg");
+    };
+  }, []);
 
   const onSubmit = async (data: LoginFormValues) => {
     try {
@@ -70,14 +82,13 @@ const Index = () => {
       <div className="w-full max-w-md bg-white rounded-lg shadow-lg p-8 md:mr-8">
         <div className="flex flex-col items-center mb-8">
           <img 
-            src="/lovable-uploads/formacert-logo.png" 
+            src={logoSrc}
             alt="FormaCert Logo" 
             className="w-48 mb-4" 
             onError={(e) => {
               console.error("Logo chargement échoué:", (e.target as HTMLImageElement).src);
               (e.target as HTMLImageElement).src = "/logo-swiss.svg";
             }}
-            onLoad={() => console.log("Logo chargé avec succès")}
           />
           <h1 className="text-2xl font-bold text-gray-800">Bienvenue sur FormaCert</h1>
         </div>
@@ -129,4 +140,3 @@ const Index = () => {
 };
 
 export default Index;
-
