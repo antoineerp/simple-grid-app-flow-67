@@ -21,11 +21,11 @@ $_ENV['APP_ENV'] = $environment;
 
 // Configuration API
 $_ENV['API_URL_DEV'] = 'http://localhost:8080/api';
-$_ENV['API_URL_PROD'] = 'https://www.qualiopi.ch/api'; 
+$_ENV['API_URL_PROD'] = 'https://qualiopi.ch/api'; // Changé pour utiliser qualiopi.ch sans www
 
 // Configuration CORS
 $_ENV['ALLOWED_ORIGIN_DEV'] = 'http://localhost:8080';
-$_ENV['ALLOWED_ORIGIN_PROD'] = 'https://www.qualiopi.ch';
+$_ENV['ALLOWED_ORIGIN_PROD'] = 'https://qualiopi.ch'; // Changé pour utiliser qualiopi.ch sans www
 
 // Journaliser l'environnement détecté en production (pour le débogage initial)
 if ($environment === 'production') {

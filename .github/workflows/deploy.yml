@@ -80,6 +80,13 @@ jobs:
         # Copier tous les fichiers nécessaires pour le déploiement dans dist
         cp -r api/* dist/api/ 2>/dev/null || echo "Pas de fichiers api à copier"
         cp .htaccess dist/ 2>/dev/null || echo "Pas de fichier .htaccess à copier"
+        
+        # Créer un fichier php.ini dans dist/api si nécessaire
+        echo "; Configuration PHP" > dist/api/php.ini
+        echo "display_errors = Off" >> dist/api/php.ini
+        echo "log_errors = On" >> dist/api/php.ini
+        echo "error_log = /tmp/php-errors.log" >> dist/api/php.ini
+        echo "default_charset = UTF-8" >> dist/api/php.ini
     
     - name: Ensure .htaccess exists
       run: |
