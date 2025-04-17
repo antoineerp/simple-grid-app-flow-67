@@ -5,8 +5,6 @@ header('Content-Type: application/json; charset=utf-8');
 mb_internal_encoding('UTF-8');
 
 // Point d'entrée principal de l'API
-
-// Inclure notre fichier de configuration d'environnement
 require_once 'config/env.php';
 
 // Fonction pour nettoyer les données UTF-8
@@ -42,7 +40,7 @@ if ($origin === $allowedOrigin || $environment === 'development') {
     header("Access-Control-Allow-Origin: " . $allowedOrigins['production']);
 }
 
-// Autres en-têtes CORS
+// Autres en-têtes CORS et cache
 header("Content-Type: application/json; charset=UTF-8");
 header("Access-Control-Allow-Methods: OPTIONS,GET,POST,PUT,DELETE");
 header("Access-Control-Max-Age: 3600");
@@ -50,6 +48,11 @@ header("Access-Control-Allow-Headers: Content-Type, Access-Control-Allow-Headers
 header("Cache-Control: no-cache, no-store, must-revalidate");
 header("Pragma: no-cache");
 header("Expires: 0");
+
+// Log des requêtes pour le débogage en développement
+if ($environment === 'development') {
+    error_log("Requête reçue : " . $_SERVER['REQUEST_METHOD'] . " " . $_SERVER['REQUEST_URI']);
+}
 
 // Réponse pour les requêtes OPTIONS (CORS preflight)
 if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
@@ -59,20 +62,14 @@ if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
 
 // URL de la requête
 $request_uri = $_SERVER['REQUEST_URI'];
-
-// Enlever les paramètres de requête
 $request_uri = strtok($request_uri, '?');
-
-// Diviser l'URL en segments
 $url_segments = explode('/', trim(parse_url($request_uri, PHP_URL_PATH), '/'));
 
-// Trouver le point d'entrée de l'API (le segment après 'api')
+// Trouver le point d'entrée de l'API
 $api_index = array_search('api', $url_segments);
 if ($api_index !== false) {
-    // Obtenir les segments après 'api'
     $segments = array_slice($url_segments, $api_index + 1);
     
-    // Déterminer l'endpoint et le routage
     if (count($segments) > 0) {
         $endpoint = $segments[0];
         
@@ -92,21 +89,28 @@ if ($api_index !== false) {
                     
                 default:
                     http_response_code(404);
-                    echo json_encode(['message' => 'Endpoint non trouvé']);
+                    echo json_encode(['message' => 'Endpoint non trouvé', 'status' => 404]);
                     break;
             }
         } catch (Exception $e) {
+            error_log("Erreur API: " . $e->getMessage());
             http_response_code(500);
-            echo json_encode(['message' => 'Erreur serveur', 'error' => $e->getMessage()]);
+            echo json_encode([
+                'message' => 'Erreur serveur', 
+                'error' => $e->getMessage(),
+                'status' => 500
+            ]);
         }
     } else {
-        // Aucun endpoint spécifié
+        // Point d'entrée API - test de disponibilité
         http_response_code(200);
-        echo json_encode(['message' => 'API PHP fonctionnelle']);
+        echo json_encode([
+            'message' => 'API PHP disponible',
+            'status' => 200,
+            'environment' => $environment
+        ]);
     }
 } else {
-    // 'api' n'est pas dans l'URL
     http_response_code(404);
-    echo json_encode(['message' => 'API non trouvée']);
+    echo json_encode(['message' => 'API non trouvée', 'status' => 404]);
 }
-?>
