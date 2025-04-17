@@ -1,8 +1,7 @@
-
 import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { useResponsabilityMatrix } from '@/hooks/useResponsabilityMatrix';
-import { FileText, BarChart3, FilePdf } from 'lucide-react';
+import { FileText, BarChart3, FileDown } from 'lucide-react';
 import {
   HoverCard,
   HoverCardTrigger,
@@ -83,7 +82,7 @@ const ResponsabilityMatrix: React.FC = () => {
                                   className="hover:bg-gray-100 p-1 rounded-full"
                                   title="Exporter en PDF"
                                 >
-                                  <FilePdf className="h-4 w-4 text-red-500" />
+                                  <FileDown className="h-4 w-4 text-red-500" />
                                 </button>
                               </div>
                               <div className="text-sm">
