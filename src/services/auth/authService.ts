@@ -58,7 +58,6 @@ class AuthService {
             const cacheBuster = new Date().getTime();
             const loginUrl = `${currentApiUrl}/login?_=${cacheBuster}`;
             
-            // Procéder à la connexion
             const response = await fetch(loginUrl, {
                 method: 'POST',
                 headers: {
@@ -72,7 +71,6 @@ class AuthService {
             
             console.log("Réponse de l'API reçue:", response.status, response.statusText);
             
-            // Si la réponse est vide ou pas OK, gérer l'erreur
             if (!response.ok) {
                 let errorText;
                 try {
@@ -98,7 +96,6 @@ class AuthService {
                 throw new Error(errorMessage);
             }
             
-            // Analyser la réponse JSON
             let data;
             try {
                 const responseText = await response.text();
@@ -114,7 +111,6 @@ class AuthService {
                 throw new Error("Réponse invalide du serveur");
             }
             
-            // Vérifier les données de réponse
             if (data.token && data.user) {
                 this.setToken(data.token);
                 localStorage.setItem('userRole', data.user.role);
