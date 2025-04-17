@@ -76,6 +76,21 @@ $url_segments = explode('/', trim(parse_url($request_uri, PHP_URL_PATH), '/'));
 error_log('URL complète: ' . $request_uri);
 error_log('URL segments: ' . print_r($url_segments, true));
 
+// Vérifier si la requête contient "auth.php"
+$auth_request = false;
+foreach ($url_segments as $segment) {
+    if ($segment === 'auth.php') {
+        $auth_request = true;
+        break;
+    }
+}
+
+if ($auth_request) {
+    error_log('Requête d\'authentification détectée via auth.php');
+    require_once 'controllers/AuthController.php';
+    exit;
+}
+
 // Traitement spécial pour la connexion en mode production
 $login_request = false;
 foreach ($url_segments as $segment) {
@@ -104,6 +119,11 @@ if ($api_index !== false) {
         try {
             switch ($endpoint) {
                 case 'login':
+                    require_once 'controllers/AuthController.php';
+                    break;
+                    
+                case 'auth':
+                case 'auth.php':
                     require_once 'controllers/AuthController.php';
                     break;
                     

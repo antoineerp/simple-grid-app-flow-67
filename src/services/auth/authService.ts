@@ -1,3 +1,4 @@
+
 import { getApiUrl } from '@/config/apiConfig';
 import { toast } from '@/hooks/use-toast';
 import { disconnectUser } from '../core/databaseConnectionService';
@@ -53,10 +54,10 @@ class AuthService {
     public async login(username: string, password: string): Promise<any> {
         try {
             const currentApiUrl = getApiUrl();
-            console.log(`Tentative de connexion à l'API: ${currentApiUrl}/login`);
+            console.log(`Tentative de connexion à l'API: ${currentApiUrl}/auth.php`);
             
             const cacheBuster = new Date().getTime();
-            const loginUrl = `${currentApiUrl}/login?_=${cacheBuster}`;
+            const loginUrl = `${currentApiUrl}/auth.php?_=${cacheBuster}`;
             
             const response = await fetch(loginUrl, {
                 method: 'POST',
