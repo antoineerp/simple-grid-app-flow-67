@@ -21,9 +21,6 @@ AddType image/svg+xml .svg
 RewriteRule ^lovable-uploads/(.*)$ public/lovable-uploads/$1 [L]
 
 # Traitement spécial pour les assets
-RewriteCond %{REQUEST_URI} ^/assets/
-RewriteCond %{REQUEST_FILENAME} !-f
-RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^assets/(.*)$ assets/$1 [L]
 
 # Ne pas rediriger les requêtes vers des fichiers ou dossiers réels
