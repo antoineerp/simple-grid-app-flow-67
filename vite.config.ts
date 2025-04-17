@@ -10,9 +10,8 @@ export default defineConfig(({ mode }) => ({
   },
   plugins: [
     react(), // Suppression de la configuration babel non supportée
-    // Désactivation temporaire du plugin lovable-tagger
-    // mode === 'development' && componentTagger(),
-  ].filter(Boolean),
+    // Le plugin lovable-tagger est complètement désactivé pour compatibilité avec Node.js 16
+  ],
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
