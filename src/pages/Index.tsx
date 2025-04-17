@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -20,6 +21,8 @@ const Index = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [logoSrc, setLogoSrc] = useState("/lovable-uploads/aba57440-1db2-49ba-8273-c60d6a77b6ee.png");
+  const [isLoading, setIsLoading] = useState(false);
+  const [apiStatus, setApiStatus] = useState<'checking' | 'available' | 'unavailable'>('checking');
   
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
@@ -43,8 +46,38 @@ const Index = () => {
     };
   }, []);
 
+  // Vérifier l'état de l'API
+  useEffect(() => {
+    const checkApiStatus = async () => {
+      try {
+        const response = await fetch('/api?_=' + new Date().getTime(), {
+          method: 'GET',
+          headers: {
+            'Cache-Control': 'no-cache'
+          },
+          cache: 'no-store'
+        });
+        
+        if (response.ok) {
+          setApiStatus('available');
+          console.log("API disponible");
+        } else {
+          setApiStatus('unavailable');
+          console.error("API non disponible");
+        }
+      } catch (error) {
+        console.error("Erreur lors de la vérification de l'API:", error);
+        setApiStatus('unavailable');
+      }
+    };
+    
+    checkApiStatus();
+  }, []);
+
   const onSubmit = async (data: LoginFormValues) => {
     try {
+      setIsLoading(true);
+      
       // Show loading toast
       toast({
         title: "Connexion en cours",
@@ -78,6 +111,26 @@ const Index = () => {
         description: `Une erreur est survenue lors de la connexion: ${error instanceof Error ? error.message : 'Erreur inconnue'}`,
         variant: "destructive",
       });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Données de test pour le mode démo
+  const handleFillTestData = (role: string) => {
+    switch(role) {
+      case 'admin':
+        form.setValue('username', 'p71x6d_system');
+        form.setValue('password', 'admin123');
+        break;
+      case 'manager':
+        form.setValue('username', 'p71x6d_dupont');
+        form.setValue('password', 'manager456');
+        break;
+      case 'user':
+        form.setValue('username', 'p71x6d_martin');
+        form.setValue('password', 'user789');
+        break;
     }
   };
 
@@ -95,6 +148,16 @@ const Index = () => {
             }}
           />
           <h1 className="text-2xl font-bold text-gray-800">Bienvenue sur FormaCert</h1>
+          
+          {apiStatus === 'checking' && (
+            <p className="text-sm text-amber-600 mt-2">Vérification de la connexion à l'API...</p>
+          )}
+          
+          {apiStatus === 'unavailable' && (
+            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-2 rounded mt-2 text-sm">
+              ⚠️ L'API n'est pas accessible. La connexion pourrait ne pas fonctionner.
+            </div>
+          )}
         </div>
         
         <Form {...form}>
@@ -127,8 +190,8 @@ const Index = () => {
               )}
             />
             
-            <Button type="submit" className="w-full">
-              Se connecter
+            <Button type="submit" className="w-full" disabled={isLoading}>
+              {isLoading ? "Connexion en cours..." : "Se connecter"}
             </Button>
           </form>
         </Form>
@@ -137,6 +200,22 @@ const Index = () => {
           <a href="#" className="text-sm text-app-blue hover:underline">
             Mot de passe oublié?
           </a>
+        </div>
+        
+        {/* Section de démo pour remplir rapidement les identifiants */}
+        <div className="mt-8 pt-6 border-t border-gray-200">
+          <p className="text-sm text-gray-500 mb-2 text-center">Connexion rapide (mode démo)</p>
+          <div className="flex justify-center space-x-2">
+            <Button variant="outline" size="sm" onClick={() => handleFillTestData('admin')} className="text-xs">
+              Admin
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => handleFillTestData('manager')} className="text-xs">
+              Gestionnaire
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => handleFillTestData('user')} className="text-xs">
+              Utilisateur
+            </Button>
+          </div>
         </div>
       </div>
     </div>

@@ -63,41 +63,59 @@ class AuthService {
       const currentApiUrl = getApiUrl();
       console.log(`Tentative de connexion à l'API: ${currentApiUrl}/login`);
       
-      const response = await fetch(`${currentApiUrl}/login`, {
+      // Ajout d'un timestamp pour éviter la mise en cache
+      const cacheBuster = new Date().getTime();
+      const loginUrl = `${currentApiUrl}/login?_=${cacheBuster}`;
+      
+      const response = await fetch(loginUrl, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache, no-store, must-revalidate'
         },
-        body: JSON.stringify({ username, password })
+        body: JSON.stringify({ username, password }),
+        // Désactiver la mise en cache du navigateur
+        cache: 'no-cache'
       });
       
       console.log("Réponse de l'API reçue:", response.status, response.statusText);
       
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || "Authentication error");
+        // Tenter de récupérer le message d'erreur
+        try {
+          const error = await response.json();
+          throw new Error(error.message || "Authentication error");
+        } catch (parseError) {
+          throw new Error(`HTTP error ${response.status}: ${response.statusText}`);
+        }
       }
       
-      const data = await response.json();
-      console.log("Connexion réussie, données reçues:", { user: data.user?.role });
-      
-      if (data.token && data.user) {
-        // Store token and user information
-        this.setToken(data.token);
-        localStorage.setItem('userRole', data.user.role);
-        localStorage.setItem('currentUser', data.user.identifiant_technique || username);
-        localStorage.setItem('isLoggedIn', 'true');
+      // Tenter de parser la réponse JSON
+      try {
+        const data = await response.json();
+        console.log("Connexion réussie, données reçues:", { user: data.user?.role });
         
-        // Initialize user data if needed
-        const userId = data.user.identifiant_technique || username;
-        await initializeUserData(userId);
-        
-        return {
-          success: true,
-          user: data.user
-        };
-      } else {
-        throw new Error("Invalid authentication response");
+        if (data.token && data.user) {
+          // Store token and user information
+          this.setToken(data.token);
+          localStorage.setItem('userRole', data.user.role);
+          localStorage.setItem('currentUser', data.user.identifiant_technique || username);
+          localStorage.setItem('isLoggedIn', 'true');
+          
+          // Initialize user data if needed
+          const userId = data.user.identifiant_technique || username;
+          await initializeUserData(userId);
+          
+          return {
+            success: true,
+            user: data.user
+          };
+        } else {
+          throw new Error("Invalid authentication response");
+        }
+      } catch (parseError) {
+        console.error("Erreur de parsing JSON:", parseError);
+        throw new Error("Réponse du serveur invalide: impossible de lire les données JSON");
       }
     } catch (error) {
       console.error("Authentication error:", error);

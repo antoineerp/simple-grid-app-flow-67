@@ -1,3 +1,4 @@
+
 <?php
 // Définir explicitement l'encodage UTF-8
 header('Content-Type: application/json; charset=utf-8');
@@ -7,6 +8,18 @@ mb_internal_encoding('UTF-8');
 
 // Inclure notre fichier de configuration d'environnement
 require_once 'config/env.php';
+
+// Fonction pour nettoyer les données UTF-8
+function cleanUTF8($input) {
+    if (is_string($input)) {
+        return mb_convert_encoding($input, 'UTF-8', 'UTF-8');
+    } elseif (is_array($input)) {
+        foreach ($input as $key => $value) {
+            $input[$key] = cleanUTF8($value);
+        }
+    }
+    return $input;
+}
 
 // Déterminer l'environnement
 $environment = env('APP_ENV', 'development');
@@ -34,6 +47,9 @@ header("Content-Type: application/json; charset=UTF-8");
 header("Access-Control-Allow-Methods: OPTIONS,GET,POST,PUT,DELETE");
 header("Access-Control-Max-Age: 3600");
 header("Access-Control-Allow-Headers: Content-Type, Access-Control-Allow-Headers, Authorization, X-Requested-With");
+header("Cache-Control: no-cache, no-store, must-revalidate");
+header("Pragma: no-cache");
+header("Expires: 0");
 
 // Réponse pour les requêtes OPTIONS (CORS preflight)
 if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
@@ -60,23 +76,28 @@ if ($api_index !== false) {
     if (count($segments) > 0) {
         $endpoint = $segments[0];
         
-        switch ($endpoint) {
-            case 'login':
-                require_once 'controllers/AuthController.php';
-                break;
-                
-            case 'utilisateurs':
-                require_once 'controllers/UserController.php';
-                break;
-                
-            case 'config':
-                require_once 'controllers/ConfigController.php';
-                break;
-                
-            default:
-                http_response_code(404);
-                echo json_encode(['message' => 'Endpoint non trouvé']);
-                break;
+        try {
+            switch ($endpoint) {
+                case 'login':
+                    require_once 'controllers/AuthController.php';
+                    break;
+                    
+                case 'utilisateurs':
+                    require_once 'controllers/UserController.php';
+                    break;
+                    
+                case 'config':
+                    require_once 'controllers/ConfigController.php';
+                    break;
+                    
+                default:
+                    http_response_code(404);
+                    echo json_encode(['message' => 'Endpoint non trouvé']);
+                    break;
+            }
+        } catch (Exception $e) {
+            http_response_code(500);
+            echo json_encode(['message' => 'Erreur serveur', 'error' => $e->getMessage()]);
         }
     } else {
         // Aucun endpoint spécifié
