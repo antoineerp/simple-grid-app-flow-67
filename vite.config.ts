@@ -1,3 +1,4 @@
+
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
@@ -31,8 +32,8 @@ export default defineConfig(({ mode }) => ({
         entryFileNames: 'assets/[name].[hash].js',
         chunkFileNames: 'assets/[name].[hash].js',
         assetFileNames: (assetInfo) => {
-          // Keep the original file extension in the asset filename
-          const extType = assetInfo.name.split('.').pop();
+          // Add a null check for assetInfo.name
+          const extType = assetInfo.name?.split('.').pop() || 'unknown';
           return `assets/[name].[hash].[ext]`;
         },
         manualChunks: (id) => {
