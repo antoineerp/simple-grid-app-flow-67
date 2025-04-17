@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { FileText, Plus } from 'lucide-react';
+import { FilePdf, Plus } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import PilotageDocumentsTable from '@/components/pilotage/PilotageDocumentsTable';
@@ -9,6 +9,7 @@ import ExigenceSummary from '@/components/pilotage/ExigenceSummary';
 import DocumentSummary from '@/components/pilotage/DocumentSummary';
 import ResponsabilityMatrix from '@/components/pilotage/ResponsabilityMatrix';
 import { MembresProvider } from '@/contexts/MembresContext';
+import { exportPilotageToOdf } from "@/services/pdfExport";
 
 interface Document {
   id: number;
@@ -123,6 +124,14 @@ const Pilotage = () => {
     });
   };
 
+  const handleExportPdf = () => {
+    exportPilotageToOdf(documents);
+    toast({
+      title: "Export PDF",
+      description: "Les documents ont été exportés au format PDF",
+    });
+  };
+
   return (
     <MembresProvider>
       <div className="p-8">
@@ -131,7 +140,10 @@ const Pilotage = () => {
             <h1 className="text-3xl font-bold text-app-blue">Pilotage</h1>
             <p className="text-gray-600">Documents de pilotage</p>
           </div>
-          <FileText className="text-red-500 h-6 w-6" />
+          <FilePdf 
+            className="text-red-500 h-6 w-6 cursor-pointer hover:text-red-600" 
+            onClick={handleExportPdf}
+          />
         </div>
 
         <PilotageDocumentsTable 

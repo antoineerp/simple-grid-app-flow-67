@@ -10,7 +10,7 @@ import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 
 /**
- * Exports pilotage documents to ODF format
+ * Exports pilotage documents to PDF format (formerly ODF)
  */
 export const exportPilotageToOdf = (documents: any[], title: string = 'Documents de pilotage') => {
   // Create a new PDF document
@@ -63,6 +63,6 @@ export const exportPilotageToOdf = (documents: any[], title: string = 'Documents
     });
     
     // Enregistrement du PDF avec le nom standardisé
-    doc.save(generateFilename('Documents_Pilotage_ODF'));
+    doc.save(generateFilename('Documents_Pilotage'));
   };
 };

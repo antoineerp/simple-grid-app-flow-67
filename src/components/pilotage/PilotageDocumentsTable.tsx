@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Pencil, Trash, FileDown } from 'lucide-react';
+import { Pencil, Trash } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -10,7 +10,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { exportPilotageToOdf } from "@/services/pdfExport";
 import { useToast } from "@/hooks/use-toast";
 
 interface Document {
@@ -35,26 +34,8 @@ const PilotageDocumentsTable: React.FC<PilotageDocumentsTableProps> = ({
 }) => {
   const { toast } = useToast();
 
-  const handleExportOdf = () => {
-    exportPilotageToOdf(documents);
-    toast({
-      title: "Export ODF",
-      description: "Les documents de pilotage ont été exportés au format ODF",
-    });
-  };
-
   return (
     <div className="bg-white rounded-md shadow overflow-hidden mt-6">
-      <div className="p-2 bg-app-light-blue flex justify-end">
-        <Button 
-          variant="outline" 
-          size="sm" 
-          className="text-app-blue border-app-blue hover:bg-app-blue hover:text-white"
-          onClick={handleExportOdf}
-        >
-          <FileDown className="h-4 w-4 mr-1" /> Export ODF
-        </Button>
-      </div>
       <Table>
         <TableHeader>
           <TableRow className="bg-app-light-blue">
