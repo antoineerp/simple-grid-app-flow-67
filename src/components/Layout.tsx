@@ -2,6 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import Header from './Header';
+import Footer from './Footer';
 import Sidebar from './Sidebar';
 import { MembresProvider } from '@/contexts/MembresContext';
 
@@ -21,7 +22,7 @@ const Layout = () => {
     }
   }, [navigate, location.pathname]);
 
-  // Si nous sommes sur la page d'accueil ou non authentifié, ne pas afficher le header et la sidebar
+  // If we are on the home page or not authenticated, don't show header, sidebar, and footer
   if (location.pathname === '/' || !isAuthenticated) {
     return <Outlet />;
   }
@@ -36,6 +37,7 @@ const Layout = () => {
             <Outlet />
           </main>
         </div>
+        <Footer />
       </div>
     </MembresProvider>
   );
