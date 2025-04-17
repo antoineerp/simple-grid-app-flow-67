@@ -19,6 +19,9 @@ function cleanUTF8($input) {
     return $input;
 }
 
+// Journaliser les informations de la requête
+error_log('API Request: ' . $_SERVER['REQUEST_METHOD'] . ' ' . $_SERVER['REQUEST_URI']);
+
 // Déterminer l'environnement
 $environment = env('APP_ENV', 'development');
 
@@ -37,7 +40,7 @@ $origin = isset($_SERVER['HTTP_ORIGIN']) ? $_SERVER['HTTP_ORIGIN'] : '';
 if ($origin === $allowedOrigin || $environment === 'development') {
     header("Access-Control-Allow-Origin: $origin");
 } else {
-    header("Access-Control-Allow-Origin: " . $allowedOrigins['production']);
+    header("Access-Control-Allow-Origin: *"); // En mode d'aperçu, permettre toutes les origines
 }
 
 // Autres en-têtes CORS et cache
@@ -65,10 +68,21 @@ $request_uri = $_SERVER['REQUEST_URI'];
 $request_uri = strtok($request_uri, '?');
 $url_segments = explode('/', trim(parse_url($request_uri, PHP_URL_PATH), '/'));
 
+// Journalisation des segments d'URL pour le débogage
+error_log('URL segments: ' . print_r($url_segments, true));
+
 // Trouver le point d'entrée de l'API
 $api_index = array_search('api', $url_segments);
 if ($api_index !== false) {
     $segments = array_slice($url_segments, $api_index + 1);
+    
+    error_log('API segments: ' . print_r($segments, true));
+    
+    if (!empty($segments[0]) && $segments[0] === 'login') {
+        error_log('Requête de connexion détectée');
+        require_once 'controllers/AuthController.php';
+        exit;
+    }
     
     if (count($segments) > 0) {
         $endpoint = $segments[0];
@@ -89,7 +103,7 @@ if ($api_index !== false) {
                     
                 default:
                     http_response_code(404);
-                    echo json_encode(['message' => 'Endpoint non trouvé', 'status' => 404]);
+                    echo json_encode(['message' => 'Endpoint non trouvé: ' . $endpoint, 'status' => 404]);
                     break;
             }
         } catch (Exception $e) {

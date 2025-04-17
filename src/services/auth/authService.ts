@@ -59,6 +59,32 @@ class AuthService {
             const cacheBuster = new Date().getTime();
             const loginUrl = `${currentApiUrl}/login?_=${cacheBuster}`;
             
+            // Vérification préalable que l'API est disponible
+            try {
+                const apiCheckResponse = await fetch(`${currentApiUrl}?_=${cacheBuster}`, {
+                    method: 'GET',
+                    headers: {
+                        'Cache-Control': 'no-cache'
+                    },
+                    cache: 'no-cache'
+                });
+                
+                if (!apiCheckResponse.ok) {
+                    console.error("API non disponible:", apiCheckResponse.status);
+                    return {
+                        success: false,
+                        error: `API non disponible (${apiCheckResponse.status}). Veuillez contacter l'administrateur.`
+                    };
+                }
+            } catch (apiCheckError) {
+                console.error("Erreur lors de la vérification de l'API:", apiCheckError);
+                return {
+                    success: false,
+                    error: "Impossible de se connecter à l'API. Vérifiez votre connexion internet."
+                };
+            }
+            
+            // Procéder à la connexion
             const response = await fetch(loginUrl, {
                 method: 'POST',
                 headers: {
@@ -71,18 +97,39 @@ class AuthService {
             
             console.log("Réponse de l'API reçue:", response.status, response.statusText);
             
+            // Si la réponse est vide ou pas OK, gérer l'erreur
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error("Réponse d'erreur:", errorText);
+                
+                let errorMessage;
+                try {
+                    const errorData = JSON.parse(errorText);
+                    errorMessage = errorData.message || `Erreur HTTP ${response.status}`;
+                } catch (e) {
+                    errorMessage = `Erreur HTTP ${response.status}: ${response.statusText || 'Pas de détails'}`;
+                }
+                
+                throw new Error(errorMessage);
+            }
+            
+            // Analyser la réponse JSON
             let data;
             try {
-                data = await response.json();
+                const responseText = await response.text();
+                console.log("Texte de réponse:", responseText);
+                
+                if (!responseText || responseText.trim() === '') {
+                    throw new Error("Réponse vide du serveur");
+                }
+                
+                data = JSON.parse(responseText);
             } catch (parseError) {
                 console.error("Erreur de parsing JSON:", parseError);
                 throw new Error("Réponse invalide du serveur");
             }
-
-            if (!response.ok) {
-                throw new Error(data.message || `Erreur HTTP ${response.status}`);
-            }
             
+            // Vérifier les données de réponse
             if (data.token && data.user) {
                 this.setToken(data.token);
                 localStorage.setItem('userRole', data.user.role);

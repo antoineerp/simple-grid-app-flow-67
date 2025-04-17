@@ -5,6 +5,9 @@ if (!function_exists('env')) {
     require_once '../config/env.php';
 }
 
+// Journaliser l'accès au contrôleur d'authentification
+error_log("AuthController.php appelé");
+
 // Fonction pour nettoyer les données UTF-8
 function cleanUTF8($input) {
     if (is_string($input)) {
@@ -35,12 +38,12 @@ $origin = isset($_SERVER['HTTP_ORIGIN']) ? $_SERVER['HTTP_ORIGIN'] : '';
 if ($origin === $allowedOrigin || $environment === 'development') {
     header("Access-Control-Allow-Origin: $origin");
 } else {
-    header("Access-Control-Allow-Origin: " . $allowedOrigins['production']);
+    header("Access-Control-Allow-Origin: *"); // En mode d'aperçu, permettre toutes les origines
 }
 
 // Autres en-têtes CORS
 header("Content-Type: application/json; charset=UTF-8");
-header("Access-Control-Allow-Methods: POST");
+header("Access-Control-Allow-Methods: POST, OPTIONS");
 header("Access-Control-Max-Age: 3600");
 header("Access-Control-Allow-Headers: Content-Type, Access-Control-Allow-Headers, Authorization, X-Requested-With");
 header("Cache-Control: no-cache, no-store, must-revalidate");
@@ -50,6 +53,13 @@ header("Expires: 0");
 // Si c'est une requête OPTIONS (preflight), nous la terminons ici
 if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
     header("HTTP/1.1 200 OK");
+    exit;
+}
+
+// Vérifier si la méthode est POST
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    http_response_code(405);
+    echo json_encode(['message' => 'Méthode non autorisée. Utilisez POST pour l\'authentification.', 'status' => 405]);
     exit;
 }
 
@@ -72,6 +82,11 @@ $json_input = file_get_contents("php://input");
 error_log("Données reçues: " . $json_input);
 
 try {
+    // Vérifier si les données sont vides
+    if (empty($json_input)) {
+        throw new Exception("Aucune donnée reçue");
+    }
+    
     $data = json_decode(cleanUTF8($json_input));
 
     // Vérifier si le décodage a réussi
