@@ -10,12 +10,14 @@ export const useExigenceSummary = () => {
     conforme: 0,
     total: 0
   });
+  
+  const currentUser = localStorage.getItem('currentUser') || 'default';
 
   useEffect(() => {
     // Function to load exigences and calculate stats
     const loadExigences = () => {
-      // Retrieve exigences from local storage
-      const storedExigences = localStorage.getItem('exigences');
+      // Retrieve exigences from local storage for the current user
+      const storedExigences = localStorage.getItem(`exigences_${currentUser}`);
       
       if (storedExigences) {
         const exigences = JSON.parse(storedExigences);
@@ -49,7 +51,7 @@ export const useExigenceSummary = () => {
       window.removeEventListener('storage', loadExigences);
       window.removeEventListener('exigenceUpdate', loadExigences);
     };
-  }, []);
+  }, [currentUser]);
 
   // Calculate conformity rate (percentage of conforme out of total non-excluded)
   const getConformityRate = () => {

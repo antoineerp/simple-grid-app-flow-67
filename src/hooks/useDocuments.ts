@@ -1,42 +1,53 @@
-
 import { useState, useEffect } from 'react';
 import { useToast } from "@/hooks/use-toast";
 import { Document, DocumentStats } from '@/types/documents';
 
 export const useDocuments = () => {
   const { toast } = useToast();
+  const currentUser = localStorage.getItem('currentUser') || 'default';
   
   const [documents, setDocuments] = useState<Document[]>(() => {
-    const storedDocuments = localStorage.getItem('documents');
-    return storedDocuments ? JSON.parse(storedDocuments) : [
-      { 
-        id: '1', 
-        nom: 'Document 1',
-        fichier_path: 'Voir le document',
-        responsabilites: { r: [], a: [], c: [], i: [] },
-        etat: 'C',
-        date_creation: new Date(),
-        date_modification: new Date()
-      },
-      { 
-        id: '2', 
-        nom: 'Document 2',
-        fichier_path: null,
-        responsabilites: { r: [], a: [], c: [], i: [] },
-        etat: 'PC',
-        date_creation: new Date(),
-        date_modification: new Date()
-      },
-      { 
-        id: '3', 
-        nom: 'Document 3',
-        fichier_path: 'Voir le document',
-        responsabilites: { r: [], a: [], c: [], i: [] },
-        etat: 'NC',
-        date_creation: new Date(),
-        date_modification: new Date()
-      },
-    ];
+    const storedDocuments = localStorage.getItem(`documents_${currentUser}`);
+    
+    if (storedDocuments) {
+      return JSON.parse(storedDocuments);
+    } else {
+      const defaultDocuments = localStorage.getItem('documents_template') || localStorage.getItem('documents');
+      
+      if (defaultDocuments) {
+        return JSON.parse(defaultDocuments);
+      }
+      
+      return [
+        { 
+          id: '1', 
+          nom: 'Document 1',
+          fichier_path: 'Voir le document',
+          responsabilites: { r: [], a: [], c: [], i: [] },
+          etat: 'C',
+          date_creation: new Date(),
+          date_modification: new Date()
+        },
+        { 
+          id: '2', 
+          nom: 'Document 2',
+          fichier_path: null,
+          responsabilites: { r: [], a: [], c: [], i: [] },
+          etat: 'PC',
+          date_creation: new Date(),
+          date_modification: new Date()
+        },
+        { 
+          id: '3', 
+          nom: 'Document 3',
+          fichier_path: 'Voir le document',
+          responsabilites: { r: [], a: [], c: [], i: [] },
+          etat: 'NC',
+          date_creation: new Date(),
+          date_modification: new Date()
+        },
+      ];
+    }
   });
 
   const [editingDocument, setEditingDocument] = useState<Document | null>(null);
@@ -49,15 +60,20 @@ export const useDocuments = () => {
     total: 0
   });
 
-  // Helper function to notify about document updates
   const notifyDocumentUpdate = () => {
     window.dispatchEvent(new Event('documentUpdate'));
   };
 
   useEffect(() => {
-    localStorage.setItem('documents', JSON.stringify(documents));
+    localStorage.setItem(`documents_${currentUser}`, JSON.stringify(documents));
+    
+    const userRole = localStorage.getItem('userRole');
+    if (userRole === 'admin' || userRole === 'administrateur') {
+      localStorage.setItem('documents_template', JSON.stringify(documents));
+    }
+    
     notifyDocumentUpdate();
-  }, [documents]);
+  }, [documents, currentUser]);
 
   useEffect(() => {
     const exclusionCount = documents.filter(d => d.etat === 'EX').length;

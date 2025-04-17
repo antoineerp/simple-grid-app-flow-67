@@ -1,33 +1,44 @@
-
 import { useState, useEffect } from 'react';
 import { useToast } from "@/hooks/use-toast";
 import { Exigence, ExigenceStats } from '@/types/exigences';
 
 export const useExigences = () => {
   const { toast } = useToast();
+  const currentUser = localStorage.getItem('currentUser') || 'default';
   
   const [exigences, setExigences] = useState<Exigence[]>(() => {
-    const storedExigences = localStorage.getItem('exigences');
-    return storedExigences ? JSON.parse(storedExigences) : [
-      { 
-        id: '1', 
-        nom: 'Levée du courrier', 
-        responsabilites: { r: [], a: [], c: [], i: [] },
-        exclusion: false,
-        atteinte: null,
-        date_creation: new Date(),
-        date_modification: new Date()
-      },
-      { 
-        id: '2', 
-        nom: 'Ouverture du courrier', 
-        responsabilites: { r: [], a: [], c: [], i: [] },
-        exclusion: false,
-        atteinte: null,
-        date_creation: new Date(),
-        date_modification: new Date()
-      },
-    ];
+    const storedExigences = localStorage.getItem(`exigences_${currentUser}`);
+    
+    if (storedExigences) {
+      return JSON.parse(storedExigences);
+    } else {
+      const defaultExigences = localStorage.getItem('exigences_template') || localStorage.getItem('exigences');
+      
+      if (defaultExigences) {
+        return JSON.parse(defaultExigences);
+      }
+      
+      return [
+        { 
+          id: '1', 
+          nom: 'Levée du courrier', 
+          responsabilites: { r: [], a: [], c: [], i: [] },
+          exclusion: false,
+          atteinte: null,
+          date_creation: new Date(),
+          date_modification: new Date()
+        },
+        { 
+          id: '2', 
+          nom: 'Ouverture du courrier', 
+          responsabilites: { r: [], a: [], c: [], i: [] },
+          exclusion: false,
+          atteinte: null,
+          date_creation: new Date(),
+          date_modification: new Date()
+        },
+      ];
+    }
   });
 
   const [editingExigence, setEditingExigence] = useState<Exigence | null>(null);
@@ -40,15 +51,20 @@ export const useExigences = () => {
     total: 0
   });
 
-  // Helper function to notify about exigence updates
   const notifyExigenceUpdate = () => {
     window.dispatchEvent(new Event('exigenceUpdate'));
   };
 
   useEffect(() => {
-    localStorage.setItem('exigences', JSON.stringify(exigences));
+    localStorage.setItem(`exigences_${currentUser}`, JSON.stringify(exigences));
+    
+    const userRole = localStorage.getItem('userRole');
+    if (userRole === 'admin' || userRole === 'administrateur') {
+      localStorage.setItem('exigences_template', JSON.stringify(exigences));
+    }
+    
     notifyExigenceUpdate();
-  }, [exigences]);
+  }, [exigences, currentUser]);
 
   useEffect(() => {
     const exclusionCount = exigences.filter(e => e.exclusion).length;

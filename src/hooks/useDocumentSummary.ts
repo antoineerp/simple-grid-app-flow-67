@@ -10,12 +10,14 @@ export const useDocumentSummary = () => {
     conforme: 0,
     total: 0
   });
+  
+  const currentUser = localStorage.getItem('currentUser') || 'default';
 
   useEffect(() => {
     // Function to load documents and calculate stats
     const loadDocuments = () => {
-      // Retrieve documents from local storage
-      const storedDocuments = localStorage.getItem('documents');
+      // Retrieve documents from local storage for the current user
+      const storedDocuments = localStorage.getItem(`documents_${currentUser}`);
       
       if (storedDocuments) {
         const documents = JSON.parse(storedDocuments);
@@ -49,7 +51,7 @@ export const useDocumentSummary = () => {
       window.removeEventListener('storage', loadDocuments);
       window.removeEventListener('documentUpdate', loadDocuments);
     };
-  }, []);
+  }, [currentUser]);
 
   // Calculate conformity rate (percentage of conforme out of total non-excluded)
   const getConformityRate = () => {
