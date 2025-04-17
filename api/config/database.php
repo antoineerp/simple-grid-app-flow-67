@@ -3,11 +3,65 @@
 // Configuration de la connexion à la base de données
 class Database {
     // Variables de connexion à la base de données
-    private $host = "p71x6d.myd.infomaniak.com";
-    private $db_name = "p71x6d_system";
-    private $username = "p71x6d_system";
-    private $password = "Trottinette43!";
+    private $host;
+    private $db_name;
+    private $username;
+    private $password;
     public $conn;
+
+    // Constructeur qui charge la configuration
+    public function __construct() {
+        // Chargement de la configuration depuis le fichier config
+        $this->loadConfig();
+    }
+
+    // Charger la configuration depuis un fichier JSON
+    private function loadConfig() {
+        $configFile = __DIR__ . '/db_config.json';
+        
+        // Configuration par défaut
+        $this->host = "p71x6d.myd.infomaniak.com";
+        $this->db_name = "p71x6d_system";
+        $this->username = "p71x6d_system";
+        $this->password = "Trottinette43!";
+        
+        // Si le fichier de configuration existe, charger les valeurs
+        if (file_exists($configFile)) {
+            try {
+                $config = json_decode(file_get_contents($configFile), true);
+                if (json_last_error() === JSON_ERROR_NONE) {
+                    if (isset($config['host'])) $this->host = $config['host'];
+                    if (isset($config['db_name'])) $this->db_name = $config['db_name'];
+                    if (isset($config['username'])) $this->username = $config['username'];
+                    if (isset($config['password'])) $this->password = $config['password'];
+                }
+            } catch (Exception $e) {
+                error_log("Erreur lors du chargement de la configuration de base de données: " . $e->getMessage());
+            }
+        } else {
+            // Créer le fichier de configuration avec les valeurs par défaut
+            $this->saveConfig();
+        }
+    }
+
+    // Sauvegarder la configuration actuelle
+    public function saveConfig() {
+        $configFile = __DIR__ . '/db_config.json';
+        $config = [
+            'host' => $this->host,
+            'db_name' => $this->db_name,
+            'username' => $this->username,
+            'password' => $this->password
+        ];
+        
+        try {
+            file_put_contents($configFile, json_encode($config, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+            return true;
+        } catch (Exception $e) {
+            error_log("Erreur lors de la sauvegarde de la configuration de base de données: " . $e->getMessage());
+            return false;
+        }
+    }
 
     // Obtenir la connexion à la base de données
     public function getConnection() {
@@ -33,6 +87,26 @@ class Database {
         }
 
         return $this->conn;
+    }
+
+    // Obtenir les informations de configuration actuelle
+    public function getConfig() {
+        return [
+            'host' => $this->host,
+            'db_name' => $this->db_name,
+            'username' => $this->username,
+            'password' => $this->password
+        ];
+    }
+
+    // Mettre à jour la configuration
+    public function updateConfig($host, $db_name, $username, $password) {
+        $this->host = $host;
+        $this->db_name = $db_name;
+        $this->username = $username;
+        $this->password = $password;
+        
+        return $this->saveConfig();
     }
 
     // Convertir les tables en utf8mb4
