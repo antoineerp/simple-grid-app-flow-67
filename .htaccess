@@ -6,15 +6,17 @@ DirectoryIndex index.html index.php
 
 # Correctly define MIME types for various file extensions
 AddType application/javascript .js
+AddType application/javascript .mjs
+AddType application/javascript .jsx
 AddType application/javascript .tsx
 AddType application/javascript .ts
 AddType text/css .css
 AddType application/json .json
 AddType image/svg+xml .svg
 
-<FilesMatch "\.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot|map|tsx?|ts)$">
-    Order Allow,Deny
-    Allow from all
+<FilesMatch "\.(js|mjs|jsx|tsx|ts|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot|map)$">
+    Header set Access-Control-Allow-Origin "*"
+    Header set X-Content-Type-Options "nosniff"
 </FilesMatch>
 
 RewriteRule ^lovable-uploads/(.*)$ public/lovable-uploads/$1 [L]
@@ -29,10 +31,10 @@ RewriteRule ^api/(.*)$ api/index.php [QSA,L]
 # Critical: Improved path handling for source files
 RewriteRule ^src/(.*)$ src/$1 [L]
 
-# Redirect /assets to /dist/assets directly
-RewriteRule ^assets/(.*)$ dist/assets/$1 [L]
+# Direct access to dist directory
+RewriteRule ^dist/(.*)$ dist/$1 [L]
 
-RewriteCond %{REQUEST_URI} \.(js|css|png|jpe?g|gif|svg|ico|webp|woff2?|ttf|eot|map|tsx?|ts)$
+RewriteCond %{REQUEST_URI} \.(js|mjs|jsx|tsx|ts|css|png|jpe?g|gif|svg|ico|webp|woff2?|ttf|eot|map)$
 RewriteRule ^ - [L]
 
 RewriteCond %{REQUEST_FILENAME} -f
@@ -44,7 +46,7 @@ RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^(?!api/).*$ index.html [QSA,L]
 
 <IfModule mod_headers.c>
-    <FilesMatch "\.(js|css|json|tsx?|ts)$">
+    <FilesMatch "\.(js|mjs|jsx|tsx|ts|css|json)$">
         Header set Cache-Control "no-cache, no-store, must-revalidate"
         Header set Pragma "no-cache"
         Header set Expires "0"

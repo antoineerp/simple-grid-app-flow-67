@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="fr">
   <head>
@@ -31,18 +30,8 @@
     <!-- Référence au fichier CSS -->
     <link rel="stylesheet" href="/dist/assets/index.css">
     
-    <!-- Script Lovable pour les fonctionnalités avancées - DOIT APPARAÎTRE AVANT IMPORTMAP -->
+    <!-- Script Lovable pour les fonctionnalités avancées -->
     <script src="https://cdn.gpteng.co/gptengineer.js" type="module"></script>
-    
-    <!-- Script importmap pour résoudre les modules -->
-    <script type="importmap">
-    {
-      "imports": {
-        "react": "/dist/assets/vendor.js",
-        "react-dom": "/dist/assets/vendor.js"
-      }
-    }
-    </script>
   </head>
 
   <body>
@@ -70,8 +59,8 @@
       }
     </script>
     
-    <!-- Script JavaScript principal - using built file in production -->
-    <script src="/dist/assets/main.js" type="module"></script>
+    <!-- Script principal avec le type module -->
+    <script type="module" src="/dist/assets/main.js"></script>
     
     <!-- Fallback pour les navigateurs ne supportant pas ES modules -->
     <script nomodule>

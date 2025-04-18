@@ -26,8 +26,8 @@ export default defineConfig(({ mode }) => ({
   build: {
     outDir: 'dist',
     assetsDir: 'assets',
-    sourcemap: false,
-    minify: true,
+    sourcemap: mode === 'development',
+    minify: mode === 'production',
     cssCodeSplit: false,
     rollupOptions: {
       output: {
@@ -38,12 +38,7 @@ export default defineConfig(({ mode }) => ({
         },
         entryFileNames: 'assets/[name].js',
         chunkFileNames: 'assets/[name].js',
-        assetFileNames: ({ name }) => {
-          if (/\.css$/.test(name ?? '')) {
-            return 'assets/index.css';
-          }
-          return 'assets/[name].[ext]';
-        }
+        assetFileNames: 'assets/[name].[ext]'
       }
     },
     target: 'es2018',
