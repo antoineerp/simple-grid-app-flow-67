@@ -28,6 +28,19 @@
       }
     </script>
     
+    <!-- Script Lovable pour les fonctionnalités avancées -->
+    <script src="https://cdn.gpteng.co/gptengineer.js" type="module"></script>
+    
+    <!-- Script importmap pour résoudre les modules - DOIT être avant les scripts de type module -->
+    <script type="importmap">
+    {
+      "imports": {
+        "react": "/assets/vendor.js",
+        "react-dom": "/assets/vendor.js"
+      }
+    }
+    </script>
+    
     <!-- Référence au fichier CSS avec un nom fixe -->
     <link rel="stylesheet" href="/assets/index.css">
   </head>
@@ -57,21 +70,8 @@
       }
     </script>
     
-    <!-- Script Lovable pour les fonctionnalités avancées -->
-    <script src="https://cdn.gpteng.co/gptengineer.js" type="module"></script>
-    
-    <!-- Script JavaScript principal avec importmap pour résoudre les modules -->
-    <script type="importmap">
-    {
-      "imports": {
-        "react": "/assets/vendor.js",
-        "react-dom": "/assets/vendor.js"
-      }
-    }
-    </script>
-    
-    <!-- Script JavaScript compilé avec type="module" pour le support des imports ES modules -->
-    <script type="module" src="/assets/index.js"></script>
+    <!-- Script JavaScript principal avec type="module" pour le support des imports ES modules -->
+    <script type="module" src="/src/main.tsx"></script>
     
     <!-- Fallback pour les navigateurs ne supportant pas ES modules -->
     <script nomodule>

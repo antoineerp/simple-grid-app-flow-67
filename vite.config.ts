@@ -30,6 +30,11 @@ export default defineConfig(({ mode }) => ({
     minify: true,
     cssCodeSplit: false, // Force un seul fichier CSS
     rollupOptions: {
+      external: [
+        // Exclure les fichiers référencés en absolu dans index.html
+        '/assets/index.js',
+        '/assets/vendor.js'
+      ],
       output: {
         manualChunks(id) {
           if (id.includes('node_modules')) {
