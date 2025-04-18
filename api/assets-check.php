@@ -20,17 +20,17 @@ header('Content-Type: text/html; charset=utf-8');
     echo "<p>Répertoire de travail actuel: " . getcwd() . "</p>";
     
     // Vérifier les assets JS
-    $jsDir = '../assets';
+    $jsDir = '../dist/assets';
     echo "<h2>Vérification du répertoire assets:</h2>";
     if (file_exists($jsDir)) {
-        echo "<p class='success'>Le répertoire assets existe!</p>";
+        echo "<p class='success'>Le répertoire dist/assets existe!</p>";
         $files = glob($jsDir . '/*.js');
         echo "<p>Fichiers JS trouvés: " . count($files) . "</p>";
         foreach ($files as $file) {
             echo "<p>" . basename($file) . " - " . (is_readable($file) ? "<span class='success'>Lisible</span>" : "<span class='error'>Non lisible</span>") . "</p>";
         }
     } else {
-        echo "<p class='error'>Le répertoire assets n'existe pas!</p>";
+        echo "<p class='error'>Le répertoire dist/assets n'existe pas!</p>";
     }
     
     // Vérifier le fichier index.html
