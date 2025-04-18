@@ -27,6 +27,30 @@
         document.write('<script src="https://cdn.jsdelivr.net/npm/es6-object-assign@1.1.0/dist/object-assign-auto.min.js"><\/script>');
       }
     </script>
+    
+    <!-- PHP Test -->
+    <script>
+      window.testPhp = function() {
+        fetch('/api/diagnostic.php?_=' + new Date().getTime(), { 
+          headers: { 'Cache-Control': 'no-cache' } 
+        })
+        .then(response => response.text())
+        .then(text => {
+          console.log("PHP Test Response:", text);
+          if (text.startsWith('<?php')) {
+            console.error("❌ PHP n'est pas interprété correctement");
+          } else {
+            try {
+              const json = JSON.parse(text);
+              console.log("✅ PHP fonctionne correctement:", json);
+            } catch (e) {
+              console.error("❌ Réponse non-JSON:", text);
+            }
+          }
+        })
+        .catch(err => console.error("❌ Erreur de test PHP:", err));
+      };
+    </script>
   </head>
 
   <body>

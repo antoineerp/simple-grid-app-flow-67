@@ -4,16 +4,41 @@ import { createRoot } from 'react-dom/client';
 import App from './App';
 import './index.css';
 
-// Déclaration d'interface pour étendre Window
-declare global {
-  interface Window {
-    __LOVABLE_EDITOR__: any;
-    __diagnoseLovable: () => void;
-  }
-}
+// Déclaration des propriétés globales de fenêtre
+window.__LOVABLE_EDITOR__ = window.__LOVABLE_EDITOR__ || null;
+window.__diagnoseLovable = window.__diagnoseLovable || function() {
+  console.log("=== DIAGNOSTIC LOVABLE ===");
+  checkLovableScript();
+  diagnoseNetworkIssues();
+  
+  // Vérifier les bloqueurs potentiels
+  console.log("Test de connexion aux CDN:");
+  
+  const cdns = [
+    'https://cdn.gpteng.co/ping',
+    'https://fonts.googleapis.com/favicon.ico',
+    'https://www.gstatic.com/favicon.ico'
+  ];
+  
+  cdns.forEach(url => {
+    fetch(url, { mode: 'no-cors', cache: 'no-store' })
+      .then(() => console.log(`✅ Connexion réussie à ${url}`))
+      .catch(err => console.error(`❌ Échec de connexion à ${url}:`, err));
+  });
+  
+  console.log("Vérification de la console Lovable:");
+  console.log("__LOVABLE_EDITOR__ présent:", typeof window.__LOVABLE_EDITOR__ !== 'undefined');
+  
+  console.log("=== FIN DU DIAGNOSTIC ===");
+  console.log("Pour résoudre les problèmes, essayez:");
+  console.log("1. Désactiver les bloqueurs de publicités/scripts");
+  console.log("2. Vider le cache du navigateur");
+  console.log("3. Essayer un autre navigateur (Chrome recommandé)");
+  console.log("4. Vérifier votre connexion réseau (VPN, pare-feu)");
+};
 
 // Fonction de journalisation améliorée
-function logDebug(message: string, error?: any) {
+function logDebug(message, error) {
   console.log(`[FormaCert Debug] ${message}`);
   if (error) {
     console.error(`[FormaCert Error]`, error);
@@ -31,7 +56,7 @@ function checkLovableScript() {
   console.log("Script Lovable trouvé:", lovableScript);
   
   // Vérifier si le script est avant le script principal
-  const mainScript = document.querySelector('script[src*="main.tsx"]');
+  const mainScript = document.querySelector('script[src*="main"]');
   if (mainScript && lovableScript.compareDocumentPosition(mainScript) & Node.DOCUMENT_POSITION_FOLLOWING) {
     console.log("L'ordre des scripts est correct: Lovable chargé avant le script principal");
     return true;
@@ -96,9 +121,9 @@ function initializeApp() {
     
     logDebug("Rendu de l'application React");
     root.render(
-      <React.StrictMode>
-        <App />
-      </React.StrictMode>
+      React.createElement(React.StrictMode, null,
+        React.createElement(App)
+      )
     );
     
     logDebug("Application rendue avec succès");
@@ -150,38 +175,6 @@ if (document.readyState === 'loading') {
 } else {
   initializeApp();
 }
-
-// Exposer une fonction de diagnostic pour le dépannage
-window.__diagnoseLovable = function() {
-  console.log("=== DIAGNOSTIC LOVABLE ===");
-  checkLovableScript();
-  diagnoseNetworkIssues();
-  
-  // Vérifier les bloqueurs potentiels
-  console.log("Test de connexion aux CDN:");
-  
-  const cdns = [
-    'https://cdn.gpteng.co/ping',
-    'https://fonts.googleapis.com/favicon.ico',
-    'https://www.gstatic.com/favicon.ico'
-  ];
-  
-  cdns.forEach(url => {
-    fetch(url, { mode: 'no-cors', cache: 'no-store' })
-      .then(() => console.log(`✅ Connexion réussie à ${url}`))
-      .catch(err => console.error(`❌ Échec de connexion à ${url}:`, err));
-  });
-  
-  console.log("Vérification de la console Lovable:");
-  console.log("__LOVABLE_EDITOR__ présent:", typeof window.__LOVABLE_EDITOR__ !== 'undefined');
-  
-  console.log("=== FIN DU DIAGNOSTIC ===");
-  console.log("Pour résoudre les problèmes, essayez:");
-  console.log("1. Désactiver les bloqueurs de publicités/scripts");
-  console.log("2. Vider le cache du navigateur");
-  console.log("3. Essayer un autre navigateur (Chrome recommandé)");
-  console.log("4. Vérifier votre connexion réseau (VPN, pare-feu)");
-};
 
 // Log initial pour confirmer le chargement du script
 console.log("Script principal chargé avec succès");

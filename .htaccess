@@ -2,7 +2,11 @@
 RewriteEngine On
 Options -MultiViews
 Options +FollowSymLinks
+Options +ExecCGI
 DirectoryIndex index.html index.php
+
+# Force PHP interpretation
+AddHandler application/x-httpd-php .php
 
 # Définir correctement les types MIME pour les extensions de fichiers
 AddType application/javascript .js
@@ -24,6 +28,8 @@ AddType image/svg+xml .svg
 # Configuration pour forcer l'interprétation PHP
 <FilesMatch "\.php$">
     SetHandler application/x-httpd-php
+    # Force the content type to be application/json for API responses
+    Header set Content-Type "application/json; charset=UTF-8"
 </FilesMatch>
 
 # Règles spécifiques pour Lovable
