@@ -4,6 +4,14 @@ import { createRoot } from 'react-dom/client';
 import App from './App';
 import './index.css';
 
+// Déclaration d'interface pour étendre Window
+declare global {
+  interface Window {
+    __LOVABLE_EDITOR__: any;
+    __diagnoseLovable: () => void;
+  }
+}
+
 // Fonction de journalisation améliorée
 function logDebug(message: string, error?: any) {
   console.log(`[FormaCert Debug] ${message}`);
