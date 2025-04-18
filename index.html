@@ -1,22 +1,13 @@
-
 <!DOCTYPE html>
 <html lang="fr">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
     <title>FormaCert</title>
     <link rel="icon" href="/lovable-uploads/formacert-logo.png" type="image/png">
     <meta name="description" content="FormaCert - Système de gestion de certification" />
     <meta name="author" content="FormaCert" />
-
-    <meta property="og:title" content="FormaCert" />
-    <meta property="og:description" content="Système de gestion de certification" />
-    <meta property="og:type" content="website" />
-    <meta property="og:image" content="https://lovable.dev/opengraph-image-p98pqg.png" />
-
-    <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:site" content="@lovable_dev" />
-    <meta name="twitter:image" content="https://lovable.dev/opengraph-image-p98pqg.png" />
     
     <!-- Polyfills pour la compatibilité navigateurs -->
     <script>
@@ -26,7 +17,24 @@
       if (typeof Object.assign === 'undefined') {
         document.write('<script src="https://cdn.jsdelivr.net/npm/es6-object-assign@1.1.0/dist/object-assign-auto.min.js"><\/script>');
       }
+      if (!('IntersectionObserver' in window)) {
+        document.write('<script src="https://cdn.jsdelivr.net/npm/intersection-observer-polyfill@0.1.0/dist/IntersectionObserver.js"><\/script>');
+      }
     </script>
+
+    <!-- Cache control -->
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    
+    <meta property="og:title" content="FormaCert" />
+    <meta property="og:description" content="Système de gestion de certification" />
+    <meta property="og:type" content="website" />
+    <meta property="og:image" content="https://lovable.dev/opengraph-image-p98pqg.png" />
+
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:site" content="@lovable_dev" />
+    <meta name="twitter:image" content="https://lovable.dev/opengraph-image-p98pqg.png" />
     
     <!-- PHP Test -->
     <script>
@@ -52,7 +60,6 @@
       };
     </script>
   </head>
-
   <body>
     <div id="root"></div>
     <noscript>
@@ -66,7 +73,7 @@
     <script>
       function isModernBrowser() {
         try {
-          eval('let a = 0; const b = 1; async function test() {}; class Test {}');
+          eval('async () => {}');
           return true;
         } catch (e) {
           return false;
@@ -83,10 +90,5 @@
     
     <!-- Script principal - APRÈS le script Lovable -->
     <script type="module" src="/src/main.tsx"></script>
-    
-    <!-- Fallback pour les navigateurs ne supportant pas ES modules -->
-    <script nomodule>
-      document.getElementById('root').innerHTML = '<div style="text-align:center; margin-top:50px; font-family:sans-serif;"><h1>Navigateur non supporté</h1><p>Votre navigateur ne supporte pas les modules ES6. Veuillez utiliser un navigateur plus récent.</p></div>';
-    </script>
   </body>
 </html>

@@ -1,4 +1,3 @@
-
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
@@ -14,7 +13,18 @@ export default defineConfig(({ mode }) => ({
     }
   },
   plugins: [
-    react(),
+    react({
+      swcOptions: {
+        jsc: {
+          target: 'es5',
+          transform: {
+            react: {
+              runtime: 'automatic'
+            }
+          }
+        }
+      }
+    }),
     mode === 'development' && componentTagger(),
   ].filter(Boolean),
   resolve: {
@@ -28,7 +38,8 @@ export default defineConfig(({ mode }) => ({
     assetsDir: 'assets',
     sourcemap: mode === 'development',
     minify: mode === 'production',
-    cssCodeSplit: true, // Enable this to generate separate CSS files
+    cssCodeSplit: true,
+    target: ['es2015', 'edge88', 'firefox78', 'chrome87', 'safari13'],
     rollupOptions: {
       output: {
         manualChunks(id) {
@@ -40,9 +51,7 @@ export default defineConfig(({ mode }) => ({
         chunkFileNames: 'assets/[name].js',
         assetFileNames: 'assets/[name].[ext]'
       }
-    },
-    target: 'es2018',
-    emptyOutDir: true,
+    }
   },
   publicDir: 'public',
   base: '/',
@@ -50,7 +59,7 @@ export default defineConfig(({ mode }) => ({
     logOverride: { 'this-is-undefined-in-esm': 'silent' }
   },
   css: {
-    // Ensure that postcss is properly configured
-    postcss: './postcss.config.js'
+    postcss: './postcss.config.js',
+    devSourcemap: true
   }
 }));
