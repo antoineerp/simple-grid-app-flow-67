@@ -3,18 +3,33 @@
 // Assurons-nous que rien ne sera affiché avant les en-têtes
 ob_start();
 
+// Configuration des en-têtes de réponse JSON et CORS
+header("Content-Type: application/json; charset=UTF-8");
+header("Access-Control-Allow-Origin: *");
+header("Access-Control-Allow-Methods: POST, OPTIONS");
+header("Access-Control-Allow-Headers: Content-Type, Authorization");
+
+// Journaliser l'accès au contrôleur d'authentification
+error_log("AuthController.php appelé | URI: " . $_SERVER['REQUEST_URI'] . " | Méthode: " . $_SERVER['REQUEST_METHOD']);
+
+// Si c'est une requête OPTIONS (preflight), nous la terminons ici
+if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
+    http_response_code(200);
+    echo json_encode(['status' => 200, 'message' => 'Preflight OK']);
+    exit;
+}
+
 // Inclure notre fichier de configuration d'environnement s'il n'est pas déjà inclus
 if (!function_exists('env')) {
     if (file_exists(__DIR__ . '/../config/env.php')) {
         require_once __DIR__ . '/../config/env.php';
     } else {
-        // Log et continuer
         error_log("Fichier env.php introuvable");
+        http_response_code(500);
+        echo json_encode(['status' => 500, 'message' => 'Configuration manquante']);
+        exit;
     }
 }
-
-// Journaliser l'accès au contrôleur d'authentification
-error_log("AuthController.php appelé | URI: " . $_SERVER['REQUEST_URI'] . " | Méthode: " . $_SERVER['REQUEST_METHOD']);
 
 // Fonction pour nettoyer les données UTF-8
 function cleanUTF8($input) {
@@ -26,20 +41,6 @@ function cleanUTF8($input) {
         }
     }
     return $input;
-}
-
-// Configuration des en-têtes CORS et de la réponse JSON
-header("Content-Type: application/json; charset=UTF-8");
-header("Access-Control-Allow-Origin: *");
-header("Access-Control-Allow-Methods: POST, OPTIONS");
-header("Access-Control-Allow-Headers: Content-Type, Authorization");
-header("Cache-Control: no-cache, no-store, must-revalidate");
-
-// Si c'est une requête OPTIONS (preflight), nous la terminons ici
-if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
-    http_response_code(200);
-    echo json_encode(['status' => 200, 'message' => 'Preflight OK']);
-    exit;
 }
 
 try {
@@ -92,14 +93,18 @@ try {
 
     // Vérifier si les données sont vides
     if (empty($json_input)) {
-        throw new Exception("Aucune donnée reçue");
+        http_response_code(400);
+        echo json_encode(["message" => "Aucune donnée reçue", "status" => 400]);
+        exit;
     }
     
     $data = json_decode(cleanUTF8($json_input));
 
     // Vérifier si le décodage a réussi
     if (json_last_error() !== JSON_ERROR_NONE) {
-        throw new Exception("Erreur de décodage JSON: " . json_last_error_msg());
+        http_response_code(400);
+        echo json_encode(["message" => "Erreur de décodage JSON: " . json_last_error_msg(), "status" => 400]);
+        exit;
     }
 
     // Vérifier si les données sont présentes
@@ -150,25 +155,25 @@ try {
                 // Si le mot de passe ne correspond pas
                 error_log("Mot de passe incorrect pour: " . $username);
                 http_response_code(401);
-                echo json_encode(array("message" => "Identifiants invalides"));
+                echo json_encode(array("message" => "Identifiants invalides", "status" => 401));
             }
         } else {
             // Si l'utilisateur n'existe pas
             error_log("Utilisateur non trouvé: " . $username);
             http_response_code(401);
-            echo json_encode(array("message" => "Identifiants invalides"));
+            echo json_encode(array("message" => "Identifiants invalides", "status" => 401));
         }
     } else {
         // Si des données sont manquantes
         error_log("Données incomplètes pour la connexion");
         http_response_code(400);
-        echo json_encode(array("message" => "Données incomplètes"));
+        echo json_encode(array("message" => "Données incomplètes", "status" => 400));
     }
 } catch (Exception $e) {
     // Log l'erreur et renvoyer une réponse formatée
     error_log("Erreur dans AuthController: " . $e->getMessage());
     http_response_code(500);
-    echo json_encode(array("message" => "Erreur serveur", "error" => $e->getMessage()));
+    echo json_encode(array("message" => "Erreur serveur", "error" => $e->getMessage(), "status" => 500));
 } finally {
     // Vider et terminer le tampon de sortie pour s'assurer que seule la réponse JSON est envoyée
     ob_end_flush();

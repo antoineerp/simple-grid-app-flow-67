@@ -59,15 +59,12 @@ class AuthService {
             const cacheBuster = new Date().getTime();
             const loginUrl = `${currentApiUrl}/auth.php?_=${cacheBuster}`;
             
-            console.log("URL de requête complète:", loginUrl);
-            
-            // Tracer les détails de la requête
+            console.log("URL de l'API utilisée:", loginUrl);
             console.log("Données de connexion:", { username });
-            console.log("En-têtes de la requête:", {
-                'Content-Type': 'application/json',
-                'Cache-Control': 'no-cache, no-store, must-revalidate',
-                'Accept': 'application/json'
-            });
+            
+            // Utiliser un objet AbortController avec un timeout de 10 secondes
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 10000);
             
             const response = await fetch(loginUrl, {
                 method: 'POST',
@@ -77,35 +74,40 @@ class AuthService {
                     'Accept': 'application/json'
                 },
                 body: JSON.stringify({ username, password }),
+                signal: controller.signal,
                 cache: 'no-cache'
             });
             
-            console.log("Réponse de l'API reçue:", response.status, response.statusText);
+            // Annuler le timeout
+            clearTimeout(timeoutId);
+            
             console.log("Type de contenu reçu:", response.headers.get('Content-Type'));
+            console.log("Code de statut HTTP:", response.status);
             
             // Récupérer le texte brut de la réponse
             const responseText = await response.text();
-            console.log("Texte de réponse brut:", responseText);
             
-            // Vérifier si la réponse est vide
+            // Vérifier si la réponse est vide ou non-valide
             if (!responseText || responseText.trim() === '') {
-                console.error("Réponse vide du serveur");
+                console.error("Le serveur a renvoyé une réponse vide");
                 return {
                     success: false,
                     error: "Le serveur a renvoyé une réponse vide"
                 };
             }
             
+            console.log("Contenu reçu:", responseText.substring(0, 200));
+            
             // Essayer de parser la réponse JSON
             let data;
             try {
                 data = JSON.parse(responseText);
             } catch (parseError) {
-                console.error("Erreur de parsing JSON:", parseError);
+                console.error("Erreur d'analyse JSON:", parseError);
                 console.log("Contenu non-JSON reçu:", responseText);
                 return {
                     success: false,
-                    error: "Format de réponse invalide. Veuillez vérifier les logs du serveur."
+                    error: "Format de réponse invalide. Vérifiez que PHP est correctement configuré."
                 };
             }
             
@@ -118,7 +120,7 @@ class AuthService {
                 };
             }
             
-            if (data.token && data.user) {
+            if (data && data.token && data.user) {
                 this.setToken(data.token);
                 localStorage.setItem('userRole', data.user.role);
                 localStorage.setItem('currentUser', data.user.identifiant_technique || username);
@@ -132,7 +134,7 @@ class AuthService {
                     user: data.user
                 };
             } else {
-                console.error("Réponse d'authentification invalide:", data);
+                console.error("Réponse d'authentification incomplète:", data);
                 return {
                     success: false,
                     error: "Réponse d'authentification incomplète"
@@ -141,12 +143,18 @@ class AuthService {
         } catch (error) {
             console.error("Erreur d'authentification:", error);
             
-            // Ajouter plus de détails de diagnostic
+            // Gérer les erreurs spécifiques
             if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
-                console.error("Erreur réseau: impossible de contacter le serveur");
                 return {
                     success: false,
                     error: "Impossible de contacter le serveur d'authentification"
+                };
+            }
+            
+            if (error instanceof DOMException && error.name === 'AbortError') {
+                return {
+                    success: false,
+                    error: "La requête a expiré - le serveur met trop de temps à répondre"
                 };
             }
             
