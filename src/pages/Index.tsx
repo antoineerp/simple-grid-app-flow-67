@@ -16,6 +16,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useToast } from "@/hooks/use-toast";
 import { loginUser } from '@/services';
+import { getApiUrl } from '@/config/apiConfig';
 
 // Séparation des schémas et types
 const loginSchema = z.object({
@@ -47,43 +48,84 @@ const useLogoLoader = () => {
 
 // Extraction de la logique de vérification de l'API
 const useApiStatusCheck = () => {
-  const [apiStatus, setApiStatus] = useState<'checking' | 'available' | 'unavailable'>('checking');
+  const [apiStatus, setApiStatus] = useState<'checking' | 'available' | 'error'>('checking');
+  const [apiMessage, setApiMessage] = useState<string>('');
 
   useEffect(() => {
     const checkApiStatus = async () => {
       try {
-        const response = await fetch('/api/test.php?_=' + new Date().getTime(), {
+        const cacheBuster = new Date().getTime();
+        const response = await fetch(`${getApiUrl()}/test.php?_=${cacheBuster}`, {
           method: 'GET',
           headers: {
-            'Cache-Control': 'no-cache'
+            'Cache-Control': 'no-cache',
+            'Pragma': 'no-cache'
           },
           cache: 'no-store'
         });
         
-        if (response.ok) {
+        const data = await response.json();
+        
+        if (response.ok && data && data.status === 200) {
           setApiStatus('available');
-          console.log("API disponible");
+          setApiMessage(data.message || 'API disponible');
+          console.log("API disponible:", data);
         } else {
-          setApiStatus('unavailable');
-          console.error("API non disponible, code:", response.status);
+          setApiStatus('error');
+          setApiMessage(data?.message || `Erreur API: ${response.status}`);
+          console.error("API non disponible, code:", response.status, data);
         }
       } catch (error) {
         console.error("Erreur lors de la vérification de l'API:", error);
-        setApiStatus('unavailable');
+        setApiStatus('error');
+        setApiMessage(error instanceof Error ? error.message : 'Erreur de connexion');
       }
     };
     
     checkApiStatus();
   }, []);
 
-  return apiStatus;
+  const retestApi = async () => {
+    setApiStatus('checking');
+    setApiMessage('Vérification en cours...');
+    
+    try {
+      const cacheBuster = new Date().getTime();
+      const response = await fetch(`${getApiUrl()}/test.php?_=${cacheBuster}`, {
+        method: 'GET',
+        headers: {
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache'
+        },
+        cache: 'no-store'
+      });
+      
+      const data = await response.json();
+      
+      if (response.ok && data && data.status === 200) {
+        setApiStatus('available');
+        setApiMessage(data.message || 'API disponible');
+        console.log("API disponible:", data);
+      } else {
+        setApiStatus('error');
+        setApiMessage(data?.message || `Erreur API: ${response.status}`);
+        console.error("API non disponible, code:", response.status, data);
+      }
+    } catch (error) {
+      console.error("Erreur lors de la vérification de l'API:", error);
+      setApiStatus('error');
+      setApiMessage(error instanceof Error ? error.message : 'Erreur de connexion');
+    }
+  };
+
+  return { apiStatus, apiMessage, retestApi };
 };
 
 const Index = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const logoSrc = useLogoLoader();
-  const apiStatus = useApiStatusCheck();
+  const { apiStatus, apiMessage, retestApi } = useApiStatusCheck();
   const [isLoading, setIsLoading] = useState(false);
   
   const form = useForm<LoginFormValues>({
@@ -165,17 +207,46 @@ const Index = () => {
               (e.target as HTMLImageElement).src = "/logo-swiss.svg";
             }}
           />
-          <h1 className="text-2xl font-bold text-gray-800">Bienvenue sur FormaCert</h1>
+          <h1 className="text-2xl font-bold text-gray-800 mb-1">Connexion à votre compte</h1>
+          <p className="text-sm text-gray-600 text-center mb-3">Accédez à la plateforme de gestion Qualiflow</p>
           
           {apiStatus === 'checking' && (
-            <p className="text-sm text-amber-600 mt-2">Vérification de la connexion à l'API...</p>
+            <p className="text-sm text-amber-600 mt-2 mb-2 flex items-center">
+              <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-amber-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              Vérification de la connexion à l'API...
+            </p>
           )}
           
-          {apiStatus === 'unavailable' && (
-            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-2 rounded mt-2 text-sm">
-              ⚠️ L'API n'est pas accessible. La connexion pourrait ne pas fonctionner.
+          {apiStatus === 'available' && (
+            <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-2 rounded mt-2 mb-2 text-sm flex items-center">
+              <svg className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+              {apiMessage}
             </div>
           )}
+          
+          {apiStatus === 'error' && (
+            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-2 rounded mt-2 mb-2 text-sm flex flex-col">
+              <div className="flex items-center">
+                <svg className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+                <span>API joignable mais renvoie une erreur</span>
+              </div>
+              <p className="text-xs mt-1 pl-6">{apiMessage}</p>
+            </div>
+          )}
+          
+          <button 
+            onClick={retestApi}
+            className="text-xs text-blue-600 hover:text-blue-800 underline mb-4"
+          >
+            Tester la connexion à l'API
+          </button>
         </div>
         
         <Form {...form}>

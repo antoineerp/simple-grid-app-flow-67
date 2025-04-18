@@ -5,6 +5,9 @@ header('Content-Type: application/json; charset=utf-8');
 header("Access-Control-Allow-Origin: *");
 header("Access-Control-Allow-Methods: POST, OPTIONS");
 header("Access-Control-Allow-Headers: Content-Type, Authorization");
+header("Cache-Control: no-cache, no-store, must-revalidate");
+header("Pragma: no-cache");
+header("Expires: 0");
 
 // Journaliser l'accès à auth.php
 error_log("auth.php appelé - Méthode: " . $_SERVER['REQUEST_METHOD'] . " - URI: " . $_SERVER['REQUEST_URI']);
@@ -19,7 +22,11 @@ if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
 // Bloc try-catch pour capturer toutes les erreurs possibles
 try {
     // Redirection vers le contrôleur d'authentification
-    require_once __DIR__ . '/controllers/AuthController.php';
+    if (file_exists(__DIR__ . '/controllers/AuthController.php')) {
+        require_once __DIR__ . '/controllers/AuthController.php';
+    } else {
+        throw new Exception("Le fichier AuthController.php n'existe pas");
+    }
 } catch (Exception $e) {
     // Log l'erreur
     error_log("Erreur critique dans auth.php: " . $e->getMessage());
