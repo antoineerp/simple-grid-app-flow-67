@@ -21,6 +21,11 @@ AddType image/svg+xml .svg
     Header set Cache-Control "public, max-age=31536000, immutable"
 </FilesMatch>
 
+# Configuration pour forcer l'interprétation PHP
+<FilesMatch "\.php$">
+    SetHandler application/x-httpd-php
+</FilesMatch>
+
 # Règles spécifiques pour Lovable
 RewriteRule ^lovable-uploads/(.*)$ public/lovable-uploads/$1 [L]
 
@@ -31,7 +36,7 @@ RewriteRule ^diagnose-assets\.php$ api/diagnose-assets.php [L]
 
 # Règles pour l'API
 RewriteRule ^api$ api/ [R=301,L]
-RewriteRule ^api/(.*)$ api/index.php [QSA,L]
+RewriteRule ^api/(.*)$ api/$1 [QSA,L]
 
 # Règles importantes pour les assets
 RewriteRule ^assets/(.*)$ dist/assets/$1 [L]

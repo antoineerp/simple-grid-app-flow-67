@@ -1,0 +1,198 @@
+
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Diagnostic PHP - FormaCert</title>
+    <style>
+        body { font-family: system-ui, -apple-system, sans-serif; max-width: 1000px; margin: 0 auto; padding: 20px; line-height: 1.6; }
+        h1, h2 { color: #334155; }
+        .section { margin-bottom: 30px; border: 1px solid #e2e8f0; border-radius: 8px; padding: 20px; background-color: #f8fafc; }
+        .success { color: #15803d; font-weight: 600; }
+        .error { color: #b91c1c; font-weight: 600; }
+        .warning { color: #b45309; font-weight: 600; }
+        .monospace { font-family: monospace; background-color: #f1f5f9; padding: 10px; border-radius: 4px; overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; margin: 10px 0; }
+        table, th, td { border: 1px solid #e2e8f0; }
+        th, td { padding: 8px; text-align: left; }
+        th { background-color: #f1f5f9; }
+        .actions { background-color: #eff6ff; padding: 15px; border-radius: 8px; margin-top: 10px; border-left: 4px solid #3b82f6; }
+        button { background-color: #2563eb; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; }
+        button:hover { background-color: #1d4ed8; }
+        pre { white-space: pre-wrap; overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <h1>Diagnostic PHP - FormaCert</h1>
+    <p>Cet outil permet de diagnostiquer l'état de la configuration PHP sur ce serveur.</p>
+    
+    <div class="section">
+        <h2>1. Test d'interprétation PHP</h2>
+        <p>Ce test vérifie si les fichiers PHP sont correctement interprétés par le serveur.</p>
+        <button id="testPhp">Tester l'interprétation PHP</button>
+        <div id="phpResult" class="monospace" style="margin-top: 10px; display: none;"></div>
+    </div>
+    
+    <div class="section">
+        <h2>2. Test d'API</h2>
+        <p>Ce test vérifie si l'API renvoie des réponses JSON valides.</p>
+        <button id="testApi">Tester l'API</button>
+        <div id="apiResult" class="monospace" style="margin-top: 10px; display: none;"></div>
+    </div>
+    
+    <div class="section">
+        <h2>3. Vérification des en-têtes HTTP</h2>
+        <p>Ce test vérifie les en-têtes HTTP renvoyés par les scripts PHP.</p>
+        <button id="testHeaders">Vérifier les en-têtes</button>
+        <div id="headersResult" class="monospace" style="margin-top: 10px; display: none;"></div>
+    </div>
+    
+    <div class="section">
+        <h2>4. Suggestions de correction</h2>
+        <div id="suggestions" class="actions">
+            <h3>Configuration PHP et serveur</h3>
+            <ul>
+                <li>Vérifiez que le module PHP est correctement activé sur votre serveur Apache.</li>
+                <li>Assurez-vous que les fichiers .htaccess sont autorisés avec <code>AllowOverride All</code>.</li>
+                <li>Vérifiez que le gestionnaire de fichiers PHP est correctement configuré.</li>
+                <li>Les directives <code>SetHandler</code> ou <code>AddHandler</code> doivent être correctement définies.</li>
+            </ul>
+            
+            <h3>Hébergement Infomaniak</h3>
+            <ul>
+                <li>Vérifiez que l'interpréteur PHP est activé dans le panneau de configuration.</li>
+                <li>Assurez-vous que le mode PHP-FPM est activé.</li>
+                <li>Vérifiez que le chemin vers le module PHP est correct.</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        // Fonction pour tester l'interprétation PHP
+        document.getElementById('testPhp').addEventListener('click', async () => {
+            const resultDiv = document.getElementById('phpResult');
+            resultDiv.style.display = 'block';
+            resultDiv.innerHTML = 'Vérification en cours...';
+            
+            try {
+                const response = await fetch('/api/php-test.php?_=' + new Date().getTime());
+                const contentType = response.headers.get('Content-Type');
+                const text = await response.text();
+                
+                let result = '';
+                result += `<p><strong>Status:</strong> ${response.status} ${response.statusText}</p>`;
+                result += `<p><strong>Content-Type:</strong> ${contentType || 'Non défini'}</p>`;
+                
+                // Vérifier si la réponse commence par <?php
+                if (text.trim().startsWith('<?php')) {
+                    result += `<p class="error">ERREUR: PHP n'est pas interprété. Le code source est renvoyé.</p>`;
+                    result += '<p>Contenu de la réponse (début):</p>';
+                    result += `<pre>${text.substring(0, 500)}...</pre>`;
+                } else {
+                    try {
+                        // Essayer de parser comme JSON
+                        const json = JSON.parse(text);
+                        result += `<p class="success">SUCCÈS: PHP est correctement interprété et renvoie du JSON valide.</p>`;
+                        result += '<p>Contenu de la réponse:</p>';
+                        result += `<pre>${JSON.stringify(json, null, 2)}</pre>`;
+                    } catch (e) {
+                        result += `<p class="warning">AVERTISSEMENT: PHP est interprété mais ne renvoie pas du JSON valide.</p>`;
+                        result += '<p>Contenu de la réponse:</p>';
+                        result += `<pre>${text.substring(0, 500)}</pre>`;
+                    }
+                }
+                
+                resultDiv.innerHTML = result;
+            } catch (error) {
+                resultDiv.innerHTML = `<p class="error">Erreur lors de la requête: ${error.message}</p>`;
+            }
+        });
+        
+        // Fonction pour tester l'API
+        document.getElementById('testApi').addEventListener('click', async () => {
+            const resultDiv = document.getElementById('apiResult');
+            resultDiv.style.display = 'block';
+            resultDiv.innerHTML = 'Vérification en cours...';
+            
+            try {
+                const response = await fetch('/api/test.php?_=' + new Date().getTime());
+                const contentType = response.headers.get('Content-Type');
+                const text = await response.text();
+                
+                let result = '';
+                result += `<p><strong>Status:</strong> ${response.status} ${response.statusText}</p>`;
+                result += `<p><strong>Content-Type:</strong> ${contentType || 'Non défini'}</p>`;
+                
+                // Vérifier si la réponse commence par <?php
+                if (text.trim().startsWith('<?php')) {
+                    result += `<p class="error">ERREUR: L'API n'est pas interprétée. Le code source est renvoyé.</p>`;
+                    result += '<p>Contenu de la réponse (début):</p>';
+                    result += `<pre>${text.substring(0, 500)}...</pre>`;
+                } else {
+                    try {
+                        // Essayer de parser comme JSON
+                        const json = JSON.parse(text);
+                        result += `<p class="success">SUCCÈS: L'API est correctement interprétée et renvoie du JSON valide.</p>`;
+                        result += '<p>Contenu de la réponse:</p>';
+                        result += `<pre>${JSON.stringify(json, null, 2)}</pre>`;
+                    } catch (e) {
+                        result += `<p class="warning">AVERTISSEMENT: L'API est interprétée mais ne renvoie pas du JSON valide.</p>`;
+                        result += '<p>Contenu de la réponse:</p>';
+                        result += `<pre>${text.substring(0, 500)}</pre>`;
+                    }
+                }
+                
+                resultDiv.innerHTML = result;
+            } catch (error) {
+                resultDiv.innerHTML = `<p class="error">Erreur lors de la requête: ${error.message}</p>`;
+            }
+        });
+        
+        // Fonction pour tester les en-têtes HTTP
+        document.getElementById('testHeaders').addEventListener('click', async () => {
+            const resultDiv = document.getElementById('headersResult');
+            resultDiv.style.display = 'block';
+            resultDiv.innerHTML = 'Vérification en cours...';
+            
+            try {
+                // On ne peut pas accéder aux en-têtes complets avec fetch, utilisons un script PHP pour les récupérer
+                const response = await fetch('/api/php-test.php?_=' + new Date().getTime());
+                const headers = {};
+                
+                response.headers.forEach((value, name) => {
+                    headers[name] = value;
+                });
+                
+                let result = '<p><strong>En-têtes de réponse:</strong></p><table>';
+                result += '<tr><th>Nom</th><th>Valeur</th></tr>';
+                
+                for (const [name, value] of Object.entries(headers)) {
+                    result += `<tr><td>${name}</td><td>${value}</td></tr>`;
+                }
+                
+                result += '</table>';
+                
+                // Vérifier les en-têtes importants
+                const contentType = headers['content-type'] || '';
+                if (contentType.includes('application/json')) {
+                    result += `<p class="success">Content-Type correct: ${contentType}</p>`;
+                } else {
+                    result += `<p class="warning">Content-Type potentiellement incorrect: ${contentType}</p>`;
+                }
+                
+                const cors = headers['access-control-allow-origin'] || '';
+                if (cors) {
+                    result += `<p class="success">CORS configuré: ${cors}</p>`;
+                } else {
+                    result += `<p class="warning">CORS non configuré</p>`;
+                }
+                
+                resultDiv.innerHTML = result;
+            } catch (error) {
+                resultDiv.innerHTML = `<p class="error">Erreur lors de la requête: ${error.message}</p>`;
+            }
+        });
+    </script>
+</body>
+</html>

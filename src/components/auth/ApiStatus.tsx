@@ -1,49 +1,144 @@
 
 import React from 'react';
 import { useApiStatusCheck } from '@/hooks/useApiStatusCheck';
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { AlertCircle, CheckCircle2, ServerCrash, RefreshCw } from "lucide-react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
-export const ApiStatus = () => {
-  const { apiStatus, apiMessage, retestApi } = useApiStatusCheck();
+export function ApiStatus() {
+  const { apiStatus, apiMessage, phpInfo, retestApi } = useApiStatusCheck();
+  const [isOpen, setIsOpen] = React.useState(false);
+
+  const getStatusIcon = () => {
+    switch (apiStatus) {
+      case 'available':
+        return <CheckCircle2 className="h-4 w-4 text-green-500" />;
+      case 'checking':
+        return <RefreshCw className="h-4 w-4 animate-spin text-blue-500" />;
+      case 'php-error':
+        return <ServerCrash className="h-4 w-4 text-orange-500" />;
+      case 'error':
+      default:
+        return <AlertCircle className="h-4 w-4 text-red-500" />;
+    }
+  };
+
+  const getStatusColor = () => {
+    switch (apiStatus) {
+      case 'available':
+        return 'bg-green-100 text-green-800 border-green-300';
+      case 'checking':
+        return 'bg-blue-100 text-blue-800 border-blue-300';
+      case 'php-error':
+        return 'bg-orange-100 text-orange-800 border-orange-300';
+      case 'error':
+      default:
+        return 'bg-red-100 text-red-800 border-red-300';
+    }
+  };
 
   return (
-    <>
-      {apiStatus === 'checking' && (
-        <p className="text-sm text-amber-600 mt-2 mb-2 flex items-center">
-          <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-amber-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-          </svg>
-          Vérification de la connexion à l'API...
-        </p>
-      )}
-      
-      {apiStatus === 'available' && (
-        <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-2 rounded mt-2 mb-2 text-sm flex items-center">
-          <svg className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-          </svg>
+    <div className="space-y-2">
+      <Alert className={`${getStatusColor()} p-3 border`}>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            {getStatusIcon()}
+            <AlertTitle>État API:</AlertTitle>
+            <AlertDescription className="font-medium">
+              {apiStatus === 'available' && 'Connectée'}
+              {apiStatus === 'checking' && 'Vérification...'}
+              {apiStatus === 'php-error' && 'Erreur PHP'}
+              {apiStatus === 'error' && 'Non disponible'}
+            </AlertDescription>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={retestApi}
+            disabled={apiStatus === 'checking'}
+            className="ml-auto"
+          >
+            <RefreshCw className={`h-3 w-3 mr-1 ${apiStatus === 'checking' ? 'animate-spin' : ''}`} />
+            Vérifier
+          </Button>
+        </div>
+        
+        <div className="mt-2 text-sm">
           {apiMessage}
         </div>
-      )}
-      
-      {apiStatus === 'error' && (
-        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-2 rounded mt-2 mb-2 text-sm flex flex-col">
-          <div className="flex items-center">
-            <svg className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-            </svg>
-            <span>API joignable mais renvoie une erreur</span>
-          </div>
-          <p className="text-xs mt-1 pl-6">{apiMessage}</p>
-        </div>
-      )}
-      
-      <button 
-        onClick={retestApi}
-        className="text-xs text-blue-600 hover:text-blue-800 underline mb-4"
-      >
-        Tester la connexion à l'API
-      </button>
-    </>
+        
+        {apiStatus === 'php-error' && (
+          <Alert className="mt-3 bg-yellow-100 border-yellow-300 text-yellow-800">
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>Configuration PHP incorrecte</AlertTitle>
+            <AlertDescription>
+              Le serveur ne traite pas correctement les fichiers PHP. Contactez votre administrateur pour vérifier 
+              la configuration du serveur Apache et PHP. Assurez-vous que le module PHP est activé et correctement 
+              configuré pour traiter les fichiers .php.
+            </AlertDescription>
+          </Alert>
+        )}
+        
+        {phpInfo && (
+          <Collapsible
+            open={isOpen}
+            onOpenChange={setIsOpen}
+            className="mt-3 border rounded-md p-2"
+          >
+            <CollapsibleTrigger asChild>
+              <Button variant="ghost" size="sm" className="flex w-full justify-between items-center p-2">
+                <span>Informations PHP détaillées</span>
+                <Badge variant="outline">{phpInfo.version}</Badge>
+              </Button>
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <ScrollArea className="h-48 rounded-md border p-2 mt-2">
+                <div className="space-y-2">
+                  <div>
+                    <h4 className="font-medium">Version PHP</h4>
+                    <p className="text-sm">{phpInfo.version}</p>
+                  </div>
+                  <div>
+                    <h4 className="font-medium">API Serveur</h4>
+                    <p className="text-sm">{phpInfo.server_api}</p>
+                  </div>
+                  <div>
+                    <h4 className="font-medium">Fichier INI chargé</h4>
+                    <p className="text-sm break-all">{phpInfo.loaded_ini}</p>
+                  </div>
+                  <div>
+                    <h4 className="font-medium">Environnement</h4>
+                    <p className="text-sm">{phpInfo.environment}</p>
+                  </div>
+                  <div>
+                    <h4 className="font-medium">Variables d'environnement</h4>
+                    <ul className="text-xs space-y-1">
+                      {Object.entries(phpInfo.environment_vars).map(([key, value]) => (
+                        <li key={key} className="break-all">
+                          <span className="font-medium">{key}:</span> {value as string}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                  <div>
+                    <h4 className="font-medium">Extensions ({phpInfo.extensions.length})</h4>
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      {(phpInfo.extensions as string[]).map((ext) => (
+                        <Badge key={ext} variant="outline" className="text-xs">{ext}</Badge>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </ScrollArea>
+            </CollapsibleContent>
+          </Collapsible>
+        )}
+      </Alert>
+    </div>
   );
-};
+}
+
+export default ApiStatus;

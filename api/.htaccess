@@ -1,25 +1,40 @@
 
-RewriteEngine On
-Options -MultiViews
-Options -Indexes
-DirectoryIndex index.php
-RewriteBase /api/
+# Force PHP interpretation
+Options +ExecCGI
+AddHandler php-fpm-handler .php
 
-RewriteCond %{REQUEST_FILENAME} !-f
-RewriteCond %{REQUEST_FILENAME} !-d
-RewriteRule ^(.*)$ index.php [QSA,L]
-
-<FilesMatch "^(env\.php|app_config\.json|database\.php|.*\.ini)$">
-    Order Allow,Deny
-    Deny from all
-</FilesMatch>
-
-RedirectMatch 404 /\..*$
-
-<IfModule mod_php7.c>
-    php_value display_errors 0
-    php_value post_max_size 32M
-    php_value upload_max_filesize 16M
-    php_value memory_limit 256M
-    php_value max_execution_time 300
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    
+    # Set the proper headers
+    <FilesMatch "\.php$">
+        SetHandler application/x-httpd-php
+        # Force the content type to be application/json
+        Header set Content-Type "application/json; charset=UTF-8"
+    </FilesMatch>
+    
+    # Allow OPTIONS for CORS
+    RewriteCond %{REQUEST_METHOD} OPTIONS
+    RewriteRule ^(.*)$ $1 [R=200,L]
+    
+    # Allow direct access to PHP files
+    RewriteCond %{REQUEST_FILENAME} -f
+    RewriteRule ^(.+)\.php$ $1.php [L]
+    
+    # Set CORS headers for all responses
+    Header always set Access-Control-Allow-Origin "*"
+    Header always set Access-Control-Allow-Methods "GET, POST, OPTIONS, PUT, DELETE"
+    Header always set Access-Control-Allow-Headers "Origin, X-Requested-With, Content-Type, Accept, Authorization"
+    Header always set Access-Control-Max-Age "1728000"
 </IfModule>
+
+# PHP specific settings
+php_flag display_errors Off
+php_flag log_errors On
+php_value error_log php_errors.log
+php_value max_execution_time 300
+php_value max_input_time 300
+php_value memory_limit 256M
+php_value post_max_size 32M
+php_value upload_max_filesize 16M
+php_flag short_open_tag On
