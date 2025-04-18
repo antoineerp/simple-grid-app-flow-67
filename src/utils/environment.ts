@@ -11,6 +11,13 @@ export function isLovableDemo(): boolean {
 }
 
 /**
+ * Alias pour isLovableDemo pour une meilleure cohérence de nommage
+ */
+export function isLovableDemoMode(): boolean {
+  return isLovableDemo();
+}
+
+/**
  * Détecte l'environnement actuel (production ou démo)
  */
 export function getEnvironment(): 'production' | 'demo' {
