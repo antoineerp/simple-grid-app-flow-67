@@ -9,6 +9,7 @@ declare global {
   interface Window {
     __LOVABLE_EDITOR__: any;
     __diagnoseLovable: () => void;
+    testPhp: () => void;
   }
 }
 
@@ -129,9 +130,9 @@ function initializeApp(): void {
     
     logDebug("Rendu de l'application React");
     root.render(
-      React.createElement(React.StrictMode, null,
-        React.createElement(App)
-      )
+      <React.StrictMode>
+        <App />
+      </React.StrictMode>
     );
     
     logDebug("Application rendue avec succès");
@@ -170,8 +171,8 @@ window.addEventListener('error', (event) => {
   
   // Vérifier si l'erreur est liée à une ressource externe
   if (event.filename && (event.filename.includes('googleapis.com') || 
-                          event.filename.includes('gpteng.co') || 
-                          event.filename.includes('firestore'))) {
+                         event.filename.includes('gpteng.co') || 
+                         event.filename.includes('firestore'))) {
     console.warn(`Erreur de chargement de ressource externe: ${event.filename}`);
     console.log("Ce problème peut être lié à un bloqueur de scripts ou à un pare-feu");
   }
