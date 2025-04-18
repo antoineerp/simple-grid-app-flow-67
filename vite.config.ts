@@ -28,12 +28,13 @@ export default defineConfig(({ mode }) => ({
     assetsDir: 'assets',
     sourcemap: false,
     minify: true,
-    cssCodeSplit: false, // Force un seul fichier CSS
+    cssCodeSplit: false,
     rollupOptions: {
       external: [
         // Exclure les fichiers référencés en absolu dans index.html
-        '/assets/vendor.js',
-        '/assets/index.css'
+        './assets/vendor.js',
+        './assets/index.css',
+        './assets/main.js'
       ],
       output: {
         manualChunks(id) {
@@ -54,7 +55,7 @@ export default defineConfig(({ mode }) => ({
     target: 'es2018',
   },
   publicDir: 'public',
-  base: '/',
+  base: './',
   esbuild: {
     logOverride: { 'this-is-undefined-in-esm': 'silent' }
   }
