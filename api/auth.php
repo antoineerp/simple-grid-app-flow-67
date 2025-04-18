@@ -19,13 +19,20 @@ if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
     exit;
 }
 
+// Inclure des fichiers de base nécessaires
+require_once __DIR__ . '/config/env.php';
+
 // Bloc try-catch pour capturer toutes les erreurs possibles
 try {
     // Redirection vers le contrôleur d'authentification
-    if (file_exists(__DIR__ . '/controllers/AuthController.php')) {
-        require_once __DIR__ . '/controllers/AuthController.php';
+    $authControllerPath = __DIR__ . '/controllers/AuthController.php';
+    
+    if (file_exists($authControllerPath)) {
+        require_once $authControllerPath;
     } else {
-        throw new Exception("Le fichier AuthController.php n'existe pas");
+        // Log l'erreur de manière détaillée
+        error_log("Erreur critique: Le fichier AuthController.php n'existe pas au chemin: " . $authControllerPath);
+        throw new Exception("Le fichier AuthController.php n'existe pas ou n'est pas accessible");
     }
 } catch (Exception $e) {
     // Log l'erreur
@@ -36,7 +43,9 @@ try {
     echo json_encode([
         'status' => 500,
         'message' => 'Erreur serveur interne',
-        'error' => $e->getMessage()
+        'error' => $e->getMessage(),
+        'path' => __DIR__
     ]);
+    exit;
 }
 ?>

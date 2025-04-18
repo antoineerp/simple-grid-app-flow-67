@@ -28,7 +28,7 @@ export default defineConfig(({ mode }) => ({
     assetsDir: 'assets',
     sourcemap: false,
     minify: true,
-    cssCodeSplit: false, // Changez cette ligne
+    cssCodeSplit: false, // Force un seul fichier CSS
     rollupOptions: {
       output: {
         manualChunks(id) {
@@ -38,7 +38,12 @@ export default defineConfig(({ mode }) => ({
         },
         entryFileNames: 'assets/[name].js',
         chunkFileNames: 'assets/[name].[hash].js',
-        assetFileNames: 'assets/[name].[hash].[ext]'
+        assetFileNames: ({ name }) => {
+          if (/\.css$/.test(name ?? '')) {
+            return 'assets/index.css'; // Forcer un nom fixe pour le CSS
+          }
+          return 'assets/[name].[hash].[ext]';
+        }
       }
     },
     target: 'es2018',
