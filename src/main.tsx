@@ -101,16 +101,25 @@ function diagnoseNetworkIssues(): boolean {
   return true;
 }
 
+// Détecter le mode
+function isLovableDemoMode(): boolean {
+  return typeof window.__LOVABLE_EDITOR__ !== 'undefined' && window.__LOVABLE_EDITOR__ !== null;
+}
+
 // Initialiser l'application
 function initializeApp(): void {
   logDebug("Initialisation de l'application");
+  
+  // Vérifier si nous sommes en mode démo ou en production
+  const isDemoMode = isLovableDemoMode();
+  logDebug(`Mode détecté: ${isDemoMode ? 'Démo Lovable' : 'Production'}`);
   
   // Vérifier le script Lovable et les problèmes réseau
   const lovableLoaded = checkLovableScript();
   const networkOk = diagnoseNetworkIssues();
   
-  if (!lovableLoaded) {
-    console.error("AVERTISSEMENT: La console Lovable pourrait ne pas fonctionner correctement");
+  if (!lovableLoaded && isDemoMode) {
+    console.error("AVERTISSEMENT: En mode démo mais la console Lovable n'est pas chargée correctement");
   }
   
   if (!networkOk) {
@@ -136,17 +145,19 @@ function initializeApp(): void {
     );
     
     logDebug("Application rendue avec succès");
-    console.log("==== APPLICATION CHARGÉE AVEC SUCCÈS ====");
+    console.log(`==== APPLICATION CHARGÉE AVEC SUCCÈS EN MODE ${isDemoMode ? 'DÉMO' : 'PRODUCTION'} ====`);
     
-    // Vérification supplémentaire pour la console Lovable
-    setTimeout(() => {
-      if (typeof window.__LOVABLE_EDITOR__ === 'undefined') {
-        console.warn("ATTENTION: La console Lovable n'a pas été chargée correctement");
-        console.log("Essayez de désactiver les bloqueurs de scripts, vider le cache du navigateur ou utiliser un autre navigateur");
-      } else {
-        console.log("Console Lovable détectée et chargée correctement");
-      }
-    }, 2000);
+    // Vérification supplémentaire pour la console Lovable en mode démo
+    if (isDemoMode) {
+      setTimeout(() => {
+        if (typeof window.__LOVABLE_EDITOR__ === 'undefined') {
+          console.warn("ATTENTION: La console Lovable n'a pas été chargée correctement");
+          console.log("Essayez de désactiver les bloqueurs de scripts, vider le cache du navigateur ou utiliser un autre navigateur");
+        } else {
+          console.log("Console Lovable détectée et chargée correctement");
+        }
+      }, 2000);
+    }
   } catch (error) {
     logDebug("Erreur lors du rendu de l'application", error as Error);
     

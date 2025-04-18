@@ -51,5 +51,9 @@ export default defineConfig(({ mode }) => ({
   css: {
     postcss: './postcss.config.js',
     devSourcemap: true
+  },
+  define: {
+    // Définir une variable globale pour détecter le mode build
+    '__APP_MODE__': JSON.stringify(mode)
   }
 }));
