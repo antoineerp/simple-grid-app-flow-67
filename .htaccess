@@ -21,7 +21,7 @@ AddType image/svg+xml .svg
     Allow from all
 </FilesMatch>
 
-# Traitement spécial pour lovable-uploads - CORRECTION DU DOUBLE SLASH
+# Traitement spécial pour lovable-uploads
 RewriteRule ^lovable-uploads/(.*)$ public/lovable-uploads/$1 [L]
 
 # Diagnostic des requêtes API en mode production
@@ -29,7 +29,7 @@ RewriteCond %{REQUEST_URI} ^/api
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteRule .* - [E=API_DEBUG:1]
 
-# NOUVEAU: Permettre l'accès direct aux fichiers de diagnostic
+# Permettre l'accès direct aux fichiers de diagnostic
 RewriteRule ^assets-check\.php$ api/assets-check.php [L]
 RewriteRule ^verify-deploy\.php$ verify-deploy.php [L]
 RewriteRule ^diagnose-assets\.php$ api/diagnose-assets.php [L]
