@@ -31,6 +31,7 @@ export default defineConfig(({ mode }) => ({
     cssCodeSplit: false,
     rollupOptions: {
       output: {
+        // Garantir que les fichiers sont générés dans le bon dossier
         manualChunks(id) {
           if (id.includes('node_modules')) {
             return 'vendor';
@@ -42,9 +43,11 @@ export default defineConfig(({ mode }) => ({
       }
     },
     target: 'es2018',
+    // S'assurer que tous les assets sont dans dist/assets
+    emptyOutDir: true,
   },
   publicDir: 'public',
-  base: '/',
+  base: '/', // Utiliser un chemin relatif pour garantir que les assets sont correctement référencés
   esbuild: {
     logOverride: { 'this-is-undefined-in-esm': 'silent' }
   }

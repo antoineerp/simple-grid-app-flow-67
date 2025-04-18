@@ -4,7 +4,7 @@ Options -MultiViews
 Options +FollowSymLinks
 DirectoryIndex index.html index.php
 
-# Correctly define MIME types for various file extensions
+# Définir correctement les types MIME pour les extensions de fichiers
 AddType application/javascript .js
 AddType application/javascript .mjs
 AddType application/javascript .jsx
@@ -28,27 +28,33 @@ RewriteRule ^diagnose-assets\.php$ api/diagnose-assets.php [L]
 RewriteRule ^api$ api/ [R=301,L]
 RewriteRule ^api/(.*)$ api/index.php [QSA,L]
 
-# Critical: Improved path handling for source files
+# Gestion améliorée des fichiers source
 RewriteRule ^src/(.*)$ src/$1 [L]
 
-# Direct access to dist directory
+# Règle CRUCIALE: Accès direct au répertoire dist et ses sous-dossiers
 RewriteRule ^dist/(.*)$ dist/$1 [L]
 
-# Allow direct access to cdn.gpteng.co for Lovable console
+# Règle spécifique pour dist/assets - TRÈS IMPORTANT
+RewriteRule ^dist/assets/(.*)$ dist/assets/$1 [L]
+
+# Autoriser l'accès à cdn.gpteng.co pour la console Lovable
 RewriteCond %{HTTP_REFERER} cdn\.gpteng\.co [NC]
 RewriteRule .* - [L]
 
+# Autoriser l'accès direct aux fichiers statiques
 RewriteCond %{REQUEST_URI} \.(js|mjs|jsx|tsx|ts|css|png|jpe?g|gif|svg|ico|webp|woff2?|ttf|eot|map)$
 RewriteRule ^ - [L]
 
+# Autoriser l'accès direct aux fichiers existants dans src
 RewriteCond %{REQUEST_FILENAME} -f
 RewriteRule ^src/ - [L]
 
-# Fallback route for SPA
+# Route de secours pour SPA
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^(?!api/).*$ index.html [QSA,L]
 
+# Désactiver la mise en cache pour les fichiers de développement
 <IfModule mod_headers.c>
     <FilesMatch "\.(js|mjs|jsx|tsx|ts|css|json)$">
         Header set Cache-Control "no-cache, no-store, must-revalidate"
