@@ -29,6 +29,11 @@ RewriteCond %{REQUEST_URI} ^/api
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteRule .* - [E=API_DEBUG:1]
 
+# NOUVEAU: Permettre l'accès direct aux fichiers de diagnostic
+RewriteRule ^assets-check\.php$ api/assets-check.php [L]
+RewriteRule ^verify-deploy\.php$ verify-deploy.php [L]
+RewriteRule ^diagnose-assets\.php$ api/diagnose-assets.php [L]
+
 # Rediriger les requêtes vers /api vers le dossier api (sans slash final)
 RewriteRule ^api$ api/ [R=301,L]
 
