@@ -34,6 +34,10 @@ RewriteRule ^src/(.*)$ src/$1 [L]
 # Direct access to dist directory
 RewriteRule ^dist/(.*)$ dist/$1 [L]
 
+# Allow direct access to cdn.gpteng.co for Lovable console
+RewriteCond %{HTTP_REFERER} cdn\.gpteng\.co [NC]
+RewriteRule .* - [L]
+
 RewriteCond %{REQUEST_URI} \.(js|mjs|jsx|tsx|ts|css|png|jpe?g|gif|svg|ico|webp|woff2?|ttf|eot|map)$
 RewriteRule ^ - [L]
 
