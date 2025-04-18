@@ -49,7 +49,7 @@ export default defineConfig(({ mode }) => ({
     target: 'es2018',
   },
   publicDir: 'public',
-  base: './',
+  base: '/',
   esbuild: {
     logOverride: { 'this-is-undefined-in-esm': 'silent' }
   }
