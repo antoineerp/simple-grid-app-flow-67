@@ -21,7 +21,6 @@ export default defineConfig(({ mode }) => ({
     alias: {
       "@": path.resolve(__dirname, "./src"),
     },
-    // Ensure proper module resolution for all browsers
     dedupe: ['react', 'react-dom']
   },
   build: {
@@ -29,6 +28,7 @@ export default defineConfig(({ mode }) => ({
     assetsDir: 'assets',
     sourcemap: false,
     minify: true,
+    cssCodeSplit: false, // Changez cette ligne
     rollupOptions: {
       output: {
         manualChunks(id) {
@@ -41,8 +41,7 @@ export default defineConfig(({ mode }) => ({
         assetFileNames: 'assets/[name].[hash].[ext]'
       }
     },
-    target: 'es2018', // Lower target for better browser compatibility
-    cssCodeSplit: true,
+    target: 'es2018',
   },
   publicDir: 'public',
   base: '/',
