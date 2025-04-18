@@ -60,6 +60,16 @@
     <!-- Script Lovable pour les fonctionnalités avancées -->
     <script src="https://cdn.gpteng.co/gptengineer.js" type="module"></script>
     
+    <!-- Script JavaScript principal avec importmap pour résoudre les modules -->
+    <script type="importmap">
+    {
+      "imports": {
+        "react": "/assets/vendor.BK1Cy-50.js",
+        "react-dom": "/assets/vendor.BK1Cy-50.js"
+      }
+    }
+    </script>
+    
     <!-- Script JavaScript compilé avec type="module" pour le support des imports ES modules -->
     <script type="module" src="/assets/index.js"></script>
     
