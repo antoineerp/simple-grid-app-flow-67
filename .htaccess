@@ -40,7 +40,8 @@ RewriteRule ^api$ api/ [R=301,L]
 # Rediriger les requêtes vers /api/ vers le fichier index.php dans le dossier api
 RewriteRule ^api/(.*)$ api/index.php [QSA,L]
 
-# Règle pour servir les assets compilés
+# Règle pour servir les assets compilés avec ou sans hashes
+RewriteRule ^assets/([^.]*)\.([A-Za-z0-9]+)\.([^.]+)$ dist/assets/$1.$2.$3 [L]
 RewriteRule ^assets/(.*)$ dist/assets/$1 [L]
 
 # Permettre l'accès direct aux autres ressources statiques
