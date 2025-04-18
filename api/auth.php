@@ -19,9 +19,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
     exit;
 }
 
-// Inclure des fichiers de base nécessaires
-require_once __DIR__ . '/config/env.php';
-
 // Bloc try-catch pour capturer toutes les erreurs possibles
 try {
     // Redirection vers le contrôleur d'authentification
@@ -32,7 +29,16 @@ try {
     } else {
         // Log l'erreur de manière détaillée
         error_log("Erreur critique: Le fichier AuthController.php n'existe pas au chemin: " . $authControllerPath);
-        throw new Exception("Le fichier AuthController.php n'existe pas ou n'est pas accessible");
+        
+        // Renvoyer une réponse JSON valide
+        http_response_code(500);
+        echo json_encode([
+            'status' => 500,
+            'message' => 'Configuration d\'authentification incorrecte',
+            'error' => 'Le fichier AuthController.php n\'existe pas',
+            'path' => $authControllerPath
+        ]);
+        exit;
     }
 } catch (Exception $e) {
     // Log l'erreur
