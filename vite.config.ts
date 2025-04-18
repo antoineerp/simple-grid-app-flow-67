@@ -42,12 +42,12 @@ export default defineConfig(({ mode }) => ({
           }
         },
         entryFileNames: 'assets/[name].js',
-        chunkFileNames: 'assets/[name].[hash].js',
+        chunkFileNames: 'assets/[name].js',
         assetFileNames: ({ name }) => {
           if (/\.css$/.test(name ?? '')) {
             return 'assets/index.css'; // Forcer un nom fixe pour le CSS sans hachage
           }
-          return 'assets/[name].[hash].[ext]';
+          return 'assets/[name].[ext]';
         }
       }
     },

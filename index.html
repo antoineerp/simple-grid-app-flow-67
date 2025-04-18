@@ -28,6 +28,9 @@
       }
     </script>
     
+    <!-- Référence au fichier CSS sans hachage -->
+    <link rel="stylesheet" href="/assets/index.css">
+    
     <!-- Script importmap pour résoudre les modules - DOIT être avant les scripts de type module -->
     <script type="importmap">
     {
@@ -37,9 +40,6 @@
       }
     }
     </script>
-    
-    <!-- Référence au fichier CSS sans hachage -->
-    <link rel="stylesheet" href="/assets/index.css">
     
     <!-- Script Lovable pour les fonctionnalités avancées -->
     <script src="https://cdn.gpteng.co/gptengineer.js" type="module"></script>
@@ -70,8 +70,8 @@
       }
     </script>
     
-    <!-- Script JavaScript principal avec type="module" pour le support des imports ES modules -->
-    <script type="module" src="/src/main.tsx"></script>
+    <!-- Script JavaScript principal avec type="module" -->
+    <script type="module" src="/src/main.js"></script>
     
     <!-- Fallback pour les navigateurs ne supportant pas ES modules -->
     <script nomodule>
