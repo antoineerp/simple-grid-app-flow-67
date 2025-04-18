@@ -30,12 +30,6 @@ export default defineConfig(({ mode }) => ({
     minify: true,
     cssCodeSplit: false,
     rollupOptions: {
-      external: [
-        // Exclure les fichiers référencés en absolu dans index.html
-        './assets/vendor.js',
-        './assets/index.css',
-        './assets/main.js'
-      ],
       output: {
         manualChunks(id) {
           if (id.includes('node_modules')) {
@@ -46,7 +40,7 @@ export default defineConfig(({ mode }) => ({
         chunkFileNames: 'assets/[name].js',
         assetFileNames: ({ name }) => {
           if (/\.css$/.test(name ?? '')) {
-            return 'assets/index.css'; // Forcer un nom fixe pour le CSS sans hachage
+            return 'assets/index.css';
           }
           return 'assets/[name].[ext]';
         }
