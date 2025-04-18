@@ -98,7 +98,7 @@ function initializeApp() {
     
     // Vérification supplémentaire pour la console Lovable
     setTimeout(() => {
-      if (typeof (window as any).__LOVABLE_EDITOR__ === 'undefined') {
+      if (typeof window.__LOVABLE_EDITOR__ === 'undefined') {
         console.warn("ATTENTION: La console Lovable n'a pas été chargée correctement");
         console.log("Essayez de désactiver les bloqueurs de scripts, vider le cache du navigateur ou utiliser un autre navigateur");
       } else {
@@ -144,7 +144,7 @@ if (document.readyState === 'loading') {
 }
 
 // Exposer une fonction de diagnostic pour le dépannage
-(window as any).__diagnoseLovable = function() {
+window.__diagnoseLovable = function() {
   console.log("=== DIAGNOSTIC LOVABLE ===");
   checkLovableScript();
   diagnoseNetworkIssues();
@@ -165,7 +165,7 @@ if (document.readyState === 'loading') {
   });
   
   console.log("Vérification de la console Lovable:");
-  console.log("__LOVABLE_EDITOR__ présent:", typeof (window as any).__LOVABLE_EDITOR__ !== 'undefined');
+  console.log("__LOVABLE_EDITOR__ présent:", typeof window.__LOVABLE_EDITOR__ !== 'undefined');
   
   console.log("=== FIN DU DIAGNOSTIC ===");
   console.log("Pour résoudre les problèmes, essayez:");
