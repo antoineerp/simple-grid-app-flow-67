@@ -3,14 +3,47 @@ import { createRoot } from 'react-dom/client';
 import App from './App.tsx';
 import './index.css';
 
+// Fonction pour vérifier si le navigateur est compatible
+function isBrowserCompatible() {
+  const isLocalStorageAvailable = () => {
+    try {
+      localStorage.setItem('test', 'test');
+      localStorage.removeItem('test');
+      return true;
+    } catch (e) {
+      return false;
+    }
+  };
+
+  // Vérifier les fonctionnalités modernes requises
+  return (
+    typeof Promise !== 'undefined' &&
+    typeof Array.prototype.find !== 'undefined' &&
+    typeof Object.assign !== 'undefined' &&
+    isLocalStorageAvailable()
+  );
+}
+
 const rootElement = document.getElementById("root");
 
 if (rootElement) {
   try {
-    const root = createRoot(rootElement);
-    root.render(<App />);
-    
-    console.log("Application rendering successfully started");
+    // Vérifier la compatibilité du navigateur
+    if (!isBrowserCompatible()) {
+      rootElement.innerHTML = `
+        <div style="text-align:center; margin-top:50px; font-family:sans-serif;">
+          <h1>Navigateur non supporté</h1>
+          <p>Votre navigateur ne semble pas compatible avec les fonctionnalités requises.</p>
+          <p>Veuillez utiliser un navigateur récent comme Chrome, Firefox, Edge ou Safari.</p>
+        </div>
+      `;
+    } else {
+      console.log("Initialisation de l'application React");
+      const root = createRoot(rootElement);
+      root.render(<App />);
+      
+      console.log("Application rendering successfully started");
+    }
   } catch (error) {
     console.error("Failed to render React application:", error);
     

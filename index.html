@@ -3,7 +3,7 @@
 <html lang="fr">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <title>FormaCert</title>
     <link rel="icon" href="/lovable-uploads/formacert-logo.png" type="image/png">
     <meta name="description" content="FormaCert - Système de gestion de certification" />
@@ -18,14 +18,51 @@
     <meta name="twitter:site" content="@lovable_dev" />
     <meta name="twitter:image" content="https://lovable.dev/opengraph-image-p98pqg.png" />
     
+    <!-- Polyfills pour la compatibilité navigateurs -->
+    <script>
+      if (typeof Promise === 'undefined') {
+        document.write('<script src="https://cdn.jsdelivr.net/npm/promise-polyfill@8/dist/polyfill.min.js"><\/script>');
+      }
+      if (typeof Object.assign === 'undefined') {
+        document.write('<script src="https://cdn.jsdelivr.net/npm/es6-object-assign@1.1.0/dist/object-assign-auto.min.js"><\/script>');
+      }
+    </script>
+    
     <!-- Styles -->
     <link rel="stylesheet" href="/assets/index.B1sHcq8U.css">
   </head>
 
   <body>
     <div id="root"></div>
+    <noscript>
+      <div style="text-align:center; margin-top:50px; font-family:sans-serif;">
+        <h1>JavaScript requis</h1>
+        <p>Cette application nécessite JavaScript pour fonctionner. Veuillez l'activer et rafraîchir la page.</p>
+      </div>
+    </noscript>
+    
+    <!-- Fallback pour les navigateurs anciens -->
+    <script>
+      function isModernBrowser() {
+        try {
+          eval('let a = 0; const b = 1; async function test() {}; class Test {}');
+          return true;
+        } catch (e) {
+          return false;
+        }
+      }
+      
+      if (!isModernBrowser()) {
+        document.getElementById('root').innerHTML = '<div style="text-align:center; margin-top:50px; font-family:sans-serif;"><h1>Navigateur non supporté</h1><p>Veuillez utiliser un navigateur plus récent comme Chrome, Firefox, Edge ou Safari.</p></div>';
+      }
+    </script>
+    
     <!-- Script JavaScript compilé avec type="module" pour le support des imports ES modules -->
     <script type="module" src="/assets/index.js"></script>
-    <script src="https://cdn.gpteng.co/gptengineer.js" type="module"></script>
+    
+    <!-- Fallback pour les navigateurs ne supportant pas ES modules -->
+    <script nomodule>
+      document.getElementById('root').innerHTML = '<div style="text-align:center; margin-top:50px; font-family:sans-serif;"><h1>Navigateur non supporté</h1><p>Votre navigateur ne supporte pas les modules ES6. Veuillez utiliser un navigateur plus récent.</p></div>';
+    </script>
   </body>
 </html>

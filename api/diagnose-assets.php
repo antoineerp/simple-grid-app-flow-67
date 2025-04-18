@@ -20,9 +20,18 @@ header('Content-Type: text/html; charset=utf-8');
         code { background-color: #f5f5f5; padding: 2px 4px; border-radius: 3px; font-family: monospace; }
         .details { margin-top: 5px; font-size: 0.9em; }
     </style>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
 </head>
 <body>
     <h1>Diagnostic de Déploiement FormaCert</h1>
+    
+    <div class="section">
+        <h2>Informations Navigateur</h2>
+        <p>Agent utilisateur: <code><?php echo htmlspecialchars($_SERVER['HTTP_USER_AGENT']); ?></code></p>
+        <p>Adresse IP: <?php echo $_SERVER['REMOTE_ADDR']; ?></p>
+        <p>Protocole: <?php echo $_SERVER['SERVER_PROTOCOL']; ?></p>
+        <p>Accepte: <code><?php echo isset($_SERVER['HTTP_ACCEPT']) ? $_SERVER['HTTP_ACCEPT'] : 'Non défini'; ?></code></p>
+    </div>
     
     <div class="section">
         <h2>Informations Serveur</h2>
@@ -148,10 +157,12 @@ header('Content-Type: text/html; charset=utf-8');
             $hasModuleScript = preg_match('/<script[^>]*type="module"[^>]*src="\/assets\/[^"]*"[^>]*>/', $content);
             $hasStylesheet = preg_match('/<link[^>]*rel="stylesheet"[^>]*href="\/assets\/[^"]*"[^>]*>/', $content);
             $rootElement = preg_match('/<div\s+id="root"><\/div>/', $content);
+            $hasViewport = preg_match('/<meta\s+name="viewport"[^>]*>/', $content);
             
             echo "<p>Élément racine (div id=\"root\"): " . ($rootElement ? "<span class='success'>Présent</span>" : "<span class='error'>Manquant</span>") . "</p>";
             echo "<p>Script JS (type=\"module\"): " . ($hasModuleScript ? "<span class='success'>Présent</span>" : "<span class='error'>Manquant</span>") . "</p>";
             echo "<p>Feuille de style CSS: " . ($hasStylesheet ? "<span class='success'>Présent</span>" : "<span class='error'>Manquant</span>") . "</p>";
+            echo "<p>Meta Viewport: " . ($hasViewport ? "<span class='success'>Présent</span>" : "<span class='error'>Manquant</span>") . "</p>";
             
             // Afficher les 10 premières lignes
             echo "<p><strong>Aperçu (10 premières lignes):</strong></p>";
@@ -208,12 +219,82 @@ header('Content-Type: text/html; charset=utf-8');
     </div>
     
     <div class="section">
+        <h2>Test de Compatibilité des Navigateurs</h2>
+        <p>Détection du navigateur: <span id="browser-info">Vérification...</span></p>
+        <p>Support ES Modules: <span id="es-modules-support">Vérification...</span></p>
+        <p>Support Flexbox: <span id="flexbox-support">Vérification...</span></p>
+        <p>Support localStorage: <span id="localstorage-support">Vérification...</span></p>
+        
+        <script>
+            // Détection du navigateur
+            function detectBrowser() {
+                const userAgent = navigator.userAgent;
+                let browserName;
+                let browserVersion;
+                
+                if(userAgent.match(/chrome|chromium|crios/i)) {
+                    browserName = "Chrome";
+                } else if(userAgent.match(/firefox|fxios/i)) {
+                    browserName = "Firefox";
+                } else if(userAgent.match(/safari/i)) {
+                    browserName = "Safari";
+                } else if(userAgent.match(/opr\//i)) {
+                    browserName = "Opera";
+                } else if(userAgent.match(/edg/i)) {
+                    browserName = "Edge";
+                } else if(userAgent.match(/android/i)) {
+                    browserName = "Android Browser";
+                } else if(userAgent.match(/iphone|ipad/i)) {
+                    browserName = "iOS Browser";
+                } else {
+                    browserName = "Inconnu";
+                }
+                
+                document.getElementById('browser-info').textContent = browserName;
+                document.getElementById('browser-info').style.color = 'blue';
+                document.getElementById('browser-info').style.fontWeight = 'bold';
+                
+                // Vérifier le support ES Modules
+                try {
+                    new Function('import("")');
+                    document.getElementById('es-modules-support').textContent = 'Supporté';
+                    document.getElementById('es-modules-support').style.color = 'green';
+                } catch (err) {
+                    document.getElementById('es-modules-support').textContent = 'Non supporté';
+                    document.getElementById('es-modules-support').style.color = 'red';
+                }
+                
+                // Vérifier le support Flexbox
+                const flex = 'flex' in document.documentElement.style || 
+                            'webkitFlex' in document.documentElement.style || 
+                            'msFlex' in document.documentElement.style;
+                document.getElementById('flexbox-support').textContent = flex ? 'Supporté' : 'Non supporté';
+                document.getElementById('flexbox-support').style.color = flex ? 'green' : 'red';
+                
+                // Vérifier le support localStorage
+                try {
+                    localStorage.setItem('test', 'test');
+                    localStorage.removeItem('test');
+                    document.getElementById('localstorage-support').textContent = 'Supporté';
+                    document.getElementById('localstorage-support').style.color = 'green';
+                } catch (e) {
+                    document.getElementById('localstorage-support').textContent = 'Non supporté';
+                    document.getElementById('localstorage-support').style.color = 'red';
+                }
+            }
+            
+            detectBrowser();
+        </script>
+    </div>
+    
+    <div class="section">
         <h2>Instructions de Déploiement</h2>
         <ol>
             <li>Assurez-vous que le contenu du répertoire <code>dist/assets</code> est accessible</li>
             <li>Vérifiez que le fichier <code>index.html</code> pointe vers <code>/assets/index.js</code></li>
             <li>Assurez-vous que le fichier <code>.htaccess</code> contient les règles de réécriture correctes</li>
             <li>Vérifiez que toutes les dépendances JavaScript et CSS sont incluses dans le HTML</li>
+            <li>Assurez-vous que la balise <code>meta viewport</code> est présente pour la compatibilité mobile</li>
         </ol>
         
         <p class="details">Si vous rencontrez des problèmes avec la SPA (Single Page Application), vérifiez:</p>
@@ -221,8 +302,8 @@ header('Content-Type: text/html; charset=utf-8');
             <li>Que les routes React Router sont correctement configurées</li>
             <li>Que le <code>basename</code> du router est correctement défini si l'application n'est pas à la racine du domaine</li>
             <li>Que votre configuration <code>.htaccess</code> redirige correctement vers <code>index.html</code> pour toutes les routes de l'application</li>
+            <li>Que votre application est compatible avec tous les navigateurs cibles (Chrome, Edge, Safari, Firefox, mobile)</li>
         </ol>
     </div>
 </body>
 </html>
-
