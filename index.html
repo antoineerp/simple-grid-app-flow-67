@@ -31,7 +31,10 @@
     <!-- Référence au fichier CSS -->
     <link rel="stylesheet" href="/assets/index.css">
     
-    <!-- Script importmap pour résoudre les modules - DOIT être avant les scripts de type module -->
+    <!-- Script Lovable pour les fonctionnalités avancées - MUST APPEAR BEFORE IMPORTMAP -->
+    <script src="https://cdn.gpteng.co/gptengineer.js" type="module"></script>
+    
+    <!-- Script importmap pour résoudre les modules -->
     <script type="importmap">
     {
       "imports": {
@@ -40,9 +43,6 @@
       }
     }
     </script>
-    
-    <!-- Script Lovable pour les fonctionnalités avancées -->
-    <script src="https://cdn.gpteng.co/gptengineer.js" type="module"></script>
   </head>
 
   <body>
