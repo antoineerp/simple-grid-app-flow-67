@@ -4,7 +4,15 @@ import { createRoot } from 'react-dom/client';
 import App from './App';
 import './index.css';
 
-// Déclaration des propriétés globales de fenêtre
+// Define window properties for TypeScript
+declare global {
+  interface Window {
+    __LOVABLE_EDITOR__: any;
+    __diagnoseLovable: () => void;
+  }
+}
+
+// Initialize global properties if they don't exist
 window.__LOVABLE_EDITOR__ = window.__LOVABLE_EDITOR__ || null;
 window.__diagnoseLovable = window.__diagnoseLovable || function() {
   console.log("=== DIAGNOSTIC LOVABLE ===");
@@ -38,7 +46,7 @@ window.__diagnoseLovable = window.__diagnoseLovable || function() {
 };
 
 // Fonction de journalisation améliorée
-function logDebug(message, error) {
+function logDebug(message: string, error?: Error) {
   console.log(`[FormaCert Debug] ${message}`);
   if (error) {
     console.error(`[FormaCert Error]`, error);
@@ -46,7 +54,7 @@ function logDebug(message, error) {
 }
 
 // Vérifier que le script Lovable est bien chargé
-function checkLovableScript() {
+function checkLovableScript(): boolean {
   const lovableScript = document.querySelector('script[src*="gptengineer.js"]');
   if (!lovableScript) {
     console.error("ERREUR CRITIQUE: Le script Lovable n'a pas été trouvé dans le DOM!");
@@ -67,7 +75,7 @@ function checkLovableScript() {
 }
 
 // Diagnostiquer les problèmes de réseau
-function diagnoseNetworkIssues() {
+function diagnoseNetworkIssues(): boolean {
   // Vérifier si le navigateur est connecté à Internet
   if (!navigator.onLine) {
     console.error("ERREUR: Pas de connexion Internet détectée");
@@ -93,7 +101,7 @@ function diagnoseNetworkIssues() {
 }
 
 // Initialiser l'application
-function initializeApp() {
+function initializeApp(): void {
   logDebug("Initialisation de l'application");
   
   // Vérifier le script Lovable et les problèmes réseau
@@ -139,7 +147,7 @@ function initializeApp() {
       }
     }, 2000);
   } catch (error) {
-    logDebug("Erreur lors du rendu de l'application", error);
+    logDebug("Erreur lors du rendu de l'application", error as Error);
     
     if (rootElement) {
       rootElement.innerHTML = `

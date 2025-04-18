@@ -28,7 +28,7 @@ export default defineConfig(({ mode }) => ({
     assetsDir: 'assets',
     sourcemap: mode === 'development',
     minify: mode === 'production',
-    cssCodeSplit: false,
+    cssCodeSplit: true, // Enable this to generate separate CSS files
     rollupOptions: {
       output: {
         manualChunks(id) {
@@ -48,5 +48,9 @@ export default defineConfig(({ mode }) => ({
   base: '/',
   esbuild: {
     logOverride: { 'this-is-undefined-in-esm': 'silent' }
+  },
+  css: {
+    // Ensure that postcss is properly configured
+    postcss: './postcss.config.js'
   }
 }));
