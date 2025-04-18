@@ -42,7 +42,14 @@ RewriteCond %{HTTP_REFERER} cdn\.gpteng\.co [NC]
 RewriteRule .* - [L]
 
 # Accès spécifique au script Lovable
-RewriteCond %{REQUEST_URI} cdn\.gpteng\.co/gptengineer\.js [NC]
+RewriteCond %{REQUEST_URI} \.gpteng\.co/gptengineer\.js [NC]
+RewriteRule .* - [L]
+
+# Permettre l'accès aux domaines externes
+RewriteCond %{REQUEST_URI} ^https?://([^.]+\.)?googleapis\.com [NC,OR]
+RewriteCond %{REQUEST_URI} ^https?://([^.]+\.)?gstatic\.com [NC,OR]
+RewriteCond %{REQUEST_URI} ^https?://([^.]+\.)?lovable\.dev [NC,OR]
+RewriteCond %{REQUEST_URI} ^https?://([^.]+\.)?gpteng\.co [NC]
 RewriteRule .* - [L]
 
 # Autoriser l'accès direct aux fichiers statiques
@@ -65,4 +72,9 @@ RewriteRule ^(?!api/).*$ index.html [QSA,L]
         Header set Pragma "no-cache"
         Header set Expires "0"
     </FilesMatch>
+    
+    # Permettre CORS pour les ressources externes
+    Header set Access-Control-Allow-Origin "*"
+    Header set Access-Control-Allow-Methods "GET, POST, OPTIONS"
+    Header set Access-Control-Allow-Headers "Origin, X-Requested-With, Content-Type, Accept"
 </IfModule>

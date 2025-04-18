@@ -32,6 +32,11 @@ function initializeApp() {
     );
     
     logDebug("App rendered successfully");
+    
+    // Log a message to confirm the app has loaded
+    console.log("==== APPLICATION CHARGÉE AVEC SUCCÈS ====");
+    console.log("Si vous voyez ce message mais que la console Lovable n'apparaît pas,");
+    console.log("vérifiez que le script https://cdn.gpteng.co/gptengineer.js est bien chargé.");
   } catch (error) {
     console.error("Failed to render application:", error);
     
@@ -48,14 +53,27 @@ function initializeApp() {
   }
 }
 
+// Add global network error handler
+window.addEventListener('error', (event) => {
+  console.error('Erreur globale:', event.error);
+});
+
+// Check if script loading is being blocked
+document.addEventListener('DOMContentLoaded', () => {
+  const scriptElement = document.querySelector('script[src*="gptengineer.js"]');
+  if (!scriptElement) {
+    console.error("ALERTE: Le script Lovable (gptengineer.js) est manquant dans le DOM!");
+  } else {
+    console.log("Script Lovable trouvé dans le DOM:", scriptElement);
+  }
+  
+  // Initialize after DOM is ready
+  initializeApp();
+});
+
 // Run when DOM is ready
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', initializeApp);
 } else {
   initializeApp();
 }
-
-// Add global error handler
-window.addEventListener('error', (event) => {
-  console.error('Global error:', event.error);
-});
