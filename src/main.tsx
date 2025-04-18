@@ -4,41 +4,109 @@ import { createRoot } from 'react-dom/client';
 import App from './App';
 import './index.css';
 
-// Debug logging function
-function logDebug(message: string) {
+// Fonction de journalisation améliorée
+function logDebug(message: string, error?: any) {
   console.log(`[FormaCert Debug] ${message}`);
+  if (error) {
+    console.error(`[FormaCert Error]`, error);
+  }
 }
 
-// Initialize the application
+// Vérifier que le script Lovable est bien chargé
+function checkLovableScript() {
+  const lovableScript = document.querySelector('script[src*="gptengineer.js"]');
+  if (!lovableScript) {
+    console.error("ERREUR CRITIQUE: Le script Lovable n'a pas été trouvé dans le DOM!");
+    return false;
+  }
+  
+  console.log("Script Lovable trouvé:", lovableScript);
+  
+  // Vérifier si le script est avant le script principal
+  const mainScript = document.querySelector('script[src*="main.tsx"]');
+  if (mainScript && lovableScript.compareDocumentPosition(mainScript) & Node.DOCUMENT_POSITION_FOLLOWING) {
+    console.log("L'ordre des scripts est correct: Lovable chargé avant le script principal");
+    return true;
+  } else {
+    console.error("ERREUR: Le script Lovable doit être chargé AVANT le script principal");
+    return false;
+  }
+}
+
+// Diagnostiquer les problèmes de réseau
+function diagnoseNetworkIssues() {
+  // Vérifier si le navigateur est connecté à Internet
+  if (!navigator.onLine) {
+    console.error("ERREUR: Pas de connexion Internet détectée");
+    return false;
+  }
+  
+  // Vérifier l'accès à cdn.gpteng.co
+  fetch('https://cdn.gpteng.co/ping', { 
+    mode: 'no-cors', 
+    cache: 'no-store',
+    headers: {
+      'Cache-Control': 'no-cache'
+    }
+  })
+  .then(() => {
+    console.log("Connexion à cdn.gpteng.co réussie");
+  })
+  .catch(error => {
+    console.error("Erreur de connexion à cdn.gpteng.co:", error);
+  });
+  
+  return true;
+}
+
+// Initialiser l'application
 function initializeApp() {
-  logDebug("Initializing application");
+  logDebug("Initialisation de l'application");
+  
+  // Vérifier le script Lovable et les problèmes réseau
+  const lovableLoaded = checkLovableScript();
+  const networkOk = diagnoseNetworkIssues();
+  
+  if (!lovableLoaded) {
+    console.error("AVERTISSEMENT: La console Lovable pourrait ne pas fonctionner correctement");
+  }
+  
+  if (!networkOk) {
+    console.error("AVERTISSEMENT: Des problèmes de réseau peuvent affecter les fonctionnalités");
+  }
   
   const rootElement = document.getElementById('root');
   
   if (!rootElement) {
-    console.error("Root element not found");
+    logDebug("Élément racine introuvable", new Error("Root element not found"));
     return;
   }
   
   try {
-    logDebug("Creating React root");
+    logDebug("Création du root React");
     const root = createRoot(rootElement);
     
-    logDebug("Rendering App component");
+    logDebug("Rendu de l'application React");
     root.render(
       <React.StrictMode>
         <App />
       </React.StrictMode>
     );
     
-    logDebug("App rendered successfully");
-    
-    // Log a message to confirm the app has loaded
+    logDebug("Application rendue avec succès");
     console.log("==== APPLICATION CHARGÉE AVEC SUCCÈS ====");
-    console.log("Si vous voyez ce message mais que la console Lovable n'apparaît pas,");
-    console.log("vérifiez que le script https://cdn.gpteng.co/gptengineer.js est bien chargé.");
+    
+    // Vérification supplémentaire pour la console Lovable
+    setTimeout(() => {
+      if (typeof (window as any).__LOVABLE_EDITOR__ === 'undefined') {
+        console.warn("ATTENTION: La console Lovable n'a pas été chargée correctement");
+        console.log("Essayez de désactiver les bloqueurs de scripts, vider le cache du navigateur ou utiliser un autre navigateur");
+      } else {
+        console.log("Console Lovable détectée et chargée correctement");
+      }
+    }, 2000);
   } catch (error) {
-    console.error("Failed to render application:", error);
+    logDebug("Erreur lors du rendu de l'application", error);
     
     if (rootElement) {
       rootElement.innerHTML = `
@@ -46,34 +114,66 @@ function initializeApp() {
           <h1>Erreur de chargement</h1>
           <p>L'application n'a pas pu être chargée correctement.</p>
           <p>Erreur: ${error instanceof Error ? error.message : 'Erreur inconnue'}</p>
-          <button onclick="window.location.reload()">Réessayer</button>
+          <button onclick="window.location.reload()" style="padding:10px 20px; margin-top:20px; cursor:pointer;">
+            Réessayer
+          </button>
         </div>
       `;
     }
   }
 }
 
-// Add global network error handler
+// Gestionnaire d'erreurs global
 window.addEventListener('error', (event) => {
-  console.error('Erreur globale:', event.error);
-});
-
-// Check if script loading is being blocked
-document.addEventListener('DOMContentLoaded', () => {
-  const scriptElement = document.querySelector('script[src*="gptengineer.js"]');
-  if (!scriptElement) {
-    console.error("ALERTE: Le script Lovable (gptengineer.js) est manquant dans le DOM!");
-  } else {
-    console.log("Script Lovable trouvé dans le DOM:", scriptElement);
-  }
+  console.error('Erreur globale interceptée:', event.error);
   
-  // Initialize after DOM is ready
-  initializeApp();
+  // Vérifier si l'erreur est liée à une ressource externe
+  if (event.filename && (event.filename.includes('googleapis.com') || 
+                          event.filename.includes('gpteng.co') || 
+                          event.filename.includes('firestore'))) {
+    console.warn(`Erreur de chargement de ressource externe: ${event.filename}`);
+    console.log("Ce problème peut être lié à un bloqueur de scripts ou à un pare-feu");
+  }
 });
 
-// Run when DOM is ready
+// Démarrer l'application quand le DOM est prêt
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', initializeApp);
 } else {
   initializeApp();
 }
+
+// Exposer une fonction de diagnostic pour le dépannage
+(window as any).__diagnoseLovable = function() {
+  console.log("=== DIAGNOSTIC LOVABLE ===");
+  checkLovableScript();
+  diagnoseNetworkIssues();
+  
+  // Vérifier les bloqueurs potentiels
+  console.log("Test de connexion aux CDN:");
+  
+  const cdns = [
+    'https://cdn.gpteng.co/ping',
+    'https://fonts.googleapis.com/favicon.ico',
+    'https://www.gstatic.com/favicon.ico'
+  ];
+  
+  cdns.forEach(url => {
+    fetch(url, { mode: 'no-cors', cache: 'no-store' })
+      .then(() => console.log(`✅ Connexion réussie à ${url}`))
+      .catch(err => console.error(`❌ Échec de connexion à ${url}:`, err));
+  });
+  
+  console.log("Vérification de la console Lovable:");
+  console.log("__LOVABLE_EDITOR__ présent:", typeof (window as any).__LOVABLE_EDITOR__ !== 'undefined');
+  
+  console.log("=== FIN DU DIAGNOSTIC ===");
+  console.log("Pour résoudre les problèmes, essayez:");
+  console.log("1. Désactiver les bloqueurs de publicités/scripts");
+  console.log("2. Vider le cache du navigateur");
+  console.log("3. Essayer un autre navigateur (Chrome recommandé)");
+  console.log("4. Vérifier votre connexion réseau (VPN, pare-feu)");
+};
+
+// Log initial pour confirmer le chargement du script
+console.log("Script principal chargé avec succès");

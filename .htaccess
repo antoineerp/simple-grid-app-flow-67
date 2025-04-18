@@ -14,64 +14,61 @@ AddType text/css .css
 AddType application/json .json
 AddType image/svg+xml .svg
 
+# Autoriser CORS pour les ressources statiques
 <FilesMatch "\.(js|mjs|jsx|tsx|ts|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot|map)$">
     Header set Access-Control-Allow-Origin "*"
     Header set X-Content-Type-Options "nosniff"
+    Header set Cache-Control "public, max-age=31536000, immutable"
 </FilesMatch>
 
+# Règles spécifiques pour Lovable
 RewriteRule ^lovable-uploads/(.*)$ public/lovable-uploads/$1 [L]
 
+# Règles pour les fichiers API
 RewriteRule ^assets-check\.php$ api/assets-check.php [L]
 RewriteRule ^verify-deploy\.php$ verify-deploy.php [L]
 RewriteRule ^diagnose-assets\.php$ api/diagnose-assets.php [L]
 
+# Règles pour l'API
 RewriteRule ^api$ api/ [R=301,L]
 RewriteRule ^api/(.*)$ api/index.php [QSA,L]
 
-# Gestion améliorée des fichiers source
-RewriteRule ^src/(.*)$ src/$1 [L]
-
-# Accès direct au répertoire dist et ses sous-dossiers
+# Règles importantes pour les assets
 RewriteRule ^assets/(.*)$ dist/assets/$1 [L]
 RewriteRule ^dist/(.*)$ dist/$1 [L]
+RewriteRule ^src/(.*)$ src/$1 [L]
 
-# Autoriser l'accès à cdn.gpteng.co pour la console Lovable
+# Règles pour le script Lovable
 RewriteCond %{HTTP_REFERER} cdn\.gpteng\.co [NC]
 RewriteRule .* - [L]
+RewriteRule \.gpteng\.co/gptengineer\.js - [L]
 
-# Accès spécifique au script Lovable
-RewriteCond %{REQUEST_URI} \.gpteng\.co/gptengineer\.js [NC]
-RewriteRule .* - [L]
-
-# Permettre l'accès aux domaines externes
+# Autoriser l'accès aux CDN externes
 RewriteCond %{REQUEST_URI} ^https?://([^.]+\.)?googleapis\.com [NC,OR]
 RewriteCond %{REQUEST_URI} ^https?://([^.]+\.)?gstatic\.com [NC,OR]
 RewriteCond %{REQUEST_URI} ^https?://([^.]+\.)?lovable\.dev [NC,OR]
 RewriteCond %{REQUEST_URI} ^https?://([^.]+\.)?gpteng\.co [NC]
 RewriteRule .* - [L]
 
-# Autoriser l'accès direct aux fichiers statiques
+# Accès direct aux fichiers statiques
 RewriteCond %{REQUEST_URI} \.(js|mjs|jsx|tsx|ts|css|png|jpe?g|gif|svg|ico|webp|woff2?|ttf|eot|map)$
 RewriteRule ^ - [L]
 
-# Autoriser l'accès direct aux fichiers existants dans src
-RewriteCond %{REQUEST_FILENAME} -f
-RewriteRule ^src/ - [L]
-
-# Route de secours pour SPA
+# Route de secours pour SPA - TRÈS IMPORTANT
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
-RewriteRule ^(?!api/).*$ index.html [QSA,L]
+RewriteRule ^(.*)$ index.html [QSA,L]
 
-# Désactiver la mise en cache pour les fichiers de développement
+# Configuration des en-têtes HTTP
 <IfModule mod_headers.c>
-    <FilesMatch "\.(js|mjs|jsx|tsx|ts|css|json)$">
+    # Désactiver la mise en cache pour les fichiers de développement
+    <FilesMatch "\.(html|js|mjs|jsx|tsx|ts|css|json)$">
         Header set Cache-Control "no-cache, no-store, must-revalidate"
         Header set Pragma "no-cache"
         Header set Expires "0"
     </FilesMatch>
     
-    # Permettre CORS pour les ressources externes
+    # Autoriser CORS pour toutes les ressources
     Header set Access-Control-Allow-Origin "*"
     Header set Access-Control-Allow-Methods "GET, POST, OPTIONS"
     Header set Access-Control-Allow-Headers "Origin, X-Requested-With, Content-Type, Accept"

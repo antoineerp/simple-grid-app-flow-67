@@ -27,9 +27,6 @@
         document.write('<script src="https://cdn.jsdelivr.net/npm/es6-object-assign@1.1.0/dist/object-assign-auto.min.js"><\/script>');
       }
     </script>
-    
-    <!-- Script Lovable pour les fonctionnalités avancées - CRUCIAL: NE PAS MODIFIER -->
-    <script src="https://cdn.gpteng.co/gptengineer.js" type="module" crossorigin="anonymous"></script>
   </head>
 
   <body>
@@ -57,7 +54,10 @@
       }
     </script>
     
-    <!-- Script principal - Noter que Vite remplacera ceci avec le bon chemin lors de la build -->
+    <!-- IMPORTANT: Script Lovable DOIT être chargé AVANT le script principal -->
+    <script src="https://cdn.gpteng.co/gptengineer.js" type="module" crossorigin="anonymous"></script>
+    
+    <!-- Script principal - APRÈS le script Lovable -->
     <script type="module" src="/src/main.tsx"></script>
     
     <!-- Fallback pour les navigateurs ne supportant pas ES modules -->
