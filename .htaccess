@@ -41,6 +41,10 @@ RewriteRule ^dist/assets/(.*)$ dist/assets/$1 [L]
 RewriteCond %{HTTP_REFERER} cdn\.gpteng\.co [NC]
 RewriteRule .* - [L]
 
+# Accès spécifique au script Lovable
+RewriteCond %{REQUEST_URI} cdn\.gpteng\.co/gptengineer\.js [NC]
+RewriteRule .* - [L]
+
 # Autoriser l'accès direct aux fichiers statiques
 RewriteCond %{REQUEST_URI} \.(js|mjs|jsx|tsx|ts|css|png|jpe?g|gif|svg|ico|webp|woff2?|ttf|eot|map)$
 RewriteRule ^ - [L]
