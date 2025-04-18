@@ -29,8 +29,7 @@ RewriteRule ^api/(.*)$ api/index.php [QSA,L]
 # Critical: Improved path handling for source files
 RewriteRule ^src/(.*)$ src/$1 [L]
 
-# Critical: Improved asset paths handling to match both development and build outputs
-RewriteRule ^assets/([^.]*)\.([A-Za-z0-9]+)\.([^.]+)$ dist/assets/$1.$3 [L]
+# Redirect /assets to /dist/assets directly
 RewriteRule ^assets/(.*)$ dist/assets/$1 [L]
 
 RewriteCond %{REQUEST_URI} \.(js|css|png|jpe?g|gif|svg|ico|webp|woff2?|ttf|eot|map|tsx?|ts)$
