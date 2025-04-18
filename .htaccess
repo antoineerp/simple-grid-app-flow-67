@@ -31,11 +31,9 @@ RewriteRule ^api/(.*)$ api/index.php [QSA,L]
 # Gestion améliorée des fichiers source
 RewriteRule ^src/(.*)$ src/$1 [L]
 
-# Règle CRUCIALE: Accès direct au répertoire dist et ses sous-dossiers
+# Accès direct au répertoire dist et ses sous-dossiers
+RewriteRule ^assets/(.*)$ dist/assets/$1 [L]
 RewriteRule ^dist/(.*)$ dist/$1 [L]
-
-# Règle spécifique pour dist/assets - TRÈS IMPORTANT
-RewriteRule ^dist/assets/(.*)$ dist/assets/$1 [L]
 
 # Autoriser l'accès à cdn.gpteng.co pour la console Lovable
 RewriteCond %{HTTP_REFERER} cdn\.gpteng\.co [NC]

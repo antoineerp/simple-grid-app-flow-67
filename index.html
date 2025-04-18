@@ -28,9 +28,6 @@
       }
     </script>
     
-    <!-- Référence au fichier CSS -->
-    <link rel="stylesheet" href="/dist/assets/index.css">
-    
     <!-- Script Lovable pour les fonctionnalités avancées - CRUCIAL: NE PAS MODIFIER -->
     <script src="https://cdn.gpteng.co/gptengineer.js" type="module" crossorigin="anonymous"></script>
   </head>
@@ -60,8 +57,8 @@
       }
     </script>
     
-    <!-- Script principal avec chemin EXPLICITE vers dist/assets -->
-    <script type="module" src="/dist/assets/main.js"></script>
+    <!-- Script principal - Noter que Vite remplacera ceci avec le bon chemin lors de la build -->
+    <script type="module" src="/src/main.tsx"></script>
     
     <!-- Fallback pour les navigateurs ne supportant pas ES modules -->
     <script nomodule>
