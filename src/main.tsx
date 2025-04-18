@@ -1,6 +1,7 @@
 
+import React from 'react';
 import { createRoot } from 'react-dom/client';
-import App from './App.tsx';
+import App from './App';
 import './index.css';
 
 // Debug logging function
@@ -23,7 +24,11 @@ document.addEventListener('DOMContentLoaded', () => {
     // Initialize React app
     logDebug("Creating React root and rendering App");
     const root = createRoot(rootElement);
-    root.render(<App />);
+    root.render(
+      <React.StrictMode>
+        <App />
+      </React.StrictMode>
+    );
     logDebug("App rendered successfully");
   } catch (error) {
     console.error("Failed to render React application:", error);
