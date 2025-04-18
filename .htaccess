@@ -1,31 +1,20 @@
 
-# Activer le moteur de réécriture
 RewriteEngine On
-
-# Configuration spécifique
 Options -MultiViews
 Options +FollowSymLinks
-
-# Définir le point d'entrée principal
 DirectoryIndex index.html index.php
 
-# Définir les types MIME
 AddType application/javascript .js
 AddType text/css .css
 AddType application/json .json
 AddType image/svg+xml .svg
 
-# Permettre l'accès aux assets
 <FilesMatch "\.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot|map|tsx?)$">
     Order Allow,Deny
     Allow from all
 </FilesMatch>
 
 RewriteRule ^lovable-uploads/(.*)$ public/lovable-uploads/$1 [L]
-
-RewriteCond %{REQUEST_URI} ^/api
-RewriteCond %{REQUEST_FILENAME} !-f
-RewriteRule .* - [E=API_DEBUG:1]
 
 RewriteRule ^assets-check\.php$ api/assets-check.php [L]
 RewriteRule ^verify-deploy\.php$ verify-deploy.php [L]

@@ -2,7 +2,6 @@
 RewriteEngine On
 Options -MultiViews
 Options -Indexes
-
 DirectoryIndex index.php
 RewriteBase /api/
 
