@@ -1,34 +1,22 @@
 
-# Activer le moteur de réécriture
 RewriteEngine On
-
-# Configuration spécifique pour Infomaniak
 Options -MultiViews
 Options -Indexes
 
-# Définir explicitement le point d'entrée par défaut
 DirectoryIndex index.php
-
-# Définir le répertoire de base pour les règles de réécriture
 RewriteBase /api/
 
-# Ne pas appliquer les règles aux fichiers et répertoires existants
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
-
-# Rediriger toutes les requêtes non-fichiers vers index.php
 RewriteRule ^(.*)$ index.php [QSA,L]
 
-# Protéger les fichiers de configuration
 <FilesMatch "^(env\.php|app_config\.json|database\.php|.*\.ini)$">
     Order Allow,Deny
     Deny from all
 </FilesMatch>
 
-# Empêcher l'accès aux dossiers cachés comme .git
 RedirectMatch 404 /\..*$
 
-# Configuration PHP spécifique si .user.ini ne fonctionne pas
 <IfModule mod_php7.c>
     php_value display_errors 0
     php_value post_max_size 32M
