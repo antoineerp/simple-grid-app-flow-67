@@ -10,12 +10,18 @@ try {
     $root_dir = __DIR__ . '/..';
     $src_dir = $root_dir . '/src';
     $pages_dir = $src_dir . '/pages';
+    $dist_dir = $root_dir . '/dist';
+    $assets_dir = $dist_dir . '/assets';
+    $public_dir = $root_dir . '/public';
     
     // Verify essential directories
     $diagnostics['directories'] = [
         'root' => is_dir($root_dir),
         'src' => is_dir($src_dir),
         'pages' => is_dir($pages_dir),
+        'dist' => is_dir($dist_dir),
+        'assets' => is_dir($assets_dir),
+        'public' => is_dir($public_dir)
     ];
     
     // Test file existence with error handling
@@ -32,6 +38,14 @@ try {
         'main.tsx' => file_exists($src_dir . '/main.tsx'), 
         'App.tsx' => file_exists($src_dir . '/App.tsx'),
         'index.html' => file_exists($root_dir . '/index.html'),
+    ];
+    
+    // Check if asset files exist
+    $diagnostics['assets'] = [
+        'index.js' => file_exists($assets_dir . '/index.js'),
+        'main.js' => file_exists($assets_dir . '/main.js'),
+        'index.css' => file_exists($assets_dir . '/index.css'),
+        'vendor.js' => file_exists($assets_dir . '/vendor.js')
     ];
     
     $diagnostics['system_check'] = [

@@ -55,17 +55,20 @@ RewriteRule ^favicon\.ico$ /lovable-uploads/formacert-logo.png [L]
 
 # Règles pour les fichiers API
 RewriteRule ^assets-check\.php$ api/assets-check.php [L]
-RewriteRule ^verify-deploy\.php$ verify-deploy.php [L]
 RewriteRule ^diagnose-assets\.php$ api/diagnose-assets.php [L]
 RewriteRule ^file-check\.php$ api/file-check.php [L]
 RewriteRule ^app-diagnostic\.php$ api/app-diagnostic.php [L]
+RewriteRule ^verify-deploy\.php$ verify-deploy.php [L]
 
 # Règles pour l'API
 RewriteRule ^api$ api/ [R=301,L]
 RewriteRule ^api/(.*)$ api/$1 [QSA,L]
 
-# Règles importantes pour les assets
+# Règles importantes pour les assets - Modifiées pour gérer le cas où dist n'existe pas
+RewriteCond %{DOCUMENT_ROOT}/dist/assets/$1 -f
 RewriteRule ^assets/(.*)$ dist/assets/$1 [L]
+
+RewriteCond %{DOCUMENT_ROOT}/dist/$1 -f
 RewriteRule ^dist/(.*)$ dist/$1 [L]
 
 # Important: Allow direct access to source files in src directory
@@ -99,7 +102,7 @@ RewriteRule .* - [L]
 RewriteCond %{REQUEST_URI} \.(js|mjs|jsx|tsx|ts|css|png|jpe?g|gif|svg|ico|webp|woff2?|ttf|eot|map)$
 RewriteRule ^ - [L]
 
-# Route de secours pour SPA - TRÈS IMPORTANT
+# Route de secours pour SPA - TRÈS IMPORTANT - Modifiée pour mieux gérer les erreurs 404
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^(.*)$ index.html [QSA,L]

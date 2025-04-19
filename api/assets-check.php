@@ -31,6 +31,25 @@ header('Content-Type: text/html; charset=utf-8');
         }
     } else {
         echo "<p class='error'>Le répertoire dist/assets n'existe pas!</p>";
+        
+        // Essayer de créer les répertoires si possible
+        if (!is_dir('../dist')) {
+            if (mkdir('../dist', 0755, true)) {
+                echo "<p class='success'>Répertoire dist créé avec succès!</p>";
+            } else {
+                echo "<p class='error'>Impossible de créer le répertoire dist. Vérifiez les permissions.</p>";
+            }
+        }
+        
+        if (is_dir('../dist')) {
+            if (mkdir($jsDir, 0755, true)) {
+                echo "<p class='success'>Répertoire assets créé avec succès!</p>";
+            } else {
+                echo "<p class='error'>Impossible de créer le répertoire assets. Vérifiez les permissions.</p>";
+            }
+        }
+        
+        echo "<p>Note: La création des répertoires ne suffit pas. L'application doit être compilée pour générer les fichiers assets.</p>";
     }
     
     // Vérifier le fichier index.html
@@ -41,6 +60,20 @@ header('Content-Type: text/html; charset=utf-8');
         echo "<p>" . (is_readable($indexFile) ? "<span class='success'>Lisible</span>" : "<span class='error'>Non lisible</span>") . "</p>";
     } else {
         echo "<p class='error'>Le fichier index.html n'existe pas!</p>";
+    }
+    
+    // Vérifier la configuration de l'application pour le chargement des assets
+    echo "<h2>Configuration du chargement des assets:</h2>";
+    $htaccess = '../.htaccess';
+    if (file_exists($htaccess) && is_readable($htaccess)) {
+        $htaccessContent = file_get_contents($htaccess);
+        if (strpos($htaccessContent, 'RewriteRule ^assets/') !== false) {
+            echo "<p class='success'>La règle de réécriture pour les assets est présente dans .htaccess</p>";
+        } else {
+            echo "<p class='error'>La règle de réécriture pour les assets est absente dans .htaccess</p>";
+        }
+    } else {
+        echo "<p class='error'>Impossible de lire le fichier .htaccess</p>";
     }
     ?>
     

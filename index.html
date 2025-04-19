@@ -38,8 +38,25 @@
     <meta name="twitter:site" content="@lovable_dev" />
     <meta name="twitter:image" content="https://lovable.dev/opengraph-image-p98pqg.png" />
     
-    <!-- PHP Test modifié pour utiliser le nouveau diagnostic -->
+    <!-- Diagnostic des assets -->
     <script>
+      window.checkAssets = function() {
+        fetch('/diagnose-assets.php', { 
+          headers: { 'Cache-Control': 'no-cache' } 
+        })
+        .then(response => response.json())
+        .then(data => {
+          console.log("Diagnostic des assets:", data);
+        })
+        .catch(err => console.error("Erreur de diagnostic assets:", err));
+      };
+      
+      // Exécuter le diagnostic au chargement
+      window.addEventListener('DOMContentLoaded', function() {
+        window.checkAssets();
+      });
+
+      // PHP Test modifié pour utiliser le nouveau diagnostic
       window.testPhp = function() {
         fetch('/api/app-diagnostic.php?_=' + new Date().getTime(), { 
           headers: { 'Cache-Control': 'no-cache' } 
@@ -60,10 +77,22 @@
         })
         .catch(err => console.error("❌ Erreur de test PHP:", err));
       };
+      
+      // Exécuter le test PHP au chargement
+      window.addEventListener('DOMContentLoaded', function() {
+        window.testPhp();
+      });
     </script>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <div style="text-align:center; margin-top:50px; font-family:sans-serif;">
+        <h1>Chargement de FormaCert</h1>
+        <p>Si cette page persiste, cela peut indiquer un problème de chargement des ressources JavaScript.</p>
+        <p><a href="/assets-check.php" style="color:blue; text-decoration:underline;">Diagnostiquer les assets</a></p>
+        <p><a href="/api/app-diagnostic.php" style="color:blue; text-decoration:underline;">Diagnostiquer l'API</a></p>
+      </div>
+    </div>
     <noscript>
       <div style="text-align:center; margin-top:50px; font-family:sans-serif;">
         <h1>JavaScript requis</h1>
@@ -92,5 +121,37 @@
     
     <!-- Script principal - Avec chargement via Vite en mode développement -->
     <script type="module" src="/src/main.jsx"></script>
+    
+    <!-- Fallback pour afficher un message d'erreur en cas d'échec de chargement -->
+    <script>
+      // Vérifier si l'application a bien chargé après un délai
+      setTimeout(function() {
+        var root = document.getElementById('root');
+        var hasContent = root.childElementCount > 1 || (root.childElementCount === 1 && root.firstElementChild.childElementCount > 3);
+        
+        if (!hasContent) {
+          // Si l'application n'a pas chargé, afficher un message d'erreur avec des liens de diagnostic
+          root.innerHTML = `
+            <div style="text-align:center; margin-top:50px; font-family:sans-serif;">
+              <h1>Erreur de chargement</h1>
+              <p>L'application n'a pas pu être chargée correctement. Cela peut être dû à l'absence du dossier assets ou à une erreur JavaScript.</p>
+              <div style="margin:30px auto; max-width:600px; text-align:left; padding:20px; border:1px solid #ddd; border-radius:5px; background:#f9f9f9;">
+                <p><strong>Problème potentiel détecté:</strong> Le dossier <code>dist/assets</code> est manquant.</p>
+                <p>Causes possibles:</p>
+                <ul>
+                  <li>L'application n'a pas été compilée correctement</li>
+                  <li>Les fichiers compilés n'ont pas été téléchargés sur le serveur</li>
+                  <li>Les permissions de fichiers sont incorrectes</li>
+                </ul>
+              </div>
+              <p>
+                <a href="/assets-check.php" style="display:inline-block; margin:5px; padding:10px 20px; background:#3b82f6; color:white; text-decoration:none; border-radius:4px;">Diagnostiquer les assets</a>
+                <a href="/api/app-diagnostic.php" style="display:inline-block; margin:5px; padding:10px 20px; background:#3b82f6; color:white; text-decoration:none; border-radius:4px;">Diagnostiquer l'API</a>
+              </p>
+            </div>
+          `;
+        }
+      }, 5000);
+    </script>
   </body>
 </html>
