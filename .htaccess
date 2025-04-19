@@ -67,6 +67,13 @@ RewriteRule ^assets/(.*)$ dist/assets/$1 [L]
 RewriteRule ^dist/(.*)$ dist/$1 [L]
 RewriteRule ^src/(.*)$ src/$1 [L]
 
+# Configuration spécifique pour le fichier main.tsx
+<FilesMatch "main\.tsx$">
+    Header set Content-Type "application/javascript; charset=UTF-8"
+    Header set X-Content-Type-Options "nosniff"
+    Header set Cache-Control "no-cache, no-store, must-revalidate"
+</FilesMatch>
+
 # Règles pour le script Lovable
 RewriteCond %{HTTP_REFERER} cdn\.gpteng\.co [NC]
 RewriteRule .* - [L]
