@@ -50,6 +50,9 @@ RequestHeader set User-Agent "Mozilla/5.0 (compatible; FormaCertBot)" env=force-
 # Règles spécifiques pour Lovable
 RewriteRule ^lovable-uploads/(.*)$ public/lovable-uploads/$1 [L]
 
+# Règle spécifique pour le favicon
+RewriteRule ^favicon\.ico$ /lovable-uploads/formacert-logo.png [L]
+
 # Règles pour les fichiers API
 RewriteRule ^assets-check\.php$ api/assets-check.php [L]
 RewriteRule ^verify-deploy\.php$ verify-deploy.php [L]
