@@ -1,8 +1,8 @@
-
 import React from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App';
 import './index.css';
+import { checkRoutesConsistency } from './utils/routesDiagnostic';
 
 // Initialize global properties
 if (typeof window.__LOVABLE_EDITOR__ === 'undefined') {
@@ -47,6 +47,9 @@ function startApp() {
         <App />
       </React.StrictMode>
     );
+    
+    // Vérification des routes après le rendu
+    checkRoutesConsistency();
     
     console.log("Application rendue avec succès");
     console.log(`==== APPLICATION CHARGÉE AVEC SUCCÈS EN MODE ${isDemoMode ? 'DÉMO' : 'PRODUCTION'} ====`);
