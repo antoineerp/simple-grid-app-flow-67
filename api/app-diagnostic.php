@@ -10,7 +10,7 @@ $diagnostics = [
         '/gestion-documentaire' => file_exists(__DIR__ . '/../src/pages/GestionDocumentaire.tsx'),
     ],
     'core_files' => [
-        'main.tsx' => file_exists(__DIR__ . '/../src/main.tsx'),
+        'main.jsx' => file_exists(__DIR__ . '/../src/main.jsx'),
         'App.tsx' => file_exists(__DIR__ . '/../src/App.tsx'),
         'index.html' => file_exists(__DIR__ . '/../index.html'),
     ],

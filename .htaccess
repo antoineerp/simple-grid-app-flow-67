@@ -1,3 +1,4 @@
+
 RewriteEngine On
 Options -MultiViews
 Options +FollowSymLinks
@@ -57,6 +58,7 @@ RewriteRule ^assets-check\.php$ api/assets-check.php [L]
 RewriteRule ^verify-deploy\.php$ verify-deploy.php [L]
 RewriteRule ^diagnose-assets\.php$ api/diagnose-assets.php [L]
 RewriteRule ^file-check\.php$ api/file-check.php [L]
+RewriteRule ^app-diagnostic\.php$ api/app-diagnostic.php [L]
 
 # Règles pour l'API
 RewriteRule ^api$ api/ [R=301,L]
@@ -65,6 +67,9 @@ RewriteRule ^api/(.*)$ api/$1 [QSA,L]
 # Règles importantes pour les assets
 RewriteRule ^assets/(.*)$ dist/assets/$1 [L]
 RewriteRule ^dist/(.*)$ dist/$1 [L]
+
+# Important: Allow direct access to .jsx files in src directory
+RewriteRule ^src/(.+\.jsx)$ src/$1 [L]
 RewriteRule ^src/(.*)$ src/$1 [L]
 
 # Configuration spécifique pour les fichiers JavaScript/JSX/TypeScript/TSX
