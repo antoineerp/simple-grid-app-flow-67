@@ -1,4 +1,3 @@
-
 RewriteEngine On
 Options -MultiViews
 Options +FollowSymLinks
