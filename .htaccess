@@ -12,8 +12,8 @@ AddHandler application/x-httpd-php .php
 AddType application/javascript .js
 AddType application/javascript .mjs
 AddType application/javascript .jsx
-AddType application/javascript .tsx
-AddType application/javascript .ts
+AddType text/javascript .tsx
+AddType text/javascript .ts
 AddType text/css .css
 AddType application/json .json
 AddType image/svg+xml .svg
@@ -67,9 +67,11 @@ RewriteRule ^assets/(.*)$ dist/assets/$1 [L]
 RewriteRule ^dist/(.*)$ dist/$1 [L]
 RewriteRule ^src/(.*)$ src/$1 [L]
 
-# Configuration spécifique pour le fichier main.tsx
-<FilesMatch "main\.tsx$">
-    Header set Content-Type "application/javascript; charset=UTF-8"
+# Configuration spécifique pour les fichiers TypeScript/TSX
+# Important: Redirect requests for raw TypeScript files to the compiled JS versions
+RewriteRule ^src/main\.tsx$ /dist/assets/main.js [R=301,L]
+<FilesMatch "\.tsx$|\.ts$">
+    Header set Content-Type "text/javascript; charset=UTF-8"
     Header set X-Content-Type-Options "nosniff"
     Header set Cache-Control "no-cache, no-store, must-revalidate"
 </FilesMatch>
