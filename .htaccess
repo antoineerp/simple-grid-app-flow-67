@@ -39,18 +39,18 @@ AddType image/svg+xml .svg
 # Configuration pour forcer l'interprétation PHP
 <FilesMatch "\.php$">
     SetHandler application/x-httpd-php
-    # Force the content type to be application/json for API responses
-    Header set Content-Type "application/json; charset=UTF-8"
+    # Force the content type to be text/plain for diagnostic files
+    Header set Content-Type "text/plain; charset=UTF-8"
 </FilesMatch>
 
 # Configuration PHP
 <IfModule mod_php.c>
     php_flag display_errors On
     php_flag log_errors On
-    php_value error_log php_errors.log
+    php_value error_log /tmp/php_errors.log
     php_value error_reporting E_ALL & ~E_DEPRECATED & ~E_STRICT
-    php_value max_execution_time 300
-    php_value memory_limit 256M
+    php_value max_execution_time 30
+    php_value memory_limit 64M
 </IfModule>
 
 # Ajouter un User-Agent par défaut pour les requêtes sans User-Agent
@@ -63,62 +63,22 @@ RewriteRule ^lovable-uploads/(.*)$ public/lovable-uploads/$1 [L]
 # Règle spécifique pour le favicon
 RewriteRule ^favicon\.ico$ /lovable-uploads/formacert-logo.png [L]
 
-# Règles pour les fichiers API
-RewriteRule ^assets-check\.php$ api/assets-check.php [L]
-RewriteRule ^diagnose-assets\.php$ api/diagnose-assets.php [L]
-RewriteRule ^file-check\.php$ api/file-check.php [L]
-RewriteRule ^app-diagnostic\.php$ api/app-diagnostic.php [L]
-RewriteRule ^verify-deploy\.php$ verify-deploy.php [L]
+# Règles pour les fichiers PHP de diagnostic
+RewriteRule ^test\.php$ test.php [L]
+RewriteRule ^assets-check\.php$ assets-check.php [L]
 
 # Règles pour l'API
 RewriteRule ^api$ api/ [R=301,L]
 RewriteRule ^api/(.*)$ api/$1 [QSA,L]
 
-# Règles importantes pour les assets - Modifiées pour mieux gérer index.js vs main.js
-RewriteCond %{DOCUMENT_ROOT}/dist/assets/$1 -f
+# Règles importantes pour les assets - Simplifiées pour une meilleure compatibilité
+RewriteRule ^dist/assets/(.*)$ dist/assets/$1 [L]
 RewriteRule ^assets/(.*)$ dist/assets/$1 [L]
 
-# Accès direct aux fichiers dans dist
-RewriteCond %{DOCUMENT_ROOT}/dist/$1 -f
-RewriteRule ^dist/(.*)$ dist/$1 [L]
-
-# Important: Allow direct access to source files in src directory for development
-RewriteRule ^src/(.+\.jsx)$ src/$1 [L]
-RewriteRule ^src/(.+\.tsx)$ src/$1 [L]
-RewriteRule ^src/(.+\.js)$ src/$1 [L]
-RewriteRule ^src/(.+\.ts)$ src/$1 [L]
-RewriteRule ^src/(.+\.css)$ src/$1 [L]
+# Accès direct aux fichiers dans src pour développement
 RewriteRule ^src/(.*)$ src/$1 [L]
 
-# Configuration spécifique pour les fichiers JavaScript/JSX/TypeScript/TSX
-<FilesMatch "\.js$|\.mjs$|\.jsx$|\.tsx$|\.ts$">
-    Header set Content-Type "application/javascript; charset=UTF-8"
-    Header set X-Content-Type-Options "nosniff"
-    Header set Cache-Control "no-cache, no-store, must-revalidate"
-</FilesMatch>
-
-# Règles pour le script Lovable
-RewriteCond %{HTTP_REFERER} cdn\.gpteng\.co [NC]
-RewriteRule .* - [L]
-RewriteRule \.gpteng\.co/gptengineer\.js - [L]
-
-# Autoriser l'accès aux CDN externes
-RewriteCond %{REQUEST_URI} ^https?://([^.]+\.)?googleapis\.com [NC,OR]
-RewriteCond %{REQUEST_URI} ^https?://([^.]+\.)?gstatic\.com [NC,OR]
-RewriteCond %{REQUEST_URI} ^https?://([^.]+\.)?lovable\.dev [NC,OR]
-RewriteCond %{REQUEST_URI} ^https?://([^.]+\.)?gpteng\.co [NC]
-RewriteRule .* - [L]
-
-# Accès direct aux fichiers statiques
-RewriteCond %{REQUEST_URI} \.(js|mjs|jsx|tsx|ts|css|png|jpe?g|gif|svg|ico|webp|woff2?|ttf|eot|map)$
-RewriteRule ^ - [L]
-
-# Pour le développement - permettre src/main.jsx en fallback
-RewriteCond %{REQUEST_URI} ^/src/main\.jsx$
-RewriteCond %{DOCUMENT_ROOT}/src/main.jsx -f
-RewriteRule ^src/main\.jsx$ - [L]
-
-# Route de secours pour SPA - TRÈS IMPORTANT
+# Route de secours pour SPA - IMPORTANT
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^(.*)$ index.html [QSA,L]

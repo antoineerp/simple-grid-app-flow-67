@@ -9,14 +9,16 @@ AddHandler application/x-httpd-php .php
     # Set proper error document
     ErrorDocument 500 "PHP Error occurred. Please check server logs."
     
-    # Set debug headers to see what's happening
-    Header set X-PHP-Debug "API Request Processing"
+    # Debug mode for PHP
+    php_flag display_errors On
+    php_flag log_errors On
+    php_value error_log /tmp/php_errors.log
     
     # Set the proper headers
     <FilesMatch "\.php$">
         SetHandler application/x-httpd-php
-        # Force the content type to be application/json
-        Header set Content-Type "application/json; charset=UTF-8"
+        # Force the content type to be text/plain for easier debugging
+        Header set Content-Type "text/plain; charset=UTF-8"
     </FilesMatch>
     
     # Allow OPTIONS for CORS
@@ -37,10 +39,10 @@ AddHandler application/x-httpd-php .php
 # PHP specific settings
 php_flag display_errors On
 php_flag log_errors On
-php_value error_log php_errors.log
-php_value max_execution_time 300
-php_value max_input_time 300
-php_value memory_limit 256M
-php_value post_max_size 32M
-php_value upload_max_filesize 16M
+php_value error_log /tmp/php_errors.log
+php_value max_execution_time 30
+php_value max_input_time 30
+php_value memory_limit 64M
+php_value post_max_size 8M
+php_value upload_max_filesize 2M
 php_flag short_open_tag On

@@ -38,18 +38,19 @@
     <meta name="twitter:site" content="@lovable_dev" />
     <meta name="twitter:image" content="https://lovable.dev/opengraph-image-p98pqg.png" />
     
-    <!-- Diagnostic des assets -->
+    <!-- Diagnostic des assets simplifié -->
     <script>
       window.checkAssets = function() {
-        fetch('/api/diagnose-assets.php', { 
-          headers: { 'Cache-Control': 'no-cache' } 
+        fetch('/assets-check.php', { 
+          headers: { 'Cache-Control': 'no-cache' },
+          cache: 'no-store'
         })
-        .then(response => response.json())
+        .then(response => response.text())
         .then(data => {
           console.log("Diagnostic des assets:", data);
           
-          // Si le diagnostic indique un besoin de build, montrer un message
-          if (data.build_status && data.build_status.need_npm_build) {
+          // Vérification simple si le dossier dist/assets existe
+          if (data.includes("Assets directory: Missing") || data.includes("index.js: Missing")) {
             var root = document.getElementById('root');
             if (root) {
               root.innerHTML = `
@@ -66,67 +67,39 @@
                     </ul>
                   </div>
                   <p>
-                    <a href="/api/assets-check.php" style="display:inline-block; margin:5px; padding:10px 20px; background:#3b82f6; color:white; text-decoration:none; border-radius:4px;">Diagnostiquer les assets</a>
-                    <a href="/api/app-diagnostic.php" style="display:inline-block; margin:5px; padding:10px 20px; background:#3b82f6; color:white; text-decoration:none; border-radius:4px;">Diagnostiquer l'API</a>
+                    <a href="/assets-check.php" style="display:inline-block; margin:5px; padding:10px 20px; background:#3b82f6; color:white; text-decoration:none; border-radius:4px;">Vérifier les assets</a>
                   </p>
                 </div>
               `;
             }
           }
         })
-        .catch(err => console.error("Erreur de diagnostic assets:", err));
+        .catch(err => {
+          console.error("Erreur de diagnostic assets:", err);
+          // Afficher un message d'erreur même en cas d'échec du diagnostic
+          var root = document.getElementById('root');
+          if (root) {
+            root.innerHTML = `
+              <div style="text-align:center; margin-top:50px; font-family:sans-serif;">
+                <h1>FormaCert - Erreur de diagnostic</h1>
+                <p>Impossible de vérifier l'état des assets. Le serveur pourrait ne pas interpréter correctement PHP.</p>
+                <div style="margin:30px auto; max-width:600px; text-align:left; padding:20px; border:1px solid #ddd; border-radius:5px; background:#f9f9f9;">
+                  <p>Vérifiez manuellement les points suivants:</p>
+                  <ul>
+                    <li>La présence du dossier <code>dist/assets</code></li>
+                    <li>La présence du fichier <code>dist/assets/index.js</code></li>
+                    <li>La configuration de PHP sur votre serveur</li>
+                  </ul>
+                </div>
+              </div>
+            `;
+          }
+        });
       };
       
       // Exécuter le diagnostic au chargement
       window.addEventListener('DOMContentLoaded', function() {
         window.checkAssets();
-      });
-
-      // PHP Test pour vérifier le fonctionnement de PHP
-      window.testPhp = function() {
-        fetch('/api/app-diagnostic.php?_=' + new Date().getTime(), { 
-          headers: { 'Cache-Control': 'no-cache' } 
-        })
-        .then(response => response.text())
-        .then(text => {
-          console.log("Diagnostic PHP Response:", text);
-          if (text.startsWith('<?php')) {
-            console.error("❌ PHP n'est pas interprété correctement");
-            
-            // Afficher un message d'erreur pour indiquer que PHP n'est pas interprété
-            var root = document.getElementById('root');
-            if (root) {
-              root.innerHTML = `
-                <div style="text-align:center; margin-top:50px; font-family:sans-serif;">
-                  <h1>FormaCert - Erreur PHP</h1>
-                  <p>Le serveur ne traite pas correctement les fichiers PHP.</p>
-                  <div style="margin:30px auto; max-width:600px; text-align:left; padding:20px; border:1px solid #ddd; border-radius:5px; background:#f9f9f9;">
-                    <p><strong>Erreur détectée:</strong> PHP n'est pas correctement configuré sur le serveur.</p>
-                    <p>Actions requises:</p>
-                    <ul>
-                      <li>Vérifiez que PHP est installé et activé sur votre serveur</li>
-                      <li>Assurez-vous que les fichiers .php sont traités par l'interpréteur PHP</li>
-                      <li>Vérifiez la configuration du serveur web (Apache/Nginx)</li>
-                    </ul>
-                  </div>
-                </div>
-              `;
-            }
-          } else {
-            try {
-              const json = JSON.parse(text);
-              console.log("✅ PHP fonctionne correctement:", json);
-            } catch (e) {
-              console.error("❌ Réponse non-JSON:", text);
-            }
-          }
-        })
-        .catch(err => console.error("❌ Erreur de test PHP:", err));
-      };
-      
-      // Exécuter le test PHP au chargement
-      window.addEventListener('DOMContentLoaded', function() {
-        window.testPhp();
       });
     </script>
   </head>
@@ -139,10 +112,8 @@
         <ul style="list-style:none; padding:0;">
           <li>✓ Chargement de la page HTML</li>
           <li>⟳ Vérification des fichiers JavaScript</li>
-          <li>⟳ Vérification de l'interprétation PHP</li>
         </ul>
-        <p><a href="/api/assets-check.php" style="color:blue; text-decoration:underline;">Diagnostiquer les assets</a></p>
-        <p><a href="/api/app-diagnostic.php" style="color:blue; text-decoration:underline;">Diagnostiquer l'API</a></p>
+        <p><a href="/assets-check.php" style="color:blue; text-decoration:underline;">Diagnostiquer les assets</a></p>
       </div>
     </div>
     <noscript>
@@ -171,7 +142,7 @@
     <!-- IMPORTANT: Script Lovable DOIT être chargé AVANT le script principal -->
     <script src="https://cdn.gpteng.co/gptengineer.js" type="module" crossorigin="anonymous"></script>
     
-    <!-- Script principal avec chemin mis à jour pour utiliser index.js au lieu de main.js -->
+    <!-- Script principal avec chemin mis à jour pour utiliser index.js qui existe -->
     <script type="module" src="/dist/assets/index.js"></script>
     
     <!-- Fallback en cas d'échec du chargement du script principal -->
@@ -203,8 +174,7 @@
                 </ol>
               </div>
               <p>
-                <a href="/api/assets-check.php" style="display:inline-block; margin:5px; padding:10px 20px; background:#3b82f6; color:white; text-decoration:none; border-radius:4px;">Diagnostiquer les assets</a>
-                <a href="/api/app-diagnostic.php" style="display:inline-block; margin:5px; padding:10px 20px; background:#3b82f6; color:white; text-decoration:none; border-radius:4px;">Diagnostiquer l'API</a>
+                <a href="/assets-check.php" style="display:inline-block; margin:5px; padding:10px 20px; background:#3b82f6; color:white; text-decoration:none; border-radius:4px;">Vérifier les assets</a>
               </p>
             </div>
           `;
