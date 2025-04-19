@@ -43,9 +43,9 @@ function startApp() {
     
     console.log("Rendu de l'application React");
     root.render(
-      React.StrictMode(
-        React.createElement(App)
-      )
+      <React.StrictMode>
+        <App />
+      </React.StrictMode>
     );
     
     console.log("Application rendue avec succès");
