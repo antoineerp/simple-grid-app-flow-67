@@ -41,12 +41,38 @@
     <!-- Diagnostic des assets -->
     <script>
       window.checkAssets = function() {
-        fetch('/diagnose-assets.php', { 
+        fetch('/api/diagnose-assets.php', { 
           headers: { 'Cache-Control': 'no-cache' } 
         })
         .then(response => response.json())
         .then(data => {
           console.log("Diagnostic des assets:", data);
+          
+          // Si le diagnostic indique un besoin de build, montrer un message
+          if (data.build_status && data.build_status.need_npm_build) {
+            var root = document.getElementById('root');
+            if (root) {
+              root.innerHTML = `
+                <div style="text-align:center; margin-top:50px; font-family:sans-serif;">
+                  <h1>FormaCert - Erreur de chargement</h1>
+                  <p>Les fichiers de build sont manquants. L'application doit être compilée.</p>
+                  <div style="margin:30px auto; max-width:600px; text-align:left; padding:20px; border:1px solid #ddd; border-radius:5px; background:#f9f9f9;">
+                    <p><strong>Erreur détectée:</strong> Le dossier <code>dist/assets</code> est manquant ou vide.</p>
+                    <p>Actions requises:</p>
+                    <ul>
+                      <li>Exécutez <code>npm run build</code> pour générer les fichiers de build</li>
+                      <li>Vérifiez que les fichiers compilés sont bien présents dans le dossier <code>dist/assets</code></li>
+                      <li>Rechargez cette page après la compilation</li>
+                    </ul>
+                  </div>
+                  <p>
+                    <a href="/api/assets-check.php" style="display:inline-block; margin:5px; padding:10px 20px; background:#3b82f6; color:white; text-decoration:none; border-radius:4px;">Diagnostiquer les assets</a>
+                    <a href="/api/app-diagnostic.php" style="display:inline-block; margin:5px; padding:10px 20px; background:#3b82f6; color:white; text-decoration:none; border-radius:4px;">Diagnostiquer l'API</a>
+                  </p>
+                </div>
+              `;
+            }
+          }
         })
         .catch(err => console.error("Erreur de diagnostic assets:", err));
       };
@@ -56,7 +82,7 @@
         window.checkAssets();
       });
 
-      // PHP Test modifié pour utiliser le nouveau diagnostic
+      // PHP Test pour vérifier le fonctionnement de PHP
       window.testPhp = function() {
         fetch('/api/app-diagnostic.php?_=' + new Date().getTime(), { 
           headers: { 'Cache-Control': 'no-cache' } 
@@ -66,6 +92,26 @@
           console.log("Diagnostic PHP Response:", text);
           if (text.startsWith('<?php')) {
             console.error("❌ PHP n'est pas interprété correctement");
+            
+            // Afficher un message d'erreur pour indiquer que PHP n'est pas interprété
+            var root = document.getElementById('root');
+            if (root) {
+              root.innerHTML = `
+                <div style="text-align:center; margin-top:50px; font-family:sans-serif;">
+                  <h1>FormaCert - Erreur PHP</h1>
+                  <p>Le serveur ne traite pas correctement les fichiers PHP.</p>
+                  <div style="margin:30px auto; max-width:600px; text-align:left; padding:20px; border:1px solid #ddd; border-radius:5px; background:#f9f9f9;">
+                    <p><strong>Erreur détectée:</strong> PHP n'est pas correctement configuré sur le serveur.</p>
+                    <p>Actions requises:</p>
+                    <ul>
+                      <li>Vérifiez que PHP est installé et activé sur votre serveur</li>
+                      <li>Assurez-vous que les fichiers .php sont traités par l'interpréteur PHP</li>
+                      <li>Vérifiez la configuration du serveur web (Apache/Nginx)</li>
+                    </ul>
+                  </div>
+                </div>
+              `;
+            }
           } else {
             try {
               const json = JSON.parse(text);
@@ -89,7 +135,13 @@
       <div style="text-align:center; margin-top:50px; font-family:sans-serif;">
         <h1>Chargement de FormaCert</h1>
         <p>Si cette page persiste, cela peut indiquer un problème de chargement des ressources JavaScript.</p>
-        <p><a href="/assets-check.php" style="color:blue; text-decoration:underline;">Diagnostiquer les assets</a></p>
+        <p>Vérification des problèmes potentiels:</p>
+        <ul style="list-style:none; padding:0;">
+          <li>✓ Chargement de la page HTML</li>
+          <li>⟳ Vérification des fichiers JavaScript</li>
+          <li>⟳ Vérification de l'interprétation PHP</li>
+        </ul>
+        <p><a href="/api/assets-check.php" style="color:blue; text-decoration:underline;">Diagnostiquer les assets</a></p>
         <p><a href="/api/app-diagnostic.php" style="color:blue; text-decoration:underline;">Diagnostiquer l'API</a></p>
       </div>
     </div>
@@ -119,10 +171,10 @@
     <!-- IMPORTANT: Script Lovable DOIT être chargé AVANT le script principal -->
     <script src="https://cdn.gpteng.co/gptengineer.js" type="module" crossorigin="anonymous"></script>
     
-    <!-- Script principal - Avec chargement via Vite en mode développement -->
-    <script type="module" src="/src/main.jsx"></script>
+    <!-- Script principal avec chemin corrigé -->
+    <script type="module" src="/dist/assets/main.js"></script>
     
-    <!-- Fallback pour afficher un message d'erreur en cas d'échec de chargement -->
+    <!-- Fallback en cas d'échec du chargement du script principal -->
     <script>
       // Vérifier si l'application a bien chargé après un délai
       setTimeout(function() {
@@ -130,22 +182,28 @@
         var hasContent = root.childElementCount > 1 || (root.childElementCount === 1 && root.firstElementChild.childElementCount > 3);
         
         if (!hasContent) {
-          // Si l'application n'a pas chargé, afficher un message d'erreur avec des liens de diagnostic
+          // Si l'application n'a pas chargé, afficher un message d'erreur détaillé
           root.innerHTML = `
             <div style="text-align:center; margin-top:50px; font-family:sans-serif;">
               <h1>Erreur de chargement</h1>
-              <p>L'application n'a pas pu être chargée correctement. Cela peut être dû à l'absence du dossier assets ou à une erreur JavaScript.</p>
+              <p>L'application n'a pas pu être chargée correctement.</p>
               <div style="margin:30px auto; max-width:600px; text-align:left; padding:20px; border:1px solid #ddd; border-radius:5px; background:#f9f9f9;">
-                <p><strong>Problème potentiel détecté:</strong> Le dossier <code>dist/assets</code> est manquant.</p>
+                <p><strong>Problème détecté:</strong> Les fichiers JavaScripts de l'application sont manquants.</p>
                 <p>Causes possibles:</p>
                 <ul>
-                  <li>L'application n'a pas été compilée correctement</li>
-                  <li>Les fichiers compilés n'ont pas été téléchargés sur le serveur</li>
-                  <li>Les permissions de fichiers sont incorrectes</li>
+                  <li>L'application n'a pas été compilée (<code>npm run build</code> n'a pas été exécuté)</li>
+                  <li>Le dossier <code>dist/assets</code> est manquant ou vide</li>
+                  <li>Le serveur n'est pas configuré pour servir les fichiers statiques correctement</li>
                 </ul>
+                <p>Solution recommandée:</p>
+                <ol>
+                  <li>Exécutez <code>npm run build</code> sur votre serveur pour générer les fichiers</li>
+                  <li>Vérifiez que les fichiers JavaScript sont bien générés dans <code>dist/assets</code></li>
+                  <li>Vérifiez les permissions des répertoires et fichiers</li>
+                </ol>
               </div>
               <p>
-                <a href="/assets-check.php" style="display:inline-block; margin:5px; padding:10px 20px; background:#3b82f6; color:white; text-decoration:none; border-radius:4px;">Diagnostiquer les assets</a>
+                <a href="/api/assets-check.php" style="display:inline-block; margin:5px; padding:10px 20px; background:#3b82f6; color:white; text-decoration:none; border-radius:4px;">Diagnostiquer les assets</a>
                 <a href="/api/app-diagnostic.php" style="display:inline-block; margin:5px; padding:10px 20px; background:#3b82f6; color:white; text-decoration:none; border-radius:4px;">Diagnostiquer l'API</a>
               </p>
             </div>

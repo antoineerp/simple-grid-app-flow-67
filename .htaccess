@@ -43,6 +43,16 @@ AddType image/svg+xml .svg
     Header set Content-Type "application/json; charset=UTF-8"
 </FilesMatch>
 
+# Configuration PHP
+<IfModule mod_php.c>
+    php_flag display_errors Off
+    php_flag log_errors On
+    php_value error_log php_errors.log
+    php_value error_reporting E_ALL & ~E_DEPRECATED & ~E_STRICT
+    php_value max_execution_time 300
+    php_value memory_limit 256M
+</IfModule>
+
 # Ajouter un User-Agent par défaut pour les requêtes sans User-Agent
 SetEnvIf User-Agent "^$" force-default-ua=1
 RequestHeader set User-Agent "Mozilla/5.0 (compatible; FormaCertBot)" env=force-default-ua
@@ -71,7 +81,7 @@ RewriteRule ^assets/(.*)$ dist/assets/$1 [L]
 RewriteCond %{DOCUMENT_ROOT}/dist/$1 -f
 RewriteRule ^dist/(.*)$ dist/$1 [L]
 
-# Important: Allow direct access to source files in src directory
+# Important: Allow direct access to source files in src directory for development
 RewriteRule ^src/(.+\.jsx)$ src/$1 [L]
 RewriteRule ^src/(.+\.tsx)$ src/$1 [L]
 RewriteRule ^src/(.+\.js)$ src/$1 [L]
@@ -102,7 +112,12 @@ RewriteRule .* - [L]
 RewriteCond %{REQUEST_URI} \.(js|mjs|jsx|tsx|ts|css|png|jpe?g|gif|svg|ico|webp|woff2?|ttf|eot|map)$
 RewriteRule ^ - [L]
 
-# Route de secours pour SPA - TRÈS IMPORTANT - Modifiée pour mieux gérer les erreurs 404
+# Pour le développement - permettre src/main.jsx en fallback
+RewriteCond %{REQUEST_URI} ^/src/main\.jsx$
+RewriteCond %{DOCUMENT_ROOT}/src/main.jsx -f
+RewriteRule ^src/main\.jsx$ - [L]
+
+# Route de secours pour SPA - TRÈS IMPORTANT
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^(.*)$ index.html [QSA,L]

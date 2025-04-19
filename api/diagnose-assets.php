@@ -36,7 +36,7 @@ try {
         $diagnostics['assets_contents'] = scandir($assets_dir);
     } else {
         // Suggest creating assets directory
-        $diagnostics['suggestion'] = "The assets directory doesn't exist. The app may not have been built properly.";
+        $diagnostics['suggestion'] = "Le dossier assets n'existe pas. L'application n'a probablement pas été construite correctement. Exécutez 'npm run build'.";
         
         // Check if we can create these directories
         $diagnostics['can_create_dist'] = is_writable($root_dir);
@@ -59,6 +59,16 @@ try {
             'has_assets_rule' => strpos($htaccess_content, 'RewriteRule ^assets/') !== false,
             'has_dist_rule' => strpos($htaccess_content, 'RewriteRule ^dist/') !== false
         ];
+    }
+    
+    // Vérifier les éventuels problèmes et fournir des suggestions
+    $diagnostics['build_status'] = [
+        'need_npm_build' => !is_dir($assets_dir) || (is_dir($assets_dir) && count(scandir($assets_dir)) <= 2),
+        'actions_required' => []
+    ];
+    
+    if (!is_dir($assets_dir) || (is_dir($assets_dir) && count(scandir($assets_dir)) <= 2)) {
+        $diagnostics['build_status']['actions_required'][] = "Exécutez 'npm run build' pour générer les fichiers d'assets";
     }
     
     echo json_encode($diagnostics, JSON_PRETTY_PRINT);
