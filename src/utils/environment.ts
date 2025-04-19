@@ -37,3 +37,12 @@ export function logEnvironmentInfo(): void {
     console.log('Mode production: fonctionnalités réduites pour la sécurité');
   }
 }
+
+/**
+ * Vérifie si l'application est exécutée chez Infomaniak
+ */
+export function isInfomaniakEnvironment(): boolean {
+  // Vérifier si le nom de domaine contient qualiopi.ch
+  const hostname = window.location.hostname;
+  return hostname.includes('qualiopi.ch');
+}

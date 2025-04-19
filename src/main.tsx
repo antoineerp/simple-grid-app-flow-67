@@ -5,7 +5,7 @@ import App from './App';
 import './index.css';
 import { initializeApp, handleInitError } from './utils/appInitializer';
 import { logDebug } from './utils/logger';
-import { isLovableDemo } from './utils/environment';
+import { isLovableDemo, isInfomaniakEnvironment } from './utils/environment';
 
 // Define window properties for TypeScript
 declare global {
@@ -43,6 +43,28 @@ function startApp() {
   try {
     // Initialiser l'application
     initializeApp();
+    
+    // Diagnostic spécifique à Infomaniak
+    if (isInfomaniakEnvironment()) {
+      console.log("==== Environnement Infomaniak détecté ====");
+      console.log("Vérification de la configuration serveur...");
+      
+      // Test d'accès à l'API PHP
+      fetch('/api/diagnostic.php', { 
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache'
+        }
+      })
+      .then(response => response.json())
+      .then(data => {
+        console.log("Diagnostique API PHP réussi:", data);
+      })
+      .catch(error => {
+        console.error("Erreur lors du diagnostique API PHP:", error);
+      });
+    }
     
     logDebug("Création du root React");
     const root = createRoot(rootElement);

@@ -18,6 +18,17 @@ AddType text/css .css
 AddType application/json .json
 AddType image/svg+xml .svg
 
+# Bloquer l'accès direct aux fichiers sensibles
+<FilesMatch "^\.env">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+
+<FilesMatch "^\.user.ini">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+
 # Autoriser CORS pour les ressources statiques
 <FilesMatch "\.(js|mjs|jsx|tsx|ts|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot|map)$">
     Header set Access-Control-Allow-Origin "*"
@@ -31,6 +42,10 @@ AddType image/svg+xml .svg
     # Force the content type to be application/json for API responses
     Header set Content-Type "application/json; charset=UTF-8"
 </FilesMatch>
+
+# Ajouter un User-Agent par défaut pour les requêtes sans User-Agent
+SetEnvIf User-Agent "^$" force-default-ua=1
+RequestHeader set User-Agent "Mozilla/5.0 (compatible; FormaCertBot)" env=force-default-ua
 
 # Règles spécifiques pour Lovable
 RewriteRule ^lovable-uploads/(.*)$ public/lovable-uploads/$1 [L]

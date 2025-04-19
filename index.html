@@ -37,7 +37,7 @@
     <meta name="twitter:site" content="@lovable_dev" />
     <meta name="twitter:image" content="https://lovable.dev/opengraph-image-p98pqg.png" />
     
-    <!-- PHP Test -->
+    <!-- PHP Test modifié pour utiliser le nouveau diagnostic -->
     <script>
       window.testPhp = function() {
         fetch('/api/diagnostic.php?_=' + new Date().getTime(), { 
@@ -45,7 +45,7 @@
         })
         .then(response => response.text())
         .then(text => {
-          console.log("PHP Test Response:", text);
+          console.log("Diagnostic PHP Response:", text);
           if (text.startsWith('<?php')) {
             console.error("❌ PHP n'est pas interprété correctement");
           } else {

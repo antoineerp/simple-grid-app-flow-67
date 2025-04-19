@@ -68,30 +68,6 @@ if ($environment === 'production') {
     }
 }
 
-// Charger la configuration depuis le fichier app_config.json s'il existe
-$configFile = __DIR__ . '/app_config.json';
-if (file_exists($configFile)) {
-    $configData = json_decode(file_get_contents($configFile), true);
-    
-    if (isset($configData['api_urls'])) {
-        if (isset($configData['api_urls']['development'])) {
-            $_ENV['API_URL_DEV'] = $configData['api_urls']['development'];
-        }
-        if (isset($configData['api_urls']['production'])) {
-            $_ENV['API_URL_PROD'] = $configData['api_urls']['production'];
-        }
-    }
-    
-    if (isset($configData['allowed_origins'])) {
-        if (isset($configData['allowed_origins']['development'])) {
-            $_ENV['ALLOWED_ORIGIN_DEV'] = $configData['allowed_origins']['development'];
-        }
-        if (isset($configData['allowed_origins']['production'])) {
-            $_ENV['ALLOWED_ORIGIN_PROD'] = $configData['allowed_origins']['production'];
-        }
-    }
-}
-
 // Configuration de l'encodage
 ini_set('default_charset', 'UTF-8');
 mb_internal_encoding('UTF-8');
