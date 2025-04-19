@@ -45,7 +45,7 @@ AddType image/svg+xml .svg
 
 # Configuration PHP
 <IfModule mod_php.c>
-    php_flag display_errors Off
+    php_flag display_errors On
     php_flag log_errors On
     php_value error_log php_errors.log
     php_value error_reporting E_ALL & ~E_DEPRECATED & ~E_STRICT
@@ -74,10 +74,11 @@ RewriteRule ^verify-deploy\.php$ verify-deploy.php [L]
 RewriteRule ^api$ api/ [R=301,L]
 RewriteRule ^api/(.*)$ api/$1 [QSA,L]
 
-# Règles importantes pour les assets - Modifiées pour gérer le cas où dist n'existe pas
+# Règles importantes pour les assets - Modifiées pour mieux gérer index.js vs main.js
 RewriteCond %{DOCUMENT_ROOT}/dist/assets/$1 -f
 RewriteRule ^assets/(.*)$ dist/assets/$1 [L]
 
+# Accès direct aux fichiers dans dist
 RewriteCond %{DOCUMENT_ROOT}/dist/$1 -f
 RewriteRule ^dist/(.*)$ dist/$1 [L]
 

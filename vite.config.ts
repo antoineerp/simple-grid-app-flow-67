@@ -37,6 +37,7 @@ export default defineConfig(({ mode }) => ({
             return 'vendor';
           }
         },
+        // Mises à jour pour s'assurer que le entry point principal est généré comme 'index.js'
         entryFileNames: 'assets/[name].js',
         chunkFileNames: 'assets/[name].js',
         assetFileNames: 'assets/[name].[ext]'
