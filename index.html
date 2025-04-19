@@ -41,7 +41,7 @@
     <!-- PHP Test modifié pour utiliser le nouveau diagnostic -->
     <script>
       window.testPhp = function() {
-        fetch('/api/diagnostic.php?_=' + new Date().getTime(), { 
+        fetch('/api/app-diagnostic.php?_=' + new Date().getTime(), { 
           headers: { 'Cache-Control': 'no-cache' } 
         })
         .then(response => response.text())

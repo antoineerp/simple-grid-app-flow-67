@@ -68,8 +68,12 @@ RewriteRule ^api/(.*)$ api/$1 [QSA,L]
 RewriteRule ^assets/(.*)$ dist/assets/$1 [L]
 RewriteRule ^dist/(.*)$ dist/$1 [L]
 
-# Important: Allow direct access to .jsx files in src directory
+# Important: Allow direct access to source files in src directory
 RewriteRule ^src/(.+\.jsx)$ src/$1 [L]
+RewriteRule ^src/(.+\.tsx)$ src/$1 [L]
+RewriteRule ^src/(.+\.js)$ src/$1 [L]
+RewriteRule ^src/(.+\.ts)$ src/$1 [L]
+RewriteRule ^src/(.+\.css)$ src/$1 [L]
 RewriteRule ^src/(.*)$ src/$1 [L]
 
 # Configuration spécifique pour les fichiers JavaScript/JSX/TypeScript/TSX
