@@ -11,111 +11,22 @@
     <meta name="description" content="FormaCert - Système de gestion de certification" />
     <meta name="author" content="FormaCert" />
     
-    <!-- Polyfills pour la compatibilité navigateurs -->
-    <script>
-      if (typeof Promise === 'undefined') {
-        document.write('<script src="https://cdn.jsdelivr.net/npm/promise-polyfill@8/dist/polyfill.min.js"><\/script>');
-      }
-      if (typeof Object.assign === 'undefined') {
-        document.write('<script src="https://cdn.jsdelivr.net/npm/es6-object-assign@1.1.0/dist/object-assign-auto.min.js"><\/script>');
-      }
-      if (!('IntersectionObserver' in window)) {
-        document.write('<script src="https://cdn.jsdelivr.net/npm/intersection-observer-polyfill@0.1.0/dist/IntersectionObserver.js"><\/script>');
-      }
-    </script>
-
     <!-- Cache control -->
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     
+    <!-- Social Media Meta Tags -->
     <meta property="og:title" content="FormaCert" />
     <meta property="og:description" content="Système de gestion de certification" />
     <meta property="og:type" content="website" />
     <meta property="og:image" content="https://lovable.dev/opengraph-image-p98pqg.png" />
-
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:site" content="@lovable_dev" />
     <meta name="twitter:image" content="https://lovable.dev/opengraph-image-p98pqg.png" />
-    
-    <!-- Diagnostic des assets simplifié -->
-    <script>
-      window.checkAssets = function() {
-        fetch('/assets-check.php', { 
-          headers: { 'Cache-Control': 'no-cache' },
-          cache: 'no-store'
-        })
-        .then(response => response.text())
-        .then(data => {
-          console.log("Diagnostic des assets:", data);
-          
-          // Vérification simple si le dossier dist/assets existe
-          if (data.includes("Assets directory: Missing") || data.includes("index.js: Missing")) {
-            var root = document.getElementById('root');
-            if (root) {
-              root.innerHTML = `
-                <div style="text-align:center; margin-top:50px; font-family:sans-serif;">
-                  <h1>FormaCert - Erreur de chargement</h1>
-                  <p>Les fichiers de build sont manquants. L'application doit être compilée.</p>
-                  <div style="margin:30px auto; max-width:600px; text-align:left; padding:20px; border:1px solid #ddd; border-radius:5px; background:#f9f9f9;">
-                    <p><strong>Erreur détectée:</strong> Le dossier <code>dist/assets</code> est manquant ou vide.</p>
-                    <p>Actions requises:</p>
-                    <ul>
-                      <li>Exécutez <code>npm run build</code> pour générer les fichiers de build</li>
-                      <li>Vérifiez que les fichiers compilés sont bien présents dans le dossier <code>dist/assets</code></li>
-                      <li>Rechargez cette page après la compilation</li>
-                    </ul>
-                  </div>
-                  <p>
-                    <a href="/assets-check.php" style="display:inline-block; margin:5px; padding:10px 20px; background:#3b82f6; color:white; text-decoration:none; border-radius:4px;">Vérifier les assets</a>
-                  </p>
-                </div>
-              `;
-            }
-          }
-        })
-        .catch(err => {
-          console.error("Erreur de diagnostic assets:", err);
-          // Afficher un message d'erreur même en cas d'échec du diagnostic
-          var root = document.getElementById('root');
-          if (root) {
-            root.innerHTML = `
-              <div style="text-align:center; margin-top:50px; font-family:sans-serif;">
-                <h1>FormaCert - Erreur de diagnostic</h1>
-                <p>Impossible de vérifier l'état des assets. Le serveur pourrait ne pas interpréter correctement PHP.</p>
-                <div style="margin:30px auto; max-width:600px; text-align:left; padding:20px; border:1px solid #ddd; border-radius:5px; background:#f9f9f9;">
-                  <p>Vérifiez manuellement les points suivants:</p>
-                  <ul>
-                    <li>La présence du dossier <code>dist/assets</code></li>
-                    <li>La présence du fichier <code>dist/assets/index.js</code></li>
-                    <li>La configuration de PHP sur votre serveur</li>
-                  </ul>
-                </div>
-              </div>
-            `;
-          }
-        });
-      };
-      
-      // Exécuter le diagnostic au chargement
-      window.addEventListener('DOMContentLoaded', function() {
-        window.checkAssets();
-      });
-    </script>
   </head>
   <body>
-    <div id="root">
-      <div style="text-align:center; margin-top:50px; font-family:sans-serif;">
-        <h1>Chargement de FormaCert</h1>
-        <p>Si cette page persiste, cela peut indiquer un problème de chargement des ressources JavaScript.</p>
-        <p>Vérification des problèmes potentiels:</p>
-        <ul style="list-style:none; padding:0;">
-          <li>✓ Chargement de la page HTML</li>
-          <li>⟳ Vérification des fichiers JavaScript</li>
-        </ul>
-        <p><a href="/assets-check.php" style="color:blue; text-decoration:underline;">Diagnostiquer les assets</a></p>
-      </div>
-    </div>
+    <div id="root"></div>
     <noscript>
       <div style="text-align:center; margin-top:50px; font-family:sans-serif;">
         <h1>JavaScript requis</h1>
@@ -123,63 +34,10 @@
       </div>
     </noscript>
     
-    <!-- Fallback pour les navigateurs anciens -->
-    <script>
-      function isModernBrowser() {
-        try {
-          eval('async () => {}');
-          return true;
-        } catch (e) {
-          return false;
-        }
-      }
-      
-      if (!isModernBrowser()) {
-        document.getElementById('root').innerHTML = '<div style="text-align:center; margin-top:50px; font-family:sans-serif;"><h1>Navigateur non supporté</h1><p>Veuillez utiliser un navigateur plus récent comme Chrome, Firefox, Edge ou Safari.</p></div>';
-      }
-    </script>
-    
     <!-- IMPORTANT: Script Lovable DOIT être chargé AVANT le script principal -->
     <script src="https://cdn.gpteng.co/gptengineer.js" type="module" crossorigin="anonymous"></script>
     
-    <!-- Script principal avec chemin mis à jour pour utiliser index.js qui existe -->
+    <!-- Script principal -->
     <script type="module" src="/dist/assets/index.js"></script>
-    
-    <!-- Fallback en cas d'échec du chargement du script principal -->
-    <script>
-      // Vérifier si l'application a bien chargé après un délai
-      setTimeout(function() {
-        var root = document.getElementById('root');
-        var hasContent = root.childElementCount > 1 || (root.childElementCount === 1 && root.firstElementChild.childElementCount > 3);
-        
-        if (!hasContent) {
-          // Si l'application n'a pas chargé, afficher un message d'erreur détaillé
-          root.innerHTML = `
-            <div style="text-align:center; margin-top:50px; font-family:sans-serif;">
-              <h1>Erreur de chargement</h1>
-              <p>L'application n'a pas pu être chargée correctement.</p>
-              <div style="margin:30px auto; max-width:600px; text-align:left; padding:20px; border:1px solid #ddd; border-radius:5px; background:#f9f9f9;">
-                <p><strong>Problème détecté:</strong> Les fichiers JavaScripts de l'application sont manquants.</p>
-                <p>Causes possibles:</p>
-                <ul>
-                  <li>L'application n'a pas été compilée (<code>npm run build</code> n'a pas été exécuté)</li>
-                  <li>Le dossier <code>dist/assets</code> est manquant ou vide</li>
-                  <li>Le serveur n'est pas configuré pour servir les fichiers statiques correctement</li>
-                </ul>
-                <p>Solution recommandée:</p>
-                <ol>
-                  <li>Exécutez <code>npm run build</code> sur votre serveur pour générer les fichiers</li>
-                  <li>Vérifiez que les fichiers JavaScript sont bien générés dans <code>dist/assets</code></li>
-                  <li>Vérifiez les permissions des répertoires et fichiers</li>
-                </ol>
-              </div>
-              <p>
-                <a href="/assets-check.php" style="display:inline-block; margin:5px; padding:10px 20px; background:#3b82f6; color:white; text-decoration:none; border-radius:4px;">Vérifier les assets</a>
-              </p>
-            </div>
-          `;
-        }
-      }, 5000);
-    </script>
   </body>
 </html>
