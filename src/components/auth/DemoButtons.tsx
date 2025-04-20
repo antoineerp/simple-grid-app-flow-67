@@ -1,21 +1,22 @@
 
 import React, { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
+import { isLovableDemo } from '@/utils/environment';
 
 interface DemoButtonsProps {
   onFillTestData: (role: string) => void;
 }
 
 export const DemoButtons = ({ onFillTestData }: DemoButtonsProps) => {
-  const [isLovableDemo, setIsLovableDemo] = useState(false);
+  const [isDemoMode, setIsDemoMode] = useState(false);
   
   useEffect(() => {
-    // Détecter si nous sommes en mode démo Lovable
-    setIsLovableDemo(typeof window.__LOVABLE_EDITOR__ !== 'undefined' && window.__LOVABLE_EDITOR__ !== null);
+    // Utiliser la fonction de détection améliorée
+    setIsDemoMode(isLovableDemo());
   }, []);
   
   // Ne pas afficher les boutons démo en mode production
-  if (!isLovableDemo) {
+  if (!isDemoMode) {
     return null;
   }
 

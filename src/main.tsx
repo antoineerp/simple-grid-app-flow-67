@@ -1,10 +1,11 @@
+
 import React from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App';
 import './index.css';
 import { initializeApp, handleInitError } from './utils/appInitializer';
 import { logDebug } from './utils/logger';
-import { isLovableDemo, isInfomaniakEnvironment } from './utils/environment';
+import { getEnvironmentType, getEnvironmentName, logEnvironmentInfo, isLovableDemo, isInfomaniakEnvironment } from './utils/environment';
 
 // Define window properties for TypeScript
 declare global {
@@ -30,12 +31,11 @@ window.addEventListener('error', (event) => {
   }
 });
 
-// Log détaillé de l'environnement
-const environment = isLovableDemo() ? 'Démo Lovable' : 
-                    isInfomaniakEnvironment() ? 'Production Infomaniak' : 
-                    'Production standard';
+// Afficher des informations détaillées sur l'environnement
+logEnvironmentInfo();
 
-console.log(`==== Application démarrée en mode: ${environment} ====`);
+// Diagnostic d'environnement pour aider au débogage
+console.log(`==== Application démarrée en mode: ${getEnvironmentName()} ====`);
 
 // Démarrer l'application quand le DOM est prêt
 function startApp() {
@@ -83,7 +83,8 @@ function startApp() {
     );
     
     logDebug("Application rendue avec succès");
-    console.log(`==== APPLICATION CHARGÉE AVEC SUCCÈS EN MODE ${isLovableDemo() ? 'DÉMO' : 'PRODUCTION'} ====`);
+    
+    // Le mode est déjà affiché au démarrage, nous évitons la duplication
     
     // Vérification supplémentaire pour la console Lovable en mode démo
     if (isLovableDemo()) {

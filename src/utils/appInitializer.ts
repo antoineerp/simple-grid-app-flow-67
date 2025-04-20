@@ -1,25 +1,44 @@
 
 import { logDebug } from './logger';
 import { checkLovableScript, diagnoseNetworkIssues } from './diagnostics';
-import { isLovableDemoMode } from './environment';
+import { isLovableDemo, getEnvironmentType, getEnvironmentName } from './environment';
 
 export function initializeApp(): void {
   logDebug("Initialisation de l'application");
   
-  // Vérifier si nous sommes en mode démo ou en production
-  const isDemoMode = isLovableDemoMode();
-  logDebug(`Mode détecté: ${isDemoMode ? 'Démo Lovable' : 'Production'}`);
+  // Vérifier l'environnement actuel
+  const envType = getEnvironmentType();
+  const envName = getEnvironmentName();
+  logDebug(`Environnement détecté: ${envName} (${envType})`);
   
-  // Vérifier le script Lovable et les problèmes réseau
-  const lovableLoaded = checkLovableScript();
-  const networkOk = diagnoseNetworkIssues();
-  
-  if (!lovableLoaded && isDemoMode) {
-    console.error("AVERTISSEMENT: En mode démo mais la console Lovable n'est pas chargée correctement");
+  // Vérifications conditionnelles selon l'environnement
+  if (envType === 'demo') {
+    // En mode démo, vérifier spécifiquement les ressources Lovable
+    const lovableLoaded = checkLovableScript();
+    
+    if (!lovableLoaded) {
+      console.error("AVERTISSEMENT: En mode démo mais la console Lovable n'est pas chargée correctement");
+    }
   }
+  
+  // Vérifications communes à tous les environnements
+  const networkOk = diagnoseNetworkIssues();
   
   if (!networkOk) {
     console.error("AVERTISSEMENT: Des problèmes de réseau peuvent affecter les fonctionnalités");
+  }
+  
+  // Configuration spécifique à l'environnement
+  switch (envType) {
+    case 'demo':
+      logDebug("Configuration spécifique au mode démo activée");
+      break;
+    case 'infomaniak':
+      logDebug("Configuration spécifique à Infomaniak activée");
+      break;
+    case 'production':
+      logDebug("Configuration de production standard activée");
+      break;
   }
 }
 

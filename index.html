@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="fr">
   <head>
@@ -33,16 +34,28 @@
       </div>
     </noscript>
     
-    <!-- IMPORTANT: Script Lovable DOIT être chargé AVANT le script principal -->
+    <!-- Chargement conditionnel du script Lovable UNIQUEMENT en environnement de développement -->
     <script>
+      // Strictement limité aux domaines Lovable pour éviter tout chargement en production
       if (window.location.hostname.includes('lovable.dev') || 
           window.location.hostname.includes('lovable.app') || 
           window.location.hostname.includes('gpteng.co')) {
-        const script = document.createElement('script');
-        script.src = "https://cdn.gpteng.co/gptengineer.js";
-        script.type = "module";
-        script.crossOrigin = "anonymous";
-        document.head.appendChild(script);
+        console.log("=== MODE DÉMO LOVABLE DÉTECTÉ ===");
+        // Créer et ajouter le script Lovable dynamiquement
+        const lovableScript = document.createElement('script');
+        lovableScript.src = "https://cdn.gpteng.co/gptengineer.js";
+        lovableScript.type = "module";
+        lovableScript.crossOrigin = "anonymous";
+        lovableScript.onload = function() {
+          console.log("Script Lovable chargé avec succès");
+        };
+        lovableScript.onerror = function() {
+          console.error("Erreur lors du chargement du script Lovable");
+        };
+        document.head.appendChild(lovableScript);
+      } else {
+        // En production, définir explicitement à null pour éviter les erreurs
+        window.__LOVABLE_EDITOR__ = null;
       }
     </script>
     
