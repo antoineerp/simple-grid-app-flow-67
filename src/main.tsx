@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App';
@@ -30,6 +29,13 @@ window.addEventListener('error', (event) => {
     console.log("Ce problème peut être lié à un bloqueur de scripts ou à un pare-feu");
   }
 });
+
+// Log détaillé de l'environnement
+const environment = isLovableDemo() ? 'Démo Lovable' : 
+                    isInfomaniakEnvironment() ? 'Production Infomaniak' : 
+                    'Production standard';
+
+console.log(`==== Application démarrée en mode: ${environment} ====`);
 
 // Démarrer l'application quand le DOM est prêt
 function startApp() {
