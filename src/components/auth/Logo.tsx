@@ -2,21 +2,22 @@
 import React, { useState } from 'react';
 
 const Logo = () => {
-  const [logoSrc, setLogoSrc] = useState("/lovable-uploads/formacert-logo.png");
+  const [logoSrc, setLogoSrc] = useState("/lovable-uploads/1c6b80c6-6e45-4f6e-ab03-b7a474bd674c.png");
   const [logoLoaded, setLogoLoaded] = useState(false);
 
+  // Liste des chemins alternatifs pour l'image
   const fallbackImages = [
-    "/lovable-uploads/formacert-logo.png",
-    "/public/lovable-uploads/formacert-logo.png",
+    "/lovable-uploads/1c6b80c6-6e45-4f6e-ab03-b7a474bd674c.png",
+    "/public/lovable-uploads/1c6b80c6-6e45-4f6e-ab03-b7a474bd674c.png",
     "/logo-swiss.svg"
   ];
   
   const [fallbackIndex, setFallbackIndex] = useState(0);
 
   const handleImageError = () => {
-    if (fallbackIndex < fallbackImages.length) {
-      console.log(`Logo image failed to load: ${logoSrc}, trying fallback: ${fallbackImages[fallbackIndex]}`);
-      setLogoSrc(fallbackImages[fallbackIndex]);
+    if (fallbackIndex < fallbackImages.length - 1) {
+      console.log(`Logo image failed to load: ${logoSrc}, trying fallback: ${fallbackImages[fallbackIndex + 1]}`);
+      setLogoSrc(fallbackImages[fallbackIndex + 1]);
       setFallbackIndex(fallbackIndex + 1);
     } else {
       console.error("All logo images failed to load");
@@ -26,6 +27,7 @@ const Logo = () => {
   };
 
   const handleImageLoad = () => {
+    console.log("Logo image loaded successfully:", logoSrc);
     setLogoLoaded(true);
   };
 
