@@ -22,20 +22,9 @@ const UserManagement = ({ currentDatabaseUser, onUserConnect }: UserManagementPr
   const { toast } = useToast();
   const { utilisateurs, loading, loadUtilisateurs, handleConnectAsUser } = useAdminUsers();
   const [newUserOpen, setNewUserOpen] = useState(false);
-  const [formData, setFormData] = useState({ nom: '', prenom: '', email: '', role: 'utilisateur' });
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    toast({
-      title: "Fonctionnalité en développement",
-      description: "La création d'utilisateur sera disponible dans une prochaine version.",
-    });
-    setNewUserOpen(false);
-  };
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+  const handleSuccessfulUserCreation = () => {
+    loadUtilisateurs();
   };
 
   const getInitials = (nom: string, prenom: string) => {
@@ -69,10 +58,8 @@ const UserManagement = ({ currentDatabaseUser, onUserConnect }: UserManagementPr
               </Button>
             </DialogTrigger>
             <UserForm 
-              formData={formData} 
-              onInputChange={handleChange} 
-              onSubmit={handleSubmit} 
-              onClose={() => setNewUserOpen(false)} 
+              onClose={() => setNewUserOpen(false)}
+              onSuccess={handleSuccessfulUserCreation}
             />
           </Dialog>
         </div>

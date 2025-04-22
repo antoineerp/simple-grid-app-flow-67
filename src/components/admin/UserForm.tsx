@@ -16,7 +16,7 @@ interface UserFormData {
 
 interface UserFormProps {
   onClose: () => void;
-  onSuccess: () => void;
+  onSuccess?: () => void;
 }
 
 const UserForm = ({ onClose, onSuccess }: UserFormProps) => {
@@ -45,7 +45,9 @@ const UserForm = ({ onClose, onSuccess }: UserFormProps) => {
         title: "Utilisateur créé",
         description: "L'utilisateur a été créé avec succès.",
       });
-      onSuccess();
+      if (onSuccess) {
+        onSuccess();
+      }
       onClose();
     } catch (error) {
       toast({
