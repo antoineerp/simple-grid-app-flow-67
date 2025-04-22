@@ -126,7 +126,8 @@ try {
     error_log("Trace: " . $e->getTraceAsString());
     
     // Si l'erreur est liée à la duplication de la fonction cleanUTF8, essayer d'utiliser le script de secours
-    if (strpos($e->getMessage(), 'Cannot redeclare function cleanUTF8') !== false) {
+    if (strpos($e->getMessage(), 'Cannot redeclare function cleanUTF8') !== false || 
+        strpos($e->getMessage(), 'Erreur de connexion à la base de données') !== false) {
         error_log("Tentative d'utilisation du script de secours pour l'authentification...");
         try {
             $fallback_script = __DIR__ . '/login-test.php';

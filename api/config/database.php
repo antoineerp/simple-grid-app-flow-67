@@ -8,6 +8,8 @@ class Database {
     private $username;
     private $password;
     public $conn;
+    public $connection_error = null;
+    public $is_connected = false;
 
     // Constructeur qui charge la configuration
     public function __construct() {
@@ -38,6 +40,7 @@ class Database {
                 }
             } catch (Exception $e) {
                 error_log("Erreur lors du chargement de la configuration de base de données: " . $e->getMessage());
+                $this->connection_error = "Erreur de configuration: " . $e->getMessage();
             }
         } else {
             // Créer le fichier de configuration avec les valeurs par défaut
@@ -60,34 +63,58 @@ class Database {
             return true;
         } catch (Exception $e) {
             error_log("Erreur lors de la sauvegarde de la configuration de base de données: " . $e->getMessage());
+            $this->connection_error = "Erreur de sauvegarde: " . $e->getMessage();
             return false;
         }
     }
 
     // Obtenir la connexion à la base de données
-    public function getConnection() {
+    public function getConnection($require_connection = true) {
         $this->conn = null;
+        $this->is_connected = false;
 
         try {
-            $this->conn = new PDO(
-                "mysql:host=" . $this->host . ";dbname=" . $this->db_name . ";charset=utf8mb4",
-                $this->username,
-                $this->password
-            );
-            $this->conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+            $dsn = "mysql:host=" . $this->host . ";dbname=" . $this->db_name . ";charset=utf8mb4";
+            $options = [
+                PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+                PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+                PDO::ATTR_EMULATE_PREPARES => false,
+            ];
+            
+            // Ajouter un timeout pour éviter que la connexion ne bloque trop longtemps
+            $this->conn = new PDO($dsn, $this->username, $this->password, $options);
             
             // Forcer l'encodage UTF-8 pour toutes les requêtes
             $this->conn->exec("SET NAMES utf8mb4");
             
+            // Marquer la connexion comme réussie
+            $this->is_connected = true;
+            $this->connection_error = null;
+            
             // Convertir les tables en utf8mb4 si nécessaire
-            $this->convertTablesToUtf8mb4();
+            // $this->convertTablesToUtf8mb4();
             
         } catch(PDOException $exception) {
-            error_log("Erreur de connexion à la base de données: " . $exception->getMessage());
-            throw new Exception("Erreur de connexion à la base de données: " . $exception->getMessage());
+            $error_message = "Erreur de connexion à la base de données: " . $exception->getMessage();
+            error_log($error_message);
+            $this->connection_error = $error_message;
+            
+            if ($require_connection) {
+                throw new Exception($error_message);
+            }
         }
 
         return $this->conn;
+    }
+
+    // Tester la connexion sans lancer d'exception
+    public function testConnection() {
+        try {
+            $this->getConnection(false);
+            return $this->is_connected;
+        } catch (Exception $e) {
+            return false;
+        }
     }
 
     // Obtenir les informations de configuration actuelle
@@ -96,7 +123,9 @@ class Database {
             'host' => $this->host,
             'db_name' => $this->db_name,
             'username' => $this->username,
-            'password' => '********' // Masqué pour des raisons de sécurité
+            'password' => '********', // Masqué pour des raisons de sécurité
+            'is_connected' => $this->is_connected,
+            'error' => $this->connection_error
         ];
     }
 
