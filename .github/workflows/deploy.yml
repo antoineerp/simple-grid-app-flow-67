@@ -34,12 +34,13 @@ jobs:
         cp -r public/lovable-uploads/* dist/public/lovable-uploads/ || echo "No lovable-uploads files found"
         cp deploy-check.php dist/ || echo "No deploy-check.php found"
         cp verify-deploy.php dist/ || echo "No verify-deploy.php found"
-        cp index.html dist/ || echo "No index.html found (this should not happen)"
         
-    - name: List build directory structure
+    - name: Verify build structure
       run: |
-        echo "Listing full directory structure:"
-        find dist -type f | sort
+        echo "Verifying build directory structure..."
+        ls -la dist/
+        ls -la dist/assets/ || echo "No assets directory found"
+        ls -la dist/public/lovable-uploads/ || echo "No uploads directory found"
         
     - name: Deploy to Infomaniak
       uses: SamKirkland/FTP-Deploy-Action@v4.3.4
@@ -49,12 +50,11 @@ jobs:
         password: ${{ secrets.FTP_PASSWORD }}
         local-dir: ./dist/
         server-dir: /
-        dangerous-clean-slate: true  # Ajout de l'option pour nettoyer avant de déployer
+        dangerous-clean-slate: true
         exclude: |
           **/.git*
           **/.git*/**
           **/node_modules/**
-          **/dist/**
           README.md
           package.json
           package-lock.json
@@ -70,4 +70,3 @@ jobs:
         echo "Deployment completed. Check logs for any errors."
         echo "Run verify-deploy.php on your server to check deployment status."
         echo "URL: https://qualiopi.ch/verify-deploy.php"
-
