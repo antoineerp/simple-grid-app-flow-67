@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 
 const Logo = () => {
-  const [imageSrc, setImageSrc] = useState('/lovable-uploads/50481013-f813-47b1-84d2-82c297771514.png');
+  const [imageSrc, setImageSrc] = useState('/lovable-uploads/formacert-logo.png');
   const [imageError, setImageError] = useState(false);
 
   const handleImageError = () => {
