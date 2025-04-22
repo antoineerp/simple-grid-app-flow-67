@@ -3,20 +3,15 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
 import { componentTagger } from "lovable-tagger";
-import type { ConfigEnv, UserConfig } from "vite";
 
-// Définir le type AcceptedPlugin explicitement pour éviter les erreurs de type
-export default defineConfig(({ mode }: ConfigEnv): UserConfig => ({
+export default defineConfig(({ mode }) => ({
   server: {
-    // Only apply development settings when not in production
-    ...(mode === 'development' ? {
-      host: "::",
-      port: 8080,
-      strictPort: true,
-      hmr: {
-        clientPort: 443,
-      }
-    } : {}),
+    host: "0.0.0.0",
+    port: 8080,
+    strictPort: true,
+    hmr: {
+      clientPort: 443
+    }
   },
   plugins: [
     react(),
@@ -26,49 +21,32 @@ export default defineConfig(({ mode }: ConfigEnv): UserConfig => ({
     alias: {
       "@": path.resolve(__dirname, "./src"),
     },
+    // Ensure proper module resolution for all browsers
     dedupe: ['react', 'react-dom']
-  },
-  define: {
-    '__WS_TOKEN__': mode === 'production' ? false : JSON.stringify('lovable-ws-token'),
-    '__APP_MODE__': JSON.stringify(mode)
-  },
-  css: {
-    devSourcemap: true,
-    modules: {
-      scopeBehaviour: 'local',
-      localsConvention: 'camelCase',
-      generateScopedName: '[local]_[hash:base64:5]'
-    },
-    // Simplified PostCSS configuration to avoid type errors
-    postcss: {
-      // Instead of specifying plugins directly, we'll let Vite use the postcss.config.js file
-    },
   },
   build: {
     outDir: 'dist',
     assetsDir: 'assets',
-    sourcemap: mode === 'development',
+    sourcemap: false,
     minify: true,
     rollupOptions: {
       output: {
-        entryFileNames: 'assets/[name].js',
-        assetFileNames: (assetInfo) => {
-          if (!assetInfo.name) return 'assets/[name].[ext]';
-          const ext = assetInfo.name.split('.').at(-1);
-          if (ext === 'css') {
-            return 'assets/[name].css';
+        manualChunks(id) {
+          if (id.includes('node_modules')) {
+            return 'vendor';
           }
-          return 'assets/[name].[ext]';
         },
-        chunkFileNames: 'assets/[name].js',
+        entryFileNames: 'assets/[name].js',
+        chunkFileNames: 'assets/[name].[hash].js',
+        assetFileNames: 'assets/[name].[hash].[ext]'
       }
     },
-    cssCodeSplit: false,
-    target: ['es2015', 'edge88', 'firefox78', 'chrome87', 'safari13']
+    target: 'es2018', // Lower target for better browser compatibility
+    cssCodeSplit: true,
   },
+  publicDir: 'public',
+  base: '/',
   esbuild: {
-    logOverride: { 'this-is-undefined-in-esm': 'silent' },
-    // Drop console.log in production
-    drop: mode === 'production' ? ['console'] : []
+    logOverride: { 'this-is-undefined-in-esm': 'silent' }
   }
 }));

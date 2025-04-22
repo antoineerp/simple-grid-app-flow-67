@@ -1,59 +1,60 @@
 
-# Configuration de base
-AddHandler application/x-httpd-php .php
-SetHandler application/x-httpd-php
-
-# Types MIME explicites pour assurer le bon chargement des assets
-AddType text/css .css
-AddType application/javascript .js
-AddType application/javascript .mjs
-AddType text/javascript .js .mjs
-AddType image/svg+xml .svg
-AddType image/png .png
-AddType image/jpeg .jpg .jpeg
-
 # Activer le moteur de réécriture
 RewriteEngine On
+
+# Configuration spécifique pour Infomaniak
+Options -MultiViews
 Options +FollowSymLinks
 
-# Activer la journalisation des erreurs pour diagnostic
-RewriteLog "/tmp/rewrite.log"
-RewriteLogLevel 3
+# Définir le point d'entrée principal
+DirectoryIndex index.html index.php
 
-# Traitement direct des fichiers PHP de diagnostic
-RewriteRule ^debug-assets\.php$ debug-assets.php [L]
-RewriteRule ^assets-check\.php$ assets-check.php [L]
-RewriteRule ^test-ultra-simple\.php$ test-ultra-simple.php [L]
-RewriteRule ^diagnostic-500\.php$ diagnostic-500.php [L]
-RewriteRule ^php-error-finder\.php$ php-error-finder.php [L]
-RewriteRule ^test-minimal\.php$ test-minimal.php [L]
+# Définir les types MIME corrects
+AddType application/javascript .js
+AddType text/css .css
+AddType application/json .json
+AddType image/svg+xml .svg
 
-# Permettre la navigation dans le dossier dist/assets via le navigateur (pour diagnostic)
-<IfModule mod_autoindex.c>
-    Options +Indexes
-    <Directory "dist/assets">
-        Options +Indexes
-        IndexOptions FancyIndexing
-    </Directory>
-</IfModule>
+# Permettre l'accès aux assets
+<FilesMatch "\.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot|map|tsx?)$">
+    Order Allow,Deny
+    Allow from all
+</FilesMatch>
 
-# Traitement direct des fichiers CSS et JS (sans hachage)
-RewriteRule ^assets/index\.js$ dist/assets/index.js [L]
-RewriteRule ^assets/index\.css$ dist/assets/index.css [L]
-RewriteRule ^dist/assets/index\.css$ dist/assets/index.css [L]
-RewriteRule ^index\.css$ dist/assets/index.css [L]
+# Traitement spécial pour lovable-uploads - CORRECTION DU DOUBLE SLASH
+RewriteRule ^lovable-uploads/(.*)$ public/lovable-uploads/$1 [L]
 
-# Traitement direct des fichiers d'assets
-RewriteRule ^dist/assets/(.*)$ dist/assets/$1 [L]
-
-# Autres chemins d'accès aux assets
-RewriteRule ^assets/(.*)$ dist/assets/$1 [L]
-RewriteRule ^lovable-uploads/(.*)$ lovable-uploads/$1 [L]
-
-# Traitement des requêtes API
-RewriteRule ^api/(.*)$ api/$1 [QSA,L]
-
-# Route de secours pour SPA
+# Diagnostic des requêtes API en mode production
+RewriteCond %{REQUEST_URI} ^/api
 RewriteCond %{REQUEST_FILENAME} !-f
-RewriteCond %{REQUEST_FILENAME} !-d
-RewriteRule ^(.*)$ index.php [QSA,L]
+RewriteRule .* - [E=API_DEBUG:1]
+
+# Rediriger les requêtes vers /api vers le dossier api (sans slash final)
+RewriteRule ^api$ api/ [R=301,L]
+
+# Rediriger les requêtes vers /api/ vers le fichier index.php dans le dossier api
+RewriteRule ^api/(.*)$ api/index.php [QSA,L]
+
+# Règle pour servir les assets compilés
+RewriteRule ^assets/(.*)$ dist/assets/$1 [L]
+
+# Permettre l'accès direct aux autres ressources statiques
+RewriteCond %{REQUEST_URI} \.(js|css|png|jpe?g|gif|svg|ico|webp|woff2?|ttf|eot|map|tsx?)$
+RewriteRule ^ - [L]
+
+# En mode développement, permettre l'accès aux fichiers source
+RewriteCond %{REQUEST_FILENAME} -f
+RewriteRule ^src/ - [L]
+
+# Rediriger toutes les autres requêtes vers index.html pour React Router
+RewriteRule ^(?!api/).*$ index.html [QSA,L]
+
+# Configuration de sécurité
+<IfModule mod_headers.c>
+    # Configuration pour les assets statiques
+    <FilesMatch "\.(js|css|json)$">
+        Header set Cache-Control "no-cache, no-store, must-revalidate"
+        Header set Pragma "no-cache"
+        Header set Expires "0"
+    </FilesMatch>
+</IfModule>

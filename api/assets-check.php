@@ -1,40 +1,55 @@
 
 <?php
-// Simple plain text diagnostic
-header('Content-Type: text/plain');
-echo "PHP API Diagnostic - FormaCert\n";
-echo "Server Time: " . date('Y-m-d H:i:s') . "\n";
-echo "PHP Version: " . phpversion() . "\n";
-
-// Basic server info
-echo "\nServer Info:\n";
-echo "- Document Root: " . ($_SERVER['DOCUMENT_ROOT'] ?? 'Unknown') . "\n";
-echo "- Script Filename: " . ($_SERVER['SCRIPT_FILENAME'] ?? 'Unknown') . "\n";
-echo "- Server Software: " . ($_SERVER['SERVER_SOFTWARE'] ?? 'Unknown') . "\n";
-
-// Check for API folder and files
-$api_dir = __DIR__;
-$root_dir = dirname($api_dir);
-$dist_dir = $root_dir . '/dist';
-$assets_dir = $dist_dir . '/assets';
-
-echo "\nDirectory Check:\n";
-echo "- API directory: " . (is_dir($api_dir) ? "Exists" : "Missing") . "\n";
-echo "- Dist directory: " . (is_dir($dist_dir) ? "Exists" : "Missing") . "\n";
-echo "- Assets directory: " . (is_dir($assets_dir) ? "Exists" : "Missing") . "\n";
-
-// List files in the assets directory
-if (is_dir($assets_dir)) {
-    echo "\nFiles in assets directory:\n";
-    $files = scandir($assets_dir);
-    foreach ($files as $file) {
-        if ($file != "." && $file != "..") {
-            echo "- $file\n";
-        }
-    }
-} else {
-    echo "\nCannot list files in assets directory as it does not exist.\n";
-}
-
-echo "\nTo fix issues with missing files, please run 'npm run build' on your development machine.";
+header('Content-Type: text/html; charset=utf-8');
 ?>
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Diagnostic des Assets</title>
+    <style>
+        body { font-family: sans-serif; padding: 20px; }
+        .success { color: green; }
+        .error { color: red; }
+    </style>
+</head>
+<body>
+    <h1>Diagnostic d'accès aux ressources</h1>
+    
+    <?php
+    // Vérifier le répertoire actuel
+    echo "<p>Répertoire de travail actuel: " . getcwd() . "</p>";
+    
+    // Vérifier les assets JS
+    $jsDir = '../assets';
+    echo "<h2>Vérification du répertoire assets:</h2>";
+    if (file_exists($jsDir)) {
+        echo "<p class='success'>Le répertoire assets existe!</p>";
+        $files = glob($jsDir . '/*.js');
+        echo "<p>Fichiers JS trouvés: " . count($files) . "</p>";
+        foreach ($files as $file) {
+            echo "<p>" . basename($file) . " - " . (is_readable($file) ? "<span class='success'>Lisible</span>" : "<span class='error'>Non lisible</span>") . "</p>";
+        }
+    } else {
+        echo "<p class='error'>Le répertoire assets n'existe pas!</p>";
+    }
+    
+    // Vérifier le fichier index.html
+    $indexFile = '../index.html';
+    echo "<h2>Vérification du fichier index.html:</h2>";
+    if (file_exists($indexFile)) {
+        echo "<p class='success'>Le fichier index.html existe!</p>";
+        echo "<p>" . (is_readable($indexFile) ? "<span class='success'>Lisible</span>" : "<span class='error'>Non lisible</span>") . "</p>";
+    } else {
+        echo "<p class='error'>Le fichier index.html n'existe pas!</p>";
+    }
+    ?>
+    
+    <h2>Test d'inclusion JavaScript</h2>
+    <div id="js-test">Test JavaScript...</div>
+    
+    <script>
+        document.getElementById('js-test').textContent = 'JavaScript fonctionne correctement!';
+        document.getElementById('js-test').style.color = 'green';
+    </script>
+</body>
+</html>

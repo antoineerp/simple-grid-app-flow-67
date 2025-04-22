@@ -1,23 +1,38 @@
 
-# Configuration API
-AddHandler application/x-httpd-php .php
-SetHandler application/x-httpd-php
-
-# CORS et en-têtes
-Header always set Access-Control-Allow-Origin "*"
-Header always set Access-Control-Allow-Methods "GET, POST, OPTIONS, PUT, DELETE"
-Header always set Access-Control-Allow-Headers "Origin, X-Requested-With, Content-Type, Accept, Authorization"
-
-# Désactiver la mise en cache
-Header set Cache-Control "no-cache, no-store, must-revalidate"
-Header set Pragma "no-cache"
-Header set Expires "0"
-
-# Permettre l'accès direct aux fichiers PHP
+# Activer le moteur de réécriture
 RewriteEngine On
-RewriteRule ^simple-test\.php$ simple-test.php [L]
 
-# Fallback vers index.php
-RewriteCond %{REQUEST_FILENAME} !-d
+# Configuration spécifique pour Infomaniak
+Options -MultiViews
+Options -Indexes
+
+# Définir explicitement le point d'entrée par défaut
+DirectoryIndex index.php
+
+# Définir le répertoire de base pour les règles de réécriture
+RewriteBase /api/
+
+# Ne pas appliquer les règles aux fichiers et répertoires existants
 RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+
+# Rediriger toutes les requêtes non-fichiers vers index.php
 RewriteRule ^(.*)$ index.php [QSA,L]
+
+# Protéger les fichiers de configuration
+<FilesMatch "^(env\.php|app_config\.json|database\.php|.*\.ini)$">
+    Order Allow,Deny
+    Deny from all
+</FilesMatch>
+
+# Empêcher l'accès aux dossiers cachés comme .git
+RedirectMatch 404 /\..*$
+
+# Configuration PHP spécifique si .user.ini ne fonctionne pas
+<IfModule mod_php7.c>
+    php_value display_errors 0
+    php_value post_max_size 32M
+    php_value upload_max_filesize 16M
+    php_value memory_limit 256M
+    php_value max_execution_time 300
+</IfModule>

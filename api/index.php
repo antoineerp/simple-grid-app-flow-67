@@ -17,25 +17,10 @@ header("Access-Control-Allow-Methods: OPTIONS,GET,POST,PUT,DELETE");
 header("Access-Control-Allow-Headers: Content-Type, Access-Control-Allow-Headers, Authorization, X-Requested-With");
 header("Cache-Control: no-cache, no-store, must-revalidate");
 
-// Fonction pour envoyer une réponse JSON avec gestion d'erreur
-function sendJsonResponse($data, $statusCode = 200) {
-    http_response_code($statusCode);
-    if (!headers_sent()) {
-        header('Content-Type: application/json; charset=utf-8');
-    }
-    
-    // S'assurer que la réponse est toujours en JSON valide
-    if (!is_string($data)) {
-        echo json_encode($data, JSON_UNESCAPED_UNICODE);
-    } else {
-        echo $data;
-    }
-    exit;
-}
-
 // Réponse pour les requêtes OPTIONS (CORS preflight)
 if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
-    sendJsonResponse(['status' => 200, 'message' => 'Preflight OK']);
+    header("HTTP/1.1 200 OK");
+    exit(json_encode(['status' => 200, 'message' => 'Preflight OK']));
 }
 
 // URL de la requête
@@ -50,16 +35,7 @@ error_log('URL segments: ' . print_r($url_segments, true));
 // Vérifier si la requête est pour auth.php directement
 if (strpos($request_uri, 'auth.php') !== false) {
     error_log('Requête d\'authentification directe détectée');
-    try {
-        require_once 'controllers/AuthController.php';
-    } catch (Exception $e) {
-        error_log('Erreur critique dans l\'authentification: ' . $e->getMessage());
-        sendJsonResponse([
-            'status' => 500, 
-            'message' => 'Erreur serveur d\'authentification', 
-            'error' => $e->getMessage()
-        ], 500);
-    }
+    require_once 'controllers/AuthController.php';
     exit;
 }
 
@@ -67,16 +43,7 @@ if (strpos($request_uri, 'auth.php') !== false) {
 foreach ($url_segments as $segment) {
     if ($segment === 'auth' || $segment === 'auth.php' || $segment === 'login') {
         error_log('Requête d\'authentification détectée via segment: ' . $segment);
-        try {
-            require_once 'controllers/AuthController.php';
-        } catch (Exception $e) {
-            error_log('Erreur critique dans l\'authentification via segment: ' . $e->getMessage());
-            sendJsonResponse([
-                'status' => 500, 
-                'message' => 'Erreur serveur d\'authentification', 
-                'error' => $e->getMessage()
-            ], 500);
-        }
+        require_once 'controllers/AuthController.php';
         exit;
     }
 }
@@ -108,28 +75,29 @@ if ($api_index !== false) {
                     break;
                     
                 default:
-                    sendJsonResponse([
-                        'message' => 'Endpoint non trouvé: ' . $endpoint, 
-                        'status' => 404
-                    ], 404);
+                    http_response_code(404);
+                    echo json_encode(['message' => 'Endpoint non trouvé: ' . $endpoint, 'status' => 404], JSON_UNESCAPED_UNICODE);
                     break;
             }
         } catch (Exception $e) {
             error_log("Erreur API: " . $e->getMessage());
-            sendJsonResponse([
+            http_response_code(500);
+            echo json_encode([
                 'message' => 'Erreur serveur', 
                 'error' => $e->getMessage(),
                 'status' => 500
-            ], 500);
+            ], JSON_UNESCAPED_UNICODE);
         }
     } else {
         // Point d'entrée API - test de disponibilité
-        sendJsonResponse([
+        http_response_code(200);
+        echo json_encode([
             'message' => 'API PHP disponible',
             'status' => 200,
             'environment' => 'production'
-        ]);
+        ], JSON_UNESCAPED_UNICODE);
     }
 } else {
-    sendJsonResponse(['message' => 'API non trouvée', 'status' => 404], 404);
+    http_response_code(404);
+    echo json_encode(['message' => 'API non trouvée', 'status' => 404], JSON_UNESCAPED_UNICODE);
 }

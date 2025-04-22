@@ -1,29 +1,36 @@
 
-import React from "react";
-import ReactDOM from "react-dom/client";
-import App from "./App.tsx";
-import { BrowserRouter } from "react-router-dom";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { Toaster } from "./components/ui/toaster.tsx";
-import "./index.css"; // Assurez-vous que cette importation est présente
+import { createRoot } from 'react-dom/client';
+import App from './App.tsx';
+import './index.css';
 
-// Configuration du client React Query
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      refetchOnWindowFocus: false,
-      retry: 1,
-    },
-  },
-});
+const rootElement = document.getElementById("root");
 
-ReactDOM.createRoot(document.getElementById("root")!).render(
-  <React.StrictMode>
-    <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
-        <App />
-        <Toaster />
-      </BrowserRouter>
-    </QueryClientProvider>
-  </React.StrictMode>
-);
+if (rootElement) {
+  try {
+    const root = createRoot(rootElement);
+    root.render(<App />);
+    
+    console.log("Application rendering successfully started");
+  } catch (error) {
+    console.error("Failed to render React application:", error);
+    
+    // Fallback pour afficher une erreur à l'utilisateur
+    rootElement.innerHTML = `
+      <div style="text-align:center; margin-top:50px; font-family:sans-serif;">
+        <h1>Erreur de chargement</h1>
+        <p>L'application n'a pas pu être chargée correctement.</p>
+        <p>Erreur: ${error instanceof Error ? error.message : 'Erreur inconnue'}</p>
+        <button onclick="window.location.reload()">Réessayer</button>
+      </div>
+    `;
+  }
+} else {
+  console.error("Root element not found");
+  document.body.innerHTML = `
+    <div style="text-align:center; margin-top:50px; font-family:sans-serif;">
+      <h1>Erreur critique</h1>
+      <p>L'élément racine de l'application est introuvable.</p>
+      <button onclick="window.location.reload()">Réessayer</button>
+    </div>
+  `;
+}
