@@ -45,7 +45,7 @@ const Index = () => {
     checkApi();
     
     // Nouvelle date pour mettre à jour la version
-    setVersion(`1.0.3 - ${new Date().toLocaleDateString()}`);
+    setVersion(`1.0.4 - ${new Date().toLocaleDateString()}`);
   }, []);
 
   return (

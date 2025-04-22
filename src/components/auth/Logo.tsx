@@ -1,30 +1,19 @@
 
-import React, { useState } from 'react';
+import React from 'react';
 
 const Logo = () => {
-  const [imageSrc, setImageSrc] = useState('/lovable-uploads/formacert-logo.png');
-  const [imageError, setImageError] = useState(false);
-
-  const handleImageError = () => {
-    if (!imageError) {
-      setImageError(true);
-      console.log(`Logo image failed to load: ${imageSrc}, trying fallback`);
-      setImageSrc("/logo-swiss.svg");
-    }
-  };
-
-  const handleImageSuccess = () => {
-    console.log(`Logo image loaded successfully: ${imageSrc}`);
-  };
-
   return (
     <div className="flex flex-col items-center justify-center mb-8">
       <img 
-        src={imageSrc} 
-        alt="Qualite.cloud Logo" 
+        src="/lovable-uploads/formacert-logo.png" 
+        alt="Formacert Logo" 
         className="h-24 mb-4"
-        onError={handleImageError}
-        onLoad={handleImageSuccess}
+        onError={(e) => {
+          console.log("Logo image failed to load, showing text fallback");
+          // Au lieu d'utiliser une autre image, on cache l'image défectueuse
+          e.currentTarget.style.display = 'none';
+        }}
+        onLoad={() => console.log("Logo image loaded successfully: formacert-logo.png")}
       />
       <h2 className="text-2xl font-semibold text-gray-800">Qualite.cloud</h2>
       <p className="text-gray-600 mt-1">Plateforme de Gestion de Certification</p>
