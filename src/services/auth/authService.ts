@@ -10,6 +10,8 @@ class AuthService {
     private static instance: AuthService;
     private token: string | null = null;
     private currentUser: string | null = null;
+    private authEndpoint: string = 'auth.php';
+    private fallbackAttempted: boolean = false;
 
     private constructor() {
         console.log("Authentication service initialized");
@@ -59,11 +61,14 @@ class AuthService {
         try {
             const currentApiUrl = getApiUrl();
             console.log(`Tentative de connexion pour l'utilisateur: ${username}`);
-            console.log(`Tentative de connexion à l'API: ${currentApiUrl}/auth.php`);
+            
+            // Définir l'endpoint d'authentification
+            const endpoint = this.fallbackAttempted ? 'login-test.php' : this.authEndpoint;
+            console.log(`Tentative de connexion à l'API: ${currentApiUrl}/${endpoint}`);
             
             // Add a cache-busting parameter to ensure we're not getting cached responses
             const timestamp = new Date().getTime();
-            const url = `${currentApiUrl}/auth.php?_=${timestamp}`;
+            const url = `${currentApiUrl}/${endpoint}?_=${timestamp}`;
             console.log(`URL de requête complète: ${url}`);
             
             // Log the request payload and headers (without password)
@@ -90,14 +95,26 @@ class AuthService {
             const responseText = await response.text();
             console.log(`Texte de réponse brut: ${responseText}`);
             
-            // Try to parse the response as JSON
+            // Essayer de parser la réponse comme JSON
             let data;
             try {
                 data = JSON.parse(responseText);
             } catch (parseError) {
                 console.error("Erreur de parsing JSON:", parseError);
+                
+                // Si on n'a pas encore essayé le fallback et qu'on a une erreur de parsing
+                // ou une réponse 404, essayer avec le fallback
+                if (!this.fallbackAttempted && (response.status === 404 || parseError)) {
+                    console.log("Échec de la requête principale, tentative avec le endpoint de fallback");
+                    this.fallbackAttempted = true;
+                    return this.login(username, password);
+                }
+                
                 throw new Error(`Réponse invalide du serveur: ${responseText.substring(0, 100)}...`);
             }
+            
+            // Réinitialiser le flag fallback en cas de succès
+            this.fallbackAttempted = false;
             
             // Check for database connection error pattern
             if (!response.ok) {
@@ -174,6 +191,8 @@ export const loginUser = async (username: string, password: string): Promise<any
                 errorMessage = "Identifiants incorrects. Veuillez vérifier votre nom d'utilisateur et votre mot de passe.";
             } else if (error.message.includes("réseau") || error.message.includes("network")) {
                 errorMessage = "Problème de connexion réseau. Veuillez vérifier votre connexion internet et réessayer.";
+            } else if (error.message.includes("Réponse invalide du serveur")) {
+                errorMessage = "Le serveur d'authentification est inaccessible. Veuillez réessayer ultérieurement ou contacter l'administrateur.";
             }
         }
         

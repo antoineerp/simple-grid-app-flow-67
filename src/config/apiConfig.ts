@@ -6,6 +6,12 @@ export const getApiUrl = (): string => {
   if (localStorage.getItem('customApiUrl')) {
     return localStorage.getItem('customApiUrl') as string;
   }
+  
+  // Si on est sur qualiopi.ch, utiliser un chemin absolu
+  if (window.location.hostname === 'qualiopi.ch') {
+    return '/sites/qualiopi.ch/api';
+  }
+  
   // Utiliser un chemin relatif par défaut pour fonctionner sur tout domaine
   // Assurons-nous qu'il n'y a pas de double slash
   return '/api';
@@ -36,7 +42,9 @@ export const isUsingCustomApiUrl = (): boolean => {
 export const getFullApiUrl = (): string => {
   const baseUrl = isUsingCustomApiUrl() 
     ? localStorage.getItem('customApiUrl') as string
-    : window.location.origin + '/api';
+    : window.location.hostname === 'qualiopi.ch' 
+      ? window.location.origin + '/sites/qualiopi.ch/api'
+      : window.location.origin + '/api';
   
   // Normaliser l'URL pour éviter les double slashes
   return baseUrl.replace(/([^:]\/)\/+/g, "$1");

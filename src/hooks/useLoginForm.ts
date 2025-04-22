@@ -19,6 +19,7 @@ export const useLoginForm = () => {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [hasDbError, setHasDbError] = useState(false);
+  const [hasServerError, setHasServerError] = useState(false);
   
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
@@ -33,14 +34,17 @@ export const useLoginForm = () => {
     
     setIsLoading(true);
     setHasDbError(false);
+    setHasServerError(false);
     
     try {
       console.log("Tentative de connexion pour:", data.username);
+      console.log("Nom d'utilisateur saisi:", data.username);
       const result = await loginUser(data.username, data.password);
       
       if (result.success && result.user) {
         // Réinitialiser l'état d'erreur
         setHasDbError(false);
+        setHasServerError(false);
         
         toast({
           title: "Connexion réussie",
@@ -53,10 +57,15 @@ export const useLoginForm = () => {
       console.error("Erreur lors de la connexion:", error);
       
       // Vérifier s'il s'agit d'une erreur de base de données
-      if (error instanceof Error && 
-          (error.message.includes("base de données") || 
-           error.message.includes("database"))) {
-        setHasDbError(true);
+      if (error instanceof Error) {
+        if (error.message.includes("base de données") || 
+            error.message.includes("database")) {
+          setHasDbError(true);
+        } else if (error.message.includes("serveur") || 
+                  error.message.includes("inaccessible") ||
+                  error.message.includes("Réponse invalide")) {
+          setHasServerError(true);
+        }
       }
       
       // Le toast d'erreur est déjà géré dans loginUser
@@ -69,6 +78,7 @@ export const useLoginForm = () => {
     form,
     isLoading,
     hasDbError,
+    hasServerError,
     onSubmit: form.handleSubmit(onSubmit)
   };
 };

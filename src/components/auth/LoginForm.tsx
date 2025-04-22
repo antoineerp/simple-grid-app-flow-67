@@ -10,7 +10,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle } from 'lucide-react';
 
 const LoginForm = () => {
-  const { form, isLoading, hasDbError, onSubmit } = useLoginForm();
+  const { form, isLoading, hasDbError, hasServerError, onSubmit } = useLoginForm();
 
   return (
     <>
@@ -19,6 +19,16 @@ const LoginForm = () => {
           <AlertCircle className="h-4 w-4 mr-2" />
           <AlertDescription>
             Connexion à la base de données impossible. Le service est momentanément indisponible. 
+            Veuillez réessayer ultérieurement ou contacter l'administrateur système.
+          </AlertDescription>
+        </Alert>
+      )}
+      
+      {hasServerError && (
+        <Alert variant="destructive" className="mb-6">
+          <AlertCircle className="h-4 w-4 mr-2" />
+          <AlertDescription>
+            Le serveur d'authentification est temporairement inaccessible.
             Veuillez réessayer ultérieurement ou contacter l'administrateur système.
           </AlertDescription>
         </Alert>
