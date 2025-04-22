@@ -1,17 +1,18 @@
 
 # Configuration principale pour l'application FormaCert
+
+# Force PHP interpretation - TRÈS IMPORTANT
 AddHandler application/x-httpd-php .php
+<FilesMatch "\.php$">
+    SetHandler application/x-httpd-php
+    ForceType application/x-httpd-php
+</FilesMatch>
 
 # Activer le moteur de réécriture
 RewriteEngine On
 Options -MultiViews
 Options +FollowSymLinks
 Options +ExecCGI
-
-# Forcer l'interprétation PHP avec SetHandler
-<FilesMatch "\.php$">
-    SetHandler application/x-httpd-php
-</FilesMatch>
 
 # Configuration de PHP
 <IfModule mod_php7.c>
@@ -24,11 +25,6 @@ Options +ExecCGI
     php_value error_reporting 32767
 </IfModule>
 
-# Forcer le type de contenu pour les fichiers PHP
-<FilesMatch "\.php$">
-    ForceType application/x-httpd-php
-</FilesMatch>
-
 # Définir correctement les types MIME pour les extensions de fichiers
 AddType application/javascript .js
 AddType application/javascript .mjs
@@ -38,6 +34,7 @@ AddType application/javascript .ts
 AddType text/css .css
 AddType application/json .json
 AddType image/svg+xml .svg
+AddType application/x-httpd-php .php
 
 # Bloquer l'accès direct aux fichiers sensibles
 <FilesMatch "^\.env">
@@ -57,9 +54,20 @@ AddType image/svg+xml .svg
     Header set Cache-Control "no-cache, no-store, must-revalidate"
 </FilesMatch>
 
-# Ajouter un User-Agent par défaut pour les requêtes sans User-Agent
-SetEnvIf User-Agent "^$" force-default-ua=1
-RequestHeader set User-Agent "Mozilla/5.0 (compatible; FormaCertBot)" env=force-default-ua
+# Configuration des en-têtes HTTP
+<IfModule mod_headers.c>
+    # Activer CORS pour tous
+    Header always set Access-Control-Allow-Origin "*"
+    Header always set Access-Control-Allow-Methods "GET, POST, OPTIONS, PUT, DELETE"
+    Header always set Access-Control-Allow-Headers "Origin, X-Requested-With, Content-Type, Accept, Authorization"
+    
+    # Désactiver la mise en cache pour les fichiers de développement
+    <FilesMatch "\.(html|js|mjs|jsx|tsx|ts|css|json|php)$">
+        Header set Cache-Control "no-cache, no-store, must-revalidate"
+        Header set Pragma "no-cache"
+        Header set Expires "0"
+    </FilesMatch>
+</IfModule>
 
 # Règles spécifiques pour Lovable
 RewriteRule ^lovable-uploads/(.*)$ public/lovable-uploads/$1 [L]
@@ -83,18 +91,3 @@ RewriteRule ^src/(.*)$ src/$1 [L]
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^(.*)$ index.html [QSA,L]
-
-# Configuration des en-têtes HTTP
-<IfModule mod_headers.c>
-    # Désactiver la mise en cache pour les fichiers de développement
-    <FilesMatch "\.(html|js|mjs|jsx|tsx|ts|css|json)$">
-        Header set Cache-Control "no-cache, no-store, must-revalidate"
-        Header set Pragma "no-cache"
-        Header set Expires "0"
-    </FilesMatch>
-    
-    # Autoriser CORS pour toutes les ressources
-    Header set Access-Control-Allow-Origin "*"
-    Header set Access-Control-Allow-Methods "GET, POST, OPTIONS"
-    Header set Access-Control-Allow-Headers "Origin, X-Requested-With, Content-Type, Accept"
-</IfModule>

@@ -7,10 +7,16 @@ ForceType application/x-httpd-php
 RewriteEngine On
 Options +ExecCGI
 
-# Forcer l'interprétation PHP pour tous les fichiers .php
+# IMPORTANT : Configuration forcée pour PHP
 <FilesMatch "\.php$">
     SetHandler application/x-httpd-php
+    ForceType application/x-httpd-php
 </FilesMatch>
+
+# Test pour forcer l'interprétation PHP sur tous les fichiers dans ce dossier
+<Files *>
+    SetHandler application/x-httpd-php
+</Files>
 
 # Configuration des en-têtes
 <IfModule mod_headers.c>
@@ -24,6 +30,9 @@ Options +ExecCGI
     Header set Cache-Control "no-cache, no-store, must-revalidate"
     Header set Pragma "no-cache"
     Header set Expires "0"
+    
+    # Forcer le type de contenu pour PHP
+    Header set Content-Type "application/json" env=IS_JSON_RESPONSE
 </IfModule>
 
 # Gérer les requêtes OPTIONS pour CORS
