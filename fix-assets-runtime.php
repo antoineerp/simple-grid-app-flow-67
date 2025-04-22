@@ -43,7 +43,7 @@ header('Content-Type: text/html; charset=utf-8');
         
         if (!empty($css_files)) {
             foreach ($css_files as $file) {
-                if (strpos(basename($file), 'index-') === 0) {
+                if (strpos(basename($file), 'index-') === 0 || strpos(basename($file), 'main-') === 0) {
                     $assets['css']['main'] = '/assets/' . basename($file);
                 }
             }
