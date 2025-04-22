@@ -21,6 +21,14 @@ if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
     exit;
 }
 
+// Vérifier si la méthode est POST
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    error_log("Méthode non autorisée: " . $_SERVER['REQUEST_METHOD']);
+    http_response_code(405);
+    echo json_encode(['message' => 'Méthode non autorisée. Utilisez POST pour l\'authentification.', 'status' => 405]);
+    exit;
+}
+
 // Créer un gestionnaire d'exceptions global
 function exception_handler($exception) {
     error_log("Exception globale attrapée dans auth.php: " . $exception->getMessage());

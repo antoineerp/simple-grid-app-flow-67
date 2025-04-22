@@ -3,6 +3,18 @@
 // Script de test pour vérifier la configuration de l'authentification
 header('Content-Type: application/json; charset=utf-8');
 
+// CORS pour les requêtes de test
+header("Access-Control-Allow-Origin: *");
+header("Access-Control-Allow-Methods: POST, GET, OPTIONS");
+header("Access-Control-Allow-Headers: Content-Type, Authorization");
+
+// Si c'est une requête OPTIONS (preflight), nous la terminons ici
+if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
+    http_response_code(200);
+    echo json_encode(['status' => 200, 'message' => 'Preflight OK']);
+    exit;
+}
+
 // Activer l'affichage des erreurs pour ce test
 ini_set('display_errors', 1);
 error_reporting(E_ALL);
@@ -33,9 +45,19 @@ try {
     $auth_has_cleanutf8 = strpos($auth_contents, 'function cleanUTF8') !== false;
     $auth_has_protection = strpos($auth_contents, 'if (!function_exists(\'cleanUTF8\'))') !== false;
 
+    // Test de méthode HTTP
+    $http_method = $_SERVER['REQUEST_METHOD'];
+    $auth_url = 'https://' . $_SERVER['HTTP_HOST'] . '/api/auth.php';
+    
     echo json_encode([
         'status' => 'success',
         'message' => 'Vérification de la configuration d\'authentification',
+        'http_test' => [
+            'current_method' => $http_method,
+            'auth_endpoint' => $auth_url,
+            'auth_requires' => 'POST',
+            'valid_methods' => ['POST', 'OPTIONS']
+        ],
         'environment' => [
             'php_version' => phpversion(),
             'server_software' => $_SERVER['SERVER_SOFTWARE'],

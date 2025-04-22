@@ -73,7 +73,7 @@ class AuthService {
             await new Promise(resolve => setTimeout(resolve, 500));
             
             const response = await fetch(loginUrl, {
-                method: 'POST',
+                method: 'POST', // Assurer que nous utilisons bien la méthode POST
                 headers: {
                     'Content-Type': 'application/json',
                     'Cache-Control': 'no-cache, no-store, must-revalidate',
