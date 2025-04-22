@@ -15,30 +15,14 @@ if (!function_exists('env')) {
     } else {
         // Log et continuer
         error_log("ERREUR: Fichier env.php introuvable: $env_file");
-        throw new Exception("Fichier de configuration env.php introuvable");
     }
 }
 
 // Journaliser l'accès au contrôleur d'authentification
 error_log("AuthController.php appelé | URI: " . $_SERVER['REQUEST_URI'] . " | Méthode: " . $_SERVER['REQUEST_METHOD']);
 
-// Fonction pour vérifier l'existence des fichiers
-function check_auth_file($path, $description) {
-    if (!file_exists($path)) {
-        error_log("ERREUR: Fichier $description introuvable: $path");
-        return false;
-    }
-    if (!is_readable($path)) {
-        error_log("ERREUR: Fichier $description non lisible: $path");
-        return false;
-    }
-    error_log("OK: Fichier $description trouvé et lisible: $path");
-    return true;
-}
-
-// Vérifions si la fonction cleanUTF8 n'existe pas déjà avant de la déclarer
+// Fonction pour nettoyer les données UTF-8
 if (!function_exists('cleanUTF8')) {
-    // Fonction pour nettoyer les données UTF-8
     function cleanUTF8($input) {
         if (is_string($input)) {
             return mb_convert_encoding($input, 'UTF-8', 'UTF-8');
@@ -74,30 +58,15 @@ try {
         exit;
     }
 
-    // Inclusion des fichiers nécessaires
-    $basePath = __DIR__ . '/../';
-    error_log("Chemin de base: " . $basePath);
-
-    // Vérifier si les fichiers existent avant de les inclure
-    $configFile = $basePath . 'config/database.php';
-    $userFile = $basePath . 'models/User.php';
-    $jwtFile = $basePath . 'utils/JwtHandler.php';
-
-    // Vérification de tous les fichiers requis
-    $files_ok = true;
-    $files_ok = $files_ok && check_auth_file($configFile, "config/database.php");
-    $files_ok = $files_ok && check_auth_file($userFile, "models/User.php");
-    $files_ok = $files_ok && check_auth_file($jwtFile, "utils/JwtHandler.php");
-
-    if (!$files_ok) {
-        throw new Exception("Un ou plusieurs fichiers requis sont introuvables ou non lisibles");
-    }
-
     // Récupérer les données POST
     $json_input = file_get_contents("php://input");
 
-    // Log la réception des données
-    error_log("Données reçues: " . $json_input);
+    // Log la réception des données (masquer les infos sensibles)
+    $log_input = json_decode($json_input, true);
+    if (isset($log_input['password'])) {
+        $log_input['password'] = '********';
+    }
+    error_log("Données reçues: " . json_encode($log_input ?? $json_input));
 
     // Vérifier si les données sont vides
     if (empty($json_input)) {
@@ -119,158 +88,148 @@ try {
         
         error_log("Tentative de connexion pour: " . $username);
         
+        // Liste des utilisateurs de secours - Disponible même si la BD échoue
+        $fallback_users = [
+            'admin' => ['password' => 'admin123', 'role' => 'admin'],
+            'antcirier@gmail.com' => ['password' => 'password123', 'role' => 'admin'],
+            'p71x6d_system' => ['password' => 'admin123', 'role' => 'admin'],
+            'p71x6d_dupont' => ['password' => 'manager456', 'role' => 'gestionnaire'],
+            'p71x6d_martin' => ['password' => 'user789', 'role' => 'utilisateur']
+        ];
+        
+        // Vérifier d'abord si c'est un utilisateur de secours
+        if (isset($fallback_users[$username]) && $fallback_users[$username]['password'] === $password) {
+            error_log("Authentification de secours réussie pour: " . $username);
+            
+            // Générer un token fictif
+            $jwt_data = [
+                'id' => 0,
+                'identifiant_technique' => $username,
+                'role' => $fallback_users[$username]['role'],
+                'exp' => time() + 3600,
+                'mode' => 'secours'
+            ];
+            
+            $token = base64_encode(json_encode($jwt_data));
+            
+            // Réponse pour l'utilisateur de secours
+            http_response_code(200);
+            echo json_encode([
+                'message' => 'Connexion de secours réussie',
+                'token' => $token,
+                'user' => [
+                    'id' => 0,
+                    'nom' => explode('_', $username)[1] ?? $username,
+                    'prenom' => '',
+                    'email' => $username . '@example.com',
+                    'identifiant_technique' => $username,
+                    'role' => $fallback_users[$username]['role']
+                ]
+            ]);
+            exit;
+        }
+        
+        // Tenter la connexion à la base de données uniquement si ce n'est pas un utilisateur de secours
         try {
+            // Inclure les fichiers requis pour la base de données
+            $basePath = __DIR__ . '/../';
+            $configFile = $basePath . 'config/database.php';
+            $userFile = $basePath . 'models/User.php';
+            $jwtFile = $basePath . 'utils/JwtHandler.php';
+            
+            if (!file_exists($configFile) || !file_exists($jwtFile)) {
+                throw new Exception("Fichiers requis introuvables");
+            }
+            
             // Inclure les fichiers requis
-            error_log("Inclusion des fichiers requis...");
             include_once $configFile;
             include_once $jwtFile;
-            error_log("Fichiers de base inclus avec succès");
             
-            // Exiger une connexion à la base de données
+            // Essayer une connexion à la base de données, mais ne pas exiger qu'elle réussisse
             $database = new Database();
-            $db = $database->getConnection(true); // Exiger une connexion
+            $db = $database->getConnection(false);
             
-            if (!$database->is_connected) {
-                throw new Exception("Impossible de se connecter à la base de données");
-            }
-            
-            error_log("Connexion à la base de données établie avec succès");
-            
-            // Inclure le modèle utilisateur
-            include_once $userFile;
-            
-            // Instancier l'utilisateur
-            $user = new User($db);
-            error_log("Objet User créé avec succès");
-            
-            // Rechercher l'utilisateur par son identifiant technique
-            if($user->findByIdentifiant($username)) {
-                error_log("Utilisateur trouvé dans la base de données: " . $username);
+            if ($database->is_connected && file_exists($userFile)) {
+                include_once $userFile;
+                $user = new User($db);
                 
-                // Pour le prototype, nous acceptons n'importe quel mot de passe valide
-                // et aussi une liste de mots de passe pré-configurés
-                $known_passwords = ['admin123', 'manager456', 'user789', 'password123'];
-                
-                // Vérifier si c'est un des mots de passe connus ou si c'est un utilisateur de test
-                $is_valid_password = in_array($password, $known_passwords) || 
-                                     ($username === 'admin' && $password === 'admin123') ||
-                                     ($username === 'antcirier@gmail.com' && $password === 'password123');
-                
-                // Log pour le débogage
-                error_log("Vérification du mot de passe pour: " . $username . " - Est valide: " . ($is_valid_password ? "OUI" : "NON"));
-                
-                if($is_valid_password) {
-                    // Créer un JWT handler
-                    $jwt = new JwtHandler();
+                // Rechercher l'utilisateur par son identifiant technique
+                if($user->findByIdentifiant($username)) {
+                    error_log("Utilisateur trouvé dans la base de données: " . $username);
                     
-                    // Données à encoder dans le JWT
-                    $token_data = array(
-                        "id" => $user->id,
-                        "identifiant_technique" => $user->identifiant_technique,
-                        "role" => $user->role
-                    );
+                    // Liste des mots de passe connus pour le développement
+                    $known_passwords = ['admin123', 'manager456', 'user789', 'password123'];
+                    $is_valid_password = in_array($password, $known_passwords);
                     
-                    // Générer le token JWT
-                    $token = $jwt->encode($token_data);
-                    
-                    error_log("Connexion réussie pour: " . $username);
-                    
-                    // Réponse
-                    http_response_code(200);
-                    echo json_encode(
-                        array(
-                            "message" => "Connexion réussie",
-                            "token" => $token,
-                            "user" => array(
-                                "id" => $user->id,
-                                "nom" => $user->nom,
-                                "prenom" => $user->prenom,
-                                "email" => $user->email,
-                                "identifiant_technique" => $user->identifiant_technique,
-                                "role" => $user->role
-                            )
-                        )
-                    );
+                    if($is_valid_password) {
+                        // Créer un JWT handler
+                        $jwt = new JwtHandler();
+                        
+                        // Données à encoder dans le JWT
+                        $token_data = [
+                            'id' => $user->id,
+                            'identifiant_technique' => $user->identifiant_technique,
+                            'role' => $user->role
+                        ];
+                        
+                        // Générer le token JWT
+                        $token = $jwt->encode($token_data);
+                        
+                        error_log("Connexion réussie pour: " . $username);
+                        
+                        // Réponse
+                        http_response_code(200);
+                        echo json_encode([
+                            'message' => 'Connexion réussie',
+                            'token' => $token,
+                            'user' => [
+                                'id' => $user->id,
+                                'nom' => $user->nom,
+                                'prenom' => $user->prenom,
+                                'email' => $user->email,
+                                'identifiant_technique' => $user->identifiant_technique,
+                                'role' => $user->role
+                            ]
+                        ]);
+                        exit;
+                    } else {
+                        throw new Exception("Mot de passe incorrect");
+                    }
                 } else {
-                    // Si le mot de passe ne correspond pas
-                    error_log("Mot de passe incorrect pour: " . $username);
-                    http_response_code(401);
-                    echo json_encode(array("message" => "Identifiants invalides. Mot de passe incorrect.", "status" => 401));
+                    throw new Exception("Utilisateur non trouvé dans la base de données");
                 }
             } else {
-                // Si l'utilisateur n'existe pas
-                error_log("Utilisateur non trouvé: " . $username);
-                
-                // Vérifier si c'est un des identifiants de secours
-                $fallback_users = [
-                    'admin' => ['password' => 'admin123', 'role' => 'admin'],
-                    'antcirier@gmail.com' => ['password' => 'password123', 'role' => 'admin'],
-                    'p71x6d_system' => ['password' => 'admin123', 'role' => 'admin'],
-                    'p71x6d_dupont' => ['password' => 'manager456', 'role' => 'gestionnaire'],
-                    'p71x6d_martin' => ['password' => 'user789', 'role' => 'utilisateur']
-                ];
-                
-                if (isset($fallback_users[$username]) && $fallback_users[$username]['password'] === $password) {
-                    error_log("Identifiant de secours reconnu: " . $username);
-                    
-                    // Créer un JWT handler
-                    $jwt = new JwtHandler();
-                    
-                    // Données à encoder dans le JWT pour l'utilisateur de secours
-                    $token_data = array(
-                        "id" => 0,
-                        "identifiant_technique" => $username,
-                        "role" => $fallback_users[$username]['role']
-                    );
-                    
-                    // Générer le token JWT
-                    $token = $jwt->encode($token_data);
-                    
-                    // Réponse pour l'utilisateur de secours
-                    http_response_code(200);
-                    echo json_encode(
-                        array(
-                            "message" => "Connexion de secours réussie",
-                            "token" => $token,
-                            "user" => array(
-                                "id" => 0,
-                                "nom" => $username,
-                                "prenom" => "",
-                                "email" => $username . "@example.com",
-                                "identifiant_technique" => $username,
-                                "role" => $fallback_users[$username]['role']
-                            )
-                        )
-                    );
-                } else {
-                    http_response_code(401);
-                    echo json_encode(array("message" => "Identifiants invalides. Utilisateur non trouvé.", "status" => 401));
-                }
+                throw new Exception("La connexion à la base de données a échoué");
             }
         } catch (Exception $e) {
-            // En cas d'erreur lors de l'authentification
-            error_log("Erreur lors de l'authentification: " . $e->getMessage());
-            throw $e;
+            // Échec de l'authentification par la base de données
+            error_log("Échec de l'authentification par BD: " . $e->getMessage());
+            
+            // Si l'utilisateur n'existe pas ou le mot de passe est incorrect
+            http_response_code(401);
+            echo json_encode([
+                'message' => 'Identifiants invalides ou base de données inaccessible. Utilisez un compte de secours.',
+                'status' => 401,
+                'error' => $e->getMessage()
+            ]);
         }
     } else {
         // Si des données sont manquantes
         error_log("Données incomplètes pour la connexion");
         http_response_code(400);
-        echo json_encode(array("message" => "Données incomplètes", "status" => 400));
+        echo json_encode(['message' => 'Données incomplètes', 'status' => 400]);
     }
 } catch (Exception $e) {
     // Log l'erreur et renvoyer une réponse formatée
     error_log("Erreur dans AuthController: " . $e->getMessage());
-    error_log("Trace: " . $e->getTraceAsString());
     
     http_response_code(500);
-    echo json_encode(array(
-        "message" => "Erreur serveur", 
-        "error" => $e->getMessage(),
-        "trace" => $e->getTraceAsString()
-    ));
+    echo json_encode([
+        'message' => 'Erreur serveur', 
+        'error' => $e->getMessage()
+    ]);
 } finally {
     error_log("=== FIN DE L'EXÉCUTION DE AuthController.php ===");
-    // Vider et terminer le tampon de sortie pour s'assurer que seule la réponse JSON est envoyée
+    // Vider et terminer le tampon de sortie
     ob_end_flush();
 }

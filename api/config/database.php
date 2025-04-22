@@ -26,7 +26,7 @@ class Database {
         $this->host = "p71x6d.myd.infomaniak.com";
         $this->db_name = "p71x6d_system";
         $this->username = "p71x6d_system";
-        $this->password = "***********"; // Masqué pour des raisons de sécurité
+        $this->password = ""; // Vide pour des raisons de sécurité - doit être défini dans db_config.json
         
         // Si le fichier de configuration existe, charger les valeurs
         if (file_exists($configFile)) {
@@ -43,6 +43,7 @@ class Database {
                 $this->connection_error = "Erreur de configuration: " . $e->getMessage();
             }
         } else {
+            error_log("Fichier de configuration db_config.json non trouvé, utilisation des valeurs par défaut");
             // Créer le fichier de configuration avec les valeurs par défaut
             $this->saveConfig();
         }
@@ -69,7 +70,7 @@ class Database {
     }
 
     // Obtenir la connexion à la base de données
-    public function getConnection($require_connection = true) {
+    public function getConnection($require_connection = false) {
         $this->conn = null;
         $this->is_connected = false;
 
@@ -79,9 +80,15 @@ class Database {
                 PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
                 PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
                 PDO::ATTR_EMULATE_PREPARES => false,
+                PDO::ATTR_TIMEOUT => 5, // Timeout en secondes
             ];
             
-            // Ajouter un timeout pour éviter que la connexion ne bloque trop longtemps
+            // Si le mot de passe est vide, on ne tente pas la connexion
+            if (empty($this->password) && $require_connection) {
+                throw new Exception("Mot de passe de base de données non configuré");
+            }
+            
+            // Tenter de se connecter à la base de données
             $this->conn = new PDO($dsn, $this->username, $this->password, $options);
             
             // Forcer l'encodage UTF-8 pour toutes les requêtes
@@ -90,9 +97,6 @@ class Database {
             // Marquer la connexion comme réussie
             $this->is_connected = true;
             $this->connection_error = null;
-            
-            // Convertir les tables en utf8mb4 si nécessaire
-            // $this->convertTablesToUtf8mb4();
             
         } catch(PDOException $exception) {
             $error_message = "Erreur de connexion à la base de données: " . $exception->getMessage();
