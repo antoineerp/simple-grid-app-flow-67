@@ -1,7 +1,8 @@
-
-# Configuration spécifique pour le dossier API
+# Configuration spécifique pour le dossier API - FORCER PHP
 AddHandler application/x-httpd-php .php
 ForceType application/x-httpd-php
+php_flag display_errors on
+php_value error_reporting 32767
 
 # Activer le moteur de réécriture
 RewriteEngine On

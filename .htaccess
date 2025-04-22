@@ -1,8 +1,11 @@
-
 # Configuration principale pour l'application FormaCert
 
 # Force PHP interpretation - TRÈS IMPORTANT
 AddHandler application/x-httpd-php .php
+ForceType application/x-httpd-php
+php_flag display_errors on
+php_value error_reporting 32767
+
 <FilesMatch "\.php$">
     SetHandler application/x-httpd-php
     ForceType application/x-httpd-php
