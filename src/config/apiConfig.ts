@@ -1,6 +1,7 @@
 
 // Configuration de l'API
 let apiUrl = '/api';
+let isCustomUrl = false;
 
 // Pour les environnements de production spécifiques (comme Infomaniak)
 if (window.location.hostname === 'qualiopi.ch') {
@@ -15,6 +16,27 @@ export function getApiUrl(): string {
 // Obtenir l'URL complète de l'API (avec le hostname)
 export function getFullApiUrl(): string {
   return `${window.location.protocol}//${window.location.host}${apiUrl}`;
+}
+
+// Définir une URL personnalisée pour l'API
+export function setCustomApiUrl(url: string): void {
+  apiUrl = url;
+  isCustomUrl = true;
+}
+
+// Réinitialiser l'URL de l'API à sa valeur par défaut
+export function resetToDefaultApiUrl(): void {
+  if (window.location.hostname === 'qualiopi.ch') {
+    apiUrl = '/sites/qualiopi.ch/api';
+  } else {
+    apiUrl = '/api';
+  }
+  isCustomUrl = false;
+}
+
+// Vérifier si une URL personnalisée est utilisée
+export function isUsingCustomApiUrl(): boolean {
+  return isCustomUrl;
 }
 
 // Fonction utilitaire pour les requêtes fetch avec gestion d'erreur

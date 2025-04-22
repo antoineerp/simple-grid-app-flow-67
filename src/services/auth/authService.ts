@@ -175,3 +175,8 @@ export const getCurrentUser = (): string | null => {
 export const getAuthHeaders = (): HeadersInit => {
     return authService.getAuthHeaders();
 };
+
+// Alias exports to match the imported names in services/index.ts
+export const loginUser = login;
+export const logoutUser = logout;
+export const getToken = authService.getToken.bind(authService);

@@ -14,8 +14,8 @@ export {
 
 // Export from auth service
 export {
-  loginUser,
-  logoutUser,
+  login as loginUser,
+  logout as logoutUser,
   getToken,
   getAuthHeaders
 } from './auth/authService';
