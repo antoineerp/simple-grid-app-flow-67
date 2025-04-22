@@ -21,6 +21,7 @@ AddType application/x-httpd-php .php
 
 # Redirection pour tests PHP simples
 RewriteRule ^test-php\.php$ test-php.php [L]
+RewriteRule ^super-simple\.php$ super-simple.php [L]
 RewriteRule ^assets-check\.php$ assets-check.php [L]
 
 # Routes pour l'API
