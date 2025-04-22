@@ -1,54 +1,30 @@
 
-# Configuration principale pour l'application FormaCert
+# Configuration de base pour PHP
 AddHandler application/x-httpd-php .php
-ForceType application/x-httpd-php
-php_flag display_errors on
+SetHandler application/x-httpd-php
+php_flag display_errors On
 php_value error_reporting 32767
 
 # Activer le moteur de réécriture
 RewriteEngine On
-Options -MultiViews
 Options +FollowSymLinks
-Options +ExecCGI
 
-# Définir correctement les types MIME
-AddType application/javascript .js
-AddType application/javascript .mjs
-AddType text/css .css
-AddType application/json .json
-AddType image/svg+xml .svg
-AddType application/x-httpd-php .php
-
-# Redirection pour l'index.php principal
-RewriteRule ^index\.php$ index.php [L]
-
-# Redirection pour tests PHP simples
-RewriteRule ^test-php\.php$ test-php.php [L]
+# Traitement direct des fichiers de test PHP
+RewriteRule ^test-ultra-simple\.php$ test-ultra-simple.php [L]
+RewriteRule ^diagnostic-500\.php$ diagnostic-500.php [L]
+RewriteRule ^test-minimal\.php$ test-minimal.php [L]
 RewriteRule ^super-simple\.php$ super-simple.php [L]
-RewriteRule ^assets-check\.php$ assets-check.php [L]
-RewriteRule ^php-test-simple\.php$ php-test-simple.php [L]
-RewriteRule ^phpinfo-test\.php$ phpinfo-test.php [L]
 
-# Routes pour l'API
-RewriteRule ^api/simple-test\.php$ api/simple-test.php [L]
-RewriteRule ^api/(.*)$ api/$1 [QSA,L]
-
-# Règles importantes pour les assets - Traiter /dist/assets directement
+# Redirection pour les assets statiques
 RewriteRule ^dist/assets/(.*)$ dist/assets/$1 [L]
 RewriteRule ^assets/(.*)$ dist/assets/$1 [L]
-
-# Pour les fichiers JavaScript et CSS
 RewriteRule ^index\.js$ dist/assets/index.js [L]
 RewriteRule ^index\.css$ dist/assets/index.css [L]
 
-# Route de secours pour SPA - IMPORTANT
+# Traitement des requêtes API
+RewriteRule ^api/(.*)$ api/$1 [QSA,L]
+
+# Route de secours pour SPA - Utiliser index.php comme point d'entrée
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^(.*)$ index.php [QSA,L]
-
-# En-têtes HTTP
-<IfModule mod_headers.c>
-    Header set Cache-Control "no-cache, no-store, must-revalidate"
-    Header set Pragma "no-cache"
-    Header set Expires "0"
-</IfModule>
