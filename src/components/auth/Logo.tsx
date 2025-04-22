@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 
 const Logo = () => {
   const [logoSrc, setLogoSrc] = useState("/lovable-uploads/formacert-logo.png");
@@ -7,7 +7,8 @@ const Logo = () => {
 
   const fallbackImages = [
     "/lovable-uploads/formacert-logo.png",
-    "/public/lovable-uploads/aba57440-1db2-49ba-8273-c60d6a77b6ee.png"
+    "/public/lovable-uploads/formacert-logo.png",
+    "/logo-swiss.svg"
   ];
   
   const [fallbackIndex, setFallbackIndex] = useState(0);
@@ -19,6 +20,8 @@ const Logo = () => {
       setFallbackIndex(fallbackIndex + 1);
     } else {
       console.error("All logo images failed to load");
+      // Utiliser un logo par défaut
+      setLogoSrc("/logo-swiss.svg");
     }
   };
 

@@ -18,7 +18,7 @@ const Sidebar = () => {
         
         <div className="mt-auto pt-8 flex items-center justify-center">
           <img 
-            src="/lovable-uploads/swiss-army-knife-logo.png" 
+            src="/public/lovable-uploads/swiss-army-knife-logo.png" 
             alt="Swiss Army Knife Logo" 
             className="w-48 h-48 object-contain" 
           />
