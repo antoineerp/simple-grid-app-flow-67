@@ -37,6 +37,19 @@ export function getFullApiUrl(): string {
     : `${window.location.protocol}//${window.location.host}${apiUrl}`;
 }
 
+// Fonction pour détecter si du code PHP non exécuté est renvoyé
+function isUnexecutedPhp(text: string): boolean {
+  return text.trim().startsWith('<?php') || 
+         text.includes('<?php') && text.includes('?>');
+}
+
+// Fonction pour détecter si du HTML est renvoyé
+function isHtmlResponse(text: string): boolean {
+  return text.trim().startsWith('<!DOCTYPE') || 
+         text.trim().startsWith('<html') || 
+         text.includes('<body');
+}
+
 // Diagnostic de l'API simple
 export async function testApiConnection(): Promise<{ success: boolean; message: string; details?: any }> {
   try {
@@ -45,7 +58,8 @@ export async function testApiConnection(): Promise<{ success: boolean; message: 
     const endpoints = [
       `${getApiUrl()}/index.php`,
       `${getApiUrl()}/db-test.php`,
-      `${getApiUrl()}/diagnose-connection.php`
+      `${getApiUrl()}/diagnose-connection.php`,
+      `${getApiUrl()}/diagnose-server.php`
     ];
     
     let lastError = null;
@@ -65,24 +79,54 @@ export async function testApiConnection(): Promise<{ success: boolean; message: 
         console.log('Réponse du test API:', response.status, response.statusText);
         console.log('Headers:', [...response.headers.entries()]);
         
-        // Vérifier si le serveur répond avec du PHP non interprété
-        const contentType = response.headers.get('content-type') || '';
+        // Récupérer le texte de la réponse
         const responseText = await response.text();
         
-        console.log('Content-Type:', contentType);
-        console.log('Texte de réponse (premiers 100 caractères):', responseText.substring(0, 100));
-        
-        // Vérifier si la réponse commence par "<?php"
-        if (responseText.trim().startsWith('<?php')) {
+        // Vérifier si le serveur répond avec du PHP non interprété
+        if (isUnexecutedPhp(responseText)) {
+          console.error('Code PHP non exécuté détecté dans la réponse:', responseText.substring(0, 300));
           lastError = {
             success: false,
             message: 'Le serveur renvoie le code PHP au lieu de l\'exécuter',
             details: {
-              tip: 'Vérifiez la configuration du serveur pour exécuter les fichiers PHP. Vérifiez le fichier .htaccess et les permissions.'
+              tip: 'Vérifiez la configuration du serveur pour exécuter les fichiers PHP. Vérifiez le fichier .htaccess et les permissions.',
+              url: endpoint,
+              responsePreview: responseText.substring(0, 300)
             }
           };
           // Continuer avec le prochain endpoint
           continue;
+        }
+        
+        // Vérifier si la réponse est du HTML au lieu de JSON
+        if (isHtmlResponse(responseText) && !endpoint.includes('diagnose-server.php')) {
+          console.warn('Réponse HTML reçue au lieu de JSON:', responseText.substring(0, 300));
+          // Si c'est le diagnostic serveur qui est censé renvoyer du HTML, c'est ok
+          if (!endpoint.includes('diagnose-server.php')) {
+            lastError = {
+              success: false,
+              message: 'Le serveur a renvoyé du HTML au lieu de JSON',
+              details: {
+                tip: 'Vérifiez que le script PHP génère correctement du JSON avec les bons headers.',
+                url: endpoint,
+                responsePreview: responseText.substring(0, 300)
+              }
+            };
+            // Continuer avec le prochain endpoint
+            continue;
+          }
+        }
+        
+        // Pour le diagnostic serveur, renvoyer un succès si on reçoit du HTML
+        if (endpoint.includes('diagnose-server.php') && isHtmlResponse(responseText)) {
+          return {
+            success: true,
+            message: 'L\'outil de diagnostic du serveur fonctionne',
+            details: {
+              url: endpoint,
+              note: 'Le script de diagnostic renvoie une page HTML comme prévu.'
+            }
+          };
         }
         
         // Essayer de parser la réponse comme JSON
@@ -94,29 +138,19 @@ export async function testApiConnection(): Promise<{ success: boolean; message: 
             details: data
           };
         } catch (e) {
-          // Si ce n'est pas du JSON mais pas du PHP, c'est peut-être une erreur HTTP
-          if (response.ok) {
-            return {
-              success: true,
-              message: 'API connectée (réponse non-JSON)',
-              details: {
-                responseText: responseText.substring(0, 300)
-              }
-            };
-          } else {
-            lastError = {
-              success: false,
-              message: 'Réponse non-JSON et status HTTP erreur',
-              details: {
-                error: e instanceof Error ? e.message : String(e),
-                responseText: responseText.substring(0, 300),
-                status: response.status,
-                statusText: response.statusText
-              }
-            };
-            // Continuer avec le prochain endpoint
-            continue;
-          }
+          // Si ce n'est pas du JSON mais pas du PHP ou HTML non plus, c'est une erreur de format
+          lastError = {
+            success: false,
+            message: 'Réponse non-JSON reçue de l\'API',
+            details: {
+              error: e instanceof Error ? e.message : String(e),
+              responseText: responseText.substring(0, 300),
+              status: response.status,
+              statusText: response.statusText
+            }
+          };
+          // Continuer avec le prochain endpoint
+          continue;
         }
       } catch (endpointError) {
         console.warn(`Erreur avec l'endpoint ${endpoint}:`, endpointError);
@@ -130,7 +164,7 @@ export async function testApiConnection(): Promise<{ success: boolean; message: 
     }
     
     // Si on arrive ici, c'est qu'aucun endpoint n'a fonctionné
-    console.error('Tous les endpoints API ont échoué. Dernier erreur:', lastError);
+    console.error('Tous les endpoints API ont échoué. Dernière erreur:', lastError);
     return lastError || {
       success: false,
       message: 'Aucun endpoint API n\'a répondu correctement',

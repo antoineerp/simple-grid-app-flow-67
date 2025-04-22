@@ -5,6 +5,12 @@
     php_value error_reporting E_ALL
 </IfModule>
 
+# Si le module mod_php7 n'est pas chargé, essayons avec mod_php8
+<IfModule mod_php8.c>
+    php_flag display_errors on
+    php_value error_reporting E_ALL
+</IfModule>
+
 # Assurer que les fichiers .php sont correctement interprétés
 <IfModule mod_mime.c>
     AddType application/x-httpd-php .php
@@ -31,3 +37,12 @@
 <Files *.php>
     SetHandler application/x-httpd-php
 </Files>
+
+# Fix pour Infomaniak - si PHP n'est pas exécuté
+<IfModule mod_fcgid.c>
+    AddHandler fcgid-script .php
+    FcgidWrapper /usr/local/php8.2/bin/php-cgi .php
+</IfModule>
+
+# Définir l'index par défaut
+DirectoryIndex index.html index.php
