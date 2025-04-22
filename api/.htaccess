@@ -9,10 +9,6 @@ Options -Indexes
 # Définir explicitement le point d'entrée par défaut
 DirectoryIndex index.php
 
-# Définir le répertoire de base pour les règles de réécriture
-# Support pour les installations dans des sous-dossiers spécifiques à Infomaniak
-RewriteBase /sites/qualiopi.ch/api/
-
 # Ne pas appliquer les règles aux fichiers et répertoires existants
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d

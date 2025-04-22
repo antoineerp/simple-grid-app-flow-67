@@ -12,8 +12,8 @@ function detectEnvironment() {
   console.log('Détection d\'environnement - Est Infomaniak:', isInfomaniak);
   
   if (isInfomaniak) {
-    // Configuration pour Infomaniak
-    apiUrl = 'https://qualiopi.ch/api';
+    // Configuration pour Infomaniak - utiliser le chemin relatif au domaine
+    apiUrl = '/api';
     console.log('Environnement Infomaniak détecté - API URL:', apiUrl);
   } else {
     // Pour l'environnement de développement ou preview Lovable

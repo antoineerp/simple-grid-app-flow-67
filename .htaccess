@@ -24,38 +24,20 @@ AddType image/svg+xml .svg
 # Détection du serveur Infomaniak
 <IfModule mod_rewrite.c>
     # Définir une variable pour détecter si nous sommes sur Infomaniak
-    RewriteCond %{DOCUMENT_ROOT} /sites/
+    RewriteCond %{HTTP_HOST} qualiopi\.ch [NC,OR]
+    RewriteCond %{HTTP_HOST} myd\.infomaniak\.com [NC]
     RewriteRule .* - [E=ON_INFOMANIAK:1]
     
     # Log pour diagnostiquer le chemin de base
     RewriteRule .* - [E=BASE_PATH:%{DOCUMENT_ROOT}]
 </IfModule>
 
-# CORRECTION: Traitement de lovable-uploads avec règle adaptée à Infomaniak
+# Traitement des ressources statiques
 RewriteCond %{REQUEST_URI} ^/lovable-uploads/
-RewriteCond %{ENV:ON_INFOMANIAK} 1
-RewriteRule ^lovable-uploads/(.*)$ /sites/qualiopi.ch/public/lovable-uploads/$1 [L]
-
-# Règle de secours pour les uploads
-RewriteCond %{REQUEST_URI} ^/lovable-uploads/
-RewriteCond %{ENV:ON_INFOMANIAK} !1
 RewriteRule ^lovable-uploads/(.*)$ public/lovable-uploads/$1 [L]
 
-# Diagnostic des requêtes API en mode production
-RewriteCond %{REQUEST_URI} ^/api/
-RewriteCond %{REQUEST_FILENAME} !-f
-RewriteRule .* - [E=API_DEBUG:1]
-
-# CORRECTION: Ne pas rediriger les fichiers PHP
-RewriteCond %{REQUEST_URI} \.php$
-RewriteRule ^ - [L]
-
-# CORRECTION: Ne pas traiter les fichiers réels
-RewriteCond %{REQUEST_FILENAME} -f
-RewriteRule ^ - [L]
-
-# Règle simplifiée pour l'API
-RewriteRule ^api/?$ api/ [R=301,L]
+# Règle simplifiée pour l'API - diriger tout vers api/index.php
+RewriteRule ^api/?$ api/index.php [L]
 RewriteRule ^api/(.*)$ api/$1 [QSA,L]
 
 # Permettre l'accès direct aux assets dans leur dossier
