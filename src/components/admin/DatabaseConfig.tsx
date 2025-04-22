@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { getApiUrl } from '@/config/apiConfig';
 import { getAuthHeaders } from '@/services/auth/authService';
 import { useToast } from "@/hooks/use-toast";
-import { EyeIcon, EyeOffIcon, RefreshCw, Database, ServerIcon, Save } from 'lucide-react';
+import { EyeIcon, EyeOffIcon, RefreshCw, Database, Save, Loader2 } from 'lucide-react';
 
 interface DatabaseConfigType {
   host: string;
@@ -190,7 +190,7 @@ const DatabaseConfig = () => {
           toast({
             title: "Avertissement",
             description: result.message || "La configuration a été sauvegardée mais il y a un problème.",
-            variant: "warning",
+            variant: "destructive",
           });
         }
       } else {
