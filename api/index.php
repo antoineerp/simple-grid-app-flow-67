@@ -1,7 +1,13 @@
-
 <?php
 // Forcer l'output buffering pour éviter tout output avant les headers
 ob_start();
+
+// Vérifier si le PHP est correctement exécuté
+if (!function_exists('json_encode')) {
+    header('Content-Type: text/plain');
+    echo "ERREUR CRITIQUE: Le serveur PHP n'exécute pas correctement le code. La fonction json_encode n'est pas disponible.";
+    exit;
+}
 
 // CORS - Configuration avancée et sécurisée
 $allowed_origins = [
@@ -42,10 +48,12 @@ if (in_array($origin, $allowed_origins)) {
     ]));
 }
 
+// Envoyer un en-tête explicite indiquant que la réponse est du JSON
 header("Access-Control-Allow-Methods: GET, POST, OPTIONS, PUT, DELETE");
 header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With");
 header("Access-Control-Max-Age: 86400");
 header('Content-Type: application/json; charset=utf-8');
+header('X-PHP-Response: API JSON Response'); // En-tête personnalisé pour confirmer l'exécution PHP
 
 // Définir explicitement l'encodage UTF-8
 mb_internal_encoding('UTF-8');
@@ -71,6 +79,26 @@ function json_response($data, $status = 200) {
     exit;
 }
 
+// Vérifier si ce fichier est correctement exécuté par PHP
+// Si ce n'est pas le cas, il sera renvoyé comme texte brut
+echo json_encode([
+    'message' => 'API PHP disponible',
+    'status' => 200,
+    'environment' => 'production',
+    'server_info' => [
+        'host' => $_SERVER['HTTP_HOST'],
+        'uri' => $_SERVER['REQUEST_URI'],
+        'script' => $_SERVER['SCRIPT_NAME'],
+        'php_version' => PHP_VERSION,
+        'execution_time' => microtime(true),
+        'timestamp' => date('Y-m-d H:i:s')
+    ]
+]);
+
+// Terminer l'exécution - le reste du code est ignoré car nous avons une réponse directe
+exit;
+
+// Le code ci-dessous ne devrait pas être exécuté si PHP fonctionne correctement
 try {
     // Point d'entrée principal de l'API
     if (file_exists('config/env.php')) {

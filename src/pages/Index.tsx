@@ -1,16 +1,42 @@
+
 import React, { useState, useEffect } from 'react';
 import Logo from '@/components/auth/Logo';
 import LoginForm from '@/components/auth/LoginForm';
-import { getApiUrl, getFullApiUrl } from '@/config/apiConfig';
+import { getApiUrl, getFullApiUrl, testApiConnection } from '@/config/apiConfig';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { AlertCircle, ExternalLink, Info, Server } from 'lucide-react';
+import { AlertCircle, ExternalLink, Info, Server, RefreshCw } from 'lucide-react';
 
 const Index = () => {
   const [apiStatus, setApiStatus] = useState<'loading' | 'success' | 'error'>('loading');
   const [apiMessage, setApiMessage] = useState<string>('');
+  const [apiDetails, setApiDetails] = useState<any>(null);
   const [version, setVersion] = useState<string>('1.0.7');
   const [isInfomaniak, setIsInfomaniak] = useState<boolean>(false);
+  const [isRetesting, setIsRetesting] = useState<boolean>(false);
+  
+  const checkApi = async () => {
+    try {
+      setApiStatus('loading');
+      const result = await testApiConnection();
+      
+      if (result.success) {
+        setApiStatus('success');
+        setApiMessage(result.message);
+      } else {
+        setApiStatus('error');
+        setApiMessage(result.message);
+      }
+      
+      setApiDetails(result.details || null);
+    } catch (error) {
+      setApiStatus('error');
+      setApiMessage(error instanceof Error ? error.message : 'Erreur inconnue');
+      setApiDetails(null);
+    } finally {
+      setIsRetesting(false);
+    }
+  };
   
   useEffect(() => {
     // Détecter si nous sommes sur Infomaniak
@@ -18,38 +44,6 @@ const Index = () => {
     const infomaniakDetected = hostname.includes('myd.infomaniak.com') || 
                              hostname.includes('qualiopi.ch');
     setIsInfomaniak(infomaniakDetected);
-    
-    const checkApi = async () => {
-      try {
-        const timestamp = new Date().getTime();
-        const apiUrl = getApiUrl();
-        console.log('Vérification de l\'API avec URL:', apiUrl);
-        
-        const response = await fetch(`${apiUrl}/index.php?_=${timestamp}`, {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-            'Cache-Control': 'no-cache, no-store, must-revalidate'
-          }
-        });
-        
-        const data = await response.text();
-        let jsonData;
-        
-        try {
-          jsonData = JSON.parse(data);
-          setApiStatus('success');
-          setApiMessage(jsonData.message || 'API accessible');
-        } catch (e) {
-          setApiStatus('error');
-          setApiMessage('La réponse du serveur n\'est pas un JSON valide');
-          console.error('Réponse non-JSON:', data);
-        }
-      } catch (error) {
-        setApiStatus('error');
-        setApiMessage(error instanceof Error ? error.message : 'Erreur inconnue');
-      }
-    };
     
     checkApi();
     setVersion(`1.0.7 - ${new Date().toLocaleDateString()}`);
@@ -64,10 +58,37 @@ const Index = () => {
           <Alert variant="destructive" className="mb-6">
             <AlertCircle className="h-4 w-4 mr-2" />
             <AlertDescription>
-              Connexion à l'API impossible: {apiMessage}
+              <div className="font-semibold mb-1">Connexion à l'API impossible: {apiMessage}</div>
               <div className="mt-2 text-xs">
-                URL d'API actuelle: {getFullApiUrl()}
+                URL d'API actuelle: <span className="font-mono">{getFullApiUrl()}</span>
+                
+                {apiDetails && apiDetails.tip && (
+                  <div className="mt-1 p-2 bg-red-100 rounded">
+                    <strong>Conseil:</strong> {apiDetails.tip}
+                  </div>
+                )}
+                
+                {apiMessage.includes('PHP') && (
+                  <div className="mt-2 p-2 bg-orange-100 rounded">
+                    <strong>Problème détecté:</strong> Votre serveur semble renvoyer le code PHP au lieu de l'exécuter.
+                    Vérifiez que PHP est correctement configuré sur votre serveur.
+                  </div>
+                )}
               </div>
+              
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="mt-2" 
+                onClick={() => {
+                  setIsRetesting(true);
+                  checkApi();
+                }}
+                disabled={isRetesting}
+              >
+                <RefreshCw className={`h-3 w-3 mr-1 ${isRetesting ? 'animate-spin' : ''}`} />
+                {isRetesting ? 'Test en cours...' : 'Tester à nouveau'}
+              </Button>
             </AlertDescription>
           </Alert>
         )}
@@ -86,8 +107,8 @@ const Index = () => {
             </AlertDescription>
           </Alert>
         ) : (
-          <Alert variant="destructive" className="mb-6">
-            <AlertCircle className="h-4 w-4 mr-2" />
+          <Alert variant="default" className="mb-6">
+            <Info className="h-4 w-4 mr-2" />
             <AlertDescription>
               <div className="text-xs">
                 Environnement de développement détecté
@@ -113,6 +134,12 @@ const Index = () => {
               Vérifier utilisateurs <ExternalLink className="h-3 w-3 ml-1" />
             </a>
           </div>
+          
+          {apiStatus === 'error' && (
+            <div className="mt-2 text-xs text-red-500">
+              Pour résoudre ce problème, vérifiez que votre serveur exécute correctement PHP.
+            </div>
+          )}
         </div>
       </div>
       
