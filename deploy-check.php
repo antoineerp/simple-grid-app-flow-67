@@ -261,186 +261,119 @@ header('Content-Type: text/html; charset=utf-8');
     </div>
 
     <div class="section">
-        <h2>6. Test d'accès à l'API</h2>
+        <h2>6. Test des fichiers API essentiels</h2>
         <?php
-        $api_endpoints = [
-            '/api/test.php' => 'Test endpoint'
+        // Liste complète des fichiers API essentiels
+        $api_essential_files = [
+            'api/index.php' => 'Point d\'entrée principal de l\'API',
+            'api/.htaccess' => 'Configuration Apache pour l\'API',
+            'api/.user.ini' => 'Configuration PHP pour l\'API',
+            'api/auth.php' => 'Script d\'authentification',
+            'api/config/env.php' => 'Configuration d\'environnement',
+            'api/config/database.php' => 'Configuration de base de données',
+            'api/controllers/AuthController.php' => 'Contrôleur d\'authentification',
+            'api/controllers/UserController.php' => 'Contrôleur utilisateur',
+            'api/controllers/ConfigController.php' => 'Contrôleur de configuration',
+            'api/middleware/Auth.php' => 'Middleware d\'authentification',
+            'api/models/User.php' => 'Modèle utilisateur',
+            'api/utils/JwtHandler.php' => 'Gestionnaire JWT'
         ];
-
-        $api_count = 0;
-        $api_total = count($api_endpoints);
         
-        foreach ($api_endpoints as $endpoint => $description) {
-            echo "<p>Test $description ($endpoint): ";
-            $ch = curl_init();
-            curl_setopt($ch, CURLOPT_URL, $endpoint);
-            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-            curl_setopt($ch, CURLOPT_TIMEOUT, 5);
-            $result = curl_exec($ch);
-            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-            curl_close($ch);
-
-            if ($httpCode >= 200 && $httpCode < 300) {
-                echo "<span class='success'>✓ OK (Code $httpCode)</span>";
-                echo "<pre>" . htmlspecialchars(substr($result, 0, 200)) . (strlen($result) > 200 ? '...' : '') . "</pre>";
-                $api_count++;
+        $api_files_count = 0;
+        $api_files_total = count($api_essential_files);
+        
+        echo "<h3>Vérification des fichiers API critiques</h3>";
+        echo "<table style='width:100%; border-collapse:collapse;'>";
+        echo "<tr style='background-color:#f2f2f2;'><th style='text-align:left;padding:8px;border:1px solid #ddd;'>Fichier</th><th style='text-align:left;padding:8px;border:1px solid #ddd;'>Description</th><th style='text-align:center;padding:8px;border:1px solid #ddd;'>Statut</th><th style='text-align:right;padding:8px;border:1px solid #ddd;'>Taille</th></tr>";
+        
+        foreach ($api_essential_files as $file => $description) {
+            $file_path = './' . $file; // Chemin relatif au script actuel
+            echo "<tr style='border:1px solid #ddd;'>";
+            echo "<td style='padding:8px;border:1px solid #ddd;'>$file</td>";
+            echo "<td style='padding:8px;border:1px solid #ddd;'>$description</td>";
+            
+            if (file_exists($file_path)) {
+                $api_files_count++;
+                $file_size = filesize($file_path);
+                $file_size_formatted = $file_size < 1024 ? $file_size . " octets" : round($file_size / 1024, 2) . " KB";
+                
+                echo "<td style='padding:8px;border:1px solid #ddd;text-align:center;'><span class='success'>✓ Présent</span></td>";
+                echo "<td style='padding:8px;border:1px solid #ddd;text-align:right;'>$file_size_formatted</td>";
             } else {
-                echo "<span class='error'>✗ Erreur (Code $httpCode)</span>";
+                echo "<td style='padding:8px;border:1px solid #ddd;text-align:center;'><span class='error'>✗ Manquant</span></td>";
+                echo "<td style='padding:8px;border:1px solid #ddd;text-align:right;'>-</td>";
             }
-            echo "</p>";
+            
+            echo "</tr>";
         }
         
-        $api_percent = ($api_count / $api_total) * 100;
+        echo "</table>";
+        
+        $api_percent = min(100, ($api_files_count / $api_files_total) * 100);
         echo "<script>
-            document.getElementById('api-status').textContent = '{$api_count}/{$api_total}';
+            document.getElementById('api-status').textContent = '{$api_files_count}/{$api_files_total}';
             document.getElementById('api-status').className = 'stat-value " . 
-            ($api_percent >= 100 ? 'success' : 'error') . "';
+            ($api_percent >= 80 ? 'success' : ($api_percent >= 50 ? 'warning' : 'error')) . "';
             document.getElementById('api-progress').style.width = '{$api_percent}%';
         </script>";
-        ?>
-    </div>
-    
-    <div class="section">
-        <h2>7. Vérification approfondie de l'API</h2>
-        <?php
+        
+        // Vérification de la structure des dossiers API
         echo "<h3>Structure des dossiers API</h3>";
         $api_dirs = [
             './api' => 'Répertoire API principal',
             './api/config' => 'Configuration API',
             './api/controllers' => 'Contrôleurs API',
             './api/middleware' => 'Middleware API',
-            './api/models' => 'Modèles API',
+            './api/models' => 'Utilitaires API',
             './api/utils' => 'Utilitaires API'
         ];
         
         $api_dir_count = 0;
         $api_dir_total = count($api_dirs);
         
-        foreach ($api_dirs as $dir => $name) {
-            echo "<p>$name ($dir): ";
+        echo "<table style='width:100%; border-collapse:collapse;'>";
+        echo "<tr style='background-color:#f2f2f2;'><th style='text-align:left;padding:8px;border:1px solid #ddd;'>Dossier</th><th style='text-align:left;padding:8px;border:1px solid #ddd;'>Description</th><th style='text-align:center;padding:8px;border:1px solid #ddd;'>Statut</th><th style='text-align:center;padding:8px;border:1px solid #ddd;'>Fichiers</th></tr>";
+        
+        foreach ($api_dirs as $dir => $description) {
+            echo "<tr style='border:1px solid #ddd;'>";
+            echo "<td style='padding:8px;border:1px solid #ddd;'>$dir</td>";
+            echo "<td style='padding:8px;border:1px solid #ddd;'>$description</td>";
+            
             if (is_dir($dir)) {
-                echo "<span class='success'>✓ Présent</span>";
                 $api_dir_count++;
-                
-                // Lister les fichiers dans ce répertoire
                 $files = scandir($dir);
-                if (count($files) > 2) { // Plus que . et ..
-                    echo " <span class='success'>(" . (count($files) - 2) . " fichiers)</span>";
-                    echo "<ul>";
-                    foreach ($files as $file) {
-                        if ($file != "." && $file != "..") {
-                            echo "<li>" . htmlspecialchars($file) . " - " . 
-                                 (is_readable("$dir/$file") ? "<span class='success'>Lisible</span>" : "<span class='error'>Non lisible</span>") . "</li>";
-                        }
-                    }
-                    echo "</ul>";
-                } else {
-                    echo " <span class='warning'>(Dossier vide)</span>";
-                }
-            } else {
-                echo "<span class='error'>✗ Manquant</span>";
-            }
-            echo "</p>";
-        }
-        
-        echo "<h3>Vérification des fichiers critiques de l'API</h3>";
-        $critical_api_files = [
-            './api/index.php' => 'Point d\'entrée principal',
-            './api/.htaccess' => 'Configuration Apache pour l\'API',
-            './api/config/env.php' => 'Configuration d\'environnement',
-            './api/config/database.php' => 'Configuration de base de données',
-            './api/controllers/AuthController.php' => 'Contrôleur d\'authentification',
-            './api/controllers/UserController.php' => 'Contrôleur utilisateur',
-            './api/middleware/Auth.php' => 'Middleware d\'authentification',
-            './api/models/User.php' => 'Modèle utilisateur',
-            './api/utils/JwtHandler.php' => 'Gestionnaire de JWT'
-        ];
-        
-        $api_file_count = 0;
-        $api_file_total = count($critical_api_files);
-        
-        foreach ($critical_api_files as $file => $description) {
-            echo "<p>$description ($file): ";
-            if (file_exists($file)) {
-                echo "<span class='success'>✓ Présent</span>";
-                $api_file_count++;
+                $file_count = count($files) - 2; // Moins . et ..
                 
-                // Vérifier la taille du fichier
-                $size = filesize($file);
-                echo " <span class='success'>(" . number_format($size) . " octets)</span>";
+                echo "<td style='padding:8px;border:1px solid #ddd;text-align:center;'><span class='success'>✓ Présent</span></td>";
+                echo "<td style='padding:8px;border:1px solid #ddd;text-align:center;'>$file_count fichiers</td>";
             } else {
-                echo "<span class='error'>✗ Manquant</span>";
+                echo "<td style='padding:8px;border:1px solid #ddd;text-align:center;'><span class='error'>✗ Manquant</span></td>";
+                echo "<td style='padding:8px;border:1px solid #ddd;text-align:center;'>-</td>";
             }
-            echo "</p>";
+            
+            echo "</tr>";
         }
         
-        $api_status = ($api_dir_count / $api_dir_total) * 0.5 + ($api_file_count / $api_file_total) * 0.5;
-        $api_percent = round($api_status * 100);
-        
-        echo "<script>
-            document.getElementById('api-status').textContent = '{$api_file_count}/{$api_file_total} fichiers';
-            document.getElementById('api-status').className = 'stat-value " . 
-            ($api_percent >= 80 ? 'success' : ($api_percent >= 50 ? 'warning' : 'error')) . "';
-            document.getElementById('api-progress').style.width = '{$api_percent}%';
-        </script>";
+        echo "</table>";
         ?>
     </div>
-    
-    <div class="section">
-        <h2>4. Contenu de index.html</h2>
-        <pre><?php 
-        if (file_exists('./index.html')) {
-            $html_content = file_get_contents('./index.html');
-            echo htmlspecialchars($html_content); 
-            
-            // Vérification des scripts
-            $js_found = preg_match_all('/<script[^>]*src="([^"]*)"[^>]*><\/script>/', $html_content, $matches);
-            
-            if ($js_found) {
-                $js_percent = 100;
-                echo "<script>
-                    document.getElementById('js-status').textContent = 'OK (" . count($matches[1]) . " scripts)';
-                    document.getElementById('js-status').className = 'stat-value success';
-                    document.getElementById('js-progress').style.width = '100%';
-                </script>";
-            } else {
-                echo "<script>
-                    document.getElementById('js-status').textContent = 'Aucun script';
-                    document.getElementById('js-status').className = 'stat-value error';
-                    document.getElementById('js-progress').style.width = '0%';
-                </script>";
-            }
-        } else {
-            echo "<span class='error'>Fichier non trouvé</span>";
-            echo "<script>
-                document.getElementById('js-status').textContent = 'Erreur';
-                document.getElementById('js-status').className = 'stat-value error';
-            </script>";
-        }
-        ?></pre>
-    </div>
 
     <div class="section">
-        <h2>5. Test de chargement JavaScript</h2>
-        <div id="js-test">Si JavaScript fonctionne, ce texte sera remplacé.</div>
-        <script>
-            document.getElementById('js-test').textContent = 'JavaScript fonctionne correctement!';
-            document.getElementById('js-test').style.color = 'green';
-        </script>
-    </div>
-
-    <div class="section">
-        <h2>6. Test d'accès à l'API</h2>
+        <h2>7. Test d'accès à l'API</h2>
         <?php
         $api_endpoints = [
-            '/api/test.php' => 'Test endpoint'
+            '/api/' => 'Point d\'entrée principal',
+            '/api/test.php' => 'Script de test'
         ];
 
-        $api_count = 0;
-        $api_total = count($api_endpoints);
+        echo "<h3>Test des endpoints API</h3>";
+        echo "<table style='width:100%; border-collapse:collapse;'>";
+        echo "<tr style='background-color:#f2f2f2;'><th style='text-align:left;padding:8px;border:1px solid #ddd;'>Endpoint</th><th style='text-align:center;padding:8px;border:1px solid #ddd;'>Statut</th><th style='text-align:left;padding:8px;border:1px solid #ddd;'>Réponse</th></tr>";
         
         foreach ($api_endpoints as $endpoint => $description) {
-            echo "<p>Test $description ($endpoint): ";
+            echo "<tr style='border:1px solid #ddd;'>";
+            echo "<td style='padding:8px;border:1px solid #ddd;'>$endpoint ($description)</td>";
+            
             $ch = curl_init();
             curl_setopt($ch, CURLOPT_URL, $endpoint);
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
@@ -450,23 +383,48 @@ header('Content-Type: text/html; charset=utf-8');
             curl_close($ch);
 
             if ($httpCode >= 200 && $httpCode < 300) {
-                echo "<span class='success'>✓ OK (Code $httpCode)</span>";
-                echo "<pre>" . htmlspecialchars(substr($result, 0, 200)) . (strlen($result) > 200 ? '...' : '') . "</pre>";
-                $api_count++;
+                echo "<td style='padding:8px;border:1px solid #ddd;text-align:center;'><span class='success'>✓ OK (Code $httpCode)</span></td>";
+                echo "<td style='padding:8px;border:1px solid #ddd;'><pre style='margin:0;max-height:100px;overflow:auto;'>" . htmlspecialchars(substr($result, 0, 200)) . (strlen($result) > 200 ? '...' : '') . "</pre></td>";
             } else {
-                echo "<span class='error'>✗ Erreur (Code $httpCode)</span>";
+                echo "<td style='padding:8px;border:1px solid #ddd;text-align:center;'><span class='error'>✗ Erreur (Code $httpCode)</span></td>";
+                echo "<td style='padding:8px;border:1px solid #ddd;'><pre style='margin:0;'>" . htmlspecialchars(substr($result, 0, 200)) . (strlen($result) > 200 ? '...' : '') . "</pre></td>";
             }
-            echo "</p>";
+            
+            echo "</tr>";
         }
         
-        $api_percent = ($api_count / $api_total) * 100;
-        echo "<script>
-            document.getElementById('api-status').textContent = '{$api_count}/{$api_total}';
-            document.getElementById('api-status').className = 'stat-value " . 
-            ($api_percent >= 100 ? 'success' : 'error') . "';
-            document.getElementById('api-progress').style.width = '{$api_percent}%';
-        </script>";
+        echo "</table>";
         ?>
+    </div>
+    
+    <div class="section">
+        <h2>8. Actions recommandées</h2>
+        <div id="recommendations">
+            <?php
+            // Générer des recommandations en fonction des résultats
+            $recommendations = [];
+            
+            if ($api_files_count < $api_files_total) {
+                $recommendations[] = "Des fichiers API sont manquants. Vérifiez votre processus de déploiement pour vous assurer que tous les fichiers sont correctement copiés.";
+            }
+            
+            if ($api_dir_count < $api_dir_total) {
+                $recommendations[] = "Certains dossiers API sont manquants. Vérifiez la structure du dossier API.";
+            }
+            
+            // Ajouter plus de recommandations en fonction d'autres vérifications
+            
+            if (empty($recommendations)) {
+                echo "<p class='success'>✓ Le déploiement semble correct! Aucune action spécifique n'est requise.</p>";
+            } else {
+                echo "<ul>";
+                foreach ($recommendations as $recommendation) {
+                    echo "<li class='warning'>⚠️ $recommendation</li>";
+                }
+                echo "</ul>";
+            }
+            ?>
+        </div>
     </div>
 </body>
 </html>

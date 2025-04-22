@@ -25,69 +25,85 @@ jobs:
     - name: Build React App
       run: npm run build
       
-    - name: List API directory content before copying
+    - name: Create complete directory structure
       run: |
-        echo "Listing API directory content:"
-        ls -la api/
-        echo "Listing API subdirectories:"
-        find api -type d | sort
-        
-    - name: Copy additional files
-      run: |
-        cp .htaccess dist/ || echo "No .htaccess file found"
-        mkdir -p dist/api
-        cp -r api/* dist/api/ || echo "No api files found"
-        mkdir -p dist/public/lovable-uploads
-        cp -r public/lovable-uploads/* dist/public/lovable-uploads/ || echo "No lovable-uploads files found"
-        cp deploy-check.php dist/ || echo "No deploy-check.php found"
-        cp verify-deploy.php dist/ || echo "No verify-deploy.php found"
-        cp deploy-on-infomaniak.php dist/ || echo "No deploy-on-infomaniak.php found"
-        
-    - name: Create missing API directories
-      run: |
-        # Ensure all essential API directories exist
+        echo "Creating all necessary directories..."
         mkdir -p dist/api/config
         mkdir -p dist/api/controllers
         mkdir -p dist/api/middleware
         mkdir -p dist/api/models
         mkdir -p dist/api/utils
-        
-        # Copy files to their respective directories if they aren't copied through the wildcard
-        [ -f api/config/env.php ] && cp api/config/env.php dist/api/config/ || echo "env.php not found"
-        [ -f api/config/database.php ] && cp api/config/database.php dist/api/config/ || echo "database.php not found"
-        
-        # Copy specific controllers if they exist
-        [ -f api/controllers/AuthController.php ] && cp api/controllers/AuthController.php dist/api/controllers/ || echo "AuthController.php not found"
-        [ -f api/controllers/UserController.php ] && cp api/controllers/UserController.php dist/api/controllers/ || echo "UserController.php not found"
-        [ -f api/controllers/ConfigController.php ] && cp api/controllers/ConfigController.php dist/api/controllers/ || echo "ConfigController.php not found"
-        
-        # Copy middleware files
-        [ -f api/middleware/Auth.php ] && cp api/middleware/Auth.php dist/api/middleware/ || echo "Auth.php middleware not found"
-        
-        # Copy model files
-        [ -f api/models/User.php ] && cp api/models/User.php dist/api/models/ || echo "User.php model not found"
-        
-        # Copy utility files
-        [ -f api/utils/JwtHandler.php ] && cp api/utils/JwtHandler.php dist/api/utils/ || echo "JwtHandler.php not found"
-        
-    - name: Verify build structure
+        mkdir -p dist/public/lovable-uploads
+      
+    - name: Copy API files with explicit paths
       run: |
-        echo "Verifying build directory structure..."
-        ls -la dist/
-        echo "Checking assets..."
-        ls -la dist/assets/ || echo "No assets directory found"
-        echo "Checking API directory..."
-        ls -la dist/api/ || echo "No API directory found"
-        echo "Checking API subdirectories..."
-        find dist/api -type d | sort
-        echo "Checking API files..."
-        find dist/api -type f | sort
-        echo "Checking uploads..."
-        ls -la dist/public/lovable-uploads/ || echo "No uploads directory found"
-        echo "Checking index.html..."
-        cat dist/index.html || echo "index.html is missing!"
-        echo "Checking .htaccess..."
-        cat dist/.htaccess || echo ".htaccess is missing!"
+        echo "Copying API files with detailed logging..."
+        
+        # Copier les fichiers principaux de l'API
+        cp -v api/index.php dist/api/ || echo "Attention: index.php non trouvé"
+        cp -v api/.htaccess dist/api/ || echo "Attention: .htaccess non trouvé"
+        cp -v api/.user.ini dist/api/ || echo "Attention: .user.ini non trouvé"
+        cp -v api/auth.php dist/api/ || echo "Attention: auth.php non trouvé"
+        cp -v api/test.php dist/api/ || echo "Attention: test.php non trouvé"
+        cp -v api/info.php dist/api/ || echo "Attention: info.php non trouvé"
+        cp -v api/diagnostic.php dist/api/ || echo "Attention: diagnostic.php non trouvé"
+        cp -v api/diagnostic-complet.php dist/api/ || echo "Attention: diagnostic-complet.php non trouvé"
+        cp -v api/diagnose-assets.php dist/api/ || echo "Attention: diagnose-assets.php non trouvé"
+        cp -v api/assets-check.php dist/api/ || echo "Attention: assets-check.php non trouvé"
+        cp -v api/php.ini dist/api/ || echo "Attention: php.ini non trouvé"
+        
+        # Copier les fichiers de configuration
+        cp -v api/config/env.php dist/api/config/ || echo "Attention: env.php non trouvé"
+        cp -v api/config/env.example.php dist/api/config/ || echo "Attention: env.example.php non trouvé"
+        cp -v api/config/database.php dist/api/config/ || echo "Attention: database.php non trouvé"
+        
+        # Copier les contrôleurs
+        cp -v api/controllers/AuthController.php dist/api/controllers/ || echo "Attention: AuthController.php non trouvé"
+        cp -v api/controllers/UserController.php dist/api/controllers/ || echo "Attention: UserController.php non trouvé"
+        cp -v api/controllers/ConfigController.php dist/api/controllers/ || echo "Attention: ConfigController.php non trouvé"
+        cp -v api/controllers/DatabaseConfigController.php dist/api/controllers/ || echo "Attention: DatabaseConfigController.php non trouvé"
+        cp -v api/controllers/DatabaseTestController.php dist/api/controllers/ || echo "Attention: DatabaseTestController.php non trouvé"
+        
+        # Copier les middlewares
+        cp -v api/middleware/Auth.php dist/api/middleware/ || echo "Attention: Auth.php middleware non trouvé"
+        
+        # Copier les modèles
+        cp -v api/models/User.php dist/api/models/ || echo "Attention: User.php model non trouvé"
+        
+        # Copier les utilitaires
+        cp -v api/utils/JwtHandler.php dist/api/utils/ || echo "Attention: JwtHandler.php non trouvé"
+        
+    - name: Copy remaining application files
+      run: |
+        # Copier les fichiers principaux
+        cp -v .htaccess dist/ || echo "Attention: .htaccess non trouvé"
+        cp -v verify-deploy.php dist/ || echo "Attention: verify-deploy.php non trouvé"
+        cp -v deploy-check.php dist/ || echo "Attention: deploy-check.php non trouvé"
+        cp -v deploy-on-infomaniak.php dist/ || echo "Attention: deploy-on-infomaniak.php non trouvé"
+        
+        # Copier les fichiers uploads avec récursion
+        cp -r public/lovable-uploads/* dist/public/lovable-uploads/ || echo "Aucun fichier d'upload trouvé"
+        
+        # Vérifier si le dossier public contient d'autres fichiers importants
+        find public -type f -not -path "*/lovable-uploads/*" -exec cp -v {} dist/public/ \; || echo "Pas d'autres fichiers publics trouvés"
+        
+    - name: Verify build structure in detail
+      run: |
+        echo "Vérification détaillée de la structure du build..."
+        echo "Liste complète des fichiers déployés:"
+        find dist -type f | sort
+        
+        echo "Vérification des dossiers API:"
+        ls -la dist/api/ || echo "Dossier API manquant!"
+        
+        echo "Vérification des sous-dossiers API:"
+        for dir in config controllers middleware models utils; do
+          echo "Contenu de dist/api/$dir:"
+          ls -la dist/api/$dir || echo "Dossier $dir manquant!"
+        done
+        
+        echo "Vérification des fichiers uploads:"
+        ls -la dist/public/lovable-uploads/ || echo "Dossier uploads manquant!"
         
     - name: Deploy to Infomaniak
       uses: SamKirkland/FTP-Deploy-Action@v4.3.4
@@ -114,6 +130,6 @@ jobs:
         
     - name: Post-deployment verification
       run: |
-        echo "Deployment completed. Check logs for any errors."
-        echo "Run verify-deploy.php on your server to check deployment status."
+        echo "Déploiement terminé. Vérifiez les logs pour toute erreur."
+        echo "Exécutez verify-deploy.php sur votre serveur pour vérifier l'état du déploiement."
         echo "URL: https://qualiopi.ch/verify-deploy.php"
