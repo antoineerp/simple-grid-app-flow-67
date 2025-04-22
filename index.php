@@ -23,25 +23,6 @@ assetLog("URI: " . $_SERVER['REQUEST_URI']);
 assetLog("Host: " . $_SERVER['HTTP_HOST']);
 assetLog("User Agent: " . $_SERVER['HTTP_USER_AGENT']);
 
-// Fonction pour lister les fichiers dans un répertoire
-function listFiles($dir, $pattern) {
-    assetLog("Recherche de fichiers dans $dir avec pattern $pattern");
-    $matches = [];
-    if (is_dir($dir)) {
-        $files = scandir($dir);
-        assetLog("Fichiers trouvés: " . implode(", ", $files));
-        foreach ($files as $file) {
-            if (preg_match($pattern, $file)) {
-                $matches[] = $file;
-                assetLog("Match trouvé: $file");
-            }
-        }
-    } else {
-        assetLog("ERREUR: Le répertoire $dir n'existe pas");
-    }
-    return $matches;
-}
-
 // Vérifier l'existence du dossier dist/assets
 $assetsDir = __DIR__ . '/dist/assets';
 if (!is_dir($assetsDir)) {
@@ -52,41 +33,16 @@ if (!is_dir($assetsDir)) {
     assetLog("Contenu de la racine: " . implode(", ", $rootDirs));
 }
 
-// Détection des fichiers CSS et JS (version non hashée ET hashée)
-assetLog("Détection des fichiers CSS");
-$cssFiles = listFiles($assetsDir, '/^index.*\.css$/');
-$cssFile = !empty($cssFiles) ? $cssFiles[0] : 'index.css';
-assetLog("Fichier CSS sélectionné: $cssFile");
+// Détection des fichiers CSS et JS (sans hachage)
+assetLog("Vérification des fichiers index.css et index.js");
+$cssFile = "index.css";
+$jsFile = "index.js";
 
-assetLog("Détection des fichiers JS");
-$jsFiles = listFiles($assetsDir, '/^index.*\.js$/');
-$jsFile = !empty($jsFiles) ? $jsFiles[0] : 'index.js';
+$cssExists = file_exists("$assetsDir/$cssFile");
+$jsExists = file_exists("$assetsDir/$jsFile");
 
-// Filtrer pour exclure les fichiers comme index.es-*.js
-$mainJsFiles = [];
-foreach ($jsFiles as $file) {
-    if (strpos($file, '.es-') === false) {
-        $mainJsFiles[] = $file;
-        assetLog("Fichier JS principal potentiel: $file");
-    }
-}
-if (!empty($mainJsFiles)) {
-    $jsFile = $mainJsFiles[0];
-    assetLog("Fichier JS principal sélectionné: $jsFile");
-}
-
-// Vérifier si les fichiers existent physiquement
-if (!empty($cssFile)) {
-    $cssPath = "$assetsDir/$cssFile";
-    assetLog("Vérification de l'existence du fichier CSS: $cssPath");
-    assetLog("Le fichier existe: " . (file_exists($cssPath) ? "OUI" : "NON"));
-}
-
-if (!empty($jsFile)) {
-    $jsPath = "$assetsDir/$jsFile";
-    assetLog("Vérification de l'existence du fichier JS: $jsPath");
-    assetLog("Le fichier existe: " . (file_exists($jsPath) ? "OUI" : "NON"));
-}
+assetLog("index.css existe: " . ($cssExists ? "OUI" : "NON"));
+assetLog("index.js existe: " . ($jsExists ? "OUI" : "NON"));
 
 // Servir le contenu HTML
 echo '<!DOCTYPE html>
@@ -97,8 +53,8 @@ echo '<!DOCTYPE html>
     <title>FormaCert</title>
     <link rel="icon" href="/lovable-uploads/formacert-logo.png" type="image/png">
     
-    <!-- CSS avec détection automatique -->
-    <link rel="stylesheet" href="/dist/assets/' . htmlspecialchars($cssFile) . '">
+    <!-- CSS avec chemins sans hachage -->
+    <link rel="stylesheet" href="/dist/assets/index.css">
     
     <!-- Script pour surveiller les erreurs de chargement des ressources -->
     <script>
@@ -120,8 +76,8 @@ echo '<!DOCTYPE html>
     <!-- Script Lovable -->
     <script src="https://cdn.gpteng.co/gptengineer.js" type="module"></script>
     
-    <!-- Script principal avec détection auto -->
-    <script type="module" src="/dist/assets/' . htmlspecialchars($jsFile) . '"></script>
+    <!-- Script principal sans hachage -->
+    <script type="module" src="/dist/assets/index.js"></script>
     
     <!-- Message d\'erreur après 5 secondes si l\'application n\'a pas chargé -->
     <script>
@@ -132,8 +88,8 @@ echo '<!DOCTYPE html>
             <h1 style="color:#d33;">Erreur de chargement de l\'application</h1>
             <p>L\'application n\'a pas pu être chargée correctement. Cela peut être dû à un problème avec les fichiers statiques.</p>
             <h3>Fichiers détectés:</h3>
-            <p>CSS: ' . htmlspecialchars($cssFile) . '</p>
-            <p>JS: ' . htmlspecialchars($jsFile) . '</p>
+            <p>CSS: ' . htmlspecialchars($cssFile) . ' (Existe: ' . ($cssExists ? 'Oui' : 'Non') . ')</p>
+            <p>JS: ' . htmlspecialchars($jsFile) . ' (Existe: ' . ($jsExists ? 'Oui' : 'Non') . ')</p>
             <h3>Erreurs de chargement:</h3>
             <ul id="error-list"></ul>
             <script>
@@ -142,8 +98,8 @@ echo '<!DOCTYPE html>
             </script>
             <h3>Diagnostics recommandés:</h3>
             <ul>
-              <li><a href="/assets-check.php" style="color:#0066cc;">Page de diagnostic des assets</a></li>
-              <li><a href="/api/file-check.php" style="color:#0066cc;">Vérification détaillée des fichiers</a></li>
+              <li><a href="/debug-assets.php" style="color:#0066cc;">Diagnostic détaillé des assets</a></li>
+              <li><a href="/assets-check.php" style="color:#0066cc;">Vérification des assets</a></li>
             </ul>
           </div>
         `;

@@ -32,6 +32,10 @@ export default defineConfig(({ mode }) => ({
     '__WS_TOKEN__': mode === 'production' ? false : JSON.stringify('lovable-ws-token'),
     '__APP_MODE__': JSON.stringify(mode)
   },
+  css: {
+    // Ensure CSS is extracted to separate files
+    devSourcemap: true,
+  },
   build: {
     outDir: 'dist',
     assetsDir: 'assets',
@@ -43,7 +47,13 @@ export default defineConfig(({ mode }) => ({
       output: {
         // Désactiver complètement le hachage des fichiers
         entryFileNames: 'assets/index.js',
-        assetFileNames: 'assets/[name].[ext]',
+        assetFileNames: (assetInfo) => {
+          const ext = assetInfo.name.split('.').at(-1);
+          if (ext === 'css') {
+            return 'assets/index.css';
+          }
+          return 'assets/[name].[ext]';
+        },
         chunkFileNames: 'assets/[name].js',
         manualChunks: {
           vendor: ['react', 'react-dom'],

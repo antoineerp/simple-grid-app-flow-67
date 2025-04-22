@@ -49,14 +49,58 @@ try {
   // Identify specific file types
   const jsFiles = assetFiles.filter(file => file.endsWith('.js'));
   const cssFiles = assetFiles.filter(file => file.endsWith('.css'));
-  const mainJsFile = jsFiles.find(file => file.includes('index') && !file.includes('.es-'));
-  const mainCssFile = cssFiles.find(file => file.includes('index'));
+  
+  console.log('JS files found:', jsFiles);
+  console.log('CSS files found:', cssFiles);
   
   if (jsFiles.length === 0) {
     throw new Error('Build failed: No JavaScript files were generated.');
   }
   
   if (cssFiles.length === 0) {
+    // Si des fichiers CSS sont introuvables, ajouter des diagnostics supplémentaires
+    console.error('\nAUCUN FICHIER CSS TROUVÉ - DIAGNOSTIC DÉTAILLÉ:');
+    console.error('1. Vérification des imports CSS dans les fichiers source:');
+    
+    try {
+      // Vérifier si index.css est importé dans main.tsx
+      const mainTsxPath = './src/main.tsx';
+      if (fs.existsSync(mainTsxPath)) {
+        const mainContent = fs.readFileSync(mainTsxPath, 'utf8');
+        console.error(`- Import dans main.tsx: ${mainContent.includes('import "./index.css"')}`);
+      } else {
+        console.error(`- Fichier main.tsx non trouvé`);
+      }
+      
+      // Vérifier les autres fichiers d'entrée possibles
+      const otherEntryFiles = ['./src/index.tsx', './src/main.jsx', './src/index.jsx'];
+      for (const file of otherEntryFiles) {
+        if (fs.existsSync(file)) {
+          const content = fs.readFileSync(file, 'utf8');
+          console.error(`- Import dans ${file}: ${content.includes('import "./index.css"') || content.includes("import './index.css'")}`);
+        }
+      }
+      
+      // Vérifier si le fichier index.css existe
+      const indexCssPath = './src/index.css';
+      console.error(`- Fichier index.css existe: ${fs.existsSync(indexCssPath)}`);
+      
+      if (fs.existsSync(indexCssPath)) {
+        const cssSize = fs.statSync(indexCssPath).size;
+        console.error(`- Taille de index.css: ${cssSize} octets`);
+      }
+      
+      // Vérifier la configuration de Vite
+      const viteConfigPath = './vite.config.ts';
+      if (fs.existsSync(viteConfigPath)) {
+        const viteConfig = fs.readFileSync(viteConfigPath, 'utf8');
+        console.error(`- Configuration CSS dans vite.config.ts: ${viteConfig.includes('css:')}`);
+      }
+      
+    } catch (diagError) {
+      console.error('Erreur lors du diagnostic:', diagError);
+    }
+    
     throw new Error('Build failed: No CSS files were generated.');
   }
   
@@ -65,19 +109,8 @@ try {
   assetFiles.forEach(file => {
     const filePath = path.join(assetsDir, file);
     const fileSize = (fs.statSync(filePath).size / 1024).toFixed(1);
-    const isPrimary = file === mainJsFile || file === mainCssFile;
-    
-    console.log(`- ${file} (${fileSize} KB)${isPrimary ? ' [PRIMARY]' : ''}`);
+    console.log(`- ${file} (${fileSize} KB)`);
   });
-  
-  // Check for hashed filenames and provide guidance
-  const hasHashedFiles = assetFiles.some(file => /index-[a-zA-Z0-9]+\.(js|css)$/.test(file));
-  
-  if (hasHashedFiles) {
-    console.log('\n⚠️  IMPORTANT: Your build is generating hashed filenames.');
-    console.log('Make sure your index.html and index.php are configured to handle hashed filenames.');
-    console.log('The updated scripts in this deployment will handle this case automatically.');
-  }
   
   console.log('\n4. Creating file list for upload...');
   
@@ -87,7 +120,8 @@ try {
     'index.html',
     'assets-check.php',
     'test-minimal.php',
-    'php-error-finder.php'
+    'php-error-finder.php',
+    'debug-assets.php'
   ];
   
   const deployDirs = [
@@ -112,7 +146,7 @@ try {
   console.log('\nVERIFICATION COMPLETE! ✅');
   console.log('\nTo deploy your site:');
   console.log('1. Upload all listed files to your server');
-  console.log('2. After upload, visit /assets-check.php to verify assets');
+  console.log('2. After upload, visit /debug-assets.php to verify assets');
   console.log('3. If you continue to see file loading issues:');
   console.log('   - Make sure your server\'s MIME types are properly configured');
   console.log('   - Check the console for specific file loading errors');
