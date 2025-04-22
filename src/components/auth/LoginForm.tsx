@@ -20,8 +20,8 @@ const LoginForm = () => {
         <Alert variant="destructive" className="mb-6">
           <AlertCircle className="h-4 w-4 mr-2" />
           <AlertDescription>
-            Connexion à la base de données impossible. Le service est momentanément indisponible. 
-            Veuillez utiliser l'authentification de secours avec les identifiants de test ci-dessous.
+            Connexion à la base de données impossible. Le service est momentanément indisponible.
+            Veuillez contacter l'administrateur système.
           </AlertDescription>
         </Alert>
       )}
@@ -31,7 +31,7 @@ const LoginForm = () => {
           <AlertCircle className="h-4 w-4 mr-2" />
           <AlertDescription>
             Le serveur d'authentification est temporairement inaccessible.
-            Veuillez utiliser l'authentification de secours avec les identifiants de test ci-dessous.
+            Veuillez contacter l'administrateur système.
           </AlertDescription>
         </Alert>
       )}
@@ -46,16 +46,6 @@ const LoginForm = () => {
           </Button>
         </form>
       </Form>
-      
-      <div className="mt-4 text-sm text-gray-500">
-        <p>Identifiants de secours (en cas de problème) :</p>
-        <ul className="list-disc pl-5 mt-2">
-          <li>Utilisateur: admin, Mot de passe: admin123</li>
-          <li>Utilisateur: antcirier@gmail.com, Mot de passe: password123</li>
-          <li>Utilisateur: p71x6d_system, Mot de passe: admin123</li>
-        </ul>
-        <p className="mt-2 italic">Ces identifiants permettent de se connecter en mode de secours, même si le serveur d'authentification ou la base de données n'est pas disponible.</p>
-      </div>
       
       <div className="mt-4 text-xs text-gray-400">
         <p>URL d'API actuelle: <span className="font-mono">{currentApiUrl}</span></p>

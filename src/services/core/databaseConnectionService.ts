@@ -44,12 +44,7 @@ class DatabaseConnectionService {
       // Si la réponse commence par <!DOCTYPE, c'est probablement une page HTML
       if (responseText.trim().startsWith('<!DOCTYPE') || responseText.trim().startsWith('<html')) {
         console.error("Reçu du HTML au lieu de JSON:", responseText.substring(0, 100) + "...");
-        // Renvoyer une version simulée pour éviter de bloquer l'interface
-        return {
-          status: "error",
-          message: "Erreur de connexion à l'API",
-          info: null
-        };
+        throw new Error("Le serveur a renvoyé une page HTML au lieu de JSON. Vérifiez la configuration du serveur.");
       }
       
       // Si c'est une autre erreur de parsing, la propager
@@ -86,22 +81,33 @@ class DatabaseConnectionService {
       // Set the current user
       this.setCurrentUser(identifiantTechnique);
       
+      // Vérifier si la connexion à la base de données est possible
+      const isConnected = await this.testConnection();
+      
+      if (!isConnected) {
+        throw new Error("Impossible de se connecter à la base de données");
+      }
+      
       // Initialize user data if needed
       await initializeUserData(identifiantTechnique);
       
       toast({
-        title: "Connection successful",
-        description: `You are now connected as ${identifiantTechnique}`,
+        title: "Connexion réussie",
+        description: `Vous êtes maintenant connecté en tant que ${identifiantTechnique}`,
       });
       
       return true;
     } catch (error) {
-      console.error("Error while connecting:", error);
+      console.error("Erreur lors de la connexion:", error);
       toast({
-        title: "Connection failed",
-        description: "Unable to connect with this identifier.",
+        title: "Échec de la connexion",
+        description: "Impossible de se connecter avec cet identifiant.",
         variant: "destructive",
       });
+      
+      // Réinitialiser l'utilisateur en cas d'échec
+      this.setCurrentUser(null);
+      
       return false;
     }
   }
@@ -109,54 +115,39 @@ class DatabaseConnectionService {
   // Test the database connection
   public async testConnection(): Promise<boolean> {
     try {
-      console.log("Testing database connection...");
+      console.log("Test de la connexion à la base de données...");
       const API_URL = getApiUrl();
       
-      try {
-        const response = await fetch(`${API_URL}/database-test`, {
-          method: 'GET',
-          headers: getAuthHeaders()
-        });
-        
-        if (!response.ok) {
-          const responseText = await response.text();
-          // Traiter la réponse et vérifier si c'est du JSON valide
-          let data;
-          try {
-            data = this.validateJsonResponse(responseText);
-          } catch (e) {
-            throw new Error("Réponse invalide du serveur");
-          }
-          
-          throw new Error(data.message || "Failed to test database connection");
-        }
-        
+      const response = await fetch(`${API_URL}/database-test`, {
+        method: 'GET',
+        headers: getAuthHeaders()
+      });
+      
+      if (!response.ok) {
         const responseText = await response.text();
-        const data = this.validateJsonResponse(responseText);
-        
-        toast({
-          title: "Connection successful",
-          description: `Connection established with the database`,
-        });
-        
-        return true;
-      } catch (fetchError) {
-        // Si la requête échoue, utiliser des données simulées
-        console.warn("Database test failed, using simulated data:", fetchError);
-        
-        // Simuler une réponse réussie
-        toast({
-          title: "Mode de secours",
-          description: `Utilisation du mode de secours sans connexion à la base de données`,
-        });
-        
-        return false;
+        console.warn("Réponse d'erreur de la base de données:", responseText);
+        throw new Error("Échec du test de connexion à la base de données");
       }
-    } catch (error) {
-      console.error("Error during connection test:", error);
+      
+      const responseText = await response.text();
+      const data = this.validateJsonResponse(responseText);
+      
+      if (data.status !== 'success') {
+        console.warn("Échec de la connexion à la base de données:", data.message);
+        throw new Error(data.message || "Échec de la connexion à la base de données");
+      }
+      
       toast({
-        title: "Connection error",
-        description: "Unable to establish a connection to the database.",
+        title: "Connexion réussie",
+        description: `Connexion établie avec la base de données`,
+      });
+      
+      return true;
+    } catch (error) {
+      console.error("Erreur lors du test de connexion:", error);
+      toast({
+        title: "Erreur de connexion",
+        description: error instanceof Error ? error.message : "Impossible d'établir une connexion à la base de données.",
         variant: "destructive",
       });
       return false;
@@ -167,82 +158,66 @@ class DatabaseConnectionService {
   public disconnectUser(): void {
     this.setCurrentUser(null);
     toast({
-      title: "Successful disconnection",
-      description: "You have been disconnected from the database.",
+      title: "Déconnexion réussie",
+      description: "Vous avez été déconnecté de la base de données.",
     });
   }
 
   // Get information about the database
   public async getDatabaseInfo(): Promise<DatabaseInfo | null> {
     try {
-      console.log("Retrieving database information...");
+      console.log("Récupération des informations sur la base de données...");
       const API_URL = getApiUrl();
       
-      try {
-        const response = await fetch(`${API_URL}/database-test`, {
-          method: 'GET',
-          headers: getAuthHeaders()
-        });
-        
-        if (!response.ok) {
-          const responseText = await response.text();
-          console.warn("Database info response not OK:", response.status, responseText.substring(0, 100));
-          throw new Error("Failed to get database information");
-        }
-        
+      const response = await fetch(`${API_URL}/database-test`, {
+        method: 'GET',
+        headers: getAuthHeaders()
+      });
+      
+      if (!response.ok) {
         const responseText = await response.text();
-        let data;
-        
-        try {
-          data = this.validateJsonResponse(responseText);
-        } catch (e) {
-          console.error("Error while retrieving database information:", e);
-          throw new Error("Réponse invalide du serveur");
-        }
-        
-        if (data.info) {
-          return {
-            host: data.info.host || "Unknown host",
-            database: data.info.database_name || "Unknown database",
-            size: data.info.size || "Unknown size",
-            tables: data.info.table_count || 0,
-            lastBackup: "N/A", // We don't have this information from the API yet
-            status: data.status === "success" ? "Online" : "Offline",
-            encoding: data.info.encoding || "UTF-8",
-            collation: data.info.collation || "N/A",
-            tableList: data.info.tables || []
-          };
-        }
-      } catch (fetchError) {
-        console.warn("Error fetching database info, using fallback:", fetchError);
+        console.warn("Réponse d'erreur lors de la récupération des informations:", response.status, responseText.substring(0, 100));
+        throw new Error("Impossible de récupérer les informations de la base de données");
       }
       
-      // Fallback to simulated data if API doesn't return proper info
-      return {
-        host: "p71x6d.myd.infomaniak.com",
-        database: "p71x6d_system",
-        size: "125 MB",
-        tables: 10,
-        lastBackup: "2025-04-17 08:00:00",
-        status: "Online"
-      };
+      const responseText = await response.text();
+      let data;
+      
+      try {
+        data = this.validateJsonResponse(responseText);
+      } catch (e) {
+        console.error("Erreur lors de la récupération des informations de la base de données:", e);
+        throw new Error("Réponse invalide du serveur");
+      }
+      
+      if (data.status !== 'success') {
+        throw new Error(data.message || "Impossible de récupérer les informations de la base de données");
+      }
+      
+      if (data.info) {
+        return {
+          host: data.info.host || "Hôte inconnu",
+          database: data.info.database_name || "Base de données inconnue",
+          size: data.info.size || "Taille inconnue",
+          tables: data.info.table_count || 0,
+          lastBackup: data.info.last_backup || "N/A",
+          status: "Online",
+          encoding: data.info.encoding || "UTF-8",
+          collation: data.info.collation || "N/A",
+          tableList: data.info.tables || []
+        };
+      } else {
+        throw new Error("Aucune information sur la base de données n'a été reçue");
+      }
     } catch (error) {
-      console.error("Error while retrieving database information:", error);
+      console.error("Erreur lors de la récupération des informations de la base de données:", error);
       toast({
-        title: "Error",
-        description: "Unable to retrieve database information.",
+        title: "Erreur",
+        description: "Impossible de récupérer les informations de la base de données.",
         variant: "destructive",
       });
       
-      // Retourner des données simulées en cas d'erreur
-      return {
-        host: "p71x6d.myd.infomaniak.com",
-        database: "p71x6d_system",
-        size: "125 MB",
-        tables: 10,
-        lastBackup: "N/A",
-        status: "Offline"
-      };
+      throw error;
     }
   }
 }

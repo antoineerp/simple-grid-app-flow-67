@@ -92,15 +92,57 @@ class AuthService {
         try {
             console.log(`Tentative de connexion pour l'utilisateur: ${username}`);
             
-            const testUrl = `${getApiUrl()}/login-test.php`;
-            console.log(`URL de requête (test): ${testUrl}`);
-            
-            let response;
-            let data;
-            let connectionSuccessful = false;
+            // Essayer d'abord AuthController.php
+            const authUrl = `${getApiUrl()}/auth`;
+            console.log(`URL de requête (authentification): ${authUrl}`);
             
             try {
-                response = await fetch(testUrl, {
+                const response = await fetch(authUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Cache-Control': 'no-cache, no-store, must-revalidate'
+                    },
+                    body: JSON.stringify({ username, password })
+                });
+                
+                console.log(`Réponse du serveur auth: ${response.status} ${response.statusText}`);
+                
+                if (!response.ok) {
+                    const errorData = await this.parseJsonResponse(response);
+                    throw new Error(errorData.message || `Échec de l'authentification (${response.status})`);
+                }
+                
+                const data = await this.parseJsonResponse(response);
+                
+                if (!data || !data.token) {
+                    throw new Error(data?.message || "Authentification échouée");
+                }
+                
+                this.setToken(data.token);
+                
+                if (data.user) {
+                    localStorage.setItem('currentUser', data.user.identifiant_technique);
+                    localStorage.setItem('userRole', data.user.role);
+                    localStorage.setItem('userName', `${data.user.prenom || ''} ${data.user.nom || ''}`);
+                }
+                
+                if (data.user && data.user.identifiant_technique) {
+                    await initializeUserData(data.user.identifiant_technique);
+                }
+                
+                return {
+                    success: true,
+                    user: data.user
+                };
+            } catch (authError) {
+                console.error("Erreur avec /auth:", authError);
+                
+                // Si l'authentification échoue, essayer login-test.php comme fallback
+                const testUrl = `${getApiUrl()}/login-test.php`;
+                console.log(`URL de requête (fallback): ${testUrl}`);
+                
+                const response = await fetch(testUrl, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -111,109 +153,34 @@ class AuthService {
                 
                 console.log(`Réponse du serveur login-test: ${response.status} ${response.statusText}`);
                 
-                // Si la réponse n'est pas OK, c'est une erreur
-                if (!response.ok) {
-                    const errorData = await this.parseJsonResponse(response);
-                    console.warn(`Échec login-test: ${JSON.stringify(errorData)}`);
-                    
-                    // Si c'est une erreur 401, c'est un échec d'authentification
-                    if (response.status === 401) {
-                        throw new Error(errorData.message || "Identifiants invalides");
-                    }
-                    
-                    throw new Error(errorData.message || `Échec du test de connexion (${response.status})`);
-                }
-                
-                // Si la réponse est OK, vérifier qu'elle contient un token
-                data = await this.parseJsonResponse(response);
-                if (data.token) {
-                    connectionSuccessful = true;
-                    console.log('Connexion réussie via login-test.php');
-                } else if (data.info) {
-                    console.log('Reçu info API au lieu de connexion. Tentative avec auth.php...');
-                }
-            } catch (testError) {
-                console.warn(`Échec avec login-test.php: ${testError.message}`);
-                // On ne lance pas d'exception ici, on essaie l'autre méthode
-            }
-            
-            // Si la connexion n'a pas réussi, essayer la méthode auth
-            if (!connectionSuccessful) {
-                const url = `${getApiUrl()}/auth`;
-                console.log(`URL de requête (alternative): ${url}`);
-                
-                response = await fetch(url, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Cache-Control': 'no-cache, no-store, must-revalidate'
-                    },
-                    body: JSON.stringify({ username, password })
-                });
-                
                 if (!response.ok) {
                     const errorData = await this.parseJsonResponse(response);
                     throw new Error(errorData.message || `Échec de l'authentification (${response.status})`);
                 }
                 
-                data = await this.parseJsonResponse(response);
+                const data = await this.parseJsonResponse(response);
                 
-                // Vérifier si on a reçu une réponse d'info API au lieu d'une connexion
-                if (data.info) {
-                    // Essayer une dernière méthode - secours direct
-                    if ((username === 'admin' && password === 'admin123') || 
-                        (username === 'p71x6d_system' && password === 'admin123') || 
-                        (username === 'antcirier@gmail.com' && password === 'password123')) {
-                        
-                        console.log("Utilisation des identifiants de secours directs");
-                        
-                        // Créer manuellement un token et un utilisateur
-                        const role = 'admin';
-                        const token = btoa(JSON.stringify({
-                            user: username,
-                            role: role,
-                            exp: Math.floor(Date.now() / 1000) + 3600
-                        }));
-                        
-                        data = {
-                            token: token,
-                            user: {
-                                id: 0,
-                                nom: username.includes('_') ? username.split('_')[1] : username,
-                                prenom: '',
-                                email: username.includes('@') ? username : `${username}@example.com`,
-                                identifiant_technique: username,
-                                role: role
-                            }
-                        };
-                        
-                        connectionSuccessful = true;
-                    } else {
-                        throw new Error("Identifiants invalides. Utilisez un compte de secours (admin/admin123).");
-                    }
+                if (!data || !data.token) {
+                    throw new Error(data?.message || "Authentification échouée");
                 }
+                
+                this.setToken(data.token);
+                
+                if (data.user) {
+                    localStorage.setItem('currentUser', data.user.identifiant_technique);
+                    localStorage.setItem('userRole', data.user.role);
+                    localStorage.setItem('userName', `${data.user.prenom || ''} ${data.user.nom || ''}`);
+                }
+                
+                if (data.user && data.user.identifiant_technique) {
+                    await initializeUserData(data.user.identifiant_technique);
+                }
+                
+                return {
+                    success: true,
+                    user: data.user
+                };
             }
-            
-            if (!data || !data.token) {
-                throw new Error(data?.message || "Authentification échouée");
-            }
-            
-            this.setToken(data.token);
-            
-            if (data.user) {
-                localStorage.setItem('currentUser', data.user.identifiant_technique);
-                localStorage.setItem('userRole', data.user.role);
-                localStorage.setItem('userName', `${data.user.prenom || ''} ${data.user.nom || ''}`);
-            }
-            
-            if (data.user && data.user.identifiant_technique) {
-                await initializeUserData(data.user.identifiant_technique);
-            }
-            
-            return {
-                success: true,
-                user: data.user
-            };
         } catch (error) {
             console.error("Erreur lors de la connexion:", error);
             

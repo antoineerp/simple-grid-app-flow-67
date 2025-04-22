@@ -38,7 +38,6 @@ export const useLoginForm = () => {
     
     try {
       console.log("Tentative de connexion pour:", data.username);
-      console.log("Nom d'utilisateur saisi:", data.username);
       const result = await loginUser(data.username, data.password);
       
       if (result.success && result.user) {
@@ -65,42 +64,29 @@ export const useLoginForm = () => {
         if (error.message.includes("base de données") || 
             error.message.includes("database")) {
           setHasDbError(true);
-          
-          // Essayer de se connecter avec les identifiants de secours
-          if (data.username === 'admin' && data.password === 'admin123' || 
-              data.username === 'antcirier@gmail.com' && data.password === 'password123') {
-            // Définir l'état de connexion
-            localStorage.setItem('isLoggedIn', 'true');
-            // Rediriger vers le tableau de bord
-            toast({
-              title: "Mode de secours activé",
-              description: "Connexion en mode de secours réussie. Certaines fonctionnalités peuvent être limitées.",
-            });
-            navigate("/pilotage", { replace: true });
-            return;
-          }
+          toast({
+            title: "Erreur de connexion",
+            description: "Impossible de se connecter à la base de données.",
+            variant: "destructive",
+          });
         } else if (error.message.includes("serveur") || 
                   error.message.includes("inaccessible") ||
                   error.message.includes("Réponse invalide")) {
           setHasServerError(true);
-          
-          // Essayer de se connecter avec les identifiants de secours
-          if (data.username === 'admin' && data.password === 'admin123' || 
-              data.username === 'antcirier@gmail.com' && data.password === 'password123') {
-            // Définir l'état de connexion
-            localStorage.setItem('isLoggedIn', 'true');
-            // Rediriger vers le tableau de bord
-            toast({
-              title: "Mode de secours activé",
-              description: "Connexion en mode de secours réussie. Certaines fonctionnalités peuvent être limitées.",
-            });
-            navigate("/pilotage", { replace: true });
-            return;
-          }
+          toast({
+            title: "Erreur de connexion",
+            description: "Le serveur d'authentification est temporairement inaccessible.",
+            variant: "destructive",
+          });
+        } else {
+          // Erreur générique
+          toast({
+            title: "Échec de la connexion",
+            description: error.message || "Identifiants invalides ou erreur serveur",
+            variant: "destructive",
+          });
         }
       }
-      
-      // Le toast d'erreur est déjà géré dans loginUser
     } finally {
       setIsLoading(false);
     }
