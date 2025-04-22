@@ -2,7 +2,6 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
-import { componentTagger } from "lovable-tagger";
 
 // Define the configuration with proper typing
 export default defineConfig(({ mode }) => ({
@@ -16,8 +15,9 @@ export default defineConfig(({ mode }) => ({
   },
   plugins: [
     react(),
-    mode === 'development' && componentTagger(),
-  ].filter(Boolean),
+    // Lovable tagger n'est pas utilisé car il n'est pas installé,
+    // et il n'est pas nécessaire pour le fonctionnement de base
+  ],
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
@@ -37,6 +37,7 @@ export default defineConfig(({ mode }) => ({
           if (id.includes('node_modules')) {
             return 'vendor';
           }
+          return undefined;
         },
         entryFileNames: 'assets/[name].js',
         chunkFileNames: 'assets/[name].js',
