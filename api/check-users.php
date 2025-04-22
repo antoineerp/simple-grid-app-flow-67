@@ -19,93 +19,96 @@ if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
     exit(json_encode(['status' => 200, 'message' => 'Preflight OK']));
 }
 
-// Fonction pour nettoyer les chaînes UTF-8
-function cleanUTF8($input) {
-    if (is_string($input)) {
-        return mb_convert_encoding($input, 'UTF-8', 'UTF-8');
-    } elseif (is_array($input)) {
-        foreach ($input as $key => $value) {
-            $input[$key] = cleanUTF8($value);
-        }
-    }
-    return $input;
-}
+// Inclure la configuration de la base de données
+require_once 'config/database.php';
 
 try {
     // Journaliser l'exécution
     error_log("=== EXÉCUTION DE check-users.php ===");
     error_log("Méthode: " . $_SERVER['REQUEST_METHOD'] . " - URI: " . $_SERVER['REQUEST_URI']);
     
-    // Informations de connexion à la base de données Infomaniak
-    $host = 'p71x6d.myd.infomaniak.com';
-    $db_name = 'p71x6d_system';
-    $username = 'p71x6d_system';
-    $password = ''; // À remplir avec le mot de passe réel
+    // Créer une instance de la base de données
+    $database = new Database();
+    $db = $database->getConnection(false);
     
-    try {
-        // Tenter de se connecter directement à la base de données
-        $db = new PDO("mysql:host=$host;dbname=$db_name;charset=utf8mb4", $username, $password);
-        $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-        
-        // Vérifier si la table utilisateurs existe
-        $stmt = $db->query("SHOW TABLES LIKE 'utilisateurs'");
-        $tableExists = $stmt->rowCount() > 0;
-        
-        if ($tableExists) {
-            // Lire les utilisateurs
-            $query = "SELECT * FROM utilisateurs";
-            $stmt = $db->query($query);
-            $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    // Vérifier si nous sommes connectés à la base de données
+    if ($database->is_connected) {
+        try {
+            // Vérifier si la table utilisateurs existe
+            $stmt = $db->query("SHOW TABLES LIKE 'utilisateurs'");
+            $tableExists = $stmt->rowCount() > 0;
             
-            // Masquer les mots de passe
-            foreach ($users as &$user) {
-                if (isset($user['mot_de_passe'])) {
-                    $user['mot_de_passe'] = '******';
+            if ($tableExists) {
+                // Lire les utilisateurs
+                $query = "SELECT * FROM utilisateurs";
+                $stmt = $db->query($query);
+                $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
+                
+                // Masquer les mots de passe
+                foreach ($users as &$user) {
+                    if (isset($user['mot_de_passe'])) {
+                        $user['mot_de_passe'] = '******';
+                    }
                 }
+                
+                // Construire la réponse
+                $response = [
+                    "status" => "success",
+                    "message" => "Connexion réussie à la base de données",
+                    "records" => $users,
+                    "count" => count($users),
+                    "database_info" => [
+                        "connected" => true,
+                        "host" => $database->host,
+                        "database" => $database->db_name,
+                        "tables" => ["utilisateurs"]
+                    ]
+                ];
+            } else {
+                // La table n'existe pas encore
+                $response = [
+                    "status" => "warning",
+                    "message" => "La table 'utilisateurs' n'existe pas encore dans la base de données",
+                    "records" => [],
+                    "count" => 0,
+                    "database_info" => [
+                        "connected" => true,
+                        "host" => $database->host,
+                        "database" => $database->db_name
+                    ]
+                ];
             }
+        } catch (PDOException $e) {
+            // Erreur lors de la requête SQL
+            error_log("Erreur SQL dans check-users.php: " . $e->getMessage());
             
-            // Construire la réponse
             $response = [
-                "status" => "success",
-                "message" => "Connexion réussie à la base de données Infomaniak",
-                "records" => $users,
-                "count" => count($users),
-                "database_info" => [
-                    "connected" => true,
-                    "host" => $host,
-                    "database" => $db_name,
-                    "tables" => ["utilisateurs", "documents", "indicateurs", "qualiopi_criteres", "qualiopi_indicateurs", "ressources_humaines"]
-                ]
-            ];
-        } else {
-            // La table n'existe pas encore
-            $response = [
-                "status" => "warning",
-                "message" => "La table 'utilisateurs' n'existe pas encore dans la base de données",
+                "status" => "error",
+                "message" => "Erreur lors de la requête SQL",
+                "error" => $e->getMessage(),
                 "records" => [],
                 "count" => 0,
                 "database_info" => [
                     "connected" => true,
-                    "host" => $host,
-                    "database" => $db_name
+                    "host" => $database->host,
+                    "database" => $database->db_name,
+                    "error" => $e->getMessage()
                 ]
             ];
         }
-    } catch (PDOException $e) {
-        // En cas d'erreur de connexion
-        error_log("Erreur de connexion à la base de données: " . $e->getMessage());
-        
+    } else {
+        // Non connecté à la base de données
         $response = [
             "status" => "error",
-            "message" => "Impossible de se connecter à la base de données Infomaniak",
-            "error" => $e->getMessage(),
+            "message" => "Non connecté à la base de données",
+            "error" => $database->connection_error,
             "records" => [],
             "count" => 0,
             "database_info" => [
                 "connected" => false,
-                "host" => $host,
-                "database" => $db_name,
-                "error" => $e->getMessage()
+                "host" => $database->host,
+                "database" => $database->db_name,
+                "error" => $database->connection_error
             ]
         ];
     }
