@@ -21,32 +21,21 @@ export default defineConfig(({ mode }) => ({
     alias: {
       "@": path.resolve(__dirname, "./src"),
     },
-    // Ensure proper module resolution for all browsers
-    dedupe: ['react', 'react-dom']
   },
   build: {
     outDir: 'dist',
     assetsDir: 'assets',
-    sourcemap: false,
     minify: true,
+    sourcemap: false,
     rollupOptions: {
       output: {
-        manualChunks(id) {
-          if (id.includes('node_modules')) {
-            return 'vendor';
-          }
-        },
-        entryFileNames: 'assets/[name].js',
+        entryFileNames: 'assets/[name].[hash].js',
         chunkFileNames: 'assets/[name].[hash].js',
         assetFileNames: 'assets/[name].[hash].[ext]'
       }
     },
-    target: 'es2018', // Lower target for better browser compatibility
-    cssCodeSplit: true,
+    target: 'es2018',
   },
   publicDir: 'public',
   base: '/',
-  esbuild: {
-    logOverride: { 'this-is-undefined-in-esm': 'silent' }
-  }
 }));
