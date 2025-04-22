@@ -8,16 +8,8 @@ export const getApiUrl = (): string => {
   
   // Si on est sur qualiopi.ch, utiliser un chemin spécifique
   if (window.location.hostname === 'qualiopi.ch') {
-    // Vérifier si nous sommes dans un sous-dossier
-    if (window.location.pathname.includes('/sites/')) {
-      // Extraire le chemin du sous-dossier
-      const pathMatch = window.location.pathname.match(/^(\/sites\/[^\/]+)/);
-      if (pathMatch && pathMatch[1]) {
-        return `${pathMatch[1]}/api`;
-      }
-    }
-    // Si nous sommes à la racine du domaine ou pas de sous-dossier détecté
-    return '/sites/qualiopi.ch/api';
+    // Chemin absolu pour Infomaniak
+    return window.location.origin + '/sites/qualiopi.ch/api';
   }
   
   // Utiliser un chemin relatif par défaut pour fonctionner sur tout domaine

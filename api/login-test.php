@@ -9,6 +9,8 @@ header("Access-Control-Allow-Headers: Content-Type, Authorization");
 // Activer la journalisation
 ini_set('display_errors', 1);
 error_reporting(E_ALL);
+error_log("=== EXÉCUTION DE login-test.php ===");
+error_log("Méthode: " . $_SERVER['REQUEST_METHOD'] . " - URI: " . $_SERVER['REQUEST_URI']);
 
 // Si c'est une requête OPTIONS (preflight), nous la terminons ici
 if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
@@ -21,6 +23,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     // Récupérer les données POST
     $json_input = file_get_contents("php://input");
     $data = json_decode($json_input);
+    
+    error_log("Données reçues: " . $json_input);
     
     // Vérifier des identifiants simples
     if (isset($data->username) && isset($data->password)) {
@@ -37,6 +41,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             // Générer un token simple pour le test
             $token = md5($data->username . time());
             
+            error_log("Authentification réussie pour: " . $data->username);
+            
             http_response_code(200);
             echo json_encode([
                 'message' => 'Connexion réussie (mode test)',
@@ -51,14 +57,20 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 ]
             ]);
         } else {
+            error_log("Identifiants invalides pour: " . $data->username);
+            
             http_response_code(401);
             echo json_encode(['message' => 'Identifiants invalides']);
         }
     } else {
+        error_log("Données incomplètes");
+        
         http_response_code(400);
         echo json_encode(['message' => 'Données incomplètes']);
     }
 } else {
+    error_log("Méthode non autorisée: " . $_SERVER['REQUEST_METHOD']);
+    
     http_response_code(405);
     echo json_encode(['message' => 'Méthode non autorisée']);
 }

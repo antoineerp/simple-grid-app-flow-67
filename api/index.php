@@ -4,11 +4,14 @@
 header('Content-Type: application/json; charset=utf-8');
 mb_internal_encoding('UTF-8');
 
+// Journaliser les informations sur la requête pour le diagnostic
+error_log('=== NOUVELLE REQUÊTE API ===');
+error_log('Méthode: ' . $_SERVER['REQUEST_METHOD'] . ' - URI: ' . $_SERVER['REQUEST_URI']);
+error_log('Host: ' . $_SERVER['HTTP_HOST']);
+error_log('Script name: ' . $_SERVER['SCRIPT_NAME']);
+
 // Point d'entrée principal de l'API
 require_once 'config/env.php';
-
-// Journaliser la méthode et l'URL de la requête
-error_log('API Request: ' . $_SERVER['REQUEST_METHOD'] . ' ' . $_SERVER['REQUEST_URI']);
 
 // CORS - Accepter toutes les origines
 header("Access-Control-Allow-Origin: *");
@@ -26,15 +29,40 @@ if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
 // URL de la requête
 $request_uri = $_SERVER['REQUEST_URI'];
 $request_uri = strtok($request_uri, '?');
+
+// Nettoyage du chemin pour les installations dans sous-dossiers (spécifique à Infomaniak)
+if (strpos($request_uri, '/sites/qualiopi.ch/api/') !== false) {
+    $request_uri = str_replace('/sites/qualiopi.ch/api/', '/api/', $request_uri);
+    error_log('URI nettoyée (sous-dossier Infomaniak): ' . $request_uri);
+}
+
 $url_segments = explode('/', trim(parse_url($request_uri, PHP_URL_PATH), '/'));
 
 // Journalisation des segments d'URL
 error_log('URL complète: ' . $request_uri);
 error_log('URL segments: ' . print_r($url_segments, true));
 
+// Vérifier les noms de fichiers spécifiques directement demandés
+$filename = basename($request_uri);
+if (in_array($filename, ['auth.php', 'login-test.php', 'check-users.php'])) {
+    error_log('Accès direct au fichier détecté: ' . $filename);
+    $file_path = __DIR__ . '/' . $filename;
+    
+    if (file_exists($file_path)) {
+        error_log('Fichier trouvé, inclusion directe: ' . $file_path);
+        include_once $file_path;
+        exit;
+    } else {
+        error_log('ERREUR: Fichier non trouvé: ' . $file_path);
+        http_response_code(404);
+        echo json_encode(['message' => 'Fichier non trouvé: ' . $filename, 'status' => 404], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+}
+
 // Vérifier si la requête est pour auth.php directement
-if (strpos($request_uri, 'auth.php') !== false) {
-    error_log('Requête d\'authentification directe détectée');
+if (strpos($request_uri, 'auth.php') !== false || strpos($request_uri, 'auth') !== false) {
+    error_log('Requête d\'authentification détectée');
     require_once 'controllers/AuthController.php';
     exit;
 }
@@ -94,7 +122,12 @@ if ($api_index !== false) {
         echo json_encode([
             'message' => 'API PHP disponible',
             'status' => 200,
-            'environment' => 'production'
+            'environment' => 'production',
+            'server_info' => [
+                'host' => $_SERVER['HTTP_HOST'],
+                'uri' => $_SERVER['REQUEST_URI'],
+                'script' => $_SERVER['SCRIPT_NAME']
+            ]
         ], JSON_UNESCAPED_UNICODE);
     }
 } else {

@@ -10,7 +10,10 @@ Options -Indexes
 DirectoryIndex index.php
 
 # Définir le répertoire de base pour les règles de réécriture
+# Support pour les installations dans des sous-dossiers spécifiques à Infomaniak
 RewriteBase /api/
+RewriteCond %{REQUEST_URI} ^/sites/qualiopi.ch/api/ [NC]
+RewriteRule ^sites/qualiopi.ch/api/(.*) /$1 [L]
 
 # Ne pas appliquer les règles aux fichiers et répertoires existants
 RewriteCond %{REQUEST_FILENAME} !-f
@@ -18,6 +21,11 @@ RewriteCond %{REQUEST_FILENAME} !-d
 
 # Rediriger toutes les requêtes non-fichiers vers index.php
 RewriteRule ^(.*)$ index.php [QSA,L]
+
+# Désactiver les restrictions pour les fichiers de test et diagnostics
+<FilesMatch "^(login-test\.php|check-users\.php|auth\.php|diagnostic\.php)$">
+    Allow from all
+</FilesMatch>
 
 # Protéger les fichiers de configuration
 <FilesMatch "^(env\.php|app_config\.json|database\.php|.*\.ini)$">

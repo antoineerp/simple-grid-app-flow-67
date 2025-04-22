@@ -32,6 +32,10 @@ function cleanUTF8($input) {
 }
 
 try {
+    // Journaliser l'exécution
+    error_log("=== EXÉCUTION DE check-users.php ===");
+    error_log("Méthode: " . $_SERVER['REQUEST_METHOD'] . " - URI: " . $_SERVER['REQUEST_URI']);
+    
     // Inclure les fichiers de configuration et les modèles
     require_once 'config/database.php';
     require_once 'models/User.php';

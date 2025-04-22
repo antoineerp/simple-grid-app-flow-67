@@ -8,9 +8,11 @@ import PasswordField from './PasswordField';
 import ForgotPasswordLink from './ForgotPasswordLink';
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle } from 'lucide-react';
+import { getApiUrl } from '@/config/apiConfig';
 
 const LoginForm = () => {
   const { form, isLoading, hasDbError, hasServerError, onSubmit } = useLoginForm();
+  const currentApiUrl = getApiUrl();
 
   return (
     <>
@@ -53,6 +55,10 @@ const LoginForm = () => {
           <li>Utilisateur: p71x6d_system, Mot de passe: admin123</li>
         </ul>
         <p className="mt-2 italic">Ces identifiants permettent de se connecter en mode de secours, même si le serveur d'authentification ou la base de données n'est pas disponible.</p>
+      </div>
+      
+      <div className="mt-4 text-xs text-gray-400">
+        <p>URL d'API actuelle: <span className="font-mono">{currentApiUrl}</span></p>
       </div>
       
       <ForgotPasswordLink />
