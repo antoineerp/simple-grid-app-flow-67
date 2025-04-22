@@ -38,6 +38,7 @@ class Database {
                     if (isset($config['password'])) $this->password = $config['password'];
                 } else {
                     error_log("Erreur JSON dans db_config.json: " . json_last_error_msg());
+                    $this->connection_error = "Erreur de configuration JSON: " . json_last_error_msg();
                 }
             } catch (Exception $e) {
                 error_log("Erreur lors du chargement de la configuration de base de données: " . $e->getMessage());
@@ -77,8 +78,23 @@ class Database {
     public function getConnection($require_connection = false) {
         $this->conn = null;
         $this->is_connected = false;
+        $this->connection_error = null;
 
         try {
+            // Vérifier d'abord les paramètres de connexion
+            if (empty($this->host)) {
+                throw new Exception("Le nom d'hôte de la base de données n'est pas configuré");
+            }
+            if (empty($this->db_name)) {
+                throw new Exception("Le nom de la base de données n'est pas configuré");
+            }
+            if (empty($this->username)) {
+                throw new Exception("Le nom d'utilisateur de la base de données n'est pas configuré");
+            }
+            if (empty($this->password) && $require_connection) {
+                throw new Exception("Le mot de passe de base de données n'est pas configuré");
+            }
+            
             // Journaliser la tentative de connexion
             error_log("Tentative de connexion à la base de données - Host: {$this->host}, DB: {$this->db_name}, User: {$this->username}");
             
@@ -90,11 +106,6 @@ class Database {
                 PDO::ATTR_TIMEOUT => 5, // Timeout en secondes
             ];
             
-            // Si le mot de passe est vide, on ne tente pas la connexion
-            if (empty($this->password) && $require_connection) {
-                throw new Exception("Mot de passe de base de données non configuré");
-            }
-            
             // Tenter de se connecter à la base de données
             $this->conn = new PDO($dsn, $this->username, $this->password, $options);
             
@@ -103,7 +114,6 @@ class Database {
             
             // Marquer la connexion comme réussie
             $this->is_connected = true;
-            $this->connection_error = null;
             
             // Journaliser la connexion réussie
             error_log("Connexion réussie à la base de données {$this->db_name}");

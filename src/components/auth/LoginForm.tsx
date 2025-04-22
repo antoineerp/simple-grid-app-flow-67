@@ -7,7 +7,7 @@ import UsernameField from './UsernameField';
 import PasswordField from './PasswordField';
 import ForgotPasswordLink from './ForgotPasswordLink';
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { AlertCircle } from 'lucide-react';
+import { AlertCircle, Database } from 'lucide-react';
 import { getApiUrl } from '@/config/apiConfig';
 
 const LoginForm = () => {
@@ -20,8 +20,8 @@ const LoginForm = () => {
         <Alert variant="destructive" className="mb-6">
           <AlertCircle className="h-4 w-4 mr-2" />
           <AlertDescription>
-            Connexion à la base de données impossible. Le service est momentanément indisponible.
-            Veuillez contacter l'administrateur système.
+            Connexion à la base de données impossible. Veuillez vérifier la configuration de votre base de données
+            dans le panneau d'administration.
           </AlertDescription>
         </Alert>
       )}
@@ -47,8 +47,9 @@ const LoginForm = () => {
         </form>
       </Form>
       
-      <div className="mt-4 text-xs text-gray-400">
-        <p>URL d'API actuelle: <span className="font-mono">{currentApiUrl}</span></p>
+      <div className="mt-4 text-xs text-gray-400 flex items-center gap-1">
+        <Database className="h-3 w-3" />
+        <span>Base MySQL: <span className="font-mono">{currentApiUrl}/database-test</span></span>
       </div>
       
       <ForgotPasswordLink />

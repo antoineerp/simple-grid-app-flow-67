@@ -61,28 +61,40 @@ export const useLoginForm = () => {
       
       // Vérifier s'il s'agit d'une erreur de base de données
       if (error instanceof Error) {
-        if (error.message.includes("base de données") || 
-            error.message.includes("database")) {
+        const errorMessage = error.message.toLowerCase();
+        
+        if (errorMessage.includes("base de données") || 
+            errorMessage.includes("database") ||
+            errorMessage.includes("connexion") ||
+            errorMessage.includes("sql")) {
           setHasDbError(true);
           toast({
-            title: "Erreur de connexion",
-            description: "Impossible de se connecter à la base de données.",
+            title: "Erreur de connexion à la base de données",
+            description: "Vérifiez la configuration de votre base de données dans le panneau d'administration.",
             variant: "destructive",
           });
-        } else if (error.message.includes("serveur") || 
-                  error.message.includes("inaccessible") ||
-                  error.message.includes("Réponse invalide")) {
+        } else if (errorMessage.includes("serveur") || 
+                  errorMessage.includes("inaccessible") ||
+                  errorMessage.includes("réponse invalide")) {
           setHasServerError(true);
           toast({
-            title: "Erreur de connexion",
+            title: "Erreur de connexion au serveur",
             description: "Le serveur d'authentification est temporairement inaccessible.",
+            variant: "destructive",
+          });
+        } else if (errorMessage.includes("mot de passe") ||
+                  errorMessage.includes("identifiants") ||
+                  errorMessage.includes("invalide")) {
+          toast({
+            title: "Identifiants incorrects",
+            description: "Le nom d'utilisateur ou le mot de passe est incorrect.",
             variant: "destructive",
           });
         } else {
           // Erreur générique
           toast({
             title: "Échec de la connexion",
-            description: error.message || "Identifiants invalides ou erreur serveur",
+            description: error.message || "Erreur lors de la tentative de connexion",
             variant: "destructive",
           });
         }
