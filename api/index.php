@@ -22,8 +22,11 @@ if (in_array($origin, $allowed_origins)) {
     // Rejeter les origines non autorisées
     header("Access-Control-Allow-Origin: null");
     http_response_code(403);
-    error_log("Origine refusée: " . $origin);
-    die(json_encode(['error' => 'Origin not allowed']));
+    error_log("Origine refusée (Domaine non autorisé): " . $origin);
+    die(json_encode([
+        'error' => 'Origin not allowed', 
+        'details' => 'Vérifiez que votre domaine est bien configuré dans $allowed_origins'
+    ]));
 }
 
 header("Access-Control-Allow-Methods: GET, POST, OPTIONS, PUT, DELETE");
