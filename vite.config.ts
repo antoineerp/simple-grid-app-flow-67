@@ -38,10 +38,10 @@ export default defineConfig(({ mode }) => ({
     // Disable sourcemap in production for better performance
     sourcemap: mode === 'development',
     minify: true,
-    // Optimize chunks for production
+    // Optimize chunks for production without hashing
     rollupOptions: {
       output: {
-        // Désactiver le hachage des fichiers pour éviter les problèmes de chargement
+        // Désactiver complètement le hachage des fichiers
         entryFileNames: 'assets/index.js',
         assetFileNames: 'assets/[name].[ext]',
         chunkFileNames: 'assets/[name].js',

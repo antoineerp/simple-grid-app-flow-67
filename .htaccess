@@ -16,12 +16,17 @@ AddType image/jpeg .jpg .jpeg
 RewriteEngine On
 Options +FollowSymLinks
 
-# Traitement direct des fichiers PHP de test et diagnostic
+# Activer la journalisation des erreurs pour diagnostic
+RewriteLog "/tmp/rewrite.log"
+RewriteLogLevel 3
+
+# Traitement direct des fichiers PHP de diagnostic
+RewriteRule ^debug-assets\.php$ debug-assets.php [L]
+RewriteRule ^assets-check\.php$ assets-check.php [L]
 RewriteRule ^test-ultra-simple\.php$ test-ultra-simple.php [L]
 RewriteRule ^diagnostic-500\.php$ diagnostic-500.php [L]
 RewriteRule ^php-error-finder\.php$ php-error-finder.php [L]
 RewriteRule ^test-minimal\.php$ test-minimal.php [L]
-RewriteRule ^assets-check\.php$ assets-check.php [L]
 
 # Permettre la navigation dans le dossier dist/assets via le navigateur (pour diagnostic)
 <IfModule mod_autoindex.c>
@@ -33,7 +38,17 @@ RewriteRule ^assets-check\.php$ assets-check.php [L]
 </IfModule>
 
 # Traitement des fichiers d'assets y compris ceux avec hachage
+# Règle générale pour tous les fichiers dans assets - TRÈS IMPORTANT
 RewriteRule ^dist/assets/(.*)$ dist/assets/$1 [L]
+
+# Règles spécifiques pour les fichiers index.* sans hachage et avec hachage
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteRule ^dist/assets/index\.js$ dist/assets/index-[^/]*\.js [L]
+
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteRule ^dist/assets/index\.css$ dist/assets/index-[^/]*\.css [L]
+
+# Autres chemins d'accès aux assets
 RewriteRule ^assets/(.*)$ dist/assets/$1 [L]
 RewriteRule ^lovable-uploads/(.*)$ lovable-uploads/$1 [L]
 
