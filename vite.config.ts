@@ -10,19 +10,37 @@ export default defineConfig(({ mode }) => ({
     port: 8080,
     strictPort: true,
     hmr: {
-      clientPort: 443
+      clientPort: 443,
+      // Permettre à Vite de gérer les WebSockets correctement
+      webSocketServer: 'ws'
     }
   },
   plugins: [
     react(),
-    // Lovable tagger n'est pas utilisé car il n'est pas installé,
-    // et il n'est pas nécessaire pour le fonctionnement de base
+    // Plugin personnalisé pour définir __WS_TOKEN__ global
+    {
+      name: 'inject-ws-token',
+      transformIndexHtml() {
+        return [
+          {
+            tag: 'script',
+            attrs: { type: 'text/javascript' },
+            children: 'window.__WS_TOKEN__ = "lovable-ws-token";',
+            injectTo: 'head'
+          }
+        ];
+      }
+    }
   ],
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
     },
     dedupe: ['react', 'react-dom']
+  },
+  define: {
+    '__WS_TOKEN__': JSON.stringify('lovable-ws-token'),
+    '__APP_MODE__': JSON.stringify(mode)
   },
   build: {
     outDir: 'dist',
@@ -53,8 +71,5 @@ export default defineConfig(({ mode }) => ({
   css: {
     postcss: './postcss.config.js',
     devSourcemap: true
-  },
-  define: {
-    '__APP_MODE__': JSON.stringify(mode)
   }
 }));

@@ -11,12 +11,18 @@ import { getEnvironmentType, getEnvironmentName } from './utils/environment';
 declare global {
   interface Window {
     __LOVABLE_EDITOR__: any;
+    __WS_TOKEN__?: string;
   }
 }
 
 // Initialize __LOVABLE_EDITOR__ conditionally
 if (typeof window.__LOVABLE_EDITOR__ === 'undefined') {
   window.__LOVABLE_EDITOR__ = null;
+}
+
+// Ensure __WS_TOKEN__ is defined if not already
+if (typeof window.__WS_TOKEN__ === 'undefined') {
+  window.__WS_TOKEN__ = 'lovable-ws-token';
 }
 
 // Log environment info
