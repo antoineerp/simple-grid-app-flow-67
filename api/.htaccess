@@ -1,14 +1,18 @@
 
+# Configuration spécifique pour le dossier API
+AddHandler application/x-httpd-php .php
+ForceType application/x-httpd-php
+
 # Activer le moteur de réécriture
 RewriteEngine On
-
-# Activer les options ExecCGI pour permettre l'exécution des scripts
 Options +ExecCGI
 
-# Forcer l'interprétation PHP avec AddHandler
-AddHandler application/x-httpd-php .php
+# Forcer l'interprétation PHP pour tous les fichiers .php
+<FilesMatch "\.php$">
+    SetHandler application/x-httpd-php
+</FilesMatch>
 
-# Définir des en-têtes pour le débogage
+# Configuration des en-têtes
 <IfModule mod_headers.c>
     # Activer CORS
     Header always set Access-Control-Allow-Origin "*"
@@ -16,7 +20,7 @@ AddHandler application/x-httpd-php .php
     Header always set Access-Control-Allow-Headers "Origin, X-Requested-With, Content-Type, Accept, Authorization"
     Header always set Access-Control-Max-Age "1728000"
     
-    # Désactiver la mise en cache pour faciliter le développement
+    # Désactiver la mise en cache
     Header set Cache-Control "no-cache, no-store, must-revalidate"
     Header set Pragma "no-cache"
     Header set Expires "0"
@@ -26,11 +30,11 @@ AddHandler application/x-httpd-php .php
 RewriteCond %{REQUEST_METHOD} OPTIONS
 RewriteRule ^(.*)$ $1 [R=200,L]
 
-# Accès direct aux fichiers PHP
+# Permettre l'accès direct aux fichiers PHP
 RewriteCond %{REQUEST_FILENAME} -f
 RewriteRule ^(.+)\.php$ $1.php [L]
 
-# Permettre l'exécution de index.php
+# Fallback vers index.php
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteRule ^(.*)$ index.php [QSA,L]

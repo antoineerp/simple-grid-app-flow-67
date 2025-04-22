@@ -1,12 +1,33 @@
 
+# Configuration principale pour l'application FormaCert
+AddHandler application/x-httpd-php .php
+
+# Activer le moteur de réécriture
 RewriteEngine On
 Options -MultiViews
 Options +FollowSymLinks
 Options +ExecCGI
-DirectoryIndex index.html index.php
 
-# Force PHP interpretation
-AddHandler application/x-httpd-php .php
+# Forcer l'interprétation PHP avec SetHandler
+<FilesMatch "\.php$">
+    SetHandler application/x-httpd-php
+</FilesMatch>
+
+# Configuration de PHP
+<IfModule mod_php7.c>
+    php_flag display_errors on
+    php_value error_reporting 32767
+</IfModule>
+
+<IfModule mod_php8.c>
+    php_flag display_errors on
+    php_value error_reporting 32767
+</IfModule>
+
+# Forcer le type de contenu pour les fichiers PHP
+<FilesMatch "\.php$">
+    ForceType application/x-httpd-php
+</FilesMatch>
 
 # Définir correctement les types MIME pour les extensions de fichiers
 AddType application/javascript .js
@@ -36,34 +57,26 @@ AddType image/svg+xml .svg
     Header set Cache-Control "no-cache, no-store, must-revalidate"
 </FilesMatch>
 
-# Configuration pour forcer l'interprétation PHP
-<FilesMatch "\.php$">
-    SetHandler application/x-httpd-php
-</FilesMatch>
-
 # Ajouter un User-Agent par défaut pour les requêtes sans User-Agent
 SetEnvIf User-Agent "^$" force-default-ua=1
 RequestHeader set User-Agent "Mozilla/5.0 (compatible; FormaCertBot)" env=force-default-ua
 
 # Règles spécifiques pour Lovable
 RewriteRule ^lovable-uploads/(.*)$ public/lovable-uploads/$1 [L]
-
-# Règle spécifique pour le favicon
 RewriteRule ^favicon\.ico$ /lovable-uploads/formacert-logo.png [L]
 
 # Règles pour les fichiers PHP de diagnostic
 RewriteRule ^test\.php$ test.php [L]
 RewriteRule ^assets-check\.php$ assets-check.php [L]
+RewriteRule ^php-test-simple\.php$ php-test-simple.php [L]
 
 # Règles pour l'API
 RewriteRule ^api$ api/ [R=301,L]
 RewriteRule ^api/(.*)$ api/$1 [QSA,L]
 
-# Règles importantes pour les assets - Simplifiées pour une meilleure compatibilité
+# Règles importantes pour les assets
 RewriteRule ^dist/assets/(.*)$ dist/assets/$1 [L]
 RewriteRule ^assets/(.*)$ dist/assets/$1 [L]
-
-# Accès direct aux fichiers dans src pour développement
 RewriteRule ^src/(.*)$ src/$1 [L]
 
 # Route de secours pour SPA - IMPORTANT
