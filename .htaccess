@@ -3,23 +3,27 @@
 AddHandler application/x-httpd-php .php
 SetHandler application/x-httpd-php
 
-# Types MIME
+# Types MIME explicites pour assurer le bon chargement des assets
 AddType text/css .css
 AddType application/javascript .js
 AddType application/javascript .mjs
 AddType text/javascript .js .mjs
+AddType image/svg+xml .svg
+AddType image/png .png
+AddType image/jpeg .jpg .jpeg
 
 # Activer le moteur de réécriture
 RewriteEngine On
 Options +FollowSymLinks
 
-# Traitement direct des fichiers PHP de test
+# Traitement direct des fichiers PHP de test et diagnostic
 RewriteRule ^test-ultra-simple\.php$ test-ultra-simple.php [L]
 RewriteRule ^diagnostic-500\.php$ diagnostic-500.php [L]
 RewriteRule ^php-error-finder\.php$ php-error-finder.php [L]
 RewriteRule ^test-minimal\.php$ test-minimal.php [L]
+RewriteRule ^assets-check\.php$ assets-check.php [L]
 
-# Redirection pour les assets statiques
+# Traitement des fichiers d'assets
 RewriteRule ^dist/assets/(.*)$ dist/assets/$1 [L]
 RewriteRule ^assets/(.*)$ dist/assets/$1 [L]
 RewriteRule ^lovable-uploads/(.*)$ lovable-uploads/$1 [L]
