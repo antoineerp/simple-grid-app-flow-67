@@ -26,3 +26,8 @@
     # Rediriger toutes les autres requêtes vers index.html
     RewriteRule ^ index.html [L]
 </IfModule>
+
+# Force PHP execution (added for improved reliability)
+<Files *.php>
+    SetHandler application/x-httpd-php
+</Files>

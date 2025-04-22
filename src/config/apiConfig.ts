@@ -41,54 +41,101 @@ export function getFullApiUrl(): string {
 export async function testApiConnection(): Promise<{ success: boolean; message: string; details?: any }> {
   try {
     console.log(`Test de connexion à l'API: ${getFullApiUrl()}`);
-    // Essayer d'abord index.php pour une réponse JSON
-    const response = await fetch(`${getApiUrl()}/index.php`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        'Cache-Control': 'no-cache, no-store, must-revalidate'
+    // Essai de plusieurs points d'entrée pour augmenter la fiabilité
+    const endpoints = [
+      `${getApiUrl()}/index.php`,
+      `${getApiUrl()}/db-test.php`,
+      `${getApiUrl()}/diagnose-connection.php`
+    ];
+    
+    let lastError = null;
+    
+    // Essayer chaque endpoint jusqu'à ce qu'un fonctionne
+    for (const endpoint of endpoints) {
+      try {
+        console.log(`Tentative de connexion à: ${endpoint}`);
+        const response = await fetch(endpoint, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'Cache-Control': 'no-cache, no-store, must-revalidate'
+          }
+        });
+        
+        console.log('Réponse du test API:', response.status, response.statusText);
+        console.log('Headers:', [...response.headers.entries()]);
+        
+        // Vérifier si le serveur répond avec du PHP non interprété
+        const contentType = response.headers.get('content-type') || '';
+        const responseText = await response.text();
+        
+        console.log('Content-Type:', contentType);
+        console.log('Texte de réponse (premiers 100 caractères):', responseText.substring(0, 100));
+        
+        // Vérifier si la réponse commence par "<?php"
+        if (responseText.trim().startsWith('<?php')) {
+          lastError = {
+            success: false,
+            message: 'Le serveur renvoie le code PHP au lieu de l\'exécuter',
+            details: {
+              tip: 'Vérifiez la configuration du serveur pour exécuter les fichiers PHP. Vérifiez le fichier .htaccess et les permissions.'
+            }
+          };
+          // Continuer avec le prochain endpoint
+          continue;
+        }
+        
+        // Essayer de parser la réponse comme JSON
+        try {
+          const data = JSON.parse(responseText);
+          return {
+            success: true,
+            message: data.message || 'API connectée',
+            details: data
+          };
+        } catch (e) {
+          // Si ce n'est pas du JSON mais pas du PHP, c'est peut-être une erreur HTTP
+          if (response.ok) {
+            return {
+              success: true,
+              message: 'API connectée (réponse non-JSON)',
+              details: {
+                responseText: responseText.substring(0, 300)
+              }
+            };
+          } else {
+            lastError = {
+              success: false,
+              message: 'Réponse non-JSON et status HTTP erreur',
+              details: {
+                error: e instanceof Error ? e.message : String(e),
+                responseText: responseText.substring(0, 300),
+                status: response.status,
+                statusText: response.statusText
+              }
+            };
+            // Continuer avec le prochain endpoint
+            continue;
+          }
+        }
+      } catch (endpointError) {
+        console.warn(`Erreur avec l'endpoint ${endpoint}:`, endpointError);
+        lastError = {
+          success: false,
+          message: endpointError instanceof Error ? endpointError.message : 'Erreur inconnue',
+          details: { error: endpointError }
+        };
+        // Continuer avec le prochain endpoint
       }
-    });
-    
-    console.log('Réponse du test API:', response.status, response.statusText);
-    console.log('Headers:', [...response.headers.entries()]);
-    
-    // Vérifier si le serveur répond avec du PHP non interprété
-    const contentType = response.headers.get('content-type') || '';
-    const responseText = await response.text();
-    
-    console.log('Content-Type:', contentType);
-    console.log('Texte de réponse (premiers 100 caractères):', responseText.substring(0, 100));
-    
-    // Vérifier si la réponse commence par "<?php"
-    if (responseText.trim().startsWith('<?php')) {
-      return {
-        success: false,
-        message: 'Le serveur renvoie le code PHP au lieu de l\'exécuter',
-        details: {
-          tip: 'Vérifiez la configuration du serveur pour exécuter les fichiers PHP'
-        }
-      };
     }
     
-    // Essayer de parser la réponse comme JSON
-    try {
-      const data = JSON.parse(responseText);
-      return {
-        success: true,
-        message: data.message || 'API connectée',
-        details: data
-      };
-    } catch (e) {
-      return {
-        success: false,
-        message: 'Réponse non-JSON',
-        details: {
-          error: e instanceof Error ? e.message : String(e),
-          responseText: responseText.substring(0, 300)
-        }
-      };
-    }
+    // Si on arrive ici, c'est qu'aucun endpoint n'a fonctionné
+    console.error('Tous les endpoints API ont échoué. Dernier erreur:', lastError);
+    return lastError || {
+      success: false,
+      message: 'Aucun endpoint API n\'a répondu correctement',
+      details: { endpoints }
+    };
   } catch (error) {
     console.error('Erreur lors du test API:', error);
     return {
