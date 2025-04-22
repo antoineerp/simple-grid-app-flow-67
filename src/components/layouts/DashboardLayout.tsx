@@ -6,7 +6,7 @@ interface DashboardLayoutProps {
   children: ReactNode;
 }
 
-const DashboardLayout = ({ children }: DashboardLayoutProps) => {
+const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
   return (
     <Layout>
       <div className="container mx-auto px-4 py-6">
