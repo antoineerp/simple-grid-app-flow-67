@@ -83,7 +83,11 @@ export const createUser = async (userData: CreateUserData) => {
       
       if (response.status >= 200 && response.status < 300) {
         // Si le statut est OK malgré la réponse vide, on considère que c'est un succès
-        return { success: true, message: "Utilisateur créé avec succès (réponse vide)" };
+        return { 
+          success: true, 
+          message: "Utilisateur créé avec succès (réponse vide)",
+          identifiant_technique: identifiantTechnique 
+        };
       } else {
         throw new Error(`Erreur ${response.status}: Réponse vide du serveur`);
       }
@@ -99,7 +103,11 @@ export const createUser = async (userData: CreateUserData) => {
       
       // Si la réponse contient "créé avec succès", on considère que c'est un succès malgré l'erreur de parsing
       if (responseText.includes("créé avec succès") || response.status >= 200 && response.status < 300) {
-        return { success: true, message: "Utilisateur créé avec succès (réponse non-JSON)" };
+        return { 
+          success: true, 
+          message: "Utilisateur créé avec succès (réponse non-JSON)",
+          identifiant_technique: identifiantTechnique 
+        };
       }
       
       throw new Error(`Réponse non valide du serveur: ${responseText.substring(0, 100)}...`);
@@ -109,7 +117,11 @@ export const createUser = async (userData: CreateUserData) => {
       throw new Error(responseData.message || "Erreur lors de la création de l'utilisateur");
     }
 
-    return responseData;
+    // Ajouter l'identifiant technique à la réponse pour faciliter la connexion ultérieure
+    return {
+      ...responseData,
+      identifiant_technique: identifiantTechnique
+    };
   } catch (error) {
     console.error("Erreur lors de la création de l'utilisateur:", error);
     throw error;

@@ -60,6 +60,7 @@ const UserManagement = ({ currentDatabaseUser, onUserConnect }: UserManagementPr
             <UserForm 
               onClose={() => setNewUserOpen(false)}
               onSuccess={handleSuccessfulUserCreation}
+              onUserConnect={onUserConnect}
             />
           </Dialog>
         </div>

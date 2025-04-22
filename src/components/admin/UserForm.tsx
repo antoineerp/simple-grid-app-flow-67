@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { DialogFooter, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { createUser } from '@/services/users/createUserService';
+import { connectAsUser } from '@/services';
 
 interface UserFormData {
   nom: string;
@@ -17,9 +18,10 @@ interface UserFormData {
 interface UserFormProps {
   onClose: () => void;
   onSuccess?: () => void;
+  onUserConnect?: (identifiant: string) => void;
 }
 
-const UserForm = ({ onClose, onSuccess }: UserFormProps) => {
+const UserForm = ({ onClose, onSuccess, onUserConnect }: UserFormProps) => {
   const { toast } = useToast();
   const [formData, setFormData] = React.useState<UserFormData>({
     nom: '',
@@ -29,6 +31,7 @@ const UserForm = ({ onClose, onSuccess }: UserFormProps) => {
     mot_de_passe: ''
   });
   const [isSubmitting, setIsSubmitting] = React.useState(false);
+  const [connectAfterCreate, setConnectAfterCreate] = React.useState(false);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -40,14 +43,43 @@ const UserForm = ({ onClose, onSuccess }: UserFormProps) => {
     setIsSubmitting(true);
 
     try {
-      await createUser(formData);
+      const result = await createUser(formData);
+      console.log("Résultat de la création:", result);
+      
       toast({
         title: "Utilisateur créé",
         description: "L'utilisateur a été créé avec succès.",
       });
+      
+      // Si l'option de connexion est activée, se connecter avec le nouvel utilisateur
+      if (connectAfterCreate && result.identifiant_technique) {
+        try {
+          const connectSuccess = await connectAsUser(result.identifiant_technique);
+          
+          if (connectSuccess) {
+            toast({
+              title: "Connexion réussie",
+              description: `Vous êtes maintenant connecté en tant que ${result.identifiant_technique}`,
+            });
+            
+            if (onUserConnect) {
+              onUserConnect(result.identifiant_technique);
+            }
+          }
+        } catch (connectError) {
+          console.error("Erreur lors de la connexion avec le nouvel utilisateur:", connectError);
+          toast({
+            title: "Erreur de connexion",
+            description: "L'utilisateur a été créé mais la connexion automatique a échoué.",
+            variant: "destructive",
+          });
+        }
+      }
+      
       if (onSuccess) {
         onSuccess();
       }
+      
       onClose();
     } catch (error) {
       toast({
@@ -136,6 +168,22 @@ const UserForm = ({ onClose, onSuccess }: UserFormProps) => {
               <option value="gestionnaire">Gestionnaire</option>
               <option value="admin">Administrateur</option>
             </select>
+          </div>
+
+          <div className="grid grid-cols-4 items-center gap-4">
+            <label htmlFor="connect" className="text-right text-sm">Options</label>
+            <div className="col-span-3 flex items-center space-x-2">
+              <input
+                type="checkbox"
+                id="connect"
+                checked={connectAfterCreate}
+                onChange={() => setConnectAfterCreate(!connectAfterCreate)}
+                className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+              />
+              <label htmlFor="connect" className="text-sm text-gray-700">
+                Se connecter automatiquement après la création
+              </label>
+            </div>
           </div>
         </div>
 

@@ -21,6 +21,7 @@ export interface DatabaseInfo {
 class DatabaseConnectionService {
   private static instance: DatabaseConnectionService;
   private currentUser: string | null = null;
+  private lastError: string | null = null;
 
   private constructor() {
     console.log("Database connection service initialized");
@@ -52,6 +53,11 @@ class DatabaseConnectionService {
     }
   }
 
+  // Get the last error
+  public getLastError(): string | null {
+    return this.lastError;
+  }
+
   // Set the current user
   public setCurrentUser(identifiantTechnique: string | null): void {
     this.currentUser = identifiantTechnique;
@@ -77,6 +83,40 @@ class DatabaseConnectionService {
   public async connectAsUser(identifiantTechnique: string): Promise<boolean> {
     try {
       console.log(`Attempting to connect as ${identifiantTechnique}...`);
+      this.lastError = null;
+      
+      // Vérifier d'abord que l'utilisateur existe
+      const API_URL = getApiUrl();
+      const checkUserResponse = await fetch(`${API_URL}/check-users`, {
+        method: 'GET',
+        headers: getAuthHeaders()
+      });
+      
+      if (!checkUserResponse.ok) {
+        const errorText = await checkUserResponse.text();
+        console.error("Erreur lors de la vérification de l'utilisateur:", errorText);
+        this.lastError = `Impossible de vérifier l'utilisateur: ${checkUserResponse.status}`;
+        throw new Error(this.lastError);
+      }
+      
+      const userCheckData = await checkUserResponse.json();
+      console.log("Utilisateurs trouvés:", userCheckData.records ? userCheckData.records.length : 0);
+      
+      // Vérifier si l'utilisateur existe dans la liste retournée
+      const userExists = userCheckData.records && userCheckData.records.some(
+        (user: any) => user.identifiant_technique === identifiantTechnique
+      );
+      
+      if (!userExists) {
+        this.lastError = `L'utilisateur ${identifiantTechnique} n'existe pas dans la base de données`;
+        console.error(this.lastError);
+        toast({
+          title: "Utilisateur inexistant",
+          description: this.lastError,
+          variant: "destructive",
+        });
+        return false;
+      }
       
       // Set the current user
       this.setCurrentUser(identifiantTechnique);
@@ -85,7 +125,8 @@ class DatabaseConnectionService {
       const isConnected = await this.testConnection();
       
       if (!isConnected) {
-        throw new Error("Impossible de se connecter à la base de données");
+        this.lastError = "Impossible de se connecter à la base de données";
+        throw new Error(this.lastError);
       }
       
       // Initialize user data if needed
@@ -99,9 +140,15 @@ class DatabaseConnectionService {
       return true;
     } catch (error) {
       console.error("Erreur lors de la connexion:", error);
+      
+      // Si l'erreur n'a pas déjà été définie
+      if (!this.lastError) {
+        this.lastError = error instanceof Error ? error.message : "Erreur inconnue lors de la connexion";
+      }
+      
       toast({
         title: "Échec de la connexion",
-        description: "Impossible de se connecter avec cet identifiant.",
+        description: this.lastError,
         variant: "destructive",
       });
       
@@ -118,7 +165,7 @@ class DatabaseConnectionService {
       console.log("Test de la connexion à la base de données...");
       const API_URL = getApiUrl();
       
-      const response = await fetch(`${API_URL}/database-test`, {
+      const response = await fetch(`${API_URL}/db-connection-test`, {
         method: 'GET',
         headers: getAuthHeaders()
       });
@@ -147,9 +194,11 @@ class DatabaseConnectionService {
       return true;
     } catch (error) {
       console.error("Erreur lors du test de connexion:", error);
+      this.lastError = error instanceof Error ? error.message : "Impossible d'établir une connexion à la base de données.";
+      
       toast({
         title: "Erreur de connexion",
-        description: error instanceof Error ? error.message : "Impossible d'établir une connexion à la base de données.",
+        description: this.lastError,
         variant: "destructive",
       });
       return false;
@@ -249,6 +298,10 @@ export const connectAsUser = (identifiantTechnique: string): Promise<boolean> =>
 
 export const getCurrentUser = (): string | null => {
   return dbConnectionService.getCurrentUser();
+};
+
+export const getLastConnectionError = (): string | null => {
+  return dbConnectionService.getLastError();
 };
 
 export const disconnectUser = (): void => {
