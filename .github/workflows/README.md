@@ -22,6 +22,10 @@ Le workflow effectue les actions suivantes:
 5. Copie des fichiers essentiels (.htaccess, etc.)
 6. Déploiement vers Infomaniak via FTP
 
+## Dossier de destination
+
+Le workflow est actuellement configuré pour déployer dans le dossier `/qualiopi.ch/` sur le serveur FTP. Si vous avez besoin de changer ce dossier, modifiez la valeur de `server-dir` dans le fichier `deploy.yml`.
+
 ## Résolution des problèmes
 
 Si le déploiement échoue:
