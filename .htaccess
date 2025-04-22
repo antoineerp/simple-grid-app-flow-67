@@ -12,8 +12,8 @@ AddHandler application/x-httpd-php .php
 AddType application/javascript .js
 AddType application/javascript .mjs
 AddType application/javascript .jsx
-AddType text/javascript .tsx
-AddType text/javascript .ts
+AddType application/javascript .tsx
+AddType application/javascript .ts
 AddType text/css .css
 AddType application/json .json
 AddType image/svg+xml .svg
