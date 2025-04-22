@@ -3,6 +3,12 @@
 AddHandler application/x-httpd-php .php
 SetHandler application/x-httpd-php
 
+# Types MIME
+AddType text/css .css
+AddType application/javascript .js
+AddType application/javascript .mjs
+AddType text/javascript .js .mjs
+
 # Activer le moteur de réécriture
 RewriteEngine On
 Options +FollowSymLinks
@@ -10,6 +16,8 @@ Options +FollowSymLinks
 # Traitement direct des fichiers PHP de test
 RewriteRule ^test-ultra-simple\.php$ test-ultra-simple.php [L]
 RewriteRule ^diagnostic-500\.php$ diagnostic-500.php [L]
+RewriteRule ^php-error-finder\.php$ php-error-finder.php [L]
+RewriteRule ^test-minimal\.php$ test-minimal.php [L]
 
 # Redirection pour les assets statiques
 RewriteRule ^dist/assets/(.*)$ dist/assets/$1 [L]

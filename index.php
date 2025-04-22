@@ -11,11 +11,18 @@ echo '<!DOCTYPE html>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>FormaCert</title>
     <link rel="icon" href="/lovable-uploads/formacert-logo.png" type="image/png">
-    <link rel="stylesheet" href="/dist/assets/index.css">
+    
+    <!-- Styles avec fallback direct vers le dossier dist -->
+    <link rel="stylesheet" href="/dist/assets/index.css" type="text/css">
 </head>
 <body>
     <div id="root"></div>
-    <script src="/dist/assets/index.js"></script>
+    
+    <!-- Script Lovable (chargé en permanence) -->
+    <script src="https://cdn.gpteng.co/gptengineer.js" type="module"></script>
+    
+    <!-- Script principal avec fallback -->
+    <script src="/dist/assets/index.js" type="module"></script>
 </body>
 </html>';
 ?>
