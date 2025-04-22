@@ -40,13 +40,6 @@ jobs:
       run: |
         echo "Listing full directory structure:"
         find dist -type f | sort
-        echo "==========================="
-        echo "Checking key files:"
-        ls -la dist/index.html || echo "index.html NOT FOUND!"
-        ls -la dist/assets/ || echo "assets directory NOT FOUND!"
-        ls -la dist/assets/index.js || echo "index.js NOT FOUND!"
-        ls -la dist/assets/index.css || echo "index.css NOT FOUND!"
-        ls -la dist/api/ || echo "api directory NOT FOUND!"
         
     - name: Deploy to Infomaniak
       uses: SamKirkland/FTP-Deploy-Action@v4.3.4
@@ -56,21 +49,25 @@ jobs:
         password: ${{ secrets.FTP_PASSWORD }}
         local-dir: ./dist/
         server-dir: /
-        dangerous-clean-slate: false
+        dangerous-clean-slate: true  # Ajout de l'option pour nettoyer avant de déployer
         exclude: |
           **/.git*
           **/.git*/**
           **/node_modules/**
+          **/dist/**
           README.md
           package.json
           package-lock.json
           tsconfig*.json
           src/**
+          .github/**
+          *.log
         log-level: verbose
         timeout: 120000
         
     - name: Post-deployment verification
       run: |
         echo "Deployment completed. Check logs for any errors."
-        echo "Run verify-deploy.php on your server to diagnostiquer l'état du déploiement."
+        echo "Run verify-deploy.php on your server to check deployment status."
         echo "URL: https://qualiopi.ch/verify-deploy.php"
+
