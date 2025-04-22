@@ -37,7 +37,6 @@ export default defineConfig(({ mode }) => ({
             return 'vendor';
           }
         },
-        // Mises à jour pour s'assurer que le entry point principal est généré comme 'index.js'
         entryFileNames: 'assets/[name].js',
         chunkFileNames: 'assets/[name].js',
         assetFileNames: 'assets/[name].[ext]'
@@ -54,7 +53,6 @@ export default defineConfig(({ mode }) => ({
     devSourcemap: true
   },
   define: {
-    // Définir une variable globale pour détecter le mode build
     '__APP_MODE__': JSON.stringify(mode)
   }
 }));

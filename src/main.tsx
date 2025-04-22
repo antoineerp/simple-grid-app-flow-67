@@ -14,7 +14,7 @@ declare global {
   }
 }
 
-// Initialisation conditionnelle de __LOVABLE_EDITOR__
+// Initialize __LOVABLE_EDITOR__ conditionally
 if (typeof window.__LOVABLE_EDITOR__ === 'undefined') {
   window.__LOVABLE_EDITOR__ = null;
 }
