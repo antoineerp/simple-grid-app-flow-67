@@ -6,15 +6,21 @@ let isCustomUrl = false;
 // Détection automatique de l'environnement
 function detectEnvironment() {
   const hostname = window.location.hostname;
-  const isProduction = hostname.includes('qualiopi.ch') || !hostname.includes('lovableproject.com');
+  const isInfomaniak = hostname.includes('myd.infomaniak.com') || hostname.includes('qualiopi.ch');
   
   console.log('Détection d\'environnement - Hostname:', hostname);
-  console.log('Détection d\'environnement - Est production:', isProduction);
+  console.log('Détection d\'environnement - Est Infomaniak:', isInfomaniak);
   
-  if (isProduction) {
-    // Pour Infomaniak
-    apiUrl = hostname.includes('qualiopi.ch') ? '/sites/qualiopi.ch/api' : '/api';
-    console.log('Environnement de production détecté - API URL:', apiUrl);
+  if (isInfomaniak) {
+    // Configuration pour Infomaniak
+    if (hostname.includes('qualiopi.ch')) {
+      apiUrl = '/sites/qualiopi.ch/api';
+    } else if (hostname.includes('p71x6d')) {
+      apiUrl = '/api';
+    } else {
+      apiUrl = '/api';
+    }
+    console.log('Environnement Infomaniak détecté - API URL:', apiUrl);
   } else {
     // Pour l'environnement de développement Lovable
     apiUrl = '/api';

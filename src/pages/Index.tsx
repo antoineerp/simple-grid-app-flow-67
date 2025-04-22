@@ -5,14 +5,22 @@ import LoginForm from '@/components/auth/LoginForm';
 import { getApiUrl, getFullApiUrl } from '@/config/apiConfig';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { AlertCircle, ExternalLink, Info } from 'lucide-react';
+import { AlertCircle, ExternalLink, Info, Server } from 'lucide-react';
 
 const Index = () => {
   const [apiStatus, setApiStatus] = useState<'loading' | 'success' | 'error'>('loading');
   const [apiMessage, setApiMessage] = useState<string>('');
-  const [version, setVersion] = useState<string>('1.0.4');
+  const [version, setVersion] = useState<string>('1.0.7');
+  const [isInfomaniak, setIsInfomaniak] = useState<boolean>(false);
   
   useEffect(() => {
+    // Détecter si nous sommes sur Infomaniak
+    const hostname = window.location.hostname;
+    const infomaniakDetected = hostname.includes('myd.infomaniak.com') || 
+                             hostname.includes('qualiopi.ch') || 
+                             hostname.includes('p71x6d');
+    setIsInfomaniak(infomaniakDetected);
+    
     const checkApi = async () => {
       try {
         const timestamp = new Date().getTime();
@@ -49,7 +57,7 @@ const Index = () => {
     checkApi();
     
     // Nouvelle date pour mettre à jour la version
-    setVersion(`1.0.6 - ${new Date().toLocaleDateString()}`);
+    setVersion(`1.0.7 - ${new Date().toLocaleDateString()}`);
   }, []);
 
   return (
@@ -69,11 +77,21 @@ const Index = () => {
           </Alert>
         )}
         
-        <Alert variant="default" className="mb-6">
+        <Alert variant={isInfomaniak ? "default" : "warning"} className="mb-6">
           <Info className="h-4 w-4 mr-2" />
           <AlertDescription>
             <div className="text-xs">
-              URL d'API: <strong>{getFullApiUrl()}</strong>
+              {isInfomaniak ? (
+                <>
+                  <div className="flex items-center mb-1">
+                    <Server className="h-3 w-3 mr-1" />
+                    <span className="font-medium">Infomaniak détecté</span>
+                  </div>
+                  URL d'API: <strong>{getFullApiUrl()}</strong>
+                </>
+              ) : (
+                <>URL d'API: <strong>{getFullApiUrl()}</strong></>
+              )}
             </div>
           </AlertDescription>
         </Alert>

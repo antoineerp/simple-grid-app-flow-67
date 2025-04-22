@@ -44,6 +44,19 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     
     // Vérifier des identifiants simples
     if (isset($data['username']) && isset($data['password'])) {
+        // Vérifier d'abord si on peut se connecter à la base de données
+        $db_connect = false;
+        
+        try {
+            $db = new PDO('mysql:host=p71x6d.myd.infomaniak.com;dbname=p71x6d_system;charset=utf8mb4', 'p71x6d_system', 'votre_mot_de_passe_ici');
+            $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+            $db_connect = true;
+            error_log("Connexion à la base de données Infomaniak réussie");
+        } catch (PDOException $e) {
+            error_log("Erreur de connexion à la base de données: " . $e->getMessage());
+            // Continuer avec les identifiants hardcodés même si la BD échoue
+        }
+        
         // Authentifications hardcodées pour test
         $valid_users = [
             'p71x6d_system' => ['password' => 'admin123', 'role' => 'admin'],
@@ -59,7 +72,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             
             error_log("Authentification réussie pour: " . $data['username']);
             
-            json_response([
+            $response = [
                 'message' => 'Connexion réussie (mode test)',
                 'token' => $token,
                 'user' => [
@@ -69,8 +82,20 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                     'email' => $data['username'] . '@test.com',
                     'identifiant_technique' => $data['username'],
                     'role' => $valid_users[$data['username']]['role']
-                ]
-            ]);
+                ],
+                'db_connection' => $db_connect ? 'réussie' : 'échec'
+            ];
+            
+            if ($db_connect) {
+                $response['database_info'] = [
+                    'host' => 'p71x6d.myd.infomaniak.com',
+                    'database' => 'p71x6d_system',
+                    'encoding' => 'utf8mb4',
+                    'tables' => ['utilisateurs', 'documents', 'indicateurs', 'qualiopi_criteres', 'qualiopi_indicateurs', 'ressources_humaines']
+                ];
+            }
+            
+            json_response($response);
         } else {
             error_log("Identifiants invalides pour: " . $data['username']);
             

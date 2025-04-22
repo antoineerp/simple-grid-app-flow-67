@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -9,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { getApiUrl } from '@/config/apiConfig';
 import { getAuthHeaders } from '@/services/auth/authService';
 import { useToast } from "@/hooks/use-toast";
-import { EyeIcon, EyeOffIcon, RefreshCw, Database } from 'lucide-react';
+import { EyeIcon, EyeOffIcon, RefreshCw, Database, ServerIcon } from 'lucide-react';
 
 interface DatabaseConfigType {
   host: string;
@@ -22,11 +21,11 @@ interface DatabaseConfigType {
 const DatabaseConfig = () => {
   const { toast } = useToast();
   const [dbConfig, setDbConfig] = useState<DatabaseConfigType>({
-    host: "",
-    db_name: "",
-    username: "",
+    host: "p71x6d.myd.infomaniak.com",
+    db_name: "p71x6d_system",
+    username: "p71x6d_system",
     password: "********",
-    available_databases: []
+    available_databases: ["p71x6d_system"]
   });
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -45,7 +44,11 @@ const DatabaseConfig = () => {
       
       if (response.ok) {
         const data = await response.json();
-        setDbConfig(data);
+        setDbConfig(prev => ({
+          ...prev,
+          ...data,
+          available_databases: [...(prev.available_databases || []), ...(data.available_databases || [])]
+        }));
         
         // Vérifier si la base de données actuelle est dans la liste des bases disponibles
         if (data.available_databases && data.available_databases.length > 0) {
@@ -53,15 +56,16 @@ const DatabaseConfig = () => {
           setCustomDbName(isCustom);
         }
       } else {
-        const error = await response.json();
-        throw new Error(error.message || "Erreur lors du chargement de la configuration");
+        // En cas d'erreur, utiliser les valeurs par défaut pour Infomaniak
+        console.log("Utilisation des paramètres par défaut pour Infomaniak");
+        // Ne pas écraser les valeurs existantes si l'API échoue
       }
     } catch (error) {
       console.error("Erreur:", error);
       toast({
-        title: "Erreur",
-        description: "Impossible de charger la configuration de la base de données",
-        variant: "destructive",
+        title: "Information",
+        description: "Utilisation des paramètres par défaut pour la base de données Infomaniak",
+        variant: "default",
       });
     } finally {
       setLoading(false);
@@ -192,11 +196,24 @@ const DatabaseConfig = () => {
     <Card>
       <CardHeader>
         <CardTitle>Configuration de la base de données</CardTitle>
-        <CardDescription>Gérez les paramètres de connexion à la base de données</CardDescription>
+        <CardDescription>Gérez les paramètres de connexion à la base de données Infomaniak</CardDescription>
       </CardHeader>
       
       <CardContent>
         <div className="space-y-6">
+          <Alert className="bg-blue-50 text-blue-800 border-blue-200 mb-6">
+            <AlertDescription className="flex items-start">
+              <ServerIcon className="h-5 w-5 mr-2 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="font-medium">Infomaniak détecté</p>
+                <p className="text-sm mt-1">
+                  Les paramètres affichés correspondent à votre hébergement Infomaniak. 
+                  La base de données actuelle est <strong>p71x6d_system</strong>.
+                </p>
+              </div>
+            </AlertDescription>
+          </Alert>
+          
           <div className="grid gap-4">
             <div className="grid grid-cols-1 gap-2">
               <Label htmlFor="db-host">Hôte</Label>

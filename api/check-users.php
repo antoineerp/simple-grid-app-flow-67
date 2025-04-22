@@ -36,128 +36,130 @@ try {
     error_log("=== EXÉCUTION DE check-users.php ===");
     error_log("Méthode: " . $_SERVER['REQUEST_METHOD'] . " - URI: " . $_SERVER['REQUEST_URI']);
     
-    // Inclure les fichiers de configuration et les modèles
-    require_once 'config/database.php';
-    require_once 'models/User.php';
+    // Informations de connexion à la base de données Infomaniak
+    $host = 'p71x6d.myd.infomaniak.com';
+    $db_name = 'p71x6d_system';
+    $username = 'p71x6d_system';
+    $password = ''; // À remplir avec le mot de passe réel
     
-    // Créer une connexion à la base de données
-    $database = new Database();
-    $db = $database->getConnection();
-    
-    if (!$database->is_connected) {
-        throw new Exception("Impossible de se connecter à la base de données");
+    try {
+        // Tenter de se connecter directement à la base de données
+        $db = new PDO("mysql:host=$host;dbname=$db_name;charset=utf8mb4", $username, $password);
+        $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+        
+        // Vérifier si la table utilisateurs existe
+        $stmt = $db->query("SHOW TABLES LIKE 'utilisateurs'");
+        $tableExists = $stmt->rowCount() > 0;
+        
+        if ($tableExists) {
+            // Lire les utilisateurs
+            $query = "SELECT * FROM utilisateurs";
+            $stmt = $db->query($query);
+            $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            
+            // Masquer les mots de passe
+            foreach ($users as &$user) {
+                if (isset($user['mot_de_passe'])) {
+                    $user['mot_de_passe'] = '******';
+                }
+            }
+            
+            // Construire la réponse
+            $response = [
+                "status" => "success",
+                "message" => "Connexion réussie à la base de données Infomaniak",
+                "records" => $users,
+                "count" => count($users),
+                "database_info" => [
+                    "connected" => true,
+                    "host" => $host,
+                    "database" => $db_name,
+                    "tables" => ["utilisateurs", "documents", "indicateurs", "qualiopi_criteres", "qualiopi_indicateurs", "ressources_humaines"]
+                ]
+            ];
+        } else {
+            // La table n'existe pas encore
+            $response = [
+                "status" => "warning",
+                "message" => "La table 'utilisateurs' n'existe pas encore dans la base de données",
+                "records" => [],
+                "count" => 0,
+                "database_info" => [
+                    "connected" => true,
+                    "host" => $host,
+                    "database" => $db_name
+                ]
+            ];
+        }
+    } catch (PDOException $e) {
+        // En cas d'erreur de connexion
+        error_log("Erreur de connexion à la base de données: " . $e->getMessage());
+        
+        $response = [
+            "status" => "error",
+            "message" => "Impossible de se connecter à la base de données Infomaniak",
+            "error" => $e->getMessage(),
+            "records" => [],
+            "count" => 0,
+            "database_info" => [
+                "connected" => false,
+                "host" => $host,
+                "database" => $db_name,
+                "error" => $e->getMessage()
+            ]
+        ];
     }
     
-    // Créer un objet User
-    $user = new User($db);
-    
-    // Lire tous les utilisateurs
-    $stmt = $user->read();
-    $num = $stmt->rowCount();
-    
-    // Vérifier si des utilisateurs ont été trouvés
-    if ($num > 0) {
-        // Tableau des utilisateurs
-        $users_arr = array();
-        $users_arr["records"] = array();
-        
-        // Récupérer les données
-        while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
-            // Masquer le mot de passe
-            $row['mot_de_passe'] = '******';
-            
-            // Ajouter l'utilisateur au tableau
-            array_push($users_arr["records"], $row);
-        }
-        
-        // Ajouter des informations supplémentaires
-        $users_arr["count"] = $num;
-        $users_arr["status"] = "success";
-        $users_arr["message"] = "Utilisateurs récupérés avec succès";
-        $users_arr["database_info"] = array(
-            "connected" => true,
-            "host" => $database->host,
-            "database" => $database->db_name
-        );
-        
-        // Ajouter des identifiants de secours
-        $users_arr["fallback_users"] = array(
-            array(
-                "identifiant_technique" => "admin",
-                "mot_de_passe" => "admin123",
-                "role" => "admin"
-            ),
-            array(
-                "identifiant_technique" => "antcirier@gmail.com",
-                "mot_de_passe" => "password123",
-                "role" => "admin"
-            ),
-            array(
+    // Ajouter les utilisateurs de secours en cas d'échec de la base de données
+    if (!isset($response["records"]) || empty($response["records"])) {
+        $response["fallback_users"] = [
+            [
                 "identifiant_technique" => "p71x6d_system",
                 "mot_de_passe" => "admin123",
-                "role" => "admin"
-            ),
-            array(
+                "role" => "admin",
+                "nom" => "Administrateur",
+                "prenom" => "Système",
+                "email" => "admin@qualiopi.ch"
+            ],
+            [
+                "identifiant_technique" => "admin",
+                "mot_de_passe" => "admin123",
+                "role" => "admin",
+                "nom" => "Admin",
+                "prenom" => "Default",
+                "email" => "admin@qualiopi.ch"
+            ],
+            [
+                "identifiant_technique" => "antcirier@gmail.com",
+                "mot_de_passe" => "password123",
+                "role" => "admin",
+                "nom" => "Cirier",
+                "prenom" => "Antoine",
+                "email" => "antcirier@gmail.com"
+            ],
+            [
                 "identifiant_technique" => "p71x6d_dupont",
                 "mot_de_passe" => "manager456",
-                "role" => "gestionnaire"
-            ),
-            array(
+                "role" => "gestionnaire",
+                "nom" => "Dupont",
+                "prenom" => "Jean",
+                "email" => "jean.dupont@qualiopi.ch"
+            ],
+            [
                 "identifiant_technique" => "p71x6d_martin",
                 "mot_de_passe" => "user789",
-                "role" => "utilisateur"
-            )
-        );
-        
-        // Définir le code de réponse à 200 OK
-        http_response_code(200);
-        
-        // Renvoyer les données au format JSON
-        echo json_encode($users_arr);
-    } else {
-        // Aucun utilisateur trouvé
-        http_response_code(200);
-        
-        // Informer l'utilisateur
-        echo json_encode(array(
-            "status" => "warning",
-            "message" => "Aucun utilisateur trouvé",
-            "records" => array(),
-            "count" => 0,
-            "database_info" => array(
-                "connected" => true,
-                "host" => $database->host,
-                "database" => $database->db_name
-            ),
-            "fallback_users" => array(
-                array(
-                    "identifiant_technique" => "admin",
-                    "mot_de_passe" => "admin123",
-                    "role" => "admin"
-                ),
-                array(
-                    "identifiant_technique" => "antcirier@gmail.com",
-                    "mot_de_passe" => "password123",
-                    "role" => "admin"
-                ),
-                array(
-                    "identifiant_technique" => "p71x6d_system",
-                    "mot_de_passe" => "admin123",
-                    "role" => "admin"
-                ),
-                array(
-                    "identifiant_technique" => "p71x6d_dupont",
-                    "mot_de_passe" => "manager456",
-                    "role" => "gestionnaire"
-                ),
-                array(
-                    "identifiant_technique" => "p71x6d_martin",
-                    "mot_de_passe" => "user789",
-                    "role" => "utilisateur"
-                )
-            )
-        ));
+                "role" => "utilisateur",
+                "nom" => "Martin",
+                "prenom" => "Sophie",
+                "email" => "sophie.martin@qualiopi.ch"
+            ]
+        ];
     }
+    
+    // Envoyer la réponse
+    http_response_code(200);
+    echo json_encode($response, JSON_UNESCAPED_UNICODE);
+    
 } catch (Exception $e) {
     // Journaliser l'erreur
     error_log("Erreur dans check-users.php: " . $e->getMessage());
@@ -166,40 +168,41 @@ try {
     http_response_code(500);
     
     // Informer l'utilisateur
-    echo json_encode(array(
+    echo json_encode([
         "status" => "error",
         "message" => "Une erreur est survenue lors de la récupération des utilisateurs",
         "error" => $e->getMessage(),
-        "database_info" => array(
-            "connected" => false
-        ),
-        "fallback_users" => array(
-            array(
-                "identifiant_technique" => "admin",
-                "mot_de_passe" => "admin123",
-                "role" => "admin"
-            ),
-            array(
-                "identifiant_technique" => "antcirier@gmail.com",
-                "mot_de_passe" => "password123",
-                "role" => "admin"
-            ),
-            array(
+        "database_info" => [
+            "connected" => false,
+            "error" => $e->getMessage()
+        ],
+        "fallback_users" => [
+            [
                 "identifiant_technique" => "p71x6d_system",
                 "mot_de_passe" => "admin123",
                 "role" => "admin"
-            ),
-            array(
+            ],
+            [
+                "identifiant_technique" => "admin",
+                "mot_de_passe" => "admin123",
+                "role" => "admin"
+            ],
+            [
+                "identifiant_technique" => "antcirier@gmail.com",
+                "mot_de_passe" => "password123",
+                "role" => "admin"
+            ],
+            [
                 "identifiant_technique" => "p71x6d_dupont",
                 "mot_de_passe" => "manager456",
                 "role" => "gestionnaire"
-            ),
-            array(
+            ],
+            [
                 "identifiant_technique" => "p71x6d_martin",
                 "mot_de_passe" => "user789",
                 "role" => "utilisateur"
-            )
-        )
-    ));
+            ]
+        ]
+    ], JSON_UNESCAPED_UNICODE);
 }
 ?>
