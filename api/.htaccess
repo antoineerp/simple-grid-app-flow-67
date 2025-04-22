@@ -1,43 +1,25 @@
 
-# Activer le moteur de réécriture
+# Activer la réécriture d'URL
 RewriteEngine On
 
-# Configuration spécifique pour Infomaniak
-Options -MultiViews
-Options -Indexes
+# Rediriger toutes les requêtes vers l'index.php sauf pour les fichiers existants
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^(.*)$ index.php [QSA,L]
 
-# Définir explicitement le point d'entrée par défaut
-DirectoryIndex index.php
-
-# Autoriser tous les types de requêtes pour le debug
+# Définir les en-têtes CORS
 <IfModule mod_headers.c>
     Header set Access-Control-Allow-Origin "*"
     Header set Access-Control-Allow-Methods "GET, POST, OPTIONS, PUT, DELETE"
-    Header set Access-Control-Allow-Headers "Content-Type, Authorization, X-Requested-With"
-    Header set Access-Control-Max-Age "86400"
+    Header set Access-Control-Allow-Headers "Content-Type, Authorization"
+    
+    # Eviter la mise en cache
+    Header set Cache-Control "no-cache, no-store, must-revalidate"
+    Header set Pragma "no-cache"
+    Header set Expires 0
 </IfModule>
 
-# Si le serveur renvoie 403 sur OPTIONS, on le transforme en 200
-RewriteCond %{REQUEST_METHOD} OPTIONS
-RewriteRule ^(.*)$ $1 [R=200,L]
-
-# Ne pas appliquer les règles aux fichiers et répertoires existants
-RewriteCond %{REQUEST_FILENAME} !-f
-RewriteCond %{REQUEST_FILENAME} !-d
-
-# Rediriger toutes les requêtes non-fichiers vers index.php
-RewriteRule ^(.*)$ index.php [QSA,L]
-
-# Désactiver les restrictions pour les fichiers de test et diagnostics
-<FilesMatch "^(login-test\.php|check-users\.php|auth\.php|diagnostic\.php|info\.php)$">
-    Allow from all
-</FilesMatch>
-
-# Protéger les fichiers de configuration
-<FilesMatch "^(env\.php|app_config\.json|database\.php|.*\.ini)$">
-    Order Allow,Deny
-    Deny from all
-</FilesMatch>
-
-# Empêcher l'accès aux dossiers cachés comme .git
-RedirectMatch 404 /\..*$
+# Forcer PHP à utiliser le bon encodage
+<IfModule mod_php.c>
+    php_value default_charset "UTF-8"
+</IfModule>
