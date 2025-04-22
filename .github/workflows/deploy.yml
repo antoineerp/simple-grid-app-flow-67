@@ -33,6 +33,7 @@ jobs:
         mkdir -p dist/public/lovable-uploads
         cp -r public/lovable-uploads/* dist/public/lovable-uploads/ || echo "No lovable-uploads files found"
         cp deploy-check.php dist/ || echo "No deploy-check.php found"
+        cp verify-deploy.php dist/ || echo "No verify-deploy.php found"
         cp index.html dist/ || echo "No index.html found (this should not happen)"
         
     - name: List build directory structure
@@ -43,6 +44,8 @@ jobs:
         echo "Checking key files:"
         ls -la dist/index.html || echo "index.html NOT FOUND!"
         ls -la dist/assets/ || echo "assets directory NOT FOUND!"
+        ls -la dist/assets/index.js || echo "index.js NOT FOUND!"
+        ls -la dist/assets/index.css || echo "index.css NOT FOUND!"
         ls -la dist/api/ || echo "api directory NOT FOUND!"
         
     - name: Deploy to Infomaniak
@@ -69,5 +72,5 @@ jobs:
     - name: Post-deployment verification
       run: |
         echo "Deployment completed. Check logs for any errors."
-        echo "Run deploy-check.php on your server to diagnose any issues."
-        echo "URL: https://qualiopi.ch/deploy-check.php"
+        echo "Run verify-deploy.php on your server to diagnostiquer l'état du déploiement."
+        echo "URL: https://qualiopi.ch/verify-deploy.php"

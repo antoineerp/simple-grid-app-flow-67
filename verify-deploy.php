@@ -48,7 +48,8 @@ header('Content-Type: text/html; charset=utf-8');
     $files = [
         './index.html' => 'Page principale',
         './.htaccess' => 'Configuration Apache',
-        './assets/index.js' => 'JavaScript principal'
+        './assets/index.js' => 'JavaScript principal',
+        './assets/index.css' => 'CSS principal'
     ];
     
     foreach ($files as $file => $name) {
