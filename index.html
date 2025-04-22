@@ -34,25 +34,8 @@
       </div>
     </noscript>
     
-    <!-- Script Lovable (uniquement en démo) -->
-    <script>
-      // Vérifier si nous sommes sur un domaine de démo Lovable
-      const isLovableDomain = window.location.hostname.includes('lovable.dev') || 
-                             window.location.hostname.includes('lovable.app') || 
-                             window.location.hostname.includes('gpteng.co');
-      
-      // Charger le script Lovable uniquement en environnement de démo
-      if (isLovableDomain) {
-        const script = document.createElement('script');
-        script.src = "https://cdn.gpteng.co/gptengineer.js";
-        script.type = "module";
-        script.crossOrigin = "anonymous";
-        document.body.appendChild(script);
-      } else {
-        // En production, définir __LOVABLE_EDITOR__ à null
-        window.__LOVABLE_EDITOR__ = null;
-      }
-    </script>
+    <!-- Script Lovable (required) -->
+    <script src="https://cdn.gpteng.co/gptengineer.js" type="module" crossorigin="anonymous"></script>
     
     <!-- Script principal -->
     <script type="module" src="/src/main.tsx"></script>
