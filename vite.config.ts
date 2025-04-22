@@ -4,10 +4,8 @@ import react from "@vitejs/plugin-react-swc";
 import path from "path";
 import { componentTagger } from "lovable-tagger";
 import type { ConfigEnv, UserConfig } from "vite";
-// Import direct des plugins PostCSS
-import tailwindcss from "tailwindcss";
-import autoprefixer from "autoprefixer";
 
+// Définir le type AcceptedPlugin explicitement pour éviter les erreurs de type
 export default defineConfig(({ mode }: ConfigEnv): UserConfig => ({
   server: {
     // Only apply development settings when not in production
@@ -17,8 +15,7 @@ export default defineConfig(({ mode }: ConfigEnv): UserConfig => ({
       strictPort: true,
       hmr: {
         clientPort: 443,
-        // Le problème est ici : 'webSocketServer' n'est pas une propriété valide
-        // Supprimons-la pour corriger l'erreur
+        // 'webSocketServer' a été supprimé car ce n'est pas une propriété valide
       }
     } : {}),
   },
@@ -43,12 +40,13 @@ export default defineConfig(({ mode }: ConfigEnv): UserConfig => ({
       localsConvention: 'camelCase',
       generateScopedName: '[local]_[hash:base64:5]'
     },
-    // PostCSS est configuré au niveau racine de css
+    // Utiliser un objet simple plutôt que les importations directes pour PostCSS
     postcss: {
       plugins: [
-        // Utilisez des importations directes au lieu de require()
-        tailwindcss,
-        autoprefixer,
+        // Utiliser des chaînes de caractères pour référencer les plugins
+        // Cette approche évite les problèmes de typage
+        "tailwindcss",
+        "autoprefixer"
       ],
     },
   },
