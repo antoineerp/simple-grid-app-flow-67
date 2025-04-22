@@ -1,18 +1,10 @@
-
 import React, { useState, useEffect } from 'react';
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { AlertCircle, CheckCircle, Database, Server, Users } from "lucide-react";
 import { getApiUrl, fetchWithErrorHandling } from '@/config/apiConfig';
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { getAuthHeaders } from '@/services/auth/authService';
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
-import { Badge } from "@/components/ui/badge";
+import ApiStatusSection from "./server-test/ApiStatusSection";
+import DatabaseStatusSection from "./server-test/DatabaseStatusSection";
+import UserTestSection from "./server-test/UserTestSection";
 
 interface User {
   id: number;
@@ -23,7 +15,6 @@ interface User {
   role: string;
   date_creation: string;
 }
-
 interface FallbackUser {
   identifiant_technique: string;
   mot_de_passe: string;
@@ -115,7 +106,6 @@ const ServerTest = () => {
       setUsersMessage(`Échec de la récupération des utilisateurs: ${error instanceof Error ? error.message : 'Erreur inconnue'}`);
       setUsersStatus('error');
       
-      // Définir des utilisateurs de secours en cas d'erreur
       setFallbackUsers([
         { identifiant_technique: "admin", mot_de_passe: "admin123", role: "admin" },
         { identifiant_technique: "antcirier@gmail.com", mot_de_passe: "password123", role: "admin" },
@@ -126,7 +116,6 @@ const ServerTest = () => {
     }
   };
 
-  // Tester automatiquement la connexion à l'API au chargement du composant
   useEffect(() => {
     testApiConnection();
   }, []);
@@ -138,167 +127,23 @@ const ServerTest = () => {
         <CardDescription>Vérifier la connexion au serveur API et à la base de données</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div>
-          <div className="flex justify-between items-center mb-2">
-            <span className="font-medium flex items-center">
-              <Server className="h-4 w-4 mr-2" />
-              Connexion à l'API:
-            </span>
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={testApiConnection}
-              disabled={apiStatus === 'loading'}
-            >
-              {apiStatus === 'loading' ? 'Test en cours...' : 'Tester'}
-            </Button>
-          </div>
-          
-          {apiStatus !== 'idle' && (
-            <Alert variant={apiStatus === 'success' ? 'default' : 'destructive'} className="mt-2">
-              <div className="flex items-start">
-                {apiStatus === 'success' ? 
-                  <CheckCircle className="h-4 w-4 mr-2 mt-0.5" /> : 
-                  <AlertCircle className="h-4 w-4 mr-2 mt-0.5" />
-                }
-                <div>
-                  <AlertTitle>{apiStatus === 'success' ? 'Succès' : 'Erreur'}</AlertTitle>
-                  <AlertDescription>{apiMessage}</AlertDescription>
-                </div>
-              </div>
-            </Alert>
-          )}
-        </div>
-
-        <div>
-          <div className="flex justify-between items-center mb-2">
-            <span className="font-medium flex items-center">
-              <Database className="h-4 w-4 mr-2" />
-              Connexion à la base de données:
-            </span>
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={testDatabaseConnection} 
-              disabled={dbStatus === 'loading'}
-            >
-              {dbStatus === 'loading' ? 'Test en cours...' : 'Tester'}
-            </Button>
-          </div>
-          
-          {dbStatus !== 'idle' && (
-            <Alert variant={dbStatus === 'success' ? 'default' : 'destructive'} className="mt-2">
-              <div className="flex items-start">
-                {dbStatus === 'success' ? 
-                  <CheckCircle className="h-4 w-4 mr-2 mt-0.5" /> : 
-                  <AlertCircle className="h-4 w-4 mr-2 mt-0.5" />
-                }
-                <div>
-                  <AlertTitle>{dbStatus === 'success' ? 'Succès' : 'Erreur'}</AlertTitle>
-                  <AlertDescription>{dbMessage}</AlertDescription>
-                </div>
-              </div>
-            </Alert>
-          )}
-        </div>
-
-        <div>
-          <div className="flex justify-between items-center mb-2">
-            <span className="font-medium flex items-center">
-              <Users className="h-4 w-4 mr-2" />
-              Utilisateurs disponibles:
-            </span>
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={testUsersConnection} 
-              disabled={usersStatus === 'loading'}
-            >
-              {usersStatus === 'loading' ? 'Chargement...' : 'Vérifier'}
-            </Button>
-          </div>
-          
-          {usersStatus !== 'idle' && (
-            <>
-              <Alert variant={usersStatus === 'success' ? 'default' : 'destructive'} className="mt-2">
-                <div className="flex items-start">
-                  {usersStatus === 'success' ? 
-                    <CheckCircle className="h-4 w-4 mr-2 mt-0.5" /> : 
-                    <AlertCircle className="h-4 w-4 mr-2 mt-0.5" />
-                  }
-                  <div>
-                    <AlertTitle>{usersStatus === 'success' ? 'Succès' : 'Erreur'}</AlertTitle>
-                    <AlertDescription>{usersMessage}</AlertDescription>
-                  </div>
-                </div>
-              </Alert>
-
-              <Accordion type="single" collapsible className="mt-4">
-                <AccordionItem value="database-users">
-                  <AccordionTrigger>
-                    <span className="flex items-center">
-                      <Database className="h-4 w-4 mr-2" />
-                      Utilisateurs de la base de données
-                      <Badge variant="outline" className="ml-2">{users.length}</Badge>
-                    </span>
-                  </AccordionTrigger>
-                  <AccordionContent>
-                    {users.length > 0 ? (
-                      <div className="space-y-2 mt-2">
-                        {users.map((user, index) => (
-                          <div key={index} className="p-2 bg-muted rounded">
-                            <div className="flex justify-between">
-                              <div className="font-medium">{user.identifiant_technique}</div>
-                              <Badge>{user.role}</Badge>
-                            </div>
-                            <div className="text-sm text-muted-foreground">
-                              {user.prenom} {user.nom} ({user.email})
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <p className="text-sm text-muted-foreground mt-2">
-                        Aucun utilisateur trouvé dans la base de données.
-                      </p>
-                    )}
-                  </AccordionContent>
-                </AccordionItem>
-
-                <AccordionItem value="fallback-users">
-                  <AccordionTrigger>
-                    <span className="flex items-center">
-                      <Users className="h-4 w-4 mr-2" />
-                      Utilisateurs de secours
-                      <Badge variant="outline" className="ml-2">{fallbackUsers.length}</Badge>
-                    </span>
-                  </AccordionTrigger>
-                  <AccordionContent>
-                    {fallbackUsers.length > 0 ? (
-                      <div className="space-y-2 mt-2">
-                        {fallbackUsers.map((user, index) => (
-                          <div key={index} className="p-2 bg-muted rounded">
-                            <div className="flex justify-between">
-                              <div className="font-medium">{user.identifiant_technique}</div>
-                              <Badge>{user.role}</Badge>
-                            </div>
-                            <div className="text-sm text-muted-foreground mt-1">
-                              Mot de passe: <code className="bg-background px-1 rounded">{user.mot_de_passe}</code>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <p className="text-sm text-muted-foreground mt-2">
-                        Aucun utilisateur de secours disponible.
-                      </p>
-                    )}
-                  </AccordionContent>
-                </AccordionItem>
-              </Accordion>
-            </>
-          )}
-        </div>
+        <ApiStatusSection
+          apiStatus={apiStatus}
+          apiMessage={apiMessage}
+          onTest={testApiConnection}
+        />
+        <DatabaseStatusSection
+          dbStatus={dbStatus}
+          dbMessage={dbMessage}
+          onTest={testDatabaseConnection}
+        />
+        <UserTestSection
+          usersStatus={usersStatus}
+          usersMessage={usersMessage}
+          users={users}
+          fallbackUsers={fallbackUsers}
+          onTest={testUsersConnection}
+        />
       </CardContent>
       <CardFooter className="flex justify-end">
         <div className="text-xs text-muted-foreground">
