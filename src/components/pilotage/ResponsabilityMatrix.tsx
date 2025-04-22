@@ -1,20 +1,31 @@
 import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { useResponsabilityMatrix } from '@/hooks/useResponsabilityMatrix';
-import { BarChart3 } from 'lucide-react';
+import { BarChart3, FileDown } from 'lucide-react';
 import {
   HoverCard,
   HoverCardTrigger,
   HoverCardContent
-} from '@/components/ui/hover-card';
+} from "@/components/ui/hover-card";
+import { exportCollaborateurStatsToPdf } from '@/services/pdfExport';
+import { useToast } from "@/hooks/use-toast";
 
 const ResponsibilityMatrix: React.FC = () => {
   const { membreResponsabilites } = useResponsabilityMatrix();
+  const { toast } = useToast();
 
   const getTotalResponsibilities = (membre) => {
     const exigencesTotal = membre.exigences.r + membre.exigences.a + membre.exigences.c + membre.exigences.i;
     const documentsTotal = membre.documents.r + membre.documents.a + membre.documents.c + membre.documents.i;
     return exigencesTotal + documentsTotal;
+  };
+
+  const handleExportPdf = (membre) => {
+    exportCollaborateurStatsToPdf(membre);
+    toast({
+      title: "Export PDF",
+      description: `Les statistiques de ${membre.prenom} ${membre.nom} ont été exportées au format PDF`,
+    });
   };
 
   return (
@@ -62,6 +73,13 @@ const ResponsibilityMatrix: React.FC = () => {
                             <div className="space-y-2">
                               <div className="flex items-center justify-between">
                                 <h4 className="text-sm font-semibold">{membre.prenom} {membre.nom}</h4>
+                                <button
+                                  onClick={() => handleExportPdf(membre)}
+                                  className="text-blue-500 hover:text-blue-700 transition-colors"
+                                  title="Exporter en PDF"
+                                >
+                                  <FileDown className="h-4 w-4" />
+                                </button>
                               </div>
                               <div className="text-sm">
                                 <p className="font-medium">Exigences:</p>
