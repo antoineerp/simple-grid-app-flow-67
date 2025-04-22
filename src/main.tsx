@@ -14,9 +14,6 @@ declare global {
   }
 }
 
-// Initialize Lovable editor
-window.__LOVABLE_EDITOR__ = window.__LOVABLE_EDITOR__ || null;
-
 // Log environment info
 console.log(`==== Application démarrée en mode: ${getEnvironmentName()} ====`);
 

@@ -1,9 +1,5 @@
 
 /**
- * Utilitaire pour détecter l'environnement d'exécution
- */
-
-/**
  * Types d'environnement supportés
  */
 export type EnvironmentType = 'demo' | 'production' | 'infomaniak';
@@ -12,7 +8,6 @@ export type EnvironmentType = 'demo' | 'production' | 'infomaniak';
  * Vérifie si l'application est en mode démo Lovable
  */
 export function isLovableDemo(): boolean {
-  // Vérifier à la fois la présence de l'objet __LOVABLE_EDITOR__ et le domaine
   return (
     (typeof window.__LOVABLE_EDITOR__ !== 'undefined' && window.__LOVABLE_EDITOR__ !== null) ||
     isLovableDomain()
@@ -35,26 +30,24 @@ export function isLovableDomain(): boolean {
  * Vérifie si l'application est exécutée chez Infomaniak
  */
 export function isInfomaniakEnvironment(): boolean {
-  // Vérifier si le nom de domaine contient qualiopi.ch
   const hostname = window.location.hostname;
   return hostname.includes('qualiopi.ch');
 }
 
 /**
- * Obtient l'environnement actuel avec un type plus précis
+ * Obtient l'environnement actuel
  */
 export function getEnvironmentType(): EnvironmentType {
   if (isLovableDemo()) {
     return 'demo';
   } else if (isInfomaniakEnvironment()) {
     return 'infomaniak';
-  } else {
-    return 'production';
   }
+  return 'production';
 }
 
 /**
- * Obtient l'environnement actuel en format lisible
+ * Obtient le nom de l'environnement en format lisible
  */
 export function getEnvironmentName(): string {
   const env = getEnvironmentType();
@@ -66,22 +59,6 @@ export function getEnvironmentName(): string {
     case 'production':
       return 'Production Standard';
   }
-}
-
-/**
- * Alias pour isLovableDemo pour une meilleure cohérence de nommage
- * @deprecated Utiliser isLovableDemo() à la place
- */
-export function isLovableDemoMode(): boolean {
-  return isLovableDemo();
-}
-
-/**
- * Détecte l'environnement actuel (production ou démo)
- * @deprecated Utiliser getEnvironmentType() à la place
- */
-export function getEnvironment(): 'production' | 'demo' {
-  return isLovableDemo() ? 'demo' : 'production';
 }
 
 /**
@@ -98,10 +75,4 @@ export function logEnvironmentInfo(): void {
   console.log(`Lovable détecté: ${isLovableDemo() ? 'Oui' : 'Non'}`);
   console.log(`Infomaniak détecté: ${isInfomaniakEnvironment() ? 'Oui' : 'Non'}`);
   console.log(`=======================================`);
-  
-  if (envType === 'demo') {
-    console.log('Mode démo: fonctionnalités de test disponibles');
-  } else {
-    console.log('Mode production: fonctionnalités optimisées pour la performance et la sécurité');
-  }
 }
