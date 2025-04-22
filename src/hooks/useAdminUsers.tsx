@@ -32,14 +32,24 @@ export const useAdminUsers = () => {
     setError(null);
     
     try {
+      console.log("Début du chargement des utilisateurs...");
+      
       // Vérifier d'abord la connexion à la base de données
       const dbConnected = await testDatabaseConnection();
+      console.log("Test de connexion à la base de données:", dbConnected);
+      
       if (!dbConnected) {
         throw new Error("Impossible de se connecter à la base de données. Vérifiez la configuration.");
       }
       
       const data = await getUtilisateurs();
+      console.log("Données utilisateurs récupérées:", data);
+      
       setUtilisateurs(data);
+      
+      if (data.length === 0) {
+        console.warn("Aucun utilisateur récupéré de la base de données.");
+      }
     } catch (error) {
       console.error("Erreur lors du chargement des utilisateurs", error);
       setError(error instanceof Error ? error.message : "Impossible de charger les utilisateurs.");

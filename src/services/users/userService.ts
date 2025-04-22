@@ -44,9 +44,10 @@ class UserService {
       
       // Utiliser l'URL d'API actuelle
       const currentApiUrl = getApiUrl();
-      console.log(`Récupération des utilisateurs depuis: ${currentApiUrl}/utilisateurs`);
+      console.log(`Récupération des utilisateurs depuis: ${currentApiUrl}/check-users.php`);
       
-      const response = await fetch(`${currentApiUrl}/utilisateurs`, {
+      // Modifier ici pour utiliser check-users.php à la place de /utilisateurs
+      const response = await fetch(`${currentApiUrl}/check-users.php`, {
         method: 'GET',
         headers: getAuthHeaders()
       });
@@ -57,12 +58,23 @@ class UserService {
       }
       
       const data = await response.json();
-      return data.records || [];
+      console.log("Données utilisateurs reçues:", data);
+      
+      // Vérifier si nous avons des records avant de les renvoyer
+      if (data && data.records && Array.isArray(data.records)) {
+        return data.records;
+      } else if (data && Array.isArray(data)) {
+        return data;
+      }
+      
+      // Pas de données valides trouvées
+      console.warn("Aucun utilisateur trouvé dans la réponse:", data);
+      return [];
     } catch (error) {
       console.error("Error retrieving users:", error);
       toast({
-        title: "Connection error",
-        description: "Unable to retrieve users from the database.",
+        title: "Erreur de connexion",
+        description: "Impossible de récupérer les utilisateurs depuis la base de données.",
         variant: "destructive",
       });
       

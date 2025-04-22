@@ -99,60 +99,76 @@ const UserManagement = ({ currentDatabaseUser, onUserConnect }: UserManagementPr
           </Alert>
         )}
 
-        <Table>
-          <TableCaption>Liste des utilisateurs enregistrés dans le système</TableCaption>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Utilisateur</TableHead>
-              <TableHead>Email</TableHead>
-              <TableHead>Identifiant technique</TableHead>
-              <TableHead>Rôle</TableHead>
-              <TableHead>Date de création</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {utilisateurs.length === 0 && !loading ? (
+        {loading ? (
+          <div className="flex flex-col items-center justify-center py-10">
+            <Loader2 className="h-8 w-8 animate-spin text-primary mb-4" />
+            <p className="text-muted-foreground">Chargement des utilisateurs...</p>
+          </div>
+        ) : (
+          <Table>
+            <TableCaption>Liste des utilisateurs enregistrés dans le système</TableCaption>
+            <TableHeader>
               <TableRow>
-                <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
-                  Aucun utilisateur trouvé
-                </TableCell>
+                <TableHead>Utilisateur</TableHead>
+                <TableHead>Email</TableHead>
+                <TableHead>Identifiant technique</TableHead>
+                <TableHead>Rôle</TableHead>
+                <TableHead>Date de création</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
               </TableRow>
-            ) : (
-              utilisateurs.map(user => (
-                <TableRow key={user.id}>
-                  <TableCell className="flex items-center space-x-3">
-                    <Avatar>
-                      <AvatarFallback>{getInitials(user.nom, user.prenom)}</AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <div className="font-medium">{user.prenom} {user.nom}</div>
-                    </div>
-                  </TableCell>
-                  <TableCell>{user.email}</TableCell>
-                  <TableCell>{user.identifiant_technique}</TableCell>
-                  <TableCell>
-                    <Badge variant={user.role === 'admin' ? 'default' : 'secondary'}>
-                      {user.role}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>{user.date_creation}</TableCell>
-                  <TableCell className="text-right">
+            </TableHeader>
+            <TableBody>
+              {utilisateurs.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
+                    Aucun utilisateur trouvé dans la base de données.
+                    <br />
                     <Button 
-                      variant="ghost" 
-                      size="sm"
-                      onClick={() => connectUser(user.identifiant_technique)}
-                      disabled={currentDatabaseUser === user.identifiant_technique}
+                      variant="outline" 
+                      size="sm" 
+                      onClick={loadUtilisateurs} 
+                      className="mt-4"
                     >
-                      <LogIn className="h-4 w-4 mr-1" />
-                      {currentDatabaseUser === user.identifiant_technique ? 'Connecté' : 'Connecter'}
+                      Réessayer
                     </Button>
                   </TableCell>
                 </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
+              ) : (
+                utilisateurs.map(user => (
+                  <TableRow key={user.id}>
+                    <TableCell className="flex items-center space-x-3">
+                      <Avatar>
+                        <AvatarFallback>{getInitials(user.nom, user.prenom)}</AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <div className="font-medium">{user.prenom} {user.nom}</div>
+                      </div>
+                    </TableCell>
+                    <TableCell>{user.email}</TableCell>
+                    <TableCell>{user.identifiant_technique}</TableCell>
+                    <TableCell>
+                      <Badge variant={user.role === 'admin' ? 'default' : 'secondary'}>
+                        {user.role}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>{user.date_creation}</TableCell>
+                    <TableCell className="text-right">
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
+                        onClick={() => connectUser(user.identifiant_technique)}
+                        disabled={currentDatabaseUser === user.identifiant_technique}
+                      >
+                        <LogIn className="h-4 w-4 mr-1" />
+                        {currentDatabaseUser === user.identifiant_technique ? 'Connecté' : 'Connecter'}
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        )}
       </CardContent>
     </Card>
   );
