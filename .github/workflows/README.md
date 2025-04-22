@@ -24,7 +24,10 @@ Le workflow effectue les actions suivantes:
 
 ## Dossier de destination
 
-Le workflow est actuellement configuré pour déployer dans le dossier `/qualiopi.ch/` sur le serveur FTP. Si vous avez besoin de changer ce dossier, modifiez la valeur de `server-dir` dans le fichier `deploy.yml`.
+Le workflow est actuellement configuré pour déployer à la racine du serveur FTP (`/`). 
+Chez Infomaniak, cette racine correspond généralement au dossier du domaine que vous avez configuré.
+
+Si vous souhaitez déployer dans un sous-dossier spécifique, modifiez la valeur de `server-dir` dans le fichier `deploy.yml`.
 
 ## Résolution des problèmes
 
@@ -32,5 +35,10 @@ Si le déploiement échoue:
 1. Vérifiez les logs dans l'onglet "Actions" de GitHub
 2. Assurez-vous que les secrets sont correctement configurés
 3. Vérifiez le format du serveur FTP (exemple: ftp.infomaniak.com)
-4. Assurez-vous que le chemin du répertoire sur le serveur est correct
-5. Vérifiez les permissions FTP sur le serveur Infomaniak
+4. Assurez-vous que les permissions FTP sont correctes
+5. Pour Infomaniak spécifiquement:
+   - Vérifiez que l'utilisateur FTP a les droits d'écriture sur le dossier cible
+   - Confirmez que le chemin FTP correspond bien à la racine du site web (`/` ou un sous-dossier)
+   - Testez la connexion FTP manuellement avec FileZilla ou un autre client FTP
+
+6. Après un déploiement, téléchargez et utilisez le script `deploy-check.php` pour diagnostiquer l'état du déploiement
