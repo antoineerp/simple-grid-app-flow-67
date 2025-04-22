@@ -1,9 +1,11 @@
+
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
 import { componentTagger } from "lovable-tagger";
+import type { ConfigEnv, UserConfig } from "vite";
 
-export default defineConfig(({ mode }) => ({
+export default defineConfig(({ mode }: ConfigEnv): UserConfig => ({
   server: {
     // Only apply development settings when not in production
     ...(mode === 'development' ? {
@@ -37,14 +39,13 @@ export default defineConfig(({ mode }) => ({
       localsConvention: 'camelCase',
       generateScopedName: '[local]_[hash:base64:5]'
     },
-    preprocessorOptions: {
-      postcss: {
-        plugins: [
-          'tailwindcss',
-          'autoprefixer'
-        ]
-      }
-    }
+    // PostCSS est configuré au niveau racine de css, pas dans preprocessorOptions
+    postcss: {
+      plugins: [
+        require('tailwindcss'),
+        require('autoprefixer'),
+      ],
+    },
   },
   build: {
     outDir: 'dist',
