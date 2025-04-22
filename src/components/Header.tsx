@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { ChevronDown, Upload, LogOut, Settings, Database, Users, LogIn } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
@@ -64,6 +65,9 @@ const Header = () => {
     setLogo(newLogo);
   };
 
+  // Helper to check if user has admin access (both admin and administrateur)
+  const isAdmin = userRole === 'administrateur' || userRole === 'admin';
+
   return (
     <header className="border-b bg-white">
       <div className="flex items-center justify-between h-14 px-4">
@@ -86,7 +90,7 @@ const Header = () => {
               <div className="flex items-center space-x-2 cursor-pointer rounded-md px-2 py-1 hover:bg-gray-100">
                 <Avatar className="h-8 w-8">
                   <AvatarFallback className="bg-app-blue text-white">
-                    {userRole === 'administrateur' || userRole === 'admin' ? 'AD' : userRole === 'gestionnaire' ? 'GE' : 'UT'}
+                    {isAdmin ? 'AD' : userRole === 'gestionnaire' ? 'GE' : 'UT'}
                   </AvatarFallback>
                 </Avatar>
                 <div>
@@ -99,26 +103,16 @@ const Header = () => {
             <DropdownMenuContent className="w-56" align="end">
               <DropdownMenuLabel>Mon compte</DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuGroup>
-                <DropdownMenuItem>
-                  <Settings className="mr-2 h-4 w-4" />
-                  <span>Paramètres</span>
-                </DropdownMenuItem>
-                
-                {(userRole === 'administrateur' || userRole === 'admin') && (
-                  <>
-                    <DropdownMenuItem onClick={() => navigate('/administration')}>
-                      <Users className="mr-2 h-4 w-4" />
-                      <span>Administration</span>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => navigate('/administration')}>
-                      <Database className="mr-2 h-4 w-4" />
-                      <span>Base de données</span>
-                    </DropdownMenuItem>
-                  </>
-                )}
-              </DropdownMenuGroup>
-              <DropdownMenuSeparator />
+
+              {isAdmin && (
+                <DropdownMenuGroup>
+                  <DropdownMenuItem onClick={() => navigate('/administration')}>
+                    <Users className="mr-2 h-4 w-4" />
+                    <span>Administration</span>
+                  </DropdownMenuItem>
+                </DropdownMenuGroup>
+              )}
+              {isAdmin && <DropdownMenuSeparator />}
               
               {currentDatabaseUser && (
                 <DropdownMenuItem onClick={handleDatabaseDisconnect}>

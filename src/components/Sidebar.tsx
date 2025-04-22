@@ -20,7 +20,7 @@ const Sidebar = () => {
           <img 
             src="/lovable-uploads/fa423773-b335-4b1a-8ba6-56b7a83123e3.png"
             alt="Qualite.cloud Swiss Army Knife"
-            className="w-16 h-auto opacity-90"
+            className="w-24 h-auto opacity-90 transition-all duration-200" // était w-16, maintenant w-24
           />
         </div>
       </nav>
