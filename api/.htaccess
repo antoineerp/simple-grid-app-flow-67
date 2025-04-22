@@ -1,35 +1,36 @@
 
-# Force PHP interpretation
+# Activer le moteur de réécriture
+RewriteEngine On
+
+# Activer les options ExecCGI pour permettre l'exécution des scripts
 Options +ExecCGI
+
+# Forcer l'interprétation PHP avec AddHandler
 AddHandler application/x-httpd-php .php
 
-<IfModule mod_rewrite.c>
-    RewriteEngine On
-    
-    # Set proper error document
-    ErrorDocument 500 "PHP Error occurred. Please check server logs."
-    
-    # Set the proper headers
-    <FilesMatch "\.php$">
-        SetHandler application/x-httpd-php
-        # Force the content type to be text/plain for easier debugging
-        Header set Content-Type "text/plain; charset=UTF-8"
-    </FilesMatch>
-    
-    # Allow OPTIONS for CORS
-    RewriteCond %{REQUEST_METHOD} OPTIONS
-    RewriteRule ^(.*)$ $1 [R=200,L]
-    
-    # Allow direct access to PHP files
-    RewriteCond %{REQUEST_FILENAME} -f
-    RewriteRule ^(.+)\.php$ $1.php [L]
-    
-    # Set CORS headers for all responses
+# Définir des en-têtes pour le débogage
+<IfModule mod_headers.c>
+    # Activer CORS
     Header always set Access-Control-Allow-Origin "*"
     Header always set Access-Control-Allow-Methods "GET, POST, OPTIONS, PUT, DELETE"
     Header always set Access-Control-Allow-Headers "Origin, X-Requested-With, Content-Type, Accept, Authorization"
     Header always set Access-Control-Max-Age "1728000"
+    
+    # Désactiver la mise en cache pour faciliter le développement
+    Header set Cache-Control "no-cache, no-store, must-revalidate"
+    Header set Pragma "no-cache"
+    Header set Expires "0"
 </IfModule>
 
-# PHP specific settings - Using .user.ini instead of php_flag directives
-# Note: php_flag directives are removed as they're not supported by your Apache configuration
+# Gérer les requêtes OPTIONS pour CORS
+RewriteCond %{REQUEST_METHOD} OPTIONS
+RewriteRule ^(.*)$ $1 [R=200,L]
+
+# Accès direct aux fichiers PHP
+RewriteCond %{REQUEST_FILENAME} -f
+RewriteRule ^(.+)\.php$ $1.php [L]
+
+# Permettre l'exécution de index.php
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteRule ^(.*)$ index.php [QSA,L]

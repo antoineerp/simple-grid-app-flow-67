@@ -39,8 +39,6 @@ AddType image/svg+xml .svg
 # Configuration pour forcer l'interprétation PHP
 <FilesMatch "\.php$">
     SetHandler application/x-httpd-php
-    # Force the content type to be text/plain for diagnostic files
-    Header set Content-Type "text/plain; charset=UTF-8"
 </FilesMatch>
 
 # Ajouter un User-Agent par défaut pour les requêtes sans User-Agent
