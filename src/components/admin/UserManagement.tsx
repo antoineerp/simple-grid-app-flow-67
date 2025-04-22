@@ -1,16 +1,17 @@
 
-import React, { useState } from 'react';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
+import React, { useState, useEffect } from 'react';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogTrigger } from "@/components/ui/dialog";
-import { Loader2, RefreshCw, UserPlus, LogIn } from 'lucide-react';
+import { Loader2, RefreshCw, UserPlus, LogIn, AlertCircle } from 'lucide-react';
 import { useAdminUsers } from '@/hooks/useAdminUsers';
 import UserForm from './UserForm';
-import { getCurrentUser } from '@/services';
+import { getCurrentUser, getLastConnectionError } from '@/services';
 import { useToast } from "@/hooks/use-toast";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import type { Utilisateur } from '@/services';
 
 interface UserManagementProps {
@@ -20,11 +21,21 @@ interface UserManagementProps {
 
 const UserManagement = ({ currentDatabaseUser, onUserConnect }: UserManagementProps) => {
   const { toast } = useToast();
-  const { utilisateurs, loading, loadUtilisateurs, handleConnectAsUser } = useAdminUsers();
+  const { utilisateurs, loading, error, loadUtilisateurs, handleConnectAsUser } = useAdminUsers();
   const [newUserOpen, setNewUserOpen] = useState(false);
+  const [connectionError, setConnectionError] = useState<string | null>(null);
+
+  useEffect(() => {
+    // Vérifier s'il y a une erreur de connexion au chargement
+    const lastError = getLastConnectionError();
+    if (lastError) {
+      setConnectionError(lastError);
+    }
+  }, [currentDatabaseUser]);
 
   const handleSuccessfulUserCreation = () => {
     loadUtilisateurs();
+    setConnectionError(null);
   };
 
   const getInitials = (nom: string, prenom: string) => {
@@ -32,9 +43,13 @@ const UserManagement = ({ currentDatabaseUser, onUserConnect }: UserManagementPr
   };
 
   const connectUser = async (identifiantTechnique: string) => {
+    setConnectionError(null);
     const success = await handleConnectAsUser(identifiantTechnique);
     if (success) {
       onUserConnect(identifiantTechnique);
+    } else {
+      const error = getLastConnectionError();
+      setConnectionError(error || "Erreur inconnue lors de la connexion");
     }
   };
 
@@ -66,6 +81,24 @@ const UserManagement = ({ currentDatabaseUser, onUserConnect }: UserManagementPr
         </div>
       </CardHeader>
       <CardContent>
+        {connectionError && (
+          <Alert variant="destructive" className="mb-4">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>
+              Erreur de connexion: {connectionError}
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {error && (
+          <Alert variant="destructive" className="mb-4">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>
+              {error}
+            </AlertDescription>
+          </Alert>
+        )}
+
         <Table>
           <TableCaption>Liste des utilisateurs enregistrés dans le système</TableCaption>
           <TableHeader>
