@@ -20,6 +20,7 @@ export const useLoginForm = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [hasDbError, setHasDbError] = useState(false);
   const [hasServerError, setHasServerError] = useState(false);
+  const [hasAuthError, setHasAuthError] = useState(false);
   
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
@@ -35,6 +36,7 @@ export const useLoginForm = () => {
     setIsLoading(true);
     setHasDbError(false);
     setHasServerError(false);
+    setHasAuthError(false);
     
     try {
       console.log("Tentative de connexion pour:", data.username);
@@ -44,6 +46,7 @@ export const useLoginForm = () => {
         // Réinitialiser l'état d'erreur
         setHasDbError(false);
         setHasServerError(false);
+        setHasAuthError(false);
         
         localStorage.setItem('isLoggedIn', 'true');
         
@@ -85,6 +88,7 @@ export const useLoginForm = () => {
         } else if (errorMessage.includes("mot de passe") ||
                   errorMessage.includes("identifiants") ||
                   errorMessage.includes("invalide")) {
+          setHasAuthError(true);
           toast({
             title: "Identifiants incorrects",
             description: "Le nom d'utilisateur ou le mot de passe est incorrect.",
@@ -109,6 +113,7 @@ export const useLoginForm = () => {
     isLoading,
     hasDbError,
     hasServerError,
+    hasAuthError,
     onSubmit: form.handleSubmit(onSubmit)
   };
 };

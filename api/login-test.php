@@ -1,3 +1,4 @@
+
 <?php
 // Fichier de test de login simplifié
 header("Access-Control-Allow-Origin: *");
@@ -39,7 +40,7 @@ if (!empty($data->username) && !empty($data->password)) {
     // Liste des utilisateurs de test autorisés
     $test_users = [
         'admin' => ['password' => 'admin123', 'role' => 'admin'],
-        'p71x6d_system' => ['password' => 'Trottinette43!', 'role' => 'admin'], // Mot de passe mis à jour
+        'p71x6d_system' => ['password' => 'Trottinette43!', 'role' => 'admin'],
         'antcirier@gmail.com' => ['password' => 'password123', 'role' => 'admin'],
         'p71x6d_dupont' => ['password' => 'manager456', 'role' => 'gestionnaire'],
         'p71x6d_martin' => ['password' => 'user789', 'role' => 'utilisateur']
@@ -48,7 +49,10 @@ if (!empty($data->username) && !empty($data->password)) {
     $username = $data->username;
     $password = $data->password;
     
-    error_log("Tentative de connexion pour: " . $username . " avec mot de passe: " . substr($password, 0, 1) . "****");
+    error_log("Tentative de connexion pour: " . $username . " avec mot de passe fourni");
+    
+    // Debug: vérifier quels utilisateurs sont disponibles
+    error_log("Utilisateurs disponibles: " . implode(", ", array_keys($test_users)));
     
     // Vérifier si l'utilisateur existe et si le mot de passe correspond
     if (isset($test_users[$username]) && $test_users[$username]['password'] === $password) {
@@ -75,8 +79,13 @@ if (!empty($data->username) && !empty($data->password)) {
             ]
         ]);
     } else {
-        error_log("Identifiants invalides pour: " . $username . " (Mot de passe fourni: " . substr($password, 0, 1) . "****)");
-        error_log("Mot de passe attendu: " . substr($test_users[$username]['password'] ?? 'N/A', 0, 1) . "****");
+        error_log("Identifiants invalides pour: " . $username);
+        
+        if (isset($test_users[$username])) {
+            error_log("Utilisateur trouvé, mais mot de passe incorrect");
+        } else {
+            error_log("Utilisateur non trouvé dans la liste");
+        }
         
         http_response_code(401);
         echo json_encode([
