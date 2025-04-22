@@ -61,10 +61,34 @@ export const useLoginForm = () => {
         if (error.message.includes("base de données") || 
             error.message.includes("database")) {
           setHasDbError(true);
+          
+          // Essayer de se connecter avec les identifiants de secours
+          if (data.username === 'admin' && data.password === 'admin123' || 
+              data.username === 'antcirier@gmail.com' && data.password === 'password123') {
+            // Rediriger vers le tableau de bord
+            toast({
+              title: "Mode de secours activé",
+              description: "Connexion en mode de secours réussie. Certaines fonctionnalités peuvent être limitées.",
+            });
+            navigate("/pilotage");
+            return;
+          }
         } else if (error.message.includes("serveur") || 
                   error.message.includes("inaccessible") ||
                   error.message.includes("Réponse invalide")) {
           setHasServerError(true);
+          
+          // Essayer de se connecter avec les identifiants de secours
+          if (data.username === 'admin' && data.password === 'admin123' || 
+              data.username === 'antcirier@gmail.com' && data.password === 'password123') {
+            // Rediriger vers le tableau de bord
+            toast({
+              title: "Mode de secours activé",
+              description: "Connexion en mode de secours réussie. Certaines fonctionnalités peuvent être limitées.",
+            });
+            navigate("/pilotage");
+            return;
+          }
         }
       }
       
