@@ -1,16 +1,9 @@
 
 # Configuration principale pour l'application FormaCert
-
-# Force PHP interpretation - TRÈS IMPORTANT
 AddHandler application/x-httpd-php .php
 ForceType application/x-httpd-php
 php_flag display_errors on
 php_value error_reporting 32767
-
-<FilesMatch "\.php$">
-    SetHandler application/x-httpd-php
-    ForceType application/x-httpd-php
-</FilesMatch>
 
 # Activer le moteur de réécriture
 RewriteEngine On
@@ -18,80 +11,34 @@ Options -MultiViews
 Options +FollowSymLinks
 Options +ExecCGI
 
-# Configuration de PHP
-<IfModule mod_php7.c>
-    php_flag display_errors on
-    php_value error_reporting 32767
-</IfModule>
-
-<IfModule mod_php8.c>
-    php_flag display_errors on
-    php_value error_reporting 32767
-</IfModule>
-
-# Définir correctement les types MIME pour les extensions de fichiers
+# Définir correctement les types MIME
 AddType application/javascript .js
 AddType application/javascript .mjs
-AddType application/javascript .jsx
-AddType application/javascript .tsx
-AddType application/javascript .ts
 AddType text/css .css
 AddType application/json .json
 AddType image/svg+xml .svg
 AddType application/x-httpd-php .php
 
-# Bloquer l'accès direct aux fichiers sensibles
-<FilesMatch "^\.env">
-    Order allow,deny
-    Deny from all
-</FilesMatch>
-
-<FilesMatch "^\.user.ini">
-    Order allow,deny
-    Deny from all
-</FilesMatch>
-
-# Autoriser CORS pour les ressources statiques
-<FilesMatch "\.(js|mjs|jsx|tsx|ts|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot|map)$">
-    Header set Access-Control-Allow-Origin "*"
-    Header set X-Content-Type-Options "nosniff"
-    Header set Cache-Control "no-cache, no-store, must-revalidate"
-</FilesMatch>
-
-# Configuration des en-têtes HTTP
-<IfModule mod_headers.c>
-    # Activer CORS pour tous
-    Header always set Access-Control-Allow-Origin "*"
-    Header always set Access-Control-Allow-Methods "GET, POST, OPTIONS, PUT, DELETE"
-    Header always set Access-Control-Allow-Headers "Origin, X-Requested-With, Content-Type, Accept, Authorization"
-    
-    # Désactiver la mise en cache pour les fichiers de développement
-    <FilesMatch "\.(html|js|mjs|jsx|tsx|ts|css|json|php)$">
-        Header set Cache-Control "no-cache, no-store, must-revalidate"
-        Header set Pragma "no-cache"
-        Header set Expires "0"
-    </FilesMatch>
-</IfModule>
-
-# Règles spécifiques pour Lovable
-RewriteRule ^lovable-uploads/(.*)$ public/lovable-uploads/$1 [L]
-RewriteRule ^favicon\.ico$ /lovable-uploads/formacert-logo.png [L]
-
-# Règles pour les fichiers PHP de diagnostic
-RewriteRule ^test\.php$ test.php [L]
+# Redirection pour tests PHP simples
+RewriteRule ^test-php\.php$ test-php.php [L]
 RewriteRule ^assets-check\.php$ assets-check.php [L]
-RewriteRule ^php-test-simple\.php$ php-test-simple.php [L]
 
-# Règles pour l'API
-RewriteRule ^api$ api/ [R=301,L]
+# Routes pour l'API
+RewriteRule ^api/simple-test\.php$ api/simple-test.php [L]
 RewriteRule ^api/(.*)$ api/$1 [QSA,L]
 
 # Règles importantes pour les assets
 RewriteRule ^dist/assets/(.*)$ dist/assets/$1 [L]
 RewriteRule ^assets/(.*)$ dist/assets/$1 [L]
-RewriteRule ^src/(.*)$ src/$1 [L]
 
 # Route de secours pour SPA - IMPORTANT
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^(.*)$ index.html [QSA,L]
+
+# En-têtes HTTP
+<IfModule mod_headers.c>
+    Header set Cache-Control "no-cache, no-store, must-revalidate"
+    Header set Pragma "no-cache"
+    Header set Expires "0"
+</IfModule>
