@@ -39,12 +39,9 @@ export default defineConfig(({ mode }: ConfigEnv): UserConfig => ({
       localsConvention: 'camelCase',
       generateScopedName: '[local]_[hash:base64:5]'
     },
-    // PostCSS configuration corrigée pour éviter les erreurs de typage
+    // Simplified PostCSS configuration to avoid type errors
     postcss: {
-      plugins: [
-        // Utiliser un array simple sans les imports directs qui causent les erreurs
-        // Les plugins seront chargés automatiquement par Vite
-      ],
+      // Instead of specifying plugins directly, we'll let Vite use the postcss.config.js file
     },
   },
   build: {
