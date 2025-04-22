@@ -11,7 +11,7 @@ import { fr } from 'date-fns/locale';
 // Get the current logo from localStorage or return default
 export const getCurrentLogo = (): string => {
   const savedLogo = localStorage.getItem('appLogo');
-  return savedLogo || "/lovable-uploads/aba57440-1db2-49ba-8273-c60d6a77b6ee.png";
+  return savedLogo || "/lovable-uploads/4c7adb52-3da0-4757-acbf-50a1eb1d4bf5.png";
 };
 
 // Format state to human-readable text

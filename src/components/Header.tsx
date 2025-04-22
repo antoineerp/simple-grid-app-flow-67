@@ -20,7 +20,7 @@ const Header = () => {
   const { toast } = useToast();
   const [logo, setLogo] = useState(() => {
     const savedLogo = localStorage.getItem('appLogo');
-    return savedLogo || "/lovable-uploads/4425c340-2ce3-416b-abc9-b75906ca8705.png";
+    return savedLogo || "/lovable-uploads/4c7adb52-3da0-4757-acbf-50a1eb1d4bf5.png";
   });
   const [userRole, setUserRole] = useState(() => {
     return localStorage.getItem('userRole') || 'utilisateur';

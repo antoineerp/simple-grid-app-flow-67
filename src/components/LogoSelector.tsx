@@ -16,14 +16,18 @@ const LogoSelector: React.FC<LogoSelectorProps> = ({ currentLogo, onLogoChange }
   const [imageError, setImageError] = useState(false);
   const { toast } = useToast();
 
+  // Logo principal FormaCert
+  const mainLogo = "/lovable-uploads/4c7adb52-3da0-4757-acbf-50a1eb1d4bf5.png";
+  
   // Logos prédéfinis avec fallbacks
   const predefinedLogos = [
-    "/public/lovable-uploads/4425c340-2ce3-416b-abc9-b75906ca8705.png",
-    "/logo-swiss.svg",
+    mainLogo,
+    "/lovable-uploads/4425c340-2ce3-416b-abc9-b75906ca8705.png",
+    "/lovable-uploads/aba57440-1db2-49ba-8273-c60d6a77b6ee.png",
   ];
 
   // Fallback logo
-  const fallbackLogo = "/logo-swiss.svg";
+  const fallbackLogo = mainLogo;
 
   const handleLogoSelect = (logo: string) => {
     setSelectedLogo(logo);
@@ -74,7 +78,7 @@ const LogoSelector: React.FC<LogoSelectorProps> = ({ currentLogo, onLogoChange }
                 className="h-12"
                 onError={(e) => {
                   console.error("Failed to load logo:", logo);
-                  (e.target as HTMLImageElement).src = fallbackLogo;
+                  e.currentTarget.src = fallbackLogo;
                 }}
               />
             </div>
