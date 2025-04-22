@@ -9,9 +9,9 @@ const Logo = () => {
         alt="Formacert Logo" 
         className="h-24 mb-4"
         onError={(e) => {
-          console.log("Logo image failed to load, showing text fallback");
-          // Au lieu d'utiliser une autre image, on cache l'image défectueuse
-          e.currentTarget.style.display = 'none';
+          console.log("Logo image failed to load, switching to fallback image");
+          // Utiliser l'image de secours au lieu de masquer l'image
+          e.currentTarget.src = "/lovable-uploads/formacert-logo.png";
         }}
         onLoad={() => console.log("Logo image loaded successfully: formacert-logo.png")}
       />

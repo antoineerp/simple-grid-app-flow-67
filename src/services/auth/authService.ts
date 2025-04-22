@@ -55,44 +55,88 @@ class AuthService {
         return headers;
     }
 
+    // Fonction utilitaire pour valider et parser les réponses JSON
+    private async parseJsonResponse(response: Response): Promise<any> {
+        const responseText = await response.text();
+        console.log(`Réponse reçue (${response.status}): ${responseText.substring(0, 200)}...`);
+        
+        if (!responseText || responseText.trim() === '') {
+            console.warn('Réponse vide reçue du serveur');
+            throw new Error('Réponse vide du serveur');
+        }
+        
+        // Vérifier si la réponse n'est pas du JSON (probablement du HTML)
+        if (responseText.trim().startsWith('<!DOCTYPE') || 
+            responseText.trim().startsWith('<html') ||
+            responseText.includes('<body')) {
+            console.error('Réponse HTML reçue au lieu de JSON:', responseText.substring(0, 200));
+            throw new Error('Le serveur a renvoyé une page HTML au lieu de JSON. Vérifiez la configuration du serveur.');
+        }
+        
+        try {
+            return JSON.parse(responseText);
+        } catch (e) {
+            console.error('Erreur lors du parsing JSON:', e);
+            console.error('Texte reçu:', responseText.substring(0, 500));
+            throw new Error('Réponse du serveur non valide. Format JSON attendu.');
+        }
+    }
+
     public async login(username: string, password: string): Promise<any> {
         try {
             console.log(`Tentative de connexion pour l'utilisateur: ${username}`);
             
-            // Essayer directement avec index.php qui va router vers AuthController
-            const url = `${getApiUrl()}/index.php`;
-            console.log(`URL de requête: ${url}`);
+            // Tester avec login-test.php d'abord (plus fiable)
+            const testUrl = `${getApiUrl()}/login-test.php`;
+            console.log(`URL de requête (test): ${testUrl}`);
             
-            const response = await fetch(url, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Cache-Control': 'no-cache, no-store, must-revalidate'
-                },
-                body: JSON.stringify({ username, password })
-            });
-            
-            console.log(`Réponse reçue: ${response.status} ${response.statusText}`);
-            
-            if (!response.ok) {
-                const responseText = await response.text();
-                console.error(`Erreur de connexion: ${responseText.substring(0, 200)}`);
-                throw new Error(`Échec de l'authentification (${response.status})`);
-            }
-            
-            // Analyser la réponse
-            const responseText = await response.text();
+            let response;
             let data;
+            let connectionSuccessful = false;
             
             try {
-                data = JSON.parse(responseText);
-            } catch (e) {
-                console.error("Erreur de parsing JSON:", e, "Texte reçu:", responseText.substring(0, 200));
-                throw new Error("Réponse invalide du serveur");
+                response = await fetch(testUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Cache-Control': 'no-cache, no-store, must-revalidate'
+                    },
+                    body: JSON.stringify({ username, password })
+                });
+                
+                if (response.ok) {
+                    data = await this.parseJsonResponse(response);
+                    connectionSuccessful = true;
+                    console.log('Connexion réussie via login-test.php');
+                }
+            } catch (testError) {
+                console.warn('Échec avec login-test.php, tentative avec AuthController:', testError);
             }
             
-            if (!data.token) {
-                throw new Error(data.message || "Authentification échouée");
+            // Si le test a échoué, essayer avec le contrôleur principal
+            if (!connectionSuccessful) {
+                const url = `${getApiUrl()}/index.php`;
+                console.log(`URL de requête (principale): ${url}`);
+                
+                response = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Cache-Control': 'no-cache, no-store, must-revalidate'
+                    },
+                    body: JSON.stringify({ username, password })
+                });
+                
+                if (!response.ok) {
+                    const errorData = await this.parseJsonResponse(response);
+                    throw new Error(errorData.message || `Échec de l'authentification (${response.status})`);
+                }
+                
+                data = await this.parseJsonResponse(response);
+            }
+            
+            if (!data || !data.token) {
+                throw new Error(data?.message || "Authentification échouée");
             }
             
             // Stocker le token
