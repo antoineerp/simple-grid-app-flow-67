@@ -2,7 +2,6 @@
 import React from 'react';
 import SidebarNavItem from './sidebar/SidebarNavItem';
 import { navigationItems } from './sidebar/sidebarConfig';
-import { PocketKnife } from 'lucide-react';  // Changed from Knife to PocketKnife
 
 const Sidebar = () => {
   return (
@@ -18,10 +17,10 @@ const Sidebar = () => {
         ))}
         
         <div className="mt-auto pt-8 flex items-center justify-center">
-          <PocketKnife 
-            size={64} 
-            strokeWidth={1.5} 
-            className="text-gray-600 opacity-70"
+          <img 
+            src="/lovable-uploads/fa423773-b335-4b1a-8ba6-56b7a83123e3.png"
+            alt="Qualite.cloud Swiss Army Knife"
+            className="w-16 h-auto opacity-90"
           />
         </div>
       </nav>
