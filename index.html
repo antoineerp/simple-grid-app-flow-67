@@ -17,6 +17,9 @@
         window.__WS_TOKEN__ = "lovable-ws-token";
       }
     </script>
+    
+    <!-- Liens explicites vers les assets (fallback) -->
+    <link rel="stylesheet" href="/dist/assets/index.css">
   </head>
   <body>
     <div id="root"></div>
@@ -40,7 +43,18 @@
       }
     </script>
     
-    <!-- Main application -->
+    <!-- Main application (avec fallback) -->
     <script type="module" src="/src/main.tsx"></script>
+    <script>
+      // Fallback pour serveurs qui ne supportent pas les imports ESM
+      window.addEventListener('error', function(e) {
+        if (e.filename && e.filename.includes('main.tsx')) {
+          console.log('Chargement du fallback JavaScript');
+          const script = document.createElement('script');
+          script.src = "/dist/assets/index.js";
+          document.body.appendChild(script);
+        }
+      });
+    </script>
   </body>
 </html>
