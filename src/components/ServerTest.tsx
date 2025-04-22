@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { AlertCircle, CheckCircle, Database, Server } from "lucide-react";
-import { getApiUrl } from '@/config/apiConfig';
+import { getApiUrl, fetchWithErrorHandling } from '@/config/apiConfig';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { getAuthHeaders } from '@/services/auth/authService';
 
@@ -18,7 +18,7 @@ const ServerTest = () => {
       const API_URL = getApiUrl();
       console.log("Testing API connection to:", API_URL);
       
-      const response = await fetch(`${API_URL}/test.php`, {
+      const data = await fetchWithErrorHandling(`${API_URL}/test.php`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -26,11 +26,6 @@ const ServerTest = () => {
         }
       });
       
-      if (!response.ok) {
-        throw new Error(`Status: ${response.status}`);
-      }
-      
-      const data = await response.json();
       console.log("API response:", data);
       
       setApiMessage(`Connexion API réussie (${data.message || 'Pas de message'})`);
@@ -48,24 +43,11 @@ const ServerTest = () => {
       const API_URL = getApiUrl();
       console.log("Testing database connection to:", API_URL + '/database-test');
       
-      const response = await fetch(`${API_URL}/database-test`, {
+      const data = await fetchWithErrorHandling(`${API_URL}/database-test`, {
         method: 'GET',
         headers: getAuthHeaders()
       });
       
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error("Erreur de base de données (texte brut):", errorText);
-        
-        try {
-          const errorData = JSON.parse(errorText);
-          throw new Error(errorData.message || `Status: ${response.status}`);
-        } catch (parseError) {
-          throw new Error(`Status: ${response.status}, Réponse: ${errorText.substring(0, 100)}...`);
-        }
-      }
-      
-      const data = await response.json();
       console.log("Database response:", data);
       
       setDbMessage(`Connexion DB réussie (${data.message || 'Pas de message'})`);
