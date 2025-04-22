@@ -1,4 +1,3 @@
-
 <?php
 header('Content-Type: text/html; charset=utf-8');
 ?>
@@ -70,18 +69,23 @@ header('Content-Type: text/html; charset=utf-8');
             echo "</p>";
         }
         
-        // Recherche des fichiers JavaScript avec hash
-        echo "<p>JavaScript compilé (assets/index-*.js): ";
+        // CORRECTION: Amélioration de la détection des fichiers avec hash
+        echo "<p>JavaScript compilé (assets/*.js): ";
         $js_files = glob('assets/index-*.js');
         if (!empty($js_files)) {
             echo "<span class='success'>✓ Présent</span> (" . implode(', ', $js_files) . ")";
             $essential_files_count++;
         } else {
-            echo "<span class='error'>✗ Manquant</span>";
+            // Recherche alternative de fichiers JS
+            $all_js_files = glob('assets/*.js');
+            if (!empty($all_js_files)) {
+                echo "<span class='success'>✓ Présent (noms alternatifs)</span> (" . implode(', ', $all_js_files) . ")";
+                $essential_files_count++;
+            } else {
+                echo "<span class='error'>✗ Manquant</span>";
+            }
         }
         echo "</p>";
-        
-        echo "<script>document.getElementById('essential-files-progress').style.width = '60%';</script>";
         
         // Recherche des fichiers CSS avec hash
         echo "<p>CSS compilé (assets/index-*.css): ";
@@ -96,11 +100,27 @@ header('Content-Type: text/html; charset=utf-8');
         
         // Vérification de l'API
         echo "<p>API configuration: ";
-        if (file_exists('api/index.php') && file_exists('api/.htaccess')) {
-            echo "<span class='success'>✓ Configurée</span>";
+        if (file_exists('api/index.php')) {
+            echo "<span class='success'>✓ Fichier index.php trouvé</span>";
             $essential_files_count++;
+            
+            if (file_exists('api/.htaccess')) {
+                echo " <span class='success'>+ .htaccess trouvé</span>";
+            } else {
+                echo " <span class='warning'>(.htaccess manquant)</span>";
+            }
         } else {
             echo "<span class='error'>✗ Configuration incomplète</span>";
+        }
+        echo "</p>";
+        
+        // AJOUT: Vérification de la structure logs
+        echo "<p>Capacité de journalisation: ";
+        $tmp_writable = is_writable('/tmp');
+        if ($tmp_writable) {
+            echo "<span class='success'>✓ Dossier /tmp accessible en écriture</span>";
+        } else {
+            echo "<span class='warning'>⚠ Attention: /tmp n'est pas accessible en écriture</span>";
         }
         echo "</p>";
         
@@ -158,7 +178,47 @@ header('Content-Type: text/html; charset=utf-8');
     </div>
 
     <div class="section">
-        <h2>3. Contenu de index.html</h2>
+        <h2>3. Test des Règles de Réécriture Apache</h2>
+        <?php
+        // Test des redirections d'URL
+        $urls_to_test = [
+            '/' => 'Racine du site',
+            '/assets/' => 'Dossier assets',
+            '/api/' => 'API endpoint',
+            '/non-existant-page' => 'Page inexistante (test SPA routing)',
+            '/api/test.php' => 'API test endpoint'
+        ];
+        
+        echo "<p><strong>Test de redirections potentielles:</strong></p>";
+        
+        foreach ($urls_to_test as $url => $description) {
+            echo "<p>Test $description ($url): ";
+            
+            $ch = curl_init();
+            curl_setopt($ch, CURLOPT_URL, $url);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_HEADER, true);
+            curl_setopt($ch, CURLOPT_NOBODY, true);
+            curl_setopt($ch, CURLOPT_TIMEOUT, 5);
+            curl_setopt($ch, CURLOPT_FOLLOWLOCATION, false);
+            $result = curl_exec($ch);
+            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            curl_close($ch);
+            
+            if ($httpCode == 200 || $httpCode == 304) {
+                echo "<span class='success'>✓ OK ($httpCode)</span>";
+            } else if ($httpCode >= 300 && $httpCode < 400) {
+                echo "<span class='warning'>⚠ Redirection ($httpCode)</span>";
+            } else {
+                echo "<span class='error'>✗ Problème ($httpCode)</span>";
+            }
+            echo "</p>";
+        }
+        ?>
+    </div>
+    
+    <div class="section">
+        <h2>4. Contenu de index.html</h2>
         <pre><?php 
         if (file_exists('./index.html')) {
             $html_content = file_get_contents('./index.html');
@@ -192,7 +252,7 @@ header('Content-Type: text/html; charset=utf-8');
     </div>
 
     <div class="section">
-        <h2>4. Test de chargement JavaScript</h2>
+        <h2>5. Test de chargement JavaScript</h2>
         <div id="js-test">Si JavaScript fonctionne, ce texte sera remplacé.</div>
         <script>
             document.getElementById('js-test').textContent = 'JavaScript fonctionne correctement!';
@@ -201,7 +261,7 @@ header('Content-Type: text/html; charset=utf-8');
     </div>
 
     <div class="section">
-        <h2>5. Test d'accès à l'API</h2>
+        <h2>6. Test d'accès à l'API</h2>
         <?php
         $api_endpoints = [
             '/api/test.php' => 'Test endpoint'

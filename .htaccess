@@ -21,21 +21,27 @@ AddType image/svg+xml .svg
     Allow from all
 </FilesMatch>
 
-# Traitement spécial pour lovable-uploads - CORRECTION DU DOUBLE SLASH
+# CORRECTION: Traitement de lovable-uploads avec règle simplifiée
+RewriteCond %{REQUEST_URI} ^/lovable-uploads/
 RewriteRule ^lovable-uploads/(.*)$ public/lovable-uploads/$1 [L]
 
 # Diagnostic des requêtes API en mode production
-RewriteCond %{REQUEST_URI} ^/api
+RewriteCond %{REQUEST_URI} ^/api/
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteRule .* - [E=API_DEBUG:1]
 
-# Rediriger les requêtes vers /api vers le dossier api (sans slash final)
-RewriteRule ^api$ api/ [R=301,L]
+# CORRECTION: Ne pas rediriger les fichiers PHP
+RewriteCond %{REQUEST_URI} \.php$
+RewriteRule ^ - [L]
 
-# Rediriger les requêtes vers /api/ vers le fichier index.php dans le dossier api
-RewriteRule ^api/(.*)$ api/index.php [QSA,L]
+# CORRECTION: Ne pas traiter les fichiers réels
+RewriteCond %{REQUEST_FILENAME} -f
+RewriteRule ^ - [L]
 
-# Règles pour servir les assets
+# Règle simplifiée pour l'API
+RewriteRule ^api/?$ api/ [R=301,L]
+RewriteRule ^api/(.*)$ api/$1 [QSA,L]
+
 # Permettre l'accès direct aux assets dans leur dossier
 RewriteCond %{REQUEST_URI} ^/assets/
 RewriteCond %{REQUEST_FILENAME} -f
@@ -45,12 +51,11 @@ RewriteRule ^ - [L]
 RewriteCond %{REQUEST_URI} \.(js|css|png|jpe?g|gif|svg|ico|webp|woff2?|ttf|eot|map|tsx?)$
 RewriteRule ^ - [L]
 
-# En mode développement, permettre l'accès aux fichiers source
-RewriteCond %{REQUEST_FILENAME} -f
-RewriteRule ^src/ - [L]
-
 # Rediriger toutes les autres requêtes vers index.html pour React Router
-RewriteRule ^(?!api/).*$ index.html [QSA,L]
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteCond %{REQUEST_URI} !^/api/
+RewriteRule ^(.*)$ index.html [QSA,L]
 
 # Configuration de sécurité
 <IfModule mod_headers.c>

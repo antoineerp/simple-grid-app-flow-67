@@ -1,6 +1,22 @@
 
 <?php
 header('Content-Type: text/html; charset=utf-8');
+// Fonction pour vérifier que les secrets GitHub sont configurés
+function checkGitHubSecrets() {
+    $owner = 'antoineerp';
+    $repo = 'simple-grid-app-flow-67';
+    
+    $secretsConfigured = false;
+    $secretsMessage = "Impossible de vérifier les secrets GitHub";
+    
+    return [
+        'configured' => $secretsConfigured,
+        'message' => $secretsMessage
+    ];
+}
+
+// Obtenir le statut actuel des secrets
+$secretsStatus = checkGitHubSecrets();
 ?>
 <!DOCTYPE html>
 <html>
@@ -22,13 +38,21 @@ header('Content-Type: text/html; charset=utf-8');
             display: inline-block;
         }
         .button:hover { background-color: #45a049; }
+        .button.secondary {
+            background-color: #6c757d;
+        }
+        .button.secondary:hover {
+            background-color: #5a6268;
+        }
         .info { background-color: #f8f9fa; padding: 15px; border-left: 4px solid #17a2b8; margin: 10px 0; }
+        .warning { background-color: #fff3cd; padding: 15px; border-left: 4px solid #ffc107; margin: 10px 0; }
         .success { color: green; }
         .error { color: red; }
         .steps { background-color: #f9f9f9; padding: 15px; border-radius: 4px; margin-bottom: 15px; }
         .steps ol { margin-left: 20px; padding-left: 0; }
         .steps li { margin-bottom: 10px; }
         img.screenshot { max-width: 100%; border: 1px solid #ddd; margin: 10px 0; border-radius: 4px; }
+        .highlight { background-color: #ffffcc; padding: 2px 5px; border-radius: 3px; }
     </style>
 </head>
 <body>
@@ -70,10 +94,13 @@ header('Content-Type: text/html; charset=utf-8');
             <div class="steps">
                 <h3>Étape 2: Lancer le workflow</h3>
                 <ol>
-                    <li>Sur la page GitHub Actions, cliquez sur le bouton <strong>"Run workflow"</strong> à droite</li>
-                    <li>Assurez-vous que la branche <strong>"main"</strong> est sélectionnée</li>
-                    <li>Cliquez sur le bouton <strong>"Run workflow"</strong> vert pour démarrer le déploiement</li>
+                    <li>Sur la page GitHub Actions, cliquez sur le bouton <span class="highlight">"Run workflow"</span> à droite <strong>(IMPORTANT!)</strong></li>
+                    <li>Assurez-vous que la branche <span class="highlight">"main"</span> est sélectionnée</li>
+                    <li>Cliquez sur le bouton <span class="highlight">"Run workflow"</span> vert pour démarrer le déploiement</li>
                 </ol>
+                <div class="warning">
+                    <p><strong>Attention!</strong> Vous devez explicitement cliquer sur le bouton "Run workflow" sur la page GitHub. L'ouverture de la page ne déclenche pas automatiquement le déploiement.</p>
+                </div>
             </div>
             
             <div class="steps">
@@ -98,8 +125,20 @@ header('Content-Type: text/html; charset=utf-8');
             
             <h3>Diagnostic du Déploiement</h3>
             <p>Pour vérifier que votre déploiement a réussi, utilisez notre outil de diagnostic :</p>
-            <p><a href="deploy-check.php" target="_blank" class="button">Vérifier le déploiement</a></p>
+            <p>
+                <a href="deploy-check.php" target="_blank" class="button">Vérifier le déploiement</a>
+                <a href="verify-deploy.php" target="_blank" class="button secondary">Vérification alternative</a>
+            </p>
+            
+            <h3>Problèmes de déploiement fréquents</h3>
+            <ul>
+                <li><strong>Erreur 500</strong> - Vérifiez les logs d'erreur Apache et l'accès aux fichiers</li>
+                <li><strong>Redirections infinies</strong> - Problème probable avec les règles .htaccess</li>
+                <li><strong>Fichiers manquants</strong> - Vérifiez la structure du build dans GitHub Actions</li>
+                <li><strong>Page blanche</strong> - Vérifiez les erreurs JavaScript dans la console du navigateur</li>
+            </ul>
         </div>
     </div>
 </body>
 </html>
+
