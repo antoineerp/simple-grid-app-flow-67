@@ -25,6 +25,13 @@ jobs:
     - name: Build React App
       run: npm run build
       
+    - name: List API directory content before copying
+      run: |
+        echo "Listing API directory content:"
+        ls -la api/
+        echo "Listing API subdirectories:"
+        find api -type d | sort
+        
     - name: Copy additional files
       run: |
         cp .htaccess dist/ || echo "No .htaccess file found"
@@ -34,6 +41,34 @@ jobs:
         cp -r public/lovable-uploads/* dist/public/lovable-uploads/ || echo "No lovable-uploads files found"
         cp deploy-check.php dist/ || echo "No deploy-check.php found"
         cp verify-deploy.php dist/ || echo "No verify-deploy.php found"
+        cp deploy-on-infomaniak.php dist/ || echo "No deploy-on-infomaniak.php found"
+        
+    - name: Create missing API directories
+      run: |
+        # Ensure all essential API directories exist
+        mkdir -p dist/api/config
+        mkdir -p dist/api/controllers
+        mkdir -p dist/api/middleware
+        mkdir -p dist/api/models
+        mkdir -p dist/api/utils
+        
+        # Copy files to their respective directories if they aren't copied through the wildcard
+        [ -f api/config/env.php ] && cp api/config/env.php dist/api/config/ || echo "env.php not found"
+        [ -f api/config/database.php ] && cp api/config/database.php dist/api/config/ || echo "database.php not found"
+        
+        # Copy specific controllers if they exist
+        [ -f api/controllers/AuthController.php ] && cp api/controllers/AuthController.php dist/api/controllers/ || echo "AuthController.php not found"
+        [ -f api/controllers/UserController.php ] && cp api/controllers/UserController.php dist/api/controllers/ || echo "UserController.php not found"
+        [ -f api/controllers/ConfigController.php ] && cp api/controllers/ConfigController.php dist/api/controllers/ || echo "ConfigController.php not found"
+        
+        # Copy middleware files
+        [ -f api/middleware/Auth.php ] && cp api/middleware/Auth.php dist/api/middleware/ || echo "Auth.php middleware not found"
+        
+        # Copy model files
+        [ -f api/models/User.php ] && cp api/models/User.php dist/api/models/ || echo "User.php model not found"
+        
+        # Copy utility files
+        [ -f api/utils/JwtHandler.php ] && cp api/utils/JwtHandler.php dist/api/utils/ || echo "JwtHandler.php not found"
         
     - name: Verify build structure
       run: |
@@ -41,6 +76,12 @@ jobs:
         ls -la dist/
         echo "Checking assets..."
         ls -la dist/assets/ || echo "No assets directory found"
+        echo "Checking API directory..."
+        ls -la dist/api/ || echo "No API directory found"
+        echo "Checking API subdirectories..."
+        find dist/api -type d | sort
+        echo "Checking API files..."
+        find dist/api -type f | sort
         echo "Checking uploads..."
         ls -la dist/public/lovable-uploads/ || echo "No uploads directory found"
         echo "Checking index.html..."
