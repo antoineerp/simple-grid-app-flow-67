@@ -40,13 +40,11 @@ export default defineConfig(({ mode }: ConfigEnv): UserConfig => ({
       localsConvention: 'camelCase',
       generateScopedName: '[local]_[hash:base64:5]'
     },
-    // Utiliser un objet simple plutôt que les importations directes pour PostCSS
+    // PostCSS configuration using specific syntax
     postcss: {
       plugins: [
-        // Utiliser des chaînes de caractères pour référencer les plugins
-        // Cette approche évite les problèmes de typage
-        "tailwindcss",
-        "autoprefixer"
+        require('tailwindcss'),
+        require('autoprefixer')
       ],
     },
   },
