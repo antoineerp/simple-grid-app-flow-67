@@ -8,6 +8,11 @@ export type EnvironmentType = 'demo' | 'production' | 'infomaniak';
  * Vérifie si l'application est en mode démo Lovable
  */
 export function isLovableDemo(): boolean {
+  // En production sur Infomaniak, toujours retourner false
+  if (isInfomaniakEnvironment()) {
+    return false;
+  }
+  
   return (
     (typeof window.__LOVABLE_EDITOR__ !== 'undefined' && window.__LOVABLE_EDITOR__ !== null) ||
     isLovableDomain()
@@ -38,27 +43,12 @@ export function isInfomaniakEnvironment(): boolean {
  * Obtient l'environnement actuel
  */
 export function getEnvironmentType(): EnvironmentType {
-  if (isLovableDemo()) {
-    return 'demo';
-  } else if (isInfomaniakEnvironment()) {
+  if (isInfomaniakEnvironment()) {
     return 'infomaniak';
+  } else if (isLovableDemo()) {
+    return 'demo';
   }
   return 'production';
-}
-
-/**
- * Obtient le nom de l'environnement en format lisible
- */
-export function getEnvironmentName(): string {
-  const env = getEnvironmentType();
-  switch (env) {
-    case 'demo':
-      return 'Démo Lovable';
-    case 'infomaniak':
-      return 'Production Infomaniak';
-    case 'production':
-      return 'Production Standard';
-  }
 }
 
 /**
@@ -66,13 +56,13 @@ export function getEnvironmentName(): string {
  */
 export function logEnvironmentInfo(): void {
   const envType = getEnvironmentType();
-  const envName = getEnvironmentName();
+  const hostname = window.location.hostname;
   
   console.log(`===== INFORMATIONS D'ENVIRONNEMENT =====`);
   console.log(`Type d'environnement: ${envType}`);
-  console.log(`Nom de l'environnement: ${envName}`);
-  console.log(`Domaine: ${window.location.hostname}`);
-  console.log(`Lovable détecté: ${isLovableDemo() ? 'Oui' : 'Non'}`);
-  console.log(`Infomaniak détecté: ${isInfomaniakEnvironment() ? 'Oui' : 'Non'}`);
+  console.log(`Nom de domaine: ${hostname}`);
+  console.log(`Infomaniak: ${isInfomaniakEnvironment() ? 'Oui' : 'Non'}`);
+  console.log(`Lovable Demo: ${isLovableDemo() ? 'Oui' : 'Non'}`);
   console.log(`=======================================`);
 }
+

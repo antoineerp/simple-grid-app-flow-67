@@ -3,6 +3,7 @@ import React from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App';
 import './index.css';
+import { logEnvironmentInfo, isInfomaniakEnvironment } from './utils/environment';
 
 // Define window properties for TypeScript
 declare global {
@@ -16,11 +17,15 @@ declare global {
 window.addEventListener('error', (event) => {
   console.error('Global error caught:', event.error);
   
-  if (event.filename && (event.filename.includes('googleapis.com') || 
-                        event.filename.includes('gpteng.co') || 
-                        event.filename.includes('firestore'))) {
-    console.warn(`External resource loading error: ${event.filename}`);
-    console.log("This might be related to a script blocker or firewall");
+  // Ne pas logger les erreurs de ressources Lovable sur Infomaniak
+  if (isInfomaniakEnvironment() && 
+      event.filename && (event.filename.includes('gpteng.co') || 
+                        event.filename.includes('lovable'))) {
+    return;
+  }
+  
+  if (event.filename) {
+    console.warn(`Resource loading error: ${event.filename}`);
   }
 });
 
@@ -34,13 +39,18 @@ function startApp() {
   }
   
   try {
-    // Initialize required globals
-    if (typeof window.__LOVABLE_EDITOR__ === 'undefined') {
-      window.__LOVABLE_EDITOR__ = null;
-    }
+    // Log environment info at startup
+    logEnvironmentInfo();
+    
+    // Initialize required globals only if not on Infomaniak
+    if (!isInfomaniakEnvironment()) {
+      if (typeof window.__LOVABLE_EDITOR__ === 'undefined') {
+        window.__LOVABLE_EDITOR__ = null;
+      }
 
-    if (typeof window.__WS_TOKEN__ === 'undefined') {
-      window.__WS_TOKEN__ = 'lovable-ws-token';
+      if (typeof window.__WS_TOKEN__ === 'undefined') {
+        window.__WS_TOKEN__ = 'lovable-ws-token';
+      }
     }
     
     console.log("Creating React root");
@@ -77,3 +87,4 @@ if (document.readyState === 'loading') {
 } else {
   startApp();
 }
+
