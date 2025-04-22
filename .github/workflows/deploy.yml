@@ -110,6 +110,22 @@ jobs:
         # Créer un fichier pour marquer l'environnement Infomaniak
         echo "Deployed to Infomaniak at $(date)" > dist/infomaniak-environment.txt
         
+    - name: Prepare server directory structure
+      uses: SamKirkland/FTP-Deploy-Action@v4.3.4
+      with:
+        server: ${{ secrets.FTP_SERVER }}
+        username: ${{ secrets.FTP_USERNAME }}
+        password: ${{ secrets.FTP_PASSWORD }}
+        local-dir: ./dist/
+        server-dir: /
+        dangerous-clean-slate: false
+        exclude: |
+          **/*
+        log-level: verbose
+        timeout: 60000
+        dry-run: false
+        empty-directory-structure: true
+        
     - name: Deploy to Infomaniak
       uses: SamKirkland/FTP-Deploy-Action@v4.3.4
       with:
@@ -118,7 +134,7 @@ jobs:
         password: ${{ secrets.FTP_PASSWORD }}
         local-dir: ./dist/
         server-dir: /
-        dangerous-clean-slate: true
+        dangerous-clean-slate: false
         exclude: |
           **/.git*
           **/.git*/**
