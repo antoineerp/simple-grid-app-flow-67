@@ -3,10 +3,10 @@
 // Configuration de la connexion à la base de données
 class Database {
     // Variables de connexion à la base de données
-    private $host;
-    private $db_name;
-    private $username;
-    private $password;
+    public $host;
+    public $db_name;
+    public $username;
+    public $password;
     public $conn;
     public $connection_error = null;
     public $is_connected = false;
@@ -15,27 +15,36 @@ class Database {
     public function __construct() {
         // Chargement de la configuration depuis le fichier config
         $this->loadConfig();
+        
+        // Journaliser l'initialisation
+        error_log("Database class initialized with: Host: {$this->host}, DB: {$this->db_name}, User: {$this->username}");
     }
 
     // Charger la configuration depuis un fichier JSON
     private function loadConfig() {
         $configFile = __DIR__ . '/db_config.json';
+        error_log("Recherche du fichier de configuration à: " . $configFile);
         
         // Configuration par défaut - ne sera utilisée que si db_config.json n'existe pas
         $this->host = "p71x6d.myd.infomaniak.com";
         $this->db_name = "p71x6d_system";
         $this->username = "p71x6d_system";
-        $this->password = ""; // Vide pour des raisons de sécurité - doit être défini dans db_config.json
+        $this->password = "Trottinette43!"; // Mot de passe par défaut
         
         // Si le fichier de configuration existe, charger les valeurs
         if (file_exists($configFile)) {
             try {
-                $config = json_decode(file_get_contents($configFile), true);
+                $jsonContent = file_get_contents($configFile);
+                error_log("Contenu du fichier config: " . substr($jsonContent, 0, 50) . "...");
+                
+                $config = json_decode($jsonContent, true);
                 if (json_last_error() === JSON_ERROR_NONE) {
                     if (isset($config['host'])) $this->host = $config['host'];
                     if (isset($config['db_name'])) $this->db_name = $config['db_name'];
                     if (isset($config['username'])) $this->username = $config['username'];
                     if (isset($config['password'])) $this->password = $config['password'];
+                    
+                    error_log("Configuration chargée avec succès: Host: {$this->host}, DB: {$this->db_name}, User: {$this->username}");
                 } else {
                     error_log("Erreur JSON dans db_config.json: " . json_last_error_msg());
                     $this->connection_error = "Erreur de configuration JSON: " . json_last_error_msg();
@@ -49,9 +58,6 @@ class Database {
             // Créer le fichier de configuration avec les valeurs par défaut
             $this->saveConfig();
         }
-        
-        // Journaliser les paramètres de connexion (sans le mot de passe)
-        error_log("Paramètres de connexion chargés - Host: {$this->host}, DB: {$this->db_name}, User: {$this->username}");
     }
 
     // Sauvegarder la configuration actuelle
@@ -66,6 +72,7 @@ class Database {
         
         try {
             file_put_contents($configFile, json_encode($config, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+            error_log("Configuration sauvegardée avec succès dans: " . $configFile);
             return true;
         } catch (Exception $e) {
             error_log("Erreur lors de la sauvegarde de la configuration de base de données: " . $e->getMessage());
@@ -91,7 +98,7 @@ class Database {
             if (empty($this->username)) {
                 throw new Exception("Le nom d'utilisateur de la base de données n'est pas configuré");
             }
-            if (empty($this->password) && $require_connection) {
+            if (empty($this->password)) {
                 throw new Exception("Le mot de passe de base de données n'est pas configuré");
             }
             

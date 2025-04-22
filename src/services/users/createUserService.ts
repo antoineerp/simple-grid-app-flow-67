@@ -36,45 +36,72 @@ export const createUser = async (userData: CreateUserData) => {
     
     console.log("Données envoyées:", JSON.stringify(requestData));
     
-    // Essayez d'abord avec /api/controllers/UsersController.php directement
-    const controllerUrl = `${apiUrl}/controllers/UsersController.php`;
+    // Essayez les routes dans l'ordre, de la plus spécifique à la plus générique
+    const routes = [
+      `${apiUrl}/controllers/UsersController.php`,
+      `${apiUrl}/utilisateurs`,
+      `${apiUrl}/utilisateurs.php`
+    ];
     
-    console.log(`Essai avec URL contrôleur direct: ${controllerUrl}`);
-    let response;
+    let response = null;
+    let lastError = null;
     
+    // Tester la connexion à la base de données d'abord
     try {
-      response = await fetch(controllerUrl, {
-        method: 'POST',
-        headers: headers,
-        body: JSON.stringify(requestData)
+      console.log(`Test de la connexion à la base de données avant de créer l'utilisateur: ${apiUrl}/db-connection-test`);
+      const dbTestResponse = await fetch(`${apiUrl}/db-connection-test`, {
+        method: 'GET',
+        headers: headers
       });
       
-      console.log(`Réponse URL contrôleur direct: ${response.status}`);
-    } catch (directError) {
-      console.error("Erreur lors de la requête directe:", directError);
-      
-      // Si l'accès direct échoue, essayer via l'API router (/api/utilisateurs)
-      console.log(`Essai via router API: ${apiUrl}/utilisateurs`);
-      
-      response = await fetch(`${apiUrl}/utilisateurs`, {
-        method: 'POST',
-        headers: headers,
-        body: JSON.stringify(requestData)
-      });
-      
-      // Si ça échoue encore, essayer un troisième chemin
-      if (!response.ok) {
-        console.log(`Essai via PHP file direct: ${apiUrl}/utilisateurs.php`);
+      if (dbTestResponse.ok) {
+        const dbTestResult = await dbTestResponse.json();
+        console.log("Résultat du test de connexion à la base de données:", dbTestResult);
         
-        response = await fetch(`${apiUrl}/utilisateurs.php`, {
+        if (dbTestResult.status !== 'success') {
+          console.error("Problème de connexion à la base de données:", dbTestResult.message || "Raison inconnue");
+          throw new Error("Impossible de se connecter à la base de données. Vérifiez la configuration.");
+        }
+      } else {
+        console.warn("Le test de connexion à la base de données a échoué avec le statut:", dbTestResponse.status);
+      }
+    } catch (dbTestError) {
+      console.error("Erreur lors du test de connexion à la base de données:", dbTestError);
+    }
+    
+    // Essayer chaque route jusqu'à ce qu'une fonctionne
+    for (const route of routes) {
+      try {
+        console.log(`Essai avec l'URL: ${route}`);
+        response = await fetch(route, {
           method: 'POST',
           headers: headers,
           body: JSON.stringify(requestData)
         });
+        
+        console.log(`Réponse de ${route}: ${response.status}`);
+        
+        // Si la réponse est réussie, sortir de la boucle
+        if (response.status >= 200 && response.status < 300) {
+          break;
+        }
+        
+        // Sinon, enregistrer l'erreur et continuer
+        const responseText = await response.text();
+        lastError = `Erreur ${response.status} de ${route}: ${responseText}`;
+        console.error(lastError);
+      } catch (routeError) {
+        console.error(`Erreur lors de la requête à ${route}:`, routeError);
+        lastError = routeError instanceof Error ? routeError.message : "Erreur inconnue";
       }
     }
+    
+    // Si aucune route n'a fonctionné
+    if (!response || response.status < 200 || response.status >= 300) {
+      throw new Error(lastError || "Toutes les tentatives de création d'utilisateur ont échoué");
+    }
 
-    console.log("Statut de la réponse:", response.status);
+    console.log("Statut de la réponse finale:", response.status);
     
     // Récupérer le texte brut de la réponse pour diagnostiquer les problèmes
     const responseText = await response.text();

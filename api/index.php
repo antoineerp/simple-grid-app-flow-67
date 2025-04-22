@@ -113,6 +113,10 @@ switch ($controller) {
         require_once 'database-test.php';
         break;
         
+    case 'db-connection-test':
+        require_once 'db-connection-test.php';
+        break;
+        
     case 'database-config':
         require_once 'database-config.php';
         break;
