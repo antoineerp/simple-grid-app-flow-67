@@ -3,8 +3,8 @@ name: Deploy to Infomaniak
 
 on:
   push:
-    branches: [ main ]  # ou 'master' selon votre branche principale
-  workflow_dispatch:    # Permet le déclenchement manuel depuis l'interface GitHub
+    branches: [ main ]
+  workflow_dispatch:
 
 jobs:
   build-and-deploy:
@@ -51,7 +51,7 @@ jobs:
         username: ${{ secrets.FTP_USERNAME }}
         password: ${{ secrets.FTP_PASSWORD }}
         local-dir: ./dist/
-        server-dir: /
+        server-dir: /test.qualiopi.ch/  # Modification ici pour cibler le sous-domaine
         dangerous-clean-slate: false
         exclude: |
           **/.git*

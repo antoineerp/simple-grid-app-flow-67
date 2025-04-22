@@ -1,4 +1,3 @@
-
 # Déploiement GitHub Actions vers Infomaniak
 
 Ce workflow automatise le déploiement de l'application FormaCert vers l'hébergement Infomaniak via FTP.
@@ -24,10 +23,11 @@ Le workflow effectue les actions suivantes:
 
 ## Dossier de destination
 
-Le workflow est actuellement configuré pour déployer à la racine du serveur FTP (`/`). 
-Chez Infomaniak, cette racine correspond généralement au dossier du domaine que vous avez configuré.
+Le workflow peut être configuré pour déployer dans différents dossiers/sous-domaines :
+- Pour déployer à la racine : utilisez `server-dir: /`
+- Pour déployer sur un sous-domaine : utilisez `server-dir: /test.qualiopi.ch/`
 
-Si vous souhaitez déployer dans un sous-dossier spécifique, modifiez la valeur de `server-dir` dans le fichier `deploy.yml`.
+Choisissez le dossier de destination en modifiant la valeur de `server-dir` dans le fichier `deploy.yml`.
 
 ## Résolution des problèmes
 
