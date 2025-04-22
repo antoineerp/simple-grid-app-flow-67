@@ -38,12 +38,18 @@ export const useLoginForm = () => {
       const result = await loginUser(data.username, data.password);
       
       if (result.success) {
+        // Stocker explicitement le nom d'utilisateur saisi
         localStorage.setItem("isLoggedIn", "true");
-        localStorage.setItem("currentUser", result.user.identifiant_technique || data.username);
+        localStorage.setItem("currentUser", data.username);
+        
+        // Si l'API renvoie un identifiant technique différent, le stocker également
+        if (result.user && result.user.identifiant_technique) {
+          localStorage.setItem("userTechnicalId", result.user.identifiant_technique);
+        }
         
         toast({
           title: `Connexion réussie`,
-          description: `Bienvenue, ${result.user.role}`,
+          description: `Bienvenue, ${data.username} (${result.user?.role || 'utilisateur'})`,
         });
         
         navigate("/pilotage");

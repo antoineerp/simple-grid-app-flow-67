@@ -18,7 +18,14 @@ const UsernameField: React.FC<UsernameFieldProps> = ({ control }) => {
         <FormItem>
           <FormLabel>Nom d'utilisateur</FormLabel>
           <FormControl>
-            <Input placeholder="Entrez votre nom d'utilisateur" {...field} />
+            <Input 
+              placeholder="Entrez votre nom d'utilisateur" 
+              {...field} 
+              onChange={(e) => {
+                console.log("Nom d'utilisateur saisi:", e.target.value);
+                field.onChange(e);
+              }}
+            />
           </FormControl>
           <FormMessage />
         </FormItem>
