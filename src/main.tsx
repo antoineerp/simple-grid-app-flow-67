@@ -3,10 +3,13 @@ import { createRoot } from 'react-dom/client';
 import App from './App.tsx';
 import './index.css';
 
+console.log("Starting application initialization...");
+
 const rootElement = document.getElementById("root");
 
 if (rootElement) {
   try {
+    console.log("Root element found, attempting to render...");
     const root = createRoot(rootElement);
     root.render(<App />);
     
@@ -34,3 +37,5 @@ if (rootElement) {
     </div>
   `;
 }
+
+console.log("Main script execution completed");
