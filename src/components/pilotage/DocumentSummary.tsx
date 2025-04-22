@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { useDocumentSummary } from '@/hooks/useDocumentSummary';
 import { Card, CardContent } from '@/components/ui/card';
@@ -24,10 +25,9 @@ const DocumentSummary: React.FC = () => {
       <Card className="p-6">
         <CardContent className="p-0">
           <div className="flex justify-between items-center mb-4">
-            <h3 className="text-xl font-semibold">Vue d'ensemble</h3>
+            <h3 className="text-xl font-semibold"></h3>
             <div className="flex items-center text-blue-600">
               <FileText className="mr-2 h-5 w-5" />
-              <span>Total: {total} documents (hors exclusion)</span>
             </div>
           </div>
           
@@ -141,3 +141,4 @@ const DocumentSummary: React.FC = () => {
 };
 
 export default DocumentSummary;
+
