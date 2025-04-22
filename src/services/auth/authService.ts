@@ -1,4 +1,3 @@
-
 import { getApiUrl } from '@/config/apiConfig';
 import { toast } from '@/hooks/use-toast';
 import { disconnectUser } from '../core/databaseConnectionService';
@@ -54,15 +53,18 @@ class AuthService {
     public async login(username: string, password: string): Promise<any> {
         try {
             const currentApiUrl = getApiUrl();
-            console.log(`Tentative de connexion à l'API: ${currentApiUrl}/auth.php`);
-            
+            console.log(`🔍 Authentication Debug:`, {
+                apiUrl: currentApiUrl,
+                username: username,
+                timestamp: new Date().toISOString()
+            });
+
             const cacheBuster = new Date().getTime();
             const loginUrl = `${currentApiUrl}/auth.php?_=${cacheBuster}`;
             
             console.log("URL de l'API utilisée:", loginUrl);
             console.log("Données de connexion:", { username });
             
-            // Utiliser un objet AbortController avec un timeout de 10 secondes
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 10000);
             
@@ -78,16 +80,16 @@ class AuthService {
                 cache: 'no-cache'
             });
             
-            // Annuler le timeout
             clearTimeout(timeoutId);
             
-            console.log("Type de contenu reçu:", response.headers.get('Content-Type'));
-            console.log("Code de statut HTTP:", response.status);
+            console.log(`🚀 Response Status:`, {
+                status: response.status,
+                headers: Object.fromEntries(response.headers.entries()),
+                contentType: response.headers.get('Content-Type')
+            });
             
-            // Récupérer le texte brut de la réponse
             const responseText = await response.text();
             
-            // Vérifier si la réponse est vide ou non-valide
             if (!responseText || responseText.trim() === '') {
                 console.error("Le serveur a renvoyé une réponse vide");
                 return {
@@ -98,7 +100,6 @@ class AuthService {
             
             console.log("Contenu reçu:", responseText.substring(0, 200));
             
-            // Essayer de parser la réponse JSON
             let data;
             try {
                 data = JSON.parse(responseText);
@@ -141,9 +142,12 @@ class AuthService {
                 };
             }
         } catch (error) {
-            console.error("Erreur d'authentification:", error);
-            
-            // Gérer les erreurs spécifiques
+            console.error(`❌ Authentication Error:`, {
+                message: error instanceof Error ? error.message : 'Unknown error',
+                type: error?.constructor?.name,
+                timestamp: new Date().toISOString()
+            });
+
             if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
                 return {
                     success: false,
