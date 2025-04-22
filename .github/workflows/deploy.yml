@@ -117,7 +117,7 @@ jobs:
         username: ${{ secrets.FTP_USERNAME }}
         password: ${{ secrets.FTP_PASSWORD }}
         local-dir: ./dist/
-        server-dir: /
+        server-dir: /sites/qualiopi.ch/
         dangerous-clean-slate: false
         exclude: |
           **/*
@@ -133,7 +133,7 @@ jobs:
         username: ${{ secrets.FTP_USERNAME }}
         password: ${{ secrets.FTP_PASSWORD }}
         local-dir: ./dist/
-        server-dir: /
+        server-dir: /sites/qualiopi.ch/
         dangerous-clean-slate: false
         exclude: |
           **/.git*
