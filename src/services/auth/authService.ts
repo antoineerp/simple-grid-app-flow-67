@@ -1,4 +1,3 @@
-
 import { getApiUrl } from '@/config/apiConfig';
 import { toast } from '@/hooks/use-toast';
 import { disconnectUser } from '../core/databaseConnectionService';
@@ -55,7 +54,6 @@ class AuthService {
         return headers;
     }
 
-    // Fonction utilitaire pour valider et parser les réponses JSON
     private async parseJsonResponse(response: Response): Promise<any> {
         const responseText = await response.text();
         console.log(`Réponse reçue (${response.status}): ${responseText.substring(0, 200)}...`);
@@ -65,12 +63,10 @@ class AuthService {
             throw new Error('Réponse vide du serveur');
         }
         
-        // Vérifier si la réponse est le message de test de l'API
         if (responseText.includes('API PHP disponible')) {
             throw new Error('Le serveur a renvoyé une réponse de test au lieu du traitement de la connexion');
         }
         
-        // Vérifier si la réponse n'est pas du JSON (probablement du HTML)
         if (responseText.trim().startsWith('<!DOCTYPE') || 
             responseText.trim().startsWith('<html') ||
             responseText.includes('<body')) {
@@ -91,7 +87,6 @@ class AuthService {
         try {
             console.log(`Tentative de connexion pour l'utilisateur: ${username}`);
             
-            // Tester avec login-test.php d'abord (plus fiable)
             const testUrl = `${getApiUrl()}/login-test.php`;
             console.log(`URL de requête (test): ${testUrl}`);
             
@@ -111,8 +106,13 @@ class AuthService {
                 
                 if (response.ok) {
                     data = await this.parseJsonResponse(response);
-                    connectionSuccessful = true;
-                    console.log('Connexion réussie via login-test.php');
+                    
+                    if (data?.message === 'API PHP disponible') {
+                        console.log('Test API réussi, tentative de connexion réelle...');
+                    } else {
+                        connectionSuccessful = true;
+                        console.log('Connexion réussie via login-test.php');
+                    }
                 } else {
                     const errorText = await response.text();
                     console.warn('Échec avec login-test.php:', errorText);
@@ -121,7 +121,6 @@ class AuthService {
                 console.warn('Échec avec login-test.php, tentative avec AuthController:', testError);
             }
             
-            // Si le test a échoué, essayer avec le contrôleur principal
             if (!connectionSuccessful) {
                 const url = `${getApiUrl()}/index.php`;
                 console.log(`URL de requête (principale): ${url}`);
@@ -147,22 +146,18 @@ class AuthService {
                 throw new Error(data?.message || "Authentification échouée");
             }
             
-            // Stocker le token
             this.setToken(data.token);
             
-            // Stocker les informations utilisateur
             if (data.user) {
                 localStorage.setItem('currentUser', data.user.identifiant_technique);
                 localStorage.setItem('userRole', data.user.role);
                 localStorage.setItem('userName', `${data.user.prenom || ''} ${data.user.nom || ''}`);
             }
             
-            // Initialiser les données utilisateur si nécessaire
             if (data.user && data.user.identifiant_technique) {
                 await initializeUserData(data.user.identifiant_technique);
             }
             
-            // Retourner les données de l'utilisateur
             return {
                 success: true,
                 user: data.user
@@ -186,7 +181,6 @@ class AuthService {
         localStorage.removeItem('userRole');
         localStorage.removeItem('userName');
         
-        // Déconnecter l'utilisateur de la base de données
         disconnectUser();
         
         toast({
@@ -204,10 +198,8 @@ class AuthService {
     }
 }
 
-// Export the authentication service instance
 const authService = AuthService.getInstance();
 
-// Export simplified functions for easier usage
 export const login = (username: string, password: string): Promise<any> => {
     return authService.login(username, password);
 };
@@ -228,7 +220,6 @@ export const getAuthHeaders = (): HeadersInit => {
     return authService.getAuthHeaders();
 };
 
-// Alias exports to match the imported names in services/index.ts
 export const loginUser = login;
 export const logoutUser = logout;
 export const getToken = authService.getToken.bind(authService);
