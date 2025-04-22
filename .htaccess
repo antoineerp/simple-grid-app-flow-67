@@ -23,7 +23,16 @@ RewriteRule ^php-error-finder\.php$ php-error-finder.php [L]
 RewriteRule ^test-minimal\.php$ test-minimal.php [L]
 RewriteRule ^assets-check\.php$ assets-check.php [L]
 
-# Traitement des fichiers d'assets
+# Permettre la navigation dans le dossier dist/assets via le navigateur (pour diagnostic)
+<IfModule mod_autoindex.c>
+    Options +Indexes
+    <Directory "dist/assets">
+        Options +Indexes
+        IndexOptions FancyIndexing
+    </Directory>
+</IfModule>
+
+# Traitement des fichiers d'assets y compris ceux avec hachage
 RewriteRule ^dist/assets/(.*)$ dist/assets/$1 [L]
 RewriteRule ^assets/(.*)$ dist/assets/$1 [L]
 RewriteRule ^lovable-uploads/(.*)$ lovable-uploads/$1 [L]

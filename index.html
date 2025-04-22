@@ -17,33 +17,76 @@
       }
     </script>
     
-    <!-- Styles avec détection auto main.css ou index.css -->
+    <!-- Styles avec détection améliorée pour les fichiers hachés -->
     <script>
-      // Auto-détection du fichier CSS (index.css ou main.css)
+      // Auto-détection des fichiers CSS avec gestion des noms hachés
       function loadCSS() {
         var link = document.createElement('link');
         link.rel = 'stylesheet';
         link.type = 'text/css';
         
-        // Essayer d'abord index.css
-        fetch('/dist/assets/index.css')
+        // Essayer d'abord de déterminer le fichier CSS par motif
+        fetch('/dist/assets/')
           .then(response => {
-            if (response.ok) {
-              link.href = '/dist/assets/index.css';
-            } else {
-              // Fallback à main.css
-              link.href = '/dist/assets/main.css';
+            if (!response.ok) {
+              throw new Error('Unable to list assets directory');
             }
-            document.head.appendChild(link);
+            return response.text();
+          })
+          .then(html => {
+            // Rechercher le pattern index-*.css dans la réponse
+            const cssMatch = html.match(/index[^"']*\.css/);
+            if (cssMatch && cssMatch[0]) {
+              link.href = '/dist/assets/' + cssMatch[0];
+              document.head.appendChild(link);
+            } else {
+              // Fallbacks historiques
+              tryLoadSpecificCSS(['index.css', 'main.css', 'index-Ba23j-ib.css']);
+            }
           })
           .catch(() => {
-            // Fallback vers CSS direct
-            link.href = '/dist/assets/main.css';
-            document.head.appendChild(link);
+            // En cas d'échec, essayer les noms spécifiques
+            tryLoadSpecificCSS(['index.css', 'main.css', 'index-Ba23j-ib.css']);
           });
       }
       
-      // Exécuter la détection au chargement
+      function tryLoadSpecificCSS(fileNames) {
+        let loaded = false;
+        let currentIndex = 0;
+        
+        function tryNextFile() {
+          if (currentIndex >= fileNames.length) {
+            console.error('No CSS file could be loaded');
+            return;
+          }
+          
+          const fileName = fileNames[currentIndex];
+          const filePath = '/dist/assets/' + fileName;
+          
+          fetch(filePath)
+            .then(response => {
+              if (response.ok && !loaded) {
+                loaded = true;
+                const link = document.createElement('link');
+                link.rel = 'stylesheet';
+                link.href = filePath;
+                document.head.appendChild(link);
+              } else if (!loaded) {
+                currentIndex++;
+                tryNextFile();
+              }
+            })
+            .catch(() => {
+              if (!loaded) {
+                currentIndex++;
+                tryNextFile();
+              }
+            });
+        }
+        
+        tryNextFile();
+      }
+      
       window.addEventListener('DOMContentLoaded', loadCSS);
     </script>
   </head>
@@ -58,32 +101,76 @@
     <!-- Script Lovable (chargé de manière permanente) -->
     <script src="https://cdn.gpteng.co/gptengineer.js" type="module"></script>
     
-    <!-- Script principal avec détection automatique -->
+    <!-- Script principal avec détection améliorée pour les fichiers hachés -->
     <script>
-      // Auto-détection du fichier JS (index.js ou main.js)
+      // Auto-détection des fichiers JS avec gestion des noms hachés
       function loadScript() {
-        var script = document.createElement('script');
-        script.type = 'module';
-        
-        // Essayer d'abord index.js
-        fetch('/dist/assets/index.js')
+        // Essayer d'abord de déterminer le fichier JS par motif
+        fetch('/dist/assets/')
           .then(response => {
-            if (response.ok) {
-              script.src = '/dist/assets/index.js';
-            } else {
-              // Fallback à main.js
-              script.src = '/dist/assets/main.js';
+            if (!response.ok) {
+              throw new Error('Unable to list assets directory');
             }
-            document.body.appendChild(script);
+            return response.text();
+          })
+          .then(html => {
+            // Rechercher le pattern index-*.js dans la réponse
+            const jsMatch = html.match(/index[^"']*\.js/);
+            if (jsMatch && jsMatch[0] && !jsMatch[0].includes('.es-')) {
+              loadSpecificScript('/dist/assets/' + jsMatch[0]);
+            } else {
+              // Fallbacks historiques
+              tryLoadSpecificJS(['index.js', 'main.js', 'index-DYVaI5Ag.js']);
+            }
           })
           .catch(() => {
-            // Dernier recours - fallback vers main.js
-            script.src = '/dist/assets/main.js';
-            document.body.appendChild(script);
+            // En cas d'échec, essayer les noms spécifiques
+            tryLoadSpecificJS(['index.js', 'main.js', 'index-DYVaI5Ag.js']);
           });
       }
       
-      // Exécuter la détection au chargement
+      function loadSpecificScript(src) {
+        var script = document.createElement('script');
+        script.type = 'module';
+        script.src = src;
+        document.body.appendChild(script);
+        console.log('Loaded script: ' + src);
+      }
+      
+      function tryLoadSpecificJS(fileNames) {
+        let loaded = false;
+        let currentIndex = 0;
+        
+        function tryNextFile() {
+          if (currentIndex >= fileNames.length) {
+            console.error('No JS file could be loaded');
+            return;
+          }
+          
+          const fileName = fileNames[currentIndex];
+          const filePath = '/dist/assets/' + fileName;
+          
+          fetch(filePath)
+            .then(response => {
+              if (response.ok && !loaded) {
+                loaded = true;
+                loadSpecificScript(filePath);
+              } else if (!loaded) {
+                currentIndex++;
+                tryNextFile();
+              }
+            })
+            .catch(() => {
+              if (!loaded) {
+                currentIndex++;
+                tryNextFile();
+              }
+            });
+        }
+        
+        tryNextFile();
+      }
+      
       window.addEventListener('DOMContentLoaded', loadScript);
     </script>
     
@@ -96,11 +183,16 @@
             <div style="max-width:800px; margin:50px auto; padding:20px; font-family:sans-serif; line-height:1.5; color:#333; background:#f9f9f9; border:1px solid #ddd; border-radius:8px;">
               <h1 style="color:#d33;">Erreur de chargement de l'application</h1>
               <p>L'application n'a pas pu être chargée correctement. Cela peut être dû à un problème avec les fichiers statiques.</p>
+              <h3>Fichiers assets détectés:</h3>
+              <p>Vérifiez que les fichiers suivants existent dans le dossier dist/assets:</p>
+              <ul>
+                <li>index-Ba23j-ib.css (ou tout autre fichier index-*.css)</li>
+                <li>index-DYVaI5Ag.js (ou tout autre fichier index-*.js)</li>
+              </ul>
               <h3>Diagnostics recommandés:</h3>
               <ul>
                 <li>Visitez <a href="/assets-check.php" style="color:#0066cc;">la page de diagnostic des assets</a></li>
-                <li>Vérifiez que le dossier <code>dist/assets</code> contient les fichiers <code>index.js</code> et <code>index.css</code></li>
-                <li>Vérifiez si le serveur a besoin d'exécuter <code>npm run build</code></li>
+                <li>Vérifiez la configuration dans vite.config.ts pour le hachage des fichiers</li>
               </ul>
             </div>
           `;

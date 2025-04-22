@@ -38,27 +38,46 @@ try {
     throw new Error('Build failed: assets directory not found.');
   }
   
-  // Check for main JS and CSS files
-  const hasIndexJs = fs.existsSync(path.join(assetsDir, 'index.js'));
-  const hasMainJs = fs.existsSync(path.join(assetsDir, 'main.js'));
-  const hasIndexCss = fs.existsSync(path.join(assetsDir, 'index.css'));
-  const hasMainCss = fs.existsSync(path.join(assetsDir, 'main.css'));
+  // List all files in the assets directory
+  console.log('\nAssets directory content:');
+  const assetFiles = fs.readdirSync(assetsDir);
   
-  if (!hasIndexJs && !hasMainJs) {
-    throw new Error('Build failed: Neither index.js nor main.js was generated.');
+  if (assetFiles.length === 0) {
+    throw new Error('Build failed: assets directory is empty.');
   }
   
-  if (!hasIndexCss && !hasMainCss) {
-    throw new Error('Build failed: Neither index.css nor main.css was generated.');
+  // Identify specific file types
+  const jsFiles = assetFiles.filter(file => file.endsWith('.js'));
+  const cssFiles = assetFiles.filter(file => file.endsWith('.css'));
+  const mainJsFile = jsFiles.find(file => file.includes('index') && !file.includes('.es-'));
+  const mainCssFile = cssFiles.find(file => file.includes('index'));
+  
+  if (jsFiles.length === 0) {
+    throw new Error('Build failed: No JavaScript files were generated.');
+  }
+  
+  if (cssFiles.length === 0) {
+    throw new Error('Build failed: No CSS files were generated.');
   }
   
   // List important files
   console.log('\nImportant files in the build:');
-  fs.readdirSync(assetsDir).forEach(file => {
-    if (file.endsWith('.js') || file.endsWith('.css')) {
-      console.log(`- ${file} (${(fs.statSync(path.join(assetsDir, file)).size / 1024).toFixed(1)} KB)`);
-    }
+  assetFiles.forEach(file => {
+    const filePath = path.join(assetsDir, file);
+    const fileSize = (fs.statSync(filePath).size / 1024).toFixed(1);
+    const isPrimary = file === mainJsFile || file === mainCssFile;
+    
+    console.log(`- ${file} (${fileSize} KB)${isPrimary ? ' [PRIMARY]' : ''}`);
   });
+  
+  // Check for hashed filenames and provide guidance
+  const hasHashedFiles = assetFiles.some(file => /index-[a-zA-Z0-9]+\.(js|css)$/.test(file));
+  
+  if (hasHashedFiles) {
+    console.log('\n⚠️  IMPORTANT: Your build is generating hashed filenames.');
+    console.log('Make sure your index.html and index.php are configured to handle hashed filenames.');
+    console.log('The updated scripts in this deployment will handle this case automatically.');
+  }
   
   console.log('\n4. Creating file list for upload...');
   
@@ -90,10 +109,14 @@ try {
     console.log(`  - ${dir}/ [${exists ? 'OK' : 'MISSING'}]`);
   });
   
-  console.log('\nVerification complete! ✅');
+  console.log('\nVERIFICATION COMPLETE! ✅');
   console.log('\nTo deploy your site:');
   console.log('1. Upload all listed files to your server');
   console.log('2. After upload, visit /assets-check.php to verify assets');
+  console.log('3. If you continue to see file loading issues:');
+  console.log('   - Make sure your server\'s MIME types are properly configured');
+  console.log('   - Check the console for specific file loading errors');
+  console.log('   - Verify that the .htaccess file is being processed correctly');
 
 } catch (error) {
   console.error('\nDeployment preparation failed:', error.message);

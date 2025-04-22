@@ -41,6 +41,10 @@ export default defineConfig(({ mode }) => ({
     // Optimize chunks for production
     rollupOptions: {
       output: {
+        // Désactiver le hachage des fichiers pour éviter les problèmes de chargement
+        entryFileNames: 'assets/index.js',
+        assetFileNames: 'assets/[name].[ext]',
+        chunkFileNames: 'assets/[name].js',
         manualChunks: {
           vendor: ['react', 'react-dom'],
         },
@@ -56,4 +60,3 @@ export default defineConfig(({ mode }) => ({
     drop: mode === 'production' ? ['console'] : []
   }
 }));
-
