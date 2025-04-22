@@ -4,10 +4,12 @@ ob_start();
 
 // CORS - Configuration avancée et sécurisée
 $allowed_origins = [
-    'https://qualiopi.ch',
-    'https://myd.infomaniak.com',
-    'https://e80de7b3-92db-438f-9423-8243c4b15dfe.lovableproject.com',
-    'http://localhost:8080'  // Ajouter l'environnement de développement
+    'https://qualiopi.ch',                   // Domaine principal Infomaniak
+    'https://www.qualiopi.ch',               // Avec www
+    'https://myd.infomaniak.com',            // Interface Infomaniak
+    'http://localhost:8080',                 // Environnement de développement local
+    'http://localhost:3000',                 // Alternative pour le développement
+    'https://e80de7b3-92db-438f-9423-8243c4b15dfe.lovableproject.com'  // Domaine Lovable
 ];
 
 $origin = isset($_SERVER['HTTP_ORIGIN']) ? $_SERVER['HTTP_ORIGIN'] : '';
@@ -20,6 +22,7 @@ if (in_array($origin, $allowed_origins)) {
     // Rejeter les origines non autorisées
     header("Access-Control-Allow-Origin: null");
     http_response_code(403);
+    error_log("Origine refusée: " . $origin);
     die(json_encode(['error' => 'Origin not allowed']));
 }
 
