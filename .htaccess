@@ -36,6 +36,7 @@ RewriteRule ^ - [L]
 
 # Permettre l'accès direct aux autres ressources statiques
 RewriteCond %{REQUEST_URI} \.(js|css|png|jpe?g|gif|svg|ico|webp|woff2?|ttf|eot|map|tsx?)$
+RewriteCond %{REQUEST_FILENAME} -f
 RewriteRule ^ - [L]
 
 # Rediriger toutes les autres requêtes vers index.html pour React Router
