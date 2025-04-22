@@ -5,8 +5,8 @@ import path from "path";
 import { componentTagger } from "lovable-tagger";
 
 export default defineConfig(({ mode }) => {
-  // Déterminer le chemin de base en fonction de l'environnement
-  const basePath = mode === 'production' ? '/' : '/';
+  // Forcer le chemin de base en production
+  const basePath = '/';
   
   return {
     server: {
