@@ -14,6 +14,11 @@ declare global {
   }
 }
 
+// Initialisation conditionnelle de __LOVABLE_EDITOR__
+if (typeof window.__LOVABLE_EDITOR__ === 'undefined') {
+  window.__LOVABLE_EDITOR__ = null;
+}
+
 // Log environment info
 console.log(`==== Application démarrée en mode: ${getEnvironmentName()} ====`);
 
