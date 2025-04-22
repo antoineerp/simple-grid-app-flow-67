@@ -1,8 +1,14 @@
 
 <?php
-// Inclure les fichiers nécessaires
-require_once 'config/database.php';
-require_once 'models/User.php';
+// Vérifier si la constante de protection est définie
+if (!defined('DIRECT_ACCESS_CHECK')) {
+    define('DIRECT_ACCESS_CHECK', true);
+}
+
+// Inclure les fichiers nécessaires avec des chemins relatifs plus robustes
+$baseDir = dirname(__DIR__); // Remonte au répertoire parent (api/)
+require_once $baseDir . '/config/database.php';
+require_once $baseDir . '/models/User.php';
 
 // Définir les headers pour CORS
 header("Content-Type: application/json; charset=UTF-8");
@@ -17,6 +23,20 @@ if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
     exit;
 }
 
+// Fonction pour nettoyer les données UTF-8 si elle n'existe pas
+if (!function_exists('cleanUTF8')) {
+    function cleanUTF8($input) {
+        if (is_string($input)) {
+            return mb_convert_encoding($input, 'UTF-8', 'UTF-8');
+        } elseif (is_array($input)) {
+            foreach ($input as $key => $value) {
+                $input[$key] = cleanUTF8($value);
+            }
+        }
+        return $input;
+    }
+}
+
 // Journaliser la requête pour débogage
 error_log("UsersController - Méthode: " . $_SERVER['REQUEST_METHOD'] . " - URI: " . $_SERVER['REQUEST_URI']);
 
@@ -26,7 +46,11 @@ $method = $_SERVER['REQUEST_METHOD'];
 try {
     // Créer une instance de Database
     $database = new Database();
-    $db = $database->getConnection();
+    $db = $database->getConnection(false);
+    
+    if (!$database->is_connected) {
+        throw new Exception("Erreur de connexion à la base de données: " . ($database->connection_error ?? "Erreur inconnue"));
+    }
 
     // Créer une instance de User
     $user = new User($db);

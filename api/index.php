@@ -10,6 +10,12 @@ $is_production = (getenv('APP_ENV') === 'production' || !getenv('APP_ENV'));
 if (!$is_production) {
     ini_set('display_errors', 1);
     error_reporting(E_ALL);
+} else {
+    // En production, journaliser les erreurs mais ne pas les afficher
+    ini_set('display_errors', 0);
+    error_reporting(E_ALL);
+    ini_set('log_errors', 1);
+    ini_set('error_log', 'php_errors.log');
 }
 
 // Définir les headers communs
@@ -64,6 +70,20 @@ if ($is_test_request || $request_uri == '/api/' || $request_uri == '/api/index.p
     exit;
 }
 
+// Définir une fonction pour nettoyer les données UTF-8
+if (!function_exists('cleanUTF8')) {
+    function cleanUTF8($input) {
+        if (is_string($input)) {
+            return mb_convert_encoding($input, 'UTF-8', 'UTF-8');
+        } elseif (is_array($input)) {
+            foreach ($input as $key => $value) {
+                $input[$key] = cleanUTF8($value);
+            }
+        }
+        return $input;
+    }
+}
+
 // Routage des requêtes
 // Nettoyer le chemin pour obtenir la route demandée
 $path = preg_replace([
@@ -82,7 +102,7 @@ error_log("API Controller: $controller | Method: " . $_SERVER['REQUEST_METHOD'] 
 // Router vers le bon fichier en fonction du contrôleur
 switch ($controller) {
     case 'auth':
-        require_once 'auth.php';
+        require_once 'controllers/AuthController.php';
         break;
         
     case 'login-test':
@@ -98,9 +118,29 @@ switch ($controller) {
         break;
         
     case 'utilisateurs':
-        require_once 'controllers/UsersController.php';
+        // Faire en sorte que le UsersController.php soit inclus avec des chemins relatifs corrects
+        $userController = __DIR__ . '/controllers/UsersController.php';
+        if (file_exists($userController)) {
+            error_log("Inclusion du contrôleur d'utilisateurs: " . $userController);
+            require_once $userController;
+        } else {
+            error_log("ERREUR: Contrôleur d'utilisateurs non trouvé à: " . $userController);
+            http_response_code(500);
+            echo json_encode([
+                'message' => 'Contrôleur d\'utilisateurs non trouvé',
+                'status' => 500,
+                'path' => $userController,
+                'debug' => [
+                    'request_uri' => $request_uri,
+                    'controller' => $controller,
+                    'segments' => $segments,
+                    'directory' => __DIR__
+                ]
+            ]);
+        }
         break;
         
+    case 'check-users':
     case 'check-users.php':
         require_once 'check-users.php';
         break;
