@@ -1,4 +1,3 @@
-
 <?php
 header('Content-Type: text/html; charset=utf-8');
 // Fonction pour vérifier que les secrets GitHub sont configurés
@@ -59,6 +58,109 @@ $secretsStatus = checkGitHubSecrets();
     <div class="container">
         <h1>Déploiement Manuel sur Infomaniak</h1>
         
+        <div class="card">
+            <h2>Checklist Complète de Déploiement</h2>
+            
+            <div class="steps">
+                <h3>1. Préparation Locale</h3>
+                <pre><code>
+# Vérification de la branche
+git checkout main
+
+# Mise à jour du dépôt
+git pull origin main
+
+# Installation des dépendances
+npm install
+
+# Nettoyage du cache
+npm cache clean --force
+rm -rf node_modules/.cache
+
+# Construction du projet
+npm run build
+                </code></pre>
+            </div>
+
+            <div class="steps">
+                <h3>2. Vérification du Build (Important)</h3>
+                <ol>
+                    <li>Vérifiez le dossier <code>dist/</code> :
+                        <ul>
+                            <li>✓ index.html</li>
+                            <li>✓ .htaccess</li>
+                            <li>✓ dossier assets/ avec les fichiers JS/CSS</li>
+                            <li>✓ dossier api/ avec tous les sous-dossiers :
+                                <ul>
+                                    <li>config/</li>
+                                    <li>controllers/</li>
+                                    <li>middleware/</li>
+                                    <li>models/</li>
+                                    <li>utils/</li>
+                                </ul>
+                            </li>
+                            <li>✓ dossier public/ avec lovable-uploads/</li>
+                        </ul>
+                    </li>
+                    <li>Vérifiez la présence des fichiers critiques dans api/ :
+                        <ul>
+                            <li>.htaccess</li>
+                            <li>.user.ini</li>
+                            <li>index.php</li>
+                            <li>auth.php</li>
+                            <li>test.php</li>
+                        </ul>
+                    </li>
+                </ol>
+            </div>
+
+            <div class="steps">
+                <h3>3. Commandes de Validation</h3>
+                <pre><code>
+# Vérification des fichiers modifiés
+git status
+
+# Si tout est correct, commit des changements
+git add .
+git commit -m "Build de production - Déploiement complet"
+git push origin main
+                </code></pre>
+            </div>
+
+            <div class="steps">
+                <h3>4. Déclenchement du Workflow GitHub</h3>
+                <?php
+                $owner = 'antoineerp';
+                $repo = 'simple-grid-app-flow-67';
+                $workflow_id = 'deploy.yml';
+                $github_actions_url = "https://github.com/$owner/$repo/actions/workflows/$workflow_id";
+                echo "<p><a href='$github_actions_url' target='_blank' class='button'>Lancer le Workflow GitHub</a></p>";
+                ?>
+            </div>
+
+            <div class="steps">
+                <h3>5. Vérification Post-Déploiement</h3>
+                <ol>
+                    <li>Attendez la fin du workflow GitHub (~5 minutes)</li>
+                    <li>Utilisez les outils de diagnostic :
+                        <p>
+                            <a href="deploy-check.php" target="_blank" class="button">Diagnostic Complet</a>
+                            <a href="verify-deploy.php" target="_blank" class="button secondary">Vérification Alternative</a>
+                        </p>
+                    </li>
+                    <li>Vérifiez les points suivants sur le site :
+                        <ul>
+                            <li>Chargement de la page d'accueil</li>
+                            <li>Connexion à l'application</li>
+                            <li>Accès à l'API</li>
+                            <li>Chargement des assets</li>
+                            <li>Fonctionnement du routing</li>
+                        </ul>
+                    </li>
+                </ol>
+            </div>
+        </div>
+
         <div class="card">
             <h2>Instructions pour Déployer</h2>
             <p>Cette page vous guide pour déclencher manuellement un déploiement via GitHub Actions vers Infomaniak.</p>
@@ -141,4 +243,3 @@ $secretsStatus = checkGitHubSecrets();
     </div>
 </body>
 </html>
-
