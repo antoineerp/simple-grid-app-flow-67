@@ -1,15 +1,14 @@
 
 import { logDebug } from './logger';
 import { checkLovableScript, diagnoseNetworkIssues } from './diagnostics';
-import { isLovableDemo, getEnvironmentType, getEnvironmentName } from './environment';
+import { isLovableDemo, getEnvironmentType, isInfomaniakEnvironment } from './environment';
 
 export function initializeApp(): void {
   logDebug("Initialisation de l'application");
   
   // Vérifier l'environnement actuel
   const envType = getEnvironmentType();
-  const envName = getEnvironmentName();
-  logDebug(`Environnement détecté: ${envName} (${envType})`);
+  logDebug(`Environnement détecté: ${envType}`);
   
   // Vérifications conditionnelles selon l'environnement
   if (envType === 'demo') {
