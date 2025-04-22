@@ -1,16 +1,44 @@
-import React, { useState } from 'react';
+
+import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { AlertCircle, CheckCircle, Database, Server } from "lucide-react";
+import { AlertCircle, CheckCircle, Database, Server, Users } from "lucide-react";
 import { getApiUrl, fetchWithErrorHandling } from '@/config/apiConfig';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { getAuthHeaders } from '@/services/auth/authService';
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
+import { Badge } from "@/components/ui/badge";
+
+interface User {
+  id: number;
+  nom: string;
+  prenom: string;
+  email: string;
+  identifiant_technique: string;
+  role: string;
+  date_creation: string;
+}
+
+interface FallbackUser {
+  identifiant_technique: string;
+  mot_de_passe: string;
+  role: string;
+}
 
 const ServerTest = () => {
   const [apiStatus, setApiStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [dbStatus, setDbStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
+  const [usersStatus, setUsersStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [apiMessage, setApiMessage] = useState<string>('');
   const [dbMessage, setDbMessage] = useState<string>('');
+  const [usersMessage, setUsersMessage] = useState<string>('');
+  const [users, setUsers] = useState<User[]>([]);
+  const [fallbackUsers, setFallbackUsers] = useState<FallbackUser[]>([]);
 
   const testApiConnection = async () => {
     setApiStatus('loading');
@@ -58,6 +86,50 @@ const ServerTest = () => {
       setDbStatus('error');
     }
   };
+
+  const testUsersConnection = async () => {
+    setUsersStatus('loading');
+    try {
+      const API_URL = getApiUrl();
+      console.log("Testing users connection to:", API_URL + '/check-users.php');
+      
+      const data = await fetchWithErrorHandling(`${API_URL}/check-users.php`, {
+        method: 'GET',
+        headers: getAuthHeaders()
+      });
+      
+      console.log("Users response:", data);
+      
+      if (data.records) {
+        setUsers(data.records);
+      }
+      
+      if (data.fallback_users) {
+        setFallbackUsers(data.fallback_users);
+      }
+      
+      setUsersMessage(`Utilisateurs récupérés avec succès (${data.count || 0} utilisateurs dans la base)`);
+      setUsersStatus('success');
+    } catch (error) {
+      console.error("Erreur Users:", error);
+      setUsersMessage(`Échec de la récupération des utilisateurs: ${error instanceof Error ? error.message : 'Erreur inconnue'}`);
+      setUsersStatus('error');
+      
+      // Définir des utilisateurs de secours en cas d'erreur
+      setFallbackUsers([
+        { identifiant_technique: "admin", mot_de_passe: "admin123", role: "admin" },
+        { identifiant_technique: "antcirier@gmail.com", mot_de_passe: "password123", role: "admin" },
+        { identifiant_technique: "p71x6d_system", mot_de_passe: "admin123", role: "admin" },
+        { identifiant_technique: "p71x6d_dupont", mot_de_passe: "manager456", role: "gestionnaire" },
+        { identifiant_technique: "p71x6d_martin", mot_de_passe: "user789", role: "utilisateur" }
+      ]);
+    }
+  };
+
+  // Tester automatiquement la connexion à l'API au chargement du composant
+  useEffect(() => {
+    testApiConnection();
+  }, []);
 
   return (
     <Card className="w-full max-w-lg">
@@ -127,6 +199,104 @@ const ServerTest = () => {
                 </div>
               </div>
             </Alert>
+          )}
+        </div>
+
+        <div>
+          <div className="flex justify-between items-center mb-2">
+            <span className="font-medium flex items-center">
+              <Users className="h-4 w-4 mr-2" />
+              Utilisateurs disponibles:
+            </span>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={testUsersConnection} 
+              disabled={usersStatus === 'loading'}
+            >
+              {usersStatus === 'loading' ? 'Chargement...' : 'Vérifier'}
+            </Button>
+          </div>
+          
+          {usersStatus !== 'idle' && (
+            <>
+              <Alert variant={usersStatus === 'success' ? 'default' : 'destructive'} className="mt-2">
+                <div className="flex items-start">
+                  {usersStatus === 'success' ? 
+                    <CheckCircle className="h-4 w-4 mr-2 mt-0.5" /> : 
+                    <AlertCircle className="h-4 w-4 mr-2 mt-0.5" />
+                  }
+                  <div>
+                    <AlertTitle>{usersStatus === 'success' ? 'Succès' : 'Erreur'}</AlertTitle>
+                    <AlertDescription>{usersMessage}</AlertDescription>
+                  </div>
+                </div>
+              </Alert>
+
+              <Accordion type="single" collapsible className="mt-4">
+                <AccordionItem value="database-users">
+                  <AccordionTrigger>
+                    <span className="flex items-center">
+                      <Database className="h-4 w-4 mr-2" />
+                      Utilisateurs de la base de données
+                      <Badge variant="outline" className="ml-2">{users.length}</Badge>
+                    </span>
+                  </AccordionTrigger>
+                  <AccordionContent>
+                    {users.length > 0 ? (
+                      <div className="space-y-2 mt-2">
+                        {users.map((user, index) => (
+                          <div key={index} className="p-2 bg-muted rounded">
+                            <div className="flex justify-between">
+                              <div className="font-medium">{user.identifiant_technique}</div>
+                              <Badge>{user.role}</Badge>
+                            </div>
+                            <div className="text-sm text-muted-foreground">
+                              {user.prenom} {user.nom} ({user.email})
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-muted-foreground mt-2">
+                        Aucun utilisateur trouvé dans la base de données.
+                      </p>
+                    )}
+                  </AccordionContent>
+                </AccordionItem>
+
+                <AccordionItem value="fallback-users">
+                  <AccordionTrigger>
+                    <span className="flex items-center">
+                      <Users className="h-4 w-4 mr-2" />
+                      Utilisateurs de secours
+                      <Badge variant="outline" className="ml-2">{fallbackUsers.length}</Badge>
+                    </span>
+                  </AccordionTrigger>
+                  <AccordionContent>
+                    {fallbackUsers.length > 0 ? (
+                      <div className="space-y-2 mt-2">
+                        {fallbackUsers.map((user, index) => (
+                          <div key={index} className="p-2 bg-muted rounded">
+                            <div className="flex justify-between">
+                              <div className="font-medium">{user.identifiant_technique}</div>
+                              <Badge>{user.role}</Badge>
+                            </div>
+                            <div className="text-sm text-muted-foreground mt-1">
+                              Mot de passe: <code className="bg-background px-1 rounded">{user.mot_de_passe}</code>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-muted-foreground mt-2">
+                        Aucun utilisateur de secours disponible.
+                      </p>
+                    )}
+                  </AccordionContent>
+                </AccordionItem>
+              </Accordion>
+            </>
           )}
         </div>
       </CardContent>
