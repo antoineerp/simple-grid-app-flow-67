@@ -5,6 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import UserManagement from '@/components/admin/UserManagement';
 import DatabaseInfo from '@/components/admin/DatabaseInfo';
 import ApiConfiguration from '@/components/admin/ApiConfiguration';
+import ServerTest from '@/components/ServerTest';
 import { getCurrentUser } from '@/services';
 import { useToast } from "@/hooks/use-toast";
 import { hasPermission, UserRole } from '@/types/roles';
@@ -51,6 +52,7 @@ const Administration = () => {
           <TabsTrigger value="utilisateurs">Utilisateurs</TabsTrigger>
           <TabsTrigger value="database">Base de données</TabsTrigger>
           <TabsTrigger value="api">Configuration API</TabsTrigger>
+          <TabsTrigger value="systeme">État du système</TabsTrigger>
         </TabsList>
         
         <TabsContent value="utilisateurs">
@@ -66,6 +68,18 @@ const Administration = () => {
         
         <TabsContent value="api">
           <ApiConfiguration />
+        </TabsContent>
+
+        <TabsContent value="systeme">
+          <div className="rounded-lg border bg-card text-card-foreground shadow-sm">
+            <div className="flex flex-col space-y-1.5 p-6">
+              <h3 className="text-2xl font-semibold leading-none tracking-tight">État du système</h3>
+              <p className="text-sm text-muted-foreground">Vérifiez l'état des différents composants du système</p>
+            </div>
+            <div className="p-6 pt-0">
+              <ServerTest />
+            </div>
+          </div>
         </TabsContent>
       </Tabs>
     </div>

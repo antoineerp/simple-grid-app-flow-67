@@ -2,7 +2,6 @@
 import React from 'react';
 import Logo from '@/components/auth/Logo';
 import LoginForm from '@/components/auth/LoginForm';
-import ServerTest from '@/components/ServerTest';
 
 const Index = () => {
   return (
@@ -11,8 +10,6 @@ const Index = () => {
         <Logo />
         <LoginForm />
       </div>
-      
-      <ServerTest />
       
       <div className="fixed bottom-4 right-4 text-xs text-gray-400">
         Version: 1.0.1 - {new Date().toLocaleDateString()}
