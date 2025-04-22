@@ -63,3 +63,4 @@ window.addEventListener('error', (event) => {
 
 // Check if the application was loaded from the correct domain
 console.log("Application running on domain:", window.location.hostname);
+console.log("Asset path test:", "/assets/index.css exists:", document.querySelector('link[href*="index.css"]') !== null);

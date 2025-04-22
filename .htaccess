@@ -35,8 +35,11 @@ RewriteRule ^api$ api/ [R=301,L]
 # Rediriger les requêtes vers /api/ vers le fichier index.php dans le dossier api
 RewriteRule ^api/(.*)$ api/index.php [QSA,L]
 
-# Règle pour servir les assets compilés
-RewriteRule ^assets/(.*)$ dist/assets/$1 [L]
+# Règles pour servir les assets - MISE À JOUR CRITIQUE
+# Permettre l'accès direct aux assets dans leur dossier
+RewriteCond %{REQUEST_URI} ^/assets/
+RewriteCond %{REQUEST_FILENAME} -f
+RewriteRule ^ - [L]
 
 # Permettre l'accès direct aux autres ressources statiques
 RewriteCond %{REQUEST_URI} \.(js|css|png|jpe?g|gif|svg|ico|webp|woff2?|ttf|eot|map|tsx?)$

@@ -52,7 +52,7 @@ jobs:
         username: ${{ secrets.FTP_USERNAME }}
         password: ${{ secrets.FTP_PASSWORD }}
         local-dir: ./dist/
-        server-dir: /test.qualiopi.ch/
+        server-dir: /
         dangerous-clean-slate: false
         exclude: |
           **/.git*
@@ -70,4 +70,4 @@ jobs:
       run: |
         echo "Deployment completed. Check logs for any errors."
         echo "Run deploy-check.php on your server to diagnose any issues."
-        echo "URL: https://test.qualiopi.ch/deploy-check.php"
+        echo "URL: https://qualiopi.ch/deploy-check.php"
