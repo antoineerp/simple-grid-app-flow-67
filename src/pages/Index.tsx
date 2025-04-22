@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -18,7 +17,6 @@ import { useToast } from "@/hooks/use-toast";
 import { loginUser } from '@/services';
 import { getApiUrl } from '@/config/apiConfig';
 
-// Séparation des schémas et types
 const loginSchema = z.object({
   username: z.string().min(3, { message: "Le nom d'utilisateur doit comporter au moins 3 caractères" }),
   password: z.string().min(6, { message: "Le mot de passe doit comporter au moins 6 caractères" }),
@@ -26,7 +24,6 @@ const loginSchema = z.object({
 
 type LoginFormValues = z.infer<typeof loginSchema>;
 
-// Extraction de la logique de vérification du logo
 const useLogoLoader = () => {
   const [logoSrc, setLogoSrc] = useState("/lovable-uploads/aba57440-1db2-49ba-8273-c60d6a77b6ee.png");
 
@@ -39,14 +36,13 @@ const useLogoLoader = () => {
     };
     img.onerror = () => {
       console.log("Échec du chargement du logo FormaCert, utilisation du logo de secours");
-      setLogoSrc("/logo-swiss.svg");
+      setLogoSrc("/public/lovable-uploads/formacert-logo.png");
     };
   }, []);
 
   return logoSrc;
 };
 
-// Fonction simplifiée pour la connexion de secours
 const loginFallback = async (username: string, password: string): Promise<any> => {
   try {
     const apiUrl = getApiUrl();
@@ -90,7 +86,6 @@ const loginFallback = async (username: string, password: string): Promise<any> =
   }
 };
 
-// Extraction de la logique de vérification de l'API
 const useApiStatusCheck = () => {
   const [apiStatus, setApiStatus] = useState<'checking' | 'available' | 'unavailable'>('checking');
 
@@ -157,10 +152,8 @@ const Index = () => {
         console.log("Utilisation du mode d'authentification de secours");
         result = await loginFallback(data.username, data.password);
       } else {
-        // Essayer l'authentification normale d'abord
         result = await loginUser(data.username, data.password);
         
-        // Si ça échoue, essayer le fallback automatiquement
         if (!result.success && (result.error.includes("vide") || result.error.includes("contacter"))) {
           console.log("Authentification standard échouée, tentative avec le mode de secours");
           setUseFallbackAuth(true);
@@ -232,7 +225,7 @@ const Index = () => {
             className="w-48 mb-4"
             onError={(e) => {
               console.error("Logo failed to load:", (e.target as HTMLImageElement).src);
-              (e.target as HTMLImageElement).src = "/logo-swiss.svg";
+              (e.target as HTMLImageElement).src = "/public/lovable-uploads/formacert-logo.png";
             }}
           />
           <h1 className="text-2xl font-bold text-gray-800">Bienvenue sur FormaCert</h1>
@@ -297,7 +290,6 @@ const Index = () => {
         </div>
         
         <div className="mt-8 pt-6 border-t border-gray-200">
-          <p className="text-sm text-gray-500 mb-2 text-center">Connexion rapide (mode démo)</p>
           <div className="flex justify-center space-x-2">
             <Button variant="outline" size="sm" onClick={() => handleFillTestData('admin')} className="text-xs">
               Admin
