@@ -7,7 +7,6 @@ import { z } from "zod";
 import { useToast } from "@/hooks/use-toast";
 import { loginUser } from '@/services';
 
-// Define the form schema
 export const loginSchema = z.object({
   username: z.string().min(3, { message: "Le nom d'utilisateur doit comporter au moins 3 caractères" }),
   password: z.string().min(6, { message: "Le mot de passe doit comporter au moins 6 caractères" }),
@@ -31,42 +30,23 @@ export const useLoginForm = () => {
   const onSubmit = async (data: LoginFormValues) => {
     if (isLoading) return;
     
+    setIsLoading(true);
+    
     try {
-      setIsLoading(true);
-      
-      console.log("Tentative de connexion avec:", data.username);
+      console.log("Tentative de connexion pour:", data.username);
       const result = await loginUser(data.username, data.password);
       
-      if (result.success) {
-        // Stocker explicitement le nom d'utilisateur saisi
-        localStorage.setItem("isLoggedIn", "true");
-        localStorage.setItem("currentUser", data.username);
-        
-        // Si l'API renvoie un identifiant technique différent, le stocker également
-        if (result.user && result.user.identifiant_technique) {
-          localStorage.setItem("userTechnicalId", result.user.identifiant_technique);
-        }
-        
+      if (result.success && result.user) {
         toast({
-          title: `Connexion réussie`,
-          description: `Bienvenue, ${data.username} (${result.user?.role || 'utilisateur'})`,
+          title: "Connexion réussie",
+          description: `Bienvenue, ${data.username} (${result.user.role || 'utilisateur'})`,
         });
         
         navigate("/pilotage");
-      } else {
-        toast({
-          title: "Échec de la connexion",
-          description: result.error || "Identifiants incorrects",
-          variant: "destructive",
-        });
       }
     } catch (error) {
-      console.error("Erreur de connexion:", error);
-      toast({
-        title: "Erreur",
-        description: `Une erreur est survenue lors de la connexion: ${error instanceof Error ? error.message : 'Erreur inconnue'}`,
-        variant: "destructive",
-      });
+      console.error("Erreur lors de la connexion:", error);
+      // Le toast d'erreur est déjà géré dans loginUser
     } finally {
       setIsLoading(false);
     }

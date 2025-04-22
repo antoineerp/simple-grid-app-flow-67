@@ -9,10 +9,12 @@ const API_URL = getApiUrl();
 class AuthService {
     private static instance: AuthService;
     private token: string | null = null;
+    private currentUser: string | null = null;
 
     private constructor() {
-        console.log("Authentication service initialized");
+        console.log("Service d'authentification initialisé");
         this.token = localStorage.getItem('authToken');
+        this.currentUser = localStorage.getItem('currentUser');
     }
 
     public static getInstance(): AuthService {
@@ -40,7 +42,8 @@ class AuthService {
 
     public getAuthHeaders(): HeadersInit {
         const headers: HeadersInit = {
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/json',
+            'Cache-Control': 'no-cache, no-store, must-revalidate'
         };
         
         const token = this.getToken();
@@ -54,141 +57,82 @@ class AuthService {
     public async login(username: string, password: string): Promise<any> {
         try {
             const currentApiUrl = getApiUrl();
-            console.log(`Tentative de connexion à l'API: ${currentApiUrl}/auth.php`);
+            console.log(`Tentative de connexion pour l'utilisateur: ${username}`);
             
-            const cacheBuster = new Date().getTime();
-            const loginUrl = `${currentApiUrl}/auth.php?_=${cacheBuster}`;
-            
-            console.log("URL de requête complète:", loginUrl);
-            
-            // Tracer les détails de la requête
-            console.log("Données de connexion:", { username });
-            console.log("En-têtes de la requête:", {
-                'Content-Type': 'application/json',
-                'Cache-Control': 'no-cache, no-store, must-revalidate',
-                'Accept': 'application/json'
-            });
-            
-            // Ajoutons un délai pour s'assurer que le réseau a le temps de répondre
-            await new Promise(resolve => setTimeout(resolve, 500));
-            
-            const response = await fetch(loginUrl, {
-                method: 'POST', // Assurer que nous utilisons bien la méthode POST
+            const response = await fetch(`${currentApiUrl}/auth.php`, {
+                method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Cache-Control': 'no-cache, no-store, must-revalidate',
-                    'Accept': 'application/json'
+                    'Cache-Control': 'no-cache, no-store, must-revalidate'
                 },
-                body: JSON.stringify({ username, password }),
-                cache: 'no-cache'
+                body: JSON.stringify({ username, password })
             });
-            
-            console.log("Réponse de l'API reçue:", response.status, response.statusText);
-            console.log("Type de contenu reçu:", response.headers.get('Content-Type'));
-            
-            // Récupérer le texte brut de la réponse
-            const responseText = await response.text();
-            console.log("Texte de réponse brut:", responseText);
-            
-            // Vérifier si la réponse est vide
-            if (!responseText || responseText.trim() === '') {
-                console.error("Réponse vide du serveur");
-                
-                // Essayons une requête de test pour vérifier l'état du serveur
-                try {
-                    const testResponse = await fetch(`${currentApiUrl}/test-auth.php?_=${new Date().getTime()}`);
-                    const testResult = await testResponse.json();
-                    console.log("Résultat du test d'authentification:", testResult);
-                } catch (testError) {
-                    console.error("Test d'authentification a également échoué:", testError);
-                }
-                
-                return {
-                    success: false,
-                    error: "Le serveur a renvoyé une réponse vide. Vérifiez les logs du serveur pour plus de détails."
-                };
-            }
-            
-            // Essayer de parser la réponse JSON
-            let data;
-            try {
-                data = JSON.parse(responseText);
-            } catch (parseError) {
-                console.error("Erreur de parsing JSON:", parseError);
-                console.log("Contenu non-JSON reçu:", responseText);
-                return {
-                    success: false,
-                    error: "Format de réponse invalide. Veuillez vérifier les logs du serveur."
-                };
-            }
-            
+
             if (!response.ok) {
-                const errorMessage = data?.message || `Erreur HTTP ${response.status}`;
-                console.error("Erreur API:", errorMessage);
-                return {
-                    success: false,
-                    error: errorMessage
-                };
+                const errorData = await response.json().catch(() => null);
+                throw new Error(errorData?.message || `Erreur HTTP ${response.status}`);
             }
+
+            const data = await response.json();
             
-            if (data.token && data.user) {
-                this.setToken(data.token);
-                localStorage.setItem('userRole', data.user.role);
-                localStorage.setItem('currentUser', data.user.identifiant_technique || username);
-                localStorage.setItem('isLoggedIn', 'true');
-                
-                const userId = data.user.identifiant_technique || username;
-                await initializeUserData(userId);
-                
-                return {
-                    success: true,
-                    user: data.user
-                };
-            } else {
-                console.error("Réponse d'authentification invalide:", data);
-                return {
-                    success: false,
-                    error: "Réponse d'authentification incomplète"
-                };
+            if (!data.token || !data.user) {
+                throw new Error("Réponse d'authentification invalide");
             }
-        } catch (error) {
-            console.error("Erreur d'authentification:", error);
+
+            // Stocker les informations de l'utilisateur de manière cohérente
+            this.setToken(data.token);
+            this.currentUser = username;
+            localStorage.setItem('userRole', data.user.role);
+            localStorage.setItem('currentUser', username);
+            localStorage.setItem('userTechnicalId', data.user.identifiant_technique);
+            localStorage.setItem('isLoggedIn', 'true');
             
-            // Ajouter plus de détails de diagnostic
-            if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
-                console.error("Erreur réseau: impossible de contacter le serveur");
-                return {
-                    success: false,
-                    error: "Impossible de contacter le serveur d'authentification. Vérifiez que l'API est accessible."
-                };
-            }
+            await initializeUserData(data.user.identifiant_technique || username);
             
             return {
-                success: false,
-                error: error instanceof Error ? error.message : "Erreur d'authentification inconnue"
+                success: true,
+                user: data.user
             };
+        } catch (error) {
+            console.error("Erreur d'authentification:", error);
+            throw error;
         }
     }
 
     public logout(): void {
         this.setToken(null);
+        this.currentUser = null;
         localStorage.removeItem('userRole');
-        localStorage.removeItem('isLoggedIn');
         localStorage.removeItem('currentUser');
+        localStorage.removeItem('userTechnicalId');
+        localStorage.removeItem('isLoggedIn');
         disconnectUser();
         
-        console.log("Déconnexion effectuée");
+        console.log("Déconnexion effectuée avec succès");
     }
 }
 
 const authService = AuthService.getInstance();
 
-export const loginUser = (username: string, password: string): Promise<any> => {
-    return authService.login(username, password);
+export const loginUser = async (username: string, password: string): Promise<any> => {
+    try {
+        return await authService.login(username, password);
+    } catch (error) {
+        toast({
+            title: "Erreur de connexion",
+            description: error instanceof Error ? error.message : "Erreur inconnue lors de la connexion",
+            variant: "destructive",
+        });
+        throw error;
+    }
 };
 
 export const logoutUser = (): void => {
     authService.logout();
+    toast({
+        title: "Déconnexion réussie",
+        description: "Vous avez été déconnecté avec succès",
+    });
 };
 
 export const getToken = (): string | null => {
