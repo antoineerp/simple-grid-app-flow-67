@@ -28,6 +28,13 @@ window.addEventListener('DOMContentLoaded', () => {
   } catch (error) {
     console.error("Failed to render React application:", error);
     
+    // Afficher des informations détaillées sur l'erreur
+    console.error("Error details:", {
+      message: error.message,
+      stack: error.stack,
+      name: error.name
+    });
+    
     // Fallback pour afficher une erreur à l'utilisateur
     if (document.getElementById("root")) {
       document.getElementById("root").innerHTML = `
@@ -45,4 +52,14 @@ window.addEventListener('DOMContentLoaded', () => {
 // Global error handler
 window.addEventListener('error', (event) => {
   console.error('Global error caught:', event.error);
+  console.error('Error details:', {
+    message: event.error?.message,
+    stack: event.error?.stack,
+    filename: event.filename,
+    lineno: event.lineno,
+    colno: event.colno
+  });
 });
+
+// Check if the application was loaded from the correct domain
+console.log("Application running on domain:", window.location.hostname);

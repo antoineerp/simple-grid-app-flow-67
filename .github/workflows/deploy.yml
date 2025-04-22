@@ -29,21 +29,22 @@ jobs:
       run: |
         cp .htaccess dist/ || echo "No .htaccess file found"
         mkdir -p dist/api
-        cp api/.htaccess dist/api/ || echo "No api/.htaccess file found"
-        mkdir -p dist/api/config
-        cp api/.user.ini dist/api/ || echo "No api/.user.ini file found"
+        cp -r api/* dist/api/ || echo "No api files found"
         mkdir -p dist/public/lovable-uploads
         cp -r public/lovable-uploads/* dist/public/lovable-uploads/ || echo "No lovable-uploads files found"
+        cp deploy-check.php dist/ || echo "No deploy-check.php found"
+        cp index.html dist/ || echo "No index.html found (this should not happen)"
         
-    - name: List build directory
+    - name: List build directory structure
       run: |
-        echo "Listing built files:"
-        ls -la dist/
-        echo "Listing API files:"
-        ls -la dist/api/ || echo "No API directory"
-        echo "Listing public files:"
-        ls -la dist/public/ || echo "No public directory"
-      
+        echo "Listing full directory structure:"
+        find dist -type f | sort
+        echo "==========================="
+        echo "Checking key files:"
+        ls -la dist/index.html || echo "index.html NOT FOUND!"
+        ls -la dist/assets/ || echo "assets directory NOT FOUND!"
+        ls -la dist/api/ || echo "api directory NOT FOUND!"
+        
     - name: Deploy to Infomaniak
       uses: SamKirkland/FTP-Deploy-Action@v4.3.4
       with:
@@ -51,7 +52,7 @@ jobs:
         username: ${{ secrets.FTP_USERNAME }}
         password: ${{ secrets.FTP_PASSWORD }}
         local-dir: ./dist/
-        server-dir: /test.qualiopi.ch/  # Modification ici pour cibler le sous-domaine
+        server-dir: /test.qualiopi.ch/
         dangerous-clean-slate: false
         exclude: |
           **/.git*
@@ -63,11 +64,10 @@ jobs:
           tsconfig*.json
           src/**
         log-level: verbose
-
-    - name: Verify deployment
-      if: always()
+        timeout: 120000
+        
+    - name: Post-deployment verification
       run: |
-        echo "Deployment finished. Check FTP logs above for any errors."
-        echo "Server: ${{ secrets.FTP_SERVER }}"
-        echo "Username: ${{ secrets.FTP_USERNAME }}"
-        echo "Target directory: / (root)"
+        echo "Deployment completed. Check logs for any errors."
+        echo "Run deploy-check.php on your server to diagnose any issues."
+        echo "URL: https://test.qualiopi.ch/deploy-check.php"

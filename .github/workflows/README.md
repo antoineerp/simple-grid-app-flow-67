@@ -1,3 +1,4 @@
+
 # Déploiement GitHub Actions vers Infomaniak
 
 Ce workflow automatise le déploiement de l'application FormaCert vers l'hébergement Infomaniak via FTP.
