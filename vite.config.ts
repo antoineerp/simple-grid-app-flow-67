@@ -48,6 +48,8 @@ export default defineConfig(({ mode }) => ({
         // Désactiver complètement le hachage des fichiers
         entryFileNames: 'assets/index.js',
         assetFileNames: (assetInfo) => {
+          if (!assetInfo.name) return 'assets/[name].[ext]';
+          
           const ext = assetInfo.name.split('.').at(-1);
           if (ext === 'css') {
             return 'assets/index.css';
