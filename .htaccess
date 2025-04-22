@@ -21,8 +21,24 @@ AddType image/svg+xml .svg
     Allow from all
 </FilesMatch>
 
-# CORRECTION: Traitement de lovable-uploads avec règle simplifiée
+# Détection du serveur Infomaniak
+<IfModule mod_rewrite.c>
+    # Définir une variable pour détecter si nous sommes sur Infomaniak
+    RewriteCond %{DOCUMENT_ROOT} /sites/
+    RewriteRule .* - [E=ON_INFOMANIAK:1]
+    
+    # Log pour diagnostiquer le chemin de base
+    RewriteRule .* - [E=BASE_PATH:%{DOCUMENT_ROOT}]
+</IfModule>
+
+# CORRECTION: Traitement de lovable-uploads avec règle adaptée à Infomaniak
 RewriteCond %{REQUEST_URI} ^/lovable-uploads/
+RewriteCond %{ENV:ON_INFOMANIAK} 1
+RewriteRule ^lovable-uploads/(.*)$ /sites/qualiopi.ch/public/lovable-uploads/$1 [L]
+
+# Règle de secours pour les uploads
+RewriteCond %{REQUEST_URI} ^/lovable-uploads/
+RewriteCond %{ENV:ON_INFOMANIAK} !1
 RewriteRule ^lovable-uploads/(.*)$ public/lovable-uploads/$1 [L]
 
 # Diagnostic des requêtes API en mode production

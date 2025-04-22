@@ -30,11 +30,22 @@ $_ENV['API_URL_PROD'] = 'https://qualiopi.ch/api'; // URL sans www
 $_ENV['ALLOWED_ORIGIN_DEV'] = 'http://localhost:8080';
 $_ENV['ALLOWED_ORIGIN_PROD'] = 'https://qualiopi.ch'; // URL sans www
 
+// Configuration des chemins pour Infomaniak
+$_ENV['INFOMANIAK_SITE_ROOT'] = '/sites/qualiopi.ch';
+$_ENV['INFOMANIAK_DOMAIN_ROOT'] = '/home/clients/df8dceff557ccc0605d45e1581aa661b/sites/qualiopi.ch';
+$_ENV['INFOMANIAK_TEST_DOMAIN_ROOT'] = '/home/clients/df8dceff557ccc0605d45e1581aa661b/sites/test.qualiopi.ch';
+
+// Détection des chemins Infomaniak
+$documentRoot = $_SERVER['DOCUMENT_ROOT'] ?? '';
+$_ENV['IS_INFOMANIAK'] = (strpos($documentRoot, '/sites/') !== false) ? 'true' : 'false';
+
 // Journaliser l'environnement détecté en production (pour le débogage initial)
 if ($environment === 'production') {
     error_log("Application démarrée en environnement de PRODUCTION sur l'hôte: " . $currentHost);
     error_log("API URL: " . $_ENV['API_URL_PROD']);
     error_log("ALLOWED ORIGIN: " . $_ENV['ALLOWED_ORIGIN_PROD']);
+    error_log("DOCUMENT_ROOT: " . $documentRoot);
+    error_log("IS_INFOMANIAK: " . $_ENV['IS_INFOMANIAK']);
     
     // Journaliser les informations sur les demandes de ressources statiques
     $uri = $_SERVER['REQUEST_URI'] ?? '';
@@ -50,11 +61,20 @@ if ($environment === 'production') {
         
         // Vérifiez si le fichier existe
         $file_path = $_SERVER['DOCUMENT_ROOT'] . $uri;
+        $infomaniak_path = $_SERVER['DOCUMENT_ROOT'] . '/sites/qualiopi.ch' . $uri;
+        
+        error_log("[Asset diagnostics] Tentative de chemin standard: " . $file_path);
+        error_log("[Asset diagnostics] Tentative de chemin Infomaniak: " . $infomaniak_path);
+        
         if (file_exists($file_path)) {
             error_log("[Asset diagnostics] Le fichier existe sur le disque: " . $file_path);
             error_log("[Asset diagnostics] Taille du fichier: " . filesize($file_path) . " octets");
+        } else if (file_exists($infomaniak_path)) {
+            error_log("[Asset diagnostics] Le fichier existe sur le chemin Infomaniak: " . $infomaniak_path);
+            error_log("[Asset diagnostics] Taille du fichier: " . filesize($infomaniak_path) . " octets");
         } else {
             error_log("[Asset diagnostics] Le fichier N'EXISTE PAS sur le disque: " . $file_path);
+            error_log("[Asset diagnostics] Le fichier N'EXISTE PAS sur le chemin Infomaniak: " . $infomaniak_path);
             
             // Recherche de fichiers similaires
             $directory = dirname($file_path);
@@ -63,6 +83,15 @@ if ($environment === 'production') {
                 error_log("[Asset diagnostics] Fichiers dans le même dossier: " . implode(", ", $files));
             } else {
                 error_log("[Asset diagnostics] Le dossier n'existe pas: " . $directory);
+                
+                // Essayer avec le chemin Infomaniak
+                $infomaniak_directory = dirname($infomaniak_path);
+                if (is_dir($infomaniak_directory)) {
+                    $files = scandir($infomaniak_directory);
+                    error_log("[Asset diagnostics] Fichiers dans le dossier Infomaniak: " . implode(", ", $files));
+                } else {
+                    error_log("[Asset diagnostics] Le dossier Infomaniak n'existe pas: " . $infomaniak_directory);
+                }
             }
         }
     }
@@ -88,6 +117,16 @@ if (file_exists($configFile)) {
         }
         if (isset($configData['allowed_origins']['production'])) {
             $_ENV['ALLOWED_ORIGIN_PROD'] = $configData['allowed_origins']['production'];
+        }
+    }
+    
+    // Charger les chemins personnalisés si configurés
+    if (isset($configData['infomaniak_paths'])) {
+        if (isset($configData['infomaniak_paths']['site_root'])) {
+            $_ENV['INFOMANIAK_SITE_ROOT'] = $configData['infomaniak_paths']['site_root'];
+        }
+        if (isset($configData['infomaniak_paths']['domain_root'])) {
+            $_ENV['INFOMANIAK_DOMAIN_ROOT'] = $configData['infomaniak_paths']['domain_root'];
         }
     }
 }
@@ -126,5 +165,14 @@ if (!function_exists('getenv_custom')) {
     function getenv_custom($key, $default = null) {
         return $_ENV[$key] ?? $default;
     }
+}
+
+// Fonction pour ajuster les chemins en fonction de l'environnement Infomaniak
+function adjustPathForInfomaniak($path) {
+    // Si nous sommes sur Infomaniak et que le chemin ne commence pas par /sites/
+    if (env('IS_INFOMANIAK') === 'true' && strpos($path, '/sites/') !== 0) {
+        return env('INFOMANIAK_SITE_ROOT') . $path;
+    }
+    return $path;
 }
 ?>

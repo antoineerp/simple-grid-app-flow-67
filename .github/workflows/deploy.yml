@@ -105,6 +105,11 @@ jobs:
         echo "Vérification des fichiers uploads:"
         ls -la dist/public/lovable-uploads/ || echo "Dossier uploads manquant!"
         
+    - name: Create Infomaniak specific directory marker
+      run: |
+        # Créer un fichier pour marquer l'environnement Infomaniak
+        echo "Deployed to Infomaniak at $(date)" > dist/infomaniak-environment.txt
+        
     - name: Deploy to Infomaniak
       uses: SamKirkland/FTP-Deploy-Action@v4.3.4
       with:
