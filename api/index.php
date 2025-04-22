@@ -1,10 +1,29 @@
-
 <?php
 // Forcer l'output buffering pour éviter tout output avant les headers
 ob_start();
 
-// Définir explicitement l'encodage UTF-8
+// CORS - Configuration avancée
+$allowed_origins = [
+    'https://qualiopi.ch',
+    'https://myd.infomaniak.com',
+    'https://e80de7b3-92db-438f-9423-8243c4b15dfe.lovableproject.com'
+];
+
+$origin = isset($_SERVER['HTTP_ORIGIN']) ? $_SERVER['HTTP_ORIGIN'] : '';
+
+// Vérifier si l'origine est autorisée
+if (in_array($origin, $allowed_origins)) {
+    header("Access-Control-Allow-Origin: $origin");
+} else {
+    header("Access-Control-Allow-Origin: *");
+}
+
+header("Access-Control-Allow-Methods: GET, POST, OPTIONS, PUT, DELETE");
+header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With");
+header("Access-Control-Max-Age: 86400");
 header('Content-Type: application/json; charset=utf-8');
+
+// Définir explicitement l'encodage UTF-8
 mb_internal_encoding('UTF-8');
 
 // Journaliser les informations sur la requête pour le diagnostic
@@ -34,13 +53,6 @@ try {
         error_log('ERREUR: Fichier env.php introuvable');
         json_response(['message' => 'Configuration env.php introuvable', 'status' => 500], 500);
     }
-
-    // CORS - Accepter toutes les origines
-    header("Access-Control-Allow-Origin: *");
-    header("Content-Type: application/json; charset=UTF-8");
-    header("Access-Control-Allow-Methods: OPTIONS,GET,POST,PUT,DELETE");
-    header("Access-Control-Allow-Headers: Content-Type, Access-Control-Allow-Headers, Authorization, X-Requested-With");
-    header("Cache-Control: no-cache, no-store, must-revalidate");
 
     // Réponse pour les requêtes OPTIONS (CORS preflight)
     if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {

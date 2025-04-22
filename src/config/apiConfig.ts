@@ -21,7 +21,7 @@ function detectEnvironment() {
   }
 }
 
-// Exécuter la détection au chargement
+// Forcer une détection initiale
 detectEnvironment();
 
 // Obtenir l'URL de l'API
@@ -31,7 +31,9 @@ export function getApiUrl(): string {
 
 // Obtenir l'URL complète de l'API (avec le hostname)
 export function getFullApiUrl(): string {
-  return `${window.location.protocol}//${window.location.host}${apiUrl}`;
+  return apiUrl.startsWith('http') 
+    ? apiUrl 
+    : `${window.location.protocol}//${window.location.host}${apiUrl}`;
 }
 
 // Définir une URL personnalisée pour l'API
