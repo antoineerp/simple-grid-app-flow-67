@@ -2,20 +2,25 @@
 // Forcer l'output buffering pour éviter tout output avant les headers
 ob_start();
 
-// CORS - Configuration avancée
+// CORS - Configuration avancée et sécurisée
 $allowed_origins = [
     'https://qualiopi.ch',
     'https://myd.infomaniak.com',
-    'https://e80de7b3-92db-438f-9423-8243c4b15dfe.lovableproject.com'
+    'https://e80de7b3-92db-438f-9423-8243c4b15dfe.lovableproject.com',
+    'http://localhost:8080'  // Ajouter l'environnement de développement
 ];
 
 $origin = isset($_SERVER['HTTP_ORIGIN']) ? $_SERVER['HTTP_ORIGIN'] : '';
 
-// Vérifier si l'origine est autorisée
+// Vérifier si l'origine est autorisée de manière stricte
+header("Vary: Origin");
 if (in_array($origin, $allowed_origins)) {
     header("Access-Control-Allow-Origin: $origin");
 } else {
-    header("Access-Control-Allow-Origin: *");
+    // Rejeter les origines non autorisées
+    header("Access-Control-Allow-Origin: null");
+    http_response_code(403);
+    die(json_encode(['error' => 'Origin not allowed']));
 }
 
 header("Access-Control-Allow-Methods: GET, POST, OPTIONS, PUT, DELETE");
