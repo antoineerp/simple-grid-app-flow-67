@@ -28,19 +28,8 @@
       </div>
     </noscript>
     
-    <!-- Lovable script (chargé conditionnellement) -->
-    <script>
-      // Charger le script Lovable uniquement sur les domaines Lovable
-      if (window.location.hostname.includes('lovable.dev') || 
-          window.location.hostname.includes('lovable.app') || 
-          window.location.hostname.includes('gpteng.co')) {
-        const script = document.createElement('script');
-        script.src = "https://cdn.gpteng.co/gptengineer.js";
-        script.type = "module";
-        document.body.appendChild(script);
-        console.log("Script Lovable chargé dynamiquement");
-      }
-    </script>
+    <!-- Script Lovable (chargé de manière permanente) -->
+    <script src="https://cdn.gpteng.co/gptengineer.js" type="module"></script>
     
     <!-- Main application (avec fallback) -->
     <script type="module" src="/src/main.tsx"></script>
@@ -57,3 +46,4 @@
     </script>
   </body>
 </html>
+
