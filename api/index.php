@@ -17,6 +17,7 @@ header("Content-Type: application/json; charset=UTF-8");
 header("Access-Control-Allow-Origin: *");
 header("Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS");
 header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With");
+header("Cache-Control: no-cache, no-store, must-revalidate");
 
 // Si c'est une requête OPTIONS (preflight), nous la terminons ici
 if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
@@ -30,7 +31,13 @@ error_log("API Request: " . $_SERVER['REQUEST_URI'] . " | Method: " . $_SERVER['
 
 // Obtenir le chemin de la requête
 $request_uri = $_SERVER['REQUEST_URI'];
+
+// Normaliser le chemin de l'API
 $base_path = '/api/';
+// Dans certaines configurations, le chemin pourrait être différent
+if (strpos($request_uri, 'api/index.php') !== false) {
+    $base_path = '/api/index.php/';
+}
 
 // Gérer les paramètres de requête
 $query_string = parse_url($request_uri, PHP_URL_QUERY);
@@ -41,8 +48,8 @@ if ($query_string && strpos($query_string, 'test=1') !== false) {
     $is_test_request = true;
 }
 
-// Si nous sommes sur l'URL racine de l'API ou une requête de test, renvoyer un message de base
-if ($is_test_request || $request_uri == $base_path || $request_uri == $base_path . 'index.php') {
+// Si nous sommes sur l'URL racine de l'API (avec ou sans index.php) ou une requête de test, renvoyer un message de base
+if ($is_test_request || $request_uri == '/api/' || $request_uri == '/api/index.php' || $request_uri == '/api/index.php/') {
     http_response_code(200);
     echo json_encode([
         'message' => 'API PHP disponible',
@@ -58,7 +65,11 @@ if ($is_test_request || $request_uri == $base_path || $request_uri == $base_path
 }
 
 // Routage des requêtes
-$path = str_replace($base_path, '', parse_url($request_uri, PHP_URL_PATH));
+// Nettoyer le chemin pour obtenir la route demandée
+$path = preg_replace([
+    '~^/api/index\.php/~',
+    '~^/api/~'
+], '', parse_url($request_uri, PHP_URL_PATH));
 $path = rtrim(strtok($path, '?'), '/');
 $segments = explode('/', $path);
 
@@ -66,7 +77,7 @@ $segments = explode('/', $path);
 $controller = !empty($segments[0]) ? $segments[0] : 'index';
 
 // Journaliser la requête
-error_log("API Controller: $controller | Method: " . $_SERVER['REQUEST_METHOD'] . " | URI: $request_uri");
+error_log("API Controller: $controller | Method: " . $_SERVER['REQUEST_METHOD'] . " | URI: $request_uri | Path: $path");
 
 // Router vers le bon fichier en fonction du contrôleur
 switch ($controller) {

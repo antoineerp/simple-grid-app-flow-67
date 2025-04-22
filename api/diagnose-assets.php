@@ -57,8 +57,25 @@ header('Content-Type: text/html; charset=utf-8');
         $key_files = [
             '../index.html' => 'Page d\'accueil',
             '../.htaccess' => 'Configuration Apache',
-            '../assets/index.js' => 'JavaScript principal' 
         ];
+        
+        // Vérification du fichier JavaScript principal (index.js ou main-*.js)
+        $js_file_exists = false;
+        $js_file_name = "";
+        
+        if (file_exists('../assets/index.js')) {
+            $js_file_exists = true;
+            $js_file_name = '../assets/index.js';
+        } else {
+            // Chercher un fichier main-*.js s'il n'y a pas d'index.js
+            $main_js_files = glob('../assets/main-*.js');
+            if (!empty($main_js_files)) {
+                $js_file_exists = true;
+                $js_file_name = $main_js_files[0];
+            }
+        }
+        
+        $key_files[$js_file_name] = 'JavaScript principal';
         
         foreach ($key_files as $file => $description) {
             echo "<p>$description ($file): ";
@@ -87,7 +104,7 @@ header('Content-Type: text/html; charset=utf-8');
         <h2>Instructions de Déploiement</h2>
         <ol>
             <li>Assurez-vous que le contenu du répertoire <code>dist</code> est copié à la racine du site</li>
-            <li>Vérifiez que le fichier <code>index.html</code> pointe vers <code>/assets/index.js</code> et non vers <code>/src/main.tsx</code></li>
+            <li>Vérifiez que le fichier <code>index.html</code> pointe vers le bon fichier JavaScript (soit <code>/assets/index.js</code> soit <code>/assets/main-*.js</code>)</li>
             <li>Assurez-vous que le fichier <code>.htaccess</code> est présent à la racine</li>
             <li>Vérifiez que le répertoire <code>assets</code> contient les fichiers JS compilés</li>
         </ol>

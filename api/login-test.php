@@ -51,6 +51,32 @@ if (!empty($data->username) && !empty($data->password)) {
     
     error_log("Tentative de connexion pour: " . $username . " avec mot de passe: " . substr($password, 0, 1) . "****");
     
+    // Pour faciliter le test, accepter n'importe quel mot de passe pour ces utilisateurs en environnement non-production
+    if (getenv('APP_ENV') !== 'production' && isset($test_users[$username])) {
+        $token = base64_encode(json_encode([
+            'user' => $username,
+            'role' => $test_users[$username]['role'],
+            'exp' => time() + 3600
+        ]));
+        
+        error_log("Connexion réussie pour: " . $username . " (mode développement)");
+        
+        http_response_code(200);
+        echo json_encode([
+            'message' => 'Connexion réussie',
+            'token' => $token,
+            'user' => [
+                'id' => 0,
+                'nom' => explode('_', $username)[1] ?? $username,
+                'prenom' => '',
+                'email' => $username . '@example.com',
+                'identifiant_technique' => $username,
+                'role' => $test_users[$username]['role']
+            ]
+        ]);
+        exit;
+    }
+    
     // Vérifier si l'utilisateur existe et si le mot de passe correspond
     if (isset($test_users[$username]) && $test_users[$username]['password'] === $password) {
         // Générer un token fictif
