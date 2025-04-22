@@ -46,12 +46,16 @@ export const useLoginForm = () => {
         setHasDbError(false);
         setHasServerError(false);
         
+        localStorage.setItem('isLoggedIn', 'true');
+        
         toast({
           title: "Connexion réussie",
           description: `Bienvenue, ${data.username} (${result.user.role || 'utilisateur'})`,
         });
         
-        navigate("/pilotage");
+        // Forcer la navigation vers le pilotage
+        console.log("Redirection vers /pilotage après connexion réussie");
+        navigate("/pilotage", { replace: true });
       }
     } catch (error) {
       console.error("Erreur lors de la connexion:", error);
@@ -65,12 +69,14 @@ export const useLoginForm = () => {
           // Essayer de se connecter avec les identifiants de secours
           if (data.username === 'admin' && data.password === 'admin123' || 
               data.username === 'antcirier@gmail.com' && data.password === 'password123') {
+            // Définir l'état de connexion
+            localStorage.setItem('isLoggedIn', 'true');
             // Rediriger vers le tableau de bord
             toast({
               title: "Mode de secours activé",
               description: "Connexion en mode de secours réussie. Certaines fonctionnalités peuvent être limitées.",
             });
-            navigate("/pilotage");
+            navigate("/pilotage", { replace: true });
             return;
           }
         } else if (error.message.includes("serveur") || 
@@ -81,12 +87,14 @@ export const useLoginForm = () => {
           // Essayer de se connecter avec les identifiants de secours
           if (data.username === 'admin' && data.password === 'admin123' || 
               data.username === 'antcirier@gmail.com' && data.password === 'password123') {
+            // Définir l'état de connexion
+            localStorage.setItem('isLoggedIn', 'true');
             // Rediriger vers le tableau de bord
             toast({
               title: "Mode de secours activé",
               description: "Connexion en mode de secours réussie. Certaines fonctionnalités peuvent être limitées.",
             });
-            navigate("/pilotage");
+            navigate("/pilotage", { replace: true });
             return;
           }
         }

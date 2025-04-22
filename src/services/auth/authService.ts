@@ -27,8 +27,10 @@ class AuthService {
         this.token = token;
         if (token) {
             localStorage.setItem('authToken', token);
+            localStorage.setItem('isLoggedIn', 'true');
         } else {
             localStorage.removeItem('authToken');
+            localStorage.removeItem('isLoggedIn');
         }
     }
 
@@ -180,6 +182,7 @@ class AuthService {
         localStorage.removeItem('currentUser');
         localStorage.removeItem('userRole');
         localStorage.removeItem('userName');
+        localStorage.removeItem('isLoggedIn');
         
         disconnectUser();
         
