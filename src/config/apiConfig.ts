@@ -1,4 +1,3 @@
-
 // Configuration de l'API
 let apiUrl = '/api';
 let isCustomUrl = false;
@@ -41,7 +40,7 @@ export function getFullApiUrl(): string {
 export async function testApiConnection(): Promise<{ success: boolean; message: string; details?: any }> {
   try {
     console.log(`Test de connexion à l'API: ${getFullApiUrl()}`);
-    const response = await fetch(`${getApiUrl()}/index.php?test=1&_=${Date.now()}`, {
+    const response = await fetch(`${getApiUrl()}/index.php`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',

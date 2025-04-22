@@ -25,12 +25,24 @@ if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
     exit;
 }
 
+// Journaliser la requête
+error_log("API Request: " . $_SERVER['REQUEST_URI'] . " | Method: " . $_SERVER['REQUEST_METHOD']);
+
 // Obtenir le chemin de la requête
 $request_uri = $_SERVER['REQUEST_URI'];
 $base_path = '/api/';
 
-// Si nous sommes sur l'URL racine de l'API, renvoyer un message de base
-if ($request_uri == $base_path || $request_uri == $base_path . 'index.php') {
+// Gérer les paramètres de requête
+$query_string = parse_url($request_uri, PHP_URL_QUERY);
+$is_test_request = false;
+
+// Vérifier si c'est une requête de test
+if ($query_string && strpos($query_string, 'test=1') !== false) {
+    $is_test_request = true;
+}
+
+// Si nous sommes sur l'URL racine de l'API ou une requête de test, renvoyer un message de base
+if ($is_test_request || $request_uri == $base_path || $request_uri == $base_path . 'index.php') {
     http_response_code(200);
     echo json_encode([
         'message' => 'API PHP disponible',
@@ -47,14 +59,14 @@ if ($request_uri == $base_path || $request_uri == $base_path . 'index.php') {
 
 // Routage des requêtes
 $path = str_replace($base_path, '', parse_url($request_uri, PHP_URL_PATH));
-$path = trim($path, '/');
+$path = rtrim(strtok($path, '?'), '/');
 $segments = explode('/', $path);
 
 // Déterminer le contrôleur à partir du premier segment
 $controller = !empty($segments[0]) ? $segments[0] : 'index';
 
 // Journaliser la requête
-error_log("API Request: $controller | Method: " . $_SERVER['REQUEST_METHOD'] . " | URI: $request_uri");
+error_log("API Controller: $controller | Method: " . $_SERVER['REQUEST_METHOD'] . " | URI: $request_uri");
 
 // Router vers le bon fichier en fonction du contrôleur
 switch ($controller) {

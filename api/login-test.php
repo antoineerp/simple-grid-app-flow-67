@@ -49,7 +49,7 @@ if (!empty($data->username) && !empty($data->password)) {
     $username = $data->username;
     $password = $data->password;
     
-    error_log("Tentative de connexion pour: " . $username);
+    error_log("Tentative de connexion pour: " . $username . " avec mot de passe: " . substr($password, 0, 1) . "****");
     
     // Vérifier si l'utilisateur existe et si le mot de passe correspond
     if (isset($test_users[$username]) && $test_users[$username]['password'] === $password) {
@@ -76,7 +76,9 @@ if (!empty($data->username) && !empty($data->password)) {
             ]
         ]);
     } else {
-        error_log("Identifiants invalides pour: " . $username);
+        error_log("Identifiants invalides pour: " . $username . " (Mot de passe fourni: " . substr($password, 0, 1) . "****)");
+        error_log("Mot de passe attendu: " . substr($test_users[$username]['password'] ?? 'N/A', 0, 1) . "****");
+        
         http_response_code(401);
         echo json_encode([
             'message' => 'Identifiants invalides', 
