@@ -1,5 +1,5 @@
 
 <?php
-// Ce fichier est volontairement ultra-simple pour tester l'interprétation PHP
+// Fichier ultra-simplifié pour isoler le problème d'interprétation PHP
 echo "PHP FONCTIONNE";
 ?>
