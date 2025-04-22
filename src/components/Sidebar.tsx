@@ -4,7 +4,7 @@ import SidebarNavItem from './sidebar/SidebarNavItem';
 import { navigationItems } from './sidebar/sidebarConfig';
 
 const Sidebar = () => {
-  const [logoSrc, setLogoSrc] = useState('/lovable-uploads/ae8b819c-8d4d-4435-9e64-898ed7510077.png');
+  const [logoSrc, setLogoSrc] = useState('/lovable-uploads/50481013-f813-47b1-84d2-82c297771514.png');
   const [logoError, setLogoError] = useState(false);
 
   const handleLogoError = (e: React.SyntheticEvent<HTMLImageElement>) => {
@@ -12,23 +12,6 @@ const Sidebar = () => {
     
     if (!logoError) {
       setLogoError(true);
-      
-      // Essayer avec /public/
-      const publicPath = `/public${logoSrc}`;
-      setLogoSrc(publicPath);
-      
-      // Si nous sommes sur qualiopi.ch, essayons un chemin avec le sous-dossier
-      if (window.location.hostname === 'qualiopi.ch') {
-        // Extraire le chemin du sous-dossier
-        const pathMatch = window.location.pathname.match(/^(\/sites\/[^\/]+)/);
-        if (pathMatch && pathMatch[1]) {
-          const siteRootPath = `${pathMatch[1]}${logoSrc}`;
-          console.log(`Logo failed, trying site root path: ${siteRootPath}`);
-          setLogoSrc(siteRootPath);
-        }
-      }
-    } else {
-      // Si tout échoue, utiliser le logo SVG de secours
       setLogoSrc("/logo-swiss.svg");
     }
   };
