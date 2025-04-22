@@ -1,0 +1,119 @@
+
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Diagnostic FormaCert</title>
+  <style>
+    body { font-family: sans-serif; margin: 20px; }
+    .success { color: green; font-weight: bold; }
+    .error { color: red; font-weight: bold; }
+    pre { background: #f5f5f5; padding: 10px; border-radius: 5px; }
+  </style>
+</head>
+<body>
+  <h1>Page de diagnostic FormaCert</h1>
+  
+  <div id="basic-test">
+    <h2>Test JavaScript de base</h2>
+    <div id="js-result">JavaScript est désactivé ou ne fonctionne pas.</div>
+  </div>
+  
+  <div id="resource-test">
+    <h2>Vérification des ressources</h2>
+    <ul id="resources-list">
+      <li>Chargement de la liste des ressources...</li>
+    </ul>
+  </div>
+  
+  <div id="dom-test">
+    <h2>Test du DOM</h2>
+    <div id="dom-result">Vérification en cours...</div>
+  </div>
+  
+  <div id="console-log">
+    <h2>Journal de la console</h2>
+    <pre id="log-output">Les logs de la console s'afficheront ici.</pre>
+  </div>
+  
+  <script>
+    // Test JavaScript de base
+    document.getElementById('js-result').textContent = 'JavaScript fonctionne correctement!';
+    document.getElementById('js-result').className = 'success';
+    
+    // Capture des logs de console
+    const originalConsoleLog = console.log;
+    const originalConsoleError = console.error;
+    const originalConsoleWarn = console.warn;
+    const logOutput = document.getElementById('log-output');
+    
+    function addToLog(type, args) {
+      const logLine = Array.from(args).map(arg => 
+        typeof arg === 'object' ? JSON.stringify(arg) : String(arg)
+      ).join(' ');
+      
+      logOutput.textContent += `[${type}] ${logLine}\n`;
+    }
+    
+    console.log = function(...args) {
+      originalConsoleLog.apply(console, args);
+      addToLog('log', args);
+    };
+    
+    console.error = function(...args) {
+      originalConsoleError.apply(console, args);
+      addToLog('error', args);
+    };
+    
+    console.warn = function(...args) {
+      originalConsoleWarn.apply(console, args);
+      addToLog('warn', args);
+    };
+    
+    // Test du chargement des ressources
+    window.addEventListener('load', function() {
+      const resourcesList = document.getElementById('resources-list');
+      resourcesList.innerHTML = '';
+      
+      // Vérification des CSS
+      const cssLinks = document.querySelectorAll('link[rel="stylesheet"]');
+      if (cssLinks.length > 0) {
+        const cssItem = document.createElement('li');
+        cssItem.textContent = `Feuilles de style trouvées: ${cssLinks.length}`;
+        cssItem.className = 'success';
+        resourcesList.appendChild(cssItem);
+      } else {
+        const cssItem = document.createElement('li');
+        cssItem.textContent = 'Aucune feuille de style trouvée!';
+        cssItem.className = 'error';
+        resourcesList.appendChild(cssItem);
+      }
+      
+      // Vérification du JS
+      const scripts = document.querySelectorAll('script');
+      if (scripts.length > 1) { // plus de 1 car ce script lui-même compte
+        const jsItem = document.createElement('li');
+        jsItem.textContent = `Scripts JS trouvés: ${scripts.length}`;
+        jsItem.className = 'success';
+        resourcesList.appendChild(jsItem);
+      } else {
+        const jsItem = document.createElement('li');
+        jsItem.textContent = 'Aucun script externe trouvé!';
+        jsItem.className = 'error';
+        resourcesList.appendChild(jsItem);
+      }
+      
+      // Test du DOM
+      const domResult = document.getElementById('dom-result');
+      const bodyChildren = document.body.children.length;
+      domResult.textContent = `Le DOM contient ${bodyChildren} éléments enfants directs dans le body.`;
+      domResult.className = bodyChildren > 1 ? 'success' : 'error';
+      
+      console.log('Diagnostic terminé');
+    });
+    
+    console.log('Script de diagnostic chargé');
+  </script>
+</body>
+</html>

@@ -8,9 +8,11 @@ import './index.css';
 
 window.addEventListener('DOMContentLoaded', () => {
   try {
+    console.log("Application initialization started");
     const rootElement = document.getElementById("root");
     
     if (rootElement) {
+      console.log("Root element found, starting React rendering");
       const root = createRoot(rootElement);
       root.render(React.createElement(App));
       

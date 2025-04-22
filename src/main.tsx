@@ -7,8 +7,10 @@ const rootElement = document.getElementById("root");
 
 if (rootElement) {
   try {
+    console.log("React initialization started");
     const root = createRoot(rootElement);
     root.render(<App />);
+    console.log("React rendering complete");
   } catch (error) {
     console.error("Failed to render React application:", error);
     
