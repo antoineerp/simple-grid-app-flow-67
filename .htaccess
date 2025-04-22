@@ -43,16 +43,6 @@ AddType image/svg+xml .svg
     Header set Content-Type "text/plain; charset=UTF-8"
 </FilesMatch>
 
-# Configuration PHP
-<IfModule mod_php.c>
-    php_flag display_errors On
-    php_flag log_errors On
-    php_value error_log /tmp/php_errors.log
-    php_value error_reporting E_ALL & ~E_DEPRECATED & ~E_STRICT
-    php_value max_execution_time 30
-    php_value memory_limit 64M
-</IfModule>
-
 # Ajouter un User-Agent par défaut pour les requêtes sans User-Agent
 SetEnvIf User-Agent "^$" force-default-ua=1
 RequestHeader set User-Agent "Mozilla/5.0 (compatible; FormaCertBot)" env=force-default-ua

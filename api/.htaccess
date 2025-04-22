@@ -9,11 +9,6 @@ AddHandler application/x-httpd-php .php
     # Set proper error document
     ErrorDocument 500 "PHP Error occurred. Please check server logs."
     
-    # Debug mode for PHP
-    php_flag display_errors On
-    php_flag log_errors On
-    php_value error_log /tmp/php_errors.log
-    
     # Set the proper headers
     <FilesMatch "\.php$">
         SetHandler application/x-httpd-php
@@ -36,13 +31,5 @@ AddHandler application/x-httpd-php .php
     Header always set Access-Control-Max-Age "1728000"
 </IfModule>
 
-# PHP specific settings
-php_flag display_errors On
-php_flag log_errors On
-php_value error_log /tmp/php_errors.log
-php_value max_execution_time 30
-php_value max_input_time 30
-php_value memory_limit 64M
-php_value post_max_size 8M
-php_value upload_max_filesize 2M
-php_flag short_open_tag On
+# PHP specific settings - Using .user.ini instead of php_flag directives
+# Note: php_flag directives are removed as they're not supported by your Apache configuration
