@@ -1,6 +1,6 @@
 
 import { useState } from 'react';
-import { getApiUrl, setCustomApiUrl, resetToDefaultApiUrl, isUsingCustomApiUrl, getFullApiUrl } from '@/config/apiConfig';
+import { getApiUrl } from '@/config/apiConfig';
 import { getAuthHeaders } from '@/services/auth/authService';
 import { useToast } from "@/hooks/use-toast";
 
@@ -28,8 +28,6 @@ export const useApiConfig = () => {
     }
   });
   const [loading, setLoading] = useState(false);
-  const [customUrl, setCustomUrl] = useState(getFullApiUrl());
-  const [useCustomUrl, setUseCustomUrl] = useState(isUsingCustomApiUrl());
 
   // Charger la configuration depuis l'API
   const loadConfig = async () => {
@@ -95,33 +93,6 @@ export const useApiConfig = () => {
     }
   };
 
-  // Gérer le changement d'URL personnalisée
-  const handleCustomUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setCustomUrl(e.target.value);
-  };
-
-  // Activer/désactiver l'URL personnalisée
-  const toggleCustomUrl = () => {
-    if (useCustomUrl) {
-      // Désactiver l'URL personnalisée
-      resetToDefaultApiUrl();
-      setUseCustomUrl(false);
-      setCustomUrl(window.location.origin + '/api'); // Réinitialiser l'input avec l'URL par défaut
-      toast({
-        title: "URL réinitialisée",
-        description: "Utilisation de l'URL par défaut selon l'environnement",
-      });
-    } else {
-      // Activer l'URL personnalisée
-      setCustomApiUrl(customUrl);
-      setUseCustomUrl(true);
-      toast({
-        title: "URL personnalisée activée",
-        description: "L'application utilisera maintenant l'URL personnalisée",
-      });
-    }
-  };
-
   // Mettre à jour les inputs lorsque la configuration change
   const handleInputChange = (
     section: 'api_urls' | 'allowed_origins',
@@ -140,12 +111,8 @@ export const useApiConfig = () => {
   return {
     config,
     loading,
-    customUrl,
-    useCustomUrl,
     loadConfig,
     saveConfig,
-    handleCustomUrlChange,
-    toggleCustomUrl,
     handleInputChange
   };
 };

@@ -3,19 +3,14 @@ import React, { useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useApiConfig } from '@/hooks/useApiConfig';
-import TemporaryApiConfig from './api-config/TemporaryApiConfig';
 import PermanentApiConfig from './api-config/PermanentApiConfig';
 
 const ApiConfiguration = () => {
   const {
     config,
     loading,
-    customUrl,
-    useCustomUrl,
     loadConfig,
     saveConfig,
-    handleCustomUrlChange,
-    toggleCustomUrl,
     handleInputChange
   } = useApiConfig();
 
@@ -33,15 +28,6 @@ const ApiConfiguration = () => {
       
       <CardContent>
         <div className="space-y-6">
-          {/* Configuration temporaire (pour cette session uniquement) */}
-          <TemporaryApiConfig
-            customUrl={customUrl}
-            useCustomUrl={useCustomUrl}
-            loading={loading}
-            onCustomUrlChange={handleCustomUrlChange}
-            onToggleCustomUrl={toggleCustomUrl}
-          />
-
           {/* Configuration permanente */}
           <PermanentApiConfig
             config={config}
