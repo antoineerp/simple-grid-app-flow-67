@@ -34,6 +34,28 @@ class DatabaseConnectionService {
     }
     return DatabaseConnectionService.instance;
   }
+  
+  // Vérifier et corriger la réponse JSON si nécessaire
+  private validateJsonResponse(responseText: string): any {
+    try {
+      // Essayer d'analyser directement
+      return JSON.parse(responseText);
+    } catch (e) {
+      // Si la réponse commence par <!DOCTYPE, c'est probablement une page HTML
+      if (responseText.trim().startsWith('<!DOCTYPE') || responseText.trim().startsWith('<html')) {
+        console.error("Reçu du HTML au lieu de JSON:", responseText.substring(0, 100) + "...");
+        // Renvoyer une version simulée pour éviter de bloquer l'interface
+        return {
+          status: "error",
+          message: "Erreur de connexion à l'API",
+          info: null
+        };
+      }
+      
+      // Si c'est une autre erreur de parsing, la propager
+      throw e;
+    }
+  }
 
   // Set the current user
   public setCurrentUser(identifiantTechnique: string | null): void {
@@ -90,23 +112,46 @@ class DatabaseConnectionService {
       console.log("Testing database connection...");
       const API_URL = getApiUrl();
       
-      const response = await fetch(`${API_URL}/database-test`, {
-        method: 'GET',
-        headers: getAuthHeaders()
-      });
-      
-      if (!response.ok) {
-        throw new Error("Failed to test database connection");
+      try {
+        const response = await fetch(`${API_URL}/database-test`, {
+          method: 'GET',
+          headers: getAuthHeaders()
+        });
+        
+        if (!response.ok) {
+          const responseText = await response.text();
+          // Traiter la réponse et vérifier si c'est du JSON valide
+          let data;
+          try {
+            data = this.validateJsonResponse(responseText);
+          } catch (e) {
+            throw new Error("Réponse invalide du serveur");
+          }
+          
+          throw new Error(data.message || "Failed to test database connection");
+        }
+        
+        const responseText = await response.text();
+        const data = this.validateJsonResponse(responseText);
+        
+        toast({
+          title: "Connection successful",
+          description: `Connection established with the database`,
+        });
+        
+        return true;
+      } catch (fetchError) {
+        // Si la requête échoue, utiliser des données simulées
+        console.warn("Database test failed, using simulated data:", fetchError);
+        
+        // Simuler une réponse réussie
+        toast({
+          title: "Mode de secours",
+          description: `Utilisation du mode de secours sans connexion à la base de données`,
+        });
+        
+        return false;
       }
-      
-      const data = await response.json();
-      
-      toast({
-        title: "Connection successful",
-        description: `Connection established with the database`,
-      });
-      
-      return true;
     } catch (error) {
       console.error("Error during connection test:", error);
       toast({
@@ -133,29 +178,43 @@ class DatabaseConnectionService {
       console.log("Retrieving database information...");
       const API_URL = getApiUrl();
       
-      const response = await fetch(`${API_URL}/database-test`, {
-        method: 'GET',
-        headers: getAuthHeaders()
-      });
-      
-      if (!response.ok) {
-        throw new Error("Failed to get database information");
-      }
-      
-      const data = await response.json();
-      
-      if (data.info) {
-        return {
-          host: data.info.host || "Unknown host",
-          database: data.info.database_name || "Unknown database",
-          size: data.info.size || "Unknown size",
-          tables: data.info.table_count || 0,
-          lastBackup: "N/A", // We don't have this information from the API yet
-          status: data.status === "success" ? "Online" : "Offline",
-          encoding: data.info.encoding || "UTF-8",
-          collation: data.info.collation || "N/A",
-          tableList: data.info.tables || []
-        };
+      try {
+        const response = await fetch(`${API_URL}/database-test`, {
+          method: 'GET',
+          headers: getAuthHeaders()
+        });
+        
+        if (!response.ok) {
+          const responseText = await response.text();
+          console.warn("Database info response not OK:", response.status, responseText.substring(0, 100));
+          throw new Error("Failed to get database information");
+        }
+        
+        const responseText = await response.text();
+        let data;
+        
+        try {
+          data = this.validateJsonResponse(responseText);
+        } catch (e) {
+          console.error("Error while retrieving database information:", e);
+          throw new Error("Réponse invalide du serveur");
+        }
+        
+        if (data.info) {
+          return {
+            host: data.info.host || "Unknown host",
+            database: data.info.database_name || "Unknown database",
+            size: data.info.size || "Unknown size",
+            tables: data.info.table_count || 0,
+            lastBackup: "N/A", // We don't have this information from the API yet
+            status: data.status === "success" ? "Online" : "Offline",
+            encoding: data.info.encoding || "UTF-8",
+            collation: data.info.collation || "N/A",
+            tableList: data.info.tables || []
+          };
+        }
+      } catch (fetchError) {
+        console.warn("Error fetching database info, using fallback:", fetchError);
       }
       
       // Fallback to simulated data if API doesn't return proper info
@@ -174,7 +233,16 @@ class DatabaseConnectionService {
         description: "Unable to retrieve database information.",
         variant: "destructive",
       });
-      return null;
+      
+      // Retourner des données simulées en cas d'erreur
+      return {
+        host: "p71x6d.myd.infomaniak.com",
+        database: "p71x6d_system",
+        size: "125 MB",
+        tables: 10,
+        lastBackup: "N/A",
+        status: "Offline"
+      };
     }
   }
 }

@@ -9,7 +9,15 @@ export const getApiUrl = (): string => {
   
   // Si on est sur qualiopi.ch, utiliser un chemin absolu
   if (window.location.hostname === 'qualiopi.ch') {
-    return '/sites/qualiopi.ch/api';
+    // Vérifier si nous sommes dans un sous-dossier
+    if (window.location.pathname.includes('/sites/')) {
+      // Extraire le chemin du sous-dossier
+      const pathMatch = window.location.pathname.match(/^(\/sites\/[^\/]+)/);
+      if (pathMatch && pathMatch[1]) {
+        return `${pathMatch[1]}/api`;
+      }
+    }
+    return '/api';
   }
   
   // Utiliser un chemin relatif par défaut pour fonctionner sur tout domaine
@@ -43,7 +51,7 @@ export const getFullApiUrl = (): string => {
   const baseUrl = isUsingCustomApiUrl() 
     ? localStorage.getItem('customApiUrl') as string
     : window.location.hostname === 'qualiopi.ch' 
-      ? window.location.origin + '/sites/qualiopi.ch/api'
+      ? window.location.origin + (window.location.pathname.match(/^(\/sites\/[^\/]+)/) ? window.location.pathname.match(/^(\/sites\/[^\/]+)/)?.[1] + '/api' : '/api')
       : window.location.origin + '/api';
   
   // Normaliser l'URL pour éviter les double slashes

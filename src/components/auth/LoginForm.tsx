@@ -19,7 +19,7 @@ const LoginForm = () => {
           <AlertCircle className="h-4 w-4 mr-2" />
           <AlertDescription>
             Connexion à la base de données impossible. Le service est momentanément indisponible. 
-            Veuillez utiliser l'authentification de secours avec les identifiants de test.
+            Veuillez utiliser l'authentification de secours avec les identifiants de test ci-dessous.
           </AlertDescription>
         </Alert>
       )}
@@ -29,7 +29,7 @@ const LoginForm = () => {
           <AlertCircle className="h-4 w-4 mr-2" />
           <AlertDescription>
             Le serveur d'authentification est temporairement inaccessible.
-            Veuillez utiliser l'authentification de secours avec les identifiants de test.
+            Veuillez utiliser l'authentification de secours avec les identifiants de test ci-dessous.
           </AlertDescription>
         </Alert>
       )}
@@ -50,7 +50,9 @@ const LoginForm = () => {
         <ul className="list-disc pl-5 mt-2">
           <li>Utilisateur: admin, Mot de passe: admin123</li>
           <li>Utilisateur: antcirier@gmail.com, Mot de passe: password123</li>
+          <li>Utilisateur: p71x6d_system, Mot de passe: admin123</li>
         </ul>
+        <p className="mt-2 italic">Ces identifiants permettent de se connecter en mode de secours, même si le serveur d'authentification ou la base de données n'est pas disponible.</p>
       </div>
       
       <ForgotPasswordLink />

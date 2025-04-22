@@ -2,45 +2,51 @@
 import React, { useState } from 'react';
 
 const Logo = () => {
-  const [logoSrc, setLogoSrc] = useState("/lovable-uploads/1c6b80c6-6e45-4f6e-ab03-b7a474bd674c.png");
-  const [logoLoaded, setLogoLoaded] = useState(false);
+  const [imageSrc, setImageSrc] = useState('/lovable-uploads/1c6b80c6-6e45-4f6e-ab03-b7a474bd674c.png');
+  const [imageError, setImageError] = useState(false);
 
-  // Liste des chemins alternatifs pour l'image
-  const fallbackImages = [
-    "/lovable-uploads/1c6b80c6-6e45-4f6e-ab03-b7a474bd674c.png",
-    "/public/lovable-uploads/1c6b80c6-6e45-4f6e-ab03-b7a474bd674c.png",
-    "/logo-swiss.svg"
-  ];
-  
-  const [fallbackIndex, setFallbackIndex] = useState(0);
-
+  // Fonction pour gérer les erreurs de chargement d'image
   const handleImageError = () => {
-    if (fallbackIndex < fallbackImages.length - 1) {
-      console.log(`Logo image failed to load: ${logoSrc}, trying fallback: ${fallbackImages[fallbackIndex + 1]}`);
-      setLogoSrc(fallbackImages[fallbackIndex + 1]);
-      setFallbackIndex(fallbackIndex + 1);
+    if (!imageError) {
+      setImageError(true);
+      
+      // Chemin avec préfixe public
+      const publicPath = `/public${imageSrc}`;
+      console.log(`Logo image failed to load: ${imageSrc}, trying fallback: ${publicPath}`);
+      setImageSrc(publicPath);
+      
+      // Si nous sommes sur qualiopi.ch, essayons un chemin avec le sous-dossier
+      if (window.location.hostname === 'qualiopi.ch') {
+        // Extraire le chemin du sous-dossier
+        const pathMatch = window.location.pathname.match(/^(\/sites\/[^\/]+)/);
+        if (pathMatch && pathMatch[1]) {
+          const siteRootPath = `${pathMatch[1]}${imageSrc}`;
+          console.log(`Logo image failed to load, trying site root path: ${siteRootPath}`);
+          setImageSrc(siteRootPath);
+        }
+      }
     } else {
-      console.error("All logo images failed to load");
-      // Utiliser un logo par défaut
-      setLogoSrc("/logo-swiss.svg");
+      // Si même le chemin alternatif échoue, utiliser une image de secours
+      console.log(`Alternative logo path also failed, using backup logo`);
+      setImageSrc('/formacert-logo.png');
     }
   };
 
-  const handleImageLoad = () => {
-    console.log("Logo image loaded successfully:", logoSrc);
-    setLogoLoaded(true);
+  const handleImageSuccess = () => {
+    console.log(`Logo image loaded successfully: ${imageSrc}`);
   };
 
   return (
-    <div className="flex flex-col items-center mb-8">
+    <div className="flex flex-col items-center justify-center mb-8">
       <img 
-        src={logoSrc}
+        src={imageSrc} 
         alt="FormaCert Logo" 
-        className="w-48 mb-4"
+        className="h-24 mb-4"
         onError={handleImageError}
-        onLoad={handleImageLoad}
+        onLoad={handleImageSuccess}
       />
-      <h1 className="text-2xl font-bold text-gray-800">Bienvenue sur FormaCert</h1>
+      <h2 className="text-2xl font-semibold text-gray-800">FormaCert</h2>
+      <p className="text-gray-600 mt-1">Plateforme de Gestion de Certification</p>
     </div>
   );
 };
