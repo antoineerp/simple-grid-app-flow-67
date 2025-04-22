@@ -37,139 +37,67 @@ export function getFullApiUrl(): string {
     : `${window.location.protocol}//${window.location.host}${apiUrl}`;
 }
 
-// Fonction pour détecter si du code PHP non exécuté est renvoyé
-function isUnexecutedPhp(text: string): boolean {
-  return text.trim().startsWith('<?php') || 
-         text.includes('<?php') && text.includes('?>');
-}
-
-// Fonction pour détecter si du HTML est renvoyé
-function isHtmlResponse(text: string): boolean {
-  return text.trim().startsWith('<!DOCTYPE') || 
-         text.trim().startsWith('<html') || 
-         text.includes('<body');
-}
-
-// Diagnostic de l'API simple
+// Test simple de connexion à l'API
 export async function testApiConnection(): Promise<{ success: boolean; message: string; details?: any }> {
   try {
     console.log(`Test de connexion à l'API: ${getFullApiUrl()}`);
-    // Essai de plusieurs points d'entrée pour augmenter la fiabilité
-    const endpoints = [
-      `${getApiUrl()}/index.php`,
-      `${getApiUrl()}/db-test.php`,
-      `${getApiUrl()}/diagnose-connection.php`,
-      `${getApiUrl()}/diagnose-server.php`
-    ];
     
-    let lastError = null;
-    
-    // Essayer chaque endpoint jusqu'à ce qu'un fonctionne
-    for (const endpoint of endpoints) {
-      try {
-        console.log(`Tentative de connexion à: ${endpoint}`);
-        const response = await fetch(endpoint, {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-            'Cache-Control': 'no-cache, no-store, must-revalidate'
-          }
-        });
-        
-        console.log('Réponse du test API:', response.status, response.statusText);
-        console.log('Headers:', [...response.headers.entries()]);
-        
-        // Récupérer le texte de la réponse
-        const responseText = await response.text();
-        
-        // Vérifier si le serveur répond avec du PHP non interprété
-        if (isUnexecutedPhp(responseText)) {
-          console.error('Code PHP non exécuté détecté dans la réponse:', responseText.substring(0, 300));
-          lastError = {
-            success: false,
-            message: 'Le serveur renvoie le code PHP au lieu de l\'exécuter',
-            details: {
-              tip: 'Vérifiez la configuration du serveur pour exécuter les fichiers PHP. Vérifiez le fichier .htaccess et les permissions.',
-              url: endpoint,
-              responsePreview: responseText.substring(0, 300)
-            }
-          };
-          // Continuer avec le prochain endpoint
-          continue;
-        }
-        
-        // Vérifier si la réponse est du HTML au lieu de JSON
-        if (isHtmlResponse(responseText) && !endpoint.includes('diagnose-server.php')) {
-          console.warn('Réponse HTML reçue au lieu de JSON:', responseText.substring(0, 300));
-          // Si c'est le diagnostic serveur qui est censé renvoyer du HTML, c'est ok
-          if (!endpoint.includes('diagnose-server.php')) {
-            lastError = {
-              success: false,
-              message: 'Le serveur a renvoyé du HTML au lieu de JSON',
-              details: {
-                tip: 'Vérifiez que le script PHP génère correctement du JSON avec les bons headers.',
-                url: endpoint,
-                responsePreview: responseText.substring(0, 300)
-              }
-            };
-            // Continuer avec le prochain endpoint
-            continue;
-          }
-        }
-        
-        // Pour le diagnostic serveur, renvoyer un succès si on reçoit du HTML
-        if (endpoint.includes('diagnose-server.php') && isHtmlResponse(responseText)) {
-          return {
-            success: true,
-            message: 'L\'outil de diagnostic du serveur fonctionne',
-            details: {
-              url: endpoint,
-              note: 'Le script de diagnostic renvoie une page HTML comme prévu.'
-            }
-          };
-        }
-        
-        // Essayer de parser la réponse comme JSON
-        try {
-          const data = JSON.parse(responseText);
-          return {
-            success: true,
-            message: data.message || 'API connectée',
-            details: data
-          };
-        } catch (e) {
-          // Si ce n'est pas du JSON mais pas du PHP ou HTML non plus, c'est une erreur de format
-          lastError = {
-            success: false,
-            message: 'Réponse non-JSON reçue de l\'API',
-            details: {
-              error: e instanceof Error ? e.message : String(e),
-              responseText: responseText.substring(0, 300),
-              status: response.status,
-              statusText: response.statusText
-            }
-          };
-          // Continuer avec le prochain endpoint
-          continue;
-        }
-      } catch (endpointError) {
-        console.warn(`Erreur avec l'endpoint ${endpoint}:`, endpointError);
-        lastError = {
-          success: false,
-          message: endpointError instanceof Error ? endpointError.message : 'Erreur inconnue',
-          details: { error: endpointError }
-        };
-        // Continuer avec le prochain endpoint
+    const response = await fetch(`${getApiUrl()}/index.php`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Cache-Control': 'no-cache, no-store, must-revalidate'
       }
+    });
+    
+    console.log('Réponse du test API:', response.status, response.statusText);
+    console.log('Headers:', [...response.headers.entries()]);
+    
+    // Récupérer le texte de la réponse
+    const responseText = await response.text();
+    
+    // Vérifier si le serveur répond avec du PHP non interprété
+    if (responseText.trim().startsWith('<?php')) {
+      console.error('Code PHP non exécuté détecté dans la réponse');
+      return {
+        success: false,
+        message: 'Le serveur renvoie le code PHP au lieu de l\'exécuter',
+        details: {
+          tip: 'Vérifiez la configuration du serveur pour exécuter les fichiers PHP. Vérifiez le fichier .htaccess et les permissions.'
+        }
+      };
     }
     
-    // Si on arrive ici, c'est qu'aucun endpoint n'a fonctionné
-    console.error('Tous les endpoints API ont échoué. Dernière erreur:', lastError);
-    return lastError || {
-      success: false,
-      message: 'Aucun endpoint API n\'a répondu correctement',
-      details: { endpoints }
-    };
+    // Vérifier si la réponse est du HTML au lieu de JSON
+    if (responseText.trim().startsWith('<!DOCTYPE') || responseText.trim().startsWith('<html')) {
+      console.warn('Réponse HTML reçue au lieu de JSON');
+      return {
+        success: false,
+        message: 'Le serveur a renvoyé du HTML au lieu de JSON',
+        details: {
+          tip: 'Vérifiez que le script PHP génère correctement du JSON avec les bons headers.'
+        }
+      };
+    }
+    
+    // Essayer de parser la réponse comme JSON
+    try {
+      const data = JSON.parse(responseText);
+      return {
+        success: true,
+        message: data.message || 'API connectée',
+        details: data
+      };
+    } catch (e) {
+      return {
+        success: false,
+        message: 'Réponse non-JSON reçue de l\'API',
+        details: {
+          error: e instanceof Error ? e.message : String(e),
+          responseText: responseText.substring(0, 300)
+        }
+      };
+    }
   } catch (error) {
     console.error('Erreur lors du test API:', error);
     return {
@@ -208,37 +136,33 @@ export async function fetchWithErrorHandling(url: string, options?: RequestInit)
     console.log(`Réponse reçue: ${response.status} ${response.statusText}`);
     
     if (!response.ok) {
-      // Essayer de lire le corps de la réponse
+      // Lire le corps de la réponse
+      const responseText = await response.text();
       let errorMessage = `Erreur HTTP: ${response.status}`;
-      try {
-        const responseText = await response.text();
-        
-        // Vérifier si la réponse est du HTML au lieu de JSON
-        if (responseText.trim().startsWith('<!DOCTYPE') || 
-            responseText.trim().startsWith('<html') ||
-            responseText.includes('<body')) {
-          console.error('Réponse HTML reçue au lieu de JSON:', responseText.substring(0, 300));
-          errorMessage = `Le serveur a renvoyé du HTML au lieu de JSON. Vérifiez la configuration.`;
-        } else if (responseText.trim().startsWith('<?php')) {
-          console.error('Code PHP non exécuté:', responseText.substring(0, 300));
-          errorMessage = `Le serveur renvoie le code PHP au lieu de l'exécuter. Vérifiez la configuration du serveur.`;
-        } else {
-          // Essayer de parser comme JSON
-          try {
-            const errorData = JSON.parse(responseText);
-            if (errorData && errorData.message) {
-              errorMessage = errorData.message;
-            }
-          } catch (e) {
-            // Si la réponse n'est pas du JSON, utiliser le texte brut
-            errorMessage = `Erreur: ${responseText.substring(0, 100)}...`;
-          }
-        }
-      } catch (e) {
-        errorMessage = `Erreur lors de la lecture de la réponse: ${e instanceof Error ? e.message : String(e)}`;
+      
+      // Vérifier si la réponse est du PHP non exécuté
+      if (responseText.trim().startsWith('<?php')) {
+        console.error('Code PHP non exécuté détecté');
+        throw new Error('Le serveur renvoie le code PHP au lieu de l\'exécuter. Vérifiez la configuration du serveur.');
       }
       
-      console.error('Erreur dans fetchWithErrorHandling:', errorMessage);
+      // Vérifier si la réponse est du HTML au lieu de JSON
+      if (responseText.trim().startsWith('<!DOCTYPE') || responseText.trim().startsWith('<html')) {
+        console.error('Réponse HTML reçue au lieu de JSON');
+        throw new Error('Le serveur a renvoyé du HTML au lieu de JSON. Vérifiez la configuration.');
+      }
+      
+      // Essayer de parser comme JSON
+      try {
+        const errorData = JSON.parse(responseText);
+        if (errorData && errorData.message) {
+          errorMessage = errorData.message;
+        }
+      } catch (e) {
+        // Si la réponse n'est pas du JSON, utiliser le texte brut
+        errorMessage = `Erreur: ${responseText.substring(0, 100)}...`;
+      }
+      
       throw new Error(errorMessage);
     }
     
@@ -248,18 +172,16 @@ export async function fetchWithErrorHandling(url: string, options?: RequestInit)
       return {};
     }
     
-    // Vérifier si la réponse est du HTML
-    if (text.trim().startsWith('<!DOCTYPE') || 
-        text.trim().startsWith('<html') ||
-        text.includes('<body')) {
-      console.error('Réponse HTML reçue au lieu de JSON:', text.substring(0, 300));
-      throw new Error('Le serveur a renvoyé du HTML au lieu de JSON. Vérifiez la configuration.');
-    }
-    
     // Vérifier si la réponse est du PHP non exécuté
     if (text.trim().startsWith('<?php')) {
-      console.error('Code PHP non exécuté:', text.substring(0, 300));
+      console.error('Code PHP non exécuté');
       throw new Error('Le serveur renvoie le code PHP au lieu de l\'exécuter. Vérifiez la configuration du serveur.');
+    }
+    
+    // Vérifier si la réponse est du HTML au lieu de JSON
+    if (text.trim().startsWith('<!DOCTYPE') || text.trim().startsWith('<html')) {
+      console.error('Réponse HTML reçue au lieu de JSON');
+      throw new Error('Le serveur a renvoyé du HTML au lieu de JSON. Vérifiez la configuration.');
     }
     
     try {

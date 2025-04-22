@@ -1,10 +1,8 @@
 
 <?php
-// Point d'entrée API simple avec détection automatique de configuration
+// Point d'entrée API simple et direct
 header('Content-Type: application/json; charset=utf-8');
 header("Cache-Control: no-cache, no-store, must-revalidate");
-header("Pragma: no-cache");
-header("Expires: 0");
 header("Access-Control-Allow-Origin: *");
 header("Access-Control-Allow-Methods: GET, OPTIONS, POST");
 header("Access-Control-Allow-Headers: Content-Type, Authorization");
@@ -20,38 +18,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 $php_info = [
     'version' => phpversion(),
     'server' => $_SERVER['SERVER_SOFTWARE'] ?? 'Unknown',
-    'sapi' => php_sapi_name(),
-    'modules' => get_loaded_extensions(),
-    'system' => PHP_OS,
-    'time' => date('Y-m-d H:i:s')
-];
-
-// Vérifier l'accès aux fichiers
-$files_access = [
-    'config_dir' => is_dir(__DIR__ . '/config'),
-    'database_php' => file_exists(__DIR__ . '/config/database.php'),
-    'db_config_json' => file_exists(__DIR__ . '/config/db_config.json'),
-    'env_php' => file_exists(__DIR__ . '/config/env.php')
+    'sapi' => php_sapi_name()
 ];
 
 // Version API
-$api_version = '1.0.8';
+$api_version = '1.1.0';
 
 // Créer la réponse
 $response = [
     'status' => 'success',
-    'message' => 'API système active et fonctionnelle',
+    'message' => 'API active et fonctionnelle',
     'timestamp' => time(),
     'formatted_time' => date('Y-m-d H:i:s'),
     'api_version' => $api_version,
-    'environment' => $php_info,
-    'files_access' => $files_access,
-    'request_method' => $_SERVER['REQUEST_METHOD'],
-    'request_uri' => $_SERVER['REQUEST_URI']
+    'environment' => $php_info
 ];
 
 // Test de connexion à la base de données (si les fichiers existent)
-if ($files_access['database_php'] && $files_access['db_config_json']) {
+if (file_exists(__DIR__ . '/config/database.php') && file_exists(__DIR__ . '/config/db_config.json')) {
     try {
         require_once __DIR__ . '/config/database.php';
         
@@ -62,31 +46,27 @@ if ($files_access['database_php'] && $files_access['db_config_json']) {
             $response['database'] = [
                 'status' => 'connected',
                 'host' => $database->host,
-                'db_name' => $database->db_name,
-                'username' => $database->username
+                'db_name' => $database->db_name
             ];
         } else {
             $response['database'] = [
                 'status' => 'error',
-                'message' => $database->connection_error ?? 'Erreur de connexion non spécifiée',
-                'config_exists' => true
+                'message' => $database->connection_error ?? 'Erreur de connexion'
             ];
         }
     } catch (Exception $e) {
         $response['database'] = [
             'status' => 'error',
-            'message' => 'Exception lors du test de la base de données: ' . $e->getMessage(),
-            'config_exists' => true
+            'message' => 'Exception: ' . $e->getMessage()
         ];
     }
 } else {
     $response['database'] = [
         'status' => 'not_configured',
-        'message' => 'Configuration de base de données introuvable',
-        'config_exists' => false
+        'message' => 'Configuration introuvable'
     ];
 }
 
 // Envoyer la réponse
-echo json_encode($response, JSON_PRETTY_PRINT);
+echo json_encode($response);
 ?>

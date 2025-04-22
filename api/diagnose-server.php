@@ -10,8 +10,6 @@ $server_info = [
     'DOCUMENT_ROOT' => $_SERVER['DOCUMENT_ROOT'] ?? 'Non disponible',
     'SCRIPT_FILENAME' => $_SERVER['SCRIPT_FILENAME'] ?? 'Non disponible',
     'PHP_SAPI' => php_sapi_name(),
-    'HANDLER' => $_SERVER['HANDLER'] ?? 'Non disponible',
-    'REDIRECT_HANDLER' => $_SERVER['REDIRECT_HANDLER'] ?? 'Non disponible',
     'SERVER_PROTOCOL' => $_SERVER['SERVER_PROTOCOL'] ?? 'Non disponible'
 ];
 
@@ -25,18 +23,14 @@ $important_modules = [
     'mbstring' => in_array('mbstring', $modules)
 ];
 
-// Tester la configuration .htaccess
-$htaccess_test = [];
-$htaccess_root = file_exists('../.htaccess') ? 'Existe' : 'N\'existe pas';
-$htaccess_api = file_exists('./.htaccess') ? 'Existe' : 'N\'existe pas';
-$htaccess_root_content = file_exists('../.htaccess') ? file_get_contents('../.htaccess') : 'N/A';
-$htaccess_api_content = file_exists('./.htaccess') ? file_get_contents('./.htaccess') : 'N/A';
-
-// Tester l'exécution de PHP
-$php_execution = function_exists('phpinfo') ? 'OK' : 'NON';
-
-// Tester si le module rewrite est actif
-$rewrite_module = function_exists('apache_get_modules') ? (in_array('mod_rewrite', apache_get_modules()) ? 'Actif' : 'Inactif') : 'Impossible à déterminer';
+// Vérifier l'accès aux fichiers
+$files_access = [
+    'htaccess_root' => file_exists('../.htaccess') ? 'Oui' : 'Non',
+    'htaccess_api' => file_exists('./.htaccess') ? 'Oui' : 'Non',
+    'config_dir' => is_dir('./config') ? 'Oui' : 'Non',
+    'database_php' => file_exists('./config/database.php') ? 'Oui' : 'Non',
+    'db_config_json' => file_exists('./config/db_config.json') ? 'Oui' : 'Non'
+];
 
 // Afficher le rapport HTML
 echo '<!DOCTYPE html>
@@ -77,32 +71,56 @@ echo '</ul>
     </div>
     
     <div class="section">
-        <h2>Configuration .htaccess</h2>
-        <p><strong>Fichier .htaccess racine:</strong> ' . $htaccess_root . '</p>
-        <p><strong>Fichier .htaccess API:</strong> ' . $htaccess_api . '</p>
-        <p><strong>Module rewrite:</strong> ' . $rewrite_module . '</p>
-        <h3>Contenu du .htaccess racine:</h3>
-        <pre>' . htmlspecialchars($htaccess_root_content) . '</pre>
-        <h3>Contenu du .htaccess API:</h3>
-        <pre>' . htmlspecialchars($htaccess_api_content) . '</pre>
+        <h2>Accès aux fichiers</h2>
+        <ul>';
+foreach($files_access as $file => $exists) {
+    $status_class = $exists == 'Oui' ? 'success' : 'error';
+    echo "<li><strong>$file:</strong> <span class=\"$status_class\">$exists</span></li>";
+}
+echo '</ul>
     </div>
     
     <div class="section">
-        <h2>Exécution de PHP</h2>
-        <p><strong>Exécution de PHP:</strong> <span class="' . ($php_execution == 'OK' ? 'success' : 'error') . '">' . $php_execution . '</span></p>
-        <p>Si ce message s\'affiche, PHP est correctement exécuté sur ce script.</p>
-        <p>Essayez d\'accéder à <a href="../api/index.php">../api/index.php</a> pour tester l\'API principale.</p>
-    </div>
+        <h2>Test de connexion à la base de données</h2>';
+        
+// Test de connexion à la base de données si config existe
+if (file_exists('./config/database.php') && file_exists('./config/db_config.json')) {
+    try {
+        require_once './config/database.php';
+        $database = new Database();
+        $conn = $database->getConnection(false);
+        
+        if ($database->is_connected) {
+            echo '<p class="success">Connexion à la base de données réussie</p>';
+            echo '<ul>';
+            echo '<li><strong>Hôte:</strong> ' . $database->host . '</li>';
+            echo '<li><strong>Base de données:</strong> ' . $database->db_name . '</li>';
+            echo '<li><strong>Utilisateur:</strong> ' . $database->username . '</li>';
+            echo '</ul>';
+        } else {
+            echo '<p class="error">Échec de la connexion à la base de données</p>';
+            echo '<p>Erreur: ' . ($database->connection_error ?? 'Inconnue') . '</p>';
+        }
+    } catch (Exception $e) {
+        echo '<p class="error">Exception lors du test de connexion à la base de données:</p>';
+        echo '<pre>' . $e->getMessage() . '</pre>';
+    }
+} else {
+    echo '<p class="warning">Configuration de base de données introuvable</p>';
+}
+        
+echo '</div>
     
     <div class="section">
-        <h2>Recommandations</h2>
-        <p>Si PHP n\'est pas exécuté correctement:</p>
+        <h2>Problèmes courants et solutions</h2>
         <ol>
-            <li>Vérifiez que le module PHP est activé sur votre serveur</li>
-            <li>Assurez-vous que les fichiers .htaccess sont correctement configurés et autorisés (AllowOverride All)</li>
-            <li>Vérifiez que les chemins vers les interpréteurs PHP sont corrects</li>
-            <li>Contactez votre hébergeur (Infomaniak) pour vérifier la configuration du serveur</li>
+            <li>Si PHP n\'est pas exécuté, vérifiez que le module PHP est activé sur votre serveur</li>
+            <li>Vérifiez que les fichiers .htaccess sont correctement configurés</li>
+            <li>Assurez-vous que le serveur est configuré pour exécuter les fichiers .php</li>
+            <li>Vérifiez les permissions des fichiers et dossiers</li>
+            <li>Contactez votre hébergeur pour vérifier la configuration PHP</li>
         </ol>
     </div>
 </body>
 </html>';
+?>

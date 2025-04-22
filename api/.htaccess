@@ -24,20 +24,7 @@ RewriteRule ^(.*)$ index.php [QSA,L]
     php_value default_charset "UTF-8"
 </IfModule>
 
-# Force l'exécution des scripts PHP
+# Force l'exécution des scripts PHP (très important)
 <FilesMatch "\.php$">
     SetHandler application/x-httpd-php
 </FilesMatch>
-
-# Support pour FastCGI si utilisé (Infomaniak utilise généralement FastCGI)
-<IfModule mod_fcgid.c>
-    AddHandler fcgid-script .php
-    FcgidWrapper /usr/local/php8.2/bin/php-cgi .php
-</IfModule>
-
-# Support alternatif pour PHP-FPM
-<IfModule mod_proxy_fcgi.c>
-    <FilesMatch "\.php$">
-        SetHandler "proxy:unix:/run/php/php8.1-fpm.sock|fcgi://localhost"
-    </FilesMatch>
-</IfModule>
