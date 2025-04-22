@@ -5,7 +5,7 @@ import LoginForm from '@/components/auth/LoginForm';
 import { getApiUrl, getFullApiUrl } from '@/config/apiConfig';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { AlertCircle, ExternalLink } from 'lucide-react';
+import { AlertCircle, ExternalLink, Info } from 'lucide-react';
 
 const Index = () => {
   const [apiStatus, setApiStatus] = useState<'loading' | 'success' | 'error'>('loading');
@@ -16,7 +16,10 @@ const Index = () => {
     const checkApi = async () => {
       try {
         const timestamp = new Date().getTime();
-        const response = await fetch(`${getApiUrl()}/index.php?_=${timestamp}`, {
+        const apiUrl = getApiUrl();
+        console.log('Vérification de l\'API avec URL:', apiUrl);
+        
+        const response = await fetch(`${apiUrl}/index.php?_=${timestamp}`, {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json',
@@ -35,6 +38,7 @@ const Index = () => {
           // Si la réponse n'est pas du JSON valide
           setApiStatus('error');
           setApiMessage('La réponse du serveur n\'est pas un JSON valide');
+          console.error('Réponse non-JSON:', data);
         }
       } catch (error) {
         setApiStatus('error');
@@ -45,7 +49,7 @@ const Index = () => {
     checkApi();
     
     // Nouvelle date pour mettre à jour la version
-    setVersion(`1.0.5 - ${new Date().toLocaleDateString()}`);
+    setVersion(`1.0.6 - ${new Date().toLocaleDateString()}`);
   }, []);
 
   return (
@@ -64,6 +68,15 @@ const Index = () => {
             </AlertDescription>
           </Alert>
         )}
+        
+        <Alert variant="default" className="mb-6">
+          <Info className="h-4 w-4 mr-2" />
+          <AlertDescription>
+            <div className="text-xs">
+              URL d'API: <strong>{getFullApiUrl()}</strong>
+            </div>
+          </AlertDescription>
+        </Alert>
         
         <LoginForm />
         

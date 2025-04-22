@@ -3,11 +3,27 @@
 let apiUrl = '/api';
 let isCustomUrl = false;
 
-// Pour les environnements de production spécifiques (comme Infomaniak)
-if (window.location.hostname === 'qualiopi.ch') {
-  apiUrl = '/sites/qualiopi.ch/api';
-  console.log('Environnement de production détecté: qualiopi.ch - API URL:', apiUrl);
+// Détection automatique de l'environnement
+function detectEnvironment() {
+  const hostname = window.location.hostname;
+  const isProduction = hostname.includes('qualiopi.ch') || !hostname.includes('lovableproject.com');
+  
+  console.log('Détection d\'environnement - Hostname:', hostname);
+  console.log('Détection d\'environnement - Est production:', isProduction);
+  
+  if (isProduction) {
+    // Pour Infomaniak
+    apiUrl = hostname.includes('qualiopi.ch') ? '/sites/qualiopi.ch/api' : '/api';
+    console.log('Environnement de production détecté - API URL:', apiUrl);
+  } else {
+    // Pour l'environnement de développement Lovable
+    apiUrl = '/api';
+    console.log('Environnement de développement détecté - API URL:', apiUrl);
+  }
 }
+
+// Exécuter la détection au chargement
+detectEnvironment();
 
 // Obtenir l'URL de l'API
 export function getApiUrl(): string {
@@ -28,11 +44,7 @@ export function setCustomApiUrl(url: string): void {
 
 // Réinitialiser l'URL de l'API à sa valeur par défaut
 export function resetToDefaultApiUrl(): void {
-  if (window.location.hostname === 'qualiopi.ch') {
-    apiUrl = '/sites/qualiopi.ch/api';
-  } else {
-    apiUrl = '/api';
-  }
+  detectEnvironment(); // Redétecter l'environnement
   isCustomUrl = false;
   console.log('URL API réinitialisée à la valeur par défaut:', apiUrl);
 }
