@@ -1,3 +1,4 @@
+
 <?php
 // Forcer l'output buffering pour éviter tout output avant les headers
 ob_start();
@@ -12,20 +13,32 @@ $allowed_origins = [
     'https://e80de7b3-92db-438f-9423-8243c4b15dfe.lovableproject.com'  // Domaine Lovable
 ];
 
+// Journalisation détaillée pour le débogage CORS
+error_log("=== CORS DEBUG INFO ===");
+error_log("Origine de la requête: " . (isset($_SERVER['HTTP_ORIGIN']) ? $_SERVER['HTTP_ORIGIN'] : 'Non définie'));
+error_log("User Agent: " . (isset($_SERVER['HTTP_USER_AGENT']) ? $_SERVER['HTTP_USER_AGENT'] : 'Non défini'));
+error_log("Origines autorisées: " . implode(", ", $allowed_origins));
+
 $origin = isset($_SERVER['HTTP_ORIGIN']) ? $_SERVER['HTTP_ORIGIN'] : '';
 
 // Vérifier si l'origine est autorisée de manière stricte
 header("Vary: Origin");
 if (in_array($origin, $allowed_origins)) {
+    error_log("CORS: Origine autorisée - $origin");
     header("Access-Control-Allow-Origin: $origin");
 } else {
     // Rejeter les origines non autorisées
+    error_log("CORS: Origine refusée - $origin");
     header("Access-Control-Allow-Origin: null");
     http_response_code(403);
     error_log("Origine refusée (Domaine non autorisé): " . $origin);
     die(json_encode([
         'error' => 'Origin not allowed', 
-        'details' => 'Vérifiez que votre domaine est bien configuré dans $allowed_origins'
+        'details' => 'Vérifiez que votre domaine est bien configuré dans $allowed_origins',
+        'origin' => $origin,
+        'allowed_origins' => $allowed_origins,
+        'request_uri' => $_SERVER['REQUEST_URI'],
+        'http_host' => $_SERVER['HTTP_HOST']
     ]));
 }
 
@@ -41,6 +54,8 @@ mb_internal_encoding('UTF-8');
 error_log('=== NOUVELLE REQUÊTE API ===');
 error_log('Méthode: ' . $_SERVER['REQUEST_METHOD'] . ' - URI: ' . $_SERVER['REQUEST_URI']);
 error_log('Host: ' . $_SERVER['HTTP_HOST']);
+error_log('Origin: ' . (isset($_SERVER['HTTP_ORIGIN']) ? $_SERVER['HTTP_ORIGIN'] : 'Non définie'));
+error_log('Referer: ' . (isset($_SERVER['HTTP_REFERER']) ? $_SERVER['HTTP_REFERER'] : 'Non défini'));
 error_log('Script name: ' . $_SERVER['SCRIPT_NAME']);
 
 // Fonction pour envoyer une réponse JSON et sortir proprement
