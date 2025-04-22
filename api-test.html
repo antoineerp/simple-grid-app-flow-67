@@ -1,0 +1,160 @@
+
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test d'API FormaCert</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .container { max-width: 800px; margin: 0 auto; }
+        .card { border: 1px solid #ddd; border-radius: 8px; padding: 20px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; }
+        input, select { width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; }
+        button { background-color: #4CAF50; color: white; padding: 10px 15px; border: none; border-radius: 4px; cursor: pointer; }
+        button:hover { background-color: #45a049; }
+        .result { background-color: #f5f5f5; padding: 15px; border-radius: 4px; margin-top: 20px; white-space: pre-wrap; }
+        .success { color: green; }
+        .error { color: red; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Test d'API FormaCert</h1>
+        
+        <div class="card">
+            <h2>1. Test de connexion API</h2>
+            <div class="form-group">
+                <label for="apiUrl">URL de l'API:</label>
+                <input type="text" id="apiUrl" value="/api/">
+            </div>
+            <button id="testApi">Tester l'API</button>
+            <div id="apiResult" class="result"></div>
+        </div>
+        
+        <div class="card">
+            <h2>2. Test d'authentification</h2>
+            <div class="form-group">
+                <label for="loginUrl">URL d'authentification:</label>
+                <input type="text" id="loginUrl" value="/api/login-test.php">
+            </div>
+            <div class="form-group">
+                <label for="username">Nom d'utilisateur:</label>
+                <select id="username">
+                    <option value="admin">admin</option>
+                    <option value="p71x6d_system">p71x6d_system</option>
+                    <option value="antcirier@gmail.com">antcirier@gmail.com</option>
+                    <option value="p71x6d_dupont">p71x6d_dupont</option>
+                    <option value="p71x6d_martin">p71x6d_martin</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="password">Mot de passe:</label>
+                <select id="password">
+                    <option value="admin123">admin123</option>
+                    <option value="password123">password123</option>
+                    <option value="manager456">manager456</option>
+                    <option value="user789">user789</option>
+                </select>
+            </div>
+            <button id="testLogin">Tester l'authentification</button>
+            <div id="loginResult" class="result"></div>
+        </div>
+        
+        <div class="card">
+            <h2>3. Diagnostic du serveur</h2>
+            <div class="form-group">
+                <label for="diagnoseUrl">URL de diagnostic:</label>
+                <input type="text" id="diagnoseUrl" value="/api/diagnose.php">
+            </div>
+            <button id="testDiagnose">Exécuter le diagnostic</button>
+            <div id="diagnoseResult" class="result"></div>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('testApi').addEventListener('click', async () => {
+            const apiUrl = document.getElementById('apiUrl').value;
+            const resultElement = document.getElementById('apiResult');
+            
+            try {
+                resultElement.innerHTML = "Test en cours...";
+                resultElement.className = "result";
+                
+                const response = await fetch(apiUrl, {
+                    method: 'GET',
+                    headers: {
+                        'Accept': 'application/json'
+                    }
+                });
+                
+                const data = await response.text();
+                const status = response.status;
+                
+                resultElement.innerHTML = `Status: ${status}\n\nRéponse:\n${data}`;
+                resultElement.className = status >= 200 && status < 300 ? "result success" : "result error";
+            } catch (error) {
+                resultElement.innerHTML = `Erreur: ${error.message}`;
+                resultElement.className = "result error";
+            }
+        });
+        
+        document.getElementById('testLogin').addEventListener('click', async () => {
+            const loginUrl = document.getElementById('loginUrl').value;
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            const resultElement = document.getElementById('loginResult');
+            
+            try {
+                resultElement.innerHTML = "Test en cours...";
+                resultElement.className = "result";
+                
+                const response = await fetch(loginUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({ username, password })
+                });
+                
+                const data = await response.text();
+                const status = response.status;
+                
+                resultElement.innerHTML = `Status: ${status}\n\nRéponse:\n${data}`;
+                resultElement.className = status >= 200 && status < 300 ? "result success" : "result error";
+            } catch (error) {
+                resultElement.innerHTML = `Erreur: ${error.message}`;
+                resultElement.className = "result error";
+            }
+        });
+        
+        document.getElementById('testDiagnose').addEventListener('click', async () => {
+            const diagnoseUrl = document.getElementById('diagnoseUrl').value;
+            const resultElement = document.getElementById('diagnoseResult');
+            
+            try {
+                resultElement.innerHTML = "Diagnostic en cours...";
+                resultElement.className = "result";
+                
+                const response = await fetch(diagnoseUrl, {
+                    method: 'GET',
+                    headers: {
+                        'Accept': 'application/json'
+                    }
+                });
+                
+                const data = await response.text();
+                const status = response.status;
+                
+                resultElement.innerHTML = `Status: ${status}\n\nRésultat du diagnostic:\n${data}`;
+                resultElement.className = status >= 200 && status < 300 ? "result success" : "result error";
+            } catch (error) {
+                resultElement.innerHTML = `Erreur: ${error.message}`;
+                resultElement.className = "result error";
+            }
+        });
+    </script>
+</body>
+</html>

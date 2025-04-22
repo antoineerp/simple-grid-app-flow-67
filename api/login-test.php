@@ -78,10 +78,25 @@ if (!empty($data->username) && !empty($data->password)) {
     } else {
         error_log("Identifiants invalides pour: " . $username);
         http_response_code(401);
-        echo json_encode(['message' => 'Identifiants invalides', 'status' => 401]);
+        echo json_encode([
+            'message' => 'Identifiants invalides', 
+            'status' => 401,
+            'debug' => [
+                'username_exists' => isset($test_users[$username]),
+                'submitted_username' => $username,
+                'users_available' => array_keys($test_users)
+            ]
+        ]);
     }
 } else {
     error_log("Données incomplètes reçues");
     http_response_code(400);
-    echo json_encode(['message' => 'Données incomplètes', 'status' => 400]);
+    echo json_encode([
+        'message' => 'Données incomplètes', 
+        'status' => 400,
+        'debug' => [
+            'received_data' => $json_input,
+            'expected' => ['username' => 'string', 'password' => 'string']
+        ]
+    ]);
 }
