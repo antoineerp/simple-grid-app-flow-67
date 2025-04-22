@@ -2,7 +2,7 @@
 import React from 'react';
 import SidebarNavItem from './sidebar/SidebarNavItem';
 import { navigationItems } from './sidebar/sidebarConfig';
-import { Knife } from 'lucide-react';  // Importation de l'icône de couteau suisse
+import { PocketKnife } from 'lucide-react';  // Changed from Knife to PocketKnife
 
 const Sidebar = () => {
   return (
@@ -18,7 +18,7 @@ const Sidebar = () => {
         ))}
         
         <div className="mt-auto pt-8 flex items-center justify-center">
-          <Knife 
+          <PocketKnife 
             size={64} 
             strokeWidth={1.5} 
             className="text-gray-600 opacity-70"
@@ -30,4 +30,3 @@ const Sidebar = () => {
 };
 
 export default Sidebar;
-
