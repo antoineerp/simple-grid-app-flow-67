@@ -27,11 +27,13 @@ jobs:
       
     - name: Copy additional files
       run: |
-        cp .htaccess dist/
-        cp api/.htaccess dist/api/
+        cp .htaccess dist/ || echo "No .htaccess file found"
+        mkdir -p dist/api
+        cp api/.htaccess dist/api/ || echo "No api/.htaccess file found"
         mkdir -p dist/api/config
-        cp api/.user.ini dist/api/
-        cp -r public/lovable-uploads dist/public/ || true
+        cp api/.user.ini dist/api/ || echo "No api/.user.ini file found"
+        mkdir -p dist/public
+        cp -r public/lovable-uploads dist/public/ || echo "No lovable-uploads directory found"
         
     - name: List build directory
       run: ls -la dist/
@@ -43,7 +45,7 @@ jobs:
         username: ${{ secrets.FTP_USERNAME }}
         password: ${{ secrets.FTP_PASSWORD }}
         local-dir: ./dist/
-        server-dir: /qualiopi.ch/
+        server-dir: /
         dangerous-clean-slate: false
         exclude: |
           **/.git*
@@ -54,5 +56,4 @@ jobs:
           package-lock.json
           tsconfig*.json
           src/**
-          public/**
         log-level: verbose

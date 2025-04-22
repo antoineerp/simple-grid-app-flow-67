@@ -138,6 +138,14 @@ header('Content-Type: text/html; charset=utf-8');
     </div>
 
     <div class="section">
+        <h2>Paramètres de déploiement</h2>
+        <p>Serveur: <?php echo $_SERVER['SERVER_NAME'] ?? 'Non détecté'; ?></p>
+        <p>Chemin racine: <?php echo $_SERVER['DOCUMENT_ROOT'] ?? 'Non détecté'; ?></p>
+        <p>Chemin script: <?php echo __DIR__; ?></p>
+        <p>Utilisateur du processus: <?php echo get_current_user(); ?></p>
+    </div>
+
+    <div class="section">
         <h2>Instructions de Déploiement</h2>
         <ol>
             <li>Assurez-vous que tous les fichiers sont présents (section 1)</li>

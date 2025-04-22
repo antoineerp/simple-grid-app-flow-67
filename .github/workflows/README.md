@@ -6,7 +6,7 @@ Ce workflow automatise le déploiement de l'application FormaCert vers l'héberg
 ## Configuration requise
 
 1. Ajoutez les secrets suivants dans les paramètres de votre dépôt GitHub:
-   - `FTP_SERVER`: l'adresse du serveur FTP d'Infomaniak
+   - `FTP_SERVER`: l'adresse du serveur FTP d'Infomaniak (exemple: ftp.infomaniak.com)
    - `FTP_USERNAME`: votre nom d'utilisateur FTP
    - `FTP_PASSWORD`: votre mot de passe FTP
 
@@ -27,5 +27,6 @@ Le workflow effectue les actions suivantes:
 Si le déploiement échoue:
 1. Vérifiez les logs dans l'onglet "Actions" de GitHub
 2. Assurez-vous que les secrets sont correctement configurés
-3. Confirmez que les chemins des répertoires sont corrects
-4. Vérifiez les permissions FTP sur le serveur Infomaniak
+3. Vérifiez le format du serveur FTP (exemple: ftp.infomaniak.com)
+4. Assurez-vous que le chemin du répertoire sur le serveur est correct
+5. Vérifiez les permissions FTP sur le serveur Infomaniak
