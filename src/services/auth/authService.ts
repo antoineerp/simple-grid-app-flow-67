@@ -65,6 +65,11 @@ class AuthService {
             throw new Error('Réponse vide du serveur');
         }
         
+        // Vérifier si la réponse est le message de test de l'API
+        if (responseText.includes('API PHP disponible')) {
+            throw new Error('Le serveur a renvoyé une réponse de test au lieu du traitement de la connexion');
+        }
+        
         // Vérifier si la réponse n'est pas du JSON (probablement du HTML)
         if (responseText.trim().startsWith('<!DOCTYPE') || 
             responseText.trim().startsWith('<html') ||
@@ -108,6 +113,9 @@ class AuthService {
                     data = await this.parseJsonResponse(response);
                     connectionSuccessful = true;
                     console.log('Connexion réussie via login-test.php');
+                } else {
+                    const errorText = await response.text();
+                    console.warn('Échec avec login-test.php:', errorText);
                 }
             } catch (testError) {
                 console.warn('Échec avec login-test.php, tentative avec AuthController:', testError);
@@ -146,7 +154,7 @@ class AuthService {
             if (data.user) {
                 localStorage.setItem('currentUser', data.user.identifiant_technique);
                 localStorage.setItem('userRole', data.user.role);
-                localStorage.setItem('userName', `${data.user.prenom} ${data.user.nom}`);
+                localStorage.setItem('userName', `${data.user.prenom || ''} ${data.user.nom || ''}`);
             }
             
             // Initialiser les données utilisateur si nécessaire

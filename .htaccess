@@ -21,22 +21,11 @@ AddType image/svg+xml .svg
     Allow from all
 </FilesMatch>
 
-# Détection du serveur Infomaniak
-<IfModule mod_rewrite.c>
-    # Définir une variable pour détecter si nous sommes sur Infomaniak
-    RewriteCond %{HTTP_HOST} qualiopi\.ch [NC,OR]
-    RewriteCond %{HTTP_HOST} myd\.infomaniak\.com [NC]
-    RewriteRule .* - [E=ON_INFOMANIAK:1]
-    
-    # Log pour diagnostiquer le chemin de base
-    RewriteRule .* - [E=BASE_PATH:%{DOCUMENT_ROOT}]
-</IfModule>
-
 # Traitement des ressources statiques
 RewriteCond %{REQUEST_URI} ^/lovable-uploads/
 RewriteRule ^lovable-uploads/(.*)$ public/lovable-uploads/$1 [L]
 
-# Règle simplifiée pour l'API - diriger tout vers api/index.php
+# Règle pour l'API - toutes les requêtes /api vers le dossier api
 RewriteRule ^api/?$ api/index.php [L]
 RewriteRule ^api/(.*)$ api/$1 [QSA,L]
 

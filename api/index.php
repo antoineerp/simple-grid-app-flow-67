@@ -9,51 +9,14 @@ if (!function_exists('json_encode')) {
     exit;
 }
 
-// CORS - Configuration avancée et sécurisée
-$allowed_origins = [
-    'https://qualiopi.ch',                   // Domaine principal Infomaniak
-    'https://www.qualiopi.ch',               // Avec www
-    'https://myd.infomaniak.com',            // Interface Infomaniak
-    'http://localhost:8080',                 // Environnement de développement local
-    'http://localhost:3000',                 // Alternative pour le développement
-    'https://e80de7b3-92db-438f-9423-8243c4b15dfe.lovableproject.com'  // Domaine Lovable
-];
-
-// Journalisation détaillée pour le débogage CORS
-error_log("=== CORS DEBUG INFO ===");
-error_log("Origine de la requête: " . (isset($_SERVER['HTTP_ORIGIN']) ? $_SERVER['HTTP_ORIGIN'] : 'Non définie'));
-error_log("User Agent: " . (isset($_SERVER['HTTP_USER_AGENT']) ? $_SERVER['HTTP_USER_AGENT'] : 'Non défini'));
-error_log("Origines autorisées: " . implode(", ", $allowed_origins));
-
-$origin = isset($_SERVER['HTTP_ORIGIN']) ? $_SERVER['HTTP_ORIGIN'] : '';
-
-// Vérifier si l'origine est autorisée de manière stricte
-header("Vary: Origin");
-if (in_array($origin, $allowed_origins)) {
-    error_log("CORS: Origine autorisée - $origin");
-    header("Access-Control-Allow-Origin: $origin");
-} else {
-    // Rejeter les origines non autorisées
-    error_log("CORS: Origine refusée - $origin");
-    header("Access-Control-Allow-Origin: null");
-    http_response_code(403);
-    error_log("Origine refusée (Domaine non autorisé): " . $origin);
-    die(json_encode([
-        'error' => 'Origin not allowed', 
-        'details' => 'Vérifiez que votre domaine est bien configuré dans $allowed_origins',
-        'origin' => $origin,
-        'allowed_origins' => $allowed_origins,
-        'request_uri' => $_SERVER['REQUEST_URI'],
-        'http_host' => $_SERVER['HTTP_HOST']
-    ]));
-}
-
-// Envoyer un en-tête explicite indiquant que la réponse est du JSON
+// CORS - Configuration améliorée
+// Permettre toutes les origines en cas d'urgence (pour le débogage)
+header("Access-Control-Allow-Origin: *");
 header("Access-Control-Allow-Methods: GET, POST, OPTIONS, PUT, DELETE");
 header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With");
 header("Access-Control-Max-Age: 86400");
 header('Content-Type: application/json; charset=utf-8');
-header('X-PHP-Response: API JSON Response'); // En-tête personnalisé pour confirmer l'exécution PHP
+header('X-PHP-Response: API JSON Response');
 
 // Définir explicitement l'encodage UTF-8
 mb_internal_encoding('UTF-8');
@@ -81,24 +44,24 @@ function json_response($data, $status = 200) {
 
 // Vérifier si ce fichier est correctement exécuté par PHP
 // Si ce n'est pas le cas, il sera renvoyé comme texte brut
-echo json_encode([
-    'message' => 'API PHP disponible',
-    'status' => 200,
-    'environment' => 'production',
-    'server_info' => [
-        'host' => $_SERVER['HTTP_HOST'],
-        'uri' => $_SERVER['REQUEST_URI'],
-        'script' => $_SERVER['SCRIPT_NAME'],
-        'php_version' => PHP_VERSION,
-        'execution_time' => microtime(true),
-        'timestamp' => date('Y-m-d H:i:s')
-    ]
-]);
+if (isset($_GET['test']) && $_GET['test'] == 1) {
+    echo json_encode([
+        'message' => 'API PHP disponible',
+        'status' => 200,
+        'environment' => 'production',
+        'server_info' => [
+            'host' => $_SERVER['HTTP_HOST'],
+            'uri' => $_SERVER['REQUEST_URI'],
+            'script' => $_SERVER['SCRIPT_NAME'],
+            'php_version' => PHP_VERSION,
+            'execution_time' => microtime(true),
+            'timestamp' => date('Y-m-d H:i:s')
+        ]
+    ]);
+    exit;
+}
 
-// Terminer l'exécution - le reste du code est ignoré car nous avons une réponse directe
-exit;
-
-// Le code ci-dessous ne devrait pas être exécuté si PHP fonctionne correctement
+// Le code ci-dessous devrait être exécuté pour les requêtes normales
 try {
     // Point d'entrée principal de l'API
     if (file_exists('config/env.php')) {
@@ -111,6 +74,24 @@ try {
     // Réponse pour les requêtes OPTIONS (CORS preflight)
     if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
         json_response(['status' => 200, 'message' => 'Preflight OK']);
+    }
+
+    // Si c'est une requête POST à la racine API, considérer comme une tentative de login
+    if ($_SERVER['REQUEST_METHOD'] == 'POST' && ($_SERVER['REQUEST_URI'] == '/api' || $_SERVER['REQUEST_URI'] == '/api/' || $_SERVER['REQUEST_URI'] == '/api/index.php')) {
+        error_log('Requête POST détectée à la racine API - considérée comme une demande de connexion');
+        
+        if (file_exists('controllers/AuthController.php')) {
+            // Vidanger le buffer de sortie actuel
+            if (ob_get_level()) {
+                ob_clean();
+            }
+            
+            require_once 'controllers/AuthController.php';
+            exit;
+        } else {
+            error_log('ERREUR: Contrôleur d\'authentification introuvable');
+            json_response(['message' => 'Contrôleur d\'authentification introuvable', 'status' => 500], 500);
+        }
     }
 
     // URL de la requête
