@@ -54,6 +54,7 @@ export const createUser = async (userData: CreateUserData) => {
       responseData = responseText ? JSON.parse(responseText) : {};
     } catch (jsonError) {
       console.error("Erreur lors du parsing JSON:", jsonError);
+      console.error("Texte reçu qui a causé l'erreur:", responseText);
       throw new Error(`Réponse non valide du serveur: ${responseText}`);
     }
 

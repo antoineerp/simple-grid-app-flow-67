@@ -60,11 +60,23 @@ try {
             break;
             
         case 'POST':
+            // Vérifier que nous avons reçu des données
+            $raw_input = file_get_contents("php://input");
+            error_log("UsersController POST - Données brutes reçues: " . $raw_input);
+            
             // Créer un utilisateur
-            $data = json_decode(file_get_contents("php://input"));
+            $data = json_decode($raw_input);
+            
+            // Vérifier que le décodage JSON est correct
+            if (json_last_error() !== JSON_ERROR_NONE) {
+                error_log("UsersController POST - Erreur de décodage JSON: " . json_last_error_msg());
+                http_response_code(400);
+                echo json_encode(array("message" => "Erreur de décodage JSON: " . json_last_error_msg()));
+                exit;
+            }
             
             // Journaliser les données reçues
-            error_log("UsersController POST - Données reçues: " . json_encode($data));
+            error_log("UsersController POST - Données décodées: " . json_encode($data));
             
             // Vérifier que les données requises sont présentes
             if (

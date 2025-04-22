@@ -101,6 +101,10 @@ switch ($controller) {
         require_once 'controllers/UsersController.php';
         break;
         
+    case 'check-users.php':
+        require_once 'check-users.php';
+        break;
+        
     default:
         // Si le contrôleur n'est pas reconnu, vérifier si un fichier PHP correspondant existe
         $controller_file = $controller . '.php';
