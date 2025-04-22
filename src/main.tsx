@@ -5,39 +5,22 @@ import App from './App';
 import './index.css';
 import { initializeApp, handleInitError } from './utils/appInitializer';
 import { logDebug } from './utils/logger';
-import { getEnvironmentType, getEnvironmentName, logEnvironmentInfo, isLovableDemo, isInfomaniakEnvironment } from './utils/environment';
+import { getEnvironmentType, getEnvironmentName } from './utils/environment';
 
 // Define window properties for TypeScript
 declare global {
   interface Window {
     __LOVABLE_EDITOR__: any;
-    __diagnoseLovable: () => void;
-    testPhp: () => void;
   }
 }
 
-// Initialize global properties
+// Initialize Lovable editor
 window.__LOVABLE_EDITOR__ = window.__LOVABLE_EDITOR__ || null;
 
-// Gestionnaire d'erreurs global
-window.addEventListener('error', (event) => {
-  console.error('Erreur globale interceptée:', event.error);
-  
-  if (event.filename && (event.filename.includes('googleapis.com') || 
-                        event.filename.includes('gpteng.co') || 
-                        event.filename.includes('firestore'))) {
-    console.warn(`Erreur de chargement de ressource externe: ${event.filename}`);
-    console.log("Ce problème peut être lié à un bloqueur de scripts ou à un pare-feu");
-  }
-});
-
-// Afficher des informations détaillées sur l'environnement
-logEnvironmentInfo();
-
-// Diagnostic d'environnement pour aider au débogage
+// Log environment info
 console.log(`==== Application démarrée en mode: ${getEnvironmentName()} ====`);
 
-// Démarrer l'application quand le DOM est prêt
+// Start the application when DOM is ready
 function startApp() {
   const rootElement = document.getElementById('root');
   
@@ -47,30 +30,8 @@ function startApp() {
   }
   
   try {
-    // Initialiser l'application
+    // Initialize the application
     initializeApp();
-    
-    // Diagnostic spécifique à Infomaniak
-    if (isInfomaniakEnvironment()) {
-      console.log("==== Environnement Infomaniak détecté ====");
-      console.log("Vérification de la configuration serveur...");
-      
-      // Test d'accès à l'API PHP
-      fetch('/api/diagnostic.php', { 
-        cache: 'no-store',
-        headers: {
-          'Cache-Control': 'no-cache, no-store, must-revalidate',
-          'Pragma': 'no-cache'
-        }
-      })
-      .then(response => response.json())
-      .then(data => {
-        console.log("Diagnostique API PHP réussi:", data);
-      })
-      .catch(error => {
-        console.error("Erreur lors du diagnostique API PHP:", error);
-      });
-    }
     
     logDebug("Création du root React");
     const root = createRoot(rootElement);
@@ -84,19 +45,6 @@ function startApp() {
     
     logDebug("Application rendue avec succès");
     
-    // Le mode est déjà affiché au démarrage, nous évitons la duplication
-    
-    // Vérification supplémentaire pour la console Lovable en mode démo
-    if (isLovableDemo()) {
-      setTimeout(() => {
-        if (typeof window.__LOVABLE_EDITOR__ === 'undefined') {
-          console.warn("ATTENTION: La console Lovable n'a pas été chargée correctement");
-          console.log("Essayez de désactiver les bloqueurs de scripts, vider le cache du navigateur ou utiliser un autre navigateur");
-        } else {
-          console.log("Console Lovable détectée et chargée correctement");
-        }
-      }, 2000);
-    }
   } catch (error) {
     handleInitError(error as Error, rootElement);
   }
@@ -108,5 +56,5 @@ if (document.readyState === 'loading') {
   startApp();
 }
 
-// Log initial pour confirmer le chargement du script
+// Log successful script load
 console.log("Script principal chargé avec succès");
