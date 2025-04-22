@@ -4,6 +4,7 @@ import react from "@vitejs/plugin-react-swc";
 import path from "path";
 import { componentTagger } from "lovable-tagger";
 
+// Define the configuration with proper typing
 export default defineConfig(({ mode }) => ({
   server: {
     host: "0.0.0.0",
