@@ -1,34 +1,21 @@
 
-# Configuration spécifique pour le dossier API - FORCER PHP
+# Configuration API
 AddHandler application/x-httpd-php .php
 SetHandler application/x-httpd-php
-ForceType application/x-httpd-php
-php_flag display_errors on
-php_value error_reporting 32767
 
-# Activer le moteur de réécriture
-RewriteEngine On
-Options +ExecCGI
+# CORS et en-têtes
+Header always set Access-Control-Allow-Origin "*"
+Header always set Access-Control-Allow-Methods "GET, POST, OPTIONS, PUT, DELETE"
+Header always set Access-Control-Allow-Headers "Origin, X-Requested-With, Content-Type, Accept, Authorization"
 
-# IMPORTANT : Test PHP simple accessible directement
-RewriteRule ^simple-test\.php$ simple-test.php [L]
-
-# Configuration des en-têtes
-<IfModule mod_headers.c>
-    # Activer CORS
-    Header always set Access-Control-Allow-Origin "*"
-    Header always set Access-Control-Allow-Methods "GET, POST, OPTIONS, PUT, DELETE"
-    Header always set Access-Control-Allow-Headers "Origin, X-Requested-With, Content-Type, Accept, Authorization"
-    
-    # Désactiver la mise en cache
-    Header set Cache-Control "no-cache, no-store, must-revalidate"
-    Header set Pragma "no-cache"
-    Header set Expires "0"
-</IfModule>
+# Désactiver la mise en cache
+Header set Cache-Control "no-cache, no-store, must-revalidate"
+Header set Pragma "no-cache"
+Header set Expires "0"
 
 # Permettre l'accès direct aux fichiers PHP
-RewriteCond %{REQUEST_FILENAME} -f
-RewriteRule ^(.+)\.php$ $1.php [L]
+RewriteEngine On
+RewriteRule ^simple-test\.php$ simple-test.php [L]
 
 # Fallback vers index.php
 RewriteCond %{REQUEST_FILENAME} !-d
