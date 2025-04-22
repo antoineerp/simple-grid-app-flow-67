@@ -1,6 +1,9 @@
 
 <?php
 header('Content-Type: text/html; charset=utf-8');
+require_once 'utils-directory.php';
+require_once 'utils-assets.php';
+require_once 'index-validator.php';
 ?>
 <!DOCTYPE html>
 <html>
@@ -23,31 +26,25 @@ header('Content-Type: text/html; charset=utf-8');
     <div class="section">
         <h2>Analyse du fichier index.html</h2>
         <?php
-        if (file_exists('../index.html')) {
+        $indexPath = '../index.html';
+        if (file_exists($indexPath)) {
             echo "<p>Fichier index.html: <span class='success'>EXISTE</span></p>";
-            $index_content = file_get_contents('../index.html');
-            
-            // Vérifier les références actuelles
-            $has_js_reference = preg_match('/<script[^>]*src="\/assets\/[^"]*\.js"[^>]*>/i', $index_content);
-            $has_css_reference = preg_match('/<link[^>]*href="\/assets\/[^"]*\.css"[^>]*>/i', $index_content);
-            $has_src_reference = preg_match('/<script[^>]*src="\/src\/[^"]*"[^>]*>/i', $index_content);
-            
-            if ($has_js_reference) {
+            $index_content = file_get_contents($indexPath);
+            $refs = validate_index_references($index_content);
+
+            if ($refs['has_js_reference']) {
                 echo "<p>Référence à un fichier JavaScript dans /assets/: <span class='success'>TROUVÉE</span></p>";
             } else {
                 echo "<p>Référence à un fichier JavaScript dans /assets/: <span class='error'>NON TROUVÉE</span></p>";
             }
-            
-            if ($has_css_reference) {
+            if ($refs['has_css_reference']) {
                 echo "<p>Référence à un fichier CSS dans /assets/: <span class='success'>TROUVÉE</span></p>";
             } else {
                 echo "<p>Référence à un fichier CSS dans /assets/: <span class='error'>NON TROUVÉE</span></p>";
             }
-            
-            if ($has_src_reference) {
+            if ($refs['has_src_reference']) {
                 echo "<p>Référence à un fichier dans /src/: <span class='error'>TROUVÉE (doit être remplacée)</span></p>";
             }
-            
             echo "<p>Contenu actuel de index.html:</p>";
             echo "<pre>" . htmlspecialchars($index_content) . "</pre>";
         } else {
@@ -59,123 +56,49 @@ header('Content-Type: text/html; charset=utf-8');
     <div class="section">
         <h2>Recherche des fichiers JavaScript et CSS compilés</h2>
         <?php
-        $js_files = glob('../assets/*.js');
-        $css_files = glob('../assets/*.css');
-        
-        if (!empty($js_files)) {
-            // Trouver le fichier main.js le plus récent
-            $latest_main_js = "";
-            $latest_main_time = 0;
-            
-            foreach ($js_files as $js_file) {
-                $filename = basename($js_file);
-                if (strpos($filename, 'main-') === 0) {
-                    $file_time = filemtime($js_file);
-                    if ($file_time > $latest_main_time) {
-                        $latest_main_time = $file_time;
-                        $latest_main_js = $filename;
-                    }
-                }
-            }
-            
-            if (!empty($latest_main_js)) {
-                echo "<p>Fichier main.js le plus récent: <span class='success'>" . $latest_main_js . "</span> (" . date('Y-m-d H:i:s', $latest_main_time) . ")</p>";
-            } else {
-                echo "<p>Fichier main.js: <span class='error'>AUCUN TROUVÉ</span></p>";
-            }
-            
-            // Lister tous les fichiers JS
-            echo "<p>Tous les fichiers JavaScript trouvés:</p><ul>";
-            foreach ($js_files as $js_file) {
-                $filename = basename($js_file);
-                echo "<li>" . $filename . " (" . filesize($js_file) . " octets)</li>";
-            }
-            echo "</ul>";
-        } else {
-            echo "<p>Fichiers JavaScript: <span class='error'>AUCUN TROUVÉ</span></p>";
-        }
-        
-        if (!empty($css_files)) {
-            // Trouver le fichier CSS le plus récent
-            $latest_css = "";
-            $latest_css_time = 0;
-            
-            foreach ($css_files as $css_file) {
-                $filename = basename($css_file);
-                $file_time = filemtime($css_file);
-                if ($file_time > $latest_css_time) {
-                    $latest_css_time = $file_time;
-                    $latest_css = $filename;
-                }
-            }
-            
-            if (!empty($latest_css)) {
-                echo "<p>Fichier CSS le plus récent: <span class='success'>" . $latest_css . "</span> (" . date('Y-m-d H:i:s', $latest_css_time) . ")</p>";
-            } else {
-                echo "<p>Fichier CSS: <span class='error'>AUCUN TROUVÉ</span></p>";
-            }
-            
-            // Lister tous les fichiers CSS
-            echo "<p>Tous les fichiers CSS trouvés:</p><ul>";
-            foreach ($css_files as $css_file) {
-                $filename = basename($css_file);
-                echo "<li>" . $filename . " (" . filesize($css_file) . " octets)</li>";
-            }
-            echo "</ul>";
-        } else {
-            echo "<p>Fichiers CSS: <span class='error'>AUCUN TROUVÉ</span></p>";
-        }
+        $js_files = find_assets_in_dir('../assets', 'js');
+        $css_files = find_assets_in_dir('../assets', 'css');
+        list($latest_main_js, $latest_main_time) = find_latest_asset($js_files, 'main-');
+        list($latest_css, $latest_css_time) = find_latest_asset($css_files, 'index-');
         ?>
+        <?php if (!empty($js_files)): ?>
+            <p>Tous les fichiers JavaScript trouvés:</p><ul>
+                <?= list_assets($js_files) ?>
+            </ul>
+        <?php else: ?>
+            <p>Fichiers JavaScript: <span class='error'>AUCUN TROUVÉ</span></p>
+        <?php endif; ?>
+        <?php if (!empty($css_files)): ?>
+            <p>Tous les fichiers CSS trouvés:</p><ul>
+                <?= list_assets($css_files) ?>
+            </ul>
+        <?php else: ?>
+            <p>Fichiers CSS: <span class='error'>AUCUN TROUVÉ</span></p>
+        <?php endif; ?>
+        <?php if ($latest_main_js): ?>
+            <p>Fichier main.js le plus récent: <span class='success'><?= $latest_main_js ?></span> (<?= date('Y-m-d H:i:s', $latest_main_time) ?>)</p>
+        <?php endif; ?>
+        <?php if ($latest_css): ?>
+            <p>Fichier CSS le plus récent: <span class='success'><?= $latest_css ?></span> (<?= date('Y-m-d H:i:s', $latest_css_time) ?>)</p>
+        <?php endif; ?>
     </div>
     
     <div class="section">
         <h2>Correction automatique de index.html</h2>
         <?php
-        if (file_exists('../index.html')) {
-            $needs_correction = !$has_js_reference || !$has_css_reference || $has_src_reference;
-            
+        if (file_exists($indexPath)) {
+            $needs_correction = !$refs['has_js_reference'] || !$refs['has_css_reference'] || $refs['has_src_reference'];
             if ($needs_correction && !empty($latest_main_js)) {
                 echo "<p>Des corrections sont nécessaires dans index.html pour référencer correctement les assets.</p>";
-                
                 if (isset($_POST['fix_index'])) {
-                    // Créer une sauvegarde
-                    copy('../index.html', '../index.html.bak');
-                    
-                    $index_content = file_get_contents('../index.html');
-                    $new_content = $index_content;
-                    
-                    // Ajouter la référence CSS si nécessaire
-                    if (!empty($latest_css) && !$has_css_reference) {
-                        $new_content = preg_replace(
-                            '/<\/head>/',
-                            '    <link rel="stylesheet" href="/assets/' . $latest_css . '" />' . "\n" . '</head>',
-                            $new_content
-                        );
-                    }
-                    
-                    // Remplacer ou ajouter la référence JS
-                    if ($has_src_reference) {
-                        $new_content = preg_replace(
-                            '/<script[^>]*src="\/src\/[^"]*"[^>]*>/',
-                            '<script type="module" src="/assets/' . $latest_main_js . '">',
-                            $new_content
-                        );
-                    } else if (!$has_js_reference) {
-                        $new_content = preg_replace(
-                            '/<\/body>/',
-                            '    <script type="module" src="/assets/' . $latest_main_js . '"></script>' . "\n" . '</body>',
-                            $new_content
-                        );
-                    }
-                    
-                    // Sauvegarder les modifications
-                    file_put_contents('../index.html', $new_content);
+                    copy($indexPath, $indexPath . '.bak');
+                    $new_content = patch_index_html($index_content, $latest_main_js, $latest_css);
+                    file_put_contents($indexPath, $new_content);
                     echo "<p><span class='success'>Correction appliquée! Le fichier index.html a été mis à jour.</span></p>";
                     echo "<p>Une sauvegarde a été créée: index.html.bak</p>";
                     echo "<p>Contenu du nouvel index.html:</p>";
                     echo "<pre>" . htmlspecialchars($new_content) . "</pre>";
                 } else {
-                    // Formulaire pour appliquer les corrections
                     echo "<form method='post'>";
                     echo "<input type='hidden' name='fix_index' value='1'>";
                     echo "<button type='submit' class='fix-button'>Corriger index.html automatiquement</button>";
