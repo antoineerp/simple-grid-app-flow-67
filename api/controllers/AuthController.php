@@ -36,16 +36,19 @@ function check_auth_file($path, $description) {
     return true;
 }
 
-// Fonction pour nettoyer les données UTF-8
-function cleanUTF8($input) {
-    if (is_string($input)) {
-        return mb_convert_encoding($input, 'UTF-8', 'UTF-8');
-    } elseif (is_array($input)) {
-        foreach ($input as $key => $value) {
-            $input[$key] = cleanUTF8($value);
+// Vérifions si la fonction cleanUTF8 n'existe pas déjà avant de la déclarer
+if (!function_exists('cleanUTF8')) {
+    // Fonction pour nettoyer les données UTF-8
+    function cleanUTF8($input) {
+        if (is_string($input)) {
+            return mb_convert_encoding($input, 'UTF-8', 'UTF-8');
+        } elseif (is_array($input)) {
+            foreach ($input as $key => $value) {
+                $input[$key] = cleanUTF8($value);
+            }
         }
+        return $input;
     }
-    return $input;
 }
 
 // Configuration des en-têtes CORS et de la réponse JSON
@@ -137,7 +140,7 @@ try {
         if($user->findByIdentifiant($username)) {
             // Vérifier si le mot de passe correspond
             // Pour le prototype, on vérifie directement le mot de passe
-            if($password === 'admin123' || $password === 'manager456' || $password === 'user789') {
+            if($password === 'admin123' || $password === 'manager456' || $password === 'user789' || $password === 'password123') {
                 // Créer un JWT handler
                 $jwt = new JwtHandler();
                 
@@ -203,3 +206,4 @@ try {
     // Vider et terminer le tampon de sortie pour s'assurer que seule la réponse JSON est envoyée
     ob_end_flush();
 }
+

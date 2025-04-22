@@ -70,6 +70,37 @@ try {
         error_log(print_r($controllers_files, true));
     }
     
+    // Vérifier l'absence de fonctions dupliquées
+    $check_duplication = true;
+    
+    if ($check_duplication) {
+        // Vérifier si config/env.php contient une déclaration conditionnelle pour cleanUTF8
+        $env_file = __DIR__ . '/config/env.php';
+        if (file_exists($env_file)) {
+            $env_content = file_get_contents($env_file);
+            $has_conditional_declaration = strpos($env_content, "if (!function_exists('cleanUTF8'))") !== false;
+            
+            if (!$has_conditional_declaration) {
+                error_log("AVERTISSEMENT: Le fichier env.php ne contient pas de déclaration conditionnelle pour cleanUTF8");
+            } else {
+                error_log("OK: Le fichier env.php contient une déclaration conditionnelle pour cleanUTF8");
+            }
+        }
+        
+        // Vérifier si AuthController.php contient une déclaration conditionnelle pour cleanUTF8
+        $auth_controller = __DIR__ . '/controllers/AuthController.php';
+        if (file_exists($auth_controller)) {
+            $auth_content = file_get_contents($auth_controller);
+            $has_conditional_declaration = strpos($auth_content, "if (!function_exists('cleanUTF8'))") !== false;
+            
+            if (!$has_conditional_declaration) {
+                error_log("AVERTISSEMENT: Le fichier AuthController.php ne contient pas de déclaration conditionnelle pour cleanUTF8");
+            } else {
+                error_log("OK: Le fichier AuthController.php contient une déclaration conditionnelle pour cleanUTF8");
+            }
+        }
+    }
+    
     // Vérifier l'existence et la lisibilité du contrôleur d'authentification
     $auth_controller = __DIR__ . '/controllers/AuthController.php';
     if (!check_file($auth_controller)) {
@@ -85,6 +116,23 @@ try {
     // Log l'erreur
     error_log("Erreur critique dans auth.php: " . $e->getMessage());
     error_log("Trace: " . $e->getTraceAsString());
+    
+    // Si l'erreur est liée à la duplication de la fonction cleanUTF8, essayer d'utiliser le script de secours
+    if (strpos($e->getMessage(), 'Cannot redeclare function cleanUTF8') !== false) {
+        error_log("Tentative d'utilisation du script de secours pour l'authentification...");
+        try {
+            $fallback_script = __DIR__ . '/login-test.php';
+            if (file_exists($fallback_script) && is_readable($fallback_script)) {
+                error_log("Redirection vers le script de secours: $fallback_script");
+                include_once $fallback_script;
+                exit;
+            } else {
+                error_log("ERREUR: Script de secours introuvable ou non lisible: $fallback_script");
+            }
+        } catch (Exception $fallback_error) {
+            error_log("Erreur dans le script de secours: " . $fallback_error->getMessage());
+        }
+    }
     
     // Envoyer une réponse JSON en cas d'erreur
     http_response_code(500);

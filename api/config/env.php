@@ -150,9 +150,12 @@ if ($environment === 'production') {
     error_reporting(E_ALL);
 }
 
-// Fonction pour nettoyer et convertir en UTF-8
-function cleanUTF8($input) {
-    return mb_convert_encoding($input, 'UTF-8', 'UTF-8');
+// Vérifions si la fonction cleanUTF8 n'existe pas déjà avant de la déclarer
+if (!function_exists('cleanUTF8')) {
+    // Fonction pour nettoyer et convertir en UTF-8
+    function cleanUTF8($input) {
+        return mb_convert_encoding($input, 'UTF-8', 'UTF-8');
+    }
 }
 
 // Fonction d'aide pour obtenir une variable d'environnement
