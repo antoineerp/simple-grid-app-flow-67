@@ -39,8 +39,14 @@ jobs:
       run: |
         echo "Verifying build directory structure..."
         ls -la dist/
+        echo "Checking assets..."
         ls -la dist/assets/ || echo "No assets directory found"
+        echo "Checking uploads..."
         ls -la dist/public/lovable-uploads/ || echo "No uploads directory found"
+        echo "Checking index.html..."
+        cat dist/index.html || echo "index.html is missing!"
+        echo "Checking .htaccess..."
+        cat dist/.htaccess || echo ".htaccess is missing!"
         
     - name: Deploy to Infomaniak
       uses: SamKirkland/FTP-Deploy-Action@v4.3.4

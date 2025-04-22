@@ -24,7 +24,7 @@ header('Content-Type: text/html; charset=utf-8');
         $required_files = [
             'index.html' => 'Page principale',
             '.htaccess' => 'Configuration Apache',
-            'assets/index.js' => 'JavaScript compilé',
+            'assets/index-PHASH.js' => 'JavaScript compilé (pattern)',
             'api/index.php' => 'Point d\'entrée API',
             'api/.htaccess' => 'Configuration API',
             'api/config/env.php' => 'Configuration environnement'
@@ -32,7 +32,16 @@ header('Content-Type: text/html; charset=utf-8');
 
         foreach ($required_files as $file => $description) {
             echo "<p>$description ($file): ";
-            if (file_exists($file)) {
+            if (strpos($file, 'PHASH') !== false) {
+                // Recherche de fichier avec pattern
+                $pattern = str_replace('PHASH', '*', $file);
+                $found_files = glob($pattern);
+                if (!empty($found_files)) {
+                    echo "<span class='success'>✓ Présent</span> (" . implode(', ', $found_files) . ")";
+                } else {
+                    echo "<span class='error'>✗ Manquant</span>";
+                }
+            } else if (file_exists($file)) {
                 echo "<span class='success'>✓ Présent</span>";
             } else {
                 echo "<span class='error'>✗ Manquant</span>";
@@ -43,21 +52,26 @@ header('Content-Type: text/html; charset=utf-8');
     </div>
 
     <div class="section">
-        <h2>2. Configuration Apache</h2>
+        <h2>2. Structure du répertoire</h2>
         <?php
-        $apache_modules = [
-            'mod_rewrite' => function_exists('apache_get_modules') ? in_array('mod_rewrite', apache_get_modules()) : "Non détectable",
-            'mod_headers' => function_exists('apache_get_modules') ? in_array('mod_headers', apache_get_modules()) : "Non détectable"
+        $directories = [
+            '.' => 'Répertoire racine',
+            './assets' => 'Répertoire assets',
+            './api' => 'Répertoire API',
+            './public' => 'Répertoire public',
+            './public/lovable-uploads' => 'Répertoire uploads'
         ];
-
-        foreach ($apache_modules as $module => $enabled) {
-            echo "<p>Module $module: ";
-            if ($enabled === true) {
-                echo "<span class='success'>Activé</span>";
-            } elseif ($enabled === false) {
-                echo "<span class='error'>Désactivé</span>";
+        
+        foreach ($directories as $dir => $name) {
+            echo "<p>$name: ";
+            if (is_dir($dir)) {
+                echo "<span class='success'>OK</span>";
+                // Liste des fichiers
+                $files = scandir($dir);
+                $fileCount = count($files) - 2; // Moins . et ..
+                echo " ($fileCount fichiers)";
             } else {
-                echo "<span class='warning'>$enabled</span>";
+                echo "<span class='error'>MANQUANT</span>";
             }
             echo "</p>";
         }
@@ -65,27 +79,29 @@ header('Content-Type: text/html; charset=utf-8');
     </div>
 
     <div class="section">
-        <h2>3. Configuration PHP</h2>
-        <?php
-        $php_config = [
-            'Version PHP' => phpversion(),
-            'memory_limit' => ini_get('memory_limit'),
-            'upload_max_filesize' => ini_get('upload_max_filesize'),
-            'post_max_size' => ini_get('post_max_size'),
-            'max_execution_time' => ini_get('max_execution_time')
-        ];
-
-        foreach ($php_config as $setting => $value) {
-            echo "<p>$setting: $value</p>";
+        <h2>3. Contenu de index.html</h2>
+        <pre><?php 
+        if (file_exists('./index.html')) {
+            echo htmlspecialchars(file_get_contents('./index.html')); 
+        } else {
+            echo "<span class='error'>Fichier non trouvé</span>";
         }
-        ?>
+        ?></pre>
     </div>
 
     <div class="section">
-        <h2>4. Test de l'API</h2>
+        <h2>4. Test de chargement JavaScript</h2>
+        <div id="js-test">Si JavaScript fonctionne, ce texte sera remplacé.</div>
+        <script>
+            document.getElementById('js-test').textContent = 'JavaScript fonctionne correctement!';
+            document.getElementById('js-test').style.color = 'green';
+        </script>
+    </div>
+
+    <div class="section">
+        <h2>5. Test d'accès à l'API</h2>
         <?php
         $api_endpoints = [
-            '/api' => 'Point d\'entrée principal',
             '/api/test.php' => 'Test endpoint'
         ];
 
@@ -101,59 +117,13 @@ header('Content-Type: text/html; charset=utf-8');
 
             if ($httpCode >= 200 && $httpCode < 300) {
                 echo "<span class='success'>✓ OK (Code $httpCode)</span>";
+                echo "<pre>" . htmlspecialchars(substr($result, 0, 200)) . (strlen($result) > 200 ? '...' : '') . "</pre>";
             } else {
                 echo "<span class='error'>✗ Erreur (Code $httpCode)</span>";
             }
             echo "</p>";
         }
         ?>
-    </div>
-
-    <div class="section">
-        <h2>5. Permissions des Dossiers</h2>
-        <?php
-        $directories = [
-            'assets' => 'Dossier assets',
-            'api' => 'Dossier API',
-            'api/config' => 'Configuration API',
-            'public/lovable-uploads' => 'Dossier uploads'
-        ];
-
-        foreach ($directories as $dir => $description) {
-            echo "<p>$description ($dir): ";
-            if (is_dir($dir)) {
-                $perms = substr(sprintf('%o', fileperms($dir)), -4);
-                echo "Permissions: $perms ";
-                if (is_writable($dir)) {
-                    echo "<span class='success'>✓ Accessible en écriture</span>";
-                } else {
-                    echo "<span class='error'>✗ Non accessible en écriture</span>";
-                }
-            } else {
-                echo "<span class='error'>✗ Dossier non trouvé</span>";
-            }
-            echo "</p>";
-        }
-        ?>
-    </div>
-
-    <div class="section">
-        <h2>Paramètres de déploiement</h2>
-        <p>Serveur: <?php echo $_SERVER['SERVER_NAME'] ?? 'Non détecté'; ?></p>
-        <p>Chemin racine: <?php echo $_SERVER['DOCUMENT_ROOT'] ?? 'Non détecté'; ?></p>
-        <p>Chemin script: <?php echo __DIR__; ?></p>
-        <p>Utilisateur du processus: <?php echo get_current_user(); ?></p>
-    </div>
-
-    <div class="section">
-        <h2>Instructions de Déploiement</h2>
-        <ol>
-            <li>Assurez-vous que tous les fichiers sont présents (section 1)</li>
-            <li>Vérifiez que les modules Apache nécessaires sont activés (section 2)</li>
-            <li>Ajustez les paramètres PHP si nécessaire (section 3)</li>
-            <li>Testez l'API et vérifiez qu'elle répond correctement (section 4)</li>
-            <li>Vérifiez les permissions des dossiers (section 5)</li>
-        </ol>
     </div>
 </body>
 </html>
