@@ -125,24 +125,6 @@ try {
     error_log("Erreur critique dans auth.php: " . $e->getMessage());
     error_log("Trace: " . $e->getTraceAsString());
     
-    // Si l'erreur est liée à la duplication de la fonction cleanUTF8, essayer d'utiliser le script de secours
-    if (strpos($e->getMessage(), 'Cannot redeclare function cleanUTF8') !== false || 
-        strpos($e->getMessage(), 'Erreur de connexion à la base de données') !== false) {
-        error_log("Tentative d'utilisation du script de secours pour l'authentification...");
-        try {
-            $fallback_script = __DIR__ . '/login-test.php';
-            if (file_exists($fallback_script) && is_readable($fallback_script)) {
-                error_log("Redirection vers le script de secours: $fallback_script");
-                include_once $fallback_script;
-                exit;
-            } else {
-                error_log("ERREUR: Script de secours introuvable ou non lisible: $fallback_script");
-            }
-        } catch (Exception $fallback_error) {
-            error_log("Erreur dans le script de secours: " . $fallback_error->getMessage());
-        }
-    }
-    
     // Envoyer une réponse JSON en cas d'erreur
     http_response_code(500);
     echo json_encode([

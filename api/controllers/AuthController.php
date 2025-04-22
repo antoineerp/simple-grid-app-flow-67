@@ -126,107 +126,19 @@ try {
             include_once $jwtFile;
             error_log("Fichiers de base inclus avec succès");
             
-            // ======= Mode de secours si la base de données n'est pas disponible =======
-            // Vérifier si nous devons utiliser le mode de secours
-            $use_fallback = false;
-            $db = null;
+            // Exiger une connexion à la base de données
+            $database = new Database();
+            $db = $database->getConnection(true); // Exiger une connexion
             
-            try {
-                // Essayer d'obtenir une connexion à la base de données
-                $database = new Database();
-                $db = $database->getConnection(false); // Ne pas exiger de connexion
-                
-                // Si pas de connexion, passer en mode secours
-                if (!$database->is_connected) {
-                    error_log("Connexion à la base de données échouée, utilisation du mode de secours");
-                    $use_fallback = true;
-                } else {
-                    error_log("Connexion à la base de données établie avec succès");
-                    // Inclure le modèle utilisateur si la base de données est disponible
-                    include_once $userFile;
-                }
-            } catch (Exception $e) {
-                error_log("Erreur lors de la connexion à la base de données: " . $e->getMessage());
-                $use_fallback = true;
+            if (!$database->is_connected) {
+                throw new Exception("Impossible de se connecter à la base de données");
             }
             
-            if ($use_fallback) {
-                // Mode de secours : authentification statique sans base de données
-                error_log("Mode de secours activé - Authentification statique");
-                
-                // Liste des utilisateurs statiques
-                $static_users = [
-                    'p71x6d_system' => [
-                        'password' => 'admin123',
-                        'role' => 'admin',
-                        'id' => 1,
-                        'nom' => 'Administrateur',
-                        'prenom' => 'Système',
-                        'email' => 'admin@formacert.ch'
-                    ],
-                    'p71x6d_dupont' => [
-                        'password' => 'manager456',
-                        'role' => 'gestionnaire',
-                        'id' => 2,
-                        'nom' => 'Dupont',
-                        'prenom' => 'Jean',
-                        'email' => 'jean.dupont@formacert.ch'
-                    ],
-                    'p71x6d_martin' => [
-                        'password' => 'user789',
-                        'role' => 'utilisateur',
-                        'id' => 3,
-                        'nom' => 'Martin',
-                        'prenom' => 'Sophie',
-                        'email' => 'sophie.martin@formacert.ch'
-                    ]
-                ];
-                
-                if (isset($static_users[$username]) && $static_users[$username]['password'] === $password) {
-                    $user_data = $static_users[$username];
-                    
-                    // Créer un JWT handler
-                    $jwt = new JwtHandler();
-                    
-                    // Données à encoder dans le JWT
-                    $token_data = array(
-                        "id" => $user_data['id'],
-                        "identifiant_technique" => $username,
-                        "role" => $user_data['role']
-                    );
-                    
-                    // Générer le token JWT
-                    $token = $jwt->encode($token_data);
-                    
-                    error_log("Connexion réussie (mode secours) pour: " . $username);
-                    
-                    // Réponse
-                    http_response_code(200);
-                    echo json_encode(
-                        array(
-                            "message" => "Connexion réussie (mode secours)",
-                            "token" => $token,
-                            "user" => array(
-                                "id" => $user_data['id'],
-                                "nom" => $user_data['nom'],
-                                "prenom" => $user_data['prenom'],
-                                "email" => $user_data['email'],
-                                "identifiant_technique" => $username,
-                                "role" => $user_data['role']
-                            )
-                        )
-                    );
-                    exit;
-                } else {
-                    // Si les identifiants ne correspondent pas
-                    error_log("Identifiants invalides (mode secours) pour: " . $username);
-                    http_response_code(401);
-                    echo json_encode(array("message" => "Identifiants invalides", "status" => 401));
-                    exit;
-                }
-            }
+            error_log("Connexion à la base de données établie avec succès");
             
-            // ======= Mode normal avec base de données =======
+            // Inclure le modèle utilisateur
+            include_once $userFile;
+            
             // Instancier l'utilisateur
             $user = new User($db);
             error_log("Objet User créé avec succès");
