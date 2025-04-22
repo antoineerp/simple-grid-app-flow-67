@@ -1,5 +1,6 @@
 
-import React from 'react'; // Ajout de l'importation de React
+import React from 'react'; 
+import "./App.css"; // Importer explicitement App.css
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";

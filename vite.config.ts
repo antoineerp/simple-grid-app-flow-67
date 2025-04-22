@@ -33,8 +33,11 @@ export default defineConfig(({ mode }) => ({
     '__APP_MODE__': JSON.stringify(mode)
   },
   css: {
-    // Ensure CSS is extracted to separate files
+    // Ensure CSS is extracted and properly processed
     devSourcemap: true,
+    modules: {
+      scopeBehaviour: 'local',
+    },
   },
   build: {
     outDir: 'dist',
@@ -62,6 +65,8 @@ export default defineConfig(({ mode }) => ({
         },
       }
     },
+    // Explicitly ensure CSS extraction
+    cssCodeSplit: false,
     // Ensure compatibility with older browsers
     target: ['es2015', 'edge88', 'firefox78', 'chrome87', 'safari13']
   },

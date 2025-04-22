@@ -37,9 +37,11 @@ RewriteRule ^test-minimal\.php$ test-minimal.php [L]
     </Directory>
 </IfModule>
 
-# Traitement des fichiers d'assets sans hachage
+# Traitement direct des fichiers CSS et JS (sans hachage)
 RewriteRule ^assets/index\.js$ dist/assets/index.js [L]
 RewriteRule ^assets/index\.css$ dist/assets/index.css [L]
+RewriteRule ^dist/assets/index\.css$ dist/assets/index.css [L]
+RewriteRule ^index\.css$ dist/assets/index.css [L]
 
 # Traitement direct des fichiers d'assets
 RewriteRule ^dist/assets/(.*)$ dist/assets/$1 [L]
