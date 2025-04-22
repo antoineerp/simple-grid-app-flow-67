@@ -1,4 +1,3 @@
-
 <?php
 // Fichier de test de login simplifié
 header("Access-Control-Allow-Origin: *");
@@ -40,7 +39,7 @@ if (!empty($data->username) && !empty($data->password)) {
     // Liste des utilisateurs de test autorisés
     $test_users = [
         'admin' => ['password' => 'admin123', 'role' => 'admin'],
-        'p71x6d_system' => ['password' => 'admin123', 'role' => 'admin'],
+        'p71x6d_system' => ['password' => 'Trottinette43!', 'role' => 'admin'], // Mot de passe mis à jour
         'antcirier@gmail.com' => ['password' => 'password123', 'role' => 'admin'],
         'p71x6d_dupont' => ['password' => 'manager456', 'role' => 'gestionnaire'],
         'p71x6d_martin' => ['password' => 'user789', 'role' => 'utilisateur']
@@ -102,3 +101,4 @@ if (!empty($data->username) && !empty($data->password)) {
         ]
     ]);
 }
+?>
