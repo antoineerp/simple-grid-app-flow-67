@@ -10,6 +10,10 @@ const Index = () => {
         <Logo />
         <LoginForm />
       </div>
+      
+      <div className="fixed bottom-4 right-4 text-xs text-gray-400">
+        Version: 1.0.1 - {new Date().toLocaleDateString()}
+      </div>
     </div>
   );
 };

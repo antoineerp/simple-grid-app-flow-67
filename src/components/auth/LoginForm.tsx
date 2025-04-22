@@ -6,12 +6,24 @@ import { useLoginForm } from '@/hooks/useLoginForm';
 import UsernameField from './UsernameField';
 import PasswordField from './PasswordField';
 import ForgotPasswordLink from './ForgotPasswordLink';
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { AlertCircle } from 'lucide-react';
 
 const LoginForm = () => {
-  const { form, isLoading, onSubmit } = useLoginForm();
+  const { form, isLoading, hasDbError, onSubmit } = useLoginForm();
 
   return (
     <>
+      {hasDbError && (
+        <Alert variant="destructive" className="mb-6">
+          <AlertCircle className="h-4 w-4 mr-2" />
+          <AlertDescription>
+            Connexion à la base de données impossible. Le service est momentanément indisponible. 
+            Veuillez réessayer ultérieurement ou contacter l'administrateur système.
+          </AlertDescription>
+        </Alert>
+      )}
+      
       <Form {...form}>
         <form onSubmit={onSubmit} className="space-y-6">
           <UsernameField control={form.control} />

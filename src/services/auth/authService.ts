@@ -12,7 +12,7 @@ class AuthService {
     private currentUser: string | null = null;
 
     private constructor() {
-        console.log("Service d'authentification initialisé");
+        console.log("Authentication service initialized");
         this.token = localStorage.getItem('authToken');
         this.currentUser = localStorage.getItem('currentUser');
     }
@@ -43,7 +43,8 @@ class AuthService {
     public getAuthHeaders(): HeadersInit {
         const headers: HeadersInit = {
             'Content-Type': 'application/json',
-            'Cache-Control': 'no-cache, no-store, must-revalidate'
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Accept': 'application/json'
         };
         
         const token = this.getToken();
@@ -58,23 +59,61 @@ class AuthService {
         try {
             const currentApiUrl = getApiUrl();
             console.log(`Tentative de connexion pour l'utilisateur: ${username}`);
+            console.log(`Tentative de connexion à l'API: ${currentApiUrl}/auth.php`);
             
-            const response = await fetch(`${currentApiUrl}/auth.php`, {
+            // Add a cache-busting parameter to ensure we're not getting cached responses
+            const timestamp = new Date().getTime();
+            const url = `${currentApiUrl}/auth.php?_=${timestamp}`;
+            console.log(`URL de requête complète: ${url}`);
+            
+            // Log the request payload and headers (without password)
+            console.log(`Données de connexion: ${JSON.stringify({username})}`);
+            
+            const headers = {
+                'Content-Type': 'application/json',
+                'Cache-Control': 'no-cache, no-store, must-revalidate',
+                'Accept': 'application/json'
+            };
+            
+            console.log(`En-têtes de la requête: ${JSON.stringify(headers)}`);
+            
+            const response = await fetch(url, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Cache-Control': 'no-cache, no-store, must-revalidate'
-                },
+                headers,
                 body: JSON.stringify({ username, password })
             });
 
+            console.log(`Réponse de l'API reçue: ${response.status} ${response.statusText}`);
+            console.log(`Type de contenu reçu: ${response.headers.get('Content-Type')}`);
+            
+            // Get the raw response text for debugging
+            const responseText = await response.text();
+            console.log(`Texte de réponse brut: ${responseText}`);
+            
+            // Try to parse the response as JSON
+            let data;
+            try {
+                data = JSON.parse(responseText);
+            } catch (parseError) {
+                console.error("Erreur de parsing JSON:", parseError);
+                throw new Error(`Réponse invalide du serveur: ${responseText.substring(0, 100)}...`);
+            }
+            
+            // Check for database connection error pattern
             if (!response.ok) {
-                const errorData = await response.json().catch(() => null);
-                throw new Error(errorData?.message || `Erreur HTTP ${response.status}`);
+                const errorMessage = data?.error || data?.message || `Erreur HTTP ${response.status}`;
+                
+                // Detect database connection issues
+                if (errorMessage.includes("connexion à la base de données") || 
+                    errorMessage.includes("Access denied for user") ||
+                    errorMessage.includes("database connection")) {
+                    
+                    throw new Error("Erreur de connexion à la base de données. Veuillez contacter l'administrateur système.");
+                }
+                
+                throw new Error(errorMessage);
             }
 
-            const data = await response.json();
-            
             if (!data.token || !data.user) {
                 throw new Error("Réponse d'authentification invalide");
             }
@@ -82,10 +121,12 @@ class AuthService {
             // Stocker les informations de l'utilisateur de manière cohérente
             this.setToken(data.token);
             this.currentUser = username;
-            localStorage.setItem('userRole', data.user.role);
+            localStorage.setItem('userRole', data.user.role || 'user');
             localStorage.setItem('currentUser', username);
-            localStorage.setItem('userTechnicalId', data.user.identifiant_technique);
+            localStorage.setItem('userTechnicalId', data.user.identifiant_technique || username);
             localStorage.setItem('isLoggedIn', 'true');
+            localStorage.setItem('userName', data.user.nom || username);
+            localStorage.setItem('userFirstName', data.user.prenom || '');
             
             await initializeUserData(data.user.identifiant_technique || username);
             
@@ -94,7 +135,7 @@ class AuthService {
                 user: data.user
             };
         } catch (error) {
-            console.error("Erreur d'authentification:", error);
+            console.error("Erreur API:", error instanceof Error ? error.message : "Erreur inconnue");
             throw error;
         }
     }
@@ -106,6 +147,8 @@ class AuthService {
         localStorage.removeItem('currentUser');
         localStorage.removeItem('userTechnicalId');
         localStorage.removeItem('isLoggedIn');
+        localStorage.removeItem('userName');
+        localStorage.removeItem('userFirstName');
         disconnectUser();
         
         console.log("Déconnexion effectuée avec succès");
@@ -118,9 +161,25 @@ export const loginUser = async (username: string, password: string): Promise<any
     try {
         return await authService.login(username, password);
     } catch (error) {
+        // Provide user-friendly error messages based on error type
+        let errorMessage = "Erreur inconnue lors de la connexion";
+        
+        if (error instanceof Error) {
+            errorMessage = error.message;
+            
+            // Override with more user-friendly messages for specific cases
+            if (error.message.includes("Erreur de connexion à la base de données")) {
+                errorMessage = "Impossible de se connecter à la base de données. Le service est temporairement indisponible. Veuillez réessayer ultérieurement ou contacter l'administrateur.";
+            } else if (error.message.includes("identifiants invalides") || error.message.includes("Identifiants invalides")) {
+                errorMessage = "Identifiants incorrects. Veuillez vérifier votre nom d'utilisateur et votre mot de passe.";
+            } else if (error.message.includes("réseau") || error.message.includes("network")) {
+                errorMessage = "Problème de connexion réseau. Veuillez vérifier votre connexion internet et réessayer.";
+            }
+        }
+        
         toast({
             title: "Erreur de connexion",
-            description: error instanceof Error ? error.message : "Erreur inconnue lors de la connexion",
+            description: errorMessage,
             variant: "destructive",
         });
         throw error;
