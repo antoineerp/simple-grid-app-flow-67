@@ -1,4 +1,8 @@
 
+# Forcer l'exécution de PHP - Configuration renforcée
+AddHandler application/x-httpd-php .php
+SetHandler application/x-httpd-php
+
 # Activer la réécriture d'URL
 RewriteEngine On
 
@@ -7,7 +11,10 @@ RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^(.*)$ index.php [QSA,L]
 
-# Définir les en-têtes CORS
+# Configuration UTF-8
+AddDefaultCharset UTF-8
+
+# Configuration CORS
 <IfModule mod_headers.c>
     Header set Access-Control-Allow-Origin "*"
     Header set Access-Control-Allow-Methods "GET, POST, OPTIONS, PUT, DELETE"
@@ -19,12 +26,21 @@ RewriteRule ^(.*)$ index.php [QSA,L]
     Header set Expires 0
 </IfModule>
 
-# Forcer PHP à utiliser le bon encodage
+# Forcer l'exécution des scripts PHP (configuration renforcée)
+<FilesMatch "\.php$">
+    # Définir explicitement le gestionnaire PHP
+    SetHandler application/x-httpd-php
+    
+    # Options supplémentaires
+    Options +ExecCGI
+    
+    # Forcer le contenu comme étant du PHP
+    ForceType application/x-httpd-php
+</FilesMatch>
+
+# Configuration supplémentaire du module PHP
 <IfModule mod_php.c>
     php_value default_charset "UTF-8"
+    php_flag display_errors on
+    php_value error_reporting E_ALL
 </IfModule>
-
-# Force l'exécution des scripts PHP (très important)
-<FilesMatch "\.php$">
-    SetHandler application/x-httpd-php
-</FilesMatch>

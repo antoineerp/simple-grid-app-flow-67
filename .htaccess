@@ -1,12 +1,21 @@
 
-# Active l'exécution des scripts PHP
-<IfModule mod_php7.c>
+# Activation du moteur de réécriture
+RewriteEngine On
+RewriteBase /
+
+# Forcer l'exécution des scripts PHP
+<Files *.php>
+    SetHandler application/x-httpd-php
+</Files>
+
+# Forcer l'utilisation de PHP 8.x si disponible
+<IfModule mod_php8.c>
     php_flag display_errors on
     php_value error_reporting E_ALL
 </IfModule>
 
-# Si le module mod_php7 n'est pas chargé, essayons avec mod_php8
-<IfModule mod_php8.c>
+# Si PHP 8 n'est pas disponible, utiliser PHP 7.x
+<IfModule mod_php7.c>
     php_flag display_errors on
     php_value error_reporting E_ALL
 </IfModule>
@@ -16,11 +25,11 @@
     AddType application/x-httpd-php .php
 </IfModule>
 
+# Rediriger toutes les requêtes vers l'API directement vers /api
+RewriteRule ^api(/.*)?$ api$1 [L]
+
 # Rediriger toutes les requêtes non-fichiers vers index.html pour le routing React
 <IfModule mod_rewrite.c>
-    RewriteEngine On
-    RewriteBase /
-    
     # Si le fichier ou dossier demandé existe réellement, servir directement
     RewriteCond %{REQUEST_FILENAME} -f [OR]
     RewriteCond %{REQUEST_FILENAME} -d
@@ -33,10 +42,8 @@
     RewriteRule ^ index.html [L]
 </IfModule>
 
-# Force PHP execution (important)
-<Files *.php>
-    SetHandler application/x-httpd-php
-</Files>
+# Configuration UTF-8
+AddDefaultCharset UTF-8
 
-# Définir l'index par défaut
+# Index par défaut
 DirectoryIndex index.html index.php

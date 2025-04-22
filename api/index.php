@@ -1,6 +1,6 @@
 
 <?php
-// Point d'entrée API simple et direct
+// Point d'entrée API renforcé avec détection des erreurs d'exécution
 header('Content-Type: application/json; charset=utf-8');
 header("Cache-Control: no-cache, no-store, must-revalidate");
 header("Access-Control-Allow-Origin: *");
@@ -14,15 +14,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit;
 }
 
+// Journaliser l'accès
+error_log("API access: " . $_SERVER['REQUEST_URI'] . " - Method: " . $_SERVER['REQUEST_METHOD']);
+
 // Information sur l'environnement PHP
 $php_info = [
     'version' => phpversion(),
     'server' => $_SERVER['SERVER_SOFTWARE'] ?? 'Unknown',
-    'sapi' => php_sapi_name()
+    'sapi' => php_sapi_name(),
+    'execution_mode' => php_sapi_name(),
+    'loaded_modules' => get_loaded_extensions()
+];
+
+// Vérifier les fichiers de configuration
+$config_files = [
+    'htaccess' => file_exists(__DIR__ . '/.htaccess'),
+    'api_htaccess' => file_exists(__DIR__ . '/.htaccess'),
+    'database_php' => file_exists(__DIR__ . '/config/database.php'),
+    'db_config_json' => file_exists(__DIR__ . '/config/db_config.json')
 ];
 
 // Version API
-$api_version = '1.1.0';
+$api_version = '1.2.0';
 
 // Créer la réponse
 $response = [
@@ -31,7 +44,8 @@ $response = [
     'timestamp' => time(),
     'formatted_time' => date('Y-m-d H:i:s'),
     'api_version' => $api_version,
-    'environment' => $php_info
+    'environment' => $php_info,
+    'config_files' => $config_files
 ];
 
 // Test de connexion à la base de données (si les fichiers existent)
@@ -68,5 +82,5 @@ if (file_exists(__DIR__ . '/config/database.php') && file_exists(__DIR__ . '/con
 }
 
 // Envoyer la réponse
-echo json_encode($response);
+echo json_encode($response, JSON_PRETTY_PRINT);
 ?>

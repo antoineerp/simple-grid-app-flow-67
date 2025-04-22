@@ -10,7 +10,12 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle } from 'lucide-react';
 
 const LoginForm = () => {
-  const { form, isLoading, hasDbError, hasServerError, hasAuthError, onSubmit } = useLoginForm();
+  const { form, isLoading, error, onSubmit } = useLoginForm();
+  
+  // Déterminer les types d'erreurs à partir du message d'erreur
+  const hasDbError = error?.includes('base de données') || error?.includes('DB');
+  const hasServerError = error?.includes('serveur') || error?.includes('inaccessible');
+  const hasAuthError = error?.includes('identifiants') || error?.includes('incorrect');
 
   return (
     <>
@@ -40,6 +45,13 @@ const LoginForm = () => {
           <AlertDescription>
             Identifiants invalides. Veuillez vérifier vos identifiants de connexion.
           </AlertDescription>
+        </Alert>
+      )}
+      
+      {error && !hasDbError && !hasServerError && !hasAuthError && (
+        <Alert variant="destructive" className="mb-6">
+          <AlertCircle className="h-4 w-4 mr-2" />
+          <AlertDescription>{error}</AlertDescription>
         </Alert>
       )}
       
