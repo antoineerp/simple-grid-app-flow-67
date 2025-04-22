@@ -6,6 +6,8 @@ import { useLoginForm } from '@/hooks/useLoginForm';
 import UsernameField from './UsernameField';
 import PasswordField from './PasswordField';
 import ForgotPasswordLink from './ForgotPasswordLink';
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { AlertCircle } from 'lucide-react';
 
 const LoginForm = () => {
   const { form, isLoading, hasDbError, hasServerError, hasAuthError, onSubmit } = useLoginForm();

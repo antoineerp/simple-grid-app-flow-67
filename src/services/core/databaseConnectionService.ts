@@ -165,10 +165,13 @@ class DatabaseConnectionService {
       console.log("Test de la connexion à la base de données...");
       const API_URL = getApiUrl();
       
+      console.log(`URL de requête pour test de connexion: ${API_URL}/db-connection-test`);
       const response = await fetch(`${API_URL}/db-connection-test`, {
         method: 'GET',
         headers: getAuthHeaders()
       });
+      
+      console.log(`Statut de réponse du serveur: ${response.status} ${response.statusText}`);
       
       if (!response.ok) {
         const responseText = await response.text();
@@ -177,7 +180,13 @@ class DatabaseConnectionService {
       }
       
       const responseText = await response.text();
-      console.log("Réponse du test de connexion:", responseText.substring(0, 200));
+      console.log(`Réponse du test de connexion (${response.status}): ${responseText.substring(0, 200)}`);
+      
+      // Vérifier si la réponse est du PHP non exécuté
+      if (responseText.trim().startsWith('<?php')) {
+        console.error("Code PHP non exécuté reçu:", responseText.substring(0, 300));
+        throw new Error("Le serveur renvoie le code PHP au lieu de l'exécuter. Vérifiez la configuration du serveur.");
+      }
       
       const data = this.validateJsonResponse(responseText);
       
