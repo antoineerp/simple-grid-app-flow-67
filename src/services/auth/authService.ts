@@ -1,4 +1,3 @@
-
 import { getApiUrl } from '@/config/apiConfig';
 import { toast } from '@/hooks/use-toast';
 import { disconnectUser } from '../core/databaseConnectionService';
@@ -33,24 +32,21 @@ class AuthService {
         
         // Vérifier le hostname pour qualiopi.ch
         if (window.location.hostname === 'qualiopi.ch') {
-            // Si l'URL ne contient pas already '/sites/qualiopi.ch' et si nous sommes dans un sous-dossier
-            if (!normalizedUrl.includes('/sites/qualiopi.ch') && window.location.pathname.includes('/sites/')) {
-                // Extraire le chemin du sous-dossier
-                const pathMatch = window.location.pathname.match(/^(\/sites\/[^\/]+)/);
-                if (pathMatch && pathMatch[1] && !normalizedUrl.includes(pathMatch[1])) {
-                    // Si l'URL est absolue (commence par http)
-                    if (normalizedUrl.startsWith('http')) {
-                        // Ajouter le sous-dossier après le hostname
-                        const urlObj = new URL(normalizedUrl);
-                        normalizedUrl = `${urlObj.origin}${pathMatch[1]}/api`;
-                    } else {
-                        // Si l'URL est relative, simplement préfixer
-                        normalizedUrl = `${pathMatch[1]}${normalizedUrl.startsWith('/') ? '' : '/'}${normalizedUrl}`;
-                    }
+            // Si l'URL ne contient pas déjà '/sites/qualiopi.ch'
+            if (!normalizedUrl.includes('/sites/qualiopi.ch')) {
+                // Si l'URL est absolue (commence par http)
+                if (normalizedUrl.startsWith('http')) {
+                    // Modifier l'URL pour inclure le chemin /sites/qualiopi.ch
+                    const urlObj = new URL(normalizedUrl);
+                    normalizedUrl = `${urlObj.origin}/sites/qualiopi.ch/api`;
+                } else if (normalizedUrl === '/api') {
+                    // Si c'est simplement /api, le remplacer par le chemin complet
+                    normalizedUrl = '/sites/qualiopi.ch/api';
                 }
             }
         }
         
+        console.log(`URL d'API normalisée: ${normalizedUrl}`);
         return normalizedUrl;
     }
 

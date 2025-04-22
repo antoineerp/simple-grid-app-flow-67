@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -17,7 +16,7 @@ const ServerTest = () => {
     setApiStatus('loading');
     try {
       const API_URL = getApiUrl();
-      console.log("Testing API connection to:", API_URL + '/test.php');
+      console.log("Testing API connection to:", API_URL);
       
       const response = await fetch(`${API_URL}/test.php`, {
         method: 'GET',
@@ -55,16 +54,13 @@ const ServerTest = () => {
       });
       
       if (!response.ok) {
-        // Tenter de lire le message d'erreur quand même
         const errorText = await response.text();
         console.error("Erreur de base de données (texte brut):", errorText);
         
         try {
-          // Essayer de parser le message d'erreur comme JSON
           const errorData = JSON.parse(errorText);
           throw new Error(errorData.message || `Status: ${response.status}`);
         } catch (parseError) {
-          // Si le parsing échoue, utiliser le message d'erreur brut
           throw new Error(`Status: ${response.status}, Réponse: ${errorText.substring(0, 100)}...`);
         }
       }
