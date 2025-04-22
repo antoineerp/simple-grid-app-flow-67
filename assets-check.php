@@ -1,27 +1,29 @@
 
 <?php
-// Simple entry-point that just outputs plain text for diagnostic
+// Ensure proper error reporting for diagnostics
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
+
+// Explicitly set content type to plain text for diagnostic output
 header('Content-Type: text/plain');
-echo "PHP Diagnostic Tool - FormaCert\n";
-echo "Server Time: " . date('Y-m-d H:i:s') . "\n";
-echo "PHP Version: " . phpversion() . "\n";
-echo "Document Root: " . $_SERVER['DOCUMENT_ROOT'] . "\n";
 
-// Check if dist and assets directories exist
-$root_dir = __DIR__;
-$dist_dir = $root_dir . '/dist';
-$assets_dir = $dist_dir . '/assets';
+// Determine the root directory dynamically
+$root_dir = realpath(dirname(__FILE__));
+$api_assets_check = $root_dir . '/api/assets-check.php';
 
-echo "\nDirectory Check:\n";
-echo "- Root directory: " . (is_dir($root_dir) ? "Exists" : "Missing") . "\n";
-echo "- Dist directory: " . (is_dir($dist_dir) ? "Exists" : "Missing") . "\n";
-echo "- Assets directory: " . (is_dir($assets_dir) ? "Exists" : "Missing") . "\n";
-
-// Check for the index.js file
-echo "\nAsset Files:\n";
-echo "- index.js: " . (file_exists($assets_dir . '/index.js') ? "Exists" : "Missing") . "\n";
-echo "- main.js: " . (file_exists($assets_dir . '/main.js') ? "Exists" : "Missing") . "\n";
-echo "- index.css: " . (file_exists($assets_dir . '/index.css') ? "Exists" : "Missing") . "\n";
-
-echo "\nTo fix issues with missing files, please run 'npm run build' on your development machine.";
+// Check if the API assets-check.php exists
+if (file_exists($api_assets_check)) {
+    // Include the API diagnostic script
+    require_once $api_assets_check;
+} else {
+    // Fallback error message if the script is not found
+    echo "Error: API assets-check.php not found in " . $api_assets_check . "\n";
+    echo "Ensure the file exists and is readable.\n";
+    
+    // Basic diagnostic information
+    echo "\nBasic Diagnostic Info:\n";
+    echo "Root Directory: " . $root_dir . "\n";
+    echo "PHP Version: " . phpversion() . "\n";
+    echo "Server Software: " . $_SERVER['SERVER_SOFTWARE'] . "\n";
+}
 ?>
