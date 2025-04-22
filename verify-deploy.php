@@ -47,10 +47,24 @@ header('Content-Type: text/html; charset=utf-8');
     // Vérification des fichiers essentiels
     $files = [
         './index.html' => 'Page principale',
-        './.htaccess' => 'Configuration Apache',
-        './assets/index.js' => 'JavaScript principal',
-        './assets/index.css' => 'CSS principal'
+        './.htaccess' => 'Configuration Apache'
     ];
+    
+    // Trouver les fichiers JS et CSS dans le dossier assets
+    $js_files = glob('./assets/*.js');
+    $css_files = glob('./assets/*.css');
+    
+    if (!empty($js_files)) {
+        $files[$js_files[0]] = 'JavaScript principal';
+    } else {
+        $files['./assets/index.js'] = 'JavaScript principal (introuvable)';
+    }
+    
+    if (!empty($css_files)) {
+        $files[$css_files[0]] = 'CSS principal';
+    } else {
+        $files['./assets/index.css'] = 'CSS principal (introuvable)';
+    }
     
     foreach ($files as $file => $name) {
         echo "<p>$name ($file): ";
@@ -81,22 +95,84 @@ header('Content-Type: text/html; charset=utf-8');
     
     <h2>5. Test d'accès à l'API</h2>
     <?php
-    $apiUrl = '/api';
+    // Test direct de l'existence du fichier index.php de l'API
+    echo "<p>Fichier API principal: ";
+    if (file_exists('./api/index.php')) {
+        echo "<span class='success'>EXISTE</span>";
+    } else {
+        echo "<span class='error'>MANQUANT</span>";
+    }
+    echo "</p>";
+    
+    // Test de l'existence du fichier login-test.php
+    echo "<p>Fichier de test d'authentification: ";
+    if (file_exists('./api/login-test.php')) {
+        echo "<span class='success'>EXISTE</span>";
+    } else {
+        echo "<span class='error'>MANQUANT</span>";
+    }
+    echo "</p>";
+    
+    // Test d'accès à l'API via curl
+    echo "<p>Accès à l'API via curl: ";
+    $apiUrl = $_SERVER['REQUEST_SCHEME'] . '://' . $_SERVER['HTTP_HOST'] . '/api/';
     $ch = curl_init();
     curl_setopt($ch, CURLOPT_URL, $apiUrl);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($ch, CURLOPT_TIMEOUT, 5);
+    curl_setopt($ch, CURLOPT_HEADER, true);
     $result = curl_exec($ch);
     $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     curl_close($ch);
     
-    echo "<p>Code de réponse API: ";
+    echo "Code HTTP: ";
     if ($httpCode >= 200 && $httpCode < 300) {
         echo "<span class='success'>$httpCode (OK)</span>";
     } else {
         echo "<span class='error'>$httpCode (Erreur)</span>";
     }
+    
+    if ($result) {
+        // Séparer l'en-tête de la réponse
+        list($headers, $body) = explode("\r\n\r\n", $result, 2);
+        echo "<p>Réponse reçue: <pre>" . htmlspecialchars(substr($body, 0, 500)) . "</pre></p>";
+    } else {
+        echo "<p>Aucune réponse reçue</p>";
+    }
     echo "</p>";
+
+    // Test complet login-test.php
+    echo "<h3>Test du fichier login-test.php</h3>";
+    $testApiUrl = $_SERVER['REQUEST_SCHEME'] . '://' . $_SERVER['HTTP_HOST'] . '/api/login-test.php';
+    $ch = curl_init();
+    curl_setopt($ch, CURLOPT_URL, $testApiUrl);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 5);
+    curl_setopt($ch, CURLOPT_POST, true);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode(['username' => 'admin', 'password' => 'admin123']));
+    curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
+    $testResult = curl_exec($ch);
+    $testHttpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+    
+    echo "Test login-test.php (POST): ";
+    if ($testHttpCode >= 200 && $testHttpCode < 300) {
+        echo "<span class='success'>$testHttpCode (OK)</span>";
+    } else {
+        echo "<span class='error'>$testHttpCode (Erreur)</span>";
+    }
+    
+    if ($testResult) {
+        echo "<p>Réponse reçue: <pre>" . htmlspecialchars(substr($testResult, 0, 500)) . "</pre></p>";
+    } else {
+        echo "<p>Aucune réponse reçue de login-test.php</p>";
+    }
     ?>
+
+    <h2>6. Environnement et variables</h2>
+    <p>Chemin absolu actuel: <?php echo getcwd(); ?></p>
+    <p>Document Root: <?php echo $_SERVER['DOCUMENT_ROOT']; ?></p>
+    <p>Request URI: <?php echo $_SERVER['REQUEST_URI']; ?></p>
+    <p>Script Name: <?php echo $_SERVER['SCRIPT_NAME']; ?></p>
 </body>
 </html>

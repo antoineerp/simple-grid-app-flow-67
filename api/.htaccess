@@ -9,6 +9,18 @@ Options -Indexes
 # Définir explicitement le point d'entrée par défaut
 DirectoryIndex index.php
 
+# Autoriser tous les types de requêtes pour le debug
+<IfModule mod_headers.c>
+    Header set Access-Control-Allow-Origin "*"
+    Header set Access-Control-Allow-Methods "GET, POST, OPTIONS, PUT, DELETE"
+    Header set Access-Control-Allow-Headers "Content-Type, Authorization, X-Requested-With"
+    Header set Access-Control-Max-Age "86400"
+</IfModule>
+
+# Si le serveur renvoie 403 sur OPTIONS, on le transforme en 200
+RewriteCond %{REQUEST_METHOD} OPTIONS
+RewriteRule ^(.*)$ $1 [R=200,L]
+
 # Ne pas appliquer les règles aux fichiers et répertoires existants
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
@@ -17,7 +29,7 @@ RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^(.*)$ index.php [QSA,L]
 
 # Désactiver les restrictions pour les fichiers de test et diagnostics
-<FilesMatch "^(login-test\.php|check-users\.php|auth\.php|diagnostic\.php)$">
+<FilesMatch "^(login-test\.php|check-users\.php|auth\.php|diagnostic\.php|info\.php)$">
     Allow from all
 </FilesMatch>
 
@@ -29,12 +41,3 @@ RewriteRule ^(.*)$ index.php [QSA,L]
 
 # Empêcher l'accès aux dossiers cachés comme .git
 RedirectMatch 404 /\..*$
-
-# Configuration PHP spécifique si .user.ini ne fonctionne pas
-<IfModule mod_php7.c>
-    php_value display_errors 0
-    php_value post_max_size 32M
-    php_value upload_max_filesize 16M
-    php_value memory_limit 256M
-    php_value max_execution_time 300
-</IfModule>
