@@ -106,7 +106,7 @@ header('Content-Type: text/html; charset=utf-8');
                 // Trouver le fichier JS principal
                 $main_js = '';
                 foreach ($js_files as $file) {
-                    if (strpos(basename($file), 'main-') === 0) {
+                    if (strpos(basename($file), 'main-') === 0 || strpos(basename($file), 'index-') === 0) {
                         $main_js = '/assets/' . basename($file);
                         break;
                     }
@@ -115,7 +115,7 @@ header('Content-Type: text/html; charset=utf-8');
                 // Trouver le fichier CSS principal
                 $main_css = '';
                 foreach ($css_files as $file) {
-                    if (strpos(basename($file), 'index-') === 0) {
+                    if (strpos(basename($file), 'index-') === 0 || strpos(basename($file), 'main-') === 0) {
                         $main_css = '/assets/' . basename($file);
                         break;
                     }
@@ -151,10 +151,10 @@ header('Content-Type: text/html; charset=utf-8');
                 }
                 
                 if (!empty($main_js)) {
-                    // Remplacer la référence à /src/main.tsx
-                    if (preg_match('/<script[^>]*src=["\'](\/src\/[^"\']*\.tsx?)["\']/i', $index_content)) {
+                    // Remplacer la référence à /src/main.js ou /src/main.tsx
+                    if (preg_match('/<script[^>]*src=["\'](\/src\/[^"\']*\.[jt]sx?)["\']/i', $index_content)) {
                         $index_content = preg_replace(
-                            '/<script[^>]*src=["\'](\/src\/[^"\']*\.tsx?)["\']/i',
+                            '/<script[^>]*src=["\'](\/src\/[^"\']*\.[jt]sx?)["\']/i',
                             '<script type="module" src="' . $main_js . '"',
                             $index_content
                         );
@@ -168,11 +168,22 @@ header('Content-Type: text/html; charset=utf-8');
                 } else {
                     echo "<p>Mise à jour de index.html: <span class='error'>ÉCHEC</span></p>";
                 }
+            } else if (file_exists('./index.html')) {
+                echo "<p><span class='warning'>Impossible de mettre à jour index.html: aucun fichier JS/CSS trouvé dans le dossier assets/</span></p>";
+            } else {
+                echo "<p><span class='error'>Fichier index.html introuvable</span></p>";
             }
         } else {
             // Formulaire pour lancer la copie
             echo "<form method='post'>";
             echo "<p>Ce script va copier les fichiers du dossier <code>dist/assets</code> vers le dossier <code>assets</code> à la racine, et mettre à jour le fichier <code>index.html</code>.</p>";
+            echo "<p><strong>Instructions:</strong></p>";
+            echo "<ol>";
+            echo "<li>Exécutez d'abord <code>npm run build</code> pour générer les fichiers compilés</li>";
+            echo "<li>Vérifiez que le dossier <code>dist/assets</code> contient bien les fichiers compilés</li>";
+            echo "<li>Cliquez sur le bouton ci-dessous pour copier les assets et mettre à jour index.html</li>";
+            echo "<li>Videz le cache de votre navigateur puis testez l'application</li>";
+            echo "</ol>";
             echo "<input type='hidden' name='copy_assets' value='1'>";
             echo "<button type='submit' class='fix-button'>Copier les assets et mettre à jour index.html</button>";
             echo "</form>";
