@@ -17,23 +17,39 @@
       }
     </script>
     
-    <!-- Chargement automatique des assets CSS -->
+    <!-- Fonction améliorée pour charger les assets CSS avec gestion d'erreur -->
     <script>
       function loadCSS() {
+        console.log('Chargement du CSS...');
         fetch('/dist/assets/')
-          .then(response => response.text())
+          .then(response => {
+            if (!response.ok) {
+              throw new Error(`Impossible d'accéder au répertoire des assets (${response.status})`);
+            }
+            return response.text();
+          })
           .then(html => {
             const cssPattern = /index[^"']*\.css/;
             const match = html.match(cssPattern);
             if (match) {
+              console.log('Fichier CSS trouvé:', match[0]);
               const link = document.createElement('link');
               link.rel = 'stylesheet';
               link.href = '/dist/assets/' + match[0];
               document.head.appendChild(link);
+              console.log('CSS chargé avec succès');
+            } else {
+              console.error('Aucun fichier CSS correspondant trouvé');
+              document.dispatchEvent(new CustomEvent('asset-error', { 
+                detail: { type: 'css', message: 'Aucun fichier CSS trouvé dans /dist/assets/' }
+              }));
             }
           })
           .catch(error => {
             console.error('Erreur lors du chargement du CSS:', error);
+            document.dispatchEvent(new CustomEvent('asset-error', { 
+              detail: { type: 'css', message: error.message }
+            }));
           });
       }
       
@@ -42,6 +58,12 @@
   </head>
   <body>
     <div id="root"></div>
+    <div id="loading-diagnostic" style="display:none; max-width:800px; margin:50px auto; padding:20px; font-family:sans-serif; line-height:1.5; color:#333; background:#f9f9f9; border:1px solid #ddd; border-radius:8px;">
+      <h2 style="color:#555;">Diagnostic de chargement</h2>
+      <div id="loading-status"></div>
+      <div id="asset-errors"></div>
+    </div>
+    
     <noscript>
       <div style="text-align:center; margin-top:50px; font-family:sans-serif;">
         <p>Cette application nécessite JavaScript pour fonctionner.</p>
@@ -51,43 +73,83 @@
     <!-- Script Lovable -->
     <script src="https://cdn.gpteng.co/gptengineer.js" type="module"></script>
     
-    <!-- Chargement automatique du script principal -->
+    <!-- Chargement du script principal avec gestion d'erreur améliorée -->
     <script>
       function loadMainScript() {
+        console.log('Chargement du script principal...');
         fetch('/dist/assets/')
-          .then(response => response.text())
+          .then(response => {
+            if (!response.ok) {
+              throw new Error(`Impossible d'accéder au répertoire des assets (${response.status})`);
+            }
+            return response.text();
+          })
           .then(html => {
             const jsPattern = /index[^"']*\.js(?!")/;
             const match = html.match(jsPattern);
             if (match) {
+              console.log('Fichier JS trouvé:', match[0]);
               const script = document.createElement('script');
               script.type = 'module';
               script.src = '/dist/assets/' + match[0];
+              script.onerror = (e) => {
+                console.error('Erreur lors du chargement du script:', e);
+                document.dispatchEvent(new CustomEvent('asset-error', { 
+                  detail: { type: 'js', message: `Erreur de chargement du fichier ${match[0]}` }
+                }));
+              };
               document.body.appendChild(script);
+              console.log('Script chargé avec succès');
+            } else {
+              console.error('Aucun fichier JS correspondant trouvé');
+              document.dispatchEvent(new CustomEvent('asset-error', { 
+                detail: { type: 'js', message: 'Aucun fichier JS trouvé dans /dist/assets/' }
+              }));
             }
           })
           .catch(error => {
             console.error('Erreur lors du chargement du JS:', error);
+            document.dispatchEvent(new CustomEvent('asset-error', { 
+              detail: { type: 'js', message: error.message }
+            }));
           });
       }
       
       window.addEventListener('DOMContentLoaded', loadMainScript);
+      
+      // Gestion des erreurs de chargement
+      document.addEventListener('asset-error', function(e) {
+        const loadingDiagnostic = document.getElementById('loading-diagnostic');
+        const assetErrors = document.getElementById('asset-errors');
+        loadingDiagnostic.style.display = 'block';
+        
+        const errorItem = document.createElement('div');
+        errorItem.style.color = '#d33';
+        errorItem.style.margin = '10px 0';
+        errorItem.innerHTML = `<strong>Erreur (${e.detail.type}):</strong> ${e.detail.message}`;
+        assetErrors.appendChild(errorItem);
+      });
     </script>
     
-    <!-- Message d'erreur en cas d'échec de chargement -->
+    <!-- Message d'erreur en cas d'échec de chargement avec plus d'informations diagnostiques -->
     <script>
       setTimeout(() => {
         if (document.getElementById('root').childElementCount === 0) {
-          document.getElementById('root').innerHTML = `
-            <div style="max-width:800px; margin:50px auto; padding:20px; font-family:sans-serif; line-height:1.5; color:#333; background:#f9f9f9; border:1px solid #ddd; border-radius:8px;">
-              <h1 style="color:#d33;">Erreur de chargement de l'application</h1>
-              <p>L'application n'a pas pu être chargée correctement.</p>
-              <h3>Diagnostic :</h3>
-              <ul>
-                <li>Vérifiez que les fichiers d'assets sont présents dans le dossier /dist/assets/</li>
-                <li>Assurez-vous que le build a été effectué correctement</li>
-              </ul>
-            </div>
+          const loadingDiagnostic = document.getElementById('loading-diagnostic');
+          const loadingStatus = document.getElementById('loading-status');
+          loadingDiagnostic.style.display = 'block';
+          
+          loadingStatus.innerHTML = `
+            <h3 style="color:#d33;">L'application n'a pas pu être chargée correctement</h3>
+            <p>Diagnostic complet:</p>
+            <ul>
+              <li>Vérifiez que les fichiers d'assets sont présents dans le dossier <code>/dist/assets/</code></li>
+              <li>Assurez-vous que le build a été effectué correctement avec <code>npm run build</code></li>
+              <li>Vérifiez les logs serveur pour détecter d'éventuelles erreurs 500</li>
+              <li>Le serveur PHP interprète-t-il correctement les fichiers? Essayez <code>/test-minimal.php</code></li>
+            </ul>
+            <p><a href="/debug-assets.php" style="color:#2563eb; text-decoration:underline;">Lancer le diagnostic des assets</a></p>
+            <p><a href="/phpinfo-test.php" style="color:#2563eb; text-decoration:underline;">Vérifier la configuration PHP</a></p>
           `;
         }
       }, 5000);
