@@ -9,6 +9,7 @@ export {
   disconnectUser,
   testDatabaseConnection,
   getDatabaseInfo,
+  getLastConnectionError,
   type DatabaseInfo
 } from './core/databaseConnectionService';
 
