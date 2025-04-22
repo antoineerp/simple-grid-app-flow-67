@@ -3,18 +3,38 @@
 // Assurons-nous que rien ne sera affiché avant les en-têtes
 ob_start();
 
+// Début de la journalisation
+error_log("=== DÉBUT DE L'EXÉCUTION DE AuthController.php ===");
+
 // Inclure notre fichier de configuration d'environnement s'il n'est pas déjà inclus
 if (!function_exists('env')) {
-    if (file_exists(__DIR__ . '/../config/env.php')) {
-        require_once __DIR__ . '/../config/env.php';
+    $env_file = __DIR__ . '/../config/env.php';
+    if (file_exists($env_file)) {
+        error_log("Inclusion du fichier env.php: $env_file");
+        require_once $env_file;
     } else {
         // Log et continuer
-        error_log("Fichier env.php introuvable");
+        error_log("ERREUR: Fichier env.php introuvable: $env_file");
+        throw new Exception("Fichier de configuration env.php introuvable");
     }
 }
 
 // Journaliser l'accès au contrôleur d'authentification
 error_log("AuthController.php appelé | URI: " . $_SERVER['REQUEST_URI'] . " | Méthode: " . $_SERVER['REQUEST_METHOD']);
+
+// Fonction pour vérifier l'existence des fichiers
+function check_auth_file($path, $description) {
+    if (!file_exists($path)) {
+        error_log("ERREUR: Fichier $description introuvable: $path");
+        return false;
+    }
+    if (!is_readable($path)) {
+        error_log("ERREUR: Fichier $description non lisible: $path");
+        return false;
+    }
+    error_log("OK: Fichier $description trouvé et lisible: $path");
+    return true;
+}
 
 // Fonction pour nettoyer les données UTF-8
 function cleanUTF8($input) {
@@ -60,29 +80,32 @@ try {
     $userFile = $basePath . 'models/User.php';
     $jwtFile = $basePath . 'utils/JwtHandler.php';
 
-    if (!file_exists($configFile)) {
-        throw new Exception("Fichier config/database.php non trouvé");
-    }
+    // Vérification de tous les fichiers requis
+    $files_ok = true;
+    $files_ok = $files_ok && check_auth_file($configFile, "config/database.php");
+    $files_ok = $files_ok && check_auth_file($userFile, "models/User.php");
+    $files_ok = $files_ok && check_auth_file($jwtFile, "utils/JwtHandler.php");
 
-    if (!file_exists($userFile)) {
-        throw new Exception("Fichier models/User.php non trouvé");
-    }
-
-    if (!file_exists($jwtFile)) {
-        throw new Exception("Fichier utils/JwtHandler.php non trouvé");
+    if (!$files_ok) {
+        throw new Exception("Un ou plusieurs fichiers requis sont introuvables ou non lisibles");
     }
 
     // Inclure les fichiers requis
+    error_log("Inclusion des fichiers requis...");
     include_once $configFile;
     include_once $userFile;
     include_once $jwtFile;
+    error_log("Tous les fichiers ont été inclus avec succès");
 
     // Obtenir la connexion à la base de données
+    error_log("Tentative de connexion à la base de données...");
     $database = new Database();
     $db = $database->getConnection();
+    error_log("Connexion à la base de données établie avec succès");
 
     // Instancier l'utilisateur
     $user = new User($db);
+    error_log("Objet User créé avec succès");
 
     // Récupérer les données POST
     $json_input = file_get_contents("php://input");
@@ -167,9 +190,16 @@ try {
 } catch (Exception $e) {
     // Log l'erreur et renvoyer une réponse formatée
     error_log("Erreur dans AuthController: " . $e->getMessage());
+    error_log("Trace: " . $e->getTraceAsString());
+    
     http_response_code(500);
-    echo json_encode(array("message" => "Erreur serveur", "error" => $e->getMessage()));
+    echo json_encode(array(
+        "message" => "Erreur serveur", 
+        "error" => $e->getMessage(),
+        "trace" => $e->getTraceAsString()
+    ));
 } finally {
+    error_log("=== FIN DE L'EXÉCUTION DE AuthController.php ===");
     // Vider et terminer le tampon de sortie pour s'assurer que seule la réponse JSON est envoyée
     ob_end_flush();
 }

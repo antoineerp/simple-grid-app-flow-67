@@ -69,6 +69,9 @@ class AuthService {
                 'Accept': 'application/json'
             });
             
+            // Ajoutons un délai pour s'assurer que le réseau a le temps de répondre
+            await new Promise(resolve => setTimeout(resolve, 500));
+            
             const response = await fetch(loginUrl, {
                 method: 'POST',
                 headers: {
@@ -90,9 +93,19 @@ class AuthService {
             // Vérifier si la réponse est vide
             if (!responseText || responseText.trim() === '') {
                 console.error("Réponse vide du serveur");
+                
+                // Essayons une requête de test pour vérifier l'état du serveur
+                try {
+                    const testResponse = await fetch(`${currentApiUrl}/test-auth.php?_=${new Date().getTime()}`);
+                    const testResult = await testResponse.json();
+                    console.log("Résultat du test d'authentification:", testResult);
+                } catch (testError) {
+                    console.error("Test d'authentification a également échoué:", testError);
+                }
+                
                 return {
                     success: false,
-                    error: "Le serveur a renvoyé une réponse vide"
+                    error: "Le serveur a renvoyé une réponse vide. Vérifiez les logs du serveur pour plus de détails."
                 };
             }
             
@@ -146,7 +159,7 @@ class AuthService {
                 console.error("Erreur réseau: impossible de contacter le serveur");
                 return {
                     success: false,
-                    error: "Impossible de contacter le serveur d'authentification"
+                    error: "Impossible de contacter le serveur d'authentification. Vérifiez que l'API est accessible."
                 };
             }
             

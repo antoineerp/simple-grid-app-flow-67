@@ -16,6 +16,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useToast } from "@/hooks/use-toast";
 import { loginUser } from '@/services';
+import { getApiUrl } from '@/config/apiConfig';
 
 // Séparation des schémas et types
 const loginSchema = z.object({
@@ -43,6 +44,50 @@ const useLogoLoader = () => {
   }, []);
 
   return logoSrc;
+};
+
+// Fonction simplifiée pour la connexion de secours
+const loginFallback = async (username: string, password: string): Promise<any> => {
+  try {
+    const apiUrl = getApiUrl();
+    const response = await fetch(`${apiUrl}/login-test.php`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Cache-Control': 'no-cache'
+      },
+      body: JSON.stringify({ username, password })
+    });
+    
+    if (!response.ok) {
+      return { success: false, error: `Erreur HTTP ${response.status}` };
+    }
+    
+    const data = await response.json();
+    
+    if (data.token && data.user) {
+      localStorage.setItem('authToken', data.token);
+      localStorage.setItem('userRole', data.user.role);
+      localStorage.setItem('currentUser', data.user.identifiant_technique || username);
+      localStorage.setItem('isLoggedIn', 'true');
+      
+      return {
+        success: true,
+        user: data.user
+      };
+    } else {
+      return {
+        success: false,
+        error: "Réponse d'authentification incomplète"
+      };
+    }
+  } catch (error) {
+    console.error("Erreur d'authentification fallback:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Erreur d'authentification inconnue"
+    };
+  }
 };
 
 // Extraction de la logique de vérification de l'API
@@ -85,6 +130,7 @@ const Index = () => {
   const logoSrc = useLogoLoader();
   const apiStatus = useApiStatusCheck();
   const [isLoading, setIsLoading] = useState(false);
+  const [useFallbackAuth, setUseFallbackAuth] = useState(false);
   
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
@@ -104,7 +150,23 @@ const Index = () => {
       });
       
       console.log("Tentative de connexion avec:", data.username);
-      const result = await loginUser(data.username, data.password);
+      
+      let result;
+      
+      if (useFallbackAuth) {
+        console.log("Utilisation du mode d'authentification de secours");
+        result = await loginFallback(data.username, data.password);
+      } else {
+        // Essayer l'authentification normale d'abord
+        result = await loginUser(data.username, data.password);
+        
+        // Si ça échoue, essayer le fallback automatiquement
+        if (!result.success && (result.error.includes("vide") || result.error.includes("contacter"))) {
+          console.log("Authentification standard échouée, tentative avec le mode de secours");
+          setUseFallbackAuth(true);
+          result = await loginFallback(data.username, data.password);
+        }
+      }
       
       if (result.success) {
         localStorage.setItem("isLoggedIn", "true");
@@ -152,6 +214,14 @@ const Index = () => {
     }
   };
 
+  const toggleAuthMode = () => {
+    setUseFallbackAuth(prev => !prev);
+    toast({
+      title: useFallbackAuth ? "Mode d'authentification standard activé" : "Mode d'authentification de secours activé",
+      description: useFallbackAuth ? "Utilisation de l'API complète" : "Utilisation de l'API simplifiée",
+    });
+  };
+
   return (
     <div className="min-h-screen flex flex-col md:flex-row items-center justify-center bg-gray-50 p-6">
       <div className="w-full max-w-md bg-white rounded-lg shadow-lg p-8 md:mr-8">
@@ -174,6 +244,12 @@ const Index = () => {
           {apiStatus === 'unavailable' && (
             <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-2 rounded mt-2 text-sm">
               ⚠️ L'API n'est pas accessible. La connexion pourrait ne pas fonctionner.
+            </div>
+          )}
+          
+          {useFallbackAuth && (
+            <div className="bg-blue-50 border border-blue-200 text-blue-700 px-4 py-2 rounded mt-2 text-sm">
+              ℹ️ Mode d'authentification de secours activé
             </div>
           )}
         </div>
@@ -231,6 +307,12 @@ const Index = () => {
             </Button>
             <Button variant="outline" size="sm" onClick={() => handleFillTestData('user')} className="text-xs">
               Utilisateur
+            </Button>
+          </div>
+          
+          <div className="mt-4 text-center">
+            <Button variant="link" size="sm" onClick={toggleAuthMode} className="text-xs text-slate-500">
+              {useFallbackAuth ? "Utiliser l'authentification standard" : "Utiliser l'authentification de secours"}
             </Button>
           </div>
         </div>
