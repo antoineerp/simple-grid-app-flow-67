@@ -1,4 +1,3 @@
-
 // Configuration de l'API
 let apiUrl = '/api';
 let isCustomUrl = false;
@@ -13,16 +12,10 @@ function detectEnvironment() {
   
   if (isInfomaniak) {
     // Configuration pour Infomaniak
-    if (hostname.includes('qualiopi.ch')) {
-      apiUrl = '/sites/qualiopi.ch/api';
-    } else if (hostname.includes('p71x6d')) {
-      apiUrl = '/api';
-    } else {
-      apiUrl = '/api';
-    }
+    apiUrl = 'https://qualiopi.ch/api';
     console.log('Environnement Infomaniak détecté - API URL:', apiUrl);
   } else {
-    // Pour l'environnement de développement Lovable
+    // Pour l'environnement de développement ou preview Lovable
     apiUrl = '/api';
     console.log('Environnement de développement détecté - API URL:', apiUrl);
   }

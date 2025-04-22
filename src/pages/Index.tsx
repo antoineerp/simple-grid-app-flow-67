@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import Logo from '@/components/auth/Logo';
 import LoginForm from '@/components/auth/LoginForm';
@@ -17,8 +16,7 @@ const Index = () => {
     // Détecter si nous sommes sur Infomaniak
     const hostname = window.location.hostname;
     const infomaniakDetected = hostname.includes('myd.infomaniak.com') || 
-                             hostname.includes('qualiopi.ch') || 
-                             hostname.includes('p71x6d');
+                             hostname.includes('qualiopi.ch');
     setIsInfomaniak(infomaniakDetected);
     
     const checkApi = async () => {
@@ -43,7 +41,6 @@ const Index = () => {
           setApiStatus('success');
           setApiMessage(jsonData.message || 'API accessible');
         } catch (e) {
-          // Si la réponse n'est pas du JSON valide
           setApiStatus('error');
           setApiMessage('La réponse du serveur n\'est pas un JSON valide');
           console.error('Réponse non-JSON:', data);
@@ -55,8 +52,6 @@ const Index = () => {
     };
     
     checkApi();
-    
-    // Nouvelle date pour mettre à jour la version
     setVersion(`1.0.7 - ${new Date().toLocaleDateString()}`);
   }, []);
 
@@ -77,24 +72,32 @@ const Index = () => {
           </Alert>
         )}
         
-        <Alert variant={isInfomaniak ? "default" : "warning"} className="mb-6">
-          <Info className="h-4 w-4 mr-2" />
-          <AlertDescription>
-            <div className="text-xs">
-              {isInfomaniak ? (
-                <>
-                  <div className="flex items-center mb-1">
-                    <Server className="h-3 w-3 mr-1" />
-                    <span className="font-medium">Infomaniak détecté</span>
-                  </div>
+        {isInfomaniak ? (
+          <Alert variant="default" className="mb-6">
+            <Info className="h-4 w-4 mr-2" />
+            <AlertDescription>
+              <div className="text-xs">
+                <div className="flex items-center mb-1">
+                  <Server className="h-3 w-3 mr-1" />
+                  <span className="font-medium">Infomaniak détecté</span>
+                </div>
+                URL d'API: <strong>{getFullApiUrl()}</strong>
+              </div>
+            </AlertDescription>
+          </Alert>
+        ) : (
+          <Alert variant="destructive" className="mb-6">
+            <AlertCircle className="h-4 w-4 mr-2" />
+            <AlertDescription>
+              <div className="text-xs">
+                Environnement de développement détecté
+                <div className="mt-1">
                   URL d'API: <strong>{getFullApiUrl()}</strong>
-                </>
-              ) : (
-                <>URL d'API: <strong>{getFullApiUrl()}</strong></>
-              )}
-            </div>
-          </AlertDescription>
-        </Alert>
+                </div>
+              </div>
+            </AlertDescription>
+          </Alert>
+        )}
         
         <LoginForm />
         
