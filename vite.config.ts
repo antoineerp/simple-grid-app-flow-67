@@ -1,9 +1,10 @@
-
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
 import { componentTagger } from "lovable-tagger";
 import type { ConfigEnv, UserConfig } from "vite";
+import tailwindcss from 'tailwindcss';
+import autoprefixer from 'autoprefixer';
 
 // Définir le type AcceptedPlugin explicitement pour éviter les erreurs de type
 export default defineConfig(({ mode }: ConfigEnv): UserConfig => ({
@@ -15,7 +16,6 @@ export default defineConfig(({ mode }: ConfigEnv): UserConfig => ({
       strictPort: true,
       hmr: {
         clientPort: 443,
-        // 'webSocketServer' a été supprimé car ce n'est pas une propriété valide
       }
     } : {}),
   },
@@ -40,11 +40,11 @@ export default defineConfig(({ mode }: ConfigEnv): UserConfig => ({
       localsConvention: 'camelCase',
       generateScopedName: '[local]_[hash:base64:5]'
     },
-    // PostCSS configuration using specific syntax
+    // PostCSS configuration using ESM style imports
     postcss: {
       plugins: [
-        require('tailwindcss'),
-        require('autoprefixer')
+        tailwindcss,
+        autoprefixer
       ],
     },
   },
