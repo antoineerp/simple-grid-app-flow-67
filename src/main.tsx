@@ -3,7 +3,7 @@ import React from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App';
 import './index.css';
-import { logEnvironmentInfo, isInfomaniakEnvironment } from './utils/environment';
+import { logEnvironmentInfo, isInfomaniakEnvironment, isLovableDomain } from './utils/environment';
 
 // Define window properties for TypeScript
 declare global {
@@ -42,8 +42,8 @@ function startApp() {
     // Log environment info at startup
     logEnvironmentInfo();
     
-    // Initialize required globals only if not on Infomaniak
-    if (!isInfomaniakEnvironment()) {
+    // Initialize required globals only if on Lovable domain
+    if (isLovableDomain()) {
       if (typeof window.__LOVABLE_EDITOR__ === 'undefined') {
         window.__LOVABLE_EDITOR__ = null;
       }

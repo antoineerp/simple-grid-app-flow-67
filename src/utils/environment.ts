@@ -2,10 +2,10 @@
 /**
  * Types d'environnement supportés
  */
-export type EnvironmentType = 'demo' | 'production' | 'infomaniak';
+export type EnvironmentType = 'development' | 'production' | 'infomaniak';
 
 /**
- * Vérifie si l'application est en mode démo Lovable
+ * Vérifie si l'application est en mode développement Lovable
  */
 export function isLovableDemo(): boolean {
   // En production sur Infomaniak, toujours retourner false
@@ -45,8 +45,8 @@ export function isInfomaniakEnvironment(): boolean {
 export function getEnvironmentType(): EnvironmentType {
   if (isInfomaniakEnvironment()) {
     return 'infomaniak';
-  } else if (isLovableDemo()) {
-    return 'demo';
+  } else if (isLovableDomain()) {
+    return 'development';
   }
   return 'production';
 }
@@ -63,6 +63,6 @@ export function logEnvironmentInfo(): void {
   console.log(`Nom de domaine: ${hostname}`);
   console.log(`Infomaniak: ${isInfomaniakEnvironment() ? 'Oui' : 'Non'}`);
   console.log(`Lovable Demo: ${isLovableDemo() ? 'Oui' : 'Non'}`);
+  console.log(`Lovable Domain: ${isLovableDomain() ? 'Oui' : 'Non'}`);
   console.log(`=======================================`);
 }
-

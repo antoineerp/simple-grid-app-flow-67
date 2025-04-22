@@ -11,8 +11,8 @@ export function initializeApp(): void {
   logDebug(`Environnement détecté: ${envType}`);
   
   // Vérifications conditionnelles selon l'environnement
-  if (envType === 'demo') {
-    // En mode démo, vérifier spécifiquement les ressources Lovable
+  if (envType === 'development') {
+    // En mode développement, vérifier spécifiquement les ressources Lovable
     const lovableLoaded = checkLovableScript();
     
     if (!lovableLoaded) {
@@ -29,8 +29,8 @@ export function initializeApp(): void {
   
   // Configuration spécifique à l'environnement
   switch (envType) {
-    case 'demo':
-      logDebug("Configuration spécifique au mode démo activée");
+    case 'development':
+      logDebug("Configuration spécifique au mode développement activée");
       break;
     case 'infomaniak':
       logDebug("Configuration spécifique à Infomaniak activée");

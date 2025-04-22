@@ -8,8 +8,15 @@
     <link rel="icon" href="/lovable-uploads/formacert-logo.png" type="image/png">
     <meta name="description" content="FormaCert - Système de gestion de certification" />
     
-    <!-- Required for Lovable -->
-    <script>window.__WS_TOKEN__ = "lovable-ws-token";</script>
+    <!-- Ne définir WS_TOKEN que sur Lovable -->
+    <script>
+      // La définition du token se fera dans le code en fonction de l'environnement
+      if (window.location.hostname.includes('lovable.dev') || 
+          window.location.hostname.includes('lovable.app') || 
+          window.location.hostname.includes('gpteng.co')) {
+        window.__WS_TOKEN__ = "lovable-ws-token";
+      }
+    </script>
   </head>
   <body>
     <div id="root"></div>
@@ -19,8 +26,19 @@
       </div>
     </noscript>
     
-    <!-- Lovable script (required) -->
-    <script src="https://cdn.gpteng.co/gptengineer.js" type="module"></script>
+    <!-- Lovable script (chargé conditionnellement) -->
+    <script>
+      // Charger le script Lovable uniquement sur les domaines Lovable
+      if (window.location.hostname.includes('lovable.dev') || 
+          window.location.hostname.includes('lovable.app') || 
+          window.location.hostname.includes('gpteng.co')) {
+        const script = document.createElement('script');
+        script.src = "https://cdn.gpteng.co/gptengineer.js";
+        script.type = "module";
+        document.body.appendChild(script);
+        console.log("Script Lovable chargé dynamiquement");
+      }
+    </script>
     
     <!-- Main application -->
     <script type="module" src="/src/main.tsx"></script>
