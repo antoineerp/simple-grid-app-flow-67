@@ -13,6 +13,10 @@ if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
     exit;
 }
 
+// Journaliser l'exécution
+error_log("=== EXÉCUTION DE database-test.php ===");
+error_log("Méthode: " . $_SERVER['REQUEST_METHOD'] . " - URI: " . $_SERVER['REQUEST_URI']);
+
 // Inclure la configuration de la base de données
 require_once 'config/database.php';
 
@@ -31,6 +35,7 @@ try {
     // Si la connexion a échoué, ajouter l'erreur à la réponse
     if (!$database->is_connected) {
         $response['error'] = $database->connection_error;
+        error_log("Échec de la connexion à la base de données: " . $database->connection_error);
     } else {
         // Ajouter des informations sur la base de données
         $info = [];
@@ -62,11 +67,13 @@ try {
             $info['collation'] = $encodingInfo['collation'];
             
             $response['info'] = $info;
+            error_log("Informations de base de données récupérées avec succès");
         } catch (PDOException $e) {
             $response['info'] = [
                 'database_name' => $database->db_name,
                 'error' => 'Impossible d\'obtenir des informations détaillées: ' . $e->getMessage()
             ];
+            error_log("Erreur lors de la récupération des informations de base de données: " . $e->getMessage());
         }
     }
     
@@ -74,6 +81,7 @@ try {
     http_response_code($database->is_connected ? 200 : 500);
     echo json_encode($response);
 } catch (Exception $e) {
+    error_log("Exception dans database-test.php: " . $e->getMessage());
     http_response_code(500);
     echo json_encode([
         'status' => 'error',
@@ -81,3 +89,4 @@ try {
         'error' => $e->getMessage()
     ]);
 }
+?>

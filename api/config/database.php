@@ -22,7 +22,6 @@ class Database {
         $configFile = __DIR__ . '/db_config.json';
         
         // Configuration par défaut - ne sera utilisée que si db_config.json n'existe pas
-        // Ces informations devraient être mises à jour avec les informations correctes d'Infomaniak
         $this->host = "p71x6d.myd.infomaniak.com";
         $this->db_name = "p71x6d_system";
         $this->username = "p71x6d_system";
@@ -37,6 +36,8 @@ class Database {
                     if (isset($config['db_name'])) $this->db_name = $config['db_name'];
                     if (isset($config['username'])) $this->username = $config['username'];
                     if (isset($config['password'])) $this->password = $config['password'];
+                } else {
+                    error_log("Erreur JSON dans db_config.json: " . json_last_error_msg());
                 }
             } catch (Exception $e) {
                 error_log("Erreur lors du chargement de la configuration de base de données: " . $e->getMessage());
@@ -47,6 +48,9 @@ class Database {
             // Créer le fichier de configuration avec les valeurs par défaut
             $this->saveConfig();
         }
+        
+        // Journaliser les paramètres de connexion (sans le mot de passe)
+        error_log("Paramètres de connexion chargés - Host: {$this->host}, DB: {$this->db_name}, User: {$this->username}");
     }
 
     // Sauvegarder la configuration actuelle
@@ -75,6 +79,9 @@ class Database {
         $this->is_connected = false;
 
         try {
+            // Journaliser la tentative de connexion
+            error_log("Tentative de connexion à la base de données - Host: {$this->host}, DB: {$this->db_name}, User: {$this->username}");
+            
             $dsn = "mysql:host=" . $this->host . ";dbname=" . $this->db_name . ";charset=utf8mb4";
             $options = [
                 PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
@@ -98,6 +105,9 @@ class Database {
             $this->is_connected = true;
             $this->connection_error = null;
             
+            // Journaliser la connexion réussie
+            error_log("Connexion réussie à la base de données {$this->db_name}");
+            
         } catch(PDOException $exception) {
             $error_message = "Erreur de connexion à la base de données: " . $exception->getMessage();
             error_log($error_message);
@@ -117,6 +127,7 @@ class Database {
             $this->getConnection(false);
             return $this->is_connected;
         } catch (Exception $e) {
+            error_log("Test de connexion échoué: " . $e->getMessage());
             return false;
         }
     }
@@ -140,66 +151,12 @@ class Database {
         $this->username = $username;
         $this->password = $password;
         
-        return $this->saveConfig();
-    }
-
-    // Convertir les tables en utf8mb4
-    private function convertTablesToUtf8mb4() {
-        try {
-            // Vérifier si la base de données est déjà en utf8mb4
-            $stmt = $this->conn->query("SELECT default_character_set_name, default_collation_name 
-                                      FROM information_schema.SCHEMATA 
-                                      WHERE schema_name = '" . $this->db_name . "'");
-            $dbInfo = $stmt->fetch(PDO::FETCH_ASSOC);
-            
-            // Si la base n'est pas déjà en utf8mb4, la convertir
-            if ($dbInfo && $dbInfo['default_character_set_name'] !== 'utf8mb4') {
-                $this->conn->exec("ALTER DATABASE `" . $this->db_name . "` CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci");
-                error_log("Base de données convertie en utf8mb4");
-            }
-            
-            // Récupérer toutes les tables de la base de données
-            $stmt = $this->conn->query("SHOW TABLES");
-            $tables = $stmt->fetchAll(PDO::FETCH_COLUMN);
-            
-            // Écrire dans le journal les tables trouvées
-            error_log("Tables trouvées dans la base de données: " . implode(', ', $tables));
-            
-            foreach ($tables as $table) {
-                // Vérifier le charset actuel de la table
-                $stmt = $this->conn->query("SHOW TABLE STATUS WHERE Name = '" . $table . "'");
-                $tableInfo = $stmt->fetch(PDO::FETCH_ASSOC);
-                
-                // Convertir la table si nécessaire
-                if ($tableInfo && $tableInfo['Collation'] !== 'utf8mb4_general_ci') {
-                    $this->conn->exec("ALTER TABLE `" . $table . "` CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci");
-                    error_log("Table {$table} convertie en utf8mb4");
-                    
-                    // Obtenir la liste des colonnes
-                    $stmt = $this->conn->query("SHOW FULL COLUMNS FROM `" . $table . "`");
-                    $columns = $stmt->fetchAll(PDO::FETCH_ASSOC);
-                    
-                    // Convertir chaque colonne de type texte
-                    foreach ($columns as $column) {
-                        if (strpos($column['Type'], 'varchar') !== false || 
-                            strpos($column['Type'], 'text') !== false || 
-                            strpos($column['Type'], 'char') !== false || 
-                            strpos($column['Type'], 'enum') !== false || 
-                            strpos($column['Type'], 'longtext') !== false) {
-                            
-                            if ($column['Collation'] !== 'utf8mb4_general_ci') {
-                                $this->conn->exec("ALTER TABLE `" . $table . "` MODIFY `" . $column['Field'] . "` " . 
-                                                $column['Type'] . " CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci");
-                                error_log("Colonne {$table}.{$column['Field']} convertie en utf8mb4");
-                            }
-                        }
-                    }
-                }
-            }
-        } catch(PDOException $e) {
-            // Journaliser l'erreur mais ne pas interrompre l'exécution
-            error_log("Erreur lors de la conversion en utf8mb4: " . $e->getMessage());
-        }
+        $success = $this->saveConfig();
+        
+        // Tester la connexion après la mise à jour
+        $this->testConnection();
+        
+        return $success;
     }
 }
 ?>

@@ -126,20 +126,22 @@ class DatabaseConnectionService {
       if (!response.ok) {
         const responseText = await response.text();
         console.warn("Réponse d'erreur de la base de données:", responseText);
-        throw new Error("Échec du test de connexion à la base de données");
+        throw new Error(`Échec du test de connexion à la base de données (${response.status}: ${response.statusText})`);
       }
       
       const responseText = await response.text();
+      console.log("Réponse du test de connexion:", responseText.substring(0, 200));
+      
       const data = this.validateJsonResponse(responseText);
       
       if (data.status !== 'success') {
-        console.warn("Échec de la connexion à la base de données:", data.message);
-        throw new Error(data.message || "Échec de la connexion à la base de données");
+        console.warn("Échec de la connexion à la base de données:", data.message, data.error || "");
+        throw new Error(data.error || data.message || "Échec de la connexion à la base de données");
       }
       
       toast({
         title: "Connexion réussie",
-        description: `Connexion établie avec la base de données`,
+        description: `Connexion établie avec la base de données ${data.info?.database_name || ''}`,
       });
       
       return true;
@@ -164,7 +166,7 @@ class DatabaseConnectionService {
   }
 
   // Get information about the database
-  public async getDatabaseInfo(): Promise<DatabaseInfo | null> {
+  public async getDatabaseInfo(): Promise<DatabaseInfo> {
     try {
       console.log("Récupération des informations sur la base de données...");
       const API_URL = getApiUrl();
@@ -177,10 +179,12 @@ class DatabaseConnectionService {
       if (!response.ok) {
         const responseText = await response.text();
         console.warn("Réponse d'erreur lors de la récupération des informations:", response.status, responseText.substring(0, 100));
-        throw new Error("Impossible de récupérer les informations de la base de données");
+        throw new Error(`Impossible de récupérer les informations de la base de données (${response.status})`);
       }
       
       const responseText = await response.text();
+      console.log("Réponse des informations DB:", responseText.substring(0, 200));
+      
       let data;
       
       try {
@@ -191,7 +195,9 @@ class DatabaseConnectionService {
       }
       
       if (data.status !== 'success') {
-        throw new Error(data.message || "Impossible de récupérer les informations de la base de données");
+        const errorMessage = data.error || data.message || "Impossible de récupérer les informations de la base de données";
+        console.error("Erreur de base de données:", errorMessage);
+        throw new Error(errorMessage);
       }
       
       if (data.info) {
@@ -207,6 +213,7 @@ class DatabaseConnectionService {
           tableList: data.info.tables || []
         };
       } else {
+        console.warn("Pas d'informations reçues de la base de données");
         throw new Error("Aucune information sur la base de données n'a été reçue");
       }
     } catch (error) {
@@ -217,7 +224,17 @@ class DatabaseConnectionService {
         variant: "destructive",
       });
       
-      throw error;
+      return {
+        host: "Non connecté",
+        database: "Non connecté",
+        size: "N/A",
+        tables: 0,
+        lastBackup: "N/A",
+        status: "Offline",
+        encoding: "N/A",
+        collation: "N/A",
+        tableList: []
+      };
     }
   }
 }
@@ -242,6 +259,6 @@ export const testDatabaseConnection = (): Promise<boolean> => {
   return dbConnectionService.testConnection();
 };
 
-export const getDatabaseInfo = (): Promise<DatabaseInfo | null> => {
+export const getDatabaseInfo = (): Promise<DatabaseInfo> => {
   return dbConnectionService.getDatabaseInfo();
 };

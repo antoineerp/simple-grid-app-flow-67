@@ -7,9 +7,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Loader2, RefreshCw, Database, AlertTriangle, ServerCrash, CheckCircle2, Table } from 'lucide-react';
 import { useAdminDatabase } from '@/hooks/useAdminDatabase';
 import DatabaseConfig from './DatabaseConfig';
+import DatabaseGuide from './DatabaseGuide';
 
 const DatabaseInfo = () => {
-  const { dbInfo, loading, testingConnection, loadDatabaseInfo, handleTestConnection } = useAdminDatabase();
+  const { dbInfo, loading, testingConnection, loadDatabaseInfo, handleTestConnection, error } = useAdminDatabase();
   const [activeTab, setActiveTab] = useState("info");
   
   // Charger les informations de la base de données au chargement du composant
@@ -44,10 +45,15 @@ const DatabaseInfo = () => {
 
   return (
     <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-      <TabsList className="grid grid-cols-2 mb-4">
+      <TabsList className="grid grid-cols-3 mb-4">
         <TabsTrigger value="info">Informations</TabsTrigger>
+        <TabsTrigger value="guide">Guide</TabsTrigger>
         <TabsTrigger value="config">Configuration</TabsTrigger>
       </TabsList>
+      
+      <TabsContent value="guide">
+        <DatabaseGuide />
+      </TabsContent>
       
       <TabsContent value="info">
         <Card>
@@ -68,6 +74,17 @@ const DatabaseInfo = () => {
             </div>
           </CardHeader>
           <CardContent>
+            {error && (
+              <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+                <h3 className="text-sm font-medium text-red-800 mb-1">Erreur de connexion</h3>
+                <p className="text-sm text-red-700">{error}</p>
+                <p className="text-xs text-red-600 mt-2">
+                  Vérifiez la configuration de la base de données dans l'onglet "Configuration".
+                  Consultez également le guide de configuration pour plus d'informations.
+                </p>
+              </div>
+            )}
+            
             {dbInfo ? (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-4">

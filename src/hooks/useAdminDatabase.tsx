@@ -18,9 +18,13 @@ export const useAdminDatabase = () => {
       const info = await getDatabaseInfo();
       setDbInfo(info);
       setLastUpdate(new Date());
+      
+      if (info.status !== "Online") {
+        setError("La base de données n'est pas accessible. Vérifiez la configuration.");
+      }
     } catch (error) {
       console.error("Erreur lors du chargement des informations de la base de données", error);
-      setError("Impossible de charger les informations de la base de données");
+      setError(error instanceof Error ? error.message : "Impossible de charger les informations de la base de données");
       toast({
         title: "Erreur",
         description: "Impossible de charger les informations de la base de données.",
@@ -43,10 +47,12 @@ export const useAdminDatabase = () => {
           title: "Succès",
           description: "La connexion à la base de données est établie.",
         });
+      } else {
+        setError("Le test de connexion a échoué. Vérifiez les paramètres de connexion.");
       }
     } catch (error) {
       console.error("Erreur lors du test de connexion à la base de données", error);
-      setError("Échec du test de connexion à la base de données");
+      setError(error instanceof Error ? error.message : "Échec du test de connexion à la base de données");
       toast({
         title: "Échec",
         description: "Impossible de se connecter à la base de données.",

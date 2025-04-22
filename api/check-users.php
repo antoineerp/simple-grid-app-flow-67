@@ -19,14 +19,14 @@ if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
     exit(json_encode(['status' => 200, 'message' => 'Preflight OK']));
 }
 
+// Journaliser l'exécution
+error_log("=== EXÉCUTION DE check-users.php ===");
+error_log("Méthode: " . $_SERVER['REQUEST_METHOD'] . " - URI: " . $_SERVER['REQUEST_URI']);
+
 // Inclure la configuration de la base de données
 require_once 'config/database.php';
 
 try {
-    // Journaliser l'exécution
-    error_log("=== EXÉCUTION DE check-users.php ===");
-    error_log("Méthode: " . $_SERVER['REQUEST_METHOD'] . " - URI: " . $_SERVER['REQUEST_URI']);
-    
     // Créer une instance de la base de données
     $database = new Database();
     $db = $database->getConnection(false);
@@ -64,19 +64,80 @@ try {
                         "tables" => ["utilisateurs"]
                     ]
                 ];
+                
+                error_log("Utilisateurs récupérés avec succès. Nombre: " . count($users));
             } else {
-                // La table n'existe pas encore
-                $response = [
-                    "status" => "warning",
-                    "message" => "La table 'utilisateurs' n'existe pas encore dans la base de données",
-                    "records" => [],
-                    "count" => 0,
-                    "database_info" => [
-                        "connected" => true,
-                        "host" => $database->host,
-                        "database" => $database->db_name
-                    ]
-                ];
+                error_log("La table 'utilisateurs' n'existe pas dans la base de données");
+                
+                // Créer la table utilisateurs si elle n'existe pas
+                try {
+                    $createTableQuery = "CREATE TABLE IF NOT EXISTS `utilisateurs` (
+                        `id` int(11) NOT NULL AUTO_INCREMENT,
+                        `nom` varchar(100) NOT NULL,
+                        `prenom` varchar(100) NOT NULL,
+                        `email` varchar(255) NOT NULL,
+                        `mot_de_passe` varchar(255) NOT NULL,
+                        `identifiant_technique` varchar(50) NOT NULL,
+                        `role` varchar(20) NOT NULL,
+                        `date_creation` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                        PRIMARY KEY (`id`),
+                        UNIQUE KEY `email` (`email`),
+                        UNIQUE KEY `identifiant_technique` (`identifiant_technique`)
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;";
+                    
+                    $db->exec($createTableQuery);
+                    error_log("Table 'utilisateurs' créée avec succès");
+                    
+                    // Insertion d'un utilisateur administrateur par défaut
+                    $insertAdminQuery = "INSERT INTO `utilisateurs` 
+                        (`nom`, `prenom`, `email`, `mot_de_passe`, `identifiant_technique`, `role`) VALUES
+                        ('Admin', 'Système', 'admin@qualiopi.ch', '" . password_hash('admin123', PASSWORD_DEFAULT) . "', 'p71x6d_system', 'admin');";
+                    
+                    $db->exec($insertAdminQuery);
+                    error_log("Utilisateur administrateur créé par défaut");
+                    
+                    // La table a été créée, mais elle est encore vide (à part l'admin)
+                    $response = [
+                        "status" => "success",
+                        "message" => "Table 'utilisateurs' créée avec succès",
+                        "records" => [
+                            [
+                                "id" => 1,
+                                "nom" => "Admin",
+                                "prenom" => "Système",
+                                "email" => "admin@qualiopi.ch",
+                                "mot_de_passe" => "******",
+                                "identifiant_technique" => "p71x6d_system",
+                                "role" => "admin",
+                                "date_creation" => date("Y-m-d H:i:s")
+                            ]
+                        ],
+                        "count" => 1,
+                        "database_info" => [
+                            "connected" => true,
+                            "host" => $database->host,
+                            "database" => $database->db_name,
+                            "tables" => ["utilisateurs"],
+                            "table_created" => true
+                        ]
+                    ];
+                } catch (PDOException $e) {
+                    error_log("Erreur lors de la création de la table 'utilisateurs': " . $e->getMessage());
+                    
+                    // La table n'existe pas encore et n'a pas pu être créée
+                    $response = [
+                        "status" => "warning",
+                        "message" => "La table 'utilisateurs' n'existe pas et n'a pas pu être créée: " . $e->getMessage(),
+                        "records" => [],
+                        "count" => 0,
+                        "database_info" => [
+                            "connected" => true,
+                            "host" => $database->host,
+                            "database" => $database->db_name,
+                            "error" => $e->getMessage()
+                        ]
+                    ];
+                }
             }
         } catch (PDOException $e) {
             // Erreur lors de la requête SQL
@@ -98,6 +159,8 @@ try {
         }
     } else {
         // Non connecté à la base de données
+        error_log("Non connecté à la base de données: " . $database->connection_error);
+        
         $response = [
             "status" => "error",
             "message" => "Non connecté à la base de données",
@@ -109,52 +172,6 @@ try {
                 "host" => $database->host,
                 "database" => $database->db_name,
                 "error" => $database->connection_error
-            ]
-        ];
-    }
-    
-    // Ajouter les utilisateurs de secours en cas d'échec de la base de données
-    if (!isset($response["records"]) || empty($response["records"])) {
-        $response["fallback_users"] = [
-            [
-                "identifiant_technique" => "p71x6d_system",
-                "mot_de_passe" => "admin123",
-                "role" => "admin",
-                "nom" => "Administrateur",
-                "prenom" => "Système",
-                "email" => "admin@qualiopi.ch"
-            ],
-            [
-                "identifiant_technique" => "admin",
-                "mot_de_passe" => "admin123",
-                "role" => "admin",
-                "nom" => "Admin",
-                "prenom" => "Default",
-                "email" => "admin@qualiopi.ch"
-            ],
-            [
-                "identifiant_technique" => "antcirier@gmail.com",
-                "mot_de_passe" => "password123",
-                "role" => "admin",
-                "nom" => "Cirier",
-                "prenom" => "Antoine",
-                "email" => "antcirier@gmail.com"
-            ],
-            [
-                "identifiant_technique" => "p71x6d_dupont",
-                "mot_de_passe" => "manager456",
-                "role" => "gestionnaire",
-                "nom" => "Dupont",
-                "prenom" => "Jean",
-                "email" => "jean.dupont@qualiopi.ch"
-            ],
-            [
-                "identifiant_technique" => "p71x6d_martin",
-                "mot_de_passe" => "user789",
-                "role" => "utilisateur",
-                "nom" => "Martin",
-                "prenom" => "Sophie",
-                "email" => "sophie.martin@qualiopi.ch"
             ]
         ];
     }
@@ -178,33 +195,6 @@ try {
         "database_info" => [
             "connected" => false,
             "error" => $e->getMessage()
-        ],
-        "fallback_users" => [
-            [
-                "identifiant_technique" => "p71x6d_system",
-                "mot_de_passe" => "admin123",
-                "role" => "admin"
-            ],
-            [
-                "identifiant_technique" => "admin",
-                "mot_de_passe" => "admin123",
-                "role" => "admin"
-            ],
-            [
-                "identifiant_technique" => "antcirier@gmail.com",
-                "mot_de_passe" => "password123",
-                "role" => "admin"
-            ],
-            [
-                "identifiant_technique" => "p71x6d_dupont",
-                "mot_de_passe" => "manager456",
-                "role" => "gestionnaire"
-            ],
-            [
-                "identifiant_technique" => "p71x6d_martin",
-                "mot_de_passe" => "user789",
-                "role" => "utilisateur"
-            ]
         ]
     ], JSON_UNESCAPED_UNICODE);
 }

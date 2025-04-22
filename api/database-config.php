@@ -13,6 +13,10 @@ if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
     exit;
 }
 
+// Journaliser l'accès
+error_log("=== EXÉCUTION DE database-config.php ===");
+error_log("Méthode: " . $_SERVER['REQUEST_METHOD'] . " - URI: " . $_SERVER['REQUEST_URI']);
+
 // Inclure la configuration de la base de données
 require_once 'config/database.php';
 
@@ -26,8 +30,15 @@ try {
         $data = json_decode($json_input, true);
         
         if (json_last_error() !== JSON_ERROR_NONE) {
-            throw new Exception("Données JSON invalides");
+            throw new Exception("Données JSON invalides: " . json_last_error_msg());
         }
+        
+        // Journaliser les données reçues (sans le mot de passe)
+        $log_data = $data;
+        if (isset($log_data['password'])) {
+            $log_data['password'] = '********';
+        }
+        error_log("Données reçues: " . json_encode($log_data));
         
         // Vérifier si les champs requis sont présents
         if (empty($data['host']) || empty($data['db_name']) || empty($data['username'])) {
@@ -35,9 +46,9 @@ try {
         }
         
         // Mettre à jour la configuration (le mot de passe peut être vide)
-        $host = filter_var($data['host'], FILTER_SANITIZE_STRING);
-        $db_name = filter_var($data['db_name'], FILTER_SANITIZE_STRING);
-        $username = filter_var($data['username'], FILTER_SANITIZE_STRING);
+        $host = filter_var($data['host'], FILTER_SANITIZE_FULL_SPECIAL_CHARS);
+        $db_name = filter_var($data['db_name'], FILTER_SANITIZE_FULL_SPECIAL_CHARS);
+        $username = filter_var($data['username'], FILTER_SANITIZE_FULL_SPECIAL_CHARS);
         $password = isset($data['password']) ? $data['password'] : '';
         
         // Mettre à jour la configuration
@@ -53,7 +64,8 @@ try {
             'message' => $is_connected ? 'Configuration mise à jour avec succès' : 'La configuration a été mise à jour mais la connexion a échoué',
             'database_changed' => true,
             'new_database' => $db_name,
-            'is_connected' => $is_connected
+            'is_connected' => $is_connected,
+            'error' => $is_connected ? null : $database->connection_error
         ]);
     } 
     // Si c'est une requête GET, retourner la configuration actuelle
@@ -74,13 +86,17 @@ try {
             'host' => $config['host'],
             'db_name' => $config['db_name'],
             'username' => $config['username'],
-            'available_databases' => $available_databases
+            'available_databases' => $available_databases,
+            'is_connected' => $config['is_connected'],
+            'error' => $config['error']
         ]);
     }
 } catch (Exception $e) {
+    error_log("Erreur dans database-config.php: " . $e->getMessage());
     http_response_code(500);
     echo json_encode([
         'status' => 'error',
         'message' => $e->getMessage()
     ]);
 }
+?>
