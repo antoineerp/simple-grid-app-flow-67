@@ -1,128 +1,58 @@
 
 // Configuration de l'API
-export const getApiUrl = (): string => {
-  // Si une URL personnalisée est définie dans le localStorage, l'utiliser
-  if (localStorage.getItem('customApiUrl')) {
-    return localStorage.getItem('customApiUrl') as string;
-  }
-  
-  // Si on est sur qualiopi.ch, utiliser un chemin spécifique
-  if (window.location.hostname === 'qualiopi.ch') {
-    // Chemin absolu pour Infomaniak
-    return window.location.origin + '/sites/qualiopi.ch/api';
-  }
-  
-  // Utiliser un chemin relatif par défaut pour fonctionner sur tout domaine
-  return '/api';
-};
+let apiUrl = '/api';
 
-// Définir une URL d'API personnalisée (utile pour le développement ou tests)
-export const setCustomApiUrl = (url: string): void => {
-  if (url && url.trim() !== '') {
-    // Normaliser l'URL pour éviter les double slashes
-    const normalizedUrl = url.trim().replace(/\/+$/, '');
-    localStorage.setItem('customApiUrl', normalizedUrl);
-    console.log(`URL d'API personnalisée définie: ${normalizedUrl}`);
-  }
-};
+// Pour les environnements de production spécifiques (comme Infomaniak)
+if (window.location.hostname === 'qualiopi.ch') {
+  apiUrl = '/sites/qualiopi.ch/api';
+}
 
-// Réinitialiser à l'URL d'API par défaut
-export const resetToDefaultApiUrl = (): void => {
-  localStorage.removeItem('customApiUrl');
-  console.log("URL d'API réinitialisée à la valeur par défaut");
-};
+// Obtenir l'URL de l'API
+export function getApiUrl(): string {
+  return apiUrl;
+}
 
-// Vérifier si l'application utilise une URL d'API personnalisée
-export const isUsingCustomApiUrl = (): boolean => {
-  return !!localStorage.getItem('customApiUrl');
-};
+// Obtenir l'URL complète de l'API (avec le hostname)
+export function getFullApiUrl(): string {
+  return `${window.location.protocol}//${window.location.host}${apiUrl}`;
+}
 
-// Obtenir l'URL d'API complète (pour affichage uniquement)
-export const getFullApiUrl = (): string => {
-  const baseUrl = isUsingCustomApiUrl() 
-    ? localStorage.getItem('customApiUrl') as string
-    : window.location.hostname === 'qualiopi.ch' 
-      ? window.location.origin + '/sites/qualiopi.ch/api'
-      : window.location.origin + '/api';
-  
-  // Normaliser l'URL pour éviter les double slashes
-  return baseUrl.replace(/([^:]\/)\/+/g, "$1");
-};
-
-// Fonction utilitaire pour traiter les réponses JSON
-export const safelyParseJSON = (text: string): any => {
+// Fonction utilitaire pour les requêtes fetch avec gestion d'erreur
+export async function fetchWithErrorHandling(url: string, options?: RequestInit): Promise<any> {
   try {
-    // Tenter de parser le JSON
-    return JSON.parse(text);
-  } catch (e) {
-    // Journaliser l'erreur
-    console.error("Erreur lors du parsing JSON:", e);
-    console.warn("Contenu reçu:", text.substring(0, 500) + (text.length > 500 ? "..." : ""));
+    const response = await fetch(url, options);
     
-    // Si la réponse est un HTML (probablement une erreur 500 ou autre page d'erreur)
-    if (text.includes("<!DOCTYPE") || text.includes("<html")) {
-      return { 
-        error: true, 
-        message: "La réponse du serveur n'est pas au format JSON (HTML reçu)",
-        originalResponse: text.substring(0, 100) + "..."
-      };
-    }
-    
-    // Pour les autres formats non-JSON
-    return {
-      error: true,
-      message: "Impossible de traiter la réponse du serveur",
-      originalResponse: text.substring(0, 100) + "..."
-    };
-  }
-};
-
-// Fonction pour faciliter les requêtes API avec gestion d'erreur intégrée
-export const fetchWithErrorHandling = async (url: string, options: RequestInit = {}): Promise<any> => {
-  try {
-    // Ajouter des headers par défaut
-    const defaultHeaders = {
-      'Content-Type': 'application/json',
-      'Cache-Control': 'no-cache, no-store, must-revalidate',
-      'Accept': 'application/json'
-    };
-    
-    // Fusionner les options avec les valeurs par défaut
-    const mergedOptions = {
-      ...options,
-      headers: {
-        ...defaultHeaders,
-        ...(options.headers || {})
-      }
-    };
-    
-    console.log(`Requête API à: ${url}`, { 
-      method: mergedOptions.method || 'GET'
-    });
-    
-    // Faire la requête
-    const response = await fetch(url, mergedOptions);
-    const textResponse = await response.text();
-    
-    // Essayer de traiter la réponse comme du JSON
-    const jsonData = safelyParseJSON(textResponse);
-    
-    // Si safelyParseJSON a détecté une erreur de parsing
-    if (jsonData && jsonData.error === true) {
-      console.error("Erreur API:", jsonData.message);
-      throw new Error(jsonData.message);
-    }
-    
-    // Si la réponse HTTP n'est pas OK
     if (!response.ok) {
-      const errorMessage = jsonData.message || jsonData.error || `Erreur HTTP ${response.status}`;
-      console.error("Erreur API:", errorMessage);
+      // Essayer de lire le corps de la réponse
+      let errorMessage = `Erreur HTTP: ${response.status}`;
+      try {
+        const errorData = await response.json();
+        if (errorData && errorData.message) {
+          errorMessage = errorData.message;
+        }
+      } catch (e) {
+        // Si la réponse n'est pas du JSON, utiliser le texte brut
+        const text = await response.text();
+        errorMessage = `Erreur: ${text.substring(0, 100)}...`;
+      }
+      
       throw new Error(errorMessage);
     }
     
-    return jsonData;
+    // Si la réponse est vide, retourner un objet vide
+    const text = await response.text();
+    if (!text) {
+      return {};
+    }
+    
+    try {
+      return JSON.parse(text);
+    } catch (e) {
+      console.error("Erreur de parsing JSON:", e);
+      throw new Error(`Réponse invalide: ${text.substring(0, 100)}...`);
+    }
   } catch (error) {
-    console.error("Erreur lors de la requête API:", error);
+    console.error("Erreur lors de la requête:", error);
     throw error;
   }
-};
+}

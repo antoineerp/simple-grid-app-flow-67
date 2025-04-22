@@ -10,13 +10,13 @@ import { AlertCircle, ExternalLink } from 'lucide-react';
 const Index = () => {
   const [apiStatus, setApiStatus] = useState<'loading' | 'success' | 'error'>('loading');
   const [apiMessage, setApiMessage] = useState<string>('');
-  const [version, setVersion] = useState<string>('1.0.2');
+  const [version, setVersion] = useState<string>('1.0.4');
   
   useEffect(() => {
     const checkApi = async () => {
       try {
         const timestamp = new Date().getTime();
-        const response = await fetch(`${getApiUrl()}?_=${timestamp}`, {
+        const response = await fetch(`${getApiUrl()}/index.php?_=${timestamp}`, {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json',
@@ -45,7 +45,7 @@ const Index = () => {
     checkApi();
     
     // Nouvelle date pour mettre à jour la version
-    setVersion(`1.0.4 - ${new Date().toLocaleDateString()}`);
+    setVersion(`1.0.5 - ${new Date().toLocaleDateString()}`);
   }, []);
 
   return (

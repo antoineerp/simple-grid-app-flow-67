@@ -11,6 +11,7 @@ ini_set('display_errors', 1);
 error_reporting(E_ALL);
 error_log("=== EXÉCUTION DE login-test.php ===");
 error_log("Méthode: " . $_SERVER['REQUEST_METHOD'] . " - URI: " . $_SERVER['REQUEST_URI']);
+error_log("Chemin complet du script: " . __FILE__);
 
 // Si c'est une requête OPTIONS (preflight), nous la terminons ici
 if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
