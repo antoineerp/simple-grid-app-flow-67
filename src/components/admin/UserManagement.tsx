@@ -1,14 +1,15 @@
+
 import React, { useState, useEffect } from 'react';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogTrigger } from "@/components/ui/dialog";
-import { Loader2, RefreshCw, UserPlus, LogIn, AlertCircle, ExternalLink, Database } from 'lucide-react';
+import { Loader2, RefreshCw, UserPlus, LogIn, AlertCircle, Eye, EyeOff } from 'lucide-react';
 import { useAdminUsers } from '@/hooks/useAdminUsers';
 import UserForm from './UserForm';
-import { getCurrentUser, getLastConnectionError, getPhpMyAdminUrl } from '@/services/core/databaseConnectionService';
+import { getCurrentUser, getLastConnectionError } from '@/services/core/databaseConnectionService';
 import { useToast } from "@/hooks/use-toast";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import type { Utilisateur } from '@/services';
@@ -23,6 +24,7 @@ const UserManagement = ({ currentDatabaseUser, onUserConnect }: UserManagementPr
   const { utilisateurs, loading, error, loadUtilisateurs, handleConnectAsUser } = useAdminUsers();
   const [newUserOpen, setNewUserOpen] = useState(false);
   const [connectionError, setConnectionError] = useState<string | null>(null);
+  const [showPasswords, setShowPasswords] = useState<{[key: string]: boolean}>({});
 
   useEffect(() => {
     const lastError = getLastConnectionError();
@@ -40,27 +42,22 @@ const UserManagement = ({ currentDatabaseUser, onUserConnect }: UserManagementPr
     return `${prenom.charAt(0)}${nom.charAt(0)}`.toUpperCase();
   };
 
+  const togglePasswordVisibility = (userId: number) => {
+    setShowPasswords(prev => ({
+      ...prev,
+      [userId]: !prev[userId]
+    }));
+  };
+
   const connectUser = async (identifiantTechnique: string) => {
     setConnectionError(null);
     const success = await handleConnectAsUser(identifiantTechnique);
     if (success) {
       onUserConnect(identifiantTechnique);
+      window.location.reload(); // Recharger la page pour mettre à jour l'interface
     } else {
       const error = getLastConnectionError();
       setConnectionError(error || "Erreur inconnue lors de la connexion");
-    }
-  };
-
-  const openPhpMyAdmin = () => {
-    const url = getPhpMyAdminUrl();
-    if (url) {
-      window.open(url, '_blank', 'noopener,noreferrer');
-    } else {
-      toast({
-        title: "Erreur",
-        description: "Aucun utilisateur de base de données n'est actuellement connecté.",
-        variant: "destructive",
-      });
     }
   };
 
@@ -110,26 +107,6 @@ const UserManagement = ({ currentDatabaseUser, onUserConnect }: UserManagementPr
           </Alert>
         )}
 
-        {currentDatabaseUser && (
-          <div className="mb-4 bg-blue-50 p-3 rounded-md flex items-center justify-between">
-            <div className="flex items-center">
-              <Database className="h-4 w-4 mr-2 text-blue-600" />
-              <span>
-                Base de données active: <strong>{currentDatabaseUser}</strong>
-              </span>
-            </div>
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={openPhpMyAdmin}
-              className="text-blue-600 border-blue-300 hover:bg-blue-100"
-            >
-              <ExternalLink className="h-4 w-4 mr-2" />
-              Ouvrir phpMyAdmin
-            </Button>
-          </div>
-        )}
-
         {loading ? (
           <div className="flex flex-col items-center justify-center py-10">
             <Loader2 className="h-8 w-8 animate-spin text-primary mb-4" />
@@ -143,6 +120,7 @@ const UserManagement = ({ currentDatabaseUser, onUserConnect }: UserManagementPr
                 <TableHead>Utilisateur</TableHead>
                 <TableHead>Email</TableHead>
                 <TableHead>Identifiant technique</TableHead>
+                <TableHead>Mot de passe</TableHead>
                 <TableHead>Rôle</TableHead>
                 <TableHead>Date de création</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
@@ -151,7 +129,7 @@ const UserManagement = ({ currentDatabaseUser, onUserConnect }: UserManagementPr
             <TableBody>
               {utilisateurs.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
+                  <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
                     Aucun utilisateur trouvé dans la base de données.
                     <br />
                     <Button 
@@ -177,6 +155,24 @@ const UserManagement = ({ currentDatabaseUser, onUserConnect }: UserManagementPr
                     </TableCell>
                     <TableCell>{user.email}</TableCell>
                     <TableCell>{user.identifiant_technique}</TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono">
+                          {showPasswords[user.id] ? user.mot_de_passe : '••••••'}
+                        </span>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => togglePasswordVisibility(user.id)}
+                        >
+                          {showPasswords[user.id] ? (
+                            <EyeOff className="h-4 w-4" />
+                          ) : (
+                            <Eye className="h-4 w-4" />
+                          )}
+                        </Button>
+                      </div>
+                    </TableCell>
                     <TableCell>
                       <Badge variant={user.role === 'admin' ? 'default' : 'secondary'}>
                         {user.role}
