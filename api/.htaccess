@@ -64,56 +64,6 @@ AddHandler application/x-httpd-php .php
     AddDefaultCharset UTF-8
 </FilesMatch>
 
-# DIRECT ACCESS: Explicitly handle PHP diagnostic files with direct access
-<Files "check-php-assets.php">
-    Order allow,deny
-    Allow from all
-    Satisfy any
-</Files>
-
-<Files "minimal-test.php">
-    Order allow,deny
-    Allow from all
-    Satisfy any
-</Files>
-
-<Files "simple-json-test.php">
-    Order allow,deny
-    Allow from all
-    Satisfy any
-</Files>
-
-<Files "test-php-routing.php">
-    Order allow,deny
-    Allow from all
-    Satisfy any
-</Files>
-
-<Files "assets-check.php">
-    Order allow,deny
-    Allow from all
-    Satisfy any
-</Files>
-
-# Explicitly handle specific PHP files
-RewriteCond %{REQUEST_URI} ^/api/simple-php-test\.php
-RewriteRule ^(.*)$ simple-php-test.php [L]
-
-RewriteCond %{REQUEST_URI} ^/api/test-json\.php
-RewriteRule ^(.*)$ test-json.php [L]
-
-RewriteCond %{REQUEST_URI} ^/api/test-php-routing\.php
-RewriteRule ^(.*)$ test-php-routing.php [L]
-
-RewriteCond %{REQUEST_URI} ^/api/minimal-test\.php
-RewriteRule ^(.*)$ minimal-test.php [L]
-
-RewriteCond %{REQUEST_URI} ^/api/check-php-assets\.php
-RewriteRule ^(.*)$ check-php-assets.php [L]
-
-RewriteCond %{REQUEST_URI} ^/api/assets-check\.php
-RewriteRule ^(.*)$ assets-check.php [L]
-
 # CORS headers
 Header set Access-Control-Allow-Origin "*"
 Header set Access-Control-Allow-Methods "GET, POST, OPTIONS, PUT, DELETE"
@@ -127,3 +77,23 @@ Header set Expires "0"
 # Default charset
 AddDefaultCharset UTF-8
 
+# Important: Route database-test.php explicitly
+RewriteCond %{REQUEST_URI} ^/api/database-test$
+RewriteRule ^(.*)$ database-test.php [L]
+
+# Important: Route db-connection-test explicitly
+RewriteCond %{REQUEST_URI} ^/api/db-connection-test$
+RewriteRule ^(.*)$ db-connection-test.php [L]
+
+# Important: All other specific PHP file handlers
+RewriteCond %{REQUEST_URI} ^/api/test$
+RewriteRule ^(.*)$ test.php [L]
+
+RewriteCond %{REQUEST_URI} ^/api/php-simple-test$
+RewriteRule ^(.*)$ php-simple-test.php [L]
+
+RewriteCond %{REQUEST_URI} ^/api/infomaniak-check$
+RewriteRule ^(.*)$ infomaniak-check.php [L]
+
+RewriteCond %{REQUEST_URI} ^/api/diagnose$
+RewriteRule ^(.*)$ diagnose.php [L]

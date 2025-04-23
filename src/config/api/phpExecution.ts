@@ -9,7 +9,6 @@ export async function checkPhpExecution(): Promise<boolean> {
     const testUrlOptions = [
       `${getApiUrl()}/php-simple-test.php?t=${timestamp}`,
       `${getApiUrl()}/test.php?t=${timestamp}`,
-      `${getApiUrl()}/verify-php-execution.php?t=${timestamp}`,
       `${getApiUrl()}/infomaniak-check.php?t=${timestamp}`,
     ];
     
@@ -66,7 +65,7 @@ export async function checkPhpExecution(): Promise<boolean> {
 // Test secondaire pour une configuration PHP de base
 export async function testBasicPhp(): Promise<boolean> {
   try {
-    // Essayer plusieurs fichiers PHP simples
+    // Essayer plusieurs fichiers PHP simples avec extension .php explicite
     const testUrls = [
       `${getApiUrl()}/php-simple-test.php?t=${Date.now()}`,
       `${getApiUrl()}/test.php?t=${Date.now()}`

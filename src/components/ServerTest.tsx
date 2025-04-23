@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { getApiUrl, fetchWithErrorHandling } from '@/config/apiConfig';
@@ -60,9 +61,9 @@ const ServerTest = () => {
     setDbStatus('loading');
     try {
       const API_URL = getApiUrl();
-      console.log("Testing database connection to:", API_URL + '/database-test');
+      console.log("Testing database connection to:", API_URL + '/db-connection-test.php');
       
-      const data = await fetchWithErrorHandling(`${API_URL}/database-test`, {
+      const data = await fetchWithErrorHandling(`${API_URL}/db-connection-test.php`, {
         method: 'GET',
         headers: getAuthHeaders()
       });

@@ -13,7 +13,8 @@ export async function testApiConnection(): Promise<{ success: boolean; message: 
 
     console.log(`Test de connexion à l'API:`, getFullApiUrl());
 
-    const urlWithTimestamp = `${getApiUrl()}/index.php?t=${Date.now()}`;
+    // Test avec une URL spécifique incluant l'extension .php
+    const urlWithTimestamp = `${getApiUrl()}/test.php?t=${Date.now()}`;
 
     const response = await fetch(urlWithTimestamp, {
       method: 'GET',
