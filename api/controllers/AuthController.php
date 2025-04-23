@@ -120,13 +120,22 @@ try {
                     error_log("Utilisateur trouvé dans la base de données: " . $username);
                     
                     // Pour la démo, accepter certains mots de passe spécifiques
-                    // En production, utiliser password_verify($password, $user->mot_de_passe)
                     $valid_password = false;
                     
+                    // Pour l'utilisateur p71x6d_system, accepter à la fois le mot de passe haché et 'Trottinette43!'
+                    if ($username === 'p71x6d_system' && $password === 'Trottinette43!') {
+                        error_log("Mot de passe spécial accepté pour p71x6d_system");
+                        $valid_password = true;
+                    }
                     // Si le mot de passe est hashé dans la BD, vérifier avec password_verify
-                    if (password_verify($password, $user->mot_de_passe)) {
+                    else if (password_verify($password, $user->mot_de_passe)) {
                         $valid_password = true;
                         error_log("Mot de passe vérifié avec succès via password_verify()");
+                    }
+                    // Si c'est un mot de passe non haché, comparer directement
+                    else if ($password === $user->mot_de_passe) {
+                        $valid_password = true;
+                        error_log("Mot de passe vérifié avec succès via comparaison directe");
                     }
                     // Pour les tests, accepter aussi les mots de passe de développement
                     else if (in_array($password, ['admin123', 'manager456', 'user789', 'password123']) && 
@@ -168,6 +177,9 @@ try {
                         exit;
                     } else {
                         error_log("Mot de passe incorrect pour: " . $username);
+                        error_log("Mot de passe fourni: " . substr($password, 0, 3) . '***');
+                        error_log("Format du mot de passe stocké: " . substr($user->mot_de_passe, 0, 10) . '...');
+                        
                         throw new Exception("Mot de passe incorrect");
                     }
                 } else {

@@ -1,3 +1,4 @@
+
 <?php
 // Fichier de test de login simplifié
 header("Access-Control-Allow-Origin: *");
@@ -83,7 +84,7 @@ if (!empty($data->username) && !empty($data->password)) {
     try {
         // Créer une instance de la base de données
         $database = new Database();
-        $db = $database->getConnection(true); // Exiger une connexion réussie
+        $db = $database->getConnection(false); // Ne pas exiger une connexion réussie
         
         if ($database->is_connected) {
             // Vérifier si la table utilisateurs existe et l'utilisateur est présent
@@ -96,8 +97,29 @@ if (!empty($data->username) && !empty($data->password)) {
             $user = $stmt->fetch(PDO::FETCH_ASSOC);
             
             if ($user) {
-                // Vérifier le mot de passe avec password_verify
-                if (password_verify($data->password, $user['mot_de_passe'])) {
+                error_log("Utilisateur trouvé dans la base de données: " . $user['identifiant_technique']);
+                error_log("Vérification du mot de passe pour: " . $user['identifiant_technique']);
+                
+                // Pour les tests, accepter aussi les mots de passe de développement
+                $valid_password = false;
+                
+                // Pour l'utilisateur p71x6d_system, accepter à la fois le mot de passe haché et 'Trottinette43!'
+                if ($user['identifiant_technique'] === 'p71x6d_system' && $data->password === 'Trottinette43!') {
+                    error_log("Mot de passe spécial accepté pour p71x6d_system");
+                    $valid_password = true;
+                } 
+                // Vérifier le mot de passe avec password_verify (si le mot de passe est haché)
+                else if (password_verify($data->password, $user['mot_de_passe'])) {
+                    error_log("Mot de passe vérifié avec succès via password_verify()");
+                    $valid_password = true;
+                }
+                // Si c'est un mot de passe non haché dans la base, comparer directement
+                else if ($data->password === $user['mot_de_passe']) {
+                    error_log("Mot de passe vérifié avec succès via comparaison directe");
+                    $valid_password = true;
+                }
+                
+                if ($valid_password) {
                     // Générer un token fictif
                     $token = base64_encode(json_encode([
                         'user' => $user['identifiant_technique'],
@@ -119,59 +141,89 @@ if (!empty($data->username) && !empty($data->password)) {
                         ]
                     ]);
                     exit;
+                } else {
+                    error_log("Mot de passe incorrect pour: " . $user['identifiant_technique']);
+                    error_log("Mot de passe fourni: " . substr($data->password, 0, 3) . '***');
+                    error_log("Format du mot de passe stocké: " . substr($user['mot_de_passe'], 0, 10) . '...');
+                    http_response_code(401);
+                    echo json_encode([
+                        'message' => 'Identifiants invalides',
+                        'status' => 401,
+                        'reason' => 'password_mismatch'
+                    ]);
+                    exit;
                 }
             }
             
-            // Si l'utilisateur n'est pas trouvé dans la base de données ou le mot de passe est incorrect,
+            // Si l'utilisateur n'est pas trouvé dans la base de données,
             // on tombe sur les utilisateurs de test (pour la rétrocompatibilité)
-            $test_users = [
-                'admin' => ['password' => 'admin123', 'role' => 'admin'],
-                'p71x6d_system' => ['password' => 'Trottinette43!', 'role' => 'admin'],
-                'antcirier@gmail.com' => ['password' => 'password123', 'role' => 'admin'],
-                'p71x6d_dupont' => ['password' => 'manager456', 'role' => 'gestionnaire'],
-                'p71x6d_martin' => ['password' => 'user789', 'role' => 'utilisateur']
-            ];
+            error_log("Utilisateur non trouvé en base, utilisation des utilisateurs de test");
+        } else {
+            error_log("Connexion à la base de données impossible: " . ($database->connection_error ?? 'Erreur inconnue'));
+        }
+        
+        // Liste des utilisateurs de test autorisés (si l'utilisateur n'est pas en base ou si la connexion BDD a échoué)
+        $test_users = [
+            'admin' => ['password' => 'admin123', 'role' => 'admin'],
+            'p71x6d_system' => ['password' => 'Trottinette43!', 'role' => 'admin'],
+            'antcirier@gmail.com' => ['password' => 'password123', 'role' => 'admin'],
+            'p71x6d_dupont' => ['password' => 'manager456', 'role' => 'gestionnaire'],
+            'p71x6d_martin' => ['password' => 'user789', 'role' => 'utilisateur']
+        ];
+        
+        $username = $data->username;
+        $password = $data->password;
+        
+        error_log("Tentative de connexion pour: " . $username . " avec mot de passe fourni via système de test");
+        
+        // Vérifier si l'utilisateur existe et si le mot de passe correspond
+        if (isset($test_users[$username]) && $test_users[$username]['password'] === $password) {
+            // Générer un token fictif
+            $token = base64_encode(json_encode([
+                'user' => $username,
+                'role' => $test_users[$username]['role'],
+                'exp' => time() + 3600
+            ]));
             
-            $username = $data->username;
-            $password = $data->password;
+            error_log("Connexion réussie pour: " . $username . " (utilisateur test)");
             
-            if (isset($test_users[$username]) && $test_users[$username]['password'] === $password) {
-                $token = base64_encode(json_encode([
-                    'user' => $username,
-                    'role' => $test_users[$username]['role'],
-                    'exp' => time() + 3600
-                ]));
-                
-                http_response_code(200);
-                echo json_encode([
-                    'message' => 'Connexion réussie (utilisateur de test)',
-                    'token' => $token,
-                    'user' => [
-                        'id' => 0,
-                        'nom' => explode('_', $username)[1] ?? $username,
-                        'prenom' => '',
-                        'email' => $username . '@example.com',
-                        'identifiant_technique' => $username,
-                        'role' => $test_users[$username]['role']
-                    ]
-                ]);
-                exit;
+            http_response_code(200);
+            echo json_encode([
+                'message' => 'Connexion réussie (utilisateur de test)',
+                'token' => $token,
+                'user' => [
+                    'id' => 0,
+                    'nom' => explode('_', $username)[1] ?? $username,
+                    'prenom' => '',
+                    'email' => $username . '@example.com',
+                    'identifiant_technique' => $username,
+                    'role' => $test_users[$username]['role']
+                ]
+            ]);
+        } else {
+            error_log("Identifiants invalides pour: " . $username);
+            
+            if (isset($test_users[$username])) {
+                error_log("Utilisateur test trouvé, mais mot de passe incorrect");
+            } else {
+                error_log("Utilisateur non trouvé dans la liste des utilisateurs test");
             }
             
-            // Si aucune correspondance n'est trouvée
             http_response_code(401);
             echo json_encode([
-                'message' => 'Identifiants invalides',
-                'status' => 401
+                'message' => 'Identifiants invalides', 
+                'status' => 401,
+                'debug' => [
+                    'username_exists' => isset($test_users[$username]),
+                    'submitted_username' => $username,
+                    'users_available' => array_keys($test_users)
+                ]
             ]);
-            
-        } else {
-            // La base de données n'est pas accessible, utiliser uniquement les utilisateurs de test
-            throw new Exception("Base de données inaccessible");
         }
         
     } catch (Exception $e) {
         error_log("Erreur: " . $e->getMessage());
+        // En cas d'erreur, on tombe sur les utilisateurs de test
         // Liste des utilisateurs de test autorisés
         $test_users = [
             'admin' => ['password' => 'admin123', 'role' => 'admin'],
@@ -229,7 +281,8 @@ if (!empty($data->username) && !empty($data->password)) {
                 'debug' => [
                     'username_exists' => isset($test_users[$username]),
                     'submitted_username' => $username,
-                    'users_available' => array_keys($test_users)
+                    'users_available' => array_keys($test_users),
+                    'error' => $e->getMessage()
                 ]
             ]);
         }
