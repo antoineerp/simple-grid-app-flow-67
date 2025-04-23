@@ -20,8 +20,7 @@ export {
   getLastConnectionError,
   disconnectUser,
   testDatabaseConnection,
-  getDatabaseInfo,
-  getPhpMyAdminUrl
+  getDatabaseInfo
 } from './core/databaseConnectionService';
 
 // Define types here if needed
@@ -30,6 +29,7 @@ export interface Utilisateur {
   nom: string;
   prenom: string;
   email: string;
+  mot_de_passe: string; // Added this property to fix the TypeScript error
   identifiant_technique: string;
   role: string;
   date_creation: string;
