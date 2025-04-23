@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import Logo from '@/components/auth/Logo';
 import LoginForm from '@/components/auth/LoginForm';
-import { getApiUrl, getFullApiUrl, testApiConnection } from '@/config/apiConfig';
+import { getApiUrl, getFullApiUrl, testApiConnection, checkPhpExecution } from '@/config/apiConfig';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle, Server, RefreshCw } from 'lucide-react';
@@ -14,10 +14,16 @@ const Index = () => {
   const [version, setVersion] = useState<string>('1.0.7');
   const [isInfomaniak, setIsInfomaniak] = useState<boolean>(false);
   const [isRetesting, setIsRetesting] = useState<boolean>(false);
+  const [phpStatus, setPhpStatus] = useState<'loading' | 'success' | 'error'>('loading');
   
   const checkApi = async () => {
     try {
       setApiStatus('loading');
+      
+      // Vérifier d'abord l'exécution PHP
+      const phpWorks = await checkPhpExecution();
+      setPhpStatus(phpWorks ? 'success' : 'error');
+      
       const result = await testApiConnection();
       
       if (result.success) {
@@ -67,6 +73,13 @@ const Index = () => {
                     <strong>Conseil:</strong> {apiDetails.tip}
                   </div>
                 )}
+                
+                {phpStatus === 'error' && (
+                  <div className="mt-1 p-2 bg-red-100 rounded">
+                    <strong>Problème détecté:</strong> L'exécution PHP n'est pas active sur le serveur.
+                    Vérifiez la configuration Apache et les fichiers .htaccess.
+                  </div>
+                )}
               </div>
               
               <Button 
@@ -95,6 +108,7 @@ const Index = () => {
                 <div className="mt-1">
                   URL d'API: <strong>{getFullApiUrl()}</strong>
                 </div>
+                {phpStatus === 'success' && <div className="text-green-600 mt-1">Exécution PHP vérifiée ✓</div>}
               </div>
             </AlertDescription>
           </Alert>

@@ -7,6 +7,9 @@ header("Access-Control-Allow-Origin: *");
 header("Access-Control-Allow-Methods: GET, OPTIONS, POST");
 header("Access-Control-Allow-Headers: Content-Type, Authorization");
 
+// Écrire dans le journal pour vérifier l'exécution
+error_log("API index.php exécuté - " . date('Y-m-d H:i:s'));
+
 // Répondre aux requêtes OPTIONS pour le CORS
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     http_response_code(200);
@@ -26,16 +29,8 @@ $php_info = [
     'loaded_modules' => get_loaded_extensions()
 ];
 
-// Vérifier les fichiers de configuration
-$config_files = [
-    'htaccess' => file_exists(__DIR__ . '/.htaccess'),
-    'api_htaccess' => file_exists(__DIR__ . '/.htaccess'),
-    'database_php' => file_exists(__DIR__ . '/config/database.php'),
-    'db_config_json' => file_exists(__DIR__ . '/config/db_config.json')
-];
-
 // Version API
-$api_version = '1.2.0';
+$api_version = '1.2.1';
 
 // Créer la réponse
 $response = [
@@ -45,8 +40,28 @@ $response = [
     'formatted_time' => date('Y-m-d H:i:s'),
     'api_version' => $api_version,
     'environment' => $php_info,
-    'config_files' => $config_files
+    'request_details' => [
+        'method' => $_SERVER['REQUEST_METHOD'],
+        'uri' => $_SERVER['REQUEST_URI'],
+        'query_string' => $_SERVER['QUERY_STRING'] ?? '',
+        'remote_addr' => $_SERVER['REMOTE_ADDR'],
+        'user_agent' => $_SERVER['HTTP_USER_AGENT'] ?? 'Unknown'
+    ]
 ];
+
+// Détection de configuration spécifique à Infomaniak
+if (stripos($_SERVER['SERVER_SOFTWARE'] ?? '', 'infomaniak') !== false || 
+    stripos($_SERVER['HTTP_HOST'] ?? '', 'infomaniak') !== false ||
+    stripos($_SERVER['HTTP_HOST'] ?? '', 'qualiopi.ch') !== false) {
+    
+    $response['server_type'] = 'Infomaniak';
+    $response['server_note'] = 'Environnement Infomaniak détecté, configuration optimisée appliquée';
+    
+    // Vérifier si .htaccess est correctement appliqué
+    if (!isset($_SERVER['REDIRECT_STATUS']) || $_SERVER['REDIRECT_STATUS'] != '200') {
+        $response['htaccess_warning'] = 'Les règles .htaccess ne sont peut-être pas appliquées correctement';
+    }
+}
 
 // Test de connexion à la base de données (si les fichiers existent)
 if (file_exists(__DIR__ . '/config/database.php') && file_exists(__DIR__ . '/config/db_config.json')) {

@@ -1,21 +1,32 @@
 
+# Configuration renforcée pour l'exécution PHP
+AddHandler application/x-httpd-php .php
+SetHandler application/x-httpd-php
+
 # Activation du moteur de réécriture
 RewriteEngine On
 RewriteBase /
 
-# Forcer l'exécution des scripts PHP
-<Files *.php>
+# Forcer l'exécution des scripts PHP - configuration renforcée
+<FilesMatch "\.php$">
+    # Définir explicitement le gestionnaire PHP
     SetHandler application/x-httpd-php
-</Files>
+    
+    # Options supplémentaires
+    Options +ExecCGI
+    
+    # Forcer le contenu comme étant du PHP
+    ForceType application/x-httpd-php
+</FilesMatch>
 
-# Forcer l'utilisation de PHP 8.x si disponible
-<IfModule mod_php8.c>
+# Si PHP 8 n'est pas disponible, utiliser PHP 7.x
+<IfModule mod_php7.c>
     php_flag display_errors on
     php_value error_reporting E_ALL
 </IfModule>
 
-# Si PHP 8 n'est pas disponible, utiliser PHP 7.x
-<IfModule mod_php7.c>
+# Configuration PHP 8
+<IfModule mod_php8.c>
     php_flag display_errors on
     php_value error_reporting E_ALL
 </IfModule>
@@ -47,3 +58,11 @@ AddDefaultCharset UTF-8
 
 # Index par défaut
 DirectoryIndex index.html index.php
+
+# Configuration de l'en-tête de type de contenu
+<IfModule mod_headers.c>
+    # Forcer les en-têtes de contenu pour les fichiers PHP
+    <FilesMatch "\.php$">
+        Header set Content-Type "application/json; charset=utf-8"
+    </FilesMatch>
+</IfModule>

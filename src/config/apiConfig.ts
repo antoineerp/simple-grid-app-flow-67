@@ -37,9 +37,58 @@ export function getFullApiUrl(): string {
     : `${window.location.protocol}//${window.location.host}${apiUrl}`;
 }
 
+// Vérifier l'exécution PHP
+export async function checkPhpExecution(): Promise<boolean> {
+  try {
+    console.log(`Vérification de l'exécution PHP: ${getFullApiUrl()}/verify-php-execution.php`);
+    
+    const response = await fetch(`${getApiUrl()}/verify-php-execution.php`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Cache-Control': 'no-cache, no-store, must-revalidate'
+      }
+    });
+    
+    // Si le statut n'est pas 200, PHP ne s'exécute pas correctement
+    if (!response.ok) {
+      console.error(`Échec de la vérification PHP: ${response.status} ${response.statusText}`);
+      return false;
+    }
+    
+    const text = await response.text();
+    
+    // Vérifier si la réponse est du PHP non exécuté
+    if (text.trim().startsWith('<?php')) {
+      console.error('Code PHP non exécuté détecté lors de la vérification');
+      return false;
+    }
+    
+    // Essayer de parser la réponse comme JSON
+    try {
+      const data = JSON.parse(text);
+      console.log('Vérification PHP réussie:', data);
+      return true;
+    } catch (e) {
+      console.error('Réponse non-JSON de la vérification PHP:', text.substring(0, 100));
+      return false;
+    }
+  } catch (error) {
+    console.error('Erreur lors de la vérification PHP:', error);
+    return false;
+  }
+}
+
 // Test simple de connexion à l'API
 export async function testApiConnection(): Promise<{ success: boolean; message: string; details?: any }> {
   try {
+    // Vérifier d'abord l'exécution PHP
+    const phpExecutionOk = await checkPhpExecution();
+    
+    if (!phpExecutionOk) {
+      console.warn('Problème d\'exécution PHP détecté, vérifiez la configuration du serveur');
+    }
+    
     console.log(`Test de connexion à l'API: ${getFullApiUrl()}`);
     
     const response = await fetch(`${getApiUrl()}/index.php`, {
@@ -51,7 +100,6 @@ export async function testApiConnection(): Promise<{ success: boolean; message: 
     });
     
     console.log('Réponse du test API:', response.status, response.statusText);
-    console.log('Headers:', [...response.headers.entries()]);
     
     // Récupérer le texte de la réponse
     const responseText = await response.text();

@@ -1,5 +1,5 @@
 
-# Forcer l'exécution de PHP - Configuration renforcée
+# Configuration renforcée pour l'exécution PHP
 AddHandler application/x-httpd-php .php
 SetHandler application/x-httpd-php
 
@@ -24,6 +24,11 @@ AddDefaultCharset UTF-8
     Header set Cache-Control "no-cache, no-store, must-revalidate"
     Header set Pragma "no-cache"
     Header set Expires 0
+    
+    # Forcer le type de contenu JSON pour les fichiers PHP
+    <FilesMatch "\.php$">
+        Header set Content-Type "application/json; charset=utf-8"
+    </FilesMatch>
 </IfModule>
 
 # Forcer l'exécution des scripts PHP (configuration renforcée)
@@ -40,6 +45,20 @@ AddDefaultCharset UTF-8
 
 # Configuration supplémentaire du module PHP
 <IfModule mod_php.c>
+    php_value default_charset "UTF-8"
+    php_flag display_errors on
+    php_value error_reporting E_ALL
+</IfModule>
+
+# Configuration spécifique à PHP 7
+<IfModule mod_php7.c>
+    php_value default_charset "UTF-8"
+    php_flag display_errors on
+    php_value error_reporting E_ALL
+</IfModule>
+
+# Configuration spécifique à PHP 8
+<IfModule mod_php8.c>
     php_value default_charset "UTF-8"
     php_flag display_errors on
     php_value error_reporting E_ALL
