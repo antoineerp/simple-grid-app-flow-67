@@ -46,4 +46,3 @@ RewriteRule ^api(/.*)?$ api$1 [L]
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^(?!api/) index.html [L]
-
