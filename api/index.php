@@ -99,6 +99,31 @@ $controller = !empty($segments[0]) ? $segments[0] : 'index';
 // Journaliser la requête
 error_log("API Controller: $controller | Method: " . $_SERVER['REQUEST_METHOD'] . " | URI: $request_uri | Path: $path");
 
+// Ajouter un point d'accès spécial pour les utilisateurs
+if ($controller == 'utilisateurs') {
+    error_log("Accès à la route utilisateurs");
+    
+    // Chemin complet du contrôleur d'utilisateurs
+    $userControllerPath = __DIR__ . '/controllers/UsersController.php';
+    
+    // Vérifier que le fichier existe
+    if (file_exists($userControllerPath)) {
+        error_log("Fichier contrôleur utilisateurs trouvé: $userControllerPath");
+        define('DIRECT_ACCESS_CHECK', true);
+        require_once $userControllerPath;
+        exit;
+    } else {
+        error_log("ERREUR: Fichier contrôleur utilisateurs NON trouvé: $userControllerPath");
+        http_response_code(500);
+        echo json_encode([
+            'status' => 'error',
+            'message' => 'Fichier contrôleur utilisateurs non trouvé',
+            'path' => $userControllerPath
+        ]);
+        exit;
+    }
+}
+
 // Router vers le bon fichier en fonction du contrôleur
 switch ($controller) {
     case 'auth':
@@ -124,29 +149,6 @@ switch ($controller) {
     case 'direct-db-test':
     case 'direct-db-test.php':
         require_once 'direct-db-test.php';
-        break;
-        
-    case 'utilisateurs':
-        // Faire en sorte que le UsersController.php soit inclus avec des chemins relatifs corrects
-        $userController = __DIR__ . '/controllers/UsersController.php';
-        if (file_exists($userController)) {
-            error_log("Inclusion du contrôleur d'utilisateurs: " . $userController);
-            require_once $userController;
-        } else {
-            error_log("ERREUR: Contrôleur d'utilisateurs non trouvé à: " . $userController);
-            http_response_code(500);
-            echo json_encode([
-                'message' => 'Contrôleur d\'utilisateurs non trouvé',
-                'status' => 500,
-                'path' => $userController,
-                'debug' => [
-                    'request_uri' => $request_uri,
-                    'controller' => $controller,
-                    'segments' => $segments,
-                    'directory' => __DIR__
-                ]
-            ]);
-        }
         break;
         
     case 'check-users':

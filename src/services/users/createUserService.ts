@@ -48,9 +48,8 @@ export const createUser = async (userData: CreateUserData) => {
         const dbTestResult = await dbTestResponse.json();
         console.log("Résultat du test de connexion à la base de données:", dbTestResult);
         
-        if (dbTestResult.status !== 'success' || (dbTestResult.database_class && dbTestResult.database_class.status !== 'success')) {
-          console.error("Problème de connexion à la base de données:", 
-            dbTestResult.database_class ? dbTestResult.database_class.error : dbTestResult.message || "Raison inconnue");
+        if (dbTestResult.status !== 'success') {
+          console.error("Problème de connexion à la base de données:", dbTestResult.message || "Raison inconnue");
           throw new Error("Impossible de se connecter à la base de données. Vérifiez la configuration.");
         }
       } else {
@@ -65,13 +64,14 @@ export const createUser = async (userData: CreateUserData) => {
     }
     
     // Une fois la connexion à la base de données vérifiée, envoyer la requête de création d'utilisateur
+    console.log(`Envoi de la requête de création d'utilisateur à ${apiUrl}/utilisateurs`);
     const response = await fetch(`${apiUrl}/utilisateurs`, {
       method: 'POST',
       headers: headers,
       body: JSON.stringify(requestData)
     });
     
-    console.log("Statut de la réponse finale:", response.status);
+    console.log("Statut de la réponse finale:", response.status, response.statusText);
     
     // Récupérer le texte brut de la réponse pour diagnostiquer les problèmes
     const responseText = await response.text();
@@ -97,6 +97,7 @@ export const createUser = async (userData: CreateUserData) => {
     let responseData;
     try {
       responseData = JSON.parse(responseText);
+      console.log("Données JSON analysées:", responseData);
     } catch (jsonError) {
       console.error("Erreur lors du parsing JSON:", jsonError);
       console.error("Texte reçu qui a causé l'erreur:", responseText);
@@ -114,7 +115,8 @@ export const createUser = async (userData: CreateUserData) => {
     }
 
     if (!response.ok) {
-      throw new Error(responseData.message || "Erreur lors de la création de l'utilisateur");
+      console.error("Erreur HTTP lors de la création de l'utilisateur:", response.status, responseData);
+      throw new Error(responseData.message || `Erreur lors de la création de l'utilisateur (${response.status})`);
     }
 
     // Ajouter l'identifiant technique à la réponse pour faciliter la connexion ultérieure
