@@ -154,6 +154,17 @@ switch ($controller) {
         require_once 'check-users.php';
         break;
         
+    // Ajouter un cas explicite pour login-test.php au cas où il serait appelé directement
+    case 'login-test.php':
+        require_once 'login-test.php';
+        break;
+        
+    // Ajouter un cas explicite pour test.php car il manque peut-être aussi
+    case 'test':
+    case 'test.php':
+        require_once 'test.php';
+        break;
+        
     default:
         // Si le contrôleur n'est pas reconnu, vérifier si un fichier PHP correspondant existe
         $controller_file = $controller . '.php';
