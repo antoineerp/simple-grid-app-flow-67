@@ -7,7 +7,7 @@ export * from './users/userService';
 export * from './users/createUserService';
 export * from './auth/authService';
 
-// Explicitly re-export specific items to avoid naming conflicts
+// Explicitly re-export with a different name to resolve ambiguity
 export { 
   getCurrentUser as getDatabaseConnectionCurrentUser 
 } from './core/databaseConnectionService';
