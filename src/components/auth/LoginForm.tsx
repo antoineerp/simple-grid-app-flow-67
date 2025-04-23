@@ -7,12 +7,10 @@ import UsernameField from './UsernameField';
 import PasswordField from './PasswordField';
 import ForgotPasswordLink from './ForgotPasswordLink';
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { AlertCircle, Database, Info } from 'lucide-react';
-import { getApiUrl } from '@/config/apiConfig';
+import { AlertCircle } from 'lucide-react';
 
 const LoginForm = () => {
   const { form, isLoading, hasDbError, hasServerError, hasAuthError, onSubmit } = useLoginForm();
-  const currentApiUrl = getApiUrl();
 
   return (
     <>
@@ -55,24 +53,6 @@ const LoginForm = () => {
           </Button>
         </form>
       </Form>
-      
-      <div className="mt-4 text-xs text-gray-400 flex items-center gap-1">
-        <Database className="h-3 w-3" />
-        <span>Base MySQL: <span className="font-mono">{currentApiUrl}/database-test</span></span>
-      </div>
-      
-      <Alert variant="default" className="mt-4 bg-blue-50">
-        <Info className="h-4 w-4 mr-2" />
-        <AlertDescription className="text-xs">
-          <strong>Utilisateurs de test disponibles:</strong>
-          <ul className="list-disc pl-5 mt-1">
-            <li>admin (mot de passe: admin123)</li>
-            <li>p71x6d_system (mot de passe: Trottinette43!)</li>
-            <li>antcirier@gmail.com (mot de passe: password123)</li>
-            <li>Tout utilisateur créé dans la base de données (mot de passe: password123)</li>
-          </ul>
-        </AlertDescription>
-      </Alert>
       
       <ForgotPasswordLink />
     </>
