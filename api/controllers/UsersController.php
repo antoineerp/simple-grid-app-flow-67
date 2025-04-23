@@ -121,11 +121,37 @@ try {
                     
                     if ($user->create()) {
                         http_response_code(201);
-                        echo json_encode(array("message" => "Utilisateur créé avec succès."));
+                        echo json_encode(array(
+                            "message" => "Utilisateur créé avec succès.",
+                            "success" => true,
+                            "user" => array(
+                                "nom" => $data->nom,
+                                "prenom" => $data->prenom,
+                                "email" => $data->email,
+                                "identifiant_technique" => $data->identifiant_technique,
+                                "role" => $data->role
+                            )
+                        ));
                     } else {
                         error_log("UsersController POST - Échec de la création: erreur dans user->create()");
                         http_response_code(503);
                         echo json_encode(array("message" => "Impossible de créer l'utilisateur."));
+                    }
+                } catch (PDOException $e) {
+                    error_log("UsersController POST - PDOException: " . $e->getMessage());
+                    http_response_code(500);
+                    
+                    // Vérifier si c'est une erreur de clé primaire dupliquée
+                    if ($e->getCode() == 23000 && strpos($e->getMessage(), '1062') !== false) {
+                        if (strpos($e->getMessage(), 'email') !== false) {
+                            echo json_encode(array("message" => "Un utilisateur avec cet email existe déjà."));
+                        } else if (strpos($e->getMessage(), 'identifiant_technique') !== false) {
+                            echo json_encode(array("message" => "Un utilisateur avec cet identifiant technique existe déjà."));
+                        } else {
+                            echo json_encode(array("message" => "Violation de contrainte d'intégrité: " . $e->getMessage()));
+                        }
+                    } else {
+                        echo json_encode(array("message" => "Erreur lors de la création de l'utilisateur: " . $e->getMessage()));
                     }
                 } catch (Exception $e) {
                     error_log("UsersController POST - Exception: " . $e->getMessage());

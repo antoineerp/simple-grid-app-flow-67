@@ -19,8 +19,10 @@ export const createUser = async (userData: CreateUserData) => {
     throw new Error("Le mot de passe doit contenir au moins 6 caractères");
   }
 
-  // Générer l'identifiant technique
-  const identifiantTechnique = `p71x6d_${userData.prenom.toLowerCase()}_${userData.nom.toLowerCase()}`.replace(/[^a-z0-9_]/g, '');
+  // Générer l'identifiant technique avec un timestamp pour éviter les doublons
+  const timestamp = new Date().getTime();
+  const randomStr = Math.random().toString(36).substring(2, 6);
+  const identifiantTechnique = `p71x6d_${userData.prenom.toLowerCase()}_${userData.nom.toLowerCase()}_${randomStr}_${timestamp}`.replace(/[^a-z0-9_]/g, '').substring(0, 50);
 
   try {
     const apiUrl = getApiUrl();
@@ -61,6 +63,33 @@ export const createUser = async (userData: CreateUserData) => {
     } catch (dbTestError) {
       console.error("Erreur lors du test de connexion à la base de données:", dbTestError);
       throw new Error(`Échec de la vérification de la base de données: ${dbTestError instanceof Error ? dbTestError.message : 'Erreur inconnue'}`);
+    }
+    
+    // Vérifier si l'utilisateur existe déjà
+    try {
+      console.log(`Vérification si un utilisateur avec l'email ${userData.email} existe déjà`);
+      const checkResponse = await fetch(`${apiUrl}/check-users.php`, {
+        method: 'GET',
+        headers: headers
+      });
+      
+      if (checkResponse.ok) {
+        const checkResult = await checkResponse.json();
+        
+        if (checkResult && checkResult.records) {
+          const existingUser = checkResult.records.find((user: any) => 
+            user.email === userData.email
+          );
+          
+          if (existingUser) {
+            console.error("Un utilisateur avec cet email existe déjà:", existingUser);
+            throw new Error(`Un utilisateur avec l'email ${userData.email} existe déjà.`);
+          }
+        }
+      }
+    } catch (checkError) {
+      console.error("Erreur lors de la vérification de l'utilisateur:", checkError);
+      // On continue même en cas d'erreur de vérification
     }
     
     // Une fois la connexion à la base de données vérifiée, envoyer la requête de création d'utilisateur

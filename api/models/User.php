@@ -67,7 +67,34 @@ class User {
             // Vérifier si la table existe
             $this->createTableIfNotExists();
             
-            // Requête d'insertion
+            // Vérifier d'abord si l'email existe déjà
+            $email_check_query = "SELECT COUNT(*) FROM " . $this->table_name . " WHERE email = :email";
+            $check_stmt = $this->conn->prepare($email_check_query);
+            $check_stmt->bindParam(":email", $this->email);
+            $check_stmt->execute();
+            
+            if ($check_stmt->fetchColumn() > 0) {
+                error_log("Tentative de création d'un utilisateur avec un email déjà existant: " . $this->email);
+                throw new Exception("Un utilisateur avec cet email existe déjà.");
+            }
+            
+            // Vérifier si l'identifiant technique existe déjà
+            $id_check_query = "SELECT COUNT(*) FROM " . $this->table_name . " WHERE identifiant_technique = :identifiant_technique";
+            $id_check_stmt = $this->conn->prepare($id_check_query);
+            $id_check_stmt->bindParam(":identifiant_technique", $this->identifiant_technique);
+            $id_check_stmt->execute();
+            
+            if ($id_check_stmt->fetchColumn() > 0) {
+                error_log("Tentative de création d'un utilisateur avec un identifiant technique déjà existant: " . $this->identifiant_technique);
+                
+                // Générer un nouvel identifiant technique unique
+                $timestamp = time();
+                $random = substr(md5(rand()), 0, 5);
+                $this->identifiant_technique = $this->identifiant_technique . "_" . $random . "_" . $timestamp;
+                error_log("Nouvel identifiant technique généré: " . $this->identifiant_technique);
+            }
+            
+            // Requête d'insertion - IMPORTANT: Ne pas inclure le champ 'id' pour permettre l'auto-incrémentation
             $query = "INSERT INTO " . $this->table_name . "
                     SET
                         nom = :nom,
@@ -113,7 +140,10 @@ class User {
 
             return false;
         } catch (PDOException $e) {
-            error_log("Erreur lors de la création d'un utilisateur: " . $e->getMessage());
+            error_log("Erreur PDO lors de la création d'un utilisateur: " . $e->getMessage());
+            throw $e;
+        } catch (Exception $e) {
+            error_log("Exception lors de la création d'un utilisateur: " . $e->getMessage());
             throw $e;
         }
     }
@@ -134,7 +164,7 @@ class User {
                     `prenom` varchar(100) NOT NULL,
                     `email` varchar(255) NOT NULL,
                     `mot_de_passe` varchar(255) NOT NULL,
-                    `identifiant_technique` varchar(50) NOT NULL,
+                    `identifiant_technique` varchar(100) NOT NULL,
                     `role` varchar(20) NOT NULL,
                     `date_creation` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
                     PRIMARY KEY (`id`),
