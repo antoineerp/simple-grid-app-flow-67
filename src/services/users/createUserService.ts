@@ -21,7 +21,7 @@ export const createUser = async (userData: CreateUserData) => {
 
   // Générer l'identifiant technique avec un timestamp pour éviter les doublons
   const timestamp = new Date().getTime();
-  const randomStr = Math.random().toString(36).substring(2, 6);
+  const randomStr = Math.random().toString(36).substring(2, 8); // Augmenté la longueur à 6 caractères
   const identifiantTechnique = `p71x6d_${userData.prenom.toLowerCase()}_${userData.nom.toLowerCase()}_${randomStr}_${timestamp}`.replace(/[^a-z0-9_]/g, '').substring(0, 50);
 
   try {
@@ -38,45 +38,21 @@ export const createUser = async (userData: CreateUserData) => {
     
     console.log("Données envoyées:", JSON.stringify(requestData));
     
-    // Tester la connexion à la base de données d'abord
+    // Vérifier explicitement si l'email existe déjà
     try {
-      console.log(`Test de la connexion à la base de données avant de créer l'utilisateur: ${apiUrl}/db-connection-test`);
-      const dbTestResponse = await fetch(`${apiUrl}/db-connection-test`, {
+      const checkEmailUrl = `${apiUrl}/check-users.php?email=${encodeURIComponent(userData.email)}`;
+      console.log(`Vérification de l'email: ${checkEmailUrl}`);
+      
+      const emailCheckResponse = await fetch(checkEmailUrl, {
         method: 'GET',
         headers: headers
       });
       
-      if (dbTestResponse.ok) {
-        const dbTestResult = await dbTestResponse.json();
-        console.log("Résultat du test de connexion à la base de données:", dbTestResult);
+      if (emailCheckResponse.ok) {
+        const checkResult = await emailCheckResponse.json();
+        console.log("Résultat de la vérification d'email:", checkResult);
         
-        if (dbTestResult.status !== 'success') {
-          console.error("Problème de connexion à la base de données:", dbTestResult.message || "Raison inconnue");
-          throw new Error("Impossible de se connecter à la base de données. Vérifiez la configuration.");
-        }
-      } else {
-        const errorText = await dbTestResponse.text();
-        console.warn("Le test de connexion à la base de données a échoué avec le statut:", dbTestResponse.status);
-        console.warn("Détails de l'erreur:", errorText);
-        throw new Error(`Échec du test de connexion à la base de données (${dbTestResponse.status}): ${errorText.substring(0, 100)}`);
-      }
-    } catch (dbTestError) {
-      console.error("Erreur lors du test de connexion à la base de données:", dbTestError);
-      throw new Error(`Échec de la vérification de la base de données: ${dbTestError instanceof Error ? dbTestError.message : 'Erreur inconnue'}`);
-    }
-    
-    // Vérifier si l'utilisateur existe déjà
-    try {
-      console.log(`Vérification si un utilisateur avec l'email ${userData.email} existe déjà`);
-      const checkResponse = await fetch(`${apiUrl}/check-users.php`, {
-        method: 'GET',
-        headers: headers
-      });
-      
-      if (checkResponse.ok) {
-        const checkResult = await checkResponse.json();
-        
-        if (checkResult && checkResult.records) {
+        if (checkResult && checkResult.records && checkResult.records.length > 0) {
           const existingUser = checkResult.records.find((user: any) => 
             user.email === userData.email
           );
@@ -88,11 +64,15 @@ export const createUser = async (userData: CreateUserData) => {
         }
       }
     } catch (checkError) {
-      console.error("Erreur lors de la vérification de l'utilisateur:", checkError);
-      // On continue même en cas d'erreur de vérification
+      // Si l'erreur est liée à la vérification de l'email existant, la propager
+      if (checkError instanceof Error && checkError.message.includes('email existe déjà')) {
+        throw checkError;
+      }
+      console.error("Erreur lors de la vérification de l'email:", checkError);
+      // On continue si c'est une autre erreur de vérification
     }
     
-    // Une fois la connexion à la base de données vérifiée, envoyer la requête de création d'utilisateur
+    // Une fois la vérification d'email effectuée, envoyer la requête de création d'utilisateur
     console.log(`Envoi de la requête de création d'utilisateur à ${apiUrl}/utilisateurs`);
     const response = await fetch(`${apiUrl}/utilisateurs`, {
       method: 'POST',
@@ -140,11 +120,52 @@ export const createUser = async (userData: CreateUserData) => {
         };
       }
       
+      // Si la réponse contient une erreur de duplication, la capturer pour un message plus convivial
+      if (responseText.includes("Integrity constraint violation: 1062") || 
+          responseText.includes("Duplicate entry")) {
+        // Déterminer si c'est l'email ou l'identifiant technique qui est dupliqué
+        if (responseText.includes("email")) {
+          throw new Error(`Un utilisateur avec l'email ${userData.email} existe déjà.`);
+        } else if (responseText.includes("identifiant_technique")) {
+          // Générer un nouvel identifiant et réessayer
+          console.log("Identifiant technique dupliqué, tentative avec un nouvel identifiant...");
+          const newTimestamp = new Date().getTime();
+          const newRandomStr = Math.random().toString(36).substring(2, 8);
+          const newIdentifiant = `p71x6d_${userData.prenom.toLowerCase()}_${userData.nom.toLowerCase()}_${newRandomStr}_${newTimestamp}`.replace(/[^a-z0-9_]/g, '').substring(0, 50);
+          
+          requestData.identifiant_technique = newIdentifiant;
+          return createUser(userData); // Appel récursif avec le nouvel identifiant
+        } else {
+          throw new Error("Un utilisateur avec des informations identiques existe déjà.");
+        }
+      }
+      
       throw new Error(`Réponse non valide du serveur: ${responseText.substring(0, 100)}...`);
     }
 
     if (!response.ok) {
       console.error("Erreur HTTP lors de la création de l'utilisateur:", response.status, responseData);
+      
+      // Vérifier si l'erreur est liée à une duplication
+      if (responseData.message && (
+          responseData.message.includes("Duplicate entry") || 
+          responseData.message.includes("exists") || 
+          responseData.message.includes("existe déjà"))) {
+        
+        if (responseData.message.includes("email")) {
+          throw new Error(`Un utilisateur avec l'email ${userData.email} existe déjà.`);
+        } else if (responseData.message.includes("identifiant_technique")) {
+          // Générer un nouvel identifiant et réessayer
+          console.log("Identifiant technique dupliqué, tentative avec un nouvel identifiant...");
+          const newTimestamp = new Date().getTime();
+          const newRandomStr = Math.random().toString(36).substring(2, 8);
+          const newIdentifiant = `p71x6d_${userData.prenom.toLowerCase()}_${userData.nom.toLowerCase()}_${newRandomStr}_${newTimestamp}`.replace(/[^a-z0-9_]/g, '').substring(0, 50);
+          
+          requestData.identifiant_technique = newIdentifiant;
+          return createUser(userData); // Appel récursif avec le nouvel identifiant
+        }
+      }
+      
       throw new Error(responseData.message || `Erreur lors de la création de l'utilisateur (${response.status})`);
     }
 
