@@ -1,6 +1,6 @@
 
 <?php
-// Script de vérification minimal
+// Script de vérification minimal - simplifié pour éviter les erreurs 500
 header('Content-Type: application/json; charset=utf-8');
 header("Cache-Control: no-cache, no-store, must-revalidate");
 header("Access-Control-Allow-Origin: *");

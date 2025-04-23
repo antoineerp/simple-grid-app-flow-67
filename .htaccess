@@ -1,21 +1,19 @@
 
-# Activer le moteur de réécriture
+# Configuration simplifiée pour résoudre l'erreur 500
 RewriteEngine On
+
+# Activer le moteur de réécriture sans options complexes
 RewriteBase /
 
-# Forcer l'exécution des scripts PHP de base
+# Assurer l'exécution des scripts PHP
 <FilesMatch "\.php$">
     SetHandler application/x-httpd-php
 </FilesMatch>
 
-# Configuration directe pour PHP
-php_flag display_errors on
-php_value error_reporting E_ALL
-
-# Rediriger les requêtes API
+# Rediriger les requêtes API vers le dossier api
 RewriteRule ^api(/.*)?$ api$1 [L]
 
-# Rediriger vers index.html pour le routing React (SPA)
+# Rediriger toutes les autres requêtes vers index.html pour le routage React
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^(?!api/) index.html [L]
