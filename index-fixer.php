@@ -1,6 +1,6 @@
 
 <?php
-// Script pour corriger automatiquement les références dans index.html
+// Script amélioré pour corriger automatiquement les références dans index.html
 header('Content-Type: text/html; charset=utf-8');
 
 // Chercher les assets compilés réels
@@ -41,14 +41,34 @@ $index_html = file_get_contents('./index.html');
 // Message initial
 echo "<h1>Correcteur de références pour index.html</h1>";
 
-if (empty($js_files) || empty($css_files)) {
-    echo "<p style='color: red;'>ERREUR: Aucun fichier JavaScript ou CSS trouvé dans le dossier /assets/.</p>";
-    echo "<p>Veuillez exécuter 'npm run build' pour générer les fichiers compilés avant d'utiliser ce script.</p>";
-    exit;
+// Vérifier si le dossier assets existe
+if (!is_dir('./assets')) {
+    echo "<p style='color: orange;'>AVERTISSEMENT: Le dossier /assets/ n'existe pas. Assurez-vous d'exécuter 'npm run build' avant de déployer.</p>";
 }
 
-echo "<p>Fichiers JS trouvés: " . implode(", ", array_map('basename', $js_files)) . "</p>";
-echo "<p>Fichiers CSS trouvés: " . implode(", ", array_map('basename', $css_files)) . "</p>";
+// Si aucun fichier JS ou CSS n'est trouvé, mais que le dossier assets existe
+if ((empty($js_files) || empty($css_files)) && is_dir('./assets')) {
+    echo "<p style='color: orange;'>AVERTISSEMENT: Pas assez de fichiers JavaScript ou CSS trouvés dans le dossier /assets/.</p>";
+    echo "<p>Contenu du dossier assets:</p>";
+    echo "<pre>";
+    print_r(scandir('./assets'));
+    echo "</pre>";
+}
+
+// Message d'erreur pour l'absence totale de fichiers
+if (empty($js_files) && empty($css_files)) {
+    echo "<p style='color: red;'>ERREUR: Aucun fichier JavaScript ou CSS trouvé dans le dossier /assets/.</p>";
+    echo "<p>Veuillez exécuter 'npm run build' pour générer les fichiers compilés avant d'utiliser ce script.</p>";
+    
+    // Ne pas sortir du script, nous allons créer les références avec des placeholders
+    $main_js = '/assets/main.js'; // Placeholder
+    $index_css = '/assets/index.css'; // Placeholder
+    
+    echo "<p style='color: orange;'>AVERTISSEMENT: Utilisation de références provisoires (placeholders) pour les assets.</p>";
+} else {
+    echo "<p>Fichiers JS trouvés: " . implode(", ", array_map('basename', $js_files)) . "</p>";
+    echo "<p>Fichiers CSS trouvés: " . implode(", ", array_map('basename', $css_files)) . "</p>";
+}
 
 // Créer une sauvegarde
 copy('./index.html', './index.html.bak');
@@ -66,6 +86,16 @@ $new_index = preg_replace(
     '<script type="module" src="' . $main_js . '"></script>',
     $new_index
 );
+
+// S'assurer que le script gptengineer.js reste présent
+if (strpos($new_index, 'gptengineer.js') === false) {
+    $new_index = str_replace(
+        '<script type="module" src="' . $main_js . '"></script>',
+        '<script type="module" src="' . $main_js . '"></script>' . PHP_EOL . '    <script src="https://cdn.gpteng.co/gptengineer.js" type="module"></script>',
+        $new_index
+    );
+    echo "<p style='color: green;'>Le script gptengineer.js a été ajouté.</p>";
+}
 
 // Écrire le nouvel index.html
 file_put_contents('./index.html', $new_index);

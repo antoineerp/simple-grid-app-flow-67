@@ -7,25 +7,26 @@ SetHandler application/x-httpd-php
 RewriteEngine On
 RewriteBase /
 
-# Forcer l'exécution des scripts PHP - configuration renforcée
+# Forcer explicitement l'exécution des scripts PHP
 <FilesMatch "\.php$">
-    # Définir explicitement le gestionnaire PHP
     SetHandler application/x-httpd-php
-    
-    # Options supplémentaires
     Options +ExecCGI
-    
-    # Forcer le contenu comme étant du PHP
     ForceType application/x-httpd-php
 </FilesMatch>
 
-# Si PHP 8 n'est pas disponible, utiliser PHP 7.x
+# Configuration PHP spécifique
+<IfModule mod_php.c>
+    php_flag display_errors on
+    php_value error_reporting E_ALL
+</IfModule>
+
+# Configuration PHP 7.x
 <IfModule mod_php7.c>
     php_flag display_errors on
     php_value error_reporting E_ALL
 </IfModule>
 
-# Configuration PHP 8
+# Configuration PHP 8.x
 <IfModule mod_php8.c>
     php_flag display_errors on
     php_value error_reporting E_ALL
@@ -53,15 +54,14 @@ RewriteRule ^api(/.*)?$ api$1 [L]
     RewriteRule ^ index.html [L]
 </IfModule>
 
-# Configuration UTF-8
-AddDefaultCharset UTF-8
-
 # Index par défaut
 DirectoryIndex index.html index.php
 
-# Configuration de l'en-tête de type de contenu
+# Configuration UTF-8
+AddDefaultCharset UTF-8
+
+# Configuration des en-têtes pour les fichiers PHP
 <IfModule mod_headers.c>
-    # Forcer les en-têtes de contenu pour les fichiers PHP
     <FilesMatch "\.php$">
         Header set Content-Type "application/json; charset=utf-8"
     </FilesMatch>

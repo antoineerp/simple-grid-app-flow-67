@@ -1,14 +1,16 @@
 
 <?php
-// Point d'entrée API renforcé avec détection des erreurs d'exécution
+// Point d'entrée API renforcé avec détection des erreurs d'exécution et journalisation améliorée
 header('Content-Type: application/json; charset=utf-8');
 header("Cache-Control: no-cache, no-store, must-revalidate");
 header("Access-Control-Allow-Origin: *");
 header("Access-Control-Allow-Methods: GET, OPTIONS, POST");
 header("Access-Control-Allow-Headers: Content-Type, Authorization");
 
-// Écrire dans le journal pour vérifier l'exécution
-error_log("API index.php exécuté - " . date('Y-m-d H:i:s'));
+// Journaliser le début de l'exécution avec des informations détaillées
+error_log("=== DÉBUT DE L'EXÉCUTION DE index.php à " . date('Y-m-d H:i:s') . " ===");
+error_log("Méthode: " . $_SERVER['REQUEST_METHOD'] . " - URI: " . $_SERVER['REQUEST_URI']);
+error_log("Serveur: " . ($_SERVER['SERVER_SOFTWARE'] ?? 'Unknown') . " - PHP version: " . phpversion());
 
 // Répondre aux requêtes OPTIONS pour le CORS
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
@@ -17,25 +19,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit;
 }
 
-// Journaliser l'accès
-error_log("API access: " . $_SERVER['REQUEST_URI'] . " - Method: " . $_SERVER['REQUEST_METHOD']);
-
 // Information sur l'environnement PHP
 $php_info = [
     'version' => phpversion(),
     'server' => $_SERVER['SERVER_SOFTWARE'] ?? 'Unknown',
     'sapi' => php_sapi_name(),
     'execution_mode' => php_sapi_name(),
-    'loaded_modules' => get_loaded_extensions()
+    'loaded_modules' => get_loaded_extensions(),
+    'document_root' => $_SERVER['DOCUMENT_ROOT'] ?? 'Unknown',
+    'script_name' => $_SERVER['SCRIPT_NAME'] ?? 'Unknown'
 ];
 
 // Version API
-$api_version = '1.2.1';
+$api_version = '1.2.2';
 
 // Créer la réponse
 $response = [
     'status' => 'success',
-    'message' => 'API active et fonctionnelle',
+    'message' => 'API active et fonctionnelle - Exécution PHP confirmée',
     'timestamp' => time(),
     'formatted_time' => date('Y-m-d H:i:s'),
     'api_version' => $api_version,
@@ -96,6 +97,10 @@ if (file_exists(__DIR__ . '/config/database.php') && file_exists(__DIR__ . '/con
     ];
 }
 
+// Journaliser la fin de l'exécution
+error_log("Réponse générée avec succès. Status: " . $response['status']);
+error_log("=== FIN DE L'EXÉCUTION DE index.php ===");
+
 // Envoyer la réponse
-echo json_encode($response, JSON_PRETTY_PRINT);
+echo json_encode($response, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
 ?>

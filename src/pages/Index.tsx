@@ -5,30 +5,43 @@ import LoginForm from '@/components/auth/LoginForm';
 import { getApiUrl, getFullApiUrl, testApiConnection, checkPhpExecution } from '@/config/apiConfig';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { AlertCircle, Server, RefreshCw } from 'lucide-react';
+import { AlertCircle, Server, RefreshCw, CheckCircle } from 'lucide-react';
 
 const Index = () => {
   const [apiStatus, setApiStatus] = useState<'loading' | 'success' | 'error'>('loading');
   const [apiMessage, setApiMessage] = useState<string>('');
   const [apiDetails, setApiDetails] = useState<any>(null);
-  const [version, setVersion] = useState<string>('1.0.7');
+  const [version, setVersion] = useState<string>('1.0.8');
   const [isInfomaniak, setIsInfomaniak] = useState<boolean>(false);
   const [isRetesting, setIsRetesting] = useState<boolean>(false);
   const [phpStatus, setPhpStatus] = useState<'loading' | 'success' | 'error'>('loading');
+  const [phpVersion, setPhpVersion] = useState<string>('');
   
   const checkApi = async () => {
     try {
       setApiStatus('loading');
+      setPhpStatus('loading');
       
-      // Vérifier d'abord l'exécution PHP
-      const phpWorks = await checkPhpExecution();
-      setPhpStatus(phpWorks ? 'success' : 'error');
+      // Vérifier d'abord l'exécution PHP de manière explicite
+      const phpResult = await checkPhpExecution();
+      setPhpStatus(phpResult ? 'success' : 'error');
+      
+      if (phpResult) {
+        console.log("Exécution PHP vérifiée avec succès");
+      } else {
+        console.error("Problème d'exécution PHP détecté");
+      }
       
       const result = await testApiConnection();
       
       if (result.success) {
         setApiStatus('success');
         setApiMessage(result.message);
+        
+        // Si nous avons des détails sur la version PHP depuis l'API
+        if (result.details && result.details.environment && result.details.environment.version) {
+          setPhpVersion(result.details.environment.version);
+        }
       } else {
         setApiStatus('error');
         setApiMessage(result.message);
@@ -52,7 +65,7 @@ const Index = () => {
     setIsInfomaniak(infomaniakDetected);
     
     checkApi();
-    setVersion(`1.0.7 - ${new Date().toLocaleDateString()}`);
+    setVersion(`1.0.8 - ${new Date().toLocaleDateString()}`);
   }, []);
 
   return (
@@ -99,6 +112,18 @@ const Index = () => {
           </Alert>
         )}
         
+        {phpStatus === 'success' && (
+          <Alert variant="default" className="mb-6 bg-green-50 border-green-200">
+            <CheckCircle className="h-4 w-4 mr-2 text-green-500" />
+            <AlertDescription>
+              <div className="text-green-700">
+                Exécution PHP vérifiée avec succès
+                {phpVersion && <span className="block text-xs mt-1">Version PHP: {phpVersion}</span>}
+              </div>
+            </AlertDescription>
+          </Alert>
+        )}
+        
         {isInfomaniak ? (
           <Alert variant="default" className="mb-6">
             <Server className="h-4 w-4 mr-2" />
@@ -108,7 +133,6 @@ const Index = () => {
                 <div className="mt-1">
                   URL d'API: <strong>{getFullApiUrl()}</strong>
                 </div>
-                {phpStatus === 'success' && <div className="text-green-600 mt-1">Exécution PHP vérifiée ✓</div>}
               </div>
             </AlertDescription>
           </Alert>

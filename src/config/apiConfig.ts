@@ -1,5 +1,5 @@
 
-// Configuration de l'API
+// Configuration de l'API avec vérification d'exécution PHP renforcée
 let apiUrl = '/api';
 let isCustomUrl = false;
 
@@ -37,12 +37,16 @@ export function getFullApiUrl(): string {
     : `${window.location.protocol}//${window.location.host}${apiUrl}`;
 }
 
-// Vérifier l'exécution PHP
+// Vérifier l'exécution PHP avec nouvelle approche plus fiable
 export async function checkPhpExecution(): Promise<boolean> {
   try {
-    console.log(`Vérification de l'exécution PHP: ${getFullApiUrl()}/verify-php-execution.php`);
+    const verifyUrl = `${getApiUrl()}/verify-php-execution.php`;
+    console.log(`Vérification de l'exécution PHP:`, verifyUrl);
     
-    const response = await fetch(`${getApiUrl()}/verify-php-execution.php`, {
+    // Ajouter un timestamp pour éviter la mise en cache
+    const urlWithTimestamp = `${verifyUrl}?t=${Date.now()}`;
+    
+    const response = await fetch(urlWithTimestamp, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -50,27 +54,41 @@ export async function checkPhpExecution(): Promise<boolean> {
       }
     });
     
-    // Si le statut n'est pas 200, PHP ne s'exécute pas correctement
+    // Vérifier si la réponse HTTP est valide
     if (!response.ok) {
       console.error(`Échec de la vérification PHP: ${response.status} ${response.statusText}`);
       return false;
     }
     
+    // Récupérer le corps de la réponse
     const text = await response.text();
     
-    // Vérifier si la réponse est du PHP non exécuté
+    // Vérifier si le contenu commence par "<?php"
     if (text.trim().startsWith('<?php')) {
       console.error('Code PHP non exécuté détecté lors de la vérification');
       return false;
     }
     
-    // Essayer de parser la réponse comme JSON
+    // Vérifier si c'est du HTML au lieu de JSON
+    if (text.trim().toLowerCase().startsWith('<!doctype') || 
+        text.trim().toLowerCase().startsWith('<html')) {
+      console.error('Réponse HTML reçue au lieu de JSON lors de la vérification PHP');
+      return false;
+    }
+    
+    // Essayer de parser le JSON
     try {
       const data = JSON.parse(text);
-      console.log('Vérification PHP réussie:', data);
-      return true;
+      
+      if (data && data.status === 'success' && data.php_version) {
+        console.log('Vérification PHP réussie:', data);
+        return true;
+      } else {
+        console.warn('Réponse PHP reçue mais format inattendu:', data);
+        return false;
+      }
     } catch (e) {
-      console.error('Réponse non-JSON de la vérification PHP:', text.substring(0, 100));
+      console.error('Réponse non-JSON de la vérification PHP:', text.substring(0, 150));
       return false;
     }
   } catch (error) {
@@ -79,7 +97,7 @@ export async function checkPhpExecution(): Promise<boolean> {
   }
 }
 
-// Test simple de connexion à l'API
+// Test amélioré de connexion à l'API avec vérification PHP préalable
 export async function testApiConnection(): Promise<{ success: boolean; message: string; details?: any }> {
   try {
     // Vérifier d'abord l'exécution PHP
@@ -89,9 +107,12 @@ export async function testApiConnection(): Promise<{ success: boolean; message: 
       console.warn('Problème d\'exécution PHP détecté, vérifiez la configuration du serveur');
     }
     
-    console.log(`Test de connexion à l'API: ${getFullApiUrl()}`);
+    console.log(`Test de connexion à l'API:`, getFullApiUrl());
     
-    const response = await fetch(`${getApiUrl()}/index.php`, {
+    // Ajouter un timestamp pour éviter la mise en cache
+    const urlWithTimestamp = `${getApiUrl()}/index.php?t=${Date.now()}`;
+    
+    const response = await fetch(urlWithTimestamp, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -100,6 +121,7 @@ export async function testApiConnection(): Promise<{ success: boolean; message: 
     });
     
     console.log('Réponse du test API:', response.status, response.statusText);
+    console.log('Headers:', response.headers.entries());
     
     // Récupérer le texte de la réponse
     const responseText = await response.text();
