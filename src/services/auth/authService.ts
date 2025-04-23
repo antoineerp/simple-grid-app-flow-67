@@ -1,7 +1,7 @@
 
 import { getApiUrl } from '@/config/apiConfig';
 import { toast } from '@/hooks/use-toast';
-import { disconnectUser } from '../core/databaseConnectionService';
+import { disconnectUser } from '../core/database';
 import { initializeUserData } from '../core/userInitializationService';
 
 const API_URL = getApiUrl();
@@ -95,6 +95,7 @@ class AuthService {
             // Essayer d'abord AuthController.php
             const authUrl = `${getApiUrl()}/auth`;
             console.log(`URL de requête (authentification): ${authUrl}`);
+            console.log(`Données envoyées: ${JSON.stringify({ username, password: '***' })}`);
             
             try {
                 const response = await fetch(authUrl, {
@@ -125,6 +126,7 @@ class AuthService {
                     localStorage.setItem('currentUser', data.user.identifiant_technique);
                     localStorage.setItem('userRole', data.user.role);
                     localStorage.setItem('userName', `${data.user.prenom || ''} ${data.user.nom || ''}`);
+                    console.log("Utilisateur connecté:", data.user);
                 }
                 
                 if (data.user && data.user.identifiant_technique) {
@@ -170,6 +172,7 @@ class AuthService {
                     localStorage.setItem('currentUser', data.user.identifiant_technique);
                     localStorage.setItem('userRole', data.user.role);
                     localStorage.setItem('userName', `${data.user.prenom || ''} ${data.user.nom || ''}`);
+                    console.log("Utilisateur connecté via fallback:", data.user);
                 }
                 
                 if (data.user && data.user.identifiant_technique) {

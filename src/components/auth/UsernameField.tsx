@@ -16,20 +16,20 @@ const UsernameField: React.FC<UsernameFieldProps> = ({ control }) => {
       name="username"
       render={({ field }) => (
         <FormItem>
-          <FormLabel>Nom d'utilisateur</FormLabel>
+          <FormLabel>Identifiant ou Email</FormLabel>
           <FormControl>
             <Input 
-              placeholder="Entrez votre nom d'utilisateur" 
+              placeholder="Entrez votre identifiant ou email" 
               {...field} 
+              type="text"
               onChange={(e) => {
                 const value = e.target.value.trim();
-                console.log("Nom d'utilisateur en cours de saisie:", value);
+                console.log("Identifiant/Email en cours de saisie:", value);
                 field.onChange(value);
               }}
               onBlur={(e) => {
                 const value = e.target.value.trim();
-                console.log("Nom d'utilisateur validé:", value);
-                console.log("Nom d'utilisateur saisi:", value);
+                console.log("Identifiant/Email validé:", value);
                 field.onBlur();
               }}
             />

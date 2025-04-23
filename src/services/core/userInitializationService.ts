@@ -1,6 +1,5 @@
-
-import { toast } from '@/hooks/use-toast';
-import { getCurrentUser } from './databaseConnectionService';
+import { toast } from "@/hooks/use-toast";
+import { connectAsUser } from './database';
 
 /**
  * Service responsible for initializing user data when they first log in
