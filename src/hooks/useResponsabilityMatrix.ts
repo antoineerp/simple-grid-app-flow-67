@@ -21,38 +21,42 @@ export const useResponsabilityMatrix = () => {
 
   useEffect(() => {
     const calculateResponsabilites = () => {
-      // Load exigences and documents from local storage
+      // Charger les exigences et documents depuis le localStorage
       const storedExigences = localStorage.getItem('exigences');
       const storedDocuments = localStorage.getItem('documents');
       
       const exigences = storedExigences ? JSON.parse(storedExigences) : [];
       const documents = storedDocuments ? JSON.parse(storedDocuments) : [];
-      
-      // Calculate responsabilities for each membre
+
+      // Calculer les responsabilités pour chaque membre
       const membresWithResponsabilites = membres.map(membre => {
         const initiales = membre.initiales;
         
-        // Initialize counters
+        // Initialiser les compteurs
         const exigencesCount = { r: 0, a: 0, c: 0, i: 0 };
         const documentsCount = { r: 0, a: 0, c: 0, i: 0 };
+
+        // Compter les occurrences dans les exigences (en excluant les exigences exclues)
+        exigences
+          .filter((exigence: any) => !exigence.exclusion)
+          .forEach((exigence: any) => {
+            if (exigence.responsabilites.r.includes(initiales)) exigencesCount.r++;
+            if (exigence.responsabilites.a.includes(initiales)) exigencesCount.a++;
+            if (exigence.responsabilites.c.includes(initiales)) exigencesCount.c++;
+            if (exigence.responsabilites.i.includes(initiales)) exigencesCount.i++;
+          });
         
-        // Count occurrences in exigences
-        exigences.forEach((exigence: any) => {
-          if (exigence.responsabilites.r.includes(initiales)) exigencesCount.r++;
-          if (exigence.responsabilites.a.includes(initiales)) exigencesCount.a++;
-          if (exigence.responsabilites.c.includes(initiales)) exigencesCount.c++;
-          if (exigence.responsabilites.i.includes(initiales)) exigencesCount.i++;
-        });
-        
-        // Count occurrences in documents
-        documents.forEach((document: any) => {
-          if (document.responsabilites.r.includes(initiales)) documentsCount.r++;
-          if (document.responsabilites.a.includes(initiales)) documentsCount.a++;
-          if (document.responsabilites.c.includes(initiales)) documentsCount.c++;
-          if (document.responsabilites.i.includes(initiales)) documentsCount.i++;
-        });
-        
-        // Include all properties from the membre and add the new properties
+        // Compter les occurrences dans les documents (en excluant les documents exclus)
+        documents
+          .filter((document: any) => document.etat !== 'EX')
+          .forEach((document: any) => {
+            if (document.responsabilites.r.includes(initiales)) documentsCount.r++;
+            if (document.responsabilites.a.includes(initiales)) documentsCount.a++;
+            if (document.responsabilites.c.includes(initiales)) documentsCount.c++;
+            if (document.responsabilites.i.includes(initiales)) documentsCount.i++;
+          });
+
+        // Inclure toutes les propriétés du membre et ajouter les nouvelles propriétés
         return {
           ...membre,
           exigences: exigencesCount,
@@ -63,15 +67,15 @@ export const useResponsabilityMatrix = () => {
       setMembreResponsabilites(membresWithResponsabilites);
     };
 
-    // Calculate initially
+    // Calculer initialement
     calculateResponsabilites();
     
-    // Listen for updates to exigences, documents and membres
+    // Écouter les mises à jour des exigences, documents et membres
     window.addEventListener('exigenceUpdate', calculateResponsabilites);
     window.addEventListener('documentUpdate', calculateResponsabilites);
     window.addEventListener('storage', calculateResponsabilites);
     
-    // Clean up event listeners
+    // Nettoyer les event listeners
     return () => {
       window.removeEventListener('exigenceUpdate', calculateResponsabilites);
       window.removeEventListener('documentUpdate', calculateResponsabilites);
