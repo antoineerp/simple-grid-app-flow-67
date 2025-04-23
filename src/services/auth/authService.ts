@@ -59,29 +59,28 @@ class AuthService {
 
     private async parseJsonResponse(response: Response): Promise<any> {
         try {
-            const responseText = await response.text();
-            console.log(`Réponse reçue (${response.status}): ${responseText.substring(0, 200)}...`);
+            console.log(`Response status: ${response.status}, Content-Type: ${response.headers.get('Content-Type')}`);
             
-            // Si la réponse est vide
+            const responseText = await response.text();
+            console.log(`Réponse brute reçue (${responseText.length} caractères):`);
+            console.log(responseText.substring(0, 200) + (responseText.length > 200 ? '...' : ''));
+            
             if (!responseText || responseText.trim() === '') {
                 console.warn('Réponse vide reçue du serveur');
                 throw new Error('Réponse vide du serveur');
             }
             
-            // Vérifier si la réponse commence par un caractère spécial BOM
             let cleanResponseText = responseText;
             if (responseText.charCodeAt(0) === 0xFEFF) {
                 console.log('BOM détecté et retiré de la réponse');
                 cleanResponseText = responseText.slice(1);
             }
             
-            // Ne pas traiter la réponse de test comme une erreur
             if (responseText.includes('API PHP disponible') && !responseText.includes('token')) {
                 console.log('Détecté: réponse API info standard');
                 return { info: true, message: 'API info response' };
             }
             
-            // Vérifier si la réponse est du HTML ou PHP non exécuté
             if (responseText.trim().startsWith('<!DOCTYPE') || 
                 responseText.trim().startsWith('<html') ||
                 responseText.includes('<body')) {
@@ -89,7 +88,6 @@ class AuthService {
                 throw new Error('Le serveur a renvoyé une page HTML au lieu de JSON. Vérifiez la configuration du serveur.');
             }
             
-            // Vérifier si la réponse est du PHP non-exécuté
             if (responseText.trim().startsWith('<?php')) {
                 console.error('Code PHP non exécuté reçu:', responseText.substring(0, 200));
                 throw new Error('Le serveur renvoie le code PHP au lieu de l\'exécuter. Vérifiez la configuration Apache et .htaccess.');
@@ -100,6 +98,17 @@ class AuthService {
             } catch (e) {
                 console.error('Erreur lors du parsing JSON:', e);
                 console.error('Texte reçu:', responseText.substring(0, 500));
+                
+                const jsonMatch = responseText.match(/(\{.*\}|\[.*\])/);
+                if (jsonMatch) {
+                    console.log('Tentative de récupération d\'un JSON valide dans la réponse');
+                    try {
+                        return JSON.parse(jsonMatch[0]);
+                    } catch {
+                        console.error('Échec de la tentative de récupération JSON');
+                    }
+                }
+                
                 throw new Error('Réponse du serveur non valide. Format JSON attendu.');
             }
         } catch (e) {
@@ -112,46 +121,51 @@ class AuthService {
         try {
             console.log(`Tentative de connexion pour l'utilisateur: ${username}`);
             
-            // Essayer directement une API simplifiée pour le test de login
-            const testUrl = `${getApiUrl()}/php-simple-test.php`;
-            console.log(`Test d'exécution PHP avec: ${testUrl}`);
-            
             try {
-                // Vérifier d'abord que PHP s'exécute correctement
+                const testUrl = `${getApiUrl()}/php-simple-test.php?t=${Date.now()}`;
+                console.log(`Vérification préalable de l'exécution PHP: ${testUrl}`);
+                
                 const phpTestResponse = await fetch(testUrl, {
                     method: 'GET',
                     headers: {
-                        'Cache-Control': 'no-cache, no-store, must-revalidate'
+                        'Cache-Control': 'no-cache',
+                        'Pragma': 'no-cache'
                     }
                 });
                 
-                const phpTestText = await phpTestResponse.text();
-                console.log('Test PHP response:', phpTestText.substring(0, 100));
-                
-                if (phpTestText.trim().startsWith('<?php')) {
-                    throw new Error('PHP n\'est pas exécuté correctement sur le serveur');
+                if (phpTestResponse.ok) {
+                    const phpTestText = await phpTestResponse.text();
+                    console.log(`Test PHP préalable: ${phpTestText.substring(0, 100)}...`);
+                    
+                    if (phpTestText.includes('success')) {
+                        console.log('Vérification PHP réussie, poursuite de la connexion');
+                    } else if (phpTestText.trim().startsWith('<?php')) {
+                        console.warn('PHP ne s\'exécute pas correctement sur le serveur');
+                    }
+                } else {
+                    console.warn(`Test PHP échoué: ${phpTestResponse.status}`);
                 }
             } catch (phpError) {
-                console.error('Erreur lors du test PHP:', phpError);
-                // Continuer malgré l'erreur pour essayer le login quand même
+                console.warn('Erreur lors du test PHP préalable:', phpError);
+                // On continue malgré l'erreur
             }
             
-            // Essayer d'abord le fichier login-test.php spécifique, qui est plus simple
             const loginUrl = `${getApiUrl()}/login-test.php`;
-            console.log(`URL de requête (login-test): ${loginUrl}`);
+            console.log(`Tentative de connexion avec login-test.php: ${loginUrl}`);
             
             try {
                 const response = await fetch(loginUrl, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'Cache-Control': 'no-cache, no-store, must-revalidate',
+                        'Cache-Control': 'no-cache',
                         'Pragma': 'no-cache'
                     },
                     body: JSON.stringify({ username, password })
                 });
                 
-                console.log(`Réponse du serveur login-test: ${response.status} ${response.statusText}`);
+                console.log(`Réponse login-test: ${response.status} ${response.statusText}`);
+                console.log('Headers:', Object.fromEntries([...response.headers.entries()]));
                 
                 if (!response.ok) {
                     const errorData = await this.parseJsonResponse(response);
@@ -183,21 +197,20 @@ class AuthService {
             } catch (testError) {
                 console.error("Erreur avec login-test.php:", testError);
                 
-                // Si le login-test.php échoue, essayer avec /auth
                 const authUrl = `${getApiUrl()}/auth`;
-                console.log(`URL de requête (auth): ${authUrl}`);
+                console.log(`Seconde tentative avec /auth: ${authUrl}`);
                 
                 const response = await fetch(authUrl, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'Cache-Control': 'no-cache, no-store, must-revalidate',
+                        'Cache-Control': 'no-cache',
                         'Pragma': 'no-cache'
                     },
                     body: JSON.stringify({ username, password })
                 });
                 
-                console.log(`Réponse du serveur auth: ${response.status} ${response.statusText}`);
+                console.log(`Réponse auth: ${response.status} ${response.statusText}`);
                 
                 if (!response.ok) {
                     const errorData = await this.parseJsonResponse(response);
