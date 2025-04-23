@@ -8,12 +8,12 @@ import { Loader2, RefreshCw, Database, AlertTriangle, ServerCrash, CheckCircle2,
 import { useAdminDatabase } from '@/hooks/useAdminDatabase';
 import DatabaseConfig from './DatabaseConfig';
 import DatabaseGuide from './DatabaseGuide';
-import { getCurrentUser } from '@/services';
+import { getDatabaseConnectionCurrentUser } from '@/services';
 
 const DatabaseInfo = () => {
   const { dbInfo, loading, testingConnection, loadDatabaseInfo, handleTestConnection, error } = useAdminDatabase();
   const [activeTab, setActiveTab] = useState("info");
-  const currentUser = getCurrentUser();
+  const currentUser = getDatabaseConnectionCurrentUser();
   
   // Charger les informations de la base de données au chargement du composant
   useEffect(() => {

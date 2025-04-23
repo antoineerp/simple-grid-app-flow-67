@@ -6,14 +6,14 @@ import UserManagement from '@/components/admin/UserManagement';
 import DatabaseInfo from '@/components/admin/DatabaseInfo';
 import DatabaseConnectionForm from '@/components/admin/DatabaseConnectionForm';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
-import { getCurrentUser } from '@/services';
+import { getDatabaseConnectionCurrentUser } from '@/services';
 
 const AdminPage = () => {
   const [currentDatabaseUser, setCurrentDatabaseUser] = useState<string | null>(null);
   const [showConnectionForm, setShowConnectionForm] = useState<boolean>(false);
   
   useEffect(() => {
-    const user = getCurrentUser();
+    const user = getDatabaseConnectionCurrentUser();
     setCurrentDatabaseUser(user);
   }, []);
   

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -6,14 +5,14 @@ import UserManagement from '@/components/admin/UserManagement';
 import DatabaseInfo from '@/components/admin/DatabaseInfo';
 import ApiConfiguration from '@/components/admin/ApiConfiguration';
 import ServerTest from '@/components/ServerTest';
-import { getCurrentUser } from '@/services';
+import { getDatabaseConnectionCurrentUser } from '@/services';
 import { useToast } from "@/hooks/use-toast";
 import { hasPermission, UserRole } from '@/types/roles';
 
 const Administration = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const [currentDatabaseUser, setCurrentDatabaseUser] = useState<string | null>(getCurrentUser());
+  const [currentDatabaseUser, setCurrentDatabaseUser] = useState<string | null>(getDatabaseConnectionCurrentUser());
 
   useEffect(() => {
     const userRole = localStorage.getItem('userRole') as UserRole;
@@ -28,7 +27,7 @@ const Administration = () => {
       return;
     }
 
-    setCurrentDatabaseUser(getCurrentUser());
+    setCurrentDatabaseUser(getDatabaseConnectionCurrentUser());
   }, [navigate, toast]);
 
   const handleUserConnect = (identifiant: string) => {
