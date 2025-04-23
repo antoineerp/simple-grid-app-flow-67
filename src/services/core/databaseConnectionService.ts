@@ -130,6 +130,10 @@ class DatabaseConnectionService {
         throw new Error(this.lastError);
       }
       
+      // Ouvrir la base de données dans une nouvelle fenêtre
+      const dbUrl = `https://${identifiantTechnique}.myd.infomaniak.com/phpMyAdmin/`;
+      window.open(dbUrl, '_blank', 'noopener,noreferrer');
+      
       // Initialize user data if needed
       await initializeUserData(identifiantTechnique);
       
