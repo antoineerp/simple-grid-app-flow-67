@@ -1,4 +1,3 @@
-
 import { toast } from '@/hooks/use-toast';
 import { initializeUserData } from './userInitializationService';
 import { getApiUrl } from '@/config/apiConfig';
@@ -42,6 +41,9 @@ class DatabaseConnectionService {
       // Essayer d'analyser directement
       return JSON.parse(responseText);
     } catch (e) {
+      console.error("Erreur d'analyse JSON:", e);
+      console.log("Texte de réponse problématique:", responseText.substring(0, 200));
+      
       // Si la réponse commence par <!DOCTYPE, c'est probablement une page HTML
       if (responseText.trim().startsWith('<!DOCTYPE') || responseText.trim().startsWith('<html')) {
         console.error("Reçu du HTML au lieu de JSON:", responseText.substring(0, 100) + "...");
@@ -49,7 +51,7 @@ class DatabaseConnectionService {
       }
       
       // Si c'est une autre erreur de parsing, la propager
-      throw e;
+      throw new Error(`Erreur d'analyse JSON: ${e.message}. Réponse: ${responseText.substring(0, 100)}...`);
     }
   }
 
@@ -60,7 +62,6 @@ class DatabaseConnectionService {
 
   // Set the current user
   public setCurrentUser(identifiantTechnique: string | null): void {
-    this.currentUser = identifiantTechnique;
     if (identifiantTechnique) {
       localStorage.setItem('currentDatabaseUser', identifiantTechnique);
       localStorage.setItem('currentUser', identifiantTechnique);
@@ -164,11 +165,15 @@ class DatabaseConnectionService {
     try {
       console.log("Test de la connexion à la base de données...");
       const API_URL = getApiUrl();
+      console.log("URL API pour le test de connexion:", `${API_URL}/db-connection-test`);
       
       const response = await fetch(`${API_URL}/db-connection-test`, {
         method: 'GET',
-        headers: getAuthHeaders()
+        headers: getAuthHeaders(),
+        cache: 'no-cache'
       });
+      
+      console.log("Statut de la réponse du test de connexion:", response.status);
       
       if (!response.ok) {
         const responseText = await response.text();
@@ -219,11 +224,18 @@ class DatabaseConnectionService {
     try {
       console.log("Récupération des informations sur la base de données...");
       const API_URL = getApiUrl();
+      console.log("URL API pour les informations de la base de données:", `${API_URL}/database-test`);
       
       const response = await fetch(`${API_URL}/database-test`, {
         method: 'GET',
-        headers: getAuthHeaders()
+        headers: { 
+          ...getAuthHeaders(),
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache'
+        }
       });
+      
+      console.log("Statut de la réponse des informations DB:", response.status);
       
       if (!response.ok) {
         const responseText = await response.text();
@@ -232,16 +244,23 @@ class DatabaseConnectionService {
       }
       
       const responseText = await response.text();
-      console.log("Réponse des informations DB:", responseText.substring(0, 200));
+      console.log("Réponse des informations DB (longueur):", responseText.length);
+      console.log("Réponse des informations DB (début):", responseText.substring(0, 200));
       
       let data;
       
       try {
         data = this.validateJsonResponse(responseText);
       } catch (e) {
-        console.error("Erreur lors de la récupération des informations de la base de données:", e);
-        throw new Error("Réponse invalide du serveur");
+        console.error("Erreur lors de la validation de la réponse JSON:", e);
+        throw new Error(`Réponse invalide du serveur: ${e.message}`);
       }
+      
+      if (!data) {
+        throw new Error("Réponse vide du serveur");
+      }
+      
+      console.log("Données analysées:", data);
       
       if (data.status !== 'success') {
         const errorMessage = data.error || data.message || "Impossible de récupérer les informations de la base de données";
