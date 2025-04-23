@@ -3,6 +3,10 @@
 RewriteEngine On
 RewriteBase /
 
+# JavaScript module MIME type - CRITICAL FOR MODERN JS
+AddType application/javascript .js
+AddType application/javascript .mjs
+
 # Forcer l'exécution de PHP - SECTION CRITIQUE
 AddHandler application/x-httpd-php .php
 AddType application/x-httpd-php .php
@@ -47,3 +51,14 @@ RewriteRule ^api(/.*)?$ api$1 [L]
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^(?!api/) index.html [L]
+
+# Ensure proper MIME types for all assets
+AddType application/javascript .js
+AddType application/json .json
+AddType text/css .css
+AddType image/svg+xml .svg
+AddType image/png .png
+AddType image/jpeg .jpg .jpeg
+AddType image/gif .gif
+AddType application/font-woff .woff
+AddType application/font-woff2 .woff2

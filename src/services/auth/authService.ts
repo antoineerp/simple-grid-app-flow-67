@@ -111,18 +111,36 @@ class AuthService {
     }
 
     public logout(): void {
-        this.setToken(null);
-        localStorage.removeItem('currentUser');
-        localStorage.removeItem('userRole');
-        localStorage.removeItem('userName');
-        localStorage.removeItem('isLoggedIn');
-        
-        disconnectUser();
-        
-        toast({
-            title: "Déconnexion réussie",
-            description: "Vous avez été déconnecté avec succès",
-        });
+        try {
+            console.log("Déconnexion en cours...");
+            
+            // Retirer le token et les données utilisateur
+            this.token = null;
+            this.currentUser = null;
+            
+            // Nettoyer localStorage
+            localStorage.removeItem('authToken');
+            localStorage.removeItem('currentUser');
+            localStorage.removeItem('userRole');
+            localStorage.removeItem('userName');
+            localStorage.removeItem('isLoggedIn');
+            
+            // Appeler le service de déconnexion de la base de données
+            disconnectUser();
+            
+            // Notification de succès
+            toast({
+                title: "Déconnexion réussie",
+                description: "Vous avez été déconnecté avec succès",
+            });
+            
+            // Forcer une redirection propre vers la page d'accueil
+            window.location.href = '/';
+        } catch (error) {
+            console.error("Erreur lors de la déconnexion:", error);
+            // Même en cas d'erreur, on force la redirection
+            window.location.href = '/';
+        }
     }
 
     public isLoggedIn(): boolean {

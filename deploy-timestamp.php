@@ -11,6 +11,7 @@ header('Content-Type: text/html; charset=utf-8');
         body { font-family: sans-serif; max-width: 800px; margin: 20px auto; padding: 20px; }
         .success { color: green; font-weight: bold; }
         .error { color: red; font-weight: bold; }
+        .warning { color: orange; font-weight: bold; }
         .section { margin-bottom: 30px; border: 1px solid #ddd; padding: 15px; border-radius: 5px; }
         pre { background: #f5f5f5; padding: 10px; border-radius: 5px; overflow-x: auto; }
     </style>
@@ -27,7 +28,18 @@ header('Content-Type: text/html; charset=utf-8');
     </div>
     
     <div class="section">
-        <h2>2. Tests et Diagnostics</h2>
+        <h2>2. Configuration MIME</h2>
+        <p>Les types MIME sont importants pour que les navigateurs interprètent correctement les fichiers.</p>
+        <p>Vérifiez que le fichier .htaccess contient bien les directives suivantes:</p>
+        <pre>AddType application/javascript .js
+AddType application/javascript .mjs</pre>
+        <p>Si vous rencontrez des erreurs du type "<span class="error">Failed to load module script</span>", 
+        c'est probablement un problème de type MIME. Les modules JavaScript requièrent le type MIME 
+        <code>application/javascript</code>.</p>
+    </div>
+    
+    <div class="section">
+        <h2>3. Tests et Diagnostics</h2>
         <ul>
             <li><a href="/index-fixer.php">Vérifier/corriger les références d'assets</a></li>
             <li><a href="/api/infomaniak-check.php">Vérifier l'API</a></li>
@@ -36,7 +48,7 @@ header('Content-Type: text/html; charset=utf-8');
     </div>
     
     <div class="section">
-        <h2>3. Accès à l'Application</h2>
+        <h2>4. Accès à l'Application</h2>
         <p><a href="/" style="padding: 10px; background: #4CAF50; color: white; text-decoration: none; border-radius: 4px;">Accéder à l'application</a></p>
     </div>
 </body>
