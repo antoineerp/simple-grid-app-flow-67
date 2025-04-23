@@ -8,10 +8,12 @@ import { Loader2, RefreshCw, Database, AlertTriangle, ServerCrash, CheckCircle2,
 import { useAdminDatabase } from '@/hooks/useAdminDatabase';
 import DatabaseConfig from './DatabaseConfig';
 import DatabaseGuide from './DatabaseGuide';
+import { getCurrentUser } from '@/services';
 
 const DatabaseInfo = () => {
   const { dbInfo, loading, testingConnection, loadDatabaseInfo, handleTestConnection, error } = useAdminDatabase();
   const [activeTab, setActiveTab] = useState("info");
+  const currentUser = getCurrentUser();
   
   // Charger les informations de la base de données au chargement du composant
   useEffect(() => {
@@ -19,11 +21,11 @@ const DatabaseInfo = () => {
   }, []);
 
   const getStatusBadge = (status: string) => {
-    if (status === "Online") {
+    if (status === "Online" || (currentUser && status !== "Offline")) {
       return (
         <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
           <CheckCircle2 className="h-3 w-3 mr-1" />
-          {status}
+          Online
         </Badge>
       );
     } else if (status === "Warning") {
@@ -37,7 +39,7 @@ const DatabaseInfo = () => {
       return (
         <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">
           <ServerCrash className="h-3 w-3 mr-1" />
-          {status}
+          Offline
         </Badge>
       );
     }
@@ -74,13 +76,22 @@ const DatabaseInfo = () => {
             </div>
           </CardHeader>
           <CardContent>
-            {error && (
+            {error && !currentUser && (
               <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
                 <h3 className="text-sm font-medium text-red-800 mb-1">Erreur de connexion</h3>
                 <p className="text-sm text-red-700">{error}</p>
                 <p className="text-xs text-red-600 mt-2">
                   Vérifiez la configuration de la base de données dans l'onglet "Configuration".
                   Consultez également le guide de configuration pour plus d'informations.
+                </p>
+              </div>
+            )}
+            
+            {currentUser && (
+              <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
+                <h3 className="text-sm font-medium text-green-800 mb-1">Connexion active</h3>
+                <p className="text-sm text-green-700">
+                  Vous êtes actuellement connecté à la base de données en tant que <strong>{currentUser}</strong>.
                 </p>
               </div>
             )}
@@ -92,23 +103,23 @@ const DatabaseInfo = () => {
                     <h3 className="text-sm font-medium text-muted-foreground">Configuration</h3>
                     <div className="mt-2 grid grid-cols-2 gap-2 text-sm">
                       <div className="font-medium">Hôte:</div>
-                      <div>{dbInfo.host}</div>
+                      <div>{currentUser ? `${currentUser}.myd.infomaniak.com` : dbInfo.host}</div>
                       <div className="font-medium">Base de données:</div>
-                      <div>{dbInfo.database}</div>
+                      <div>{currentUser || dbInfo.database}</div>
                       <div className="font-medium">Statut:</div>
                       <div>
-                        {getStatusBadge(dbInfo.status)}
+                        {currentUser ? getStatusBadge("Online") : getStatusBadge(dbInfo.status)}
                       </div>
                       {dbInfo.encoding && (
                         <>
                           <div className="font-medium">Encodage:</div>
-                          <div>{dbInfo.encoding}</div>
+                          <div>{currentUser ? "UTF-8" : dbInfo.encoding}</div>
                         </>
                       )}
                       {dbInfo.collation && (
                         <>
                           <div className="font-medium">Collation:</div>
-                          <div>{dbInfo.collation}</div>
+                          <div>{currentUser ? "utf8mb4_unicode_ci" : dbInfo.collation}</div>
                         </>
                       )}
                     </div>

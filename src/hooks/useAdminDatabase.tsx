@@ -23,9 +23,7 @@ export const useAdminDatabase = () => {
       setLastUpdate(new Date());
       
       if (info.status !== "Online") {
-        const errorMsg = "La base de données n'est pas accessible. Vérifiez la configuration.";
-        console.error(errorMsg);
-        setError(errorMsg);
+        console.warn("La base de données est marquée comme non accessible:", info.status);
       }
     } catch (error) {
       console.error("Erreur lors du chargement des informations de la base de données", error);

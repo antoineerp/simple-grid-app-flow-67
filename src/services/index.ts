@@ -1,28 +1,19 @@
 
-// This is the main entry point for all services
-// It re-exports all the functions from the various services
+// Re-export functions from other service files
+export * from './core/databaseConnectionService';
+export * from './core/userInitializationService';
+export * from './documents';
+export * from './users/userService';
+export * from './users/createUserService';
+export * from './auth/authService';
 
-// Export from database connection service
-export { 
-  connectAsUser,
-  getCurrentUser,
-  disconnectUser,
-  testDatabaseConnection,
-  getDatabaseInfo,
-  getLastConnectionError,
-  type DatabaseInfo
-} from './core/databaseConnectionService';
-
-// Export from auth service
-export {
-  login as loginUser,
-  logout as logoutUser,
-  getToken,
-  getAuthHeaders
-} from './auth/authService';
-
-// Export from user service
-export {
-  getUtilisateurs,
-  type Utilisateur
-} from './users/userService';
+// Define types here if needed
+export interface Utilisateur {
+  id: number;
+  nom: string;
+  prenom: string;
+  email: string;
+  identifiant_technique: string;
+  role: string;
+  date_creation: string;
+}

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -9,7 +8,7 @@ import { Dialog, DialogTrigger } from "@/components/ui/dialog";
 import { Loader2, RefreshCw, UserPlus, LogIn, AlertCircle, ExternalLink, Database } from 'lucide-react';
 import { useAdminUsers } from '@/hooks/useAdminUsers';
 import UserForm from './UserForm';
-import { getCurrentUser, getLastConnectionError, getPhpMyAdminUrl } from '@/services';
+import { getCurrentUser, getLastConnectionError, getPhpMyAdminUrl } from '@/services/core/databaseConnectionService';
 import { useToast } from "@/hooks/use-toast";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import type { Utilisateur } from '@/services';
@@ -26,7 +25,6 @@ const UserManagement = ({ currentDatabaseUser, onUserConnect }: UserManagementPr
   const [connectionError, setConnectionError] = useState<string | null>(null);
 
   useEffect(() => {
-    // Vérifier s'il y a une erreur de connexion au chargement
     const lastError = getLastConnectionError();
     if (lastError) {
       setConnectionError(lastError);
