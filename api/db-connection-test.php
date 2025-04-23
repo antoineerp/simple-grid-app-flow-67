@@ -42,6 +42,9 @@ try {
     // Vérifier si la connexion est établie
     $stmt = $pdo->query('SELECT 1');
     
+    // Vérifier la version MySQL
+    $version = $pdo->query('SELECT VERSION() as version')->fetch();
+    
     // Si nous sommes ici, c'est que la connexion fonctionne
     $response = [
         "status" => "success",
@@ -49,8 +52,10 @@ try {
         "connection_info" => [
             "host" => $host,
             "database" => $db_name,
+            "database_name" => $db_name,
             "user" => $username,
             "php_version" => PHP_VERSION,
+            "mysql_version" => $version['version'] ?? 'Inconnue',
             "pdo_drivers" => PDO::getAvailableDrivers()
         ]
     ];
@@ -65,12 +70,21 @@ try {
             $stmt = $pdo->query("SELECT COUNT(*) as count FROM utilisateurs");
             $userCount = $stmt->fetch()['count'];
             $response["user_count"] = $userCount;
+            
+            // Récupérer la liste des tables
+            $tables = [];
+            $stmt = $pdo->query('SHOW TABLES');
+            while ($row = $stmt->fetch(PDO::FETCH_NUM)) {
+                $tables[] = $row[0];
+            }
+            $response["table_list"] = $tables;
         }
     } catch (PDOException $e) {
         $response["table_check_error"] = $e->getMessage();
     }
     
     http_response_code(200);
+    echo json_encode($response);
 } catch (PDOException $e) {
     // Échec de la connexion directe
     error_log("Échec de la connexion directe PDO: " . $e->getMessage());
@@ -87,45 +101,43 @@ try {
         ]
     ];
     http_response_code(500);
+    echo json_encode($response);
+    exit;
 }
 
-// Maintenant, testons avec la classe Database
+// Si nous sommes arrivés jusqu'ici, testons maintenant avec la classe Database
 try {
     // Inclure la configuration de la base de données
-    if (file_exists(__DIR__ . '/config/database.php')) {
-        require_once __DIR__ . '/config/database.php';
+    $database_path = __DIR__ . '/config/database.php';
+    if (file_exists($database_path)) {
+        require_once $database_path;
         
         $database = new Database();
         $db = $database->getConnection(false);
         
         $response["database_class"] = [
             "status" => $database->is_connected ? "success" : "error",
-            "message" => $database->is_connected ? "Connexion réussie via la classe Database" : "Échec de la connexion via la classe Database",
-            "config" => [
-                "host" => $database->host,
-                "db_name" => $database->db_name,
-                "username" => $database->username
-            ]
+            "message" => $database->is_connected ? "Connexion via la classe Database réussie" : "Échec de connexion via la classe Database",
+            "error" => $database->connection_error
         ];
-        
-        if (!$database->is_connected) {
-            $response["database_class"]["error"] = $database->connection_error;
-        }
     } else {
         $response["database_class"] = [
             "status" => "error",
-            "message" => "Fichier de configuration introuvable",
-            "file_path" => __DIR__ . '/config/database.php'
+            "message" => "Fichier de classe Database introuvable",
+            "path_checked" => $database_path
         ];
     }
+    
+    http_response_code(200);
+    echo json_encode($response);
 } catch (Exception $e) {
     $response["database_class"] = [
         "status" => "error",
         "message" => "Exception lors du test de la classe Database",
         "error" => $e->getMessage()
     ];
+    
+    http_response_code(200); // On garde 200 car la première partie du test a réussi
+    echo json_encode($response);
 }
-
-// Envoyer la réponse
-echo json_encode($response, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
 ?>
