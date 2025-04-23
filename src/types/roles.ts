@@ -21,21 +21,6 @@ export const ROLE_PERMISSIONS: Record<UserRole, RolePermissions> = {
     createUsers: true,
     accessAdminPanel: true
   },
-  gestionnaire: {
-    viewPages: [
-      '/pilotage', 
-      '/exigences', 
-      '/gestion-documentaire',
-      '/ressources-humaines',
-      '/bibliotheque'
-    ],
-    editTables: [
-      'exigences', 
-      'documents'
-    ],
-    createUsers: false,
-    accessAdminPanel: false
-  },
   utilisateur: {
     viewPages: [
       '/pilotage', 
@@ -44,10 +29,19 @@ export const ROLE_PERMISSIONS: Record<UserRole, RolePermissions> = {
       '/ressources-humaines',
       '/bibliotheque'
     ],
-    editTables: [
-      'exigences',
-      'documents'
+    editTables: ['*'], // Maintenant l'utilisateur peut modifier tous les tableaux
+    createUsers: false,
+    accessAdminPanel: false
+  },
+  gestionnaire: {
+    viewPages: [
+      '/pilotage', 
+      '/exigences',
+      '/gestion-documentaire',
+      '/ressources-humaines',
+      '/bibliotheque'
     ],
+    editTables: ['*'], // Le gestionnaire aussi peut modifier tous les tableaux
     createUsers: false,
     accessAdminPanel: false
   }
