@@ -6,10 +6,10 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogTrigger } from "@/components/ui/dialog";
-import { Loader2, RefreshCw, UserPlus, LogIn, AlertCircle } from 'lucide-react';
+import { Loader2, RefreshCw, UserPlus, LogIn, AlertCircle, ExternalLink, Database } from 'lucide-react';
 import { useAdminUsers } from '@/hooks/useAdminUsers';
 import UserForm from './UserForm';
-import { getCurrentUser, getLastConnectionError } from '@/services';
+import { getCurrentUser, getLastConnectionError, getPhpMyAdminUrl } from '@/services';
 import { useToast } from "@/hooks/use-toast";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import type { Utilisateur } from '@/services';
@@ -50,6 +50,19 @@ const UserManagement = ({ currentDatabaseUser, onUserConnect }: UserManagementPr
     } else {
       const error = getLastConnectionError();
       setConnectionError(error || "Erreur inconnue lors de la connexion");
+    }
+  };
+
+  const openPhpMyAdmin = () => {
+    const url = getPhpMyAdminUrl();
+    if (url) {
+      window.open(url, '_blank', 'noopener,noreferrer');
+    } else {
+      toast({
+        title: "Erreur",
+        description: "Aucun utilisateur de base de données n'est actuellement connecté.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -97,6 +110,26 @@ const UserManagement = ({ currentDatabaseUser, onUserConnect }: UserManagementPr
               {error}
             </AlertDescription>
           </Alert>
+        )}
+
+        {currentDatabaseUser && (
+          <div className="mb-4 bg-blue-50 p-3 rounded-md flex items-center justify-between">
+            <div className="flex items-center">
+              <Database className="h-4 w-4 mr-2 text-blue-600" />
+              <span>
+                Base de données active: <strong>{currentDatabaseUser}</strong>
+              </span>
+            </div>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={openPhpMyAdmin}
+              className="text-blue-600 border-blue-300 hover:bg-blue-100"
+            >
+              <ExternalLink className="h-4 w-4 mr-2" />
+              Ouvrir phpMyAdmin
+            </Button>
+          </div>
         )}
 
         {loading ? (

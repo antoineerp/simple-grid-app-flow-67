@@ -1,3 +1,4 @@
+
 import { toast } from '@/hooks/use-toast';
 import { initializeUserData } from './userInitializationService';
 import { getApiUrl } from '@/config/apiConfig';
@@ -65,9 +66,12 @@ class DatabaseConnectionService {
     if (identifiantTechnique) {
       localStorage.setItem('currentDatabaseUser', identifiantTechnique);
       localStorage.setItem('currentUser', identifiantTechnique);
+      this.currentUser = identifiantTechnique;
       console.log(`User connected to the database: ${identifiantTechnique}`);
     } else {
       localStorage.removeItem('currentDatabaseUser');
+      localStorage.removeItem('currentUser');
+      this.currentUser = null;
       console.log('User disconnected from the database');
     }
   }
@@ -130,17 +134,17 @@ class DatabaseConnectionService {
         throw new Error(this.lastError);
       }
       
-      // Ouvrir la base de données dans une nouvelle fenêtre
+      // Ne plus ouvrir automatiquement une nouvelle fenêtre phpMyAdmin
+      // Afficher juste un toast de succès avec la possibilité d'ouvrir phpMyAdmin
       const dbUrl = `https://${identifiantTechnique}.myd.infomaniak.com/phpMyAdmin/`;
-      window.open(dbUrl, '_blank', 'noopener,noreferrer');
-      
-      // Initialize user data if needed
-      await initializeUserData(identifiantTechnique);
       
       toast({
         title: "Connexion réussie",
         description: `Vous êtes maintenant connecté en tant que ${identifiantTechnique}`,
       });
+      
+      // Initialize user data if needed
+      await initializeUserData(identifiantTechnique);
       
       return true;
     } catch (error) {
@@ -162,6 +166,13 @@ class DatabaseConnectionService {
       
       return false;
     }
+  }
+
+  // Get the phpMyAdmin URL for the current user
+  public getPhpMyAdminUrl(): string | null {
+    const currentUser = this.getCurrentUser();
+    if (!currentUser) return null;
+    return `https://${currentUser}.myd.infomaniak.com/phpMyAdmin/`;
   }
 
   // Test the database connection
@@ -337,4 +348,8 @@ export const testDatabaseConnection = (): Promise<boolean> => {
 
 export const getDatabaseInfo = (): Promise<DatabaseInfo> => {
   return dbConnectionService.getDatabaseInfo();
+};
+
+export const getPhpMyAdminUrl = (): string | null => {
+  return dbConnectionService.getPhpMyAdminUrl();
 };
