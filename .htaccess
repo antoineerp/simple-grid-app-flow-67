@@ -1,42 +1,44 @@
 
-# Configuration pour assurer l'exécution PHP
-RewriteEngine On
-RewriteBase /
-
-# Activer le moteur de réécriture
-Options +FollowSymLinks
-
-# Force l'exécution des scripts PHP - TRÈS IMPORTANT
+# Force execution of PHP scripts
 <FilesMatch "\.php$">
     SetHandler application/x-httpd-php
 </FilesMatch>
 
-# S'assurer que mod_php est bien utilisé
+# Enable rewrite engine
+RewriteEngine On
+RewriteBase /
+
+# Add MIME type and handler for PHP files
 AddType application/x-httpd-php .php
 AddHandler application/x-httpd-php .php
 
-# Configurer explicitement le module PHP (si disponible)
+# Explicitly set PHP configurations
 <IfModule mod_php.c>
     php_flag display_errors on
     php_value error_reporting 32767
     php_flag output_buffering on
 </IfModule>
 
-# Rediriger les requêtes API vers le dossier api
+# CRITICAL: Make sure mod_php or php-cgi is properly used
+<IfModule !mod_php.c>
+    Action application/x-httpd-php "/usr/bin/php-cgi"
+</IfModule>
+
+# Redirect API requests to the API folder
 RewriteRule ^api(/.*)?$ api$1 [L]
 
-# Rediriger toutes les autres requêtes vers index.html pour le routage React
+# All other requests go to index.html for React routing
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^(?!api/) index.html [L]
 
-# Index par défaut
+# Default index files
 DirectoryIndex index.html index.php
 
-# Configuration UTF-8
+# Set UTF-8 encoding
 AddDefaultCharset UTF-8
 
-# Désactiver la mise en cache pour les fichiers PHP
+# Disable caching for PHP files
 <FilesMatch "\.php$">
     Header set Cache-Control "no-cache, no-store, must-revalidate"
     Header set Pragma "no-cache"

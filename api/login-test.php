@@ -1,47 +1,51 @@
 
 <?php
-// Forcer l'initialisation d'un tampon de sortie propre
+// Clear any previous output buffering and start fresh
+if (ob_get_level()) ob_end_clean();
 ob_start();
 
-// En-têtes CORS et JSON
+// Force content type and CORS headers
+header("Content-Type: application/json; charset=UTF-8");
 header("Access-Control-Allow-Origin: *");
 header("Access-Control-Allow-Methods: POST, OPTIONS");
 header("Access-Control-Allow-Headers: Content-Type, Authorization");
-header("Content-Type: application/json; charset=UTF-8");
+header("Cache-Control: no-cache, no-store, must-revalidate");
 
-// Journaliser l'accès pour le diagnostic
+// Log access for debugging
 error_log("=== EXÉCUTION DE login-test.php ===");
 error_log("Méthode: " . $_SERVER['REQUEST_METHOD'] . " - URI: " . $_SERVER['REQUEST_URI']);
 
-// Si c'est une requête OPTIONS (preflight), nous la terminons ici
+// Handle OPTIONS requests (preflight)
 if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
     http_response_code(200);
     echo json_encode(['status' => 200, 'message' => 'Preflight OK']);
+    ob_end_flush();
     exit;
 }
 
-// Si ce n'est pas une requête POST, renvoyer une erreur
+// Only accept POST requests
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     http_response_code(405);
     echo json_encode(['message' => 'Méthode non autorisée', 'status' => 405]);
+    ob_end_flush();
     exit;
 }
 
 try {
-    // Récupérer les données POST
+    // Get POST data
     $json_input = file_get_contents("php://input");
     $data = json_decode($json_input);
 
-    // Journaliser les données reçues (masquer le mot de passe)
+    // Log received data (mask password)
     $log_data = $data;
     if (isset($log_data->password)) {
         $log_data->password = '********';
     }
     error_log("Données reçues: " . json_encode($log_data));
 
-    // Vérifier si les données sont présentes
+    // Check if data is present
     if (!empty($data->username) && !empty($data->password)) {
-        // Liste des utilisateurs de test autorisés
+        // List of authorized test users
         $test_users = [
             'admin' => ['password' => 'admin123', 'role' => 'admin'],
             'p71x6d_system' => ['password' => 'Trottinette43!', 'role' => 'admin'],
@@ -55,12 +59,12 @@ try {
         
         error_log("Tentative de connexion pour: " . $username . " avec mot de passe fourni");
         
-        // Debug: vérifier quels utilisateurs sont disponibles
+        // Debug: check available users
         error_log("Utilisateurs disponibles: " . implode(", ", array_keys($test_users)));
         
-        // Vérifier si l'utilisateur existe et si le mot de passe correspond
+        // Check if user exists and password matches
         if (isset($test_users[$username]) && $test_users[$username]['password'] === $password) {
-            // Générer un token fictif
+            // Generate a mock token
             $token = base64_encode(json_encode([
                 'user' => $username,
                 'role' => $test_users[$username]['role'],
@@ -122,7 +126,7 @@ try {
         'error' => $e->getMessage()
     ]);
 } finally {
-    // Vider et terminer le tampon de sortie
+    // Flush and end output buffer
     ob_end_flush();
 }
 ?>
