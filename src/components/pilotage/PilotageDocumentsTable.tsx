@@ -39,7 +39,6 @@ const PilotageDocumentsTable: React.FC<PilotageDocumentsTableProps> = ({
       <Table>
         <TableHeader>
           <TableRow className="bg-app-light-blue">
-            <TableHead className="text-app-blue font-semibold">Ordre</TableHead>
             <TableHead className="text-app-blue font-semibold">Nom du document</TableHead>
             <TableHead className="text-app-blue font-semibold">Lien</TableHead>
             <TableHead className="text-app-blue font-semibold text-right">Actions</TableHead>
@@ -50,7 +49,6 @@ const PilotageDocumentsTable: React.FC<PilotageDocumentsTableProps> = ({
             .sort((a, b) => a.ordre - b.ordre)
             .map((doc) => (
               <TableRow key={doc.id} className="border-b hover:bg-gray-50">
-                <TableCell>{doc.ordre}</TableCell>
                 <TableCell>{doc.nom}</TableCell>
                 <TableCell>
                   {doc.lien ? (
@@ -88,3 +86,4 @@ const PilotageDocumentsTable: React.FC<PilotageDocumentsTableProps> = ({
 };
 
 export default PilotageDocumentsTable;
+
