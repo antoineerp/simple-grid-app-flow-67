@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { getApiUrl } from '@/config/apiConfig';
 import { getAuthHeaders } from '@/services/auth/authService';
 import { useToast } from "@/hooks/use-toast";
-import { EyeIcon, EyeOffIcon, RefreshCw, Database, Save, Loader2 } from 'lucide-react';
+import { EyeIcon, EyeOffIcon, RefreshCw, Database, Save, Loader2, AlertTriangle } from 'lucide-react';
 
 interface DatabaseConfigType {
   host: string;
@@ -53,8 +53,17 @@ const DatabaseConfig = () => {
       });
       
       if (response.ok) {
-        const data = await response.json();
-        console.log("Configuration reçue:", data);
+        const responseText = await response.text();
+        console.log("Réponse brute reçue:", responseText.substring(0, 200));
+        
+        let data;
+        try {
+          data = JSON.parse(responseText);
+          console.log("Configuration reçue:", data);
+        } catch (parseError) {
+          console.error("Erreur de parsing JSON:", parseError);
+          throw new Error(`Erreur dans la réponse JSON: ${parseError.message}. Réponse reçue: ${responseText.substring(0, 100)}...`);
+        }
         
         // Mettre à jour les bases de données disponibles
         if (data.available_databases && data.available_databases.length > 0) {
@@ -80,9 +89,13 @@ const DatabaseConfig = () => {
         });
       } else {
         console.error("Erreur lors du chargement de la configuration:", response.status, response.statusText);
+        
+        const errorText = await response.text();
+        console.error("Contenu de l'erreur:", errorText.substring(0, 200));
+        
         toast({
           title: "Erreur",
-          description: "Impossible de charger la configuration de la base de données.",
+          description: `Impossible de charger la configuration de la base de données. (${response.status})`,
           variant: "destructive",
         });
       }
@@ -90,7 +103,7 @@ const DatabaseConfig = () => {
       console.error("Erreur:", error);
       toast({
         title: "Erreur",
-        description: "Une erreur s'est produite lors du chargement de la configuration.",
+        description: error instanceof Error ? error.message : "Une erreur s'est produite lors du chargement de la configuration.",
         variant: "destructive",
       });
     } finally {
@@ -116,7 +129,17 @@ const DatabaseConfig = () => {
         body: JSON.stringify(dbConfig)
       });
       
-      const data = await response.json();
+      const responseText = await response.text();
+      console.log("Réponse brute du test:", responseText.substring(0, 200));
+      
+      let data;
+      try {
+        data = JSON.parse(responseText);
+      } catch (parseError) {
+        console.error("Erreur de parsing JSON dans la réponse du test:", parseError);
+        throw new Error(`Erreur dans la réponse JSON du test: ${parseError.message}`);
+      }
+      
       console.log("Résultat du test:", data);
       
       if (data.status === 'success') {
@@ -174,8 +197,18 @@ const DatabaseConfig = () => {
         body: JSON.stringify(dbConfig)
       });
       
+      const responseText = await response.text();
+      console.log("Réponse brute de la sauvegarde:", responseText.substring(0, 200));
+      
+      let result;
+      try {
+        result = JSON.parse(responseText);
+      } catch (parseError) {
+        console.error("Erreur de parsing JSON dans la réponse de sauvegarde:", parseError);
+        throw new Error(`Erreur dans la réponse JSON de sauvegarde: ${parseError.message}`);
+      }
+      
       if (response.ok) {
-        const result = await response.json();
         console.log("Résultat de la sauvegarde:", result);
         
         if (result.status === 'success') {
@@ -197,7 +230,7 @@ const DatabaseConfig = () => {
         console.error("Erreur lors de la sauvegarde:", response.status, response.statusText);
         toast({
           title: "Erreur",
-          description: "Impossible de sauvegarder la configuration de la base de données.",
+          description: result?.message || `Impossible de sauvegarder la configuration de la base de données. (${response.status})`,
           variant: "destructive",
         });
       }
@@ -205,7 +238,7 @@ const DatabaseConfig = () => {
       console.error("Erreur:", error);
       toast({
         title: "Erreur",
-        description: "Une erreur s'est produite lors de la sauvegarde de la configuration.",
+        description: error instanceof Error ? error.message : "Une erreur s'est produite lors de la sauvegarde de la configuration.",
         variant: "destructive",
       });
     } finally {
