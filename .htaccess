@@ -34,6 +34,21 @@ AddHandler application/x-httpd-php .php
     </IfModule>
 </IfModule>
 
+# Direct access to diagnostic PHP files
+<Files "check-php-assets.php">
+    Order allow,deny
+    Allow from all
+    Satisfy any
+</Files>
+
+# IMPORTANT - Explicit individual routes for diagnostic tools
+RewriteRule ^check-php-assets\.php$ check-php-assets.php [L]
+RewriteRule ^api/check-php-assets\.php$ api/check-php-assets.php [L]
+RewriteRule ^minimal-test\.php$ minimal-test.php [L]
+RewriteRule ^api/minimal-test\.php$ api/minimal-test.php [L]
+RewriteRule ^infomaniak-php-check\.php$ infomaniak-php-check.php [L]
+RewriteRule ^infomaniak-paths-check\.php$ infomaniak-paths-check.php [L]
+
 # Redirect API requests to the API folder
 RewriteRule ^api(/.*)?$ api$1 [L]
 
@@ -60,3 +75,4 @@ AddDefaultCharset UTF-8
     Header set Pragma "no-cache"
     Header set Expires "0"
 </FilesMatch>
+
