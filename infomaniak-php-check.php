@@ -1,18 +1,15 @@
 
 <?php
-// Script de diagnostic basique pour serveurs Infomaniak
-// Désactiver la mise en cache
+// Script de diagnostic simple pour serveurs Infomaniak
+header("Content-Type: text/html; charset=UTF-8");
 header("Cache-Control: no-cache, no-store, must-revalidate");
 header("Pragma: no-cache");
 header("Expires: 0");
-
-// Réponse en texte simple pour commencer
-header("Content-Type: text/html; charset=UTF-8");
 ?>
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Diagnostic PHP pour Infomaniak</title>
+    <title>Diagnostic PHP Infomaniak</title>
     <style>
         body { font-family: Arial, sans-serif; margin: 20px; line-height: 1.6; max-width: 1000px; margin: 0 auto; }
         h1, h2 { color: #444; }
@@ -21,37 +18,41 @@ header("Content-Type: text/html; charset=UTF-8");
         .warning { color: orange; font-weight: bold; }
         pre { background: #f5f5f5; padding: 10px; overflow-x: auto; border-radius: 4px; }
         .card { border: 1px solid #ddd; padding: 15px; margin: 15px 0; border-radius: 4px; }
-        button { background: #4285f4; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; }
-        button:hover { background: #3b78e7; }
+        table { width: 100%; border-collapse: collapse; }
+        table, th, td { border: 1px solid #ddd; padding: 8px; }
+        th { background-color: #f5f5f5; text-align: left; }
     </style>
 </head>
 <body>
     <h1>Diagnostic PHP pour Infomaniak</h1>
-    <p>Ce script analyse votre installation PHP sur Infomaniak et identifie les problèmes potentiels.</p>
+    <p>Cet outil vérifie votre installation PHP sur Infomaniak et identifie les problèmes potentiels.</p>
 
     <div class="card">
-        <h2>1. Configuration PHP</h2>
-        <ul>
-            <li>PHP Version: <strong><?php echo phpversion(); ?></strong></li>
-            <li>Mode d'exécution PHP: <strong><?php echo php_sapi_name(); ?></strong></li>
-            <li>Extensions chargées: <strong><?php echo count(get_loaded_extensions()); ?></strong></li>
-            <li>display_errors: <strong><?php echo ini_get('display_errors') ? 'ON' : 'OFF'; ?></strong></li>
-            <li>error_reporting: <strong><?php echo ini_get('error_reporting'); ?></strong></li>
-        </ul>
+        <h2>1. Informations PHP</h2>
+        <table>
+            <tr><th>Paramètre</th><th>Valeur</th></tr>
+            <tr><td>Version PHP</td><td><?php echo phpversion(); ?></td></tr>
+            <tr><td>Interface SAPI</td><td><?php echo php_sapi_name(); ?></td></tr>
+            <tr><td>Système d'exploitation</td><td><?php echo PHP_OS; ?></td></tr>
+            <tr><td>Extensions chargées</td><td><?php echo count(get_loaded_extensions()); ?></td></tr>
+            <tr><td>display_errors</td><td><?php echo ini_get('display_errors') ? 'ON' : 'OFF'; ?></td></tr>
+        </table>
     </div>
 
     <div class="card">
         <h2>2. Environnement serveur</h2>
-        <ul>
-            <li>Serveur: <strong><?php echo $_SERVER['SERVER_SOFTWARE'] ?? 'Non défini'; ?></strong></li>
-            <li>Document Root: <strong><?php echo $_SERVER['DOCUMENT_ROOT'] ?? 'Non défini'; ?></strong></li>
-            <li>Script: <strong><?php echo $_SERVER['SCRIPT_FILENAME'] ?? 'Non défini'; ?></strong></li>
-            <li>URI: <strong><?php echo $_SERVER['REQUEST_URI'] ?? 'Non défini'; ?></strong></li>
-        </ul>
+        <table>
+            <tr><th>Variable</th><th>Valeur</th></tr>
+            <tr><td>SERVER_SOFTWARE</td><td><?php echo $_SERVER['SERVER_SOFTWARE'] ?? 'Non défini'; ?></td></tr>
+            <tr><td>DOCUMENT_ROOT</td><td><?php echo $_SERVER['DOCUMENT_ROOT'] ?? 'Non défini'; ?></td></tr>
+            <tr><td>HTTP_HOST</td><td><?php echo $_SERVER['HTTP_HOST'] ?? 'Non défini'; ?></td></tr>
+            <tr><td>SCRIPT_FILENAME</td><td><?php echo $_SERVER['SCRIPT_FILENAME'] ?? 'Non défini'; ?></td></tr>
+            <tr><td>REQUEST_URI</td><td><?php echo $_SERVER['REQUEST_URI'] ?? 'Non défini'; ?></td></tr>
+        </table>
     </div>
 
     <div class="card">
-        <h2>3. Fichiers de configuration</h2>
+        <h2>3. Test des fichiers de configuration</h2>
         <?php
         $files = [
             '.htaccess' => 'Configuration Apache racine',
@@ -60,15 +61,27 @@ header("Content-Type: text/html; charset=UTF-8");
             'api/php.ini' => 'Configuration PHP locale'
         ];
         
+        echo "<table>";
+        echo "<tr><th>Fichier</th><th>Description</th><th>Statut</th><th>Taille</th></tr>";
+        
         foreach ($files as $file => $description) {
-            echo "<p>$description ($file): ";
+            echo "<tr>";
+            echo "<td>$file</td>";
+            echo "<td>$description</td>";
+            
             if (file_exists($file)) {
-                echo "<span class='success'>PRÉSENT</span> (" . filesize($file) . " octets)";
+                $size = filesize($file) . " octets";
+                echo "<td><span class='success'>PRÉSENT</span></td>";
+                echo "<td>$size</td>";
             } else {
-                echo "<span class='error'>ABSENT</span>";
+                echo "<td><span class='error'>ABSENT</span></td>";
+                echo "<td>-</td>";
             }
-            echo "</p>";
+            
+            echo "</tr>";
         }
+        
+        echo "</table>";
         ?>
     </div>
 
@@ -78,86 +91,119 @@ header("Content-Type: text/html; charset=UTF-8");
         $dirs = [
             '.' => 'Racine',
             './api' => 'API',
-            './api/controllers' => 'Contrôleurs API',
             './assets' => 'Assets',
             './public' => 'Public'
         ];
         
+        echo "<table>";
+        echo "<tr><th>Dossier</th><th>Description</th><th>Statut</th><th>Fichiers</th></tr>";
+        
         foreach ($dirs as $dir => $description) {
-            echo "<p>$description ($dir): ";
+            echo "<tr>";
+            echo "<td>$dir</td>";
+            echo "<td>$description</td>";
+            
             if (is_dir($dir)) {
                 $files = scandir($dir);
                 $fileCount = count($files) - 2; // Moins . et ..
-                echo "<span class='success'>OK</span> ($fileCount fichiers)";
+                echo "<td><span class='success'>OK</span></td>";
+                echo "<td>$fileCount fichiers</td>";
             } else {
-                echo "<span class='error'>MANQUANT</span>";
+                echo "<td><span class='error'>MANQUANT</span></td>";
+                echo "<td>-</td>";
             }
-            echo "</p>";
+            
+            echo "</tr>";
         }
-        ?>
-    </div>
-
-    <div class="card">
-        <h2>5. Test de création fichier</h2>
-        <?php
-        $testFile = 'api/test_' . time() . '.php';
-        $testContent = '<?php header("Content-Type: application/json"); echo json_encode(["test" => "ok", "time" => time()]); ?>';
-        $writeSuccess = @file_put_contents($testFile, $testContent);
         
-        if ($writeSuccess !== false) {
-            echo "<p><span class='success'>✓ Écriture réussie</span> - Fichier de test créé: $testFile</p>";
-            echo "<p>Test ce fichier: <a href='/$testFile' target='_blank'>/$testFile</a></p>";
-        } else {
-            echo "<p><span class='error'>✗ Échec d'écriture</span> - Impossible de créer le fichier de test</p>";
-            echo "<p>Raison possible: permissions insuffisantes</p>";
-        }
+        echo "</table>";
         ?>
     </div>
 
     <div class="card">
-        <h2>6. Test des scripts API existants</h2>
+        <h2>5. Test d'exécution PHP</h2>
         <?php
-        $apiScripts = [
-            'api/index.php' => 'API Index',
-            'api/test.php' => 'Test PHP simple',
+        $testFile = 'api/test-' . time() . '.php';
+        $testContent = '<?php
+header("Content-Type: application/json");
+echo json_encode([
+    "success" => true,
+    "message" => "Test PHP OK",
+    "time" => time(),
+    "php_version" => phpversion()
+]);
+?>';
+        
+        echo "<p>Test de création de fichier: ";
+        $writeResult = @file_put_contents($testFile, $testContent);
+        
+        if ($writeResult !== false) {
+            echo "<span class='success'>Réussi</span>";
+            echo " - <a href='/$testFile' target='_blank'>Tester</a>";
+        } else {
+            echo "<span class='error'>Échec</span>";
+            echo " - Vérifiez les permissions du dossier api/";
+        }
+        echo "</p>";
+        ?>
+    </div>
+
+    <div class="card">
+        <h2>6. Test des scripts PHP existants</h2>
+        <?php
+        $scripts = [
+            'api/test.php' => 'Test simple',
             'api/php-simple-test.php' => 'Test PHP simple',
-            'api/login-test.php' => 'Test de login'
+            'api/login-test.php' => 'Test de login',
+            'api/infomaniak-check.php' => 'Check Infomaniak'
         ];
         
-        foreach ($apiScripts as $script => $description) {
-            echo "<p>$description ($script): ";
+        echo "<table>";
+        echo "<tr><th>Script</th><th>Description</th><th>Statut</th><th>Action</th></tr>";
+        
+        foreach ($scripts as $script => $description) {
+            echo "<tr>";
+            echo "<td>$script</td>";
+            echo "<td>$description</td>";
+            
             if (file_exists($script)) {
-                echo "<span class='success'>EXISTE</span>";
-                echo " - <a href='/$script' target='_blank'>Tester</a>";
+                echo "<td><span class='success'>EXISTE</span></td>";
+                echo "<td><a href='/$script' target='_blank'>Tester</a></td>";
             } else {
-                echo "<span class='error'>ABSENT</span>";
+                echo "<td><span class='error'>ABSENT</span></td>";
+                echo "<td>-</td>";
             }
-            echo "</p>";
+            
+            echo "</tr>";
         }
+        
+        echo "</table>";
         ?>
     </div>
 
     <div class="card">
-        <h2>7. Analyse des règles de redirection</h2>
+        <h2>7. Analyse de la configuration Apache</h2>
         <?php
+        // Affichage des modules Apache si disponibles
         if (function_exists('apache_get_modules')) {
             $modules = apache_get_modules();
-            echo "<p>Modules Apache: ";
+            echo "<p>mod_rewrite: ";
             if (in_array('mod_rewrite', $modules)) {
-                echo "<span class='success'>mod_rewrite activé</span>";
+                echo "<span class='success'>Activé</span>";
             } else {
-                echo "<span class='error'>mod_rewrite non disponible</span>";
+                echo "<span class='error'>Non activé</span>";
             }
             echo "</p>";
+            
+            echo "<p>Total modules Apache: " . count($modules) . "</p>";
         } else {
-            echo "<p><span class='warning'>Impossible de vérifier les modules Apache</span></p>";
+            echo "<p><span class='warning'>Impossible de vérifier les modules Apache</span> - La fonction apache_get_modules() n'est pas disponible.</p>";
         }
         
-        // Vérifier le contenu du .htaccess
+        // Vérifier le contenu du .htaccess principal
         if (file_exists('.htaccess')) {
-            $htaccess = file_get_contents('.htaccess');
-            echo "<p>Règles de redirection dans .htaccess:</p>";
-            echo "<pre>" . htmlspecialchars($htaccess) . "</pre>";
+            echo "<h3>Contenu du fichier .htaccess principal :</h3>";
+            echo "<pre>" . htmlspecialchars(file_get_contents('.htaccess')) . "</pre>";
         }
         ?>
     </div>
@@ -165,13 +211,14 @@ header("Content-Type: text/html; charset=UTF-8");
     <div class="card">
         <h2>8. Recommandations</h2>
         <ul>
-            <li>Vérifiez que le module PHP est bien activé sur votre serveur Infomaniak</li>
-            <li>Assurez-vous que les fichiers .htaccess sont autorisés (option AllowOverride)</li>
-            <li>Vérifiez les permissions des dossiers (/api/ devrait être en 755)</li>
-            <li>En cas de problème persistant, contactez le support Infomaniak avec ces informations</li>
+            <li>Vérifiez que PHP est bien activé dans votre hébergement Infomaniak (Manager > Hébergement > Configuration > PHP/CGI)</li>
+            <li>Assurez-vous que les fichiers .htaccess sont autorisés (AllowOverride All)</li>
+            <li>Vérifiez que le module mod_rewrite est activé</li>
+            <li>Vérifiez les permissions des répertoires (755) et fichiers (644)</li>
+            <li>Si nécessaire, contactez le support Infomaniak avec les informations de diagnostic ci-dessus</li>
         </ul>
     </div>
 
-    <p><em>Script généré le <?php echo date('Y-m-d H:i:s'); ?></em></p>
+    <p><em>Diagnostic généré le <?php echo date('Y-m-d H:i:s'); ?></em></p>
 </body>
 </html>
