@@ -29,22 +29,25 @@ if ($_SERVER['REQUEST_METHOD'] == 'GET') {
     
     http_response_code(200);
     echo json_encode([
-        'message' => 'Service de test de connexion',
+        'message' => 'Service de test de connexion FormaCert',
         'status' => 200,
+        'diagnostic' => [
+            'timestamp' => date('Y-m-d H:i:s'),
+            'ip_client' => $_SERVER['REMOTE_ADDR'],
+            'methode' => $_SERVER['REQUEST_METHOD'],
+            'uri' => $_SERVER['REQUEST_URI'],
+            'user_agent' => $_SERVER['HTTP_USER_AGENT'] ?? 'Non disponible',
+            'php_version' => phpversion()
+        ],
         'usage' => [
             'method' => 'POST',
             'content_type' => 'application/json',
             'body_format' => ['username' => 'string', 'password' => 'string']
         ],
         'test_users' => array_map(function($user) {
-            return ['role' => $user['role']];
+            return ['password' => $user['password'], 'role' => $user['role']];
         }, $test_users),
-        'available_usernames' => array_keys($test_users),
-        'server_info' => [
-            'method' => $_SERVER['REQUEST_METHOD'],
-            'uri' => $_SERVER['REQUEST_URI'],
-            'time' => date('Y-m-d H:i:s')
-        ]
+        'exemple_curl' => 'curl -X POST ' . (isset($_SERVER["HTTPS"]) ? "https" : "http") . '://' . $_SERVER["HTTP_HOST"] . $_SERVER["REQUEST_URI"] . ' -H "Content-Type: application/json" -d \'{"username":"admin","password":"admin123"}\''
     ]);
     exit;
 }
