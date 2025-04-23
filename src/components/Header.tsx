@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { ChevronDown, Upload, LogOut, Settings, Database, Users, LogIn, ExternalLink } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
@@ -61,6 +62,10 @@ const Header = () => {
   const handleDatabaseDisconnect = () => {
     disconnectUser();
     setCurrentDatabaseUser(null);
+  };
+
+  const handleLogoChange = (newLogo: string) => {
+    setLogo(newLogo);
   };
 
   const isAdmin = userRole === 'administrateur' || userRole === 'admin';
