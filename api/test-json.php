@@ -12,6 +12,13 @@ echo json_encode([
     'message' => 'API PHP fonctionne correctement',
     'timestamp' => date('Y-m-d H:i:s'),
     'php_version' => phpversion(),
-    'server' => $_SERVER['SERVER_SOFTWARE'] ?? 'Unknown'
+    'server' => $_SERVER['SERVER_SOFTWARE'] ?? 'Unknown',
+    'request_details' => [
+        'uri' => $_SERVER['REQUEST_URI'] ?? 'Unknown',
+        'script_name' => $_SERVER['SCRIPT_NAME'] ?? 'Unknown',
+        'query_string' => $_SERVER['QUERY_STRING'] ?? '',
+        'host' => $_SERVER['HTTP_HOST'] ?? 'Unknown',
+        'method' => $_SERVER['REQUEST_METHOD'] ?? 'Unknown'
+    ]
 ]);
 ?>
