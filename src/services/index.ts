@@ -1,15 +1,27 @@
 
 // Re-export functions from other service files
-export * from './core/databaseConnectionService';
 export * from './core/userInitializationService';
 export * from './documents';
 export * from './users/userService';
 export * from './users/createUserService';
-export * from './auth/authService';
 
-// Explicitly re-export with a different name to resolve ambiguity
+// Explicitement renommer les exports de getCurrentUser pour éviter l'ambiguïté
 export { 
   getCurrentUser as getDatabaseConnectionCurrentUser 
+} from './core/databaseConnectionService';
+
+export { 
+  getCurrentUser as getAuthCurrentUser 
+} from './auth/authService';
+
+// Re-export other functions from databaseConnectionService
+export {
+  connectAsUser,
+  getLastConnectionError,
+  disconnectUser,
+  testDatabaseConnection,
+  getDatabaseInfo,
+  getPhpMyAdminUrl
 } from './core/databaseConnectionService';
 
 // Define types here if needed
