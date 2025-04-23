@@ -47,6 +47,12 @@ if ($_SERVER['REQUEST_METHOD'] == 'GET') {
         'test_users' => array_map(function($user) {
             return ['password' => $user['password'], 'role' => $user['role']];
         }, $test_users),
+        'available_usernames' => array_keys($test_users),
+        'server_info' => [
+            'method' => $_SERVER['REQUEST_METHOD'],
+            'uri' => $_SERVER['REQUEST_URI'],
+            'time' => date('Y-m-d H:i:s')
+        ],
         'exemple_curl' => 'curl -X POST ' . (isset($_SERVER["HTTPS"]) ? "https" : "http") . '://' . $_SERVER["HTTP_HOST"] . $_SERVER["REQUEST_URI"] . ' -H "Content-Type: application/json" -d \'{"username":"admin","password":"admin123"}\''
     ]);
     exit;
