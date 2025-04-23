@@ -41,6 +41,25 @@ AddHandler application/x-httpd-php .php
     Satisfy any
 </Files>
 
+# IMPORTANTE - Add explicit rules for PHP files in the root directory
+<FilesMatch "^deploy-timestamp\.php$">
+    Order allow,deny
+    Allow from all
+    Satisfy any
+</FilesMatch>
+
+<FilesMatch "^verify-deploy\.php$">
+    Order allow,deny
+    Allow from all
+    Satisfy any
+</FilesMatch>
+
+<FilesMatch "^deploy-check\.php$">
+    Order allow,deny
+    Allow from all
+    Satisfy any
+</FilesMatch>
+
 # IMPORTANT - Explicit individual routes for diagnostic tools
 RewriteRule ^infomaniak-test\.php$ infomaniak-test.php [L]
 RewriteRule ^check-php-assets\.php$ check-php-assets.php [L]
@@ -50,6 +69,9 @@ RewriteRule ^api/minimal-test\.php$ api/minimal-test.php [L]
 RewriteRule ^infomaniak-php-check\.php$ infomaniak-php-check.php [L]
 RewriteRule ^infomaniak-paths-check\.php$ infomaniak-paths-check.php [L]
 RewriteRule ^api/infomaniak-test\.php$ api/infomaniak-test.php [L]
+RewriteRule ^deploy-timestamp\.php$ deploy-timestamp.php [L]
+RewriteRule ^api/deploy-timestamp\.php$ api/deploy-timestamp.php [L]
+RewriteRule ^api/infomaniak-check\.php$ api/infomaniak-check.php [L]
 
 # Redirect API requests to the API folder
 RewriteRule ^api(/.*)?$ api$1 [L]
