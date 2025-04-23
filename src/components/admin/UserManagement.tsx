@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -54,7 +53,7 @@ const UserManagement = ({ currentDatabaseUser, onUserConnect }: UserManagementPr
     const success = await handleConnectAsUser(identifiantTechnique);
     if (success) {
       onUserConnect(identifiantTechnique);
-      window.location.reload(); // Recharger la page pour mettre à jour l'interface
+      window.location.reload(); // Recharger la page dans la même fenêtre
     } else {
       const error = getLastConnectionError();
       setConnectionError(error || "Erreur inconnue lors de la connexion");
