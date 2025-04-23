@@ -4,24 +4,7 @@ export * from './core/userInitializationService';
 export * from './documents';
 export * from './users/userService';
 export * from './users/createUserService';
-
-// Explicitement renommer les exports de getCurrentUser pour éviter l'ambiguïté
-export { 
-  getCurrentUser as getDatabaseConnectionCurrentUser 
-} from './core/databaseConnectionService';
-
-export { 
-  getCurrentUser as getAuthCurrentUser 
-} from './auth/authService';
-
-// Re-export other functions from databaseConnectionService
-export {
-  connectAsUser,
-  getLastConnectionError,
-  disconnectUser,
-  testDatabaseConnection,
-  getDatabaseInfo
-} from './core/databaseConnectionService';
+export * from './core/database';
 
 // Define types here if needed
 export interface Utilisateur {
@@ -29,7 +12,7 @@ export interface Utilisateur {
   nom: string;
   prenom: string;
   email: string;
-  mot_de_passe: string; // Added this property to fix the TypeScript error
+  mot_de_passe: string;
   identifiant_technique: string;
   role: string;
   date_creation: string;
