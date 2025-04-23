@@ -21,6 +21,12 @@ AddHandler application/x-httpd-php .php
     php_value output_buffering 4096
 </IfModule>
 
+<IfModule mod_php.c>
+    php_flag display_errors on
+    php_value error_reporting 32767
+    php_value output_buffering 4096
+</IfModule>
+
 # Forcer l'UTF-8 pour tous les fichiers PHP
 <FilesMatch "\.php$">
     AddDefaultCharset UTF-8
@@ -28,12 +34,12 @@ AddHandler application/x-httpd-php .php
 
 # Vérifier si login-test.php existe et rediriger les requêtes
 RewriteCond %{REQUEST_URI} ^/api/login-test.php$
-RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} -f
 RewriteRule ^(.*)$ login-test.php [QSA,L]
 
 # Vérifier si auth.php existe et rediriger les requêtes vers /api/auth
 RewriteCond %{REQUEST_URI} ^/api/auth$
-RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{DOCUMENT_ROOT}/api/auth.php -f
 RewriteRule ^(.*)$ auth.php [QSA,L]
 
 # Rediriger vers index.php pour les autres requêtes API

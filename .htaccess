@@ -15,6 +15,13 @@ Options +FollowSymLinks
 AddType application/x-httpd-php .php
 AddHandler application/x-httpd-php .php
 
+# Configurer explicitement le module PHP (si disponible)
+<IfModule mod_php.c>
+    php_flag display_errors on
+    php_value error_reporting 32767
+    php_flag output_buffering on
+</IfModule>
+
 # Rediriger les requêtes API vers le dossier api
 RewriteRule ^api(/.*)?$ api$1 [L]
 

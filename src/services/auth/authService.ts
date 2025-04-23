@@ -1,4 +1,3 @@
-
 import { getApiUrl } from '@/config/apiConfig';
 import { toast } from '@/hooks/use-toast';
 import { disconnectUser } from '../core/databaseConnectionService';
@@ -59,73 +58,95 @@ class AuthService {
     }
 
     private async parseJsonResponse(response: Response): Promise<any> {
-        const responseText = await response.text();
-        console.log(`Réponse reçue (${response.status}): ${responseText.substring(0, 200)}...`);
-        
-        // Si la réponse est vide
-        if (!responseText || responseText.trim() === '') {
-            console.warn('Réponse vide reçue du serveur');
-            throw new Error('Réponse vide du serveur');
-        }
-        
-        // Vérifier si la réponse commence par un caractère spécial BOM (Byte Order Mark)
-        let cleanResponseText = responseText;
-        if (responseText.charCodeAt(0) === 0xFEFF) {
-            console.log('BOM détecté et retiré de la réponse');
-            cleanResponseText = responseText.slice(1);
-        }
-        
-        // Ne pas traiter la réponse de test comme une erreur
-        if (responseText.includes('API PHP disponible') && !responseText.includes('token')) {
-            console.log('Détecté: réponse API info standard');
-            return { info: true, message: 'API info response' };
-        }
-        
-        // Vérifier si la réponse est du HTML (ce qui indiquerait que le PHP n'est pas exécuté)
-        if (responseText.trim().startsWith('<!DOCTYPE') || 
-            responseText.trim().startsWith('<html') ||
-            responseText.includes('<body')) {
-            console.error('Réponse HTML reçue au lieu de JSON:', responseText.substring(0, 200));
-            throw new Error('Le serveur a renvoyé une page HTML au lieu de JSON. Vérifiez la configuration du serveur.');
-        }
-        
-        // Vérifier si la réponse est du PHP non-exécuté (ce qui indique un problème de configuration Apache)
-        if (responseText.trim().startsWith('<?php')) {
-            console.error('Code PHP non exécuté reçu:', responseText.substring(0, 200));
-            throw new Error('Le serveur renvoie le code PHP au lieu de l\'exécuter. Vérifiez la configuration Apache et .htaccess.');
-        }
-        
         try {
-            return JSON.parse(cleanResponseText);
-        } catch (e) {
-            console.error('Erreur lors du parsing JSON:', e);
-            console.error('Texte reçu:', responseText.substring(0, 500));
+            const responseText = await response.text();
+            console.log(`Réponse reçue (${response.status}): ${responseText.substring(0, 200)}...`);
             
-            // Essayer de déterminer pourquoi le parsing a échoué
-            if (responseText.includes('Warning:') || responseText.includes('Fatal error:') || responseText.includes('Parse error:')) {
-                console.error('Erreur PHP détectée dans la réponse');
-                throw new Error('Erreur PHP détectée dans la réponse. Vérifiez les logs serveur.');
+            // Si la réponse est vide
+            if (!responseText || responseText.trim() === '') {
+                console.warn('Réponse vide reçue du serveur');
+                throw new Error('Réponse vide du serveur');
             }
             
-            throw new Error('Réponse du serveur non valide. Format JSON attendu.');
+            // Vérifier si la réponse commence par un caractère spécial BOM
+            let cleanResponseText = responseText;
+            if (responseText.charCodeAt(0) === 0xFEFF) {
+                console.log('BOM détecté et retiré de la réponse');
+                cleanResponseText = responseText.slice(1);
+            }
+            
+            // Ne pas traiter la réponse de test comme une erreur
+            if (responseText.includes('API PHP disponible') && !responseText.includes('token')) {
+                console.log('Détecté: réponse API info standard');
+                return { info: true, message: 'API info response' };
+            }
+            
+            // Vérifier si la réponse est du HTML ou PHP non exécuté
+            if (responseText.trim().startsWith('<!DOCTYPE') || 
+                responseText.trim().startsWith('<html') ||
+                responseText.includes('<body')) {
+                console.error('Réponse HTML reçue au lieu de JSON:', responseText.substring(0, 200));
+                throw new Error('Le serveur a renvoyé une page HTML au lieu de JSON. Vérifiez la configuration du serveur.');
+            }
+            
+            // Vérifier si la réponse est du PHP non-exécuté
+            if (responseText.trim().startsWith('<?php')) {
+                console.error('Code PHP non exécuté reçu:', responseText.substring(0, 200));
+                throw new Error('Le serveur renvoie le code PHP au lieu de l\'exécuter. Vérifiez la configuration Apache et .htaccess.');
+            }
+            
+            try {
+                return JSON.parse(cleanResponseText);
+            } catch (e) {
+                console.error('Erreur lors du parsing JSON:', e);
+                console.error('Texte reçu:', responseText.substring(0, 500));
+                throw new Error('Réponse du serveur non valide. Format JSON attendu.');
+            }
+        } catch (e) {
+            console.error('Erreur lors du traitement de la réponse:', e);
+            throw e;
         }
     }
 
-    // Méthode de connexion - uniquement appelée sur action explicite de l'utilisateur
     public async login(username: string, password: string): Promise<any> {
         try {
             console.log(`Tentative de connexion pour l'utilisateur: ${username}`);
             
-            // Essayer d'abord le fichier login-test.php spécifique, qui est plus simple
-            const testUrl = `${getApiUrl()}/login-test.php`;
-            console.log(`URL de requête (login-test): ${testUrl}`);
+            // Essayer directement une API simplifiée pour le test de login
+            const testUrl = `${getApiUrl()}/php-simple-test.php`;
+            console.log(`Test d'exécution PHP avec: ${testUrl}`);
             
             try {
-                const response = await fetch(testUrl, {
+                // Vérifier d'abord que PHP s'exécute correctement
+                const phpTestResponse = await fetch(testUrl, {
+                    method: 'GET',
+                    headers: {
+                        'Cache-Control': 'no-cache, no-store, must-revalidate'
+                    }
+                });
+                
+                const phpTestText = await phpTestResponse.text();
+                console.log('Test PHP response:', phpTestText.substring(0, 100));
+                
+                if (phpTestText.trim().startsWith('<?php')) {
+                    throw new Error('PHP n\'est pas exécuté correctement sur le serveur');
+                }
+            } catch (phpError) {
+                console.error('Erreur lors du test PHP:', phpError);
+                // Continuer malgré l'erreur pour essayer le login quand même
+            }
+            
+            // Essayer d'abord le fichier login-test.php spécifique, qui est plus simple
+            const loginUrl = `${getApiUrl()}/login-test.php`;
+            console.log(`URL de requête (login-test): ${loginUrl}`);
+            
+            try {
+                const response = await fetch(loginUrl, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'Cache-Control': 'no-cache, no-store, must-revalidate'
+                        'Cache-Control': 'no-cache, no-store, must-revalidate',
+                        'Pragma': 'no-cache'
                     },
                     body: JSON.stringify({ username, password })
                 });
@@ -170,7 +191,8 @@ class AuthService {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'Cache-Control': 'no-cache, no-store, must-revalidate'
+                        'Cache-Control': 'no-cache, no-store, must-revalidate',
+                        'Pragma': 'no-cache'
                     },
                     body: JSON.stringify({ username, password })
                 });
@@ -211,7 +233,6 @@ class AuthService {
         }
     }
 
-    // Méthode de déconnexion
     public logout(): void {
         this.setToken(null);
         localStorage.removeItem('currentUser');
@@ -238,7 +259,6 @@ class AuthService {
 
 const authService = AuthService.getInstance();
 
-// Exporter les méthodes d'authentification
 export const login = (username: string, password: string): Promise<any> => {
     return authService.login(username, password);
 };
