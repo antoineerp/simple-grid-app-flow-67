@@ -24,8 +24,8 @@ try {
         PDO::ATTR_EMULATE_PREPARES => false,
     ];
     
-    // Afficher les informations de connexion
-    echo "Tentative de connexion à $host, base $db_name avec l'utilisateur $username<br>";
+    // Journaliser la tentative de connexion
+    error_log("Tentative de connexion à $host, base $db_name avec l'utilisateur $username");
     
     // Créer la connexion
     $pdo = new PDO($dsn, $username, $password, $options);

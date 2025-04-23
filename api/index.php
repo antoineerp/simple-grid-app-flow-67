@@ -121,6 +121,11 @@ switch ($controller) {
         require_once 'database-config.php';
         break;
         
+    case 'direct-db-test':
+    case 'direct-db-test.php':
+        require_once 'direct-db-test.php';
+        break;
+        
     case 'utilisateurs':
         // Faire en sorte que le UsersController.php soit inclus avec des chemins relatifs corrects
         $userController = __DIR__ . '/controllers/UsersController.php';
