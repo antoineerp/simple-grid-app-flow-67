@@ -13,6 +13,7 @@ class AuthService {
 
     private constructor() {
         console.log("Authentication service initialized");
+        // Récupérer les valeurs du localStorage une seule fois à l'initialisation
         this.token = localStorage.getItem('authToken');
         this.currentUser = localStorage.getItem('currentUser');
     }
@@ -66,7 +67,7 @@ class AuthService {
             throw new Error('Réponse vide du serveur');
         }
         
-        // Ne pas traiter la réponse de test comme une erreur, mais la reconnaître comme une réponse spéciale
+        // Ne pas traiter la réponse de test comme une erreur
         if (responseText.includes('API PHP disponible') && !responseText.includes('token')) {
             console.log('Détecté: réponse API info standard');
             return { info: true, message: 'API info response' };
@@ -88,6 +89,7 @@ class AuthService {
         }
     }
 
+    // Méthode de connexion - uniquement appelée sur action explicite de l'utilisateur
     public async login(username: string, password: string): Promise<any> {
         try {
             console.log(`Tentative de connexion pour l'utilisateur: ${username}`);
@@ -183,17 +185,11 @@ class AuthService {
             }
         } catch (error) {
             console.error("Erreur lors de la connexion:", error);
-            
-            toast({
-                title: "Échec de la connexion",
-                description: error instanceof Error ? error.message : "Erreur inconnue",
-                variant: "destructive",
-            });
-            
             throw error;
         }
     }
 
+    // Méthode de déconnexion
     public logout(): void {
         this.setToken(null);
         localStorage.removeItem('currentUser');
@@ -220,6 +216,7 @@ class AuthService {
 
 const authService = AuthService.getInstance();
 
+// Exporter les méthodes d'authentification
 export const login = (username: string, password: string): Promise<any> => {
     return authService.login(username, password);
 };

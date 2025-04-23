@@ -28,9 +28,11 @@ export const useLoginForm = () => {
     },
   });
 
+  // Soumission uniquement sur action explicite de l'utilisateur
   const onSubmit = async (data: LoginFormValues) => {
     if (isLoading) return;
     
+    // Réinitialiser l'état d'erreur à chaque tentative
     setIsLoading(true);
     setError(null);
     
@@ -46,7 +48,7 @@ export const useLoginForm = () => {
           description: `Bienvenue, ${data.username} (${result.user.role || 'utilisateur'})`,
         });
         
-        // Redirection vers le pilotage
+        // Redirection vers le pilotage avec replace pour éviter de revenir au login
         navigate("/pilotage", { replace: true });
       }
     } catch (error) {

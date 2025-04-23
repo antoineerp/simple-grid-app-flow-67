@@ -17,35 +17,34 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   const [initialCheckComplete, setInitialCheckComplete] = useState(false);
   
   useEffect(() => {
-    // Vérifier l'authentification qu'une seule fois au premier chargement
+    // Effectuer une seule vérification d'authentification au chargement initial
     const checkAuth = () => {
-      const token = localStorage.getItem('authToken');
       const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
-      
       console.log('Auth status initial check:', isLoggedIn ? 'Logged in' : 'Not logged in');
       console.log('Current path:', location.pathname);
       
       setIsAuthenticated(isLoggedIn);
-      
-      // Marquer la vérification initiale comme terminée
       setInitialCheckComplete(true);
-      
       return isLoggedIn;
     };
     
-    checkAuth();
-  }, []);
+    // Ne vérifier qu'au premier montage du composant
+    if (!initialCheckComplete) {
+      checkAuth();
+    }
+  }, [initialCheckComplete]);
   
   // Gérer les redirections une fois la vérification initiale terminée
   useEffect(() => {
     if (!initialCheckComplete) return;
     
-    if (isAuthenticated === false && location.pathname !== '/') {
+    // Redirection uniquement si nécessaire et une seule fois après la vérification initiale
+    if (isAuthenticated === false && location.pathname !== '/' && location.pathname !== '/login') {
       console.log('Redirecting to home page from', location.pathname);
-      navigate('/');
+      navigate('/', { replace: true });
     } else if (isAuthenticated === true && location.pathname === '/') {
       console.log('Redirecting to dashboard from home page');
-      navigate('/pilotage');
+      navigate('/pilotage', { replace: true });
     }
   }, [isAuthenticated, location.pathname, initialCheckComplete, navigate]);
 
