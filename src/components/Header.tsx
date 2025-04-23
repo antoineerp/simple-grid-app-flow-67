@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { ChevronDown, Upload, LogOut, Settings, Database, Users, LogIn, ExternalLink } from 'lucide-react';
+import { ChevronDown, Upload, LogOut, Settings, Database, Users, LogIn } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useToast } from "@/hooks/use-toast";
 import LogoSelector from './LogoSelector';
@@ -15,8 +15,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
-  getCurrentUser,
-  disconnectUser
+  getCurrentUser
 } from '@/services/core/databaseConnectionService';
 
 const Header = () => {
@@ -57,11 +56,6 @@ const Header = () => {
     });
     
     navigate('/');
-  };
-
-  const handleDatabaseDisconnect = () => {
-    disconnectUser();
-    setCurrentDatabaseUser(null);
   };
 
   const handleLogoChange = (newLogo: string) => {
@@ -115,13 +109,6 @@ const Header = () => {
                 </DropdownMenuGroup>
               )}
               {isAdmin && <DropdownMenuSeparator />}
-        
-              {currentDatabaseUser && (
-                <DropdownMenuItem onClick={handleDatabaseDisconnect}>
-                  <LogIn className="mr-2 h-4 w-4 rotate-180" />
-                  <span>Déconnexion BDD</span>
-                </DropdownMenuItem>
-              )}
               
               <DropdownMenuItem onClick={handleLogout}>
                 <LogOut className="mr-2 h-4 w-4" />
