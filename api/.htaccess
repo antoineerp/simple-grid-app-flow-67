@@ -1,6 +1,5 @@
 
 # Configuration pour assurer l'exécution PHP dans le dossier API
-SetHandler application/x-httpd-php
 
 # Forcer l'exécution PHP explicitement - TRÈS IMPORTANT
 <FilesMatch "\.php$">

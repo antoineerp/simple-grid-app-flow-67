@@ -1,4 +1,3 @@
-
 // Configuration de l'API avec vérification d'exécution PHP renforcée
 let apiUrl = '/api';
 let isCustomUrl = false;
@@ -6,7 +5,8 @@ let isCustomUrl = false;
 // Détection automatique de l'environnement
 function detectEnvironment() {
   const hostname = window.location.hostname;
-  const isInfomaniak = hostname.includes('myd.infomaniak.com') || hostname.includes('qualiopi.ch');
+  const isInfomaniak = hostname.includes('myd.infomaniak.com') || 
+                     hostname.includes('qualiopi.ch');
   
   console.log('Détection d\'environnement - Hostname:', hostname);
   console.log('Détection d\'environnement - Est Infomaniak:', isInfomaniak);
@@ -40,7 +40,7 @@ export function getFullApiUrl(): string {
 // Vérifier l'exécution PHP avec nouvelle approche plus fiable
 export async function checkPhpExecution(): Promise<boolean> {
   try {
-    const verifyUrl = `${getApiUrl()}/verify-php-execution.php`;
+    const verifyUrl = `${getApiUrl()}/php-test.php`;
     console.log(`Vérification de l'exécution PHP:`, verifyUrl);
     
     // Ajouter un timestamp pour éviter la mise en cache
@@ -49,7 +49,6 @@ export async function checkPhpExecution(): Promise<boolean> {
     const response = await fetch(urlWithTimestamp, {
       method: 'GET',
       headers: {
-        'Content-Type': 'application/json',
         'Cache-Control': 'no-cache, no-store, must-revalidate'
       }
     });
@@ -60,35 +59,23 @@ export async function checkPhpExecution(): Promise<boolean> {
       return false;
     }
     
-    // Récupérer le corps de la réponse
+    // Récupérer le contenu de la réponse
     const text = await response.text();
     
-    // Vérifier si le contenu commence par "<?php"
+    // Vérifier si le contenu commence par "<?php" (code PHP non exécuté)
     if (text.trim().startsWith('<?php')) {
       console.error('Code PHP non exécuté détecté lors de la vérification');
       return false;
     }
     
-    // Vérifier si c'est du HTML au lieu de JSON
-    if (text.trim().toLowerCase().startsWith('<!doctype') || 
-        text.trim().toLowerCase().startsWith('<html')) {
-      console.error('Réponse HTML reçue au lieu de JSON lors de la vérification PHP');
-      return false;
-    }
+    console.log('Réponse de vérification PHP:', text);
     
-    // Essayer de parser le JSON
-    try {
-      const data = JSON.parse(text);
-      
-      if (data && data.status === 'success' && data.php_version) {
-        console.log('Vérification PHP réussie:', data);
-        return true;
-      } else {
-        console.warn('Réponse PHP reçue mais format inattendu:', data);
-        return false;
-      }
-    } catch (e) {
-      console.error('Réponse non-JSON de la vérification PHP:', text.substring(0, 150));
+    // Si le texte contient "PHP fonctionne", c'est un succès
+    if (text.includes('PHP fonctionne')) {
+      console.log('Vérification PHP réussie');
+      return true;
+    } else {
+      console.warn('Réponse inattendue lors de la vérification PHP:', text);
       return false;
     }
   } catch (error) {
@@ -121,7 +108,7 @@ export async function testApiConnection(): Promise<{ success: boolean; message: 
     });
     
     console.log('Réponse du test API:', response.status, response.statusText);
-    console.log('Headers:', response.headers.entries());
+    console.log('Headers:', response.headers);
     
     // Récupérer le texte de la réponse
     const responseText = await response.text();
