@@ -1,65 +1,25 @@
 
-# Configuration renforcée pour l'exécution PHP
-AddHandler application/x-httpd-php .php
+# Configuration de base pour l'exécution PHP
 SetHandler application/x-httpd-php
+AddHandler application/x-httpd-php .php
 
 # Activer la réécriture d'URL
 RewriteEngine On
 
-# IMPORTANT: Forcer l'exécution des fichiers PHP
+# Traitement PHP explicite
 <FilesMatch "\.php$">
-    # Définir explicitement le gestionnaire PHP
     SetHandler application/x-httpd-php
-    
-    # Options supplémentaires
-    Options +ExecCGI
-    
-    # Forcer le contenu comme étant du PHP
-    ForceType application/x-httpd-php
 </FilesMatch>
 
-# Rediriger toutes les requêtes vers l'index.php sauf pour les fichiers existants
+# Rediriger vers index.php pour l'API
 RewriteCond %{REQUEST_FILENAME} !-f
-RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^(.*)$ index.php [QSA,L]
+
+# Configuration CORS
+Header set Access-Control-Allow-Origin "*"
+Header set Access-Control-Allow-Methods "GET, POST, OPTIONS, PUT, DELETE"
+Header set Access-Control-Allow-Headers "Content-Type, Authorization"
+Header set Cache-Control "no-cache, no-store, must-revalidate"
 
 # Configuration UTF-8
 AddDefaultCharset UTF-8
-
-# Configuration CORS
-<IfModule mod_headers.c>
-    Header set Access-Control-Allow-Origin "*"
-    Header set Access-Control-Allow-Methods "GET, POST, OPTIONS, PUT, DELETE"
-    Header set Access-Control-Allow-Headers "Content-Type, Authorization"
-    
-    # Éviter la mise en cache
-    Header set Cache-Control "no-cache, no-store, must-revalidate"
-    Header set Pragma "no-cache"
-    Header set Expires 0
-    
-    # Forcer le type de contenu JSON pour les fichiers PHP
-    <FilesMatch "\.php$">
-        Header set Content-Type "application/json; charset=utf-8"
-    </FilesMatch>
-</IfModule>
-
-# Configuration du module PHP
-<IfModule mod_php.c>
-    php_flag display_errors on
-    php_value error_reporting E_ALL
-    php_value default_charset "UTF-8"
-</IfModule>
-
-# Configuration PHP 7
-<IfModule mod_php7.c>
-    php_flag display_errors on
-    php_value error_reporting E_ALL
-    php_value default_charset "UTF-8"
-</IfModule>
-
-# Configuration PHP 8
-<IfModule mod_php8.c>
-    php_flag display_errors on
-    php_value error_reporting E_ALL
-    php_value default_charset "UTF-8"
-</IfModule>

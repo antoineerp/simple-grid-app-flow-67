@@ -1,68 +1,27 @@
 
-# Configuration renforcée pour l'exécution PHP
-AddHandler application/x-httpd-php .php
-SetHandler application/x-httpd-php
-
-# Activation du moteur de réécriture
+# Activer le moteur de réécriture
 RewriteEngine On
 RewriteBase /
 
-# Forcer explicitement l'exécution des scripts PHP
+# Forcer l'exécution des scripts PHP de base
 <FilesMatch "\.php$">
     SetHandler application/x-httpd-php
-    Options +ExecCGI
-    ForceType application/x-httpd-php
 </FilesMatch>
 
-# Configuration PHP spécifique
-<IfModule mod_php.c>
-    php_flag display_errors on
-    php_value error_reporting E_ALL
-</IfModule>
+# Configuration directe pour PHP
+php_flag display_errors on
+php_value error_reporting E_ALL
 
-# Configuration PHP 7.x
-<IfModule mod_php7.c>
-    php_flag display_errors on
-    php_value error_reporting E_ALL
-</IfModule>
-
-# Configuration PHP 8.x
-<IfModule mod_php8.c>
-    php_flag display_errors on
-    php_value error_reporting E_ALL
-</IfModule>
-
-# Assurer que les fichiers .php sont correctement interprétés
-<IfModule mod_mime.c>
-    AddType application/x-httpd-php .php
-</IfModule>
-
-# Rediriger toutes les requêtes vers l'API directement vers /api
+# Rediriger les requêtes API
 RewriteRule ^api(/.*)?$ api$1 [L]
 
-# Rediriger toutes les requêtes non-fichiers vers index.html pour le routing React
-<IfModule mod_rewrite.c>
-    # Si le fichier ou dossier demandé existe réellement, servir directement
-    RewriteCond %{REQUEST_FILENAME} -f [OR]
-    RewriteCond %{REQUEST_FILENAME} -d
-    RewriteRule ^ - [L]
-    
-    # Ne pas rediriger les requêtes vers /api
-    RewriteRule ^api/ - [L]
-    
-    # Rediriger toutes les autres requêtes vers index.html
-    RewriteRule ^ index.html [L]
-</IfModule>
+# Rediriger vers index.html pour le routing React (SPA)
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^(?!api/) index.html [L]
 
 # Index par défaut
 DirectoryIndex index.html index.php
 
 # Configuration UTF-8
 AddDefaultCharset UTF-8
-
-# Configuration des en-têtes pour les fichiers PHP
-<IfModule mod_headers.c>
-    <FilesMatch "\.php$">
-        Header set Content-Type "application/json; charset=utf-8"
-    </FilesMatch>
-</IfModule>
