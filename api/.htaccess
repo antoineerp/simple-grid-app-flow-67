@@ -42,31 +42,40 @@ AddHandler application/x-httpd-php .php
     </IfModule>
 </IfModule>
 
+# Special directives for Infomaniak hosting
+<IfModule mod_suphp.c>
+    AddType application/x-httpd-suphp .php
+    suPHP_ConfigPath /home/clients/[user]/php.ini
+</IfModule>
+
+# Test all possible PHP handlers used by hosts
+<IfModule mod_fcgid.c>
+    AddHandler fcgid-script .php
+    FcgidWrapper /usr/local/bin/php-cgi .php
+</IfModule>
+
+# SPECIAL FIX: Try direct PHP execution paths for Infomaniak
+<IfModule !mod_php.c>
+    Action application/x-httpd-php "/opt/php-cgi/php-cgi-8.1"
+</IfModule>
+
 # Enforce UTF-8 for PHP files
 <FilesMatch "\.php$">
     AddDefaultCharset UTF-8
 </FilesMatch>
 
-# Handle API routes
-RewriteCond %{REQUEST_URI} ^/api/login-test.php$
-RewriteCond %{REQUEST_FILENAME} -f
-RewriteRule ^(.*)$ login-test.php [QSA,L]
+# Explicitly handle specific PHP files
+RewriteCond %{REQUEST_URI} ^/api/simple-php-test\.php
+RewriteRule ^(.*)$ simple-php-test.php [L]
 
-RewriteCond %{REQUEST_URI} ^/api/auth$
-RewriteCond %{DOCUMENT_ROOT}/api/auth.php -f
-RewriteRule ^(.*)$ auth.php [QSA,L]
+RewriteCond %{REQUEST_URI} ^/api/test-json\.php
+RewriteRule ^(.*)$ test-json.php [L]
 
-RewriteCond %{REQUEST_URI} ^/api/api-debug.php$
-RewriteCond %{REQUEST_FILENAME} -f
-RewriteRule ^(.*)$ api-debug.php [QSA,L]
+RewriteCond %{REQUEST_URI} ^/api/test-php-routing\.php
+RewriteRule ^(.*)$ test-php-routing.php [L]
 
-RewriteCond %{REQUEST_URI} ^/api/test-auth.php$
-RewriteCond %{REQUEST_FILENAME} -f
-RewriteRule ^(.*)$ test-auth.php [QSA,L]
-
-RewriteCond %{REQUEST_URI} ^/api/php-simple-test.php$
-RewriteCond %{REQUEST_FILENAME} -f
-RewriteRule ^(.*)$ php-simple-test.php [QSA,L]
+RewriteCond %{REQUEST_URI} ^/api/minimal-test\.php
+RewriteRule ^(.*)$ minimal-test.php [L]
 
 # CORS headers
 Header set Access-Control-Allow-Origin "*"
