@@ -2,7 +2,7 @@
 <?php
 // Fichier de test de login simplifié
 header("Access-Control-Allow-Origin: *");
-header("Access-Control-Allow-Methods: POST, OPTIONS");
+header("Access-Control-Allow-Methods: POST, GET, OPTIONS");
 header("Access-Control-Allow-Headers: Content-Type, Authorization");
 header("Content-Type: application/json; charset=UTF-8");
 
@@ -17,7 +17,39 @@ if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
     exit;
 }
 
-// Si ce n'est pas une requête POST, renvoyer une erreur
+// Afficher un message de test et les infos disponibles si c'est une requête GET
+if ($_SERVER['REQUEST_METHOD'] == 'GET') {
+    $test_users = [
+        'admin' => ['password' => 'admin123', 'role' => 'admin'],
+        'p71x6d_system' => ['password' => 'Trottinette43!', 'role' => 'admin'],
+        'antcirier@gmail.com' => ['password' => 'password123', 'role' => 'admin'],
+        'p71x6d_dupont' => ['password' => 'manager456', 'role' => 'gestionnaire'],
+        'p71x6d_martin' => ['password' => 'user789', 'role' => 'utilisateur']
+    ];
+    
+    http_response_code(200);
+    echo json_encode([
+        'message' => 'Service de test de connexion',
+        'status' => 200,
+        'usage' => [
+            'method' => 'POST',
+            'content_type' => 'application/json',
+            'body_format' => ['username' => 'string', 'password' => 'string']
+        ],
+        'test_users' => array_map(function($user) {
+            return ['role' => $user['role']];
+        }, $test_users),
+        'available_usernames' => array_keys($test_users),
+        'server_info' => [
+            'method' => $_SERVER['REQUEST_METHOD'],
+            'uri' => $_SERVER['REQUEST_URI'],
+            'time' => date('Y-m-d H:i:s')
+        ]
+    ]);
+    exit;
+}
+
+// Si ce n'est pas une requête POST après ce point, renvoyer une erreur
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     http_response_code(405);
     echo json_encode(['message' => 'Méthode non autorisée', 'status' => 405]);
