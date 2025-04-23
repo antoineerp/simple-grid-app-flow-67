@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import Logo from '@/components/auth/Logo';
 import LoginForm from '@/components/auth/LoginForm';
 import { getApiUrl, getFullApiUrl, testApiConnection, checkPhpExecution } from '@/config/apiConfig';
@@ -57,6 +57,7 @@ const Index = () => {
     }
   };
   
+  // Utiliser useEffect avec [] pour exécuter une seule fois au chargement initial
   useEffect(() => {
     // Détecter si nous sommes sur Infomaniak
     const hostname = window.location.hostname;
@@ -66,6 +67,11 @@ const Index = () => {
     
     checkApi();
     setVersion(`1.0.8 - ${new Date().toLocaleDateString()}`);
+    
+    // Éviter les vérifications répétées
+    const token = localStorage.getItem('authToken');
+    const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
+    console.log('Index page loaded, auth status:', isLoggedIn ? 'Logged in' : 'Not logged in');
   }, []);
 
   return (
