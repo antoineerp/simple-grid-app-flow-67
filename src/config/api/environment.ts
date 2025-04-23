@@ -13,77 +13,64 @@ export function detectEnvironment() {
   // Détection plus précise d'Infomaniak
   isInfomaniak = hostname.includes('myd.infomaniak.com') || 
                 hostname.includes('qualiopi.ch') ||
-                hostname.includes('infomaniak');
+                hostname.includes('infomaniak') ||
+                // Ajouter d'autres domaines Infomaniak si nécessaire
+                hostname.includes('.web.app');
   
   console.log('Détection d\'environnement - Hostname:', hostname);
   console.log('Détection d\'environnement - Est Infomaniak:', isInfomaniak);
   
+  // URL API absolue pour Infomaniak
   if (isInfomaniak) {
+    // Utiliser le chemin absolu depuis la racine du domaine
     apiUrl = '/api';
     console.log('Environnement Infomaniak détecté - API URL:', apiUrl);
   } else {
+    // En développement local, continuer à utiliser le chemin relatif
     apiUrl = '/api';
     console.log('Environnement de développement détecté - API URL:', apiUrl);
   }
   
   // Test de connexion immédiate pour diagnostiquer les problèmes de chemin
-  testInfomaniakPath();
+  console.log("URL API finale configurée:", apiUrl);
+  console.log("URL API complète:", `${window.location.protocol}//${window.location.host}${apiUrl}`);
 }
 
-// Fonction pour tester les chemins Infomaniak spécifiques
-async function testInfomaniakPath() {
-  if (isInfomaniak) {
-    try {
-      console.log("Test de chemin d'accès Infomaniak...");
-      
-      // Tester le chemin infomaniak-check.php nouvellement créé
-      const response = await fetch(`${apiUrl}/infomaniak-check.php?t=${Date.now()}`, {
-        method: 'GET',
-        headers: {
-          'Cache-Control': 'no-cache, no-store, must-revalidate'
-        }
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        console.log("Configuration Infomaniak vérifiée:", data);
-      } else {
-        console.error("Problème de configuration Infomaniak détecté:", response.status, response.statusText);
-      }
-    } catch (error) {
-      console.error("Erreur lors du test de configuration Infomaniak:", error);
-    }
-  }
-}
-
+// Exécuter la détection au chargement
 detectEnvironment();
 
+// Obtenir l'URL de l'API configurée
 export function getApiUrl(): string {
   return apiUrl;
 }
 
+// Obtenir l'URL complète de l'API (avec protocole et hôte)
 export function getFullApiUrl(): string {
   return apiUrl.startsWith('http') 
     ? apiUrl 
     : `${window.location.protocol}//${window.location.host}${apiUrl}`;
 }
 
+// Définir une URL d'API personnalisée
 export function setCustomApiUrl(url: string): void {
   apiUrl = url;
   isCustomUrl = true;
   console.log('URL API personnalisée définie:', url);
 }
 
+// Réinitialiser l'URL de l'API à la valeur par défaut
 export function resetToDefaultApiUrl(): void {
   detectEnvironment();
   isCustomUrl = false;
   console.log('URL API réinitialisée à la valeur par défaut:', apiUrl);
 }
 
+// Vérifier si une URL d'API personnalisée est utilisée
 export function isUsingCustomApiUrl(): boolean {
   return isCustomUrl;
 }
 
+// Vérifier si l'environnement est Infomaniak
 export function isInfomaniakEnvironment(): boolean {
   return isInfomaniak;
 }

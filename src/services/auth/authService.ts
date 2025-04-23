@@ -62,9 +62,17 @@ class AuthService {
         const responseText = await response.text();
         console.log(`Réponse reçue (${response.status}): ${responseText.substring(0, 200)}...`);
         
+        // Si la réponse est vide
         if (!responseText || responseText.trim() === '') {
             console.warn('Réponse vide reçue du serveur');
             throw new Error('Réponse vide du serveur');
+        }
+        
+        // Vérifier si la réponse commence par un caractère spécial BOM (Byte Order Mark)
+        let cleanResponseText = responseText;
+        if (responseText.charCodeAt(0) === 0xFEFF) {
+            console.log('BOM détecté et retiré de la réponse');
+            cleanResponseText = responseText.slice(1);
         }
         
         // Ne pas traiter la réponse de test comme une erreur
@@ -73,6 +81,7 @@ class AuthService {
             return { info: true, message: 'API info response' };
         }
         
+        // Vérifier si la réponse est du HTML (ce qui indiquerait que le PHP n'est pas exécuté)
         if (responseText.trim().startsWith('<!DOCTYPE') || 
             responseText.trim().startsWith('<html') ||
             responseText.includes('<body')) {
@@ -80,11 +89,24 @@ class AuthService {
             throw new Error('Le serveur a renvoyé une page HTML au lieu de JSON. Vérifiez la configuration du serveur.');
         }
         
+        // Vérifier si la réponse est du PHP non-exécuté (ce qui indique un problème de configuration Apache)
+        if (responseText.trim().startsWith('<?php')) {
+            console.error('Code PHP non exécuté reçu:', responseText.substring(0, 200));
+            throw new Error('Le serveur renvoie le code PHP au lieu de l\'exécuter. Vérifiez la configuration Apache et .htaccess.');
+        }
+        
         try {
-            return JSON.parse(responseText);
+            return JSON.parse(cleanResponseText);
         } catch (e) {
             console.error('Erreur lors du parsing JSON:', e);
             console.error('Texte reçu:', responseText.substring(0, 500));
+            
+            // Essayer de déterminer pourquoi le parsing a échoué
+            if (responseText.includes('Warning:') || responseText.includes('Fatal error:') || responseText.includes('Parse error:')) {
+                console.error('Erreur PHP détectée dans la réponse');
+                throw new Error('Erreur PHP détectée dans la réponse. Vérifiez les logs serveur.');
+            }
+            
             throw new Error('Réponse du serveur non valide. Format JSON attendu.');
         }
     }
@@ -94,12 +116,12 @@ class AuthService {
         try {
             console.log(`Tentative de connexion pour l'utilisateur: ${username}`);
             
-            // Essayer d'abord AuthController.php
-            const authUrl = `${getApiUrl()}/auth`;
-            console.log(`URL de requête (authentification): ${authUrl}`);
+            // Essayer d'abord le fichier login-test.php spécifique, qui est plus simple
+            const testUrl = `${getApiUrl()}/login-test.php`;
+            console.log(`URL de requête (login-test): ${testUrl}`);
             
             try {
-                const response = await fetch(authUrl, {
+                const response = await fetch(testUrl, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -108,7 +130,7 @@ class AuthService {
                     body: JSON.stringify({ username, password })
                 });
                 
-                console.log(`Réponse du serveur auth: ${response.status} ${response.statusText}`);
+                console.log(`Réponse du serveur login-test: ${response.status} ${response.statusText}`);
                 
                 if (!response.ok) {
                     const errorData = await this.parseJsonResponse(response);
@@ -137,14 +159,14 @@ class AuthService {
                     success: true,
                     user: data.user
                 };
-            } catch (authError) {
-                console.error("Erreur avec /auth:", authError);
+            } catch (testError) {
+                console.error("Erreur avec login-test.php:", testError);
                 
-                // Si l'authentification échoue, essayer login-test.php comme fallback
-                const testUrl = `${getApiUrl()}/login-test.php`;
-                console.log(`URL de requête (fallback): ${testUrl}`);
+                // Si le login-test.php échoue, essayer avec /auth
+                const authUrl = `${getApiUrl()}/auth`;
+                console.log(`URL de requête (auth): ${authUrl}`);
                 
-                const response = await fetch(testUrl, {
+                const response = await fetch(authUrl, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -153,7 +175,7 @@ class AuthService {
                     body: JSON.stringify({ username, password })
                 });
                 
-                console.log(`Réponse du serveur login-test: ${response.status} ${response.statusText}`);
+                console.log(`Réponse du serveur auth: ${response.status} ${response.statusText}`);
                 
                 if (!response.ok) {
                     const errorData = await this.parseJsonResponse(response);
