@@ -13,51 +13,40 @@ interface LayoutProps {
 const Layout: React.FC<LayoutProps> = ({ children }) => {
   const navigate = useNavigate();
   const location = useLocation();
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
-  const [initialCheckComplete, setInitialCheckComplete] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   
   useEffect(() => {
-    // Effectuer une seule vérification d'authentification au chargement initial
+    // Vérifier si l'utilisateur est connecté
     const checkAuth = () => {
+      const token = localStorage.getItem('authToken');
       const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
-      console.log('Auth status initial check:', isLoggedIn ? 'Logged in' : 'Not logged in');
+      
+      console.log('Auth status:', isLoggedIn ? 'Logged in' : 'Not logged in');
       console.log('Current path:', location.pathname);
+      console.log('Auth token exists:', !!token);
       
       setIsAuthenticated(isLoggedIn);
-      setInitialCheckComplete(true);
-      return isLoggedIn;
+      
+      // Si l'utilisateur n'est pas connecté et n'est pas déjà sur la page d'accueil, rediriger vers la page d'accueil
+      if (!isLoggedIn && location.pathname !== '/') {
+        console.log('Redirecting to home page from', location.pathname);
+        navigate('/');
+      } else if (isLoggedIn && location.pathname === '/' && !isLoading) {
+        // Si l'utilisateur est connecté et se trouve sur la page d'accueil, rediriger vers le tableau de bord
+        console.log('Redirecting to dashboard from home page');
+        navigate('/pilotage');
+      }
+      
+      setIsLoading(false);
     };
     
-    // Ne vérifier qu'au premier montage du composant
-    if (!initialCheckComplete) {
-      checkAuth();
-    }
-  }, [initialCheckComplete]);
-  
-  // Gérer les redirections une fois la vérification initiale terminée
-  useEffect(() => {
-    if (!initialCheckComplete) return;
-    
-    // Redirection uniquement si nécessaire et une seule fois après la vérification initiale
-    if (isAuthenticated === false && location.pathname !== '/' && location.pathname !== '/login') {
-      console.log('Redirecting to home page from', location.pathname);
-      navigate('/', { replace: true });
-    } else if (isAuthenticated === true && location.pathname === '/') {
-      console.log('Redirecting to dashboard from home page');
-      navigate('/pilotage', { replace: true });
-    }
-  }, [isAuthenticated, location.pathname, initialCheckComplete, navigate]);
+    checkAuth();
+  }, [navigate, location.pathname, isLoading]);
 
-  // Afficher un loader pendant la vérification initiale
-  if (!initialCheckComplete) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-50">
-        <div className="text-center">
-          <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600">Chargement de l'application...</p>
-        </div>
-      </div>
-    );
+  // Si le composant est en cours de chargement, afficher un loader ou rien
+  if (isLoading) {
+    return <div className="flex items-center justify-center min-h-screen">Chargement...</div>;
   }
 
   // Si nous sommes sur la page d'accueil et non authentifié, ne pas afficher le header, sidebar et footer

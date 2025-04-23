@@ -1,16 +1,16 @@
 
 <?php
-// Point d'entrée stable pour tester la connexion à la base de données
-header('Content-Type: application/json; charset=utf-8');
-header("Cache-Control: no-cache, no-store, must-revalidate");
+// Fichier de test pour la connexion à la base de données
+header("Content-Type: application/json; charset=UTF-8");
 header("Access-Control-Allow-Origin: *");
-header("Access-Control-Allow-Methods: GET, POST, OPTIONS");
+header("Access-Control-Allow-Methods: GET, OPTIONS");
 header("Access-Control-Allow-Headers: Content-Type, Authorization");
 
 // Si c'est une requête OPTIONS (preflight), nous la terminons ici
 if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
     http_response_code(200);
-    exit(json_encode(['status' => 200, 'message' => 'Preflight OK']));
+    echo json_encode(['status' => 200, 'message' => 'Preflight OK']);
+    exit;
 }
 
 // Journaliser l'exécution
@@ -21,106 +21,72 @@ error_log("Méthode: " . $_SERVER['REQUEST_METHOD'] . " - URI: " . $_SERVER['REQ
 require_once 'config/database.php';
 
 try {
-    // Créer une instance de la base de données
     $database = new Database();
+    
+    // Obtenir la connexion à la base de données
     $db = $database->getConnection(false);
     
-    // Journaliser la tentative de connexion
-    error_log("Tentative de connexion à la base de données: " . $database->host . " / " . $database->db_name);
+    // Préparer la réponse
+    $response = [
+        'status' => $database->is_connected ? 'success' : 'error',
+        'message' => $database->is_connected ? 'Connexion à la base de données réussie' : 'Échec de la connexion à la base de données'
+    ];
     
-    // Vérifier si nous sommes connectés
-    if ($database->is_connected) {
-        // Réussie - collecter des informations sur la base de données
-        try {
-            // Liste des tables
-            $tablesQuery = "SHOW TABLES";
-            $tablesStmt = $db->query($tablesQuery);
-            $tables = [];
-            
-            while ($row = $tablesStmt->fetch(PDO::FETCH_NUM)) {
-                $tables[] = $row[0];
-            }
-            
-            // Informations sur la base de données
-            $infoQuery = "SELECT 
-                VERSION() as version,
-                DATABASE() as db_name,
-                @@character_set_database as encoding,
-                @@collation_database as collation";
-            $infoStmt = $db->query($infoQuery);
-            $dbInfo = $infoStmt->fetch(PDO::FETCH_ASSOC);
-            
-            // Taille approximative des données (si disponible)
-            try {
-                $sizeQuery = "SELECT 
-                    SUM(data_length + index_length) / 1024 / 1024 AS size_mb 
-                    FROM information_schema.TABLES 
-                    WHERE table_schema = DATABASE()";
-                $sizeStmt = $db->query($sizeQuery);
-                $sizeInfo = $sizeStmt->fetch(PDO::FETCH_ASSOC);
-                $dbSize = $sizeInfo['size_mb'] ?? 'Inconnu';
-            } catch (Exception $e) {
-                $dbSize = 'Non disponible';
-            }
-            
-            // Construire la réponse
-            http_response_code(200);
-            echo json_encode([
-                'status' => 'success',
-                'message' => 'Connexion à la base de données établie avec succès',
-                'info' => [
-                    'host' => $database->host,
-                    'database_name' => $database->db_name,
-                    'username' => $database->username,
-                    'size' => number_format($dbSize, 2) . ' Mo',
-                    'last_backup' => 'Non disponible',
-                    'encoding' => $dbInfo['encoding'] ?? 'utf8mb4',
-                    'collation' => $dbInfo['collation'] ?? 'utf8mb4_general_ci',
-                    'version' => $dbInfo['version'] ?? 'Inconnue',
-                    'tables' => $tables,
-                    'table_count' => count($tables)
-                ]
-            ], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
-            
-        } catch (PDOException $e) {
-            // La connexion est établie mais la requête d'information a échoué
-            http_response_code(200);
-            echo json_encode([
-                'status' => 'success',
-                'message' => 'Connexion à la base de données établie, mais impossible de récupérer les informations complètes',
-                'error_details' => $e->getMessage(),
-                'info' => [
-                    'host' => $database->host,
-                    'database_name' => $database->db_name,
-                    'username' => $database->username
-                ]
-            ], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
-        }
+    // Si la connexion a échoué, ajouter l'erreur à la réponse
+    if (!$database->is_connected) {
+        $response['error'] = $database->connection_error;
+        error_log("Échec de la connexion à la base de données: " . $database->connection_error);
     } else {
-        // Échec de la connexion
-        error_log("Échec de la connexion: " . $database->connection_error);
+        // Ajouter des informations sur la base de données
+        $info = [];
         
-        http_response_code(400);
-        echo json_encode([
-            'status' => 'error',
-            'message' => 'Impossible de se connecter à la base de données',
-            'error' => $database->connection_error,
-            'info' => [
-                'host' => $database->host,
+        try {
+            // Obtenir des informations sur la base de données
+            $stmt = $db->query("SELECT DATABASE() AS db_name");
+            $dbName = $stmt->fetch(PDO::FETCH_ASSOC)['db_name'];
+            $info['database_name'] = $dbName;
+            
+            // Obtenir la liste des tables
+            $stmt = $db->query("SHOW TABLES");
+            $tables = $stmt->fetchAll(PDO::FETCH_COLUMN);
+            $info['tables'] = $tables;
+            $info['table_count'] = count($tables);
+            
+            // Obtenir la taille de la base de données
+            $stmt = $db->query("SELECT 
+                SUM(data_length + index_length) AS size
+                FROM information_schema.TABLES
+                WHERE table_schema = DATABASE()");
+            $size = $stmt->fetch(PDO::FETCH_ASSOC)['size'];
+            $info['size'] = $size ? round($size / (1024 * 1024), 2) . ' MB' : 'inconnu';
+            
+            // Obtenir des informations sur l'encodage
+            $stmt = $db->query("SELECT @@character_set_database AS encoding, @@collation_database AS collation");
+            $encodingInfo = $stmt->fetch(PDO::FETCH_ASSOC);
+            $info['encoding'] = $encodingInfo['encoding'];
+            $info['collation'] = $encodingInfo['collation'];
+            
+            $response['info'] = $info;
+            error_log("Informations de base de données récupérées avec succès");
+        } catch (PDOException $e) {
+            $response['info'] = [
                 'database_name' => $database->db_name,
-                'username' => $database->username
-            ]
-        ], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+                'error' => 'Impossible d\'obtenir des informations détaillées: ' . $e->getMessage()
+            ];
+            error_log("Erreur lors de la récupération des informations de base de données: " . $e->getMessage());
+        }
     }
-} catch (Exception $e) {
-    // Erreur inattendue
-    error_log("Erreur dans database-test.php: " . $e->getMessage());
     
+    // Envoyer la réponse
+    http_response_code($database->is_connected ? 200 : 500);
+    echo json_encode($response);
+} catch (Exception $e) {
+    error_log("Exception dans database-test.php: " . $e->getMessage());
     http_response_code(500);
     echo json_encode([
         'status' => 'error',
-        'message' => 'Une erreur inattendue est survenue',
+        'message' => 'Erreur lors du test de connexion',
         'error' => $e->getMessage()
-    ], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+    ]);
 }
 ?>

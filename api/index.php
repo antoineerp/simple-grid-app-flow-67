@@ -1,106 +1,170 @@
 
 <?php
-// Point d'entrée API renforcé avec détection des erreurs d'exécution et journalisation améliorée
-header('Content-Type: application/json; charset=utf-8');
-header("Cache-Control: no-cache, no-store, must-revalidate");
+// Forcer l'output buffering pour éviter tout output avant les headers
+ob_start();
+
+// Vérifier si nous sommes dans un environnement de production ou de développement
+$is_production = (getenv('APP_ENV') === 'production' || !getenv('APP_ENV'));
+
+// Activer l'affichage des erreurs en développement
+if (!$is_production) {
+    ini_set('display_errors', 1);
+    error_reporting(E_ALL);
+} else {
+    // En production, journaliser les erreurs mais ne pas les afficher
+    ini_set('display_errors', 0);
+    error_reporting(E_ALL);
+    ini_set('log_errors', 1);
+    ini_set('error_log', 'php_errors.log');
+}
+
+// Définir les headers communs
+header("Content-Type: application/json; charset=UTF-8");
 header("Access-Control-Allow-Origin: *");
-header("Access-Control-Allow-Methods: GET, OPTIONS, POST");
-header("Access-Control-Allow-Headers: Content-Type, Authorization");
+header("Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS");
+header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With");
+header("Cache-Control: no-cache, no-store, must-revalidate");
 
-// Journaliser le début de l'exécution avec des informations détaillées
-error_log("=== DÉBUT DE L'EXÉCUTION DE index.php à " . date('Y-m-d H:i:s') . " ===");
-error_log("Méthode: " . $_SERVER['REQUEST_METHOD'] . " - URI: " . $_SERVER['REQUEST_URI']);
-error_log("Serveur: " . ($_SERVER['SERVER_SOFTWARE'] ?? 'Unknown') . " - PHP version: " . phpversion());
-
-// Répondre aux requêtes OPTIONS pour le CORS
-if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+// Si c'est une requête OPTIONS (preflight), nous la terminons ici
+if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
     http_response_code(200);
-    echo json_encode(['status' => 'success', 'message' => 'CORS Preflight OK']);
+    echo json_encode(['status' => 200, 'message' => 'Preflight OK']);
     exit;
 }
 
-// Information sur l'environnement PHP
-$php_info = [
-    'version' => phpversion(),
-    'server' => $_SERVER['SERVER_SOFTWARE'] ?? 'Unknown',
-    'sapi' => php_sapi_name(),
-    'execution_mode' => php_sapi_name(),
-    'loaded_modules' => get_loaded_extensions(),
-    'document_root' => $_SERVER['DOCUMENT_ROOT'] ?? 'Unknown',
-    'script_name' => $_SERVER['SCRIPT_NAME'] ?? 'Unknown'
-];
+// Journaliser la requête
+error_log("API Request: " . $_SERVER['REQUEST_URI'] . " | Method: " . $_SERVER['REQUEST_METHOD']);
 
-// Version API
-$api_version = '1.2.2';
+// Obtenir le chemin de la requête
+$request_uri = $_SERVER['REQUEST_URI'];
 
-// Créer la réponse
-$response = [
-    'status' => 'success',
-    'message' => 'API active et fonctionnelle - Exécution PHP confirmée',
-    'timestamp' => time(),
-    'formatted_time' => date('Y-m-d H:i:s'),
-    'api_version' => $api_version,
-    'environment' => $php_info,
-    'request_details' => [
-        'method' => $_SERVER['REQUEST_METHOD'],
-        'uri' => $_SERVER['REQUEST_URI'],
-        'query_string' => $_SERVER['QUERY_STRING'] ?? '',
-        'remote_addr' => $_SERVER['REMOTE_ADDR'],
-        'user_agent' => $_SERVER['HTTP_USER_AGENT'] ?? 'Unknown'
-    ]
-];
-
-// Détection de configuration spécifique à Infomaniak
-if (stripos($_SERVER['SERVER_SOFTWARE'] ?? '', 'infomaniak') !== false || 
-    stripos($_SERVER['HTTP_HOST'] ?? '', 'infomaniak') !== false ||
-    stripos($_SERVER['HTTP_HOST'] ?? '', 'qualiopi.ch') !== false) {
-    
-    $response['server_type'] = 'Infomaniak';
-    $response['server_note'] = 'Environnement Infomaniak détecté, configuration optimisée appliquée';
-    
-    // Vérifier si .htaccess est correctement appliqué
-    if (!isset($_SERVER['REDIRECT_STATUS']) || $_SERVER['REDIRECT_STATUS'] != '200') {
-        $response['htaccess_warning'] = 'Les règles .htaccess ne sont peut-être pas appliquées correctement';
-    }
+// Normaliser le chemin de l'API
+$base_path = '/api/';
+// Dans certaines configurations, le chemin pourrait être différent
+if (strpos($request_uri, 'api/index.php') !== false) {
+    $base_path = '/api/index.php/';
 }
 
-// Test de connexion à la base de données (si les fichiers existent)
-if (file_exists(__DIR__ . '/config/database.php') && file_exists(__DIR__ . '/config/db_config.json')) {
-    try {
-        require_once __DIR__ . '/config/database.php';
-        
-        $database = new Database();
-        $conn = $database->getConnection(false);
-        
-        if ($database->is_connected) {
-            $response['database'] = [
-                'status' => 'connected',
-                'host' => $database->host,
-                'db_name' => $database->db_name
-            ];
-        } else {
-            $response['database'] = [
-                'status' => 'error',
-                'message' => $database->connection_error ?? 'Erreur de connexion'
-            ];
+// Gérer les paramètres de requête
+$query_string = parse_url($request_uri, PHP_URL_QUERY);
+$is_test_request = false;
+
+// Vérifier si c'est une requête de test
+if ($query_string && strpos($query_string, 'test=1') !== false) {
+    $is_test_request = true;
+}
+
+// Si nous sommes sur l'URL racine de l'API (avec ou sans index.php) ou une requête de test, renvoyer un message de base
+if ($is_test_request || $request_uri == '/api/' || $request_uri == '/api/index.php' || $request_uri == '/api/index.php/') {
+    http_response_code(200);
+    echo json_encode([
+        'message' => 'API PHP disponible',
+        'status' => 200,
+        'environment' => $is_production ? 'production' : 'development',
+        'server_info' => [
+            'host' => $_SERVER['SERVER_NAME'],
+            'uri' => $_SERVER['REQUEST_URI'],
+            'script' => $_SERVER['SCRIPT_NAME']
+        ]
+    ]);
+    exit;
+}
+
+// Définir une fonction pour nettoyer les données UTF-8
+if (!function_exists('cleanUTF8')) {
+    function cleanUTF8($input) {
+        if (is_string($input)) {
+            return mb_convert_encoding($input, 'UTF-8', 'UTF-8');
+        } elseif (is_array($input)) {
+            foreach ($input as $key => $value) {
+                $input[$key] = cleanUTF8($value);
+            }
         }
-    } catch (Exception $e) {
-        $response['database'] = [
-            'status' => 'error',
-            'message' => 'Exception: ' . $e->getMessage()
-        ];
+        return $input;
     }
-} else {
-    $response['database'] = [
-        'status' => 'not_configured',
-        'message' => 'Configuration introuvable'
-    ];
 }
 
-// Journaliser la fin de l'exécution
-error_log("Réponse générée avec succès. Status: " . $response['status']);
-error_log("=== FIN DE L'EXÉCUTION DE index.php ===");
+// Routage des requêtes
+// Nettoyer le chemin pour obtenir la route demandée
+$path = preg_replace([
+    '~^/api/index\.php/~',
+    '~^/api/~'
+], '', parse_url($request_uri, PHP_URL_PATH));
+$path = rtrim(strtok($path, '?'), '/');
+$segments = explode('/', $path);
 
-// Envoyer la réponse
-echo json_encode($response, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+// Déterminer le contrôleur à partir du premier segment
+$controller = !empty($segments[0]) ? $segments[0] : 'index';
+
+// Journaliser la requête
+error_log("API Controller: $controller | Method: " . $_SERVER['REQUEST_METHOD'] . " | URI: $request_uri | Path: $path");
+
+// Router vers le bon fichier en fonction du contrôleur
+switch ($controller) {
+    case 'auth':
+        require_once 'controllers/AuthController.php';
+        break;
+        
+    case 'login-test':
+        require_once 'login-test.php';
+        break;
+        
+    case 'database-test':
+        require_once 'database-test.php';
+        break;
+        
+    case 'db-connection-test':
+        require_once 'db-connection-test.php';
+        break;
+        
+    case 'database-config':
+        require_once 'database-config.php';
+        break;
+        
+    case 'utilisateurs':
+        // Faire en sorte que le UsersController.php soit inclus avec des chemins relatifs corrects
+        $userController = __DIR__ . '/controllers/UsersController.php';
+        if (file_exists($userController)) {
+            error_log("Inclusion du contrôleur d'utilisateurs: " . $userController);
+            require_once $userController;
+        } else {
+            error_log("ERREUR: Contrôleur d'utilisateurs non trouvé à: " . $userController);
+            http_response_code(500);
+            echo json_encode([
+                'message' => 'Contrôleur d\'utilisateurs non trouvé',
+                'status' => 500,
+                'path' => $userController,
+                'debug' => [
+                    'request_uri' => $request_uri,
+                    'controller' => $controller,
+                    'segments' => $segments,
+                    'directory' => __DIR__
+                ]
+            ]);
+        }
+        break;
+        
+    case 'check-users':
+    case 'check-users.php':
+        require_once 'check-users.php';
+        break;
+        
+    default:
+        // Si le contrôleur n'est pas reconnu, vérifier si un fichier PHP correspondant existe
+        $controller_file = $controller . '.php';
+        if (file_exists($controller_file)) {
+            require_once $controller_file;
+        } else {
+            // Aucune route correspondante trouvée
+            http_response_code(404);
+            echo json_encode([
+                'message' => 'Route non trouvée: ' . $path,
+                'status' => 404
+            ]);
+        }
+        break;
+}
+
+// Vider le tampon de sortie
+ob_end_flush();
 ?>

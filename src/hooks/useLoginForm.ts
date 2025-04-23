@@ -18,7 +18,9 @@ export const useLoginForm = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [hasDbError, setHasDbError] = useState(false);
+  const [hasServerError, setHasServerError] = useState(false);
+  const [hasAuthError, setHasAuthError] = useState(false);
   
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
@@ -28,19 +30,24 @@ export const useLoginForm = () => {
     },
   });
 
-  // Soumission uniquement sur action explicite de l'utilisateur
   const onSubmit = async (data: LoginFormValues) => {
     if (isLoading) return;
     
-    // Réinitialiser l'état d'erreur à chaque tentative
     setIsLoading(true);
-    setError(null);
+    setHasDbError(false);
+    setHasServerError(false);
+    setHasAuthError(false);
     
     try {
       console.log("Tentative de connexion pour:", data.username);
       const result = await loginUser(data.username, data.password);
       
       if (result.success && result.user) {
+        // Réinitialiser l'état d'erreur
+        setHasDbError(false);
+        setHasServerError(false);
+        setHasAuthError(false);
+        
         localStorage.setItem('isLoggedIn', 'true');
         
         toast({
@@ -48,24 +55,54 @@ export const useLoginForm = () => {
           description: `Bienvenue, ${data.username} (${result.user.role || 'utilisateur'})`,
         });
         
-        // Redirection vers le pilotage avec replace pour éviter de revenir au login
+        // Forcer la navigation vers le pilotage
+        console.log("Redirection vers /pilotage après connexion réussie");
         navigate("/pilotage", { replace: true });
       }
     } catch (error) {
       console.error("Erreur lors de la connexion:", error);
       
-      // Message d'erreur simple et clair
-      const errorMessage = error instanceof Error 
-        ? error.message 
-        : "Erreur lors de la tentative de connexion";
-      
-      setError(errorMessage);
-      
-      toast({
-        title: "Échec de la connexion",
-        description: errorMessage,
-        variant: "destructive",
-      });
+      // Vérifier s'il s'agit d'une erreur de base de données
+      if (error instanceof Error) {
+        const errorMessage = error.message.toLowerCase();
+        
+        if (errorMessage.includes("base de données") || 
+            errorMessage.includes("database") ||
+            errorMessage.includes("connexion") ||
+            errorMessage.includes("sql")) {
+          setHasDbError(true);
+          toast({
+            title: "Erreur de connexion à la base de données",
+            description: "Vérifiez la configuration de votre base de données dans le panneau d'administration.",
+            variant: "destructive",
+          });
+        } else if (errorMessage.includes("serveur") || 
+                  errorMessage.includes("inaccessible") ||
+                  errorMessage.includes("réponse invalide")) {
+          setHasServerError(true);
+          toast({
+            title: "Erreur de connexion au serveur",
+            description: "Le serveur d'authentification est temporairement inaccessible.",
+            variant: "destructive",
+          });
+        } else if (errorMessage.includes("mot de passe") ||
+                  errorMessage.includes("identifiants") ||
+                  errorMessage.includes("invalide")) {
+          setHasAuthError(true);
+          toast({
+            title: "Identifiants incorrects",
+            description: "Le nom d'utilisateur ou le mot de passe est incorrect.",
+            variant: "destructive",
+          });
+        } else {
+          // Erreur générique
+          toast({
+            title: "Échec de la connexion",
+            description: error.message || "Erreur lors de la tentative de connexion",
+            variant: "destructive",
+          });
+        }
+      }
     } finally {
       setIsLoading(false);
     }
@@ -74,7 +111,9 @@ export const useLoginForm = () => {
   return {
     form,
     isLoading,
-    error,
+    hasDbError,
+    hasServerError,
+    hasAuthError,
     onSubmit: form.handleSubmit(onSubmit)
   };
 };

@@ -1,99 +1,25 @@
 
-# Force PHP execution - CRITICAL SECTION
-<FilesMatch "\.php$">
-    SetHandler application/x-httpd-php
-</FilesMatch>
-
-# Enable rewrite engine and options
-Options +FollowSymLinks +ExecCGI
+# Activer la réécriture d'URL
 RewriteEngine On
 
-# Force PHP MIME type and handler
-AddType application/x-httpd-php .php
-AddHandler application/x-httpd-php .php
+# Rediriger toutes les requêtes vers l'index.php sauf pour les fichiers existants
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^(.*)$ index.php [QSA,L]
 
-# If mod_php is available, configure it
+# Définir les en-têtes CORS
+<IfModule mod_headers.c>
+    Header set Access-Control-Allow-Origin "*"
+    Header set Access-Control-Allow-Methods "GET, POST, OPTIONS, PUT, DELETE"
+    Header set Access-Control-Allow-Headers "Content-Type, Authorization"
+    
+    # Eviter la mise en cache
+    Header set Cache-Control "no-cache, no-store, must-revalidate"
+    Header set Pragma "no-cache"
+    Header set Expires 0
+</IfModule>
+
+# Forcer PHP à utiliser le bon encodage
 <IfModule mod_php.c>
-    php_flag display_errors on
-    php_value error_reporting 32767
-    php_value output_buffering 4096
+    php_value default_charset "UTF-8"
 </IfModule>
-
-# Try with legacy PHP module naming
-<IfModule mod_php7.c>
-    php_flag display_errors on
-    php_value error_reporting 32767
-    php_value output_buffering 4096
-</IfModule>
-
-<IfModule mod_php8.c>
-    php_flag display_errors on
-    php_value error_reporting 32767
-    php_value output_buffering 4096
-</IfModule>
-
-# CRITICAL: Force the path_info for PHP
-<IfModule !mod_php.c>
-    <IfModule !mod_php7.c>
-        <IfModule !mod_php8.c>
-            Action application/x-httpd-php "/usr/bin/php-cgi"
-            SetEnv PHPRC /etc/php/php.ini
-        </IfModule>
-    </IfModule>
-</IfModule>
-
-# Special directives for Infomaniak hosting
-<IfModule mod_suphp.c>
-    AddType application/x-httpd-suphp .php
-    suPHP_ConfigPath /home/clients/[user]/php.ini
-</IfModule>
-
-# Test all possible PHP handlers used by hosts
-<IfModule mod_fcgid.c>
-    AddHandler fcgid-script .php
-    FcgidWrapper /usr/local/bin/php-cgi .php
-</IfModule>
-
-# SPECIAL FIX: Try direct PHP execution paths for Infomaniak
-<IfModule !mod_php.c>
-    Action application/x-httpd-php "/opt/php-cgi/php-cgi-8.1"
-</IfModule>
-
-# Enforce UTF-8 for PHP files
-<FilesMatch "\.php$">
-    AddDefaultCharset UTF-8
-</FilesMatch>
-
-# CORS headers
-Header set Access-Control-Allow-Origin "*"
-Header set Access-Control-Allow-Methods "GET, POST, OPTIONS, PUT, DELETE"
-Header set Access-Control-Allow-Headers "Content-Type, Authorization"
-
-# Cache control
-Header set Cache-Control "no-cache, no-store, must-revalidate"
-Header set Pragma "no-cache"
-Header set Expires "0"
-
-# Default charset
-AddDefaultCharset UTF-8
-
-# Important: Route database-test.php explicitly
-RewriteCond %{REQUEST_URI} ^/api/database-test$
-RewriteRule ^(.*)$ database-test.php [L]
-
-# Important: Route db-connection-test explicitly
-RewriteCond %{REQUEST_URI} ^/api/db-connection-test$
-RewriteRule ^(.*)$ db-connection-test.php [L]
-
-# Important: All other specific PHP file handlers
-RewriteCond %{REQUEST_URI} ^/api/test$
-RewriteRule ^(.*)$ test.php [L]
-
-RewriteCond %{REQUEST_URI} ^/api/php-simple-test$
-RewriteRule ^(.*)$ php-simple-test.php [L]
-
-RewriteCond %{REQUEST_URI} ^/api/infomaniak-check$
-RewriteRule ^(.*)$ infomaniak-check.php [L]
-
-RewriteCond %{REQUEST_URI} ^/api/diagnose$
-RewriteRule ^(.*)$ diagnose.php [L]

@@ -41,9 +41,9 @@ export default defineConfig(({ mode }) => {
           chunkFileNames: 'assets/[name]-[hash].js',
           assetFileNames: 'assets/[name]-[hash].[ext]'
         },
-        // Ignorer les ressources externes qui ne sont pas disponibles au moment du build
+        // Ignorer les assets externes qui ne sont pas disponibles au moment du build
         external: [
-          // Automatiquement résolu par Vite, pas besoin de spécifier explicitement
+          // Lister ici les assets externes qui doivent être résolus au runtime
         ]
       }
     },
