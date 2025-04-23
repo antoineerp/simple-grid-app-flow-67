@@ -24,10 +24,14 @@ export async function testApiConnection(): Promise<{ success: boolean; message: 
     });
 
     console.log('Réponse du test API:', response.status, response.statusText);
-    console.log('Headers:', response.headers);
+
+    if (!response.ok) {
+      throw new Error(`Erreur de connexion API: ${response.status} ${response.statusText}`);
+    }
 
     const responseText = await response.text();
 
+    // Vérification du contenu de la réponse
     if (responseText.trim().startsWith('<?php')) {
       console.error('Code PHP non exécuté détecté dans la réponse');
       return {
@@ -38,16 +42,7 @@ export async function testApiConnection(): Promise<{ success: boolean; message: 
         }
       };
     }
-    if (responseText.trim().startsWith('<!DOCTYPE') || responseText.trim().startsWith('<html')) {
-      console.warn('Réponse HTML reçue au lieu de JSON');
-      return {
-        success: false,
-        message: 'Le serveur a renvoyé du HTML au lieu de JSON',
-        details: {
-          tip: 'Vérifiez que le script PHP génère correctement du JSON avec les bons headers.'
-        }
-      };
-    }
+    
     try {
       const data = JSON.parse(responseText);
       return {
