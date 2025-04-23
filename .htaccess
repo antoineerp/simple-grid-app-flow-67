@@ -3,16 +3,18 @@
 RewriteEngine On
 RewriteBase /
 
-# Simple PHP handler configuration
-AddType application/x-httpd-php .php
+# Forcer l'exécution de PHP - SECTION CRITIQUE
 AddHandler application/x-httpd-php .php
+AddType application/x-httpd-php .php
 
-# Force PHP execution
+# Authorisation explicite pour tous les fichiers PHP dans la racine
 <FilesMatch "\.php$">
     SetHandler application/x-httpd-php
+    Order allow,deny
+    Allow from all
 </FilesMatch>
 
-# Explicitly allow access to diagnostic PHP files
+# Cas particuliers d'accès direct aux fichiers PHP
 <Files "deploy-timestamp.php">
     Order allow,deny
     Allow from all
@@ -33,16 +35,15 @@ AddHandler application/x-httpd-php .php
     Allow from all
 </Files>
 
-# Make sure specific PHP files are accessible directly
-RewriteRule ^deploy-timestamp\.php$ deploy-timestamp.php [L,PT]
-RewriteRule ^verify-deploy\.php$ verify-deploy.php [L,PT]
-RewriteRule ^deploy-check\.php$ deploy-check.php [L,PT]
-RewriteRule ^check-php-assets\.php$ check-php-assets.php [L,PT]
+<Files "index-fixer.php">
+    Order allow,deny
+    Allow from all
+</Files>
 
-# Redirect API requests to the API folder
+# Redirection API vers le dossier API
 RewriteRule ^api(/.*)?$ api$1 [L]
 
-# Default behavior: React routing through index.html
+# Par défaut: le routage React via index.html
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^(?!api/) index.html [L]
