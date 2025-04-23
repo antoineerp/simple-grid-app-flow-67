@@ -25,7 +25,8 @@ const RessourcesHumaines = () => {
     prenom: '',
     fonction: '',
     initiales: '',
-    date_creation: new Date()
+    date_creation: new Date(),
+    mot_de_passe: '' // Ajout du champ obligatoire
   });
   const [isEditing, setIsEditing] = useState(false);
 
@@ -61,7 +62,8 @@ const RessourcesHumaines = () => {
       prenom: '',
       fonction: '',
       initiales: '',
-      date_creation: new Date()
+      date_creation: new Date(),
+      mot_de_passe: '' // Ajout du champ obligatoire
     });
     setIsEditing(false);
     setIsDialogOpen(true);
