@@ -1,34 +1,37 @@
 
-import { useState, useEffect } from 'react';
-import { getDatabaseInfo, testDatabaseConnection, type DatabaseInfo } from '@/services';
+import React, { useState, useEffect } from 'react';
 import { useToast } from "@/hooks/use-toast";
+import { getPhpMyAdminUrl, getDatabaseInfo, testDatabaseConnection } from '@/services';
+
+// Définir l'interface pour l'information de base de données
+export interface DatabaseInfo {
+  host: string;
+  database: string;
+  size: string;
+  tables: number;
+  lastBackup: string;
+  status: string;
+  encoding?: string;
+  collation?: string;
+  tableList?: string[];
+}
 
 export const useAdminDatabase = () => {
   const { toast } = useToast();
   const [dbInfo, setDbInfo] = useState<DatabaseInfo | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [testingConnection, setTestingConnection] = useState(false);
-  const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const loadDatabaseInfo = async () => {
-    setLoading(true);
-    setError(null);
     try {
-      console.log("Tentative de chargement des informations de la base de données...");
+      setLoading(true);
+      setError(null);
       const info = await getDatabaseInfo();
-      console.log("Informations de la base de données reçues:", info);
-      
       setDbInfo(info);
-      setLastUpdate(new Date());
-      
-      if (info.status !== "Online") {
-        console.warn("La base de données est marquée comme non accessible:", info.status);
-      }
-    } catch (error) {
-      console.error("Erreur lors du chargement des informations de la base de données", error);
-      const errorMessage = error instanceof Error ? error.message : "Impossible de charger les informations de la base de données";
-      setError(errorMessage);
+    } catch (err) {
+      console.error("Erreur lors du chargement des informations de la base de données:", err);
+      setError(err instanceof Error ? err.message : "Erreur inconnue");
       toast({
         title: "Erreur",
         description: "Impossible de charger les informations de la base de données.",
@@ -40,32 +43,32 @@ export const useAdminDatabase = () => {
   };
 
   const handleTestConnection = async () => {
-    setTestingConnection(true);
-    setError(null);
     try {
-      console.log("Test de connexion à la base de données en cours...");
-      const result = await testDatabaseConnection();
-      console.log("Résultat du test de connexion:", result);
+      setTestingConnection(true);
+      setError(null);
+      const success = await testDatabaseConnection();
       
-      if (result) {
-        // Recharger les informations de la base de données après un test réussi
-        await loadDatabaseInfo();
+      if (success) {
         toast({
-          title: "Succès",
-          description: "La connexion à la base de données est établie.",
+          title: "Test de connexion réussi",
+          description: "La connexion à la base de données est opérationnelle.",
         });
+        // Recharger les informations après un test réussi
+        loadDatabaseInfo();
       } else {
-        const errorMsg = "Le test de connexion a échoué. Vérifiez les paramètres de connexion.";
-        console.error(errorMsg);
-        setError(errorMsg);
+        setError("Le test de connexion a échoué");
+        toast({
+          title: "Échec du test",
+          description: "La connexion à la base de données a échoué.",
+          variant: "destructive",
+        });
       }
-    } catch (error) {
-      console.error("Erreur lors du test de connexion à la base de données", error);
-      const errorMessage = error instanceof Error ? error.message : "Échec du test de connexion à la base de données";
-      setError(errorMessage);
+    } catch (err) {
+      console.error("Erreur lors du test de connexion:", err);
+      setError(err instanceof Error ? err.message : "Erreur inconnue");
       toast({
-        title: "Échec",
-        description: "Impossible de se connecter à la base de données.",
+        title: "Erreur",
+        description: "Une erreur est survenue lors du test de connexion.",
         variant: "destructive",
       });
     } finally {
@@ -73,23 +76,14 @@ export const useAdminDatabase = () => {
     }
   };
 
-  // Charger les informations de la base de données au montage du composant
   useEffect(() => {
     loadDatabaseInfo();
-    
-    // Configuration d'un intervalle pour rafraîchir périodiquement les informations
-    const refreshInterval = setInterval(loadDatabaseInfo, 300000); // Rafraîchir toutes les 5 minutes
-    
-    return () => {
-      clearInterval(refreshInterval); // Nettoyer l'intervalle lors du démontage
-    };
   }, []);
 
   return {
     dbInfo,
     loading,
     testingConnection,
-    lastUpdate,
     error,
     loadDatabaseInfo,
     handleTestConnection

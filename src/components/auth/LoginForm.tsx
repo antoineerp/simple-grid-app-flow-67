@@ -40,8 +40,7 @@ const LoginForm = () => {
         <Alert variant="destructive" className="mb-6">
           <AlertCircle className="h-4 w-4 mr-2" />
           <AlertDescription>
-            Identifiants invalides. Utilisateurs disponibles : admin, p71x6d_system, antcirier@gmail.com, 
-            p71x6d_dupont, p71x6d_martin.
+            Identifiants invalides. Veuillez vérifier vos identifiants ou contacter l'administrateur système.
           </AlertDescription>
         </Alert>
       )}
@@ -70,6 +69,7 @@ const LoginForm = () => {
             <li>admin (mot de passe: admin123)</li>
             <li>p71x6d_system (mot de passe: Trottinette43!)</li>
             <li>antcirier@gmail.com (mot de passe: password123)</li>
+            <li>Tout utilisateur créé dans la base de données (mot de passe: password123)</li>
           </ul>
         </AlertDescription>
       </Alert>

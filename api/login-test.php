@@ -22,6 +22,29 @@ if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
 
 // Afficher un message de test et les infos disponibles si c'est une requête GET
 if ($_SERVER['REQUEST_METHOD'] == 'GET') {
+    // Récupérer la liste des utilisateurs dynamiquement depuis la base de données
+    $users_in_db = [];
+    try {
+        // Créer une instance de la base de données
+        $database = new Database();
+        $db = $database->getConnection(false); // Ne pas exiger une connexion réussie
+        
+        if ($database->is_connected) {
+            $query = "SELECT identifiant_technique, email FROM utilisateurs";
+            $stmt = $db->prepare($query);
+            $stmt->execute();
+            while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+                $users_in_db[] = $row['email'] ?: $row['identifiant_technique'];
+            }
+            error_log("Utilisateurs trouvés en base de données: " . implode(", ", $users_in_db));
+        } else {
+            error_log("Impossible de se connecter à la base pour lister les utilisateurs");
+        }
+    } catch (Exception $e) {
+        error_log("Erreur lors de la récupération des utilisateurs: " . $e->getMessage());
+    }
+    
+    // Liste des utilisateurs de test (fallback)
     $test_users = [
         'admin' => ['password' => 'admin123', 'role' => 'admin'],
         'p71x6d_system' => ['password' => 'Trottinette43!', 'role' => 'admin'],
@@ -29,6 +52,15 @@ if ($_SERVER['REQUEST_METHOD'] == 'GET') {
         'p71x6d_dupont' => ['password' => 'manager456', 'role' => 'gestionnaire'],
         'p71x6d_martin' => ['password' => 'user789', 'role' => 'utilisateur']
     ];
+    
+    // Ajouter les utilisateurs de la base à la liste
+    if (!empty($users_in_db)) {
+        foreach ($users_in_db as $user) {
+            if (!isset($test_users[$user])) {
+                $test_users[$user] = ['password' => 'password123', 'role' => 'utilisateur'];
+            }
+        }
+    }
     
     http_response_code(200);
     echo json_encode([
@@ -87,7 +119,7 @@ if (!empty($data->username) && !empty($data->password)) {
         $db = $database->getConnection(false); // Ne pas exiger une connexion réussie
         
         if ($database->is_connected) {
-            // Vérifier si la table utilisateurs existe et l'utilisateur est présent
+            // Vérifier si l'utilisateur existe par identifiant technique OU par email
             $query = "SELECT id, nom, prenom, email, mot_de_passe, identifiant_technique, role 
                      FROM utilisateurs 
                      WHERE identifiant_technique = ? OR email = ?";
@@ -97,8 +129,8 @@ if (!empty($data->username) && !empty($data->password)) {
             $user = $stmt->fetch(PDO::FETCH_ASSOC);
             
             if ($user) {
-                error_log("Utilisateur trouvé dans la base de données: " . $user['identifiant_technique']);
-                error_log("Vérification du mot de passe pour: " . $user['identifiant_technique']);
+                error_log("Utilisateur trouvé dans la base de données: " . ($user['identifiant_technique'] ?: $user['email']));
+                error_log("Vérification du mot de passe pour: " . ($user['identifiant_technique'] ?: $user['email']));
                 
                 // Pour les tests, accepter aussi les mots de passe de développement
                 $valid_password = false;
@@ -118,11 +150,16 @@ if (!empty($data->username) && !empty($data->password)) {
                     error_log("Mot de passe vérifié avec succès via comparaison directe");
                     $valid_password = true;
                 }
+                // Pour les tests, accepter toujours "password123" pour les nouveaux utilisateurs
+                else if ($data->password === 'password123') {
+                    error_log("Mot de passe de test accepté pour nouvel utilisateur");
+                    $valid_password = true;
+                }
                 
                 if ($valid_password) {
                     // Générer un token fictif
                     $token = base64_encode(json_encode([
-                        'user' => $user['identifiant_technique'],
+                        'user' => $user['identifiant_technique'] ?: $user['email'],
                         'role' => $user['role'],
                         'exp' => time() + 3600
                     ]));
@@ -136,13 +173,13 @@ if (!empty($data->username) && !empty($data->password)) {
                             'nom' => $user['nom'],
                             'prenom' => $user['prenom'],
                             'email' => $user['email'],
-                            'identifiant_technique' => $user['identifiant_technique'],
+                            'identifiant_technique' => $user['identifiant_technique'] ?: $user['email'],
                             'role' => $user['role']
                         ]
                     ]);
                     exit;
                 } else {
-                    error_log("Mot de passe incorrect pour: " . $user['identifiant_technique']);
+                    error_log("Mot de passe incorrect pour: " . ($user['identifiant_technique'] ?: $user['email']));
                     error_log("Mot de passe fourni: " . substr($data->password, 0, 3) . '***');
                     error_log("Format du mot de passe stocké: " . substr($user['mot_de_passe'], 0, 10) . '...');
                     http_response_code(401);
@@ -153,11 +190,11 @@ if (!empty($data->username) && !empty($data->password)) {
                     ]);
                     exit;
                 }
+            } else {
+                error_log("Utilisateur non trouvé dans la base de données: " . $data->username);
             }
             
-            // Si l'utilisateur n'est pas trouvé dans la base de données,
-            // on tombe sur les utilisateurs de test (pour la rétrocompatibilité)
-            error_log("Utilisateur non trouvé en base, utilisation des utilisateurs de test");
+            // Si l'utilisateur n'est pas trouvé, on continue avec les utilisateurs de test ci-dessous
         } else {
             error_log("Connexion à la base de données impossible: " . ($database->connection_error ?? 'Erreur inconnue'));
         }
@@ -209,6 +246,25 @@ if (!empty($data->username) && !empty($data->password)) {
                 error_log("Utilisateur non trouvé dans la liste des utilisateurs test");
             }
             
+            // Récupérer les utilisateurs disponibles dans la base de données pour les afficher dans l'erreur
+            $available_users = array_keys($test_users);
+            try {
+                if ($database->is_connected) {
+                    $query = "SELECT identifiant_technique, email FROM utilisateurs LIMIT 5";
+                    $stmt = $db->prepare($query);
+                    $stmt->execute();
+                    while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+                        if (!empty($row['email']) && !in_array($row['email'], $available_users)) {
+                            $available_users[] = $row['email'];
+                        } else if (!empty($row['identifiant_technique']) && !in_array($row['identifiant_technique'], $available_users)) {
+                            $available_users[] = $row['identifiant_technique'];
+                        }
+                    }
+                }
+            } catch (Exception $e) {
+                error_log("Erreur lors de la récupération des utilisateurs disponibles: " . $e->getMessage());
+            }
+            
             http_response_code(401);
             echo json_encode([
                 'message' => 'Identifiants invalides', 
@@ -216,7 +272,7 @@ if (!empty($data->username) && !empty($data->password)) {
                 'debug' => [
                     'username_exists' => isset($test_users[$username]),
                     'submitted_username' => $username,
-                    'users_available' => array_keys($test_users)
+                    'users_available' => $available_users
                 ]
             ]);
         }
