@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { ChevronDown, Upload, LogOut, Settings, Database, Users, LogIn, ExternalLink } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
@@ -14,7 +13,10 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { getCurrentUser, disconnectUser, getPhpMyAdminUrl } from '@/services/core/databaseConnectionService';
+import {
+  getCurrentUser,
+  disconnectUser
+} from '@/services/core/databaseConnectionService';
 
 const Header = () => {
   const navigate = useNavigate();
@@ -61,24 +63,6 @@ const Header = () => {
     setCurrentDatabaseUser(null);
   };
 
-  const openPhpMyAdmin = () => {
-    const url = getPhpMyAdminUrl();
-    if (url) {
-      window.open(url, '_blank', 'noopener,noreferrer');
-    } else {
-      toast({
-        title: "Erreur",
-        description: "Aucun utilisateur de base de données n'est actuellement connecté.",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleLogoChange = (newLogo: string) => {
-    setLogo(newLogo);
-  };
-
-  // Helper to check if user has admin access (both admin and administrateur)
   const isAdmin = userRole === 'administrateur' || userRole === 'admin';
 
   return (
@@ -126,19 +110,12 @@ const Header = () => {
                 </DropdownMenuGroup>
               )}
               {isAdmin && <DropdownMenuSeparator />}
-              
+        
               {currentDatabaseUser && (
-                <>
-                  <DropdownMenuItem onClick={openPhpMyAdmin}>
-                    <ExternalLink className="mr-2 h-4 w-4" />
-                    <span>Ouvrir phpMyAdmin</span>
-                  </DropdownMenuItem>
-                  
-                  <DropdownMenuItem onClick={handleDatabaseDisconnect}>
-                    <LogIn className="mr-2 h-4 w-4 rotate-180" />
-                    <span>Déconnexion BDD</span>
-                  </DropdownMenuItem>
-                </>
+                <DropdownMenuItem onClick={handleDatabaseDisconnect}>
+                  <LogIn className="mr-2 h-4 w-4 rotate-180" />
+                  <span>Déconnexion BDD</span>
+                </DropdownMenuItem>
               )}
               
               <DropdownMenuItem onClick={handleLogout}>
