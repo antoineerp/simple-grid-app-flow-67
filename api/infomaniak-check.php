@@ -11,6 +11,7 @@ echo json_encode([
     'message' => 'PHP fonctionne correctement sur Infomaniak',
     'php_version' => phpversion(),
     'timestamp' => date('Y-m-d H:i:s'),
-    'server' => $_SERVER['SERVER_SOFTWARE'] ?? 'Unknown'
+    'server' => $_SERVER['SERVER_SOFTWARE'] ?? 'Unknown',
+    'deployment_test' => 'Fichier mis à jour le ' . date('Y-m-d H:i:s') . ' via GitHub Actions'
 ]);
 ?>

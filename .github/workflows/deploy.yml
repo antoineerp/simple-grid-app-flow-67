@@ -73,6 +73,10 @@ jobs:
         cp -v api/php.ini dist/api/ || echo "Attention: php.ini non trouvé"
         cp -v api/login-test.php dist/api/ || echo "Attention: login-test.php non trouvé"
         cp -v api/check-users.php dist/api/ || echo "Attention: check-users.php non trouvé"
+        cp -v api/infomaniak-test.php dist/api/ || echo "Attention: infomaniak-test.php non trouvé"
+        cp -v api/infomaniak-check.php dist/api/ || echo "Attention: infomaniak-check.php non trouvé"
+        cp -v api/minimal-test.php dist/api/ || echo "Attention: minimal-test.php non trouvé"
+        cp -v api/check-php-routing.php dist/api/ || echo "Attention: check-php-routing.php non trouvé"
         
         # Copier les fichiers de configuration
         cp -v api/config/env.php dist/api/config/ || echo "Attention: env.php non trouvé"
@@ -109,6 +113,14 @@ jobs:
         # Vérifier si le dossier public contient d'autres fichiers importants
         find public -type f -not -path "*/lovable-uploads/*" -exec cp -v {} dist/public/ \; || echo "Pas d'autres fichiers publics trouvés"
 
+    - name: Create timestamp file for deployment verification
+      run: |
+        echo "Creating timestamp file for verification..."
+        TIMESTAMP=$(date "+%Y-%m-%d %H:%M:%S")
+        echo "<?php header('Content-Type: text/plain'); echo 'Déploiement GitHub Actions: $TIMESTAMP - Vérification'; ?>" > dist/deploy-timestamp.php
+        echo "<?php header('Content-Type: text/plain'); echo 'Déploiement GitHub Actions: $TIMESTAMP - Vérification'; ?>" > dist/api/deploy-timestamp.php
+        echo "Fichier horodaté créé: $TIMESTAMP"
+
     - name: Run post-build script to fix index references
       run: |
         echo "Running post-build script to ensure index.html is correct..."
@@ -143,7 +155,7 @@ jobs:
         echo "Public files:"
         ls -la dist/public/ || echo "No public folder"
         
-    # ----------- AJOUT EXPLICITE ----------- #
+    # Sync full dist folder to Infomaniak server
     - name: Sync full dist folder to Infomaniak server
       uses: SamKirkland/FTP-Deploy-Action@v4.3.4
       with:
@@ -165,7 +177,6 @@ jobs:
         log-level: verbose
         timeout: 120000
         dry-run: false
-    # ----------- FIN AJOUT ----------- #
     
     - name: Post-deployment verification
       run: |
@@ -173,3 +184,4 @@ jobs:
         echo "Exécutez fix-assets-runtime.php sur votre serveur pour vérifier l'état du déploiement."
         echo "URL: https://qualiopi.ch/fix-assets-runtime.php"
         echo "Vérifiez également: https://qualiopi.ch/fix-index-references.php"
+        echo "Vérifiez le fichier horodaté: https://qualiopi.ch/deploy-timestamp.php"
