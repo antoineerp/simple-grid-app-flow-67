@@ -1,15 +1,19 @@
 
 /**
- * Gestion de la détection d'environnement (Infomaniak, dev, etc)
+ * Gestion améliorée de la détection d'environnement (Infomaniak, dev, etc)
  */
 
 let apiUrl = '/api';
 let isCustomUrl = false;
+let isInfomaniak = false;
 
 export function detectEnvironment() {
   const hostname = window.location.hostname;
-  const isInfomaniak = hostname.includes('myd.infomaniak.com') || 
-                       hostname.includes('qualiopi.ch');
+  
+  // Détection plus précise d'Infomaniak
+  isInfomaniak = hostname.includes('myd.infomaniak.com') || 
+                hostname.includes('qualiopi.ch') ||
+                hostname.includes('infomaniak');
   
   console.log('Détection d\'environnement - Hostname:', hostname);
   console.log('Détection d\'environnement - Est Infomaniak:', isInfomaniak);
@@ -20,6 +24,35 @@ export function detectEnvironment() {
   } else {
     apiUrl = '/api';
     console.log('Environnement de développement détecté - API URL:', apiUrl);
+  }
+  
+  // Test de connexion immédiate pour diagnostiquer les problèmes de chemin
+  testInfomaniakPath();
+}
+
+// Fonction pour tester les chemins Infomaniak spécifiques
+async function testInfomaniakPath() {
+  if (isInfomaniak) {
+    try {
+      console.log("Test de chemin d'accès Infomaniak...");
+      
+      // Tester le chemin infomaniak-check.php nouvellement créé
+      const response = await fetch(`${apiUrl}/infomaniak-check.php?t=${Date.now()}`, {
+        method: 'GET',
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate'
+        }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        console.log("Configuration Infomaniak vérifiée:", data);
+      } else {
+        console.error("Problème de configuration Infomaniak détecté:", response.status, response.statusText);
+      }
+    } catch (error) {
+      console.error("Erreur lors du test de configuration Infomaniak:", error);
+    }
   }
 }
 
@@ -49,4 +82,8 @@ export function resetToDefaultApiUrl(): void {
 
 export function isUsingCustomApiUrl(): boolean {
   return isCustomUrl;
+}
+
+export function isInfomaniakEnvironment(): boolean {
+  return isInfomaniak;
 }

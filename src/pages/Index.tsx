@@ -2,7 +2,9 @@
 import React, { useEffect, useState } from 'react';
 import Logo from '@/components/auth/Logo';
 import LoginForm from '@/components/auth/LoginForm';
-import { getApiUrl, getFullApiUrl, testApiConnection, checkPhpExecution } from '@/config/apiConfig';
+import { getApiUrl, getFullApiUrl, isInfomaniakEnvironment } from '@/config/api/environment';
+import { testApiConnection } from '@/config/api/testApiConnection';
+import { checkPhpExecution, testBasicPhp } from '@/config/api/phpExecution';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle, Server, RefreshCw, CheckCircle } from 'lucide-react';
@@ -11,7 +13,7 @@ const Index = () => {
   const [apiStatus, setApiStatus] = useState<'loading' | 'success' | 'error'>('loading');
   const [apiMessage, setApiMessage] = useState<string>('');
   const [apiDetails, setApiDetails] = useState<any>(null);
-  const [version, setVersion] = useState<string>('1.0.8');
+  const [version, setVersion] = useState<string>('1.0.9');
   const [isInfomaniak, setIsInfomaniak] = useState<boolean>(false);
   const [isRetesting, setIsRetesting] = useState<boolean>(false);
   const [phpStatus, setPhpStatus] = useState<'loading' | 'success' | 'error'>('loading');
@@ -31,10 +33,16 @@ const Index = () => {
         console.log("Exécution PHP vérifiée avec succès");
       } else {
         console.error("Problème d'exécution PHP détecté");
+        // Tentative de secours avec un test PHP basique
+        const basicPhpResult = await testBasicPhp();
+        if (basicPhpResult) {
+          console.log("Test PHP basique réussi malgré l'échec du test principal");
+          setPhpStatus('success');
+        }
       }
       
       // Ne tester la connexion API que si le test PHP réussit pour éviter des requêtes inutiles
-      if (phpResult) {
+      if (phpStatus === 'success') {
         const result = await testApiConnection();
         
         if (result.success) {
@@ -71,6 +79,7 @@ const Index = () => {
     const infomaniakDetected = hostname.includes('myd.infomaniak.com') || 
                              hostname.includes('qualiopi.ch');
     setIsInfomaniak(infomaniakDetected);
+    setIsInfomaniak(isInfomaniakEnvironment()); // Utilise la fonction de détection
     
     // Ne vérifier l'API qu'une seule fois au chargement
     const hasCheckedApi = sessionStorage.getItem('api_checked');
@@ -79,7 +88,7 @@ const Index = () => {
       sessionStorage.setItem('api_checked', 'true');
     }
     
-    setVersion(`1.0.8 - ${new Date().toLocaleDateString()}`);
+    setVersion(`1.0.9 - ${new Date().toLocaleDateString()}`);
   }, []);
 
   return (

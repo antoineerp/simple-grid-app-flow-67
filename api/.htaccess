@@ -1,5 +1,6 @@
 
 # Configuration pour assurer l'exécution PHP dans le dossier API
+Options +FollowSymLinks +ExecCGI
 
 # Forcer l'exécution PHP explicitement - TRÈS IMPORTANT
 <FilesMatch "\.php$">
@@ -13,7 +14,12 @@ AddHandler application/x-httpd-php .php
 # Activer le moteur de réécriture
 RewriteEngine On
 
-# Rediriger vers index.php pour l'API
+# Vérifier si auth.php existe et rediriger les requêtes vers /api/auth
+RewriteCond %{REQUEST_URI} ^/api/auth$
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteRule ^(.*)$ auth.php [QSA,L]
+
+# Rediriger vers index.php pour les autres requêtes API
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteRule ^(.*)$ index.php [QSA,L]
 
