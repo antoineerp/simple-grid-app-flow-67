@@ -1,11 +1,15 @@
 
-# Configuration simplifiée pour l'API
+# Configuration pour assurer l'exécution PHP dans le dossier API
 SetHandler application/x-httpd-php
 
-# Activer l'exécution PHP explicitement
+# Forcer l'exécution PHP explicitement
 <FilesMatch "\.php$">
     SetHandler application/x-httpd-php
 </FilesMatch>
+
+# S'assurer que mod_php est bien utilisé
+AddType application/x-httpd-php .php
+AddHandler application/x-httpd-php .php
 
 # Activer le moteur de réécriture
 RewriteEngine On
@@ -14,7 +18,7 @@ RewriteEngine On
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteRule ^(.*)$ index.php [QSA,L]
 
-# Configuration CORS simplifiée
+# Configuration CORS
 Header set Access-Control-Allow-Origin "*"
 Header set Access-Control-Allow-Methods "GET, POST, OPTIONS, PUT, DELETE"
 Header set Access-Control-Allow-Headers "Content-Type, Authorization"

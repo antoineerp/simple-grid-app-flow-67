@@ -1,14 +1,16 @@
 
-# Configuration simplifiée pour résoudre l'erreur 500
+# Configuration pour assurer l'exécution PHP
 RewriteEngine On
-
-# Activer le moteur de réécriture sans options complexes
 RewriteBase /
 
-# Assurer l'exécution des scripts PHP
+# Forcer l'exécution des scripts PHP
 <FilesMatch "\.php$">
     SetHandler application/x-httpd-php
 </FilesMatch>
+
+# S'assurer que mod_php est bien utilisé
+AddType application/x-httpd-php .php
+AddHandler application/x-httpd-php .php
 
 # Rediriger les requêtes API vers le dossier api
 RewriteRule ^api(/.*)?$ api$1 [L]
