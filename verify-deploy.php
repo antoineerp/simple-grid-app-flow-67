@@ -141,7 +141,7 @@ header('Content-Type: text/html; charset=utf-8');
     }
     echo "</p>";
 
-    // Test complet login-test.php
+    // Test complet login-test.php avec les identifiants corrects
     echo "<h3>Test du fichier login-test.php</h3>";
     $testApiUrl = $_SERVER['REQUEST_SCHEME'] . '://' . $_SERVER['HTTP_HOST'] . '/api/login-test.php';
     $ch = curl_init();
@@ -149,6 +149,7 @@ header('Content-Type: text/html; charset=utf-8');
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($ch, CURLOPT_TIMEOUT, 5);
     curl_setopt($ch, CURLOPT_POST, true);
+    // Utiliser les identifiants corrects pour l'authentification: admin/admin123
     curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode(['username' => 'admin', 'password' => 'admin123']));
     curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
     $testResult = curl_exec($ch);
@@ -174,5 +175,77 @@ header('Content-Type: text/html; charset=utf-8');
     <p>Document Root: <?php echo $_SERVER['DOCUMENT_ROOT']; ?></p>
     <p>Request URI: <?php echo $_SERVER['REQUEST_URI']; ?></p>
     <p>Script Name: <?php echo $_SERVER['SCRIPT_NAME']; ?></p>
+
+    <h2>7. Tests d'authentification supplémentaires</h2>
+    <?php
+    // Tester avec les différentes combinaisons d'identifiants
+    $testUsers = [
+        ['username' => 'admin', 'password' => 'admin123'],
+        ['username' => 'p71x6d_system', 'password' => 'Trottinette43!'],
+        ['username' => 'antcirier@gmail.com', 'password' => 'password123']
+    ];
+    
+    echo "<h3>Tests des différents utilisateurs:</h3>";
+    echo "<ul>";
+    
+    foreach ($testUsers as $user) {
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_URL, $testApiUrl);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 5);
+        curl_setopt($ch, CURLOPT_POST, true);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($user));
+        curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
+        $testResult = curl_exec($ch);
+        $testHttpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+        
+        echo "<li>Test utilisateur <strong>{$user['username']}</strong>: ";
+        if ($testHttpCode >= 200 && $testHttpCode < 300) {
+            echo "<span class='success'>$testHttpCode (Connexion réussie)</span>";
+        } else {
+            echo "<span class='error'>$testHttpCode (Échec)</span>";
+        }
+        
+        $response = json_decode($testResult, true);
+        if ($response) {
+            echo " - Message: " . htmlspecialchars($response['message'] ?? 'Aucun message');
+        }
+        echo "</li>";
+    }
+    
+    echo "</ul>";
+    
+    // Test de la connexion directe à la base de données
+    echo "<h3>Test direct de la connexion à la base de données:</h3>";
+    $dbTestUrl = $_SERVER['REQUEST_SCHEME'] . '://' . $_SERVER['HTTP_HOST'] . '/api/direct-db-test.php';
+    $ch = curl_init();
+    curl_setopt($ch, CURLOPT_URL, $dbTestUrl);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 10);
+    $dbTestResult = curl_exec($ch);
+    $dbHttpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+    
+    echo "Test connexion DB: ";
+    if ($dbHttpCode >= 200 && $dbHttpCode < 300) {
+        echo "<span class='success'>$dbHttpCode (OK)</span>";
+    } else {
+        echo "<span class='error'>$dbHttpCode (Erreur)</span>";
+    }
+    
+    if ($dbTestResult) {
+        echo "<p>Réponse de test DB: <pre>" . htmlspecialchars(substr($dbTestResult, 0, 500)) . "...</pre></p>";
+        
+        $dbResponse = json_decode($dbTestResult, true);
+        if ($dbResponse && isset($dbResponse['status']) && $dbResponse['status'] === 'success') {
+            echo "<p class='success'>✅ Connexion directe à la base de données réussie!</p>";
+        } else {
+            echo "<p class='error'>❌ Échec de la connexion directe à la base de données</p>";
+        }
+    } else {
+        echo "<p class='error'>Aucune réponse reçue du test de base de données</p>";
+    }
+    ?>
 </body>
 </html>
