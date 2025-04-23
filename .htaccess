@@ -3,7 +3,7 @@
 RewriteEngine On
 RewriteBase /
 
-# Forcer l'exécution des scripts PHP
+# Forcer l'exécution des scripts PHP - TRÈS IMPORTANT
 <FilesMatch "\.php$">
     SetHandler application/x-httpd-php
 </FilesMatch>
