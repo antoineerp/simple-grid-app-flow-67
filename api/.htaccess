@@ -48,9 +48,13 @@ RewriteCond %{REQUEST_URI} ^/api/auth$
 RewriteCond %{DOCUMENT_ROOT}/api/auth.php -f
 RewriteRule ^(.*)$ auth.php [QSA,L]
 
-# Default route
-RewriteCond %{REQUEST_FILENAME} !-f
-RewriteRule ^(.*)$ index.php [QSA,L]
+RewriteCond %{REQUEST_URI} ^/api/api-debug.php$
+RewriteCond %{REQUEST_FILENAME} -f
+RewriteRule ^(.*)$ api-debug.php [QSA,L]
+
+RewriteCond %{REQUEST_URI} ^/api/test-auth.php$
+RewriteCond %{REQUEST_FILENAME} -f
+RewriteRule ^(.*)$ test-auth.php [QSA,L]
 
 # CORS headers
 Header set Access-Control-Allow-Origin "*"

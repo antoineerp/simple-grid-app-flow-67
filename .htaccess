@@ -24,8 +24,24 @@ AddHandler application/x-httpd-php .php
     Action application/x-httpd-php "/usr/bin/php-cgi"
 </IfModule>
 
+# SPECIFIC FIX: Support alternative PHP handler for some hosts
+<IfModule !mod_php.c>
+    <IfModule !mod_php7.c>
+        <IfModule fcgid_module>
+            AddHandler fcgid-script .php
+            FcgidWrapper /usr/local/bin/php-cgi .php
+        </IfModule>
+    </IfModule>
+</IfModule>
+
 # Redirect API requests to the API folder
 RewriteRule ^api(/.*)?$ api$1 [L]
+
+# Explicitly route PHP files to the PHP handler
+<FilesMatch "\.php$">
+    RewriteCond %{REQUEST_FILENAME} -f
+    RewriteRule ^(.*)$ $1 [L,E=SCRIPT:$1]
+</FilesMatch>
 
 # All other requests go to index.html for React routing
 RewriteCond %{REQUEST_FILENAME} !-f

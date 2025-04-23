@@ -1,42 +1,56 @@
 
 <?php
-// Script simplifié pour tester l'authentification
+// Script de login simplifié, sans dépendances complexes
+
+// Forcer l'encodage et désactiver la mise en cache
 header('Content-Type: application/json; charset=UTF-8');
 header("Cache-Control: no-cache, no-store, must-revalidate");
 header("Pragma: no-cache");
 header("Expires: 0");
+
+// Autoriser CORS
 header("Access-Control-Allow-Origin: *");
 header("Access-Control-Allow-Methods: POST, OPTIONS");
 header("Access-Control-Allow-Headers: Content-Type, Authorization");
 
-// Gérer les requêtes OPTIONS (CORS)
+// Journaliser l'accès pour diagnostic
+error_log("=== Exécution de login-fix.php ===");
+error_log("Méthode: " . $_SERVER['REQUEST_METHOD'] . " | URI: " . $_SERVER['REQUEST_URI']);
+
+// Gérer les requêtes OPTIONS (preflight CORS)
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     http_response_code(200);
-    echo json_encode(['status' => 'success', 'message' => 'CORS OK']);
+    echo json_encode([
+        'status' => 'success',
+        'message' => 'CORS preflight OK'
+    ]);
     exit;
 }
 
-// Pour les requêtes POST uniquement
+// Uniquement pour les requêtes POST
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     http_response_code(405);
     echo json_encode([
         'status' => 'error',
-        'message' => 'Méthode non autorisée. Utilisez POST.'
+        'message' => 'Méthode non autorisée'
     ]);
     exit;
 }
 
 try {
-    // Récupérer les données POST
+    // Récupérer les données
     $json = file_get_contents('php://input');
     $data = json_decode($json, true);
     
+    // Vérifier les données
     if (!$data || !isset($data['username']) || !isset($data['password'])) {
         throw new Exception('Données incomplètes');
     }
     
     $username = $data['username'];
     $password = $data['password'];
+    
+    error_log("Tentative de connexion pour: " . $username);
     
     // Liste des utilisateurs de test
     $users = [
@@ -48,13 +62,15 @@ try {
     ];
     
     // Vérifier les identifiants
-    if (isset($users[$username]) && $users[$username]['password'] === $password) {
-        // Créer un token JWT simulé
+    if (array_key_exists($username, $users) && $users[$username]['password'] === $password) {
+        // Token simplifié
         $token = base64_encode(json_encode([
             'user' => $username,
             'role' => $users[$username]['role'],
             'exp' => time() + 3600
         ]));
+        
+        error_log("Connexion réussie pour: " . $username);
         
         // Réponse réussie
         echo json_encode([
@@ -62,12 +78,17 @@ try {
             'message' => 'Connexion réussie',
             'token' => $token,
             'user' => [
-                'identifiant_technique' => $username,
-                'role' => $users[$username]['role'],
+                'id' => mt_rand(1, 1000),
+                'nom' => explode('@', $username)[0],
+                'prenom' => '',
                 'email' => $username . '@example.com',
+                'identifiant_technique' => $username,
+                'role' => $users[$username]['role']
             ]
         ]);
     } else {
+        error_log("Échec de connexion pour: " . $username);
+        
         // Échec d'authentification
         http_response_code(401);
         echo json_encode([
@@ -76,7 +97,9 @@ try {
         ]);
     }
 } catch (Exception $e) {
-    // Erreur
+    error_log("Erreur: " . $e->getMessage());
+    
+    // Erreur serveur
     http_response_code(500);
     echo json_encode([
         'status' => 'error',
