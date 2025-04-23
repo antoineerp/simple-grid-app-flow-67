@@ -7,6 +7,11 @@ export * from './users/userService';
 export * from './users/createUserService';
 export * from './auth/authService';
 
+// Explicitly re-export specific items to avoid naming conflicts
+export { 
+  getCurrentUser as getDatabaseConnectionCurrentUser 
+} from './core/databaseConnectionService';
+
 // Define types here if needed
 export interface Utilisateur {
   id: number;
