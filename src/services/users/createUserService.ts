@@ -1,44 +1,40 @@
-
 import { getApiUrl } from '@/config/apiConfig';
 import { getAuthHeaders } from '../auth/authService';
-import { useToast } from '@/hooks/use-toast';
+import { v4 as uuidv4 } from 'uuid';
 
 interface CreateUserData {
   nom: string;
   prenom: string;
   email: string;
-  role: string;
+  role: 'admin' | 'user';
   mot_de_passe: string;
 }
 
 export const createUser = async (userData: CreateUserData) => {
   console.log("Création d'utilisateur - Données reçues:", userData);
   
-  // Validation du mot de passe
   if (userData.mot_de_passe.length < 6) {
     throw new Error("Le mot de passe doit contenir au moins 6 caractères");
   }
 
-  // Génération de l'identifiant technique
   const timestamp = new Date().getTime();
   const randomStr = Math.random().toString(36).substring(2, 8);
   const sanitizedPrenom = userData.prenom.toLowerCase().replace(/[^a-z0-9]/g, '');
   const sanitizedNom = userData.nom.toLowerCase().replace(/[^a-z0-9]/g, '');
   const identifiantTechnique = `p71x6d_${sanitizedPrenom}_${sanitizedNom}_${randomStr}_${timestamp}`.substring(0, 50);
-
-  console.log(`Identifiant technique généré: ${identifiantTechnique}`);
+  const id = uuidv4(); // Générer un UUID v4 pour l'ID
 
   try {
     const apiUrl = getApiUrl();
     const url = `${apiUrl}/utilisateurs`;
     
-    console.log(`URL de la requête: ${url}`);
     const headers = {
       ...getAuthHeaders(),
       'Content-Type': 'application/json'
     };
     
     const requestData = {
+      id,
       ...userData,
       identifiant_technique: identifiantTechnique
     };
@@ -57,7 +53,6 @@ export const createUser = async (userData: CreateUserData) => {
     const responseText = await response.text();
     console.log("Réponse brute du serveur:", responseText);
     
-    // Essai de parse en JSON
     let responseData;
     try {
       responseData = responseText ? JSON.parse(responseText) : {};
@@ -65,7 +60,6 @@ export const createUser = async (userData: CreateUserData) => {
     } catch (parseError) {
       console.error("Erreur de parsing JSON:", parseError);
       if (response.status >= 200 && response.status < 300 && responseText.includes("success")) {
-        // Si le statut est OK mais le parsing échoue, on essaye de traiter la réponse comme un succès
         console.log("Considéré comme un succès malgré l'erreur de parsing");
         return {
           success: true,
@@ -76,7 +70,6 @@ export const createUser = async (userData: CreateUserData) => {
       throw new Error(`Réponse invalide du serveur: ${responseText}`);
     }
 
-    // Vérification du format de réponse attendu
     if (responseData && typeof responseData === 'object') {
       if (responseData.status === 'error') {
         throw new Error(responseData.message || `Erreur ${response.status}: ${response.statusText}`);
@@ -93,7 +86,6 @@ export const createUser = async (userData: CreateUserData) => {
       };
     } else {
       if (response.ok) {
-        // Si le statut est OK mais le format est inattendu, on retourne un succès par défaut
         return {
           success: true,
           identifiant_technique: identifiantTechnique,
