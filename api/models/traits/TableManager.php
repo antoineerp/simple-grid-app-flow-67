@@ -14,7 +14,7 @@ trait TableManager {
                     `email` varchar(255) NOT NULL,
                     `mot_de_passe` varchar(255) NOT NULL,
                     `identifiant_technique` varchar(100) NOT NULL,
-                    `role` enum('admin', 'user') NOT NULL DEFAULT 'user',
+                    `role` enum('admin', 'user', 'gestionnaire') NOT NULL DEFAULT 'user',
                     `date_creation` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
                     UNIQUE KEY `email` (`email`),
                     UNIQUE KEY `identifiant_technique` (`identifiant_technique`)

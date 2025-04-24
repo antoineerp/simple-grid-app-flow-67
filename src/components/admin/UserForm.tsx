@@ -112,7 +112,8 @@ const UserForm = ({ onClose, onSuccess, onUserConnect }: UserFormProps) => {
       const serviceFormData = {
         ...formData,
         role: formData.role === 'utilisateur' ? 'user' : 
-              formData.role === 'administrateur' ? 'admin' : formData.role
+              formData.role === 'administrateur' ? 'admin' : 
+              formData.role as 'gestionnaire'
       };
       const result = await createUser(serviceFormData);
       console.log("User creation result:", result);
