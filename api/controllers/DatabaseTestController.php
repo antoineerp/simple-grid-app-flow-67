@@ -6,8 +6,25 @@ if (!function_exists('env')) {
 }
 
 // Activer la journalisation des erreurs
-ini_set('display_errors', 1);
+ini_set('display_errors', 0); // Désactiver l'affichage HTML des erreurs
 error_reporting(E_ALL);
+ini_set('log_errors', 1);
+ini_set('error_log', __DIR__ . '/db_test_errors.log');
+
+// Garantir que nous avons un output buffering pour capturer les erreurs PHP
+ob_start(function($buffer) {
+    // Si le buffer ne commence pas par { ou [ (JSON valide), enregistrer et remplacer
+    $trimmed = trim($buffer);
+    if ($trimmed && !preg_match('/^[\{\[]/', $trimmed)) {
+        error_log("Output non-JSON détecté dans DatabaseTestController: " . substr($trimmed, 0, 200));
+        return json_encode([
+            'status' => 'error',
+            'message' => 'Erreur serveur PHP',
+            'details' => 'Une erreur PHP a interrompu le traitement.'
+        ]);
+    }
+    return $buffer;
+});
 
 // Déterminer l'environnement
 $environment = env('APP_ENV', 'development');
@@ -40,7 +57,8 @@ header("Access-Control-Allow-Headers: Content-Type, Access-Control-Allow-Headers
 
 // Si c'est une requête OPTIONS (preflight), nous la terminons ici
 if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
-    header("HTTP/1.1 200 OK");
+    http_response_code(200);
+    echo json_encode(['status' => 200, 'message' => 'Preflight OK']);
     exit;
 }
 
@@ -50,8 +68,15 @@ error_log("Méthode: " . $_SERVER['REQUEST_METHOD'] . " - URI: " . $_SERVER['REQ
 
 try {
     // Inclure les fichiers nécessaires
+    if (!file_exists('../config/database.php')) {
+        throw new Exception('Fichier de configuration de base de données non trouvé');
+    }
+    
     require_once '../config/database.php';
-    require_once '../utils/ResponseHandler.php';
+    
+    if (file_exists('../utils/ResponseHandler.php')) {
+        require_once '../utils/ResponseHandler.php';
+    }
     
     // Vérifier si l'authentification est requise (ignorer pour le test)
     $requireAuth = false;
@@ -127,6 +152,7 @@ try {
                     $sizeMB = round(($sizeData['size'] ?? 0) / (1024 * 1024), 2) . ' MB';
                     $sizeInfo['size'] = $sizeMB;
                 } catch (PDOException $e) {
+                    error_log("Erreur lors du calcul de la taille: " . $e->getMessage());
                     $sizeInfo['error'] = $e->getMessage();
                 }
                 
@@ -142,6 +168,7 @@ try {
                     $encodingInfo['encoding'] = $encodingData['default_character_set_name'] ?? 'utf8mb4';
                     $encodingInfo['collation'] = $encodingData['default_collation_name'] ?? 'utf8mb4_unicode_ci';
                 } catch (PDOException $e) {
+                    error_log("Erreur lors de la récupération des informations d'encodage: " . $e->getMessage());
                     $encodingInfo['error'] = $e->getMessage();
                 }
                 
@@ -165,6 +192,7 @@ try {
                         $utilisateursInfo['sample'] = $sampleStmt->fetchAll(PDO::FETCH_ASSOC);
                     }
                 } catch (PDOException $e) {
+                    error_log("Erreur lors de la vérification des utilisateurs: " . $e->getMessage());
                     $utilisateursInfo['error'] = $e->getMessage();
                 }
                 
@@ -191,9 +219,9 @@ try {
                     "utilisateurs_sample" => $utilisateursInfo['sample'],
                     "version" => $conn->getAttribute(PDO::ATTR_SERVER_VERSION)
                 ], JSON_UNESCAPED_UNICODE);
-            } catch (Exception $e) {
-                // La connexion est établie mais il y a un problème avec les requêtes supplémentaires
-                error_log("Erreur lors de la collecte d'informations: " . $e->getMessage());
+            } catch (PDOException $e) {
+                // Erreur PDO spécifique lors de la récupération des informations
+                error_log("Erreur PDO lors de la collecte d'informations: " . $e->getMessage());
                 http_response_code(200);
                 echo json_encode([
                     "message" => "Connexion réussie à la base de données, mais erreur lors de la collecte d'informations",
@@ -201,6 +229,20 @@ try {
                     "info" => [
                         "database_name" => $database->db_name,
                         "host" => $database->host,
+                        "connection_status" => "Warning"
+                    ],
+                    "error_details" => $e->getMessage()
+                ], JSON_UNESCAPED_UNICODE);
+            } catch (Exception $e) {
+                // Autre exception générique
+                error_log("Exception lors de la collecte d'informations: " . $e->getMessage());
+                http_response_code(200);
+                echo json_encode([
+                    "message" => "Connexion réussie à la base de données, mais erreur lors de la collecte d'informations",
+                    "status" => "warning",
+                    "info" => [
+                        "database_name" => $database->db_name ?? 'inconnu',
+                        "host" => $database->host ?? 'inconnu',
                         "connection_status" => "Warning"
                     ],
                     "error_details" => $e->getMessage()
@@ -215,9 +257,9 @@ try {
                 "error" => $database->connection_error ?? "Raison inconnue",
                 "status" => "error",
                 "connection_info" => [
-                    "host" => $database->host,
-                    "database" => $database->db_name,
-                    "username" => $database->username,
+                    "host" => $database->host ?? 'Non défini',
+                    "database" => $database->db_name ?? 'Non défini',
+                    "username" => $database->username ?? 'Non défini',
                     "php_version" => phpversion(),
                     "pdo_drivers" => implode(", ", PDO::getAvailableDrivers())
                 ]
@@ -236,4 +278,7 @@ try {
         "status" => "error"
     ], JSON_UNESCAPED_UNICODE);
 }
+
+// Vider le tampon de sortie
+ob_end_flush();
 ?>
