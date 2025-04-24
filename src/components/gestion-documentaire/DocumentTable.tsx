@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Pencil, Trash, GripVertical, ChevronDown } from 'lucide-react';
 import ResponsableSelector from '@/components/ResponsableSelector';
@@ -42,14 +43,44 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
 }) => {
   const ungroupedDocuments = documents.filter(d => !d.groupId);
 
+  // Correction: Déclarer la fonction pour obtenir l'index global d'un élément dans un groupe
+  const getGroupItemIndex = (groupId: string, localIndex: number) => {
+    let globalStartIndex = ungroupedDocuments.length;
+    
+    for (const group of groups) {
+      if (group.id === groupId) {
+        return globalStartIndex + localIndex;
+      }
+      globalStartIndex += group.items.length;
+    }
+    
+    return localIndex;
+  };
+
   const handleDrop = (event: React.DragEvent, targetIndex: number, targetGroupId?: string) => {
     event.preventDefault();
     event.currentTarget.classList.remove('border-dashed', 'border-2', 'border-primary');
     
-    const startIndex = parseInt(event.dataTransfer.getData('text/plain'));
-    if (startIndex !== targetIndex) {
-      onReorder(startIndex, targetIndex, targetGroupId);
+    const dragData = JSON.parse(event.dataTransfer.getData('text/plain'));
+    const startIndex = dragData.index;
+    const sourceGroupId = dragData.groupId;
+    
+    if (sourceGroupId === targetGroupId && startIndex === targetIndex) return;
+    
+    let actualStartIndex = startIndex;
+    
+    // Si l'élément provient d'un groupe, calculer l'index réel
+    if (sourceGroupId) {
+      actualStartIndex = getGroupItemIndex(sourceGroupId, startIndex);
     }
+    
+    // Si l'élément est déplacé dans un groupe, calculer l'index cible réel
+    let actualTargetIndex = targetIndex;
+    if (targetGroupId) {
+      actualTargetIndex = getGroupItemIndex(targetGroupId, targetIndex);
+    }
+    
+    onReorder(actualStartIndex, actualTargetIndex, targetGroupId);
   };
 
   return (
@@ -84,7 +115,7 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
             <TableHead></TableHead>
           </TableRow>
         </TableHeader>
-        <TableBody onReorder={onGroupReorder}>
+        <TableBody>
           {groups.map((group) => (
             <React.Fragment key={group.id}>
               <TableRow className="border-b hover:bg-gray-50 cursor-pointer" onClick={() => onToggleGroup(group.id)}>
@@ -121,133 +152,168 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
                 </TableCell>
               </TableRow>
               {group.expanded && (
-                <TableBody onReorder={(start, end) => onReorder(start, end, group.id)}>
-                  {group.items.map((doc, index) => (
-                    <TableRow 
-                      key={doc.id} 
-                      className="border-b hover:bg-gray-50 bg-gray-50"
-                      draggable
-                      onDragStart={(e) => e.dataTransfer.setData('text/plain', index.toString())}
-                      onDragOver={(e) => {
-                        e.preventDefault();
-                        e.currentTarget.classList.add('border-dashed', 'border-2', 'border-primary');
-                      }}
-                      onDragLeave={(e) => {
-                        e.currentTarget.classList.remove('border-dashed', 'border-2', 'border-primary');
-                      }}
-                      onDrop={(e) => handleDrop(e, index, group.id)}
-                    >
-                      <TableCell className="py-3 px-2 w-10">
-                        <GripVertical className="h-5 w-5 text-gray-400" />
-                      </TableCell>
-                      <TableCell className="py-3 px-4">{doc.nom}</TableCell>
-                      <TableCell className="py-3 px-4">
-                        {doc.fichier_path ? (
-                          <a href="#" className="text-app-blue hover:underline">
-                            {doc.fichier_path}
-                          </a>
-                        ) : (
-                          <span className="text-gray-500">-</span>
-                        )}
-                      </TableCell>
-                      
-                      <TableCell className="py-3 px-1 text-center">
-                        <ResponsableSelector 
-                          selectedInitiales={doc.responsabilites.r}
-                          onChange={(values) => onResponsabiliteChange(doc.id, 'r', values)}
-                          type="r"
-                        />
-                      </TableCell>
-                      <TableCell className="py-3 px-1 text-center">
-                        <ResponsableSelector 
-                          selectedInitiales={doc.responsabilites.a}
-                          onChange={(values) => onResponsabiliteChange(doc.id, 'a', values)}
-                          type="a"
-                        />
-                      </TableCell>
-                      <TableCell className="py-3 px-1 text-center">
-                        <ResponsableSelector 
-                          selectedInitiales={doc.responsabilites.c}
-                          onChange={(values) => onResponsabiliteChange(doc.id, 'c', values)}
-                          type="c"
-                        />
-                      </TableCell>
-                      <TableCell className="py-3 px-1 text-center">
-                        <ResponsableSelector 
-                          selectedInitiales={doc.responsabilites.i}
-                          onChange={(values) => onResponsabiliteChange(doc.id, 'i', values)}
-                          type="i"
-                        />
-                      </TableCell>
-                      
-                      <TableCell className="py-3 px-4 text-center">
-                        <input 
-                          type="checkbox" 
-                          className="form-checkbox h-4 w-4 text-app-blue rounded"
-                          checked={doc.etat === 'EX'}
-                          onChange={() => onExclusionChange(doc.id)}
-                          onClick={(e) => e.stopPropagation()} // Prevent row drag
-                        />
-                      </TableCell>
-                      
-                      <TableCell className="py-3 px-1 text-center">
-                        <input 
-                          type="radio" 
-                          name={`atteinte-${doc.id}`}
-                          checked={doc.etat === 'NC'}
-                          onChange={() => onAtteinteChange(doc.id, 'NC')}
-                          className="form-radio h-4 w-4 text-red-500"
-                          disabled={doc.etat === 'EX'}
-                          onClick={(e) => e.stopPropagation()} // Prevent row drag
-                        />
-                      </TableCell>
-                      <TableCell className="py-3 px-1 text-center">
-                        <input 
-                          type="radio" 
-                          name={`atteinte-${doc.id}`}
-                          checked={doc.etat === 'PC'}
-                          onChange={() => onAtteinteChange(doc.id, 'PC')}
-                          className="form-radio h-4 w-4 text-yellow-500"
-                          disabled={doc.etat === 'EX'}
-                          onClick={(e) => e.stopPropagation()} // Prevent row drag
-                        />
-                      </TableCell>
-                      <TableCell className="py-3 px-1 text-center">
-                        <input 
-                          type="radio" 
-                          name={`atteinte-${doc.id}`}
-                          checked={doc.etat === 'C'}
-                          onChange={() => onAtteinteChange(doc.id, 'C')}
-                          className="form-radio h-4 w-4 text-green-500"
-                          disabled={doc.etat === 'EX'}
-                          onClick={(e) => e.stopPropagation()} // Prevent row drag
-                        />
-                      </TableCell>
-                      
-                      <TableCell className="py-3 px-4 text-right">
-                        <button 
-                          className="text-gray-600 hover:text-app-blue mr-3"
-                          onClick={() => onEdit(doc.id)}
-                        >
-                          <Pencil className="h-5 w-5 inline-block" />
-                        </button>
-                        <button 
-                          className="text-gray-600 hover:text-red-500"
-                          onClick={() => onDelete(doc.id)}
-                        >
-                          <Trash className="h-5 w-5 inline-block" />
-                        </button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
+                group.items.map((doc, index) => (
+                  <TableRow 
+                    key={doc.id} 
+                    className="border-b hover:bg-gray-50 bg-gray-50"
+                    draggable
+                    onDragStart={(e) => {
+                      e.dataTransfer.setData('text/plain', JSON.stringify({
+                        index: index,
+                        groupId: group.id
+                      }));
+                      e.currentTarget.classList.add('opacity-50');
+                    }}
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      e.currentTarget.classList.add('border-dashed', 'border-2', 'border-primary');
+                    }}
+                    onDragLeave={(e) => {
+                      e.currentTarget.classList.remove('border-dashed', 'border-2', 'border-primary');
+                    }}
+                    onDrop={(e) => handleDrop(e, index, group.id)}
+                    onDragEnd={(e) => {
+                      e.currentTarget.classList.remove('opacity-50');
+                    }}
+                  >
+                    <TableCell className="py-3 px-2 w-10">
+                      <GripVertical className="h-5 w-5 text-gray-400" />
+                    </TableCell>
+                    <TableCell className="py-3 px-4">{doc.nom}</TableCell>
+                    <TableCell className="py-3 px-4">
+                      {doc.fichier_path ? (
+                        <a href="#" className="text-app-blue hover:underline">
+                          {doc.fichier_path}
+                        </a>
+                      ) : (
+                        <span className="text-gray-500">-</span>
+                      )}
+                    </TableCell>
+                    
+                    <TableCell className="py-3 px-1 text-center">
+                      <ResponsableSelector 
+                        selectedInitiales={doc.responsabilites.r}
+                        onChange={(values) => onResponsabiliteChange(doc.id, 'r', values)}
+                        type="r"
+                      />
+                    </TableCell>
+                    <TableCell className="py-3 px-1 text-center">
+                      <ResponsableSelector 
+                        selectedInitiales={doc.responsabilites.a}
+                        onChange={(values) => onResponsabiliteChange(doc.id, 'a', values)}
+                        type="a"
+                      />
+                    </TableCell>
+                    <TableCell className="py-3 px-1 text-center">
+                      <ResponsableSelector 
+                        selectedInitiales={doc.responsabilites.c}
+                        onChange={(values) => onResponsabiliteChange(doc.id, 'c', values)}
+                        type="c"
+                      />
+                    </TableCell>
+                    <TableCell className="py-3 px-1 text-center">
+                      <ResponsableSelector 
+                        selectedInitiales={doc.responsabilites.i}
+                        onChange={(values) => onResponsabiliteChange(doc.id, 'i', values)}
+                        type="i"
+                      />
+                    </TableCell>
+                    
+                    <TableCell className="py-3 px-4 text-center">
+                      <input 
+                        type="checkbox" 
+                        className="form-checkbox h-4 w-4 text-app-blue rounded"
+                        checked={doc.etat === 'EX'}
+                        onChange={() => onExclusionChange(doc.id)}
+                        onClick={(e) => e.stopPropagation()} // Prevent row drag
+                      />
+                    </TableCell>
+                    
+                    <TableCell className="py-3 px-1 text-center">
+                      <input 
+                        type="radio" 
+                        name={`atteinte-${doc.id}`}
+                        checked={doc.etat === 'NC'}
+                        onChange={() => onAtteinteChange(doc.id, 'NC')}
+                        className="form-radio h-4 w-4 text-red-500"
+                        disabled={doc.etat === 'EX'}
+                        onClick={(e) => e.stopPropagation()} // Prevent row drag
+                      />
+                    </TableCell>
+                    <TableCell className="py-3 px-1 text-center">
+                      <input 
+                        type="radio" 
+                        name={`atteinte-${doc.id}`}
+                        checked={doc.etat === 'PC'}
+                        onChange={() => onAtteinteChange(doc.id, 'PC')}
+                        className="form-radio h-4 w-4 text-yellow-500"
+                        disabled={doc.etat === 'EX'}
+                        onClick={(e) => e.stopPropagation()} // Prevent row drag
+                      />
+                    </TableCell>
+                    <TableCell className="py-3 px-1 text-center">
+                      <input 
+                        type="radio" 
+                        name={`atteinte-${doc.id}`}
+                        checked={doc.etat === 'C'}
+                        onChange={() => onAtteinteChange(doc.id, 'C')}
+                        className="form-radio h-4 w-4 text-green-500"
+                        disabled={doc.etat === 'EX'}
+                        onClick={(e) => e.stopPropagation()} // Prevent row drag
+                      />
+                    </TableCell>
+                    
+                    <TableCell className="py-3 px-4 text-right">
+                      <button 
+                        className="text-gray-600 hover:text-app-blue mr-3"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onEdit(doc.id);
+                        }}
+                      >
+                        <Pencil className="h-5 w-5 inline-block" />
+                      </button>
+                      <button 
+                        className="text-gray-600 hover:text-red-500"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onDelete(doc.id);
+                        }}
+                      >
+                        <Trash className="h-5 w-5 inline-block" />
+                      </button>
+                    </TableCell>
+                  </TableRow>
+                ))
               )}
             </React.Fragment>
           ))}
         </TableBody>
-        <TableBody onReorder={onReorder}>
-          {ungroupedDocuments.map((doc) => (
-            <TableRow key={doc.id} className="border-b hover:bg-gray-50">
+        <TableBody>
+          {ungroupedDocuments.map((doc, index) => (
+            <TableRow 
+              key={doc.id} 
+              className="border-b hover:bg-gray-50"
+              draggable
+              onDragStart={(e) => {
+                e.dataTransfer.setData('text/plain', JSON.stringify({
+                  index: index,
+                  groupId: null
+                }));
+                e.currentTarget.classList.add('opacity-50');
+              }}
+              onDragOver={(e) => {
+                e.preventDefault();
+                e.currentTarget.classList.add('border-dashed', 'border-2', 'border-primary');
+              }}
+              onDragLeave={(e) => {
+                e.currentTarget.classList.remove('border-dashed', 'border-2', 'border-primary');
+              }}
+              onDrop={(e) => handleDrop(e, index)}
+              onDragEnd={(e) => {
+                e.currentTarget.classList.remove('opacity-50');
+              }}
+            >
               <TableCell className="py-3 px-2 w-10">
                 <GripVertical className="h-5 w-5 text-gray-400" />
               </TableCell>
@@ -338,13 +404,19 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
               <TableCell className="py-3 px-4 text-right">
                 <button 
                   className="text-gray-600 hover:text-app-blue mr-3"
-                  onClick={() => onEdit(doc.id)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onEdit(doc.id);
+                  }}
                 >
                   <Pencil className="h-5 w-5 inline-block" />
                 </button>
                 <button 
                   className="text-gray-600 hover:text-red-500"
-                  onClick={() => onDelete(doc.id)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDelete(doc.id);
+                  }}
                 >
                   <Trash className="h-5 w-5 inline-block" />
                 </button>
