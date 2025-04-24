@@ -33,9 +33,11 @@ const ApiConfiguration = () => {
     try {
       const result = await testJsonFormat();
       if (result.success) {
-        setJsonTestResult(typeof result.response === 'string' ? result.response : JSON.stringify(result.response, null, 2));
+        setJsonTestResult(typeof result.response === 'string' ? 
+          result.response : 
+          JSON.stringify(result.response, null, 2));
       } else {
-        setJsonTestResult(`Erreur: ${result.error}`);
+        setJsonTestResult(`Erreur: ${result.error instanceof Error ? result.error.message : String(result.error)}`);
       }
     } finally {
       setIsTestingJson(false);
