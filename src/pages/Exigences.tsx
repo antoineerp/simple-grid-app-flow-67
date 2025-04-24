@@ -6,8 +6,6 @@ import ExigenceStats from '@/components/exigences/ExigenceStats';
 import ExigenceTable from '@/components/exigences/ExigenceTable';
 import { ExigenceGroupDialog } from '@/components/exigences/ExigenceGroupDialog';
 import { useExigences } from '@/hooks/useExigences';
-import { Exigence, ExigenceGroup } from '@/types/exigences';
-import { exportExigencesToPdf } from '@/services/pdfExport';
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 
@@ -59,16 +57,16 @@ const ExigencesContent = () => {
           <Button 
             variant="outline"
             onClick={handleAddGroup}
-            className="hover:bg-gray-100 transition-colors"
+            className="hover:bg-gray-100 transition-colors mr-2"
             title="Nouveau groupe"
           >
             <FolderPlus className="h-5 w-5 mr-2" />
             Nouveau groupe
           </Button>
           <Button 
-            variant="outline"
+            variant="default"
             onClick={handleExportPdf}
-            className="text-red-500 hover:text-red-700 transition-colors"
+            className="text-white"
             title="Exporter en PDF"
           >
             <FileDown className="h-5 w-5" />

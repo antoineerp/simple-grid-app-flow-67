@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { FileDown, FolderPlus } from 'lucide-react';
 import { MembresProvider } from '@/contexts/MembresContext';
@@ -6,7 +7,6 @@ import DocumentStatusDisplay from '@/components/gestion-documentaire/DocumentSta
 import DocumentTable from '@/components/gestion-documentaire/DocumentTable';
 import { DocumentGroupDialog } from '@/components/gestion-documentaire/DocumentGroupDialog';
 import { useDocuments } from '@/hooks/useDocuments';
-import { Document, DocumentGroup } from '@/types/documents';
 import { exportDocumentsToPdf } from '@/services/pdfExport';
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
@@ -59,16 +59,16 @@ const GestionDocumentaireContent = () => {
           <Button 
             variant="outline"
             onClick={handleAddGroup}
-            className="hover:bg-gray-100 transition-colors"
+            className="hover:bg-gray-100 transition-colors mr-2"
             title="Nouveau groupe"
           >
             <FolderPlus className="h-5 w-5 mr-2" />
             Nouveau groupe
           </Button>
           <Button 
-            variant="outline"
+            variant="default"
             onClick={handleExportPdf}
-            className="text-red-500 hover:text-red-700 transition-colors"
+            className="text-white"
             title="Exporter en PDF"
           >
             <FileDown className="h-5 w-5" />
@@ -104,6 +104,7 @@ const GestionDocumentaireContent = () => {
           Nouveau groupe
         </Button>
         <Button 
+          variant="default"
           onClick={handleAddDocument}
         >
           Nouveau document
