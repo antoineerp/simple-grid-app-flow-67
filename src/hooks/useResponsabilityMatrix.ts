@@ -40,20 +40,20 @@ export const useResponsabilityMatrix = () => {
         exigences
           .filter((exigence: any) => !exigence.exclusion)
           .forEach((exigence: any) => {
-            if (exigence.responsabilites.r.includes(initiales)) exigencesCount.r++;
-            if (exigence.responsabilites.a.includes(initiales)) exigencesCount.a++;
-            if (exigence.responsabilites.c.includes(initiales)) exigencesCount.c++;
-            if (exigence.responsabilites.i.includes(initiales)) exigencesCount.i++;
+            if (exigence.responsabilites && exigence.responsabilites.r && exigence.responsabilites.r.includes(initiales)) exigencesCount.r++;
+            if (exigence.responsabilites && exigence.responsabilites.a && exigence.responsabilites.a.includes(initiales)) exigencesCount.a++;
+            if (exigence.responsabilites && exigence.responsabilites.c && exigence.responsabilites.c.includes(initiales)) exigencesCount.c++;
+            if (exigence.responsabilites && exigence.responsabilites.i && exigence.responsabilites.i.includes(initiales)) exigencesCount.i++;
           });
         
         // Compter les occurrences dans les documents (en excluant les documents exclus)
         documents
           .filter((document: any) => document.etat !== 'EX')
           .forEach((document: any) => {
-            if (document.responsabilites.r.includes(initiales)) documentsCount.r++;
-            if (document.responsabilites.a.includes(initiales)) documentsCount.a++;
-            if (document.responsabilites.c.includes(initiales)) documentsCount.c++;
-            if (document.responsabilites.i.includes(initiales)) documentsCount.i++;
+            if (document.responsabilites && document.responsabilites.r && document.responsabilites.r.includes(initiales)) documentsCount.r++;
+            if (document.responsabilites && document.responsabilites.a && document.responsabilites.a.includes(initiales)) documentsCount.a++;
+            if (document.responsabilites && document.responsabilites.c && document.responsabilites.c.includes(initiales)) documentsCount.c++;
+            if (document.responsabilites && document.responsabilites.i && document.responsabilites.i.includes(initiales)) documentsCount.i++;
           });
 
         // Inclure toutes les propriétés du membre et ajouter les nouvelles propriétés
