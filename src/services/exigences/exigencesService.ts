@@ -29,7 +29,7 @@ export const loadExigencesFromStorage = (currentUser: string): Exigence[] => {
       id: '2',
       numero: 'E.1.2',
       niveau: 'Critère',
-      intitule: 'Le prestataire met en œuvre des prestations d'information...',
+      intitule: "Le prestataire met en œuvre des prestations d'information...",
       chapitre: 'Information et orientation des publics',
       description: 'Lorem ipsum dolor sit amet',
       criteres: ['Information claire', 'Délais respectés'],
@@ -68,4 +68,19 @@ export const syncExigencesWithServer = async (
 ): Promise<boolean> => {
   console.log(`Synchronisation de ${exigences.length} exigences pour l'utilisateur ${currentUser}`);
   return exigencesSync.syncWithServer<Exigence>(exigences, currentUser);
+};
+
+/**
+ * Calcule les statistiques des exigences
+ */
+export const calculateExigenceStats = (exigences: Exigence[]) => {
+  const nonExcludedExigences = exigences.filter(e => !e.exclusion);
+  
+  return {
+    exclusion: exigences.filter(e => e.exclusion).length,
+    nonConforme: nonExcludedExigences.filter(e => e.atteinte === 'NC').length,
+    partiellementConforme: nonExcludedExigences.filter(e => e.atteinte === 'PC').length,
+    conforme: nonExcludedExigences.filter(e => e.atteinte === 'C').length,
+    total: nonExcludedExigences.length
+  };
 };
