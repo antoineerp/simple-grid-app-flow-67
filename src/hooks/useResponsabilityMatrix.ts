@@ -21,20 +21,24 @@ export const useResponsabilityMatrix = () => {
 
   useEffect(() => {
     const calculateResponsabilites = () => {
-      // Charger les exigences et documents depuis le localStorage
-      const storedExigences = localStorage.getItem('exigences');
-      const storedDocuments = localStorage.getItem('documents');
+      // Obtenir l'identifiant de l'utilisateur actuel
+      const currentUser = localStorage.getItem('userId') || 'anonymous';
+      
+      // Charger les exigences et documents depuis le localStorage avec le préfixe utilisateur
+      const storedExigences = localStorage.getItem(`exigences_${currentUser}`);
+      const storedDocuments = localStorage.getItem(`documents_${currentUser}`);
       
       const exigences = storedExigences ? JSON.parse(storedExigences) : [];
       const documents = storedDocuments ? JSON.parse(storedDocuments) : [];
       
-      console.log("Exigences chargées:", exigences.length);
-      console.log("Documents chargés:", documents.length);
+      console.log(`[Matrix] User ID: ${currentUser}`);
+      console.log(`[Matrix] Exigences chargées: ${exigences.length}`);
+      console.log(`[Matrix] Documents chargés: ${documents.length}`);
 
       // Calculer les responsabilités pour chaque membre
       const membresWithResponsabilites = membres.map(membre => {
         const initiales = membre.initiales;
-        console.log(`Calcul des responsabilités pour ${membre.prenom} ${membre.nom} (${initiales})`);
+        console.log(`[Matrix] Calcul des responsabilités pour ${membre.prenom} ${membre.nom} (${initiales})`);
         
         // Initialiser les compteurs
         const exigencesCount = { r: 0, a: 0, c: 0, i: 0 };
@@ -82,7 +86,12 @@ export const useResponsabilityMatrix = () => {
             }
           });
 
-        console.log(`Résultats pour ${initiales}:`, { exigences: exigencesCount, documents: documentsCount });
+        console.log(`[Matrix] Résultats pour ${initiales}:`, { 
+          exigences: exigencesCount, 
+          documents: documentsCount,
+          total: exigencesCount.r + exigencesCount.a + exigencesCount.c + exigencesCount.i + 
+                 documentsCount.r + documentsCount.a + documentsCount.c + documentsCount.i
+        });
 
         // Inclure toutes les propriétés du membre et ajouter les nouvelles propriétés
         return {

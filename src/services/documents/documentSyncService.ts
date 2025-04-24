@@ -12,6 +12,7 @@ export const syncDocumentsWithServer = async (
   try {
     // Utiliser l'ID utilisateur réel à partir du service d'authentification
     const userId = getUserId() || currentUser;
+    console.log(`[Sync] Synchronizing documents for user ${userId}`);
     
     // Simulate server request
     await new Promise(resolve => setTimeout(resolve, 1000));

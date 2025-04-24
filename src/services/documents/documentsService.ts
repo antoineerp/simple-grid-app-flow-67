@@ -1,19 +1,24 @@
 
 import { Document } from '@/types/documents';
+import { getUserId } from '../auth/authService';
 
 /**
  * Loads documents from local storage for the current user
  */
 export const loadDocumentsFromStorage = (currentUser: string): Document[] => {
-  // Utiliser l'ID utilisateur réel à partir du localStorage
-  const userId = localStorage.getItem('userId') || currentUser;
+  // Utiliser l'ID utilisateur réel à partir du service d'authentification
+  const userId = getUserId() || currentUser;
   const storageKey = `documents_${userId}`;
   
+  console.log(`[Documents] Loading documents for user ${userId}`);
   const storedDocuments = localStorage.getItem(storageKey);
   
   if (storedDocuments) {
-    return JSON.parse(storedDocuments);
+    const parsedDocuments = JSON.parse(storedDocuments);
+    console.log(`[Documents] Loaded ${parsedDocuments.length} documents`);
+    return parsedDocuments;
   } else {
+    console.log(`[Documents] No documents found, loading defaults`);
     // Ne pas charger les documents d'autres utilisateurs comme template
     return getDefaultDocuments();
   }
@@ -23,14 +28,36 @@ export const loadDocumentsFromStorage = (currentUser: string): Document[] => {
  * Saves documents to local storage for the current user
  */
 export const saveDocumentsToStorage = (documents: Document[], currentUser: string): void => {
-  // Utiliser l'ID utilisateur réel à partir du localStorage
-  const userId = localStorage.getItem('userId') || currentUser;
+  // Utiliser l'ID utilisateur réel à partir du service d'authentification
+  const userId = getUserId() || currentUser;
   const storageKey = `documents_${userId}`;
   
+  console.log(`[Documents] Saving ${documents.length} documents for user ${userId}`);
   localStorage.setItem(storageKey, JSON.stringify(documents));
   
   // Notify other components of document updates
   window.dispatchEvent(new Event('documentUpdate'));
+};
+
+/**
+ * Calculates document statistics for display
+ */
+export const calculateDocumentStats = (documents: Document[]) => {
+  const total = documents.length;
+  const excluded = documents.filter(doc => doc.etat === 'EX').length;
+  const nonExcluded = total - excluded;
+  
+  const nonConforme = documents.filter(doc => doc.etat === 'NC').length;
+  const partiellementConforme = documents.filter(doc => doc.etat === 'PC').length;
+  const conforme = documents.filter(doc => doc.etat === 'C').length;
+  
+  return {
+    total: nonExcluded,
+    nonConforme,
+    partiellementConforme,
+    conforme,
+    excluded
+  };
 };
 
 /**

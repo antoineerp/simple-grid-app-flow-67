@@ -1,7 +1,7 @@
-
 import { useState, useEffect, useCallback } from 'react';
 import { useToast } from "@/hooks/use-toast";
 import { Document } from '@/types/documents';
+import { getUserId } from '@/services/auth/authService';
 import { 
   loadDocumentsFromStorage, 
   saveDocumentsToStorage, 
@@ -11,9 +11,9 @@ import {
 
 export const useDocuments = () => {
   const { toast } = useToast();
-  const currentUser = localStorage.getItem('currentUser') || 'default';
+  const userId = getUserId() || 'anonymous';
   
-  const [documents, setDocuments] = useState<Document[]>(() => loadDocumentsFromStorage(currentUser));
+  const [documents, setDocuments] = useState<Document[]>(() => loadDocumentsFromStorage(userId));
   const [editingDocument, setEditingDocument] = useState<Document | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [stats, setStats] = useState(calculateDocumentStats(documents));
@@ -26,8 +26,8 @@ export const useDocuments = () => {
 
   // Save documents to storage when they change
   useEffect(() => {
-    saveDocumentsToStorage(documents, currentUser);
-  }, [documents, currentUser]);
+    saveDocumentsToStorage(documents, userId);
+  }, [documents, userId]);
 
   // Document manipulation functions
   const handleResponsabiliteChange = useCallback((id: string, type: 'r' | 'a' | 'c' | 'i', values: string[]) => {
@@ -156,7 +156,7 @@ export const useDocuments = () => {
   const syncWithServer = useCallback(async () => {
     setIsSyncing(true);
     
-    const success = await syncDocumentsWithServer(documents, currentUser);
+    const success = await syncDocumentsWithServer(documents, userId);
     
     if (success) {
       toast({
@@ -173,7 +173,7 @@ export const useDocuments = () => {
     
     setIsSyncing(false);
     return success;
-  }, [documents, currentUser, toast]);
+  }, [documents, userId, toast]);
 
   return {
     documents,
