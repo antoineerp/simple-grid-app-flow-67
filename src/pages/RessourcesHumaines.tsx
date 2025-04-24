@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { FileText, UserPlus } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
@@ -26,7 +25,7 @@ const RessourcesHumaines = () => {
     fonction: '',
     initiales: '',
     date_creation: new Date(),
-    mot_de_passe: '' // Ajout du champ obligatoire
+    mot_de_passe: '' 
   });
   const [isEditing, setIsEditing] = useState(false);
 
@@ -63,7 +62,7 @@ const RessourcesHumaines = () => {
       fonction: '',
       initiales: '',
       date_creation: new Date(),
-      mot_de_passe: '' // Ajout du champ obligatoire
+      mot_de_passe: '' 
     });
     setIsEditing(false);
     setIsDialogOpen(true);
@@ -121,7 +120,6 @@ const RessourcesHumaines = () => {
       <div className="flex items-center justify-between mb-2">
         <div>
           <h1 className="text-3xl font-bold text-app-blue">Ressources Humaines</h1>
-          <p className="text-gray-600">Collaborateurs/trices du projet</p>
         </div>
         <FileText className="text-red-500 h-6 w-6" />
       </div>
