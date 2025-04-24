@@ -2,6 +2,11 @@
 # Activer la réécriture d'URL
 RewriteEngine On
 
+# Forcer PHP à s'exécuter même si le fichier est appelé directement
+<FilesMatch "\.php$">
+    SetHandler application/x-httpd-php
+</FilesMatch>
+
 # Permettre l'accès direct aux fichiers PHP spécifiques
 RewriteCond %{REQUEST_FILENAME} -f
 RewriteRule \.(php)$ - [L]
