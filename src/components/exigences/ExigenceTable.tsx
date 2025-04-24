@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Pencil, Trash, GripVertical, ChevronDown } from 'lucide-react';
 import ResponsableSelector from '@/components/ResponsableSelector';
@@ -42,22 +43,13 @@ const ExigenceTable: React.FC<ExigenceTableProps> = ({
 }) => {
   const ungroupedExigences = exigences.filter(e => !e.groupId);
 
-  const getGroupItemIndex = (groupId: string, localIndex: number) => {
-    let globalStartIndex = ungroupedExigences.length;
-    
-    for (const group of groups) {
-      if (group.id === groupId) {
-        return globalStartIndex + localIndex;
-      }
-      globalStartIndex += group.items.length;
-    }
-    
-    return localIndex;
-  };
-
-  const handleDragStart = (e: React.DragEvent<HTMLTableRowElement>, index: number, groupId: string | null = null) => {
-    const dragData = JSON.stringify({ index, groupId });
-    e.dataTransfer.setData('text/plain', dragData);
+  const handleDragStart = (e: React.DragEvent<HTMLTableRowElement>, exigence: Exigence) => {
+    // Stocker l'ID de l'exigence dans le dataTransfer
+    e.dataTransfer.setData('text/plain', JSON.stringify({
+      id: exigence.id,
+      type: 'exigence',
+      groupId: exigence.groupId
+    }));
     e.currentTarget.classList.add('opacity-50');
   };
 
@@ -70,31 +62,91 @@ const ExigenceTable: React.FC<ExigenceTableProps> = ({
     e.currentTarget.classList.remove('border-dashed', 'border-2', 'border-primary');
   };
 
-  const handleDrop = (event: React.DragEvent<HTMLTableRowElement>, targetIndex: number, targetGroupId?: string) => {
-    event.preventDefault();
-    event.currentTarget.classList.remove('border-dashed', 'border-2', 'border-primary');
+  const handleDrop = (e: React.DragEvent<HTMLTableRowElement>, targetExigence: Exigence) => {
+    e.preventDefault();
+    e.currentTarget.classList.remove('border-dashed', 'border-2', 'border-primary');
     
-    const dragData = JSON.parse(event.dataTransfer.getData('text/plain'));
-    const startIndex = dragData.index;
-    const sourceGroupId = dragData.groupId;
+    const data = JSON.parse(e.dataTransfer.getData('text/plain'));
     
-    if (sourceGroupId === targetGroupId && startIndex === targetIndex) return;
-    
-    let actualStartIndex = startIndex;
-    if (sourceGroupId) {
-      actualStartIndex = getGroupItemIndex(sourceGroupId, startIndex);
+    if (data.type === 'exigence') {
+      // Trouver les index source et cible
+      const sourceIndex = getExigenceIndex(data.id, data.groupId);
+      const targetIndex = getExigenceIndex(targetExigence.id, targetExigence.groupId);
+      
+      if (sourceIndex !== -1 && targetIndex !== -1) {
+        // Si les deux exigences font partie du même groupe (ou sont toutes deux sans groupe)
+        if (data.groupId === targetExigence.groupId) {
+          onReorder(sourceIndex, targetIndex);
+        } else {
+          // Si les exigences font partie de groupes différents
+          onReorder(sourceIndex, targetIndex, targetExigence.groupId);
+        }
+      }
     }
+  };
+
+  const handleGroupDrop = (e: React.DragEvent<HTMLTableRowElement>, groupId: string) => {
+    e.preventDefault();
+    e.currentTarget.classList.remove('border-dashed', 'border-2', 'border-primary');
     
-    let actualTargetIndex = targetIndex;
-    if (targetGroupId) {
-      actualTargetIndex = getGroupItemIndex(targetGroupId, targetIndex);
+    const data = JSON.parse(e.dataTransfer.getData('text/plain'));
+    
+    if (data.type === 'exigence') {
+      const sourceIndex = getExigenceIndex(data.id, data.groupId);
+      if (sourceIndex !== -1) {
+        // Placer l'exigence à la fin du groupe
+        const targetGroup = groups.find(g => g.id === groupId);
+        if (targetGroup) {
+          const targetIndex = ungroupedExigences.length + 
+            groups.slice(0, groups.findIndex(g => g.id === groupId))
+              .reduce((acc, g) => acc + g.items.length, 0) +
+            targetGroup.items.length;
+          
+          onReorder(sourceIndex, targetIndex, groupId);
+        }
+      }
+    } else if (data.type === 'group') {
+      // Gérer le déplacement des groupes si nécessaire
+      const sourceIndex = groups.findIndex(g => g.id === data.id);
+      const targetIndex = groups.findIndex(g => g.id === groupId);
+      
+      if (sourceIndex !== -1 && targetIndex !== -1) {
+        onGroupReorder(sourceIndex, targetIndex);
+      }
     }
-    
-    onReorder(actualStartIndex, actualTargetIndex, targetGroupId);
+  };
+
+  const handleGroupDragStart = (e: React.DragEvent<HTMLTableRowElement>, group: ExigenceGroup) => {
+    e.dataTransfer.setData('text/plain', JSON.stringify({
+      id: group.id,
+      type: 'group'
+    }));
+    e.currentTarget.classList.add('opacity-50');
   };
 
   const handleDragEnd = (e: React.DragEvent<HTMLTableRowElement>) => {
     e.currentTarget.classList.remove('opacity-50');
+  };
+
+  // Obtenir l'index absolu d'une exigence (en tenant compte des groupes)
+  const getExigenceIndex = (exigenceId: string, groupId?: string): number => {
+    if (!groupId) {
+      // Si l'exigence n'est pas dans un groupe
+      const index = ungroupedExigences.findIndex(e => e.id === exigenceId);
+      return index;
+    } else {
+      // Si l'exigence est dans un groupe
+      const groupIndex = groups.findIndex(g => g.id === groupId);
+      if (groupIndex === -1) return -1;
+
+      const itemIndex = groups[groupIndex].items.findIndex(e => e.id === exigenceId);
+      if (itemIndex === -1) return -1;
+
+      // Calculer l'index absolu en ajoutant les exigences non groupées et les exigences des groupes précédents
+      return ungroupedExigences.length + 
+        groups.slice(0, groupIndex).reduce((acc, g) => acc + g.items.length, 0) + 
+        itemIndex;
+    }
   };
 
   return (
@@ -133,6 +185,12 @@ const ExigenceTable: React.FC<ExigenceTableProps> = ({
               <TableRow 
                 className="border-b hover:bg-gray-50 cursor-pointer" 
                 onClick={() => onToggleGroup(group.id)}
+                draggable
+                onDragStart={(e) => handleGroupDragStart(e, group)}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={(e) => handleGroupDrop(e, group.id)}
+                onDragEnd={handleDragEnd}
               >
                 <TableCell className="py-3 px-2 w-10">
                   <GripVertical className="h-5 w-5 text-gray-400" />
@@ -167,15 +225,15 @@ const ExigenceTable: React.FC<ExigenceTableProps> = ({
                 </TableCell>
               </TableRow>
               {group.expanded && (
-                group.items.map((exigence, index) => (
+                group.items.map((exigence) => (
                   <TableRow 
                     key={exigence.id} 
                     className="border-b hover:bg-gray-50 bg-gray-50"
                     draggable
-                    onDragStart={(e) => handleDragStart(e, index, group.id)}
+                    onDragStart={(e) => handleDragStart(e, exigence)}
                     onDragOver={handleDragOver}
                     onDragLeave={handleDragLeave}
-                    onDrop={(e) => handleDrop(e, index, group.id)}
+                    onDrop={(e) => handleDrop(e, exigence)}
                     onDragEnd={handleDragEnd}
                   >
                     <TableCell className="py-3 px-2 w-10">
@@ -283,15 +341,15 @@ const ExigenceTable: React.FC<ExigenceTableProps> = ({
           ))}
         </TableBody>
         <TableBody>
-          {ungroupedExigences.map((exigence, index) => (
+          {ungroupedExigences.map((exigence) => (
             <TableRow 
               key={exigence.id} 
               className="border-b hover:bg-gray-50"
               draggable
-              onDragStart={(e) => handleDragStart(e, index)}
+              onDragStart={(e) => handleDragStart(e, exigence)}
               onDragOver={handleDragOver}
               onDragLeave={handleDragLeave}
-              onDrop={(e) => handleDrop(e, index)}
+              onDrop={(e) => handleDrop(e, exigence)}
               onDragEnd={handleDragEnd}
             >
               <TableCell className="py-3 px-2 w-10">

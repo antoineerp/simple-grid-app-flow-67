@@ -98,6 +98,8 @@ export const usePilotageDocuments = () => {
   };
 
   const handleReorder = (startIndex: number, endIndex: number) => {
+    if (startIndex === endIndex) return;
+    
     const result = Array.from(documents);
     const [removed] = result.splice(startIndex, 1);
     result.splice(endIndex, 0, removed);

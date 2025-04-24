@@ -191,7 +191,7 @@ export const useExigences = () => {
       const [removed] = result.splice(startIndex, 1);
       
       if (targetGroupId !== undefined) {
-        removed.groupId = targetGroupId;
+        removed.groupId = targetGroupId === 'null' ? undefined : targetGroupId;
       }
       
       result.splice(endIndex, 0, removed);
