@@ -1,5 +1,5 @@
 
 <?php
-// Afficher les informations PHP pour diagnostiquer les problèmes
+// Display PHP information for diagnosing issues
 phpinfo();
 ?>
