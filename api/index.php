@@ -37,6 +37,33 @@ error_log("API Request: " . $_SERVER['REQUEST_URI'] . " | Method: " . $_SERVER['
 
 // Obtenir le chemin de la requête
 $request_uri = $_SERVER['REQUEST_URI'];
+$api_path = parse_url($request_uri, PHP_URL_PATH);
+error_log("API Path: " . $api_path);
+
+// Vérifier directement pour les fichiers documents-load.php et documents-sync.php
+if (strpos($api_path, '/api/documents-load.php') !== false) {
+    error_log("Route documents-load.php détectée, inclusion directe");
+    require_once 'documents-load.php';
+    exit;
+}
+
+if (strpos($api_path, '/api/documents-sync.php') !== false) {
+    error_log("Route documents-sync.php détectée, inclusion directe");
+    require_once 'documents-sync.php';
+    exit;
+}
+
+if (strpos($api_path, '/api/bibliotheque-load.php') !== false) {
+    error_log("Route bibliotheque-load.php détectée, inclusion directe");
+    require_once 'bibliotheque-load.php';
+    exit;
+}
+
+if (strpos($api_path, '/api/bibliotheque-sync.php') !== false) {
+    error_log("Route bibliotheque-sync.php détectée, inclusion directe");
+    require_once 'bibliotheque-sync.php';
+    exit;
+}
 
 // Normaliser le chemin de l'API
 $base_path = '/api/';
@@ -207,10 +234,13 @@ switch ($controller) {
             require_once $controller_file;
         } else {
             // Aucune route correspondante trouvée
+            error_log("Route non trouvée: $path [$controller]");
             http_response_code(404);
             echo json_encode([
                 'message' => 'Route non trouvée: ' . $path,
-                'status' => 404
+                'status' => 404,
+                'controller_requested' => $controller,
+                'file_checked' => $controller_file
             ]);
         }
         break;
