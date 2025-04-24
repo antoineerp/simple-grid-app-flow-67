@@ -7,7 +7,7 @@ const DocumentTableHeader = () => {
     <TableHeader>
       <TableRow className="bg-app-light-blue">
         <TableHead className="w-10"></TableHead>
-        <TableHead className="py-3 px-4 text-app-blue font-medium text-sm w-1/3">Nom</TableHead>
+        <TableHead className="py-3 px-4 text-app-blue font-medium text-sm w-1/3">Document</TableHead>
         <TableHead className="py-3 px-4 text-app-blue font-medium text-sm">Fichier</TableHead>
         <TableHead className="py-3 px-4 text-app-blue font-medium text-sm text-center" colSpan={4}>
           Responsabilités
