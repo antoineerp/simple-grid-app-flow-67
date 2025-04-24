@@ -4,11 +4,12 @@ import autoTable from 'jspdf-autotable';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { createAndDownloadPdf } from './pdfManager';
+import { Membre } from '@/types/membres';
 
 /**
  * Exports collaborator statistics to PDF format
  */
-export const exportCollaborateurStatsToPdf = (membre: any) => {
+export const exportCollaborateurStatsToPdf = (membre: Membre) => {
   const title = `Statistiques_${membre.prenom}_${membre.nom}`;
   
   createAndDownloadPdf((doc, startY) => {
@@ -22,70 +23,66 @@ export const exportCollaborateurStatsToPdf = (membre: any) => {
     doc.setFontSize(14);
     doc.text(`Fonction: ${membre.fonction}`, pageWidth / 2, startY, { align: 'center' });
     
-    // Table for requirements statistics
+    // Table for member details
     doc.setFontSize(12);
-    doc.text('Statistiques des exigences', pageWidth / 2, startY + 15, { align: 'center' });
+    doc.text('Informations du membre', pageWidth / 2, startY + 15, { align: 'center' });
     
-    const headersExigences = [['Type', 'Nombre']];
-    const dataExigences = [
-      ['Responsable (R)', membre.exigences.r],
-      ['Approbateur (A)', membre.exigences.a],
-      ['Consulté (C)', membre.exigences.c],
-      ['Informé (I)', membre.exigences.i],
-      ['Total', membre.exigences.r + membre.exigences.a + membre.exigences.c + membre.exigences.i]
+    const headersMembre = [['Champ', 'Valeur']];
+    const dataMembre = [
+      ['Nom', membre.nom],
+      ['Prénom', membre.prenom],
+      ['Fonction', membre.fonction],
+      ['Initiales', membre.initiales],
+      ['Date de création', format(new Date(membre.date_creation), 'dd/MM/yyyy', { locale: fr })]
     ];
     
-    // Utilisation de autoTable pour le premier tableau
+    // Utilisation de autoTable pour le tableau
     autoTable(doc, {
       startY: startY + 20,
-      head: headersExigences,
-      body: dataExigences,
+      head: headersMembre,
+      body: dataMembre,
       theme: 'grid',
       styles: { fontSize: 10, cellPadding: 5 },
       headStyles: { fillColor: [0, 48, 135], textColor: [255, 255, 255] },
-      tableWidth: 150,
-      margin: { left: (pageWidth - 150) / 2 } // Center the table
+      tableWidth: 180,
+      margin: { left: (pageWidth - 180) / 2 } // Center the table
     });
     
-    // Récupérer la position finale du tableau
-    const lastPosition = (doc as any).lastAutoTable?.finalY || 120;
+  }, title);
+};
+
+/**
+ * Exports all collaborators to PDF format
+ */
+export const exportAllCollaborateursToPdf = (membres: Membre[]) => {
+  const title = `Liste_des_collaborateurs`;
+  
+  createAndDownloadPdf((doc, startY) => {
+    console.log("Génération du PDF pour tous les collaborateurs");
     
-    // Title for documents
-    doc.setFontSize(14);
-    doc.text('Documents', pageWidth / 2, lastPosition + 15, { align: 'center' });
+    // Add title - Centered
+    const pageWidth = doc.internal.pageSize.getWidth();
+    doc.setFontSize(16);
+    doc.text(`Liste des collaborateurs`, pageWidth / 2, startY, { align: 'center' });
     
-    // Table for document statistics
-    const headersDocuments = [['Type', 'Nombre']];
-    const dataDocuments = [
-      ['Responsable (R)', membre.documents.r],
-      ['Approbateur (A)', membre.documents.a],
-      ['Consulté (C)', membre.documents.c],
-      ['Informé (I)', membre.documents.i],
-      ['Total', membre.documents.r + membre.documents.a + membre.documents.c + membre.documents.i]
-    ];
+    // Table headers and data
+    const headers = [['Nom', 'Prénom', 'Fonction', 'Initiales']];
+    const data = membres.map(membre => [
+      membre.nom,
+      membre.prenom,
+      membre.fonction,
+      membre.initiales
+    ]);
     
-    // Utilisation de autoTable pour le second tableau
+    // Add table of all members
     autoTable(doc, {
-      startY: lastPosition + 20,
-      head: headersDocuments,
-      body: dataDocuments,
+      startY: startY + 10,
+      head: headers,
+      body: data,
       theme: 'grid',
       styles: { fontSize: 10, cellPadding: 5 },
-      headStyles: { fillColor: [0, 48, 135], textColor: [255, 255, 255] },
-      tableWidth: 150,
-      margin: { left: (pageWidth - 150) / 2 } // Center the table
+      headStyles: { fillColor: [0, 48, 135], textColor: [255, 255, 255] }
     });
-    
-    // Récupérer la position finale du second tableau
-    const finalPosition = (doc as any).lastAutoTable?.finalY || 180;
-    
-    // Total
-    const totalGeneral = 
-      membre.exigences.r + membre.exigences.a + membre.exigences.c + membre.exigences.i +
-      membre.documents.r + membre.documents.a + membre.documents.c + membre.documents.i;
-    
-    doc.setFontSize(14);
-    doc.text(`Total des responsabilités: ${totalGeneral}`, pageWidth / 2, finalPosition + 15, { align: 'center' });
     
   }, title);
 };

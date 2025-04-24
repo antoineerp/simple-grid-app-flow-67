@@ -1,15 +1,17 @@
 
 import React from 'react';
-import { Pencil, Trash } from 'lucide-react';
+import { Pencil, Trash, FileDown } from 'lucide-react';
 import { Membre } from '@/types/membres';
+import { Button } from "@/components/ui/button";
 
 interface MemberListProps {
   membres: Membre[];
   onEdit: (id: string) => void;
   onDelete: (id: string) => void;
+  onExport: (id: string) => void;
 }
 
-const MemberList = ({ membres, onEdit, onDelete }: MemberListProps) => {
+const MemberList = ({ membres, onEdit, onDelete, onExport }: MemberListProps) => {
   return (
     <table className="w-full">
       <thead>
@@ -28,25 +30,40 @@ const MemberList = ({ membres, onEdit, onDelete }: MemberListProps) => {
             <td className="py-3 px-4 text-sm">{membre.prenom}</td>
             <td className="py-3 px-4 text-sm">{membre.fonction}</td>
             <td className="py-3 px-4 text-sm">{membre.initiales}</td>
-            <td className="py-3 px-4 text-right">
-              <button 
-                className="text-gray-600 hover:text-app-blue mr-3"
+            <td className="py-3 px-4 text-right flex justify-end gap-2">
+              <Button 
+                size="icon"
+                variant="ghost"
+                className="text-gray-600 hover:text-app-blue h-8 w-8"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onExport(membre.id);
+                }}
+              >
+                <FileDown className="h-4 w-4" />
+              </Button>
+              <Button 
+                size="icon"
+                variant="ghost"
+                className="text-gray-600 hover:text-app-blue h-8 w-8"
                 onClick={(e) => {
                   e.stopPropagation();
                   onEdit(membre.id);
                 }}
               >
-                <Pencil className="h-5 w-5 inline-block" />
-              </button>
-              <button 
-                className="text-gray-600 hover:text-red-500"
+                <Pencil className="h-4 w-4" />
+              </Button>
+              <Button 
+                size="icon"
+                variant="ghost"
+                className="text-gray-600 hover:text-red-500 h-8 w-8"
                 onClick={(e) => {
                   e.stopPropagation();
                   onDelete(membre.id);
                 }}
               >
-                <Trash className="h-5 w-5 inline-block" />
-              </button>
+                <Trash className="h-4 w-4" />
+              </Button>
             </td>
           </tr>
         ))}

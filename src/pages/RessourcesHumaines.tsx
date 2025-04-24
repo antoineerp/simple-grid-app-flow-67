@@ -1,5 +1,6 @@
+
 import React, { useState } from 'react';
-import { FileText, UserPlus } from 'lucide-react';
+import { FileText, UserPlus, FileDown } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import {
   Dialog,
@@ -8,10 +9,18 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Button } from "@/components/ui/button";
 import { useMembres } from '@/contexts/MembresContext';
 import MemberList from '@/components/ressources-humaines/MemberList';
 import MemberForm from '@/components/ressources-humaines/MemberForm';
 import { Membre } from '@/types/membres';
+import { exportCollaborateurStatsToPdf, exportAllCollaborateursToPdf } from '@/services/collaborateurExport';
 
 const RessourcesHumaines = () => {
   const { toast } = useToast();
@@ -115,6 +124,45 @@ const RessourcesHumaines = () => {
     setIsDialogOpen(false);
   };
 
+  // Handler for exporting member to PDF
+  const handleExportMemberToPdf = (id: string) => {
+    const membre = membres.find(m => m.id === id);
+    if (membre) {
+      try {
+        exportCollaborateurStatsToPdf(membre);
+        toast({
+          title: "Export PDF",
+          description: `Les statistiques de ${membre.prenom} ${membre.nom} ont été exportées`,
+        });
+      } catch (error) {
+        console.error("Erreur lors de l'export PDF:", error);
+        toast({
+          title: "Erreur",
+          description: `Erreur lors de l'export PDF: ${error}`,
+          variant: "destructive",
+        });
+      }
+    }
+  };
+
+  // Handler for exporting all members to PDF
+  const handleExportAllToPdf = () => {
+    try {
+      exportAllCollaborateursToPdf(membres);
+      toast({
+        title: "Export PDF",
+        description: "La liste des collaborateurs a été exportée",
+      });
+    } catch (error) {
+      console.error("Erreur lors de l'export PDF:", error);
+      toast({
+        title: "Erreur",
+        description: `Erreur lors de l'export PDF: ${error}`,
+        variant: "destructive",
+      });
+    }
+  };
+
   return (
     <div className="p-8">
       <div className="flex items-center justify-between mb-2">
@@ -129,17 +177,32 @@ const RessourcesHumaines = () => {
           membres={membres} 
           onEdit={handleEdit} 
           onDelete={handleDelete} 
+          onExport={handleExportMemberToPdf}
         />
       </div>
 
-      <div className="flex justify-end mt-4">
-        <button 
-          className="btn-primary flex items-center"
+      <div className="flex justify-end mt-4 gap-4">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" className="flex items-center">
+              <FileDown className="h-4 w-4 mr-2" />
+              Exporter
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent>
+            <DropdownMenuItem onClick={handleExportAllToPdf}>
+              Exporter tous les collaborateurs
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+
+        <Button 
+          className="flex items-center"
           onClick={handleAddMember}
         >
           <UserPlus className="h-4 w-4 mr-2" />
           Ajouter un membre
-        </button>
+        </Button>
       </div>
 
       {/* Modal pour ajouter/modifier un membre */}
