@@ -35,7 +35,10 @@ export const createUser = async (userData: CreateUserData) => {
     const url = `${apiUrl}/utilisateurs`;
     
     console.log(`Envoi de la requête à ${url}`);
-    const headers = getAuthHeaders();
+    const headers = {
+      ...getAuthHeaders(),
+      'Content-Type': 'application/json'
+    };
     
     // Préparation des données
     const requestData = {
@@ -47,7 +50,7 @@ export const createUser = async (userData: CreateUserData) => {
     
     // Vérification de l'email
     try {
-      const checkEmailUrl = `${apiUrl}/check-users.php?email=${encodeURIComponent(userData.email)}`;
+      const checkEmailUrl = `${apiUrl}/utilisateurs?email=${encodeURIComponent(userData.email)}`;
       console.log(`Vérification de l'email: ${checkEmailUrl}`);
       
       const emailCheckResponse = await fetch(checkEmailUrl, { method: 'GET', headers });
@@ -56,8 +59,8 @@ export const createUser = async (userData: CreateUserData) => {
         const checkResult = await emailCheckResponse.json();
         console.log("Résultat de la vérification d'email:", checkResult);
         
-        if (checkResult && checkResult.records && Array.isArray(checkResult.records)) {
-          const existingUser = checkResult.records.find((user: any) => 
+        if (checkResult && checkResult.data && checkResult.data.records && Array.isArray(checkResult.data.records)) {
+          const existingUser = checkResult.data.records.find((user: any) => 
             user.email === userData.email
           );
           
@@ -88,12 +91,11 @@ export const createUser = async (userData: CreateUserData) => {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 secondes timeout
         
+        console.log("Tentative", retryCount + 1, "d'envoi de la requête");
+        
         const response = await fetch(url, {
           method: 'POST',
-          headers: {
-            ...headers,
-            'Content-Type': 'application/json'
-          },
+          headers,
           body: JSON.stringify(requestData),
           signal: controller.signal
         });
@@ -108,17 +110,23 @@ export const createUser = async (userData: CreateUserData) => {
         // Essai de parse en JSON
         try {
           responseData = responseText ? JSON.parse(responseText) : {};
+          console.log("Réponse parsée:", responseData);
           
-          // Gestion des erreurs HTTP
-          if (!response.ok) {
-            if (response.status === 409 || (responseData.message && responseData.message.includes('existe déjà'))) {
-              throw new Error(responseData.message || "Une contrainte d'unicité a été violée");
-            } else {
+          // Vérification du format de réponse attendu
+          if (responseData && typeof responseData === 'object') {
+            if (responseData.status === 'error') {
               throw new Error(responseData.message || `Erreur ${response.status}: ${response.statusText}`);
             }
+            
+            // Gestion des erreurs HTTP
+            if (!response.ok) {
+              throw new Error(responseData.message || `Erreur ${response.status}: ${response.statusText}`);
+            }
+            
+            success = true;
+          } else {
+            throw new Error("Format de réponse invalide");
           }
-          
-          success = true;
         } catch (jsonError) {
           console.error("Erreur lors du parsing JSON:", jsonError);
           
@@ -126,9 +134,9 @@ export const createUser = async (userData: CreateUserData) => {
           if (response.ok || response.status === 201) {
             success = true;
             responseData = { 
-              success: true, 
+              status: 'success', 
               message: "Utilisateur créé avec succès (réponse non-JSON)",
-              identifiant_technique: identifiantTechnique 
+              data: { identifiant_technique: identifiantTechnique }
             };
           } else {
             throw new Error(`Réponse invalide du serveur: ${responseText.substring(0, 100)}`);
@@ -137,7 +145,7 @@ export const createUser = async (userData: CreateUserData) => {
       } catch (error) {
         lastError = error;
         retryCount++;
-        console.warn(`Tentative ${retryCount}/${maxRetries} échouée: ${error instanceof Error ? error.message : 'Erreur inconnue'}`);
+        console.warn(`Tentative ${retryCount}/${maxRetries} échouée:`, error);
         
         if (retryCount < maxRetries) {
           await new Promise(resolve => setTimeout(resolve, 1000 * retryCount)); // Attente exponentielle
