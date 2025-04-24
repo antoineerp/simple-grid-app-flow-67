@@ -12,7 +12,7 @@ export const setCurrentUser = (user: string | null) => {
   if (user) {
     console.log(`Utilisateur de base de données mis à jour: ${user}`);
   } else {
-    console.log('Déconnexion de l'utilisateur de base de données');
+    console.log("Déconnexion de l'utilisateur de base de données");
   }
 };
 
