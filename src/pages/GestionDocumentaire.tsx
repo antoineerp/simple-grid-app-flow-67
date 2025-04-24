@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { FileText, FolderPlus, CloudSync } from 'lucide-react';
+import { FileText, FolderPlus, CloudSun } from 'lucide-react';
 import { MembresProvider } from '@/contexts/MembresContext';
 import DocumentForm from '@/components/gestion-documentaire/DocumentForm';
 import DocumentStatusDisplay from '@/components/gestion-documentaire/DocumentStats';
@@ -63,7 +63,7 @@ const GestionDocumentaireContent = () => {
             title="Synchroniser avec le serveur"
             disabled={isSyncing}
           >
-            <CloudSync className={`h-6 w-6 stroke-[1.5] ${isSyncing ? 'animate-spin' : ''}`} />
+            <CloudSun className={`h-6 w-6 stroke-[1.5] ${isSyncing ? 'animate-spin' : ''}`} />
           </button>
           <button 
             onClick={handleExportPdf}
