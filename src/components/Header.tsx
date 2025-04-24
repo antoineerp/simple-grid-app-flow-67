@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { ChevronDown, Upload, LogOut, Settings, Database, Users, LogIn } from 'lucide-react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useToast } from "@/hooks/use-toast";
 import LogoSelector from './LogoSelector';
 import {
@@ -78,9 +78,9 @@ const Header = () => {
       <div className="flex items-center justify-between h-14 px-4">
         <div className="flex items-center">
           <LogoSelector currentLogo={logo} onLogoChange={handleLogoChange} />
-          <Link to="/pilotage" className="text-app-blue text-xl font-semibold ml-4">
+          <div className="text-app-blue text-xl font-semibold ml-4 text-center w-full">
             Qualite.cloud - Système de Management de la Qualité
-          </Link>
+          </div>
         </div>
         <div className="flex items-center space-x-4">
           {currentDatabaseUser && (
