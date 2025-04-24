@@ -7,8 +7,8 @@ header("Access-Control-Allow-Headers: Content-Type, Authorization");
 header("Content-Type: application/json; charset=UTF-8");
 
 // Include required files
-require_once 'config/database.php';
-require_once 'services/LoginService.php';
+require_once __DIR__ . '/config/database.php';
+require_once __DIR__ . '/services/LoginService.php';
 
 // Journaliser l'accès pour le diagnostic
 error_log("=== EXÉCUTION DE login-test.php ===");

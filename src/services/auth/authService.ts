@@ -1,3 +1,4 @@
+
 // Obtenez l'ID de l'utilisateur actuel à partir du localStorage
 export const getUserId = (): string | null => {
   return localStorage.getItem('userId');
@@ -94,6 +95,16 @@ export const login = async (username: string, password: string): Promise<LoginRe
     });
 
     console.log('Réponse du serveur reçue', response.status);
+    
+    if (!response.ok) {
+      if (response.status === 500) {
+        console.error('Erreur serveur 500:', response.statusText);
+        return {
+          success: false,
+          message: `Erreur serveur (${response.status}): ${response.statusText || 'Problème avec le serveur'}`
+        };
+      }
+    }
     
     const data = await response.json();
     console.log('Données de réponse:', data);
