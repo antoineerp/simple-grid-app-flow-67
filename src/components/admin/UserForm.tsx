@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -203,6 +204,7 @@ const UserForm = ({ onClose, onSuccess, onUserConnect }: UserFormProps) => {
               <Input
                 id="nom"
                 name="nom"
+                placeholder=""
                 value={formData.nom}
                 onChange={handleChange}
                 className={`${fieldErrors.nom ? 'border-red-500' : ''}`}
@@ -220,6 +222,7 @@ const UserForm = ({ onClose, onSuccess, onUserConnect }: UserFormProps) => {
               <Input
                 id="prenom"
                 name="prenom"
+                placeholder=""
                 value={formData.prenom}
                 onChange={handleChange}
                 className={`${fieldErrors.prenom ? 'border-red-500' : ''}`}
@@ -238,6 +241,7 @@ const UserForm = ({ onClose, onSuccess, onUserConnect }: UserFormProps) => {
                 id="email"
                 name="email"
                 type="email"
+                placeholder=""
                 value={formData.email}
                 onChange={handleChange}
                 className={`${fieldErrors.email ? 'border-red-500' : ''}`}
@@ -256,6 +260,7 @@ const UserForm = ({ onClose, onSuccess, onUserConnect }: UserFormProps) => {
                 id="mot_de_passe"
                 name="mot_de_passe"
                 type="password"
+                placeholder=""
                 value={formData.mot_de_passe}
                 onChange={handleChange}
                 className={`${fieldErrors.mot_de_passe ? 'border-red-500' : ''}`}

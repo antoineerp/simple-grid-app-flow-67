@@ -3,8 +3,10 @@
 class ResponseHandler {
     public static function success($data = null, $message = '', $code = 200) {
         // Assurons-nous que les en-têtes sont envoyés correctement
-        header("Content-Type: application/json; charset=UTF-8");
-        http_response_code($code);
+        if (!headers_sent()) {
+            header("Content-Type: application/json; charset=UTF-8");
+            http_response_code($code);
+        }
         
         // Création d'une réponse standard
         $response = [
@@ -36,8 +38,10 @@ class ResponseHandler {
 
     public static function error($message, $code = 400, $details = null) {
         // Assurons-nous que les en-têtes sont envoyés correctement
-        header("Content-Type: application/json; charset=UTF-8");
-        http_response_code($code);
+        if (!headers_sent()) {
+            header("Content-Type: application/json; charset=UTF-8");
+            http_response_code($code);
+        }
         
         // Création d'une réponse d'erreur standard
         $response = [
@@ -59,7 +63,7 @@ class ResponseHandler {
             echo json_encode([
                 'status' => 'error',
                 'message' => 'Erreur lors de l\'encodage de la réponse: ' . json_last_error_msg()
-            ]);
+            ], JSON_PARTIAL_OUTPUT_ON_ERROR);
         } else {
             // Envoi de la réponse JSON
             echo $jsonResponse;
