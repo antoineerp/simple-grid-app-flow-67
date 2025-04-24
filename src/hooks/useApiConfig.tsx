@@ -36,20 +36,36 @@ export const useApiConfig = () => {
     setLastError(null);
     try {
       const API_URL = getApiUrl();
+      console.log(`Chargement de la configuration API depuis: ${API_URL}/config`);
+      
       const response = await fetch(`${API_URL}/config`, {
         method: 'GET',
-        headers: getAuthHeaders()
+        headers: getAuthHeaders(),
+        cache: 'no-store' // Ne pas utiliser de cache
       });
       
-      if (response.ok) {
-        const data = await response.json();
+      // Récupérer d'abord le contenu brut pour vérifier qu'il s'agit de JSON valide
+      const responseText = await response.text();
+      
+      // Vérifier si la réponse est vide
+      if (!responseText.trim()) {
+        throw new Error("Réponse vide du serveur");
+      }
+      
+      // Vérifier si la réponse est du HTML au lieu du JSON
+      if (responseText.trim().toLowerCase().startsWith('<!doctype') || 
+          responseText.trim().toLowerCase().startsWith('<html')) {
+        console.error("Réponse HTML reçue:", responseText.substring(0, 200));
+        throw new Error("Le serveur a renvoyé du HTML au lieu de JSON. Vérifiez la configuration du serveur.");
+      }
+      
+      try {
+        const data = JSON.parse(responseText);
         setConfig(data);
         console.log("Configuration chargée:", data);
-      } else {
-        const error = await response.json();
-        const errorMsg = error.message || "Erreur lors du chargement de la configuration";
-        setLastError(errorMsg);
-        throw new Error(errorMsg);
+      } catch (jsonError) {
+        console.error("Erreur de parsing JSON:", jsonError, "Texte reçu:", responseText.substring(0, 200));
+        throw new Error(`La réponse n'est pas un JSON valide: ${responseText.substring(0, 100)}...`);
       }
     } catch (error) {
       console.error("Erreur:", error);
@@ -60,6 +76,9 @@ export const useApiConfig = () => {
         description: errorMsg,
         variant: "destructive",
       });
+      
+      // Suggérer un diagnostic
+      console.info("Suggestion: testez l'API directement avec: " + getApiUrl() + "/json-test.php");
     } finally {
       setLoading(false);
     }
@@ -84,17 +103,37 @@ export const useApiConfig = () => {
       const response = await fetch(`${API_URL}/config`, {
         method: 'POST',
         headers: headers,
-        body: JSON.stringify(config)
+        body: JSON.stringify(config),
+        cache: 'no-store' // Ne pas utiliser de cache
       });
       
       const responseText = await response.text();
       console.log("Réponse brute:", responseText);
       
+      // Vérifier si la réponse est du HTML
+      if (responseText.trim().toLowerCase().startsWith('<!doctype') || 
+          responseText.trim().toLowerCase().startsWith('<html')) {
+        console.error("Réponse HTML reçue:", responseText.substring(0, 200));
+        throw new Error("Le serveur a renvoyé du HTML au lieu de JSON. Vérifiez la configuration du serveur.");
+      }
+      
+      // Analyser la réponse JSON
       let responseData;
+      
       try {
         responseData = JSON.parse(responseText);
       } catch (e) {
-        throw new Error(`Réponse non-JSON: ${responseText}`);
+        console.error("Échec du parsing JSON:", e);
+        if (response.ok) {
+          // Si la réponse est OK mais pas du JSON, on peut quand même considérer que ça a marché
+          toast({
+            title: "Succès",
+            description: "Configuration mise à jour (bien que la réponse ne soit pas du JSON)",
+          });
+          return;
+        } else {
+          throw new Error(`Réponse non-JSON: ${responseText}`);
+        }
       }
       
       if (response.ok) {
@@ -103,7 +142,7 @@ export const useApiConfig = () => {
           description: "Configuration mise à jour avec succès",
         });
       } else {
-        const errorMsg = responseData.message || responseData.details || "Erreur lors de la sauvegarde de la configuration";
+        const errorMsg = responseData?.message || responseData?.details || "Erreur lors de la sauvegarde de la configuration";
         setLastError(errorMsg);
         throw new Error(errorMsg);
       }
@@ -135,6 +174,40 @@ export const useApiConfig = () => {
       }
     }));
   };
+  
+  // Tester la réponse JSON pure
+  const testJsonFormat = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch(`${getApiUrl()}/json-test.php`);
+      const text = await response.text();
+      
+      try {
+        JSON.parse(text);
+        toast({
+          title: "Test JSON réussi",
+          description: "Le serveur répond avec du JSON valide",
+        });
+      } catch (e) {
+        toast({
+          title: "Test JSON échoué",
+          description: "Le serveur ne répond pas avec du JSON valide",
+          variant: "destructive",
+        });
+      }
+      
+      return { success: true, response: text };
+    } catch (error) {
+      toast({
+        title: "Erreur de connexion",
+        description: error instanceof Error ? error.message : "Impossible de contacter le serveur",
+        variant: "destructive",
+      });
+      return { success: false, error };
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return {
     config,
@@ -142,6 +215,7 @@ export const useApiConfig = () => {
     lastError,
     loadConfig,
     saveConfig,
-    handleInputChange
+    handleInputChange,
+    testJsonFormat
   };
 };
