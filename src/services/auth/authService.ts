@@ -66,6 +66,12 @@ class AuthService {
             throw new Error('Réponse vide du serveur');
         }
         
+        // Détection critique: vérifier si le serveur renvoie du code PHP non exécuté
+        if (responseText.trim().startsWith('<?php')) {
+            console.error('ERREUR CRITIQUE: Le serveur renvoie le code PHP au lieu de l\'exécuter');
+            throw new Error('Configuration PHP incorrecte: Le serveur renvoie le code PHP au lieu de l\'exécuter. Vérifiez l\'installation de PHP sur votre serveur.');
+        }
+        
         // Ne pas traiter la réponse de test comme une erreur
         if (responseText.includes('API PHP disponible') && !responseText.includes('token')) {
             console.log('Détecté: réponse API info standard');
@@ -122,6 +128,11 @@ class AuthService {
                     const errorData = await this.parseJsonResponse(response);
                     throw new Error(errorData.message || `Échec de l'authentification (${response.status})`);
                 } else {
+                    // Si la réponse n'est pas JSON, vérifier si c'est du PHP non exécuté
+                    const responseText = await response.text();
+                    if (responseText.trim().startsWith('<?php')) {
+                        throw new Error('Configuration PHP incorrecte: Le serveur renvoie le code PHP au lieu de l\'exécuter');
+                    }
                     throw new Error(`Échec de l'authentification (${response.status}): Format de réponse invalide`);
                 }
             }
