@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Pencil, Trash, GripVertical, ChevronDown, ExternalLink } from 'lucide-react';
 import ResponsableSelector from '@/components/ResponsableSelector';
 import { Document, DocumentGroup } from '@/types/documents';
@@ -41,6 +41,7 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
   onDeleteGroup
 }) => {
   const ungroupedDocuments = documents.filter(d => !d.groupId);
+  const [draggedItem, setDraggedItem] = useState<{ index: number, groupId: string | null } | null>(null);
 
   const getGroupItemIndex = (groupId: string, localIndex: number) => {
     let globalStartIndex = ungroupedDocuments.length;
@@ -55,18 +56,36 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
     return localIndex;
   };
 
-  const handleDrop = (event: React.DragEvent, targetIndex: number, targetGroupId?: string) => {
-    event.preventDefault();
-    event.currentTarget.classList.remove('border-dashed', 'border-2', 'border-primary');
+  const handleDragStart = (e: React.DragEvent, index: number, groupId: string | null = null) => {
+    setDraggedItem({ index, groupId });
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', JSON.stringify({ index, groupId }));
     
-    const dragData = JSON.parse(event.dataTransfer.getData('text/plain'));
-    const startIndex = dragData.index;
-    const sourceGroupId = dragData.groupId;
+    setTimeout(() => {
+      e.currentTarget.classList.add('opacity-50');
+    }, 0);
+  };
+
+  const handleDragOver = (e: React.DragEvent<HTMLTableRowElement>) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    e.currentTarget.classList.add('border-dashed', 'border-2', 'border-primary');
+  };
+
+  const handleDragLeave = (e: React.DragEvent<HTMLTableRowElement>) => {
+    e.currentTarget.classList.remove('border-dashed', 'border-2', 'border-primary');
+  };
+
+  const handleDrop = (e: React.DragEvent, targetIndex: number, targetGroupId?: string) => {
+    e.preventDefault();
+    e.currentTarget.classList.remove('border-dashed', 'border-2', 'border-primary');
+    
+    const dragData = JSON.parse(e.dataTransfer.getData('text/plain'));
+    const { index: startIndex, groupId: sourceGroupId } = dragData;
     
     if (sourceGroupId === targetGroupId && startIndex === targetIndex) return;
     
     let actualStartIndex = startIndex;
-    
     if (sourceGroupId) {
       actualStartIndex = getGroupItemIndex(sourceGroupId, startIndex);
     }
@@ -77,6 +96,12 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
     }
     
     onReorder(actualStartIndex, actualTargetIndex, targetGroupId);
+    setDraggedItem(null);
+  };
+
+  const handleDragEnd = (e: React.DragEvent<HTMLTableRowElement>) => {
+    e.currentTarget.classList.remove('opacity-50');
+    setDraggedItem(null);
   };
 
   const renderFileLink = (fichier_path: string | null) => {
@@ -133,6 +158,22 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
               <TableRow 
                 className="border-b hover:bg-gray-50 cursor-pointer" 
                 onClick={() => onToggleGroup(group.id)}
+                draggable
+                onDragStart={(e) => {
+                  e.stopPropagation();
+                  const index = groups.findIndex(g => g.id === group.id);
+                  handleDragStart(e, index);
+                }}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={(e) => {
+                  e.stopPropagation();
+                  const index = groups.findIndex(g => g.id === group.id);
+                  if (draggedItem?.groupId === null) {
+                    handleDrop(e, index);
+                  }
+                }}
+                onDragEnd={handleDragEnd}
               >
                 <TableCell className="py-3 px-2 w-10">
                   <GripVertical className="h-5 w-5 text-gray-400" />
@@ -176,24 +217,11 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
                     key={doc.id} 
                     className="border-b hover:bg-gray-50 bg-gray-50"
                     draggable
-                    onDragStart={(e) => {
-                      e.dataTransfer.setData('text/plain', JSON.stringify({
-                        index: index,
-                        groupId: group.id
-                      }));
-                      e.currentTarget.classList.add('opacity-50');
-                    }}
-                    onDragOver={(e) => {
-                      e.preventDefault();
-                      e.currentTarget.classList.add('border-dashed', 'border-2', 'border-primary');
-                    }}
-                    onDragLeave={(e) => {
-                      e.currentTarget.classList.remove('border-dashed', 'border-2', 'border-primary');
-                    }}
+                    onDragStart={(e) => handleDragStart(e, index, group.id)}
+                    onDragOver={handleDragOver}
+                    onDragLeave={handleDragLeave}
                     onDrop={(e) => handleDrop(e, index, group.id)}
-                    onDragEnd={(e) => {
-                      e.currentTarget.classList.remove('opacity-50');
-                    }}
+                    onDragEnd={handleDragEnd}
                   >
                     <TableCell className="py-3 px-2 w-10">
                       <GripVertical className="h-5 w-5 text-gray-400" />
@@ -308,24 +336,11 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
               key={doc.id} 
               className="border-b hover:bg-gray-50"
               draggable
-              onDragStart={(e) => {
-                e.dataTransfer.setData('text/plain', JSON.stringify({
-                  index: index,
-                  groupId: null
-                }));
-                e.currentTarget.classList.add('opacity-50');
-              }}
-              onDragOver={(e) => {
-                e.preventDefault();
-                e.currentTarget.classList.add('border-dashed', 'border-2', 'border-primary');
-              }}
-              onDragLeave={(e) => {
-                e.currentTarget.classList.remove('border-dashed', 'border-2', 'border-primary');
-              }}
+              onDragStart={(e) => handleDragStart(e, index)}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
               onDrop={(e) => handleDrop(e, index)}
-              onDragEnd={(e) => {
-                e.currentTarget.classList.remove('opacity-50');
-              }}
+              onDragEnd={handleDragEnd}
             >
               <TableCell className="py-3 px-2 w-10">
                 <GripVertical className="h-5 w-5 text-gray-400" />
