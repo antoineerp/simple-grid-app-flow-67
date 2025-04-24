@@ -81,12 +81,26 @@ require_once 'index-validator.php';
             if (!file_exists('./assets/index.js')) {
                 $js_content = "// Fichier pont pour la compatibilité avec les scripts de diagnostic\n";
                 $js_content .= "console.log('Chargement du fichier pont index.js');\n";
-                $js_content .= "// Import dynamique du fichier principal s'il existe\n";
+                $js_content .= "// En mode développement, importer depuis src\n";
+                $js_content .= "// En mode production, on utilisera le fichier hashé\n";
                 $js_content .= "try {\n";
-                $js_content .= "  const mainModule = await import('./main-B-vZZSaR.js').catch(() => null);\n";
-                $js_content .= "  if (!mainModule) console.error('Fichier main-B-vZZSaR.js non trouvé');\n";
+                $js_content .= "  // Tenter d'importer depuis src (développement)\n";
+                $js_content .= "  import('/src/main.tsx')\n";
+                $js_content .= "    .catch(e => {\n";
+                $js_content .= "      console.log(\"Tentative d'import depuis src échouée, essai avec main.js:\", e);\n";
+                $js_content .= "      // Fallback pour la production\n";
+                $js_content .= "      import('/src/main.js').catch(err => {\n";
+                $js_content .= "        console.error(\"Impossible de charger le fichier JavaScript principal:\", err);\n";
+                $js_content .= "        document.body.innerHTML += `\n";
+                $js_content .= "          <div style=\"color: red; padding: 20px; text-align: center;\">\n";
+                $js_content .= "            <h2>Erreur de chargement</h2>\n";
+                $js_content .= "            <p>Impossible de charger le fichier JavaScript principal.</p>\n";
+                $js_content .= "          </div>\n";
+                $js_content .= "        `;\n";
+                $js_content .= "      });\n";
+                $js_content .= "    });\n";
                 $js_content .= "} catch (e) {\n";
-                $js_content .= "  console.error('Erreur lors du chargement du module principal:', e);\n";
+                $js_content .= "  console.error(\"Erreur lors du chargement du script:\", e);\n";
                 $js_content .= "}\n";
                 
                 file_put_contents('./assets/index.js', $js_content);
@@ -96,8 +110,24 @@ require_once 'index-validator.php';
             
             if (!file_exists('./assets/index.css')) {
                 $css_content = "/* Fichier pont pour la compatibilité avec index.html */\n";
-                $css_content .= "/* Ce fichier importe le CSS compilé s'il existe */\n";
-                $css_content .= "@import url('./main-B-vZZSaR.css');\n";
+                $css_content .= "/* Ce fichier importe le CSS compilé s'il existe */\n\n";
+                $css_content .= "/* Import conditionnel via JavaScript pour éviter les erreurs */\n";
+                $css_content .= ":root {\n";
+                $css_content .= "  /* Styles de base pour éviter un écran blanc */\n";
+                $css_content .= "  --background: 0 0% 100%;\n";
+                $css_content .= "  --foreground: 222.2 84% 4.9%;\n";
+                $css_content .= "}\n\n";
+                $css_content .= "body {\n";
+                $css_content .= "  font-family: sans-serif;\n";
+                $css_content .= "  margin: 0;\n";
+                $css_content .= "  padding: 0;\n";
+                $css_content .= "  background-color: hsl(var(--background));\n";
+                $css_content .= "  color: hsl(var(--foreground));\n";
+                $css_content .= "}\n\n";
+                $css_content .= "/* \n";
+                $css_content .= "  Note: PostCSS ne permet pas d'imports conditionnels, alors nous utilisons\n";
+                $css_content .= "  un style de base minimal et laissons JavaScript charger le bon CSS\n";
+                $css_content .= "*/\n";
                 
                 file_put_contents('./assets/index.css', $css_content);
                 echo "<p>Création du fichier pont index.css: <span class='success'>OK</span></p>";
