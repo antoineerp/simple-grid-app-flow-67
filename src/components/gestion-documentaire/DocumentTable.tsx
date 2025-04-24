@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Pencil, Trash, GripVertical, ChevronDown, ExternalLink } from 'lucide-react';
 import ResponsableSelector from '@/components/ResponsableSelector';
@@ -44,9 +43,7 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
   const ungroupedDocuments = documents.filter(d => !d.groupId);
   const [draggedItem, setDraggedItem] = useState<{ id: string, groupId?: string } | null>(null);
 
-  // Préparation des données pour le dépôt
   const prepareItems = () => {
-    // Commencer avec les documents non groupés
     let allItems: { id: string; groupId?: string; index: number }[] = 
       ungroupedDocuments.map((item, index) => ({
         id: item.id,
@@ -54,7 +51,6 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
         index
       }));
 
-    // Ajouter les documents groupés
     groups.forEach(group => {
       const groupItems = documents.filter(item => item.groupId === group.id)
         .map((item, groupIndex) => ({
@@ -68,25 +64,21 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
     return allItems;
   };
 
-  // Gérer le début du glisser-déposer
   const handleDragStart = (e: React.DragEvent<HTMLTableRowElement>, id: string, groupId?: string) => {
     setDraggedItem({ id, groupId });
     e.dataTransfer.setData('text/plain', JSON.stringify({ id, groupId }));
     e.currentTarget.classList.add('opacity-50');
   };
 
-  // Gérer le survol lors du glisser-déposer
   const handleDragOver = (e: React.DragEvent<HTMLTableRowElement>) => {
     e.preventDefault();
     e.currentTarget.classList.add('border-dashed', 'border-2', 'border-primary');
   };
 
-  // Gérer la sortie du survol lors du glisser-déposer
   const handleDragLeave = (e: React.DragEvent<HTMLTableRowElement>) => {
     e.currentTarget.classList.remove('border-dashed', 'border-2', 'border-primary');
   };
 
-  // Gérer le dépôt d'un élément
   const handleDrop = (e: React.DragEvent<HTMLTableRowElement>, targetId: string, targetGroupId?: string) => {
     e.preventDefault();
     e.currentTarget.classList.remove('border-dashed', 'border-2', 'border-primary');
@@ -102,12 +94,9 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
     
     if (!sourceItem || !targetItem) return;
     
-    // Calculer les indices absolus
-    const sourceIndex = sourceItem.index;
+    let sourceIndex = sourceItem.index;
     let targetIndex = targetItem.index;
     
-    // Ajuster l'index source en fonction du groupe
-    let adjustedSourceIndex = sourceIndex;
     if (sourceGroupId) {
       const groupStartIndex = ungroupedDocuments.length;
       const previousGroupsItemCount = groups
@@ -116,11 +105,9 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
           return total + documents.filter(d => d.groupId === g.id).length;
         }, 0);
       
-      adjustedSourceIndex = groupStartIndex + previousGroupsItemCount + sourceIndex;
+      sourceIndex = groupStartIndex + previousGroupsItemCount + sourceIndex;
     }
     
-    // Ajuster l'index cible en fonction du groupe
-    let adjustedTargetIndex = targetIndex;
     if (targetGroupId) {
       const groupStartIndex = ungroupedDocuments.length;
       const previousGroupsItemCount = groups
@@ -129,15 +116,13 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
           return total + documents.filter(d => d.groupId === g.id).length;
         }, 0);
       
-      adjustedTargetIndex = groupStartIndex + previousGroupsItemCount + targetIndex;
+      targetIndex = groupStartIndex + previousGroupsItemCount + targetIndex;
     }
     
-    // Effectuer la réorganisation
     onReorder(adjustedSourceIndex, adjustedTargetIndex, targetGroupId);
     setDraggedItem(null);
   };
 
-  // Gérer le dépôt sur un groupe
   const handleGroupDrop = (e: React.DragEvent<HTMLTableRowElement>, groupId: string) => {
     e.preventDefault();
     e.currentTarget.classList.remove('border-dashed', 'border-2', 'border-primary');
@@ -146,22 +131,18 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
       const data = JSON.parse(e.dataTransfer.getData('text/plain'));
       
       if (data.id) {
-        // C'est un document qu'on déplace
         const sourceId = data.id;
         const sourceGroupId = data.groupId;
         
-        if (sourceGroupId === groupId) return; // Même groupe, rien à faire
+        if (sourceGroupId === groupId) return;
         
         const sourceDocument = documents.find(d => d.id === sourceId);
         if (!sourceDocument) return;
         
-        // Trouver l'index source
         let sourceIndex = -1;
         if (!sourceGroupId) {
-          // Document non groupé
           sourceIndex = ungroupedDocuments.findIndex(d => d.id === sourceId);
         } else {
-          // Document groupé
           const groupIndex = groups.findIndex(g => g.id === sourceGroupId);
           if (groupIndex === -1) return;
           
@@ -176,7 +157,6 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
         
         if (sourceIndex === -1) return;
         
-        // Calculer l'index cible (fin du groupe cible)
         const targetGroup = groups.find(g => g.id === groupId);
         if (!targetGroup) return;
         
@@ -188,10 +168,8 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
             return total + documents.filter(d => d.groupId === g.id).length;
           }, 0) + targetGroupItems.length;
         
-        // Effectuer la réorganisation
         onReorder(sourceIndex, targetIndex, groupId);
       } else if (data.groupId) {
-        // C'est un groupe qu'on déplace
         const sourceGroupId = data.groupId;
         const sourceIndex = groups.findIndex(g => g.id === sourceGroupId);
         const targetIndex = groups.findIndex(g => g.id === groupId);
@@ -212,7 +190,6 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
     setDraggedItem(null);
   };
 
-  // Gérer le début du glisser-déposer pour un groupe
   const handleGroupDragStart = (e: React.DragEvent<HTMLTableRowElement>, groupId: string) => {
     e.dataTransfer.setData('text/plain', JSON.stringify({ groupId }));
     e.currentTarget.classList.add('opacity-50');
@@ -306,7 +283,7 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
                     <ChevronDown 
                       className={`h-4 w-4 mr-2 inline-block transition-transform ${group.expanded ? 'rotate-180' : ''}`} 
                     />
-                    <span className="font-medium text-app-blue">{group.name}</span>
+                    <span className="font-bold text-black">{group.name}</span>
                   </div>
                 </TableCell>
                 <TableCell className="py-3 px-4 text-right">
