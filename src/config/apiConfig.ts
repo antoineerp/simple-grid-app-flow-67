@@ -18,7 +18,37 @@ const getBaseApiUrl = () => {
   }
 };
 
+// Export renamed function to match what's being imported in multiple files
+export const getApiUrl = getBaseApiUrl;
+
 export const API_BASE_URL = getBaseApiUrl();
+
+// Fonction utilitaire pour gérer les erreurs dans les appels fetch
+export const fetchWithErrorHandling = async (url: string, options: RequestInit = {}) => {
+  try {
+    console.log(`Appel API: ${url}`);
+    const response = await fetch(url, options);
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`Erreur HTTP ${response.status}: ${errorText}`);
+      
+      try {
+        // Tenter de parser comme JSON pour l'erreur
+        const errorJson = JSON.parse(errorText);
+        throw new Error(errorJson.message || `Erreur ${response.status}: ${response.statusText}`);
+      } catch (parseError) {
+        // Si ce n'est pas du JSON, retourner le texte brut
+        throw new Error(`Erreur ${response.status}: ${errorText.substring(0, 100)}`);
+      }
+    }
+    
+    return await response.json();
+  } catch (error) {
+    console.error(`Erreur lors de l'appel API à ${url}:`, error);
+    throw error;
+  }
+};
 
 // Test de connexion à l'API pour s'assurer que le serveur est disponible
 export const testApiConnection = async () => {
