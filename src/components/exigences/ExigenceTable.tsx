@@ -55,7 +55,22 @@ const ExigenceTable: React.FC<ExigenceTableProps> = ({
     return localIndex;
   };
 
-  const handleDrop = (event: React.DragEvent, targetIndex: number, targetGroupId?: string) => {
+  const handleDragStart = (e: React.DragEvent<HTMLTableRowElement>, index: number, groupId: string | null = null) => {
+    const dragData = JSON.stringify({ index, groupId });
+    e.dataTransfer.setData('text/plain', dragData);
+    e.currentTarget.classList.add('opacity-50');
+  };
+
+  const handleDragOver = (e: React.DragEvent<HTMLTableRowElement>) => {
+    e.preventDefault();
+    e.currentTarget.classList.add('border-dashed', 'border-2', 'border-primary');
+  };
+
+  const handleDragLeave = (e: React.DragEvent<HTMLTableRowElement>) => {
+    e.currentTarget.classList.remove('border-dashed', 'border-2', 'border-primary');
+  };
+
+  const handleDrop = (event: React.DragEvent<HTMLTableRowElement>, targetIndex: number, targetGroupId?: string) => {
     event.preventDefault();
     event.currentTarget.classList.remove('border-dashed', 'border-2', 'border-primary');
     
@@ -66,7 +81,6 @@ const ExigenceTable: React.FC<ExigenceTableProps> = ({
     if (sourceGroupId === targetGroupId && startIndex === targetIndex) return;
     
     let actualStartIndex = startIndex;
-    
     if (sourceGroupId) {
       actualStartIndex = getGroupItemIndex(sourceGroupId, startIndex);
     }
@@ -77,6 +91,10 @@ const ExigenceTable: React.FC<ExigenceTableProps> = ({
     }
     
     onReorder(actualStartIndex, actualTargetIndex, targetGroupId);
+  };
+
+  const handleDragEnd = (e: React.DragEvent<HTMLTableRowElement>) => {
+    e.currentTarget.classList.remove('opacity-50');
   };
 
   return (
@@ -154,24 +172,11 @@ const ExigenceTable: React.FC<ExigenceTableProps> = ({
                     key={exigence.id} 
                     className="border-b hover:bg-gray-50 bg-gray-50"
                     draggable
-                    onDragStart={(e) => {
-                      e.dataTransfer.setData('text/plain', JSON.stringify({
-                        index: index,
-                        groupId: group.id
-                      }));
-                      e.currentTarget.classList.add('opacity-50');
-                    }}
-                    onDragOver={(e) => {
-                      e.preventDefault();
-                      e.currentTarget.classList.add('border-dashed', 'border-2', 'border-primary');
-                    }}
-                    onDragLeave={(e) => {
-                      e.currentTarget.classList.remove('border-dashed', 'border-2', 'border-primary');
-                    }}
+                    onDragStart={(e) => handleDragStart(e, index, group.id)}
+                    onDragOver={handleDragOver}
+                    onDragLeave={handleDragLeave}
                     onDrop={(e) => handleDrop(e, index, group.id)}
-                    onDragEnd={(e) => {
-                      e.currentTarget.classList.remove('opacity-50');
-                    }}
+                    onDragEnd={handleDragEnd}
                   >
                     <TableCell className="py-3 px-2 w-10">
                       <GripVertical className="h-5 w-5 text-gray-400" />
@@ -283,24 +288,11 @@ const ExigenceTable: React.FC<ExigenceTableProps> = ({
               key={exigence.id} 
               className="border-b hover:bg-gray-50"
               draggable
-              onDragStart={(e) => {
-                e.dataTransfer.setData('text/plain', JSON.stringify({
-                  index: index,
-                  groupId: null
-                }));
-                e.currentTarget.classList.add('opacity-50');
-              }}
-              onDragOver={(e) => {
-                e.preventDefault();
-                e.currentTarget.classList.add('border-dashed', 'border-2', 'border-primary');
-              }}
-              onDragLeave={(e) => {
-                e.currentTarget.classList.remove('border-dashed', 'border-2', 'border-primary');
-              }}
+              onDragStart={(e) => handleDragStart(e, index)}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
               onDrop={(e) => handleDrop(e, index)}
-              onDragEnd={(e) => {
-                e.currentTarget.classList.remove('opacity-50');
-              }}
+              onDragEnd={handleDragEnd}
             >
               <TableCell className="py-3 px-2 w-10">
                 <GripVertical className="h-5 w-5 text-gray-400" />
