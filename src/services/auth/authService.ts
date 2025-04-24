@@ -96,14 +96,44 @@ export const login = async (username: string, password: string): Promise<LoginRe
 
     console.log('Réponse du serveur reçue', response.status);
     
+    // Amélioration de la gestion des erreurs serveur
     if (!response.ok) {
       if (response.status === 500) {
         console.error('Erreur serveur 500:', response.statusText);
-        return {
-          success: false,
-          message: `Erreur serveur (${response.status}): ${response.statusText || 'Problème avec le serveur'}`
-        };
+        
+        try {
+          // Tenter de lire le corps de la réponse même en cas d'erreur 500
+          const errorText = await response.text();
+          console.error('Détails de l\'erreur 500:', errorText);
+          
+          // Si c'est du JSON, essayer de le parser
+          try {
+            const errorJson = JSON.parse(errorText);
+            return {
+              success: false,
+              message: errorJson.message || errorJson.error || `Erreur serveur (${response.status})`
+            };
+          } catch (jsonError) {
+            // Si ce n'est pas du JSON valide, retourner le texte brut
+            return {
+              success: false,
+              message: `Erreur serveur (${response.status}): ${errorText.substring(0, 100)}...`
+            };
+          }
+        } catch (readError) {
+          // Si on ne peut même pas lire la réponse
+          return {
+            success: false,
+            message: `Erreur serveur (${response.status}): ${response.statusText || 'Problème avec le serveur'}`
+          };
+        }
       }
+      
+      // Pour les autres erreurs
+      return {
+        success: false,
+        message: `Erreur HTTP ${response.status}: ${response.statusText}`
+      };
     }
     
     const data = await response.json();
