@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { FileText, UserPlus } from 'lucide-react';
+import { FileText, UserPlus, RefreshCw } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import {
   Dialog,
@@ -9,6 +9,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 import { useMembres } from '@/contexts/MembresContext';
 import MemberList from '@/components/ressources-humaines/MemberList';
 import MemberForm from '@/components/ressources-humaines/MemberForm';
@@ -17,7 +18,7 @@ import { syncMembresWithServer } from '@/services/membres/membresService';
 
 const RessourcesHumaines = () => {
   const { toast } = useToast();
-  const { membres, setMembres, loading } = useMembres();
+  const { membres, setMembres, loading, refreshMembres } = useMembres();
   
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [currentMembre, setCurrentMembre] = useState<Membre>({
@@ -31,6 +32,7 @@ const RessourcesHumaines = () => {
   });
   const [isEditing, setIsEditing] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Synchroniser avec le serveur au chargement
   useEffect(() => {
@@ -53,6 +55,22 @@ const RessourcesHumaines = () => {
     
     syncWithServer();
   }, [membres, loading]);
+
+  // Handler pour rafraîchir les données
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      await refreshMembres();
+      toast({
+        title: "Données rafraîchies",
+        description: "La liste des membres a été mise à jour",
+      });
+    } catch (error) {
+      console.error("Erreur lors du rafraîchissement:", error);
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
 
   // Handler for edit action
   const handleEdit = (id: string) => {
@@ -160,7 +178,18 @@ const RessourcesHumaines = () => {
           <h1 className="text-3xl font-bold text-app-blue">Ressources Humaines</h1>
           <p className="text-gray-600">Collaborateurs/trices du projet</p>
         </div>
-        <FileText className="text-red-500 h-6 w-6" />
+        <div className="flex space-x-2">
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={handleRefresh}
+            disabled={isRefreshing}
+          >
+            <RefreshCw className={`h-4 w-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
+            Actualiser
+          </Button>
+          <FileText className="text-red-500 h-6 w-6" />
+        </div>
       </div>
 
       <div className="bg-white rounded-md shadow overflow-hidden mt-6">

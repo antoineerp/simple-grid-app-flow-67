@@ -1,110 +1,97 @@
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useState, useContext, useEffect } from 'react';
 import { Membre } from '@/types/membres';
-import { loadMembresFromStorage, saveMembresInStorage, syncMembresWithServer } from '@/services/membres/membresService';
-import { getCurrentUserId } from '@/services/core/syncService';
+import { loadMembresFromStorage, saveMembresInStorage } from '@/services/membres/membresService';
+import { useToast } from '@/hooks/use-toast';
 
-// Interface pour le contexte
 interface MembresContextType {
   membres: Membre[];
   setMembres: React.Dispatch<React.SetStateAction<Membre[]>>;
   loading: boolean;
-  syncWithServer: () => Promise<boolean>;
+  refreshMembres: () => Promise<void>;
 }
 
-// Création du contexte avec une valeur par défaut
 const MembresContext = createContext<MembresContextType>({
   membres: [],
   setMembres: () => {},
   loading: true,
-  syncWithServer: async () => false
+  refreshMembres: async () => {}
 });
 
-// Hook personnalisé pour utiliser le contexte
 export const useMembres = () => useContext(MembresContext);
 
 export const MembresProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [membres, setMembresState] = useState<Membre[]>([]);
+  const { toast } = useToast();
+  const [membres, setMembres] = useState<Membre[]>([]);
   const [loading, setLoading] = useState(true);
-  const [isSyncing, setIsSyncing] = useState(false);
-  const [currentUser, setCurrentUser] = useState<string | null>(null);
 
-  useEffect(() => {
-    const loadMembres = () => {
-      // Utilisez getCurrentUserId du service de synchronisation
-      const user = getCurrentUserId();
-      setCurrentUser(user);
+  // Fonction pour charger les membres depuis le serveur ou le localStorage
+  const loadMembres = async () => {
+    setLoading(true);
+    
+    try {
+      // Récupérer l'identifiant de l'utilisateur courant
+      const currentUser = localStorage.getItem('currentUser') || 
+                         localStorage.getItem('userEmail') || 
+                         'default_user';
       
-      console.log("Chargement des membres pour", user);
-      const loadedMembres = loadMembresFromStorage(user);
-      setMembresState(loadedMembres);
+      console.log("Chargement des membres pour:", currentUser);
+      
+      // Charger les membres (essaie d'abord le serveur, puis localStorage)
+      const loadedMembres = await loadMembresFromStorage(currentUser);
+      
+      console.log(`${loadedMembres.length} membres chargés`);
+      setMembres(loadedMembres);
+      
+    } catch (error) {
+      console.error("Erreur lors du chargement des membres:", error);
+      toast({
+        title: "Erreur",
+        description: "Impossible de charger les membres",
+        variant: "destructive",
+      });
+    } finally {
       setLoading(false);
-    };
-
-    loadMembres();
-    
-    // Écouter les changements d'utilisateur
-    const handleUserChange = () => {
-      const newUser = getCurrentUserId();
-      if (newUser !== currentUser) {
-        console.log("Changement d'utilisateur détecté:", newUser);
-        loadMembres();
-      }
-    };
-
-    window.addEventListener('userChanged', handleUserChange);
-    
-    return () => {
-      window.removeEventListener('userChanged', handleUserChange);
-    };
-  }, [currentUser]);
-
-  // Synchroniser avec le serveur au chargement
-  useEffect(() => {
-    const syncWithServer = async () => {
-      if (membres.length > 0 && !loading && currentUser) {
-        try {
-          setIsSyncing(true);
-          await syncMembresWithServer(membres, currentUser);
-        } catch (error) {
-          console.error("Erreur lors de la synchronisation initiale:", error);
-        } finally {
-          setIsSyncing(false);
-        }
-      }
-    };
-    
-    syncWithServer();
-  }, [membres, loading, currentUser]);
-
-  // Wrapped setMembres to also save to storage
-  const setMembres = (membresOrFunction: React.SetStateAction<Membre[]>) => {
-    setMembresState(prev => {
-      const newMembres = typeof membresOrFunction === 'function' 
-        ? membresOrFunction(prev)
-        : membresOrFunction;
-        
-      if (currentUser) {
-        saveMembresInStorage(newMembres, currentUser);
-      }
-      
-      return newMembres;
-    });
+    }
   };
 
-  // Function to trigger manual synchronization
-  const syncWithServer = async () => {
-    if (!currentUser) return false;
+  // Charger les membres au montage du composant
+  useEffect(() => {
+    loadMembres();
     
-    setIsSyncing(true);
-    const success = await syncMembresWithServer(membres, currentUser);
-    setIsSyncing(false);
+    // Écouter les événements de mise à jour des membres
+    const handleMembresUpdate = () => {
+      console.log("Événement de mise à jour des membres détecté");
+      loadMembres();
+    };
     
-    return success;
+    window.addEventListener('membresUpdate', handleMembresUpdate);
+    
+    // Nettoyer l'écouteur d'événements
+    return () => {
+      window.removeEventListener('membresUpdate', handleMembresUpdate);
+    };
+  }, []);
+
+  // Sauvegarder les membres lorsqu'ils changent
+  useEffect(() => {
+    if (membres.length > 0 && !loading) {
+      const currentUser = localStorage.getItem('currentUser') || 
+                         localStorage.getItem('userEmail') || 
+                         'default_user';
+      
+      console.log(`Sauvegarde de ${membres.length} membres pour ${currentUser}`);
+      saveMembresInStorage(membres, currentUser);
+    }
+  }, [membres, loading]);
+
+  // Fonction pour rafraîchir les membres
+  const refreshMembres = async () => {
+    await loadMembres();
   };
 
   return (
-    <MembresContext.Provider value={{ membres, setMembres, loading, syncWithServer }}>
+    <MembresContext.Provider value={{ membres, setMembres, loading, refreshMembres }}>
       {children}
     </MembresContext.Provider>
   );
