@@ -2,6 +2,13 @@
 # Activer la réécriture d'URL
 RewriteEngine On
 
+# Activer le cross-origin
+SetEnvIf Origin "^(.*)$" ORIGIN=$1
+Header set Access-Control-Allow-Origin "%{ORIGIN}e" env=ORIGIN
+Header set Access-Control-Allow-Methods "GET, POST, OPTIONS, PUT, DELETE"
+Header set Access-Control-Allow-Headers "Content-Type, Authorization, X-Requested-With"
+Header set Access-Control-Allow-Credentials "true"
+
 # Permettre l'accès direct aux fichiers PHP spécifiques
 RewriteCond %{REQUEST_FILENAME} -f
 RewriteRule \.(php)$ - [L]
@@ -11,13 +18,8 @@ RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^(.*)$ index.php [QSA,L]
 
-# Définir les en-têtes CORS
+# Eviter la mise en cache
 <IfModule mod_headers.c>
-    Header set Access-Control-Allow-Origin "*"
-    Header set Access-Control-Allow-Methods "GET, POST, OPTIONS, PUT, DELETE"
-    Header set Access-Control-Allow-Headers "Content-Type, Authorization"
-    
-    # Eviter la mise en cache
     Header set Cache-Control "no-cache, no-store, must-revalidate"
     Header set Pragma "no-cache"
     Header set Expires 0
@@ -26,4 +28,14 @@ RewriteRule ^(.*)$ index.php [QSA,L]
 # Forcer PHP à utiliser le bon encodage
 <IfModule mod_php.c>
     php_value default_charset "UTF-8"
+    php_value output_buffering Off
+    php_value display_errors On
+    php_value log_errors On
+    php_value error_reporting E_ALL
 </IfModule>
+
+# Gérer les erreurs PHP spécifiques
+<FilesMatch "\.(php)$">
+    php_value display_errors On
+    php_value error_log php_errors.log
+</FilesMatch>
