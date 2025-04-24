@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -41,7 +40,6 @@ const UserForm = ({ onClose, onSuccess, onUserConnect }: UserFormProps) => {
   const [hasManager, setHasManager] = useState(false);
 
   useEffect(() => {
-    // Vérifier si un gestionnaire existe déjà
     if (utilisateurs.some(user => user.role === 'gestionnaire')) {
       setHasManager(true);
     }
@@ -51,19 +49,16 @@ const UserForm = ({ onClose, onSuccess, onUserConnect }: UserFormProps) => {
     const errors: {[key: string]: string} = {};
     let isValid = true;
     
-    // Validation du nom
     if (!formData.nom.trim()) {
       errors.nom = "Le nom est requis";
       isValid = false;
     }
     
-    // Validation du prénom
     if (!formData.prenom.trim()) {
       errors.prenom = "Le prénom est requis";
       isValid = false;
     }
     
-    // Validation de l'email
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!formData.email.trim()) {
       errors.email = "L'email est requis";
@@ -73,7 +68,6 @@ const UserForm = ({ onClose, onSuccess, onUserConnect }: UserFormProps) => {
       isValid = false;
     }
     
-    // Validation du mot de passe
     if (!formData.mot_de_passe) {
       errors.mot_de_passe = "Le mot de passe est requis";
       isValid = false;
@@ -82,7 +76,6 @@ const UserForm = ({ onClose, onSuccess, onUserConnect }: UserFormProps) => {
       isValid = false;
     }
     
-    // Validation du rôle
     if (formData.role === 'gestionnaire' && hasManager) {
       errors.role = "Un gestionnaire existe déjà. Un seul compte gestionnaire est autorisé.";
       isValid = false;
@@ -96,7 +89,6 @@ const UserForm = ({ onClose, onSuccess, onUserConnect }: UserFormProps) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
     
-    // Réinitialiser l'erreur du champ modifié
     if (fieldErrors[name]) {
       setFieldErrors(prev => ({ ...prev, [name]: '' }));
     }
@@ -106,7 +98,6 @@ const UserForm = ({ onClose, onSuccess, onUserConnect }: UserFormProps) => {
     e.preventDefault();
     setFormError(null);
     
-    // Valider le formulaire
     if (!validateForm()) {
       return;
     }
@@ -114,15 +105,15 @@ const UserForm = ({ onClose, onSuccess, onUserConnect }: UserFormProps) => {
     setIsSubmitting(true);
 
     try {
+      console.log("Submitted user data:", formData);
       const result = await createUser(formData);
-      console.log("Résultat de la création:", result);
+      console.log("User creation result:", result);
       
       toast({
         title: "Utilisateur créé",
         description: "L'utilisateur a été créé avec succès.",
       });
       
-      // Si l'option de connexion est activée, se connecter avec le nouvel utilisateur
       if (connectAfterCreate && result.identifiant_technique) {
         try {
           const connectSuccess = await connectAsUser(result.identifiant_technique);
@@ -153,10 +144,13 @@ const UserForm = ({ onClose, onSuccess, onUserConnect }: UserFormProps) => {
       
       onClose();
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "Une erreur est survenue";
+      console.error("Erreur complète lors de la création de l'utilisateur:", error);
+      const errorMessage = error instanceof Error 
+        ? error.message 
+        : "Une erreur est survenue lors de la création de l'utilisateur";
+      
       setFormError(errorMessage);
       
-      // Détecter les erreurs liées à des champs spécifiques
       if (errorMessage.includes("email existe déjà")) {
         setFieldErrors(prev => ({ ...prev, email: "Cet email est déjà utilisé" }));
       } else if (errorMessage.includes("Un seul compte gestionnaire")) {
