@@ -23,9 +23,10 @@ AddType application/x-httpd-php .php
     Header set Pragma "no-cache"
     Header set Expires 0
     
-    # Forcer Content-Type JSON pour les réponses
+    # Ne pas modifier Content-Type pour les fichiers PHP
     <FilesMatch "\.(php)$">
-        Header set Content-Type "application/json; charset=UTF-8"
+        Header unset Content-Type
+        SetHandler application/x-httpd-php
     </FilesMatch>
 </IfModule>
 

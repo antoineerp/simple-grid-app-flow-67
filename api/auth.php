@@ -1,5 +1,8 @@
 
 <?php
+// Forcer le bon démarrage du script
+ob_start();
+
 // Activer la journalisation d'erreurs plus détaillée
 ini_set('display_errors', 1);
 error_reporting(E_ALL);
@@ -223,4 +226,5 @@ if (!empty($data->username) && !empty($data->password)) {
 }
 
 error_log("=== FIN DE L'EXÉCUTION DE auth.php ===");
+ob_end_flush();
 ?>
