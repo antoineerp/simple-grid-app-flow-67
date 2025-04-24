@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { useResponsabilityMatrix } from '@/hooks/useResponsabilityMatrix';
@@ -43,6 +44,7 @@ const ResponsibilityMatrix: React.FC = () => {
                   <th className="px-6 py-3 text-left text-sm font-medium text-gray-500">Fonction</th>
                   <th className="px-6 py-3 text-center text-sm font-medium text-gray-500" colSpan={4}>Exigences</th>
                   <th className="px-6 py-3 text-center text-sm font-medium text-gray-500" colSpan={4}>Gestion documentaire</th>
+                  <th className="px-6 py-3 text-center text-sm font-medium text-gray-500" colSpan={4}>Totaux</th>
                 </tr>
                 <tr className="bg-gray-100">
                   <th className="px-6 py-3"></th>
@@ -54,6 +56,10 @@ const ResponsibilityMatrix: React.FC = () => {
                   <th className="px-6 py-3 text-center text-sm font-medium text-gray-500 bg-green-50">A</th>
                   <th className="px-6 py-3 text-center text-sm font-medium text-gray-500 bg-green-50">C</th>
                   <th className="px-6 py-3 text-center text-sm font-medium text-gray-500 bg-green-50">I</th>
+                  <th className="px-6 py-3 text-center text-sm font-medium text-gray-500 bg-yellow-50">R</th>
+                  <th className="px-6 py-3 text-center text-sm font-medium text-gray-500 bg-yellow-50">A</th>
+                  <th className="px-6 py-3 text-center text-sm font-medium text-gray-500 bg-yellow-50">C</th>
+                  <th className="px-6 py-3 text-center text-sm font-medium text-gray-500 bg-yellow-50">I</th>
                 </tr>
               </thead>
               <tbody>
@@ -113,12 +119,17 @@ const ResponsibilityMatrix: React.FC = () => {
                     <td className="px-6 py-3 text-center bg-green-50">{membre.documents.a || '-'}</td>
                     <td className="px-6 py-3 text-center bg-green-50">{membre.documents.c || '-'}</td>
                     <td className="px-6 py-3 text-center bg-green-50">{membre.documents.i || '-'}</td>
+
+                    <td className="px-6 py-3 text-center font-medium bg-yellow-50">{(membre.exigences.r + membre.documents.r) || '-'}</td>
+                    <td className="px-6 py-3 text-center font-medium bg-yellow-50">{(membre.exigences.a + membre.documents.a) || '-'}</td>
+                    <td className="px-6 py-3 text-center font-medium bg-yellow-50">{(membre.exigences.c + membre.documents.c) || '-'}</td>
+                    <td className="px-6 py-3 text-center font-medium bg-yellow-50">{(membre.exigences.i + membre.documents.i) || '-'}</td>
                   </tr>
                 ))}
                 
                 {membreResponsabilites.length === 0 && (
                   <tr>
-                    <td colSpan={9} className="px-6 py-4 text-center text-gray-500">
+                    <td colSpan={13} className="px-6 py-4 text-center text-gray-500">
                       Aucun collaborateur trouvé. Ajoutez des collaborateurs dans la section Ressources Humaines.
                     </td>
                   </tr>
