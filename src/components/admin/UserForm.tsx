@@ -13,7 +13,7 @@ interface UserFormData {
   nom: string;
   prenom: string;
   email: string;
-  role: 'admin' | 'user';
+  role: 'admin' | 'user' | 'gestionnaire';
   mot_de_passe: string;
 }
 

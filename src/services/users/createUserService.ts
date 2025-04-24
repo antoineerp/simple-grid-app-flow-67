@@ -1,4 +1,3 @@
-
 import { getApiUrl } from '@/config/apiConfig';
 import { getAuthHeaders } from '../auth/authService';
 import { v4 as uuidv4 } from 'uuid';
@@ -7,7 +6,7 @@ interface CreateUserData {
   nom: string;
   prenom: string;
   email: string;
-  role: 'admin' | 'user';
+  role: 'admin' | 'user' | 'gestionnaire';
   mot_de_passe: string;
 }
 
@@ -18,8 +17,8 @@ export const createUser = async (userData: CreateUserData) => {
     throw new Error("Le mot de passe doit contenir au moins 6 caractères");
   }
 
-  // Ensure role is either 'admin' or 'user'
-  if (userData.role !== 'admin' && userData.role !== 'user') {
+  // Ensure role is valid
+  if (!['admin', 'user', 'gestionnaire'].includes(userData.role)) {
     console.warn(`Role invalide: ${userData.role}, utilisation de 'user' par défaut`);
     userData.role = 'user';
   }
