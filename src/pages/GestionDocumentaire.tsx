@@ -3,7 +3,7 @@ import React from 'react';
 import { FileDown, FolderPlus } from 'lucide-react';
 import { MembresProvider } from '@/contexts/MembresContext';
 import DocumentForm from '@/components/gestion-documentaire/DocumentForm';
-import DocumentStats from '@/components/gestion-documentaire/DocumentStats';
+import DocumentStatusDisplay from '@/components/gestion-documentaire/DocumentStats';
 import DocumentTable from '@/components/gestion-documentaire/DocumentTable';
 import { DocumentGroupDialog } from '@/components/gestion-documentaire/DocumentGroupDialog';
 import { useDocuments } from '@/hooks/useDocuments';

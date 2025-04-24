@@ -1,6 +1,6 @@
 
 import { useState, useEffect } from 'react';
-import { DocumentStats } from '@/types/documents';
+import type { DocumentStats } from '@/types/documents';
 import { loadDocumentsFromStorage, calculateDocumentStats } from '@/services/documents';
 
 export const useDocumentSummary = () => {

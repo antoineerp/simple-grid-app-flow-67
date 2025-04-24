@@ -1,12 +1,12 @@
 
 import React from 'react';
-import { DocumentStats } from '@/types/documents';
+import type { DocumentStats } from '@/types/documents';
 
 interface DocumentStatsProps {
   stats: DocumentStats;
 }
 
-const DocumentStats: React.FC<DocumentStatsProps> = ({ stats }) => {
+const DocumentStatusDisplay: React.FC<DocumentStatsProps> = ({ stats }) => {
   return (
     <div className="flex space-x-2 mb-4 mt-4">
       <div className="badge bg-gray-200 text-gray-800">
@@ -28,4 +28,4 @@ const DocumentStats: React.FC<DocumentStatsProps> = ({ stats }) => {
   );
 };
 
-export default DocumentStats;
+export default DocumentStatusDisplay;
