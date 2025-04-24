@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Document } from '@/types/documents';
 import { calculateDocumentStats } from '@/services/documents';
@@ -30,24 +31,31 @@ export default function useDocumentSummary() {
       // Simuler le chargement des documents depuis une source de données
       // Remplacez ceci par votre propre logique de chargement de données
       const mockDocuments: Document[] = [
-        { id: '1', nom: 'Document A', statut: 'Conforme', dateCreation: '2023-01-01', dateExpiration: '2024-01-01', type: 'Procedure', excluded: false },
-        { id: '2', nom: 'Document B', statut: 'Non Conforme', dateCreation: '2023-02-01', dateExpiration: '2023-08-01', type: 'Enregistrement', excluded: false },
-        { id: '3', nom: 'Document C', statut: 'Obsolete', dateCreation: '2022-01-01', dateExpiration: '2022-06-01', type: 'Mode Operatoire', excluded: false },
-        { id: '4', nom: 'Document D', statut: 'A Venir', dateCreation: '2024-01-01', dateExpiration: '2025-01-01', type: 'Formulaire', excluded: false },
-        { id: '5', nom: 'Document E', statut: 'Conforme', dateCreation: '2023-03-01', dateExpiration: '2024-03-01', type: 'Protocole', excluded: true },
+        { id: '1', nom: 'Document A', etat: 'C', date_creation: new Date('2023-01-01'), date_modification: new Date('2024-01-01'), responsabilites: { r: [], a: [], c: [], i: [] } },
+        { id: '2', nom: 'Document B', etat: 'NC', date_creation: new Date('2023-02-01'), date_modification: new Date('2023-08-01'), responsabilites: { r: [], a: [], c: [], i: [] } },
+        { id: '3', nom: 'Document C', etat: 'EX', date_creation: new Date('2022-01-01'), date_modification: new Date('2022-06-01'), responsabilites: { r: [], a: [], c: [], i: [] } },
+        { id: '4', nom: 'Document D', etat: 'PC', date_creation: new Date('2024-01-01'), date_modification: new Date('2025-01-01'), responsabilites: { r: [], a: [], c: [], i: [] } },
+        { id: '5', nom: 'Document E', etat: 'C', date_creation: new Date('2023-03-01'), date_modification: new Date('2024-03-01'), responsabilites: { r: [], a: [], c: [], i: [] } },
       ];
 
       setDocuments(mockDocuments);
 
       // Calculer les statistiques à partir des documents
-      if (documents) {
-        const stats = calculateDocumentStats(documents);
-        const statsWithExclusion = {
-          ...stats,
-          exclusion: stats.excluded // Assurer que nous avons la propriété "exclusion"
+      if (mockDocuments) {
+        const calculatedStats = calculateDocumentStats(mockDocuments);
+        
+        // Map the document stats to our expected format
+        const mappedStats: DocumentStats = {
+          total: calculatedStats.total,
+          conformes: calculatedStats.conforme,
+          nonConformes: calculatedStats.nonConforme,
+          obsoletes: 0, // Not in the original stats
+          avenir: 0, // Not in the original stats
+          excluded: calculatedStats.exclusion,
+          exclusion: calculatedStats.exclusion
         };
         
-        setStats(statsWithExclusion);
+        setStats(mappedStats);
         setLoading(false);
       }
     };

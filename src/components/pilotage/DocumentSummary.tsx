@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { useDocumentSummary } from '@/hooks/useDocumentSummary';
+import useDocumentSummary from '@/hooks/useDocumentSummary';
 import { Card, CardContent } from '@/components/ui/card';
 import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
 import { FileText } from 'lucide-react';

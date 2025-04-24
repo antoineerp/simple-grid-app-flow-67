@@ -64,7 +64,7 @@ import { cn } from "@/lib/utils"
 import { format } from "date-fns"
 import { CalendarIcon } from "lucide-react"
 import { DateRange } from "react-day-picker"
-import { useDocumentSummary } from '@/hooks';
+import useDocumentSummary from '@/hooks/useDocumentSummary';
 
 const GestionDocumentaire = () => {
   const [documents, setDocuments] = useState<Document[]>([]);
@@ -117,9 +117,7 @@ const GestionDocumentaire = () => {
     
   useEffect(() => {
     if (documents && documents.length > 0) {
-      // Calcul des statistiques
       const calculatedStats = calculateDocumentStats(documents);
-      // Assurez-vous d'ajouter la propriété "exclusion" requise
       setStats({
         ...calculatedStats,
         exclusion: calculatedStats.excluded
