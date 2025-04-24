@@ -54,18 +54,18 @@ export async function testApiConnection(): Promise<{ success: boolean; message: 
     
     // Obtenir le texte de la réponse
     const responseText = await response.text();
-    
-    // Vérifier si le serveur répond avec du PHP non interprété
     const contentType = response.headers.get('content-type') || '';
+    
     console.log('Content-Type:', contentType);
     console.log('Texte de réponse (premiers 100 caractères):', responseText.substring(0, 100));
     
-    // Vérifier si la réponse commence par "<?php"
+    // Vérifier explicitement si la réponse est du code PHP brut
     if (responseText.trim().startsWith('<?php')) {
       return {
         success: false,
         message: 'Le serveur renvoie le code PHP au lieu de l\'exécuter',
         details: {
+          responseText: responseText,
           tip: 'Vérifiez la configuration du serveur pour exécuter les fichiers PHP'
         }
       };
@@ -80,6 +80,19 @@ export async function testApiConnection(): Promise<{ success: boolean; message: 
         details: data
       };
     } catch (e) {
+      // Si le contenu reçu est HTML, signaler une erreur spécifique
+      if (responseText.trim().startsWith('<!DOCTYPE') || responseText.includes('<html')) {
+        return {
+          success: false,
+          message: 'Réponse HTML reçue au lieu de JSON',
+          details: {
+            error: "Le serveur a renvoyé une page HTML au lieu d'une API JSON",
+            responseType: 'html',
+            responseText: responseText.substring(0, 300)
+          }
+        };
+      }
+      
       return {
         success: false,
         message: 'Réponse non-JSON',
