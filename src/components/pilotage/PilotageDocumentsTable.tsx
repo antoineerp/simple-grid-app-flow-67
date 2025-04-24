@@ -90,9 +90,9 @@ const PilotageDocumentsTable: React.FC<PilotageDocumentsTableProps> = ({
       <Table>
         <TableHeader>
           <TableRow className="bg-app-light-blue">
-            <TableHead className="text-app-blue font-semibold">Nom du document</TableHead>
-            <TableHead className="text-app-blue font-semibold">Lien</TableHead>
-            <TableHead className="text-app-blue font-semibold text-right">Actions</TableHead>
+            <TableHead className="text-app-blue font-medium text-sm">Nom du document</TableHead>
+            <TableHead className="text-app-blue font-medium text-sm">Lien</TableHead>
+            <TableHead className="text-app-blue font-medium text-sm text-right">Actions</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -109,11 +109,11 @@ const PilotageDocumentsTable: React.FC<PilotageDocumentsTableProps> = ({
                 onDrop={(e) => handleDrop(e, index)}
                 onDragEnd={handleDragEnd}
               >
-                <TableCell className="flex items-center">
+                <TableCell className="flex items-center text-sm">
                   <GripVertical className="h-5 w-5 text-gray-400 mr-2 flex-shrink-0 cursor-move" />
                   {doc.nom}
                 </TableCell>
-                <TableCell>
+                <TableCell className="text-sm">
                   {doc.lien ? (
                     <button 
                       onClick={() => handleLinkClick(doc.lien as string)}

@@ -14,20 +14,20 @@ const MemberList = ({ membres, onEdit, onDelete }: MemberListProps) => {
     <table className="w-full">
       <thead>
         <tr className="bg-app-light-blue text-left">
-          <th className="py-3 px-4 text-app-blue font-semibold">Nom</th>
-          <th className="py-3 px-4 text-app-blue font-semibold">Prénom</th>
-          <th className="py-3 px-4 text-app-blue font-semibold">Fonction</th>
-          <th className="py-3 px-4 text-app-blue font-semibold">Initiales</th>
-          <th className="py-3 px-4 text-app-blue font-semibold text-right">Actions</th>
+          <th className="py-3 px-4 text-app-blue font-medium text-sm">Nom</th>
+          <th className="py-3 px-4 text-app-blue font-medium text-sm">Prénom</th>
+          <th className="py-3 px-4 text-app-blue font-medium text-sm">Fonction</th>
+          <th className="py-3 px-4 text-app-blue font-medium text-sm">Initiales</th>
+          <th className="py-3 px-4 text-app-blue font-medium text-sm text-right">Actions</th>
         </tr>
       </thead>
       <tbody>
         {membres.map((membre) => (
           <tr key={membre.id} className="border-b hover:bg-gray-50">
-            <td className="py-3 px-4">{membre.nom}</td>
-            <td className="py-3 px-4">{membre.prenom}</td>
-            <td className="py-3 px-4">{membre.fonction}</td>
-            <td className="py-3 px-4">{membre.initiales}</td>
+            <td className="py-3 px-4 text-sm">{membre.nom}</td>
+            <td className="py-3 px-4 text-sm">{membre.prenom}</td>
+            <td className="py-3 px-4 text-sm">{membre.fonction}</td>
+            <td className="py-3 px-4 text-sm">{membre.initiales}</td>
             <td className="py-3 px-4 text-right">
               <button 
                 className="text-gray-600 hover:text-app-blue mr-3"

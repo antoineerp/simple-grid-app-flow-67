@@ -7,16 +7,16 @@ const DocumentTableHeader = () => {
     <TableHeader>
       <TableRow className="bg-app-light-blue">
         <TableHead className="w-10"></TableHead>
-        <TableHead className="py-3 px-4 text-app-blue font-semibold w-1/3">Nom</TableHead>
-        <TableHead className="py-3 px-4 text-app-blue font-semibold">Fichier</TableHead>
-        <TableHead className="py-3 px-4 text-app-blue font-semibold text-center" colSpan={4}>
+        <TableHead className="py-3 px-4 text-app-blue font-medium text-sm w-1/3">Nom</TableHead>
+        <TableHead className="py-3 px-4 text-app-blue font-medium text-sm">Fichier</TableHead>
+        <TableHead className="py-3 px-4 text-app-blue font-medium text-sm text-center" colSpan={4}>
           Responsabilités
         </TableHead>
-        <TableHead className="py-3 px-4 text-app-blue font-semibold">Exclusion</TableHead>
-        <TableHead className="py-3 px-4 text-app-blue font-semibold text-center" colSpan={3}>
+        <TableHead className="py-3 px-4 text-app-blue font-medium text-sm">Exclusion</TableHead>
+        <TableHead className="py-3 px-4 text-app-blue font-medium text-sm text-center" colSpan={3}>
           Atteinte
         </TableHead>
-        <TableHead className="py-3 px-4 text-app-blue font-semibold text-right">Actions</TableHead>
+        <TableHead className="py-3 px-4 text-app-blue font-medium text-sm text-right">Actions</TableHead>
       </TableRow>
       <TableRow className="bg-app-light-blue">
         <TableHead></TableHead>
