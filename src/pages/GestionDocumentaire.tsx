@@ -83,7 +83,7 @@ const GestionDocumentaireContent = () => {
       </div>
 
       {apiUnavailable && (
-        <Alert variant="warning" className="mb-4 bg-amber-50 text-amber-800 border-amber-200">
+        <Alert variant="default" className="mb-4 bg-amber-50 text-amber-800 border-amber-200">
           <AlertTriangle className="h-4 w-4 mr-2" />
           <AlertDescription>
             <span className="font-bold">Mode hors ligne</span>: La synchronisation avec le serveur n'est pas disponible pour le moment. Les modifications seront sauvegardées localement.
@@ -159,3 +159,4 @@ const GestionDocumentaire = () => (
 );
 
 export default GestionDocumentaire;
+
