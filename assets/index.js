@@ -1,26 +1,33 @@
 
 // Fichier pont pour la compatibilité avec les scripts de diagnostic
-// Ce fichier charge le fichier principal généré par Vite
 console.log("Chargement du fichier pont index.js");
 
 // En mode développement, importer depuis src
-// En mode production, on utilisera le fichier hashé
+// En mode production, on utilisera le fichier hashé le plus récent
 try {
   // Tenter d'importer depuis src (développement)
-  import('/src/main.tsx')
-    .catch(e => {
-      console.log("Tentative d'import depuis src échouée, essai avec main.js:", e);
-      // Fallback pour la production
-      import('/src/main.js').catch(err => {
-        console.error("Impossible de charger le fichier JavaScript principal:", err);
-        document.body.innerHTML += `
-          <div style="color: red; padding: 20px; text-align: center;">
-            <h2>Erreur de chargement</h2>
-            <p>Impossible de charger le fichier JavaScript principal.</p>
-          </div>
-        `;
-      });
-    });
+  const moduleUrl = '/src/main.tsx';
+  import(moduleUrl).catch(async (e) => {
+    console.log("Import depuis src échoué, recherche d'un fichier hashé:", e);
+    
+    // Liste des fichiers possibles dans l'ordre de préférence
+    const possibleFiles = [
+      '/assets/main-DyYsnb4q.js',  // Utiliser le dernier fichier hashé
+      '/assets/main.js',
+      '/src/main.js'
+    ];
+    
+    // Essayer chaque fichier jusqu'à ce qu'un fonctionne
+    for (const file of possibleFiles) {
+      try {
+        await import(file);
+        console.log('Chargement réussi depuis:', file);
+        break;
+      } catch (err) {
+        console.log('Échec du chargement depuis:', file);
+      }
+    }
+  });
 } catch (e) {
-  console.error("Erreur lors du chargement du script:", e);
+  console.error("Erreur critique lors du chargement:", e);
 }

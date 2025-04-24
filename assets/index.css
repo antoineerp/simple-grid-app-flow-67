@@ -1,8 +1,6 @@
 
 /* Fichier pont pour la compatibilité avec index.html */
-/* Ce fichier importe le CSS compilé s'il existe */
 
-/* Import conditionnel via JavaScript pour éviter les erreurs */
 :root {
   /* Styles de base pour éviter un écran blanc */
   --background: 0 0% 100%;
@@ -17,7 +15,6 @@ body {
   color: hsl(var(--foreground));
 }
 
-/* 
-  Note: PostCSS ne permet pas d'imports conditionnels, alors nous utilisons
-  un style de base minimal et laissons JavaScript charger le bon CSS
-*/
+/* Chargement dynamique du CSS via JavaScript si disponible */
+@import url('/src/index.css');
+@import url('/assets/main-DVTLc2K5.css');
