@@ -27,10 +27,14 @@ export const useResponsabilityMatrix = () => {
       
       const exigences = storedExigences ? JSON.parse(storedExigences) : [];
       const documents = storedDocuments ? JSON.parse(storedDocuments) : [];
+      
+      console.log("Exigences chargées:", exigences.length);
+      console.log("Documents chargés:", documents.length);
 
       // Calculer les responsabilités pour chaque membre
       const membresWithResponsabilites = membres.map(membre => {
         const initiales = membre.initiales;
+        console.log(`Calcul des responsabilités pour ${membre.prenom} ${membre.nom} (${initiales})`);
         
         // Initialiser les compteurs
         const exigencesCount = { r: 0, a: 0, c: 0, i: 0 };
@@ -40,21 +44,45 @@ export const useResponsabilityMatrix = () => {
         exigences
           .filter((exigence: any) => !exigence.exclusion)
           .forEach((exigence: any) => {
-            if (exigence.responsabilites && exigence.responsabilites.r && exigence.responsabilites.r.includes(initiales)) exigencesCount.r++;
-            if (exigence.responsabilites && exigence.responsabilites.a && exigence.responsabilites.a.includes(initiales)) exigencesCount.a++;
-            if (exigence.responsabilites && exigence.responsabilites.c && exigence.responsabilites.c.includes(initiales)) exigencesCount.c++;
-            if (exigence.responsabilites && exigence.responsabilites.i && exigence.responsabilites.i.includes(initiales)) exigencesCount.i++;
+            if (exigence.responsabilites) {
+              // Vérifier si les initiales du membre sont dans chaque type de responsabilité
+              if (exigence.responsabilites.r && exigence.responsabilites.r.includes(initiales)) {
+                exigencesCount.r++;
+              }
+              if (exigence.responsabilites.a && exigence.responsabilites.a.includes(initiales)) {
+                exigencesCount.a++;
+              }
+              if (exigence.responsabilites.c && exigence.responsabilites.c.includes(initiales)) {
+                exigencesCount.c++;
+              }
+              if (exigence.responsabilites.i && exigence.responsabilites.i.includes(initiales)) {
+                exigencesCount.i++;
+              }
+            }
           });
         
         // Compter les occurrences dans les documents (en excluant les documents exclus)
         documents
           .filter((document: any) => document.etat !== 'EX')
           .forEach((document: any) => {
-            if (document.responsabilites && document.responsabilites.r && document.responsabilites.r.includes(initiales)) documentsCount.r++;
-            if (document.responsabilites && document.responsabilites.a && document.responsabilites.a.includes(initiales)) documentsCount.a++;
-            if (document.responsabilites && document.responsabilites.c && document.responsabilites.c.includes(initiales)) documentsCount.c++;
-            if (document.responsabilites && document.responsabilites.i && document.responsabilites.i.includes(initiales)) documentsCount.i++;
+            if (document.responsabilites) {
+              // Vérifier si les initiales du membre sont dans chaque type de responsabilité
+              if (document.responsabilites.r && document.responsabilites.r.includes(initiales)) {
+                documentsCount.r++;
+              }
+              if (document.responsabilites.a && document.responsabilites.a.includes(initiales)) {
+                documentsCount.a++;
+              }
+              if (document.responsabilites.c && document.responsabilites.c.includes(initiales)) {
+                documentsCount.c++;
+              }
+              if (document.responsabilites.i && document.responsabilites.i.includes(initiales)) {
+                documentsCount.i++;
+              }
+            }
           });
+
+        console.log(`Résultats pour ${initiales}:`, { exigences: exigencesCount, documents: documentsCount });
 
         // Inclure toutes les propriétés du membre et ajouter les nouvelles propriétés
         return {
