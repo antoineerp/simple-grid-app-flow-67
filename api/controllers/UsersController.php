@@ -120,11 +120,15 @@ try {
                     $user->role = $data->role;
                     
                     if ($user->create()) {
+                        // Récupérer le dernier ID inséré
+                        $lastId = $db->lastInsertId();
+                        
                         http_response_code(201);
                         echo json_encode(array(
                             "message" => "Utilisateur créé avec succès.",
                             "success" => true,
                             "user" => array(
+                                "id" => $lastId,
                                 "nom" => $data->nom,
                                 "prenom" => $data->prenom,
                                 "email" => $data->email,

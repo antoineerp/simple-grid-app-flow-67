@@ -1,4 +1,3 @@
-
 <?php
 // Fonction pour nettoyer les données UTF-8 si elle n'existe pas encore
 if (!function_exists('cleanUTF8')) {
@@ -94,16 +93,11 @@ class User {
                 error_log("Nouvel identifiant technique généré: " . $this->identifiant_technique);
             }
             
-            // Requête d'insertion - IMPORTANT: Ne pas inclure le champ 'id' pour permettre l'auto-incrémentation
+            // Requête d'insertion - IMPORTANTE: Ne PAS inclure l'ID pour permettre l'auto-incrémentation
             $query = "INSERT INTO " . $this->table_name . "
-                    SET
-                        nom = :nom,
-                        prenom = :prenom,
-                        email = :email,
-                        mot_de_passe = :mot_de_passe,
-                        identifiant_technique = :identifiant_technique,
-                        role = :role,
-                        date_creation = NOW()";
+                    (nom, prenom, email, mot_de_passe, identifiant_technique, role, date_creation)
+                    VALUES
+                    (:nom, :prenom, :email, :mot_de_passe, :identifiant_technique, :role, NOW())";
 
             // Préparation de la requête
             $stmt = $this->conn->prepare($query);

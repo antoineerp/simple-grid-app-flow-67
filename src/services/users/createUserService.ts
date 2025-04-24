@@ -52,7 +52,7 @@ export const createUser = async (userData: CreateUserData) => {
         const checkResult = await emailCheckResponse.json();
         console.log("Résultat de la vérification d'email:", checkResult);
         
-        if (checkResult && checkResult.records && checkResult.records.length > 0) {
+        if (checkResult && checkResult.records && Array.isArray(checkResult.records)) {
           const existingUser = checkResult.records.find((user: any) => 
             user.email === userData.email
           );
