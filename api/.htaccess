@@ -2,19 +2,6 @@
 # Activer la réécriture d'URL
 RewriteEngine On
 
-# Activer l'exécution des scripts PHP - CRUCIAL
-<FilesMatch "\.php$">
-    SetHandler application/x-httpd-php
-</FilesMatch>
-
-# Définir le type MIME correct pour PHP
-AddType application/x-httpd-php .php
-
-# Force PHP to execute .php files
-<Files *.php>
-    SetHandler application/x-httpd-php
-</Files>
-
 # Permettre l'accès direct aux fichiers PHP spécifiques
 RewriteCond %{REQUEST_FILENAME} -f
 RewriteRule \.(php)$ - [L]

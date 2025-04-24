@@ -14,12 +14,6 @@ AddType application/javascript .js
 AddType text/css .css
 AddType application/json .json
 AddType image/svg+xml .svg
-AddType application/x-httpd-php .php
-
-# Permettre l'exécution des scripts PHP - IMPORTANT
-<FilesMatch "\.php$">
-    SetHandler application/x-httpd-php
-</FilesMatch>
 
 # Permettre l'accès aux assets
 <FilesMatch "\.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot|map|tsx?)$">
@@ -51,7 +45,7 @@ RewriteCond %{REQUEST_FILENAME} !-d
 RewriteCond %{REQUEST_URI} !^/api/
 RewriteRule ^(.*)$ index.html [QSA,L]
 
-# Configuration de sécurité et de cache
+# Configuration de sécurité
 <IfModule mod_headers.c>
     # Configuration pour les assets statiques
     <FilesMatch "\.(js|css|json)$">
@@ -59,9 +53,4 @@ RewriteRule ^(.*)$ index.html [QSA,L]
         Header set Pragma "no-cache"
         Header set Expires "0"
     </FilesMatch>
-</IfModule>
-
-# Force PHP to use UTF-8
-<IfModule mod_php.c>
-    php_value default_charset "UTF-8"
 </IfModule>

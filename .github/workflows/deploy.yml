@@ -1,3 +1,4 @@
+
 name: Deploy to Infomaniak
 
 on:
@@ -164,6 +165,7 @@ jobs:
         log-level: verbose
         timeout: 120000
         dry-run: false
+        empty-directory-structure: false
     # ----------- FIN AJOUT ----------- #
     
     - name: Post-deployment verification

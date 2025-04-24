@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { ChevronDown, Upload, LogOut, Settings, Database, Users, LogIn } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
@@ -13,7 +14,9 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { getCurrentUser } from '@/services/core/database';
+import {
+  getCurrentUser
+} from '@/services/core/databaseConnectionService';
 
 const Header = () => {
   const navigate = useNavigate();
