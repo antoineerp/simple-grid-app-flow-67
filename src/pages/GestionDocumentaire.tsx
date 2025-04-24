@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { FileDown, FolderPlus } from 'lucide-react';
 import { MembresProvider } from '@/contexts/MembresContext';
@@ -63,7 +62,8 @@ const GestionDocumentaireContent = () => {
             className="hover:bg-gray-100 transition-colors"
             title="Nouveau groupe"
           >
-            <FolderPlus className="h-5 w-5" />
+            <FolderPlus className="h-5 w-5 mr-2" />
+            Nouveau groupe
           </Button>
           <Button 
             variant="outline"
@@ -76,7 +76,7 @@ const GestionDocumentaireContent = () => {
         </div>
       </div>
 
-      <DocumentStats stats={stats} />
+      <DocumentStatusDisplay stats={stats} />
 
       <DocumentTable 
         documents={documents}
@@ -93,7 +93,16 @@ const GestionDocumentaireContent = () => {
         onDeleteGroup={handleDeleteGroup}
       />
 
-      <div className="flex justify-end mt-4">
+      <div className="flex justify-between mt-4">
+        <Button 
+          variant="outline"
+          onClick={handleAddGroup}
+          className="hover:bg-gray-100 transition-colors"
+          title="Nouveau groupe"
+        >
+          <FolderPlus className="h-5 w-5 mr-2" />
+          Nouveau groupe
+        </Button>
         <Button 
           onClick={handleAddDocument}
         >
