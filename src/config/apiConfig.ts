@@ -1,123 +1,94 @@
 
-// Configuration de l'API et fonctions utilitaires pour les appels API
+// API Configuration
 
-// URL de base de l'API - Détecte automatiquement l'environnement
-const getBaseApiUrl = () => {
-  // Si nous sommes en développement local (port 5173, 5174, etc.)
-  if (window.location.port.startsWith('517')) {
-    console.log("Environnement de développement détecté, utilisation de l'API locale");
-    return '/api';
-  } else if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-    console.log("Environnement localhost détecté, utilisation de l'API locale");
-    return '/api';
-  } else {
-    // Sur l'environnement de production
-    console.log("Environnement de production détecté");
-    const baseUrl = window.location.protocol + '//' + window.location.host;
-    return `${baseUrl}/api`;
-  }
+// Define environment-specific API URLs using Vite environment variables
+let apiUrl = '/api'; // Default to relative path if not specified
+
+// Determine the API URL based on the current environment
+if (import.meta.env.MODE === 'development') {
+  apiUrl = import.meta.env.VITE_API_URL_DEV || '/api';
+} else {
+  apiUrl = import.meta.env.VITE_API_URL_PROD || '/api';
+}
+
+// Export the API URL getter function
+export const getApiUrl = (): string => {
+  return apiUrl;
 };
 
-// Export renamed function to match what's being imported in multiple files
-export const getApiUrl = getBaseApiUrl;
-
-export const API_BASE_URL = getBaseApiUrl();
-
-// Fonction utilitaire pour gérer les erreurs dans les appels fetch
-export const fetchWithErrorHandling = async (url: string, options: RequestInit = {}) => {
+// Test API connection function
+export const testApiConnection = async (): Promise<{ success: boolean; message?: string }> => {
   try {
-    console.log(`Appel API: ${url}`);
-    const response = await fetch(url, options);
-    
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error(`Erreur HTTP ${response.status}: ${errorText}`);
-      
-      try {
-        // Tenter de parser comme JSON pour l'erreur
-        const errorJson = JSON.parse(errorText);
-        throw new Error(errorJson.message || `Erreur ${response.status}: ${response.statusText}`);
-      } catch (parseError) {
-        // Si ce n'est pas du JSON, retourner le texte brut
-        throw new Error(`Erreur ${response.status}: ${errorText.substring(0, 100)}`);
-      }
-    }
-    
-    return await response.json();
-  } catch (error) {
-    console.error(`Erreur lors de l'appel API à ${url}:`, error);
-    throw error;
-  }
-};
-
-// Test de connexion à l'API pour s'assurer que le serveur est disponible
-export const testApiConnection = async () => {
-  try {
-    console.log(`Test de connexion à l'API: ${API_BASE_URL}`);
-    const response = await fetch(`${API_BASE_URL}/login-test.php?test=1`, {
+    console.log("Testing API connection to:", apiUrl);
+    const response = await fetch(`${apiUrl}/test.php`, {
       method: 'GET',
       headers: {
-        'Accept': 'application/json',
-        'Cache-Control': 'no-cache'
-      }
+        'Content-Type': 'application/json',
+        'Cache-Control': 'no-cache',
+      },
     });
+
+    console.log("API test response status:", response.status);
     
-    console.log(`Réponse du test API: ${response.status}`);
     if (!response.ok) {
-      console.error(`Erreur API: ${response.status} ${response.statusText}`);
-      const text = await response.text();
-      console.error(`Réponse: ${text}`);
-      return { success: false, message: `Erreur ${response.status}: ${response.statusText}`, status: response.status };
+      throw new Error(`API connection test failed with status: ${response.status}`);
     }
-    
+
     const data = await response.json();
-    console.log("Données de test API reçues:", data);
-    return { success: true, data };
+    console.log("API test response data:", data);
+    
+    return {
+      success: true,
+      message: data.message || 'API connection successful',
+    };
   } catch (error) {
-    console.error("Erreur lors du test de l'API:", error);
-    return { 
-      success: false, 
-      message: error instanceof Error ? error.message : "Erreur de connexion à l'API",
-      error
+    console.error("API connection test error:", error);
+    return {
+      success: false,
+      message: error instanceof Error ? error.message : 'Unknown error during API connection test',
     };
   }
 };
 
-// Fonction générique pour faire des appels API avec gestion d'erreur
-export const fetchApi = async (endpoint: string, options: RequestInit = {}) => {
+// Utility function for API fetch with error handling
+export const fetchWithErrorHandling = async (
+  url: string, 
+  options: RequestInit = {}
+): Promise<any> => {
   try {
-    const url = `${API_BASE_URL}/${endpoint.startsWith('/') ? endpoint.slice(1) : endpoint}`;
-    console.log(`Appel API: ${url}`);
-    
-    // Assurer les bons headers par défaut
-    const defaultHeaders = {
-      'Content-Type': 'application/json',
-      'Accept': 'application/json',
-      'Cache-Control': 'no-cache'
-    };
-    
-    // Fusionner les options par défaut avec celles fournies
-    const mergedOptions = {
+    const response = await fetch(url, {
       ...options,
       headers: {
-        ...defaultHeaders,
-        ...(options.headers || {})
-      }
-    };
-    
-    const response = await fetch(url, mergedOptions);
-    
+        'Content-Type': 'application/json',
+        ...(options.headers || {}),
+      },
+    });
+
     if (!response.ok) {
-      console.error(`Erreur API: ${response.status} ${response.statusText}`);
-      const text = await response.text();
-      console.error(`Réponse: ${text}`);
-      throw new Error(`Erreur ${response.status}: ${response.statusText}`);
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(
+        errorData.message || `Request failed with status: ${response.status}`
+      );
     }
-    
-    const data = await response.json();
-    return data;
+
+    return await response.json();
   } catch (error) {
-    console.error(`Erreur lors de l'appel API à ${endpoint}:`, error);
+    console.error(`API error for ${url}:`, error);
     throw error;
   }
+};
+
+// Export constants related to API paths
+export const API_ROUTES = {
+  LOGIN: `${apiUrl}/login-test.php`,
+  TEST: `${apiUrl}/test.php`,
+  USERS: `${apiUrl}/utilisateurs.php`,
+  DATABASE_TEST: `${apiUrl}/database-test.php`,
+};
+
+// Export API configuration object
+export const apiConfig = {
+  baseUrl: apiUrl,
+  routes: API_ROUTES,
+  getFullUrl: (path: string) => `${apiUrl}${path}`,
 };

@@ -64,4 +64,3 @@ if (rootElement) {
 
 // Test si l'application est correctement initialisée
 console.log("Application initialization process complete");
-

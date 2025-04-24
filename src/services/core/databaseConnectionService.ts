@@ -1,7 +1,9 @@
+
 import { getAuthHeaders } from '../auth/authService';
 import { Utilisateur } from '../index';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_ENDPOINT || 'http://localhost:3000/api';
+// Use import.meta.env instead of process.env for Vite compatibility
+const API_BASE_URL = import.meta.env.VITE_API_ENDPOINT || '/api';
 
 // Fonction pour se connecter en tant qu'utilisateur
 export const connectAsUser = async (identifiant: string): Promise<boolean> => {
