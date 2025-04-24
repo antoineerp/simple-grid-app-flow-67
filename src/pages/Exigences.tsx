@@ -10,6 +10,7 @@ import { useExigences } from '@/hooks/useExigences';
 import { exportExigencesToPdf } from '@/services/pdfExport';
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
+import SyncStatusIndicator from '@/components/common/SyncStatusIndicator';
 
 const ExigencesContent = () => {
   const {
