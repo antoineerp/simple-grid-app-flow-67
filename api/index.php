@@ -100,11 +100,11 @@ $controller = !empty($segments[0]) ? $segments[0] : 'index';
 error_log("API Controller: $controller | Method: " . $_SERVER['REQUEST_METHOD'] . " | URI: $request_uri | Path: $path");
 
 // Ajouter un point d'accès spécial pour les utilisateurs
-if ($controller == 'utilisateurs') {
+if ($controller == 'utilisateurs' || $controller == 'user' || $controller == 'users') {
     error_log("Accès à la route utilisateurs");
     
     // Chemin complet du contrôleur d'utilisateurs
-    $userControllerPath = __DIR__ . '/controllers/UsersController.php';
+    $userControllerPath = __DIR__ . '/controllers/UserController.php';
     
     // Vérifier que le fichier existe
     if (file_exists($userControllerPath)) {

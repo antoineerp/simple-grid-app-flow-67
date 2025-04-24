@@ -22,27 +22,36 @@ try {
     $db = $database->getConnection(true);
     
     if (!$database->is_connected) {
+        error_log("UserController - Erreur de connexion à la base de données: " . ($database->connection_error ?? "Erreur inconnue"));
         throw new Exception("Erreur de connexion à la base de données: " . ($database->connection_error ?? "Erreur inconnue"));
     }
 
+    error_log("UserController - Connexion à la base de données réussie");
+    
     // Initialize user operations
     $userOps = new UserOperations($db);
 
     // Handle request based on HTTP method
     switch ($_SERVER['REQUEST_METHOD']) {
         case 'GET':
+            error_log("UserController - Traitement de la requête GET");
             $userOps->handleGetRequest();
             break;
             
         case 'POST':
+            error_log("UserController - Traitement de la requête POST");
+            $inputData = file_get_contents("php://input");
+            error_log("UserController - Données reçues: " . $inputData);
             $userOps->handlePostRequest();
             break;
             
         case 'PUT':
+            error_log("UserController - Traitement de la requête PUT");
             $userOps->handlePutRequest();
             break;
             
         case 'DELETE':
+            error_log("UserController - Traitement de la requête DELETE");
             $userOps->handleDeleteRequest();
             break;
             
@@ -51,7 +60,7 @@ try {
             break;
     }
 } catch (Exception $e) {
-    error_log("UserController - Exception: " . $e->getMessage());
+    error_log("UserController - Exception: " . $e->getMessage() . " à la ligne " . $e->getLine() . " dans " . $e->getFile());
     ResponseHandler::error(
         "Erreur serveur: " . $e->getMessage(),
         500,

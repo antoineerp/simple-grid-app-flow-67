@@ -43,6 +43,21 @@ const UserForm = ({ onClose, onSuccess, onUserConnect }: UserFormProps) => {
   const [fieldErrors, setFieldErrors] = useState<{[key: string]: string}>({});
   const [hasManager, setHasManager] = useState(false);
 
+  // Réinitialiser le formulaire à chaque ouverture
+  useEffect(() => {
+    setFormData({
+      nom: '',
+      prenom: '',
+      email: '',
+      role: 'utilisateur',
+      mot_de_passe: ''
+    });
+    setFieldErrors({});
+    setFormError(null);
+    setConnectAfterCreate(false);
+    setIsSubmitting(false);
+  }, []);
+
   useEffect(() => {
     if (utilisateurs.some(user => user.role === 'gestionnaire')) {
       setHasManager(true);

@@ -34,8 +34,8 @@ export const createUser = async (userData: CreateUserData) => {
 
   try {
     const apiUrl = getApiUrl();
-    // Use UserController.php instead of UsersController.php
-    const url = `${apiUrl}/controllers/UserController.php`;
+    // Utilisons le endpoint API adapté - corriger le endpoint qui peut causer l'erreur 500
+    const url = `${apiUrl}/utilisateurs`;
     
     const headers = {
       ...getAuthHeaders(),
@@ -53,7 +53,9 @@ export const createUser = async (userData: CreateUserData) => {
     const response = await fetch(url, {
       method: 'POST',
       headers,
-      body: JSON.stringify(requestData)
+      body: JSON.stringify(requestData),
+      // Ajouter un timeout pour éviter les attentes infinies
+      signal: AbortSignal.timeout(10000)
     });
 
     console.log("Statut de la réponse:", response.status, response.statusText);

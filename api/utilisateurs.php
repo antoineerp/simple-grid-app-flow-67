@@ -17,10 +17,10 @@ if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
 }
 
 // Journaliser l'appel
-error_log("Redirection vers UsersController depuis utilisateurs.php | Méthode: " . $_SERVER['REQUEST_METHOD']);
+error_log("Redirection vers UserController depuis utilisateurs.php | Méthode: " . $_SERVER['REQUEST_METHOD']);
 
 // Inclure le contrôleur d'utilisateurs
-$userController = __DIR__ . '/controllers/UsersController.php';
+$userController = __DIR__ . '/controllers/UserController.php';
 if (file_exists($userController)) {
     require_once $userController;
 } else {
