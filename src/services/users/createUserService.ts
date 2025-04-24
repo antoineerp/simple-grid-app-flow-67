@@ -88,7 +88,7 @@ export const createUser = async (userData: CreateUserData) => {
     while (retryCount < maxRetries && !success) {
       try {
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 secondes timeout
+        const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 secondes timeout
         
         console.log("Envoi de la requête POST avec les données:", JSON.stringify(requestData));
         
@@ -96,22 +96,39 @@ export const createUser = async (userData: CreateUserData) => {
           method: 'POST',
           headers: {
             ...headers,
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
           },
           body: JSON.stringify(requestData),
-          signal: controller.signal
+          signal: controller.signal,
+          // Désactiver le cache pour éviter les problèmes
+          cache: 'no-store'
         });
         
         clearTimeout(timeoutId);
         
+        console.log("Statut de la réponse:", response.status, response.statusText);
+        console.log("Headers de réponse:", Object.fromEntries(response.headers.entries()));
+        
         // Traitement de la réponse en texte d'abord
         const responseText = await response.text();
-        console.log("Statut de la réponse:", response.status, response.statusText);
         console.log("Réponse brute:", responseText);
         
         // Essai de parse en JSON
         try {
-          responseData = responseText ? JSON.parse(responseText) : {};
+          if (responseText.trim() === '') {
+            // Gérer le cas de réponse vide
+            responseData = { 
+              success: response.ok, 
+              message: response.ok ? "Utilisateur créé avec succès (réponse vide)" : "Erreur: réponse vide du serveur",
+              identifiant_technique: identifiantTechnique 
+            };
+          } else if (responseText.trim().startsWith('<?php')) {
+            // Si le serveur renvoie du code PHP non interprété
+            throw new Error("Le serveur renvoie du code PHP non interprété. Vérifiez la configuration du serveur.");
+          } else {
+            responseData = JSON.parse(responseText);
+          }
           
           // Gestion des erreurs HTTP
           if (!response.ok) {

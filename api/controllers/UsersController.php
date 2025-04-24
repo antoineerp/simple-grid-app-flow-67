@@ -36,6 +36,20 @@ try {
             break;
             
         case 'POST':
+            // Fixer les problèmes de contenu vide ou mal formaté
+            $postData = file_get_contents("php://input");
+            if (empty($postData)) {
+                ResponseHandler::error("Aucune donnée reçue", 400);
+                break;
+            }
+            
+            // S'assurer que le JSON est valide
+            $data = json_decode($postData);
+            if (json_last_error() !== JSON_ERROR_NONE) {
+                ResponseHandler::error("JSON invalide: " . json_last_error_msg(), 400);
+                break;
+            }
+            
             $userOps->handlePostRequest();
             break;
             

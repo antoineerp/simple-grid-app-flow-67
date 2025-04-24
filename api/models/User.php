@@ -134,14 +134,18 @@ class User extends BaseModel {
 
     public function initializeUserDataFromManager($userId) {
         try {
+            error_log("Initialisation des données pour l'utilisateur: $userId");
             $manager = $this->getManager();
             if (!$manager) {
                 error_log("Aucun gestionnaire trouvé pour initialiser les données utilisateur");
                 return false;
             }
             
-            $this->copyUserData('documents', $manager['identifiant_technique'], $userId);
-            $this->copyUserData('exigences', $manager['identifiant_technique'], $userId);
+            $managerIdentifiant = $manager['identifiant_technique'];
+            error_log("Gestionnaire trouvé: $managerIdentifiant");
+            
+            $this->copyUserData('documents', $managerIdentifiant, $userId);
+            $this->copyUserData('exigences', $managerIdentifiant, $userId);
             return true;
         } catch (Exception $e) {
             error_log("Erreur lors de l'initialisation des données utilisateur: " . $e->getMessage());
@@ -151,6 +155,18 @@ class User extends BaseModel {
 
     private function copyUserData($dataType, $sourceUserId, $targetUserId) {
         error_log("Copie des données $dataType de $sourceUserId vers $targetUserId");
+        // Implémentation simulée - à adapter selon votre structure de données
+        try {
+            // Vérifiez si la table existe, sinon la créer
+            $tableName = $dataType . '_' . str_replace('-', '_', $targetUserId);
+            error_log("Préparation de la table: $tableName");
+            
+            // Simule une copie de données
+            return true;
+        } catch (Exception $e) {
+            error_log("Erreur lors de la copie des données $dataType: " . $e->getMessage());
+            return false;
+        }
     }
 }
 ?>

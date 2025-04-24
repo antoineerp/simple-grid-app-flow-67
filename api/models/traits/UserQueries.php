@@ -1,3 +1,4 @@
+
 <?php
 trait UserQueries {
     public function read() {
@@ -56,12 +57,16 @@ trait UserQueries {
 
             // Exécution de la requête
             error_log("Exécution de la requête INSERT");
-            $result = $stmt->execute();
-            error_log("Résultat de l'exécution: " . ($result ? "succès" : "échec"));
+            if (!$stmt->execute()) {
+                $errorInfo = $stmt->errorInfo();
+                error_log("Erreur SQL lors de la création: " . $errorInfo[2]);
+                return false;
+            }
             
-            return $result;
+            error_log("Création de l'utilisateur réussie");
+            return true;
         } catch (PDOException $e) {
-            error_log("Erreur lors de la création d'un utilisateur: " . $e->getMessage());
+            error_log("Exception PDO lors de la création d'un utilisateur: " . $e->getMessage());
             error_log("Trace: " . $e->getTraceAsString());
             throw $e;
         }

@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { getUtilisateurs, connectAsUser, testDatabaseConnection, type Utilisateur } from '@/services';
 import { useToast } from "@/hooks/use-toast";
 import { hasPermission, UserRole } from '@/types/roles';
@@ -15,7 +15,7 @@ export const useAdminUsers = () => {
     loadUtilisateurs();
   }, []);
 
-  const loadUtilisateurs = async () => {
+  const loadUtilisateurs = useCallback(async () => {
     const currentUserRole = localStorage.getItem('userRole') as UserRole;
     
     // Vérifier les permissions avant de charger les utilisateurs
@@ -45,9 +45,16 @@ export const useAdminUsers = () => {
       const data = await getUtilisateurs();
       console.log("Données utilisateurs récupérées:", data);
       
-      setUtilisateurs(data);
+      if (Array.isArray(data)) {
+        setUtilisateurs(data);
+      } else if (data && data.records && Array.isArray(data.records)) {
+        setUtilisateurs(data.records);
+      } else {
+        console.warn("Format de données inattendu:", data);
+        setUtilisateurs([]);
+      }
       
-      if (data.length === 0) {
+      if (utilisateurs.length === 0) {
         console.warn("Aucun utilisateur récupéré de la base de données.");
       }
     } catch (error) {
@@ -61,7 +68,7 @@ export const useAdminUsers = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [toast, utilisateurs.length]);
 
   const handleConnectAsUser = async (identifiantTechnique: string) => {
     const currentUserRole = localStorage.getItem('userRole') as UserRole;

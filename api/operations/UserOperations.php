@@ -1,3 +1,4 @@
+
 <?php
 require_once dirname(__DIR__) . '/models/User.php';
 require_once dirname(__DIR__) . '/utils/ResponseHandler.php';
@@ -59,13 +60,27 @@ class UserOperations {
                 $lastId = $this->db->lastInsertId();
                 error_log("Utilisateur créé avec succès. ID: " . $lastId);
                 
-                if ($this->user->role === 'utilisateur') {
+                if ($data->role === 'utilisateur') {
                     error_log("Initialisation des données utilisateur depuis le gestionnaire");
-                    $this->user->initializeUserDataFromManager($lastId);
+                    $this->user->initializeUserDataFromManager($data->identifiant_technique);
                 }
                 
+                // Renvoyer une réponse avec les données minimales nécessaires
+                $responseData = [
+                    'id' => $lastId,
+                    'identifiant_technique' => $data->identifiant_technique,
+                    'nom' => $data->nom,
+                    'prenom' => $data->prenom,
+                    'email' => $data->email,
+                    'role' => $data->role
+                ];
+                
+                // S'assurer que les headers sont correctement définis
+                header('Content-Type: application/json; charset=UTF-8');
+                http_response_code(201);
+                
                 ResponseHandler::success(
-                    ['id' => $lastId, 'identifiant_technique' => $data->identifiant_technique],
+                    $responseData,
                     "Utilisateur créé avec succès",
                     201
                 );
