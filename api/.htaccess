@@ -2,6 +2,14 @@
 # Activer la réécriture d'URL
 RewriteEngine On
 
+# Activer l'exécution des scripts PHP
+<FilesMatch "\.php$">
+    SetHandler application/x-httpd-php
+</FilesMatch>
+
+# Définir le type MIME correct pour PHP
+AddType application/x-httpd-php .php
+
 # Permettre l'accès direct aux fichiers PHP spécifiques
 RewriteCond %{REQUEST_FILENAME} -f
 RewriteRule \.(php)$ - [L]
@@ -27,3 +35,4 @@ RewriteRule ^(.*)$ index.php [QSA,L]
 <IfModule mod_php.c>
     php_value default_charset "UTF-8"
 </IfModule>
+

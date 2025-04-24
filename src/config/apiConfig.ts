@@ -71,6 +71,20 @@ export async function testApiConnection(): Promise<{ success: boolean; message: 
       };
     }
     
+    // Vérifier si le contenu reçu est HTML ou PHP (indicateurs supplémentaires)
+    if (responseText.includes('<?php') || 
+        responseText.includes('ob_start()') || 
+        responseText.includes('function cleanUTF8')) {
+      return {
+        success: false,
+        message: 'Le serveur renvoie du code PHP non exécuté',
+        details: {
+          responseText: responseText,
+          tip: 'Le serveur n\'exécute pas correctement les fichiers PHP'
+        }
+      };
+    }
+    
     // Essayer de parser la réponse comme JSON
     try {
       const data = JSON.parse(responseText);
