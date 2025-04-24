@@ -1,4 +1,3 @@
-
 <?php
 require_once dirname(__DIR__) . '/models/User.php';
 require_once dirname(__DIR__) . '/utils/ResponseHandler.php';
@@ -59,6 +58,18 @@ class UserOperations {
             // S'assurer qu'aucun contenu n'a été envoyé avant d'essayer de créer l'utilisateur
             if (ob_get_length()) ob_clean();
             
+            // Vérifier si la table existe et la créer si nécessaire
+            if (!$this->user->tableExists()) {
+                error_log("Table utilisateurs non existante, tentative de création");
+                $created = $this->user->createTable();
+                if (!$created) {
+                    error_log("Échec de création de la table utilisateurs");
+                    ResponseHandler::error("Échec de création de la table utilisateurs", 500);
+                    return;
+                }
+                error_log("Table utilisateurs créée avec succès");
+            }
+            
             // Vérifier la création
             if (!$this->user->create()) {
                 error_log("Échec de création de l'utilisateur sans exception");
@@ -114,6 +125,53 @@ class UserOperations {
         }
     }
 
+    public function handlePutRequest() {
+        $data = json_decode(file_get_contents("php://input"));
+        error_log("Données reçues PUT: " . json_encode($data));
+        
+        if (!$this->validateUpdateData($data)) {
+            ResponseHandler::error("Données incomplètes pour la mise à jour", 400);
+            return;
+        }
+
+        try {
+            $this->user->id = $data->id;
+            $this->user->nom = $data->nom;
+            $this->user->prenom = $data->prenom;
+            $this->user->email = $data->email;
+            $this->user->role = $data->role;
+
+            if ($this->user->update()) {
+                ResponseHandler::success(null, "Utilisateur mis à jour avec succès");
+            } else {
+                ResponseHandler::error("Impossible de mettre à jour l'utilisateur", 503);
+            }
+        } catch (Exception $e) {
+            ResponseHandler::error($e->getMessage(), 500);
+        }
+    }
+
+    public function handleDeleteRequest() {
+        $data = json_decode(file_get_contents("php://input"));
+        error_log("Données reçues DELETE: " . json_encode($data));
+        
+        if (empty($data->id)) {
+            ResponseHandler::error("ID non fourni", 400);
+            return;
+        }
+
+        try {
+            $this->user->id = $data->id;
+            if ($this->user->delete()) {
+                ResponseHandler::success(null, "Utilisateur supprimé avec succès");
+            } else {
+                ResponseHandler::error("Impossible de supprimer l'utilisateur", 503);
+            }
+        } catch (Exception $e) {
+            ResponseHandler::error($e->getMessage(), 500);
+        }
+    }
+
     private function validateUserData($data) {
         error_log("Validation des données: " . json_encode($data));
         
@@ -161,7 +219,7 @@ class UserOperations {
 
     private function getAllUsers() {
         $stmt = $this->user->read();
-        $num = $stmt->rowCount();
+        $num = $stmt ? $stmt->rowCount() : 0;
         
         if ($num > 0) {
             $users_arr = ["records" => []];
@@ -171,54 +229,7 @@ class UserOperations {
             }
             ResponseHandler::success($users_arr);
         } else {
-            ResponseHandler::error("Aucun utilisateur trouvé", 404);
-        }
-    }
-
-    public function handlePutRequest() {
-        $data = json_decode(file_get_contents("php://input"));
-        error_log("Données reçues PUT: " . json_encode($data));
-        
-        if (!$this->validateUpdateData($data)) {
-            ResponseHandler::error("Données incomplètes pour la mise à jour", 400);
-            return;
-        }
-
-        try {
-            $this->user->id = $data->id;
-            $this->user->nom = $data->nom;
-            $this->user->prenom = $data->prenom;
-            $this->user->email = $data->email;
-            $this->user->role = $data->role;
-
-            if ($this->user->update()) {
-                ResponseHandler::success(null, "Utilisateur mis à jour avec succès");
-            } else {
-                ResponseHandler::error("Impossible de mettre à jour l'utilisateur", 503);
-            }
-        } catch (Exception $e) {
-            ResponseHandler::error($e->getMessage(), 500);
-        }
-    }
-
-    public function handleDeleteRequest() {
-        $data = json_decode(file_get_contents("php://input"));
-        error_log("Données reçues DELETE: " . json_encode($data));
-        
-        if (empty($data->id)) {
-            ResponseHandler::error("ID non fourni", 400);
-            return;
-        }
-
-        try {
-            $this->user->id = $data->id;
-            if ($this->user->delete()) {
-                ResponseHandler::success(null, "Utilisateur supprimé avec succès");
-            } else {
-                ResponseHandler::error("Impossible de supprimer l'utilisateur", 503);
-            }
-        } catch (Exception $e) {
-            ResponseHandler::error($e->getMessage(), 500);
+            ResponseHandler::success(["records" => []], "Aucun utilisateur trouvé");
         }
     }
 

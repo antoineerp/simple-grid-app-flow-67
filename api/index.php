@@ -1,4 +1,3 @@
-
 <?php
 // Forcer l'output buffering pour éviter tout output avant les headers
 ob_start();
@@ -130,13 +129,22 @@ error_log("API Controller: $controller | Method: " . $_SERVER['REQUEST_METHOD'] 
 if ($controller == 'utilisateurs') {
     error_log("Accès à la route utilisateurs");
     
+    // Définir la constante DIRECT_ACCESS_CHECK
+    define('DIRECT_ACCESS_CHECK', true);
+    
     // Chemin complet du contrôleur d'utilisateurs
     $userControllerPath = __DIR__ . '/controllers/UsersController.php';
     
     // Vérifier que le fichier existe
     if (file_exists($userControllerPath)) {
         error_log("Fichier contrôleur utilisateurs trouvé: $userControllerPath");
-        define('DIRECT_ACCESS_CHECK', true);
+        
+        // Vider tout buffer de sortie existant
+        if (ob_get_level()) ob_clean();
+        
+        // S'assurer que les en-têtes sont correctement définis
+        header('Content-Type: application/json; charset=UTF-8');
+        
         require_once $userControllerPath;
         exit;
     } else {

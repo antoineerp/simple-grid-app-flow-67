@@ -1,7 +1,7 @@
 
 <?php
-// Fichier de redirection vers le contrôleur d'utilisateurs
-// Ce fichier simplifier l'accès à l'API via /api/utilisateurs directement
+// Définir la constante DIRECT_ACCESS_CHECK pour permettre l'accès direct
+define('DIRECT_ACCESS_CHECK', true);
 
 // En-têtes CORS et Content-Type
 header("Content-Type: application/json; charset=UTF-8");
@@ -19,6 +19,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
 
 // Journaliser l'appel
 error_log("Redirection vers UsersController depuis utilisateurs.php | Méthode: " . $_SERVER['REQUEST_METHOD']);
+error_log("Données brutes: " . file_get_contents("php://input"));
 
 // Vider le buffer de sortie pour éviter les problèmes
 if (ob_get_level()) ob_clean();
@@ -33,8 +34,8 @@ if (file_exists($userController)) {
 } else {
     http_response_code(500);
     echo json_encode([
-        'message' => 'Contrôleur d\'utilisateurs non trouvé',
-        'status' => 500,
+        'status' => 'error',
+        'message' => "Contrôleur d'utilisateurs non trouvé",
         'path' => $userController
     ]);
 }

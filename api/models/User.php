@@ -22,6 +22,39 @@ class User extends BaseModel {
         parent::__construct($db, 'utilisateurs');
     }
 
+    public function tableExists() {
+        try {
+            $query = "SHOW TABLES LIKE '" . $this->table_name . "'";
+            $stmt = $this->conn->prepare($query);
+            $stmt->execute();
+            return $stmt->rowCount() > 0;
+        } catch (PDOException $e) {
+            error_log("Erreur lors de la vérification de l'existence de la table: " . $e->getMessage());
+            return false;
+        }
+    }
+
+    public function createTable() {
+        try {
+            $query = "CREATE TABLE IF NOT EXISTS " . $this->table_name . " (
+                id INT(11) NOT NULL AUTO_INCREMENT PRIMARY KEY,
+                nom VARCHAR(100) NOT NULL,
+                prenom VARCHAR(100) NOT NULL,
+                email VARCHAR(255) NOT NULL UNIQUE,
+                mot_de_passe VARCHAR(255) NOT NULL,
+                identifiant_technique VARCHAR(100) NOT NULL UNIQUE,
+                role VARCHAR(50) NOT NULL DEFAULT 'utilisateur',
+                date_creation DATETIME DEFAULT CURRENT_TIMESTAMP
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;";
+            
+            $stmt = $this->conn->prepare($query);
+            return $stmt->execute();
+        } catch (PDOException $e) {
+            error_log("Erreur lors de la création de la table: " . $e->getMessage());
+            throw $e;
+        }
+    }
+
     public function countUsersByRole($role) {
         try {
             $query = "SELECT COUNT(*) FROM " . $this->table_name . " WHERE role = :role";
