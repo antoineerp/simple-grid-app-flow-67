@@ -1,9 +1,16 @@
-
 import { useState, useEffect, useCallback } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { Document, DocumentStats, DocumentGroup } from '@/types/documents';
-import { syncDocumentsWithServer, loadDocumentsFromServer } from '@/services/documents/documentSyncService';
-import { loadDocumentsFromStorage, saveDocumentsToStorage, calculateDocumentStats } from '@/services/documents/documentsService';
+import { 
+  syncDocumentsWithServer, 
+  loadDocumentsFromServer,
+  checkDocumentApiAvailability 
+} from '@/services/documents/documentSyncService';
+import { 
+  loadDocumentsFromStorage, 
+  saveDocumentsToStorage, 
+  calculateDocumentStats 
+} from '@/services/documents/documentsService';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 
 export const useDocuments = () => {
@@ -23,9 +30,37 @@ export const useDocuments = () => {
   const [stats, setStats] = useState<DocumentStats>(() => calculateDocumentStats(documents));
   const [isSyncing, setIsSyncing] = useState(false);
   const [lastSynced, setLastSynced] = useState<Date | undefined>(undefined);
+  const [apiAvailable, setApiAvailable] = useState({ load: false, sync: false });
+  const [apiChecked, setApiChecked] = useState(false);
+
+  useEffect(() => {
+    const checkApiEndpoints = async () => {
+      const availability = await checkDocumentApiAvailability();
+      setApiAvailable({
+        load: availability.loadAvailable,
+        sync: availability.syncAvailable
+      });
+      setApiChecked(true);
+      
+      if (!availability.loadAvailable || !availability.syncAvailable) {
+        console.warn("Certains endpoints de l'API des documents ne sont pas disponibles:", 
+          availability.loadAvailable ? "✅" : "❌", "Load |", 
+          availability.syncAvailable ? "✅" : "❌", "Sync");
+      }
+    };
+    
+    checkApiEndpoints();
+  }, []);
 
   useEffect(() => {
     const fetchDocumentsFromServer = async () => {
+      if (!apiChecked || !apiAvailable.load) {
+        if (apiChecked) {
+          console.log("API de chargement des documents non disponible, utilisation des données locales");
+        }
+        return;
+      }
+      
       try {
         const serverDocuments = await loadDocumentsFromServer(currentUser);
         if (serverDocuments) {
@@ -34,7 +69,9 @@ export const useDocuments = () => {
           console.log('Documents chargés depuis le serveur et mis en cache');
         } else {
           console.log('Aucun document trouvé sur le serveur, utilisation des données locales');
-          syncWithServer();
+          if (apiAvailable.sync) {
+            syncWithServer();
+          }
         }
       } catch (error) {
         console.error('Erreur lors du chargement des documents depuis le serveur:', error);
@@ -47,7 +84,7 @@ export const useDocuments = () => {
     };
 
     fetchDocumentsFromServer();
-  }, [currentUser]);
+  }, [currentUser, apiChecked, apiAvailable.load]);
 
   useEffect(() => {
     setStats(calculateDocumentStats(documents));
@@ -62,12 +99,14 @@ export const useDocuments = () => {
   }, [groups, currentUser]);
 
   useEffect(() => {
+    if (!apiAvailable.sync) return;
+    
     const debounceSync = setTimeout(() => {
       syncWithServer();
     }, 2000);
 
     return () => clearTimeout(debounceSync);
-  }, [documents]);
+  }, [documents, apiAvailable.sync]);
 
   const handleResponsabiliteChange = useCallback((id: string, type: 'r' | 'a' | 'c' | 'i', values: string[]) => {
     setDocuments(prev => 
@@ -259,7 +298,7 @@ export const useDocuments = () => {
   }, []);
 
   const syncWithServer = async () => {
-    if (isSyncing) return;
+    if (isSyncing || !apiAvailable.sync) return;
     
     setIsSyncing(true);
     try {
@@ -274,6 +313,20 @@ export const useDocuments = () => {
   const forceSyncWithServer = async () => {
     if (isSyncing) return;
     
+    if (!apiAvailable.sync) {
+      const availability = await checkDocumentApiAvailability();
+      setApiAvailable(prev => ({ ...prev, sync: availability.syncAvailable }));
+      
+      if (!availability.syncAvailable) {
+        toast({
+          title: "Synchronisation impossible",
+          description: "L'API de synchronisation n'est pas disponible.",
+          variant: "destructive"
+        });
+        return;
+      }
+    }
+    
     setIsSyncing(true);
     try {
       const success = await syncDocumentsWithServer(documents, currentUser);
@@ -286,8 +339,8 @@ export const useDocuments = () => {
         });
       } else {
         toast({
-          title: "Erreur de synchronisation",
-          description: "Impossible de synchroniser vos documents",
+          title: "Échec de la synchronisation",
+          description: "Une erreur est survenue lors de la synchronisation",
           variant: "destructive"
         });
       }
@@ -338,6 +391,7 @@ export const useDocuments = () => {
     handleToggleGroup,
     syncWithServer: forceSyncWithServer,
     isOnline,
-    lastSynced
+    lastSynced,
+    apiAvailable
   };
 };

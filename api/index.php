@@ -155,6 +155,28 @@ switch ($controller) {
     case 'check-users.php':
         require_once 'check-users.php';
         break;
+    
+    // Ajouter des cas explicites pour les fichiers de documents
+    case 'documents-load':
+    case 'documents-load.php':
+        require_once 'documents-load.php';
+        break;
+        
+    case 'documents-sync':
+    case 'documents-sync.php':
+        require_once 'documents-sync.php';
+        break;
+        
+    // Ajouter des cas explicites pour les fichiers de bibliothèque
+    case 'bibliotheque-load':
+    case 'bibliotheque-load.php':
+        require_once 'bibliotheque-load.php';
+        break;
+        
+    case 'bibliotheque-sync':
+    case 'bibliotheque-sync.php':
+        require_once 'bibliotheque-sync.php';
+        break;
         
     // Ajouter un cas explicite pour login-test.php au cas où il serait appelé directement
     case 'login-test.php':

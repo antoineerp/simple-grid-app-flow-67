@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { FileText, FolderPlus, CloudSun } from 'lucide-react';
+import { FileText, FolderPlus, CloudSun, AlertTriangle } from 'lucide-react';
 import { MembresProvider } from '@/contexts/MembresContext';
 import DocumentForm from '@/components/gestion-documentaire/DocumentForm';
 import DocumentStatusDisplay from '@/components/gestion-documentaire/DocumentStats';
@@ -10,6 +10,7 @@ import { useDocuments } from '@/hooks/useDocuments';
 import { exportDocumentsToPdf } from '@/services/pdfExport';
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription } from "@/components/ui/alert"; 
 import SyncStatusIndicator from '@/components/common/SyncStatusIndicator';
 
 const GestionDocumentaireContent = () => {
@@ -40,7 +41,8 @@ const GestionDocumentaireContent = () => {
     handleDeleteGroup,
     handleGroupReorder,
     handleToggleGroup,
-    syncWithServer
+    syncWithServer,
+    apiAvailable
   } = useDocuments();
   
   const { toast } = useToast();
@@ -53,6 +55,8 @@ const GestionDocumentaireContent = () => {
     });
   };
 
+  const apiUnavailable = !apiAvailable.load || !apiAvailable.sync;
+
   return (
     <div className="p-8">
       <div className="flex items-center justify-between mb-2">
@@ -64,7 +68,7 @@ const GestionDocumentaireContent = () => {
             onClick={syncWithServer}
             className="text-blue-600 p-2 rounded-md hover:bg-blue-50 transition-colors flex items-center"
             title="Synchroniser avec le serveur"
-            disabled={isSyncing}
+            disabled={isSyncing || !apiAvailable.sync}
           >
             <CloudSun className={`h-6 w-6 stroke-[1.5] ${isSyncing ? 'animate-spin' : ''}`} />
           </button>
@@ -77,6 +81,15 @@ const GestionDocumentaireContent = () => {
           </button>
         </div>
       </div>
+
+      {apiUnavailable && (
+        <Alert variant="warning" className="mb-4 bg-amber-50 text-amber-800 border-amber-200">
+          <AlertTriangle className="h-4 w-4 mr-2" />
+          <AlertDescription>
+            <span className="font-bold">Mode hors ligne</span>: La synchronisation avec le serveur n'est pas disponible pour le moment. Les modifications seront sauvegardées localement.
+          </AlertDescription>
+        </Alert>
+      )}
 
       <div className="mb-4">
         <SyncStatusIndicator 

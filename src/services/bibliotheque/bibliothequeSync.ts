@@ -15,7 +15,10 @@ export const syncBibliothequeWithServer = async (
     console.log(`Synchronisation de la bibliothèque pour l'utilisateur ${currentUser}`);
     
     const API_URL = getApiUrl();
-    const response = await fetch(`${API_URL}/bibliotheque-sync.php`, {
+    const endpoint = `${API_URL}/bibliotheque-sync.php`;
+    console.log(`Tentative de synchronisation avec: ${endpoint}`);
+    
+    const response = await fetch(endpoint, {
       method: 'POST',
       headers: {
         ...getAuthHeaders(),
@@ -26,8 +29,23 @@ export const syncBibliothequeWithServer = async (
     
     if (!response.ok) {
       console.error(`Erreur lors de la synchronisation de la bibliothèque: ${response.status}`);
-      const errorText = await response.text();
-      console.error("Détails de l'erreur:", errorText);
+      
+      // Tenter de récupérer les détails de l'erreur
+      try {
+        const errorText = await response.text();
+        console.error("Détails de l'erreur:", errorText);
+        
+        // Si le texte d'erreur est du JSON, l'analyser
+        try {
+          const errorJson = JSON.parse(errorText);
+          console.error("Détails de l'erreur JSON:", errorJson);
+        } catch (e) {
+          // Ce n'est pas du JSON, rien à faire
+        }
+      } catch (textError) {
+        console.error("Impossible de lire le corps de l'erreur:", textError);
+      }
+      
       throw new Error(`Échec de la synchronisation de la bibliothèque: ${response.statusText}`);
     }
     
@@ -47,15 +65,33 @@ export const syncBibliothequeWithServer = async (
 export const loadBibliothequeFromServer = async (currentUser: string): Promise<{documents: Document[], groups: DocumentGroup[]} | null> => {
   try {
     const API_URL = getApiUrl();
-    console.log(`Chargement de la bibliothèque pour l'utilisateur ${currentUser} depuis: ${API_URL}/bibliotheque-load.php`);
+    const endpoint = `${API_URL}/bibliotheque-load.php`;
+    console.log(`Chargement de la bibliothèque pour l'utilisateur ${currentUser} depuis: ${endpoint}`);
     
-    const response = await fetch(`${API_URL}/bibliotheque-load.php?userId=${encodeURIComponent(currentUser)}`, {
+    const response = await fetch(`${endpoint}?userId=${encodeURIComponent(currentUser)}`, {
       method: 'GET',
       headers: getAuthHeaders()
     });
     
     if (!response.ok) {
       console.error(`Erreur lors du chargement de la bibliothèque: ${response.status}`);
+      
+      // Tenter de récupérer les détails de l'erreur
+      try {
+        const errorText = await response.text();
+        console.error("Détails de l'erreur:", errorText);
+        
+        // Si le texte d'erreur est du JSON, l'analyser
+        try {
+          const errorJson = JSON.parse(errorText);
+          console.error("Détails de l'erreur JSON:", errorJson);
+        } catch (e) {
+          // Ce n'est pas du JSON, rien à faire
+        }
+      } catch (textError) {
+        console.error("Impossible de lire le corps de l'erreur:", textError);
+      }
+      
       throw new Error(`Échec du chargement de la bibliothèque: ${response.statusText}`);
     }
     
@@ -102,5 +138,51 @@ export const loadBibliothequeFromServer = async (currentUser: string): Promise<{
   } catch (error) {
     console.error('Erreur de chargement de la bibliothèque:', error);
     return null;
+  }
+};
+
+/**
+ * Attempts to check API availability for bibliotheque endpoints
+ */
+export const checkBibliothequeApiAvailability = async (): Promise<{
+  loadAvailable: boolean;
+  syncAvailable: boolean;
+}> => {
+  try {
+    const API_URL = getApiUrl();
+    const result = {
+      loadAvailable: false,
+      syncAvailable: false
+    };
+    
+    // Check load endpoint
+    try {
+      const loadResponse = await fetch(`${API_URL}/bibliotheque-load.php`, {
+        method: 'HEAD',
+        headers: getAuthHeaders()
+      });
+      result.loadAvailable = loadResponse.ok;
+    } catch (e) {
+      console.warn("Endpoint de chargement de la bibliothèque indisponible:", e);
+    }
+    
+    // Check sync endpoint
+    try {
+      const syncResponse = await fetch(`${API_URL}/bibliotheque-sync.php`, {
+        method: 'HEAD',
+        headers: getAuthHeaders()
+      });
+      result.syncAvailable = syncResponse.ok;
+    } catch (e) {
+      console.warn("Endpoint de synchronisation de la bibliothèque indisponible:", e);
+    }
+    
+    return result;
+  } catch (error) {
+    console.error("Erreur lors de la vérification de l'API de la bibliothèque:", error);
+    return {
+      loadAvailable: false,
+      syncAvailable: false
+    };
   }
 };
