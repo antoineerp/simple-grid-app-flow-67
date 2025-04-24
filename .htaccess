@@ -25,6 +25,15 @@ AddType image/svg+xml .svg
 RewriteCond %{REQUEST_URI} ^/lovable-uploads/
 RewriteRule ^lovable-uploads/(.*)$ public/lovable-uploads/$1 [L]
 
+# Configuration spéciale pour l'exécution de PHP
+<FilesMatch "\.php$">
+    SetHandler application/x-httpd-php
+</FilesMatch>
+
+# Force PHP script handler
+AddHandler application/x-httpd-php .php
+AddType application/x-httpd-php .php
+
 # Règle pour l'API - toutes les requêtes /api vers le dossier api
 RewriteRule ^api/?$ api/index.php [L]
 RewriteRule ^api/(.*)$ api/$1 [QSA,L]
@@ -53,4 +62,17 @@ RewriteRule ^(.*)$ index.html [QSA,L]
         Header set Pragma "no-cache"
         Header set Expires "0"
     </FilesMatch>
+    
+    # Configuration d'en-têtes pour les fichiers PHP
+    <FilesMatch "\.php$">
+        Header set Content-Type "application/json; charset=UTF-8"
+    </FilesMatch>
+</IfModule>
+
+# Force l'exécution PHP
+<IfModule mod_php.c>
+    php_flag engine on
+    php_value default_charset "UTF-8"
+    php_value output_buffering Off
+    php_value display_errors On
 </IfModule>

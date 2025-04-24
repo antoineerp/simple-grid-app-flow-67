@@ -7,20 +7,16 @@ RewriteEngine On
     SetHandler application/x-httpd-php
 </FilesMatch>
 
-# Permettre l'accès direct aux fichiers PHP spécifiques
-RewriteCond %{REQUEST_FILENAME} -f
-RewriteRule \.(php)$ - [L]
+# Force parser les fichiers .php en PHP
+AddHandler application/x-httpd-php .php
+AddType application/x-httpd-php .php
 
-# Rediriger toutes les requêtes vers l'index.php sauf pour les fichiers existants
-RewriteCond %{REQUEST_FILENAME} !-f
-RewriteCond %{REQUEST_FILENAME} !-d
-RewriteRule ^(.*)$ index.php [QSA,L]
-
-# Définir les en-têtes CORS
+# Définir les en-têtes CORS et Content-Type
 <IfModule mod_headers.c>
     Header set Access-Control-Allow-Origin "*"
     Header set Access-Control-Allow-Methods "GET, POST, OPTIONS, PUT, DELETE"
     Header set Access-Control-Allow-Headers "Content-Type, Authorization"
+    Header set Content-Type "application/json; charset=UTF-8"
     
     # Eviter la mise en cache
     Header set Cache-Control "no-cache, no-store, must-revalidate"
@@ -30,10 +26,17 @@ RewriteRule ^(.*)$ index.php [QSA,L]
 
 # Forcer PHP à utiliser le bon encodage
 <IfModule mod_php.c>
+    php_flag engine on
     php_value default_charset "UTF-8"
     php_value output_buffering Off
     php_value display_errors On
 </IfModule>
 
-# Spécifier explicitement le handler PHP
-AddHandler application/x-httpd-php .php
+# Permettre l'accès direct aux fichiers PHP spécifiques
+RewriteCond %{REQUEST_FILENAME} -f
+RewriteRule \.(php)$ - [L]
+
+# Rediriger toutes les requêtes vers l'index.php sauf pour les fichiers existants
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^(.*)$ index.php [QSA,L]

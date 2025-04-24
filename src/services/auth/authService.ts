@@ -46,8 +46,16 @@ class AuthService {
 
     private async parseJsonResponse(response: Response): Promise<any> {
         try {
+            const contentType = response.headers.get('content-type');
             const responseText = await response.text();
             console.log(`Réponse reçue (${response.status}): ${responseText.substring(0, 200)}...`);
+            console.log(`Content-Type: ${contentType}`);
+            
+            // Vérifier si le serveur renvoie du code PHP non exécuté
+            if (responseText.trim().startsWith('<?php')) {
+                console.error("Le serveur renvoie du code PHP au lieu de l'exécuter");
+                throw new Error("Le serveur PHP n'exécute pas le code. Vérifiez la configuration du serveur.");
+            }
             
             if (!responseText || responseText.trim() === '') {
                 console.warn('Réponse vide reçue du serveur');
@@ -58,12 +66,6 @@ class AuthService {
             if (responseText.includes('API PHP disponible') && !responseText.includes('token')) {
                 console.log('Détecté: réponse API info standard');
                 return { info: true, message: 'API info response' };
-            }
-            
-            // Détection du code PHP non exécuté
-            if (responseText.trim().startsWith('<?php')) {
-                console.log("Le serveur renvoie du code PHP au lieu de l'exécuter");
-                throw new Error("Le serveur PHP n'exécute pas le code. Vérifiez la configuration du serveur.");
             }
             
             if (responseText.trim().startsWith('<!DOCTYPE') || 
@@ -96,7 +98,8 @@ class AuthService {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Cache-Control': 'no-cache, no-store, must-revalidate'
+                    'Cache-Control': 'no-cache, no-store, must-revalidate',
+                    'Accept': 'application/json'
                 },
                 body: JSON.stringify({ username, password })
             });
