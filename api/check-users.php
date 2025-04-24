@@ -16,6 +16,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
 // Journaliser l'exécution
 error_log("=== EXÉCUTION DE check-users.php ===");
 
+// Capturer toute sortie pour éviter la contamination du JSON
+ob_start();
+
 try {
     // Tester la connexion PDO directement
     $host = "p71x6d.myd.infomaniak.com";
@@ -34,12 +37,27 @@ try {
     $pdo = new PDO($dsn, $username, $password, $options);
     error_log("Connexion PDO réussie");
     
+    // Vérifier si la table existe
+    $tableExistsQuery = "SHOW TABLES LIKE 'utilisateurs'";
+    $stmt = $pdo->prepare($tableExistsQuery);
+    $stmt->execute();
+    
+    if ($stmt->rowCount() == 0) {
+        // La table n'existe pas
+        throw new Exception("La table 'utilisateurs' n'existe pas");
+    }
+    
     // Récupérer tous les utilisateurs
-    $query = "SELECT id, nom, prenom, email, role, identifiant_technique, date_creation FROM utilisateurs";
+    $query = "SELECT id, nom, prenom, email, role, identifiant_technique, date_creation, mot_de_passe FROM utilisateurs";
     $stmt = $pdo->prepare($query);
     $stmt->execute();
     $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
     $count = count($users);
+    
+    error_log("Nombre d'utilisateurs récupérés: " . $count);
+    
+    // Nettoyer tout output accumulé
+    ob_clean();
     
     // Préparer la réponse
     http_response_code(200);
@@ -58,6 +76,9 @@ try {
 } catch (PDOException $e) {
     error_log("Erreur de connexion PDO: " . $e->getMessage());
     
+    // Nettoyer tout output accumulé
+    ob_clean();
+    
     http_response_code(500);
     echo json_encode([
         'status' => 'error',
@@ -67,6 +88,9 @@ try {
     exit;
 } catch (Exception $e) {
     error_log("Erreur générale: " . $e->getMessage());
+    
+    // Nettoyer tout output accumulé
+    ob_clean();
     
     http_response_code(500);
     echo json_encode([

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -22,6 +21,7 @@ interface User {
   identifiant_technique: string;
   role: string;
   date_creation: string;
+  mot_de_passe?: string;
 }
 
 interface FallbackUser {
@@ -93,40 +93,62 @@ const ServerTest = () => {
       const API_URL = getApiUrl();
       console.log("Testing users connection to:", API_URL + '/check-users.php');
       
-      const data = await fetchWithErrorHandling(`${API_URL}/check-users.php`, {
+      const response = await fetch(`${API_URL}/check-users.php`, {
         method: 'GET',
-        headers: getAuthHeaders()
+        headers: getAuthHeaders(),
+        cache: 'no-store'
       });
       
-      console.log("Users response:", data);
+      if (!response.ok) {
+        throw new Error(`Erreur HTTP: ${response.status} - ${response.statusText}`);
+      }
       
-      if (data.records) {
+      const responseText = await response.text();
+      console.log("Réponse brute:", responseText.substring(0, 200) + "...");
+      
+      if (!responseText.trim()) {
+        throw new Error("Réponse vide du serveur");
+      }
+      
+      let data;
+      try {
+        data = JSON.parse(responseText);
+      } catch (parseError) {
+        console.error("Erreur de parsing JSON:", parseError);
+        throw new Error("La réponse n'est pas au format JSON valide");
+      }
+      
+      console.log("Users response parsed:", data);
+      
+      if (data.records && Array.isArray(data.records)) {
         setUsers(data.records);
+      } else if (data.users && Array.isArray(data.users)) {
+        setUsers(data.users);
+      } else {
+        console.warn("Format de réponse inattendu:", data);
+        setUsers([]);
       }
       
       if (data.fallback_users) {
         setFallbackUsers(data.fallback_users);
       }
       
-      setUsersMessage(`Utilisateurs récupérés avec succès (${data.count || 0} utilisateurs dans la base)`);
+      const userCount = data.records ? data.records.length : (data.users ? data.users.length : 0);
+      setUsersMessage(`Utilisateurs récupérés avec succès (${userCount} utilisateurs dans la base)`);
       setUsersStatus('success');
     } catch (error) {
       console.error("Erreur Users:", error);
       setUsersMessage(`Échec de la récupération des utilisateurs: ${error instanceof Error ? error.message : 'Erreur inconnue'}`);
       setUsersStatus('error');
       
-      // Définir des utilisateurs de secours en cas d'erreur
       setFallbackUsers([
         { identifiant_technique: "admin", mot_de_passe: "admin123", role: "admin" },
         { identifiant_technique: "antcirier@gmail.com", mot_de_passe: "password123", role: "admin" },
-        { identifiant_technique: "p71x6d_system", mot_de_passe: "admin123", role: "admin" },
-        { identifiant_technique: "p71x6d_dupont", mot_de_passe: "manager456", role: "gestionnaire" },
-        { identifiant_technique: "p71x6d_martin", mot_de_passe: "user789", role: "utilisateur" }
+        { identifiant_technique: "p71x6d_system", mot_de_passe: "admin123", role: "admin" }
       ]);
     }
   };
 
-  // Tester automatiquement la connexion à l'API au chargement du composant
   useEffect(() => {
     testApiConnection();
   }, []);

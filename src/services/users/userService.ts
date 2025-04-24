@@ -1,6 +1,5 @@
-
 import { getApiUrl } from '@/config/apiConfig';
-import { toast } from '@/hooks/use-toast';
+import { useToast } from '@/hooks/use-toast';
 import { getAuthHeaders } from '../auth/authService';
 
 // URL de l'API
@@ -49,15 +48,35 @@ class UserService {
       // Modifier ici pour utiliser check-users.php à la place de /utilisateurs
       const response = await fetch(`${currentApiUrl}/check-users.php`, {
         method: 'GET',
-        headers: getAuthHeaders()
+        headers: {
+          ...getAuthHeaders(),
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0'
+        }
       });
       
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || "Error retrieving users");
+        const error = await response.json().catch(() => ({ message: "Error retrieving users" }));
+        throw new Error(error.message || `HTTP error: ${response.status}`);
       }
       
-      const data = await response.json();
+      // Récupérer d'abord le contenu brut
+      const responseText = await response.text();
+      
+      if (!responseText.trim()) {
+        throw new Error("Empty response from server");
+      }
+      
+      // Essayer de parser le JSON
+      let data;
+      try {
+        data = JSON.parse(responseText);
+      } catch (parseError) {
+        console.error("Error parsing JSON:", parseError);
+        throw new Error("Invalid JSON response");
+      }
+      
       console.log("Données utilisateurs reçues:", data);
       
       // Vérifier si nous avons des records avant de les renvoyer
@@ -72,13 +91,15 @@ class UserService {
       return [];
     } catch (error) {
       console.error("Error retrieving users:", error);
+      const { toast } = useToast();
       toast({
         title: "Erreur de connexion",
         description: "Impossible de récupérer les utilisateurs depuis la base de données.",
         variant: "destructive",
       });
       
-      // Fallback for development
+      // Fallback for development - keep only as a last resort
+      console.log("Using fallback user data");
       return [
         {
           id: 1,
@@ -89,26 +110,6 @@ class UserService {
           identifiant_technique: "p71x6d_system",
           role: "admin",
           date_creation: "2025-03-31 16:10:09"
-        },
-        {
-          id: 2,
-          nom: "Dupont",
-          prenom: "Jean",
-          email: "jean.dupont@example.com",
-          mot_de_passe: "****",
-          identifiant_technique: "p71x6d_dupont",
-          role: "utilisateur",
-          date_creation: "2025-04-01 10:15:00"
-        },
-        {
-          id: 3,
-          nom: "Martin",
-          prenom: "Sophie",
-          email: "sophie.martin@example.com",
-          mot_de_passe: "****",
-          identifiant_technique: "p71x6d_martin",
-          role: "gestionnaire",
-          date_creation: "2025-04-02 14:30:00"
         }
       ];
     }
