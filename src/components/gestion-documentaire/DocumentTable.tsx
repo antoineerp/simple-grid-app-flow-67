@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Pencil, Trash, GripVertical, ChevronDown } from 'lucide-react';
 import ResponsableSelector from '@/components/ResponsableSelector';
@@ -43,7 +42,6 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
 }) => {
   const ungroupedDocuments = documents.filter(d => !d.groupId);
 
-  // Correction: Déclarer la fonction pour obtenir l'index global d'un élément dans un groupe
   const getGroupItemIndex = (groupId: string, localIndex: number) => {
     let globalStartIndex = ungroupedDocuments.length;
     
@@ -69,12 +67,10 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
     
     let actualStartIndex = startIndex;
     
-    // Si l'élément provient d'un groupe, calculer l'index réel
     if (sourceGroupId) {
       actualStartIndex = getGroupItemIndex(sourceGroupId, startIndex);
     }
     
-    // Si l'élément est déplacé dans un groupe, calculer l'index cible réel
     let actualTargetIndex = targetIndex;
     if (targetGroupId) {
       actualTargetIndex = getGroupItemIndex(targetGroupId, targetIndex);
@@ -118,16 +114,22 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
         <TableBody>
           {groups.map((group) => (
             <React.Fragment key={group.id}>
-              <TableRow className="border-b hover:bg-gray-50 cursor-pointer" onClick={() => onToggleGroup(group.id)}>
+              <TableRow 
+                className="border-b hover:bg-gray-50 cursor-pointer" 
+                onClick={() => onToggleGroup(group.id)}
+              >
                 <TableCell className="py-3 px-2 w-10">
                   <GripVertical className="h-5 w-5 text-gray-400" />
                 </TableCell>
-                <TableCell className="py-3 px-4 w-full text-left" colSpan={9}>
+                <TableCell 
+                  className="py-3 px-4 w-full text-left" 
+                  colSpan={9}
+                >
                   <div className="flex items-center">
                     <ChevronDown 
                       className={`h-4 w-4 mr-2 inline-block transition-transform ${group.expanded ? 'rotate-180' : ''}`} 
                     />
-                    <span className="font-medium">{group.name}</span>
+                    <span className="font-medium text-app-blue">{group.name}</span>
                   </div>
                 </TableCell>
                 <TableCell className="py-3 px-4 text-right">
@@ -151,6 +153,7 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
                   </button>
                 </TableCell>
               </TableRow>
+              
               {group.expanded && (
                 group.items.map((doc, index) => (
                   <TableRow 
