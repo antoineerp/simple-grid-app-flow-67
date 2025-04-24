@@ -1,11 +1,11 @@
 
-import { useState, useEffect } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useToast } from "@/hooks/use-toast";
-import { login } from '@/services';
+import { login as loginUser } from '@/services/auth/authService';
 
 export const loginSchema = z.object({
   username: z.string().min(3, { message: "Le nom d'utilisateur doit comporter au moins 3 caractères" }),
@@ -16,7 +16,6 @@ export type LoginFormValues = z.infer<typeof loginSchema>;
 
 export const useLoginForm = () => {
   const navigate = useNavigate();
-  const location = useLocation();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [hasDbError, setHasDbError] = useState(false);
@@ -31,34 +30,25 @@ export const useLoginForm = () => {
     },
   });
 
-  // Check if user is already logged in when the component mounts
-  useEffect(() => {
-    const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
-    if (isLoggedIn && location.pathname === '/') {
-      console.log('User already logged in, redirecting to dashboard');
-      navigate('/pilotage', { replace: true });
-    }
-  }, [navigate, location.pathname]);
-
   const onSubmit = async (data: LoginFormValues) => {
     if (isLoading) return;
     
-    console.log("Traitement de la connexion pour:", data.username);
     setIsLoading(true);
     setHasDbError(false);
     setHasServerError(false);
     setHasAuthError(false);
     
     try {
-      console.log("Appel du service login pour:", data.username);
-      const result = await login(data.username, data.password);
-      console.log("Résultat de connexion:", result);
+      console.log("Tentative de connexion pour:", data.username);
+      const result = await loginUser(data.username, data.password);
       
       if (result.success && result.user) {
         // Réinitialiser l'état d'erreur
         setHasDbError(false);
         setHasServerError(false);
         setHasAuthError(false);
+        
+        localStorage.setItem('isLoggedIn', 'true');
         
         toast({
           title: "Connexion réussie",
@@ -68,14 +58,6 @@ export const useLoginForm = () => {
         // Forcer la navigation vers le pilotage
         console.log("Redirection vers /pilotage après connexion réussie");
         navigate("/pilotage", { replace: true });
-      } else {
-        console.error("Échec de connexion:", result.message);
-        setHasAuthError(true);
-        toast({
-          title: "Échec de la connexion",
-          description: result.message || "Identifiants invalides",
-          variant: "destructive",
-        });
       }
     } catch (error) {
       console.error("Erreur lors de la connexion:", error);
@@ -103,9 +85,17 @@ export const useLoginForm = () => {
             description: "Le serveur d'authentification est temporairement inaccessible.",
             variant: "destructive",
           });
+        } else if (errorMessage.includes("mot de passe") ||
+                  errorMessage.includes("identifiants") ||
+                  errorMessage.includes("invalide")) {
+          setHasAuthError(true);
+          toast({
+            title: "Identifiants incorrects",
+            description: "Le nom d'utilisateur ou le mot de passe est incorrect.",
+            variant: "destructive",
+          });
         } else {
           // Erreur générique
-          setHasAuthError(true);
           toast({
             title: "Échec de la connexion",
             description: error.message || "Erreur lors de la tentative de connexion",

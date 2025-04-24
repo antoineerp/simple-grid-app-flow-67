@@ -1,14 +1,13 @@
 import { useState, useEffect } from 'react';
 import { useToast } from "@/hooks/use-toast";
 import { Exigence, ExigenceStats } from '@/types/exigences';
-import { getUserId } from '@/services/auth/authService';
 
 export const useExigences = () => {
   const { toast } = useToast();
-  const userId = getUserId() || 'anonymous';
+  const currentUser = localStorage.getItem('currentUser') || 'default';
   
   const [exigences, setExigences] = useState<Exigence[]>(() => {
-    const storedExigences = localStorage.getItem(`exigences_${userId}`);
+    const storedExigences = localStorage.getItem(`exigences_${currentUser}`);
     
     if (storedExigences) {
       return JSON.parse(storedExigences);
@@ -57,7 +56,7 @@ export const useExigences = () => {
   };
 
   useEffect(() => {
-    localStorage.setItem(`exigences_${userId}`, JSON.stringify(exigences));
+    localStorage.setItem(`exigences_${currentUser}`, JSON.stringify(exigences));
     
     const userRole = localStorage.getItem('userRole');
     if (userRole === 'admin' || userRole === 'administrateur') {
@@ -65,8 +64,7 @@ export const useExigences = () => {
     }
     
     notifyExigenceUpdate();
-    console.log(`[Exigences] Saved ${exigences.length} exigences for user ${userId}`);
-  }, [exigences, userId]);
+  }, [exigences, currentUser]);
 
   useEffect(() => {
     const exclusionCount = exigences.filter(e => e.exclusion).length;

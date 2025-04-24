@@ -2,38 +2,51 @@
 import React, { useState, useEffect } from 'react';
 import Logo from '@/components/auth/Logo';
 import LoginForm from '@/components/auth/LoginForm';
-import { testApiConnection } from '@/config/apiConfig';
+import { getApiUrl, getFullApiUrl, testApiConnection } from '@/config/apiConfig';
+import { Button } from '@/components/ui/button';
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { AlertCircle, ExternalLink, Info, Server, RefreshCw } from 'lucide-react';
 
 const Index = () => {
   const [apiStatus, setApiStatus] = useState<'loading' | 'success' | 'error'>('loading');
-  const [version, setVersion] = useState<string>('1.0.8');
   const [apiMessage, setApiMessage] = useState<string>('');
+  const [apiDetails, setApiDetails] = useState<any>(null);
+  const [version, setVersion] = useState<string>('1.0.7');
+  const [isInfomaniak, setIsInfomaniak] = useState<boolean>(false);
+  const [isRetesting, setIsRetesting] = useState<boolean>(false);
   
   const checkApi = async () => {
     try {
-      console.log("Checking API connection...");
       setApiStatus('loading');
       const result = await testApiConnection();
       
-      console.log("API connection result:", result);
-      if (result && result.success) {
+      if (result.success) {
         setApiStatus('success');
-        setApiMessage(result.message || 'Connexion à l\'API réussie');
+        setApiMessage(result.message);
       } else {
         setApiStatus('error');
-        setApiMessage(result.message || 'Connexion à l\'API impossible');
+        setApiMessage(result.message);
       }
+      
+      setApiDetails(result.details || null);
     } catch (error) {
-      console.error("API connection error:", error);
       setApiStatus('error');
-      setApiMessage(error instanceof Error ? error.message : 'Erreur de connexion à l\'API');
+      setApiMessage(error instanceof Error ? error.message : 'Erreur inconnue');
+      setApiDetails(null);
+    } finally {
+      setIsRetesting(false);
     }
   };
   
   useEffect(() => {
-    console.log("Index component mounted");
+    // Détecter si nous sommes sur Infomaniak
+    const hostname = window.location.hostname;
+    const infomaniakDetected = hostname.includes('myd.infomaniak.com') || 
+                             hostname.includes('qualiopi.ch');
+    setIsInfomaniak(infomaniakDetected);
+    
     checkApi();
-    setVersion(`1.0.9 - ${new Date().toLocaleDateString()}`);
+    setVersion(`1.0.7 - ${new Date().toLocaleDateString()}`);
   }, []);
 
   return (
@@ -41,35 +54,92 @@ const Index = () => {
       <div className="w-full max-w-md bg-white rounded-lg shadow-lg p-8 mb-6">
         <Logo />
         
-        {apiStatus === 'loading' && (
-          <div className="bg-blue-50 border border-blue-200 text-blue-700 px-4 py-3 rounded mb-6">
-            Vérification de la connexion à l'API...
-          </div>
-        )}
-        
         {apiStatus === 'error' && (
-          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-6">
-            <p>Connexion à l'API impossible. Veuillez contacter le support technique.</p>
-            <p className="text-xs mt-1">Message: {apiMessage}</p>
-          </div>
+          <Alert variant="destructive" className="mb-6">
+            <AlertCircle className="h-4 w-4 mr-2" />
+            <AlertDescription>
+              <div className="font-semibold mb-1">Connexion à l'API impossible: {apiMessage}</div>
+              <div className="mt-2 text-xs">
+                URL d'API actuelle: <span className="font-mono">{getFullApiUrl()}</span>
+                
+                {apiDetails && apiDetails.tip && (
+                  <div className="mt-1 p-2 bg-red-100 rounded">
+                    <strong>Conseil:</strong> {apiDetails.tip}
+                  </div>
+                )}
+                
+                {apiMessage.includes('PHP') && (
+                  <div className="mt-2 p-2 bg-orange-100 rounded">
+                    <strong>Problème détecté:</strong> Votre serveur semble renvoyer le code PHP au lieu de l'exécuter.
+                    Vérifiez que PHP est correctement configuré sur votre serveur.
+                  </div>
+                )}
+              </div>
+              
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="mt-2" 
+                onClick={() => {
+                  setIsRetesting(true);
+                  checkApi();
+                }}
+                disabled={isRetesting}
+              >
+                <RefreshCw className={`h-3 w-3 mr-1 ${isRetesting ? 'animate-spin' : ''}`} />
+                {isRetesting ? 'Test en cours...' : 'Tester à nouveau'}
+              </Button>
+            </AlertDescription>
+          </Alert>
         )}
         
-        {apiStatus === 'success' && (
-          <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded mb-6">
-            <p>Connexion à l'API établie.</p>
-            <p className="text-xs mt-1">Message: {apiMessage}</p>
-          </div>
+        {isInfomaniak ? (
+          <Alert variant="default" className="mb-6">
+            <Info className="h-4 w-4 mr-2" />
+            <AlertDescription>
+              <div className="text-xs">
+                <div className="flex items-center mb-1">
+                  <Server className="h-3 w-3 mr-1" />
+                  <span className="font-medium">Infomaniak détecté</span>
+                </div>
+                URL d'API: <strong>{getFullApiUrl()}</strong>
+              </div>
+            </AlertDescription>
+          </Alert>
+        ) : (
+          <Alert variant="default" className="mb-6">
+            <Info className="h-4 w-4 mr-2" />
+            <AlertDescription>
+              <div className="text-xs">
+                Environnement de développement détecté
+                <div className="mt-1">
+                  URL d'API: <strong>{getFullApiUrl()}</strong>
+                </div>
+              </div>
+            </AlertDescription>
+          </Alert>
         )}
         
         <LoginForm />
         
-        <div className="mt-4 text-sm text-gray-500 border-t pt-4">
-          <p>Identifiants de test:</p>
-          <p>Utilisateur: <strong>admin</strong> - Mot de passe: <strong>admin123</strong></p>
-          <p>Utilisateur: <strong>p71x6d_system</strong> - Mot de passe: <strong>Trottinette43!</strong></p>
-          <p>Utilisateur: <strong>antcirier@gmail.com</strong> - Mot de passe: <strong>password123</strong></p>
-          <p>Utilisateur: <strong>p71x6d_dupont</strong> - Mot de passe: <strong>manager456</strong></p>
-          <p>Utilisateur: <strong>p71x6d_martin</strong> - Mot de passe: <strong>user789</strong></p>
+        <div className="mt-6 text-xs text-gray-500 border-t pt-4">
+          <div className="flex justify-between">
+            <span>API: {apiStatus === 'loading' ? 'Vérification...' : apiStatus === 'success' ? '✅ Connectée' : '❌ Erreur'}</span>
+            <a 
+              href={`${getApiUrl()}/check-users.php`} 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="flex items-center text-blue-500 hover:underline"
+            >
+              Vérifier utilisateurs <ExternalLink className="h-3 w-3 ml-1" />
+            </a>
+          </div>
+          
+          {apiStatus === 'error' && (
+            <div className="mt-2 text-xs text-red-500">
+              Pour résoudre ce problème, vérifiez que votre serveur exécute correctement PHP.
+            </div>
+          )}
         </div>
       </div>
       

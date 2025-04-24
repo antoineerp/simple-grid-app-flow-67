@@ -1,30 +1,21 @@
 
 import { Document } from '@/types/documents';
-import { getUserId } from '../auth/authService';
 
 /**
  * Loads documents from local storage for the current user
  */
 export const loadDocumentsFromStorage = (currentUser: string): Document[] => {
-  // Utiliser l'ID utilisateur réel à partir du service d'authentification
-  const userId = getUserId() || currentUser;
-  const storageKey = `documents_${userId}`;
-  
-  console.log(`[Documents] Loading documents for user ${userId}`);
-  const storedDocuments = localStorage.getItem(storageKey);
+  const storedDocuments = localStorage.getItem(`documents_${currentUser}`);
   
   if (storedDocuments) {
-    try {
-      const parsedDocuments = JSON.parse(storedDocuments);
-      console.log(`[Documents] Loaded ${parsedDocuments.length} documents`);
-      return parsedDocuments;
-    } catch (error) {
-      console.error('[Documents] Error parsing stored documents:', error);
-      return getDefaultDocuments();
-    }
+    return JSON.parse(storedDocuments);
   } else {
-    console.log(`[Documents] No documents found, loading defaults`);
-    // Ne pas charger les documents d'autres utilisateurs comme template
+    const defaultDocuments = localStorage.getItem('documents_template') || localStorage.getItem('documents');
+    
+    if (defaultDocuments) {
+      return JSON.parse(defaultDocuments);
+    }
+    
     return getDefaultDocuments();
   }
 };
@@ -33,41 +24,15 @@ export const loadDocumentsFromStorage = (currentUser: string): Document[] => {
  * Saves documents to local storage for the current user
  */
 export const saveDocumentsToStorage = (documents: Document[], currentUser: string): void => {
-  // Utiliser l'ID utilisateur réel à partir du service d'authentification
-  const userId = getUserId() || currentUser;
-  const storageKey = `documents_${userId}`;
+  localStorage.setItem(`documents_${currentUser}`, JSON.stringify(documents));
   
-  try {
-    console.log(`[Documents] Saving ${documents.length} documents for user ${userId}`);
-    localStorage.setItem(storageKey, JSON.stringify(documents));
-    
-    // Notify other components of document updates
-    window.dispatchEvent(new Event('documentUpdate'));
-  } catch (error) {
-    console.error('[Documents] Error saving documents to localStorage:', error);
+  const userRole = localStorage.getItem('userRole');
+  if (userRole === 'admin' || userRole === 'administrateur') {
+    localStorage.setItem('documents_template', JSON.stringify(documents));
   }
-};
-
-/**
- * Calculates document statistics for display
- */
-export const calculateDocumentStats = (documents: Document[]) => {
-  const total = documents.length;
-  const excluded = documents.filter(doc => doc.etat === 'EX').length;
-  const nonExcluded = total - excluded;
   
-  const nonConforme = documents.filter(doc => doc.etat === 'NC').length;
-  const partiellementConforme = documents.filter(doc => doc.etat === 'PC').length;
-  const conforme = documents.filter(doc => doc.etat === 'C').length;
-  
-  return {
-    total: nonExcluded,
-    nonConforme,
-    partiellementConforme,
-    conforme,
-    excluded,
-    exclusion: excluded
-  };
+  // Notify other components of document updates
+  window.dispatchEvent(new Event('documentUpdate'));
 };
 
 /**

@@ -1,34 +1,35 @@
+
 import { useState, useEffect, useCallback } from 'react';
 import { useToast } from "@/hooks/use-toast";
 import { Document } from '@/types/documents';
-import { getUserId } from '@/services/auth/authService';
 import { 
-  fetchDocuments,
-  saveDocuments,
+  loadDocumentsFromStorage, 
+  saveDocumentsToStorage, 
   calculateDocumentStats,
-  syncDocumentsWithServer,
-  loadDocumentsFromStorage,
-  saveDocumentsToStorage
+  syncDocumentsWithServer
 } from '@/services/documents';
 
 export const useDocuments = () => {
   const { toast } = useToast();
-  const userId = getUserId() || 'anonymous';
+  const currentUser = localStorage.getItem('currentUser') || 'default';
   
-  const [documents, setDocuments] = useState<Document[]>(() => loadDocumentsFromStorage(userId));
+  const [documents, setDocuments] = useState<Document[]>(() => loadDocumentsFromStorage(currentUser));
   const [editingDocument, setEditingDocument] = useState<Document | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [stats, setStats] = useState(calculateDocumentStats(documents));
   const [isSyncing, setIsSyncing] = useState(false);
 
+  // Update statistics when documents change
   useEffect(() => {
     setStats(calculateDocumentStats(documents));
   }, [documents]);
 
+  // Save documents to storage when they change
   useEffect(() => {
-    saveDocumentsToStorage(documents, userId);
-  }, [documents, userId]);
+    saveDocumentsToStorage(documents, currentUser);
+  }, [documents, currentUser]);
 
+  // Document manipulation functions
   const handleResponsabiliteChange = useCallback((id: string, type: 'r' | 'a' | 'c' | 'i', values: string[]) => {
     setDocuments(prev => 
       prev.map(doc => 
@@ -155,7 +156,7 @@ export const useDocuments = () => {
   const syncWithServer = useCallback(async () => {
     setIsSyncing(true);
     
-    const success = await syncDocumentsWithServer(documents, userId);
+    const success = await syncDocumentsWithServer(documents, currentUser);
     
     if (success) {
       toast({
@@ -172,7 +173,7 @@ export const useDocuments = () => {
     
     setIsSyncing(false);
     return success;
-  }, [documents, userId, toast]);
+  }, [documents, currentUser, toast]);
 
   return {
     documents,
