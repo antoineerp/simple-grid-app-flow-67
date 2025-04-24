@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
+
+import { useState, useEffect, useCallback } from 'react';
 import { useToast } from "@/hooks/use-toast";
-import { Exigence, ExigenceStats } from '@/types/exigences';
+import { Exigence, ExigenceStats, ExigenceGroup } from '@/types/exigences';
 
 export const useExigences = () => {
   const { toast } = useToast();
@@ -41,8 +42,15 @@ export const useExigences = () => {
     }
   });
 
+  const [groups, setGroups] = useState<ExigenceGroup[]>(() => {
+    const storedGroups = localStorage.getItem(`exigence_groups_${currentUser}`);
+    return storedGroups ? JSON.parse(storedGroups) : [];
+  });
+
   const [editingExigence, setEditingExigence] = useState<Exigence | null>(null);
+  const [editingGroup, setEditingGroup] = useState<ExigenceGroup | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [groupDialogOpen, setGroupDialogOpen] = useState(false);
   const [stats, setStats] = useState<ExigenceStats>({
     exclusion: 0,
     nonConforme: 0,
@@ -65,6 +73,11 @@ export const useExigences = () => {
     
     notifyExigenceUpdate();
   }, [exigences, currentUser]);
+
+  // Save groups to storage when they change
+  useEffect(() => {
+    localStorage.setItem(`exigence_groups_${currentUser}`, JSON.stringify(groups));
+  }, [groups, currentUser]);
 
   useEffect(() => {
     const exclusionCount = exigences.filter(e => e.exclusion).length;
@@ -188,12 +201,89 @@ export const useExigences = () => {
     });
   };
 
+  // Group handling functions
+  const handleAddGroup = useCallback(() => {
+    setEditingGroup(null);
+    setGroupDialogOpen(true);
+  }, []);
+
+  const handleEditGroup = useCallback((group: ExigenceGroup) => {
+    setEditingGroup(group);
+    setGroupDialogOpen(true);
+  }, []);
+
+  const handleSaveGroup = useCallback((group: ExigenceGroup) => {
+    if (editingGroup) {
+      setGroups(prev => prev.map(g => g.id === group.id ? group : g));
+      toast({
+        title: "Groupe mis à jour",
+        description: `Le groupe ${group.name} a été mis à jour avec succès`,
+      });
+    } else {
+      setGroups(prev => [...prev, group]);
+      toast({
+        title: "Nouveau groupe",
+        description: `Le groupe ${group.name} a été créé`,
+      });
+    }
+  }, [editingGroup, toast]);
+
+  const handleDeleteGroup = useCallback((groupId: string) => {
+    // Remove group references from exigences
+    setExigences(prev => prev.map(exigence => 
+      exigence.groupId === groupId ? { ...exigence, groupId: undefined } : exigence
+    ));
+    
+    // Delete the group
+    setGroups(prev => prev.filter(g => g.id !== groupId));
+    
+    toast({
+      title: "Suppression",
+      description: "Le groupe a été supprimé",
+    });
+  }, [toast]);
+
+  const handleGroupReorder = useCallback((startIndex: number, endIndex: number) => {
+    setGroups(prev => {
+      const result = Array.from(prev);
+      const [removed] = result.splice(startIndex, 1);
+      result.splice(endIndex, 0, removed);
+      return result;
+    });
+
+    toast({
+      title: "Réorganisation",
+      description: "L'ordre des groupes a été mis à jour",
+    });
+  }, [toast]);
+
+  const handleToggleGroup = useCallback((groupId: string) => {
+    setGroups(prev => 
+      prev.map(group => 
+        group.id === groupId ? { ...group, expanded: !group.expanded } : group
+      )
+    );
+  }, []);
+
+  // Process exigences to include group info
+  const processedGroups = groups.map(group => {
+    const groupItems = exigences.filter(exigence => exigence.groupId === group.id);
+    return {
+      ...group,
+      items: groupItems
+    };
+  });
+
   return {
     exigences,
+    groups: processedGroups,
     stats,
     editingExigence,
+    editingGroup,
     dialogOpen,
+    groupDialogOpen,
     setDialogOpen,
+    setGroupDialogOpen,
     handleResponsabiliteChange,
     handleAtteinteChange,
     handleExclusionChange,
@@ -201,6 +291,12 @@ export const useExigences = () => {
     handleSaveExigence,
     handleDelete,
     handleAddExigence,
-    handleReorder
+    handleReorder,
+    handleAddGroup,
+    handleEditGroup,
+    handleSaveGroup,
+    handleDeleteGroup,
+    handleGroupReorder,
+    handleToggleGroup
   };
 };

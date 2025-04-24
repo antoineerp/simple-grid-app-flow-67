@@ -1,9 +1,9 @@
 
 import React from 'react';
-import { DocumentStats as DocumentStatsType } from '@/types/documents';
+import { DocumentStats } from '@/types/documents';
 
 interface DocumentStatsProps {
-  stats: DocumentStatsType;
+  stats: DocumentStats;
 }
 
 const DocumentStats: React.FC<DocumentStatsProps> = ({ stats }) => {

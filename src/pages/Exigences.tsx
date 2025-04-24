@@ -1,22 +1,28 @@
 
 import React from 'react';
-import { FileDown } from 'lucide-react';
+import { FileDown, FolderPlus } from 'lucide-react';
 import { MembresProvider } from '@/contexts/MembresContext';
 import ExigenceForm from '@/components/exigences/ExigenceForm';
 import ExigenceStats from '@/components/exigences/ExigenceStats';
 import ExigenceTable from '@/components/exigences/ExigenceTable';
+import { ExigenceGroupDialog } from '@/components/exigences/ExigenceGroupDialog';
 import { useExigences } from '@/hooks/useExigences';
-import { Exigence } from '@/types/exigences';
+import { Exigence, ExigenceGroup } from '@/types/exigences';
 import { exportExigencesToPdf } from '@/services/pdfExport';
 import { useToast } from "@/hooks/use-toast";
+import { Button } from "@/components/ui/button";
 
 const ExigencesContent = () => {
   const {
     exigences,
+    groups,
     stats,
     editingExigence,
+    editingGroup,
     dialogOpen,
+    groupDialogOpen,
     setDialogOpen,
+    setGroupDialogOpen,
     handleResponsabiliteChange,
     handleAtteinteChange,
     handleExclusionChange,
@@ -24,7 +30,13 @@ const ExigencesContent = () => {
     handleSaveExigence,
     handleDelete,
     handleAddExigence,
-    handleReorder
+    handleReorder,
+    handleAddGroup,
+    handleEditGroup,
+    handleSaveGroup,
+    handleDeleteGroup,
+    handleGroupReorder,
+    handleToggleGroup
   } = useExigences();
   
   const { toast } = useToast();
@@ -44,25 +56,41 @@ const ExigencesContent = () => {
           <h1 className="text-3xl font-bold text-app-blue">Exigences</h1>
           <p className="text-gray-600">Liste des exigences</p>
         </div>
-        <button 
-          onClick={handleExportPdf}
-          className="text-red-500 hover:text-red-700 transition-colors"
-          title="Exporter en PDF"
-        >
-          <FileDown className="h-6 w-6" />
-        </button>
+        <div className="flex space-x-2">
+          <Button 
+            variant="outline"
+            onClick={handleAddGroup}
+            className="hover:bg-gray-100 transition-colors"
+            title="Nouveau groupe"
+          >
+            <FolderPlus className="h-5 w-5" />
+          </Button>
+          <Button 
+            variant="outline"
+            onClick={handleExportPdf}
+            className="text-red-500 hover:text-red-700 transition-colors"
+            title="Exporter en PDF"
+          >
+            <FileDown className="h-5 w-5" />
+          </Button>
+        </div>
       </div>
 
       <ExigenceStats stats={stats} />
 
       <ExigenceTable 
         exigences={exigences}
+        groups={groups}
         onResponsabiliteChange={handleResponsabiliteChange}
         onAtteinteChange={handleAtteinteChange}
         onExclusionChange={handleExclusionChange}
         onEdit={handleEdit}
         onDelete={handleDelete}
         onReorder={handleReorder}
+        onGroupReorder={handleGroupReorder}
+        onToggleGroup={handleToggleGroup}
+        onEditGroup={handleEditGroup}
+        onDeleteGroup={handleDeleteGroup}
       />
 
       <div className="flex justify-end mt-4">
@@ -79,6 +107,14 @@ const ExigencesContent = () => {
         open={dialogOpen}
         onOpenChange={setDialogOpen}
         onSave={handleSaveExigence}
+      />
+
+      <ExigenceGroupDialog
+        group={editingGroup}
+        open={groupDialogOpen}
+        onOpenChange={setGroupDialogOpen}
+        onSave={handleSaveGroup}
+        isEditing={!!editingGroup}
       />
     </div>
   );

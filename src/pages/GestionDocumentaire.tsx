@@ -1,11 +1,13 @@
 
 import React from 'react';
-import { FileDown } from 'lucide-react';
+import { FileDown, FolderPlus } from 'lucide-react';
 import { MembresProvider } from '@/contexts/MembresContext';
 import DocumentForm from '@/components/gestion-documentaire/DocumentForm';
 import DocumentStats from '@/components/gestion-documentaire/DocumentStats';
 import DocumentTable from '@/components/gestion-documentaire/DocumentTable';
+import { DocumentGroupDialog } from '@/components/gestion-documentaire/DocumentGroupDialog';
 import { useDocuments } from '@/hooks/useDocuments';
+import { Document, DocumentGroup } from '@/types/documents';
 import { exportDocumentsToPdf } from '@/services/pdfExport';
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
@@ -13,10 +15,14 @@ import { Button } from "@/components/ui/button";
 const GestionDocumentaireContent = () => {
   const {
     documents,
+    groups,
     stats,
     editingDocument,
+    editingGroup,
     dialogOpen,
+    groupDialogOpen,
     setDialogOpen,
+    setGroupDialogOpen,
     handleResponsabiliteChange,
     handleAtteinteChange,
     handleExclusionChange,
@@ -24,7 +30,13 @@ const GestionDocumentaireContent = () => {
     handleSaveDocument,
     handleDelete,
     handleAddDocument,
-    handleReorder
+    handleReorder,
+    handleAddGroup,
+    handleEditGroup,
+    handleSaveGroup,
+    handleDeleteGroup,
+    handleGroupReorder,
+    handleToggleGroup
   } = useDocuments();
   
   const { toast } = useToast();
@@ -47,6 +59,14 @@ const GestionDocumentaireContent = () => {
         <div className="flex space-x-2">
           <Button 
             variant="outline"
+            onClick={handleAddGroup}
+            className="hover:bg-gray-100 transition-colors"
+            title="Nouveau groupe"
+          >
+            <FolderPlus className="h-5 w-5" />
+          </Button>
+          <Button 
+            variant="outline"
             onClick={handleExportPdf}
             className="text-red-500 hover:text-red-700 transition-colors"
             title="Exporter en PDF"
@@ -60,12 +80,17 @@ const GestionDocumentaireContent = () => {
 
       <DocumentTable 
         documents={documents}
+        groups={groups}
         onResponsabiliteChange={handleResponsabiliteChange}
         onAtteinteChange={handleAtteinteChange}
         onExclusionChange={handleExclusionChange}
         onEdit={handleEdit}
         onDelete={handleDelete}
         onReorder={handleReorder}
+        onGroupReorder={handleGroupReorder}
+        onToggleGroup={handleToggleGroup}
+        onEditGroup={handleEditGroup}
+        onDeleteGroup={handleDeleteGroup}
       />
 
       <div className="flex justify-end mt-4">
@@ -81,6 +106,14 @@ const GestionDocumentaireContent = () => {
         open={dialogOpen}
         onOpenChange={setDialogOpen}
         onSave={handleSaveDocument}
+      />
+
+      <DocumentGroupDialog
+        group={editingGroup}
+        open={groupDialogOpen}
+        onOpenChange={setGroupDialogOpen}
+        onSave={handleSaveGroup}
+        isEditing={!!editingGroup}
       />
     </div>
   );

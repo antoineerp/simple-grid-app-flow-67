@@ -21,3 +21,11 @@ export interface Document {
   date_modification: Date;
   groupId?: string;
 }
+
+export interface DocumentStats {
+  exclusion: number;
+  nonConforme: number;
+  partiellementConforme: number;
+  conforme: number;
+  total: number;
+}
