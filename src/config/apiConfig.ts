@@ -28,6 +28,9 @@ export const testApiConnection = async (): Promise<{ success: boolean; message?:
         'Content-Type': 'application/json',
         'Cache-Control': 'no-cache',
       },
+      // Ajouter ces options pour éviter les problèmes de CORS et de cache
+      credentials: 'same-origin',
+      mode: 'cors',
     });
 
     console.log("API test response status:", response.status);
@@ -67,6 +70,9 @@ export const fetchWithErrorHandling = async (
         'Content-Type': 'application/json',
         ...(options.headers || {}),
       },
+      // Ajouter ces options pour éviter les problèmes de CORS et de cache
+      credentials: 'same-origin',
+      mode: 'cors',
     });
 
     if (!response.ok) {
