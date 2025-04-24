@@ -7,8 +7,10 @@ let apiUrl = '/api'; // Default to relative path if not specified
 // Determine the API URL based on the current environment
 if (import.meta.env.MODE === 'development') {
   apiUrl = import.meta.env.VITE_API_URL_DEV || '/api';
+  console.log("Using development API URL:", apiUrl);
 } else {
   apiUrl = import.meta.env.VITE_API_URL_PROD || '/api';
+  console.log("Using production API URL:", apiUrl);
 }
 
 // Export the API URL getter function
@@ -56,6 +58,9 @@ export const fetchWithErrorHandling = async (
   options: RequestInit = {}
 ): Promise<any> => {
   try {
+    // Log the full URL being used for the API call
+    console.log(`API call to: ${url}`);
+    
     const response = await fetch(url, {
       ...options,
       headers: {

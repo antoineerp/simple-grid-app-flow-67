@@ -29,7 +29,7 @@ const Index = () => {
   useEffect(() => {
     console.log("Index component mounted");
     checkApi();
-    setVersion(`1.0.8 - ${new Date().toLocaleDateString()}`);
+    setVersion(`1.0.9 - ${new Date().toLocaleDateString()}`);
   }, []);
 
   return (
@@ -53,8 +53,10 @@ const Index = () => {
         
         <div className="mt-4 text-sm text-gray-500 border-t pt-4">
           <p>Identifiants de test:</p>
-          <p>Utilisateur: <strong>admin</strong></p>
-          <p>Mot de passe: <strong>password123</strong></p>
+          <p>Utilisateur: <strong>admin</strong> - Mot de passe: <strong>admin123</strong></p>
+          <p>Utilisateur: <strong>p71x6d_system</strong> - Mot de passe: <strong>Trottinette43!</strong></p>
+          <p>Utilisateur: <strong>p71x6d_dupont</strong> - Mot de passe: <strong>manager456</strong></p>
+          <p>Utilisateur: <strong>p71x6d_martin</strong> - Mot de passe: <strong>user789</strong></p>
         </div>
       </div>
       

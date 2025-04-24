@@ -54,13 +54,25 @@ interface LoginResponse {
   token?: string;
 }
 
+// Obtenir l'URL de l'API à partir de la configuration
+const getApiEndpoint = (): string => {
+  // Utiliser le chemin relatif pour garantir que l'appel reste sur le même domaine
+  return '/api';
+};
+
 // Fonction de connexion
 export const login = async (username: string, password: string): Promise<LoginResponse> => {
   try {
     console.log(`Tentative de connexion pour l'utilisateur: ${username}`);
     
+    // Définir le bon endpoint API
+    const apiEndpoint = getApiEndpoint();
+    const loginUrl = `${apiEndpoint}/login-test.php`;
+    
+    console.log(`URL de connexion utilisée: ${loginUrl}`);
+    
     // Faire un appel API réel au service d'authentification
-    const response = await fetch('/api/login-test.php', {
+    const response = await fetch(loginUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
