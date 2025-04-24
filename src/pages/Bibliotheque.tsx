@@ -1,6 +1,5 @@
-
 import React, { useState } from 'react';
-import { Pencil, Trash, ChevronDown, FolderPlus, GripVertical, FileDown, ExternalLink } from 'lucide-react';
+import { Pencil, Trash, ChevronDown, FolderPlus, GripVertical, FileDown, ExternalLink, FilePdf } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { exportBibliothecaireDocsToPdf } from '@/services/pdfExport';
 import {
@@ -260,29 +259,23 @@ const Bibliotheque = () => {
       const data = JSON.parse(e.dataTransfer.getData('text/plain'));
       const { id: sourceId, groupId: sourceGroupId } = data;
       
-      // Si c'est le même élément, ne rien faire
       if (sourceId === targetId && sourceGroupId === targetGroupId) return;
       
-      // Si on déplace un document vers un groupe
       if (targetGroupId !== undefined && sourceGroupId !== targetGroupId) {
-        // Supprimer l'élément de son emplacement précédent
         if (sourceGroupId) {
-          // Supprimer de l'ancien groupe
           setDocumentGroups(groups => groups.map(group => 
             group.id === sourceGroupId 
               ? { ...group, items: group.items.filter(item => item.id !== sourceId) }
               : group
           ));
         } else {
-          // Supprimer des documents non groupés
           setDocuments(docs => docs.filter(doc => doc.id !== sourceId));
         }
         
-        // Ajouter l'élément au nouveau groupe
         const docToMove = sourceGroupId 
           ? documentGroups.find(g => g.id === sourceGroupId)?.items.find(d => d.id === sourceId)
           : documents.find(d => d.id === sourceId);
-          
+        
         if (docToMove) {
           const updatedDoc = { ...docToMove, groupId: targetGroupId };
           
@@ -298,10 +291,8 @@ const Bibliotheque = () => {
           description: "Le document a été déplacé vers un groupe",
         });
       } 
-      // Si on réorganise dans le même groupe ou dans la liste principale
       else if (sourceGroupId === targetGroupId) {
         if (sourceGroupId) {
-          // Réorganisation à l'intérieur d'un groupe
           const group = documentGroups.find(g => g.id === sourceGroupId);
           if (!group) return;
           
@@ -320,7 +311,6 @@ const Bibliotheque = () => {
               : g
           ));
         } else {
-          // Réorganisation dans la liste principale
           const sourceIndex = documents.findIndex(doc => doc.id === sourceId);
           const targetIndex = documents.findIndex(doc => doc.id === targetId);
           
@@ -353,12 +343,10 @@ const Bibliotheque = () => {
     try {
       const data = JSON.parse(e.dataTransfer.getData('text/plain'));
       
-      // Si l'élément déposé est un document
       if (data.id !== undefined && data.groupId !== targetGroupId) {
         const sourceId = data.id;
         const sourceGroupId = data.groupId;
         
-        // Suppression du document de sa position d'origine
         if (sourceGroupId) {
           setDocumentGroups(groups => groups.map(group => 
             group.id === sourceGroupId 
@@ -369,13 +357,11 @@ const Bibliotheque = () => {
           setDocuments(docs => docs.filter(doc => doc.id !== sourceId));
         }
         
-        // Récupération du document à déplacer
         const docToMove = sourceGroupId 
           ? documentGroups.find(g => g.id === sourceGroupId)?.items.find(d => d.id === sourceId)
           : documents.find(d => d.id === sourceId);
         
         if (docToMove) {
-          // Ajout du document au groupe cible
           const updatedDoc = { ...docToMove, groupId: targetGroupId };
           
           setDocumentGroups(groups => groups.map(group => 
@@ -390,7 +376,6 @@ const Bibliotheque = () => {
           });
         }
       }
-      // Si l'élément déposé est un groupe (réorganisation des groupes)
       else if (data.groupId !== undefined && data.groupId !== targetGroupId) {
         const sourceGroupId = data.groupId;
         const sourceIndex = documentGroups.findIndex(g => g.id === sourceGroupId);
@@ -455,10 +440,10 @@ const Bibliotheque = () => {
         </div>
         <button 
           onClick={handleExportPdf}
-          className="text-red-500 hover:text-red-700 transition-colors"
+          className="text-red-500 p-2 rounded-md hover:bg-red-50 transition-colors"
           title="Exporter en PDF"
         >
-          <FileDown className="h-6 w-6" />
+          <FilePdf className="h-6 w-6" />
         </button>
       </div>
 

@@ -1,5 +1,5 @@
 import React from 'react';
-import { FileDown } from 'lucide-react';
+import { FileDown, FilePdf } from 'lucide-react';
 import { MembresProvider } from '@/contexts/MembresContext';
 import ExigenceForm from '@/components/exigences/ExigenceForm';
 import ExigenceStats from '@/components/exigences/ExigenceStats';
@@ -54,16 +54,13 @@ const ExigencesContent = () => {
         <div>
           <h1 className="text-3xl font-bold text-app-blue">Exigences</h1>
         </div>
-        <div className="flex space-x-2">
-          <Button 
-            variant="outline"
-            onClick={handleExportPdf}
-            className="text-white"
-            title="Exporter en PDF"
-          >
-            <FileDown className="h-5 w-5" />
-          </Button>
-        </div>
+        <button 
+          onClick={handleExportPdf}
+          className="text-red-500 p-2 rounded-md hover:bg-red-50 transition-colors"
+          title="Exporter en PDF"
+        >
+          <FilePdf className="h-6 w-6" />
+        </button>
       </div>
 
       <ExigenceStats stats={stats} />

@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { FileDown } from 'lucide-react';
+import { FilePdf } from 'lucide-react';
 
 interface PilotageHeaderProps {
   onExport: () => void;
@@ -14,10 +14,10 @@ const PilotageHeader: React.FC<PilotageHeaderProps> = ({ onExport }) => {
       </div>
       <button 
         onClick={onExport}
-        className="text-red-500 hover:text-red-700 transition-colors"
+        className="text-red-500 p-2 rounded-md hover:bg-red-50 transition-colors"
         title="Exporter en PDF"
       >
-        <FileDown className="h-6 w-6" />
+        <FilePdf className="h-6 w-6" />
       </button>
     </div>
   );

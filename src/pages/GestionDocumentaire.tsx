@@ -1,5 +1,5 @@
 import React from 'react';
-import { FileDown, FolderPlus } from 'lucide-react';
+import { FileDown, FolderPlus, FilePdf } from 'lucide-react';
 import { MembresProvider } from '@/contexts/MembresContext';
 import DocumentForm from '@/components/gestion-documentaire/DocumentForm';
 import DocumentStatusDisplay from '@/components/gestion-documentaire/DocumentStats';
@@ -53,16 +53,13 @@ const GestionDocumentaireContent = () => {
         <div>
           <h1 className="text-3xl font-bold text-app-blue">Gestion Documentaire</h1>
         </div>
-        <div className="flex space-x-2">
-          <Button 
-            variant="outline"
-            onClick={handleExportPdf}
-            className="text-white"
-            title="Exporter en PDF"
-          >
-            <FileDown className="h-5 w-5" />
-          </Button>
-        </div>
+        <button 
+          onClick={handleExportPdf}
+          className="text-red-500 p-2 rounded-md hover:bg-red-50 transition-colors"
+          title="Exporter en PDF"
+        >
+          <FilePdf className="h-6 w-6" />
+        </button>
       </div>
 
       <DocumentStatusDisplay stats={stats} />
