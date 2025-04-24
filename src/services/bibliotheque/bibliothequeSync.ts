@@ -64,7 +64,17 @@ export const loadBibliothequeFromServer = async (currentUser: string): Promise<{
     
     if (result.success && result.documents && result.groups) {
       // Associer les documents aux groupes
-      const groupMap = new Map(result.groups.map((group: DocumentGroup) => [group.id, { ...group, items: [] }]));
+      const groupMap = new Map<string, DocumentGroup>();
+      
+      // Create properly typed groups
+      result.groups.forEach((group: { id: string; name: string; expanded: boolean }) => {
+        groupMap.set(group.id, { 
+          id: group.id, 
+          name: group.name, 
+          expanded: Boolean(group.expanded), 
+          items: [] 
+        });
+      });
       
       // Séparer les documents par groupe
       const groupedDocs: Document[] = [];
@@ -74,7 +84,7 @@ export const loadBibliothequeFromServer = async (currentUser: string): Promise<{
         if (doc.groupId && groupMap.has(doc.groupId)) {
           groupedDocs.push(doc);
           const group = groupMap.get(doc.groupId);
-          if (group && Array.isArray(group.items)) {
+          if (group) {
             group.items.push(doc);
           }
         } else {
@@ -84,7 +94,7 @@ export const loadBibliothequeFromServer = async (currentUser: string): Promise<{
       
       return {
         documents: ungroupedDocs,
-        groups: Array.from(groupMap.values()) as DocumentGroup[]
+        groups: Array.from(groupMap.values())
       };
     }
     
