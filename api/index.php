@@ -167,6 +167,17 @@ switch ($controller) {
         require_once 'test.php';
         break;
         
+    // Ajouter un cas explicite pour phpinfo.php et info.php
+    case 'phpinfo':
+    case 'phpinfo.php':
+        require_once 'phpinfo.php';
+        break;
+        
+    case 'info':
+    case 'info.php':
+        require_once 'info.php';
+        break;
+        
     default:
         // Si le contrôleur n'est pas reconnu, vérifier si un fichier PHP correspondant existe
         $controller_file = $controller . '.php';
