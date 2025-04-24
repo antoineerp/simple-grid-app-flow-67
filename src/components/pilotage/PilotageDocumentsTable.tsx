@@ -1,6 +1,6 @@
 
-import React from 'react';
-import { Pencil, Trash } from 'lucide-react';
+import React, { useState } from 'react';
+import { Pencil, Trash, GripVertical } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -33,6 +33,7 @@ const PilotageDocumentsTable: React.FC<PilotageDocumentsTableProps> = ({
   onReorder
 }) => {
   const { toast } = useToast();
+  const [draggedItem, setDraggedItem] = useState<number | null>(null);
 
   const handleLinkClick = (lien: string) => {
     if (!lien.startsWith('http://') && !lien.startsWith('https://')) {
@@ -40,6 +41,48 @@ const PilotageDocumentsTable: React.FC<PilotageDocumentsTableProps> = ({
     } else {
       window.open(lien, '_blank');
     }
+  };
+
+  const handleDragStart = (e: React.DragEvent, index: number) => {
+    setDraggedItem(index);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', index.toString());
+    
+    // Ajout d'un délai pour permettre à l'image du drag d'être visible
+    setTimeout(() => {
+      e.currentTarget.classList.add('opacity-50');
+    }, 0);
+  };
+
+  const handleDragOver = (e: React.DragEvent, index: number) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    e.currentTarget.classList.add('border-dashed', 'border-2', 'border-primary');
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.currentTarget.classList.remove('border-dashed', 'border-2', 'border-primary');
+  };
+
+  const handleDrop = (e: React.DragEvent, dropIndex: number) => {
+    e.preventDefault();
+    e.currentTarget.classList.remove('border-dashed', 'border-2', 'border-primary');
+    
+    const dragIndex = parseInt(e.dataTransfer.getData('text/plain'));
+    
+    if (dragIndex !== dropIndex) {
+      onReorder(dragIndex, dropIndex);
+      toast({
+        description: `Document déplacé avec succès`,
+      });
+    }
+    
+    setDraggedItem(null);
+  };
+
+  const handleDragEnd = (e: React.DragEvent) => {
+    e.currentTarget.classList.remove('opacity-50');
+    setDraggedItem(null);
   };
 
   return (
@@ -52,12 +95,24 @@ const PilotageDocumentsTable: React.FC<PilotageDocumentsTableProps> = ({
             <TableHead className="text-app-blue font-semibold text-right">Actions</TableHead>
           </TableRow>
         </TableHeader>
-        <TableBody onReorder={onReorder}>
+        <TableBody>
           {documents
             .sort((a, b) => a.ordre - b.ordre)
-            .map((doc) => (
-              <TableRow key={doc.id} className="border-b hover:bg-gray-50">
-                <TableCell>{doc.nom}</TableCell>
+            .map((doc, index) => (
+              <TableRow 
+                key={doc.id} 
+                className="border-b hover:bg-gray-50"
+                draggable
+                onDragStart={(e) => handleDragStart(e, index)}
+                onDragOver={(e) => handleDragOver(e, index)}
+                onDragLeave={handleDragLeave}
+                onDrop={(e) => handleDrop(e, index)}
+                onDragEnd={handleDragEnd}
+              >
+                <TableCell className="flex items-center">
+                  <GripVertical className="h-5 w-5 text-gray-400 mr-2 flex-shrink-0 cursor-move" />
+                  {doc.nom}
+                </TableCell>
                 <TableCell>
                   {doc.lien ? (
                     <button 

@@ -29,15 +29,23 @@ const TableBody = React.forwardRef<
   HTMLTableSectionElement,
   React.HTMLAttributes<HTMLTableSectionElement> & { onReorder?: (startIndex: number, endIndex: number) => void }
 >(({ className, onReorder, ...props }, ref) => {
-  // Add drag and drop logic
-  const handleDragStart = (e: React.DragEvent<HTMLTableRowElement>, index: number) => {
-    // Store the source index
-    e.dataTransfer.setData('text/plain', index.toString());
-    // Add visual feedback
-    e.currentTarget.classList.add('bg-muted');
+  // La clé du problème est que nous ne propageons pas les événements de manière efficace
+  // Nous allons créer un gestionnaire de glisser-déposer plus robuste
+  
+  const handleDragStart = (e: React.DragEvent<HTMLTableRowElement>, index: number, groupId: string | null = null) => {
+    // Stocker l'index source et le groupId
+    const dragData = JSON.stringify({ index, groupId });
+    e.dataTransfer.setData('text/plain', dragData);
+    
+    // Ajouter un retour visuel
+    e.currentTarget.classList.add('opacity-50');
+    
+    // Empêcher les événements onClick sur les boutons à l'intérieur de la ligne
+    e.stopPropagation();
   };
 
   const handleDragOver = (e: React.DragEvent<HTMLTableRowElement>) => {
+    // Prévention du comportement par défaut pour permettre le drop
     e.preventDefault();
     e.currentTarget.classList.add('border-dashed', 'border-2', 'border-primary');
   };
@@ -46,46 +54,22 @@ const TableBody = React.forwardRef<
     e.currentTarget.classList.remove('border-dashed', 'border-2', 'border-primary');
   };
 
-  const handleDrop = (e: React.DragEvent<HTMLTableRowElement>, endIndex: number) => {
-    e.preventDefault();
-    e.currentTarget.classList.remove('border-dashed', 'border-2', 'border-primary');
-    
-    const startIndex = parseInt(e.dataTransfer.getData('text/plain'));
-    if (startIndex !== endIndex && onReorder) {
-      onReorder(startIndex, endIndex);
-    }
-  };
-
+  // Nous ne modifions pas cette méthode puisqu'elle est appelée dans les composants qui l'utilisent
+  // Ils ont leur propre logique pour gérer le drop en fonction des groupes
+  
   const handleDragEnd = (e: React.DragEvent<HTMLTableRowElement>) => {
-    e.currentTarget.classList.remove('bg-muted');
+    e.currentTarget.classList.remove('opacity-50');
   };
 
-  const childrenWithProps = React.Children.map(props.children as React.ReactNode, (child, index) => {
-    if (React.isValidElement(child)) {
-      // The key change is here - we need to preserve the original onClick handlers
-      // from the row's children (like buttons) while adding drag and drop functionality
-      return React.cloneElement(child as React.ReactElement<any>, {
-        draggable: true,
-        onDragStart: (e: React.DragEvent<HTMLTableRowElement>) => handleDragStart(e, index),
-        onDragOver: (e: React.DragEvent<HTMLTableRowElement>) => handleDragOver(e),
-        onDragLeave: (e: React.DragEvent<HTMLTableRowElement>) => handleDragLeave(e),
-        onDrop: (e: React.DragEvent<HTMLTableRowElement>) => handleDrop(e, index),
-        onDragEnd: (e: React.DragEvent<HTMLTableRowElement>) => handleDragEnd(e),
-        className: cn(child.props.className, 'cursor-move'),
-        // We're not overriding any existing onClick handlers on the row itself
-      });
-    }
-    return child;
-  });
-
+  // Nous ne modifions pas les enfants directement ici car les composants ExigenceTable et DocumentTable
+  // ont leur propre implémentation du drag and drop qui gère les groupes
+  
   return (
     <tbody
       ref={ref}
       className={cn("[&_tr:last-child]:border-0", className)}
       {...props}
-    >
-      {childrenWithProps}
-    </tbody>
+    />
   );
 })
 TableBody.displayName = "TableBody"
