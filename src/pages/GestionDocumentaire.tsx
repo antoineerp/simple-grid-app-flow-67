@@ -57,15 +57,6 @@ const GestionDocumentaireContent = () => {
         <div className="flex space-x-2">
           <Button 
             variant="outline"
-            onClick={handleAddGroup}
-            className="hover:bg-gray-100 transition-colors mr-2"
-            title="Nouveau groupe"
-          >
-            <FolderPlus className="h-5 w-5 mr-2" />
-            Nouveau groupe
-          </Button>
-          <Button 
-            variant="default"
             onClick={handleExportPdf}
             className="text-white"
             title="Exporter en PDF"
