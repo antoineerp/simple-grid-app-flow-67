@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { DialogFooter, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
@@ -33,7 +33,7 @@ const UserForm = ({ onClose, onSuccess, onUserConnect }: UserFormProps) => {
     nom: '',
     prenom: '',
     email: '',
-    role: 'user',
+    role: 'utilisateur',
     mot_de_passe: ''
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -109,7 +109,12 @@ const UserForm = ({ onClose, onSuccess, onUserConnect }: UserFormProps) => {
 
     try {
       console.log("Submitted user data:", formData);
-      const result = await createUser(formData);
+      const serviceFormData = {
+        ...formData,
+        role: formData.role === 'utilisateur' ? 'user' : 
+              formData.role === 'administrateur' ? 'admin' : formData.role
+      };
+      const result = await createUser(serviceFormData);
       console.log("User creation result:", result);
       
       toast({

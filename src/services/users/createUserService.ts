@@ -1,6 +1,8 @@
+
 import { getApiUrl } from '@/config/apiConfig';
 import { getAuthHeaders } from '../auth/authService';
 import { v4 as uuidv4 } from 'uuid';
+import { UserRole } from '@/types/roles';
 
 interface CreateUserData {
   nom: string;
