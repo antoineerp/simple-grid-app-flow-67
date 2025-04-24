@@ -169,7 +169,15 @@ const RessourcesHumaines = () => {
         <div>
           <h1 className="text-3xl font-bold text-app-blue">Ressources Humaines</h1>
         </div>
-        <FileText className="text-red-500 h-6 w-6" />
+        <div className="flex space-x-2">
+          <button 
+            onClick={handleExportAllToPdf}
+            className="text-red-600 p-2 rounded-md hover:bg-red-50 transition-colors"
+            title="Exporter en PDF"
+          >
+            <FileText className="h-6 w-6 stroke-[1.5]" />
+          </button>
+        </div>
       </div>
 
       <div className="bg-white rounded-md shadow overflow-hidden mt-6">
@@ -182,20 +190,6 @@ const RessourcesHumaines = () => {
       </div>
 
       <div className="flex justify-end mt-4 gap-4">
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="outline" className="flex items-center">
-              <FileDown className="h-4 w-4 mr-2" />
-              Exporter
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent>
-            <DropdownMenuItem onClick={handleExportAllToPdf}>
-              Exporter tous les collaborateurs
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-
         <Button 
           className="flex items-center"
           onClick={handleAddMember}
