@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useToast } from "@/hooks/use-toast";
 import { Exigence, ExigenceStats, ExigenceGroup } from '@/types/exigences';
+import { syncExigencesWithServer, loadExigencesFromServer } from '@/services/exigences/exigenceSyncService';
 
 export const useExigences = () => {
   const { toast } = useToast();
@@ -57,10 +58,36 @@ export const useExigences = () => {
     conforme: 0,
     total: 0
   });
+  const [isSyncing, setIsSyncing] = useState(false);
 
   const notifyExigenceUpdate = () => {
     window.dispatchEvent(new Event('exigenceUpdate'));
   };
+
+  useEffect(() => {
+    const fetchExigencesFromServer = async () => {
+      try {
+        const serverExigences = await loadExigencesFromServer(currentUser);
+        if (serverExigences) {
+          setExigences(serverExigences);
+          localStorage.setItem(`exigences_${currentUser}`, JSON.stringify(serverExigences));
+          console.log('Exigences chargées depuis le serveur et mises en cache');
+        } else {
+          console.log('Aucune exigence trouvée sur le serveur, utilisation des données locales');
+          syncWithServer();
+        }
+      } catch (error) {
+        console.error('Erreur lors du chargement des exigences depuis le serveur:', error);
+        toast({
+          title: "Erreur de synchronisation",
+          description: "Impossible de charger les données depuis le serveur. Utilisation des données locales.",
+          variant: "destructive"
+        });
+      }
+    };
+
+    fetchExigencesFromServer();
+  }, [currentUser]);
 
   useEffect(() => {
     localStorage.setItem(`exigences_${currentUser}`, JSON.stringify(exigences));
@@ -72,6 +99,14 @@ export const useExigences = () => {
     
     notifyExigenceUpdate();
   }, [exigences, currentUser]);
+
+  useEffect(() => {
+    const debounceSync = setTimeout(() => {
+      syncWithServer();
+    }, 2000);
+
+    return () => clearTimeout(debounceSync);
+  }, [exigences]);
 
   useEffect(() => {
     localStorage.setItem(`exigence_groups_${currentUser}`, JSON.stringify(groups));
@@ -90,6 +125,25 @@ export const useExigences = () => {
     };
     setStats(newStats);
   }, [exigences]);
+
+  const syncWithServer = async () => {
+    if (isSyncing) return;
+    
+    setIsSyncing(true);
+    try {
+      const success = await syncExigencesWithServer(exigences, currentUser);
+      
+      if (!success) {
+        console.warn('La synchronisation des exigences a échoué');
+      } else {
+        console.log('Exigences synchronisées avec succès');
+      }
+    } catch (error) {
+      console.error('Erreur lors de la synchronisation:', error);
+    } finally {
+      setIsSyncing(false);
+    }
+  };
 
   const handleResponsabiliteChange = (id: string, type: 'r' | 'a' | 'c' | 'i', values: string[]) => {
     setExigences(prev => 
@@ -273,6 +327,36 @@ export const useExigences = () => {
     };
   });
 
+  const forceSyncWithServer = async () => {
+    setIsSyncing(true);
+    
+    try {
+      const success = await syncExigencesWithServer(exigences, currentUser);
+      
+      if (success) {
+        toast({
+          title: "Synchronisation réussie",
+          description: "Vos exigences ont été synchronisées avec le serveur",
+        });
+      } else {
+        toast({
+          title: "Erreur de synchronisation",
+          description: "Impossible de synchroniser vos exigences",
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      console.error('Erreur lors de la synchronisation:', error);
+      toast({
+        title: "Erreur de synchronisation",
+        description: `Erreur: ${error instanceof Error ? error.message : 'Inconnue'}`,
+        variant: "destructive"
+      });
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
   return {
     exigences,
     groups: processedGroups,
@@ -281,6 +365,7 @@ export const useExigences = () => {
     editingGroup,
     dialogOpen,
     groupDialogOpen,
+    isSyncing,
     setDialogOpen,
     setGroupDialogOpen,
     handleResponsabiliteChange,
@@ -296,6 +381,7 @@ export const useExigences = () => {
     handleSaveGroup,
     handleDeleteGroup,
     handleGroupReorder,
-    handleToggleGroup
+    handleToggleGroup,
+    syncWithServer: forceSyncWithServer
   };
 };

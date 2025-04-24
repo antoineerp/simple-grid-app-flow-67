@@ -4,9 +4,12 @@ import { Document, DocumentGroup } from '@/types/documents';
 import { 
   loadDocumentsFromStorage, 
   saveDocumentsToStorage, 
-  calculateDocumentStats,
-  syncDocumentsWithServer
+  calculateDocumentStats 
 } from '@/services/documents';
+import {
+  syncDocumentsWithServer,
+  loadDocumentsFromServer
+} from '@/services/documents/documentSyncService';
 
 export const useDocuments = () => {
   const { toast } = useToast();
@@ -25,6 +28,31 @@ export const useDocuments = () => {
   const [isSyncing, setIsSyncing] = useState(false);
 
   useEffect(() => {
+    const fetchDocumentsFromServer = async () => {
+      try {
+        const serverDocuments = await loadDocumentsFromServer(currentUser);
+        if (serverDocuments) {
+          setDocuments(serverDocuments);
+          localStorage.setItem(`documents_${currentUser}`, JSON.stringify(serverDocuments));
+          console.log('Documents chargés depuis le serveur et mis en cache');
+        } else {
+          console.log('Aucun document trouvé sur le serveur, utilisation des données locales');
+          syncWithServer();
+        }
+      } catch (error) {
+        console.error('Erreur lors du chargement des documents depuis le serveur:', error);
+        toast({
+          title: "Erreur de synchronisation",
+          description: "Impossible de charger les données depuis le serveur. Utilisation des données locales.",
+          variant: "destructive"
+        });
+      }
+    };
+
+    fetchDocumentsFromServer();
+  }, [currentUser]);
+
+  useEffect(() => {
     setStats(calculateDocumentStats(documents));
   }, [documents]);
 
@@ -35,6 +63,14 @@ export const useDocuments = () => {
   useEffect(() => {
     localStorage.setItem(`document_groups_${currentUser}`, JSON.stringify(groups));
   }, [groups, currentUser]);
+
+  useEffect(() => {
+    const debounceSync = setTimeout(() => {
+      syncWithServer();
+    }, 2000);
+
+    return () => clearTimeout(debounceSync);
+  }, [documents]);
 
   const handleResponsabiliteChange = useCallback((id: string, type: 'r' | 'a' | 'c' | 'i', values: string[]) => {
     setDocuments(prev => 
@@ -225,27 +261,48 @@ export const useDocuments = () => {
     );
   }, []);
 
-  const syncWithServer = useCallback(async () => {
+  const syncWithServer = async () => {
+    if (isSyncing) return;
+    
+    setIsSyncing(true);
+    try {
+      await syncDocumentsWithServer(documents, currentUser);
+    } catch (error) {
+      console.error('Erreur lors de la synchronisation:', error);
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
+  const forceSyncWithServer = async () => {
     setIsSyncing(true);
     
-    const success = await syncDocumentsWithServer(documents, currentUser);
-    
-    if (success) {
-      toast({
-        title: "Synchronisation réussie",
-        description: "Vos documents ont été synchronisés avec le serveur",
-      });
-    } else {
+    try {
+      const success = await syncDocumentsWithServer(documents, currentUser);
+      
+      if (success) {
+        toast({
+          title: "Synchronisation réussie",
+          description: "Vos documents ont été synchronisés avec le serveur",
+        });
+      } else {
+        toast({
+          title: "Erreur de synchronisation",
+          description: "Impossible de synchroniser vos documents",
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      console.error('Erreur lors de la synchronisation:', error);
       toast({
         title: "Erreur de synchronisation",
-        description: "Impossible de synchroniser vos documents",
+        description: `Erreur: ${error instanceof Error ? error.message : 'Inconnue'}`,
         variant: "destructive"
       });
+    } finally {
+      setIsSyncing(false);
     }
-    
-    setIsSyncing(false);
-    return success;
-  }, [documents, currentUser, toast]);
+  };
 
   const processedGroups = groups.map(group => {
     const groupItems = documents.filter(doc => doc.groupId === group.id);
@@ -280,6 +337,6 @@ export const useDocuments = () => {
     handleDeleteGroup,
     handleGroupReorder,
     handleToggleGroup,
-    syncWithServer
+    syncWithServer: forceSyncWithServer
   };
 };

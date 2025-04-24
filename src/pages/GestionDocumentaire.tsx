@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { FileText, FolderPlus } from 'lucide-react';
+import { FileText, FolderPlus, CloudSync } from 'lucide-react';
 import { MembresProvider } from '@/contexts/MembresContext';
 import DocumentForm from '@/components/gestion-documentaire/DocumentForm';
 import DocumentStatusDisplay from '@/components/gestion-documentaire/DocumentStats';
@@ -20,6 +20,7 @@ const GestionDocumentaireContent = () => {
     editingGroup,
     dialogOpen,
     groupDialogOpen,
+    isSyncing,
     setDialogOpen,
     setGroupDialogOpen,
     handleResponsabiliteChange,
@@ -35,7 +36,8 @@ const GestionDocumentaireContent = () => {
     handleSaveGroup,
     handleDeleteGroup,
     handleGroupReorder,
-    handleToggleGroup
+    handleToggleGroup,
+    syncWithServer
   } = useDocuments();
   
   const { toast } = useToast();
@@ -54,13 +56,23 @@ const GestionDocumentaireContent = () => {
         <div>
           <h1 className="text-3xl font-bold text-app-blue">Gestion Documentaire</h1>
         </div>
-        <button 
-          onClick={handleExportPdf}
-          className="text-red-600 p-2 rounded-md hover:bg-red-50 transition-colors"
-          title="Exporter en PDF"
-        >
-          <FileText className="h-6 w-6 stroke-[1.5]" />
-        </button>
+        <div className="flex space-x-2">
+          <button 
+            onClick={syncWithServer}
+            className="text-blue-600 p-2 rounded-md hover:bg-blue-50 transition-colors flex items-center"
+            title="Synchroniser avec le serveur"
+            disabled={isSyncing}
+          >
+            <CloudSync className={`h-6 w-6 stroke-[1.5] ${isSyncing ? 'animate-spin' : ''}`} />
+          </button>
+          <button 
+            onClick={handleExportPdf}
+            className="text-red-600 p-2 rounded-md hover:bg-red-50 transition-colors"
+            title="Exporter en PDF"
+          >
+            <FileText className="h-6 w-6 stroke-[1.5]" />
+          </button>
+        </div>
       </div>
 
       <DocumentStatusDisplay stats={stats} />
