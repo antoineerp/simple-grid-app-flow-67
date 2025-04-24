@@ -1,5 +1,6 @@
 
 import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import { 
   formatState, 
   formatResponsabilities,
@@ -8,15 +9,18 @@ import {
 
 export const exportExigencesToPdf = (exigences: any[], title: string = 'Liste des exigences') => {
   createAndDownloadPdf((doc, startY) => {
+    // Définir la structure du tableau
     const headers = [['Nom', 'Responsabilités', 'État']];
     
+    // Préparer les données
     const data = exigences.map(exigence => [
       exigence.nom,
       formatResponsabilities(exigence.responsabilites),
       exigence.exclusion ? 'Exclusion' : formatState(exigence.atteinte)
     ]);
     
-    (doc as any).autoTable({
+    // Générer le tableau avec autoTable
+    autoTable(doc, {
       startY: startY,
       head: headers,
       body: data,
@@ -29,5 +33,7 @@ export const exportExigencesToPdf = (exigences: any[], title: string = 'Liste de
         2: { cellWidth: 50 }
       }
     });
+    
+    console.log(`Tableau d'exigences généré avec ${data.length} lignes`);
   }, title);
 };

@@ -6,7 +6,8 @@ export {
   formatState, 
   formatResponsabilities,
   getCurrentLogo,
-  generateFilename
+  generateFilename,
+  createAndDownloadPdf
 } from './pdfManager';
 
 // Export exigences PDF generation
