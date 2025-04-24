@@ -1,6 +1,7 @@
 
 <?php
 header('Content-Type: text/html; charset=utf-8');
+require_once 'utils-assets.php';
 ?>
 <!DOCTYPE html>
 <html>
@@ -19,43 +20,6 @@ header('Content-Type: text/html; charset=utf-8');
     <h1>Correction des Références aux Assets</h1>
     
     <?php
-    // Fonction pour trouver les fichiers compilés
-    function findCompiledAssets() {
-        $assets = [
-            'js' => [],
-            'css' => []
-        ];
-        
-        $js_files = glob('./assets/*.js');
-        $css_files = glob('./assets/*.css');
-        
-        if (!empty($js_files)) {
-            foreach ($js_files as $file) {
-                if (strpos(basename($file), 'main-') === 0) {
-                    $assets['js']['main'] = '/assets/' . basename($file);
-                }
-            }
-            
-            if (!isset($assets['js']['main']) && !empty($js_files)) {
-                $assets['js']['main'] = '/assets/' . basename($js_files[0]);
-            }
-        }
-        
-        if (!empty($css_files)) {
-            foreach ($css_files as $file) {
-                if (strpos(basename($file), 'index-') === 0 || strpos(basename($file), 'main-') === 0) {
-                    $assets['css']['main'] = '/assets/' . basename($file);
-                }
-            }
-            
-            if (!isset($assets['css']['main']) && !empty($css_files)) {
-                $assets['css']['main'] = '/assets/' . basename($css_files[0]);
-            }
-        }
-        
-        return $assets;
-    }
-    
     // Information sur l'environnement
     echo "<h2>Environnement</h2>";
     echo "<ul>";
@@ -77,18 +41,19 @@ header('Content-Type: text/html; charset=utf-8');
     }
     
     // Chercher les assets compilés
-    $assets = findCompiledAssets();
+    $main_js = find_main_js();
+    $main_css = find_main_css();
     
     echo "<h3>Assets Trouvés</h3>";
     echo "<ul>";
-    if (!empty($assets['js']['main'])) {
-        echo "<li>JavaScript principal: <span class='success'>" . $assets['js']['main'] . "</span></li>";
+    if ($main_js) {
+        echo "<li>JavaScript principal: <span class='success'>" . $main_js . "</span></li>";
     } else {
         echo "<li>JavaScript principal: <span class='error'>NON TROUVÉ</span></li>";
     }
     
-    if (!empty($assets['css']['main'])) {
-        echo "<li>CSS principal: <span class='success'>" . $assets['css']['main'] . "</span></li>";
+    if ($main_css) {
+        echo "<li>CSS principal: <span class='success'>" . $main_css . "</span></li>";
     } else {
         echo "<li>CSS principal: <span class='error'>NON TROUVÉ</span></li>";
     }
@@ -107,12 +72,12 @@ header('Content-Type: text/html; charset=utf-8');
         $has_css = preg_match('/<link[^>]*rel=["\']stylesheet["\']/i', $new_content);
         
         // Ajouter ou remplacer le lien CSS
-        if (!empty($assets['css']['main'])) {
+        if ($main_css) {
             if (!$has_css) {
                 // Ajouter le lien CSS avant la fermeture de head
                 $new_content = preg_replace(
                     '/<\/head>/',
-                    '  <link rel="stylesheet" href="' . $assets['css']['main'] . '">' . "\n" . '</head>',
+                    '  <link rel="stylesheet" href="/assets/' . $main_css . '">' . "\n" . '</head>',
                     $new_content
                 );
                 echo "<p>Ajout du lien CSS: <span class='success'>OK</span></p>";
@@ -120,7 +85,7 @@ header('Content-Type: text/html; charset=utf-8');
                 // Remplacer le lien CSS existant
                 $new_content = preg_replace(
                     '/<link[^>]*rel=["\']stylesheet["\'](.*?)>/i',
-                    '<link rel="stylesheet" href="' . $assets['css']['main'] . '">',
+                    '<link rel="stylesheet" href="/assets/' . $main_css . '">',
                     $new_content
                 );
                 echo "<p>Mise à jour du lien CSS: <span class='success'>OK</span></p>";
@@ -128,23 +93,24 @@ header('Content-Type: text/html; charset=utf-8');
         }
         
         // Vérifier si le script JS existe déjà
-        $has_js = preg_match('/<script[^>]*src=["\'][^"\']*main/i', $new_content);
+        $js_pattern = '/<script[^>]*src=["\'][^"\']*\.(js)["\']/i';
+        $has_js = preg_match($js_pattern, $new_content);
         
         // Ajouter ou remplacer le script JS
-        if (!empty($assets['js']['main'])) {
+        if ($main_js) {
             if (!$has_js) {
                 // Ajouter le script JS avant la fermeture de body
                 $new_content = preg_replace(
                     '/<script src="https:\/\/cdn\.gpteng\.co\/gptengineer\.js"/',
-                    '<script type="module" src="' . $assets['js']['main'] . '"></script>' . "\n" . '  <script src="https://cdn.gpteng.co/gptengineer.js"',
+                    '<script type="module" src="/assets/' . $main_js . '"></script>' . "\n" . '  <script src="https://cdn.gpteng.co/gptengineer.js"',
                     $new_content
                 );
                 echo "<p>Ajout du script JS: <span class='success'>OK</span></p>";
             } else {
-                // Remplacer le script JS existant
+                // Remplacer le script JS existant qui n'est pas le script gptengineer.js
                 $new_content = preg_replace(
-                    '/<script[^>]*src=["\'][^"\']*main[^"\']*["\']/i',
-                    '<script type="module" src="' . $assets['js']['main'] . '"',
+                    '/<script[^>]*src=["\'][^"\']*\.(js)["\']/i',
+                    '<script type="module" src="/assets/' . $main_js . '"',
                     $new_content
                 );
                 echo "<p>Mise à jour du script JS: <span class='success'>OK</span></p>";
@@ -166,24 +132,24 @@ header('Content-Type: text/html; charset=utf-8');
         // Afficher le formulaire pour appliquer les modifications
         echo "<h2>Appliquer les Modifications</h2>";
         
-        if (!empty($assets['js']['main']) || !empty($assets['css']['main'])) {
+        if ($main_js || $main_css) {
             echo "<form method='post'>";
             echo "<p>Ce script va mettre à jour index.html pour référencer les fichiers compilés.</p>";
             echo "<input type='hidden' name='fix_assets' value='1'>";
             echo "<button type='submit' class='button'>Appliquer les Modifications</button>";
             echo "</form>";
         } else {
-            echo "<p><span class='warning'>Aucun asset compilé trouvé. Générez d'abord les fichiers avec 'npm run build'.</span></p>";
+            echo "<p><span class='warning'>Aucun asset compilé trouvé. Assurez-vous que les fichiers existent dans le dossier assets/.</span></p>";
         }
     }
     ?>
     
     <h2>Instructions Manuelles</h2>
     <ol>
-        <li>Exécutez <code>npm run build</code> pour générer les fichiers compilés</li>
         <li>Vérifiez que les fichiers compilés existent dans le dossier <code>assets/</code></li>
         <li>Utilisez ce script pour mettre à jour les références dans index.html</li>
         <li>Testez l'application pour vérifier qu'elle fonctionne correctement</li>
+        <li>En cas de problème, videz le cache du navigateur et réessayez</li>
     </ol>
 </body>
 </html>
