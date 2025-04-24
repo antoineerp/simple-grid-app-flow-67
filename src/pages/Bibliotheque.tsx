@@ -441,10 +441,10 @@ const Bibliotheque = () => {
         </div>
         <button 
           onClick={handleExportPdf}
-          className="text-red-500 p-2 rounded-md hover:bg-red-50 transition-colors"
+          className="text-red-600 p-2 rounded-md hover:bg-red-50 transition-colors"
           title="Exporter en PDF"
         >
-          <FileText className="h-6 w-6" />
+          <FileText className="h-6 w-6 stroke-[1.5]" />
         </button>
       </div>
 

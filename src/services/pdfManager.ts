@@ -10,8 +10,8 @@ import { fr } from 'date-fns/locale';
 
 // Get the current logo from localStorage or return default
 export const getCurrentLogo = (): string => {
-  const savedLogo = localStorage.getItem('appLogo');
-  return savedLogo || "/lovable-uploads/4c7adb52-3da0-4757-acbf-50a1eb1d4bf5.png";
+  // Always return FormaCert logo for PDF exports
+  return "/lovable-uploads/formacert-logo.png";
 };
 
 // Format state to human-readable text
@@ -37,10 +37,9 @@ const addStandardHeader = (doc: jsPDF, title: string) => {
   const pageWidth = doc.internal.pageSize.getWidth();
   const currentDate = format(new Date(), 'dd MMMM yyyy à HH:mm', { locale: fr });
   
-  // Add logo
+  // Add FormaCert logo
   try {
-    const logo = getCurrentLogo();
-    doc.addImage(logo, 'PNG', 15, 10, 25, 25);
+    doc.addImage("/lovable-uploads/formacert-logo.png", 'PNG', 15, 10, 25, 25);
   } catch (error) {
     console.error("Erreur lors de l'ajout du logo:", error);
   }
