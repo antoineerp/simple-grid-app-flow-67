@@ -25,6 +25,7 @@ export const logout = (): void => {
   localStorage.removeItem('userId');
   localStorage.removeItem('username');
   localStorage.removeItem('userRole');
+  localStorage.removeItem('isLoggedIn');
 };
 
 // Authentification headers pour les requêtes API
@@ -63,6 +64,8 @@ export const login = async (username: string, password: string): Promise<LoginRe
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'Cache-Control': 'no-cache'
       },
       body: JSON.stringify({ username, password }),
     });
@@ -73,8 +76,10 @@ export const login = async (username: string, password: string): Promise<LoginRe
     console.log('Données de réponse:', data);
     
     if (response.ok && data.token) {
+      console.log('Login réussi, sauvegarde des informations utilisateur');
       // Stocker les informations d'authentification dans localStorage
       localStorage.setItem('token', data.token);
+      localStorage.setItem('isLoggedIn', 'true');
       
       if (data.user) {
         localStorage.setItem('userId', data.user.id.toString());

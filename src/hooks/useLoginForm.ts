@@ -1,6 +1,6 @@
 
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -16,6 +16,7 @@ export type LoginFormValues = z.infer<typeof loginSchema>;
 
 export const useLoginForm = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [hasDbError, setHasDbError] = useState(false);
@@ -29,6 +30,15 @@ export const useLoginForm = () => {
       password: "",
     },
   });
+
+  // Check if user is already logged in when the component mounts
+  useEffect(() => {
+    const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
+    if (isLoggedIn && location.pathname === '/') {
+      console.log('User already logged in, redirecting to dashboard');
+      navigate('/pilotage', { replace: true });
+    }
+  }, [navigate, location.pathname]);
 
   const onSubmit = async (data: LoginFormValues) => {
     if (isLoading) return;
@@ -49,8 +59,6 @@ export const useLoginForm = () => {
         setHasDbError(false);
         setHasServerError(false);
         setHasAuthError(false);
-        
-        localStorage.setItem('isLoggedIn', 'true');
         
         toast({
           title: "Connexion réussie",

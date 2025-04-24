@@ -6,7 +6,7 @@ import { testApiConnection } from '@/config/apiConfig';
 
 const Index = () => {
   const [apiStatus, setApiStatus] = useState<'loading' | 'success' | 'error'>('loading');
-  const [version, setVersion] = useState<string>('1.0.7');
+  const [version, setVersion] = useState<string>('1.0.8');
   
   const checkApi = async () => {
     try {
@@ -29,13 +29,19 @@ const Index = () => {
   useEffect(() => {
     console.log("Index component mounted");
     checkApi();
-    setVersion(`1.0.7 - ${new Date().toLocaleDateString()}`);
+    setVersion(`1.0.8 - ${new Date().toLocaleDateString()}`);
   }, []);
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 p-6">
       <div className="w-full max-w-md bg-white rounded-lg shadow-lg p-8 mb-6">
         <Logo />
+        
+        {apiStatus === 'loading' && (
+          <div className="bg-blue-50 border border-blue-200 text-blue-700 px-4 py-3 rounded mb-6">
+            Vérification de la connexion à l'API...
+          </div>
+        )}
         
         {apiStatus === 'error' && (
           <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-6">
@@ -44,6 +50,12 @@ const Index = () => {
         )}
         
         <LoginForm />
+        
+        <div className="mt-4 text-sm text-gray-500 border-t pt-4">
+          <p>Identifiants de test:</p>
+          <p>Utilisateur: <strong>admin</strong></p>
+          <p>Mot de passe: <strong>password123</strong></p>
+        </div>
       </div>
       
       <div className="fixed bottom-4 right-4 text-xs text-gray-400">
