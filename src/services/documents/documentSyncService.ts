@@ -1,5 +1,6 @@
 
 import { Document } from '@/types/documents';
+import { getUserId } from '../auth/authService';
 
 /**
  * Synchronizes documents with the server
@@ -9,6 +10,9 @@ export const syncDocumentsWithServer = async (
   currentUser: string
 ): Promise<boolean> => {
   try {
+    // Utiliser l'ID utilisateur réel à partir du service d'authentification
+    const userId = getUserId() || currentUser;
+    
     // Simulate server request
     await new Promise(resolve => setTimeout(resolve, 1000));
     
@@ -16,7 +20,7 @@ export const syncDocumentsWithServer = async (
     // const response = await fetch('/api/documents', {
     //   method: 'POST',
     //   headers: { 'Content-Type': 'application/json' },
-    //   body: JSON.stringify({ userId: currentUser, documents })
+    //   body: JSON.stringify({ userId, documents })
     // });
     // if (!response.ok) throw new Error('Failed to sync documents');
     

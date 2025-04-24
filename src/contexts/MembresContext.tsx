@@ -10,9 +10,13 @@ interface MembresContextType {
 const MembresContext = createContext<MembresContextType | undefined>(undefined);
 
 export const MembresProvider = ({ children }: { children: ReactNode }) => {
-  // Récupérer les membres du localStorage ou utiliser un tableau vide si aucun n'existe
+  // Obtenir l'identifiant de l'utilisateur actuel
+  const currentUser = localStorage.getItem('userId') || 'anonymous';
+  const storageKey = `membres_${currentUser}`;
+  
+  // Récupérer les membres du localStorage pour l'utilisateur spécifique ou utiliser un tableau vide
   const [membres, setMembres] = useState<Membre[]>(() => {
-    const storedMembres = localStorage.getItem('membres');
+    const storedMembres = localStorage.getItem(storageKey);
     return storedMembres ? JSON.parse(storedMembres) : [
       { 
         id: "1", 
@@ -20,15 +24,16 @@ export const MembresProvider = ({ children }: { children: ReactNode }) => {
         prenom: 'RICHARD', 
         fonction: 'DXDXD', 
         initiales: 'RB',
-        date_creation: new Date()
+        date_creation: new Date(),
+        mot_de_passe: ''
       }
     ];
   });
 
   // Sauvegarder les membres dans le localStorage lorsqu'ils changent
   useEffect(() => {
-    localStorage.setItem('membres', JSON.stringify(membres));
-  }, [membres]);
+    localStorage.setItem(storageKey, JSON.stringify(membres));
+  }, [membres, storageKey]);
 
   return (
     <MembresContext.Provider value={{ membres, setMembres }}>

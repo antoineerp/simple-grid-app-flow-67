@@ -5,17 +5,16 @@ import { Document } from '@/types/documents';
  * Loads documents from local storage for the current user
  */
 export const loadDocumentsFromStorage = (currentUser: string): Document[] => {
-  const storedDocuments = localStorage.getItem(`documents_${currentUser}`);
+  // Utiliser l'ID utilisateur réel à partir du localStorage
+  const userId = localStorage.getItem('userId') || currentUser;
+  const storageKey = `documents_${userId}`;
+  
+  const storedDocuments = localStorage.getItem(storageKey);
   
   if (storedDocuments) {
     return JSON.parse(storedDocuments);
   } else {
-    const defaultDocuments = localStorage.getItem('documents_template') || localStorage.getItem('documents');
-    
-    if (defaultDocuments) {
-      return JSON.parse(defaultDocuments);
-    }
-    
+    // Ne pas charger les documents d'autres utilisateurs comme template
     return getDefaultDocuments();
   }
 };
@@ -24,12 +23,11 @@ export const loadDocumentsFromStorage = (currentUser: string): Document[] => {
  * Saves documents to local storage for the current user
  */
 export const saveDocumentsToStorage = (documents: Document[], currentUser: string): void => {
-  localStorage.setItem(`documents_${currentUser}`, JSON.stringify(documents));
+  // Utiliser l'ID utilisateur réel à partir du localStorage
+  const userId = localStorage.getItem('userId') || currentUser;
+  const storageKey = `documents_${userId}`;
   
-  const userRole = localStorage.getItem('userRole');
-  if (userRole === 'admin' || userRole === 'administrateur') {
-    localStorage.setItem('documents_template', JSON.stringify(documents));
-  }
+  localStorage.setItem(storageKey, JSON.stringify(documents));
   
   // Notify other components of document updates
   window.dispatchEvent(new Event('documentUpdate'));
