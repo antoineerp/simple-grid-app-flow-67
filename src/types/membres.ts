@@ -9,6 +9,5 @@ export interface Membre {
   date_creation: Date;
   identifiant_technique?: string;
   role?: string;
-  mot_de_passe: string;  // Ajout du champ mot_de_passe
+  mot_de_passe?: string;  // Make password optional
 }
-
