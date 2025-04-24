@@ -9,18 +9,17 @@ try {
   // Tenter d'importer depuis src (développement)
   import('/src/main.tsx')
     .catch(e => {
-      console.log("Tentative d'import depuis src échouée, essai avec fichier hashé:", e);
+      console.log("Tentative d'import depuis src échouée, essai avec main.js:", e);
       // Fallback pour la production
-      import('./main-B-vZZSaR.js')
-        .catch(err => {
-          console.error("Impossible de charger le fichier JavaScript principal:", err);
-          document.body.innerHTML += `
-            <div style="color: red; padding: 20px; text-align: center;">
-              <h2>Erreur de chargement</h2>
-              <p>Impossible de charger le fichier JavaScript principal.</p>
-            </div>
-          `;
-        });
+      import('/src/main.js').catch(err => {
+        console.error("Impossible de charger le fichier JavaScript principal:", err);
+        document.body.innerHTML += `
+          <div style="color: red; padding: 20px; text-align: center;">
+            <h2>Erreur de chargement</h2>
+            <p>Impossible de charger le fichier JavaScript principal.</p>
+          </div>
+        `;
+      });
     });
 } catch (e) {
   console.error("Erreur lors du chargement du script:", e);
