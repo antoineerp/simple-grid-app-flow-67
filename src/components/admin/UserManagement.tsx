@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -5,12 +6,13 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogTrigger } from "@/components/ui/dialog";
-import { Loader2, RefreshCw, UserPlus, LogIn, AlertCircle, Eye, EyeOff } from 'lucide-react';
+import { Loader2, RefreshCw, UserPlus, LogIn, AlertCircle, Eye, EyeOff, Download } from 'lucide-react';
 import { useAdminUsers } from '@/hooks/useAdminUsers';
 import UserForm from './UserForm';
 import { getCurrentUser, getLastConnectionError } from '@/services/core/databaseConnectionService';
 import { useToast } from "@/hooks/use-toast";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { adminImportFromManager } from '@/services/core/userInitializationService';
 import type { Utilisateur } from '@/services';
 
 interface UserManagementProps {
@@ -24,6 +26,7 @@ const UserManagement = ({ currentDatabaseUser, onUserConnect }: UserManagementPr
   const [newUserOpen, setNewUserOpen] = useState(false);
   const [connectionError, setConnectionError] = useState<string | null>(null);
   const [showPasswords, setShowPasswords] = useState<{[key: string]: boolean}>({});
+  const [importingData, setImportingData] = useState(false);
 
   useEffect(() => {
     const lastError = getLastConnectionError();
@@ -59,6 +62,37 @@ const UserManagement = ({ currentDatabaseUser, onUserConnect }: UserManagementPr
       setConnectionError(error || "Erreur inconnue lors de la connexion");
     }
   };
+  
+  const importManagerData = async () => {
+    setImportingData(true);
+    try {
+      const success = await adminImportFromManager();
+      if (success) {
+        toast({
+          title: "Import réussi",
+          description: "Les données du gestionnaire ont été importées avec succès",
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Erreur d'import",
+        description: "Impossible d'importer les données du gestionnaire",
+        variant: "destructive",
+      });
+    } finally {
+      setImportingData(false);
+    }
+  };
+  
+  // Vérifier si l'utilisateur actuel est admin
+  const isCurrentUserAdmin = () => {
+    if (!currentDatabaseUser || !utilisateurs.length) return false;
+    const currentUser = utilisateurs.find(user => user.identifiant_technique === currentDatabaseUser);
+    return currentUser?.role === 'admin';
+  };
+  
+  // Vérifier s'il existe un gestionnaire
+  const hasManager = utilisateurs.some(user => user.role === 'gestionnaire');
 
   return (
     <Card>
@@ -68,6 +102,21 @@ const UserManagement = ({ currentDatabaseUser, onUserConnect }: UserManagementPr
           <CardDescription>Visualisez et gérez les utilisateurs du système</CardDescription>
         </div>
         <div className="flex gap-2">
+          {isCurrentUserAdmin() && hasManager && (
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={importManagerData} 
+              disabled={importingData}
+            >
+              {importingData ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              ) : (
+                <Download className="h-4 w-4 mr-2" />
+              )}
+              Importer données gestionnaire
+            </Button>
+          )}
           <Button variant="outline" size="sm" onClick={loadUtilisateurs} disabled={loading}>
             {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
             <span className="ml-2">Actualiser</span>
@@ -173,7 +222,7 @@ const UserManagement = ({ currentDatabaseUser, onUserConnect }: UserManagementPr
                       </div>
                     </TableCell>
                     <TableCell>
-                      <Badge variant={user.role === 'admin' ? 'default' : 'secondary'}>
+                      <Badge variant={user.role === 'admin' ? 'default' : user.role === 'gestionnaire' ? 'destructive' : 'secondary'}>
                         {user.role}
                       </Badge>
                     </TableCell>

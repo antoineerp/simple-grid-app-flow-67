@@ -138,6 +138,20 @@ try {
                 !empty($data->role)
             ) {
                 try {
+                    // Vérifier si le rôle est "gestionnaire" et s'il y a déjà un gestionnaire
+                    if ($data->role === 'gestionnaire') {
+                        $existingManagerCount = $user->countUsersByRole('gestionnaire');
+                        if ($existingManagerCount > 0) {
+                            http_response_code(409); // Conflict
+                            echo json_encode(array(
+                                "message" => "Un seul compte gestionnaire peut être créé. Un compte existe déjà.",
+                                "status" => 409,
+                                "field" => "role"
+                            ));
+                            exit;
+                        }
+                    }
+                    
                     // Vérifier d'abord si l'email existe déjà
                     if ($user->emailExists($data->email)) {
                         http_response_code(409); // Conflict
@@ -179,6 +193,12 @@ try {
                         // Récupérer le dernier ID inséré
                         $lastId = $db->lastInsertId();
                         error_log("Utilisateur créé avec succès, ID: " . $lastId);
+                        
+                        // Si c'est un utilisateur standard, copier les données du gestionnaire s'il existe
+                        if ($user->role === 'utilisateur') {
+                            $user->initializeUserDataFromManager($lastId);
+                            error_log("Tentative d'initialisation des données utilisateur à partir du gestionnaire");
+                        }
                         
                         http_response_code(201);
                         echo json_encode(array(

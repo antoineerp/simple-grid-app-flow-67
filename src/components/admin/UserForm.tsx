@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { DialogFooter, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -7,7 +7,8 @@ import { useToast } from "@/hooks/use-toast";
 import { createUser } from '@/services/users/createUserService';
 import { connectAsUser } from '@/services';
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { AlertCircle, Loader2 } from 'lucide-react';
+import { AlertCircle, Loader2, Info } from 'lucide-react';
+import { useAdminUsers } from '@/hooks/useAdminUsers';
 
 interface UserFormData {
   nom: string;
@@ -25,6 +26,7 @@ interface UserFormProps {
 
 const UserForm = ({ onClose, onSuccess, onUserConnect }: UserFormProps) => {
   const { toast } = useToast();
+  const { utilisateurs, loading } = useAdminUsers();
   const [formData, setFormData] = useState<UserFormData>({
     nom: '',
     prenom: '',
@@ -36,6 +38,14 @@ const UserForm = ({ onClose, onSuccess, onUserConnect }: UserFormProps) => {
   const [connectAfterCreate, setConnectAfterCreate] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<{[key: string]: string}>({});
+  const [hasManager, setHasManager] = useState(false);
+
+  useEffect(() => {
+    // Vérifier si un gestionnaire existe déjà
+    if (utilisateurs.some(user => user.role === 'gestionnaire')) {
+      setHasManager(true);
+    }
+  }, [utilisateurs]);
 
   const validateForm = (): boolean => {
     const errors: {[key: string]: string} = {};
@@ -69,6 +79,12 @@ const UserForm = ({ onClose, onSuccess, onUserConnect }: UserFormProps) => {
       isValid = false;
     } else if (formData.mot_de_passe.length < 6) {
       errors.mot_de_passe = "Le mot de passe doit contenir au moins 6 caractères";
+      isValid = false;
+    }
+    
+    // Validation du rôle
+    if (formData.role === 'gestionnaire' && hasManager) {
+      errors.role = "Un gestionnaire existe déjà. Un seul compte gestionnaire est autorisé.";
       isValid = false;
     }
     
@@ -143,6 +159,8 @@ const UserForm = ({ onClose, onSuccess, onUserConnect }: UserFormProps) => {
       // Détecter les erreurs liées à des champs spécifiques
       if (errorMessage.includes("email existe déjà")) {
         setFieldErrors(prev => ({ ...prev, email: "Cet email est déjà utilisé" }));
+      } else if (errorMessage.includes("Un seul compte gestionnaire")) {
+        setFieldErrors(prev => ({ ...prev, role: "Un gestionnaire existe déjà" }));
       }
       
       toast({
@@ -169,6 +187,16 @@ const UserForm = ({ onClose, onSuccess, onUserConnect }: UserFormProps) => {
           <AlertCircle className="h-4 w-4 mr-2" />
           <AlertDescription>
             {formError}
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {hasManager && (
+        <Alert className="mb-4">
+          <Info className="h-4 w-4 mr-2" />
+          <AlertDescription>
+            Un gestionnaire existe déjà. Un seul compte gestionnaire est autorisé dans le système.
+            Les nouveaux utilisateurs hériteront automatiquement des données du gestionnaire.
           </AlertDescription>
         </Alert>
       )}
@@ -249,18 +277,23 @@ const UserForm = ({ onClose, onSuccess, onUserConnect }: UserFormProps) => {
 
           <div className="grid grid-cols-4 items-center gap-4">
             <label htmlFor="role" className="text-right text-sm">Rôle</label>
-            <select
-              id="role"
-              name="role"
-              value={formData.role}
-              onChange={handleChange}
-              className="col-span-3 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-              required
-            >
-              <option value="utilisateur">Utilisateur</option>
-              <option value="gestionnaire">Gestionnaire</option>
-              <option value="admin">Administrateur</option>
-            </select>
+            <div className="col-span-3 space-y-1">
+              <select
+                id="role"
+                name="role"
+                value={formData.role}
+                onChange={handleChange}
+                className={`flex h-10 w-full rounded-md border ${fieldErrors.role ? 'border-red-500' : 'border-input'} bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50`}
+                required
+              >
+                <option value="utilisateur">Utilisateur</option>
+                <option value="gestionnaire" disabled={hasManager}>Gestionnaire {hasManager ? '(Limite atteinte)' : ''}</option>
+                <option value="admin">Administrateur</option>
+              </select>
+              {fieldErrors.role && (
+                <p className="text-xs text-red-500">{fieldErrors.role}</p>
+              )}
+            </div>
           </div>
 
           <div className="grid grid-cols-4 items-center gap-4">

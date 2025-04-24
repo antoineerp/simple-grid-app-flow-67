@@ -34,6 +34,72 @@ class User {
         $this->conn = $db;
     }
 
+    // Compter le nombre d'utilisateurs par rôle
+    public function countUsersByRole($role) {
+        try {
+            $query = "SELECT COUNT(*) FROM " . $this->table_name . " WHERE role = :role";
+            $stmt = $this->conn->prepare($query);
+            $role = htmlspecialchars(strip_tags($role));
+            $stmt->bindParam(":role", $role);
+            $stmt->execute();
+            
+            return $stmt->fetchColumn();
+        } catch (PDOException $e) {
+            error_log("Erreur lors du comptage des utilisateurs par rôle: " . $e->getMessage());
+            return 0;
+        }
+    }
+    
+    // Obtenir l'utilisateur gestionnaire
+    public function getManager() {
+        try {
+            $query = "SELECT * FROM " . $this->table_name . " WHERE role = 'gestionnaire' LIMIT 1";
+            $stmt = $this->conn->prepare($query);
+            $stmt->execute();
+            
+            return $stmt->fetch(PDO::FETCH_ASSOC);
+        } catch (PDOException $e) {
+            error_log("Erreur lors de la récupération du gestionnaire: " . $e->getMessage());
+            return null;
+        }
+    }
+    
+    // Initialiser les données utilisateur à partir du gestionnaire
+    public function initializeUserDataFromManager($userId) {
+        try {
+            $manager = $this->getManager();
+            
+            if (!$manager) {
+                error_log("Aucun gestionnaire trouvé pour initialiser les données utilisateur");
+                return false;
+            }
+            
+            $managerId = $manager['id'];
+            $managerIdentifiant = $manager['identifiant_technique'];
+            
+            // Copier les documents du gestionnaire vers l'utilisateur
+            $this->copyUserData('documents', $managerIdentifiant, $userId);
+            
+            // Copier les exigences du gestionnaire vers l'utilisateur
+            $this->copyUserData('exigences', $managerIdentifiant, $userId);
+            
+            error_log("Données utilisateur initialisées avec succès à partir du gestionnaire");
+            return true;
+        } catch (Exception $e) {
+            error_log("Erreur lors de l'initialisation des données utilisateur: " . $e->getMessage());
+            return false;
+        }
+    }
+    
+    // Copier les données d'un utilisateur à un autre (pour localStorage)
+    private function copyUserData($dataType, $sourceUserId, $targetUserId) {
+        // Cette méthode serait utilisée pour copier les données entre utilisateurs
+        // via localStorage ou autre mécanisme de stockage
+        error_log("Copie des données $dataType de $sourceUserId vers $targetUserId");
+        // Note: Dans un contexte réel, il faudrait implémenter cette logique
+        // selon le mécanisme de stockage utilisé (base de données, fichiers, etc.)
+    }
+
     // Lire tous les utilisateurs
     public function read() {
         try {

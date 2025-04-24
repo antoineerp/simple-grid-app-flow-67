@@ -1,6 +1,7 @@
 
 import { toast } from '@/hooks/use-toast';
 import { getCurrentUser } from './databaseConnectionService';
+import { getUtilisateurs, type Utilisateur } from '../users/userService';
 
 /**
  * Service responsible for initializing user data when they first log in
@@ -36,7 +37,7 @@ class UserInitializationService {
   }
 
   /**
-   * Initialize user data by copying templates from admin or using defaults
+   * Initialize user data by copying templates from gestionnaire or using defaults
    * @param userId The user ID to initialize
    * @returns True if successful, false otherwise
    */
@@ -44,14 +45,20 @@ class UserInitializationService {
     try {
       console.log(`Initializing data for user: ${userId}`);
       
-      // Initialize documents if needed
-      if (!localStorage.getItem(`documents_${userId}`)) {
-        this.initializeDocuments(userId);
-      }
+      // Tenter d'initialiser à partir d'un gestionnaire d'abord
+      const initializedFromManager = await this.initializeFromManager(userId);
       
-      // Initialize exigences if needed
-      if (!localStorage.getItem(`exigences_${userId}`)) {
-        this.initializeExigences(userId);
+      if (!initializedFromManager) {
+        console.log("Aucune donnée de gestionnaire trouvée, initialisation avec les valeurs par défaut");
+        // Initialize documents if needed
+        if (!localStorage.getItem(`documents_${userId}`)) {
+          this.initializeDocuments(userId);
+        }
+        
+        // Initialize exigences if needed
+        if (!localStorage.getItem(`exigences_${userId}`)) {
+          this.initializeExigences(userId);
+        }
       }
       
       toast({
@@ -67,6 +74,44 @@ class UserInitializationService {
         description: "Impossible d'initialiser vos données",
         variant: "destructive",
       });
+      return false;
+    }
+  }
+
+  /**
+   * Tente d'initialiser les données d'un utilisateur à partir d'un gestionnaire
+   */
+  private async initializeFromManager(userId: string): Promise<boolean> {
+    try {
+      // Récupérer la liste des utilisateurs pour trouver un gestionnaire
+      const users = await getUtilisateurs();
+      const manager = users.find(user => user.role === 'gestionnaire');
+      
+      if (!manager) {
+        console.log("Aucun gestionnaire trouvé pour l'initialisation");
+        return false;
+      }
+      
+      console.log(`Gestionnaire trouvé: ${manager.prenom} ${manager.nom}`);
+      const managerId = manager.identifiant_technique;
+      
+      // Copier les documents du gestionnaire
+      const managerDocuments = localStorage.getItem(`documents_${managerId}`);
+      if (managerDocuments) {
+        localStorage.setItem(`documents_${userId}`, managerDocuments);
+        console.log("Documents copiés du gestionnaire");
+      }
+      
+      // Copier les exigences du gestionnaire
+      const managerExigences = localStorage.getItem(`exigences_${managerId}`);
+      if (managerExigences) {
+        localStorage.setItem(`exigences_${userId}`, managerExigences);
+        console.log("Exigences copiées du gestionnaire");
+      }
+      
+      return true;
+    } catch (error) {
+      console.error("Erreur lors de l'initialisation depuis le gestionnaire:", error);
       return false;
     }
   }
@@ -157,6 +202,63 @@ class UserInitializationService {
       console.log(`Default exigences created for user ${userId}`);
     }
   }
+  
+  /**
+   * Permet à un administrateur de récupérer manuellement les données du gestionnaire
+   */
+  public async adminImportFromManager(): Promise<boolean> {
+    try {
+      const currentUser = getCurrentUser();
+      if (!currentUser) {
+        console.error("Aucun utilisateur connecté");
+        return false;
+      }
+      
+      // Vérifier si l'utilisateur est admin
+      const users = await getUtilisateurs();
+      const currentUserDetails = users.find(user => user.identifiant_technique === currentUser);
+      
+      if (!currentUserDetails || currentUserDetails.role !== 'admin') {
+        console.error("Seul un administrateur peut effectuer cette opération");
+        return false;
+      }
+      
+      // Récupérer le gestionnaire
+      const manager = users.find(user => user.role === 'gestionnaire');
+      
+      if (!manager) {
+        console.error("Aucun gestionnaire trouvé");
+        return false;
+      }
+      
+      // Copier les données du gestionnaire
+      const managerDocuments = localStorage.getItem(`documents_${manager.identifiant_technique}`);
+      const managerExigences = localStorage.getItem(`exigences_${manager.identifiant_technique}`);
+      
+      if (managerDocuments) {
+        localStorage.setItem(`documents_${currentUser}`, managerDocuments);
+      }
+      
+      if (managerExigences) {
+        localStorage.setItem(`exigences_${currentUser}`, managerExigences);
+      }
+      
+      toast({
+        title: "Données importées",
+        description: "Les données du gestionnaire ont été importées avec succès",
+      });
+      
+      return true;
+    } catch (error) {
+      console.error("Erreur lors de l'importation des données du gestionnaire:", error);
+      toast({
+        title: "Erreur d'importation",
+        description: "Impossible d'importer les données du gestionnaire",
+        variant: "destructive",
+      });
+      return false;
+    }
+  }
 }
 
 // Export the user initialization service instance
@@ -169,4 +271,8 @@ export const needsInitialization = (userId: string): boolean => {
 
 export const initializeUserData = (userId: string): Promise<boolean> => {
   return userInitService.initializeUserData(userId);
+};
+
+export const adminImportFromManager = (): Promise<boolean> => {
+  return userInitService.adminImportFromManager();
 };
