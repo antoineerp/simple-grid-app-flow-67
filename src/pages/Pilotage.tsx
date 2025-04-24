@@ -137,7 +137,6 @@ const Pilotage = () => {
         <div className="flex items-center justify-between mb-2">
           <div>
             <h1 className="text-3xl font-bold text-app-blue">Pilotage</h1>
-            <p className="text-gray-600">Documents de pilotage</p>
           </div>
           <button 
             onClick={handleExportPdf}
