@@ -1,18 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useToast } from "@/hooks/use-toast";
-import { Document, DocumentGroup } from '@/types/documents';
-import { 
-  loadDocumentsFromStorage, 
-  saveDocumentsToStorage, 
-  calculateDocumentStats 
-} from '@/services/documents';
-import {
-  syncDocumentsWithServer,
-  loadDocumentsFromServer
-} from '@/services/documents/documentSyncService';
+import { useToast } from '@/hooks/use-toast';
+import { Document, DocumentStats, DocumentGroup } from '@/types/documents';
+import { syncDocumentsWithServer, loadDocumentsFromServer } from '@/services/documents/documentSyncService';
+import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 
 export const useDocuments = () => {
   const { toast } = useToast();
+  const { isOnline } = useNetworkStatus();
   const currentUser = localStorage.getItem('currentUser') || 'default';
   
   const [documents, setDocuments] = useState<Document[]>(() => loadDocumentsFromStorage(currentUser));
@@ -24,8 +18,9 @@ export const useDocuments = () => {
   const [editingGroup, setEditingGroup] = useState<DocumentGroup | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [groupDialogOpen, setGroupDialogOpen] = useState(false);
-  const [stats, setStats] = useState(calculateDocumentStats(documents));
+  const [stats, setStats] = useState<DocumentStats>(() => calculateDocumentStats(documents));
   const [isSyncing, setIsSyncing] = useState(false);
+  const [lastSynced, setLastSynced] = useState<Date | undefined>(undefined);
 
   useEffect(() => {
     const fetchDocumentsFromServer = async () => {
@@ -275,12 +270,14 @@ export const useDocuments = () => {
   };
 
   const forceSyncWithServer = async () => {
-    setIsSyncing(true);
+    if (isSyncing) return;
     
+    setIsSyncing(true);
     try {
       const success = await syncDocumentsWithServer(documents, currentUser);
       
       if (success) {
+        setLastSynced(new Date());
         toast({
           title: "Synchronisation réussie",
           description: "Vos documents ont été synchronisés avec le serveur",
@@ -337,6 +334,8 @@ export const useDocuments = () => {
     handleDeleteGroup,
     handleGroupReorder,
     handleToggleGroup,
-    syncWithServer: forceSyncWithServer
+    syncWithServer: forceSyncWithServer,
+    isOnline,
+    lastSynced
   };
 };

@@ -8,7 +8,7 @@ interface MemberListProps {
   membres: Membre[];
   onEdit: (id: string) => void;
   onDelete: (id: string) => void;
-  onExport: (id: string) => void;
+  onExport?: (id: string) => void; // Rendre optionnel
 }
 
 const MemberList = ({ membres, onEdit, onDelete, onExport }: MemberListProps) => {
@@ -31,17 +31,19 @@ const MemberList = ({ membres, onEdit, onDelete, onExport }: MemberListProps) =>
             <td className="py-3 px-4 text-sm">{membre.fonction}</td>
             <td className="py-3 px-4 text-sm">{membre.initiales}</td>
             <td className="py-3 px-4 text-right flex justify-end gap-2">
-              <Button 
-                size="icon"
-                variant="ghost"
-                className="text-gray-600 hover:text-app-blue h-8 w-8"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onExport(membre.id);
-                }}
-              >
-                <FileDown className="h-4 w-4" />
-              </Button>
+              {onExport && (
+                <Button 
+                  size="icon"
+                  variant="ghost"
+                  className="text-gray-600 hover:text-app-blue h-8 w-8"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onExport(membre.id);
+                  }}
+                >
+                  <FileDown className="h-4 w-4" />
+                </Button>
+              )}
               <Button 
                 size="icon"
                 variant="ghost"

@@ -84,7 +84,7 @@ export const loadBibliothequeFromServer = async (currentUser: string): Promise<{
       
       return {
         documents: ungroupedDocs,
-        groups: Array.from(groupMap.values())
+        groups: Array.from(groupMap.values()) as DocumentGroup[]
       };
     }
     

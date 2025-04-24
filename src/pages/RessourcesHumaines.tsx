@@ -72,6 +72,12 @@ const RessourcesHumaines = () => {
     setIsDialogOpen(true);
   };
 
+  // Handler for export function
+  const handleExportMember = (id: string) => {
+    // Implementation for export functionality
+    console.log(`Exporting member with id: ${id}`);
+  };
+
   // Handler for input changes in the form
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -174,7 +180,8 @@ const RessourcesHumaines = () => {
         <MemberList 
           membres={membres} 
           onEdit={handleEdit} 
-          onDelete={handleDelete} 
+          onDelete={handleDelete}
+          onExport={handleExportMember} 
         />
       </div>
 

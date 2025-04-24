@@ -2,9 +2,11 @@ import { useState, useEffect, useCallback } from 'react';
 import { useToast } from "@/hooks/use-toast";
 import { Exigence, ExigenceStats, ExigenceGroup } from '@/types/exigences';
 import { syncExigencesWithServer, loadExigencesFromServer } from '@/services/exigences/exigenceSyncService';
+import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 
 export const useExigences = () => {
   const { toast } = useToast();
+  const { isOnline } = useNetworkStatus();
   const currentUser = localStorage.getItem('currentUser') || 'default';
   
   const [exigences, setExigences] = useState<Exigence[]>(() => {
@@ -59,6 +61,7 @@ export const useExigences = () => {
     total: 0
   });
   const [isSyncing, setIsSyncing] = useState(false);
+  const [lastSynced, setLastSynced] = useState<Date | undefined>(undefined);
 
   const notifyExigenceUpdate = () => {
     window.dispatchEvent(new Event('exigenceUpdate'));
@@ -72,6 +75,7 @@ export const useExigences = () => {
           setExigences(serverExigences);
           localStorage.setItem(`exigences_${currentUser}`, JSON.stringify(serverExigences));
           console.log('Exigences chargées depuis le serveur et mises en cache');
+          setLastSynced(new Date());
         } else {
           console.log('Aucune exigence trouvée sur le serveur, utilisation des données locales');
           syncWithServer();
@@ -137,6 +141,7 @@ export const useExigences = () => {
         console.warn('La synchronisation des exigences a échoué');
       } else {
         console.log('Exigences synchronisées avec succès');
+        setLastSynced(new Date());
       }
     } catch (error) {
       console.error('Erreur lors de la synchronisation:', error);
@@ -338,6 +343,7 @@ export const useExigences = () => {
           title: "Synchronisation réussie",
           description: "Vos exigences ont été synchronisées avec le serveur",
         });
+        setLastSynced(new Date());
       } else {
         toast({
           title: "Erreur de synchronisation",
@@ -366,6 +372,8 @@ export const useExigences = () => {
     dialogOpen,
     groupDialogOpen,
     isSyncing,
+    isOnline,
+    lastSynced,
     setDialogOpen,
     setGroupDialogOpen,
     handleResponsabiliteChange,
