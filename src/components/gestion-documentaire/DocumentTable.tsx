@@ -119,7 +119,7 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
       targetIndex = groupStartIndex + previousGroupsItemCount + targetIndex;
     }
     
-    onReorder(adjustedSourceIndex, adjustedTargetIndex, targetGroupId);
+    onReorder(sourceIndex, targetIndex, targetGroupId);
     setDraggedItem(null);
   };
 
