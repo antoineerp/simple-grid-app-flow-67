@@ -57,6 +57,7 @@ interface LoginResponse {
 // Obtenir l'URL de l'API à partir de la configuration
 const getApiEndpoint = (): string => {
   // Utiliser UNIQUEMENT le chemin relatif pour garantir que l'appel reste sur le même domaine
+  // Très important : ne pas utiliser d'URL absolue pour éviter les problèmes CORS
   return '/api';
 };
 
@@ -66,8 +67,8 @@ export const login = async (username: string, password: string): Promise<LoginRe
     console.log(`Tentative de connexion pour l'utilisateur: ${username}`);
     
     // Définir le bon endpoint API en s'assurant d'utiliser un chemin relatif
-    const apiEndpoint = getApiEndpoint();
-    const loginUrl = `${apiEndpoint}/login-test.php`;
+    // Nous utilisons uniquement le chemin relatif pour garantir que l'appel reste sur le même domaine
+    const loginUrl = `/api/login-test.php`;
     
     console.log(`URL de connexion utilisée: ${loginUrl}`);
     

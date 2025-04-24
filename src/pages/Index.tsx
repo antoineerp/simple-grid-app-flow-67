@@ -55,6 +55,7 @@ const Index = () => {
           <p>Identifiants de test:</p>
           <p>Utilisateur: <strong>admin</strong> - Mot de passe: <strong>admin123</strong></p>
           <p>Utilisateur: <strong>p71x6d_system</strong> - Mot de passe: <strong>Trottinette43!</strong></p>
+          <p>Utilisateur: <strong>antcirier@gmail.com</strong> - Mot de passe: <strong>password123</strong></p>
           <p>Utilisateur: <strong>p71x6d_dupont</strong> - Mot de passe: <strong>manager456</strong></p>
           <p>Utilisateur: <strong>p71x6d_martin</strong> - Mot de passe: <strong>user789</strong></p>
         </div>
