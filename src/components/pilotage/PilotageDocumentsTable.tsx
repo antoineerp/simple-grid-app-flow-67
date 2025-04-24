@@ -34,6 +34,14 @@ const PilotageDocumentsTable: React.FC<PilotageDocumentsTableProps> = ({
 }) => {
   const { toast } = useToast();
 
+  const handleLinkClick = (lien: string) => {
+    if (!lien.startsWith('http://') && !lien.startsWith('https://')) {
+      window.open(`https://${lien}`, '_blank');
+    } else {
+      window.open(lien, '_blank');
+    }
+  };
+
   return (
     <div className="bg-white rounded-md shadow overflow-hidden mt-6">
       <Table>
@@ -52,9 +60,12 @@ const PilotageDocumentsTable: React.FC<PilotageDocumentsTableProps> = ({
                 <TableCell>{doc.nom}</TableCell>
                 <TableCell>
                   {doc.lien ? (
-                    <a href="#" className="text-app-blue hover:underline">
+                    <button 
+                      onClick={() => handleLinkClick(doc.lien as string)}
+                      className="text-app-blue hover:underline"
+                    >
                       Voir le document
-                    </a>
+                    </button>
                   ) : (
                     <span className="text-gray-500">Aucun lien</span>
                   )}
@@ -86,4 +97,3 @@ const PilotageDocumentsTable: React.FC<PilotageDocumentsTableProps> = ({
 };
 
 export default PilotageDocumentsTable;
-
