@@ -40,7 +40,7 @@ const ExigencesContent = () => {
   const { toast } = useToast();
 
   const handleExportPdf = () => {
-    exportExigencesToPdf(exigences);
+    exportExigencesToPdf(exigences, groups);
     toast({
       title: "Export PDF réussi",
       description: "Le document a été généré et téléchargé",

@@ -8,37 +8,77 @@ import {
   createAndDownloadPdf
 } from './pdfManager';
 
-/**
- * Exports documents to PDF format
- */
-export const exportDocumentsToPdf = (documents: Document[], title: string = 'Gestion Documentaire') => {
+export const exportDocumentsToPdf = (documents: Document[], groups: any[] = [], title: string = 'Gestion Documentaire') => {
   createAndDownloadPdf((doc, startY) => {
-    // Table of documents
-    const headers = [['Nom', 'Lien', 'Responsabilités', 'État']];
+    let currentY = startY;
     
-    const data = documents.map(doc => [
-      doc.nom,
-      doc.fichier_path || '-',
-      formatResponsabilities(doc.responsabilites),
-      formatState(doc.etat)
-    ]);
-    
-    // Générer le tableau avec autoTable
-    autoTable(doc, {
-      startY: startY,
-      head: headers,
-      body: data,
-      theme: 'grid',
-      styles: { fontSize: 10, cellPadding: 5 },
-      headStyles: { fillColor: [0, 48, 135], textColor: [255, 255, 255] },
-      columnStyles: {
-        0: { cellWidth: 60 },
-        1: { cellWidth: 40 },
-        2: { cellWidth: 60 },
-        3: { cellWidth: 30 }
+    // Pour chaque groupe
+    groups.forEach(group => {
+      // Ajouter le titre du groupe
+      doc.setFontSize(12);
+      doc.setFont('helvetica', 'bold');
+      doc.text(group.name, 15, currentY);
+      currentY += 10;
+      
+      // Trouver les documents du groupe
+      const groupDocs = group.items || [];
+      
+      if (groupDocs.length > 0) {
+        // Générer le tableau pour ce groupe
+        autoTable(doc, {
+          startY: currentY,
+          head: [['Nom', 'Lien', 'Responsabilités', 'État']],
+          body: groupDocs.map(doc => [
+            doc.nom,
+            doc.fichier_path || '-',
+            formatResponsabilities(doc.responsabilites),
+            formatState(doc.etat)
+          ]),
+          theme: 'grid',
+          styles: { fontSize: 10, cellPadding: 5 },
+          headStyles: { fillColor: [0, 48, 135], textColor: [255, 255, 255] },
+          columnStyles: {
+            0: { cellWidth: 60 },
+            1: { cellWidth: 40 },
+            2: { cellWidth: 60 },
+            3: { cellWidth: 30 }
+          }
+        });
+        
+        // Mettre à jour la position Y
+        currentY = (doc as any).lastAutoTable.finalY + 15;
       }
     });
     
-    console.log(`Tableau de documents généré avec ${data.length} documents`);
+    // Documents non groupés
+    const ungroupedDocs = documents.filter(d => !d.groupId);
+    if (ungroupedDocs.length > 0) {
+      doc.setFontSize(12);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Documents non groupés', 15, currentY);
+      currentY += 10;
+      
+      autoTable(doc, {
+        startY: currentY,
+        head: [['Nom', 'Lien', 'Responsabilités', 'État']],
+        body: ungroupedDocs.map(doc => [
+          doc.nom,
+          doc.fichier_path || '-',
+          formatResponsabilities(doc.responsabilites),
+          formatState(doc.etat)
+        ]),
+        theme: 'grid',
+        styles: { fontSize: 10, cellPadding: 5 },
+        headStyles: { fillColor: [0, 48, 135], textColor: [255, 255, 255] },
+        columnStyles: {
+          0: { cellWidth: 60 },
+          1: { cellWidth: 40 },
+          2: { cellWidth: 60 },
+          3: { cellWidth: 30 }
+        }
+      });
+    }
+    
+    console.log(`PDF de documents généré avec ${documents.length} documents`);
   }, title);
 };

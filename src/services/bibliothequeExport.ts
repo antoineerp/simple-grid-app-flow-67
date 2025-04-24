@@ -5,56 +5,67 @@ import {
   createAndDownloadPdf
 } from './pdfManager';
 
-/**
- * Exports bibliothèque documents to PDF format
- */
 export const exportBibliothecaireDocsToPdf = (documents: any[], groups: any[], title: string = 'Bibliothèque de documents') => {
   createAndDownloadPdf((doc, startY) => {
-    // Prepare data for table
-    const headers = [['Groupe', 'Nom du document', 'Lien']];
+    let currentY = startY;
     
-    const data = [];
-    
-    // Add documents from groups
+    // Pour chaque groupe
     groups.forEach(group => {
-      // Add group header if it has items
+      // Ajouter le titre du groupe
+      doc.setFontSize(12);
+      doc.setFont('helvetica', 'bold');
+      doc.text(group.name, 15, currentY);
+      currentY += 10;
+      
+      // Vérifier si le groupe a des documents
       if (group.items && group.items.length > 0) {
-        group.items.forEach(doc => {
-          data.push([
-            group.name,
+        // Générer le tableau pour ce groupe
+        autoTable(doc, {
+          startY: currentY,
+          head: [['Nom du document', 'Lien']],
+          body: group.items.map(doc => [
             doc.name,
             doc.link || '-'
-          ]);
+          ]),
+          theme: 'grid',
+          styles: { fontSize: 10, cellPadding: 5 },
+          headStyles: { fillColor: [0, 48, 135], textColor: [255, 255, 255] },
+          columnStyles: {
+            0: { cellWidth: 100 },
+            1: { cellWidth: 80 }
+          }
         });
+        
+        // Mettre à jour la position Y
+        currentY = (doc as any).lastAutoTable.finalY + 15;
       }
     });
     
-    // Add individual documents (not in groups)
-    documents.forEach(doc => {
-      if (!doc.groupId) {
-        data.push([
-          '-',
+    // Documents non groupés
+    const ungroupedDocs = documents.filter(doc => !doc.groupId);
+    if (ungroupedDocs.length > 0) {
+      doc.setFontSize(12);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Documents non groupés', 15, currentY);
+      currentY += 10;
+      
+      autoTable(doc, {
+        startY: currentY,
+        head: [['Nom du document', 'Lien']],
+        body: ungroupedDocs.map(doc => [
           doc.name || doc.nom,
           doc.link || doc.lien || '-'
-        ]);
-      }
-    });
+        ]),
+        theme: 'grid',
+        styles: { fontSize: 10, cellPadding: 5 },
+        headStyles: { fillColor: [0, 48, 135], textColor: [255, 255, 255] },
+        columnStyles: {
+          0: { cellWidth: 100 },
+          1: { cellWidth: 80 }
+        }
+      });
+    }
     
-    // Generate table
-    autoTable(doc, {
-      startY: startY,
-      head: headers,
-      body: data,
-      theme: 'grid',
-      styles: { fontSize: 10, cellPadding: 5 },
-      headStyles: { fillColor: [0, 48, 135], textColor: [255, 255, 255] },
-      columnStyles: {
-        0: { cellWidth: 60 },
-        1: { cellWidth: 70 },
-        2: { cellWidth: 60 }
-      }
-    });
-    
-    console.log(`Tableau de bibliothèque généré avec ${data.length} documents`);
+    console.log(`PDF de bibliothèque généré avec ${documents.length} documents`);
   }, title);
 };

@@ -41,7 +41,7 @@ const GestionDocumentaireContent = () => {
   const { toast } = useToast();
 
   const handleExportPdf = () => {
-    exportDocumentsToPdf(documents);
+    exportDocumentsToPdf(documents, groups);
     toast({
       title: "Export PDF réussi",
       description: "Le document a été généré et téléchargé",
