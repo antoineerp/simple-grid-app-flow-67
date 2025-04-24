@@ -388,3 +388,8 @@ export const getDatabaseInfo = (): Promise<DatabaseInfo> => {
 export const getPhpMyAdminUrl = (): string | null => {
   return dbConnectionService.getPhpMyAdminUrl();
 };
+
+// Add export for getDatabaseConnectionCurrentUser (alias for getCurrentUser)
+export const getDatabaseConnectionCurrentUser = (): string | null => {
+  return dbConnectionService.getCurrentUser();
+};

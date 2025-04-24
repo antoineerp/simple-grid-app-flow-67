@@ -1,11 +1,10 @@
-
 import { useState, useEffect, useCallback } from 'react';
 import { useToast } from "@/hooks/use-toast";
 import { Document } from '@/types/documents';
 import { getUserId } from '@/services/auth/authService';
 import { 
-  fetchDocuments as loadDocumentsFromStorage, 
-  saveDocuments as saveDocumentsToStorage, 
+  fetchDocuments,
+  saveDocuments,
   calculateDocumentStats,
   syncDocumentsWithServer,
   loadDocumentsFromStorage,
@@ -22,17 +21,14 @@ export const useDocuments = () => {
   const [stats, setStats] = useState(calculateDocumentStats(documents));
   const [isSyncing, setIsSyncing] = useState(false);
 
-  // Update statistics when documents change
   useEffect(() => {
     setStats(calculateDocumentStats(documents));
   }, [documents]);
 
-  // Save documents to storage when they change
   useEffect(() => {
     saveDocumentsToStorage(documents, userId);
   }, [documents, userId]);
 
-  // Document manipulation functions
   const handleResponsabiliteChange = useCallback((id: string, type: 'r' | 'a' | 'c' | 'i', values: string[]) => {
     setDocuments(prev => 
       prev.map(doc => 

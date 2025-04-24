@@ -5,7 +5,7 @@ export * from './documents';
 export * from './users/userService';
 export * from './users/createUserService';
 
-// Explicitely renommer les exports pour éviter l'ambiguïté
+// Explicitly renommer les exports pour éviter l'ambiguïté
 export { 
   connectAsUser,
   getLastConnectionError,
