@@ -25,12 +25,12 @@ AddType image/svg+xml .svg
 RewriteCond %{REQUEST_URI} ^/lovable-uploads/
 RewriteRule ^lovable-uploads/(.*)$ public/lovable-uploads/$1 [L]
 
-# Configuration spéciale pour l'exécution de PHP
+# Force PHP script handler - IMPORTANT pour l'exécution PHP
 <FilesMatch "\.php$">
     SetHandler application/x-httpd-php
 </FilesMatch>
 
-# Force PHP script handler
+# Force PHP handler
 AddHandler application/x-httpd-php .php
 AddType application/x-httpd-php .php
 
@@ -63,9 +63,10 @@ RewriteRule ^(.*)$ index.html [QSA,L]
         Header set Expires "0"
     </FilesMatch>
     
-    # Configuration d'en-têtes pour les fichiers PHP
+    # Désactiver modification Content-Type pour les fichiers PHP
     <FilesMatch "\.php$">
-        Header set Content-Type "application/json; charset=UTF-8"
+        Header unset Content-Type
+        SetHandler application/x-httpd-php
     </FilesMatch>
 </IfModule>
 

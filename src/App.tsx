@@ -1,42 +1,77 @@
+import React, { useState, useEffect } from 'react';
+import { BrowserRouter as Router, Route, Routes, Navigate } from 'react-router-dom';
+import { Toaster } from '@/components/ui/toaster';
+import { useToast } from '@/hooks/use-toast';
+import { getApiUrl } from '@/config/apiConfig';
+import { Header, Sidebar, Layout } from '@/components';
+import Index from './pages/Index';
+import Pilotage from './pages/Pilotage';
+import Admin from './pages/Admin';
+import ProtectedRoute from './components/ProtectedRoute';
+import DashboardLayout from './components/DashboardLayout';
+import { isLoggedIn } from '@/services/auth/authService';
 
-import { Toaster } from "@/components/ui/toaster";
-import { Toaster as Sonner } from "@/components/ui/sonner";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
-import Layout from "./components/Layout";
-import Index from "./pages/Index";
-import Pilotage from "./pages/Pilotage";
-import Exigences from "./pages/Exigences";
-import GestionDocumentaire from "./pages/GestionDocumentaire";
-import RessourcesHumaines from "./pages/RessourcesHumaines";
-import Bibliotheque from "./pages/Bibliotheque";
-import Administration from "./pages/Administration";
-import NotFound from "./pages/NotFound";
+// Ajouter l'importation de la page de diagnostic PHP
+import PhpTest from './pages/diagnostic/PhpTest';
 
-const queryClient = new QueryClient();
+// Composants pour les tests de connexion
+import DbConnectionTest from './components/DbConnectionTest';
+import LogoSelector from './components/LogoSelector';
+import ResponsableSelector from './components/ResponsableSelector';
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Layout />}>
-            <Route index element={<Index />} />
-            <Route path="pilotage" element={<Pilotage />} />
-            <Route path="exigences" element={<Exigences />} />
-            <Route path="gestion-documentaire" element={<GestionDocumentaire />} />
-            <Route path="ressources-humaines" element={<RessourcesHumaines />} />
-            <Route path="bibliotheque" element={<Bibliotheque />} />
-            <Route path="administration" element={<Administration />} />
-          </Route>
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </BrowserRouter>
+const App = () => {
+  const [isAuthenticated, setIsAuthenticated] = useState(isLoggedIn());
+  const { toast } = useToast();
+
+  useEffect(() => {
+    setIsAuthenticated(isLoggedIn());
+  }, []);
+
+  return (
+    <Router>
+      <Routes>
+        <Route path="/" element={<Index />} />
+        
+        {/* Ajouter la page de diagnostic PHP */}
+        <Route path="/diagnostic" element={<PhpTest />} />
+        
+        <Route path="/db-test" element={<DbConnectionTest />} />
+        <Route path="/logo-selector" element={<LogoSelector />} />
+        <Route path="/responsable-selector" element={<ResponsableSelector />} />
+        
+        <Route
+          path="/admin/*"
+          element={
+            <ProtectedRoute requiredRole="admin">
+              <DashboardLayout>
+                <Routes>
+                  <Route path="*" element={<Admin />} />
+                </Routes>
+              </DashboardLayout>
+            </ProtectedRoute>
+          }
+        />
+        
+        <Route
+          path="/pilotage/*"
+          element={
+            <ProtectedRoute>
+              <DashboardLayout>
+                <Routes>
+                  {/* Exemple d'une route dans le pilotage */}
+                  <Route path="*" element={<Pilotage />} />
+                </Routes>
+              </DashboardLayout>
+            </ProtectedRoute>
+          }
+        />
+        
+        {/* Redirection si aucune route ne correspond */}
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
       <Toaster />
-      <Sonner />
-    </TooltipProvider>
-  </QueryClientProvider>
-);
+    </Router>
+  );
+};
 
 export default App;
