@@ -64,7 +64,7 @@ export const createUser = async (userData: CreateUserData) => {
     console.log("Réponse brute du serveur:", responseText);
     
     // Tenter de parser en JSON si possible
-    let responseData = {};
+    let responseData: any = {};
     if (responseText) {
       try {
         responseData = JSON.parse(responseText);
@@ -80,7 +80,7 @@ export const createUser = async (userData: CreateUserData) => {
     // Vérifier si la requête a échoué
     if (!response.ok) {
       const errorMessage = responseData && typeof responseData === 'object' && 'message' in responseData
-        ? responseData.message
+        ? String(responseData.message)
         : `Erreur ${response.status}: ${response.statusText}`;
       throw new Error(errorMessage);
     }
@@ -97,7 +97,7 @@ export const createUser = async (userData: CreateUserData) => {
     // Vérifier le contenu de la réponse
     if (responseData && typeof responseData === 'object') {
       if ('status' in responseData && responseData.status === 'error') {
-        throw new Error(responseData.message || `Erreur non spécifiée`);
+        throw new Error(responseData.message ? String(responseData.message) : 'Erreur non spécifiée');
       }
       
       return {
