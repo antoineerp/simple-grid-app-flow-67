@@ -91,6 +91,7 @@ class AuthService {
     public async login(username: string, password: string): Promise<any> {
         try {
             console.log(`Tentative de connexion pour l'utilisateur: ${username}`);
+            console.log(`Type d'identifiant fourni: ${username.includes('@') ? 'Email' : 'Identifiant technique'}`);
             
             // Essayer d'abord AuthController.php
             const authUrl = `${getApiUrl()}/auth`;
