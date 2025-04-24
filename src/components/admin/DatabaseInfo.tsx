@@ -1,11 +1,9 @@
 
-// This file has type errors with the "warning" variant that's not supported
-// Change those to "destructive" which is a valid variant
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { useAdminDatabase } from '@/hooks/useAdminDatabase'; // Fixed import path
+import { useAdminDatabase } from '@/hooks/useAdminDatabase';
 import { getApiUrl } from '@/config/apiConfig';
 import { getDatabaseConnectionCurrentUser } from '@/services';
 import { Loader2, AlertCircle, CheckCircle2 } from 'lucide-react';
@@ -25,6 +23,8 @@ const DatabaseInfo = () => {
       try {
         const apiUrl = getApiUrl();
         console.log("Fetching database info from:", apiUrl);
+        
+        // Modification: utiliser database-test.php au lieu de database-test.php
         const response = await fetch(`${apiUrl}/database-test.php`);
         
         if (!response.ok) {
