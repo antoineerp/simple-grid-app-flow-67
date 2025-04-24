@@ -66,12 +66,19 @@ class AuthService {
             throw new Error('Réponse vide du serveur');
         }
         
-        // Ne pas traiter la réponse de test comme une erreur, mais la reconnaître comme une réponse spéciale
+        // Ne pas traiter la réponse de test comme une erreur
         if (responseText.includes('API PHP disponible') && !responseText.includes('token')) {
             console.log('Détecté: réponse API info standard');
             return { info: true, message: 'API info response' };
         }
         
+        // Vérifier si la réponse est du PHP non exécuté
+        if (responseText.trim().startsWith('<?php')) {
+            console.error('Le serveur renvoie le code PHP au lieu de l\'exécuter');
+            throw new Error('Le serveur renvoie le code PHP au lieu de l\'exécuter. Vérifiez la configuration du serveur PHP.');
+        }
+        
+        // Vérifier si la réponse est du HTML au lieu de JSON
         if (responseText.trim().startsWith('<!DOCTYPE') || 
             responseText.trim().startsWith('<html') ||
             responseText.includes('<body')) {
@@ -93,98 +100,56 @@ class AuthService {
             console.log(`Tentative de connexion pour l'utilisateur: ${username}`);
             console.log(`Type d'identifiant fourni: ${username.includes('@') ? 'Email' : 'Identifiant technique'}`);
             
-            // Essayer d'abord AuthController.php
-            const authUrl = `${getApiUrl()}/auth`;
-            console.log(`URL de requête (authentification): ${authUrl}`);
-            console.log(`Données envoyées: ${JSON.stringify({ username, password: '***' })}`);
+            // Utilisez directement login-test.php qui fonctionne avec les emails également
+            const authUrl = `${getApiUrl()}/login-test.php`;
+            console.log(`URL de requête pour authentification: ${authUrl}`);
             
-            try {
-                const response = await fetch(authUrl, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Cache-Control': 'no-cache, no-store, must-revalidate'
-                    },
-                    body: JSON.stringify({ username, password })
-                });
-                
-                console.log(`Réponse du serveur auth: ${response.status} ${response.statusText}`);
-                
-                if (!response.ok) {
+            const response = await fetch(authUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Cache-Control': 'no-cache, no-store, must-revalidate'
+                },
+                body: JSON.stringify({ username, password })
+            });
+            
+            console.log(`Réponse du serveur login-test: ${response.status} ${response.statusText}`);
+            
+            // Si la réponse n'est pas OK, essayer de parser le message d'erreur
+            if (!response.ok) {
+                const contentType = response.headers.get('content-type');
+                if (contentType && contentType.includes('application/json')) {
                     const errorData = await this.parseJsonResponse(response);
                     throw new Error(errorData.message || `Échec de l'authentification (${response.status})`);
+                } else {
+                    throw new Error(`Échec de l'authentification (${response.status}): Format de réponse invalide`);
                 }
-                
-                const data = await this.parseJsonResponse(response);
-                
-                if (!data || !data.token) {
-                    throw new Error(data?.message || "Authentification échouée");
-                }
-                
-                this.setToken(data.token);
-                
-                if (data.user) {
-                    localStorage.setItem('currentUser', data.user.identifiant_technique);
-                    localStorage.setItem('userRole', data.user.role);
-                    localStorage.setItem('userName', `${data.user.prenom || ''} ${data.user.nom || ''}`);
-                    console.log("Utilisateur connecté:", data.user);
-                }
-                
-                if (data.user && data.user.identifiant_technique) {
-                    await initializeUserData(data.user.identifiant_technique);
-                }
-                
-                return {
-                    success: true,
-                    user: data.user
-                };
-            } catch (authError) {
-                console.error("Erreur avec /auth:", authError);
-                
-                // Si l'authentification échoue, essayer login-test.php comme fallback
-                const testUrl = `${getApiUrl()}/login-test.php`;
-                console.log(`URL de requête (fallback): ${testUrl}`);
-                
-                const response = await fetch(testUrl, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Cache-Control': 'no-cache, no-store, must-revalidate'
-                    },
-                    body: JSON.stringify({ username, password })
-                });
-                
-                console.log(`Réponse du serveur login-test: ${response.status} ${response.statusText}`);
-                
-                if (!response.ok) {
-                    const errorData = await this.parseJsonResponse(response);
-                    throw new Error(errorData.message || `Échec de l'authentification (${response.status})`);
-                }
-                
-                const data = await this.parseJsonResponse(response);
-                
-                if (!data || !data.token) {
-                    throw new Error(data?.message || "Authentification échouée");
-                }
-                
-                this.setToken(data.token);
-                
-                if (data.user) {
-                    localStorage.setItem('currentUser', data.user.identifiant_technique);
-                    localStorage.setItem('userRole', data.user.role);
-                    localStorage.setItem('userName', `${data.user.prenom || ''} ${data.user.nom || ''}`);
-                    console.log("Utilisateur connecté via fallback:", data.user);
-                }
-                
-                if (data.user && data.user.identifiant_technique) {
-                    await initializeUserData(data.user.identifiant_technique);
-                }
-                
-                return {
-                    success: true,
-                    user: data.user
-                };
             }
+            
+            // Analyser la réponse JSON
+            const data = await this.parseJsonResponse(response);
+            
+            if (!data || !data.token) {
+                throw new Error(data?.message || "Authentification échouée: Token manquant dans la réponse");
+            }
+            
+            this.setToken(data.token);
+            
+            if (data.user) {
+                localStorage.setItem('currentUser', data.user.identifiant_technique || data.user.email);
+                localStorage.setItem('userRole', data.user.role);
+                localStorage.setItem('userName', `${data.user.prenom || ''} ${data.user.nom || ''}`);
+                console.log("Utilisateur connecté:", data.user);
+            }
+            
+            // Initialiser les données utilisateur
+            const userIdentifiant = data.user?.identifiant_technique || username;
+            await initializeUserData(userIdentifiant);
+            
+            return {
+                success: true,
+                user: data.user
+            };
         } catch (error) {
             console.error("Erreur lors de la connexion:", error);
             
