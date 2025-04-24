@@ -1,18 +1,13 @@
-
 <?php
+require_once __DIR__ . '/../config/test_users.php';
+
 class LoginService {
     private $database;
     private $test_users;
 
     public function __construct() {
-        // Initialize test users
-        $this->test_users = [
-            'admin' => ['password' => 'admin123', 'role' => 'admin'],
-            'p71x6d_system' => ['password' => 'Trottinette43!', 'role' => 'admin'],
-            'antcirier@gmail.com' => ['password' => 'password123', 'role' => 'admin'],
-            'p71x6d_dupont' => ['password' => 'manager456', 'role' => 'gestionnaire'],
-            'p71x6d_martin' => ['password' => 'user789', 'role' => 'utilisateur']
-        ];
+        // Get test users from configuration
+        $this->test_users = TestUsers::getUsers();
     }
 
     public function getTestUsers() {
@@ -148,4 +143,3 @@ class LoginService {
         ];
     }
 }
-?>

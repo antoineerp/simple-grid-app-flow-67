@@ -1,4 +1,3 @@
-
 // Obtenez l'ID de l'utilisateur actuel à partir du localStorage
 export const getUserId = (): string | null => {
   return localStorage.getItem('userId');
@@ -54,7 +53,15 @@ interface LoginResponse {
   token?: string;
 }
 
-// Fonction de connexion
+// Update the test users list to match the server configuration
+const testUsers = [
+  { username: 'admin', password: 'admin123' },
+  { username: 'p71x6d_system', password: 'Trottinette43!' },
+  { username: 'antcirier@gmail.com', password: 'password123' },
+  { username: 'p71x6d_dupont', password: 'manager456' },
+  { username: 'p71x6d_martin', password: 'user789' }
+];
+
 export const login = async (username: string, password: string): Promise<LoginResponse> => {
   try {
     console.log(`Tentative de connexion pour l'utilisateur: ${username}`);
@@ -65,15 +72,6 @@ export const login = async (username: string, password: string): Promise<LoginRe
     console.log(`URL de connexion utilisée: ${loginUrl}`);
     
     // Liste des utilisateurs de test pour faciliter le débogage
-    const testUsers = [
-      { username: 'admin', password: 'admin123' },
-      { username: 'p71x6d_system', password: 'Trottinette43!' },
-      { username: 'antcirier@gmail.com', password: 'password123' },
-      { username: 'p71x6d_dupont', password: 'manager456' },
-      { username: 'p71x6d_martin', password: 'user789' }
-    ];
-    
-    // Vérifier si nous utilisons un utilisateur de test
     const isTestUser = testUsers.some(user => 
       user.username === username && user.password === password
     );
