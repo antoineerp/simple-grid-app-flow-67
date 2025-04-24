@@ -1,59 +1,61 @@
 
 import { Document } from '@/types/documents';
+import { SyncService, getCurrentUserId } from '../core/syncService';
 
+// Instance du service de synchronisation pour les documents
+const documentsSync = new SyncService('documents', 'DocumentsController.php');
+
+/**
+ * Charge les documents depuis le localStorage ou retourne une liste par défaut
+ */
 export const loadDocumentsFromStorage = (currentUser: string): Document[] => {
-  console.log(`Chargement des documents pour l'utilisateur: ${currentUser}`);
-  const storageKey = `documents_${currentUser}`;
-  const storedDocuments = localStorage.getItem(storageKey);
+  const defaultDocuments: Document[] = [
+    { 
+      id: '1', 
+      nom: 'Manuel qualité', 
+      fichier_path: null,
+      responsabilites: { r: [], a: [], c: [], i: [] },
+      etat: null,
+      date_creation: new Date(),
+      date_modification: new Date()
+    },
+    { 
+      id: '2', 
+      nom: 'Processus opérationnel', 
+      fichier_path: null,
+      responsabilites: { r: [], a: [], c: [], i: [] },
+      etat: null,
+      date_creation: new Date(),
+      date_modification: new Date()
+    },
+  ];
+
+  // Charger les documents avec le service de synchronisation
+  const documents = documentsSync.loadFromStorage<Document>(currentUser, defaultDocuments);
   
-  if (storedDocuments) {
-    console.log(`Documents trouvés pour ${currentUser}`);
-    return JSON.parse(storedDocuments);
-  } else {
-    console.log(`Aucun document existant pour ${currentUser}, chargement du template`);
-    const defaultDocuments = localStorage.getItem('documents_template') || localStorage.getItem('documents');
-    
-    if (defaultDocuments) {
-      console.log('Utilisation du template de documents');
-      return JSON.parse(defaultDocuments);
-    }
-    
-    console.log('Création de documents par défaut');
-    return [
-      { 
-        id: '1', 
-        nom: 'Manuel qualité', 
-        fichier_path: null,
-        responsabilites: { r: [], a: [], c: [], i: [] },
-        etat: null,
-        date_creation: new Date(),
-        date_modification: new Date()
-      },
-      { 
-        id: '2', 
-        nom: 'Processus opérationnel', 
-        fichier_path: null,
-        responsabilites: { r: [], a: [], c: [], i: [] },
-        etat: null,
-        date_creation: new Date(),
-        date_modification: new Date()
-      },
-    ];
-  }
+  // S'assurer que les dates sont des objets Date
+  return documents.map(doc => ({
+    ...doc,
+    date_creation: doc.date_creation ? new Date(doc.date_creation) : new Date(),
+    date_modification: doc.date_modification ? new Date(doc.date_modification) : new Date()
+  }));
 };
 
+/**
+ * Sauvegarde les documents dans le localStorage et les synchronise avec le serveur
+ */
 export const saveDocumentsToStorage = (documents: Document[], currentUser: string): void => {
-  console.log(`Sauvegarde des documents pour l'utilisateur: ${currentUser}`);
-  const storageKey = `documents_${currentUser}`;
-  localStorage.setItem(storageKey, JSON.stringify(documents));
-  
-  const userRole = localStorage.getItem('userRole');
-  if (userRole === 'admin' || userRole === 'administrateur') {
-    console.log('Sauvegarde du template de documents (utilisateur admin)');
-    localStorage.setItem('documents_template', JSON.stringify(documents));
-  }
-  
-  window.dispatchEvent(new Event('documentUpdate'));
+  documentsSync.saveToStorage<Document>(documents, currentUser);
+};
+
+/**
+ * Synchronise les documents avec le serveur
+ */
+export const syncDocumentsWithServer = async (
+  documents: Document[],
+  currentUser: string
+): Promise<boolean> => {
+  return documentsSync.syncWithServer<Document>(documents, currentUser);
 };
 
 /**

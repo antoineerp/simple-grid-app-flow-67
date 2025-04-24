@@ -1,92 +1,48 @@
 import { useState, useEffect } from 'react';
 import { useToast } from "@/hooks/use-toast";
 import { Exigence, ExigenceStats } from '@/types/exigences';
+import { 
+  loadExigencesFromStorage, 
+  saveExigencesToStorage, 
+  calculateExigenceStats,
+  syncExigencesWithServer
+} from '@/services/exigences/exigencesService';
+import { getCurrentUserId } from '@/services/core/syncService';
 
 export const useExigences = () => {
   const { toast } = useToast();
-  const currentUser = localStorage.getItem('currentUser') || 'default';
+  const currentUser = getCurrentUserId();
   
-  const [exigences, setExigences] = useState<Exigence[]>(() => {
-    console.log(`Initialisation des exigences pour l'utilisateur: ${currentUser}`);
-    const storageKey = `exigences_${currentUser}`;
-    const storedExigences = localStorage.getItem(storageKey);
-    
-    if (storedExigences) {
-      console.log(`Exigences trouvées pour ${currentUser}`);
-      return JSON.parse(storedExigences);
-    } else {
-      console.log(`Aucune exigence existante pour ${currentUser}, chargement du template`);
-      const defaultExigences = localStorage.getItem('exigences_template') || localStorage.getItem('exigences');
-      
-      if (defaultExigences) {
-        console.log('Utilisation du template d\'exigences');
-        return JSON.parse(defaultExigences);
-      }
-      
-      console.log('Création d\'exigences par défaut');
-      return [
-        { 
-          id: '1', 
-          nom: 'Levée du courrier', 
-          responsabilites: { r: [], a: [], c: [], i: [] },
-          exclusion: false,
-          atteinte: null,
-          date_creation: new Date(),
-          date_modification: new Date()
-        },
-        { 
-          id: '2', 
-          nom: 'Ouverture du courrier', 
-          responsabilites: { r: [], a: [], c: [], i: [] },
-          exclusion: false,
-          atteinte: null,
-          date_creation: new Date(),
-          date_modification: new Date()
-        },
-      ];
-    }
-  });
-
+  const [exigences, setExigences] = useState<Exigence[]>(() => loadExigencesFromStorage(currentUser));
   const [editingExigence, setEditingExigence] = useState<Exigence | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [stats, setStats] = useState<ExigenceStats>({
-    exclusion: 0,
-    nonConforme: 0,
-    partiellementConforme: 0,
-    conforme: 0,
-    total: 0
-  });
-
-  const notifyExigenceUpdate = () => {
-    window.dispatchEvent(new Event('exigenceUpdate'));
-  };
+  const [stats, setStats] = useState<ExigenceStats>(calculateExigenceStats(exigences));
+  const [isSyncing, setIsSyncing] = useState(false);
 
   useEffect(() => {
-    console.log(`Sauvegarde des exigences pour ${currentUser}`);
-    localStorage.setItem(`exigences_${currentUser}`, JSON.stringify(exigences));
-    
-    const userRole = localStorage.getItem('userRole');
-    if (userRole === 'admin' || userRole === 'administrateur') {
-      console.log('Sauvegarde du template d\'exigences (utilisateur admin)');
-      localStorage.setItem('exigences_template', JSON.stringify(exigences));
-    }
-    
-    notifyExigenceUpdate();
+    setStats(calculateExigenceStats(exigences));
+  }, [exigences]);
+
+  useEffect(() => {
+    saveExigencesToStorage(exigences, currentUser);
   }, [exigences, currentUser]);
 
   useEffect(() => {
-    const exclusionCount = exigences.filter(e => e.exclusion).length;
-    const nonExcludedExigences = exigences.filter(e => !e.exclusion);
-    
-    const newStats = {
-      exclusion: exclusionCount,
-      nonConforme: nonExcludedExigences.filter(e => e.atteinte === 'NC').length,
-      partiellementConforme: nonExcludedExigences.filter(e => e.atteinte === 'PC').length,
-      conforme: nonExcludedExigences.filter(e => e.atteinte === 'C').length,
-      total: nonExcludedExigences.length
+    const syncWithServer = async () => {
+      if (exigences.length > 0) {
+        setIsSyncing(true);
+        try {
+          await syncExigencesWithServer(exigences, currentUser);
+        } catch (error) {
+          console.error("Erreur lors de la synchronisation initiale:", error);
+        } finally {
+          setIsSyncing(false);
+        }
+      }
     };
-    setStats(newStats);
-  }, [exigences]);
+    
+    syncWithServer();
+  }, [exigences.length]);
 
   const handleResponsabiliteChange = (id: string, type: 'r' | 'a' | 'c' | 'i', values: string[]) => {
     setExigences(prev => 
@@ -97,7 +53,8 @@ export const useExigences = () => {
               responsabilites: { 
                 ...exigence.responsabilites, 
                 [type]: values
-              } 
+              },
+              date_modification: new Date()
             } 
           : exigence
       )
@@ -108,7 +65,11 @@ export const useExigences = () => {
     setExigences(prev => 
       prev.map(exigence => 
         exigence.id === id 
-          ? { ...exigence, atteinte } 
+          ? { 
+              ...exigence, 
+              atteinte,
+              date_modification: new Date()
+            } 
           : exigence
       )
     );
@@ -118,7 +79,11 @@ export const useExigences = () => {
     setExigences(prev => 
       prev.map(exigence => 
         exigence.id === id 
-          ? { ...exigence, exclusion: !exigence.exclusion } 
+          ? { 
+              ...exigence, 
+              exclusion: !exigence.exclusion,
+              date_modification: new Date()
+            } 
           : exigence
       )
     );
@@ -139,14 +104,19 @@ export const useExigences = () => {
   };
 
   const handleSaveExigence = (updatedExigence: Exigence) => {
+    const newExigence = {
+      ...updatedExigence,
+      date_modification: new Date()
+    };
+    
     setExigences(prev => 
       prev.map(exigence => 
-        exigence.id === updatedExigence.id ? updatedExigence : exigence
+        exigence.id === newExigence.id ? newExigence : exigence
       )
     );
     toast({
       title: "Exigence mise à jour",
-      description: `L'exigence ${updatedExigence.id} a été mise à jour avec succès`
+      description: `L'exigence ${newExigence.id} a été mise à jour avec succès`
     });
   };
 
@@ -196,11 +166,34 @@ export const useExigences = () => {
     });
   };
 
+  const syncWithServer = async () => {
+    setIsSyncing(true);
+    
+    const success = await syncExigencesWithServer(exigences, currentUser);
+    
+    if (success) {
+      toast({
+        title: "Synchronisation réussie",
+        description: "Vos exigences ont été synchronisées avec le serveur",
+      });
+    } else {
+      toast({
+        title: "Erreur de synchronisation",
+        description: "Impossible de synchroniser vos exigences",
+        variant: "destructive"
+      });
+    }
+    
+    setIsSyncing(false);
+    return success;
+  };
+
   return {
     exigences,
     stats,
     editingExigence,
     dialogOpen,
+    isSyncing,
     setDialogOpen,
     handleResponsabiliteChange,
     handleAtteinteChange,
@@ -209,6 +202,7 @@ export const useExigences = () => {
     handleSaveExigence,
     handleDelete,
     handleAddExigence,
-    handleReorder
+    handleReorder,
+    syncWithServer
   };
 };
