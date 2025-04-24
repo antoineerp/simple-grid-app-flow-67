@@ -1,21 +1,24 @@
 
 import { Document } from '@/types/documents';
 
-/**
- * Loads documents from localStorage for a specific user
- */
 export const loadDocumentsFromStorage = (currentUser: string): Document[] => {
-  const storedDocuments = localStorage.getItem(`documents_${currentUser}`);
+  console.log(`Chargement des documents pour l'utilisateur: ${currentUser}`);
+  const storageKey = `documents_${currentUser}`;
+  const storedDocuments = localStorage.getItem(storageKey);
   
   if (storedDocuments) {
+    console.log(`Documents trouvés pour ${currentUser}`);
     return JSON.parse(storedDocuments);
   } else {
+    console.log(`Aucun document existant pour ${currentUser}, chargement du template`);
     const defaultDocuments = localStorage.getItem('documents_template') || localStorage.getItem('documents');
     
     if (defaultDocuments) {
+      console.log('Utilisation du template de documents');
       return JSON.parse(defaultDocuments);
     }
     
+    console.log('Création de documents par défaut');
     return [
       { 
         id: '1', 
@@ -39,19 +42,17 @@ export const loadDocumentsFromStorage = (currentUser: string): Document[] => {
   }
 };
 
-/**
- * Saves documents to localStorage for a specific user
- */
 export const saveDocumentsToStorage = (documents: Document[], currentUser: string): void => {
-  localStorage.setItem(`documents_${currentUser}`, JSON.stringify(documents));
+  console.log(`Sauvegarde des documents pour l'utilisateur: ${currentUser}`);
+  const storageKey = `documents_${currentUser}`;
+  localStorage.setItem(storageKey, JSON.stringify(documents));
   
-  // If user is admin, also save as template
   const userRole = localStorage.getItem('userRole');
   if (userRole === 'admin' || userRole === 'administrateur') {
+    console.log('Sauvegarde du template de documents (utilisateur admin)');
     localStorage.setItem('documents_template', JSON.stringify(documents));
   }
   
-  // Notify about document update
   window.dispatchEvent(new Event('documentUpdate'));
 };
 

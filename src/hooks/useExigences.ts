@@ -7,17 +7,23 @@ export const useExigences = () => {
   const currentUser = localStorage.getItem('currentUser') || 'default';
   
   const [exigences, setExigences] = useState<Exigence[]>(() => {
-    const storedExigences = localStorage.getItem(`exigences_${currentUser}`);
+    console.log(`Initialisation des exigences pour l'utilisateur: ${currentUser}`);
+    const storageKey = `exigences_${currentUser}`;
+    const storedExigences = localStorage.getItem(storageKey);
     
     if (storedExigences) {
+      console.log(`Exigences trouvées pour ${currentUser}`);
       return JSON.parse(storedExigences);
     } else {
+      console.log(`Aucune exigence existante pour ${currentUser}, chargement du template`);
       const defaultExigences = localStorage.getItem('exigences_template') || localStorage.getItem('exigences');
       
       if (defaultExigences) {
+        console.log('Utilisation du template d\'exigences');
         return JSON.parse(defaultExigences);
       }
       
+      console.log('Création d\'exigences par défaut');
       return [
         { 
           id: '1', 
@@ -56,10 +62,12 @@ export const useExigences = () => {
   };
 
   useEffect(() => {
+    console.log(`Sauvegarde des exigences pour ${currentUser}`);
     localStorage.setItem(`exigences_${currentUser}`, JSON.stringify(exigences));
     
     const userRole = localStorage.getItem('userRole');
     if (userRole === 'admin' || userRole === 'administrateur') {
+      console.log('Sauvegarde du template d\'exigences (utilisateur admin)');
       localStorage.setItem('exigences_template', JSON.stringify(exigences));
     }
     
