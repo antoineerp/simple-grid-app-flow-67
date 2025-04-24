@@ -100,7 +100,7 @@ class AuthService {
             console.log(`Tentative de connexion pour l'utilisateur: ${username}`);
             console.log(`Type d'identifiant fourni: ${username.includes('@') ? 'Email' : 'Identifiant technique'}`);
             
-            // Utilisez directement login-test.php qui fonctionne avec les emails également
+            // Utiliser directement login-test.php qui fonctionne avec tous les types d'identifiants
             const authUrl = `${getApiUrl()}/login-test.php`;
             console.log(`URL de requête pour authentification: ${authUrl}`);
             
@@ -136,15 +136,16 @@ class AuthService {
             this.setToken(data.token);
             
             if (data.user) {
-                localStorage.setItem('currentUser', data.user.identifiant_technique || data.user.email);
-                localStorage.setItem('userRole', data.user.role);
+                // Stocker l'identifiant technique OU l'email comme identifiant utilisateur
+                const userIdentifier = data.user.identifiant_technique || data.user.email;
+                localStorage.setItem('currentUser', userIdentifier);
+                localStorage.setItem('userRole', data.user.role || 'utilisateur');
                 localStorage.setItem('userName', `${data.user.prenom || ''} ${data.user.nom || ''}`);
                 console.log("Utilisateur connecté:", data.user);
+                
+                // Initialiser les données utilisateur
+                await initializeUserData(userIdentifier);
             }
-            
-            // Initialiser les données utilisateur
-            const userIdentifiant = data.user?.identifiant_technique || username;
-            await initializeUserData(userIdentifiant);
             
             return {
                 success: true,
