@@ -14,29 +14,21 @@ export const loadExigencesFromStorage = (currentUser: string): Exigence[] => {
   const defaultExigences: Exigence[] = [
     {
       id: '1',
-      numero: 'E.1.1',
-      niveau: 'Indicateur',
-      intitule: 'Le prestataire diffuse une information accessible au public...',
-      chapitre: 'Information et orientation des publics',
-      description: 'Lorem ipsum dolor sit amet',
-      criteres: ['Locaux accessibles', 'Site web adapté'],
-      preuves: ['Document 1', 'Document 2'],
-      status: 'À faire',
+      nom: 'Le prestataire diffuse une information accessible au public',
+      exclusion: false,
+      atteinte: null,
       date_creation: new Date(),
-      date_modification: new Date()
+      date_modification: new Date(),
+      responsabilites: { r: [], a: [], c: [], i: [] }
     },
     {
       id: '2',
-      numero: 'E.1.2',
-      niveau: 'Critère',
-      intitule: "Le prestataire met en œuvre des prestations d'information...",
-      chapitre: 'Information et orientation des publics',
-      description: 'Lorem ipsum dolor sit amet',
-      criteres: ['Information claire', 'Délais respectés'],
-      preuves: ['Document 3', 'Document 4'],
-      status: 'En cours',
+      nom: 'Le prestataire met en œuvre des prestations d\'information',
+      exclusion: false,
+      atteinte: null,
       date_creation: new Date(),
-      date_modification: new Date()
+      date_modification: new Date(),
+      responsabilites: { r: [], a: [], c: [], i: [] }
     }
   ];
 

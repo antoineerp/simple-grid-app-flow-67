@@ -3,7 +3,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Exigence, ExigenceStats } from '@/types/exigences';
 import { 
   loadExigencesFromStorage, 
-  saveExigencesToStorage, 
+  saveExigencesInStorage, 
   calculateExigenceStats,
   syncExigencesWithServer
 } from '@/services/exigences/exigencesService';
@@ -24,7 +24,7 @@ export const useExigences = () => {
   }, [exigences]);
 
   useEffect(() => {
-    saveExigencesToStorage(exigences, currentUser);
+    saveExigencesInStorage(exigences, currentUser);
   }, [exigences, currentUser]);
 
   useEffect(() => {
