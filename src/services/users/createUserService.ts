@@ -19,18 +19,25 @@ export const createUser = async (userData: CreateUserData) => {
     throw new Error("Le mot de passe doit contenir au moins 6 caractères");
   }
 
-  // Générer l'identifiant technique avec un timestamp pour éviter les doublons
+  // Génération de l'identifiant technique
   const timestamp = new Date().getTime();
-  const randomStr = Math.random().toString(36).substring(2, 8); // Augmenté la longueur à 6 caractères
-  const identifiantTechnique = `p71x6d_${userData.prenom.toLowerCase()}_${userData.nom.toLowerCase()}_${randomStr}_${timestamp}`.replace(/[^a-z0-9_]/g, '').substring(0, 50);
+  const randomStr = Math.random().toString(36).substring(2, 8);
+  // Utiliser uniquement les caractères autorisés pour éviter les problèmes d'encodage
+  const sanitizedPrenom = userData.prenom.toLowerCase().replace(/[^a-z0-9]/g, '');
+  const sanitizedNom = userData.nom.toLowerCase().replace(/[^a-z0-9]/g, '');
+  const identifiantTechnique = `p71x6d_${sanitizedPrenom}_${sanitizedNom}_${randomStr}_${timestamp}`.substring(0, 50);
+
+  console.log(`Identifiant technique généré: ${identifiantTechnique}`);
 
   try {
+    // Préparation de la requête
     const apiUrl = getApiUrl();
-    console.log(`Envoi de la requête à ${apiUrl}/utilisateurs avec identifiant: ${identifiantTechnique}`);
+    const url = `${apiUrl}/utilisateurs`;
     
+    console.log(`Envoi de la requête à ${url}`);
     const headers = getAuthHeaders();
-    console.log("Headers utilisés:", headers);
     
+    // Préparation des données
     const requestData = {
       ...userData,
       identifiant_technique: identifiantTechnique
@@ -38,15 +45,12 @@ export const createUser = async (userData: CreateUserData) => {
     
     console.log("Données envoyées:", JSON.stringify(requestData));
     
-    // Vérifier explicitement si l'email existe déjà
+    // Vérification de l'email
     try {
       const checkEmailUrl = `${apiUrl}/check-users.php?email=${encodeURIComponent(userData.email)}`;
       console.log(`Vérification de l'email: ${checkEmailUrl}`);
       
-      const emailCheckResponse = await fetch(checkEmailUrl, {
-        method: 'GET',
-        headers: headers
-      });
+      const emailCheckResponse = await fetch(checkEmailUrl, { method: 'GET', headers });
       
       if (emailCheckResponse.ok) {
         const checkResult = await emailCheckResponse.json();
@@ -68,51 +72,34 @@ export const createUser = async (userData: CreateUserData) => {
       if (checkError instanceof Error && checkError.message.includes('email existe déjà')) {
         throw checkError;
       }
-      console.error("Erreur lors de la vérification de l'email:", checkError);
-      // On continue si c'est une autre erreur de vérification
+      // Sinon, continuer avec la création même si la vérification a échoué
+      console.warn("Erreur lors de la vérification de l'email, poursuite de la création:", checkError);
     }
     
-    // Une fois la vérification d'email effectuée, envoyer la requête de création d'utilisateur
-    console.log(`Envoi de la requête de création d'utilisateur à ${apiUrl}/utilisateurs`);
-    const response = await fetch(`${apiUrl}/utilisateurs`, {
+    // Envoi de la requête principale
+    const response = await fetch(url, {
       method: 'POST',
-      headers: headers,
+      headers: {
+        ...headers,
+        'Content-Type': 'application/json'
+      },
       body: JSON.stringify(requestData)
     });
     
-    console.log("Statut de la réponse finale:", response.status, response.statusText);
-    
-    // Récupérer le texte brut de la réponse pour diagnostiquer les problèmes
+    // Traitement de la réponse en texte d'abord
     const responseText = await response.text();
-    console.log("Réponse brute du serveur:", responseText);
+    console.log("Statut de la réponse:", response.status, response.statusText);
+    console.log("Réponse brute:", responseText);
     
-    // Vérifier si le texte est vide
-    if (!responseText || responseText.trim() === '') {
-      console.error("Réponse vide du serveur");
-      
-      if (response.status >= 200 && response.status < 300) {
-        // Si le statut est OK malgré la réponse vide, on considère que c'est un succès
-        return { 
-          success: true, 
-          message: "Utilisateur créé avec succès (réponse vide)",
-          identifiant_technique: identifiantTechnique 
-        };
-      } else {
-        throw new Error(`Erreur ${response.status}: Réponse vide du serveur`);
-      }
-    }
-    
-    // Vérifier si le texte est un JSON valide
+    // Essai de parse en JSON
     let responseData;
     try {
-      responseData = JSON.parse(responseText);
-      console.log("Données JSON analysées:", responseData);
+      responseData = responseText ? JSON.parse(responseText) : {};
     } catch (jsonError) {
       console.error("Erreur lors du parsing JSON:", jsonError);
-      console.error("Texte reçu qui a causé l'erreur:", responseText);
       
-      // Si la réponse contient "créé avec succès", on considère que c'est un succès malgré l'erreur de parsing
-      if (responseText.includes("créé avec succès") || response.status >= 200 && response.status < 300) {
+      // Si la réponse semble être un succès malgré le format incorrect
+      if (response.ok || response.status === 201) {
         return { 
           success: true, 
           message: "Utilisateur créé avec succès (réponse non-JSON)",
@@ -120,58 +107,35 @@ export const createUser = async (userData: CreateUserData) => {
         };
       }
       
-      // Si la réponse contient une erreur de duplication, la capturer pour un message plus convivial
-      if (responseText.includes("Integrity constraint violation: 1062") || 
-          responseText.includes("Duplicate entry")) {
-        // Déterminer si c'est l'email ou l'identifiant technique qui est dupliqué
-        if (responseText.includes("email")) {
-          throw new Error(`Un utilisateur avec l'email ${userData.email} existe déjà.`);
-        } else if (responseText.includes("identifiant_technique")) {
-          // Générer un nouvel identifiant et réessayer
-          console.log("Identifiant technique dupliqué, tentative avec un nouvel identifiant...");
-          const newTimestamp = new Date().getTime();
-          const newRandomStr = Math.random().toString(36).substring(2, 8);
-          const newIdentifiant = `p71x6d_${userData.prenom.toLowerCase()}_${userData.nom.toLowerCase()}_${newRandomStr}_${newTimestamp}`.replace(/[^a-z0-9_]/g, '').substring(0, 50);
-          
-          requestData.identifiant_technique = newIdentifiant;
-          return createUser(userData); // Appel récursif avec le nouvel identifiant
-        } else {
-          throw new Error("Un utilisateur avec des informations identiques existe déjà.");
-        }
-      }
-      
-      throw new Error(`Réponse non valide du serveur: ${responseText.substring(0, 100)}...`);
+      throw new Error(`Réponse invalide du serveur: ${responseText.substring(0, 100)}`);
     }
-
+    
+    // Gestion des erreurs HTTP
     if (!response.ok) {
-      console.error("Erreur HTTP lors de la création de l'utilisateur:", response.status, responseData);
+      console.error("Erreur HTTP:", response.status, responseData);
       
-      // Vérifier si l'erreur est liée à une duplication
-      if (responseData.message && (
-          responseData.message.includes("Duplicate entry") || 
-          responseData.message.includes("exists") || 
-          responseData.message.includes("existe déjà"))) {
-        
-        if (responseData.message.includes("email")) {
+      // Erreurs spécifiques
+      if (response.status === 409 || (responseData.message && responseData.message.includes('existe déjà'))) {
+        if (responseData.field === 'email' || responseData.message.includes('email')) {
           throw new Error(`Un utilisateur avec l'email ${userData.email} existe déjà.`);
-        } else if (responseData.message.includes("identifiant_technique")) {
+        } else if (responseData.field === 'identifiant_technique' || responseData.message.includes('identifiant_technique')) {
           // Générer un nouvel identifiant et réessayer
-          console.log("Identifiant technique dupliqué, tentative avec un nouvel identifiant...");
+          console.log("Génération d'un nouvel identifiant technique et nouvel essai");
           const newTimestamp = new Date().getTime();
-          const newRandomStr = Math.random().toString(36).substring(2, 8);
-          const newIdentifiant = `p71x6d_${userData.prenom.toLowerCase()}_${userData.nom.toLowerCase()}_${newRandomStr}_${newTimestamp}`.replace(/[^a-z0-9_]/g, '').substring(0, 50);
+          const newRandomStr = Math.random().toString(36).substring(2, 10);
+          requestData.identifiant_technique = `p71x6d_${sanitizedPrenom}_${sanitizedNom}_${newRandomStr}_${newTimestamp}`.substring(0, 50);
           
-          requestData.identifiant_technique = newIdentifiant;
-          return createUser(userData); // Appel récursif avec le nouvel identifiant
+          return createUser(userData); // Appel récursif
         }
       }
       
-      throw new Error(responseData.message || `Erreur lors de la création de l'utilisateur (${response.status})`);
+      throw new Error(responseData.message || `Erreur ${response.status}: ${response.statusText}`);
     }
-
-    // Ajouter l'identifiant technique à la réponse pour faciliter la connexion ultérieure
+    
+    // Succès
     return {
       ...responseData,
+      success: true,
       identifiant_technique: identifiantTechnique
     };
   } catch (error) {

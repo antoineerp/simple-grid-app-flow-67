@@ -1,4 +1,3 @@
-
 <?php
 // Fonction pour nettoyer les données UTF-8 si elle n'existe pas encore
 if (!function_exists('cleanUTF8')) {
@@ -42,7 +41,7 @@ class User {
             
             // Requête select all
             $query = "SELECT
-                        id, nom, prenom, email, identifiant_technique, role, date_creation
+                        id, nom, prenom, email, identifiant_technique, role, date_creation, mot_de_passe
                     FROM
                         " . $this->table_name . "
                     ORDER BY
@@ -61,38 +60,64 @@ class User {
         }
     }
 
+    // Vérifier si un email existe déjà
+    public function emailExists($email) {
+        try {
+            $query = "SELECT COUNT(*) FROM " . $this->table_name . " WHERE email = :email";
+            $stmt = $this->conn->prepare($query);
+            $email = htmlspecialchars(strip_tags($email));
+            $stmt->bindParam(":email", $email);
+            $stmt->execute();
+            
+            return ($stmt->fetchColumn() > 0);
+        } catch (PDOException $e) {
+            error_log("Erreur lors de la vérification de l'email: " . $e->getMessage());
+            return false;
+        }
+    }
+    
+    // Vérifier si un identifiant technique existe déjà
+    public function identifiantExists($identifiant) {
+        try {
+            $query = "SELECT COUNT(*) FROM " . $this->table_name . " WHERE identifiant_technique = :identifiant";
+            $stmt = $this->conn->prepare($query);
+            $identifiant = htmlspecialchars(strip_tags($identifiant));
+            $stmt->bindParam(":identifiant", $identifiant);
+            $stmt->execute();
+            
+            return ($stmt->fetchColumn() > 0);
+        } catch (PDOException $e) {
+            error_log("Erreur lors de la vérification de l'identifiant: " . $e->getMessage());
+            return false;
+        }
+    }
+    
+    // Fonction pour rechercher par email et retourner la requête préparée
+    public function findByEmailQuery($email) {
+        try {
+            $this->createTableIfNotExists();
+            
+            $query = "SELECT id, nom, prenom, email, identifiant_technique, role, date_creation 
+                     FROM " . $this->table_name . " 
+                     WHERE email = :email";
+                     
+            $stmt = $this->conn->prepare($query);
+            $email = htmlspecialchars(strip_tags($email));
+            $stmt->bindParam(":email", $email);
+            $stmt->execute();
+            
+            return $stmt;
+        } catch (PDOException $e) {
+            error_log("Erreur lors de la recherche par email: " . $e->getMessage());
+            return null;
+        }
+    }
+
     // Créer un utilisateur
     public function create() {
         try {
             // Vérifier si la table existe
             $this->createTableIfNotExists();
-            
-            // Vérifier d'abord si l'email existe déjà
-            $email_check_query = "SELECT COUNT(*) FROM " . $this->table_name . " WHERE email = :email";
-            $check_stmt = $this->conn->prepare($email_check_query);
-            $check_stmt->bindParam(":email", $this->email);
-            $check_stmt->execute();
-            
-            if ($check_stmt->fetchColumn() > 0) {
-                error_log("Tentative de création d'un utilisateur avec un email déjà existant: " . $this->email);
-                throw new Exception("Un utilisateur avec cet email existe déjà.");
-            }
-            
-            // Vérifier si l'identifiant technique existe déjà
-            $id_check_query = "SELECT COUNT(*) FROM " . $this->table_name . " WHERE identifiant_technique = :identifiant_technique";
-            $id_check_stmt = $this->conn->prepare($id_check_query);
-            $id_check_stmt->bindParam(":identifiant_technique", $this->identifiant_technique);
-            $id_check_stmt->execute();
-            
-            if ($id_check_stmt->fetchColumn() > 0) {
-                error_log("Tentative de création d'un utilisateur avec un identifiant technique déjà existant: " . $this->identifiant_technique);
-                
-                // Générer un nouvel identifiant technique unique
-                $timestamp = time();
-                $random = substr(md5(rand()), 0, 5);
-                $this->identifiant_technique = $this->identifiant_technique . "_" . $random . "_" . $timestamp;
-                error_log("Nouvel identifiant technique généré: " . $this->identifiant_technique);
-            }
             
             // Requête d'insertion - IMPORTANTE: Ne PAS inclure l'ID pour permettre l'auto-incrémentation
             $query = "INSERT INTO " . $this->table_name . "
@@ -117,8 +142,10 @@ class User {
             $this->identifiant_technique = cleanUTF8($this->identifiant_technique);
             $this->role = cleanUTF8($this->role);
 
-            // Hachage du mot de passe
-            $this->mot_de_passe = password_hash($this->mot_de_passe, PASSWORD_BCRYPT);
+            // Hachage du mot de passe si ce n'est pas déjà fait
+            if (!password_get_info($this->mot_de_passe)['algo']) {
+                $this->mot_de_passe = password_hash($this->mot_de_passe, PASSWORD_BCRYPT);
+            }
 
             // Liaison des valeurs
             $stmt->bindParam(":nom", $this->nom);

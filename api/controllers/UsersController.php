@@ -1,4 +1,3 @@
-
 <?php
 // Vérifier si la constante de protection est définie
 if (!defined('DIRECT_ACCESS_CHECK')) {
@@ -58,6 +57,32 @@ try {
     // Traiter la requête en fonction de la méthode HTTP
     switch ($method) {
         case 'GET':
+            // Vérifier si c'est une vérification d'email
+            if (isset($_GET['email'])) {
+                error_log("Vérification d'email: " . $_GET['email']);
+                
+                $email = htmlspecialchars(strip_tags($_GET['email']));
+                
+                // Vérifier si l'email existe déjà dans la base de données
+                $stmt = $user->findByEmailQuery($email);
+                $num = $stmt ? $stmt->rowCount() : 0;
+                
+                $users_arr = array();
+                $users_arr["records"] = array();
+                
+                if ($num > 0) {
+                    while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+                        // Masquer le mot de passe
+                        $row['mot_de_passe'] = '******';
+                        array_push($users_arr["records"], $row);
+                    }
+                }
+                
+                http_response_code(200);
+                echo json_encode($users_arr);
+                exit;
+            }
+            
             // Récupérer tous les utilisateurs
             $stmt = $user->read();
             $num = $stmt->rowCount();
@@ -112,6 +137,28 @@ try {
                 !empty($data->role)
             ) {
                 try {
+                    // Vérifier d'abord si l'email existe déjà
+                    if ($user->emailExists($data->email)) {
+                        http_response_code(409); // Conflict
+                        echo json_encode(array(
+                            "message" => "Un utilisateur avec cet email existe déjà.",
+                            "status" => 409,
+                            "field" => "email"
+                        ));
+                        exit;
+                    }
+                    
+                    // Vérifier si l'identifiant technique existe déjà
+                    if ($user->identifiantExists($data->identifiant_technique)) {
+                        // Générer un nouvel identifiant
+                        $timestamp = time();
+                        $random = substr(md5(rand()), 0, 8);
+                        $newIdentifiant = $data->identifiant_technique . "_" . $random . "_" . $timestamp;
+                        
+                        error_log("UsersController - Identifiant technique existant, nouveau généré: " . $newIdentifiant);
+                        $data->identifiant_technique = $newIdentifiant;
+                    }
+                    
                     $user->nom = $data->nom;
                     $user->prenom = $data->prenom;
                     $user->email = $data->email;
@@ -148,9 +195,15 @@ try {
                     // Vérifier si c'est une erreur de clé primaire dupliquée
                     if ($e->getCode() == 23000 && strpos($e->getMessage(), '1062') !== false) {
                         if (strpos($e->getMessage(), 'email') !== false) {
-                            echo json_encode(array("message" => "Un utilisateur avec cet email existe déjà."));
+                            echo json_encode(array(
+                                "message" => "Un utilisateur avec cet email existe déjà.",
+                                "field" => "email"
+                            ));
                         } else if (strpos($e->getMessage(), 'identifiant_technique') !== false) {
-                            echo json_encode(array("message" => "Un utilisateur avec cet identifiant technique existe déjà."));
+                            echo json_encode(array(
+                                "message" => "Un utilisateur avec cet identifiant technique existe déjà.",
+                                "field" => "identifiant_technique"
+                            ));
                         } else {
                             echo json_encode(array("message" => "Violation de contrainte d'intégrité: " . $e->getMessage()));
                         }
@@ -164,8 +217,21 @@ try {
                 }
             } else {
                 error_log("UsersController POST - Données incomplètes: " . json_encode($data));
+                
+                // Déterminer quels champs sont manquants
+                $missing_fields = [];
+                if (empty($data->nom)) $missing_fields[] = "nom";
+                if (empty($data->prenom)) $missing_fields[] = "prenom";
+                if (empty($data->email)) $missing_fields[] = "email";
+                if (empty($data->identifiant_technique)) $missing_fields[] = "identifiant_technique";
+                if (empty($data->mot_de_passe)) $missing_fields[] = "mot_de_passe";
+                if (empty($data->role)) $missing_fields[] = "role";
+                
                 http_response_code(400);
-                echo json_encode(array("message" => "Impossible de créer l'utilisateur. Les données sont incomplètes."));
+                echo json_encode(array(
+                    "message" => "Impossible de créer l'utilisateur. Les données sont incomplètes.",
+                    "missing_fields" => $missing_fields
+                ));
             }
             break;
             
