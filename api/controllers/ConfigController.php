@@ -2,7 +2,7 @@
 <?php
 // Inclure notre fichier de configuration d'environnement s'il n'est pas déjà inclus
 if (!function_exists('env')) {
-    require_once '../config/env.php';
+    require_once __DIR__ . '/../config/env.php';
 }
 
 // Déterminer l'environnement
@@ -11,7 +11,7 @@ $environment = env('APP_ENV', 'development');
 // Configuration des en-têtes CORS selon l'environnement
 $allowedOrigins = [
     'development' => env('ALLOWED_ORIGIN_DEV', 'http://localhost:8080'),
-    'production' => env('ALLOWED_ORIGIN_PROD', 'https://www.qualiopi.ch')
+    'production' => env('ALLOWED_ORIGIN_PROD', 'https://qualiopi.ch')
 ];
 
 $allowedOrigin = $allowedOrigins[$environment];
@@ -28,7 +28,7 @@ if ($origin === $allowedOrigin || $environment === 'development') {
 
 // Autres en-têtes CORS
 header("Content-Type: application/json; charset=UTF-8");
-header("Access-Control-Allow-Methods: GET, POST");
+header("Access-Control-Allow-Methods: GET, POST, OPTIONS");
 header("Access-Control-Max-Age: 3600");
 header("Access-Control-Allow-Headers: Content-Type, Access-Control-Allow-Headers, Authorization, X-Requested-With");
 
@@ -38,12 +38,15 @@ if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
     exit;
 }
 
+// Journaliser l'accès à ce contrôleur (pour débogage)
+error_log("Accès au ConfigController - Méthode: " . $_SERVER['REQUEST_METHOD']);
+
 // Inclusion des fichiers nécessaires
-include_once '../config/database.php';
-include_once '../middleware/Auth.php';
+include_once __DIR__ . '/../config/database.php';
+include_once __DIR__ . '/../middleware/Auth.php';
 
 // Récupérer les en-têtes pour l'authentification
-$allHeaders = apache_request_headers();
+$allHeaders = getallheaders();
 $auth = new Auth($allHeaders);
 
 // Vérifier si l'utilisateur est authentifié
@@ -63,58 +66,117 @@ if ($userData['data']['role'] !== 'administrateur' && $userData['data']['role'] 
     exit;
 }
 
-// Fichier de configuration (à adapter selon votre structure)
-$configFile = '../config/app_config.json';
+// Fichier de configuration
+$configFile = __DIR__ . '/../config/app_config.json';
 
 // Détermininer la méthode de requête
 $method = $_SERVER['REQUEST_METHOD'];
 
+// Fonction pour nettoyer les données en UTF-8 si elle n'existe pas déjà
+if (!function_exists('cleanUTF8')) {
+    function cleanUTF8($input) {
+        if (is_string($input)) {
+            return mb_convert_encoding($input, 'UTF-8', 'UTF-8');
+        } elseif (is_array($input)) {
+            foreach ($input as $key => $value) {
+                $input[$key] = cleanUTF8($value);
+            }
+        }
+        return $input;
+    }
+}
+
+// Journaliser pour le débogage
+error_log("ConfigController - Méthode: $method");
+
 switch($method) {
     case 'GET':
-        // Lire la configuration actuelle
-        if (file_exists($configFile)) {
-            $config = json_decode(file_get_contents($configFile), true);
-        } else {
-            $config = [
-                'api_urls' => [
-                    'development' => 'http://localhost:8080/api',
-                    'production' => 'https://www.qualiopi.ch/api'
-                ],
-                'allowed_origins' => [
-                    'development' => 'http://localhost:8080',
-                    'production' => 'https://www.qualiopi.ch'
-                ]
-            ];
+        try {
+            // Lire la configuration actuelle
+            if (file_exists($configFile)) {
+                $config = json_decode(file_get_contents($configFile), true);
+                if ($config === null && json_last_error() !== JSON_ERROR_NONE) {
+                    throw new Exception("Erreur de parsing JSON: " . json_last_error_msg());
+                }
+            } else {
+                $config = [
+                    'api_urls' => [
+                        'development' => 'http://localhost:8080/api',
+                        'production' => 'https://qualiopi.ch/api'
+                    ],
+                    'allowed_origins' => [
+                        'development' => 'http://localhost:8080',
+                        'production' => 'https://qualiopi.ch'
+                    ]
+                ];
+                
+                // Créer le fichier s'il n'existe pas
+                if (!file_put_contents($configFile, json_encode($config, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE))) {
+                    throw new Exception("Impossible de créer le fichier de configuration");
+                }
+            }
             
-            // Créer le fichier s'il n'existe pas
-            file_put_contents($configFile, json_encode($config, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+            http_response_code(200);
+            echo json_encode($config, JSON_UNESCAPED_UNICODE);
+        } catch (Exception $e) {
+            http_response_code(500);
+            echo json_encode(["message" => "Erreur lors de la lecture de la configuration: " . $e->getMessage()], JSON_UNESCAPED_UNICODE);
         }
-        
-        http_response_code(200);
-        echo json_encode($config, JSON_UNESCAPED_UNICODE);
         break;
         
     case 'POST':
-        // Obtenir les données postées et assurer qu'elles sont en UTF-8
-        $json_input = file_get_contents("php://input");
-        $data = json_decode(cleanUTF8($json_input), true);
-        
-        if (
-            isset($data['api_urls']) && 
-            isset($data['allowed_origins']) &&
-            isset($data['api_urls']['development']) && 
-            isset($data['api_urls']['production']) && 
-            isset($data['allowed_origins']['development']) && 
-            isset($data['allowed_origins']['production'])
-        ) {
+        try {
+            // Obtenir les données postées et assurer qu'elles sont en UTF-8
+            $json_input = file_get_contents("php://input");
+            if (!$json_input) {
+                throw new Exception("Aucune donnée reçue");
+            }
+            
+            error_log("Données reçues: " . $json_input);
+            
+            $data = json_decode(cleanUTF8($json_input), true);
+            if ($data === null && json_last_error() !== JSON_ERROR_NONE) {
+                throw new Exception("Erreur de parsing JSON: " . json_last_error_msg());
+            }
+            
+            // Valider la structure des données
+            if (!isset($data['api_urls']) || 
+                !isset($data['allowed_origins']) ||
+                !isset($data['api_urls']['development']) || 
+                !isset($data['api_urls']['production']) || 
+                !isset($data['allowed_origins']['development']) || 
+                !isset($data['allowed_origins']['production'])
+            ) {
+                throw new Exception("Structure de données incomplète");
+            }
+            
+            // Vérifier que le dossier config existe
+            $configDir = dirname($configFile);
+            if (!is_dir($configDir)) {
+                if (!mkdir($configDir, 0755, true)) {
+                    throw new Exception("Impossible de créer le dossier de configuration");
+                }
+            }
+            
+            // Vérifier les permissions d'écriture
+            if (file_exists($configFile) && !is_writable($configFile)) {
+                throw new Exception("Impossible d'écrire dans le fichier de configuration (permissions insuffisantes)");
+            }
+            
             // Mettre à jour la configuration
-            file_put_contents($configFile, json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+            if (!file_put_contents($configFile, json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE))) {
+                throw new Exception("Erreur lors de l'écriture du fichier");
+            }
             
             http_response_code(200);
             echo json_encode(["message" => "Configuration mise à jour avec succès"], JSON_UNESCAPED_UNICODE);
-        } else {
-            http_response_code(400);
-            echo json_encode(["message" => "Données incomplètes"], JSON_UNESCAPED_UNICODE);
+        } catch (Exception $e) {
+            error_log("Erreur ConfigController: " . $e->getMessage());
+            http_response_code(500);
+            echo json_encode([
+                "message" => "Erreur lors de la mise à jour de la configuration", 
+                "details" => $e->getMessage()
+            ], JSON_UNESCAPED_UNICODE);
         }
         break;
         
