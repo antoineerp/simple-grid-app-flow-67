@@ -413,20 +413,20 @@ const Bibliotheque = () => {
       </div>
 
       <div className="flex justify-end mt-4 space-x-3">
-        <button 
-          className="btn-outline flex items-center"
+        <Button 
+          variant="outline"
+          className="hover:bg-gray-100 transition-colors"
           onClick={handleAddGroup}
         >
           <FolderPlus className="h-4 w-4 mr-2" />
           Nouveau groupe
-        </button>
-        <button 
-          className="btn-primary flex items-center"
+        </Button>
+        <Button 
+          variant="default"
           onClick={handleAddDocument}
         >
-          <Plus className="h-4 w-4 mr-2" />
           Nouveau document
-        </button>
+        </Button>
       </div>
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>

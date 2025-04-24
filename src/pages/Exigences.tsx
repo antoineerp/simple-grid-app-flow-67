@@ -6,6 +6,7 @@ import ExigenceStats from '@/components/exigences/ExigenceStats';
 import ExigenceTable from '@/components/exigences/ExigenceTable';
 import { ExigenceGroupDialog } from '@/components/exigences/ExigenceGroupDialog';
 import { useExigences } from '@/hooks/useExigences';
+import { exportExigencesToPdf } from '@/services/pdfExport';
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 
@@ -101,12 +102,12 @@ const ExigencesContent = () => {
           <FolderPlus className="h-5 w-5 mr-2" />
           Nouveau groupe
         </Button>
-        <button 
-          className="btn-primary"
+        <Button 
+          variant="default"
           onClick={handleAddExigence}
         >
           Ajouter une exigence
-        </button>
+        </Button>
       </div>
 
       <ExigenceForm 

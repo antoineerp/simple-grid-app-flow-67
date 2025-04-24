@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { FileDown, FolderPlus } from 'lucide-react';
 import { MembresProvider } from '@/contexts/MembresContext';
@@ -97,7 +96,7 @@ const GestionDocumentaireContent = () => {
         <Button 
           variant="outline"
           onClick={handleAddGroup}
-          className="hover:bg-gray-100 transition-colors"
+          className="hover:bg-gray-100 transition-colors mr-2"
           title="Nouveau groupe"
         >
           <FolderPlus className="h-5 w-5 mr-2" />
