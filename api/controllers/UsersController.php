@@ -1,3 +1,4 @@
+
 <?php
 // Vérifier si la constante de protection est définie
 if (!defined('DIRECT_ACCESS_CHECK')) {
@@ -166,9 +167,18 @@ try {
                     $user->mot_de_passe = $data->mot_de_passe;
                     $user->role = $data->role;
                     
+                    // Changements ici - Logs supplémentaires pour débugger
+                    error_log("Tentative de création d'utilisateur avec les données:");
+                    error_log("Nom: " . $user->nom);
+                    error_log("Prénom: " . $user->prenom);
+                    error_log("Email: " . $user->email);
+                    error_log("Identifiant: " . $user->identifiant_technique);
+                    error_log("Rôle: " . $user->role);
+                    
                     if ($user->create()) {
                         // Récupérer le dernier ID inséré
                         $lastId = $db->lastInsertId();
+                        error_log("Utilisateur créé avec succès, ID: " . $lastId);
                         
                         http_response_code(201);
                         echo json_encode(array(
@@ -205,10 +215,16 @@ try {
                                 "field" => "identifiant_technique"
                             ));
                         } else {
-                            echo json_encode(array("message" => "Violation de contrainte d'intégrité: " . $e->getMessage()));
+                            echo json_encode(array(
+                                "message" => "Violation de contrainte d'intégrité: " . $e->getMessage(),
+                                "debug_info" => "Vérifiez que tous les champs obligatoires sont remplis et corrects."
+                            ));
                         }
                     } else {
-                        echo json_encode(array("message" => "Erreur lors de la création de l'utilisateur: " . $e->getMessage()));
+                        echo json_encode(array(
+                            "message" => "Erreur lors de la création de l'utilisateur: " . $e->getMessage(),
+                            "debug_info" => "Type d'erreur: " . $e->getCode()
+                        ));
                     }
                 } catch (Exception $e) {
                     error_log("UsersController POST - Exception: " . $e->getMessage());
