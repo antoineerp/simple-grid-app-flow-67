@@ -1,7 +1,9 @@
+
 import { useState, useEffect, useCallback } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { Document, DocumentStats, DocumentGroup } from '@/types/documents';
 import { syncDocumentsWithServer, loadDocumentsFromServer } from '@/services/documents/documentSyncService';
+import { loadDocumentsFromStorage, saveDocumentsToStorage, calculateDocumentStats } from '@/services/documents/documentsService';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 
 export const useDocuments = () => {

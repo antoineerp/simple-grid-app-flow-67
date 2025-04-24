@@ -74,7 +74,7 @@ export const loadBibliothequeFromServer = async (currentUser: string): Promise<{
         if (doc.groupId && groupMap.has(doc.groupId)) {
           groupedDocs.push(doc);
           const group = groupMap.get(doc.groupId);
-          if (group) {
+          if (group && Array.isArray(group.items)) {
             group.items.push(doc);
           }
         } else {

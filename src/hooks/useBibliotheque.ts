@@ -88,8 +88,13 @@ export const useBibliotheque = () => {
       // Combiner les documents indépendants et ceux des groupes
       const allDocuments = [...documents, ...groupDocuments];
       
-      // Groupes sans les items (pour éviter duplication)
-      const groupsData = groups.map(({items, ...rest}) => rest);
+      // Groupes sans les items (mais en gardant la structure complète)
+      const groupsData: DocumentGroup[] = groups.map(group => ({
+        id: group.id,
+        name: group.name,
+        expanded: group.expanded,
+        items: [] // Adding empty items array to satisfy the type
+      }));
       
       const success = await syncBibliothequeWithServer(allDocuments, groupsData, currentUser);
       

@@ -1,10 +1,18 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { Membre } from '@/types/membres';
+import { useNetworkStatus } from '@/hooks/useNetworkStatus';
+import { loadMembresFromStorage, saveMembrestoStorage } from '@/services/membres/membresService';
+import { syncMembresWithServer, loadMembresFromServer } from '@/services/membres/membresSync';
+import { useToast } from '@/hooks/use-toast';
 
 interface MembresContextType {
   membres: Membre[];
   setMembres: React.Dispatch<React.SetStateAction<Membre[]>>;
+  isSyncing: boolean;
+  isOnline: boolean;
+  lastSynced?: Date;
+  syncWithServer: () => Promise<void>;
 }
 
 const MembresContext = createContext<MembresContextType | undefined>(undefined);
@@ -12,6 +20,10 @@ const MembresContext = createContext<MembresContextType | undefined>(undefined);
 export const MembresProvider = ({ children }: { children: ReactNode }) => {
   // Récupérer l'identifiant de l'utilisateur connecté
   const currentUser = localStorage.getItem('currentUser') || 'default';
+  const { isOnline } = useNetworkStatus();
+  const { toast } = useToast();
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [lastSynced, setLastSynced] = useState<Date | undefined>(undefined);
   
   // Récupérer les membres du localStorage spécifiques à l'utilisateur actuel
   const [membres, setMembres] = useState<Membre[]>(() => {
@@ -34,8 +46,56 @@ export const MembresProvider = ({ children }: { children: ReactNode }) => {
     localStorage.setItem(`membres_${currentUser}`, JSON.stringify(membres));
   }, [membres, currentUser]);
 
+  // Méthode de synchronisation avec le serveur
+  const syncWithServer = async () => {
+    if (!isOnline) {
+      toast({
+        title: "Synchronisation impossible",
+        description: "Vous êtes actuellement hors ligne",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsSyncing(true);
+    
+    try {
+      const success = await syncMembresWithServer(membres, currentUser);
+      
+      if (success) {
+        toast({
+          title: "Synchronisation réussie",
+          description: "Les membres ont été synchronisés avec le serveur",
+        });
+        setLastSynced(new Date());
+      } else {
+        toast({
+          title: "Échec de la synchronisation",
+          description: "Une erreur est survenue lors de la synchronisation",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error('Erreur de synchronisation:', error);
+      toast({
+        title: "Erreur de synchronisation",
+        description: `${error}`,
+        variant: "destructive",
+      });
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
   return (
-    <MembresContext.Provider value={{ membres, setMembres }}>
+    <MembresContext.Provider value={{ 
+      membres, 
+      setMembres,
+      isSyncing,
+      isOnline,
+      lastSynced,
+      syncWithServer
+    }}>
       {children}
     </MembresContext.Provider>
   );

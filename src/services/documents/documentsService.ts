@@ -1,5 +1,5 @@
 
-import { Document } from '@/types/documents';
+import { Document, DocumentStats } from '@/types/documents';
 
 /**
  * Loads documents from localStorage for a specific user
@@ -56,22 +56,14 @@ export const saveDocumentsToStorage = (documents: Document[], currentUser: strin
 };
 
 /**
- * Legacy calculate document statistics function (kept for backward compatibility)
- * @deprecated Use the version from documentStatsService instead
+ * Calculate document statistics
  */
-export const calculateDocumentStats = (documents: Document[]) => {
-  const totalDocuments = documents.length;
-  const excluded = documents.filter(doc => doc.etat === 'EX').length;
-  const nonExcluded = totalDocuments - excluded;
-  
+export const calculateDocumentStats = (documents: Document[]): DocumentStats => {
   return {
-    total: totalDocuments,
-    excluded,
-    nonExcluded,
+    exclusion: documents.filter(doc => doc.etat === 'EX').length,
     nonConforme: documents.filter(doc => doc.etat === 'NC').length,
     partiellementConforme: documents.filter(doc => doc.etat === 'PC').length,
     conforme: documents.filter(doc => doc.etat === 'C').length,
-    // Add exclusion property to match the expected type
-    exclusion: excluded
+    total: documents.length
   };
 };
