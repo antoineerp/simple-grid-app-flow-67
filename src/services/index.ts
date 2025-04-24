@@ -7,24 +7,21 @@ export * from './users/createUserService';
 
 // Explicitement renommer les exports pour éviter l'ambiguïté
 export { 
-  getUserId as getDatabaseConnectionCurrentUser 
-} from './core/databaseConnectionService';
-
-export { 
-  getUserId as getAuthCurrentUser,
-  isUserLoggedIn,
-  getUserInfo,
-  logout
-} from './auth/authService';
-
-// Re-export other functions from databaseConnectionService
-export {
   connectAsUser,
   getLastConnectionError,
   disconnectUser,
   testDatabaseConnection,
   getDatabaseInfo
 } from './core/databaseConnectionService';
+
+export { 
+  getUserId as getAuthCurrentUser,
+  isUserLoggedIn,
+  getUserInfo,
+  logout,
+  getAuthHeaders,
+  login
+} from './auth/authService';
 
 // Define types here if needed
 export interface Utilisateur {
