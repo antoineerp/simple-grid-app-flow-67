@@ -28,7 +28,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'GET') {
         $loginService = new LoginService();
         
         // Récupérer les utilisateurs disponibles
-        $test_users = ['admin', 'p71x6d_system', 'antcirier@gmail.com', 'p71x6d_dupont', 'p71x6d_martin'];
+        $test_users = array_keys($loginService->getTestUsers());
         
         // Ajouter les utilisateurs de la base s'il y en a
         if ($database->is_connected) {
@@ -71,6 +71,8 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 // Récupérer et valider les données POST
 $json_input = file_get_contents("php://input");
 $data = json_decode($json_input);
+
+error_log("Données reçues dans login-test.php: " . json_encode(['username' => $data->username ?? 'non fourni', 'password_provided' => !empty($data->password)]));
 
 if (!$data || empty($data->username) || empty($data->password)) {
     http_response_code(400);

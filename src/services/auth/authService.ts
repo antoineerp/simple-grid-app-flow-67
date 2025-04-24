@@ -60,7 +60,6 @@ export const login = async (username: string, password: string): Promise<LoginRe
     console.log(`Tentative de connexion pour l'utilisateur: ${username}`);
     
     // Utiliser toujours un chemin relatif pour éviter les problèmes CORS
-    // Très important : ne PAS utiliser d'URL absolue
     const loginUrl = `/api/login-test.php`;
     
     console.log(`URL de connexion utilisée: ${loginUrl}`);
@@ -92,7 +91,6 @@ export const login = async (username: string, password: string): Promise<LoginRe
         'Cache-Control': 'no-cache'
       },
       body: JSON.stringify({ username, password }),
-      // Ces options sont essentielles pour éviter les problèmes CORS
       credentials: 'same-origin',
       mode: 'cors',
     });
@@ -104,6 +102,7 @@ export const login = async (username: string, password: string): Promise<LoginRe
     
     if (response.ok && data.token) {
       console.log('Login réussi, sauvegarde des informations utilisateur');
+      
       // Stocker les informations d'authentification dans localStorage
       localStorage.setItem('token', data.token);
       localStorage.setItem('isLoggedIn', 'true');

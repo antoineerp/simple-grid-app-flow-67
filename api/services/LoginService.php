@@ -15,9 +15,14 @@ class LoginService {
         ];
     }
 
+    public function getTestUsers() {
+        return $this->test_users;
+    }
+
     public function authenticateUser($username, $password, $database = null) {
         $this->database = $database;
         error_log("Tentative de connexion pour: " . $username);
+        error_log("Mot de passe fourni (premiers caractères): " . substr($password, 0, 3) . "***");
 
         // Try database authentication first
         if ($database && $database->is_connected) {
@@ -41,8 +46,13 @@ class LoginService {
             $stmt->execute([$username, $username]);
             $user = $stmt->fetch(PDO::FETCH_ASSOC);
             
+            error_log("Recherche utilisateur en BDD: " . ($user ? "trouvé" : "non trouvé"));
+            
             if ($user && $this->verifyPassword($user, $password)) {
+                error_log("Authentification réussie via base de données pour: " . $username);
                 return $user;
+            } else if ($user) {
+                error_log("Échec de vérification du mot de passe pour l'utilisateur en BDD: " . $username);
             }
         } catch (Exception $e) {
             error_log("Erreur d'authentification base de données: " . $e->getMessage());
@@ -51,7 +61,12 @@ class LoginService {
     }
 
     private function authenticateWithTestUsers($username, $password) {
+        error_log("Vérification dans les utilisateurs de test pour: " . $username);
+        error_log("Utilisateurs de test disponibles: " . implode(", ", array_keys($this->test_users)));
+        
         if (isset($this->test_users[$username]) && $this->test_users[$username]['password'] === $password) {
+            error_log("Authentification réussie via utilisateurs de test pour: " . $username);
+            
             return [
                 'success' => true,
                 'message' => 'Connexion réussie (utilisateur de test)',
@@ -65,6 +80,13 @@ class LoginService {
                     'role' => $this->test_users[$username]['role']
                 ]
             ];
+        } else {
+            error_log("Échec d'authentification via utilisateurs de test pour: " . $username);
+            if (isset($this->test_users[$username])) {
+                error_log("Utilisateur de test trouvé mais mot de passe incorrect");
+            } else {
+                error_log("Utilisateur de test non trouvé");
+            }
         }
 
         return [
