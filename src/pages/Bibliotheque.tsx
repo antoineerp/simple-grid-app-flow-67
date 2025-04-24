@@ -1,8 +1,10 @@
 
-import React, { useState } from 'react';
-import { Pencil, Trash, ChevronDown, FolderPlus, GripVertical, FileDown, ExternalLink, FileText } from 'lucide-react';
+import React from 'react';
+import { FileText, Pencil, Trash, ChevronDown, FolderPlus, GripVertical, ExternalLink, CloudSun } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { exportBibliothecaireDocsToPdf } from '@/services/pdfExport';
+import { useBibliotheque } from '@/hooks/useBibliotheque';
+import SyncStatusIndicator from '@/components/common/SyncStatusIndicator';
 import {
   Dialog,
   DialogContent,
@@ -23,221 +25,47 @@ import {
   TableRow
 } from "@/components/ui/table";
 
-interface DocumentGroup {
-  id: number;
-  name: string;
-  expanded: boolean;
-  items: Document[];
-}
-
-interface Document {
-  id: number;
-  name: string;
-  link: string | null;
-  groupId?: number;
-}
-
 const Bibliotheque = () => {
   const { toast } = useToast();
-  const [documentGroups, setDocumentGroups] = useState<DocumentGroup[]>([
-    { 
-      id: 1, 
-      name: 'Documents organisationnels', 
-      expanded: false,
-      items: []
-    },
-    { 
-      id: 2, 
-      name: 'Documents administratifs', 
-      expanded: false,
-      items: []
-    }
-  ]);
+  const {
+    documents,
+    groups,
+    isDialogOpen,
+    isGroupDialogOpen,
+    isEditing,
+    currentDocument,
+    currentGroup,
+    isSyncing,
+    isOnline,
+    lastSynced,
+    setIsDialogOpen,
+    setIsGroupDialogOpen,
+    handleEditDocument,
+    handleDeleteDocument,
+    handleAddDocument,
+    handleDocumentInputChange,
+    handleSaveDocument,
+    handleEditGroup,
+    handleDeleteGroup,
+    handleAddGroup,
+    handleGroupInputChange,
+    handleSaveGroup,
+    handleDrop,
+    handleGroupDrop,
+    toggleGroup,
+    setDraggedItem,
+    syncWithServer
+  } = useBibliotheque();
   
-  const [documents, setDocuments] = useState<Document[]>([
-    { id: 1, name: 'Organigramme', link: 'Voir le document' },
-    { id: 2, name: 'Administration', link: 'Voir le document' },
-  ]);
-
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [isGroupDialogOpen, setIsGroupDialogOpen] = useState(false);
-  const [isEditing, setIsEditing] = useState(false);
-  const [currentDocument, setCurrentDocument] = useState<Document>({
-    id: 0,
-    name: '',
-    link: null
-  });
-  const [currentGroup, setCurrentGroup] = useState<DocumentGroup>({
-    id: 0,
-    name: '',
-    expanded: false,
-    items: []
-  });
-  const [draggedItem, setDraggedItem] = useState<{ id: number, groupId?: number } | null>(null);
-
-  const toggleGroup = (id: number) => {
-    setDocumentGroups(groups => 
-      groups.map(group => 
-        group.id === id ? { ...group, expanded: !group.expanded } : group
-      )
-    );
-  };
-
-  const handleEditDocument = (doc: Document) => {
-    setCurrentDocument({ ...doc });
-    setIsEditing(true);
-    setIsDialogOpen(true);
-  };
-
-  const handleDeleteDocument = (id: number) => {
-    setDocuments(docs => docs.filter(doc => doc.id !== id));
-    setDocumentGroups(groups => 
-      groups.map(group => ({
-        ...group,
-        items: group.items.filter(item => item.id !== id)
-      }))
-    );
+  const handleExportPdf = () => {
+    exportBibliothecaireDocsToPdf(documents, groups);
     toast({
-      title: "Suppression",
-      description: "Le document a été supprimé",
+      title: "Export PDF réussi",
+      description: "Le document a été généré et téléchargé",
     });
   };
 
-  const handleEditGroup = (group: DocumentGroup) => {
-    setCurrentGroup({ ...group });
-    setIsEditing(true);
-    setIsGroupDialogOpen(true);
-  };
-
-  const handleDeleteGroup = (id: number) => {
-    const groupToDelete = documentGroups.find(g => g.id === id);
-    if (groupToDelete && groupToDelete.items.length > 0) {
-      const docsToMove = [...groupToDelete.items];
-      setDocuments(prev => [...prev, ...docsToMove]);
-    }
-    
-    setDocumentGroups(groups => groups.filter(group => group.id !== id));
-    toast({
-      title: "Suppression",
-      description: "Le groupe a été supprimé",
-    });
-  };
-
-  const handleAddDocument = () => {
-    const newId = Math.max(...documents.map(d => d.id), ...documentGroups.flatMap(g => g.items.map(d => d.id)), 0) + 1;
-    setCurrentDocument({
-      id: newId,
-      name: '',
-      link: null
-    });
-    setIsEditing(false);
-    setIsDialogOpen(true);
-  };
-
-  const handleAddGroup = () => {
-    const newId = documentGroups.length > 0 
-      ? Math.max(...documentGroups.map(g => g.id)) + 1 
-      : 1;
-    setCurrentGroup({
-      id: newId,
-      name: '',
-      expanded: false,
-      items: []
-    });
-    setIsEditing(false);
-    setIsGroupDialogOpen(true);
-  };
-
-  const handleDocumentInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setCurrentDocument({
-      ...currentDocument,
-      [name]: value
-    });
-  };
-
-  const handleGroupInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setCurrentGroup({
-      ...currentGroup,
-      [name]: value
-    });
-  };
-
-  const handleSaveDocument = () => {
-    if (currentDocument.name.trim() === '') {
-      toast({
-        title: "Erreur",
-        description: "Le nom du document est requis",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (isEditing) {
-      if (currentDocument.groupId) {
-        setDocumentGroups(groups => 
-          groups.map(group => 
-            group.id === currentDocument.groupId 
-              ? {
-                  ...group,
-                  items: group.items.map(item => 
-                    item.id === currentDocument.id ? currentDocument : item
-                  )
-                }
-              : group
-          )
-        );
-      } else {
-        setDocuments(docs => 
-          docs.map(doc => doc.id === currentDocument.id ? currentDocument : doc)
-        );
-      }
-      toast({
-        title: "Modification",
-        description: "Le document a été modifié",
-      });
-    } else {
-      setDocuments(docs => [...docs, currentDocument]);
-      toast({
-        title: "Ajout",
-        description: "Le document a été ajouté",
-      });
-    }
-    
-    setIsDialogOpen(false);
-  };
-
-  const handleSaveGroup = () => {
-    if (currentGroup.name.trim() === '') {
-      toast({
-        title: "Erreur",
-        description: "Le nom du groupe est requis",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (isEditing) {
-      setDocumentGroups(groups => 
-        groups.map(group => group.id === currentGroup.id ? currentGroup : group)
-      );
-      toast({
-        title: "Modification",
-        description: "Le groupe a été modifié",
-      });
-    } else {
-      setDocumentGroups(groups => [...groups, currentGroup]);
-      toast({
-        title: "Ajout",
-        description: "Le groupe a été ajouté",
-      });
-    }
-    
-    setIsGroupDialogOpen(false);
-  };
-
-  const handleDragStart = (e: React.DragEvent<HTMLTableRowElement>, id: number, groupId?: number) => {
+  const handleDragStart = (e: React.DragEvent<HTMLTableRowElement>, id: string, groupId?: string) => {
     setDraggedItem({ id, groupId });
     e.dataTransfer.setData('text/plain', JSON.stringify({ id, groupId }));
     e.currentTarget.classList.add('opacity-50');
@@ -252,168 +80,36 @@ const Bibliotheque = () => {
     e.currentTarget.classList.remove('border-dashed', 'border-2', 'border-primary');
   };
 
-  const handleDrop = (e: React.DragEvent<HTMLTableRowElement>, targetId: number, targetGroupId?: number) => {
+  const handleDocDrop = (e: React.DragEvent<HTMLTableRowElement>, targetId: string, targetGroupId?: string) => {
     e.preventDefault();
     e.currentTarget.classList.remove('border-dashed', 'border-2', 'border-primary');
     
     try {
       const data = JSON.parse(e.dataTransfer.getData('text/plain'));
       const { id: sourceId, groupId: sourceGroupId } = data;
-      
-      if (sourceId === targetId && sourceGroupId === targetGroupId) return;
-      
-      if (targetGroupId !== undefined && sourceGroupId !== targetGroupId) {
-        if (sourceGroupId) {
-          setDocumentGroups(groups => groups.map(group => 
-            group.id === sourceGroupId 
-              ? { ...group, items: group.items.filter(item => item.id !== sourceId) }
-              : group
-          ));
-        } else {
-          setDocuments(docs => docs.filter(doc => doc.id !== sourceId));
-        }
-        
-        const docToMove = sourceGroupId 
-          ? documentGroups.find(g => g.id === sourceGroupId)?.items.find(d => d.id === sourceId)
-          : documents.find(d => d.id === sourceId);
-        
-        if (docToMove) {
-          const updatedDoc = { ...docToMove, groupId: targetGroupId };
-          
-          setDocumentGroups(groups => groups.map(group => 
-            group.id === targetGroupId
-              ? { ...group, items: [...group.items, updatedDoc] }
-              : group
-          ));
-        }
-        
-        toast({
-          title: "Déplacement",
-          description: "Le document a été déplacé vers un groupe",
-        });
-      } 
-      else if (sourceGroupId === targetGroupId) {
-        if (sourceGroupId) {
-          const group = documentGroups.find(g => g.id === sourceGroupId);
-          if (!group) return;
-          
-          const sourceIndex = group.items.findIndex(item => item.id === sourceId);
-          const targetIndex = group.items.findIndex(item => item.id === targetId);
-          
-          if (sourceIndex === -1 || targetIndex === -1 || sourceIndex === targetIndex) return;
-          
-          const newItems = [...group.items];
-          const [removed] = newItems.splice(sourceIndex, 1);
-          newItems.splice(targetIndex, 0, removed);
-          
-          setDocumentGroups(groups => groups.map(g => 
-            g.id === sourceGroupId 
-              ? { ...g, items: newItems }
-              : g
-          ));
-        } else {
-          const sourceIndex = documents.findIndex(doc => doc.id === sourceId);
-          const targetIndex = documents.findIndex(doc => doc.id === targetId);
-          
-          if (sourceIndex === -1 || targetIndex === -1 || sourceIndex === targetIndex) return;
-          
-          setDocuments(prev => {
-            const result = Array.from(prev);
-            const [removed] = result.splice(sourceIndex, 1);
-            result.splice(targetIndex, 0, removed);
-            return result;
-          });
-        }
-        
-        toast({
-          title: "Réorganisation",
-          description: "L'ordre des documents a été mis à jour",
-        });
-      }
+      handleDrop(targetId, targetGroupId);
     } catch (error) {
       console.error("Erreur lors du drop:", error);
     }
-    
     setDraggedItem(null);
   };
 
-  const handleGroupDrop = (e: React.DragEvent<HTMLTableRowElement>, targetGroupId: number) => {
+  const handleDocGroupDrop = (e: React.DragEvent<HTMLTableRowElement>, targetGroupId: string) => {
     e.preventDefault();
     e.currentTarget.classList.remove('border-dashed', 'border-2', 'border-primary');
     
     try {
       const data = JSON.parse(e.dataTransfer.getData('text/plain'));
-      
-      if (data.id !== undefined && data.groupId !== targetGroupId) {
-        const sourceId = data.id;
-        const sourceGroupId = data.groupId;
-        
-        if (sourceGroupId) {
-          setDocumentGroups(groups => groups.map(group => 
-            group.id === sourceGroupId 
-              ? { ...group, items: group.items.filter(item => item.id !== sourceId) }
-              : group
-          ));
-        } else {
-          setDocuments(docs => docs.filter(doc => doc.id !== sourceId));
-        }
-        
-        const docToMove = sourceGroupId 
-          ? documentGroups.find(g => g.id === sourceGroupId)?.items.find(d => d.id === sourceId)
-          : documents.find(d => d.id === sourceId);
-        
-        if (docToMove) {
-          const updatedDoc = { ...docToMove, groupId: targetGroupId };
-          
-          setDocumentGroups(groups => groups.map(group => 
-            group.id === targetGroupId
-              ? { ...group, items: [...group.items, updatedDoc] }
-              : group
-          ));
-          
-          toast({
-            title: "Déplacement",
-            description: `Document déplacé dans le groupe ${documentGroups.find(g => g.id === targetGroupId)?.name}`,
-          });
-        }
-      }
-      else if (data.groupId !== undefined && data.groupId !== targetGroupId) {
-        const sourceGroupId = data.groupId;
-        const sourceIndex = documentGroups.findIndex(g => g.id === sourceGroupId);
-        const targetIndex = documentGroups.findIndex(g => g.id === targetGroupId);
-        
-        if (sourceIndex !== -1 && targetIndex !== -1 && sourceIndex !== targetIndex) {
-          setDocumentGroups(prev => {
-            const result = Array.from(prev);
-            const [removed] = result.splice(sourceIndex, 1);
-            result.splice(targetIndex, 0, removed);
-            return result;
-          });
-          
-          toast({
-            title: "Réorganisation",
-            description: "L'ordre des groupes a été mis à jour",
-          });
-        }
-      }
+      handleGroupDrop(targetGroupId);
     } catch (error) {
       console.error("Erreur lors du drop du groupe:", error);
     }
-    
     setDraggedItem(null);
   };
 
   const handleDragEnd = (e: React.DragEvent<HTMLTableRowElement>) => {
     e.currentTarget.classList.remove('opacity-50');
     setDraggedItem(null);
-  };
-
-  const handleExportPdf = () => {
-    exportBibliothecaireDocsToPdf(documents, documentGroups);
-    toast({
-      title: "Export PDF réussi",
-      description: "Le document a été généré et téléchargé",
-    });
   };
 
   const renderDocumentLink = (link: string | null) => {
@@ -439,13 +135,31 @@ const Bibliotheque = () => {
           <h1 className="text-3xl font-bold text-app-blue">Bibliothèque</h1>
           <p className="text-gray-600">Gestion des documents administratifs</p>
         </div>
-        <button 
-          onClick={handleExportPdf}
-          className="text-red-600 p-2 rounded-md hover:bg-red-50 transition-colors"
-          title="Exporter en PDF"
-        >
-          <FileText className="h-6 w-6 stroke-[1.5]" />
-        </button>
+        <div className="flex space-x-2">
+          <button 
+            onClick={syncWithServer}
+            className="text-blue-600 p-2 rounded-md hover:bg-blue-50 transition-colors flex items-center"
+            title="Synchroniser avec le serveur"
+            disabled={isSyncing}
+          >
+            <CloudSun className={`h-6 w-6 stroke-[1.5] ${isSyncing ? 'animate-spin' : ''}`} />
+          </button>
+          <button 
+            onClick={handleExportPdf}
+            className="text-red-600 p-2 rounded-md hover:bg-red-50 transition-colors"
+            title="Exporter en PDF"
+          >
+            <FileText className="h-6 w-6 stroke-[1.5]" />
+          </button>
+        </div>
+      </div>
+      
+      <div className="mb-4">
+        <SyncStatusIndicator 
+          isSyncing={isSyncing}
+          isOnline={isOnline}
+          lastSynced={lastSynced}
+        />
       </div>
 
       <div className="bg-white rounded-md shadow overflow-hidden mt-6">
@@ -459,7 +173,7 @@ const Bibliotheque = () => {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {documentGroups.map((group) => (
+            {groups.map((group) => (
               <React.Fragment key={group.id}>
                 <TableRow 
                   className="border-b hover:bg-gray-50 cursor-pointer" 
@@ -480,7 +194,7 @@ const Bibliotheque = () => {
                   }}
                   onDrop={(e) => {
                     e.stopPropagation();
-                    handleGroupDrop(e, group.id);
+                    handleDocGroupDrop(e, group.id);
                   }}
                   onDragEnd={(e) => {
                     e.stopPropagation();
@@ -542,7 +256,7 @@ const Bibliotheque = () => {
                       }}
                       onDrop={(e) => {
                         e.stopPropagation();
-                        handleDrop(e, item.id, group.id);
+                        handleDocDrop(e, item.id, group.id);
                       }}
                       onDragEnd={(e) => {
                         e.stopPropagation();
@@ -591,7 +305,7 @@ const Bibliotheque = () => {
                 onDragStart={(e) => handleDragStart(e, doc.id)}
                 onDragOver={handleDragOver}
                 onDragLeave={handleDragLeave}
-                onDrop={(e) => handleDrop(e, doc.id)}
+                onDrop={(e) => handleDocDrop(e, doc.id)}
                 onDragEnd={handleDragEnd}
               >
                 <TableCell className="py-3 px-2 w-10">

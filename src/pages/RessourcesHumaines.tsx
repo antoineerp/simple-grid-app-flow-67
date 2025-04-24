@@ -1,6 +1,6 @@
 
-import React, { useState } from 'react';
-import { FileText, UserPlus, FileDown } from 'lucide-react';
+import React from 'react';
+import { FileText, UserPlus, CloudSun } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import {
   Dialog,
@@ -9,25 +9,20 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { useMembres } from '@/contexts/MembresContext';
 import MemberList from '@/components/ressources-humaines/MemberList';
 import MemberForm from '@/components/ressources-humaines/MemberForm';
 import { Membre } from '@/types/membres';
-import { exportCollaborateurStatsToPdf, exportAllCollaborateursToPdf } from '@/services/collaborateurExport';
+import { exportAllCollaborateursToPdf } from '@/services/collaborateurExport';
+import SyncStatusIndicator from '@/components/common/SyncStatusIndicator';
 
 const RessourcesHumaines = () => {
   const { toast } = useToast();
-  const { membres, setMembres } = useMembres();
+  const { membres, setMembres, isSyncing, isOnline, lastSynced, syncWithServer } = useMembres();
   
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [currentMembre, setCurrentMembre] = useState<Membre>({
+  const [isDialogOpen, setIsDialogOpen] = React.useState(false);
+  const [currentMembre, setCurrentMembre] = React.useState<Membre>({
     id: '',
     nom: '',
     prenom: '',
@@ -36,7 +31,7 @@ const RessourcesHumaines = () => {
     date_creation: new Date(),
     mot_de_passe: '' 
   });
-  const [isEditing, setIsEditing] = useState(false);
+  const [isEditing, setIsEditing] = React.useState(false);
 
   // Handler for edit action
   const handleEdit = (id: string) => {
@@ -124,27 +119,6 @@ const RessourcesHumaines = () => {
     setIsDialogOpen(false);
   };
 
-  // Handler for exporting member to PDF
-  const handleExportMemberToPdf = (id: string) => {
-    const membre = membres.find(m => m.id === id);
-    if (membre) {
-      try {
-        exportCollaborateurStatsToPdf(membre);
-        toast({
-          title: "Export PDF",
-          description: `Les statistiques de ${membre.prenom} ${membre.nom} ont été exportées`,
-        });
-      } catch (error) {
-        console.error("Erreur lors de l'export PDF:", error);
-        toast({
-          title: "Erreur",
-          description: `Erreur lors de l'export PDF: ${error}`,
-          variant: "destructive",
-        });
-      }
-    }
-  };
-
   // Handler for exporting all members to PDF
   const handleExportAllToPdf = () => {
     try {
@@ -171,6 +145,14 @@ const RessourcesHumaines = () => {
         </div>
         <div className="flex space-x-2">
           <button 
+            onClick={syncWithServer}
+            className="text-blue-600 p-2 rounded-md hover:bg-blue-50 transition-colors flex items-center"
+            title="Synchroniser avec le serveur"
+            disabled={isSyncing}
+          >
+            <CloudSun className={`h-6 w-6 stroke-[1.5] ${isSyncing ? 'animate-spin' : ''}`} />
+          </button>
+          <button 
             onClick={handleExportAllToPdf}
             className="text-red-600 p-2 rounded-md hover:bg-red-50 transition-colors"
             title="Exporter en PDF"
@@ -180,12 +162,19 @@ const RessourcesHumaines = () => {
         </div>
       </div>
 
+      <div className="mb-4">
+        <SyncStatusIndicator 
+          isSyncing={isSyncing}
+          isOnline={isOnline}
+          lastSynced={lastSynced}
+        />
+      </div>
+
       <div className="bg-white rounded-md shadow overflow-hidden mt-6">
         <MemberList 
           membres={membres} 
           onEdit={handleEdit} 
           onDelete={handleDelete} 
-          onExport={handleExportMemberToPdf}
         />
       </div>
 

@@ -22,6 +22,8 @@ const ExigencesContent = () => {
     dialogOpen,
     groupDialogOpen,
     isSyncing,
+    isOnline,
+    lastSynced,
     setDialogOpen,
     setGroupDialogOpen,
     handleResponsabiliteChange,
@@ -74,6 +76,14 @@ const ExigencesContent = () => {
             <FileText className="h-6 w-6 stroke-[1.5]" />
           </button>
         </div>
+      </div>
+
+      <div className="mb-4">
+        <SyncStatusIndicator 
+          isSyncing={isSyncing}
+          isOnline={isOnline}
+          lastSynced={lastSynced}
+        />
       </div>
 
       <ExigenceStats stats={stats} />
