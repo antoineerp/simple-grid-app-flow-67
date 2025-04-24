@@ -3,6 +3,7 @@ import React, { createContext, useState, useContext, useEffect } from 'react';
 import { Membre } from '@/types/membres';
 import { loadMembresFromStorage, saveMembresInStorage } from '@/services/membres/membresService';
 import { useToast } from '@/hooks/use-toast';
+import { getAuthHeaders } from '@/services/auth/authService';
 
 interface MembresContextType {
   membres: Membre[];
@@ -25,19 +26,27 @@ export const MembresProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [membres, setMembres] = useState<Membre[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Fonction pour charger les membres depuis le serveur ou le localStorage
+  const getCurrentUser = () => {
+    const authHeaders = getAuthHeaders();
+    const token = authHeaders['Authorization']?.split(' ')[1];
+    if (!token) return 'default_user';
+    
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      return payload.user_id || payload.email || 'default_user';
+    } catch (e) {
+      console.error('Erreur lors du décodage du token:', e);
+      return 'default_user';
+    }
+  };
+
   const loadMembres = async () => {
     setLoading(true);
     
     try {
-      // Récupérer l'identifiant de l'utilisateur courant
-      const currentUser = localStorage.getItem('currentUser') || 
-                         localStorage.getItem('userEmail') || 
-                         'default_user';
-      
+      const currentUser = getCurrentUser();
       console.log("Chargement des membres pour:", currentUser);
       
-      // Charger les membres (essaie d'abord le serveur, puis localStorage)
       const loadedMembres = await loadMembresFromStorage(currentUser);
       
       console.log(`${loadedMembres.length} membres chargés`);
@@ -55,37 +64,27 @@ export const MembresProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }
   };
 
-  // Charger les membres au montage du composant
   useEffect(() => {
     loadMembres();
-    
-    // Écouter les événements de mise à jour des membres
-    const handleMembresUpdate = () => {
-      console.log("Événement de mise à jour des membres détecté");
-      loadMembres();
-    };
-    
-    window.addEventListener('membresUpdate', handleMembresUpdate);
-    
-    // Nettoyer l'écouteur d'événements
-    return () => {
-      window.removeEventListener('membresUpdate', handleMembresUpdate);
-    };
   }, []);
 
-  // Sauvegarder les membres lorsqu'ils changent
   useEffect(() => {
     if (membres.length > 0 && !loading) {
-      const currentUser = localStorage.getItem('currentUser') || 
-                         localStorage.getItem('userEmail') || 
-                         'default_user';
-      
+      const currentUser = getCurrentUser();
       console.log(`Sauvegarde de ${membres.length} membres pour ${currentUser}`);
-      saveMembresInStorage(membres, currentUser);
+      
+      saveMembresInStorage(membres, currentUser)
+        .catch(error => {
+          console.error("Erreur lors de la sauvegarde des membres:", error);
+          toast({
+            title: "Erreur de sauvegarde",
+            description: "Impossible de sauvegarder les modifications",
+            variant: "destructive",
+          });
+        });
     }
   }, [membres, loading]);
 
-  // Fonction pour rafraîchir les membres
   const refreshMembres = async () => {
     await loadMembres();
   };
