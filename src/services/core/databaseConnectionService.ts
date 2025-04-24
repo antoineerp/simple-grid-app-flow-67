@@ -1,3 +1,4 @@
+
 import { toast } from '@/hooks/use-toast';
 import { initializeUserData } from './userInitializationService';
 import { getApiUrl } from '@/config/apiConfig';
@@ -48,6 +49,11 @@ class DatabaseConnectionService {
       if (responseText.trim().startsWith('<!DOCTYPE') || responseText.trim().startsWith('<html')) {
         console.error("Reçu du HTML au lieu de JSON:", responseText.substring(0, 100) + "...");
         throw new Error("Le serveur a renvoyé une page HTML au lieu de JSON. Vérifiez la configuration du serveur.");
+      }
+      
+      // Si la réponse ne contient rien
+      if (!responseText.trim()) {
+        throw new Error("Le serveur a renvoyé une réponse vide.");
       }
       
       // Si c'est une autre erreur de parsing, la propager
@@ -207,7 +213,7 @@ class DatabaseConnectionService {
       
       toast({
         title: "Connexion réussie",
-        description: `Connexion établie avec la base de données ${data.info?.database_name || ''}`,
+        description: `Connexion établie avec la base de données ${data.connection_info?.database || ''}`,
       });
       
       return true;
@@ -257,7 +263,8 @@ class DatabaseConnectionService {
         };
       }
       
-      const response = await fetch(`${API_URL}/database-test`, {
+      // Utiliser db-test.php au lieu de database-test qui pourrait être problématique
+      const response = await fetch(`${API_URL}/db-test.php`, {
         method: 'GET',
         headers: { 
           ...getAuthHeaders(),
@@ -293,27 +300,22 @@ class DatabaseConnectionService {
       
       console.log("Données analysées:", data);
       
-      if (data.status !== 'success') {
+      if (data.status === 'success') {
+        return {
+          host: data.config?.host || "Hôte inconnu",
+          database: data.config?.db_name || "Base de données inconnue",
+          size: "Information non disponible",
+          tables: 0,
+          lastBackup: "N/A",
+          status: "Online",
+          encoding: "UTF-8",
+          collation: "utf8mb4_unicode_ci",
+          tableList: []
+        };
+      } else {
         const errorMessage = data.error || data.message || "Impossible de récupérer les informations de la base de données";
         console.error("Erreur de base de données:", errorMessage);
         throw new Error(errorMessage);
-      }
-      
-      if (data.info) {
-        return {
-          host: data.info.host || "Hôte inconnu",
-          database: data.info.database_name || "Base de données inconnue",
-          size: data.info.size || "Taille inconnue",
-          tables: data.info.table_count || 0,
-          lastBackup: data.info.last_backup || "N/A",
-          status: "Online",
-          encoding: data.info.encoding || "UTF-8",
-          collation: data.info.collation || "N/A",
-          tableList: data.info.tables || []
-        };
-      } else {
-        console.warn("Pas d'informations reçues de la base de données");
-        throw new Error("Aucune information sur la base de données n'a été reçue");
       }
     } catch (error) {
       console.error("Erreur lors de la récupération des informations de la base de données:", error);

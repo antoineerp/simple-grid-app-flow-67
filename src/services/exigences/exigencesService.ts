@@ -1,6 +1,8 @@
 
 import { Exigence } from '@/types/exigences';
-import { SyncService, getCurrentUserId } from '../core/syncService';
+import { getApiUrl } from '@/config/apiConfig';
+import { getAuthHeaders } from '../auth/authService';
+import { SyncService } from '../core/syncService';
 
 // Instance du service de synchronisation pour les exigences
 const exigencesSync = new SyncService('exigences', 'ExigencesController.php');
@@ -10,24 +12,32 @@ const exigencesSync = new SyncService('exigences', 'ExigencesController.php');
  */
 export const loadExigencesFromStorage = (currentUser: string): Exigence[] => {
   const defaultExigences: Exigence[] = [
-    { 
-      id: '1', 
-      nom: 'Levée du courrier', 
-      responsabilites: { r: [], a: [], c: [], i: [] },
-      exclusion: false,
-      atteinte: null,
+    {
+      id: '1',
+      numero: 'E.1.1',
+      niveau: 'Indicateur',
+      intitule: 'Le prestataire diffuse une information accessible au public...',
+      chapitre: 'Information et orientation des publics',
+      description: 'Lorem ipsum dolor sit amet',
+      criteres: ['Locaux accessibles', 'Site web adapté'],
+      preuves: ['Document 1', 'Document 2'],
+      status: 'À faire',
       date_creation: new Date(),
       date_modification: new Date()
     },
-    { 
-      id: '2', 
-      nom: 'Ouverture du courrier', 
-      responsabilites: { r: [], a: [], c: [], i: [] },
-      exclusion: false,
-      atteinte: null,
+    {
+      id: '2',
+      numero: 'E.1.2',
+      niveau: 'Critère',
+      intitule: 'Le prestataire met en œuvre des prestations d'information...',
+      chapitre: 'Information et orientation des publics',
+      description: 'Lorem ipsum dolor sit amet',
+      criteres: ['Information claire', 'Délais respectés'],
+      preuves: ['Document 3', 'Document 4'],
+      status: 'En cours',
       date_creation: new Date(),
       date_modification: new Date()
-    },
+    }
   ];
 
   // Charger les exigences avec le service de synchronisation
@@ -44,7 +54,8 @@ export const loadExigencesFromStorage = (currentUser: string): Exigence[] => {
 /**
  * Sauvegarde les exigences dans le localStorage et les synchronise avec le serveur
  */
-export const saveExigencesToStorage = (exigences: Exigence[], currentUser: string): void => {
+export const saveExigencesInStorage = (exigences: Exigence[], currentUser: string): void => {
+  console.log(`Sauvegarde de ${exigences.length} exigences pour l'utilisateur ${currentUser}`);
   exigencesSync.saveToStorage<Exigence>(exigences, currentUser);
 };
 
@@ -55,21 +66,6 @@ export const syncExigencesWithServer = async (
   exigences: Exigence[],
   currentUser: string
 ): Promise<boolean> => {
+  console.log(`Synchronisation de ${exigences.length} exigences pour l'utilisateur ${currentUser}`);
   return exigencesSync.syncWithServer<Exigence>(exigences, currentUser);
-};
-
-/**
- * Calcule les statistiques des exigences
- */
-export const calculateExigenceStats = (exigences: Exigence[]) => {
-  const exclusionCount = exigences.filter(e => e.exclusion).length;
-  const nonExcludedExigences = exigences.filter(e => !e.exclusion);
-  
-  return {
-    exclusion: exclusionCount,
-    nonConforme: nonExcludedExigences.filter(e => e.atteinte === 'NC').length,
-    partiellementConforme: nonExcludedExigences.filter(e => e.atteinte === 'PC').length,
-    conforme: nonExcludedExigences.filter(e => e.atteinte === 'C').length,
-    total: nonExcludedExigences.length
-  };
 };

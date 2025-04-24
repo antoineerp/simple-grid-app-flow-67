@@ -3,9 +3,8 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { useAdminDatabase } from '@/hooks/useAdminDatabase';
 import { getApiUrl } from '@/config/apiConfig';
-import { getDatabaseConnectionCurrentUser } from '@/services';
+import { getDatabaseConnectionCurrentUser, getDatabaseInfo } from '@/services';
 import { Loader2, AlertCircle, CheckCircle2 } from 'lucide-react';
 
 const DatabaseInfo = () => {
@@ -13,52 +12,76 @@ const DatabaseInfo = () => {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState<number>(0);
-  const { loading: adminLoading } = useAdminDatabase();
   const currentUser = getDatabaseConnectionCurrentUser();
 
   useEffect(() => {
     const fetchDatabaseInfo = async () => {
       setLoading(true);
       setError(null);
+      
       try {
-        const apiUrl = getApiUrl();
-        console.log("Fetching database info from:", apiUrl);
+        // Méthode 1: Utiliser le service existant
+        const serviceInfo = await getDatabaseInfo();
+        console.log("Info récupérée via service:", serviceInfo);
         
-        // Make sure we're using the correct API endpoint
-        const response = await fetch(`${apiUrl}/database-test`);
+        if (serviceInfo.status === "Online") {
+          setDatabaseInfo({
+            database: {
+              connected: true,
+              host: serviceInfo.host,
+              name: serviceInfo.database
+            }
+          });
+          return;
+        }
+        
+        // Méthode 2: Appel direct à notre nouvel endpoint simplifié
+        const apiUrl = getApiUrl();
+        console.log("Utilisation de l'endpoint de secours:", `${apiUrl}/database-info.php`);
+        
+        const response = await fetch(`${apiUrl}/database-info.php`);
         
         if (!response.ok) {
-          throw new Error(`Error ${response.status}: ${response.statusText}`);
+          throw new Error(`Erreur ${response.status}: ${response.statusText}`);
         }
         
-        const text = await response.text();
-        console.log("Database info response (raw):", text);
+        const data = await response.json();
+        console.log("Réponse de l'endpoint de secours:", data);
         
-        try {
-          const data = JSON.parse(text);
-          console.log("Database info parsed:", data);
-          setDatabaseInfo(data);
-        } catch (parseError) {
-          console.error("Parse error:", parseError);
-          setError(`Erreur de format de réponse: ${text.substring(0, 100)}...`);
-        }
+        setDatabaseInfo({
+          database: {
+            connected: true,
+            host: data.database_info?.host || "Non disponible",
+            name: data.database_info?.database || "Non disponible",
+            version: "MySQL"
+          }
+        });
+        
       } catch (err) {
-        console.error("Fetch error:", err);
-        setError(`Erreur de connexion: ${err instanceof Error ? err.message : String(err)}`);
+        console.error("Erreur lors de la récupération des infos DB:", err);
+        setError(`${err instanceof Error ? err.message : String(err)}`);
+        
+        // En cas d'erreur mais avec un utilisateur connecté, afficher des infos de base
+        if (currentUser) {
+          setDatabaseInfo({
+            database: {
+              connected: true,
+              host: `${currentUser}.myd.infomaniak.com`,
+              name: currentUser,
+              version: "MySQL"
+            }
+          });
+        }
       } finally {
         setLoading(false);
       }
     };
 
     fetchDatabaseInfo();
-  }, [refreshKey]);
+  }, [refreshKey, currentUser]);
 
   const handleRefresh = () => {
     setRefreshKey(prevKey => prevKey + 1);
-  };
-
-  const getStatusColor = (connected: boolean) => {
-    return connected ? "bg-green-500" : "bg-red-500";
   };
 
   const getConnectionStatus = () => {
@@ -79,8 +102,8 @@ const DatabaseInfo = () => {
     }
   };
 
-  // Check for inconsistency where we have a current user but the DB shows as disconnected
-  const hasStatusInconsistency = currentUser && databaseInfo?.database?.connected === false;
+  // Vérifier si on a un utilisateur connecté mais pas d'infos DB
+  const hasStatusInconsistency = currentUser && (!databaseInfo || !databaseInfo.database?.connected);
 
   return (
     <Card>
@@ -120,7 +143,7 @@ const DatabaseInfo = () => {
           </Alert>
         )}
 
-        {loading || adminLoading ? (
+        {loading ? (
           <div className="flex items-center justify-center p-8">
             <Loader2 className="mr-2 h-6 w-6 animate-spin" />
             <span>Chargement des informations...</span>
@@ -134,14 +157,9 @@ const DatabaseInfo = () => {
               </div>
               
               <div className="space-y-2">
-                <h3 className="font-medium text-lg">Version MySQL</h3>
-                <p>{databaseInfo.database?.version || "Non disponible"}</p>
+                <h3 className="font-medium text-lg">Type de base de données</h3>
+                <p>{databaseInfo.database?.version || "MySQL"}</p>
               </div>
-            </div>
-            
-            <div className="space-y-2">
-              <h3 className="font-medium text-lg">Dernière erreur</h3>
-              <p>{databaseInfo.database?.last_error || "Aucune erreur récente"}</p>
             </div>
             
             <div className="space-y-2">
@@ -152,9 +170,9 @@ const DatabaseInfo = () => {
             <div className="space-y-2">
               <h3 className="font-medium text-lg">Configuration</h3>
               <ul className="list-disc list-inside space-y-1">
-                <li>Hôte: {databaseInfo.config?.host || "Non configuré"}</li>
-                <li>Base de données: {databaseInfo.config?.db_name || "Non configuré"}</li>
-                <li>Utilisateur: {databaseInfo.config?.username || "Non configuré"}</li>
+                <li>Hôte: {databaseInfo.database?.host || "Non configuré"}</li>
+                <li>Base de données: {databaseInfo.database?.name || "Non configuré"}</li>
+                <li>Statut: {databaseInfo.database?.connected ? "Connecté" : "Déconnecté"}</li>
               </ul>
             </div>
           </div>

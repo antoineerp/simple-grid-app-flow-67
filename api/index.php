@@ -162,6 +162,11 @@ switch ($controller) {
     case 'database-test':
         require_once 'database-test.php';
         break;
+    
+    case 'database-info':
+    case 'database-info.php':
+        require_once 'database-info.php';
+        break;
         
     case 'db-connection-test':
         require_once 'db-connection-test.php';
@@ -201,6 +206,11 @@ switch ($controller) {
     case 'info':
     case 'info.php':
         require_once 'info.php';
+        break;
+    
+    case 'db-test':
+    case 'db-test.php':
+        require_once 'db-test.php';
         break;
         
     default:
