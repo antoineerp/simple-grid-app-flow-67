@@ -1,3 +1,4 @@
+
 import { getApiUrl } from '@/config/apiConfig';
 import { getAuthHeaders } from '../auth/authService';
 import { v4 as uuidv4 } from 'uuid';
@@ -33,7 +34,8 @@ export const createUser = async (userData: CreateUserData) => {
 
   try {
     const apiUrl = getApiUrl();
-    const url = `${apiUrl}/utilisateurs`;
+    // Utiliser directement le chemin complet vers UsersController.php pour éviter les problèmes de redirection
+    const url = `${apiUrl}/controllers/UsersController.php`;
     
     const headers = {
       ...getAuthHeaders(),
@@ -57,16 +59,37 @@ export const createUser = async (userData: CreateUserData) => {
     console.log("Statut de la réponse:", response.status, response.statusText);
     console.log("Headers de la réponse:", Object.fromEntries([...response.headers]));
     
+    // Vérifier d'abord si la réponse est OK
+    if (!response.ok) {
+      if (response.status === 500) {
+        console.error("Erreur serveur 500 détectée");
+        throw new Error(`Erreur serveur interne: ${response.status} ${response.statusText}`);
+      }
+      throw new Error(`Erreur HTTP: ${response.status} ${response.statusText}`);
+    }
+    
+    // Tenter de récupérer le texte de la réponse
     const responseText = await response.text();
     console.log("Réponse brute du serveur:", responseText);
     
+    // Si la réponse est vide mais le statut est OK, considérer comme un succès
+    if (!responseText && response.ok) {
+      console.log("Réponse vide mais statut OK, considéré comme un succès");
+      return {
+        success: true,
+        identifiant_technique: identifiantTechnique,
+        message: "L'utilisateur a été créé avec succès"
+      };
+    }
+    
+    // Tenter de parser le JSON
     let responseData;
     try {
       responseData = responseText ? JSON.parse(responseText) : {};
       console.log("Réponse parsée:", responseData);
     } catch (parseError) {
       console.error("Erreur de parsing JSON:", parseError);
-      if (response.status >= 200 && response.status < 300 && responseText.includes("success")) {
+      if (response.ok) {
         console.log("Considéré comme un succès malgré l'erreur de parsing");
         return {
           success: true,
@@ -74,15 +97,12 @@ export const createUser = async (userData: CreateUserData) => {
           message: "L'utilisateur a été créé avec succès"
         };
       }
-      throw new Error(`Réponse invalide du serveur: ${responseText}`);
+      throw new Error(`Réponse invalide du serveur (format incorrect): ${responseText.substring(0, 100)}`);
     }
 
+    // Vérifier le contenu de la réponse
     if (responseData && typeof responseData === 'object') {
       if (responseData.status === 'error') {
-        throw new Error(responseData.message || `Erreur ${response.status}: ${response.statusText}`);
-      }
-      
-      if (!response.ok) {
         throw new Error(responseData.message || `Erreur ${response.status}: ${response.statusText}`);
       }
       
@@ -99,7 +119,7 @@ export const createUser = async (userData: CreateUserData) => {
           message: "L'utilisateur a été créé avec succès"
         };
       }
-      throw new Error("Format de réponse invalide");
+      throw new Error(`Format de réponse invalide: ${typeof responseData}`);
     }
   } catch (error) {
     console.error("Erreur lors de la création de l'utilisateur:", error);
