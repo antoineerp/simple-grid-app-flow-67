@@ -75,21 +75,41 @@ class UserOperations {
                     'role' => $data->role
                 ];
                 
-                // S'assurer que les headers sont correctement définis
-                header('Content-Type: application/json; charset=UTF-8');
-                http_response_code(201);
+                // S'assurer qu'aucun contenu n'a été envoyé avant les headers
+                if (ob_get_length()) {
+                    ob_clean();
+                }
                 
-                ResponseHandler::success(
-                    $responseData,
-                    "Utilisateur créé avec succès",
-                    201
-                );
+                // S'assurer que les headers sont correctement définis
+                if (!headers_sent()) {
+                    header('Content-Type: application/json; charset=UTF-8');
+                    http_response_code(201);
+                }
+                
+                echo json_encode([
+                    'status' => 'success',
+                    'message' => "Utilisateur créé avec succès",
+                    'data' => $responseData
+                ]);
+                exit;
             } else {
                 error_log("Échec de création de l'utilisateur sans exception");
+                
+                // Nettoyer tout buffer de sortie
+                if (ob_get_length()) {
+                    ob_clean();
+                }
+                
                 ResponseHandler::error("Échec de création de l'utilisateur", 500);
             }
         } catch (Exception $e) {
             error_log("Erreur création utilisateur: " . $e->getMessage());
+            
+            // Nettoyer tout buffer de sortie
+            if (ob_get_length()) {
+                ob_clean();
+            }
+            
             ResponseHandler::error($e->getMessage(), 500);
         }
     }

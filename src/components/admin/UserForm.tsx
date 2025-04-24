@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -29,9 +30,9 @@ const UserForm = ({ onClose, onSuccess, onUserConnect }: UserFormProps) => {
   const [formData, setFormData] = useState<UserFormData>({
     nom: '',
     prenom: '',
-    email: '',
+    email: '', // Champ email vide par défaut comme demandé
     role: 'utilisateur',
-    mot_de_passe: ''
+    mot_de_passe: '' // Champ mot de passe vide par défaut comme demandé
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [connectAfterCreate, setConnectAfterCreate] = useState(false);

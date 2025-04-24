@@ -78,104 +78,72 @@ export const createUser = async (userData: CreateUserData) => {
       console.warn("Erreur lors de la vérification de l'email, poursuite de la création:", checkError);
     }
     
-    // Envoi de la requête principale avec un timeout et des nouvelles tentatives
-    const maxRetries = 3;
-    let retryCount = 0;
-    let success = false;
-    let lastError;
-    let responseData;
+    // Envoi de la requête principale
+    console.log("Envoi de la requête POST avec les données:", JSON.stringify(requestData));
     
-    while (retryCount < maxRetries && !success) {
-      try {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 secondes timeout
-        
-        console.log("Envoi de la requête POST avec les données:", JSON.stringify(requestData));
-        
-        const response = await fetch(url, {
-          method: 'POST',
-          headers: {
-            ...headers,
-            'Content-Type': 'application/json',
-            'Accept': 'application/json'
-          },
-          body: JSON.stringify(requestData),
-          signal: controller.signal,
-          // Désactiver le cache pour éviter les problèmes
-          cache: 'no-store'
-        });
-        
-        clearTimeout(timeoutId);
-        
-        console.log("Statut de la réponse:", response.status, response.statusText);
-        console.log("Headers de réponse:", Object.fromEntries(response.headers.entries()));
-        
-        // Traitement de la réponse en texte d'abord
-        const responseText = await response.text();
-        console.log("Réponse brute:", responseText);
-        
-        // Essai de parse en JSON
-        try {
-          if (responseText.trim() === '') {
-            // Gérer le cas de réponse vide
-            responseData = { 
-              success: response.ok, 
-              message: response.ok ? "Utilisateur créé avec succès (réponse vide)" : "Erreur: réponse vide du serveur",
-              identifiant_technique: identifiantTechnique 
-            };
-          } else if (responseText.trim().startsWith('<?php')) {
-            // Si le serveur renvoie du code PHP non interprété
-            throw new Error("Le serveur renvoie du code PHP non interprété. Vérifiez la configuration du serveur.");
-          } else {
-            responseData = JSON.parse(responseText);
-          }
-          
-          // Gestion des erreurs HTTP
-          if (!response.ok) {
-            if (response.status === 409 || (responseData.message && responseData.message.includes('existe déjà'))) {
-              throw new Error(responseData.message || "Une contrainte d'unicité a été violée");
-            } else {
-              throw new Error(responseData.message || `Erreur ${response.status}: ${response.statusText}`);
-            }
-          }
-          
-          success = true;
-        } catch (jsonError) {
-          console.error("Erreur lors du parsing JSON:", jsonError);
-          
-          // Si la réponse semble être un succès malgré le format incorrect
-          if (response.ok || response.status === 201) {
-            success = true;
-            responseData = { 
-              success: true, 
-              message: "Utilisateur créé avec succès (réponse non-JSON)",
-              identifiant_technique: identifiantTechnique 
-            };
-          } else {
-            throw new Error(`Réponse invalide du serveur: ${responseText.substring(0, 100)}`);
-          }
-        }
-      } catch (error) {
-        lastError = error;
-        retryCount++;
-        console.warn(`Tentative ${retryCount}/${maxRetries} échouée: ${error instanceof Error ? error.message : 'Erreur inconnue'}`);
-        
-        if (retryCount < maxRetries) {
-          await new Promise(resolve => setTimeout(resolve, 1000 * retryCount)); // Attente exponentielle
-        }
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        ...headers,
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      },
+      body: JSON.stringify(requestData),
+      // Désactiver le cache pour éviter les problèmes
+      cache: 'no-store'
+    });
+    
+    console.log("Statut de la réponse:", response.status, response.statusText);
+    console.log("Headers de réponse:", Object.fromEntries(response.headers.entries()));
+    
+    // Traitement de la réponse en texte d'abord
+    const responseText = await response.text();
+    console.log("Réponse brute:", responseText);
+    
+    // Gérer les réponses vides
+    if (!responseText || responseText.trim() === '') {
+      if (response.ok || response.status === 201) {
+        // Si la réponse est vide mais le statut est OK, considérer comme un succès
+        return {
+          success: true,
+          identifiant_technique: identifiantTechnique,
+          message: "Utilisateur créé avec succès (réponse vide)"
+        };
+      } else {
+        // Si la réponse est vide avec un statut d'erreur, lancer une erreur
+        throw new Error(`Erreur serveur: ${response.status} ${response.statusText}`);
       }
     }
     
-    if (!success) {
-      throw lastError || new Error("Échec après plusieurs tentatives");
+    // Essai de parse en JSON si la réponse n'est pas vide
+    try {
+      const responseData = JSON.parse(responseText);
+      
+      // Gestion des erreurs HTTP
+      if (!response.ok) {
+        throw new Error(responseData.message || `Erreur ${response.status}: ${response.statusText}`);
+      }
+      
+      // Succès avec réponse JSON
+      return {
+        ...responseData,
+        success: true,
+        identifiant_technique: identifiantTechnique
+      };
+    } catch (jsonError) {
+      console.error("Erreur lors du parsing JSON:", jsonError);
+      
+      // Si la réponse semble être un succès malgré le format incorrect
+      if (response.ok || response.status === 201) {
+        return {
+          success: true,
+          identifiant_technique: identifiantTechnique,
+          message: "Utilisateur créé avec succès (réponse non-JSON)"
+        };
+      } else {
+        throw new Error(`Réponse invalide du serveur: ${responseText.substring(0, 100)}`);
+      }
     }
-    
-    // Succès
-    return {
-      ...responseData,
-      success: true,
-      identifiant_technique: identifiantTechnique
-    };
   } catch (error) {
     console.error("Erreur lors de la création de l'utilisateur:", error);
     throw error;
