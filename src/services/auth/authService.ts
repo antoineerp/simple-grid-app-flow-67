@@ -90,8 +90,8 @@ class AuthService {
         try {
             console.log(`Tentative de connexion pour l'utilisateur: ${username}`);
             
-            // Utiliser directement login-test.php qui est plus fiable
-            const authUrl = `${getApiUrl()}/login-test.php`;
+            // Utiliser auth.php au lieu de login-test.php
+            const authUrl = `${getApiUrl()}/auth.php`;
             console.log(`URL de requête (authentification): ${authUrl}`);
             
             const response = await fetch(authUrl, {
