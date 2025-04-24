@@ -32,6 +32,18 @@ trait UserQueries {
                 throw new Exception("Données utilisateur incomplètes");
             }
             
+            // Vérifier si un utilisateur avec cet email existe déjà
+            if ($this->emailExists($this->email)) {
+                error_log("Erreur: email déjà utilisé: " . $this->email);
+                throw new Exception("Un utilisateur avec cet email existe déjà");
+            }
+            
+            // Vérifier si un utilisateur avec cet identifiant existe déjà
+            if ($this->identifiantExists($this->identifiant_technique)) {
+                error_log("Erreur: identifiant technique déjà utilisé: " . $this->identifiant_technique);
+                throw new Exception("Un utilisateur avec cet identifiant existe déjà");
+            }
+            
             $query = "INSERT INTO " . $this->table_name . "
                     (nom, prenom, email, mot_de_passe, identifiant_technique, role, date_creation)
                     VALUES

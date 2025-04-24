@@ -3,6 +3,10 @@
 class ResponseHandler {
     public static function success($data = null, $message = '', $code = 200) {
         // S'assurer qu'aucun contenu n'a été envoyé avant
+        if (ob_get_level()) {
+            ob_clean();
+        }
+        
         if (!headers_sent()) {
             http_response_code($code);
             header('Content-Type: application/json; charset=UTF-8');
@@ -32,6 +36,10 @@ class ResponseHandler {
 
     public static function error($message, $code = 400, $details = null) {
         // S'assurer qu'aucun contenu n'a été envoyé avant
+        if (ob_get_level()) {
+            ob_clean();
+        }
+        
         if (!headers_sent()) {
             http_response_code($code);
             header('Content-Type: application/json; charset=UTF-8');

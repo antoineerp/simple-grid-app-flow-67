@@ -96,12 +96,18 @@ class UserOperations {
                 'data' => $responseData
             ]);
             
+            // Terminer l'exécution pour éviter tout autre output
+            exit;
+            
         } catch (Exception $e) {
             error_log("Erreur création utilisateur: " . $e->getMessage() . " dans " . $e->getFile() . " ligne " . $e->getLine());
             
             // Nettoyer tout buffer de sortie
-            if (ob_get_length()) {
-                ob_clean();
+            if (ob_get_length()) ob_clean();
+            
+            // S'assurer que les en-têtes sont correctement définis
+            if (!headers_sent()) {
+                header('Content-Type: application/json; charset=UTF-8');
             }
             
             ResponseHandler::error($e->getMessage(), 500);

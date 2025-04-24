@@ -55,6 +55,12 @@ try {
             // Log des données après décodage JSON pour debug
             error_log("UsersController - Données JSON décodées: " . json_encode($data));
             
+            // Vérifier que les en-têtes de réponse sont correctement définis
+            if (!headers_sent()) {
+                header('Content-Type: application/json; charset=UTF-8');
+            }
+            
+            // Appel à la méthode de traitement des requêtes POST
             $userOps->handlePostRequest();
             break;
             
@@ -72,6 +78,17 @@ try {
     }
 } catch (Exception $e) {
     error_log("UsersController - Exception: " . $e->getMessage() . " dans " . $e->getFile() . " à la ligne " . $e->getLine());
+    
+    // Nettoyer tout buffer de sortie existant
+    if (ob_get_level()) {
+        ob_clean();
+    }
+    
+    // S'assurer que les en-têtes sont correctement définis
+    if (!headers_sent()) {
+        header('Content-Type: application/json; charset=UTF-8');
+    }
+    
     ResponseHandler::error(
         "Erreur serveur: " . $e->getMessage(),
         500,
