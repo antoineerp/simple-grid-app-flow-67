@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { getApiUrl } from '@/config/apiConfig';
 import { getAuthHeaders } from '@/services/auth/authService';
@@ -13,6 +12,12 @@ export interface ApiConfig {
     development: string;
     production: string;
   };
+}
+
+export interface JsonTestResult {
+  success: boolean;
+  response?: any;
+  error?: Error | string | unknown;
 }
 
 export const useApiConfig = () => {
@@ -30,7 +35,6 @@ export const useApiConfig = () => {
   const [loading, setLoading] = useState(false);
   const [lastError, setLastError] = useState<string | null>(null);
 
-  // Charger la configuration depuis l'API
   const loadConfig = async () => {
     setLoading(true);
     setLastError(null);
@@ -44,15 +48,12 @@ export const useApiConfig = () => {
         cache: 'no-store' // Ne pas utiliser de cache
       });
       
-      // Récupérer d'abord le contenu brut pour vérifier qu'il s'agit de JSON valide
       const responseText = await response.text();
       
-      // Vérifier si la réponse est vide
       if (!responseText.trim()) {
         throw new Error("Réponse vide du serveur");
       }
       
-      // Vérifier si la réponse est du HTML au lieu du JSON
       if (responseText.trim().toLowerCase().startsWith('<!doctype') || 
           responseText.trim().toLowerCase().startsWith('<html')) {
         console.error("Réponse HTML reçue:", responseText.substring(0, 200));
@@ -77,14 +78,12 @@ export const useApiConfig = () => {
         variant: "destructive",
       });
       
-      // Suggérer un diagnostic
       console.info("Suggestion: testez l'API directement avec: " + getApiUrl() + "/json-test.php");
     } finally {
       setLoading(false);
     }
   };
 
-  // Sauvegarder la configuration
   const saveConfig = async () => {
     setLoading(true);
     setLastError(null);
@@ -110,14 +109,12 @@ export const useApiConfig = () => {
       const responseText = await response.text();
       console.log("Réponse brute:", responseText);
       
-      // Vérifier si la réponse est du HTML
       if (responseText.trim().toLowerCase().startsWith('<!doctype') || 
           responseText.trim().toLowerCase().startsWith('<html')) {
         console.error("Réponse HTML reçue:", responseText.substring(0, 200));
         throw new Error("Le serveur a renvoyé du HTML au lieu de JSON. Vérifiez la configuration du serveur.");
       }
       
-      // Analyser la réponse JSON
       let responseData;
       
       try {
@@ -125,7 +122,6 @@ export const useApiConfig = () => {
       } catch (e) {
         console.error("Échec du parsing JSON:", e);
         if (response.ok) {
-          // Si la réponse est OK mais pas du JSON, on peut quand même considérer que ça a marché
           toast({
             title: "Succès",
             description: "Configuration mise à jour (bien que la réponse ne soit pas du JSON)",
@@ -160,7 +156,6 @@ export const useApiConfig = () => {
     }
   };
 
-  // Mettre à jour les inputs lorsque la configuration change
   const handleInputChange = (
     section: 'api_urls' | 'allowed_origins',
     env: 'development' | 'production',
@@ -174,9 +169,8 @@ export const useApiConfig = () => {
       }
     }));
   };
-  
-  // Tester la réponse JSON pure
-  const testJsonFormat = async () => {
+
+  const testJsonFormat = async (): Promise<JsonTestResult> => {
     try {
       setLoading(true);
       const response = await fetch(`${getApiUrl()}/json-test.php`);

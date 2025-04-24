@@ -19,6 +19,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
     exit(json_encode(['status' => 200, 'message' => 'Preflight OK']));
 }
 
+// Capturer toute sortie pour éviter la contamination du JSON
+ob_start();
+
 // Créer une réponse simple
 $response = [
     'status' => 'success',
@@ -32,6 +35,9 @@ $response = [
         'array_value' => [1, 2, 3, 4, 5]
     ]
 ];
+
+// Nettoyer tout output accumulé
+ob_clean();
 
 // Vérifier si on veut tester une erreur JSON
 if (isset($_GET['error']) && $_GET['error'] === 'true') {
