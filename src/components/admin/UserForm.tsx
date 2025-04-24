@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { DialogFooter, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -13,7 +12,6 @@ import UserRoleSelect from './form/UserRoleSelect';
 import UserConnectOption from './form/UserConnectOption';
 import type { UserRole } from '@/types/roles';
 
-// Define form data type that matches the component's internal state
 interface UserFormData {
   nom: string;
   prenom: string;
@@ -112,7 +110,6 @@ const UserForm = ({ onClose, onSuccess, onUserConnect }: UserFormProps) => {
     try {
       console.log("Submitted user data:", formData);
       
-      // Convert UI role values to API role values
       const apiRole: 'admin' | 'user' | 'gestionnaire' = 
         formData.role === 'utilisateur' ? 'user' : 
         formData.role === 'administrateur' ? 'admin' : 

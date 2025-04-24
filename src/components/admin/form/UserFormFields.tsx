@@ -24,8 +24,8 @@ const UserFormFields = ({ fieldErrors, values, onChange }: UserFormFieldsProps) 
             name="nom"
             value={values.nom}
             onChange={onChange}
+            placeholder="Entrez le nom"
             className={`${fieldErrors.nom ? 'border-red-500' : ''}`}
-            required
           />
           {fieldErrors.nom && (
             <p className="text-xs text-red-500">{fieldErrors.nom}</p>
@@ -41,8 +41,8 @@ const UserFormFields = ({ fieldErrors, values, onChange }: UserFormFieldsProps) 
             name="prenom"
             value={values.prenom}
             onChange={onChange}
+            placeholder="Entrez le prénom"
             className={`${fieldErrors.prenom ? 'border-red-500' : ''}`}
-            required
           />
           {fieldErrors.prenom && (
             <p className="text-xs text-red-500">{fieldErrors.prenom}</p>
@@ -59,8 +59,8 @@ const UserFormFields = ({ fieldErrors, values, onChange }: UserFormFieldsProps) 
             type="email"
             value={values.email}
             onChange={onChange}
+            placeholder="Entrez l'email"
             className={`${fieldErrors.email ? 'border-red-500' : ''}`}
-            required
           />
           {fieldErrors.email && (
             <p className="text-xs text-red-500">{fieldErrors.email}</p>
@@ -77,8 +77,8 @@ const UserFormFields = ({ fieldErrors, values, onChange }: UserFormFieldsProps) 
             type="password"
             value={values.mot_de_passe}
             onChange={onChange}
+            placeholder="Entrez le mot de passe"
             className={`${fieldErrors.mot_de_passe ? 'border-red-500' : ''}`}
-            required
             minLength={6}
           />
           {fieldErrors.mot_de_passe && (
