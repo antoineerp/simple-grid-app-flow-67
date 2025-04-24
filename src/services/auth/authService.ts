@@ -1,4 +1,3 @@
-
 import { getApiUrl } from '@/config/apiConfig';
 import { toast } from '@/hooks/use-toast';
 import { disconnectUser } from '../core/databaseConnectionService';
@@ -45,44 +44,33 @@ class AuthService {
     }
 
     private async parseJsonResponse(response: Response): Promise<any> {
+        const responseText = await response.text();
+        console.log(`Réponse reçue (${response.status}): ${responseText.substring(0, 200)}...`);
+        
+        if (!responseText || responseText.trim() === '') {
+            console.warn('Réponse vide reçue du serveur');
+            throw new Error('Réponse vide du serveur');
+        }
+        
+        // Ne pas traiter la réponse de test comme une erreur, mais la reconnaître comme une réponse spéciale
+        if (responseText.includes('API PHP disponible') && !responseText.includes('token')) {
+            console.log('Détecté: réponse API info standard');
+            return { info: true, message: 'API info response' };
+        }
+        
+        if (responseText.trim().startsWith('<!DOCTYPE') || 
+            responseText.trim().startsWith('<html') ||
+            responseText.includes('<body')) {
+            console.error('Réponse HTML reçue au lieu de JSON:', responseText.substring(0, 200));
+            throw new Error('Le serveur a renvoyé une page HTML au lieu de JSON. Vérifiez la configuration du serveur.');
+        }
+        
         try {
-            const contentType = response.headers.get('content-type');
-            const responseText = await response.text();
-            console.log(`Réponse reçue (${response.status}): ${responseText.substring(0, 200)}...`);
-            console.log(`Content-Type: ${contentType}`);
-            
-            // Vérifier si le serveur renvoie du code PHP non exécuté
-            if (responseText.trim().startsWith('<?php')) {
-                console.error("Le serveur renvoie du code PHP au lieu de l'exécuter");
-                throw new Error("Le serveur PHP n'exécute pas le code. Vérifiez la configuration du serveur.");
-            }
-            
-            if (!responseText || responseText.trim() === '') {
-                console.warn('Réponse vide reçue du serveur');
-                throw new Error('Réponse vide du serveur');
-            }
-            
-            // Ne pas traiter la réponse de test comme une erreur
-            if (responseText.includes('API PHP disponible') && !responseText.includes('token')) {
-                console.log('Détecté: réponse API info standard');
-                return { info: true, message: 'API info response' };
-            }
-            
-            if (responseText.trim().startsWith('<!DOCTYPE') || 
-                responseText.trim().startsWith('<html') ||
-                responseText.includes('<body')) {
-                console.error('Réponse HTML reçue au lieu de JSON:', responseText.substring(0, 200));
-                throw new Error('Le serveur a renvoyé une page HTML au lieu de JSON. Vérifiez la configuration du serveur.');
-            }
-            
             return JSON.parse(responseText);
         } catch (e) {
-            if (e instanceof SyntaxError) {
-                console.error('Erreur lors du parsing JSON:', e);
-                console.error('Texte reçu:', e);
-                throw new Error('Réponse du serveur non valide. Format JSON attendu.');
-            }
-            throw e;
+            console.error('Erreur lors du parsing JSON:', e);
+            console.error('Texte reçu:', responseText.substring(0, 500));
+            throw new Error('Réponse du serveur non valide. Format JSON attendu.');
         }
     }
 
@@ -90,22 +78,19 @@ class AuthService {
         try {
             console.log(`Tentative de connexion pour l'utilisateur: ${username}`);
             
-            // Utiliser auth.php directement au lieu d'une URL relative
-            const authUrl = `${getApiUrl()}/auth.php`;
+            const authUrl = `${getApiUrl()}/auth`;
             console.log(`URL de requête (authentification): ${authUrl}`);
             
             const response = await fetch(authUrl, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Cache-Control': 'no-cache, no-store, must-revalidate',
-                    'Accept': 'application/json'
+                    'Cache-Control': 'no-cache, no-store, must-revalidate'
                 },
                 body: JSON.stringify({ username, password })
             });
             
-            // On utilise une méthode différente pour vérifier le status car response.ok ne suffit pas
-            if (response.status !== 200) {
+            if (!response.ok) {
                 const errorData = await this.parseJsonResponse(response);
                 throw new Error(errorData.message || `Échec de l'authentification (${response.status})`);
             }

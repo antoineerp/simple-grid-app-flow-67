@@ -2,42 +2,6 @@
 # Activer la réécriture d'URL
 RewriteEngine On
 
-# Forcer PHP à s'exécuter même si le fichier est appelé directement
-<FilesMatch "\.php$">
-    SetHandler application/x-httpd-php
-</FilesMatch>
-
-# Force parser les fichiers .php en PHP
-AddHandler application/x-httpd-php .php
-AddType application/x-httpd-php .php
-
-# Définir les en-têtes CORS et Content-Type
-<IfModule mod_headers.c>
-    Header set Access-Control-Allow-Origin "*"
-    Header set Access-Control-Allow-Methods "GET, POST, OPTIONS, PUT, DELETE"
-    Header set Access-Control-Allow-Headers "Content-Type, Authorization"
-    Header set Content-Type "application/json; charset=UTF-8"
-    
-    # Désactiver la mise en cache
-    Header set Cache-Control "no-cache, no-store, must-revalidate"
-    Header set Pragma "no-cache"
-    Header set Expires 0
-    
-    # Ne pas modifier Content-Type pour les fichiers PHP
-    <FilesMatch "\.(php)$">
-        Header unset Content-Type
-        SetHandler application/x-httpd-php
-    </FilesMatch>
-</IfModule>
-
-# Forcer PHP à utiliser le bon encodage
-<IfModule mod_php.c>
-    php_flag engine on
-    php_value default_charset "UTF-8"
-    php_value output_buffering Off
-    php_value display_errors On
-</IfModule>
-
 # Permettre l'accès direct aux fichiers PHP spécifiques
 RewriteCond %{REQUEST_FILENAME} -f
 RewriteRule \.(php)$ - [L]
@@ -46,3 +10,20 @@ RewriteRule \.(php)$ - [L]
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^(.*)$ index.php [QSA,L]
+
+# Définir les en-têtes CORS
+<IfModule mod_headers.c>
+    Header set Access-Control-Allow-Origin "*"
+    Header set Access-Control-Allow-Methods "GET, POST, OPTIONS, PUT, DELETE"
+    Header set Access-Control-Allow-Headers "Content-Type, Authorization"
+    
+    # Eviter la mise en cache
+    Header set Cache-Control "no-cache, no-store, must-revalidate"
+    Header set Pragma "no-cache"
+    Header set Expires 0
+</IfModule>
+
+# Forcer PHP à utiliser le bon encodage
+<IfModule mod_php.c>
+    php_value default_charset "UTF-8"
+</IfModule>

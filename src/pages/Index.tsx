@@ -6,7 +6,6 @@ import { getApiUrl, getFullApiUrl, testApiConnection } from '@/config/apiConfig'
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle, ExternalLink, Server, RefreshCw } from 'lucide-react';
-import { Link } from 'react-router-dom';
 
 const Index = () => {
   const [apiStatus, setApiStatus] = useState<'loading' | 'success' | 'error'>('loading');
@@ -47,7 +46,7 @@ const Index = () => {
     setIsInfomaniak(infomaniakDetected);
     
     checkApi();
-    setVersion(`1.0.8 - ${new Date().toLocaleDateString()}`);
+    setVersion(`1.0.7 - ${new Date().toLocaleDateString()}`);
   }, []);
 
   return (
@@ -77,31 +76,19 @@ const Index = () => {
                 )}
               </div>
               
-              <div className="flex gap-2 mt-2">
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  onClick={() => {
-                    setIsRetesting(true);
-                    checkApi();
-                  }}
-                  disabled={isRetesting}
-                >
-                  <RefreshCw className={`h-3 w-3 mr-1 ${isRetesting ? 'animate-spin' : ''}`} />
-                  {isRetesting ? 'Test en cours...' : 'Tester à nouveau'}
-                </Button>
-                
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  asChild
-                >
-                  <Link to="/diagnostic">
-                    <Server className="h-3 w-3 mr-1" />
-                    Diagnostic complet
-                  </Link>
-                </Button>
-              </div>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="mt-2" 
+                onClick={() => {
+                  setIsRetesting(true);
+                  checkApi();
+                }}
+                disabled={isRetesting}
+              >
+                <RefreshCw className={`h-3 w-3 mr-1 ${isRetesting ? 'animate-spin' : ''}`} />
+                {isRetesting ? 'Test en cours...' : 'Tester à nouveau'}
+              </Button>
             </AlertDescription>
           </Alert>
         )}
@@ -125,7 +112,7 @@ const Index = () => {
           
           {apiStatus === 'error' && (
             <div className="mt-2 text-xs text-red-500">
-              Pour résoudre ce problème, visitez la page de <Link to="/diagnostic" className="text-blue-500 hover:underline">diagnostic complet</Link>.
+              Pour résoudre ce problème, vérifiez que votre serveur exécute correctement PHP.
             </div>
           )}
         </div>
