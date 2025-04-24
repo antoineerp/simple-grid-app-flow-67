@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { FileDown, Cloud } from 'lucide-react';
+import { FileDown } from 'lucide-react';
 import { MembresProvider } from '@/contexts/MembresContext';
 import DocumentForm from '@/components/gestion-documentaire/DocumentForm';
 import DocumentStats from '@/components/gestion-documentaire/DocumentStats';
@@ -16,7 +16,6 @@ const GestionDocumentaireContent = () => {
     stats,
     editingDocument,
     dialogOpen,
-    isSyncing,
     setDialogOpen,
     handleResponsabiliteChange,
     handleAtteinteChange,
@@ -25,8 +24,7 @@ const GestionDocumentaireContent = () => {
     handleSaveDocument,
     handleDelete,
     handleAddDocument,
-    handleReorder,
-    syncWithServer
+    handleReorder
   } = useDocuments();
   
   const { toast } = useToast();
@@ -47,16 +45,6 @@ const GestionDocumentaireContent = () => {
           <p className="text-gray-600">Documentation des tâches</p>
         </div>
         <div className="flex space-x-2">
-          <Button
-            variant="outline"
-            onClick={syncWithServer}
-            disabled={isSyncing}
-            className="flex items-center gap-1"
-            title="Synchroniser avec le serveur"
-          >
-            <Cloud className="h-5 w-5" />
-            {isSyncing ? "Synchronisation..." : "Synchroniser"}
-          </Button>
           <Button 
             variant="outline"
             onClick={handleExportPdf}
