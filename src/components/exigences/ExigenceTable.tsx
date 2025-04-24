@@ -1,8 +1,7 @@
-
 import React from 'react';
-import { Pencil, Trash, GripVertical } from 'lucide-react';
+import { Pencil, Trash, GripVertical, ChevronDown, FolderPlus } from 'lucide-react';
 import ResponsableSelector from '@/components/ResponsableSelector';
-import { Exigence } from '@/types/exigences';
+import { Exigence, ExigenceGroup } from '@/types/exigences';
 import {
   Table,
   TableBody,
@@ -14,23 +13,35 @@ import {
 
 interface ExigenceTableProps {
   exigences: Exigence[];
+  groups: ExigenceGroup[];
   onResponsabiliteChange: (id: string, type: 'r' | 'a' | 'c' | 'i', values: string[]) => void;
   onAtteinteChange: (id: string, atteinte: 'NC' | 'PC' | 'C' | null) => void;
   onExclusionChange: (id: string) => void;
   onEdit: (id: string) => void;
   onDelete: (id: string) => void;
   onReorder: (startIndex: number, endIndex: number) => void;
+  onGroupReorder: (startIndex: number, endIndex: number) => void;
+  onToggleGroup: (id: string) => void;
+  onEditGroup: (group: ExigenceGroup) => void;
+  onDeleteGroup: (id: string) => void;
 }
 
 const ExigenceTable: React.FC<ExigenceTableProps> = ({
   exigences,
+  groups,
   onResponsabiliteChange,
   onAtteinteChange,
   onExclusionChange,
   onEdit,
   onDelete,
-  onReorder
+  onReorder,
+  onGroupReorder,
+  onToggleGroup,
+  onEditGroup,
+  onDeleteGroup
 }) => {
+  const ungroupedExigences = exigences.filter(e => !e.groupId);
+
   return (
     <div className="bg-white rounded-md shadow overflow-hidden">
       <Table>
@@ -61,9 +72,150 @@ const ExigenceTable: React.FC<ExigenceTableProps> = ({
             <TableHead className="py-2"></TableHead>
           </TableRow>
         </TableHeader>
+        <TableBody onReorder={onGroupReorder}>
+          {groups.map((group) => (
+            <React.Fragment key={group.id}>
+              <TableRow className="border-b hover:bg-gray-50 cursor-pointer" onClick={() => onToggleGroup(group.id)}>
+                <TableCell className="py-3 px-2 w-10">
+                  <GripVertical className="h-5 w-5 text-gray-400" />
+                </TableCell>
+                <TableCell className="py-3 px-4 text-center">
+                  <ChevronDown className={`h-4 w-4 inline-block transition-transform ${group.expanded ? 'rotate-180' : ''}`} />
+                </TableCell>
+                <TableCell className="py-3 px-4 font-medium" colSpan={7}>{group.name}</TableCell>
+                <TableCell className="py-3 px-4 text-right">
+                  <button 
+                    className="text-gray-600 hover:text-app-blue mr-3"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onEditGroup(group);
+                    }}
+                  >
+                    <Pencil className="h-5 w-5 inline-block" />
+                  </button>
+                  <button 
+                    className="text-gray-600 hover:text-red-500"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onDeleteGroup(group.id);
+                    }}
+                  >
+                    <Trash className="h-5 w-5 inline-block" />
+                  </button>
+                </TableCell>
+              </TableRow>
+              {group.expanded && (
+                <TableBody onReorder={(start, end) => onReorder(start, end)}>
+                  {group.items.map((exigence) => (
+                    <TableRow key={exigence.id} className="border-b hover:bg-gray-50 bg-gray-50">
+                      <TableCell className="py-3 px-2 w-10">
+                        <GripVertical className="h-5 w-5 text-gray-400" />
+                      </TableCell>
+                      <TableCell className="py-3 px-4">{exigence.nom}</TableCell>
+                      
+                      <TableCell className="py-3 px-1 text-center">
+                        <ResponsableSelector 
+                          selectedInitiales={exigence.responsabilites.r}
+                          onChange={(values) => onResponsabiliteChange(exigence.id, 'r', values)}
+                          type="r"
+                        />
+                      </TableCell>
+                      <TableCell className="py-3 px-1 text-center">
+                        <ResponsableSelector 
+                          selectedInitiales={exigence.responsabilites.a}
+                          onChange={(values) => onResponsabiliteChange(exigence.id, 'a', values)}
+                          type="a"
+                        />
+                      </TableCell>
+                      <TableCell className="py-3 px-1 text-center">
+                        <ResponsableSelector 
+                          selectedInitiales={exigence.responsabilites.c}
+                          onChange={(values) => onResponsabiliteChange(exigence.id, 'c', values)}
+                          type="c"
+                        />
+                      </TableCell>
+                      <TableCell className="py-3 px-1 text-center">
+                        <ResponsableSelector 
+                          selectedInitiales={exigence.responsabilites.i}
+                          onChange={(values) => onResponsabiliteChange(exigence.id, 'i', values)}
+                          type="i"
+                        />
+                      </TableCell>
+                      
+                      <TableCell className="py-3 px-4 text-center">
+                        <input 
+                          type="checkbox" 
+                          checked={exigence.exclusion}
+                          onChange={() => onExclusionChange(exigence.id)}
+                          className="form-checkbox h-4 w-4 text-app-blue rounded"
+                          onClick={(e) => e.stopPropagation()} // Prevent row drag
+                        />
+                      </TableCell>
+
+                      <TableCell className="py-3 px-1 text-center">
+                        <input 
+                          type="radio" 
+                          name={`atteinte-${exigence.id}`}
+                          checked={exigence.atteinte === 'NC'}
+                          onChange={() => onAtteinteChange(exigence.id, 'NC')}
+                          className="form-radio h-4 w-4 text-red-500"
+                          disabled={exigence.exclusion}
+                          onClick={(e) => e.stopPropagation()} // Prevent row drag
+                        />
+                      </TableCell>
+                      <TableCell className="py-3 px-1 text-center">
+                        <input 
+                          type="radio" 
+                          name={`atteinte-${exigence.id}`}
+                          checked={exigence.atteinte === 'PC'}
+                          onChange={() => onAtteinteChange(exigence.id, 'PC')}
+                          className="form-radio h-4 w-4 text-yellow-500"
+                          disabled={exigence.exclusion}
+                          onClick={(e) => e.stopPropagation()} // Prevent row drag
+                        />
+                      </TableCell>
+                      <TableCell className="py-3 px-1 text-center">
+                        <input 
+                          type="radio" 
+                          name={`atteinte-${exigence.id}`}
+                          checked={exigence.atteinte === 'C'}
+                          onChange={() => onAtteinteChange(exigence.id, 'C')}
+                          className="form-radio h-4 w-4 text-green-500"
+                          disabled={exigence.exclusion}
+                          onClick={(e) => e.stopPropagation()} // Prevent row drag
+                        />
+                      </TableCell>
+                      
+                      <TableCell className="py-3 px-4 text-right">
+                        <button 
+                          className="text-gray-600 hover:text-app-blue mr-3"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onEdit(exigence.id);
+                          }}
+                        >
+                          <Pencil className="h-5 w-5 inline-block" />
+                        </button>
+                        <button 
+                          className="text-gray-600 hover:text-red-500"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onDelete(exigence.id);
+                          }}
+                        >
+                          <Trash className="h-5 w-5 inline-block" />
+                        </button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              )}
+            </React.Fragment>
+          ))}
+        </TableBody>
         <TableBody onReorder={onReorder}>
-          {exigences.map((exigence) => (
-            <TableRow key={exigence.id} className="border-b">
+          {ungroupedExigences.map((exigence) => (
+            <TableRow key={exigence.id} className="border-b hover:bg-gray-50">
               <TableCell className="py-3 px-2 w-10">
                 <GripVertical className="h-5 w-5 text-gray-400" />
               </TableCell>
