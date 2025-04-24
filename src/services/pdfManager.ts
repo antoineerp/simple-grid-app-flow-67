@@ -1,3 +1,4 @@
+
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import { format } from 'date-fns';
@@ -46,79 +47,33 @@ export const createAndDownloadPdf = (
   callback: (doc: jsPDF) => void,
   filename: string
 ): void => {
+  console.log("Début de la création du PDF:", filename);
   // Create new PDF document
   const doc = new jsPDF();
   
-  // Current date for the document
-  const currentDate = format(new Date(), 'dd MMMM yyyy à HH:mm', { locale: fr });
+  // Logging pour débogage
+  console.log("Document PDF créé");
   
-  // Add logo to document
   try {
-    // Try to load logo
-    const logoPath = getCurrentLogo();
-    const img = new Image();
-    img.src = logoPath;
+    // Exécuter directement la génération du contenu
+    console.log("Exécution du callback pour générer le contenu");
+    callback(doc);
+    console.log("Contenu généré avec succès");
     
-    // Set up image load event
-    img.onload = () => {
-      try {
-        // Add logo to PDF
-        const imgWidth = 30;
-        const imgHeight = (img.height * imgWidth) / img.width;
-        doc.addImage(img, 'PNG', 10, 10, imgWidth, imgHeight);
-      } catch (error) {
-        console.error("Error adding logo to PDF:", error);
-      } finally {
-        // Always continue with document generation
-        finalizePdf();
-      }
-    };
-    
-    // Handle image load errors
-    img.onerror = () => {
-      console.error("Error loading logo image");
-      finalizePdf();
-    };
-    
-    // Set timeout to ensure PDF generation even if image loading hangs
-    const timeoutId = setTimeout(finalizePdf, 500);
-    
-    // Function to complete PDF and download it
-    function finalizePdf() {
-      clearTimeout(timeoutId); // Clear timeout if it hasn't fired yet
-      
-      // Continue with PDF generation using callback
-      try {
-        callback(doc);
-      } catch (error) {
-        console.error("Error during PDF generation:", error);
-      }
-      
-      // Save PDF - ensure this always executes
-      try {
-        doc.save(generateFilename(filename));
-      } catch (error) {
-        console.error("Error saving PDF:", error);
-        // Last resort - try to open in new window
-        try {
-          const pdfBlob = doc.output('blob');
-          const pdfUrl = URL.createObjectURL(pdfBlob);
-          window.open(pdfUrl, '_blank');
-        } catch (finalError) {
-          console.error("Failed to generate PDF in any way:", finalError);
-        }
-      }
-    }
+    // Sauvegarder le PDF
+    console.log("Sauvegarde du PDF:", generateFilename(filename));
+    doc.save(generateFilename(filename));
+    console.log("PDF sauvegardé avec succès");
   } catch (error) {
-    console.error("Initial PDF creation error:", error);
-    // Attempt PDF generation without logo
+    console.error("Erreur lors de la génération du PDF:", error);
+    // En cas d'erreur, tenter d'ouvrir le PDF dans une nouvelle fenêtre
     try {
-      callback(doc);
-      doc.save(generateFilename(filename));
+      const pdfBlob = doc.output('blob');
+      const pdfUrl = URL.createObjectURL(pdfBlob);
+      window.open(pdfUrl, '_blank');
+      console.log("PDF ouvert dans une nouvelle fenêtre");
     } catch (finalError) {
-      console.error("Failed to generate PDF without logo:", finalError);
+      console.error("Échec de la génération du PDF:", finalError);
     }
   }
-  
-  return;
 };

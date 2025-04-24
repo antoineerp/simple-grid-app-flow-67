@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { useResponsabilityMatrix } from '@/hooks/useResponsabilityMatrix';
@@ -22,11 +21,21 @@ const ResponsibilityMatrix: React.FC = () => {
   };
 
   const handleExportPdf = (membre) => {
-    exportCollaborateurStatsToPdf(membre);
-    toast({
-      title: "Export PDF",
-      description: `Les statistiques de ${membre.prenom} ${membre.nom} ont été exportées au format PDF`,
-    });
+    try {
+      console.log("Export PDF pour:", membre.prenom, membre.nom);
+      exportCollaborateurStatsToPdf(membre);
+      toast({
+        title: "Export PDF",
+        description: `Les statistiques de ${membre.prenom} ${membre.nom} ont été exportées au format PDF`,
+      });
+    } catch (error) {
+      console.error("Erreur lors de l'export PDF:", error);
+      toast({
+        title: "Erreur d'export",
+        description: `Une erreur est survenue: ${error.message}`,
+        variant: "destructive"
+      });
+    }
   };
 
   return (
