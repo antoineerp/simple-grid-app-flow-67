@@ -1,15 +1,16 @@
 
 import React from 'react';
 import { Table, TableBody } from "@/components/ui/table";
-import { Document, DocumentGroup } from '@/types/documents';
+import { Document } from '@/types/documents';
+import type { DocumentGroup as DocumentGroupType } from '@/types/documents';
 import DocumentTableHeader from './table/TableHeader';
 import DocumentRow from './table/DocumentRow';
-import DocumentGroup from './table/DocumentGroup';
+import DocumentGroupComponent from './table/DocumentGroup';
 import { useDragAndDrop } from './table/useDragAndDrop';
 
 interface DocumentTableProps {
   documents: Document[];
-  groups: DocumentGroup[];
+  groups: DocumentGroupType[];
   onResponsabiliteChange: (id: string, type: 'r' | 'a' | 'c' | 'i', values: string[]) => void;
   onAtteinteChange: (id: string, atteinte: 'NC' | 'PC' | 'C' | null) => void;
   onExclusionChange: (id: string) => void;
@@ -18,7 +19,7 @@ interface DocumentTableProps {
   onReorder: (startIndex: number, endIndex: number, targetGroupId?: string) => void;
   onGroupReorder: (startIndex: number, endIndex: number) => void;
   onToggleGroup: (id: string) => void;
-  onEditGroup: (group: DocumentGroup) => void;
+  onEditGroup: (group: DocumentGroupType) => void;
   onDeleteGroup: (id: string) => void;
 }
 
@@ -59,7 +60,7 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
         
         <TableBody>
           {groups.map((group) => (
-            <DocumentGroup
+            <DocumentGroupComponent
               key={group.id}
               group={group}
               onResponsabiliteChange={onResponsabiliteChange}

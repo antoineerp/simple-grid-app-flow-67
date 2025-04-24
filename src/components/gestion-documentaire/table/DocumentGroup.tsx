@@ -2,18 +2,18 @@
 import React from 'react';
 import { Pencil, Trash, GripVertical, ChevronDown } from 'lucide-react';
 import { TableCell, TableRow } from "@/components/ui/table";
-import { Document, DocumentGroup } from '@/types/documents';
+import { Document, type DocumentGroup as DocumentGroupType } from '@/types/documents';
 import DocumentRow from './DocumentRow';
 
 interface DocumentGroupProps {
-  group: DocumentGroup;
+  group: DocumentGroupType;
   onResponsabiliteChange: (id: string, type: 'r' | 'a' | 'c' | 'i', values: string[]) => void;
   onAtteinteChange: (id: string, atteinte: 'NC' | 'PC' | 'C' | null) => void;
   onExclusionChange: (id: string) => void;
   onEdit: (id: string) => void;
   onDelete: (id: string) => void;
   onToggleGroup: (id: string) => void;
-  onEditGroup: (group: DocumentGroup) => void;
+  onEditGroup: (group: DocumentGroupType) => void;
   onDeleteGroup: (id: string) => void;
   onDragStart: (e: React.DragEvent<HTMLTableRowElement>, id: string, groupId?: string) => void;
   onDragOver: (e: React.DragEvent<HTMLTableRowElement>) => void;
@@ -24,7 +24,7 @@ interface DocumentGroupProps {
   onGroupDrop: (e: React.DragEvent<HTMLTableRowElement>, groupId: string) => void;
 }
 
-const DocumentGroup: React.FC<DocumentGroupProps> = ({ 
+const DocumentGroupComponent: React.FC<DocumentGroupProps> = ({ 
   group,
   onResponsabiliteChange,
   onAtteinteChange,
@@ -126,4 +126,4 @@ const DocumentGroup: React.FC<DocumentGroupProps> = ({
   );
 };
 
-export default DocumentGroup;
+export default DocumentGroupComponent;
