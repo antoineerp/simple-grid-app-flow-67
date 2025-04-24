@@ -21,9 +21,9 @@ export const useDocumentSummary = () => {
       const documents = loadDocumentsFromStorage(currentUser);
       
       // Calculate stats
-      const newStats = calculateDocumentStats(documents);
+      const documentStats = calculateDocumentStats(documents);
       
-      setStats(newStats);
+      setStats(documentStats);
     };
 
     // Load documents initially

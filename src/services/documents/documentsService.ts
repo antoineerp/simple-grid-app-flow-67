@@ -56,7 +56,8 @@ export const saveDocumentsToStorage = (documents: Document[], currentUser: strin
 };
 
 /**
- * Calculates document statistics
+ * Legacy calculate document statistics function (kept for backward compatibility)
+ * @deprecated Use the version from documentStatsService instead
  */
 export const calculateDocumentStats = (documents: Document[]) => {
   const totalDocuments = documents.length;
@@ -70,5 +71,7 @@ export const calculateDocumentStats = (documents: Document[]) => {
     nonConforme: documents.filter(doc => doc.etat === 'NC').length,
     partiellementConforme: documents.filter(doc => doc.etat === 'PC').length,
     conforme: documents.filter(doc => doc.etat === 'C').length,
+    // Add exclusion property to match the expected type
+    exclusion: excluded
   };
 };
