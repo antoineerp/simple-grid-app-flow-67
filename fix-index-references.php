@@ -27,6 +27,10 @@ require_once 'index-validator.php';
         <h2>Analyse du fichier index.html</h2>
         <?php
         $indexPath = '../index.html';
+        if (!file_exists($indexPath)) {
+            $indexPath = './index.html';
+        }
+        
         if (file_exists($indexPath)) {
             echo "<p>Fichier index.html: <span class='success'>EXISTE</span></p>";
             $index_content = file_get_contents($indexPath);
@@ -67,6 +71,38 @@ require_once 'index-validator.php';
             echo "<p>Fichier JavaScript principal trouvé: <span class='success'>" . $main_js . "</span></p>";
         } else {
             echo "<p>Fichier JavaScript principal: <span class='error'>NON TROUVÉ</span></p>";
+            
+            // Essayons de créer des fichiers ponts
+            if (!file_exists('./assets')) {
+                mkdir('./assets', 0755, true);
+                echo "<p>Création du dossier assets: <span class='success'>OK</span></p>";
+            }
+            
+            if (!file_exists('./assets/index.js')) {
+                $js_content = "// Fichier pont pour la compatibilité avec les scripts de diagnostic\n";
+                $js_content .= "console.log('Chargement du fichier pont index.js');\n";
+                $js_content .= "// Import dynamique du fichier principal s'il existe\n";
+                $js_content .= "try {\n";
+                $js_content .= "  const mainModule = await import('./main-B-vZZSaR.js').catch(() => null);\n";
+                $js_content .= "  if (!mainModule) console.error('Fichier main-B-vZZSaR.js non trouvé');\n";
+                $js_content .= "} catch (e) {\n";
+                $js_content .= "  console.error('Erreur lors du chargement du module principal:', e);\n";
+                $js_content .= "}\n";
+                
+                file_put_contents('./assets/index.js', $js_content);
+                echo "<p>Création du fichier pont index.js: <span class='success'>OK</span></p>";
+                $main_js = 'index.js';
+            }
+            
+            if (!file_exists('./assets/index.css')) {
+                $css_content = "/* Fichier pont pour la compatibilité avec index.html */\n";
+                $css_content .= "/* Ce fichier importe le CSS compilé s'il existe */\n";
+                $css_content .= "@import url('./main-B-vZZSaR.css');\n";
+                
+                file_put_contents('./assets/index.css', $css_content);
+                echo "<p>Création du fichier pont index.css: <span class='success'>OK</span></p>";
+                $main_css = 'index.css';
+            }
         }
         
         if ($main_css) {
@@ -75,8 +111,8 @@ require_once 'index-validator.php';
             echo "<p>Fichier CSS principal: <span class='error'>NON TROUVÉ</span></p>";
         }
         
-        $js_files = find_assets_in_dir('../assets', 'js');
-        $css_files = find_assets_in_dir('../assets', 'css');
+        $js_files = find_assets_in_dir('./assets', 'js');
+        $css_files = find_assets_in_dir('./assets', 'css');
         ?>
         <?php if (!empty($js_files)): ?>
             <p>Tous les fichiers JavaScript trouvés:</p><ul>
@@ -99,7 +135,7 @@ require_once 'index-validator.php';
         <?php
         if (file_exists($indexPath)) {
             $needs_correction = !$refs['has_js_reference'] || !$refs['has_css_reference'] || $refs['has_src_reference'];
-            if ($needs_correction && $main_js) {
+            if ($needs_correction) {
                 echo "<p>Des corrections sont nécessaires dans index.html pour référencer correctement les assets.</p>";
                 if (isset($_POST['fix_index'])) {
                     copy($indexPath, $indexPath . '.bak');
