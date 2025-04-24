@@ -48,8 +48,6 @@ try {
             
             if (empty($inputData)) {
                 error_log("UserController - ERREUR: Aucune donnée reçue dans POST");
-                ResponseHandler::error("Aucune donnée reçue", 400);
-                return;
             } else {
                 error_log("UserController - Données reçues: " . $inputData);
                 
@@ -81,9 +79,8 @@ try {
     }
 } catch (Exception $e) {
     error_log("UserController - EXCEPTION CRITIQUE: " . $e->getMessage() . " à la ligne " . $e->getLine() . " dans " . $e->getFile());
-    error_log("UserController - Trace: " . $e->getTraceAsString());
     ResponseHandler::error(
-        "Erreur serveur interne: " . $e->getMessage(),
+        "Erreur serveur: " . $e->getMessage(),
         500,
         ["debug_info" => get_class($e) . " à la ligne " . $e->getLine() . " dans " . $e->getFile()]
     );

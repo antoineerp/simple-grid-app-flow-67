@@ -15,11 +15,6 @@ AddType text/css .css
 AddType application/json .json
 AddType image/svg+xml .svg
 
-# Autoriser explicitement l'exécution des fichiers PHP
-<FilesMatch "\.php$">
-    SetHandler application/x-httpd-php
-</FilesMatch>
-
 # Permettre l'accès aux assets
 <FilesMatch "\.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot|map|tsx?)$">
     Order Allow,Deny

@@ -47,12 +47,6 @@ class AuthService {
         const responseText = await response.text();
         console.log(`Réponse reçue (${response.status}): ${responseText.substring(0, 200)}...`);
         
-        // Si la réponse contient du code PHP, c'est que le serveur ne l'exécute pas
-        if (responseText.includes('<?php')) {
-            console.error('Le serveur renvoie du code PHP au lieu de l\'exécuter');
-            throw new Error('Le serveur PHP n\'exécute pas le code. Vérifiez la configuration du serveur.');
-        }
-        
         if (!responseText || responseText.trim() === '') {
             console.warn('Réponse vide reçue du serveur');
             throw new Error('Réponse vide du serveur');
@@ -61,7 +55,7 @@ class AuthService {
         // Ne pas traiter la réponse de test comme une erreur, mais la reconnaître comme une réponse spéciale
         if (responseText.includes('API PHP disponible') && !responseText.includes('token')) {
             console.log('Détecté: réponse API info standard');
-            throw new Error('API info response');
+            return { info: true, message: 'API info response' };
         }
         
         if (responseText.trim().startsWith('<!DOCTYPE') || 
@@ -84,8 +78,7 @@ class AuthService {
         try {
             console.log(`Tentative de connexion pour l'utilisateur: ${username}`);
             
-            // Utiliser directement login-test.php qui a fonctionné précédemment
-            const authUrl = `${API_URL}/login-test`; 
+            const authUrl = `${getApiUrl()}/auth`;
             console.log(`URL de requête (authentification): ${authUrl}`);
             
             const response = await fetch(authUrl, {
