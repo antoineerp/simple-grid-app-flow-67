@@ -91,10 +91,14 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
                 <TableCell className="py-3 px-2 w-10">
                   <GripVertical className="h-5 w-5 text-gray-400" />
                 </TableCell>
-                <TableCell className="py-3 px-4 text-center">
-                  <ChevronDown className={`h-4 w-4 inline-block transition-transform ${group.expanded ? 'rotate-180' : ''}`} />
+                <TableCell className="py-3 px-4 w-full text-left" colSpan={9}>
+                  <div className="flex items-center">
+                    <ChevronDown 
+                      className={`h-4 w-4 mr-2 inline-block transition-transform ${group.expanded ? 'rotate-180' : ''}`} 
+                    />
+                    <span className="font-medium">{group.name}</span>
+                  </div>
                 </TableCell>
-                <TableCell className="py-3 px-4 font-medium" colSpan={8}>{group.name}</TableCell>
                 <TableCell className="py-3 px-4 text-right">
                   <button 
                     className="text-gray-600 hover:text-app-blue mr-3"
