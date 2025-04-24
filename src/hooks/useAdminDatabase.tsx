@@ -28,19 +28,7 @@ export const useAdminDatabase = () => {
       setLoading(true);
       setError(null);
       const info = await getDatabaseInfo();
-      
-      // Si les informations sont récupérées avec succès
-      if (info) {
-        setDbInfo(info);
-        
-        // Si le statut est "Online", afficher un toast de succès
-        if (info.status === "Online") {
-          toast({
-            title: "Base de données connectée",
-            description: "Connexion établie avec la base de données.",
-          });
-        }
-      }
+      setDbInfo(info);
     } catch (err) {
       console.error("Erreur lors du chargement des informations de la base de données:", err);
       setError(err instanceof Error ? err.message : "Erreur inconnue");
@@ -66,7 +54,7 @@ export const useAdminDatabase = () => {
           description: "La connexion à la base de données est opérationnelle.",
         });
         // Recharger les informations après un test réussi
-        await loadDatabaseInfo();
+        loadDatabaseInfo();
       } else {
         setError("Le test de connexion a échoué");
         toast({

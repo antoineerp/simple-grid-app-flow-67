@@ -1,6 +1,6 @@
 
-import React, { useState, useEffect } from 'react';
-import { FileText, UserPlus, RefreshCw } from 'lucide-react';
+import React, { useState } from 'react';
+import { FileText, UserPlus } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import {
   Dialog,
@@ -9,16 +9,14 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
 import { useMembres } from '@/contexts/MembresContext';
 import MemberList from '@/components/ressources-humaines/MemberList';
 import MemberForm from '@/components/ressources-humaines/MemberForm';
 import { Membre } from '@/types/membres';
-import { syncMembresWithServer } from '@/services/membres/membresService';
 
 const RessourcesHumaines = () => {
   const { toast } = useToast();
-  const { membres, setMembres, loading, refreshMembres } = useMembres();
+  const { membres, setMembres } = useMembres();
   
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [currentMembre, setCurrentMembre] = useState<Membre>({
@@ -28,49 +26,9 @@ const RessourcesHumaines = () => {
     fonction: '',
     initiales: '',
     date_creation: new Date(),
-    mot_de_passe: ''
+    mot_de_passe: '' // Ajout du champ obligatoire
   });
   const [isEditing, setIsEditing] = useState(false);
-  const [isSyncing, setIsSyncing] = useState(false);
-  const [isRefreshing, setIsRefreshing] = useState(false);
-
-  // Synchroniser avec le serveur au chargement
-  useEffect(() => {
-    const syncWithServer = async () => {
-      if (membres.length > 0 && !loading) {
-        setIsSyncing(true);
-        const currentUser = localStorage.getItem('currentUser') || 
-                           localStorage.getItem('userEmail') || 
-                           'default_user';
-                           
-        try {
-          await syncMembresWithServer(membres, currentUser);
-        } catch (error) {
-          console.error("Erreur lors de la synchronisation initiale:", error);
-        } finally {
-          setIsSyncing(false);
-        }
-      }
-    };
-    
-    syncWithServer();
-  }, [membres, loading]);
-
-  // Handler pour rafraîchir les données
-  const handleRefresh = async () => {
-    setIsRefreshing(true);
-    try {
-      await refreshMembres();
-      toast({
-        title: "Données rafraîchies",
-        description: "La liste des membres a été mise à jour",
-      });
-    } catch (error) {
-      console.error("Erreur lors du rafraîchissement:", error);
-    } finally {
-      setIsRefreshing(false);
-    }
-  };
 
   // Handler for edit action
   const handleEdit = (id: string) => {
@@ -105,7 +63,7 @@ const RessourcesHumaines = () => {
       fonction: '',
       initiales: '',
       date_creation: new Date(),
-      mot_de_passe: ''
+      mot_de_passe: '' // Ajout du champ obligatoire
     });
     setIsEditing(false);
     setIsDialogOpen(true);
@@ -144,32 +102,19 @@ const RessourcesHumaines = () => {
       );
       toast({
         title: "Modification",
-        description: `Le membre ${currentMembre.nom} ${currentMembre.prenom} a été modifié`,
+        description: `Le membre ${currentMembre.id} a été modifié`,
       });
     } else {
       // Add new member
       setMembres(prev => [...prev, currentMembre]);
       toast({
         title: "Ajout",
-        description: `Le membre ${currentMembre.nom} ${currentMembre.prenom} a été ajouté`,
+        description: `Le membre ${currentMembre.id} a été ajouté`,
       });
     }
     
     setIsDialogOpen(false);
   };
-
-  if (loading) {
-    return (
-      <div className="p-8">
-        <div className="flex items-center justify-center h-64">
-          <div className="flex flex-col items-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-app-blue mb-4"></div>
-            <p className="text-app-blue">Chargement des membres...</p>
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="p-8">
@@ -178,18 +123,7 @@ const RessourcesHumaines = () => {
           <h1 className="text-3xl font-bold text-app-blue">Ressources Humaines</h1>
           <p className="text-gray-600">Collaborateurs/trices du projet</p>
         </div>
-        <div className="flex space-x-2">
-          <Button 
-            variant="outline" 
-            size="sm"
-            onClick={handleRefresh}
-            disabled={isRefreshing}
-          >
-            <RefreshCw className={`h-4 w-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
-            Actualiser
-          </Button>
-          <FileText className="text-red-500 h-6 w-6" />
-        </div>
+        <FileText className="text-red-500 h-6 w-6" />
       </div>
 
       <div className="bg-white rounded-md shadow overflow-hidden mt-6">

@@ -7,11 +7,10 @@ import {
   calculateDocumentStats,
   syncDocumentsWithServer
 } from '@/services/documents';
-import { getCurrentUserId } from '@/services/core/syncService';
 
 export const useDocuments = () => {
   const { toast } = useToast();
-  const currentUser = getCurrentUserId();
+  const currentUser = localStorage.getItem('currentUser') || 'default';
   
   const [documents, setDocuments] = useState<Document[]>(() => loadDocumentsFromStorage(currentUser));
   const [editingDocument, setEditingDocument] = useState<Document | null>(null);
@@ -28,24 +27,6 @@ export const useDocuments = () => {
   useEffect(() => {
     saveDocumentsToStorage(documents, currentUser);
   }, [documents, currentUser]);
-
-  // Sync with server on load
-  useEffect(() => {
-    const syncWithServer = async () => {
-      if (documents.length > 0) {
-        setIsSyncing(true);
-        try {
-          await syncDocumentsWithServer(documents, currentUser);
-        } catch (error) {
-          console.error("Erreur lors de la synchronisation initiale:", error);
-        } finally {
-          setIsSyncing(false);
-        }
-      }
-    };
-    
-    syncWithServer();
-  }, [documents.length]);
 
   // Document manipulation functions
   const handleResponsabiliteChange = useCallback((id: string, type: 'r' | 'a' | 'c' | 'i', values: string[]) => {

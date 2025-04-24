@@ -1,12 +1,9 @@
 
 // Re-export functions from other service files
 export * from './core/userInitializationService';
-export * from './core/syncService';
 export * from './documents';
 export * from './users/userService';
 export * from './users/createUserService';
-export * from './membres/membresService';
-export * from './exigences/exigencesService';
 
 // Explicitement renommer les exports de getCurrentUser pour éviter l'ambiguïté
 export { 

@@ -1,23 +1,20 @@
 
 import React, { useState, useEffect } from 'react';
+import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { DialogFooter, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { createUser } from '@/services/users/createUserService';
 import { connectAsUser } from '@/services';
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { AlertCircle, Info, Loader2 } from 'lucide-react';
+import { AlertCircle, Loader2, Info } from 'lucide-react';
 import { useAdminUsers } from '@/hooks/useAdminUsers';
-import UserFormFields from './form/UserFormFields';
-import UserRoleSelect from './form/UserRoleSelect';
-import UserConnectOption from './form/UserConnectOption';
-import type { UserRole } from '@/types/roles';
 
 interface UserFormData {
   nom: string;
   prenom: string;
   email: string;
-  role: UserRole;
+  role: string;
   mot_de_passe: string;
 }
 
@@ -42,26 +39,9 @@ const UserForm = ({ onClose, onSuccess, onUserConnect }: UserFormProps) => {
   const [formError, setFormError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<{[key: string]: string}>({});
   const [hasManager, setHasManager] = useState(false);
-  const [apiDebugInfo, setApiDebugInfo] = useState<string | null>(null);
-
-  // Réinitialiser le formulaire à chaque ouverture
-  useEffect(() => {
-    console.log("Initialisation du formulaire de création d'utilisateur");
-    setFormData({
-      nom: '',
-      prenom: '',
-      email: '',
-      role: 'utilisateur',
-      mot_de_passe: ''
-    });
-    setFieldErrors({});
-    setFormError(null);
-    setConnectAfterCreate(false);
-    setIsSubmitting(false);
-    setApiDebugInfo(null);
-  }, []);
 
   useEffect(() => {
+    // Vérifier si un gestionnaire existe déjà
     if (utilisateurs.some(user => user.role === 'gestionnaire')) {
       setHasManager(true);
     }
@@ -71,16 +51,19 @@ const UserForm = ({ onClose, onSuccess, onUserConnect }: UserFormProps) => {
     const errors: {[key: string]: string} = {};
     let isValid = true;
     
+    // Validation du nom
     if (!formData.nom.trim()) {
       errors.nom = "Le nom est requis";
       isValid = false;
     }
     
+    // Validation du prénom
     if (!formData.prenom.trim()) {
       errors.prenom = "Le prénom est requis";
       isValid = false;
     }
     
+    // Validation de l'email
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!formData.email.trim()) {
       errors.email = "L'email est requis";
@@ -90,6 +73,7 @@ const UserForm = ({ onClose, onSuccess, onUserConnect }: UserFormProps) => {
       isValid = false;
     }
     
+    // Validation du mot de passe
     if (!formData.mot_de_passe) {
       errors.mot_de_passe = "Le mot de passe est requis";
       isValid = false;
@@ -98,6 +82,7 @@ const UserForm = ({ onClose, onSuccess, onUserConnect }: UserFormProps) => {
       isValid = false;
     }
     
+    // Validation du rôle
     if (formData.role === 'gestionnaire' && hasManager) {
       errors.role = "Un gestionnaire existe déjà. Un seul compte gestionnaire est autorisé.";
       isValid = false;
@@ -111,6 +96,7 @@ const UserForm = ({ onClose, onSuccess, onUserConnect }: UserFormProps) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
     
+    // Réinitialiser l'erreur du champ modifié
     if (fieldErrors[name]) {
       setFieldErrors(prev => ({ ...prev, [name]: '' }));
     }
@@ -119,8 +105,8 @@ const UserForm = ({ onClose, onSuccess, onUserConnect }: UserFormProps) => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormError(null);
-    setApiDebugInfo(null);
     
+    // Valider le formulaire
     if (!validateForm()) {
       return;
     }
@@ -128,29 +114,15 @@ const UserForm = ({ onClose, onSuccess, onUserConnect }: UserFormProps) => {
     setIsSubmitting(true);
 
     try {
-      console.log("Données soumises pour création d'utilisateur:", formData);
-      
-      // Map frontend role values to backend expected values
-      const apiRole: 'admin' | 'user' | 'gestionnaire' = 
-        formData.role === 'utilisateur' ? 'user' : 
-        formData.role === 'administrateur' ? 'admin' : 
-        'gestionnaire';
-        
-      // Create a copy of the form data with the mapped role
-      const serviceFormData = {
-        ...formData,
-        role: apiRole
-      };
-      
-      console.log("Données envoyées à l'API avec mappage de rôle:", serviceFormData);
-      const result = await createUser(serviceFormData);
-      console.log("Résultat de la création d'utilisateur:", result);
+      const result = await createUser(formData);
+      console.log("Résultat de la création:", result);
       
       toast({
         title: "Utilisateur créé",
         description: "L'utilisateur a été créé avec succès.",
       });
       
+      // Si l'option de connexion est activée, se connecter avec le nouvel utilisateur
       if (connectAfterCreate && result.identifiant_technique) {
         try {
           const connectSuccess = await connectAsUser(result.identifiant_technique);
@@ -181,25 +153,14 @@ const UserForm = ({ onClose, onSuccess, onUserConnect }: UserFormProps) => {
       
       onClose();
     } catch (error) {
-      console.error("Erreur complète lors de la création de l'utilisateur:", error);
-      const errorMessage = error instanceof Error 
-        ? error.message 
-        : "Une erreur est survenue lors de la création de l'utilisateur";
-      
+      const errorMessage = error instanceof Error ? error.message : "Une erreur est survenue";
       setFormError(errorMessage);
       
-      // Récupérer plus d'informations pour le débogage
-      const debugInfo = error instanceof Error 
-        ? `Type: ${error.name}, Stack: ${error.stack?.substring(0, 200) || 'Non disponible'}`
-        : `Type: ${typeof error}, Détails: ${JSON.stringify(error).substring(0, 200)}`;
-      setApiDebugInfo(debugInfo);
-      
-      if (typeof errorMessage === 'string') {
-        if (errorMessage.includes("email existe déjà")) {
-          setFieldErrors(prev => ({ ...prev, email: "Cet email est déjà utilisé" }));
-        } else if (errorMessage.includes("Un seul compte gestionnaire")) {
-          setFieldErrors(prev => ({ ...prev, role: "Un gestionnaire existe déjà" }));
-        }
+      // Détecter les erreurs liées à des champs spécifiques
+      if (errorMessage.includes("email existe déjà")) {
+        setFieldErrors(prev => ({ ...prev, email: "Cet email est déjà utilisé" }));
+      } else if (errorMessage.includes("Un seul compte gestionnaire")) {
+        setFieldErrors(prev => ({ ...prev, role: "Un gestionnaire existe déjà" }));
       }
       
       toast({
@@ -224,16 +185,9 @@ const UserForm = ({ onClose, onSuccess, onUserConnect }: UserFormProps) => {
       {formError && (
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4 mr-2" />
-          <AlertDescription>{formError}</AlertDescription>
-        </Alert>
-      )}
-
-      {apiDebugInfo && (
-        <Alert variant="default" className="bg-yellow-50 border-yellow-200 mb-4 text-xs">
-          <details>
-            <summary className="cursor-pointer font-medium">Informations de débogage</summary>
-            <pre className="mt-2 whitespace-pre-wrap">{apiDebugInfo}</pre>
-          </details>
+          <AlertDescription>
+            {formError}
+          </AlertDescription>
         </Alert>
       )}
 
@@ -249,21 +203,114 @@ const UserForm = ({ onClose, onSuccess, onUserConnect }: UserFormProps) => {
 
       <form onSubmit={handleSubmit}>
         <div className="grid gap-4 py-4">
-          <UserFormFields
-            fieldErrors={fieldErrors}
-            values={formData}
-            onChange={handleChange}
-          />
-          <UserRoleSelect
-            hasManager={hasManager}
-            fieldErrors={fieldErrors}
-            value={formData.role}
-            onChange={handleChange}
-          />
-          <UserConnectOption
-            checked={connectAfterCreate}
-            onChange={() => setConnectAfterCreate(!connectAfterCreate)}
-          />
+          <div className="grid grid-cols-4 items-center gap-4">
+            <label htmlFor="nom" className="text-right text-sm">Nom</label>
+            <div className="col-span-3 space-y-1">
+              <Input
+                id="nom"
+                name="nom"
+                value={formData.nom}
+                onChange={handleChange}
+                className={`${fieldErrors.nom ? 'border-red-500' : ''}`}
+                required
+              />
+              {fieldErrors.nom && (
+                <p className="text-xs text-red-500">{fieldErrors.nom}</p>
+              )}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-4 items-center gap-4">
+            <label htmlFor="prenom" className="text-right text-sm">Prénom</label>
+            <div className="col-span-3 space-y-1">
+              <Input
+                id="prenom"
+                name="prenom"
+                value={formData.prenom}
+                onChange={handleChange}
+                className={`${fieldErrors.prenom ? 'border-red-500' : ''}`}
+                required
+              />
+              {fieldErrors.prenom && (
+                <p className="text-xs text-red-500">{fieldErrors.prenom}</p>
+              )}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-4 items-center gap-4">
+            <label htmlFor="email" className="text-right text-sm">Email</label>
+            <div className="col-span-3 space-y-1">
+              <Input
+                id="email"
+                name="email"
+                type="email"
+                value={formData.email}
+                onChange={handleChange}
+                className={`${fieldErrors.email ? 'border-red-500' : ''}`}
+                required
+              />
+              {fieldErrors.email && (
+                <p className="text-xs text-red-500">{fieldErrors.email}</p>
+              )}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-4 items-center gap-4">
+            <label htmlFor="mot_de_passe" className="text-right text-sm">Mot de passe</label>
+            <div className="col-span-3 space-y-1">
+              <Input
+                id="mot_de_passe"
+                name="mot_de_passe"
+                type="password"
+                value={formData.mot_de_passe}
+                onChange={handleChange}
+                className={`${fieldErrors.mot_de_passe ? 'border-red-500' : ''}`}
+                required
+                minLength={6}
+              />
+              {fieldErrors.mot_de_passe && (
+                <p className="text-xs text-red-500">{fieldErrors.mot_de_passe}</p>
+              )}
+              <p className="text-xs text-gray-500">Minimum 6 caractères</p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-4 items-center gap-4">
+            <label htmlFor="role" className="text-right text-sm">Rôle</label>
+            <div className="col-span-3 space-y-1">
+              <select
+                id="role"
+                name="role"
+                value={formData.role}
+                onChange={handleChange}
+                className={`flex h-10 w-full rounded-md border ${fieldErrors.role ? 'border-red-500' : 'border-input'} bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50`}
+                required
+              >
+                <option value="utilisateur">Utilisateur</option>
+                <option value="gestionnaire" disabled={hasManager}>Gestionnaire {hasManager ? '(Limite atteinte)' : ''}</option>
+                <option value="admin">Administrateur</option>
+              </select>
+              {fieldErrors.role && (
+                <p className="text-xs text-red-500">{fieldErrors.role}</p>
+              )}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-4 items-center gap-4">
+            <label htmlFor="connect" className="text-right text-sm">Options</label>
+            <div className="col-span-3 flex items-center space-x-2">
+              <input
+                type="checkbox"
+                id="connect"
+                checked={connectAfterCreate}
+                onChange={() => setConnectAfterCreate(!connectAfterCreate)}
+                className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+              />
+              <label htmlFor="connect" className="text-sm text-gray-700">
+                Se connecter automatiquement après la création
+              </label>
+            </div>
+          </div>
         </div>
 
         <DialogFooter>

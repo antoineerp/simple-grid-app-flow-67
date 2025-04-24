@@ -17,40 +17,14 @@
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:site" content="@lovable_dev" />
     <meta name="twitter:image" content="https://lovable.dev/opengraph-image-p98pqg.png" />
-    
-    <!-- Styles -->
-    <link rel="stylesheet" href="/assets/index.css">
-    
-    <!-- Script pour fallback CSS en production -->
-    <script type="text/javascript">
-      (function() {
-        setTimeout(function() {
-          var styles = document.styleSheets;
-          var hasCssLoaded = false;
-          
-          for (var i = 0; i < styles.length; i++) {
-            try {
-              if (styles[i].href && styles[i].href.includes('index.css')) {
-                hasCssLoaded = true;
-                break;
-              }
-            } catch(e) {}
-          }
-          
-          if (!hasCssLoaded) {
-            console.log('Fallback vers le CSS de base');
-            var style = document.createElement('style');
-            style.textContent = 'body { font-family: sans-serif; margin: 0; padding: 20px; }';
-            document.head.appendChild(style);
-          }
-        }, 1000);
-      })();
-    </script>
+    <!-- Utiliser un chemin relatif pour le CSS qui sera remplacé par le build -->
+    <link rel="stylesheet" href="./src/index.css" />
   </head>
 
   <body>
     <div id="root"></div>
-    <script type="module" src="/assets/index.js"></script>
+    <!-- Utiliser un chemin relatif pour le JS principal qui sera remplacé par le build -->
+    <script type="module" src="./src/main.tsx"></script>
     <script src="https://cdn.gpteng.co/gptengineer.js" type="module"></script>
   </body>
 </html>

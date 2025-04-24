@@ -1,146 +1,162 @@
 
 import { getApiUrl } from '@/config/apiConfig';
 import { getAuthHeaders } from '../auth/authService';
-import { v4 as uuidv4 } from 'uuid';
-import { UserRole } from '@/types/roles';
+import { useToast } from '@/hooks/use-toast';
 
 interface CreateUserData {
   nom: string;
   prenom: string;
   email: string;
-  role: 'admin' | 'user' | 'gestionnaire';
+  role: string;
   mot_de_passe: string;
 }
 
 export const createUser = async (userData: CreateUserData) => {
-  console.log("Création d'utilisateur - Données reçues:", userData);
+  console.log("Tentative de création d'utilisateur:", userData.prenom, userData.nom);
   
+  // Validation du mot de passe
   if (userData.mot_de_passe.length < 6) {
     throw new Error("Le mot de passe doit contenir au moins 6 caractères");
   }
 
-  // Ensure role is valid
-  if (!['admin', 'user', 'gestionnaire'].includes(userData.role)) {
-    console.warn(`Role invalide: ${userData.role}, utilisation de 'user' par défaut`);
-    userData.role = 'user';
-  }
-
+  // Génération de l'identifiant technique
   const timestamp = new Date().getTime();
   const randomStr = Math.random().toString(36).substring(2, 8);
+  // Utiliser uniquement les caractères autorisés pour éviter les problèmes d'encodage
   const sanitizedPrenom = userData.prenom.toLowerCase().replace(/[^a-z0-9]/g, '');
   const sanitizedNom = userData.nom.toLowerCase().replace(/[^a-z0-9]/g, '');
   const identifiantTechnique = `p71x6d_${sanitizedPrenom}_${sanitizedNom}_${randomStr}_${timestamp}`.substring(0, 50);
-  const id = uuidv4(); // Générer un UUID v4 pour l'ID
+
+  console.log(`Identifiant technique généré: ${identifiantTechnique}`);
 
   try {
+    // Préparation de la requête
     const apiUrl = getApiUrl();
-    // Utilisons le endpoint API adapté - corriger le endpoint qui peut causer l'erreur 500
     const url = `${apiUrl}/utilisateurs`;
-    console.log("URL de l'API pour création d'utilisateur:", url);
     
-    const headers = {
-      ...getAuthHeaders(),
-      'Content-Type': 'application/json'
-    };
+    console.log(`Envoi de la requête à ${url}`);
+    const headers = getAuthHeaders();
     
+    // Préparation des données
     const requestData = {
-      id,
       ...userData,
       identifiant_technique: identifiantTechnique
     };
     
-    console.log("Données envoyées à l'API:", JSON.stringify(requestData, null, 2));
+    console.log("Données envoyées:", JSON.stringify(requestData));
     
-    const response = await fetch(url, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify(requestData),
-      // Ajouter un timeout pour éviter les attentes infinies
-      signal: AbortSignal.timeout(15000) // Augmenté à 15 secondes
-    });
-
-    console.log("Statut de la réponse:", response.status, response.statusText);
-    console.log("Headers de la réponse:", Object.fromEntries([...response.headers]));
-    
-    // Vérifier d'abord si la réponse est OK
-    if (!response.ok) {
-      if (response.status === 500) {
-        console.error("Erreur serveur 500 détectée");
+    // Vérification de l'email
+    try {
+      const checkEmailUrl = `${apiUrl}/check-users.php?email=${encodeURIComponent(userData.email)}`;
+      console.log(`Vérification de l'email: ${checkEmailUrl}`);
+      
+      const emailCheckResponse = await fetch(checkEmailUrl, { method: 'GET', headers });
+      
+      if (emailCheckResponse.ok) {
+        const checkResult = await emailCheckResponse.json();
+        console.log("Résultat de la vérification d'email:", checkResult);
         
-        // Essayer de récupérer les détails de l'erreur
-        const errorText = await response.text();
-        console.error("Détails de l'erreur 500:", errorText);
-        
-        try {
-          // Vérifier si c'est du JSON
-          const errorJson = JSON.parse(errorText);
-          throw new Error(`Erreur serveur: ${errorJson.message || errorJson.error || 'Erreur inconnue'}`);
-        } catch (jsonError) {
-          // Si ce n'est pas du JSON valide
-          throw new Error(`Erreur serveur interne: ${errorText.substring(0, 200)}`);
+        if (checkResult && checkResult.records && Array.isArray(checkResult.records)) {
+          const existingUser = checkResult.records.find((user: any) => 
+            user.email === userData.email
+          );
+          
+          if (existingUser) {
+            console.error("Un utilisateur avec cet email existe déjà:", existingUser);
+            throw new Error(`Un utilisateur avec l'email ${userData.email} existe déjà.`);
+          }
         }
       }
-      throw new Error(`Erreur HTTP: ${response.status} ${response.statusText}`);
+    } catch (checkError) {
+      // Si l'erreur est liée à la vérification de l'email existant, la propager
+      if (checkError instanceof Error && checkError.message.includes('email existe déjà')) {
+        throw checkError;
+      }
+      // Sinon, continuer avec la création même si la vérification a échoué
+      console.warn("Erreur lors de la vérification de l'email, poursuite de la création:", checkError);
     }
     
-    // Tenter de récupérer le texte de la réponse
-    const responseText = await response.text();
-    console.log("Réponse brute du serveur:", responseText);
-    
-    // Si la réponse est vide mais le statut est OK, considérer comme un succès
-    if (!responseText && response.ok) {
-      console.log("Réponse vide mais statut OK, considéré comme un succès");
-      return {
-        success: true,
-        identifiant_technique: identifiantTechnique,
-        message: "L'utilisateur a été créé avec succès"
-      };
-    }
-    
-    // Tenter de parser le JSON
+    // Envoi de la requête principale avec un timeout et des nouvelles tentatives
+    const maxRetries = 3;
+    let retryCount = 0;
+    let success = false;
+    let lastError;
     let responseData;
-    try {
-      responseData = responseText ? JSON.parse(responseText) : {};
-      console.log("Réponse parsée:", responseData);
-    } catch (parseError) {
-      console.error("Erreur de parsing JSON:", parseError);
-      if (response.ok) {
-        console.log("Considéré comme un succès malgré l'erreur de parsing");
-        return {
-          success: true,
-          identifiant_technique: identifiantTechnique,
-          message: "L'utilisateur a été créé avec succès"
-        };
+    
+    while (retryCount < maxRetries && !success) {
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 secondes timeout
+        
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: {
+            ...headers,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(requestData),
+          signal: controller.signal
+        });
+        
+        clearTimeout(timeoutId);
+        
+        // Traitement de la réponse en texte d'abord
+        const responseText = await response.text();
+        console.log("Statut de la réponse:", response.status, response.statusText);
+        console.log("Réponse brute:", responseText);
+        
+        // Essai de parse en JSON
+        try {
+          responseData = responseText ? JSON.parse(responseText) : {};
+          
+          // Gestion des erreurs HTTP
+          if (!response.ok) {
+            if (response.status === 409 || (responseData.message && responseData.message.includes('existe déjà'))) {
+              throw new Error(responseData.message || "Une contrainte d'unicité a été violée");
+            } else {
+              throw new Error(responseData.message || `Erreur ${response.status}: ${response.statusText}`);
+            }
+          }
+          
+          success = true;
+        } catch (jsonError) {
+          console.error("Erreur lors du parsing JSON:", jsonError);
+          
+          // Si la réponse semble être un succès malgré le format incorrect
+          if (response.ok || response.status === 201) {
+            success = true;
+            responseData = { 
+              success: true, 
+              message: "Utilisateur créé avec succès (réponse non-JSON)",
+              identifiant_technique: identifiantTechnique 
+            };
+          } else {
+            throw new Error(`Réponse invalide du serveur: ${responseText.substring(0, 100)}`);
+          }
+        }
+      } catch (error) {
+        lastError = error;
+        retryCount++;
+        console.warn(`Tentative ${retryCount}/${maxRetries} échouée: ${error instanceof Error ? error.message : 'Erreur inconnue'}`);
+        
+        if (retryCount < maxRetries) {
+          await new Promise(resolve => setTimeout(resolve, 1000 * retryCount)); // Attente exponentielle
+        }
       }
-      throw new Error(`Réponse invalide du serveur (format incorrect): ${responseText.substring(0, 100)}`);
     }
-
-    // Vérifier le contenu de la réponse
-    if (responseData && typeof responseData === 'object') {
-      if (responseData.status === 'error') {
-        throw new Error(responseData.message || `Erreur ${response.status}: ${response.statusText}`);
-      }
-      
-      return {
-        ...responseData,
-        success: true,
-        identifiant_technique: identifiantTechnique
-      };
-    } else {
-      if (response.ok) {
-        return {
-          success: true,
-          identifiant_technique: identifiantTechnique,
-          message: "L'utilisateur a été créé avec succès"
-        };
-      }
-      throw new Error(`Format de réponse invalide: ${typeof responseData}`);
+    
+    if (!success) {
+      throw lastError || new Error("Échec après plusieurs tentatives");
     }
+    
+    // Succès
+    return {
+      ...responseData,
+      success: true,
+      identifiant_technique: identifiantTechnique
+    };
   } catch (error) {
     console.error("Erreur lors de la création de l'utilisateur:", error);
-    if (error instanceof TypeError && error.message.includes('AbortSignal')) {
-      throw new Error("La requête a expiré. Le serveur a mis trop de temps à répondre.");
-    }
     throw error;
   }
 };

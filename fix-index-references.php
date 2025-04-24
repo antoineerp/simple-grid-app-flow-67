@@ -27,10 +27,6 @@ require_once 'index-validator.php';
         <h2>Analyse du fichier index.html</h2>
         <?php
         $indexPath = '../index.html';
-        if (!file_exists($indexPath)) {
-            $indexPath = './index.html';
-        }
-        
         if (file_exists($indexPath)) {
             echo "<p>Fichier index.html: <span class='success'>EXISTE</span></p>";
             $index_content = file_get_contents($indexPath);
@@ -60,89 +56,10 @@ require_once 'index-validator.php';
     <div class="section">
         <h2>Recherche des fichiers JavaScript et CSS compilés</h2>
         <?php
-        $is_hashed = is_hashed_environment();
-        $main_js = find_main_js();
-        $main_css = find_main_css();
-        
-        echo "<p>Environnement avec fichiers hashés: <span class='" . ($is_hashed ? 'success' : 'warning') . "'>" . 
-            ($is_hashed ? 'OUI' : 'NON') . "</span></p>";
-        
-        if ($main_js) {
-            echo "<p>Fichier JavaScript principal trouvé: <span class='success'>" . $main_js . "</span></p>";
-        } else {
-            echo "<p>Fichier JavaScript principal: <span class='error'>NON TROUVÉ</span></p>";
-            
-            // Essayons de créer des fichiers ponts
-            if (!file_exists('./assets')) {
-                mkdir('./assets', 0755, true);
-                echo "<p>Création du dossier assets: <span class='success'>OK</span></p>";
-            }
-            
-            if (!file_exists('./assets/index.js')) {
-                $js_content = "// Fichier pont pour la compatibilité avec les scripts de diagnostic\n";
-                $js_content .= "console.log('Chargement du fichier pont index.js');\n";
-                $js_content .= "// En mode développement, importer depuis src\n";
-                $js_content .= "// En mode production, on utilisera le fichier hashé\n";
-                $js_content .= "try {\n";
-                $js_content .= "  // Tenter d'importer depuis src (développement)\n";
-                $js_content .= "  import('/src/main.tsx')\n";
-                $js_content .= "    .catch(e => {\n";
-                $js_content .= "      console.log(\"Tentative d'import depuis src échouée, essai avec main.js:\", e);\n";
-                $js_content .= "      // Fallback pour la production\n";
-                $js_content .= "      import('/src/main.js').catch(err => {\n";
-                $js_content .= "        console.error(\"Impossible de charger le fichier JavaScript principal:\", err);\n";
-                $js_content .= "        document.body.innerHTML += `\n";
-                $js_content .= "          <div style=\"color: red; padding: 20px; text-align: center;\">\n";
-                $js_content .= "            <h2>Erreur de chargement</h2>\n";
-                $js_content .= "            <p>Impossible de charger le fichier JavaScript principal.</p>\n";
-                $js_content .= "          </div>\n";
-                $js_content .= "        `;\n";
-                $js_content .= "      });\n";
-                $js_content .= "    });\n";
-                $js_content .= "} catch (e) {\n";
-                $js_content .= "  console.error(\"Erreur lors du chargement du script:\", e);\n";
-                $js_content .= "}\n";
-                
-                file_put_contents('./assets/index.js', $js_content);
-                echo "<p>Création du fichier pont index.js: <span class='success'>OK</span></p>";
-                $main_js = 'index.js';
-            }
-            
-            if (!file_exists('./assets/index.css')) {
-                $css_content = "/* Fichier pont pour la compatibilité avec index.html */\n";
-                $css_content .= "/* Ce fichier importe le CSS compilé s'il existe */\n\n";
-                $css_content .= "/* Import conditionnel via JavaScript pour éviter les erreurs */\n";
-                $css_content .= ":root {\n";
-                $css_content .= "  /* Styles de base pour éviter un écran blanc */\n";
-                $css_content .= "  --background: 0 0% 100%;\n";
-                $css_content .= "  --foreground: 222.2 84% 4.9%;\n";
-                $css_content .= "}\n\n";
-                $css_content .= "body {\n";
-                $css_content .= "  font-family: sans-serif;\n";
-                $css_content .= "  margin: 0;\n";
-                $css_content .= "  padding: 0;\n";
-                $css_content .= "  background-color: hsl(var(--background));\n";
-                $css_content .= "  color: hsl(var(--foreground));\n";
-                $css_content .= "}\n\n";
-                $css_content .= "/* \n";
-                $css_content .= "  Note: PostCSS ne permet pas d'imports conditionnels, alors nous utilisons\n";
-                $css_content .= "  un style de base minimal et laissons JavaScript charger le bon CSS\n";
-                $css_content .= "*/\n";
-                
-                file_put_contents('./assets/index.css', $css_content);
-                echo "<p>Création du fichier pont index.css: <span class='success'>OK</span></p>";
-                $main_css = 'index.css';
-            }
-        }
-        
-        if ($main_css) {
-            echo "<p>Fichier CSS principal trouvé: <span class='success'>" . $main_css . "</span></p>";
-        } else {
-            echo "<p>Fichier CSS principal: <span class='error'>NON TROUVÉ</span></p>";
-        }
-        
-        $js_files = find_assets_in_dir('./assets', 'js');
-        $css_files = find_assets_in_dir('./assets', 'css');
+        $js_files = find_assets_in_dir('../assets', 'js');
+        $css_files = find_assets_in_dir('../assets', 'css');
+        list($latest_main_js, $latest_main_time) = find_latest_asset($js_files, 'main-');
+        list($latest_css, $latest_css_time) = find_latest_asset($css_files, 'index-');
         ?>
         <?php if (!empty($js_files)): ?>
             <p>Tous les fichiers JavaScript trouvés:</p><ul>
@@ -158,6 +75,12 @@ require_once 'index-validator.php';
         <?php else: ?>
             <p>Fichiers CSS: <span class='error'>AUCUN TROUVÉ</span></p>
         <?php endif; ?>
+        <?php if ($latest_main_js): ?>
+            <p>Fichier main.js le plus récent: <span class='success'><?= $latest_main_js ?></span> (<?= date('Y-m-d H:i:s', $latest_main_time) ?>)</p>
+        <?php endif; ?>
+        <?php if ($latest_css): ?>
+            <p>Fichier CSS le plus récent: <span class='success'><?= $latest_css ?></span> (<?= date('Y-m-d H:i:s', $latest_css_time) ?>)</p>
+        <?php endif; ?>
     </div>
     
     <div class="section">
@@ -165,11 +88,11 @@ require_once 'index-validator.php';
         <?php
         if (file_exists($indexPath)) {
             $needs_correction = !$refs['has_js_reference'] || !$refs['has_css_reference'] || $refs['has_src_reference'];
-            if ($needs_correction) {
+            if ($needs_correction && !empty($latest_main_js)) {
                 echo "<p>Des corrections sont nécessaires dans index.html pour référencer correctement les assets.</p>";
                 if (isset($_POST['fix_index'])) {
                     copy($indexPath, $indexPath . '.bak');
-                    $new_content = patch_index_html($index_content, $main_js, $main_css);
+                    $new_content = patch_index_html($index_content, $latest_main_js, $latest_css);
                     file_put_contents($indexPath, $new_content);
                     echo "<p><span class='success'>Correction appliquée! Le fichier index.html a été mis à jour.</span></p>";
                     echo "<p>Une sauvegarde a été créée: index.html.bak</p>";
@@ -184,7 +107,7 @@ require_once 'index-validator.php';
             } else if (!$needs_correction) {
                 echo "<p><span class='success'>index.html semble déjà référencer correctement les assets.</span></p>";
             } else {
-                echo "<p><span class='error'>Impossible d'appliquer des corrections: aucun fichier JavaScript principal trouvé.</span></p>";
+                echo "<p><span class='error'>Impossible d'appliquer des corrections: aucun fichier main.js trouvé.</span></p>";
             }
         } else {
             echo "<p><span class='error'>Impossible de procéder à la correction: fichier index.html introuvable.</span></p>";
