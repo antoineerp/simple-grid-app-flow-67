@@ -29,6 +29,14 @@ const Header = () => {
     return localStorage.getItem('userRole') || 'utilisateur';
   });
   const [currentDatabaseUser, setCurrentDatabaseUser] = useState<string | null>(getCurrentUser());
+  
+  // New state for storing user display name
+  const [userDisplayName, setUserDisplayName] = useState<string>(() => {
+    // Try to get user name from localStorage, fallback to technical identifier
+    return localStorage.getItem('userName') || 
+           localStorage.getItem('currentUser') || 
+           'Utilisateur';
+  });
 
   useEffect(() => {
     localStorage.setItem('appLogo', logo);
@@ -49,6 +57,7 @@ const Header = () => {
     localStorage.removeItem('isLoggedIn');
     localStorage.removeItem('authToken');
     localStorage.removeItem('currentDatabaseUser');
+    localStorage.removeItem('userName');
     
     toast({
       title: "Déconnexion réussie",
@@ -90,7 +99,7 @@ const Header = () => {
                   </AvatarFallback>
                 </Avatar>
                 <div>
-                  <span className="text-sm font-medium block">p71x6d_system</span>
+                  <span className="text-sm font-medium block">{userDisplayName}</span>
                   <span className="text-xs text-gray-500 block">{userRole}</span>
                 </div>
                 <ChevronDown className="w-4 h-4" />

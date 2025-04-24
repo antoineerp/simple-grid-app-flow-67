@@ -1,4 +1,3 @@
-
 import { getApiUrl } from '@/config/apiConfig';
 import { toast } from '@/hooks/use-toast';
 import { disconnectUser } from '../core/databaseConnectionService';
@@ -122,9 +121,15 @@ class AuthService {
                 this.setToken(data.token);
                 
                 if (data.user) {
+                    // Use the user's full name if available, otherwise fallback to email or technical identifier
+                    const displayName = 
+                        (data.user.prenom && data.user.nom) 
+                            ? `${data.user.prenom} ${data.user.nom}` 
+                            : (data.user.email || data.user.identifiant_technique || 'Utilisateur');
+                    
                     localStorage.setItem('currentUser', data.user.identifiant_technique);
                     localStorage.setItem('userRole', data.user.role);
-                    localStorage.setItem('userName', `${data.user.prenom || ''} ${data.user.nom || ''}`);
+                    localStorage.setItem('userName', displayName);
                 }
                 
                 if (data.user && data.user.identifiant_technique) {
@@ -167,9 +172,15 @@ class AuthService {
                 this.setToken(data.token);
                 
                 if (data.user) {
+                    // Use the user's full name if available, otherwise fallback to email or technical identifier
+                    const displayName = 
+                        (data.user.prenom && data.user.nom) 
+                            ? `${data.user.prenom} ${data.user.nom}` 
+                            : (data.user.email || data.user.identifiant_technique || 'Utilisateur');
+                    
                     localStorage.setItem('currentUser', data.user.identifiant_technique);
                     localStorage.setItem('userRole', data.user.role);
-                    localStorage.setItem('userName', `${data.user.prenom || ''} ${data.user.nom || ''}`);
+                    localStorage.setItem('userName', displayName);
                 }
                 
                 if (data.user && data.user.identifiant_technique) {
