@@ -1,50 +1,84 @@
 
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect } from 'react';
 import { Membre } from '@/types/membres';
+import { loadMembresFromStorage, saveMembresInStorage } from '@/services/membres/membresService';
 
+// Interface pour le contexte
 interface MembresContextType {
   membres: Membre[];
   setMembres: React.Dispatch<React.SetStateAction<Membre[]>>;
+  loading: boolean;
 }
 
-const MembresContext = createContext<MembresContextType | undefined>(undefined);
+// Création du contexte avec une valeur par défaut
+const MembresContext = createContext<MembresContextType>({
+  membres: [],
+  setMembres: () => {},
+  loading: true
+});
 
-export const MembresProvider = ({ children }: { children: ReactNode }) => {
-  // Récupérer l'identifiant de l'utilisateur connecté
-  const currentUser = localStorage.getItem('currentUser') || 'default';
-  
-  // Récupérer les membres du localStorage spécifiques à l'utilisateur actuel
-  const [membres, setMembres] = useState<Membre[]>(() => {
-    const storedMembres = localStorage.getItem(`membres_${currentUser}`);
-    return storedMembres ? JSON.parse(storedMembres) : [
-      { 
-        id: "1", 
-        nom: 'BONNET', 
-        prenom: 'RICHARD', 
-        fonction: 'DXDXD', 
-        initiales: 'RB',
-        date_creation: new Date(),
-        mot_de_passe: '****' // Ajout du champ obligatoire
-      }
-    ];
-  });
+// Hook personnalisé pour utiliser le contexte
+export const useMembres = () => useContext(MembresContext);
 
-  // Sauvegarder les membres dans le localStorage spécifique à l'utilisateur actuel
+export const MembresProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [membres, setMembresState] = useState<Membre[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [currentUser, setCurrentUser] = useState<string | null>(null);
+
   useEffect(() => {
-    localStorage.setItem(`membres_${currentUser}`, JSON.stringify(membres));
-  }, [membres, currentUser]);
+    const getCurrentUser = () => {
+      // Récupérer l'utilisateur connecté (identifiant technique ou email)
+      const userId = localStorage.getItem('currentUser');
+      const userEmail = localStorage.getItem('userEmail');
+      return userId || userEmail || 'default_user';
+    };
+
+    const loadMembres = () => {
+      const user = getCurrentUser();
+      setCurrentUser(user);
+      
+      console.log("Chargement des membres pour", user);
+      const loadedMembres = loadMembresFromStorage(user);
+      setMembresState(loadedMembres);
+      setLoading(false);
+    };
+
+    loadMembres();
+    
+    // Écouter les changements d'utilisateur
+    const handleUserChange = () => {
+      const newUser = getCurrentUser();
+      if (newUser !== currentUser) {
+        console.log("Changement d'utilisateur détecté:", newUser);
+        loadMembres();
+      }
+    };
+
+    window.addEventListener('userChanged', handleUserChange);
+    
+    return () => {
+      window.removeEventListener('userChanged', handleUserChange);
+    };
+  }, [currentUser]);
+
+  // Wrapped setMembres to also save to storage
+  const setMembres = (membresOrFunction: React.SetStateAction<Membre[]>) => {
+    setMembresState(prev => {
+      const newMembres = typeof membresOrFunction === 'function' 
+        ? membresOrFunction(prev)
+        : membresOrFunction;
+        
+      if (currentUser) {
+        saveMembresInStorage(newMembres, currentUser);
+      }
+      
+      return newMembres;
+    });
+  };
 
   return (
-    <MembresContext.Provider value={{ membres, setMembres }}>
+    <MembresContext.Provider value={{ membres, setMembres, loading }}>
       {children}
     </MembresContext.Provider>
   );
-};
-
-export const useMembres = (): MembresContextType => {
-  const context = useContext(MembresContext);
-  if (context === undefined) {
-    throw new Error('useMembres must be used within a MembresProvider');
-  }
-  return context;
 };

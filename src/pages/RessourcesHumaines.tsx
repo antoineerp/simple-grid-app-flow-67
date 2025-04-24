@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { FileText, UserPlus } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -13,10 +13,11 @@ import { useMembres } from '@/contexts/MembresContext';
 import MemberList from '@/components/ressources-humaines/MemberList';
 import MemberForm from '@/components/ressources-humaines/MemberForm';
 import { Membre } from '@/types/membres';
+import { syncMembresWithServer } from '@/services/membres/membresService';
 
 const RessourcesHumaines = () => {
   const { toast } = useToast();
-  const { membres, setMembres } = useMembres();
+  const { membres, setMembres, loading } = useMembres();
   
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [currentMembre, setCurrentMembre] = useState<Membre>({
@@ -26,9 +27,32 @@ const RessourcesHumaines = () => {
     fonction: '',
     initiales: '',
     date_creation: new Date(),
-    mot_de_passe: '' // Ajout du champ obligatoire
+    mot_de_passe: ''
   });
   const [isEditing, setIsEditing] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
+
+  // Synchroniser avec le serveur au chargement
+  useEffect(() => {
+    const syncWithServer = async () => {
+      if (membres.length > 0 && !loading) {
+        setIsSyncing(true);
+        const currentUser = localStorage.getItem('currentUser') || 
+                           localStorage.getItem('userEmail') || 
+                           'default_user';
+                           
+        try {
+          await syncMembresWithServer(membres, currentUser);
+        } catch (error) {
+          console.error("Erreur lors de la synchronisation initiale:", error);
+        } finally {
+          setIsSyncing(false);
+        }
+      }
+    };
+    
+    syncWithServer();
+  }, [membres, loading]);
 
   // Handler for edit action
   const handleEdit = (id: string) => {
@@ -63,7 +87,7 @@ const RessourcesHumaines = () => {
       fonction: '',
       initiales: '',
       date_creation: new Date(),
-      mot_de_passe: '' // Ajout du champ obligatoire
+      mot_de_passe: ''
     });
     setIsEditing(false);
     setIsDialogOpen(true);
@@ -102,19 +126,32 @@ const RessourcesHumaines = () => {
       );
       toast({
         title: "Modification",
-        description: `Le membre ${currentMembre.id} a été modifié`,
+        description: `Le membre ${currentMembre.nom} ${currentMembre.prenom} a été modifié`,
       });
     } else {
       // Add new member
       setMembres(prev => [...prev, currentMembre]);
       toast({
         title: "Ajout",
-        description: `Le membre ${currentMembre.id} a été ajouté`,
+        description: `Le membre ${currentMembre.nom} ${currentMembre.prenom} a été ajouté`,
       });
     }
     
     setIsDialogOpen(false);
   };
+
+  if (loading) {
+    return (
+      <div className="p-8">
+        <div className="flex items-center justify-center h-64">
+          <div className="flex flex-col items-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-app-blue mb-4"></div>
+            <p className="text-app-blue">Chargement des membres...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-8">

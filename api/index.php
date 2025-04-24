@@ -124,6 +124,31 @@ if ($controller == 'utilisateurs') {
     }
 }
 
+// Ajouter un point d'accès spécial pour les membres
+if ($controller == 'membres') {
+    error_log("Accès à la route membres");
+    
+    // Chemin complet du contrôleur de membres
+    $membresControllerPath = __DIR__ . '/controllers/MembresController.php';
+    
+    // Vérifier que le fichier existe
+    if (file_exists($membresControllerPath)) {
+        error_log("Fichier contrôleur membres trouvé: $membresControllerPath");
+        define('DIRECT_ACCESS_CHECK', true);
+        require_once $membresControllerPath;
+        exit;
+    } else {
+        error_log("ERREUR: Fichier contrôleur membres NON trouvé: $membresControllerPath");
+        http_response_code(500);
+        echo json_encode([
+            'status' => 'error',
+            'message' => 'Fichier contrôleur membres non trouvé',
+            'path' => $membresControllerPath
+        ]);
+        exit;
+    }
+}
+
 // Router vers le bon fichier en fonction du contrôleur
 switch ($controller) {
     case 'auth':
