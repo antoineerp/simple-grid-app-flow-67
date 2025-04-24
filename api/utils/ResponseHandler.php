@@ -18,7 +18,7 @@ class ResponseHandler {
         }
         
         // Vérification que la réponse peut être encodée en JSON
-        $jsonResponse = json_encode($response, JSON_UNESCAPED_UNICODE);
+        $jsonResponse = json_encode($response, JSON_UNESCAPED_UNICODE | JSON_PARTIAL_OUTPUT_ON_ERROR);
         
         if ($jsonResponse === false) {
             error_log("Erreur d'encodage JSON: " . json_last_error_msg());
@@ -51,7 +51,7 @@ class ResponseHandler {
         }
         
         // Vérification que la réponse peut être encodée en JSON
-        $jsonResponse = json_encode($response, JSON_UNESCAPED_UNICODE);
+        $jsonResponse = json_encode($response, JSON_UNESCAPED_UNICODE | JSON_PARTIAL_OUTPUT_ON_ERROR);
         
         if ($jsonResponse === false) {
             error_log("Erreur d'encodage JSON: " . json_last_error_msg());

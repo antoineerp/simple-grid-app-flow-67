@@ -38,7 +38,7 @@ class RequestHandler {
             echo json_encode([
                 'status' => 'error',
                 'message' => 'Content-Type doit être application/json'
-            ]);
+            ], JSON_UNESCAPED_UNICODE | JSON_PARTIAL_OUTPUT_ON_ERROR);
             exit;
         }
         
@@ -50,7 +50,7 @@ class RequestHandler {
                 echo json_encode([
                     'status' => 'error',
                     'message' => 'Aucune donnée JSON reçue'
-                ]);
+                ], JSON_UNESCAPED_UNICODE | JSON_PARTIAL_OUTPUT_ON_ERROR);
                 exit;
             }
             
@@ -60,7 +60,7 @@ class RequestHandler {
                 echo json_encode([
                     'status' => 'error',
                     'message' => 'JSON invalide: ' . json_last_error_msg()
-                ]);
+                ], JSON_UNESCAPED_UNICODE | JSON_PARTIAL_OUTPUT_ON_ERROR);
                 exit;
             }
             
