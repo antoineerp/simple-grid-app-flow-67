@@ -76,9 +76,9 @@ const Header = () => {
   return (
     <header className="border-b bg-white">
       <div className="flex items-center justify-between h-14 px-4">
-        <div className="flex items-center">
+        <div className="flex items-center w-full">
           <LogoSelector currentLogo={logo} onLogoChange={handleLogoChange} />
-          <div className="text-app-blue text-xl font-semibold ml-4 text-center w-full">
+          <div className="text-app-blue text-xl font-semibold text-center w-full absolute left-0">
             Qualite.cloud - Système de Management de la Qualité
           </div>
         </div>
@@ -132,3 +132,4 @@ const Header = () => {
 };
 
 export default Header;
+
