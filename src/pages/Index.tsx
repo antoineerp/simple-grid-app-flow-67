@@ -10,20 +10,24 @@ const Index = () => {
   
   const checkApi = async () => {
     try {
+      console.log("Checking API connection...");
       setApiStatus('loading');
       const result = await testApiConnection();
       
-      if (result.success) {
+      console.log("API connection result:", result);
+      if (result && result.success) {
         setApiStatus('success');
       } else {
         setApiStatus('error');
       }
     } catch (error) {
+      console.error("API connection error:", error);
       setApiStatus('error');
     }
   };
   
   useEffect(() => {
+    console.log("Index component mounted");
     checkApi();
     setVersion(`1.0.7 - ${new Date().toLocaleDateString()}`);
   }, []);

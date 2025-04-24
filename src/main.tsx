@@ -8,8 +8,18 @@ const rootElement = document.getElementById("root");
 if (rootElement) {
   try {
     console.log("React initialization started");
+    // Ajout d'un gestionnaire d'erreurs global pour React
+    window.addEventListener('error', (event) => {
+      console.error('Global error caught:', event.error);
+    });
+    
+    // Plus de logs pour suivre l'initialisation
+    console.log("Creating React root element");
     const root = createRoot(rootElement);
+    
+    console.log("Starting React rendering");
     root.render(<App />);
+    
     console.log("React rendering complete");
   } catch (error) {
     console.error("Failed to render React application:", error);
