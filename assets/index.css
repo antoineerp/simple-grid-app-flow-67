@@ -1,4 +1,15 @@
 
 /* Fichier pont pour la compatibilité avec index.html */
 /* Ce fichier importe le CSS compilé s'il existe */
-@import url('./main-B-vZZSaR.css');
+
+/* Import conditionnel via JavaScript pour éviter les erreurs */
+:root {
+  /* Styles de base pour éviter un écran blanc */
+  --background: 0 0% 100%;
+  --foreground: 222.2 84% 4.9%;
+}
+
+/* 
+  Note: PostCSS ne permet pas d'imports conditionnels, alors nous utilisons
+  un style de base minimal et laissons JavaScript charger le bon CSS
+*/

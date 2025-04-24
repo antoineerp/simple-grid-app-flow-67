@@ -20,6 +20,25 @@
     
     <!-- Styles -->
     <link rel="stylesheet" href="/assets/index.css" />
+    
+    <!-- Script pour charger les bons styles en fonction de l'environnement -->
+    <script type="text/javascript">
+      (function() {
+        // Essayer de charger le CSS depuis src pour le développement
+        var link = document.createElement('link');
+        link.rel = 'stylesheet';
+        link.href = '/src/index.css';
+        link.onerror = function() {
+          console.log('Fallback vers le CSS compilé');
+          // En cas d'échec, essayer le fichier compilé hashé
+          var prodLink = document.createElement('link');
+          prodLink.rel = 'stylesheet';
+          prodLink.href = '/assets/main-B-vZZSaR.css';
+          document.head.appendChild(prodLink);
+        };
+        document.head.appendChild(link);
+      })();
+    </script>
   </head>
 
   <body>
