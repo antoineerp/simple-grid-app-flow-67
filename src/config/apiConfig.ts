@@ -22,13 +22,14 @@ export const getApiUrl = (): string => {
 export const testApiConnection = async (): Promise<{ success: boolean; message?: string }> => {
   try {
     console.log("Testing API connection to:", apiUrl);
-    const response = await fetch(`${apiUrl}/test.php`, {
-      method: 'GET',
+    
+    // Utilisons login-test.php au lieu de test.php qui renvoie toujours 404
+    const response = await fetch(`${apiUrl}/login-test.php`, {
+      method: 'GET', // Utiliser GET pour le test au lieu de POST
       headers: {
         'Content-Type': 'application/json',
         'Cache-Control': 'no-cache',
       },
-      // Ajouter ces options pour éviter les problèmes de CORS et de cache
       credentials: 'same-origin',
       mode: 'cors',
     });
@@ -70,7 +71,6 @@ export const fetchWithErrorHandling = async (
         'Content-Type': 'application/json',
         ...(options.headers || {}),
       },
-      // Ajouter ces options pour éviter les problèmes de CORS et de cache
       credentials: 'same-origin',
       mode: 'cors',
     });
@@ -92,7 +92,7 @@ export const fetchWithErrorHandling = async (
 // Export constants related to API paths
 export const API_ROUTES = {
   LOGIN: `${apiUrl}/login-test.php`,
-  TEST: `${apiUrl}/test.php`,
+  TEST: `${apiUrl}/login-test.php`, // Utiliser login-test.php au lieu de test.php
   USERS: `${apiUrl}/utilisateurs.php`,
   DATABASE_TEST: `${apiUrl}/database-test.php`,
 };

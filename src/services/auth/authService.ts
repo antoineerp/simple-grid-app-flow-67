@@ -54,23 +54,34 @@ interface LoginResponse {
   token?: string;
 }
 
-// Obtenir l'URL de l'API à partir de la configuration
-const getApiEndpoint = (): string => {
-  // Utiliser UNIQUEMENT le chemin relatif pour garantir que l'appel reste sur le même domaine
-  // Très important : ne pas utiliser d'URL absolue pour éviter les problèmes CORS
-  return '/api';
-};
-
 // Fonction de connexion
 export const login = async (username: string, password: string): Promise<LoginResponse> => {
   try {
     console.log(`Tentative de connexion pour l'utilisateur: ${username}`);
     
-    // Définir le bon endpoint API en s'assurant d'utiliser un chemin relatif
-    // Nous utilisons uniquement le chemin relatif pour garantir que l'appel reste sur le même domaine
+    // Utiliser toujours un chemin relatif pour éviter les problèmes CORS
+    // Très important : ne PAS utiliser d'URL absolue
     const loginUrl = `/api/login-test.php`;
     
     console.log(`URL de connexion utilisée: ${loginUrl}`);
+    
+    // Liste des utilisateurs de test pour faciliter le débogage
+    const testUsers = [
+      { username: 'admin', password: 'admin123' },
+      { username: 'p71x6d_system', password: 'Trottinette43!' },
+      { username: 'antcirier@gmail.com', password: 'password123' },
+      { username: 'p71x6d_dupont', password: 'manager456' },
+      { username: 'p71x6d_martin', password: 'user789' }
+    ];
+    
+    // Vérifier si nous utilisons un utilisateur de test
+    const isTestUser = testUsers.some(user => 
+      user.username === username && user.password === password
+    );
+    
+    if (isTestUser) {
+      console.log("Utilisation d'un utilisateur de test connu");
+    }
     
     // Faire un appel API réel au service d'authentification
     const response = await fetch(loginUrl, {
@@ -81,7 +92,7 @@ export const login = async (username: string, password: string): Promise<LoginRe
         'Cache-Control': 'no-cache'
       },
       body: JSON.stringify({ username, password }),
-      // Ajouter ces options pour éviter les problèmes de CORS et de cache
+      // Ces options sont essentielles pour éviter les problèmes CORS
       credentials: 'same-origin',
       mode: 'cors',
     });
@@ -110,6 +121,16 @@ export const login = async (username: string, password: string): Promise<LoginRe
       };
     } else {
       console.error('Erreur de connexion:', data.message || 'Identifiants invalides');
+      
+      // Si le login échoue et que c'est un utilisateur de test, affichons plus d'informations
+      if (isTestUser) {
+        console.error('Échec avec un utilisateur de test. Causes possibles:', {
+          'Problème serveur': 'Le serveur ne reconnaît pas les utilisateurs de test',
+          'Problème de route': 'La route ne pointe pas vers le bon fichier PHP',
+          'Problème de format': 'Le format des données envoyées est incorrect'
+        });
+      }
+      
       return {
         success: false,
         message: data.message || 'Identifiants invalides'

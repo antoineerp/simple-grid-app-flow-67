@@ -7,6 +7,7 @@ import { testApiConnection } from '@/config/apiConfig';
 const Index = () => {
   const [apiStatus, setApiStatus] = useState<'loading' | 'success' | 'error'>('loading');
   const [version, setVersion] = useState<string>('1.0.8');
+  const [apiMessage, setApiMessage] = useState<string>('');
   
   const checkApi = async () => {
     try {
@@ -17,12 +18,15 @@ const Index = () => {
       console.log("API connection result:", result);
       if (result && result.success) {
         setApiStatus('success');
+        setApiMessage(result.message || 'Connexion à l\'API réussie');
       } else {
         setApiStatus('error');
+        setApiMessage(result.message || 'Connexion à l\'API impossible');
       }
     } catch (error) {
       console.error("API connection error:", error);
       setApiStatus('error');
+      setApiMessage(error instanceof Error ? error.message : 'Erreur de connexion à l\'API');
     }
   };
   
@@ -45,7 +49,15 @@ const Index = () => {
         
         {apiStatus === 'error' && (
           <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-6">
-            Connexion à l'API impossible. Veuillez contacter le support technique.
+            <p>Connexion à l'API impossible. Veuillez contacter le support technique.</p>
+            <p className="text-xs mt-1">Message: {apiMessage}</p>
+          </div>
+        )}
+        
+        {apiStatus === 'success' && (
+          <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded mb-6">
+            <p>Connexion à l'API établie.</p>
+            <p className="text-xs mt-1">Message: {apiMessage}</p>
           </div>
         )}
         
