@@ -5,7 +5,7 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { useAdminDatabase } from '@/hooks/useAdminUsers';
+import { useAdminDatabase } from '@/hooks/useAdminDatabase'; // Fixed import path
 import { getApiUrl } from '@/config/apiConfig';
 import { getDatabaseConnectionCurrentUser } from '@/services';
 import { Loader2, AlertCircle, CheckCircle2 } from 'lucide-react';
