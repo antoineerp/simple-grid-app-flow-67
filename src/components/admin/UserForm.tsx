@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { DialogFooter, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -180,55 +181,6 @@ const UserForm = ({ onClose, onSuccess, onUserConnect }: UserFormProps) => {
       });
     } finally {
       setIsSubmitting(false);
-    }
-  };
-
-  const validateForm = (): boolean => {
-    const errors: {[key: string]: string} = {};
-    let isValid = true;
-    
-    if (!formData.nom.trim()) {
-      errors.nom = "Le nom est requis";
-      isValid = false;
-    }
-    
-    if (!formData.prenom.trim()) {
-      errors.prenom = "Le prénom est requis";
-      isValid = false;
-    }
-    
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!formData.email.trim()) {
-      errors.email = "L'email est requis";
-      isValid = false;
-    } else if (!emailRegex.test(formData.email)) {
-      errors.email = "Format d'email invalide";
-      isValid = false;
-    }
-    
-    if (!formData.mot_de_passe) {
-      errors.mot_de_passe = "Le mot de passe est requis";
-      isValid = false;
-    } else if (formData.mot_de_passe.length < 6) {
-      errors.mot_de_passe = "Le mot de passe doit contenir au moins 6 caractères";
-      isValid = false;
-    }
-    
-    if (formData.role === 'gestionnaire' && hasManager) {
-      errors.role = "Un gestionnaire existe déjà. Un seul compte gestionnaire est autorisé.";
-      isValid = false;
-    }
-    
-    setFieldErrors(errors);
-    return isValid;
-  };
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
-    
-    if (fieldErrors[name]) {
-      setFieldErrors(prev => ({ ...prev, [name]: '' }));
     }
   };
 
