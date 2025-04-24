@@ -85,7 +85,7 @@ class AuthService {
         try {
             console.log(`Tentative de connexion pour l'utilisateur: ${username}`);
             
-            // Utilisons login-test.php en cas de problème avec auth.php
+            // Utiliser login-test.php directement sans essayer auth.php d'abord
             const authUrl = `${getApiUrl()}/login-test`;
             console.log(`URL de requête (authentification): ${authUrl}`);
             
