@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Pencil, Trash, ChevronDown, Plus, FolderPlus, GripVertical, FileDown } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
@@ -235,7 +236,10 @@ const Bibliotheque = () => {
     setIsGroupDialogOpen(false);
   };
 
+  // Fixed the drag and drop handlers for proper functionality
   const handleReorder = (startIndex: number, endIndex: number) => {
+    if (startIndex === endIndex) return;
+    
     setDocuments(prev => {
       const result = Array.from(prev);
       const [removed] = result.splice(startIndex, 1);
@@ -250,6 +254,8 @@ const Bibliotheque = () => {
   };
 
   const handleGroupReorder = (startIndex: number, endIndex: number) => {
+    if (startIndex === endIndex) return;
+    
     setDocumentGroups(prev => {
       const result = Array.from(prev);
       const [removed] = result.splice(startIndex, 1);
@@ -269,6 +275,83 @@ const Bibliotheque = () => {
       title: "Export PDF réussi",
       description: "Le document a été généré et téléchargé",
     });
+  };
+
+  const handleDragStart = (e: React.DragEvent<HTMLTableRowElement>, index: number) => {
+    e.dataTransfer.setData('text/plain', index.toString());
+    e.currentTarget.classList.add('bg-muted');
+  };
+
+  const handleDragOver = (e: React.DragEvent<HTMLTableRowElement>) => {
+    e.preventDefault();
+    e.currentTarget.classList.add('border-dashed', 'border-2', 'border-primary');
+  };
+
+  const handleDragLeave = (e: React.DragEvent<HTMLTableRowElement>) => {
+    e.currentTarget.classList.remove('border-dashed', 'border-2', 'border-primary');
+  };
+
+  const handleDrop = (e: React.DragEvent<HTMLTableRowElement>, endIndex: number, targetGroupId?: number) => {
+    e.preventDefault();
+    e.currentTarget.classList.remove('border-dashed', 'border-2', 'border-primary');
+    
+    const startIndex = parseInt(e.dataTransfer.getData('text/plain'));
+    
+    if (targetGroupId !== undefined) {
+      // Add the document to a group
+      const docToMove = documents[startIndex];
+      const updatedDoc = { ...docToMove, groupId: targetGroupId };
+      
+      setDocuments(prev => {
+        const result = Array.from(prev);
+        result.splice(startIndex, 1);
+        return result;
+      });
+      
+      setDocumentGroups(prev => 
+        prev.map(group => 
+          group.id === targetGroupId 
+            ? { ...group, items: [...group.items, updatedDoc] } 
+            : group
+        )
+      );
+      
+      toast({
+        title: "Déplacement",
+        description: "Le document a été déplacé vers un groupe",
+      });
+    } else if (startIndex !== endIndex) {
+      handleReorder(startIndex, endIndex);
+    }
+  };
+
+  const handleGroupItemDrop = (e: React.DragEvent<HTMLTableRowElement>, groupId: number, endIndex: number) => {
+    e.preventDefault();
+    e.currentTarget.classList.remove('border-dashed', 'border-2', 'border-primary');
+    
+    const startIndex = parseInt(e.dataTransfer.getData('text/plain'));
+    const group = documentGroups.find(g => g.id === groupId);
+    
+    if (!group) return;
+    
+    if (startIndex !== endIndex) {
+      const newItems = [...group.items];
+      const [removed] = newItems.splice(startIndex, 1);
+      newItems.splice(endIndex, 0, removed);
+      
+      setDocumentGroups(prev => 
+        prev.map(g => g.id === groupId ? {...g, items: newItems} : g)
+      );
+      
+      toast({
+        title: "Réorganisation",
+        description: `L'ordre des documents dans le groupe ${group.name} a été mis à jour`,
+      });
+    }
+  };
+
+  const handleDragEnd = (e: React.DragEvent<HTMLTableRowElement>) => {
+    e.currentTarget.classList.remove('bg-muted');
   };
 
   return (
@@ -299,16 +382,27 @@ const Bibliotheque = () => {
             </TableRow>
           </TableHeader>
           <TableBody onReorder={handleGroupReorder}>
-            {documentGroups.map((group) => (
+            {documentGroups.map((group, groupIndex) => (
               <React.Fragment key={group.id}>
-                <TableRow className="border-b hover:bg-gray-50 cursor-pointer" onClick={() => toggleGroup(group.id)}>
+                <TableRow 
+                  className="border-b hover:bg-gray-50 cursor-pointer" 
+                  onClick={() => toggleGroup(group.id)}
+                  draggable
+                  onDragStart={(e) => handleDragStart(e, groupIndex)}
+                  onDragOver={handleDragOver}
+                  onDragLeave={handleDragLeave}
+                  onDrop={(e) => handleDrop(e, groupIndex)}
+                  onDragEnd={handleDragEnd}
+                >
                   <TableCell className="py-3 px-2 w-10">
                     <GripVertical className="h-5 w-5 text-gray-400" />
                   </TableCell>
-                  <TableCell className="py-3 px-4 text-center">
-                    <ChevronDown className={`h-4 w-4 inline-block transition-transform ${group.expanded ? 'rotate-180' : ''}`} />
+                  <TableCell className="py-3 px-4 w-full text-left" colSpan={2}>
+                    <div className="flex items-center">
+                      <ChevronDown className={`h-4 w-4 mr-2 inline-block transition-transform ${group.expanded ? 'rotate-180' : ''}`} />
+                      <span className="font-medium">{group.name}</span>
+                    </div>
                   </TableCell>
-                  <TableCell className="py-3 px-4 font-medium">{group.name}</TableCell>
                   <TableCell className="py-3 px-4"></TableCell>
                   <TableCell className="py-3 px-4 text-right">
                     <button 
@@ -332,52 +426,63 @@ const Bibliotheque = () => {
                   </TableCell>
                 </TableRow>
                 {group.expanded && (
-                  <TableBody onReorder={(start, end) => {
-                    const newItems = [...group.items];
-                    const [removed] = newItems.splice(start, 1);
-                    newItems.splice(end, 0, removed);
-                    setDocumentGroups(prev => 
-                      prev.map(g => g.id === group.id ? {...g, items: newItems} : g)
-                    );
-                    toast({
-                      title: "Réorganisation",
-                      description: `L'ordre des documents dans le groupe ${group.name} a été mis à jour`,
-                    });
-                  }}>
-                    {group.items.map(item => (
-                      <TableRow key={item.id} className="border-b hover:bg-gray-50 bg-gray-50">
-                        <TableCell className="py-3 px-2 w-10">
-                          <GripVertical className="h-5 w-5 text-gray-400" />
-                        </TableCell>
-                        <TableCell className="py-3 px-4"></TableCell>
-                        <TableCell className="py-3 px-4 pl-8">{item.name}</TableCell>
-                        <TableCell className="py-3 px-4">
-                          {item.link && <a href="#" className="text-app-blue hover:underline">{item.link}</a>}
-                        </TableCell>
-                        <TableCell className="py-3 px-4 text-right">
-                          <button 
-                            className="text-gray-600 hover:text-app-blue mr-3"
-                            onClick={() => handleEditDocument({...item, groupId: group.id})}
-                          >
-                            <Pencil className="h-5 w-5 inline-block" />
-                          </button>
-                          <button 
-                            className="text-gray-600 hover:text-red-500"
-                            onClick={() => handleDeleteDocument(item.id)}
-                          >
-                            <Trash className="h-5 w-5 inline-block" />
-                          </button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
+                  group.items.map((item, itemIndex) => (
+                    <TableRow 
+                      key={item.id} 
+                      className="border-b hover:bg-gray-50 bg-gray-50"
+                      draggable
+                      onDragStart={(e) => handleDragStart(e, itemIndex)}
+                      onDragOver={handleDragOver}
+                      onDragLeave={handleDragLeave}
+                      onDrop={(e) => handleGroupItemDrop(e, group.id, itemIndex)}
+                      onDragEnd={handleDragEnd}
+                    >
+                      <TableCell className="py-3 px-2 w-10">
+                        <GripVertical className="h-5 w-5 text-gray-400" />
+                      </TableCell>
+                      <TableCell className="py-3 px-4"></TableCell>
+                      <TableCell className="py-3 px-4 pl-8">{item.name}</TableCell>
+                      <TableCell className="py-3 px-4">
+                        {item.link && <a href="#" className="text-app-blue hover:underline">{item.link}</a>}
+                      </TableCell>
+                      <TableCell className="py-3 px-4 text-right">
+                        <button 
+                          className="text-gray-600 hover:text-app-blue mr-3"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleEditDocument({...item, groupId: group.id});
+                          }}
+                        >
+                          <Pencil className="h-5 w-5 inline-block" />
+                        </button>
+                        <button 
+                          className="text-gray-600 hover:text-red-500"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteDocument(item.id);
+                          }}
+                        >
+                          <Trash className="h-5 w-5 inline-block" />
+                        </button>
+                      </TableCell>
+                    </TableRow>
+                  ))
                 )}
               </React.Fragment>
             ))}
           </TableBody>
           <TableBody onReorder={handleReorder}>
-            {documents.map((doc) => (
-              <TableRow key={doc.id} className="border-b hover:bg-gray-50">
+            {documents.map((doc, index) => (
+              <TableRow 
+                key={doc.id} 
+                className="border-b hover:bg-gray-50"
+                draggable
+                onDragStart={(e) => handleDragStart(e, index)}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={(e) => handleDrop(e, index)}
+                onDragEnd={handleDragEnd}
+              >
                 <TableCell className="py-3 px-2 w-10">
                   <GripVertical className="h-5 w-5 text-gray-400" />
                 </TableCell>
@@ -395,13 +500,19 @@ const Bibliotheque = () => {
                 <TableCell className="py-3 px-4 text-right">
                   <button 
                     className="text-gray-600 hover:text-app-blue mr-3"
-                    onClick={() => handleEditDocument(doc)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleEditDocument(doc);
+                    }}
                   >
                     <Pencil className="h-5 w-5 inline-block" />
                   </button>
                   <button 
                     className="text-gray-600 hover:text-red-500"
-                    onClick={() => handleDeleteDocument(doc.id)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDeleteDocument(doc.id);
+                    }}
                   >
                     <Trash className="h-5 w-5 inline-block" />
                   </button>
@@ -412,7 +523,7 @@ const Bibliotheque = () => {
         </Table>
       </div>
 
-      <div className="flex justify-end mt-4 space-x-3">
+      <div className="flex justify-end mt-4 space-x-2">
         <Button 
           variant="outline"
           className="hover:bg-gray-100 transition-colors"
