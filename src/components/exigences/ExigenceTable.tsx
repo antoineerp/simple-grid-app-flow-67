@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Pencil, Trash, GripVertical, ChevronDown } from 'lucide-react';
 import ResponsableSelector from '@/components/ResponsableSelector';
@@ -43,7 +42,6 @@ const ExigenceTable: React.FC<ExigenceTableProps> = ({
 }) => {
   const ungroupedExigences = exigences.filter(e => !e.groupId);
 
-  // Correction: Déclarer indexMaps en dehors pour suivre les index de tous les éléments
   const getGroupItemIndex = (groupId: string, localIndex: number) => {
     let globalStartIndex = ungroupedExigences.length;
     
@@ -69,12 +67,10 @@ const ExigenceTable: React.FC<ExigenceTableProps> = ({
     
     let actualStartIndex = startIndex;
     
-    // Si l'élément provient d'un groupe, calculer l'index réel
     if (sourceGroupId) {
       actualStartIndex = getGroupItemIndex(sourceGroupId, startIndex);
     }
     
-    // Si l'élément est déplacé dans un groupe, calculer l'index cible réel
     let actualTargetIndex = targetIndex;
     if (targetGroupId) {
       actualTargetIndex = getGroupItemIndex(targetGroupId, targetIndex);
