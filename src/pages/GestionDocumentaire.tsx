@@ -30,11 +30,21 @@ const GestionDocumentaireContent = () => {
   const { toast } = useToast();
 
   const handleExportPdf = () => {
-    exportDocumentsToPdf(documents);
-    toast({
-      title: "Export PDF réussi",
-      description: "Le document a été généré et téléchargé",
-    });
+    try {
+      console.log("Début de l'export PDF des documents");
+      exportDocumentsToPdf(documents);
+      toast({
+        title: "Export PDF réussi",
+        description: "Le document a été généré et téléchargé",
+      });
+    } catch (error) {
+      console.error("Erreur lors de l'export PDF:", error);
+      toast({
+        title: "Erreur d'export",
+        description: `Une erreur est survenue: ${error instanceof Error ? error.message : 'Erreur inconnue'}`,
+        variant: "destructive"
+      });
+    }
   };
 
   return (
