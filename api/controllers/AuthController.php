@@ -115,15 +115,24 @@ try {
                 // Journaliser l'état de la connexion à la base de données
                 error_log("Connexion à la base de données établie. Recherche de l'utilisateur: " . $username);
                 
-                // Rechercher l'utilisateur par son identifiant technique
+                $user_found = false;
+                
+                // Rechercher l'utilisateur par son identifiant technique OU par email
                 if($user->findByIdentifiant($username)) {
-                    error_log("Utilisateur trouvé dans la base de données: " . $username);
-                    
+                    error_log("Utilisateur trouvé par identifiant technique dans la base de données: " . $username);
+                    $user_found = true;
+                } 
+                else if ($user->findByEmail($username)) {
+                    error_log("Utilisateur trouvé par email dans la base de données: " . $username);
+                    $user_found = true;
+                }
+                
+                if ($user_found) {
                     // Pour la démo, accepter certains mots de passe spécifiques
                     $valid_password = false;
                     
                     // Pour l'utilisateur p71x6d_system, accepter à la fois le mot de passe haché et 'Trottinette43!'
-                    if ($username === 'p71x6d_system' && $password === 'Trottinette43!') {
+                    if ($user->identifiant_technique === 'p71x6d_system' && $password === 'Trottinette43!') {
                         error_log("Mot de passe spécial accepté pour p71x6d_system");
                         $valid_password = true;
                     }
@@ -139,7 +148,7 @@ try {
                     }
                     // Pour les tests, accepter aussi les mots de passe de développement
                     else if (in_array($password, ['admin123', 'manager456', 'user789', 'password123']) && 
-                             (strpos($username, 'admin') !== false || strpos($username, 'system') !== false)) {
+                             (strpos($user->identifiant_technique, 'admin') !== false || strpos($user->identifiant_technique, 'system') !== false)) {
                         $valid_password = true;
                         error_log("Mot de passe accepté via liste de développement (uniquement pour admin/system)");
                     }

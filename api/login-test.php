@@ -145,7 +145,7 @@ if (!empty($data->username) && !empty($data->password)) {
                     error_log("Mot de passe vérifié avec succès via password_verify()");
                     $valid_password = true;
                 }
-                // Si c'est un mot de passe non haché dans la base, comparer directement
+                // Si c'est un mot de passe non haché, comparer directement
                 else if ($data->password === $user['mot_de_passe']) {
                     error_log("Mot de passe vérifié avec succès via comparaison directe");
                     $valid_password = true;

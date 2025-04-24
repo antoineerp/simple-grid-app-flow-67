@@ -1,3 +1,4 @@
+
 <?php
 // Fonction pour nettoyer les données UTF-8 si elle n'existe pas encore
 if (!function_exists('cleanUTF8')) {
@@ -270,6 +271,48 @@ class User {
 
         // Liaison de l'identifiant
         $stmt->bindParam(1, $identifiant);
+
+        // Exécution de la requête
+        $stmt->execute();
+
+        // Récupération du résultat
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        // Si un utilisateur est trouvé
+        if($row) {
+            $this->id = $row['id'];
+            $this->nom = $row['nom'];
+            $this->prenom = $row['prenom'];
+            $this->email = $row['email'];
+            $this->mot_de_passe = $row['mot_de_passe'];
+            $this->identifiant_technique = $row['identifiant_technique'];
+            $this->role = $row['role'];
+            $this->date_creation = $row['date_creation'];
+            return true;
+        }
+
+        return false;
+    }
+    
+    // Rechercher un utilisateur par son email
+    public function findByEmail($email) {
+        // Nettoyer et convertir l'email en UTF-8
+        $email = cleanUTF8(htmlspecialchars(strip_tags($email)));
+        
+        // Vérifier si la table existe
+        $this->createTableIfNotExists();
+        
+        // Requête pour trouver l'utilisateur par email
+        $query = "SELECT id, nom, prenom, email, mot_de_passe, identifiant_technique, role, date_creation
+                FROM " . $this->table_name . "
+                WHERE email = ?
+                LIMIT 0,1";
+
+        // Préparation de la requête
+        $stmt = $this->conn->prepare($query);
+
+        // Liaison de l'email
+        $stmt->bindParam(1, $email);
 
         // Exécution de la requête
         $stmt->execute();
