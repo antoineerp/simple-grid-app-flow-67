@@ -45,17 +45,14 @@ export const useAdminUsers = () => {
       const data = await getUtilisateurs();
       console.log("Données utilisateurs récupérées:", data);
       
+      // Corriger la vérification du type de data et l'accès aux propriétés
       if (Array.isArray(data)) {
         setUtilisateurs(data);
-      } else if (data && data.records && Array.isArray(data.records)) {
+      } else if (data && typeof data === 'object' && 'records' in data && Array.isArray(data.records)) {
         setUtilisateurs(data.records);
       } else {
         console.warn("Format de données inattendu:", data);
         setUtilisateurs([]);
-      }
-      
-      if (utilisateurs.length === 0) {
-        console.warn("Aucun utilisateur récupéré de la base de données.");
       }
     } catch (error) {
       console.error("Erreur lors du chargement des utilisateurs", error);
@@ -68,7 +65,7 @@ export const useAdminUsers = () => {
     } finally {
       setLoading(false);
     }
-  }, [toast, utilisateurs.length]);
+  }, [toast]);
 
   const handleConnectAsUser = async (identifiantTechnique: string) => {
     const currentUserRole = localStorage.getItem('userRole') as UserRole;

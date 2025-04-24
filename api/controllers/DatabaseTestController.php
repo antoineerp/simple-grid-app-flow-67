@@ -49,13 +49,9 @@ error_log("=== EXÉCUTION DE DATABASE TEST CONTROLLER ===");
 error_log("Méthode: " . $_SERVER['REQUEST_METHOD'] . " - URI: " . $_SERVER['REQUEST_URI']);
 
 try {
-    // Vérifier si le fichier database.php existe
-    if (!file_exists('../config/database.php')) {
-        throw new Exception("Le fichier config/database.php n'existe pas");
-    }
-    
-    // Inclusion des fichiers nécessaires
-    include_once '../config/database.php';
+    // Inclure les fichiers nécessaires
+    require_once '../config/database.php';
+    require_once '../utils/ResponseHandler.php';
     
     // Vérifier si middleware/Auth.php existe
     if (file_exists('../middleware/Auth.php')) {
@@ -95,93 +91,104 @@ try {
     $method = $_SERVER['REQUEST_METHOD'];
     
     if ($method === 'GET' || $method === 'POST') {
-        // Instancier la base de données
-        $database = new Database();
+        // Utiliser ResponseHandler pour vérifier la connexion à la base de données
+        $dbStatus = ResponseHandler::databaseStatus();
         
-        try {
-            // Essayer de se connecter
+        if ($dbStatus['is_connected']) {
+            // La connexion est établie
+            // Instancier également la base de données pour des informations supplémentaires
+            $database = new Database();
             $conn = $database->getConnection(false);
             
-            if ($database->is_connected) {
-                // Tester la connexion avec une requête simple
-                $stmt = $conn->query("SELECT 1");
+            try {
+                // Collecter des informations supplémentaires sur la base de données
+                $info = $dbStatus['connection_info'];
                 
-                if ($stmt) {
-                    // Collecter des informations sur la base de données
-                    $dbInfo = [];
-                    
+                // Obtenir la liste des tables
+                $tables = [];
+                if ($database->is_connected) {
+                    $tablesStmt = $conn->query("SHOW TABLES");
+                    $tables = $tablesStmt->fetchAll(PDO::FETCH_COLUMN);
+                }
+                
+                // Calculer la taille de la base de données
+                $sizeInfo = ['size' => '0 MB'];
+                if ($database->is_connected) {
                     try {
-                        // Obtenir les informations de configuration
-                        $dbConfig = $database->getConfig();
-                        
-                        // Obtenir la liste des tables
-                        $tablesStmt = $conn->query("SHOW TABLES");
-                        $tables = $tablesStmt->fetchAll(PDO::FETCH_COLUMN);
-                        
-                        // Obtenir la taille de la base de données
                         $sizeStmt = $conn->query("
                             SELECT 
-                                SUM(data_length + index_length) as size,
-                                COUNT(*) as table_count
+                                SUM(data_length + index_length) as size
                             FROM 
                                 information_schema.TABLES 
                             WHERE 
                                 table_schema = '" . $database->db_name . "'
                         ");
-                        $sizeInfo = $sizeStmt->fetch(PDO::FETCH_ASSOC);
-                        
+                        $sizeData = $sizeStmt->fetch(PDO::FETCH_ASSOC);
                         // Convertir la taille en MB
-                        $sizeMB = round(($sizeInfo['size'] ?? 0) / (1024 * 1024), 2) . ' MB';
-                        
-                        // Vérifier l'encodage de la base de données
+                        $sizeMB = round(($sizeData['size'] ?? 0) / (1024 * 1024), 2) . ' MB';
+                        $sizeInfo['size'] = $sizeMB;
+                    } catch (PDOException $e) {
+                        $sizeInfo['error'] = $e->getMessage();
+                    }
+                }
+                
+                // Obtenir des informations sur l'encodage
+                $encodingInfo = ['encoding' => 'utf8mb4', 'collation' => 'utf8mb4_unicode_ci'];
+                if ($database->is_connected) {
+                    try {
                         $encodingStmt = $conn->query("
                             SELECT default_character_set_name, default_collation_name
                             FROM information_schema.SCHEMATA
                             WHERE schema_name = '" . $database->db_name . "'
                         ");
-                        $encodingInfo = $encodingStmt->fetch(PDO::FETCH_ASSOC);
-                        
-                        // La connexion est établie et la requête a fonctionné
-                        http_response_code(200);
-                        echo json_encode([
-                            "message" => "Connexion réussie à la base de données",
-                            "status" => "success",
-                            "info" => [
-                                "database_name" => $database->db_name,
-                                "host" => $database->host,
-                                "tables" => $tables,
-                                "table_count" => count($tables),
-                                "size" => $sizeMB,
-                                "encoding" => $encodingInfo['default_character_set_name'] ?? 'utf8mb4',
-                                "collation" => $encodingInfo['default_collation_name'] ?? 'utf8mb4_unicode_ci'
-                            ]
-                        ], JSON_UNESCAPED_UNICODE);
-                    } catch (Exception $e) {
-                        // La connexion est établie mais il y a un problème avec les requêtes supplémentaires
-                        error_log("Erreur lors de la collecte d'informations: " . $e->getMessage());
-                        http_response_code(200);
-                        echo json_encode([
-                            "message" => "Connexion réussie à la base de données, mais erreur lors de la collecte d'informations",
-                            "status" => "warning",
-                            "info" => [
-                                "database_name" => $database->db_name,
-                                "host" => $database->host,
-                                "error_details" => $e->getMessage()
-                            ]
-                        ], JSON_UNESCAPED_UNICODE);
+                        $encodingData = $encodingStmt->fetch(PDO::FETCH_ASSOC);
+                        $encodingInfo['encoding'] = $encodingData['default_character_set_name'] ?? 'utf8mb4';
+                        $encodingInfo['collation'] = $encodingData['default_collation_name'] ?? 'utf8mb4_unicode_ci';
+                    } catch (PDOException $e) {
+                        $encodingInfo['error'] = $e->getMessage();
                     }
-                } else {
-                    throw new Exception("Impossible d'exécuter une requête de test");
                 }
-            } else {
-                throw new Exception("Impossible d'établir une connexion à la base de données: " . ($database->connection_error ?? "Raison inconnue"));
+                
+                // Journaliser le résultat
+                error_log("Connexion à la base de données réussie, informations récupérées");
+                
+                // La connexion est établie et la requête a fonctionné
+                http_response_code(200);
+                echo json_encode([
+                    "message" => "Connexion réussie à la base de données",
+                    "status" => "success",
+                    "info" => [
+                        "database_name" => $info['database'],
+                        "host" => $info['host'],
+                        "user" => $info['user'],
+                        "tables" => $tables,
+                        "table_count" => count($tables),
+                        "size" => $sizeInfo['size'],
+                        "encoding" => $encodingInfo['encoding'],
+                        "collation" => $encodingInfo['collation']
+                    ]
+                ], JSON_UNESCAPED_UNICODE);
+            } catch (Exception $e) {
+                // La connexion est établie mais il y a un problème avec les requêtes supplémentaires
+                error_log("Erreur lors de la collecte d'informations: " . $e->getMessage());
+                http_response_code(200);
+                echo json_encode([
+                    "message" => "Connexion réussie à la base de données, mais erreur lors de la collecte d'informations",
+                    "status" => "warning",
+                    "info" => [
+                        "database_name" => $dbStatus['connection_info']['database'] ?? 'inconnu',
+                        "host" => $dbStatus['connection_info']['host'] ?? 'inconnu',
+                        "error_details" => $e->getMessage()
+                    ]
+                ], JSON_UNESCAPED_UNICODE);
             }
-        } catch (Exception $e) {
-            error_log("Erreur de connexion à la base de données: " . $e->getMessage());
+        } else {
+            // La connexion a échoué
+            error_log("Échec de la connexion à la base de données: " . ($dbStatus['error'] ?? "Raison inconnue"));
             http_response_code(500);
             echo json_encode([
                 "message" => "Échec de la connexion à la base de données",
-                "error" => $e->getMessage(),
+                "error" => $dbStatus['error'] ?? "Raison inconnue",
                 "status" => "error"
             ], JSON_UNESCAPED_UNICODE);
         }
