@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { FileText, UserPlus, RefreshCw } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -14,7 +14,7 @@ import { useMembres } from '@/contexts/MembresContext';
 import MemberList from '@/components/ressources-humaines/MemberList';
 import MemberForm from '@/components/ressources-humaines/MemberForm';
 import { Membre } from '@/types/membres';
-import { syncMembresWithServer } from '@/services/membres/membresService';
+import { v4 as uuidv4 } from 'uuid';
 
 const RessourcesHumaines = () => {
   const { toast } = useToast();
@@ -31,30 +31,7 @@ const RessourcesHumaines = () => {
     mot_de_passe: ''
   });
   const [isEditing, setIsEditing] = useState(false);
-  const [isSyncing, setIsSyncing] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
-
-  // Synchroniser avec le serveur au chargement
-  useEffect(() => {
-    const syncWithServer = async () => {
-      if (membres.length > 0 && !loading) {
-        setIsSyncing(true);
-        const currentUser = localStorage.getItem('currentUser') || 
-                           localStorage.getItem('userEmail') || 
-                           'default_user';
-                           
-        try {
-          await syncMembresWithServer(membres, currentUser);
-        } catch (error) {
-          console.error("Erreur lors de la synchronisation initiale:", error);
-        } finally {
-          setIsSyncing(false);
-        }
-      }
-    };
-    
-    syncWithServer();
-  }, [membres, loading]);
 
   // Handler pour rafraîchir les données
   const handleRefresh = async () => {
@@ -87,19 +64,14 @@ const RessourcesHumaines = () => {
     setMembres(prev => prev.filter(membre => membre.id !== id));
     toast({
       title: "Suppression",
-      description: `Le membre ${id} a été supprimé`,
+      description: `Le membre a été supprimé`,
     });
   };
 
   // Handler for adding a new member
   const handleAddMember = () => {
-    // Generate a new ID for the new member - convert to string
-    const newId = membres.length > 0 
-      ? String(Math.max(...membres.map(membre => parseInt(membre.id))) + 1)
-      : '1';
-    
     setCurrentMembre({
-      id: newId,
+      id: uuidv4(), // Utiliser UUID pour générer un ID unique
       nom: '',
       prenom: '',
       fonction: '',
