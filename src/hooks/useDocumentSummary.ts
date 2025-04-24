@@ -40,34 +40,39 @@ export default function useDocumentSummary() {
 
   useEffect(() => {
     const loadData = async () => {
-      // Simuler le chargement des documents depuis une source de données
-      // Remplacez ceci par votre propre logique de chargement de données
-      const mockDocuments: Document[] = [
-        { id: '1', nom: 'Document A', etat: 'C', date_creation: new Date('2023-01-01'), date_modification: new Date('2024-01-01'), responsabilites: { r: [], a: [], c: [], i: [] } },
-        { id: '2', nom: 'Document B', etat: 'NC', date_creation: new Date('2023-02-01'), date_modification: new Date('2023-08-01'), responsabilites: { r: [], a: [], c: [], i: [] } },
-        { id: '3', nom: 'Document C', etat: 'EX', date_creation: new Date('2022-01-01'), date_modification: new Date('2022-06-01'), responsabilites: { r: [], a: [], c: [], i: [] } },
-        { id: '4', nom: 'Document D', etat: 'PC', date_creation: new Date('2024-01-01'), date_modification: new Date('2025-01-01'), responsabilites: { r: [], a: [], c: [], i: [] } },
-        { id: '5', nom: 'Document E', etat: 'C', date_creation: new Date('2023-03-01'), date_modification: new Date('2024-03-01'), responsabilites: { r: [], a: [], c: [], i: [] } },
-      ];
+      try {
+        // Simuler le chargement des documents depuis une source de données
+        // Remplacez ceci par votre propre logique de chargement de données
+        const mockDocuments: Document[] = [
+          { id: '1', nom: 'Document A', etat: 'C', date_creation: new Date('2023-01-01'), date_modification: new Date('2024-01-01'), responsabilites: { r: [], a: [], c: [], i: [] } },
+          { id: '2', nom: 'Document B', etat: 'NC', date_creation: new Date('2023-02-01'), date_modification: new Date('2023-08-01'), responsabilites: { r: [], a: [], c: [], i: [] } },
+          { id: '3', nom: 'Document C', etat: 'EX', date_creation: new Date('2022-01-01'), date_modification: new Date('2022-06-01'), responsabilites: { r: [], a: [], c: [], i: [] } },
+          { id: '4', nom: 'Document D', etat: 'PC', date_creation: new Date('2024-01-01'), date_modification: new Date('2025-01-01'), responsabilites: { r: [], a: [], c: [], i: [] } },
+          { id: '5', nom: 'Document E', etat: 'C', date_creation: new Date('2023-03-01'), date_modification: new Date('2024-03-01'), responsabilites: { r: [], a: [], c: [], i: [] } },
+        ];
 
-      setDocuments(mockDocuments);
+        setDocuments(mockDocuments);
 
-      // Calculer les statistiques à partir des documents
-      if (mockDocuments) {
-        const calculatedStats = calculateDocumentStats(mockDocuments);
-        
-        // Map the document stats to our expected format
-        const mappedStats: DocumentStats = {
-          total: calculatedStats.total,
-          conformes: calculatedStats.conforme,
-          nonConformes: calculatedStats.nonConforme,
-          obsoletes: 0, // Not in the original stats
-          avenir: calculatedStats.partiellementConforme, // Using PC as "avenir"
-          excluded: calculatedStats.exclusion,
-          exclusion: calculatedStats.exclusion
-        };
-        
-        setStats(mappedStats);
+        // Calculer les statistiques à partir des documents
+        if (mockDocuments) {
+          const calculatedStats = calculateDocumentStats(mockDocuments);
+          
+          // Map the document stats to our expected format
+          const mappedStats: DocumentStats = {
+            total: calculatedStats.total,
+            conformes: calculatedStats.conforme,
+            nonConformes: calculatedStats.nonConforme,
+            obsoletes: 0, // Not in the original stats
+            avenir: calculatedStats.partiellementConforme, // Using PC as "avenir"
+            excluded: calculatedStats.excluded || 0,
+            exclusion: calculatedStats.exclusion || 0
+          };
+          
+          setStats(mappedStats);
+          setLoading(false);
+        }
+      } catch (error) {
+        console.error('Erreur lors du chargement des documents:', error);
         setLoading(false);
       }
     };

@@ -14,9 +14,14 @@ export const loadDocumentsFromStorage = (currentUser: string): Document[] => {
   const storedDocuments = localStorage.getItem(storageKey);
   
   if (storedDocuments) {
-    const parsedDocuments = JSON.parse(storedDocuments);
-    console.log(`[Documents] Loaded ${parsedDocuments.length} documents`);
-    return parsedDocuments;
+    try {
+      const parsedDocuments = JSON.parse(storedDocuments);
+      console.log(`[Documents] Loaded ${parsedDocuments.length} documents`);
+      return parsedDocuments;
+    } catch (error) {
+      console.error('[Documents] Error parsing stored documents:', error);
+      return getDefaultDocuments();
+    }
   } else {
     console.log(`[Documents] No documents found, loading defaults`);
     // Ne pas charger les documents d'autres utilisateurs comme template
@@ -32,11 +37,15 @@ export const saveDocumentsToStorage = (documents: Document[], currentUser: strin
   const userId = getUserId() || currentUser;
   const storageKey = `documents_${userId}`;
   
-  console.log(`[Documents] Saving ${documents.length} documents for user ${userId}`);
-  localStorage.setItem(storageKey, JSON.stringify(documents));
-  
-  // Notify other components of document updates
-  window.dispatchEvent(new Event('documentUpdate'));
+  try {
+    console.log(`[Documents] Saving ${documents.length} documents for user ${userId}`);
+    localStorage.setItem(storageKey, JSON.stringify(documents));
+    
+    // Notify other components of document updates
+    window.dispatchEvent(new Event('documentUpdate'));
+  } catch (error) {
+    console.error('[Documents] Error saving documents to localStorage:', error);
+  }
 };
 
 /**
@@ -56,7 +65,8 @@ export const calculateDocumentStats = (documents: Document[]) => {
     nonConforme,
     partiellementConforme,
     conforme,
-    excluded
+    excluded,
+    exclusion: excluded
   };
 };
 

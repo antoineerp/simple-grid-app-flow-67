@@ -2,14 +2,10 @@
 import React, { useState, useEffect } from 'react';
 import Logo from '@/components/auth/Logo';
 import LoginForm from '@/components/auth/LoginForm';
-import { getApiUrl, getFullApiUrl, testApiConnection } from '@/config/apiConfig';
-import { Button } from '@/components/ui/button';
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { AlertCircle } from 'lucide-react';
+import { testApiConnection } from '@/config/apiConfig';
 
 const Index = () => {
   const [apiStatus, setApiStatus] = useState<'loading' | 'success' | 'error'>('loading');
-  const [apiMessage, setApiMessage] = useState<string>('');
   const [version, setVersion] = useState<string>('1.0.7');
   
   const checkApi = async () => {
@@ -19,14 +15,11 @@ const Index = () => {
       
       if (result.success) {
         setApiStatus('success');
-        setApiMessage(result.message);
       } else {
         setApiStatus('error');
-        setApiMessage(result.message);
       }
     } catch (error) {
       setApiStatus('error');
-      setApiMessage(error instanceof Error ? error.message : 'Erreur inconnue');
     }
   };
   
@@ -41,12 +34,9 @@ const Index = () => {
         <Logo />
         
         {apiStatus === 'error' && (
-          <Alert variant="destructive" className="mb-6">
-            <AlertCircle className="h-4 w-4 mr-2" />
-            <AlertDescription>
-              Connexion à l'API impossible. Veuillez contacter le support technique.
-            </AlertDescription>
-          </Alert>
+          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-6">
+            Connexion à l'API impossible. Veuillez contacter le support technique.
+          </div>
         )}
         
         <LoginForm />

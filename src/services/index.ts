@@ -12,7 +12,7 @@ export {
   disconnectUser,
   testDatabaseConnection,
   getDatabaseInfo,
-  getDatabaseConnectionCurrentUser
+  getCurrentUser as getDatabaseConnectionCurrentUser
 } from './core/databaseConnectionService';
 
 export { 

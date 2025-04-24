@@ -86,13 +86,6 @@ export const useResponsabilityMatrix = () => {
             }
           });
 
-        console.log(`[Matrix] Résultats pour ${initiales}:`, { 
-          exigences: exigencesCount, 
-          documents: documentsCount,
-          total: exigencesCount.r + exigencesCount.a + exigencesCount.c + exigencesCount.i + 
-                 documentsCount.r + documentsCount.a + documentsCount.c + documentsCount.i
-        });
-
         // Inclure toutes les propriétés du membre et ajouter les nouvelles propriétés
         return {
           ...membre,
