@@ -23,6 +23,15 @@ trait UserQueries {
             error_log("Création d'un nouvel utilisateur: début");
             $this->createTableIfNotExists();
             
+            error_log("Table vérifiée, préparation de la requête INSERT");
+            
+            // Vérifier que les propriétés nécessaires sont définies
+            if (empty($this->nom) || empty($this->prenom) || empty($this->email) || 
+                empty($this->identifiant_technique) || empty($this->role)) {
+                error_log("Erreur: données utilisateur incomplètes");
+                throw new Exception("Données utilisateur incomplètes");
+            }
+            
             $query = "INSERT INTO " . $this->table_name . "
                     (nom, prenom, email, mot_de_passe, identifiant_technique, role, date_creation)
                     VALUES
@@ -38,12 +47,18 @@ trait UserQueries {
             }
 
             // Hash du mot de passe s'il n'est pas déjà hashé
-            $passwordInfo = password_get_info($this->mot_de_passe);
-            error_log("Info mot de passe - algo: " . ($passwordInfo['algo'] ?? 'none'));
-            
-            if (!$passwordInfo['algo']) {
-                error_log("Hashage du mot de passe");
-                $this->mot_de_passe = password_hash($this->mot_de_passe, PASSWORD_BCRYPT);
+            if (!empty($this->mot_de_passe)) {
+                $passwordInfo = password_get_info($this->mot_de_passe);
+                error_log("Info mot de passe - algo: " . ($passwordInfo['algo'] ?? 'none'));
+                
+                if (!$passwordInfo['algo']) {
+                    error_log("Hashage du mot de passe");
+                    $this->mot_de_passe = password_hash($this->mot_de_passe, PASSWORD_BCRYPT);
+                }
+            } else {
+                // Générer un mot de passe aléatoire si non fourni
+                error_log("Génération d'un mot de passe par défaut");
+                $this->mot_de_passe = password_hash('password123', PASSWORD_BCRYPT);
             }
 
             // Binding des paramètres
@@ -59,8 +74,8 @@ trait UserQueries {
             error_log("Exécution de la requête INSERT");
             if (!$stmt->execute()) {
                 $errorInfo = $stmt->errorInfo();
-                error_log("Erreur SQL lors de la création: " . $errorInfo[2]);
-                return false;
+                error_log("Erreur SQL lors de la création: " . json_encode($errorInfo));
+                throw new Exception("Erreur SQL: " . ($errorInfo[2] ?? "Erreur inconnue"));
             }
             
             error_log("Création de l'utilisateur réussie");

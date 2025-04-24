@@ -21,6 +21,7 @@ class UserOperations {
     }
 
     public function handlePostRequest() {
+        // Récupérer et vérifier les données
         $data = json_decode(file_get_contents("php://input"));
         error_log("Données reçues POST: " . json_encode($data));
 
@@ -55,55 +56,48 @@ class UserOperations {
 
             error_log("Tentative de création de l'utilisateur: " . $data->nom . " " . $data->prenom);
             
+            // S'assurer qu'aucun contenu n'a été envoyé avant d'essayer de créer l'utilisateur
+            if (ob_get_length()) ob_clean();
+            
             // Vérifier la création
-            if ($this->user->create()) {
-                $lastId = $this->db->lastInsertId();
-                error_log("Utilisateur créé avec succès. ID: " . $lastId);
-                
-                if ($data->role === 'utilisateur') {
-                    error_log("Initialisation des données utilisateur depuis le gestionnaire");
-                    $this->user->initializeUserDataFromManager($data->identifiant_technique);
-                }
-                
-                // Renvoyer une réponse avec les données minimales nécessaires
-                $responseData = [
-                    'id' => $lastId,
-                    'identifiant_technique' => $data->identifiant_technique,
-                    'nom' => $data->nom,
-                    'prenom' => $data->prenom,
-                    'email' => $data->email,
-                    'role' => $data->role
-                ];
-                
-                // S'assurer qu'aucun contenu n'a été envoyé avant les headers
-                if (ob_get_length()) {
-                    ob_clean();
-                }
-                
-                // S'assurer que les headers sont correctement définis
-                if (!headers_sent()) {
-                    header('Content-Type: application/json; charset=UTF-8');
-                    http_response_code(201);
-                }
-                
-                echo json_encode([
-                    'status' => 'success',
-                    'message' => "Utilisateur créé avec succès",
-                    'data' => $responseData
-                ]);
-                exit;
-            } else {
+            if (!$this->user->create()) {
                 error_log("Échec de création de l'utilisateur sans exception");
-                
-                // Nettoyer tout buffer de sortie
-                if (ob_get_length()) {
-                    ob_clean();
-                }
-                
                 ResponseHandler::error("Échec de création de l'utilisateur", 500);
+                return;
             }
+            
+            $lastId = $this->db->lastInsertId();
+            error_log("Utilisateur créé avec succès. ID: " . $lastId);
+            
+            if ($data->role === 'utilisateur') {
+                error_log("Initialisation des données utilisateur depuis le gestionnaire");
+                $this->user->initializeUserDataFromManager($data->identifiant_technique);
+            }
+            
+            // Renvoyer une réponse avec les données minimales nécessaires
+            $responseData = [
+                'id' => $lastId,
+                'identifiant_technique' => $data->identifiant_technique,
+                'nom' => $data->nom,
+                'prenom' => $data->prenom,
+                'email' => $data->email,
+                'role' => $data->role
+            ];
+            
+            // S'assurer que les headers sont correctement définis
+            if (!headers_sent()) {
+                header('Content-Type: application/json; charset=UTF-8');
+                http_response_code(201);
+            }
+            
+            echo json_encode([
+                'status' => 'success',
+                'message' => "Utilisateur créé avec succès",
+                'data' => $responseData
+            ]);
+            
         } catch (Exception $e) {
-            error_log("Erreur création utilisateur: " . $e->getMessage());
+            error_log("Erreur création utilisateur: " . $e->getMessage() . " dans " . $e->getFile() . " ligne " . $e->getLine());
             
             // Nettoyer tout buffer de sortie
             if (ob_get_length()) {
@@ -117,21 +111,27 @@ class UserOperations {
     private function validateUserData($data) {
         error_log("Validation des données: " . json_encode($data));
         
-        $isValid = !empty($data->nom) &&
-               !empty($data->prenom) &&
-               !empty($data->email) &&
-               !empty($data->identifiant_technique) &&
-               !empty($data->mot_de_passe) &&
-               !empty($data->role);
+        // Vérifier que l'objet $data existe
+        if (!is_object($data)) {
+            error_log("Données invalides: ce n'est pas un objet");
+            return false;
+        }
+        
+        $isValid = isset($data->nom) && !empty($data->nom) &&
+                   isset($data->prenom) && !empty($data->prenom) &&
+                   isset($data->email) && !empty($data->email) &&
+                   isset($data->identifiant_technique) && !empty($data->identifiant_technique) &&
+                   isset($data->mot_de_passe) && !empty($data->mot_de_passe) &&
+                   isset($data->role) && !empty($data->role);
                
         if (!$isValid) {
             error_log("Champs manquants: " . 
-                (empty($data->nom) ? "nom " : "") .
-                (empty($data->prenom) ? "prenom " : "") .
-                (empty($data->email) ? "email " : "") .
-                (empty($data->identifiant_technique) ? "identifiant_technique " : "") .
-                (empty($data->mot_de_passe) ? "mot_de_passe " : "") .
-                (empty($data->role) ? "role " : ""));
+                (!isset($data->nom) || empty($data->nom) ? "nom " : "") .
+                (!isset($data->prenom) || empty($data->prenom) ? "prenom " : "") .
+                (!isset($data->email) || empty($data->email) ? "email " : "") .
+                (!isset($data->identifiant_technique) || empty($data->identifiant_technique) ? "identifiant_technique " : "") .
+                (!isset($data->mot_de_passe) || empty($data->mot_de_passe) ? "mot_de_passe " : "") .
+                (!isset($data->role) || empty($data->role) ? "role " : ""));
         }
                
         return $isValid;

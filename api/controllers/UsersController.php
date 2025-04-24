@@ -36,8 +36,10 @@ try {
             break;
             
         case 'POST':
-            // Fixer les problèmes de contenu vide ou mal formaté
+            // Capturer les données brutes
             $postData = file_get_contents("php://input");
+            error_log("UsersController - Données POST brutes: " . $postData);
+            
             if (empty($postData)) {
                 ResponseHandler::error("Aucune donnée reçue", 400);
                 break;
@@ -49,6 +51,9 @@ try {
                 ResponseHandler::error("JSON invalide: " . json_last_error_msg(), 400);
                 break;
             }
+            
+            // Log des données après décodage JSON pour debug
+            error_log("UsersController - Données JSON décodées: " . json_encode($data));
             
             $userOps->handlePostRequest();
             break;
@@ -66,7 +71,7 @@ try {
             break;
     }
 } catch (Exception $e) {
-    error_log("UsersController - Exception: " . $e->getMessage());
+    error_log("UsersController - Exception: " . $e->getMessage() . " dans " . $e->getFile() . " à la ligne " . $e->getLine());
     ResponseHandler::error(
         "Erreur serveur: " . $e->getMessage(),
         500,
