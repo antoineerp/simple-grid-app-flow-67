@@ -1,4 +1,3 @@
-
 <?php
 trait UserQueries {
     public function read() {
@@ -20,6 +19,7 @@ trait UserQueries {
 
     public function create() {
         try {
+            error_log("Création d'un nouvel utilisateur: début");
             $this->createTableIfNotExists();
             
             $query = "INSERT INTO " . $this->table_name . "
@@ -29,14 +29,24 @@ trait UserQueries {
 
             $stmt = $this->conn->prepare($query);
             
+            // Nettoyage des données
             foreach (['nom', 'prenom', 'email', 'identifiant_technique', 'role'] as $field) {
+                error_log("Nettoyage du champ {$field}: " . $this->$field);
                 $this->$field = $this->cleanUTF8($this->sanitizeInput($this->$field));
+                error_log("Après nettoyage: " . $this->$field);
             }
 
-            if (!password_get_info($this->mot_de_passe)['algo']) {
+            // Hash du mot de passe s'il n'est pas déjà hashé
+            $passwordInfo = password_get_info($this->mot_de_passe);
+            error_log("Info mot de passe - algo: " . ($passwordInfo['algo'] ?? 'none'));
+            
+            if (!$passwordInfo['algo']) {
+                error_log("Hashage du mot de passe");
                 $this->mot_de_passe = password_hash($this->mot_de_passe, PASSWORD_BCRYPT);
             }
 
+            // Binding des paramètres
+            error_log("Binding des paramètres");
             $stmt->bindParam(":nom", $this->nom);
             $stmt->bindParam(":prenom", $this->prenom);
             $stmt->bindParam(":email", $this->email);
@@ -44,9 +54,15 @@ trait UserQueries {
             $stmt->bindParam(":identifiant_technique", $this->identifiant_technique);
             $stmt->bindParam(":role", $this->role);
 
-            return $stmt->execute();
+            // Exécution de la requête
+            error_log("Exécution de la requête INSERT");
+            $result = $stmt->execute();
+            error_log("Résultat de l'exécution: " . ($result ? "succès" : "échec"));
+            
+            return $result;
         } catch (PDOException $e) {
             error_log("Erreur lors de la création d'un utilisateur: " . $e->getMessage());
+            error_log("Trace: " . $e->getTraceAsString());
             throw $e;
         }
     }

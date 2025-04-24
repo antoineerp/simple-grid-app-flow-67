@@ -32,6 +32,8 @@ export const createUser = async (userData: CreateUserData) => {
   try {
     // Préparation de la requête
     const apiUrl = getApiUrl();
+    
+    // Utiliser spécifiquement le point d'entrée "utilisateurs" défini dans index.php
     const url = `${apiUrl}/utilisateurs`;
     
     console.log(`Envoi de la requête à ${url}`);
@@ -45,7 +47,7 @@ export const createUser = async (userData: CreateUserData) => {
     
     console.log("Données envoyées:", JSON.stringify(requestData));
     
-    // Vérification de l'email
+    // Vérification de l'email (facultatif, peut être désactivé si cause des problèmes)
     try {
       const checkEmailUrl = `${apiUrl}/check-users.php?email=${encodeURIComponent(userData.email)}`;
       console.log(`Vérification de l'email: ${checkEmailUrl}`);
@@ -87,6 +89,8 @@ export const createUser = async (userData: CreateUserData) => {
       try {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 secondes timeout
+        
+        console.log("Envoi de la requête POST avec les données:", JSON.stringify(requestData));
         
         const response = await fetch(url, {
           method: 'POST',

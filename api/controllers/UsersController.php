@@ -15,6 +15,7 @@ RequestHandler::handleCORS();
 
 // Log request information
 error_log("UsersController - Méthode: " . $_SERVER['REQUEST_METHOD'] . " - URI: " . $_SERVER['REQUEST_URI']);
+error_log("UsersController - Données brutes: " . file_get_contents("php://input"));
 
 try {
     // Initialize database connection
