@@ -8,7 +8,7 @@ import {
   HoverCardTrigger,
   HoverCardContent
 } from "@/components/ui/hover-card";
-import { exportCollaborateurStatsToPdf } from '@/services/pdfExport';
+import { exportCollaborateurStatsToPdf } from '@/services/collaborateurExport';
 import { useToast } from "@/hooks/use-toast";
 
 const ResponsibilityMatrix: React.FC = () => {

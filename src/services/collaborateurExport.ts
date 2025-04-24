@@ -20,17 +20,18 @@ export const exportCollaborateurStatsToPdf = (membre: any) => {
     // Prepare title
     const displayTitle = `Statistiques de ${membre.prenom} ${membre.nom} (${membre.initiales})`;
     
-    // Add title and metadata
+    // Add title and metadata - Now centered
+    const pageWidth = doc.internal.pageSize.getWidth();
     doc.setFontSize(18);
-    doc.text(displayTitle, 20, 20);
+    doc.text(displayTitle, pageWidth / 2, 20, { align: 'center' });
     
-    // Add role
+    // Add role - Now centered
     doc.setFontSize(14);
-    doc.text(`Fonction: ${membre.fonction}`, 20, 30);
+    doc.text(`Fonction: ${membre.fonction}`, pageWidth / 2, 30, { align: 'center' });
     
-    // Add date
+    // Add date - Now centered
     doc.setFontSize(10);
-    doc.text(`Généré le: ${currentDate}`, 20, 40);
+    doc.text(`Généré le: ${currentDate}`, pageWidth / 2, 40, { align: 'center' });
     
     // Table for requirements statistics
     const headersExigences = [['Type', 'Nombre']];
@@ -50,13 +51,13 @@ export const exportCollaborateurStatsToPdf = (membre: any) => {
       styles: { fontSize: 10, cellPadding: 5 },
       headStyles: { fillColor: [0, 48, 135], textColor: [255, 255, 255] },
       tableWidth: 150,
-      margin: { left: 20 }
+      margin: { left: (pageWidth - 150) / 2 } // Center the table
     });
     
     // Title for documents
     doc.setFontSize(14);
     let lastPosition = (doc as any).lastAutoTable.finalY + 15;
-    doc.text('Documents', 20, lastPosition);
+    doc.text('Documents', pageWidth / 2, lastPosition, { align: 'center' });
     
     // Table for document statistics
     const headersDocuments = [['Type', 'Nombre']];
@@ -76,7 +77,7 @@ export const exportCollaborateurStatsToPdf = (membre: any) => {
       styles: { fontSize: 10, cellPadding: 5 },
       headStyles: { fillColor: [0, 48, 135], textColor: [255, 255, 255] },
       tableWidth: 150,
-      margin: { left: 20 }
+      margin: { left: (pageWidth - 150) / 2 } // Center the table
     });
     
     // Total
@@ -86,6 +87,6 @@ export const exportCollaborateurStatsToPdf = (membre: any) => {
     
     lastPosition = (doc as any).lastAutoTable.finalY + 15;
     doc.setFontSize(14);
-    doc.text(`Total des responsabilités: ${totalGeneral}`, 20, lastPosition);
+    doc.text(`Total des responsabilités: ${totalGeneral}`, pageWidth / 2, lastPosition, { align: 'center' });
   }, title);
 };
