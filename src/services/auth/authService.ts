@@ -85,49 +85,92 @@ class AuthService {
         try {
             console.log(`Tentative de connexion pour l'utilisateur: ${username}`);
             
-            // Utiliser login-test.php directement sans essayer auth.php d'abord
-            const authUrl = `${getApiUrl()}/login-test`;
+            // Restaurer l'ancien comportement qui fonctionnait
+            const authUrl = `${API_URL}/auth.php`; 
             console.log(`URL de requête (authentification): ${authUrl}`);
             
-            const response = await fetch(authUrl, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Cache-Control': 'no-cache, no-store, must-revalidate'
-                },
-                body: JSON.stringify({ username, password })
-            });
-            
-            if (!response.ok) {
-                const errorData = await this.parseJsonResponse(response);
-                throw new Error(errorData.message || `Échec de l'authentification (${response.status})`);
-            }
-            
-            const data = await this.parseJsonResponse(response);
-            
-            if (!data || !data.token) {
-                throw new Error(data?.message || "Authentification échouée");
-            }
-            
-            this.setToken(data.token);
-            
-            if (data.user) {
-                const displayName = 
-                    (data.user.prenom && data.user.nom) 
-                        ? `${data.user.prenom} ${data.user.nom}` 
-                        : (data.user.email || data.user.identifiant_technique || 'Utilisateur');
+            try {
+                const response = await fetch(authUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Cache-Control': 'no-cache, no-store, must-revalidate'
+                    },
+                    body: JSON.stringify({ username, password })
+                });
                 
-                this.currentUser = data.user.identifiant_technique;
+                if (!response.ok) {
+                    const errorData = await this.parseJsonResponse(response);
+                    throw new Error(errorData.message || `Échec de l'authentification (${response.status})`);
+                }
+                
+                const data = await this.parseJsonResponse(response);
+                
+                if (!data || !data.token) {
+                    throw new Error(data?.message || "Authentification échouée");
+                }
+                
+                this.setToken(data.token);
+                
+                if (data.user) {
+                    const displayName = 
+                        (data.user.prenom && data.user.nom) 
+                            ? `${data.user.prenom} ${data.user.nom}` 
+                            : (data.user.email || data.user.identifiant_technique || 'Utilisateur');
+                    
+                    this.currentUser = data.user.identifiant_technique;
+                }
+                
+                if (data.user && data.user.identifiant_technique) {
+                    await initializeUserData(data.user.identifiant_technique);
+                }
+                
+                return {
+                    success: true,
+                    user: data.user
+                };
+            } catch (authError) {
+                console.warn("Erreur avec auth.php, tentative avec login-test.php:", authError);
+                
+                // Si auth.php échoue, essayer login-test.php
+                const fallbackUrl = `${API_URL}/login-test`;
+                console.log(`URL de requête (fallback): ${fallbackUrl}`);
+                
+                const fallbackResponse = await fetch(fallbackUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Cache-Control': 'no-cache, no-store, must-revalidate'
+                    },
+                    body: JSON.stringify({ username, password })
+                });
+                
+                if (!fallbackResponse.ok) {
+                    const errorData = await this.parseJsonResponse(fallbackResponse);
+                    throw new Error(errorData.message || `Échec de l'authentification (${fallbackResponse.status})`);
+                }
+                
+                const fallbackData = await this.parseJsonResponse(fallbackResponse);
+                
+                if (!fallbackData || !fallbackData.token) {
+                    throw new Error(fallbackData?.message || "Authentification échouée");
+                }
+                
+                this.setToken(fallbackData.token);
+                
+                if (fallbackData.user) {
+                    this.currentUser = fallbackData.user.identifiant_technique;
+                }
+                
+                if (fallbackData.user && fallbackData.user.identifiant_technique) {
+                    await initializeUserData(fallbackData.user.identifiant_technique);
+                }
+                
+                return {
+                    success: true,
+                    user: fallbackData.user
+                };
             }
-            
-            if (data.user && data.user.identifiant_technique) {
-                await initializeUserData(data.user.identifiant_technique);
-            }
-            
-            return {
-                success: true,
-                user: data.user
-            };
         } catch (error) {
             console.error("Erreur lors de la connexion:", error);
             
