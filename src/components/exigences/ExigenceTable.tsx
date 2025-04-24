@@ -83,7 +83,7 @@ const ExigenceTable: React.FC<ExigenceTableProps> = ({
     <div className="bg-white rounded-md shadow overflow-hidden">
       <Table>
         <TableHeader>
-          <TableRow>
+          <TableRow className="bg-app-light-blue">
             <TableHead className="w-10"></TableHead>
             <TableHead className="py-3 px-4 text-app-blue font-semibold w-1/3">Nom</TableHead>
             <TableHead className="py-3 px-4 text-app-blue font-semibold text-center" colSpan={4}>
@@ -95,7 +95,7 @@ const ExigenceTable: React.FC<ExigenceTableProps> = ({
             </TableHead>
             <TableHead className="py-3 px-4 text-app-blue font-semibold text-right">Actions</TableHead>
           </TableRow>
-          <TableRow>
+          <TableRow className="bg-app-light-blue">
             <TableHead></TableHead>
             <TableHead className="py-2"></TableHead>
             <TableHead className="py-2 px-2 text-center text-sm font-medium">R</TableHead>

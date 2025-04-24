@@ -99,7 +99,7 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
     <div className="bg-white rounded-md shadow overflow-hidden">
       <Table>
         <TableHeader>
-          <TableRow>
+          <TableRow className="bg-app-light-blue">
             <TableHead className="w-10"></TableHead>
             <TableHead className="py-3 px-4 text-app-blue font-semibold w-1/3">Nom</TableHead>
             <TableHead className="py-3 px-4 text-app-blue font-semibold">Fichier</TableHead>
@@ -112,7 +112,7 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
             </TableHead>
             <TableHead className="py-3 px-4 text-app-blue font-semibold text-right">Actions</TableHead>
           </TableRow>
-          <TableRow>
+          <TableRow className="bg-app-light-blue">
             <TableHead></TableHead>
             <TableHead></TableHead>
             <TableHead></TableHead>
