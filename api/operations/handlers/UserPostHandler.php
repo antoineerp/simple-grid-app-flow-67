@@ -39,10 +39,16 @@ class UserPostHandler {
                 return;
             }
 
+            // Normaliser le rôle utilisateur
+            if (isset($data->role) && $data->role === 'user') {
+                error_log("UserPostHandler - Conversion du rôle 'user' en 'utilisateur' pour la base de données");
+                $data->role = 'utilisateur';
+            }
+
             // Vérifier si un gestionnaire existe déjà avant de créer un nouveau
-            if (isset($data->role) && $data->role === 'gestionnaire' && $this->user->countUsersByRole('gestionnaire') > 0) {
-                error_log("UserPostHandler - Tentative de création d'un second gestionnaire");
-                ResponseHandler::error("Un seul compte gestionnaire peut être créé", 409);
+            if (isset($data->role) && ($data->role === 'gestionnaire' || $data->role === 'admin') && $this->user->countUsersByRole($data->role) > 0) {
+                error_log("UserPostHandler - Tentative de création d'un second {$data->role}");
+                ResponseHandler::error("Un seul compte {$data->role} peut être créé", 409);
                 return;
             }
 
@@ -62,7 +68,7 @@ class UserPostHandler {
                 error_log("UserPostHandler - Utilisateur créé avec succès, ID: " . $lastId);
                 
                 // Initialiser les données utilisateur si c'est un utilisateur normal
-                if (isset($data->role) && $data->role === 'utilisateur') {
+                if (isset($data->role) && ($data->role === 'utilisateur' || $data->role === 'user')) {
                     $this->user->initializeUserDataFromManager($lastId);
                 }
                 

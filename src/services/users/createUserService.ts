@@ -33,8 +33,7 @@ export const createUser = async (userData: CreateUserData) => {
   
   try {
     const apiUrl = getApiUrl();
-    // Utiliser le endpoint correct pour la création d'utilisateur
-    const url = `${apiUrl}/controllers/UserController.php`; // Modification du endpoint
+    const url = `${apiUrl}/controllers/UserController.php`;
     console.log("URL de l'API pour création d'utilisateur:", url);
     
     const headers = {
@@ -53,7 +52,7 @@ export const createUser = async (userData: CreateUserData) => {
       method: 'POST',
       headers,
       body: JSON.stringify(requestData),
-      signal: AbortSignal.timeout(20000) // 20 secondes pour éviter les timeouts
+      signal: AbortSignal.timeout(30000) // 30 secondes pour éviter les timeouts
     });
 
     console.log("Statut de la réponse:", response.status, response.statusText);
@@ -72,7 +71,7 @@ export const createUser = async (userData: CreateUserData) => {
       } catch (parseError) {
         console.error("Erreur de parsing JSON:", parseError);
         if (!response.ok) {
-          throw new Error(`Erreur serveur: ${responseText.substring(0, 200)}`);
+          throw new Error(`Erreur serveur: ${responseText.substring(0, 500)}`);
         }
       }
     }
