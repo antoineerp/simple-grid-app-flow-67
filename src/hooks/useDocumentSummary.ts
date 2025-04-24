@@ -64,8 +64,8 @@ export default function useDocumentSummary() {
             nonConformes: calculatedStats.nonConforme,
             obsoletes: 0, // Not in the original stats
             avenir: calculatedStats.partiellementConforme, // Using PC as "avenir"
-            excluded: calculatedStats.excluded || 0,
-            exclusion: calculatedStats.exclusion || 0
+            exclusion: calculatedStats.exclusion || 0,
+            excluded: calculatedStats.exclusion || 0  // Use exclusion value for excluded as well
           };
           
           setStats(mappedStats);
@@ -88,7 +88,7 @@ export default function useDocumentSummary() {
   const nonConformesPercentage = getPercentage(stats.nonConformes, stats.total);
   const obsoletesPercentage = getPercentage(stats.obsoletes, stats.total);
   const avenirPercentage = getPercentage(stats.avenir, stats.total);
-  const excludedPercentage = getPercentage(stats.excluded, stats.total);
+  const excludedPercentage = getPercentage(stats.exclusion, stats.total); // Changed from stats.excluded to stats.exclusion
 
   return {
     stats,
