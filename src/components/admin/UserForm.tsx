@@ -42,9 +42,11 @@ const UserForm = ({ onClose, onSuccess, onUserConnect }: UserFormProps) => {
   const [formError, setFormError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<{[key: string]: string}>({});
   const [hasManager, setHasManager] = useState(false);
+  const [apiDebugInfo, setApiDebugInfo] = useState<string | null>(null);
 
   // Réinitialiser le formulaire à chaque ouverture
   useEffect(() => {
+    console.log("Initialisation du formulaire de création d'utilisateur");
     setFormData({
       nom: '',
       prenom: '',
@@ -56,6 +58,7 @@ const UserForm = ({ onClose, onSuccess, onUserConnect }: UserFormProps) => {
     setFormError(null);
     setConnectAfterCreate(false);
     setIsSubmitting(false);
+    setApiDebugInfo(null);
   }, []);
 
   useEffect(() => {
@@ -116,6 +119,7 @@ const UserForm = ({ onClose, onSuccess, onUserConnect }: UserFormProps) => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormError(null);
+    setApiDebugInfo(null);
     
     if (!validateForm()) {
       return;
@@ -124,7 +128,7 @@ const UserForm = ({ onClose, onSuccess, onUserConnect }: UserFormProps) => {
     setIsSubmitting(true);
 
     try {
-      console.log("Submitted user data:", formData);
+      console.log("Données soumises pour création d'utilisateur:", formData);
       
       // Map frontend role values to backend expected values
       const apiRole: 'admin' | 'user' | 'gestionnaire' = 
@@ -138,9 +142,9 @@ const UserForm = ({ onClose, onSuccess, onUserConnect }: UserFormProps) => {
         role: apiRole
       };
       
-      console.log("Data being sent to API with role mapping:", serviceFormData);
+      console.log("Données envoyées à l'API avec mappage de rôle:", serviceFormData);
       const result = await createUser(serviceFormData);
-      console.log("User creation result:", result);
+      console.log("Résultat de la création d'utilisateur:", result);
       
       toast({
         title: "Utilisateur créé",
@@ -184,6 +188,12 @@ const UserForm = ({ onClose, onSuccess, onUserConnect }: UserFormProps) => {
       
       setFormError(errorMessage);
       
+      // Récupérer plus d'informations pour le débogage
+      const debugInfo = error instanceof Error 
+        ? `Type: ${error.name}, Stack: ${error.stack?.substring(0, 200) || 'Non disponible'}`
+        : `Type: ${typeof error}, Détails: ${JSON.stringify(error).substring(0, 200)}`;
+      setApiDebugInfo(debugInfo);
+      
       if (typeof errorMessage === 'string') {
         if (errorMessage.includes("email existe déjà")) {
           setFieldErrors(prev => ({ ...prev, email: "Cet email est déjà utilisé" }));
@@ -215,6 +225,15 @@ const UserForm = ({ onClose, onSuccess, onUserConnect }: UserFormProps) => {
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4 mr-2" />
           <AlertDescription>{formError}</AlertDescription>
+        </Alert>
+      )}
+
+      {apiDebugInfo && (
+        <Alert variant="default" className="bg-yellow-50 border-yellow-200 mb-4 text-xs">
+          <details>
+            <summary className="cursor-pointer font-medium">Informations de débogage</summary>
+            <pre className="mt-2 whitespace-pre-wrap">{apiDebugInfo}</pre>
+          </details>
         </Alert>
       )}
 

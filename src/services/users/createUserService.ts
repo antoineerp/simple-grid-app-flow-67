@@ -36,6 +36,7 @@ export const createUser = async (userData: CreateUserData) => {
     const apiUrl = getApiUrl();
     // Utilisons le endpoint API adapté - corriger le endpoint qui peut causer l'erreur 500
     const url = `${apiUrl}/utilisateurs`;
+    console.log("URL de l'API pour création d'utilisateur:", url);
     
     const headers = {
       ...getAuthHeaders(),
@@ -55,7 +56,7 @@ export const createUser = async (userData: CreateUserData) => {
       headers,
       body: JSON.stringify(requestData),
       // Ajouter un timeout pour éviter les attentes infinies
-      signal: AbortSignal.timeout(10000)
+      signal: AbortSignal.timeout(15000) // Augmenté à 15 secondes
     });
 
     console.log("Statut de la réponse:", response.status, response.statusText);
@@ -65,7 +66,19 @@ export const createUser = async (userData: CreateUserData) => {
     if (!response.ok) {
       if (response.status === 500) {
         console.error("Erreur serveur 500 détectée");
-        throw new Error(`Erreur serveur interne: ${response.status} ${response.statusText}`);
+        
+        // Essayer de récupérer les détails de l'erreur
+        const errorText = await response.text();
+        console.error("Détails de l'erreur 500:", errorText);
+        
+        try {
+          // Vérifier si c'est du JSON
+          const errorJson = JSON.parse(errorText);
+          throw new Error(`Erreur serveur: ${errorJson.message || errorJson.error || 'Erreur inconnue'}`);
+        } catch (jsonError) {
+          // Si ce n'est pas du JSON valide
+          throw new Error(`Erreur serveur interne: ${errorText.substring(0, 200)}`);
+        }
       }
       throw new Error(`Erreur HTTP: ${response.status} ${response.statusText}`);
     }
@@ -125,6 +138,9 @@ export const createUser = async (userData: CreateUserData) => {
     }
   } catch (error) {
     console.error("Erreur lors de la création de l'utilisateur:", error);
+    if (error instanceof TypeError && error.message.includes('AbortSignal')) {
+      throw new Error("La requête a expiré. Le serveur a mis trop de temps à répondre.");
+    }
     throw error;
   }
 };
