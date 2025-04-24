@@ -1,6 +1,5 @@
-
 import React, { useState } from 'react';
-import { Pencil, Trash, ChevronDown, Plus, FolderPlus, GripVertical, FileDown } from 'lucide-react';
+import { Pencil, Trash, ChevronDown, Plus, FolderPlus, GripVertical, FileDown, ExternalLink } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { exportBibliothecaireDocsToPdf } from '@/services/pdfExport';
 import {
@@ -236,7 +235,6 @@ const Bibliotheque = () => {
     setIsGroupDialogOpen(false);
   };
 
-  // Fixed the drag and drop handlers for proper functionality
   const handleReorder = (startIndex: number, endIndex: number) => {
     if (startIndex === endIndex) return;
     
@@ -298,7 +296,6 @@ const Bibliotheque = () => {
     const startIndex = parseInt(e.dataTransfer.getData('text/plain'));
     
     if (targetGroupId !== undefined) {
-      // Add the document to a group
       const docToMove = documents[startIndex];
       const updatedDoc = { ...docToMove, groupId: targetGroupId };
       
@@ -352,6 +349,22 @@ const Bibliotheque = () => {
 
   const handleDragEnd = (e: React.DragEvent<HTMLTableRowElement>) => {
     e.currentTarget.classList.remove('bg-muted');
+  };
+
+  const renderDocumentLink = (link: string | null) => {
+    if (!link || link === 'Voir le document') return <span className="text-gray-500">-</span>;
+    
+    return (
+      <a 
+        href={link} 
+        target="_blank" 
+        rel="noopener noreferrer" 
+        className="text-app-blue hover:underline inline-flex items-center gap-1"
+      >
+        {link}
+        <ExternalLink className="h-4 w-4" />
+      </a>
+    );
   };
 
   return (
@@ -408,7 +421,7 @@ const Bibliotheque = () => {
                     <button 
                       className="text-gray-600 hover:text-app-blue mr-3"
                       onClick={(e) => {
-                        e.stopPropagation(); // Empêcher l'expansion du groupe
+                        e.stopPropagation();
                         handleEditGroup(group);
                       }}
                     >
@@ -417,7 +430,7 @@ const Bibliotheque = () => {
                     <button 
                       className="text-gray-600 hover:text-red-500"
                       onClick={(e) => {
-                        e.stopPropagation(); // Empêcher l'expansion du groupe
+                        e.stopPropagation();
                         handleDeleteGroup(group.id);
                       }}
                     >
@@ -443,7 +456,7 @@ const Bibliotheque = () => {
                       <TableCell className="py-3 px-4"></TableCell>
                       <TableCell className="py-3 px-4 pl-8">{item.name}</TableCell>
                       <TableCell className="py-3 px-4">
-                        {item.link && <a href="#" className="text-app-blue hover:underline">{item.link}</a>}
+                        {renderDocumentLink(item.link)}
                       </TableCell>
                       <TableCell className="py-3 px-4 text-right">
                         <button 
@@ -489,13 +502,7 @@ const Bibliotheque = () => {
                 <TableCell className="py-3 px-4"></TableCell>
                 <TableCell className="py-3 px-4">{doc.name}</TableCell>
                 <TableCell className="py-3 px-4">
-                  {doc.link === 'Voir le document' ? (
-                    <a href="#" className="text-app-blue hover:underline">
-                      Voir le document
-                    </a>
-                  ) : (
-                    <span className="text-gray-500">-</span>
-                  )}
+                  {renderDocumentLink(doc.link)}
                 </TableCell>
                 <TableCell className="py-3 px-4 text-right">
                   <button 
