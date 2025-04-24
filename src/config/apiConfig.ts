@@ -1,193 +1,93 @@
-// Configuration de l'API
-let apiUrl = '/api';
-let isCustomUrl = false;
 
-// Détection automatique de l'environnement
-function detectEnvironment() {
-  const hostname = window.location.hostname;
-  const isInfomaniak = hostname.includes('myd.infomaniak.com') || hostname.includes('qualiopi.ch');
-  
-  console.log('Détection d\'environnement - Hostname:', hostname);
-  console.log('Détection d\'environnement - Est Infomaniak:', isInfomaniak);
-  
-  if (isInfomaniak) {
-    // Configuration pour Infomaniak - utiliser le chemin relatif au domaine
-    apiUrl = '/api';
-    console.log('Environnement Infomaniak détecté - API URL:', apiUrl);
+// Configuration de l'API et fonctions utilitaires pour les appels API
+
+// URL de base de l'API - Détecte automatiquement l'environnement
+const getBaseApiUrl = () => {
+  // Si nous sommes en développement local (port 5173, 5174, etc.)
+  if (window.location.port.startsWith('517')) {
+    console.log("Environnement de développement détecté, utilisation de l'API locale");
+    return '/api';
+  } else if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+    console.log("Environnement localhost détecté, utilisation de l'API locale");
+    return '/api';
   } else {
-    // Pour l'environnement de développement ou preview Lovable
-    apiUrl = '/api';
-    console.log('Environnement de développement détecté - API URL:', apiUrl);
+    // Sur l'environnement de production
+    console.log("Environnement de production détecté");
+    const baseUrl = window.location.protocol + '//' + window.location.host;
+    return `${baseUrl}/api`;
   }
-}
+};
 
-// Forcer une détection initiale
-detectEnvironment();
+export const API_BASE_URL = getBaseApiUrl();
 
-// Obtenir l'URL de l'API
-export function getApiUrl(): string {
-  return apiUrl;
-}
-
-// Obtenir l'URL complète de l'API (avec le hostname)
-export function getFullApiUrl(): string {
-  return apiUrl.startsWith('http') 
-    ? apiUrl 
-    : `${window.location.protocol}//${window.location.host}${apiUrl}`;
-}
-
-// Diagnostic de l'API simple
-export async function testApiConnection(): Promise<{ success: boolean; message: string; details?: any }> {
+// Test de connexion à l'API pour s'assurer que le serveur est disponible
+export const testApiConnection = async () => {
   try {
-    console.log(`Test de connexion à l'API: ${getFullApiUrl()}`);
-    const response = await fetch(`${getApiUrl()}/index.php`, {
+    console.log(`Test de connexion à l'API: ${API_BASE_URL}`);
+    const response = await fetch(`${API_BASE_URL}/login-test.php?test=1`, {
       method: 'GET',
       headers: {
-        'Content-Type': 'application/json',
-        'Cache-Control': 'no-cache, no-store, must-revalidate'
+        'Accept': 'application/json',
+        'Cache-Control': 'no-cache'
       }
     });
     
-    console.log('Réponse du test API:', response.status, response.statusText);
-    console.log('Headers:', [...response.headers.entries()]);
-    
-    // Vérifier si le serveur répond avec du PHP non interprété
-    const contentType = response.headers.get('content-type') || '';
-    const responseText = await response.text();
-    
-    console.log('Content-Type:', contentType);
-    console.log('Texte de réponse (premiers 100 caractères):', responseText.substring(0, 100));
-    
-    // Vérifier si la réponse commence par "<?php"
-    if (responseText.trim().startsWith('<?php')) {
-      return {
-        success: false,
-        message: 'Le serveur renvoie le code PHP au lieu de l\'exécuter',
-        details: {
-          tip: 'Vérifiez la configuration du serveur pour exécuter les fichiers PHP'
-        }
-      };
+    console.log(`Réponse du test API: ${response.status}`);
+    if (!response.ok) {
+      console.error(`Erreur API: ${response.status} ${response.statusText}`);
+      const text = await response.text();
+      console.error(`Réponse: ${text}`);
+      return { success: false, message: `Erreur ${response.status}: ${response.statusText}`, status: response.status };
     }
     
-    // Essayer de parser la réponse comme JSON
-    try {
-      const data = JSON.parse(responseText);
-      return {
-        success: true,
-        message: data.message || 'API connectée',
-        details: data
-      };
-    } catch (e) {
-      return {
-        success: false,
-        message: 'Réponse non-JSON',
-        details: {
-          error: e instanceof Error ? e.message : String(e),
-          responseText: responseText.substring(0, 300)
-        }
-      };
-    }
+    const data = await response.json();
+    console.log("Données de test API reçues:", data);
+    return { success: true, data };
   } catch (error) {
-    console.error('Erreur lors du test API:', error);
-    return {
-      success: false,
-      message: error instanceof Error ? error.message : 'Erreur inconnue',
-      details: { error }
+    console.error("Erreur lors du test de l'API:", error);
+    return { 
+      success: false, 
+      message: error instanceof Error ? error.message : "Erreur de connexion à l'API",
+      error
     };
   }
-}
+};
 
-// Définir une URL personnalisée pour l'API
-export function setCustomApiUrl(url: string): void {
-  apiUrl = url;
-  isCustomUrl = true;
-  console.log('URL API personnalisée définie:', url);
-}
-
-// Réinitialiser l'URL de l'API à sa valeur par défaut
-export function resetToDefaultApiUrl(): void {
-  detectEnvironment(); // Redétecter l'environnement
-  isCustomUrl = false;
-  console.log('URL API réinitialisée à la valeur par défaut:', apiUrl);
-}
-
-// Vérifier si une URL personnalisée est utilisée
-export function isUsingCustomApiUrl(): boolean {
-  return isCustomUrl;
-}
-
-// Fonction utilitaire pour les requêtes fetch avec gestion d'erreur
-export async function fetchWithErrorHandling(url: string, options?: RequestInit): Promise<any> {
+// Fonction générique pour faire des appels API avec gestion d'erreur
+export const fetchApi = async (endpoint: string, options: RequestInit = {}) => {
   try {
-    console.log(`Requête vers: ${url}`, options);
-    const response = await fetch(url, options);
+    const url = `${API_BASE_URL}/${endpoint.startsWith('/') ? endpoint.slice(1) : endpoint}`;
+    console.log(`Appel API: ${url}`);
     
-    console.log(`Réponse reçue: ${response.status} ${response.statusText}`);
+    // Assurer les bons headers par défaut
+    const defaultHeaders = {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+      'Cache-Control': 'no-cache'
+    };
+    
+    // Fusionner les options par défaut avec celles fournies
+    const mergedOptions = {
+      ...options,
+      headers: {
+        ...defaultHeaders,
+        ...(options.headers || {})
+      }
+    };
+    
+    const response = await fetch(url, mergedOptions);
     
     if (!response.ok) {
-      // Essayer de lire le corps de la réponse
-      let errorMessage = `Erreur HTTP: ${response.status}`;
-      try {
-        const responseText = await response.text();
-        
-        // Vérifier si la réponse est du HTML au lieu de JSON
-        if (responseText.trim().startsWith('<!DOCTYPE') || 
-            responseText.trim().startsWith('<html') ||
-            responseText.includes('<body')) {
-          console.error('Réponse HTML reçue au lieu de JSON:', responseText.substring(0, 300));
-          errorMessage = `Le serveur a renvoyé du HTML au lieu de JSON. Vérifiez la configuration.`;
-        } else if (responseText.trim().startsWith('<?php')) {
-          console.error('Code PHP non exécuté:', responseText.substring(0, 300));
-          errorMessage = `Le serveur renvoie le code PHP au lieu de l'exécuter. Vérifiez la configuration du serveur.`;
-        } else {
-          // Essayer de parser comme JSON
-          try {
-            const errorData = JSON.parse(responseText);
-            if (errorData && errorData.message) {
-              errorMessage = errorData.message;
-            }
-          } catch (e) {
-            // Si la réponse n'est pas du JSON, utiliser le texte brut
-            errorMessage = `Erreur: ${responseText.substring(0, 100)}...`;
-          }
-        }
-      } catch (e) {
-        errorMessage = `Erreur lors de la lecture de la réponse: ${e instanceof Error ? e.message : String(e)}`;
-      }
-      
-      console.error('Erreur dans fetchWithErrorHandling:', errorMessage);
-      throw new Error(errorMessage);
+      console.error(`Erreur API: ${response.status} ${response.statusText}`);
+      const text = await response.text();
+      console.error(`Réponse: ${text}`);
+      throw new Error(`Erreur ${response.status}: ${response.statusText}`);
     }
     
-    // Si la réponse est vide, retourner un objet vide
-    const text = await response.text();
-    if (!text) {
-      return {};
-    }
-    
-    // Vérifier si la réponse est du HTML
-    if (text.trim().startsWith('<!DOCTYPE') || 
-        text.trim().startsWith('<html') ||
-        text.includes('<body')) {
-      console.error('Réponse HTML reçue au lieu de JSON:', text.substring(0, 300));
-      throw new Error('Le serveur a renvoyé du HTML au lieu de JSON. Vérifiez la configuration.');
-    }
-    
-    // Vérifier si la réponse est du PHP non exécuté
-    if (text.trim().startsWith('<?php')) {
-      console.error('Code PHP non exécuté:', text.substring(0, 300));
-      throw new Error('Le serveur renvoie le code PHP au lieu de l\'exécuter. Vérifiez la configuration du serveur.');
-    }
-    
-    try {
-      return JSON.parse(text);
-    } catch (e) {
-      console.error("Erreur de parsing JSON:", e);
-      console.error("Texte reçu:", text.substring(0, 300));
-      throw new Error(`Réponse invalide: ${text.substring(0, 100)}...`);
-    }
+    const data = await response.json();
+    return data;
   } catch (error) {
-    console.error("Erreur lors de la requête:", error);
+    console.error(`Erreur lors de l'appel API à ${endpoint}:`, error);
     throw error;
   }
-}
+};

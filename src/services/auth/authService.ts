@@ -42,7 +42,11 @@ interface LoginResponse {
   success: boolean;
   user?: {
     id: string;
-    username: string;
+    username?: string;
+    nom?: string;
+    prenom?: string;
+    email?: string;
+    identifiant_technique?: string;
     role: string;
   };
   message?: string;
@@ -54,41 +58,42 @@ export const login = async (username: string, password: string): Promise<LoginRe
   try {
     console.log(`Tentative de connexion pour l'utilisateur: ${username}`);
     
-    // Simulation d'une réponse API réussie pour les tests
-    // Dans une vraie implémentation, nous ferions un appel API ici
-    const mockUsers = [
-      { id: '1', username: 'admin', password: 'admin123', role: 'admin' },
-      { id: '2', username: 'user', password: 'user123', role: 'user' },
-      { id: '3', username: 'essai@essai.com', password: 'essai123', role: 'gestionnaire' },
-      { id: '4', username: 'antcirier@gmail.com', password: 'password123', role: 'admin' },
-    ];
-
-    const user = mockUsers.find(
-      u => u.username === username && u.password === password
-    );
-
-    if (!user) {
-      throw new Error("Nom d'utilisateur ou mot de passe invalide");
-    }
-
-    // Générer un token simple pour démonstration
-    const token = `mock-jwt-token-${Date.now()}-${username}`;
-    
-    // Stocker les informations d'authentification dans localStorage
-    localStorage.setItem('token', token);
-    localStorage.setItem('userId', user.id);
-    localStorage.setItem('username', user.username);
-    localStorage.setItem('userRole', user.role);
-
-    return {
-      success: true,
-      user: {
-        id: user.id,
-        username: user.username,
-        role: user.role
+    // Faire un appel API réel au service d'authentification
+    const response = await fetch('/api/login-test.php', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
       },
-      token
-    };
+      body: JSON.stringify({ username, password }),
+    });
+
+    console.log('Réponse du serveur reçue', response.status);
+    
+    const data = await response.json();
+    console.log('Données de réponse:', data);
+    
+    if (response.ok && data.token) {
+      // Stocker les informations d'authentification dans localStorage
+      localStorage.setItem('token', data.token);
+      
+      if (data.user) {
+        localStorage.setItem('userId', data.user.id.toString());
+        localStorage.setItem('username', data.user.identifiant_technique || data.user.email || data.user.username || '');
+        localStorage.setItem('userRole', data.user.role || 'utilisateur');
+      }
+      
+      return {
+        success: true,
+        user: data.user,
+        token: data.token
+      };
+    } else {
+      console.error('Erreur de connexion:', data.message || 'Identifiants invalides');
+      return {
+        success: false,
+        message: data.message || 'Identifiants invalides'
+      };
+    }
   } catch (error) {
     console.error('Erreur de connexion:', error);
     return {
