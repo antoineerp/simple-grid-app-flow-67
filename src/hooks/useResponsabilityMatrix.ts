@@ -18,12 +18,13 @@ export interface MembreResponsabilite extends Membre {
 export const useResponsabilityMatrix = () => {
   const { membres } = useMembres();
   const [membreResponsabilites, setMembreResponsabilites] = useState<MembreResponsabilite[]>([]);
+  const currentUser = localStorage.getItem('currentUser') || 'default';
 
   useEffect(() => {
     const calculateResponsabilites = () => {
-      // Charger les exigences et documents depuis le localStorage
-      const storedExigences = localStorage.getItem('exigences');
-      const storedDocuments = localStorage.getItem('documents');
+      // Charger les exigences et documents depuis le localStorage spécifiques à l'utilisateur actuel
+      const storedExigences = localStorage.getItem(`exigences_${currentUser}`);
+      const storedDocuments = localStorage.getItem(`documents_${currentUser}`);
       
       const exigences = storedExigences ? JSON.parse(storedExigences) : [];
       const documents = storedDocuments ? JSON.parse(storedDocuments) : [];
@@ -109,7 +110,7 @@ export const useResponsabilityMatrix = () => {
       window.removeEventListener('documentUpdate', calculateResponsabilites);
       window.removeEventListener('storage', calculateResponsabilites);
     };
-  }, [membres]);
+  }, [membres, currentUser]);
 
   return { membreResponsabilites };
 };
