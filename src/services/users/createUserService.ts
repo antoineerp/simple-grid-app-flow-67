@@ -76,60 +76,77 @@ export const createUser = async (userData: CreateUserData) => {
       console.warn("Erreur lors de la vérification de l'email, poursuite de la création:", checkError);
     }
     
-    // Envoi de la requête principale
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        ...headers,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(requestData)
-    });
-    
-    // Traitement de la réponse en texte d'abord
-    const responseText = await response.text();
-    console.log("Statut de la réponse:", response.status, response.statusText);
-    console.log("Réponse brute:", responseText);
-    
-    // Essai de parse en JSON
+    // Envoi de la requête principale avec un timeout et des nouvelles tentatives
+    const maxRetries = 3;
+    let retryCount = 0;
+    let success = false;
+    let lastError;
     let responseData;
-    try {
-      responseData = responseText ? JSON.parse(responseText) : {};
-    } catch (jsonError) {
-      console.error("Erreur lors du parsing JSON:", jsonError);
-      
-      // Si la réponse semble être un succès malgré le format incorrect
-      if (response.ok || response.status === 201) {
-        return { 
-          success: true, 
-          message: "Utilisateur créé avec succès (réponse non-JSON)",
-          identifiant_technique: identifiantTechnique 
-        };
-      }
-      
-      throw new Error(`Réponse invalide du serveur: ${responseText.substring(0, 100)}`);
-    }
     
-    // Gestion des erreurs HTTP
-    if (!response.ok) {
-      console.error("Erreur HTTP:", response.status, responseData);
-      
-      // Erreurs spécifiques
-      if (response.status === 409 || (responseData.message && responseData.message.includes('existe déjà'))) {
-        if (responseData.field === 'email' || responseData.message.includes('email')) {
-          throw new Error(`Un utilisateur avec l'email ${userData.email} existe déjà.`);
-        } else if (responseData.field === 'identifiant_technique' || responseData.message.includes('identifiant_technique')) {
-          // Générer un nouvel identifiant et réessayer
-          console.log("Génération d'un nouvel identifiant technique et nouvel essai");
-          const newTimestamp = new Date().getTime();
-          const newRandomStr = Math.random().toString(36).substring(2, 10);
-          requestData.identifiant_technique = `p71x6d_${sanitizedPrenom}_${sanitizedNom}_${newRandomStr}_${newTimestamp}`.substring(0, 50);
+    while (retryCount < maxRetries && !success) {
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 secondes timeout
+        
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: {
+            ...headers,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(requestData),
+          signal: controller.signal
+        });
+        
+        clearTimeout(timeoutId);
+        
+        // Traitement de la réponse en texte d'abord
+        const responseText = await response.text();
+        console.log("Statut de la réponse:", response.status, response.statusText);
+        console.log("Réponse brute:", responseText);
+        
+        // Essai de parse en JSON
+        try {
+          responseData = responseText ? JSON.parse(responseText) : {};
           
-          return createUser(userData); // Appel récursif
+          // Gestion des erreurs HTTP
+          if (!response.ok) {
+            if (response.status === 409 || (responseData.message && responseData.message.includes('existe déjà'))) {
+              throw new Error(responseData.message || "Une contrainte d'unicité a été violée");
+            } else {
+              throw new Error(responseData.message || `Erreur ${response.status}: ${response.statusText}`);
+            }
+          }
+          
+          success = true;
+        } catch (jsonError) {
+          console.error("Erreur lors du parsing JSON:", jsonError);
+          
+          // Si la réponse semble être un succès malgré le format incorrect
+          if (response.ok || response.status === 201) {
+            success = true;
+            responseData = { 
+              success: true, 
+              message: "Utilisateur créé avec succès (réponse non-JSON)",
+              identifiant_technique: identifiantTechnique 
+            };
+          } else {
+            throw new Error(`Réponse invalide du serveur: ${responseText.substring(0, 100)}`);
+          }
+        }
+      } catch (error) {
+        lastError = error;
+        retryCount++;
+        console.warn(`Tentative ${retryCount}/${maxRetries} échouée: ${error instanceof Error ? error.message : 'Erreur inconnue'}`);
+        
+        if (retryCount < maxRetries) {
+          await new Promise(resolve => setTimeout(resolve, 1000 * retryCount)); // Attente exponentielle
         }
       }
-      
-      throw new Error(responseData.message || `Erreur ${response.status}: ${response.statusText}`);
+    }
+    
+    if (!success) {
+      throw lastError || new Error("Échec après plusieurs tentatives");
     }
     
     // Succès

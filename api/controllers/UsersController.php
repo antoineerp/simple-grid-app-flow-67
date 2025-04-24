@@ -44,12 +44,46 @@ error_log("UsersController - Méthode: " . $_SERVER['REQUEST_METHOD'] . " - URI:
 $method = $_SERVER['REQUEST_METHOD'];
 
 try {
-    // Créer une instance de Database
+    // Créer une instance de Database avec diagnostic complet
     $database = new Database();
-    $db = $database->getConnection(false);
+    $db = $database->getConnection(true); // Active le mode de diagnostic
     
     if (!$database->is_connected) {
+        error_log("Erreur de connexion à la DB: " . ($database->connection_error ?? "Erreur inconnue"));
         throw new Exception("Erreur de connexion à la base de données: " . ($database->connection_error ?? "Erreur inconnue"));
+    } else {
+        error_log("Connexion à la base de données réussie");
+    }
+
+    // Vérifier les tables et leur structure
+    try {
+        $checkTablesQuery = "SHOW TABLES";
+        $stmt = $db->query($checkTablesQuery);
+        $tables = $stmt->fetchAll(PDO::FETCH_COLUMN);
+        error_log("Tables disponibles: " . implode(", ", $tables));
+        
+        // Vérifier le moteur de stockage et l'encodage
+        foreach ($tables as $table) {
+            $tableInfoQuery = "SHOW TABLE STATUS WHERE Name = '$table'";
+            $stmt = $db->query($tableInfoQuery);
+            $tableInfo = $stmt->fetch(PDO::FETCH_ASSOC);
+            
+            error_log("Table $table: Engine=" . $tableInfo['Engine'] . ", Collation=" . $tableInfo['Collation']);
+            
+            // Vérifier les colonnes
+            $columnsQuery = "SHOW COLUMNS FROM `$table`";
+            $stmt = $db->query($columnsQuery);
+            $columns = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            
+            foreach ($columns as $column) {
+                if ($column['Key'] == 'PRI') {
+                    error_log("Table $table: Clé primaire=" . $column['Field'] . ", Type=" . $column['Type'] . ", Extra=" . $column['Extra']);
+                }
+            }
+        }
+    } catch (PDOException $e) {
+        error_log("Erreur lors de la vérification des tables: " . $e->getMessage());
+        // Ne pas interrompre le flux principal
     }
 
     // Créer une instance de User
@@ -181,13 +215,16 @@ try {
                     $user->mot_de_passe = $data->mot_de_passe;
                     $user->role = $data->role;
                     
-                    // Changements ici - Logs supplémentaires pour débugger
+                    // Logs supplémentaires pour débugger
                     error_log("Tentative de création d'utilisateur avec les données:");
                     error_log("Nom: " . $user->nom);
                     error_log("Prénom: " . $user->prenom);
                     error_log("Email: " . $user->email);
                     error_log("Identifiant: " . $user->identifiant_technique);
                     error_log("Rôle: " . $user->role);
+                    
+                    // Ne pas définir l'ID manuellement, laisser l'auto-incrémentation fonctionner
+                    unset($user->id);
                     
                     if ($user->create()) {
                         // Récupérer le dernier ID inséré
@@ -219,7 +256,7 @@ try {
                         echo json_encode(array("message" => "Impossible de créer l'utilisateur."));
                     }
                 } catch (PDOException $e) {
-                    error_log("UsersController POST - PDOException: " . $e->getMessage());
+                    error_log("UsersController POST - PDOException: " . $e->getMessage() . " - Code: " . $e->getCode());
                     http_response_code(500);
                     
                     // Vérifier si c'est une erreur de clé primaire dupliquée
@@ -227,12 +264,20 @@ try {
                         if (strpos($e->getMessage(), 'email') !== false) {
                             echo json_encode(array(
                                 "message" => "Un utilisateur avec cet email existe déjà.",
-                                "field" => "email"
+                                "field" => "email",
+                                "debug_error" => $e->getMessage()
                             ));
                         } else if (strpos($e->getMessage(), 'identifiant_technique') !== false) {
                             echo json_encode(array(
                                 "message" => "Un utilisateur avec cet identifiant technique existe déjà.",
-                                "field" => "identifiant_technique"
+                                "field" => "identifiant_technique",
+                                "debug_error" => $e->getMessage()
+                            ));
+                        } else if (strpos($e->getMessage(), 'PRIMARY') !== false) {
+                            echo json_encode(array(
+                                "message" => "Erreur de clé primaire. Veuillez réessayer.",
+                                "field" => "id",
+                                "debug_error" => $e->getMessage()
                             ));
                         } else {
                             echo json_encode(array(
@@ -249,7 +294,10 @@ try {
                 } catch (Exception $e) {
                     error_log("UsersController POST - Exception: " . $e->getMessage());
                     http_response_code(500);
-                    echo json_encode(array("message" => "Erreur lors de la création de l'utilisateur: " . $e->getMessage()));
+                    echo json_encode(array(
+                        "message" => "Erreur lors de la création de l'utilisateur: " . $e->getMessage(),
+                        "debug_info" => get_class($e) . " - Code: " . $e->getCode()
+                    ));
                 }
             } else {
                 error_log("UsersController POST - Données incomplètes: " . json_encode($data));
@@ -341,6 +389,9 @@ try {
 } catch (Exception $e) {
     error_log("UsersController - Exception globale: " . $e->getMessage());
     http_response_code(500);
-    echo json_encode(array("message" => "Erreur serveur: " . $e->getMessage()));
+    echo json_encode(array(
+        "message" => "Erreur serveur: " . $e->getMessage(),
+        "debug_info" => get_class($e) . " à la ligne " . $e->getLine() . " dans " . $e->getFile()
+    ));
 }
 ?>

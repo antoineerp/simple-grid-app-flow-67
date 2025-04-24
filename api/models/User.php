@@ -264,7 +264,7 @@ class User {
             if ($stmt->rowCount() == 0) {
                 // La table n'existe pas, la créer avec l'encodage utf8mb4
                 $createTableSQL = "CREATE TABLE IF NOT EXISTS `" . $this->table_name . "` (
-                    `id` int(11) NOT NULL AUTO_INCREMENT,
+                    `id` int(11) NOT NULL AUTO_INCREMENT PRIMARY KEY,
                     `nom` varchar(100) NOT NULL,
                     `prenom` varchar(100) NOT NULL,
                     `email` varchar(255) NOT NULL,
@@ -272,7 +272,6 @@ class User {
                     `identifiant_technique` varchar(100) NOT NULL,
                     `role` varchar(20) NOT NULL,
                     `date_creation` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                    PRIMARY KEY (`id`),
                     UNIQUE KEY `email` (`email`),
                     UNIQUE KEY `identifiant_technique` (`identifiant_technique`)
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;";
@@ -289,23 +288,64 @@ class User {
                 $this->conn->exec($insertAdminQuery);
                 error_log("Utilisateur administrateur créé par défaut");
             } else {
-                // La table existe, vérifier et éventuellement mettre à jour l'encodage
-                $tableInfoQuery = "SELECT CCSA.character_set_name, CCSA.collation_name 
-                                FROM information_schema.`TABLES` T, 
-                                information_schema.`COLLATION_CHARACTER_SET_APPLICABILITY` CCSA 
-                                WHERE CCSA.collation_name = T.table_collation 
-                                AND T.table_schema = DATABASE() 
-                                AND T.table_name = '" . $this->table_name . "'";
-                $stmt = $this->conn->prepare($tableInfoQuery);
-                $stmt->execute();
-                $tableInfo = $stmt->fetch(PDO::FETCH_ASSOC);
-                
-                error_log("Table 'utilisateurs' existe déjà. Charset: " . ($tableInfo['character_set_name'] ?? 'inconnu') . 
-                        ", Collation: " . ($tableInfo['collation_name'] ?? 'inconnue'));
+                // Vérifier que la structure de la table est correcte
+                try {
+                    // Cette requête permet de vérifier la structure de la clé primaire
+                    $primaryKeyQuery = "SHOW KEYS FROM " . $this->table_name . " WHERE Key_name = 'PRIMARY'";
+                    $stmt = $this->conn->prepare($primaryKeyQuery);
+                    $stmt->execute();
+                    $primaryKey = $stmt->fetch(PDO::FETCH_ASSOC);
+                    
+                    // Si la clé primaire n'a pas l'attribut AUTO_INCREMENT, on met à jour la table
+                    if (!$primaryKey || $primaryKey['Column_name'] !== 'id') {
+                        error_log("Correction de la structure de la table: ajout d'une clé primaire AUTO_INCREMENT sur id");
+                        
+                        // Créer une sauvegarde avant de modifier la table
+                        $backupQuery = "CREATE TABLE IF NOT EXISTS `" . $this->table_name . "_backup` LIKE `" . $this->table_name . "`;";
+                        $this->conn->exec($backupQuery);
+                        
+                        $copyDataQuery = "INSERT INTO `" . $this->table_name . "_backup` SELECT * FROM `" . $this->table_name . "`;";
+                        $this->conn->exec($copyDataQuery);
+                        
+                        error_log("Sauvegarde de la table créée: " . $this->table_name . "_backup");
+                        
+                        // Modifier la structure de la table pour assurer que id est AUTO_INCREMENT
+                        $alterTableQuery = "ALTER TABLE `" . $this->table_name . "` 
+                                          MODIFY COLUMN `id` int(11) NOT NULL AUTO_INCREMENT PRIMARY KEY";
+                        $this->conn->exec($alterTableQuery);
+                        
+                        error_log("Table modifiée: clé primaire AUTO_INCREMENT ajoutée sur id");
+                    }
+                    
+                    // Vérifier l'encodage et la collation
+                    $tableInfoQuery = "SELECT CCSA.character_set_name, CCSA.collation_name 
+                                    FROM information_schema.`TABLES` T, 
+                                    information_schema.`COLLATION_CHARACTER_SET_APPLICABILITY` CCSA 
+                                    WHERE CCSA.collation_name = T.table_collation 
+                                    AND T.table_schema = DATABASE() 
+                                    AND T.table_name = '" . $this->table_name . "'";
+                    $stmt = $this->conn->prepare($tableInfoQuery);
+                    $stmt->execute();
+                    $tableInfo = $stmt->fetch(PDO::FETCH_ASSOC);
+                    
+                    // Si l'encodage n'est pas utf8mb4, mettre à jour
+                    if ($tableInfo && $tableInfo['character_set_name'] !== 'utf8mb4') {
+                        error_log("Conversion de l'encodage de la table en utf8mb4_unicode_ci");
+                        
+                        $alterEncodingQuery = "ALTER TABLE `" . $this->table_name . "` 
+                                            CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci";
+                        $this->conn->exec($alterEncodingQuery);
+                        
+                        error_log("Encodage de la table modifié: utf8mb4_unicode_ci");
+                    }
+                } catch (PDOException $e) {
+                    error_log("Erreur lors de la vérification/modification de la structure: " . $e->getMessage());
+                    // Ne pas propager cette exception
+                }
             }
         } catch (PDOException $e) {
             error_log("Erreur lors de la vérification/création de la table: " . $e->getMessage());
-            // Ne pas propager cette exception, car nous voulons continuer même si la table existe déjà
+            // Ne pas propager cette exception
         }
     }
 
