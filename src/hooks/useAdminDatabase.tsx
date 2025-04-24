@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useToast } from "@/hooks/use-toast";
-import { getDatabaseInfo, testDatabaseConnection } from '@/services';
+import { getDatabaseInfo, testDatabaseConnection } from '@/services/core/databaseService';
 
 // Définir l'interface pour l'information de base de données
 export interface DatabaseInfo {
