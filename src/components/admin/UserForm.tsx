@@ -111,16 +111,19 @@ const UserForm = ({ onClose, onSuccess, onUserConnect }: UserFormProps) => {
     try {
       console.log("Submitted user data:", formData);
       
+      // Map frontend role values to backend expected values
       const apiRole: 'admin' | 'user' | 'gestionnaire' = 
         formData.role === 'utilisateur' ? 'user' : 
         formData.role === 'administrateur' ? 'admin' : 
         'gestionnaire';
         
+      // Create a copy of the form data with the mapped role
       const serviceFormData = {
         ...formData,
         role: apiRole
       };
       
+      console.log("Data being sent to API with role mapping:", serviceFormData);
       const result = await createUser(serviceFormData);
       console.log("User creation result:", result);
       
