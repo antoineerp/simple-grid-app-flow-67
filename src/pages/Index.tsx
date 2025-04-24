@@ -2,17 +2,14 @@
 import React, { useState, useEffect } from 'react';
 import Logo from '@/components/auth/Logo';
 import LoginForm from '@/components/auth/LoginForm';
-import { getApiUrl, getFullApiUrl, testApiConnection } from '@/config/apiConfig';
+import { getApiUrl, testApiConnection } from '@/config/apiConfig';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { AlertCircle, ExternalLink, Info, Server, RefreshCw } from 'lucide-react';
+import { AlertCircle, RefreshCw } from 'lucide-react';
 
 const Index = () => {
   const [apiStatus, setApiStatus] = useState<'loading' | 'success' | 'error'>('loading');
   const [apiMessage, setApiMessage] = useState<string>('');
-  const [apiDetails, setApiDetails] = useState<any>(null);
-  const [version, setVersion] = useState<string>('1.0.7');
-  const [isInfomaniak, setIsInfomaniak] = useState<boolean>(false);
   const [isRetesting, setIsRetesting] = useState<boolean>(false);
   
   const checkApi = async () => {
@@ -27,26 +24,16 @@ const Index = () => {
         setApiStatus('error');
         setApiMessage(result.message);
       }
-      
-      setApiDetails(result.details || null);
     } catch (error) {
       setApiStatus('error');
       setApiMessage(error instanceof Error ? error.message : 'Erreur inconnue');
-      setApiDetails(null);
     } finally {
       setIsRetesting(false);
     }
   };
   
   useEffect(() => {
-    // Détecter si nous sommes sur Infomaniak
-    const hostname = window.location.hostname;
-    const infomaniakDetected = hostname.includes('myd.infomaniak.com') || 
-                             hostname.includes('qualiopi.ch');
-    setIsInfomaniak(infomaniakDetected);
-    
     checkApi();
-    setVersion(`1.0.7 - ${new Date().toLocaleDateString()}`);
   }, []);
 
   return (
@@ -58,28 +45,12 @@ const Index = () => {
           <Alert variant="destructive" className="mb-6">
             <AlertCircle className="h-4 w-4 mr-2" />
             <AlertDescription>
-              <div className="font-semibold mb-1">Connexion à l'API impossible: {apiMessage}</div>
-              <div className="mt-2 text-xs">
-                URL d'API actuelle: <span className="font-mono">{getFullApiUrl()}</span>
-                
-                {apiDetails && apiDetails.tip && (
-                  <div className="mt-1 p-2 bg-red-100 rounded">
-                    <strong>Conseil:</strong> {apiDetails.tip}
-                  </div>
-                )}
-                
-                {apiMessage.includes('PHP') && (
-                  <div className="mt-2 p-2 bg-orange-100 rounded">
-                    <strong>Problème détecté:</strong> Votre serveur semble renvoyer le code PHP au lieu de l'exécuter.
-                    Vérifiez que PHP est correctement configuré sur votre serveur.
-                  </div>
-                )}
-              </div>
+              Connexion à l'API impossible: {apiMessage}
               
               <Button 
                 variant="outline" 
                 size="sm" 
-                className="mt-2" 
+                className="mt-2 w-full" 
                 onClick={() => {
                   setIsRetesting(true);
                   checkApi();
@@ -93,58 +64,7 @@ const Index = () => {
           </Alert>
         )}
         
-        {isInfomaniak ? (
-          <Alert variant="default" className="mb-6">
-            <Info className="h-4 w-4 mr-2" />
-            <AlertDescription>
-              <div className="text-xs">
-                <div className="flex items-center mb-1">
-                  <Server className="h-3 w-3 mr-1" />
-                  <span className="font-medium">Infomaniak détecté</span>
-                </div>
-                URL d'API: <strong>{getFullApiUrl()}</strong>
-              </div>
-            </AlertDescription>
-          </Alert>
-        ) : (
-          <Alert variant="default" className="mb-6">
-            <Info className="h-4 w-4 mr-2" />
-            <AlertDescription>
-              <div className="text-xs">
-                Environnement de développement détecté
-                <div className="mt-1">
-                  URL d'API: <strong>{getFullApiUrl()}</strong>
-                </div>
-              </div>
-            </AlertDescription>
-          </Alert>
-        )}
-        
         <LoginForm />
-        
-        <div className="mt-6 text-xs text-gray-500 border-t pt-4">
-          <div className="flex justify-between">
-            <span>API: {apiStatus === 'loading' ? 'Vérification...' : apiStatus === 'success' ? '✅ Connectée' : '❌ Erreur'}</span>
-            <a 
-              href={`${getApiUrl()}/check-users.php`} 
-              target="_blank" 
-              rel="noopener noreferrer"
-              className="flex items-center text-blue-500 hover:underline"
-            >
-              Vérifier utilisateurs <ExternalLink className="h-3 w-3 ml-1" />
-            </a>
-          </div>
-          
-          {apiStatus === 'error' && (
-            <div className="mt-2 text-xs text-red-500">
-              Pour résoudre ce problème, vérifiez que votre serveur exécute correctement PHP.
-            </div>
-          )}
-        </div>
-      </div>
-      
-      <div className="fixed bottom-4 right-4 text-xs text-gray-400">
-        Version: {version}
       </div>
     </div>
   );
