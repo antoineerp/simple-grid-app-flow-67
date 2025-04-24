@@ -40,6 +40,14 @@ export const useLoginForm = () => {
     
     try {
       console.log("Tentative de connexion pour:", data.username);
+      
+      // En cas d'erreur fréquente pour antcirier@gmail.com, ajouter un message spécial
+      if (data.username === 'antcirier@gmail.com') {
+        console.log("Utilisateur spécial détecté: antcirier@gmail.com");
+        console.log("Mot de passe attendu: password123 ou Password123!");
+        console.log("Mot de passe fourni (longueur): " + data.password.length);
+      }
+      
       const result = await loginUser(data.username, data.password);
       
       if (result.success && result.user) {
