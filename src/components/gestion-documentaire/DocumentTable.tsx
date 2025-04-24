@@ -1,5 +1,5 @@
 import React from 'react';
-import { Pencil, Trash, GripVertical, ChevronDown } from 'lucide-react';
+import { Pencil, Trash, GripVertical, ChevronDown, ExternalLink } from 'lucide-react';
 import ResponsableSelector from '@/components/ResponsableSelector';
 import { Document, DocumentGroup } from '@/types/documents';
 import {
@@ -77,6 +77,22 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
     }
     
     onReorder(actualStartIndex, actualTargetIndex, targetGroupId);
+  };
+
+  const renderFileLink = (fichier_path: string | null) => {
+    if (!fichier_path) return <span className="text-gray-500">-</span>;
+    
+    return (
+      <a 
+        href={fichier_path}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="text-app-blue hover:underline inline-flex items-center gap-1"
+      >
+        {fichier_path}
+        <ExternalLink className="h-4 w-4" />
+      </a>
+    );
   };
 
   return (
@@ -184,13 +200,7 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
                     </TableCell>
                     <TableCell className="py-3 px-4">{doc.nom}</TableCell>
                     <TableCell className="py-3 px-4">
-                      {doc.fichier_path ? (
-                        <a href="#" className="text-app-blue hover:underline">
-                          {doc.fichier_path}
-                        </a>
-                      ) : (
-                        <span className="text-gray-500">-</span>
-                      )}
+                      {renderFileLink(doc.fichier_path)}
                     </TableCell>
                     
                     <TableCell className="py-3 px-1 text-center">
@@ -322,13 +332,7 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
               </TableCell>
               <TableCell className="py-3 px-4">{doc.nom}</TableCell>
               <TableCell className="py-3 px-4">
-                {doc.fichier_path ? (
-                  <a href="#" className="text-app-blue hover:underline">
-                    {doc.fichier_path}
-                  </a>
-                ) : (
-                  <span className="text-gray-500">-</span>
-                )}
+                {renderFileLink(doc.fichier_path)}
               </TableCell>
               
               <TableCell className="py-3 px-1 text-center">
