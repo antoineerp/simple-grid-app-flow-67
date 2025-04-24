@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Pencil, Trash, GripVertical, ChevronDown } from 'lucide-react';
 import ResponsableSelector from '@/components/ResponsableSelector';
@@ -44,9 +43,7 @@ const ExigenceTable: React.FC<ExigenceTableProps> = ({
   const ungroupedExigences = exigences.filter(e => !e.groupId);
   const [draggedItem, setDraggedItem] = useState<{ id: string, groupId?: string } | null>(null);
 
-  // Préparation des données pour le dépôt
   const prepareItems = () => {
-    // Commencer avec les exigences non groupées
     let allItems: { id: string; groupId?: string; index: number }[] = 
       ungroupedExigences.map((item, index) => ({
         id: item.id,
@@ -54,7 +51,6 @@ const ExigenceTable: React.FC<ExigenceTableProps> = ({
         index
       }));
 
-    // Ajouter les exigences groupées
     groups.forEach(group => {
       const groupItems = exigences.filter(item => item.groupId === group.id)
         .map((item, groupIndex) => ({
@@ -68,25 +64,21 @@ const ExigenceTable: React.FC<ExigenceTableProps> = ({
     return allItems;
   };
 
-  // Gérer le début du glisser-déposer
   const handleDragStart = (e: React.DragEvent<HTMLTableRowElement>, id: string, groupId?: string) => {
     setDraggedItem({ id, groupId });
     e.dataTransfer.setData('text/plain', JSON.stringify({ id, groupId }));
     e.currentTarget.classList.add('opacity-50');
   };
 
-  // Gérer le survol lors du glisser-déposer
   const handleDragOver = (e: React.DragEvent<HTMLTableRowElement>) => {
     e.preventDefault();
     e.currentTarget.classList.add('border-dashed', 'border-2', 'border-primary');
   };
 
-  // Gérer la sortie du survol lors du glisser-déposer
   const handleDragLeave = (e: React.DragEvent<HTMLTableRowElement>) => {
     e.currentTarget.classList.remove('border-dashed', 'border-2', 'border-primary');
   };
 
-  // Gérer le dépôt d'un élément
   const handleDrop = (e: React.DragEvent<HTMLTableRowElement>, targetId: string, targetGroupId?: string) => {
     e.preventDefault();
     e.currentTarget.classList.remove('border-dashed', 'border-2', 'border-primary');
@@ -102,11 +94,9 @@ const ExigenceTable: React.FC<ExigenceTableProps> = ({
     
     if (!sourceItem || !targetItem) return;
     
-    // Calculer les indices absolus
-    const sourceIndex = sourceItem.index;
+    let sourceIndex = sourceItem.index;
     let targetIndex = targetItem.index;
     
-    // Ajuster l'index source en fonction du groupe
     let adjustedSourceIndex = sourceIndex;
     if (sourceGroupId) {
       const groupStartIndex = ungroupedExigences.length;
@@ -119,7 +109,6 @@ const ExigenceTable: React.FC<ExigenceTableProps> = ({
       adjustedSourceIndex = groupStartIndex + previousGroupsItemCount + sourceIndex;
     }
     
-    // Ajuster l'index cible en fonction du groupe
     let adjustedTargetIndex = targetIndex;
     if (targetGroupId) {
       const groupStartIndex = ungroupedExigences.length;
@@ -132,12 +121,10 @@ const ExigenceTable: React.FC<ExigenceTableProps> = ({
       adjustedTargetIndex = groupStartIndex + previousGroupsItemCount + targetIndex;
     }
     
-    // Effectuer la réorganisation
     onReorder(adjustedSourceIndex, adjustedTargetIndex, targetGroupId);
     setDraggedItem(null);
   };
 
-  // Gérer le dépôt sur un groupe
   const handleGroupDrop = (e: React.DragEvent<HTMLTableRowElement>, groupId: string) => {
     e.preventDefault();
     e.currentTarget.classList.remove('border-dashed', 'border-2', 'border-primary');
@@ -146,22 +133,18 @@ const ExigenceTable: React.FC<ExigenceTableProps> = ({
       const data = JSON.parse(e.dataTransfer.getData('text/plain'));
       
       if (data.id) {
-        // C'est une exigence qu'on déplace
         const sourceId = data.id;
         const sourceGroupId = data.groupId;
         
-        if (sourceGroupId === groupId) return; // Même groupe, rien à faire
+        if (sourceGroupId === groupId) return;
         
         const sourceExigence = exigences.find(e => e.id === sourceId);
         if (!sourceExigence) return;
         
-        // Trouver l'index source
         let sourceIndex = -1;
         if (!sourceGroupId) {
-          // Exigence non groupée
           sourceIndex = ungroupedExigences.findIndex(e => e.id === sourceId);
         } else {
-          // Exigence groupée
           const groupIndex = groups.findIndex(g => g.id === sourceGroupId);
           if (groupIndex === -1) return;
           
@@ -176,7 +159,6 @@ const ExigenceTable: React.FC<ExigenceTableProps> = ({
         
         if (sourceIndex === -1) return;
         
-        // Calculer l'index cible (fin du groupe cible)
         const targetGroup = groups.find(g => g.id === groupId);
         if (!targetGroup) return;
         
@@ -188,10 +170,8 @@ const ExigenceTable: React.FC<ExigenceTableProps> = ({
             return total + exigences.filter(e => e.groupId === g.id).length;
           }, 0) + targetGroupItems.length;
         
-        // Effectuer la réorganisation
         onReorder(sourceIndex, targetIndex, groupId);
       } else if (data.groupId) {
-        // C'est un groupe qu'on déplace
         const sourceGroupId = data.groupId;
         const sourceIndex = groups.findIndex(g => g.id === sourceGroupId);
         const targetIndex = groups.findIndex(g => g.id === groupId);
@@ -212,7 +192,6 @@ const ExigenceTable: React.FC<ExigenceTableProps> = ({
     setDraggedItem(null);
   };
 
-  // Gérer le début du glisser-déposer pour un groupe
   const handleGroupDragStart = (e: React.DragEvent<HTMLTableRowElement>, groupId: string) => {
     e.dataTransfer.setData('text/plain', JSON.stringify({ groupId }));
     e.currentTarget.classList.add('opacity-50');
@@ -224,7 +203,7 @@ const ExigenceTable: React.FC<ExigenceTableProps> = ({
         <TableHeader>
           <TableRow className="bg-app-light-blue">
             <TableHead className="w-10"></TableHead>
-            <TableHead className="py-3 px-4 text-app-blue font-semibold w-1/3">Nom</TableHead>
+            <TableHead className="py-3 px-4 text-app-blue font-semibold w-1/3">Exigence</TableHead>
             <TableHead className="py-3 px-4 text-app-blue font-semibold text-center" colSpan={4}>
               Responsabilités
             </TableHead>
