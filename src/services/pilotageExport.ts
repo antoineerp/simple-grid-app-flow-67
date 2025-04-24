@@ -5,6 +5,7 @@ import {
 } from './pdfManager';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
+import 'jspdf-autotable';
 
 /**
  * Exports pilotage documents to PDF format
@@ -16,11 +17,11 @@ export const exportPilotageToOdf = (documents: any[], title: string = 'Documents
     
     // Add title and date
     doc.setFontSize(18);
-    doc.text(title, 50, 20);
+    doc.text(title, 20, 20);
     
     // Add date
     doc.setFontSize(10);
-    doc.text(`Généré le: ${currentDate}`, 10, 40);
+    doc.text(`Généré le: ${currentDate}`, 20, 30);
     
     // Define columns for the table
     const headers = [['Ordre', 'Nom du document', 'Lien']];
@@ -34,7 +35,7 @@ export const exportPilotageToOdf = (documents: any[], title: string = 'Documents
     
     // Generate the table
     (doc as any).autoTable({
-      startY: 45,
+      startY: 40,
       head: headers,
       body: data,
       theme: 'grid',

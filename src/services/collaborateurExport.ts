@@ -5,6 +5,7 @@ import {
 } from './pdfManager';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
+import 'jspdf-autotable';
 
 /**
  * Exports collaborator statistics to PDF format
@@ -21,15 +22,15 @@ export const exportCollaborateurStatsToPdf = (membre: any) => {
     
     // Add title and metadata
     doc.setFontSize(18);
-    doc.text(displayTitle, 50, 20);
+    doc.text(displayTitle, 20, 20);
     
     // Add role
     doc.setFontSize(14);
-    doc.text(`Fonction: ${membre.fonction}`, 50, 30);
+    doc.text(`Fonction: ${membre.fonction}`, 20, 30);
     
     // Add date
     doc.setFontSize(10);
-    doc.text(`Généré le: ${currentDate}`, 10, 40);
+    doc.text(`Généré le: ${currentDate}`, 20, 40);
     
     // Table for requirements statistics
     const headersExigences = [['Type', 'Nombre']];
@@ -48,13 +49,14 @@ export const exportCollaborateurStatsToPdf = (membre: any) => {
       theme: 'grid',
       styles: { fontSize: 10, cellPadding: 5 },
       headStyles: { fillColor: [0, 48, 135], textColor: [255, 255, 255] },
-      tableWidth: 100,
-      margin: { left: 50 }
+      tableWidth: 150,
+      margin: { left: 20 }
     });
     
     // Title for documents
     doc.setFontSize(14);
-    doc.text('Documents', 50, (doc as any).lastAutoTable.finalY + 15);
+    let lastPosition = (doc as any).lastAutoTable.finalY + 15;
+    doc.text('Documents', 20, lastPosition);
     
     // Table for document statistics
     const headersDocuments = [['Type', 'Nombre']];
@@ -67,14 +69,14 @@ export const exportCollaborateurStatsToPdf = (membre: any) => {
     ];
     
     (doc as any).autoTable({
-      startY: (doc as any).lastAutoTable.finalY + 20,
+      startY: lastPosition + 5,
       head: headersDocuments,
       body: dataDocuments,
       theme: 'grid',
       styles: { fontSize: 10, cellPadding: 5 },
       headStyles: { fillColor: [0, 48, 135], textColor: [255, 255, 255] },
-      tableWidth: 100,
-      margin: { left: 50 }
+      tableWidth: 150,
+      margin: { left: 20 }
     });
     
     // Total
@@ -82,7 +84,8 @@ export const exportCollaborateurStatsToPdf = (membre: any) => {
       membre.exigences.r + membre.exigences.a + membre.exigences.c + membre.exigences.i +
       membre.documents.r + membre.documents.a + membre.documents.c + membre.documents.i;
     
+    lastPosition = (doc as any).lastAutoTable.finalY + 15;
     doc.setFontSize(14);
-    doc.text(`Total des responsabilités: ${totalGeneral}`, 50, (doc as any).lastAutoTable.finalY + 15);
+    doc.text(`Total des responsabilités: ${totalGeneral}`, 20, lastPosition);
   }, title);
 };
