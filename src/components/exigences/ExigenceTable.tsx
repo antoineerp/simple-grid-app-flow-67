@@ -19,7 +19,7 @@ interface ExigenceTableProps {
   onExclusionChange: (id: string) => void;
   onEdit: (id: string) => void;
   onDelete: (id: string) => void;
-  onReorder: (startIndex: number, endIndex: number) => void;
+  onReorder: (startIndex: number, endIndex: number, targetGroupId?: string) => void;
   onGroupReorder: (startIndex: number, endIndex: number) => void;
   onToggleGroup: (id: string) => void;
   onEditGroup: (group: ExigenceGroup) => void;
@@ -41,6 +41,16 @@ const ExigenceTable: React.FC<ExigenceTableProps> = ({
   onDeleteGroup
 }) => {
   const ungroupedExigences = exigences.filter(e => !e.groupId);
+
+  const handleDrop = (event: React.DragEvent, targetIndex: number, targetGroupId?: string) => {
+    event.preventDefault();
+    event.currentTarget.classList.remove('border-dashed', 'border-2', 'border-primary');
+    
+    const startIndex = parseInt(event.dataTransfer.getData('text/plain'));
+    if (startIndex !== targetIndex) {
+      onReorder(startIndex, targetIndex, targetGroupId);
+    }
+  };
 
   return (
     <div className="bg-white rounded-md shadow overflow-hidden">
@@ -105,9 +115,22 @@ const ExigenceTable: React.FC<ExigenceTableProps> = ({
                 </TableCell>
               </TableRow>
               {group.expanded && (
-                <TableBody onReorder={(start, end) => onReorder(start, end)}>
-                  {group.items.map((exigence) => (
-                    <TableRow key={exigence.id} className="border-b hover:bg-gray-50 bg-gray-50">
+                <TableBody onReorder={(start, end) => onReorder(start, end, group.id)}>
+                  {group.items.map((exigence, index) => (
+                    <TableRow 
+                      key={exigence.id} 
+                      className="border-b hover:bg-gray-50 bg-gray-50"
+                      draggable
+                      onDragStart={(e) => e.dataTransfer.setData('text/plain', index.toString())}
+                      onDragOver={(e) => {
+                        e.preventDefault();
+                        e.currentTarget.classList.add('border-dashed', 'border-2', 'border-primary');
+                      }}
+                      onDragLeave={(e) => {
+                        e.currentTarget.classList.remove('border-dashed', 'border-2', 'border-primary');
+                      }}
+                      onDrop={(e) => handleDrop(e, index, group.id)}
+                    >
                       <TableCell className="py-3 px-2 w-10">
                         <GripVertical className="h-5 w-5 text-gray-400" />
                       </TableCell>

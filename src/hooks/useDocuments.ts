@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from 'react';
 import { useToast } from "@/hooks/use-toast";
 import { Document, DocumentGroup } from '@/types/documents';
@@ -25,22 +24,18 @@ export const useDocuments = () => {
   const [stats, setStats] = useState(calculateDocumentStats(documents));
   const [isSyncing, setIsSyncing] = useState(false);
 
-  // Update statistics when documents change
   useEffect(() => {
     setStats(calculateDocumentStats(documents));
   }, [documents]);
 
-  // Save documents to storage when they change
   useEffect(() => {
     saveDocumentsToStorage(documents, currentUser);
   }, [documents, currentUser]);
 
-  // Save groups to storage when they change
   useEffect(() => {
     localStorage.setItem(`document_groups_${currentUser}`, JSON.stringify(groups));
   }, [groups, currentUser]);
 
-  // Document manipulation functions
   const handleResponsabiliteChange = useCallback((id: string, type: 'r' | 'a' | 'c' | 'i', values: string[]) => {
     setDocuments(prev => 
       prev.map(doc => 
@@ -150,10 +145,15 @@ export const useDocuments = () => {
     });
   }, [documents, toast]);
 
-  const handleReorder = useCallback((startIndex: number, endIndex: number) => {
+  const handleReorder = (startIndex: number, endIndex: number, targetGroupId?: string) => {
     setDocuments(prev => {
       const result = Array.from(prev);
       const [removed] = result.splice(startIndex, 1);
+      
+      if (targetGroupId !== undefined) {
+        removed.groupId = targetGroupId;
+      }
+      
       result.splice(endIndex, 0, removed);
       return result;
     });
@@ -162,9 +162,8 @@ export const useDocuments = () => {
       title: "Réorganisation",
       description: "L'ordre des documents a été mis à jour",
     });
-  }, [toast]);
+  };
 
-  // Group handling functions
   const handleAddGroup = useCallback(() => {
     setEditingGroup(null);
     setGroupDialogOpen(true);
@@ -192,12 +191,10 @@ export const useDocuments = () => {
   }, [editingGroup, toast]);
 
   const handleDeleteGroup = useCallback((groupId: string) => {
-    // Remove group references from documents
     setDocuments(prev => prev.map(doc => 
       doc.groupId === groupId ? { ...doc, groupId: undefined } : doc
     ));
     
-    // Delete the group
     setGroups(prev => prev.filter(g => g.id !== groupId));
     
     toast({
@@ -250,7 +247,6 @@ export const useDocuments = () => {
     return success;
   }, [documents, currentUser, toast]);
 
-  // Process documents to include group info
   const processedGroups = groups.map(group => {
     const groupItems = documents.filter(doc => doc.groupId === group.id);
     return {

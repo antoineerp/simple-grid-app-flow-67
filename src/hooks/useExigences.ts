@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from 'react';
 import { useToast } from "@/hooks/use-toast";
 import { Exigence, ExigenceStats, ExigenceGroup } from '@/types/exigences';
@@ -74,7 +73,6 @@ export const useExigences = () => {
     notifyExigenceUpdate();
   }, [exigences, currentUser]);
 
-  // Save groups to storage when they change
   useEffect(() => {
     localStorage.setItem(`exigence_groups_${currentUser}`, JSON.stringify(groups));
   }, [groups, currentUser]);
@@ -187,10 +185,15 @@ export const useExigences = () => {
     });
   };
 
-  const handleReorder = (startIndex: number, endIndex: number) => {
+  const handleReorder = (startIndex: number, endIndex: number, targetGroupId?: string) => {
     setExigences(prev => {
       const result = Array.from(prev);
       const [removed] = result.splice(startIndex, 1);
+      
+      if (targetGroupId !== undefined) {
+        removed.groupId = targetGroupId;
+      }
+      
       result.splice(endIndex, 0, removed);
       return result;
     });
@@ -201,7 +204,6 @@ export const useExigences = () => {
     });
   };
 
-  // Group handling functions
   const handleAddGroup = useCallback(() => {
     setEditingGroup(null);
     setGroupDialogOpen(true);
@@ -229,12 +231,10 @@ export const useExigences = () => {
   }, [editingGroup, toast]);
 
   const handleDeleteGroup = useCallback((groupId: string) => {
-    // Remove group references from exigences
     setExigences(prev => prev.map(exigence => 
       exigence.groupId === groupId ? { ...exigence, groupId: undefined } : exigence
     ));
     
-    // Delete the group
     setGroups(prev => prev.filter(g => g.id !== groupId));
     
     toast({
@@ -265,7 +265,6 @@ export const useExigences = () => {
     );
   }, []);
 
-  // Process exigences to include group info
   const processedGroups = groups.map(group => {
     const groupItems = exigences.filter(exigence => exigence.groupId === group.id);
     return {
