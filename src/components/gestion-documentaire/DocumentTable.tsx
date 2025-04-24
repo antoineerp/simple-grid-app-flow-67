@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Pencil, Trash, GripVertical, ChevronDown, ExternalLink } from 'lucide-react';
 import ResponsableSelector from '@/components/ResponsableSelector';
@@ -41,67 +42,180 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
   onDeleteGroup
 }) => {
   const ungroupedDocuments = documents.filter(d => !d.groupId);
-  const [draggedItem, setDraggedItem] = useState<{ index: number, groupId: string | null } | null>(null);
+  const [draggedItem, setDraggedItem] = useState<{ id: string, groupId?: string } | null>(null);
 
-  const getGroupItemIndex = (groupId: string, localIndex: number) => {
-    let globalStartIndex = ungroupedDocuments.length;
-    
-    for (const group of groups) {
-      if (group.id === groupId) {
-        return globalStartIndex + localIndex;
-      }
-      globalStartIndex += group.items.length;
-    }
-    
-    return localIndex;
+  // Préparation des données pour le dépôt
+  const prepareItems = () => {
+    // Commencer avec les documents non groupés
+    let allItems: { id: string; groupId?: string; index: number }[] = 
+      ungroupedDocuments.map((item, index) => ({
+        id: item.id,
+        groupId: undefined,
+        index
+      }));
+
+    // Ajouter les documents groupés
+    groups.forEach(group => {
+      const groupItems = documents.filter(item => item.groupId === group.id)
+        .map((item, groupIndex) => ({
+          id: item.id,
+          groupId: group.id,
+          index: groupIndex
+        }));
+      allItems = [...allItems, ...groupItems];
+    });
+
+    return allItems;
   };
 
-  const handleDragStart = (e: React.DragEvent, index: number, groupId: string | null = null) => {
-    setDraggedItem({ index, groupId });
-    e.dataTransfer.effectAllowed = 'move';
-    e.dataTransfer.setData('text/plain', JSON.stringify({ index, groupId }));
-    
-    setTimeout(() => {
-      e.currentTarget.classList.add('opacity-50');
-    }, 0);
+  // Gérer le début du glisser-déposer
+  const handleDragStart = (e: React.DragEvent<HTMLTableRowElement>, id: string, groupId?: string) => {
+    setDraggedItem({ id, groupId });
+    e.dataTransfer.setData('text/plain', JSON.stringify({ id, groupId }));
+    e.currentTarget.classList.add('opacity-50');
   };
 
+  // Gérer le survol lors du glisser-déposer
   const handleDragOver = (e: React.DragEvent<HTMLTableRowElement>) => {
     e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
     e.currentTarget.classList.add('border-dashed', 'border-2', 'border-primary');
   };
 
+  // Gérer la sortie du survol lors du glisser-déposer
   const handleDragLeave = (e: React.DragEvent<HTMLTableRowElement>) => {
     e.currentTarget.classList.remove('border-dashed', 'border-2', 'border-primary');
   };
 
-  const handleDrop = (e: React.DragEvent, targetIndex: number, targetGroupId?: string) => {
+  // Gérer le dépôt d'un élément
+  const handleDrop = (e: React.DragEvent<HTMLTableRowElement>, targetId: string, targetGroupId?: string) => {
     e.preventDefault();
     e.currentTarget.classList.remove('border-dashed', 'border-2', 'border-primary');
     
-    const dragData = JSON.parse(e.dataTransfer.getData('text/plain'));
-    const { index: startIndex, groupId: sourceGroupId } = dragData;
+    const data = JSON.parse(e.dataTransfer.getData('text/plain'));
+    const { id: sourceId, groupId: sourceGroupId } = data;
     
-    if (sourceGroupId === targetGroupId && startIndex === targetIndex) return;
+    if (sourceId === targetId) return;
     
-    let actualStartIndex = startIndex;
+    const allItems = prepareItems();
+    const sourceItem = allItems.find(item => item.id === sourceId);
+    const targetItem = allItems.find(item => item.id === targetId);
+    
+    if (!sourceItem || !targetItem) return;
+    
+    // Calculer les indices absolus
+    const sourceIndex = sourceItem.index;
+    let targetIndex = targetItem.index;
+    
+    // Ajuster l'index source en fonction du groupe
+    let adjustedSourceIndex = sourceIndex;
     if (sourceGroupId) {
-      actualStartIndex = getGroupItemIndex(sourceGroupId, startIndex);
+      const groupStartIndex = ungroupedDocuments.length;
+      const previousGroupsItemCount = groups
+        .slice(0, groups.findIndex(g => g.id === sourceGroupId))
+        .reduce((total, g) => {
+          return total + documents.filter(d => d.groupId === g.id).length;
+        }, 0);
+      
+      adjustedSourceIndex = groupStartIndex + previousGroupsItemCount + sourceIndex;
     }
     
-    let actualTargetIndex = targetIndex;
+    // Ajuster l'index cible en fonction du groupe
+    let adjustedTargetIndex = targetIndex;
     if (targetGroupId) {
-      actualTargetIndex = getGroupItemIndex(targetGroupId, targetIndex);
+      const groupStartIndex = ungroupedDocuments.length;
+      const previousGroupsItemCount = groups
+        .slice(0, groups.findIndex(g => g.id === targetGroupId))
+        .reduce((total, g) => {
+          return total + documents.filter(d => d.groupId === g.id).length;
+        }, 0);
+      
+      adjustedTargetIndex = groupStartIndex + previousGroupsItemCount + targetIndex;
     }
     
-    onReorder(actualStartIndex, actualTargetIndex, targetGroupId);
+    // Effectuer la réorganisation
+    onReorder(adjustedSourceIndex, adjustedTargetIndex, targetGroupId);
+    setDraggedItem(null);
+  };
+
+  // Gérer le dépôt sur un groupe
+  const handleGroupDrop = (e: React.DragEvent<HTMLTableRowElement>, groupId: string) => {
+    e.preventDefault();
+    e.currentTarget.classList.remove('border-dashed', 'border-2', 'border-primary');
+    
+    try {
+      const data = JSON.parse(e.dataTransfer.getData('text/plain'));
+      
+      if (data.id) {
+        // C'est un document qu'on déplace
+        const sourceId = data.id;
+        const sourceGroupId = data.groupId;
+        
+        if (sourceGroupId === groupId) return; // Même groupe, rien à faire
+        
+        const sourceDocument = documents.find(d => d.id === sourceId);
+        if (!sourceDocument) return;
+        
+        // Trouver l'index source
+        let sourceIndex = -1;
+        if (!sourceGroupId) {
+          // Document non groupé
+          sourceIndex = ungroupedDocuments.findIndex(d => d.id === sourceId);
+        } else {
+          // Document groupé
+          const groupIndex = groups.findIndex(g => g.id === sourceGroupId);
+          if (groupIndex === -1) return;
+          
+          const groupItems = documents.filter(d => d.groupId === sourceGroupId);
+          const indexInGroup = groupItems.findIndex(d => d.id === sourceId);
+          
+          sourceIndex = ungroupedDocuments.length + 
+            groups.slice(0, groupIndex).reduce((total, g) => {
+              return total + documents.filter(d => d.groupId === g.id).length;
+            }, 0) + indexInGroup;
+        }
+        
+        if (sourceIndex === -1) return;
+        
+        // Calculer l'index cible (fin du groupe cible)
+        const targetGroup = groups.find(g => g.id === groupId);
+        if (!targetGroup) return;
+        
+        const targetGroupIndex = groups.findIndex(g => g.id === groupId);
+        const targetGroupItems = documents.filter(d => d.groupId === groupId);
+        
+        const targetIndex = ungroupedDocuments.length + 
+          groups.slice(0, targetGroupIndex).reduce((total, g) => {
+            return total + documents.filter(d => d.groupId === g.id).length;
+          }, 0) + targetGroupItems.length;
+        
+        // Effectuer la réorganisation
+        onReorder(sourceIndex, targetIndex, groupId);
+      } else if (data.groupId) {
+        // C'est un groupe qu'on déplace
+        const sourceGroupId = data.groupId;
+        const sourceIndex = groups.findIndex(g => g.id === sourceGroupId);
+        const targetIndex = groups.findIndex(g => g.id === groupId);
+        
+        if (sourceIndex !== -1 && targetIndex !== -1) {
+          onGroupReorder(sourceIndex, targetIndex);
+        }
+      }
+    } catch (error) {
+      console.error("Erreur lors du drop:", error);
+    }
+    
     setDraggedItem(null);
   };
 
   const handleDragEnd = (e: React.DragEvent<HTMLTableRowElement>) => {
     e.currentTarget.classList.remove('opacity-50');
     setDraggedItem(null);
+  };
+
+  // Gérer le début du glisser-déposer pour un groupe
+  const handleGroupDragStart = (e: React.DragEvent<HTMLTableRowElement>, groupId: string) => {
+    e.dataTransfer.setData('text/plain', JSON.stringify({ groupId }));
+    e.currentTarget.classList.add('opacity-50');
   };
 
   const renderFileLink = (fichier_path: string | null) => {
@@ -161,19 +275,25 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
                 draggable
                 onDragStart={(e) => {
                   e.stopPropagation();
-                  const index = groups.findIndex(g => g.id === group.id);
-                  handleDragStart(e, index);
+                  handleGroupDragStart(e, group.id);
                 }}
-                onDragOver={handleDragOver}
-                onDragLeave={handleDragLeave}
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  handleDragOver(e);
+                }}
+                onDragLeave={(e) => {
+                  e.stopPropagation();
+                  handleDragLeave(e);
+                }}
                 onDrop={(e) => {
                   e.stopPropagation();
-                  const index = groups.findIndex(g => g.id === group.id);
-                  if (draggedItem?.groupId === null) {
-                    handleDrop(e, index);
-                  }
+                  handleGroupDrop(e, group.id);
                 }}
-                onDragEnd={handleDragEnd}
+                onDragEnd={(e) => {
+                  e.stopPropagation();
+                  handleDragEnd(e);
+                }}
               >
                 <TableCell className="py-3 px-2 w-10">
                   <GripVertical className="h-5 w-5 text-gray-400" />
@@ -217,11 +337,27 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
                     key={doc.id} 
                     className="border-b hover:bg-gray-50 bg-gray-50"
                     draggable
-                    onDragStart={(e) => handleDragStart(e, index, group.id)}
-                    onDragOver={handleDragOver}
-                    onDragLeave={handleDragLeave}
-                    onDrop={(e) => handleDrop(e, index, group.id)}
-                    onDragEnd={handleDragEnd}
+                    onDragStart={(e) => {
+                      e.stopPropagation();
+                      handleDragStart(e, doc.id, group.id);
+                    }}
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      handleDragOver(e);
+                    }}
+                    onDragLeave={(e) => {
+                      e.stopPropagation();
+                      handleDragLeave(e);
+                    }}
+                    onDrop={(e) => {
+                      e.stopPropagation();
+                      handleDrop(e, doc.id, group.id);
+                    }}
+                    onDragEnd={(e) => {
+                      e.stopPropagation();
+                      handleDragEnd(e);
+                    }}
                   >
                     <TableCell className="py-3 px-2 w-10">
                       <GripVertical className="h-5 w-5 text-gray-400" />
@@ -336,10 +472,10 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
               key={doc.id} 
               className="border-b hover:bg-gray-50"
               draggable
-              onDragStart={(e) => handleDragStart(e, index)}
+              onDragStart={(e) => handleDragStart(e, doc.id)}
               onDragOver={handleDragOver}
               onDragLeave={handleDragLeave}
-              onDrop={(e) => handleDrop(e, index)}
+              onDrop={(e) => handleDrop(e, doc.id)}
               onDragEnd={handleDragEnd}
             >
               <TableCell className="py-3 px-2 w-10">

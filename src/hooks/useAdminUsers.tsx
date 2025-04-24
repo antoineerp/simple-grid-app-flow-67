@@ -48,8 +48,15 @@ export const useAdminUsers = () => {
       // Corriger la vérification du type de data et l'accès aux propriétés
       if (Array.isArray(data)) {
         setUtilisateurs(data);
-      } else if (data && typeof data === 'object' && 'records' in data && Array.isArray(data.records)) {
-        setUtilisateurs(data.records);
+      } else if (data && typeof data === 'object') {
+        // Vérification de sécurité pour l'accès à records avec TypeScript
+        const responseData = data as any;
+        if (responseData.records && Array.isArray(responseData.records)) {
+          setUtilisateurs(responseData.records);
+        } else {
+          console.warn("Format de données inattendu:", data);
+          setUtilisateurs([]);
+        }
       } else {
         console.warn("Format de données inattendu:", data);
         setUtilisateurs([]);

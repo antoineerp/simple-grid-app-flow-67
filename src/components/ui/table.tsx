@@ -29,41 +29,6 @@ const TableBody = React.forwardRef<
   HTMLTableSectionElement,
   React.HTMLAttributes<HTMLTableSectionElement> & { onReorder?: (startIndex: number, endIndex: number) => void }
 >(({ className, onReorder, ...props }, ref) => {
-  // La clé du problème est que nous ne propageons pas les événements de manière efficace
-  // Nous allons créer un gestionnaire de glisser-déposer plus robuste
-  
-  const handleDragStart = (e: React.DragEvent<HTMLTableRowElement>, index: number, groupId: string | null = null) => {
-    // Stocker l'index source et le groupId
-    const dragData = JSON.stringify({ index, groupId });
-    e.dataTransfer.setData('text/plain', dragData);
-    
-    // Ajouter un retour visuel
-    e.currentTarget.classList.add('opacity-50');
-    
-    // Empêcher les événements onClick sur les boutons à l'intérieur de la ligne
-    e.stopPropagation();
-  };
-
-  const handleDragOver = (e: React.DragEvent<HTMLTableRowElement>) => {
-    // Prévention du comportement par défaut pour permettre le drop
-    e.preventDefault();
-    e.currentTarget.classList.add('border-dashed', 'border-2', 'border-primary');
-  };
-
-  const handleDragLeave = (e: React.DragEvent<HTMLTableRowElement>) => {
-    e.currentTarget.classList.remove('border-dashed', 'border-2', 'border-primary');
-  };
-
-  // Nous ne modifions pas cette méthode puisqu'elle est appelée dans les composants qui l'utilisent
-  // Ils ont leur propre logique pour gérer le drop en fonction des groupes
-  
-  const handleDragEnd = (e: React.DragEvent<HTMLTableRowElement>) => {
-    e.currentTarget.classList.remove('opacity-50');
-  };
-
-  // Nous ne modifions pas les enfants directement ici car les composants ExigenceTable et DocumentTable
-  // ont leur propre implémentation du drag and drop qui gère les groupes
-  
   return (
     <tbody
       ref={ref}
@@ -91,7 +56,14 @@ TableFooter.displayName = "TableFooter"
 
 const TableRow = React.forwardRef<
   HTMLTableRowElement,
-  React.HTMLAttributes<HTMLTableRowElement>
+  React.HTMLAttributes<HTMLTableRowElement> & {
+    draggable?: boolean;
+    onDragStart?: (e: React.DragEvent<HTMLTableRowElement>) => void;
+    onDragOver?: (e: React.DragEvent<HTMLTableRowElement>) => void;
+    onDragLeave?: (e: React.DragEvent<HTMLTableRowElement>) => void;
+    onDrop?: (e: React.DragEvent<HTMLTableRowElement>) => void;
+    onDragEnd?: (e: React.DragEvent<HTMLTableRowElement>) => void;
+  }
 >(({ className, ...props }, ref) => (
   <tr
     ref={ref}
