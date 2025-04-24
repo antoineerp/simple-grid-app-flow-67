@@ -1,5 +1,5 @@
 import React from 'react';
-import { Pencil, Trash, GripVertical, ChevronDown, FolderPlus } from 'lucide-react';
+import { Pencil, Trash, GripVertical, ChevronDown } from 'lucide-react';
 import ResponsableSelector from '@/components/ResponsableSelector';
 import { Document, DocumentGroup } from '@/types/documents';
 import {
