@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { getUtilisateurs, connectAsUser, testDatabaseConnection, type Utilisateur } from '@/services';
 import { useToast } from "@/hooks/use-toast";
 import { hasPermission, UserRole } from '@/types/roles';
@@ -15,7 +15,7 @@ export const useAdminUsers = () => {
     loadUtilisateurs();
   }, []);
 
-  const loadUtilisateurs = async () => {
+  const loadUtilisateurs = useCallback(async () => {
     const currentUserRole = localStorage.getItem('userRole') as UserRole;
     
     // Vérifier les permissions avant de charger les utilisateurs
@@ -45,10 +45,21 @@ export const useAdminUsers = () => {
       const data = await getUtilisateurs();
       console.log("Données utilisateurs récupérées:", data);
       
-      setUtilisateurs(data);
-      
-      if (data.length === 0) {
-        console.warn("Aucun utilisateur récupéré de la base de données.");
+      // Corriger la vérification du type de data et l'accès aux propriétés
+      if (Array.isArray(data)) {
+        setUtilisateurs(data);
+      } else if (data && typeof data === 'object') {
+        // Vérification de sécurité pour l'accès à records avec TypeScript
+        const responseData = data as any;
+        if (responseData.records && Array.isArray(responseData.records)) {
+          setUtilisateurs(responseData.records);
+        } else {
+          console.warn("Format de données inattendu:", data);
+          setUtilisateurs([]);
+        }
+      } else {
+        console.warn("Format de données inattendu:", data);
+        setUtilisateurs([]);
       }
     } catch (error) {
       console.error("Erreur lors du chargement des utilisateurs", error);
@@ -61,7 +72,7 @@ export const useAdminUsers = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [toast]);
 
   const handleConnectAsUser = async (identifiantTechnique: string) => {
     const currentUserRole = localStorage.getItem('userRole') as UserRole;

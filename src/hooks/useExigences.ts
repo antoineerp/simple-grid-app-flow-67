@@ -1,48 +1,154 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useToast } from "@/hooks/use-toast";
-import { Exigence, ExigenceStats } from '@/types/exigences';
-import { 
-  loadExigencesFromStorage, 
-  saveExigencesInStorage, 
-  calculateExigenceStats,
-  syncExigencesWithServer
-} from '@/services/exigences/exigencesService';
-import { getCurrentUserId } from '@/services/core/syncService';
+import { Exigence, ExigenceStats, ExigenceGroup } from '@/types/exigences';
+import { syncExigencesWithServer, loadExigencesFromServer } from '@/services/exigences/exigenceSyncService';
+import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 
 export const useExigences = () => {
   const { toast } = useToast();
-  const currentUser = getCurrentUserId();
+  const { isOnline } = useNetworkStatus();
+  const currentUser = localStorage.getItem('currentUser') || 'default';
   
-  const [exigences, setExigences] = useState<Exigence[]>(() => loadExigencesFromStorage(currentUser));
+  const [exigences, setExigences] = useState<Exigence[]>(() => {
+    const storedExigences = localStorage.getItem(`exigences_${currentUser}`);
+    
+    if (storedExigences) {
+      return JSON.parse(storedExigences);
+    } else {
+      const defaultExigences = localStorage.getItem('exigences_template') || localStorage.getItem('exigences');
+      
+      if (defaultExigences) {
+        return JSON.parse(defaultExigences);
+      }
+      
+      return [
+        { 
+          id: '1', 
+          nom: 'Levée du courrier', 
+          responsabilites: { r: [], a: [], c: [], i: [] },
+          exclusion: false,
+          atteinte: null,
+          date_creation: new Date(),
+          date_modification: new Date()
+        },
+        { 
+          id: '2', 
+          nom: 'Ouverture du courrier', 
+          responsabilites: { r: [], a: [], c: [], i: [] },
+          exclusion: false,
+          atteinte: null,
+          date_creation: new Date(),
+          date_modification: new Date()
+        },
+      ];
+    }
+  });
+
+  const [groups, setGroups] = useState<ExigenceGroup[]>(() => {
+    const storedGroups = localStorage.getItem(`exigence_groups_${currentUser}`);
+    return storedGroups ? JSON.parse(storedGroups) : [];
+  });
+
   const [editingExigence, setEditingExigence] = useState<Exigence | null>(null);
+  const [editingGroup, setEditingGroup] = useState<ExigenceGroup | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [stats, setStats] = useState<ExigenceStats>(calculateExigenceStats(exigences));
+  const [groupDialogOpen, setGroupDialogOpen] = useState(false);
+  const [stats, setStats] = useState<ExigenceStats>({
+    exclusion: 0,
+    nonConforme: 0,
+    partiellementConforme: 0,
+    conforme: 0,
+    total: 0
+  });
   const [isSyncing, setIsSyncing] = useState(false);
+  const [lastSynced, setLastSynced] = useState<Date | undefined>(undefined);
+
+  const notifyExigenceUpdate = () => {
+    window.dispatchEvent(new Event('exigenceUpdate'));
+  };
 
   useEffect(() => {
-    setStats(calculateExigenceStats(exigences));
-  }, [exigences]);
+    const fetchExigencesFromServer = async () => {
+      try {
+        const serverExigences = await loadExigencesFromServer(currentUser);
+        if (serverExigences) {
+          setExigences(serverExigences);
+          localStorage.setItem(`exigences_${currentUser}`, JSON.stringify(serverExigences));
+          console.log('Exigences chargées depuis le serveur et mises en cache');
+          setLastSynced(new Date());
+        } else {
+          console.log('Aucune exigence trouvée sur le serveur, utilisation des données locales');
+          syncWithServer();
+        }
+      } catch (error) {
+        console.error('Erreur lors du chargement des exigences depuis le serveur:', error);
+        toast({
+          title: "Erreur de synchronisation",
+          description: "Impossible de charger les données depuis le serveur. Utilisation des données locales.",
+          variant: "destructive"
+        });
+      }
+    };
+
+    fetchExigencesFromServer();
+  }, [currentUser]);
 
   useEffect(() => {
-    saveExigencesInStorage(exigences, currentUser);
+    localStorage.setItem(`exigences_${currentUser}`, JSON.stringify(exigences));
+    
+    const userRole = localStorage.getItem('userRole');
+    if (userRole === 'admin' || userRole === 'administrateur') {
+      localStorage.setItem('exigences_template', JSON.stringify(exigences));
+    }
+    
+    notifyExigenceUpdate();
   }, [exigences, currentUser]);
 
   useEffect(() => {
-    const syncWithServer = async () => {
-      if (exigences.length > 0) {
-        setIsSyncing(true);
-        try {
-          await syncExigencesWithServer(exigences, currentUser);
-        } catch (error) {
-          console.error("Erreur lors de la synchronisation initiale:", error);
-        } finally {
-          setIsSyncing(false);
-        }
-      }
-    };
+    const debounceSync = setTimeout(() => {
+      syncWithServer();
+    }, 2000);
+
+    return () => clearTimeout(debounceSync);
+  }, [exigences]);
+
+  useEffect(() => {
+    localStorage.setItem(`exigence_groups_${currentUser}`, JSON.stringify(groups));
+  }, [groups, currentUser]);
+
+  useEffect(() => {
+    const exclusionCount = exigences.filter(e => e.exclusion).length;
+    const nonExcludedExigences = exigences.filter(e => !e.exclusion);
     
-    syncWithServer();
-  }, [exigences.length]);
+    const newStats = {
+      exclusion: exclusionCount,
+      nonConforme: nonExcludedExigences.filter(e => e.atteinte === 'NC').length,
+      partiellementConforme: nonExcludedExigences.filter(e => e.atteinte === 'PC').length,
+      conforme: nonExcludedExigences.filter(e => e.atteinte === 'C').length,
+      total: nonExcludedExigences.length
+    };
+    setStats(newStats);
+  }, [exigences]);
+
+  const syncWithServer = async () => {
+    if (isSyncing) return;
+    
+    setIsSyncing(true);
+    try {
+      const success = await syncExigencesWithServer(exigences, currentUser);
+      
+      if (!success) {
+        console.warn('La synchronisation des exigences a échoué');
+      } else {
+        console.log('Exigences synchronisées avec succès');
+        setLastSynced(new Date());
+      }
+    } catch (error) {
+      console.error('Erreur lors de la synchronisation:', error);
+    } finally {
+      setIsSyncing(false);
+    }
+  };
 
   const handleResponsabiliteChange = (id: string, type: 'r' | 'a' | 'c' | 'i', values: string[]) => {
     setExigences(prev => 
@@ -53,8 +159,7 @@ export const useExigences = () => {
               responsabilites: { 
                 ...exigence.responsabilites, 
                 [type]: values
-              },
-              date_modification: new Date()
+              } 
             } 
           : exigence
       )
@@ -65,11 +170,7 @@ export const useExigences = () => {
     setExigences(prev => 
       prev.map(exigence => 
         exigence.id === id 
-          ? { 
-              ...exigence, 
-              atteinte,
-              date_modification: new Date()
-            } 
+          ? { ...exigence, atteinte } 
           : exigence
       )
     );
@@ -79,11 +180,7 @@ export const useExigences = () => {
     setExigences(prev => 
       prev.map(exigence => 
         exigence.id === id 
-          ? { 
-              ...exigence, 
-              exclusion: !exigence.exclusion,
-              date_modification: new Date()
-            } 
+          ? { ...exigence, exclusion: !exigence.exclusion } 
           : exigence
       )
     );
@@ -104,19 +201,14 @@ export const useExigences = () => {
   };
 
   const handleSaveExigence = (updatedExigence: Exigence) => {
-    const newExigence = {
-      ...updatedExigence,
-      date_modification: new Date()
-    };
-    
     setExigences(prev => 
       prev.map(exigence => 
-        exigence.id === newExigence.id ? newExigence : exigence
+        exigence.id === updatedExigence.id ? updatedExigence : exigence
       )
     );
     toast({
       title: "Exigence mise à jour",
-      description: `L'exigence ${newExigence.id} a été mise à jour avec succès`
+      description: `L'exigence ${updatedExigence.id} a été mise à jour avec succès`
     });
   };
 
@@ -152,10 +244,15 @@ export const useExigences = () => {
     });
   };
 
-  const handleReorder = (startIndex: number, endIndex: number) => {
+  const handleReorder = (startIndex: number, endIndex: number, targetGroupId?: string) => {
     setExigences(prev => {
       const result = Array.from(prev);
       const [removed] = result.splice(startIndex, 1);
+      
+      if (targetGroupId !== undefined) {
+        removed.groupId = targetGroupId === 'null' ? undefined : targetGroupId;
+      }
+      
       result.splice(endIndex, 0, removed);
       return result;
     });
@@ -166,35 +263,119 @@ export const useExigences = () => {
     });
   };
 
-  const syncWithServer = async () => {
-    setIsSyncing(true);
-    
-    const success = await syncExigencesWithServer(exigences, currentUser);
-    
-    if (success) {
+  const handleAddGroup = useCallback(() => {
+    setEditingGroup(null);
+    setGroupDialogOpen(true);
+  }, []);
+
+  const handleEditGroup = useCallback((group: ExigenceGroup) => {
+    setEditingGroup(group);
+    setGroupDialogOpen(true);
+  }, []);
+
+  const handleSaveGroup = useCallback((group: ExigenceGroup) => {
+    if (editingGroup) {
+      setGroups(prev => prev.map(g => g.id === group.id ? group : g));
       toast({
-        title: "Synchronisation réussie",
-        description: "Vos exigences ont été synchronisées avec le serveur",
+        title: "Groupe mis à jour",
+        description: `Le groupe ${group.name} a été mis à jour avec succès`,
       });
     } else {
+      setGroups(prev => [...prev, group]);
       toast({
-        title: "Erreur de synchronisation",
-        description: "Impossible de synchroniser vos exigences",
-        variant: "destructive"
+        title: "Nouveau groupe",
+        description: `Le groupe ${group.name} a été créé`,
       });
     }
+  }, [editingGroup, toast]);
+
+  const handleDeleteGroup = useCallback((groupId: string) => {
+    setExigences(prev => prev.map(exigence => 
+      exigence.groupId === groupId ? { ...exigence, groupId: undefined } : exigence
+    ));
     
-    setIsSyncing(false);
-    return success;
+    setGroups(prev => prev.filter(g => g.id !== groupId));
+    
+    toast({
+      title: "Suppression",
+      description: "Le groupe a été supprimé",
+    });
+  }, [toast]);
+
+  const handleGroupReorder = useCallback((startIndex: number, endIndex: number) => {
+    setGroups(prev => {
+      const result = Array.from(prev);
+      const [removed] = result.splice(startIndex, 1);
+      result.splice(endIndex, 0, removed);
+      return result;
+    });
+
+    toast({
+      title: "Réorganisation",
+      description: "L'ordre des groupes a été mis à jour",
+    });
+  }, [toast]);
+
+  const handleToggleGroup = useCallback((groupId: string) => {
+    setGroups(prev => 
+      prev.map(group => 
+        group.id === groupId ? { ...group, expanded: !group.expanded } : group
+      )
+    );
+  }, []);
+
+  const processedGroups = groups.map(group => {
+    const groupItems = exigences.filter(exigence => exigence.groupId === group.id);
+    return {
+      ...group,
+      items: groupItems
+    };
+  });
+
+  const forceSyncWithServer = async () => {
+    setIsSyncing(true);
+    
+    try {
+      const success = await syncExigencesWithServer(exigences, currentUser);
+      
+      if (success) {
+        toast({
+          title: "Synchronisation réussie",
+          description: "Vos exigences ont été synchronisées avec le serveur",
+        });
+        setLastSynced(new Date());
+      } else {
+        toast({
+          title: "Erreur de synchronisation",
+          description: "Impossible de synchroniser vos exigences",
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      console.error('Erreur lors de la synchronisation:', error);
+      toast({
+        title: "Erreur de synchronisation",
+        description: `Erreur: ${error instanceof Error ? error.message : 'Inconnue'}`,
+        variant: "destructive"
+      });
+    } finally {
+      setIsSyncing(false);
+    }
   };
 
   return {
     exigences,
+    groups: processedGroups,
     stats,
     editingExigence,
+    editingGroup,
     dialogOpen,
+    groupDialogOpen,
     isSyncing,
+    isOnline,
+    lastSynced,
     setDialogOpen,
+    setGroupDialogOpen,
     handleResponsabiliteChange,
     handleAtteinteChange,
     handleExclusionChange,
@@ -203,6 +384,12 @@ export const useExigences = () => {
     handleDelete,
     handleAddExigence,
     handleReorder,
-    syncWithServer
+    handleAddGroup,
+    handleEditGroup,
+    handleSaveGroup,
+    handleDeleteGroup,
+    handleGroupReorder,
+    handleToggleGroup,
+    syncWithServer: forceSyncWithServer
   };
 };

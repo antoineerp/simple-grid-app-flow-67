@@ -1,97 +1,110 @@
 
-import React, { createContext, useState, useContext, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { Membre } from '@/types/membres';
-import { loadMembresFromStorage, saveMembresInStorage } from '@/services/membres/membresService';
+import { useNetworkStatus } from '@/hooks/useNetworkStatus';
+import { loadMembresFromStorage, saveMembrestoStorage } from '@/services/membres/membresService';
+import { syncMembresWithServer, loadMembresFromServer } from '@/services/membres/membresSync';
 import { useToast } from '@/hooks/use-toast';
-import { getAuthHeaders } from '@/services/auth/authService';
 
 interface MembresContextType {
   membres: Membre[];
   setMembres: React.Dispatch<React.SetStateAction<Membre[]>>;
-  loading: boolean;
-  refreshMembres: () => Promise<void>;
+  isSyncing: boolean;
+  isOnline: boolean;
+  lastSynced?: Date;
+  syncWithServer: () => Promise<void>;
 }
 
-const MembresContext = createContext<MembresContextType>({
-  membres: [],
-  setMembres: () => {},
-  loading: true,
-  refreshMembres: async () => {}
-});
+const MembresContext = createContext<MembresContextType | undefined>(undefined);
 
-export const useMembres = () => useContext(MembresContext);
-
-export const MembresProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export const MembresProvider = ({ children }: { children: ReactNode }) => {
+  // Récupérer l'identifiant de l'utilisateur connecté
+  const currentUser = localStorage.getItem('currentUser') || 'default';
+  const { isOnline } = useNetworkStatus();
   const { toast } = useToast();
-  const [membres, setMembres] = useState<Membre[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [lastSynced, setLastSynced] = useState<Date | undefined>(undefined);
+  
+  // Récupérer les membres du localStorage spécifiques à l'utilisateur actuel
+  const [membres, setMembres] = useState<Membre[]>(() => {
+    const storedMembres = localStorage.getItem(`membres_${currentUser}`);
+    return storedMembres ? JSON.parse(storedMembres) : [
+      { 
+        id: "1", 
+        nom: 'BONNET', 
+        prenom: 'RICHARD', 
+        fonction: 'DXDXD', 
+        initiales: 'RB',
+        date_creation: new Date(),
+        mot_de_passe: '****' // Ajout du champ obligatoire
+      }
+    ];
+  });
 
-  const getCurrentUser = () => {
-    const authHeaders = getAuthHeaders();
-    const token = authHeaders['Authorization']?.split(' ')[1];
-    if (!token) return 'default_user';
-    
-    try {
-      const payload = JSON.parse(atob(token.split('.')[1]));
-      return payload.user_id || payload.email || 'default_user';
-    } catch (e) {
-      console.error('Erreur lors du décodage du token:', e);
-      return 'default_user';
-    }
-  };
+  // Sauvegarder les membres dans le localStorage spécifique à l'utilisateur actuel
+  useEffect(() => {
+    localStorage.setItem(`membres_${currentUser}`, JSON.stringify(membres));
+  }, [membres, currentUser]);
 
-  const loadMembres = async () => {
-    setLoading(true);
-    
-    try {
-      const currentUser = getCurrentUser();
-      console.log("Chargement des membres pour:", currentUser);
-      
-      const loadedMembres = await loadMembresFromStorage(currentUser);
-      
-      console.log(`${loadedMembres.length} membres chargés`);
-      setMembres(loadedMembres);
-      
-    } catch (error) {
-      console.error("Erreur lors du chargement des membres:", error);
+  // Méthode de synchronisation avec le serveur
+  const syncWithServer = async () => {
+    if (!isOnline) {
       toast({
-        title: "Erreur",
-        description: "Impossible de charger les membres",
+        title: "Synchronisation impossible",
+        description: "Vous êtes actuellement hors ligne",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsSyncing(true);
+    
+    try {
+      const success = await syncMembresWithServer(membres, currentUser);
+      
+      if (success) {
+        toast({
+          title: "Synchronisation réussie",
+          description: "Les membres ont été synchronisés avec le serveur",
+        });
+        setLastSynced(new Date());
+      } else {
+        toast({
+          title: "Échec de la synchronisation",
+          description: "Une erreur est survenue lors de la synchronisation",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error('Erreur de synchronisation:', error);
+      toast({
+        title: "Erreur de synchronisation",
+        description: `${error}`,
         variant: "destructive",
       });
     } finally {
-      setLoading(false);
+      setIsSyncing(false);
     }
-  };
-
-  useEffect(() => {
-    loadMembres();
-  }, []);
-
-  useEffect(() => {
-    if (membres.length > 0 && !loading) {
-      const currentUser = getCurrentUser();
-      console.log(`Sauvegarde de ${membres.length} membres pour ${currentUser}`);
-      
-      saveMembresInStorage(membres, currentUser)
-        .catch(error => {
-          console.error("Erreur lors de la sauvegarde des membres:", error);
-          toast({
-            title: "Erreur de sauvegarde",
-            description: "Impossible de sauvegarder les modifications",
-            variant: "destructive",
-          });
-        });
-    }
-  }, [membres, loading]);
-
-  const refreshMembres = async () => {
-    await loadMembres();
   };
 
   return (
-    <MembresContext.Provider value={{ membres, setMembres, loading, refreshMembres }}>
+    <MembresContext.Provider value={{ 
+      membres, 
+      setMembres,
+      isSyncing,
+      isOnline,
+      lastSynced,
+      syncWithServer
+    }}>
       {children}
     </MembresContext.Provider>
   );
+};
+
+export const useMembres = (): MembresContextType => {
+  const context = useContext(MembresContext);
+  if (context === undefined) {
+    throw new Error('useMembres must be used within a MembresProvider');
+  }
+  return context;
 };

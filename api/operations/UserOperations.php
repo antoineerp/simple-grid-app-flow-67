@@ -2,10 +2,6 @@
 <?php
 require_once dirname(__DIR__) . '/models/User.php';
 require_once dirname(__DIR__) . '/utils/ResponseHandler.php';
-require_once __DIR__ . '/handlers/UserGetHandler.php';
-require_once __DIR__ . '/handlers/UserPostHandler.php';
-require_once __DIR__ . '/handlers/UserPutHandler.php';
-require_once __DIR__ . '/handlers/UserDeleteHandler.php';
 
 class UserOperations {
     private $user;
@@ -17,23 +13,221 @@ class UserOperations {
     }
 
     public function handleGetRequest() {
-        $handler = new UserGetHandler($this->user);
-        $handler->handle();
+        if (isset($_GET['email'])) {
+            $this->checkEmail($_GET['email']);
+            return;
+        }
+        $this->getAllUsers();
     }
 
     public function handlePostRequest() {
-        $handler = new UserPostHandler($this->user);
-        $handler->handle();
+        // Récupérer et vérifier les données
+        $data = json_decode(file_get_contents("php://input"));
+        error_log("Données reçues POST: " . json_encode($data));
+
+        if (!$this->validateUserData($data)) {
+            error_log("Validation des données utilisateur échouée");
+            ResponseHandler::error("Données incomplètes ou invalides", 400);
+            return;
+        }
+
+        try {
+            error_log("Vérification du rôle gestionnaire: " . $data->role);
+            if ($data->role === 'gestionnaire' && $this->user->countUsersByRole('gestionnaire') > 0) {
+                error_log("Tentative de création d'un second compte gestionnaire rejetée");
+                ResponseHandler::error("Un seul compte gestionnaire peut être créé", 409);
+                return;
+            }
+
+            error_log("Vérification de l'email: " . $data->email);
+            if ($this->user->emailExists($data->email)) {
+                error_log("Email déjà utilisé: " . $data->email);
+                ResponseHandler::error("Email déjà utilisé", 409);
+                return;
+            }
+
+            // Assigner les valeurs à l'objet utilisateur
+            $this->user->nom = $data->nom;
+            $this->user->prenom = $data->prenom;
+            $this->user->email = $data->email;
+            $this->user->identifiant_technique = $data->identifiant_technique;
+            $this->user->mot_de_passe = $data->mot_de_passe;
+            $this->user->role = $data->role;
+
+            error_log("Tentative de création de l'utilisateur: " . $data->nom . " " . $data->prenom);
+            
+            // S'assurer qu'aucun contenu n'a été envoyé avant d'essayer de créer l'utilisateur
+            if (ob_get_length()) ob_clean();
+            
+            // Vérifier la création
+            if (!$this->user->create()) {
+                error_log("Échec de création de l'utilisateur sans exception");
+                ResponseHandler::error("Échec de création de l'utilisateur", 500);
+                return;
+            }
+            
+            $lastId = $this->db->lastInsertId();
+            error_log("Utilisateur créé avec succès. ID: " . $lastId);
+            
+            if ($data->role === 'utilisateur') {
+                error_log("Initialisation des données utilisateur depuis le gestionnaire");
+                $this->user->initializeUserDataFromManager($data->identifiant_technique);
+            }
+            
+            // Renvoyer une réponse avec les données minimales nécessaires
+            $responseData = [
+                'id' => $lastId,
+                'identifiant_technique' => $data->identifiant_technique,
+                'nom' => $data->nom,
+                'prenom' => $data->prenom,
+                'email' => $data->email,
+                'role' => $data->role
+            ];
+            
+            // S'assurer que les headers sont correctement définis
+            if (!headers_sent()) {
+                header('Content-Type: application/json; charset=UTF-8');
+                http_response_code(201);
+            }
+            
+            echo json_encode([
+                'status' => 'success',
+                'message' => "Utilisateur créé avec succès",
+                'data' => $responseData
+            ]);
+            
+            // Terminer l'exécution pour éviter tout autre output
+            exit;
+            
+        } catch (Exception $e) {
+            error_log("Erreur création utilisateur: " . $e->getMessage() . " dans " . $e->getFile() . " ligne " . $e->getLine());
+            
+            // Nettoyer tout buffer de sortie
+            if (ob_get_length()) ob_clean();
+            
+            // S'assurer que les en-têtes sont correctement définis
+            if (!headers_sent()) {
+                header('Content-Type: application/json; charset=UTF-8');
+            }
+            
+            ResponseHandler::error($e->getMessage(), 500);
+        }
+    }
+
+    private function validateUserData($data) {
+        error_log("Validation des données: " . json_encode($data));
+        
+        // Vérifier que l'objet $data existe
+        if (!is_object($data)) {
+            error_log("Données invalides: ce n'est pas un objet");
+            return false;
+        }
+        
+        $isValid = isset($data->nom) && !empty($data->nom) &&
+                   isset($data->prenom) && !empty($data->prenom) &&
+                   isset($data->email) && !empty($data->email) &&
+                   isset($data->identifiant_technique) && !empty($data->identifiant_technique) &&
+                   isset($data->mot_de_passe) && !empty($data->mot_de_passe) &&
+                   isset($data->role) && !empty($data->role);
+               
+        if (!$isValid) {
+            error_log("Champs manquants: " . 
+                (!isset($data->nom) || empty($data->nom) ? "nom " : "") .
+                (!isset($data->prenom) || empty($data->prenom) ? "prenom " : "") .
+                (!isset($data->email) || empty($data->email) ? "email " : "") .
+                (!isset($data->identifiant_technique) || empty($data->identifiant_technique) ? "identifiant_technique " : "") .
+                (!isset($data->mot_de_passe) || empty($data->mot_de_passe) ? "mot_de_passe " : "") .
+                (!isset($data->role) || empty($data->role) ? "role " : ""));
+        }
+               
+        return $isValid;
+    }
+
+    private function checkEmail($email) {
+        $stmt = $this->user->findByEmailQuery($email);
+        $num = $stmt ? $stmt->rowCount() : 0;
+        
+        $users_arr = ["records" => []];
+        
+        if ($num > 0) {
+            while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+                $row['mot_de_passe'] = '******';
+                array_push($users_arr["records"], $row);
+            }
+        }
+        
+        ResponseHandler::success($users_arr);
+    }
+
+    private function getAllUsers() {
+        $stmt = $this->user->read();
+        $num = $stmt->rowCount();
+        
+        if ($num > 0) {
+            $users_arr = ["records" => []];
+            while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+                $row['mot_de_passe'] = '******';
+                array_push($users_arr["records"], $row);
+            }
+            ResponseHandler::success($users_arr);
+        } else {
+            ResponseHandler::error("Aucun utilisateur trouvé", 404);
+        }
     }
 
     public function handlePutRequest() {
-        $handler = new UserPutHandler($this->user);
-        $handler->handle();
+        $data = json_decode(file_get_contents("php://input"));
+        error_log("Données reçues PUT: " . json_encode($data));
+        
+        if (!$this->validateUpdateData($data)) {
+            ResponseHandler::error("Données incomplètes pour la mise à jour", 400);
+            return;
+        }
+
+        try {
+            $this->user->id = $data->id;
+            $this->user->nom = $data->nom;
+            $this->user->prenom = $data->prenom;
+            $this->user->email = $data->email;
+            $this->user->role = $data->role;
+
+            if ($this->user->update()) {
+                ResponseHandler::success(null, "Utilisateur mis à jour avec succès");
+            } else {
+                ResponseHandler::error("Impossible de mettre à jour l'utilisateur", 503);
+            }
+        } catch (Exception $e) {
+            ResponseHandler::error($e->getMessage(), 500);
+        }
     }
 
     public function handleDeleteRequest() {
-        $handler = new UserDeleteHandler($this->user);
-        $handler->handle();
+        $data = json_decode(file_get_contents("php://input"));
+        error_log("Données reçues DELETE: " . json_encode($data));
+        
+        if (empty($data->id)) {
+            ResponseHandler::error("ID non fourni", 400);
+            return;
+        }
+
+        try {
+            $this->user->id = $data->id;
+            if ($this->user->delete()) {
+                ResponseHandler::success(null, "Utilisateur supprimé avec succès");
+            } else {
+                ResponseHandler::error("Impossible de supprimer l'utilisateur", 503);
+            }
+        } catch (Exception $e) {
+            ResponseHandler::error($e->getMessage(), 500);
+        }
+    }
+
+    private function validateUpdateData($data) {
+        return !empty($data->id) &&
+               !empty($data->nom) &&
+               !empty($data->prenom) &&
+               !empty($data->email) &&
+               !empty($data->role);
     }
 }
 ?>

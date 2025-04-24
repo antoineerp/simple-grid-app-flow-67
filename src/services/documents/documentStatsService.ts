@@ -1,5 +1,6 @@
 
-import { Document, DocumentStats } from '@/types/documents';
+import { Document } from '@/types/documents';
+import type { DocumentStats } from '@/types/documents';
 
 /**
  * Calculates document statistics

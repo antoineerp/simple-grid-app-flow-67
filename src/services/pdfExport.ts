@@ -6,7 +6,8 @@ export {
   formatState, 
   formatResponsabilities,
   getCurrentLogo,
-  generateFilename
+  generateFilename,
+  createAndDownloadPdf
 } from './pdfManager';
 
 // Export exigences PDF generation
@@ -16,7 +17,10 @@ export { exportExigencesToPdf } from './exigencesExport';
 export { exportDocumentsToPdf } from './documentsExport';
 
 // Export collaborateur stats PDF generation
-export { exportCollaborateurStatsToPdf } from './collaborateurExport';
+export { 
+  exportCollaborateurStatsToPdf,
+  exportAllCollaborateursToPdf
+} from './collaborateurExport';
 
 // Export pilotage documents to PDF format
 export { exportPilotageToOdf } from './pilotageExport';

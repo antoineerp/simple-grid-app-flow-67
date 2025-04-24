@@ -11,8 +11,8 @@ import { fr } from 'date-fns/locale';
 
 // Get the current logo from localStorage or return default
 export const getCurrentLogo = (): string => {
-  const savedLogo = localStorage.getItem('appLogo');
-  return savedLogo || "/lovable-uploads/4c7adb52-3da0-4757-acbf-50a1eb1d4bf5.png";
+  // Always return FormaCert logo for PDF exports
+  return "/lovable-uploads/formacert-logo.png";
 };
 
 // Format state to human-readable text
@@ -34,6 +34,32 @@ export const formatResponsabilities = (responsabilites: { r: string[], a: string
   return result.trim();
 };
 
+const addStandardHeader = (doc: jsPDF, title: string) => {
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const currentDate = format(new Date(), 'dd MMMM yyyy à HH:mm', { locale: fr });
+  
+  // Add FormaCert logo
+  try {
+    doc.addImage("/lovable-uploads/formacert-logo.png", 'PNG', 15, 10, 25, 25);
+  } catch (error) {
+    console.error("Erreur lors de l'ajout du logo:", error);
+  }
+  
+  // Add title - Centered
+  doc.setFontSize(18);
+  doc.text(title, pageWidth / 2, 25, { align: 'center' });
+  
+  // Add date
+  doc.setFontSize(10);
+  doc.text(`Généré le: ${currentDate}`, pageWidth / 2, 35, { align: 'center' });
+  
+  // Add separator line
+  doc.setDrawColor(200, 200, 200);
+  doc.line(15, 40, pageWidth - 15, 40);
+  
+  return 45; // Return Y position after header
+};
+
 // Generate standardized filename
 export const generateFilename = (baseName: string): string => {
   return `${baseName.toLowerCase().replace(/ /g, '_')}_${format(new Date(), 'yyyyMMdd_HHmm')}.pdf`;
@@ -44,29 +70,21 @@ export const generateFilename = (baseName: string): string => {
  * This function guarantees the PDF will be downloaded regardless of image loading issues
  */
 export const createAndDownloadPdf = (
-  callback: (doc: jsPDF) => void,
+  callback: (doc: jsPDF, startY: number) => void,
   filename: string
 ): void => {
   console.log("Début de la création du PDF:", filename);
-  // Create new PDF document
   const doc = new jsPDF();
   
-  // Logging pour débogage
-  console.log("Document PDF créé");
-  
   try {
-    // Exécuter directement la génération du contenu
-    console.log("Exécution du callback pour générer le contenu");
-    callback(doc);
-    console.log("Contenu généré avec succès");
+    const startY = addStandardHeader(doc, filename);
+    callback(doc, startY);
     
-    // Sauvegarder le PDF
     console.log("Sauvegarde du PDF:", generateFilename(filename));
     doc.save(generateFilename(filename));
     console.log("PDF sauvegardé avec succès");
   } catch (error) {
     console.error("Erreur lors de la génération du PDF:", error);
-    // En cas d'erreur, tenter d'ouvrir le PDF dans une nouvelle fenêtre
     try {
       const pdfBlob = doc.output('blob');
       const pdfUrl = URL.createObjectURL(pdfBlob);

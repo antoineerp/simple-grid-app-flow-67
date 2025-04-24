@@ -1,68 +1,71 @@
 
 import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import { 
   createAndDownloadPdf
 } from './pdfManager';
-import { format } from 'date-fns';
-import { fr } from 'date-fns/locale';
 
-/**
- * Exports bibliothèque documents to PDF format
- */
-export const exportBibliothecaireDocsToPdf = (documents, groups, title = 'Bibliothèque de documents') => {
-  createAndDownloadPdf((doc) => {
-    // Date de génération
-    const currentDate = format(new Date(), 'dd MMMM yyyy à HH:mm', { locale: fr });
+export const exportBibliothecaireDocsToPdf = (documents: any[], groups: any[], title: string = 'Bibliothèque de documents') => {
+  createAndDownloadPdf((doc, startY) => {
+    let currentY = startY;
     
-    // Add title and date
-    doc.setFontSize(18);
-    doc.text(title, 50, 20);
-    
-    // Add date
-    doc.setFontSize(10);
-    doc.text(`Généré le: ${currentDate}`, 10, 40);
-    
-    // Prepare data for table
-    const headers = [['Groupe', 'Nom du document', 'Lien']];
-    
-    const data = [];
-    
-    // Add documents from groups
+    // Pour chaque groupe
     groups.forEach(group => {
-      // Add group header if it has items
+      // Ajouter le titre du groupe
+      doc.setFontSize(12);
+      doc.setFont('helvetica', 'bold');
+      doc.text(group.name, 15, currentY);
+      currentY += 10;
+      
+      // Vérifier si le groupe a des documents
       if (group.items && group.items.length > 0) {
-        group.items.forEach(doc => {
-          data.push([
-            group.name,
+        // Générer le tableau pour ce groupe
+        autoTable(doc, {
+          startY: currentY,
+          head: [['Nom du document', 'Lien']],
+          body: group.items.map(doc => [
             doc.name,
             doc.link || '-'
-          ]);
+          ]),
+          theme: 'grid',
+          styles: { fontSize: 10, cellPadding: 5 },
+          headStyles: { fillColor: [0, 48, 135], textColor: [255, 255, 255] },
+          columnStyles: {
+            0: { cellWidth: 100 },
+            1: { cellWidth: 80 }
+          }
         });
+        
+        // Mettre à jour la position Y
+        currentY = (doc as any).lastAutoTable.finalY + 15;
       }
     });
     
-    // Add individual documents (not in groups)
-    documents.forEach(doc => {
-      data.push([
-        '-',
-        doc.name,
-        doc.link || '-'
-      ]);
-    });
+    // Documents non groupés
+    const ungroupedDocs = documents.filter(doc => !doc.groupId);
+    if (ungroupedDocs.length > 0) {
+      doc.setFontSize(12);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Documents non groupés', 15, currentY);
+      currentY += 10;
+      
+      autoTable(doc, {
+        startY: currentY,
+        head: [['Nom du document', 'Lien']],
+        body: ungroupedDocs.map(doc => [
+          doc.name || doc.nom,
+          doc.link || doc.lien || '-'
+        ]),
+        theme: 'grid',
+        styles: { fontSize: 10, cellPadding: 5 },
+        headStyles: { fillColor: [0, 48, 135], textColor: [255, 255, 255] },
+        columnStyles: {
+          0: { cellWidth: 100 },
+          1: { cellWidth: 80 }
+        }
+      });
+    }
     
-    // Generate table
-    (doc as any).autoTable({
-      startY: 45,
-      head: headers,
-      body: data,
-      theme: 'grid',
-      styles: { fontSize: 10, cellPadding: 5 },
-      headStyles: { fillColor: [0, 48, 135], textColor: [255, 255, 255] },
-      columnStyles: {
-        0: { cellWidth: 60 },
-        1: { cellWidth: 70 },
-        2: { cellWidth: 60 }
-      }
-    });
+    console.log(`PDF de bibliothèque généré avec ${documents.length} documents`);
   }, title);
 };

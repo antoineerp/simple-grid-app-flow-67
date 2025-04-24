@@ -37,6 +37,33 @@ error_log("API Request: " . $_SERVER['REQUEST_URI'] . " | Method: " . $_SERVER['
 
 // Obtenir le chemin de la requête
 $request_uri = $_SERVER['REQUEST_URI'];
+$api_path = parse_url($request_uri, PHP_URL_PATH);
+error_log("API Path: " . $api_path);
+
+// Vérifier directement pour les fichiers documents-load.php et documents-sync.php
+if (strpos($api_path, '/api/documents-load.php') !== false) {
+    error_log("Route documents-load.php détectée, inclusion directe");
+    require_once 'documents-load.php';
+    exit;
+}
+
+if (strpos($api_path, '/api/documents-sync.php') !== false) {
+    error_log("Route documents-sync.php détectée, inclusion directe");
+    require_once 'documents-sync.php';
+    exit;
+}
+
+if (strpos($api_path, '/api/bibliotheque-load.php') !== false) {
+    error_log("Route bibliotheque-load.php détectée, inclusion directe");
+    require_once 'bibliotheque-load.php';
+    exit;
+}
+
+if (strpos($api_path, '/api/bibliotheque-sync.php') !== false) {
+    error_log("Route bibliotheque-sync.php détectée, inclusion directe");
+    require_once 'bibliotheque-sync.php';
+    exit;
+}
 
 // Normaliser le chemin de l'API
 $base_path = '/api/';
@@ -100,11 +127,11 @@ $controller = !empty($segments[0]) ? $segments[0] : 'index';
 error_log("API Controller: $controller | Method: " . $_SERVER['REQUEST_METHOD'] . " | URI: $request_uri | Path: $path");
 
 // Ajouter un point d'accès spécial pour les utilisateurs
-if ($controller == 'utilisateurs' || $controller == 'user' || $controller == 'users') {
+if ($controller == 'utilisateurs') {
     error_log("Accès à la route utilisateurs");
     
     // Chemin complet du contrôleur d'utilisateurs
-    $userControllerPath = __DIR__ . '/controllers/UserController.php';
+    $userControllerPath = __DIR__ . '/controllers/UsersController.php';
     
     // Vérifier que le fichier existe
     if (file_exists($userControllerPath)) {
@@ -124,31 +151,6 @@ if ($controller == 'utilisateurs' || $controller == 'user' || $controller == 'us
     }
 }
 
-// Ajouter un point d'accès spécial pour les membres
-if ($controller == 'membres') {
-    error_log("Accès à la route membres");
-    
-    // Chemin complet du contrôleur de membres
-    $membresControllerPath = __DIR__ . '/controllers/MembresController.php';
-    
-    // Vérifier que le fichier existe
-    if (file_exists($membresControllerPath)) {
-        error_log("Fichier contrôleur membres trouvé: $membresControllerPath");
-        define('DIRECT_ACCESS_CHECK', true);
-        require_once $membresControllerPath;
-        exit;
-    } else {
-        error_log("ERREUR: Fichier contrôleur membres NON trouvé: $membresControllerPath");
-        http_response_code(500);
-        echo json_encode([
-            'status' => 'error',
-            'message' => 'Fichier contrôleur membres non trouvé',
-            'path' => $membresControllerPath
-        ]);
-        exit;
-    }
-}
-
 // Router vers le bon fichier en fonction du contrôleur
 switch ($controller) {
     case 'auth':
@@ -161,11 +163,6 @@ switch ($controller) {
         
     case 'database-test':
         require_once 'database-test.php';
-        break;
-    
-    case 'database-info':
-    case 'database-info.php':
-        require_once 'database-info.php';
         break;
         
     case 'db-connection-test':
@@ -184,6 +181,28 @@ switch ($controller) {
     case 'check-users':
     case 'check-users.php':
         require_once 'check-users.php';
+        break;
+    
+    // Ajouter des cas explicites pour les fichiers de documents
+    case 'documents-load':
+    case 'documents-load.php':
+        require_once 'documents-load.php';
+        break;
+        
+    case 'documents-sync':
+    case 'documents-sync.php':
+        require_once 'documents-sync.php';
+        break;
+        
+    // Ajouter des cas explicites pour les fichiers de bibliothèque
+    case 'bibliotheque-load':
+    case 'bibliotheque-load.php':
+        require_once 'bibliotheque-load.php';
+        break;
+        
+    case 'bibliotheque-sync':
+    case 'bibliotheque-sync.php':
+        require_once 'bibliotheque-sync.php';
         break;
         
     // Ajouter un cas explicite pour login-test.php au cas où il serait appelé directement
@@ -207,11 +226,6 @@ switch ($controller) {
     case 'info.php':
         require_once 'info.php';
         break;
-    
-    case 'db-test':
-    case 'db-test.php':
-        require_once 'db-test.php';
-        break;
         
     default:
         // Si le contrôleur n'est pas reconnu, vérifier si un fichier PHP correspondant existe
@@ -220,10 +234,13 @@ switch ($controller) {
             require_once $controller_file;
         } else {
             // Aucune route correspondante trouvée
+            error_log("Route non trouvée: $path [$controller]");
             http_response_code(404);
             echo json_encode([
                 'message' => 'Route non trouvée: ' . $path,
-                'status' => 404
+                'status' => 404,
+                'controller_requested' => $controller,
+                'file_checked' => $controller_file
             ]);
         }
         break;

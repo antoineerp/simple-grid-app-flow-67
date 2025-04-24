@@ -1,3 +1,4 @@
+
 <?php
 trait TableManager {
     protected function createTableIfNotExists() {
@@ -8,13 +9,13 @@ trait TableManager {
             
             if ($stmt->rowCount() == 0) {
                 $createTableSQL = "CREATE TABLE IF NOT EXISTS `" . $this->table_name . "` (
-                    `id` varchar(36) NOT NULL PRIMARY KEY,
+                    `id` int(11) NOT NULL AUTO_INCREMENT PRIMARY KEY,
                     `nom` varchar(100) NOT NULL,
                     `prenom` varchar(100) NOT NULL,
                     `email` varchar(255) NOT NULL,
                     `mot_de_passe` varchar(255) NOT NULL,
                     `identifiant_technique` varchar(100) NOT NULL,
-                    `role` enum('admin', 'user', 'gestionnaire') NOT NULL DEFAULT 'user',
+                    `role` varchar(20) NOT NULL,
                     `date_creation` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
                     UNIQUE KEY `email` (`email`),
                     UNIQUE KEY `identifiant_technique` (`identifiant_technique`)
@@ -33,12 +34,10 @@ trait TableManager {
                 error_log("Utilisateur administrateur créé par défaut");
             }
             
-            // Validate and update table structure if needed
             $this->validateTableStructure();
             
         } catch (PDOException $e) {
             error_log("Erreur lors de la vérification/création de la table: " . $e->getMessage());
-            throw $e;
         }
     }
 
@@ -88,7 +87,7 @@ trait TableManager {
             $this->conn->exec($copyDataQuery);
             
             $alterTableQuery = "ALTER TABLE `" . $this->table_name . "` 
-                              MODIFY COLUMN `id` varchar(36) NOT NULL PRIMARY KEY";
+                              MODIFY COLUMN `id` int(11) NOT NULL AUTO_INCREMENT PRIMARY KEY";
             $this->conn->exec($alterTableQuery);
         } catch (PDOException $e) {
             error_log("Erreur lors de la mise à jour de la structure: " . $e->getMessage());

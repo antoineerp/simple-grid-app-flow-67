@@ -12,6 +12,8 @@ class AuthService {
 
     private constructor() {
         console.log("Authentication service initialized");
+        this.token = localStorage.getItem('authToken');
+        this.currentUser = localStorage.getItem('currentUser');
     }
 
     public static getInstance(): AuthService {
@@ -23,9 +25,19 @@ class AuthService {
 
     public setToken(token: string | null): void {
         this.token = token;
+        if (token) {
+            localStorage.setItem('authToken', token);
+            localStorage.setItem('isLoggedIn', 'true');
+        } else {
+            localStorage.removeItem('authToken');
+            localStorage.removeItem('isLoggedIn');
+        }
     }
 
     public getToken(): string | null {
+        if (!this.token) {
+            this.token = localStorage.getItem('authToken');
+        }
         return this.token;
     }
 
@@ -36,8 +48,9 @@ class AuthService {
             'Accept': 'application/json'
         };
         
-        if (this.token) {
-            headers['Authorization'] = `Bearer ${this.token}`;
+        const token = this.getToken();
+        if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
         }
         
         return headers;
@@ -78,48 +91,107 @@ class AuthService {
         try {
             console.log(`Tentative de connexion pour l'utilisateur: ${username}`);
             
+            // Essayer d'abord AuthController.php
             const authUrl = `${getApiUrl()}/auth`;
             console.log(`URL de requête (authentification): ${authUrl}`);
             
-            const response = await fetch(authUrl, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Cache-Control': 'no-cache, no-store, must-revalidate'
-                },
-                body: JSON.stringify({ username, password })
-            });
-            
-            if (!response.ok) {
-                const errorData = await this.parseJsonResponse(response);
-                throw new Error(errorData.message || `Échec de l'authentification (${response.status})`);
-            }
-            
-            const data = await this.parseJsonResponse(response);
-            
-            if (!data || !data.token) {
-                throw new Error(data?.message || "Authentification échouée");
-            }
-            
-            this.setToken(data.token);
-            
-            if (data.user) {
-                const displayName = 
-                    (data.user.prenom && data.user.nom) 
-                        ? `${data.user.prenom} ${data.user.nom}` 
-                        : (data.user.email || data.user.identifiant_technique || 'Utilisateur');
+            try {
+                const response = await fetch(authUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Cache-Control': 'no-cache, no-store, must-revalidate'
+                    },
+                    body: JSON.stringify({ username, password })
+                });
                 
-                this.currentUser = data.user.identifiant_technique;
+                console.log(`Réponse du serveur auth: ${response.status} ${response.statusText}`);
+                
+                if (!response.ok) {
+                    const errorData = await this.parseJsonResponse(response);
+                    throw new Error(errorData.message || `Échec de l'authentification (${response.status})`);
+                }
+                
+                const data = await this.parseJsonResponse(response);
+                
+                if (!data || !data.token) {
+                    throw new Error(data?.message || "Authentification échouée");
+                }
+                
+                this.setToken(data.token);
+                
+                if (data.user) {
+                    // Use the user's full name if available, otherwise fallback to email or technical identifier
+                    const displayName = 
+                        (data.user.prenom && data.user.nom) 
+                            ? `${data.user.prenom} ${data.user.nom}` 
+                            : (data.user.email || data.user.identifiant_technique || 'Utilisateur');
+                    
+                    localStorage.setItem('currentUser', data.user.identifiant_technique);
+                    localStorage.setItem('userRole', data.user.role);
+                    localStorage.setItem('userName', displayName);
+                }
+                
+                if (data.user && data.user.identifiant_technique) {
+                    await initializeUserData(data.user.identifiant_technique);
+                }
+                
+                return {
+                    success: true,
+                    user: data.user
+                };
+            } catch (authError) {
+                console.error("Erreur avec /auth:", authError);
+                
+                // Si l'authentification échoue, essayer login-test.php comme fallback
+                const testUrl = `${getApiUrl()}/login-test.php`;
+                console.log(`URL de requête (fallback): ${testUrl}`);
+                
+                const response = await fetch(testUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Cache-Control': 'no-cache, no-store, must-revalidate'
+                    },
+                    body: JSON.stringify({ username, password })
+                });
+                
+                console.log(`Réponse du serveur login-test: ${response.status} ${response.statusText}`);
+                
+                if (!response.ok) {
+                    const errorData = await this.parseJsonResponse(response);
+                    throw new Error(errorData.message || `Échec de l'authentification (${response.status})`);
+                }
+                
+                const data = await this.parseJsonResponse(response);
+                
+                if (!data || !data.token) {
+                    throw new Error(data?.message || "Authentification échouée");
+                }
+                
+                this.setToken(data.token);
+                
+                if (data.user) {
+                    // Use the user's full name if available, otherwise fallback to email or technical identifier
+                    const displayName = 
+                        (data.user.prenom && data.user.nom) 
+                            ? `${data.user.prenom} ${data.user.nom}` 
+                            : (data.user.email || data.user.identifiant_technique || 'Utilisateur');
+                    
+                    localStorage.setItem('currentUser', data.user.identifiant_technique);
+                    localStorage.setItem('userRole', data.user.role);
+                    localStorage.setItem('userName', displayName);
+                }
+                
+                if (data.user && data.user.identifiant_technique) {
+                    await initializeUserData(data.user.identifiant_technique);
+                }
+                
+                return {
+                    success: true,
+                    user: data.user
+                };
             }
-            
-            if (data.user && data.user.identifiant_technique) {
-                await initializeUserData(data.user.identifiant_technique);
-            }
-            
-            return {
-                success: true,
-                user: data.user
-            };
         } catch (error) {
             console.error("Erreur lors de la connexion:", error);
             
@@ -135,7 +207,11 @@ class AuthService {
 
     public logout(): void {
         this.setToken(null);
-        this.currentUser = null;
+        localStorage.removeItem('currentUser');
+        localStorage.removeItem('userRole');
+        localStorage.removeItem('userName');
+        localStorage.removeItem('isLoggedIn');
+        
         disconnectUser();
         
         toast({
@@ -149,7 +225,7 @@ class AuthService {
     }
 
     public getCurrentUser(): string | null {
-        return this.currentUser;
+        return this.currentUser || localStorage.getItem('currentUser');
     }
 }
 

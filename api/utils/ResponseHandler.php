@@ -2,73 +2,112 @@
 <?php
 class ResponseHandler {
     public static function success($data = null, $message = '', $code = 200) {
-        // Assurons-nous que les en-têtes sont envoyés correctement
-        if (!headers_sent()) {
-            header("Content-Type: application/json; charset=UTF-8");
-            http_response_code($code);
+        // S'assurer qu'aucun contenu n'a été envoyé avant
+        if (ob_get_level()) {
+            ob_clean();
         }
         
-        // Création d'une réponse standard
+        if (!headers_sent()) {
+            http_response_code($code);
+            header('Content-Type: application/json; charset=UTF-8');
+        }
+        
         $response = [
             'status' => 'success',
-            'message' => $message
+            'message' => $message,
+            'data' => $data
         ];
         
-        // Ajout des données si présentes
-        if ($data !== null) {
-            $response['data'] = $data;
+        // Nettoyer la sortie si elle contient des objets non sérialisables
+        if (is_array($response['data'])) {
+            array_walk_recursive($response['data'], function (&$item) {
+                if (is_object($item) && !method_exists($item, '__toString')) {
+                    $item = get_class($item);
+                }
+            });
         }
         
-        // Vérification que la réponse peut être encodée en JSON
-        $jsonResponse = json_encode($response, JSON_UNESCAPED_UNICODE | JSON_PARTIAL_OUTPUT_ON_ERROR);
+        // Journaliser la réponse
+        error_log("Réponse réussie: " . json_encode($response));
         
-        if ($jsonResponse === false) {
-            error_log("Erreur d'encodage JSON: " . json_last_error_msg());
-            // En cas d'erreur d'encodage, on renvoie une réponse simplifiée
-            echo json_encode([
-                'status' => 'error',
-                'message' => 'Erreur lors de l\'encodage de la réponse: ' . json_last_error_msg()
-            ]);
-        } else {
-            // Envoi de la réponse JSON
-            echo $jsonResponse;
-        }
+        echo json_encode($response, JSON_UNESCAPED_UNICODE);
         exit;
     }
 
     public static function error($message, $code = 400, $details = null) {
-        // Assurons-nous que les en-têtes sont envoyés correctement
-        if (!headers_sent()) {
-            header("Content-Type: application/json; charset=UTF-8");
-            http_response_code($code);
+        // S'assurer qu'aucun contenu n'a été envoyé avant
+        if (ob_get_level()) {
+            ob_clean();
         }
         
-        // Création d'une réponse d'erreur standard
+        if (!headers_sent()) {
+            http_response_code($code);
+            header('Content-Type: application/json; charset=UTF-8');
+        }
+        
         $response = [
             'status' => 'error',
             'message' => $message
         ];
         
-        // Ajout des détails si présents
         if ($details) {
             $response['details'] = $details;
         }
         
-        // Vérification que la réponse peut être encodée en JSON
-        $jsonResponse = json_encode($response, JSON_UNESCAPED_UNICODE | JSON_PARTIAL_OUTPUT_ON_ERROR);
+        // Journaliser l'erreur
+        error_log("Réponse d'erreur: " . json_encode($response, JSON_UNESCAPED_UNICODE));
         
-        if ($jsonResponse === false) {
-            error_log("Erreur d'encodage JSON: " . json_last_error_msg());
-            // En cas d'erreur d'encodage, on renvoie une réponse simplifiée
-            echo json_encode([
-                'status' => 'error',
-                'message' => 'Erreur lors de l\'encodage de la réponse: ' . json_last_error_msg()
-            ], JSON_PARTIAL_OUTPUT_ON_ERROR);
-        } else {
-            // Envoi de la réponse JSON
-            echo $jsonResponse;
-        }
+        echo json_encode($response, JSON_UNESCAPED_UNICODE);
         exit;
+    }
+
+    public static function databaseStatus() {
+        try {
+            // Tester la connexion PDO directement
+            $host = "p71x6d.myd.infomaniak.com";
+            $dbname = "p71x6d_system";
+            $username = "p71x6d_system";
+            $password = "Trottinette43!";
+            
+            $dsn = "mysql:host={$host};dbname={$dbname};charset=utf8mb4";
+            $options = [
+                PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+                PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+                PDO::ATTR_EMULATE_PREPARES => false,
+            ];
+            
+            error_log("ResponseHandler: Vérification de la connexion à la base de données");
+            $pdo = new PDO($dsn, $username, $password, $options);
+            
+            // Vérifier que la connexion fonctionne en exécutant une requête
+            $stmt = $pdo->query("SELECT DATABASE() as db");
+            $result = $stmt->fetch();
+            
+            // Récupérer le nombre de tables
+            $tablesStmt = $pdo->query("SHOW TABLES");
+            $tables = $tablesStmt->fetchAll(PDO::FETCH_COLUMN);
+            
+            return [
+                'status' => 'success',
+                'message' => 'Connexion à la base de données établie',
+                'connection_info' => [
+                    'host' => $host,
+                    'database' => $dbname,
+                    'user' => $username,
+                    'current_db' => $result['db'] ?? $dbname,
+                    'tables_count' => count($tables),
+                ],
+                'is_connected' => true
+            ];
+        } catch (PDOException $e) {
+            error_log("ResponseHandler: Erreur de connexion à la base de données: " . $e->getMessage());
+            return [
+                'status' => 'error',
+                'message' => 'Échec de la connexion à la base de données',
+                'error' => $e->getMessage(),
+                'is_connected' => false
+            ];
+        }
     }
 }
 ?>

@@ -1,28 +1,15 @@
 
 import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import { 
   createAndDownloadPdf
 } from './pdfManager';
-import { format } from 'date-fns';
-import { fr } from 'date-fns/locale';
-import 'jspdf-autotable';
 
 /**
  * Exports pilotage documents to PDF format
  */
 export const exportPilotageToOdf = (documents: any[], title: string = 'Documents de pilotage') => {
-  createAndDownloadPdf((doc) => {
-    // Date de génération
-    const currentDate = format(new Date(), 'dd MMMM yyyy à HH:mm', { locale: fr });
-    
-    // Add title and date
-    doc.setFontSize(18);
-    doc.text(title, 20, 20);
-    
-    // Add date
-    doc.setFontSize(10);
-    doc.text(`Généré le: ${currentDate}`, 20, 30);
-    
+  createAndDownloadPdf((doc, startY) => {
     // Define columns for the table
     const headers = [['Ordre', 'Nom du document', 'Lien']];
     
@@ -34,8 +21,8 @@ export const exportPilotageToOdf = (documents: any[], title: string = 'Documents
     ]);
     
     // Generate the table
-    (doc as any).autoTable({
-      startY: 40,
+    autoTable(doc, {
+      startY: startY,
       head: headers,
       body: data,
       theme: 'grid',
@@ -47,5 +34,7 @@ export const exportPilotageToOdf = (documents: any[], title: string = 'Documents
         2: { cellWidth: 70 }
       }
     });
-  }, 'Documents_Pilotage');
+    
+    console.log(`Tableau de pilotage généré avec ${data.length} documents`);
+  }, title);
 };

@@ -1,6 +1,6 @@
 
-import React, { useState, useEffect } from 'react';
-import { FileText, UserPlus, RefreshCw } from 'lucide-react';
+import React from 'react';
+import { FileText, UserPlus, CloudSun } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import {
   Dialog,
@@ -14,63 +14,24 @@ import { useMembres } from '@/contexts/MembresContext';
 import MemberList from '@/components/ressources-humaines/MemberList';
 import MemberForm from '@/components/ressources-humaines/MemberForm';
 import { Membre } from '@/types/membres';
-import { syncMembresWithServer } from '@/services/membres/membresService';
+import { exportAllCollaborateursToPdf } from '@/services/collaborateurExport';
+import SyncStatusIndicator from '@/components/common/SyncStatusIndicator';
 
 const RessourcesHumaines = () => {
   const { toast } = useToast();
-  const { membres, setMembres, loading, refreshMembres } = useMembres();
+  const { membres, setMembres, isSyncing, isOnline, lastSynced, syncWithServer } = useMembres();
   
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [currentMembre, setCurrentMembre] = useState<Membre>({
+  const [isDialogOpen, setIsDialogOpen] = React.useState(false);
+  const [currentMembre, setCurrentMembre] = React.useState<Membre>({
     id: '',
     nom: '',
     prenom: '',
     fonction: '',
     initiales: '',
     date_creation: new Date(),
-    mot_de_passe: ''
+    mot_de_passe: '' 
   });
-  const [isEditing, setIsEditing] = useState(false);
-  const [isSyncing, setIsSyncing] = useState(false);
-  const [isRefreshing, setIsRefreshing] = useState(false);
-
-  // Synchroniser avec le serveur au chargement
-  useEffect(() => {
-    const syncWithServer = async () => {
-      if (membres.length > 0 && !loading) {
-        setIsSyncing(true);
-        const currentUser = localStorage.getItem('currentUser') || 
-                           localStorage.getItem('userEmail') || 
-                           'default_user';
-                           
-        try {
-          await syncMembresWithServer(membres, currentUser);
-        } catch (error) {
-          console.error("Erreur lors de la synchronisation initiale:", error);
-        } finally {
-          setIsSyncing(false);
-        }
-      }
-    };
-    
-    syncWithServer();
-  }, [membres, loading]);
-
-  // Handler pour rafraîchir les données
-  const handleRefresh = async () => {
-    setIsRefreshing(true);
-    try {
-      await refreshMembres();
-      toast({
-        title: "Données rafraîchies",
-        description: "La liste des membres a été mise à jour",
-      });
-    } catch (error) {
-      console.error("Erreur lors du rafraîchissement:", error);
-    } finally {
-      setIsRefreshing(false);
-    }
-  };
+  const [isEditing, setIsEditing] = React.useState(false);
 
   // Handler for edit action
   const handleEdit = (id: string) => {
@@ -105,10 +66,16 @@ const RessourcesHumaines = () => {
       fonction: '',
       initiales: '',
       date_creation: new Date(),
-      mot_de_passe: ''
+      mot_de_passe: '' 
     });
     setIsEditing(false);
     setIsDialogOpen(true);
+  };
+
+  // Handler for export function
+  const handleExportMember = (id: string) => {
+    // Implementation for export functionality
+    console.log(`Exporting member with id: ${id}`);
   };
 
   // Handler for input changes in the form
@@ -144,70 +111,88 @@ const RessourcesHumaines = () => {
       );
       toast({
         title: "Modification",
-        description: `Le membre ${currentMembre.nom} ${currentMembre.prenom} a été modifié`,
+        description: `Le membre ${currentMembre.id} a été modifié`,
       });
     } else {
       // Add new member
       setMembres(prev => [...prev, currentMembre]);
       toast({
         title: "Ajout",
-        description: `Le membre ${currentMembre.nom} ${currentMembre.prenom} a été ajouté`,
+        description: `Le membre ${currentMembre.id} a été ajouté`,
       });
     }
     
     setIsDialogOpen(false);
   };
 
-  if (loading) {
-    return (
-      <div className="p-8">
-        <div className="flex items-center justify-center h-64">
-          <div className="flex flex-col items-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-app-blue mb-4"></div>
-            <p className="text-app-blue">Chargement des membres...</p>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  // Handler for exporting all members to PDF
+  const handleExportAllToPdf = () => {
+    try {
+      exportAllCollaborateursToPdf(membres);
+      toast({
+        title: "Export PDF",
+        description: "La liste des collaborateurs a été exportée",
+      });
+    } catch (error) {
+      console.error("Erreur lors de l'export PDF:", error);
+      toast({
+        title: "Erreur",
+        description: `Erreur lors de l'export PDF: ${error}`,
+        variant: "destructive",
+      });
+    }
+  };
 
   return (
     <div className="p-8">
       <div className="flex items-center justify-between mb-2">
         <div>
           <h1 className="text-3xl font-bold text-app-blue">Ressources Humaines</h1>
-          <p className="text-gray-600">Collaborateurs/trices du projet</p>
         </div>
         <div className="flex space-x-2">
-          <Button 
-            variant="outline" 
-            size="sm"
-            onClick={handleRefresh}
-            disabled={isRefreshing}
+          <button 
+            onClick={syncWithServer}
+            className="text-blue-600 p-2 rounded-md hover:bg-blue-50 transition-colors flex items-center"
+            title="Synchroniser avec le serveur"
+            disabled={isSyncing}
           >
-            <RefreshCw className={`h-4 w-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
-            Actualiser
-          </Button>
-          <FileText className="text-red-500 h-6 w-6" />
+            <CloudSun className={`h-6 w-6 stroke-[1.5] ${isSyncing ? 'animate-spin' : ''}`} />
+          </button>
+          <button 
+            onClick={handleExportAllToPdf}
+            className="text-red-600 p-2 rounded-md hover:bg-red-50 transition-colors"
+            title="Exporter en PDF"
+          >
+            <FileText className="h-6 w-6 stroke-[1.5]" />
+          </button>
         </div>
+      </div>
+
+      <div className="mb-4">
+        <SyncStatusIndicator 
+          isSyncing={isSyncing}
+          isOnline={isOnline}
+          lastSynced={lastSynced}
+        />
       </div>
 
       <div className="bg-white rounded-md shadow overflow-hidden mt-6">
         <MemberList 
           membres={membres} 
           onEdit={handleEdit} 
-          onDelete={handleDelete} 
+          onDelete={handleDelete}
+          onExport={handleExportMember} 
         />
       </div>
 
-      <div className="flex justify-end mt-4">
-        <button 
-          className="btn-primary flex items-center"
+      <div className="flex justify-end mt-4 gap-4">
+        <Button 
+          className="flex items-center"
           onClick={handleAddMember}
         >
           <UserPlus className="h-4 w-4 mr-2" />
           Ajouter un membre
-        </button>
+        </Button>
       </div>
 
       {/* Modal pour ajouter/modifier un membre */}
