@@ -5,13 +5,14 @@ export * from './documents';
 export * from './users/userService';
 export * from './users/createUserService';
 
-// Explicitement renommer les exports pour éviter l'ambiguïté
+// Explicitely renommer les exports pour éviter l'ambiguïté
 export { 
   connectAsUser,
   getLastConnectionError,
   disconnectUser,
   testDatabaseConnection,
-  getDatabaseInfo
+  getDatabaseInfo,
+  getDatabaseConnectionCurrentUser
 } from './core/databaseConnectionService';
 
 export { 

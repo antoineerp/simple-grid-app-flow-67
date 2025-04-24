@@ -1,12 +1,15 @@
+
 import { useState, useEffect, useCallback } from 'react';
 import { useToast } from "@/hooks/use-toast";
 import { Document } from '@/types/documents';
 import { getUserId } from '@/services/auth/authService';
 import { 
-  loadDocumentsFromStorage, 
-  saveDocumentsToStorage, 
+  fetchDocuments as loadDocumentsFromStorage, 
+  saveDocuments as saveDocumentsToStorage, 
   calculateDocumentStats,
-  syncDocumentsWithServer
+  syncDocumentsWithServer,
+  loadDocumentsFromStorage,
+  saveDocumentsToStorage
 } from '@/services/documents';
 
 export const useDocuments = () => {

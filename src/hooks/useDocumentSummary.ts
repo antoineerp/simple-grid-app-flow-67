@@ -26,6 +26,18 @@ export default function useDocumentSummary() {
   const [documents, setDocuments] = useState<Document[] | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // Calculate conformity rate based on stats
+  const conformityRate = stats.total > 0 
+    ? Math.round((stats.conformes / stats.total) * 100) 
+    : 0;
+
+  // Map stats to expected formats for compatibility with current components
+  const nonConforme = stats.nonConformes;
+  const partiellementConforme = stats.avenir;
+  const conforme = stats.conformes;
+  const total = stats.total;
+  const exclusion = stats.exclusion;
+
   useEffect(() => {
     const loadData = async () => {
       // Simuler le chargement des documents depuis une source de données
@@ -50,7 +62,7 @@ export default function useDocumentSummary() {
           conformes: calculatedStats.conforme,
           nonConformes: calculatedStats.nonConforme,
           obsoletes: 0, // Not in the original stats
-          avenir: 0, // Not in the original stats
+          avenir: calculatedStats.partiellementConforme, // Using PC as "avenir"
           excluded: calculatedStats.exclusion,
           exclusion: calculatedStats.exclusion
         };
@@ -81,5 +93,12 @@ export default function useDocumentSummary() {
     avenirPercentage,
     excludedPercentage,
     loading,
+    // Add compatibility properties for DocumentSummary
+    nonConforme,
+    partiellementConforme,
+    conforme,
+    total,
+    exclusion,
+    conformityRate,
   };
 }

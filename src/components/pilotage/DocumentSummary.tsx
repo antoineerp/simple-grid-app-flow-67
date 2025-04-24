@@ -6,7 +6,15 @@ import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
 import { FileText } from 'lucide-react';
 
 const DocumentSummary: React.FC = () => {
-  const { nonConforme, partiellementConforme, conforme, total, exclusion, conformityRate } = useDocumentSummary();
+  const { 
+    nonConforme, 
+    partiellementConforme, 
+    conforme, 
+    total, 
+    exclusion, 
+    conformityRate,
+    loading 
+  } = useDocumentSummary();
   
   // Data for pie chart
   const data = [
@@ -17,6 +25,10 @@ const DocumentSummary: React.FC = () => {
 
   // If no data, add a placeholder
   const chartData = data.length > 0 ? data : [{ name: 'Non Conforme', value: 1, color: '#FF6B6B' }];
+
+  if (loading) {
+    return <div className="mt-8 p-6 text-center">Chargement des statistiques...</div>;
+  }
 
   return (
     <div className="mt-8">
@@ -141,4 +153,3 @@ const DocumentSummary: React.FC = () => {
 };
 
 export default DocumentSummary;
-

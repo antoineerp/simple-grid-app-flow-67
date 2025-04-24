@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -66,18 +67,28 @@ import { CalendarIcon } from "lucide-react"
 import { DateRange } from "react-day-picker"
 import useDocumentSummary from '@/hooks/useDocumentSummary';
 
+interface DocumentFormType {
+  nom: string;
+  description?: string;
+  date_creation: Date;
+  type?: string;
+  statut?: string;
+  estImportant?: boolean;
+  estExclu?: boolean;
+}
+
 const GestionDocumentaire = () => {
   const [documents, setDocuments] = useState<Document[]>([]);
-  const [newDocument, setNewDocument] = useState<Omit<Document, 'id'>>({
-    titre: '',
+  const [newDocument, setNewDocument] = useState<DocumentFormType>({
+    nom: '',
     description: '',
-    dateCreation: new Date(),
+    date_creation: new Date(),
     type: 'Facture',
     statut: 'Nouveau',
     estImportant: false,
     estExclu: false,
   });
-  const [editingDocumentId, setEditingDocumentId] = useState<number | null>(null);
+  const [editingDocumentId, setEditingDocumentId] = useState<string | null>(null);
   const [stats, setStats] = useState({
     total: 0,
     important: 0,
@@ -96,7 +107,7 @@ const GestionDocumentaire = () => {
     from: new Date(2023, 0, 1),
     to: new Date(),
   })
-  const { data: summary, isLoading, isError } = useDocumentSummary();
+  const { stats: documentStats, loading } = useDocumentSummary();
 
   useEffect(() => {
     const loadDocuments = async () => {
@@ -118,18 +129,30 @@ const GestionDocumentaire = () => {
   useEffect(() => {
     if (documents && documents.length > 0) {
       const calculatedStats = calculateDocumentStats(documents);
+      // Add missing properties to match the stats state shape
       setStats({
-        ...calculatedStats,
-        exclusion: calculatedStats.excluded
+        total: calculatedStats.total,
+        important: 0, // Default values for stats not in calculatedStats
+        factures: 0,
+        contrats: 0,
+        autres: 0,
+        nouveau: 0, 
+        enCours: 0,
+        termine: 0,
+        excluded: calculatedStats.exclusion,
+        exclusion: calculatedStats.exclusion
       });
     }
   }, [documents]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
-    const { name, value, type, checked } = e.target;
+    const { name, value, type } = e.target;
+    const isCheckbox = type === 'checkbox';
+    const checked = isCheckbox ? (e.target as HTMLInputElement).checked : undefined;
+    
     setNewDocument(prev => ({
       ...prev,
-      [name]: type === 'checkbox' ? checked : value,
+      [name]: isCheckbox ? checked : value,
     }));
   };
 
@@ -138,19 +161,29 @@ const GestionDocumentaire = () => {
     if (date?.from) {
       setNewDocument(prev => ({
         ...prev,
-        dateCreation: date.from,
+        date_creation: date.from,
       }));
     }
   };
 
   const handleAddDocument = async () => {
     try {
-      const addedDocument = await addDocument(currentUser, newDocument);
+      // Transform form data to match Document type
+      const documentToAdd = {
+        nom: newDocument.nom,
+        date_creation: newDocument.date_creation,
+        date_modification: new Date(),
+        fichier_path: null,
+        responsabilites: { r: [], a: [], c: [], i: [] },
+        etat: newDocument.estExclu ? 'EX' : null
+      };
+      
+      const addedDocument = await addDocument(currentUser, documentToAdd);
       setDocuments(prev => [...prev, addedDocument]);
       setNewDocument({
-        titre: '',
+        nom: '',
         description: '',
-        dateCreation: new Date(),
+        date_creation: new Date(),
         type: 'Facture',
         statut: 'Nouveau',
         estImportant: false,
@@ -169,7 +202,7 @@ const GestionDocumentaire = () => {
     }
   };
 
-  const handleUpdateDocument = async (id: number, updatedDocument: Document) => {
+  const handleUpdateDocument = async (id: string, updatedDocument: Document) => {
     try {
       await updateDocument(currentUser, id, updatedDocument);
       setDocuments(prev =>
@@ -189,7 +222,7 @@ const GestionDocumentaire = () => {
     }
   };
 
-  const handleDeleteDocument = async (id: number) => {
+  const handleDeleteDocument = async (id: string) => {
     try {
       await deleteDocument(currentUser, id);
       setDocuments(prev => prev.filter(doc => doc.id !== id));
@@ -208,7 +241,7 @@ const GestionDocumentaire = () => {
 
   const handleSaveDocuments = async () => {
     try {
-      await saveDocuments(currentUser, documents);
+      await saveDocuments(documents, currentUser);
       toast({
         title: "Succès",
         description: "Documents sauvegardés avec succès",
@@ -235,12 +268,12 @@ const GestionDocumentaire = () => {
         </CardHeader>
         <CardContent className="grid gap-4">
           <div className="grid gap-2">
-            <Label htmlFor="titre">Titre</Label>
+            <Label htmlFor="nom">Nom</Label>
             <Input
               type="text"
-              id="titre"
-              name="titre"
-              value={newDocument.titre}
+              id="nom"
+              name="nom"
+              value={newDocument.nom}
               onChange={handleInputChange}
             />
           </div>
@@ -370,26 +403,22 @@ const GestionDocumentaire = () => {
         <TableCaption>Liste des documents</TableCaption>
         <TableHeader>
           <TableRow>
-            <TableHead className="w-[100px]">Titre</TableHead>
-            <TableHead>Description</TableHead>
+            <TableHead className="w-[100px]">Nom</TableHead>
             <TableHead>Date de création</TableHead>
-            <TableHead>Type</TableHead>
-            <TableHead>Statut</TableHead>
-            <TableHead>Important</TableHead>
-            <TableHead>Exclure</TableHead>
+            <TableHead>Date de modification</TableHead>
+            <TableHead>État</TableHead>
+            <TableHead>Fichier</TableHead>
             <TableHead className="text-right">Actions</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {documents.map(document => (
             <TableRow key={document.id}>
-              <TableCell className="font-medium">{document.titre}</TableCell>
-              <TableCell>{document.description}</TableCell>
-              <TableCell>{document.dateCreation.toLocaleDateString()}</TableCell>
-              <TableCell>{document.type}</TableCell>
-              <TableCell>{document.statut}</TableCell>
-              <TableCell>{document.estImportant ? 'Oui' : 'Non'}</TableCell>
-              <TableCell>{document.estExclu ? 'Oui' : 'Non'}</TableCell>
+              <TableCell className="font-medium">{document.nom}</TableCell>
+              <TableCell>{document.date_creation.toLocaleDateString()}</TableCell>
+              <TableCell>{document.date_modification.toLocaleDateString()}</TableCell>
+              <TableCell>{document.etat || 'Non défini'}</TableCell>
+              <TableCell>{document.fichier_path || 'Aucun fichier'}</TableCell>
               <TableCell className="text-right">
                 {editingDocumentId === document.id ? (
                   <>
