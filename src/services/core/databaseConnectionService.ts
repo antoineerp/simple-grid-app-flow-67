@@ -238,7 +238,7 @@ class DatabaseConnectionService {
     try {
       console.log("Récupération des informations sur la base de données...");
       const API_URL = getApiUrl();
-      console.log("URL API pour les informations de la base de données:", `${API_URL}/database-test.php`);
+      console.log("URL API pour les informations de la base de données:", `${API_URL}/database-test`);
       
       // Vérifier d'abord si un utilisateur est connecté
       const currentUser = this.getCurrentUser();
@@ -257,7 +257,7 @@ class DatabaseConnectionService {
         };
       }
       
-      const response = await fetch(`${API_URL}/database-test.php`, {
+      const response = await fetch(`${API_URL}/database-test`, {
         method: 'GET',
         headers: { 
           ...getAuthHeaders(),

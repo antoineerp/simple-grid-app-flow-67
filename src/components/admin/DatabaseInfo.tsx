@@ -24,8 +24,8 @@ const DatabaseInfo = () => {
         const apiUrl = getApiUrl();
         console.log("Fetching database info from:", apiUrl);
         
-        // Modification: utiliser database-test.php au lieu de database-test.php
-        const response = await fetch(`${apiUrl}/database-test.php`);
+        // Make sure we're using the correct API endpoint
+        const response = await fetch(`${apiUrl}/database-test`);
         
         if (!response.ok) {
           throw new Error(`Error ${response.status}: ${response.statusText}`);
