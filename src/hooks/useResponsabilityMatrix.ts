@@ -42,46 +42,50 @@ export const useResponsabilityMatrix = () => {
         const documentsCount = { r: 0, a: 0, c: 0, i: 0 };
 
         // Compter les occurrences dans les exigences (en excluant les exigences exclues)
-        exigences
-          .filter((exigence: any) => !exigence.exclusion)
-          .forEach((exigence: any) => {
-            if (exigence.responsabilites) {
-              // Vérifier si les initiales du membre sont dans chaque type de responsabilité
-              if (exigence.responsabilites.r && exigence.responsabilites.r.includes(initiales)) {
-                exigencesCount.r++;
+        if (Array.isArray(exigences)) {
+          exigences
+            .filter((exigence: any) => !exigence.exclusion)
+            .forEach((exigence: any) => {
+              if (exigence.responsabilites) {
+                // Vérifier si les initiales du membre sont dans chaque type de responsabilité
+                if (exigence.responsabilites.r && Array.isArray(exigence.responsabilites.r) && exigence.responsabilites.r.includes(initiales)) {
+                  exigencesCount.r++;
+                }
+                if (exigence.responsabilites.a && Array.isArray(exigence.responsabilites.a) && exigence.responsabilites.a.includes(initiales)) {
+                  exigencesCount.a++;
+                }
+                if (exigence.responsabilites.c && Array.isArray(exigence.responsabilites.c) && exigence.responsabilites.c.includes(initiales)) {
+                  exigencesCount.c++;
+                }
+                if (exigence.responsabilites.i && Array.isArray(exigence.responsabilites.i) && exigence.responsabilites.i.includes(initiales)) {
+                  exigencesCount.i++;
+                }
               }
-              if (exigence.responsabilites.a && exigence.responsabilites.a.includes(initiales)) {
-                exigencesCount.a++;
-              }
-              if (exigence.responsabilites.c && exigence.responsabilites.c.includes(initiales)) {
-                exigencesCount.c++;
-              }
-              if (exigence.responsabilites.i && exigence.responsabilites.i.includes(initiales)) {
-                exigencesCount.i++;
-              }
-            }
-          });
+            });
+        }
         
         // Compter les occurrences dans les documents (en excluant les documents exclus)
-        documents
-          .filter((document: any) => document.etat !== 'EX')
-          .forEach((document: any) => {
-            if (document.responsabilites) {
-              // Vérifier si les initiales du membre sont dans chaque type de responsabilité
-              if (document.responsabilites.r && document.responsabilites.r.includes(initiales)) {
-                documentsCount.r++;
+        if (Array.isArray(documents)) {
+          documents
+            .filter((document: any) => document.etat !== 'EX')
+            .forEach((document: any) => {
+              if (document.responsabilites) {
+                // Vérifier si les initiales du membre sont dans chaque type de responsabilité
+                if (document.responsabilites.r && Array.isArray(document.responsabilites.r) && document.responsabilites.r.includes(initiales)) {
+                  documentsCount.r++;
+                }
+                if (document.responsabilites.a && Array.isArray(document.responsabilites.a) && document.responsabilites.a.includes(initiales)) {
+                  documentsCount.a++;
+                }
+                if (document.responsabilites.c && Array.isArray(document.responsabilites.c) && document.responsabilites.c.includes(initiales)) {
+                  documentsCount.c++;
+                }
+                if (document.responsabilites.i && Array.isArray(document.responsabilites.i) && document.responsabilites.i.includes(initiales)) {
+                  documentsCount.i++;
+                }
               }
-              if (document.responsabilites.a && document.responsabilites.a.includes(initiales)) {
-                documentsCount.a++;
-              }
-              if (document.responsabilites.c && document.responsabilites.c.includes(initiales)) {
-                documentsCount.c++;
-              }
-              if (document.responsabilites.i && document.responsabilites.i.includes(initiales)) {
-                documentsCount.i++;
-              }
-            }
-          });
+            });
+        }
 
         console.log(`Résultats pour ${initiales}:`, { exigences: exigencesCount, documents: documentsCount });
 
