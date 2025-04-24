@@ -14,7 +14,7 @@ require_once $baseDir . '/operations/UserOperations.php';
 RequestHandler::handleCORS();
 
 // Log request information
-error_log("UsersController - Méthode: " . $_SERVER['REQUEST_METHOD'] . " - URI: " . $_SERVER['REQUEST_URI']);
+error_log("UserController - Méthode: " . $_SERVER['REQUEST_METHOD'] . " - URI: " . $_SERVER['REQUEST_URI']);
 
 try {
     // Initialize database connection
@@ -51,7 +51,7 @@ try {
             break;
     }
 } catch (Exception $e) {
-    error_log("UsersController - Exception: " . $e->getMessage());
+    error_log("UserController - Exception: " . $e->getMessage());
     ResponseHandler::error(
         "Erreur serveur: " . $e->getMessage(),
         500,

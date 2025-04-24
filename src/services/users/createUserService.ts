@@ -34,8 +34,8 @@ export const createUser = async (userData: CreateUserData) => {
 
   try {
     const apiUrl = getApiUrl();
-    // Utiliser directement le chemin complet vers UsersController.php pour éviter les problèmes de redirection
-    const url = `${apiUrl}/controllers/UsersController.php`;
+    // Use UserController.php instead of UsersController.php
+    const url = `${apiUrl}/controllers/UserController.php`;
     
     const headers = {
       ...getAuthHeaders(),

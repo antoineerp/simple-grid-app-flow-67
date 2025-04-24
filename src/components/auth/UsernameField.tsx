@@ -21,6 +21,7 @@ const UsernameField: React.FC<UsernameFieldProps> = ({ control }) => {
             <Input 
               placeholder="Entrez votre nom d'utilisateur" 
               {...field} 
+              value={field.value || ""}
               onChange={(e) => {
                 const value = e.target.value.trim();
                 console.log("Nom d'utilisateur en cours de saisie:", value);
@@ -29,7 +30,6 @@ const UsernameField: React.FC<UsernameFieldProps> = ({ control }) => {
               onBlur={(e) => {
                 const value = e.target.value.trim();
                 console.log("Nom d'utilisateur validé:", value);
-                console.log("Nom d'utilisateur saisi:", value);
                 field.onBlur();
               }}
             />

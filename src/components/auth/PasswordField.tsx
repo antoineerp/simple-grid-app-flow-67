@@ -18,7 +18,12 @@ const PasswordField: React.FC<PasswordFieldProps> = ({ control }) => {
         <FormItem>
           <FormLabel>Mot de passe</FormLabel>
           <FormControl>
-            <Input type="password" placeholder="Entrez votre mot de passe" {...field} />
+            <Input 
+              type="password" 
+              placeholder="Entrez votre mot de passe" 
+              {...field} 
+              value={field.value || ""}
+            />
           </FormControl>
           <FormMessage />
         </FormItem>
