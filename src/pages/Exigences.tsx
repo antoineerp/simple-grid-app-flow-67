@@ -1,5 +1,5 @@
 import React from 'react';
-import { FileDown, FilePdf } from 'lucide-react';
+import { FileText, FolderPlus } from 'lucide-react';
 import { MembresProvider } from '@/contexts/MembresContext';
 import ExigenceForm from '@/components/exigences/ExigenceForm';
 import ExigenceStats from '@/components/exigences/ExigenceStats';
@@ -9,7 +9,6 @@ import { useExigences } from '@/hooks/useExigences';
 import { exportExigencesToPdf } from '@/services/pdfExport';
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
-import { FolderPlus } from 'lucide-react';
 
 const ExigencesContent = () => {
   const {
@@ -59,7 +58,7 @@ const ExigencesContent = () => {
           className="text-red-500 p-2 rounded-md hover:bg-red-50 transition-colors"
           title="Exporter en PDF"
         >
-          <FilePdf className="h-6 w-6" />
+          <FileText className="h-6 w-6" />
         </button>
       </div>
 

@@ -1,5 +1,6 @@
+
 import React, { useState } from 'react';
-import { Pencil, Trash, ChevronDown, FolderPlus, GripVertical, FileDown, ExternalLink, FilePdf } from 'lucide-react';
+import { Pencil, Trash, ChevronDown, FolderPlus, GripVertical, FileDown, ExternalLink, FileText } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { exportBibliothecaireDocsToPdf } from '@/services/pdfExport';
 import {
@@ -443,7 +444,7 @@ const Bibliotheque = () => {
           className="text-red-500 p-2 rounded-md hover:bg-red-50 transition-colors"
           title="Exporter en PDF"
         >
-          <FilePdf className="h-6 w-6" />
+          <FileText className="h-6 w-6" />
         </button>
       </div>
 

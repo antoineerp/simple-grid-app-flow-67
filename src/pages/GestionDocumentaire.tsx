@@ -1,5 +1,6 @@
+
 import React from 'react';
-import { FileDown, FolderPlus, FilePdf } from 'lucide-react';
+import { FileText, FolderPlus } from 'lucide-react';
 import { MembresProvider } from '@/contexts/MembresContext';
 import DocumentForm from '@/components/gestion-documentaire/DocumentForm';
 import DocumentStatusDisplay from '@/components/gestion-documentaire/DocumentStats';
@@ -58,7 +59,7 @@ const GestionDocumentaireContent = () => {
           className="text-red-500 p-2 rounded-md hover:bg-red-50 transition-colors"
           title="Exporter en PDF"
         >
-          <FilePdf className="h-6 w-6" />
+          <FileText className="h-6 w-6" />
         </button>
       </div>
 
