@@ -1,6 +1,6 @@
 
 import jsPDF from 'jspdf';
-import 'jspdf-autotable';
+import autoTable from 'jspdf-autotable';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { createAndDownloadPdf } from './pdfManager';
@@ -38,7 +38,7 @@ export const exportCollaborateurStatsToPdf = (membre: any) => {
     doc.setDrawColor(200, 200, 200);
     doc.line(10, 45, pageWidth - 10, 45);
     
-    // Table for requirements statistics - Force jsPDF-AutoTable to render
+    // Table for requirements statistics
     doc.setFontSize(12);
     doc.text('Statistiques des exigences', pageWidth / 2, 55, { align: 'center' });
     
@@ -52,8 +52,8 @@ export const exportCollaborateurStatsToPdf = (membre: any) => {
     ];
     
     try {
-      // Utilisation explicite de jspdf-autotable
-      (doc as any).autoTable({
+      // Utilisation explicite de autoTable (importé de jspdf-autotable)
+      autoTable(doc, {
         startY: 60,
         head: headersExigences,
         body: dataExigences,
@@ -64,8 +64,8 @@ export const exportCollaborateurStatsToPdf = (membre: any) => {
         margin: { left: (pageWidth - 150) / 2 } // Center the table
       });
       
-      // S'assurer d'avoir une position valide pour le tableau suivant
-      let lastPosition = (doc as any).lastAutoTable?.finalY || 120;
+      // Récupérer la position finale du tableau
+      const lastPosition = (doc as any).lastAutoTable?.finalY || 120;
       
       // Title for documents
       doc.setFontSize(14);
@@ -81,7 +81,8 @@ export const exportCollaborateurStatsToPdf = (membre: any) => {
         ['Total', membre.documents.r + membre.documents.a + membre.documents.c + membre.documents.i]
       ];
       
-      (doc as any).autoTable({
+      // Utilisation explicite de autoTable pour le second tableau
+      autoTable(doc, {
         startY: lastPosition + 20,
         head: headersDocuments,
         body: dataDocuments,
@@ -92,8 +93,8 @@ export const exportCollaborateurStatsToPdf = (membre: any) => {
         margin: { left: (pageWidth - 150) / 2 } // Center the table
       });
       
-      // S'assurer d'avoir une position valide pour le texte suivant
-      lastPosition = (doc as any).lastAutoTable?.finalY || 180;
+      // Récupérer la position finale du second tableau
+      const finalPosition = (doc as any).lastAutoTable?.finalY || 180;
       
       // Total
       const totalGeneral = 
@@ -101,12 +102,12 @@ export const exportCollaborateurStatsToPdf = (membre: any) => {
         membre.documents.r + membre.documents.a + membre.documents.c + membre.documents.i;
       
       doc.setFontSize(14);
-      doc.text(`Total des responsabilités: ${totalGeneral}`, pageWidth / 2, lastPosition + 15, { align: 'center' });
+      doc.text(`Total des responsabilités: ${totalGeneral}`, pageWidth / 2, finalPosition + 15, { align: 'center' });
       
-      // Ajouter des informations de débogage
+      // Ajouter des informations de version
       doc.setFontSize(8);
       doc.setTextColor(150, 150, 150);
-      doc.text(`Version du PDF: 1.0.1`, 15, doc.internal.pageSize.getHeight() - 10);
+      doc.text(`Version du PDF: 1.0.2`, 15, doc.internal.pageSize.getHeight() - 10);
       
     } catch (error) {
       console.error("Erreur lors de la génération du tableau:", error);
