@@ -1,5 +1,5 @@
 
-import React, { createContext, useState, useContext, useEffect } from 'react';
+import React, { createContext, useState, useContext, useEffect, useCallback } from 'react';
 import { Membre } from '@/types/membres';
 import { loadMembresFromStorage, saveMembresInStorage } from '@/services/membres/membresService';
 import { useToast } from '@/hooks/use-toast';
@@ -25,28 +25,33 @@ export const MembresProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const { toast } = useToast();
   const [membres, setMembres] = useState<Membre[]>([]);
   const [loading, setLoading] = useState(true);
+  const [savingInProgress, setSavingInProgress] = useState(false);
 
   const getCurrentUser = () => {
     const authHeaders = getAuthHeaders();
     const token = authHeaders['Authorization']?.split(' ')[1];
-    if (!token) return 'default_user';
+    if (!token) return null;
     
     try {
       const payload = JSON.parse(atob(token.split('.')[1]));
-      return payload.user_id || payload.email || 'default_user';
+      return payload.user_id || payload.email || null;
     } catch (e) {
       console.error('Erreur lors du décodage du token:', e);
-      return 'default_user';
+      return null;
     }
   };
 
-  const loadMembres = async () => {
+  const loadMembres = useCallback(async () => {
     setLoading(true);
-    
     try {
       const currentUser = getCurrentUser();
-      console.log("Chargement des membres pour:", currentUser);
+      if (!currentUser) {
+        console.warn("Aucun utilisateur connecté, impossible de charger les membres");
+        setLoading(false);
+        return;
+      }
       
+      console.log("Chargement des membres pour:", currentUser);
       const loadedMembres = await loadMembresFromStorage(currentUser);
       
       console.log(`${loadedMembres.length} membres chargés`);
@@ -62,28 +67,46 @@ export const MembresProvider: React.FC<{ children: React.ReactNode }> = ({ child
     } finally {
       setLoading(false);
     }
-  };
+  }, [toast]);
 
+  // Charger les membres au montage du composant
   useEffect(() => {
-    loadMembres();
-  }, []);
+    const runLoadMembres = async () => {
+      await loadMembres();
+    };
+    runLoadMembres();
+  }, [loadMembres]);
 
+  // Sauvegarder les membres quand ils changent
   useEffect(() => {
-    if (membres.length > 0 && !loading) {
-      const currentUser = getCurrentUser();
-      console.log(`Sauvegarde de ${membres.length} membres pour ${currentUser}`);
-      
-      saveMembresInStorage(membres, currentUser)
-        .catch(error => {
+    const saveMembres = async () => {
+      if (membres.length > 0 && !loading && !savingInProgress) {
+        const currentUser = getCurrentUser();
+        if (!currentUser) {
+          console.warn("Aucun utilisateur connecté, impossible de sauvegarder les membres");
+          return;
+        }
+        
+        console.log(`Sauvegarde de ${membres.length} membres pour ${currentUser}`);
+        setSavingInProgress(true);
+        
+        try {
+          await saveMembresInStorage(membres, currentUser);
+        } catch (error) {
           console.error("Erreur lors de la sauvegarde des membres:", error);
           toast({
             title: "Erreur de sauvegarde",
             description: "Impossible de sauvegarder les modifications",
             variant: "destructive",
           });
-        });
-    }
-  }, [membres, loading]);
+        } finally {
+          setSavingInProgress(false);
+        }
+      }
+    };
+    
+    saveMembres();
+  }, [membres, loading, toast]);
 
   const refreshMembres = async () => {
     await loadMembres();

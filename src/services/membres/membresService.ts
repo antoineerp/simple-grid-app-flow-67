@@ -12,11 +12,13 @@ export const loadMembresFromStorage = async (currentUser: string): Promise<Membr
     });
 
     if (!response.ok) {
-      throw new Error(`Erreur HTTP: ${response.status}`);
+      console.error(`Erreur HTTP: ${response.status}`);
+      return [];
     }
 
     const data = await response.json();
     if (!data || !Array.isArray(data.membres)) {
+      console.warn("Format de données invalide ou vide reçu du serveur");
       return [];
     }
 
@@ -30,7 +32,7 @@ export const loadMembresFromStorage = async (currentUser: string): Promise<Membr
   }
 };
 
-export const saveMembresInStorage = async (membres: Membre[], currentUser: string): Promise<void> => {
+export const saveMembresInStorage = async (membres: Membre[], currentUser: string): Promise<boolean> => {
   try {
     const API_URL = getApiUrl();
     const response = await fetch(`${API_URL}/controllers/MembresController.php`, {
@@ -46,16 +48,20 @@ export const saveMembresInStorage = async (membres: Membre[], currentUser: strin
     });
 
     if (!response.ok) {
-      throw new Error(`Erreur HTTP: ${response.status}`);
+      console.error(`Erreur HTTP: ${response.status}`);
+      return false;
     }
 
     const data = await response.json();
     if (!data.success) {
-      throw new Error(data.message || 'Erreur lors de la sauvegarde des membres');
+      console.error(data.message || "Erreur serveur non spécifiée");
+      return false;
     }
+
+    return true;
   } catch (error) {
     console.error("Erreur lors de la sauvegarde des membres sur le serveur:", error);
-    throw error;
+    return false;
   }
 };
 
@@ -64,8 +70,7 @@ export const syncMembresWithServer = async (
   currentUser: string
 ): Promise<boolean> => {
   try {
-    await saveMembresInStorage(membres, currentUser);
-    return true;
+    return await saveMembresInStorage(membres, currentUser);
   } catch (error) {
     console.error("Erreur lors de la synchronisation des membres avec le serveur:", error);
     return false;
