@@ -5,23 +5,23 @@ export * from './documents';
 export * from './users/userService';
 export * from './users/createUserService';
 
-// Explicitement renommer les exports de getCurrentUser pour éviter l'ambiguïté
+// Nous n'avons plus besoin de ces renommages car les fonctions sont maintenant
+// directement exportées depuis les fichiers sources
 export { 
-  getCurrentUser as getDatabaseConnectionCurrentUser 
+  getDatabaseConnectionCurrentUser,
+  getCurrentUser,
+  setDatabaseConnectionCurrentUser,
+  isConnectedToDatabase,
+  connectAsUser,
+  disconnectUser,
+  getLastConnectionError,
+  testDatabaseConnection,
+  getDatabaseInfo
 } from './core/databaseConnectionService';
 
 export { 
   getCurrentUser as getAuthCurrentUser 
 } from './auth/authService';
-
-// Re-export other functions from databaseConnectionService
-export {
-  connectAsUser,
-  getLastConnectionError,
-  disconnectUser,
-  testDatabaseConnection,
-  getDatabaseInfo
-} from './core/databaseConnectionService';
 
 // Define types here if needed
 export interface Utilisateur {
