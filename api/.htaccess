@@ -1,37 +1,42 @@
 
-# Enable URL rewriting
+# Activer la réécriture d'URL
 RewriteEngine On
 
-# Enable PHP script execution
+# Activer l'exécution des scripts PHP - CRUCIAL
 <FilesMatch "\.php$">
     SetHandler application/x-httpd-php
 </FilesMatch>
 
-# Set correct MIME type for PHP
+# Définir le type MIME correct pour PHP
 AddType application/x-httpd-php .php
 
-# Allow direct access to specific PHP files
+# Force PHP to execute .php files
+<Files *.php>
+    SetHandler application/x-httpd-php
+</Files>
+
+# Permettre l'accès direct aux fichiers PHP spécifiques
 RewriteCond %{REQUEST_FILENAME} -f
 RewriteRule \.(php)$ - [L]
 
-# Redirect all requests to index.php except for existing files
+# Rediriger toutes les requêtes vers l'index.php sauf pour les fichiers existants
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^(.*)$ index.php [QSA,L]
 
-# Set CORS headers
+# Définir les en-têtes CORS
 <IfModule mod_headers.c>
     Header set Access-Control-Allow-Origin "*"
     Header set Access-Control-Allow-Methods "GET, POST, OPTIONS, PUT, DELETE"
     Header set Access-Control-Allow-Headers "Content-Type, Authorization"
     
-    # Prevent caching
+    # Eviter la mise en cache
     Header set Cache-Control "no-cache, no-store, must-revalidate"
     Header set Pragma "no-cache"
     Header set Expires 0
 </IfModule>
 
-# Force PHP to use proper encoding
+# Forcer PHP à utiliser le bon encodage
 <IfModule mod_php.c>
     php_value default_charset "UTF-8"
 </IfModule>
