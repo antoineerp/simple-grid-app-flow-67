@@ -1,29 +1,29 @@
 
-# Activer la réécriture d'URL
-RewriteEngine On
+# Activer l'interprétation PHP
+AddHandler application/x-httpd-php .php
 
-# Permettre l'accès direct aux fichiers PHP spécifiques
-RewriteCond %{REQUEST_FILENAME} -f
-RewriteRule \.(php)$ - [L]
+# Forcer le MIME type pour les fichiers PHP
+<Files *.php>
+    ForceType application/x-httpd-php
+</Files>
 
-# Rediriger toutes les requêtes vers l'index.php sauf pour les fichiers existants
-RewriteCond %{REQUEST_FILENAME} !-f
-RewriteCond %{REQUEST_FILENAME} !-d
-RewriteRule ^(.*)$ index.php [QSA,L]
+# Autoriser l'exécution des fichiers PHP
+<FilesMatch "\.php$">
+    SetHandler application/x-httpd-php
+</FilesMatch>
 
-# Définir les en-têtes CORS
+# Définir les headers CORS et le type de contenu
 <IfModule mod_headers.c>
     Header set Access-Control-Allow-Origin "*"
     Header set Access-Control-Allow-Methods "GET, POST, OPTIONS, PUT, DELETE"
-    Header set Access-Control-Allow-Headers "Content-Type, Authorization"
-    
-    # Eviter la mise en cache
-    Header set Cache-Control "no-cache, no-store, must-revalidate"
-    Header set Pragma "no-cache"
-    Header set Expires 0
+    Header set Access-Control-Allow-Headers "Content-Type, Authorization, X-Requested-With"
+    Header set Content-Type "application/json; charset=UTF-8"
 </IfModule>
 
-# Forcer PHP à utiliser le bon encodage
-<IfModule mod_php.c>
-    php_value default_charset "UTF-8"
+# Rediriger toutes les requêtes non-existantes vers index.php
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteRule ^(.*)$ index.php [QSA,L]
 </IfModule>

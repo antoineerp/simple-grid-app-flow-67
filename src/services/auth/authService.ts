@@ -1,3 +1,4 @@
+
 import { getApiUrl } from '@/config/apiConfig';
 import { toast } from '@/hooks/use-toast';
 import { disconnectUser } from '../core/databaseConnectionService';
@@ -47,6 +48,12 @@ class AuthService {
         const responseText = await response.text();
         console.log(`Réponse reçue (${response.status}): ${responseText.substring(0, 200)}...`);
         
+        // Si la réponse contient du code PHP, c'est que le serveur ne l'exécute pas
+        if (responseText.includes('<?php')) {
+            console.error('Le serveur renvoie du code PHP au lieu de l\'exécuter');
+            throw new Error('Le serveur PHP n\'exécute pas le code. Vérifiez la configuration du serveur.');
+        }
+        
         if (!responseText || responseText.trim() === '') {
             console.warn('Réponse vide reçue du serveur');
             throw new Error('Réponse vide du serveur');
@@ -78,7 +85,8 @@ class AuthService {
         try {
             console.log(`Tentative de connexion pour l'utilisateur: ${username}`);
             
-            const authUrl = `${getApiUrl()}/auth`;
+            // Utilisons login-test.php en cas de problème avec auth.php
+            const authUrl = `${getApiUrl()}/login-test`;
             console.log(`URL de requête (authentification): ${authUrl}`);
             
             const response = await fetch(authUrl, {
