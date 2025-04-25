@@ -12,10 +12,10 @@ export function getFullApiUrl(): string {
     return `${window.location.protocol}//${window.location.host}${apiUrl}`;
 }
 
-// Diagnostic de l'API simple
+// Diagnostic de l'API
 export async function testApiConnection(): Promise<{ success: boolean; message: string; details?: any }> {
     try {
-        const response = await fetch(`${getApiUrl()}/index.php`, {
+        const response = await fetch(`${apiUrl}/db-connection-test`, {
             method: 'GET',
             headers: {
                 'Content-Type': 'application/json',
@@ -23,7 +23,10 @@ export async function testApiConnection(): Promise<{ success: boolean; message: 
             }
         });
         
-        const contentType = response.headers.get('content-type') || '';
+        if (!response.ok) {
+            throw new Error(`Erreur HTTP: ${response.status}`);
+        }
+        
         const responseText = await response.text();
         
         try {
