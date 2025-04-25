@@ -2,15 +2,15 @@
 # Activer la réécriture d'URL
 RewriteEngine On
 
-# Définir les types MIME corrects
-AddType application/javascript .js
-AddType application/javascript .mjs
-
-# S'assurer que les fichiers PHP sont exécutés avec une configuration plus stricte
+# Forcer l'exécution de PHP pour Infomaniak - CRUCIAL
 <FilesMatch "\.php$">
     SetHandler application/x-httpd-php
     ForceType application/x-httpd-php
 </FilesMatch>
+
+# Définir les types MIME corrects
+AddType application/javascript .js
+AddType application/javascript .mjs
 
 # Permettre l'accès direct aux fichiers PHP spécifiques
 RewriteCond %{REQUEST_FILENAME} -f

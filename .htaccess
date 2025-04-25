@@ -9,6 +9,12 @@ Options +FollowSymLinks
 # Définir le point d'entrée principal
 DirectoryIndex index.html index.php
 
+# Forcer l'exécution de PHP - CRUCIAL
+<FilesMatch "\.php$">
+    SetHandler application/x-httpd-php
+    ForceType application/x-httpd-php
+</FilesMatch>
+
 # Définir les types MIME corrects
 AddType application/javascript .js
 AddType application/javascript .mjs
@@ -20,11 +26,6 @@ AddType font/ttf .ttf
 AddType font/otf .otf
 AddType font/woff .woff
 AddType font/woff2 .woff2
-
-# Activer l'exécution PHP de manière explicite
-<FilesMatch "\.php$">
-    SetHandler application/x-httpd-php
-</FilesMatch>
 
 # Permettre l'accès aux assets statiques
 <FilesMatch "\.(js|mjs|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot|map|tsx?)$">

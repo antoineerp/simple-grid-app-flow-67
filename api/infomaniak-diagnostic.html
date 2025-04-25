@@ -1,0 +1,132 @@
+
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Diagnostic PHP Infomaniak</title>
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; max-width: 800px; margin: 0 auto; padding: 20px; }
+        h1, h2 { color: #333; }
+        .success { color: green; font-weight: bold; }
+        .error { color: red; font-weight: bold; }
+        .box { border: 1px solid #ddd; padding: 15px; margin-bottom: 20px; border-radius: 5px; }
+        button { background: #4CAF50; color: white; border: none; padding: 10px 15px; border-radius: 4px; cursor: pointer; }
+        pre { background: #f5f5f5; padding: 10px; border-radius: 5px; overflow-x: auto; max-height: 300px; }
+    </style>
+</head>
+<body>
+    <h1>Diagnostic PHP pour Infomaniak</h1>
+    <div class="box">
+        <h2>Test d'exécution PHP</h2>
+        <button id="testPhpExecution">Tester l'exécution PHP</button>
+        <div id="phpExecutionResult" class="result">Cliquez sur le bouton pour tester...</div>
+    </div>
+    
+    <div class="box">
+        <h2>Tests CORS et API</h2>
+        <button id="testCors">Tester CORS</button>
+        <div id="corsResult" class="result">Cliquez sur le bouton pour tester...</div>
+    </div>
+    
+    <div class="box">
+        <h2>Informations sur le serveur</h2>
+        <div id="serverInfo">Chargement en cours...</div>
+    </div>
+    
+    <script>
+        // Fonction pour afficher joliment les résultats JSON
+        function displayJson(element, data, isSuccess = true) {
+            element.innerHTML = `
+                <div class="${isSuccess ? 'success' : 'error'}">${isSuccess ? '✓ Succès' : '✗ Échec'}</div>
+                <pre>${JSON.stringify(data, null, 2)}</pre>
+            `;
+        }
+        
+        // Test d'exécution PHP
+        document.getElementById('testPhpExecution').addEventListener('click', async function() {
+            const resultDiv = document.getElementById('phpExecutionResult');
+            resultDiv.innerHTML = 'Test en cours...';
+            
+            try {
+                const response = await fetch('/api/infomaniak-test.php');
+                const contentType = response.headers.get('content-type');
+                
+                if (contentType && contentType.includes('application/json')) {
+                    const data = await response.json();
+                    
+                    if (data.php_executed) {
+                        displayJson(resultDiv, data, true);
+                    } else {
+                        displayJson(resultDiv, data, false);
+                    }
+                } else {
+                    // Si le contenu n'est pas JSON, PHP n'est probablement pas exécuté
+                    const text = await response.text();
+                    resultDiv.innerHTML = `
+                        <div class="error">✗ Échec: PHP n'est pas exécuté correctement</div>
+                        <p>Le serveur a renvoyé du code PHP brut au lieu de l'exécuter.</p>
+                        <pre>${text.substring(0, 500)}${text.length > 500 ? '...' : ''}</pre>
+                        <p>Content-Type reçu: ${contentType || 'Non spécifié'}</p>
+                    `;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <div class="error">✗ Erreur lors du test</div>
+                    <p>${error.message}</p>
+                `;
+            }
+        });
+        
+        // Test CORS
+        document.getElementById('testCors').addEventListener('click', async function() {
+            const resultDiv = document.getElementById('corsResult');
+            resultDiv.innerHTML = 'Test en cours...';
+            
+            try {
+                const response = await fetch('/api/cors-test.php');
+                const contentType = response.headers.get('content-type');
+                
+                if (contentType && contentType.includes('application/json')) {
+                    const data = await response.json();
+                    displayJson(resultDiv, data, true);
+                } else {
+                    const text = await response.text();
+                    resultDiv.innerHTML = `
+                        <div class="error">✗ Échec: Réponse non-JSON reçue</div>
+                        <pre>${text.substring(0, 500)}${text.length > 500 ? '...' : ''}</pre>
+                        <p>Content-Type reçu: ${contentType || 'Non spécifié'}</p>
+                    `;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <div class="error">✗ Erreur lors du test CORS</div>
+                    <p>${error.message}</p>
+                `;
+            }
+        });
+        
+        // Charger les informations du serveur au chargement de la page
+        window.addEventListener('load', async function() {
+            const serverInfoDiv = document.getElementById('serverInfo');
+            serverInfoDiv.innerHTML = 'Chargement des informations serveur...';
+            
+            try {
+                const response = await fetch('/api/test.php');
+                const data = await response.json();
+                
+                serverInfoDiv.innerHTML = `
+                    <h3>Informations détaillées:</h3>
+                    <pre>${JSON.stringify(data, null, 2)}</pre>
+                `;
+            } catch (error) {
+                serverInfoDiv.innerHTML = `
+                    <div class="error">✗ Impossible de charger les informations serveur</div>
+                    <p>${error.message}</p>
+                    <p>Cela peut indiquer que PHP n'est pas correctement configuré sur ce serveur.</p>
+                `;
+            }
+        });
+    </script>
+</body>
+</html>
