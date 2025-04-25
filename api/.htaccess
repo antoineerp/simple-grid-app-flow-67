@@ -2,10 +2,6 @@
 # Activer la réécriture d'URL
 RewriteEngine On
 
-# Forcer HTTPS (décommenter si nécessaire)
-# RewriteCond %{HTTPS} off
-# RewriteRule (.*) https://%{HTTP_HOST}%{REQUEST_URI} [R=301,L]
-
 # Base du répertoire API
 RewriteBase /api/
 
@@ -29,22 +25,10 @@ RewriteRule ^(.*)$ $1 [R=200,L]
 RewriteCond %{REQUEST_FILENAME} -f
 RewriteRule ^ - [L]
 
-# Redirection prioritaire pour nos nouveaux scripts de test
-RewriteRule ^test-db-connection/?$ test-db-connection.php [L,NC]
-RewriteRule ^check-connection/?$ check-connection.php [L,NC]
-
-# Redirection prioritaire pour db-connection-test
-RewriteRule ^db-connection-test/?$ db-connection-test.php [L,NC]
-RewriteRule ^database-test/?$ db-connection-test.php [L,NC]
-RewriteRule ^db-test/?$ db-test.php [L,NC]
-
-# Redirection du test utilisateurs
-RewriteRule ^check-users/?$ check-users.php [L,NC]
-RewriteRule ^utilisateurs/?$ utilisateurs.php [L,NC]
-
-# Redirection des endpoints documents
-RewriteRule ^documents-load/?$ documents-load.php [L,NC]
-RewriteRule ^documents-sync/?$ documents-sync.php [L,NC]
+# Route unique pour le test de connexion à la base de données
+RewriteRule ^db-test/?$ db-connection-simple.php [L,NC]
+RewriteRule ^test-db/?$ db-connection-simple.php [L,NC]
+RewriteRule ^db-connection-simple/?$ db-connection-simple.php [L,NC]
 
 # Redirection généralisée pour les contrôleurs
 RewriteRule ^([^/]+)/?$ controllers/$1Controller.php [L,NC]
