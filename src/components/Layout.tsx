@@ -5,7 +5,7 @@ import Header from './Header';
 import Footer from './Footer';
 import Sidebar from './Sidebar';
 import { MembresProvider } from '@/contexts/MembresContext';
-import { loadUserProfileFromServer } from '@/services/sync/userProfileSync';
+import { loadUserProfileFromServer } from '@/services/sync';
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertTriangle, Server } from 'lucide-react';
 import { Button } from '@/components/ui/button';
