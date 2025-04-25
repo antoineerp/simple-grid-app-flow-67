@@ -116,10 +116,11 @@ const Diagnostic = () => {
                 <Alert 
                   variant={
                     apiTests.status === 'success' ? "default" : 
-                    apiTests.status === 'partial' ? "warning" : 
+                    // Fix: Changed "warning" to "default" with custom styling
+                    apiTests.status === 'partial' ? "default" : 
                     "destructive"
                   }
-                  className="mb-4"
+                  className={`mb-4 ${apiTests.status === 'partial' ? "border-yellow-500 bg-yellow-50 text-yellow-800" : ""}`}
                 >
                   {apiTests.status === 'success' ? (
                     <CheckCircle className="h-4 w-4" />
