@@ -31,6 +31,14 @@ jobs:
         cp -v api/php-execution-test.php dist/api/ || echo "Attention: php-execution-test.php non trouvé"
         cp -v api/phpinfo.php dist/api/ || echo "Attention: phpinfo.php non trouvé"
         cp -v api/diagnostic.php dist/api/ || echo "Attention: diagnostic.php non trouvé"
+        cp -v api/info.php dist/api/ || echo "Attention: info.php non trouvé"
+        # S'assurer que index.php existe dans le dossier dist/api
+        echo '<?php
+// Point d\'entrée principal de l\'API
+header("Content-Type: application/json");
+header("Access-Control-Allow-Origin: *");
+echo json_encode(["status" => "success", "message" => "API is working"]);
+?>' > dist/api/index.php
         # ... keep existing code (other file copies) ...
 
     - name: Deploy to Infomaniak
@@ -40,3 +48,8 @@ jobs:
         username: ${{ secrets.FTP_USERNAME }}
         password: ${{ secrets.FTP_PASSWORD }}
         local-dir: ./dist/
+        dangerous-clean-slate: false
+        exclude: |
+          **/.git*
+          **/.git*/**
+          **/node_modules/**
