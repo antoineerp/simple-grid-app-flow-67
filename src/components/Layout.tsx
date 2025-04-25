@@ -93,7 +93,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       <div className="flex min-h-screen flex-col">
         <Header />
         {loadError && (
-          <Alert variant="warning" className="mx-4 mt-2">
+          <Alert variant="destructive" className="mx-4 mt-2">
             <AlertTriangle className="h-4 w-4" />
             <AlertDescription>
               {loadError}
