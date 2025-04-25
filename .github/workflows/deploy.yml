@@ -38,22 +38,82 @@ jobs:
         # Recréer le dossier dist/sites/qualiopi.ch si nécessaire
         mkdir -p dist/sites/qualiopi.ch
         
-        # Copier l'API et ses fichiers cachés
-        cp -R api dist/sites/qualiopi.ch/
+        # Créer manuellement tous les sous-dossiers API nécessaires
+        mkdir -p dist/sites/qualiopi.ch/api/config
+        mkdir -p dist/sites/qualiopi.ch/api/controllers
+        mkdir -p dist/sites/qualiopi.ch/api/middleware
+        mkdir -p dist/sites/qualiopi.ch/api/models
+        mkdir -p dist/sites/qualiopi.ch/api/models/traits
+        mkdir -p dist/sites/qualiopi.ch/api/operations
+        mkdir -p dist/sites/qualiopi.ch/api/utils
+        
+        # Copier tous les fichiers PHP et autres
+        cp -R api/*.php dist/sites/qualiopi.ch/api/
+        
+        # Copier explicitement chaque dossier API et ses contenus
+        cp -R api/config/* dist/sites/qualiopi.ch/api/config/ || true
+        cp -R api/controllers/* dist/sites/qualiopi.ch/api/controllers/ || true
+        cp -R api/middleware/* dist/sites/qualiopi.ch/api/middleware/ || true
+        cp -R api/models/* dist/sites/qualiopi.ch/api/models/ || true
+        cp -R api/operations/* dist/sites/qualiopi.ch/api/operations/ || true
+        cp -R api/utils/* dist/sites/qualiopi.ch/api/utils/ || true
+        
+        # Copier les fichiers cachés de l'API et ses sous-dossiers
         cp -R api/.htaccess dist/sites/qualiopi.ch/api/ || true
         cp -R api/.user.ini dist/sites/qualiopi.ch/api/ || true
+        cp -R api/config/.htaccess dist/sites/qualiopi.ch/api/config/ || true
         
         # Copier les fichiers de configuration racine
-        cp .htaccess dist/sites/qualiopi.ch/
+        cp .htaccess dist/sites/qualiopi.ch/ || true
         
-        # Créer et copier les dossiers nécessaires
+        # Créer et copier les dossiers nécessaires pour les uploads
         mkdir -p dist/sites/qualiopi.ch/public/lovable-uploads
         cp -R public/lovable-uploads/* dist/sites/qualiopi.ch/public/lovable-uploads/ || true
+        
+    - name: Verify API Config Directory and Files
+      run: |
+        echo "Vérification des fichiers critiques..."
+        
+        # Vérifier le dossier config et ses fichiers
+        if [ -d "dist/sites/qualiopi.ch/api/config" ]; then
+          echo "✅ Le dossier api/config existe"
+          ls -la dist/sites/qualiopi.ch/api/config/
+        else
+          echo "❌ Le dossier api/config n'existe pas"
+          mkdir -p dist/sites/qualiopi.ch/api/config
+        fi
+        
+        # Vérifier et copier explicitement le .htaccess de config si nécessaire
+        if [ -f "api/config/.htaccess" ]; then
+          echo "✅ Le fichier source api/config/.htaccess existe"
+          cp api/config/.htaccess dist/sites/qualiopi.ch/api/config/ || true
+        else
+          echo "❌ Le fichier source api/config/.htaccess n'existe pas"
+          # Créer un .htaccess par défaut si nécessaire
+          echo "# Interdire l'accès à ce répertoire
+<IfModule mod_authz_core.c>
+    Require all denied
+</IfModule>
+<IfModule !mod_authz_core.c>
+    Order deny,allow
+    Deny from all
+</IfModule>" > dist/sites/qualiopi.ch/api/config/.htaccess
+        fi
+        
+        if [ -f "dist/sites/qualiopi.ch/api/config/.htaccess" ]; then
+          echo "✅ Le fichier destination api/config/.htaccess a été créé/copié"
+        else
+          echo "❌ Le fichier destination api/config/.htaccess n'a pas pu être créé"
+        fi
         
     - name: Debug Directory Structure
       run: |
         echo "Structure finale avant déploiement:"
-        tree dist/sites/qualiopi.ch || ls -R dist/sites/qualiopi.ch
+        ls -la dist/sites/qualiopi.ch/
+        echo "Structure API:"
+        ls -la dist/sites/qualiopi.ch/api/
+        echo "Structure API Config:"
+        ls -la dist/sites/qualiopi.ch/api/config/
         
     - name: Sync full dist folder to Infomaniak server
       uses: SamKirkland/FTP-Deploy-Action@v4.3.4
@@ -82,4 +142,5 @@ jobs:
         echo "Déploiement terminé. Vérification de la structure:"
         curl -v "https://qualiopi.ch/" || echo "Vérification du site échouée"
         curl -v "https://qualiopi.ch/api/diagnostic.php" || echo "Vérification de l'API échouée"
+
 
