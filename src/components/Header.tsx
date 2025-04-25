@@ -18,7 +18,7 @@ import {
   getCurrentUser
 } from '@/services/core/databaseConnectionService';
 import SyncStatusIndicator from './common/SyncStatusIndicator';
-import { forceReloadUserProfile } from '@/services/sync/userProfileSync';
+import { forceReloadUserProfile } from '@/services/sync';
 
 const Header = () => {
   const navigate = useNavigate();
