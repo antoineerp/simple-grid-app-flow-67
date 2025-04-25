@@ -19,153 +19,142 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     exit;
 }
 
-// Récupérer les données envoyées
-$inputJSON = file_get_contents('php://input');
-$input = json_decode($inputJSON, TRUE);
+// Récupérer les données POST
+$input = file_get_contents('php://input');
+$data = json_decode($input, true);
 
-// Vérifier si le décodage JSON a fonctionné
-if ($input === null && json_last_error() !== JSON_ERROR_NONE) {
+// Vérifier que les données sont valides
+if (!$data || !isset($data['userId']) || !isset($data['documents']) || !isset($data['groups'])) {
     http_response_code(400);
-    echo json_encode(['success' => false, 'message' => 'Données JSON invalides: ' . json_last_error_msg()]);
+    echo json_encode(['success' => false, 'message' => 'Données invalides']);
     exit;
 }
-
-// Vérifier les paramètres requis
-if (!isset($input['userId']) || !isset($input['documents']) || !isset($input['groups'])) {
-    http_response_code(400);
-    echo json_encode(['success' => false, 'message' => 'Paramètres manquants (userId, documents ou groups)']);
-    exit;
-}
-
-// Extraire les paramètres
-$userId = $input['userId'];
-$documents = $input['documents'];
-$groups = $input['groups'];
 
 // Journaliser la requête
-error_log("Synchronisation de la bibliothèque pour l'utilisateur: " . $userId);
-error_log("Nombre de documents: " . count($documents));
-error_log("Nombre de groupes: " . count($groups));
+error_log("Synchronisation de la bibliothèque pour l'utilisateur: " . $data['userId']);
+error_log("Nombre de documents à synchroniser: " . count($data['documents']));
+error_log("Nombre de groupes à synchroniser: " . count($data['groups']));
 
 try {
     // Inclure la configuration de la base de données
     require_once 'config/database.php';
     $database = new Database();
     $conn = $database->getConnection();
-    
+
     // Vérifier si la connexion est établie
     if (!$database->is_connected) {
         throw new Exception("Erreur de connexion à la base de données: " . ($database->connection_error ?? "Erreur inconnue"));
     }
-    
-    // Noms des tables pour cet utilisateur
+
+    // Créer la table des documents si elle n'existe pas
+    $userId = $data['userId'];
     $tableName = "user_bibliotheque_" . preg_replace('/[^a-z0-9_]/i', '_', $userId);
+    
+    $createTableSQL = "CREATE TABLE IF NOT EXISTS `$tableName` (
+        `id` varchar(50) NOT NULL,
+        `name` varchar(255) NOT NULL,
+        `link` varchar(255) DEFAULT NULL,
+        `group_id` varchar(50) DEFAULT NULL,
+        `date_creation` datetime DEFAULT NULL,
+        `date_modification` datetime DEFAULT NULL,
+        PRIMARY KEY (`id`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;";
+    
+    $stmt = $conn->prepare($createTableSQL);
+    $stmt->execute();
+    
+    // Créer la table des groupes si elle n'existe pas
     $groupsTableName = "user_bibliotheque_groups_" . preg_replace('/[^a-z0-9_]/i', '_', $userId);
     
-    // Commencer une transaction
+    $createGroupsTableSQL = "CREATE TABLE IF NOT EXISTS `$groupsTableName` (
+        `id` varchar(50) NOT NULL,
+        `name` varchar(255) NOT NULL,
+        `expanded` tinyint(1) DEFAULT 1,
+        `order` int(11) DEFAULT 0,
+        PRIMARY KEY (`id`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;";
+    
+    $stmt = $conn->prepare($createGroupsTableSQL);
+    $stmt->execute();
+
+    // Exécuter une transaction pour assurer l'intégrité des données
     $conn->beginTransaction();
+
+    // 1. Sauvegarde des documents
+    // Effacer d'abord tous les documents pour cet utilisateur
+    $stmt_delete = $conn->prepare("DELETE FROM `$tableName`");
+    $stmt_delete->execute();
+
+    // Préparer la requête d'insertion/mise à jour des documents
+    $sql = "INSERT INTO `$tableName` 
+            (id, name, link, group_id, date_creation, date_modification) 
+            VALUES (:id, :name, :link, :group_id, :date_creation, :date_modification)";
     
-    // Créer ou recréer la table des documents
-    $sql = "DROP TABLE IF EXISTS `$tableName`";
-    $conn->exec($sql);
-    
-    $sql = "CREATE TABLE `$tableName` (
-        `id` VARCHAR(100) NOT NULL,
-        `name` VARCHAR(255) NOT NULL,
-        `link` TEXT,
-        `group_id` VARCHAR(100),
-        `order` INT DEFAULT 0,
-        PRIMARY KEY (`id`)
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci";
-    $conn->exec($sql);
-    
-    // Créer ou recréer la table des groupes
-    $sql = "DROP TABLE IF EXISTS `$groupsTableName`";
-    $conn->exec($sql);
-    
-    $sql = "CREATE TABLE `$groupsTableName` (
-        `id` VARCHAR(100) NOT NULL,
-        `name` VARCHAR(255) NOT NULL,
-        `expanded` TINYINT(1) DEFAULT 0,
-        `order` INT DEFAULT 0,
-        PRIMARY KEY (`id`)
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci";
-    $conn->exec($sql);
-    
-    // Insérer les documents
-    $insertDocSql = "INSERT INTO `$tableName` (id, name, link, group_id, `order`) VALUES (:id, :name, :link, :groupId, :order)";
-    $docStmt = $conn->prepare($insertDocSql);
-    
-    $order = 0;
-    foreach ($documents as $document) {
-        $docStmt->bindParam(':id', $document['id']);
-        $docStmt->bindParam(':name', $document['name']);
-        $docStmt->bindParam(':link', $document['link']);
+    $stmt = $conn->prepare($sql);
+
+    // Insérer ou mettre à jour chaque document
+    foreach ($data['documents'] as $document) {
+        $stmt->bindParam(':id', $document['id']);
+        $stmt->bindParam(':name', $document['name']);
+        $link = $document['link'] ?? null;
+        $stmt->bindParam(':link', $link);
+        $group_id = $document['groupId'] ?? null;
+        $stmt->bindParam(':group_id', $group_id);
         
-        // GroupId pourrait être null
-        if (isset($document['groupId']) && $document['groupId']) {
-            $docStmt->bindParam(':groupId', $document['groupId']);
-        } else {
-            $nullValue = null;
-            $docStmt->bindParam(':groupId', $nullValue, PDO::PARAM_NULL);
-        }
+        // Convertir les dates en format MySQL si nécessaire
+        $date_creation = date('Y-m-d H:i:s');
+        $stmt->bindParam(':date_creation', $date_creation);
+        $date_modification = date('Y-m-d H:i:s');
+        $stmt->bindParam(':date_modification', $date_modification);
         
-        $docStmt->bindParam(':order', $order);
-        $order++;
-        $docStmt->execute();
+        $stmt->execute();
     }
+
+    // 2. Sauvegarde des groupes
+    // Effacer d'abord tous les groupes pour cet utilisateur
+    $stmt_delete_groups = $conn->prepare("DELETE FROM `$groupsTableName`");
+    $stmt_delete_groups->execute();
+
+    // Préparer la requête d'insertion/mise à jour des groupes
+    $sql_groups = "INSERT INTO `$groupsTableName` 
+                  (id, name, expanded, `order`) 
+                  VALUES (:id, :name, :expanded, :order)";
     
-    // Insérer les groupes
-    $insertGroupSql = "INSERT INTO `$groupsTableName` (id, name, expanded, `order`) VALUES (:id, :name, :expanded, :order)";
-    $groupStmt = $conn->prepare($insertGroupSql);
-    
-    $order = 0;
-    foreach ($groups as $group) {
-        $expanded = isset($group['expanded']) && $group['expanded'] ? 1 : 0;
+    $stmt_groups = $conn->prepare($sql_groups);
+
+    // Insérer ou mettre à jour chaque groupe
+    foreach ($data['groups'] as $index => $group) {
+        $stmt_groups->bindParam(':id', $group['id']);
+        $stmt_groups->bindParam(':name', $group['name']);
+        $expanded = $group['expanded'] ? 1 : 0;
+        $stmt_groups->bindParam(':expanded', $expanded);
+        $order = $index;
+        $stmt_groups->bindParam(':order', $order);
         
-        $groupStmt->bindParam(':id', $group['id']);
-        $groupStmt->bindParam(':name', $group['name']);
-        $groupStmt->bindParam(':expanded', $expanded);
-        $groupStmt->bindParam(':order', $order);
-        $order++;
-        $groupStmt->execute();
-        
-        // Si le groupe a des éléments, les ajouter à la table des documents
-        if (isset($group['items']) && is_array($group['items'])) {
-            $subOrder = 0;
-            foreach ($group['items'] as $item) {
-                $docStmt->bindParam(':id', $item['id']);
-                $docStmt->bindParam(':name', $item['name']);
-                $docStmt->bindParam(':link', $item['link']);
-                $docStmt->bindParam(':groupId', $group['id']);
-                $docStmt->bindParam(':order', $subOrder);
-                $subOrder++;
-                $docStmt->execute();
-            }
-        }
+        $stmt_groups->execute();
     }
-    
+
     // Valider la transaction
     $conn->commit();
-    
+
     http_response_code(200);
     echo json_encode([
-        'success' => true,
-        'message' => 'Bibliothèque synchronisée avec succès',
-        'documents_count' => count($documents),
-        'groups_count' => count($groups)
+        'success' => true, 
+        'message' => 'Bibliothèque synchronisée avec succès', 
+        'count_documents' => count($data['documents']),
+        'count_groups' => count($data['groups'])
     ]);
     
 } catch (Exception $e) {
-    // En cas d'erreur, annuler la transaction
-    if (isset($conn)) {
+    // En cas d'erreur, annuler toute modification en cours
+    if (isset($conn) && $conn->inTransaction()) {
         $conn->rollBack();
     }
     
     error_log("Erreur lors de la synchronisation de la bibliothèque: " . $e->getMessage());
     http_response_code(500);
     echo json_encode([
-        'success' => false,
+        'success' => false, 
         'message' => 'Erreur serveur: ' . $e->getMessage()
     ]);
 }

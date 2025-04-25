@@ -1,4 +1,3 @@
-
 name: Deploy to Infomaniak
 
 on:
@@ -25,66 +24,15 @@ jobs:
     - name: Build React App
       run: npm run build
       
-    - name: Verify Build Output
+    - name: Debug build output
       run: |
         echo "============== Debugging build output =============="
-        echo "Liste détaillée des fichiers dans dist:"
-        find dist -type f | sort
-        
-        # Vérification spécifique des fichiers API
-        echo -e "\n🔍 Vérification des fichiers API critiques:"
-        CRITICAL_FILES=(
-          "dist/api/index.php"
-          "dist/api/.htaccess"
-          "dist/api/.user.ini"
-          "dist/api/bibliotheque-load.php"
-          "dist/api/bibliotheque-sync.php"
-          "dist/api/php-execution-test.php"
-        )
-        
-        for file in "${CRITICAL_FILES[@]}"; do
-          if [ -f "$file" ]; then
-            echo "✅ $file existe"
-          else
-            echo "❌ $file MANQUANT"
-          fi
-        done
-        
-    - name: Create missing API files
-      run: |
-        mkdir -p dist/api
-        
-        # Créer bibliotheque-load.php s'il n'existe pas
-        if [ ! -f dist/api/bibliotheque-load.php ]; then
-          cat > dist/api/bibliotheque-load.php << 'EOF'
-<?php
-header("Content-Type: application/json; charset=UTF-8");
-header("Access-Control-Allow-Origin: *");
-
-echo json_encode([
-    'status' => 'success',
-    'message' => 'Bibliothèque chargée',
-    'timestamp' => date('Y-m-d H:i:s')
-]);
-?>
-EOF
-        fi
-        
-        # Créer bibliotheque-sync.php s'il n'existe pas
-        if [ ! -f dist/api/bibliotheque-sync.php ]; then
-          cat > dist/api/bibliotheque-sync.php << 'EOF'
-<?php
-header("Content-Type: application/json; charset=UTF-8");
-header("Access-Control-Allow-Origin: *");
-
-echo json_encode([
-    'status' => 'success',
-    'message' => 'Synchronisation de la bibliothèque réussie',
-    'timestamp' => date('Y-m-d H:i:s')
-]);
-?>
-EOF
-        fi
+        echo "Liste des fichiers dans dist:"
+        ls -la dist/
+        echo "Liste des fichiers assets:"
+        ls -la dist/assets/ || echo "Dossier assets non trouvé"
+        echo "Contenu de index.html:"
+        cat dist/index.html || echo "index.html non trouvé"
 
     - name: Create complete directory structure
       run: |
@@ -124,11 +72,6 @@ EOF
         cp -v api/php.ini dist/api/ || echo "Attention: php.ini non trouvé"
         cp -v api/login-test.php dist/api/ || echo "Attention: login-test.php non trouvé"
         cp -v api/check-users.php dist/api/ || echo "Attention: check-users.php non trouvé"
-        cp -v api/php-execution-test.php dist/api/ || echo "Attention: php-execution-test.php non trouvé"
-        cp -v api/php-diagnostic.php dist/api/ || echo "Attention: php-diagnostic.php non trouvé"
-        cp -v api/phpinfo.php dist/api/ || echo "Attention: phpinfo.php non trouvé"
-        cp -v api/execution-check.php dist/api/ || echo "Attention: execution-check.php non trouvé"
-        cp -v api/mime-test.php dist/api/ || echo "Attention: mime-test.php non trouvé"
         
         # Ajout des fichiers de gestion documentaire
         cp -v api/documents-load.php dist/api/ || echo "Attention: documents-load.php non trouvé"
@@ -164,7 +107,6 @@ EOF
         cp -v deploy-on-infomaniak.php dist/ || echo "Attention: deploy-on-infomaniak.php non trouvé"
         cp -v verify-deploy.php dist/ || echo "Attention: verify-deploy.php non trouvé"
         cp -v deploy-check.php dist/ || echo "Attention: deploy-check.php non trouvé"
-        cp -v infomaniak-paths-check.php dist/ || echo "Attention: infomaniak-paths-check.php non trouvé"
         
         # Copier les fichiers uploads avec récursion
         cp -r public/lovable-uploads/* dist/public/lovable-uploads/ || echo "Aucun fichier d'upload trouvé"
