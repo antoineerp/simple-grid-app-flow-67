@@ -11,7 +11,7 @@ export interface Utilisateur {
   nom: string;
   prenom: string;
   email: string;
-  mot_de_passe: string; // Made this required to match the interface in index.ts
+  mot_de_passe: string;
   identifiant_technique: string;
   role: string;
   date_creation: string;

@@ -9,7 +9,7 @@ if (ob_get_level()) ob_end_clean();
 
 // Définir les en-têtes CORS et le type de contenu avant toute sortie
 header("Content-Type: application/json; charset=UTF-8");
-header("Access-Control-Allow-Origin: *");
+header("Access-Control-Allow-Origin: https://qualiopi.ch");
 header("Access-Control-Allow-Methods: GET, OPTIONS");
 header("Access-Control-Allow-Headers: Content-Type, Authorization");
 header("Cache-Control: no-cache, no-store, must-revalidate");

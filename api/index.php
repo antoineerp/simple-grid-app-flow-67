@@ -44,7 +44,10 @@ switch ($controller) {
         break;
         
     case 'utilisateurs':
-        if (file_exists('controllers/UsersController.php')) {
+    case 'check-users':
+        if (file_exists('check-users.php')) {
+            require_once 'check-users.php';
+        } else if (file_exists('controllers/UsersController.php')) {
             define('DIRECT_ACCESS_CHECK', true);
             require_once 'controllers/UsersController.php';
         } else {
@@ -56,7 +59,6 @@ switch ($controller) {
         }
         break;
         
-    // Ajouter des cas explicites pour les fichiers de documents
     case 'documents-load':
         require_once 'documents-load.php';
         break;
@@ -65,7 +67,6 @@ switch ($controller) {
         require_once 'documents-sync.php';
         break;
         
-    // Ajouter des cas explicites pour les fichiers de bibliothèque
     case 'bibliotheque-load':
         require_once 'bibliotheque-load.php';
         break;
@@ -78,7 +79,6 @@ switch ($controller) {
         require_once 'config.php';
         break;
         
-    // Ajouter un cas explicite pour phpinfo.php et info.php
     case 'phpinfo':
         require_once 'phpinfo.php';
         break;
