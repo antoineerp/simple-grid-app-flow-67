@@ -4,26 +4,6 @@ import { getApiUrl } from '@/config/apiConfig';
 import { getAuthHeaders } from '@/services/auth/authService';
 
 /**
- * Vérifier que l'endpoint existe
- */
-const checkEndpointExists = async (endpoint: string): Promise<boolean> => {
-  try {
-    console.log(`Vérification de l'existence de l'endpoint: ${endpoint}`);
-    const response = await fetch(endpoint, {
-      method: 'HEAD',
-      headers: getAuthHeaders()
-    });
-    
-    const exists = response.ok || response.status === 200 || response.status === 405;
-    console.log(`Endpoint ${endpoint} existe: ${exists} (status: ${response.status})`);
-    return exists;
-  } catch (e) {
-    console.warn(`Erreur lors de la vérification de l'endpoint ${endpoint}:`, e);
-    return false;
-  }
-};
-
-/**
  * Synchronizes documents with the server
  */
 export const syncDocumentsWithServer = async (
@@ -36,13 +16,6 @@ export const syncDocumentsWithServer = async (
     const API_URL = getApiUrl();
     const endpoint = `${API_URL}/documents-sync.php`;
     console.log(`Tentative de synchronisation avec: ${endpoint}`);
-    
-    // Vérifier que l'endpoint existe avant de l'appeler
-    const endpointExists = await checkEndpointExists(endpoint);
-    if (!endpointExists) {
-      console.error(`L'endpoint ${endpoint} n'existe pas ou n'est pas accessible`);
-      throw new Error(`L'endpoint ${endpoint} n'existe pas ou n'est pas accessible`);
-    }
     
     const response = await fetch(endpoint, {
       method: 'POST',
@@ -93,13 +66,6 @@ export const loadDocumentsFromServer = async (currentUser: string): Promise<Docu
     const API_URL = getApiUrl();
     const endpoint = `${API_URL}/documents-load.php`;
     console.log(`Chargement des documents pour l'utilisateur ${currentUser} depuis: ${endpoint}`);
-    
-    // Vérifier que l'endpoint existe avant de l'appeler
-    const endpointExists = await checkEndpointExists(endpoint);
-    if (!endpointExists) {
-      console.error(`L'endpoint ${endpoint} n'existe pas ou n'est pas accessible`);
-      throw new Error(`L'endpoint ${endpoint} n'existe pas ou n'est pas accessible`);
-    }
     
     const response = await fetch(`${endpoint}?userId=${encodeURIComponent(currentUser)}`, {
       method: 'GET',
@@ -158,8 +124,7 @@ export const checkDocumentApiAvailability = async (): Promise<{
         method: 'HEAD',
         headers: getAuthHeaders()
       });
-      result.loadAvailable = loadResponse.ok || loadResponse.status === 405;
-      console.log(`API documents-load disponible: ${result.loadAvailable} (status: ${loadResponse.status})`);
+      result.loadAvailable = loadResponse.ok;
     } catch (e) {
       console.warn("Endpoint de chargement indisponible:", e);
     }
@@ -170,8 +135,7 @@ export const checkDocumentApiAvailability = async (): Promise<{
         method: 'HEAD',
         headers: getAuthHeaders()
       });
-      result.syncAvailable = syncResponse.ok || syncResponse.status === 405;
-      console.log(`API documents-sync disponible: ${result.syncAvailable} (status: ${syncResponse.status})`);
+      result.syncAvailable = syncResponse.ok;
     } catch (e) {
       console.warn("Endpoint de synchronisation indisponible:", e);
     }

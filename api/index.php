@@ -37,38 +37,6 @@ error_log("API Request: " . $_SERVER['REQUEST_URI'] . " | Method: " . $_SERVER['
 
 // Obtenir le chemin de la requête
 $request_uri = $_SERVER['REQUEST_URI'];
-$api_path = parse_url($request_uri, PHP_URL_PATH);
-error_log("API Path: " . $api_path);
-
-// Chemin des fichiers spéciaux directs
-$direct_files = [
-    '/api/auth' => 'auth.php',
-    '/api/auth.php' => 'auth.php',
-    '/api/login-test.php' => 'login-test.php',
-    '/api/test-login.php' => 'test-login.php',
-    '/api/documents-load.php' => 'documents-load.php',
-    '/api/documents-sync.php' => 'documents-sync.php',
-    '/api/bibliotheque-load.php' => 'bibliotheque-load.php',
-    '/api/bibliotheque-sync.php' => 'bibliotheque-sync.php'
-];
-
-// Vérifier si le chemin demandé correspond à un fichier direct
-if (isset($direct_files[$api_path])) {
-    $file_to_include = $direct_files[$api_path];
-    error_log("Route directe détectée: $api_path -> $file_to_include");
-    
-    if (file_exists($file_to_include)) {
-        require_once $file_to_include;
-    } else {
-        error_log("ERREUR: Fichier non trouvé: $file_to_include");
-        http_response_code(404);
-        echo json_encode([
-            'status' => 'error', 
-            'message' => 'Fichier non trouvé: ' . $file_to_include
-        ]);
-    }
-    exit;
-}
 
 // Normaliser le chemin de l'API
 $base_path = '/api/';
@@ -159,15 +127,11 @@ if ($controller == 'utilisateurs') {
 // Router vers le bon fichier en fonction du contrôleur
 switch ($controller) {
     case 'auth':
-        require_once 'auth.php';
+        require_once 'controllers/AuthController.php';
         break;
         
     case 'login-test':
         require_once 'login-test.php';
-        break;
-        
-    case 'test-login':
-        require_once 'test-login.php';
         break;
         
     case 'database-test':
@@ -214,7 +178,12 @@ switch ($controller) {
         require_once 'bibliotheque-sync.php';
         break;
         
-    // Ajouter un cas explicite pour test.php
+    // Ajouter un cas explicite pour login-test.php au cas où il serait appelé directement
+    case 'login-test.php':
+        require_once 'login-test.php';
+        break;
+        
+    // Ajouter un cas explicite pour test.php car il manque peut-être aussi
     case 'test':
     case 'test.php':
         require_once 'test.php';
@@ -238,13 +207,10 @@ switch ($controller) {
             require_once $controller_file;
         } else {
             // Aucune route correspondante trouvée
-            error_log("Route non trouvée: $path [$controller]");
             http_response_code(404);
             echo json_encode([
                 'message' => 'Route non trouvée: ' . $path,
-                'status' => 404,
-                'controller_requested' => $controller,
-                'file_checked' => $controller_file
+                'status' => 404
             ]);
         }
         break;

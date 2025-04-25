@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { FileText, FolderPlus, CloudSun, AlertTriangle, Info } from 'lucide-react';
+import { FileText, FolderPlus, CloudSun, AlertTriangle } from 'lucide-react';
 import { MembresProvider } from '@/contexts/MembresContext';
 import DocumentForm from '@/components/gestion-documentaire/DocumentForm';
 import DocumentStatusDisplay from '@/components/gestion-documentaire/DocumentStats';
@@ -12,7 +12,6 @@ import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert"; 
 import SyncStatusIndicator from '@/components/common/SyncStatusIndicator';
-import { getFullApiUrl } from '@/config/apiConfig';
 
 const GestionDocumentaireContent = () => {
   const {
@@ -84,13 +83,10 @@ const GestionDocumentaireContent = () => {
       </div>
 
       {apiUnavailable && (
-        <Alert variant="default" className="mb-4 bg-amber-50 text-amber-800 border-amber-200">
+        <Alert variant="warning" className="mb-4 bg-amber-50 text-amber-800 border-amber-200">
           <AlertTriangle className="h-4 w-4 mr-2" />
           <AlertDescription>
             <span className="font-bold">Mode hors ligne</span>: La synchronisation avec le serveur n'est pas disponible pour le moment. Les modifications seront sauvegardées localement.
-            <div className="mt-1 text-xs">
-              API Load: {apiAvailable.load ? '✅' : '❌'} | API Sync: {apiAvailable.sync ? '✅' : '❌'} | Endpoint: {getFullApiUrl()}
-            </div>
           </AlertDescription>
         </Alert>
       )}

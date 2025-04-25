@@ -1,28 +1,29 @@
 
-# Configuration spécifique API pour l'exécution PHP
-Options -MultiViews
-
-<IfModule mod_php.c>
-    php_flag engine on
-    php_value default_charset "UTF-8"
-</IfModule>
-
-<FilesMatch "\.php$">
-    SetHandler application/x-httpd-php
-    ForceType application/x-httpd-php
-</FilesMatch>
-
-AddHandler application/x-httpd-php .php
-AddType application/x-httpd-php .php
-
-# Configuration CORS et headers
-<IfModule mod_headers.c>
-    Header set Access-Control-Allow-Origin "*"
-    Header set Access-Control-Allow-Methods "GET, POST, OPTIONS"
-    Header set Access-Control-Allow-Headers "Content-Type, Authorization"
-</IfModule>
-
-# Règles de routage
+# Activer la réécriture d'URL
 RewriteEngine On
+
+# Permettre l'accès direct aux fichiers PHP spécifiques
 RewriteCond %{REQUEST_FILENAME} -f
 RewriteRule \.(php)$ - [L]
+
+# Rediriger toutes les requêtes vers l'index.php sauf pour les fichiers existants
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^(.*)$ index.php [QSA,L]
+
+# Définir les en-têtes CORS
+<IfModule mod_headers.c>
+    Header set Access-Control-Allow-Origin "*"
+    Header set Access-Control-Allow-Methods "GET, POST, OPTIONS, PUT, DELETE"
+    Header set Access-Control-Allow-Headers "Content-Type, Authorization"
+    
+    # Eviter la mise en cache
+    Header set Cache-Control "no-cache, no-store, must-revalidate"
+    Header set Pragma "no-cache"
+    Header set Expires 0
+</IfModule>
+
+# Forcer PHP à utiliser le bon encodage
+<IfModule mod_php.c>
+    php_value default_charset "UTF-8"
+</IfModule>

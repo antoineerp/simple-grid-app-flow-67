@@ -1,22 +1,56 @@
 
-# Configuration avancée pour l'exécution PHP sur Infomaniak
+# Activer le moteur de réécriture
+RewriteEngine On
+
+# Configuration spécifique pour Infomaniak
 Options -MultiViews
 Options +FollowSymLinks
 
-# Forcer l'exécution PHP pour tous les fichiers
-<IfModule mod_php.c>
-    php_flag engine on
-    php_value default_charset "UTF-8"
-</IfModule>
+# Définir le point d'entrée principal
+DirectoryIndex index.html index.php
 
-<FilesMatch "\.php$">
-    SetHandler application/x-httpd-php
-    ForceType application/x-httpd-php
+# Définir les types MIME corrects
+AddType application/javascript .js
+AddType text/css .css
+AddType application/json .json
+AddType image/svg+xml .svg
+
+# Permettre l'accès aux assets
+<FilesMatch "\.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot|map|tsx?)$">
+    Order Allow,Deny
+    Allow from all
 </FilesMatch>
 
-AddHandler application/x-httpd-php .php
-AddType application/x-httpd-php .php
+# Traitement des ressources statiques
+RewriteCond %{REQUEST_URI} ^/lovable-uploads/
+RewriteRule ^lovable-uploads/(.*)$ public/lovable-uploads/$1 [L]
 
-# Règles de routage et de sécurité
-RewriteEngine On
-DirectoryIndex index.php index.html
+# Règle pour l'API - toutes les requêtes /api vers le dossier api
+RewriteRule ^api/?$ api/index.php [L]
+RewriteRule ^api/(.*)$ api/$1 [QSA,L]
+
+# Permettre l'accès direct aux assets dans leur dossier
+RewriteCond %{REQUEST_URI} ^/assets/
+RewriteCond %{REQUEST_FILENAME} -f
+RewriteRule ^ - [L]
+
+# Permettre l'accès direct aux autres ressources statiques
+RewriteCond %{REQUEST_URI} \.(js|css|png|jpe?g|gif|svg|ico|webp|woff2?|ttf|eot|map|tsx?)$
+RewriteCond %{REQUEST_FILENAME} -f
+RewriteRule ^ - [L]
+
+# Rediriger toutes les autres requêtes vers index.html pour React Router
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteCond %{REQUEST_URI} !^/api/
+RewriteRule ^(.*)$ index.html [QSA,L]
+
+# Configuration de sécurité
+<IfModule mod_headers.c>
+    # Configuration pour les assets statiques
+    <FilesMatch "\.(js|css|json)$">
+        Header set Cache-Control "no-cache, no-store, must-revalidate"
+        Header set Pragma "no-cache"
+        Header set Expires "0"
+    </FilesMatch>
+</IfModule>
