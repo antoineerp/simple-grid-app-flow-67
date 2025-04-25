@@ -10,28 +10,18 @@ RewriteEngine On
 # Forcer le type MIME pour PHP
 AddType application/x-httpd-php .php
 
-# Permettre l'accès direct aux fichiers PHP spécifiques
-RewriteCond %{REQUEST_FILENAME} -f
-RewriteRule \.(php)$ - [L]
-
-# Rediriger toutes les requêtes vers l'index.php sauf pour les fichiers existants
-RewriteCond %{REQUEST_FILENAME} !-f
-RewriteCond %{REQUEST_FILENAME} !-d
-RewriteRule ^(.*)$ index.php [QSA,L]
-
-# Définir les en-têtes CORS pour la production
+# Définir les en-têtes CORS
 <IfModule mod_headers.c>
-    Header set Access-Control-Allow-Origin "https://qualiopi.ch"
+    Header set Access-Control-Allow-Origin "*"
     Header set Access-Control-Allow-Methods "GET, POST, OPTIONS, PUT, DELETE"
     Header set Access-Control-Allow-Headers "Content-Type, Authorization"
-    
-    # Eviter la mise en cache
     Header set Cache-Control "no-cache, no-store, must-revalidate"
-    Header set Pragma "no-cache"
-    Header set Expires 0
 </IfModule>
 
-# Forcer PHP à utiliser le bon encodage
+# Configuration PHP
 <IfModule mod_php.c>
     php_value default_charset "UTF-8"
+    php_value display_errors Off
+    php_value log_errors On
+    php_value error_log "/tmp/php-errors.log"
 </IfModule>
