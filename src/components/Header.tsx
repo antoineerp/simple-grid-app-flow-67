@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
@@ -10,7 +9,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { getAuthHeaders, getCurrentUser } from '@/services/auth/authService';
-import { isConnected as isConnectedToDatabase } from '@/services/core/databaseConnectionService';
+import { isConnectedToDatabase } from '@/services/core/databaseConnectionService';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { MenuIcon, User, LogOut, Settings, Database, CloudSun } from "lucide-react";
 import { ModeToggle } from '@/components/ui/mode-toggle';
