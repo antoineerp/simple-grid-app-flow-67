@@ -2,6 +2,9 @@
 // Forcer l'output buffering pour éviter tout output avant les headers
 ob_start();
 
+// Force le bon type MIME pour s'assurer que le PHP s'exécute
+header("Content-Type: application/json; charset=UTF-8", true);
+
 // Vérifier si nous sommes dans un environnement de production ou de développement
 $is_production = (getenv('APP_ENV') === 'production' || !getenv('APP_ENV'));
 
@@ -18,7 +21,6 @@ if (!$is_production) {
 }
 
 // Définir les headers communs
-header("Content-Type: application/json; charset=UTF-8");
 header("Access-Control-Allow-Origin: *");
 header("Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS");
 header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With");
@@ -39,36 +41,55 @@ $request_uri = $_SERVER['REQUEST_URI'];
 $api_path = parse_url($request_uri, PHP_URL_PATH);
 error_log("API Path: " . $api_path);
 
-// Vérifier directement pour les fichiers spécifiques incluant php-execution-test.php
-if (strpos($api_path, '/api/php-execution-test.php') !== false) {
-    error_log("Route php-execution-test.php détectée, inclusion directe");
-    require_once 'php-execution-test.php';
+// Si nous sommes sur l'URL racine de l'API (avec ou sans index.php) ou une requête de test
+if ($request_uri == '/api/' || $request_uri == '/api/index.php' || $request_uri == '/api/index.php/') {
+    http_response_code(200);
+    echo json_encode([
+        'message' => 'API PHP disponible',
+        'status' => 200,
+        'environment' => $is_production ? 'production' : 'development',
+        'timestamp' => date('Y-m-d H:i:s'),
+        'execution' => 'PHP fonctionne correctement',
+        'version_php' => phpversion(),
+        'server_info' => [
+            'host' => $_SERVER['SERVER_NAME'] ?? 'inconnu',
+            'uri' => $_SERVER['REQUEST_URI'] ?? 'inconnu',
+            'script' => $_SERVER['SCRIPT_NAME'] ?? 'inconnu'
+        ]
+    ]);
     exit;
 }
 
-// Vérifier directement pour les fichiers documents-load.php et documents-sync.php
-if (strpos($api_path, '/api/documents-load.php') !== false) {
-    error_log("Route documents-load.php détectée, inclusion directe");
-    require_once 'documents-load.php';
-    exit;
-}
+// Vérifier directement pour les fichiers spécifiques
+$direct_files = [
+    '/api/php-execution-test.php' => 'php-execution-test.php',
+    '/api/execution-check.php' => 'execution-check.php',
+    '/api/phpinfo.php' => 'phpinfo.php',
+    '/api/mime-test.php' => 'mime-test.php',
+    '/api/documents-load.php' => 'documents-load.php',
+    '/api/documents-sync.php' => 'documents-sync.php',
+    '/api/bibliotheque-load.php' => 'bibliotheque-load.php',
+    '/api/bibliotheque-sync.php' => 'bibliotheque-sync.php',
+    '/api/check-users.php' => 'check-users.php'
+];
 
-if (strpos($api_path, '/api/documents-sync.php') !== false) {
-    error_log("Route documents-sync.php détectée, inclusion directe");
-    require_once 'documents-sync.php';
-    exit;
-}
-
-if (strpos($api_path, '/api/bibliotheque-load.php') !== false) {
-    error_log("Route bibliotheque-load.php détectée, inclusion directe");
-    require_once 'bibliotheque-load.php';
-    exit;
-}
-
-if (strpos($api_path, '/api/bibliotheque-sync.php') !== false) {
-    error_log("Route bibliotheque-sync.php détectée, inclusion directe");
-    require_once 'bibliotheque-sync.php';
-    exit;
+foreach ($direct_files as $path => $file) {
+    if (strpos($api_path, $path) !== false) {
+        error_log("Route $file détectée, inclusion directe");
+        if (file_exists($file)) {
+            require_once $file;
+            exit;
+        } else {
+            error_log("ERREUR: Fichier $file non trouvé");
+            http_response_code(404);
+            echo json_encode([
+                'status' => 'error', 
+                'message' => "Fichier $file non trouvé", 
+                'path' => $file
+            ]);
+            exit;
+        }
+    }
 }
 
 // Normaliser le chemin de l'API
@@ -85,22 +106,6 @@ $is_test_request = false;
 // Vérifier si c'est une requête de test
 if ($query_string && strpos($query_string, 'test=1') !== false) {
     $is_test_request = true;
-}
-
-// Si nous sommes sur l'URL racine de l'API (avec ou sans index.php) ou une requête de test, renvoyer un message de base
-if ($is_test_request || $request_uri == '/api/' || $request_uri == '/api/index.php' || $request_uri == '/api/index.php/') {
-    http_response_code(200);
-    echo json_encode([
-        'message' => 'API PHP disponible',
-        'status' => 200,
-        'environment' => $is_production ? 'production' : 'development',
-        'server_info' => [
-            'host' => $_SERVER['SERVER_NAME'],
-            'uri' => $_SERVER['REQUEST_URI'],
-            'script' => $_SERVER['SCRIPT_NAME']
-        ]
-    ]);
-    exit;
 }
 
 // Définir une fonction pour nettoyer les données UTF-8
