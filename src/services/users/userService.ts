@@ -45,19 +45,43 @@ class UserService {
         method: 'GET',
         headers: {
           ...getAuthHeaders(),
-          'Cache-Control': 'no-cache, no-store, must-revalidate'
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Accept': 'application/json'
         }
       });
       
+      // Vérifier le Content-Type de la réponse pour détecter les erreurs HTML
+      const contentType = response.headers.get('Content-Type');
+      if (contentType && contentType.includes('text/html')) {
+        console.error("Erreur: Réponse HTML reçue au lieu de JSON");
+        throw new Error("Format de réponse invalide: HTML reçu au lieu de JSON");
+      }
+      
       if (!response.ok) {
+        // Loggez plus d'infos sur la réponse pour le debug
+        console.error(`Erreur HTTP: ${response.status}, StatusText: ${response.statusText}`);
+        const responseText = await response.text();
+        console.error("Texte de la réponse:", responseText);
         throw new Error(`Erreur HTTP: ${response.status}`);
       }
       
-      const data = await response.json();
-      console.log("Données reçues:", data);
+      const responseText = await response.text();
+      console.log("Réponse brute:", responseText);
+      
+      let data;
+      try {
+        data = JSON.parse(responseText);
+      } catch (e) {
+        console.error("Erreur de parsing JSON:", e);
+        console.error("Réponse non-JSON:", responseText);
+        throw new Error("Format de réponse invalide: pas du JSON valide");
+      }
+      
+      console.log("Données JSON parsées:", data);
       
       if (!data.records || !Array.isArray(data.records)) {
-        throw new Error("Format de réponse invalide");
+        console.error("Structure de données incorrecte:", data);
+        throw new Error("Format de réponse invalide: records manquant ou pas un tableau");
       }
       
       return data.records;

@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from 'react';
 import { getUtilisateurs, connectAsUser, testDatabaseConnection, type Utilisateur } from '@/services';
 import { toast } from "@/hooks/use-toast";
@@ -44,28 +43,20 @@ export const useAdminUsers = () => {
       const data = await getUtilisateurs();
       console.log("Données utilisateurs récupérées:", data);
       
-      // Corriger la vérification du type de data et l'accès aux propriétés
+      // Si data est un tableau, l'utiliser directement
       if (Array.isArray(data)) {
         setUtilisateurs(data);
-      } else if (data && typeof data === 'object') {
-        // Vérification de sécurité pour l'accès à records avec TypeScript
-        const responseData = data as any;
-        if (responseData.records && Array.isArray(responseData.records)) {
-          setUtilisateurs(responseData.records);
-        } else {
-          console.warn("Format de données inattendu:", data);
-          setUtilisateurs([]);
-        }
       } else {
         console.warn("Format de données inattendu:", data);
         setUtilisateurs([]);
       }
     } catch (error) {
       console.error("Erreur lors du chargement des utilisateurs", error);
-      setError(error instanceof Error ? error.message : "Impossible de charger les utilisateurs.");
+      const errorMessage = error instanceof Error ? error.message : "Impossible de charger les utilisateurs.";
+      setError(errorMessage);
       toast({
         title: "Erreur",
-        description: "Impossible de charger les utilisateurs.",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {

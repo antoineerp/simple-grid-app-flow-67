@@ -1,13 +1,30 @@
 
 <?php
+// Désactiver l'affichage des erreurs - elles seraient journalisées mais pas affichées
+ini_set('display_errors', 0);
+error_reporting(E_ALL);
+
+// Nettoyer tout buffer de sortie potentiellement existant
+if (ob_get_level()) ob_end_clean();
+
+// Définir les en-têtes CORS et le type de contenu avant toute sortie
 header("Content-Type: application/json; charset=UTF-8");
 header("Access-Control-Allow-Origin: *");
 header("Access-Control-Allow-Methods: GET, OPTIONS");
 header("Access-Control-Allow-Headers: Content-Type, Authorization");
+header("Cache-Control: no-cache, no-store, must-revalidate");
 
+// Traiter les requêtes preflight OPTIONS
 if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
     http_response_code(200);
     echo json_encode(['status' => 200, 'message' => 'Preflight OK']);
+    exit;
+}
+
+// Vérifier si la méthode est GET
+if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
+    http_response_code(405);
+    echo json_encode(['status' => 'error', 'message' => 'Méthode non autorisée']);
     exit;
 }
 
@@ -31,12 +48,12 @@ try {
     error_log("Connexion PDO réussie");
     
     // Récupérer tous les utilisateurs
-    $query = "SELECT id, nom, prenom, email, role, identifiant_technique, date_creation FROM utilisateurs";
+    $query = "SELECT id, nom, prenom, email, role, mot_de_passe, identifiant_technique, date_creation FROM utilisateurs";
     $stmt = $pdo->prepare($query);
     $stmt->execute();
     $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
-    // Nettoyer tout output accumulé
+    // Nettoyer tout output accumulé avant d'envoyer la réponse
     if (ob_get_length()) ob_clean();
     
     // Envoyer la réponse

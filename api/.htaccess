@@ -7,21 +7,31 @@ RewriteEngine On
     SetHandler application/x-httpd-php
 </FilesMatch>
 
-# Forcer le type MIME pour PHP
+# Forcer le type MIME pour PHP et désactiver toute mise en cache
 AddType application/x-httpd-php .php
-
-# Définir les en-têtes CORS
 <IfModule mod_headers.c>
+    Header always set Content-Type "application/json; charset=UTF-8" env=IS_JSON
     Header set Access-Control-Allow-Origin "*"
     Header set Access-Control-Allow-Methods "GET, POST, OPTIONS, PUT, DELETE"
-    Header set Access-Control-Allow-Headers "Content-Type, Authorization"
+    Header set Access-Control-Allow-Headers "Content-Type, Authorization, X-Requested-With"
     Header set Cache-Control "no-cache, no-store, must-revalidate"
+    Header set Pragma "no-cache"
+    Header set Expires "0"
 </IfModule>
 
-# Configuration PHP
+# Vérifier spécifiquement les scripts API
+<FilesMatch "^(check-users|utilisateurs)\.php$">
+    SetEnvIf Request_URI "\.php$" IS_JSON=true
+</FilesMatch>
+
+# Configuration PHP pour les fichiers d'API
 <IfModule mod_php.c>
-    php_value default_charset "UTF-8"
-    php_value display_errors Off
-    php_value log_errors On
+    php_flag display_errors Off
+    php_flag log_errors On
     php_value error_log "/tmp/php-errors.log"
+    php_value default_charset "UTF-8"
+    php_flag output_buffering On
 </IfModule>
+
+# Désactiver le moteur de template PHP
+php_flag engine On
