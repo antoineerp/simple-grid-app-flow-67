@@ -1,17 +1,24 @@
 
 <?php
 // Fichier de test de login simplifié
+// S'assurer que les erreurs sont journalisées mais pas affichées
+ini_set('display_errors', 0);
+error_reporting(E_ALL);
+ini_set('log_errors', 1);
+ini_set('error_log', 'php_errors.log');
+
+// Définir explicitement le type de contenu JSON AVANT tout output
+header("Content-Type: application/json; charset=UTF-8");
 header("Access-Control-Allow-Origin: *");
 header("Access-Control-Allow-Methods: POST, GET, OPTIONS");
 header("Access-Control-Allow-Headers: Content-Type, Authorization");
-header("Content-Type: application/json; charset=UTF-8");
-
-// Include database configuration
-require_once 'config/database.php';
 
 // Journaliser l'accès pour le diagnostic
 error_log("=== EXÉCUTION DE login-test.php ===");
 error_log("Méthode: " . $_SERVER['REQUEST_METHOD'] . " - URI: " . $_SERVER['REQUEST_URI']);
+
+// Include database configuration
+require_once 'config/database.php';
 
 // Si c'est une requête OPTIONS (preflight), nous la terminons ici
 if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
@@ -105,9 +112,9 @@ $json_input = file_get_contents("php://input");
 $data = json_decode($json_input);
 
 // Journaliser les données reçues (masquer le mot de passe)
-$log_data = clone $data;
-if (isset($log_data->password)) {
-    $log_data->password = '********';
+$log_data = isset($data) ? json_decode(json_encode($data), true) : [];
+if (isset($log_data['password'])) {
+    $log_data['password'] = '********';
 }
 error_log("Données reçues: " . json_encode($log_data));
 
@@ -303,6 +310,7 @@ if (!empty($data->username) && !empty($data->password)) {
         
     } catch (Exception $e) {
         error_log("Erreur: " . $e->getMessage());
+        
         // En cas d'erreur, on tombe sur les utilisateurs de test
         // Liste des utilisateurs de test autorisés
         $test_users = [
@@ -315,11 +323,6 @@ if (!empty($data->username) && !empty($data->password)) {
         
         $username = $data->username;
         $password = $data->password;
-        
-        error_log("Tentative de connexion pour: " . $username . " avec mot de passe fourni");
-        
-        // Debug: vérifier quels utilisateurs sont disponibles
-        error_log("Utilisateurs disponibles: " . implode(", ", array_keys($test_users)));
         
         // Vérifier si l'utilisateur existe et si le mot de passe correspond
         if (isset($test_users[$username]) && (
@@ -371,7 +374,6 @@ if (!empty($data->username) && !empty($data->password)) {
                 ]
             ]);
         }
-        exit;
     }
 } else {
     // Si les données sont incomplètes

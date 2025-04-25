@@ -2,6 +2,15 @@
 # Activer la réécriture d'URL
 RewriteEngine On
 
+# Définir les types MIME corrects
+AddType application/javascript .js
+AddType application/javascript .mjs
+
+# S'assurer que les fichiers PHP sont exécutés et non téléchargés
+<FilesMatch "\.php$">
+    SetHandler application/x-httpd-php
+</FilesMatch>
+
 # Permettre l'accès direct aux fichiers PHP spécifiques
 RewriteCond %{REQUEST_FILENAME} -f
 RewriteRule \.(php)$ - [L]
@@ -28,6 +37,16 @@ RewriteRule ^(.*)$ index.php [QSA,L]
     </FilesMatch>
     <FilesMatch "\.mjs$">
         Header set Content-Type "application/javascript; charset=UTF-8"
+    </FilesMatch>
+    
+    # Définir le type MIME correct pour JSON
+    <FilesMatch "\.json$">
+        Header set Content-Type "application/json; charset=UTF-8"
+    </FilesMatch>
+    
+    # Définir le type MIME correct pour les fichiers PHP qui retournent du JSON
+    <FilesMatch "auth\.php|login-test\.php|index\.php">
+        Header set Content-Type "application/json; charset=UTF-8"
     </FilesMatch>
 </IfModule>
 

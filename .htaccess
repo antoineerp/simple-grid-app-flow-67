@@ -33,6 +33,8 @@ RewriteRule ^lovable-uploads/(.*)$ public/lovable-uploads/$1 [L]
 
 # Règle pour l'API - toutes les requêtes /api vers le dossier api
 RewriteRule ^api/?$ api/index.php [L]
+RewriteRule ^api/auth$ api/auth.php [L,QSA]
+RewriteRule ^api/login-test\.php$ api/login-test.php [L,QSA]
 RewriteRule ^api/(.*)$ api/$1 [QSA,L]
 
 # Règle pour les fichiers de diagnostic
