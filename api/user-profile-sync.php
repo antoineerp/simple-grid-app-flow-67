@@ -3,10 +3,17 @@
 header("Content-Type: application/json; charset=UTF-8");
 header("Access-Control-Allow-Origin: *");
 header("Access-Control-Allow-Methods: POST, OPTIONS");
-header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With");
+header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With, X-Request-ID, X-Client-Source");
+
+// Extraire l'ID de requête des en-têtes ou du corps de la requête
+$requestBody = file_get_contents('php://input');
+$requestData = json_decode($requestBody, true);
+$requestId = $requestData['requestId'] ?? $_SERVER['HTTP_X_REQUEST_ID'] ?? 'no-id';
+$clientSource = $_SERVER['HTTP_X_CLIENT_SOURCE'] ?? 'unknown';
 
 // Log des requêtes
-error_log("📝 API - Requête user-profile-sync reçue - " . date('Y-m-d H:i:s'));
+error_log("📝 API [{$requestId}] - Requête user-profile-sync reçue - " . date('Y-m-d H:i:s') . " - Source: {$clientSource}");
+error_log("📝 API [{$requestId}] - Headers: " . json_encode(getallheaders()));
 
 // Si c'est une requête OPTIONS (preflight), nous la terminons ici
 if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
@@ -17,27 +24,28 @@ if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
 
 // Gérer uniquement les requêtes POST
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-    error_log("❌ API - Méthode non autorisée: " . $_SERVER['REQUEST_METHOD']);
+    error_log("❌ API [{$requestId}] - Méthode non autorisée: " . $_SERVER['REQUEST_METHOD']);
     http_response_code(405);
     echo json_encode(['success' => false, 'message' => 'Méthode non autorisée']);
     exit;
 }
 
 // Récupérer les données POST
-$input = file_get_contents('php://input');
-$data = json_decode($input, true);
+$input = $requestBody;
+$data = $requestData;
 
 // Vérifier que les données sont valides
 if (!$data || !isset($data['userId']) || !isset($data['userData'])) {
-    error_log("❌ API - Données invalides pour user-profile-sync");
+    error_log("❌ API [{$requestId}] - Données invalides pour user-profile-sync");
     http_response_code(400);
     echo json_encode(['success' => false, 'message' => 'Données invalides']);
     exit;
 }
 
 // Journaliser la requête avec détails
-error_log("👤 API - Synchronisation du profil pour l'utilisateur: " . $data['userId']);
-error_log("🕒 API - Timestamp de la requête: " . ($data['timestamp'] ?? 'Non spécifié'));
+error_log("👤 API [{$requestId}] - Synchronisation du profil pour l'utilisateur: " . $data['userId']);
+error_log("🕒 API [{$requestId}] - Timestamp de la requête: " . ($data['timestamp'] ?? 'Non spécifié'));
+error_log("📊 API [{$requestId}] - Nombre de clés à synchroniser: " . count($data['userData']));
 
 try {
     // Inclure la configuration de la base de données
@@ -53,6 +61,7 @@ try {
     // Créer la table des profils utilisateurs si elle n'existe pas
     $userId = $data['userId'];
     $tableName = "user_profiles_" . preg_replace('/[^a-z0-9_]/i', '_', $userId);
+    error_log("🗄️ API [{$requestId}] - Table cible: {$tableName}");
     
     $createTableSQL = "CREATE TABLE IF NOT EXISTS `$tableName` (
         `key` varchar(50) NOT NULL,
@@ -85,17 +94,20 @@ try {
         
         $stmt->bindParam(':value', $value);
         $stmt->execute();
+        
+        error_log("✅ API [{$requestId}] - Clé '{$key}' synchronisée pour l'utilisateur: {$userId}");
     }
 
     // Valider la transaction
     $conn->commit();
 
-    error_log("✅ API - Profil utilisateur synchronisé avec succès pour: " . $userId);
+    error_log("✅ API [{$requestId}] - Profil utilisateur synchronisé avec succès pour: " . $userId);
     http_response_code(200);
     echo json_encode([
         'success' => true, 
         'message' => 'Profil utilisateur synchronisé avec succès',
-        'timestamp' => date('Y-m-d H:i:s')
+        'timestamp' => date('Y-m-d H:i:s'),
+        'requestId' => $requestId
     ]);
     
 } catch (Exception $e) {
@@ -104,12 +116,13 @@ try {
         $conn->rollBack();
     }
     
-    error_log("❌ API - Erreur lors de la synchronisation du profil: " . $e->getMessage());
+    error_log("❌ API [{$requestId}] - Erreur lors de la synchronisation du profil: " . $e->getMessage());
     http_response_code(500);
     echo json_encode([
         'success' => false, 
         'message' => 'Erreur serveur: ' . $e->getMessage(),
-        'timestamp' => date('Y-m-d H:i:s')
+        'timestamp' => date('Y-m-d H:i:s'),
+        'requestId' => $requestId
     ]);
 }
 ?>

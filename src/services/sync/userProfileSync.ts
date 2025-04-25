@@ -26,18 +26,29 @@ export const syncUserProfileWithServer = async (
     const endpoint = `${API_URL}/user-profile-sync.php`;
     console.log(`🌐 ENDPOINT - Synchronisation avec: ${endpoint}`);
     
+    // Ajouter un identifiant unique à la requête pour détecter les doublons
+    const requestId = `req_${new Date().getTime()}_${Math.random().toString(36).substring(2, 9)}`;
+    console.log(`🔑 REQUEST_ID - Identifiant unique: ${requestId}`);
+    
     const response = await fetch(endpoint, {
       method: 'POST',
       headers: {
         ...getAuthHeaders(),
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        'X-Request-ID': requestId,  // Ajouter l'ID unique dans les en-têtes
+        'X-Client-Source': 'react-app'
       },
       body: JSON.stringify({ 
         userId: currentUser, 
         userData,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        requestId // Inclure également l'ID dans les données pour le traçage côté serveur
       })
     });
+    
+    // Enregistrer les détails de la réponse pour détecter d'éventuels problèmes
+    console.log(`📥 RÉPONSE - Status: ${response.status} ${response.statusText}`);
+    console.log(`📥 RÉPONSE - Headers:`, Object.fromEntries(response.headers.entries()));
     
     if (!response.ok) {
       console.error(`❌ ERREUR - Synchronisation du profil: ${response.status}`);
@@ -71,12 +82,24 @@ export const loadUserProfileFromServer = async (forceUser?: string): Promise<any
     
     const API_URL = getApiUrl();
     const endpoint = `${API_URL}/user-profile-load.php`;
-    console.log(`🌐 CHARGEMENT - Profil utilisateur ${currentUser} depuis: ${endpoint}`);
     
-    const response = await fetch(`${endpoint}?userId=${encodeURIComponent(currentUser)}`, {
+    // Ajouter un identifiant unique à la requête pour détecter les doublons
+    const requestId = `req_${new Date().getTime()}_${Math.random().toString(36).substring(2, 9)}`;
+    console.log(`🔑 REQUEST_ID - Identifiant unique pour chargement: ${requestId}`);
+    console.log(`🌐 CHARGEMENT - Profil utilisateur ${currentUser} depuis: ${endpoint}?userId=${encodeURIComponent(currentUser)}`);
+    
+    const response = await fetch(`${endpoint}?userId=${encodeURIComponent(currentUser)}&requestId=${requestId}`, {
       method: 'GET',
-      headers: getAuthHeaders()
+      headers: {
+        ...getAuthHeaders(),
+        'X-Request-ID': requestId,
+        'X-Client-Source': 'react-app'
+      }
     });
+    
+    // Enregistrer les détails de la réponse pour détecter d'éventuels problèmes
+    console.log(`📥 RÉPONSE CHARGEMENT - Status: ${response.status} ${response.statusText}`);
+    console.log(`📥 RÉPONSE CHARGEMENT - Headers:`, Object.fromEntries(response.headers.entries()));
     
     if (!response.ok) {
       console.error(`❌ ERREUR - Chargement du profil: ${response.status}`);

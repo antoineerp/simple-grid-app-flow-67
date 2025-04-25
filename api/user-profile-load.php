@@ -3,10 +3,13 @@
 header("Content-Type: application/json; charset=UTF-8");
 header("Access-Control-Allow-Origin: *");
 header("Access-Control-Allow-Methods: GET, OPTIONS");
-header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With");
+header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With, X-Request-ID, X-Client-Source");
 
 // Log des requêtes
-error_log("📝 API - Requête user-profile-load reçue - " . date('Y-m-d H:i:s'));
+$requestId = $_GET['requestId'] ?? $_SERVER['HTTP_X_REQUEST_ID'] ?? 'no-id';
+$clientSource = $_SERVER['HTTP_X_CLIENT_SOURCE'] ?? 'unknown';
+error_log("📝 API [{$requestId}] - Requête user-profile-load reçue - " . date('Y-m-d H:i:s') . " - Source: {$clientSource}");
+error_log("📝 API [{$requestId}] - Headers: " . json_encode(getallheaders()));
 
 // Si c'est une requête OPTIONS (preflight), nous la terminons ici
 if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
@@ -17,7 +20,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
 
 // Gérer uniquement les requêtes GET
 if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
-    error_log("❌ API - Méthode non autorisée: " . $_SERVER['REQUEST_METHOD']);
+    error_log("❌ API [{$requestId}] - Méthode non autorisée: " . $_SERVER['REQUEST_METHOD']);
     http_response_code(405);
     echo json_encode(['success' => false, 'message' => 'Méthode non autorisée']);
     exit;
@@ -27,14 +30,14 @@ if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
 $userId = isset($_GET['userId']) ? $_GET['userId'] : null;
 
 if (!$userId) {
-    error_log("❌ API - ID utilisateur manquant pour user-profile-load");
+    error_log("❌ API [{$requestId}] - ID utilisateur manquant pour user-profile-load");
     http_response_code(400);
     echo json_encode(['success' => false, 'message' => 'ID utilisateur requis']);
     exit;
 }
 
 // Journaliser la requête
-error_log("👤 API - Chargement du profil pour l'utilisateur: " . $userId);
+error_log("👤 API [{$requestId}] - Chargement du profil pour l'utilisateur: " . $userId);
 
 try {
     // Inclure la configuration de la base de données
@@ -49,6 +52,7 @@ try {
 
     // Nom de la table des profils pour cet utilisateur
     $tableName = "user_profiles_" . preg_replace('/[^a-z0-9_]/i', '_', $userId);
+    error_log("🗄️ API [{$requestId}] - Recherche dans la table: {$tableName}");
     
     // Vérifier si la table existe
     $stmt = $conn->prepare("SHOW TABLES LIKE :tableName");
@@ -76,25 +80,27 @@ try {
             }
         }
         
-        error_log("✅ API - Profil utilisateur chargé avec succès pour: " . $userId);
+        error_log("✅ API [{$requestId}] - Profil utilisateur chargé avec succès pour: " . $userId . " - Entrées: " . count($userData));
     } else {
-        error_log("ℹ️ API - Aucune table de profil trouvée pour: " . $userId);
+        error_log("ℹ️ API [{$requestId}] - Aucune table de profil trouvée pour: " . $userId);
     }
 
     http_response_code(200);
     echo json_encode([
         'success' => true,
         'userData' => $userData,
-        'timestamp' => date('Y-m-d H:i:s')
+        'timestamp' => date('Y-m-d H:i:s'),
+        'requestId' => $requestId
     ]);
     
 } catch (Exception $e) {
-    error_log("❌ API - Erreur lors du chargement du profil: " . $e->getMessage());
+    error_log("❌ API [{$requestId}] - Erreur lors du chargement du profil: " . $e->getMessage());
     http_response_code(500);
     echo json_encode([
         'success' => false, 
         'message' => 'Erreur serveur: ' . $e->getMessage(),
-        'timestamp' => date('Y-m-d H:i:s')
+        'timestamp' => date('Y-m-d H:i:s'),
+        'requestId' => $requestId
     ]);
 }
 ?>
