@@ -30,6 +30,11 @@ jobs:
     - name: Build Project
       run: npm run build
 
+    - name: Create empty directories first (handled by FTP)
+      run: |
+        mkdir -p dist/api
+        touch dist/api/.gitkeep
+
     - name: Copy API files
       run: |
         mkdir -p dist/api
@@ -65,6 +70,13 @@ jobs:
         touch dist/api/middleware/.gitkeep
         touch dist/api/models/.gitkeep
         touch dist/api/utils/.gitkeep
+        
+        # Create test.php file for basic testing
+        echo "<?php" > dist/api/test.php
+        echo "header(\"Content-Type: application/json\");" >> dist/api/test.php
+        echo "header(\"Access-Control-Allow-Origin: *\");" >> dist/api/test.php
+        echo "echo json_encode([\"status\" => \"success\", \"test\" => \"ok\", \"timestamp\" => time()]);" >> dist/api/test.php
+        echo "?>" >> dist/api/test.php
 
     - name: Deploy to Infomaniak
       uses: SamKirkland/FTP-Deploy-Action@v4.3.4
