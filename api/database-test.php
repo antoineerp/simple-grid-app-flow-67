@@ -11,147 +11,111 @@ header("Cache-Control: no-cache, no-store, must-revalidate");
 header("Pragma: no-cache");
 header("Expires: 0");
 
-// Activer la journalisation des erreurs mais désactiver l'affichage
-ini_set('display_errors', 0);
-error_reporting(E_ALL);
-ini_set('log_errors', 1);
-ini_set('error_log', 'db_test_errors.log');
-
-// Garantir que nous avons un output buffering pour capturer les erreurs PHP
-ob_start(function($buffer) {
-    // Si le buffer ne commence pas par { ou [ (JSON), le convertir en JSON
-    $trimmed = trim($buffer);
-    if ($trimmed && !preg_match('/^[\{\[]/', $trimmed)) {
-        error_log("Output non-JSON détecté: " . substr($trimmed, 0, 100));
-        return json_encode([
-            'status' => 'error',
-            'message' => 'Erreur serveur PHP',
-            'details' => 'Une erreur PHP a interrompu le traitement.'
-        ]);
-    }
-    return $buffer;
-});
-
-// Si c'est une requête OPTIONS (preflight), nous la terminons ici
-if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
-    http_response_code(200);
-    echo json_encode(['status' => 200, 'message' => 'Preflight OK']);
-    exit;
-}
-
-// Journaliser l'exécution
-error_log("=== EXÉCUTION DE database-test.php ===");
-error_log("Méthode: " . $_SERVER['REQUEST_METHOD'] . " - URI: " . $_SERVER['REQUEST_URI']);
+// Capturer les erreurs PHP pour les inclure dans la sortie JSON
+ob_start();
 
 try {
-    // Inclure la configuration de la base de données
-    if (file_exists('config/database.php')) {
-        require_once 'config/database.php';
-    } else {
-        error_log("ERREUR: Fichier database.php non trouvé");
-        http_response_code(500);
-        echo json_encode([
-            'status' => 'error',
-            'message' => 'Fichier de configuration de base de données non trouvé'
-        ]);
-        exit;
+    // Informations sur le serveur et l'environnement
+    $serverInfo = [
+        'php_version' => phpversion(),
+        'server_software' => $_SERVER['SERVER_SOFTWARE'] ?? 'Unknown',
+        'script_name' => $_SERVER['SCRIPT_NAME'] ?? 'Unknown',
+        'document_root' => $_SERVER['DOCUMENT_ROOT'] ?? 'Unknown',
+        'timestamp' => date('Y-m-d H:i:s')
+    ];
+    
+    // Vérifier que les fichiers requis existent avant de les inclure
+    $configFilePath = __DIR__ . '/config/database.php';
+    
+    if (!file_exists($configFilePath)) {
+        throw new Exception("Fichier de configuration de la base de données non trouvé: " . $configFilePath);
     }
-
+    
+    // Inclure la configuration de la base de données
+    require_once $configFilePath;
+    
+    // Vérifier que la classe Database a bien été définie
+    if (!class_exists('Database')) {
+        throw new Exception("La classe Database n'est pas définie dans le fichier de configuration");
+    }
+    
     // Créer une instance de Database
     $database = new Database();
-    error_log("Instance de Database créée avec succès");
     
-    // Obtenir la connexion à la base de données
-    $db = $database->getConnection(false);
-    error_log("Connexion à la base de données " . ($database->is_connected ? "réussie" : "échouée"));
+    // Tester la connexion à la base de données
+    $connection = $database->getConnection(false);
+    $isConnected = $database->is_connected;
     
     // Préparer la réponse
     $response = [
-        'status' => $database->is_connected ? 'success' : 'error',
-        'message' => $database->is_connected ? 'Connexion à la base de données réussie' : 'Échec de la connexion à la base de données'
+        'status' => $isConnected ? 'success' : 'error',
+        'message' => $isConnected ? 'Connexion à la base de données réussie' : 'Échec de la connexion à la base de données',
+        'server_info' => $serverInfo
     ];
     
-    // Si la connexion a échoué, ajouter l'erreur à la réponse
-    if (!$database->is_connected) {
-        $response['error'] = $database->connection_error;
-        error_log("Échec de la connexion à la base de données: " . $database->connection_error);
-    } else {
-        // Ajouter des informations sur la base de données
-        $info = [];
+    // Si la connexion a réussi, ajouter des informations sur la base de données
+    if ($isConnected) {
+        $dbInfo = [];
         
         try {
-            error_log("Tentative de récupération des informations de la base de données");
+            // Nom de la base de données
+            $stmt = $connection->query("SELECT DATABASE() AS db_name");
+            $dbInfo['database'] = $stmt->fetch(PDO::FETCH_ASSOC)['db_name'];
             
-            // Obtenir des informations sur la base de données
-            $stmt = $db->query("SELECT DATABASE() AS db_name");
-            $dbName = $stmt->fetch(PDO::FETCH_ASSOC)['db_name'];
-            $info['database_name'] = $dbName;
-            error_log("Nom de la base de données: " . $dbName);
-            
-            // Obtenir des informations sur l'hôte
-            $info['host'] = $database->host;
-            
-            // Obtenir la liste des tables
-            $stmt = $db->query("SHOW TABLES");
+            // Liste des tables
+            $stmt = $connection->query("SHOW TABLES");
             $tables = $stmt->fetchAll(PDO::FETCH_COLUMN);
-            $info['tables'] = $tables;
-            $info['table_count'] = count($tables);
-            error_log("Nombre de tables: " . count($tables));
+            $dbInfo['tables'] = $tables;
+            $dbInfo['table_count'] = count($tables);
             
-            // Obtenir la taille de la base de données
-            $stmt = $db->query("SELECT 
+            // Taille de la base de données
+            $stmt = $connection->query("SELECT
                 SUM(data_length + index_length) AS size
                 FROM information_schema.TABLES
                 WHERE table_schema = DATABASE()");
             $size = $stmt->fetch(PDO::FETCH_ASSOC)['size'];
-            $info['size'] = $size ? round($size / (1024 * 1024), 2) . ' MB' : 'inconnu';
-            error_log("Taille de la base de données: " . $info['size']);
+            $dbInfo['size'] = $size ? round($size / (1024 * 1024), 2) . ' MB' : '0 MB';
             
-            // Obtenir des informations sur l'encodage
-            $stmt = $db->query("SELECT @@character_set_database AS encoding, @@collation_database AS collation");
-            $encodingInfo = $stmt->fetch(PDO::FETCH_ASSOC);
-            $info['encoding'] = $encodingInfo['encoding'];
-            $info['collation'] = $encodingInfo['collation'];
-            error_log("Encodage: " . $info['encoding'] . ", Collation: " . $info['collation']);
+            // Version du serveur
+            $dbInfo['server_version'] = $connection->getAttribute(PDO::ATTR_SERVER_VERSION);
+            $dbInfo['client_version'] = $connection->getAttribute(PDO::ATTR_CLIENT_VERSION);
             
-            // Ajouter une information sur la dernière sauvegarde (simulée)
-            $info['last_backup'] = date('Y-m-d H:i:s', strtotime('-1 day'));
-            
-            $response['info'] = $info;
-            error_log("Informations de base de données récupérées avec succès");
-        } catch (PDOException $e) {
-            error_log("Erreur PDO lors de la récupération des informations de base de données: " . $e->getMessage());
-            $response['info'] = [
-                'database_name' => $database->db_name,
-                'host' => $database->host,
-                'error' => 'Impossible d\'obtenir des informations détaillées: ' . $e->getMessage()
-            ];
+            $response['db_info'] = $dbInfo;
+        } catch (Exception $e) {
+            $response['db_info_error'] = $e->getMessage();
         }
+    } else {
+        // Si la connexion a échoué, ajouter l'erreur à la réponse
+        $response['error'] = $database->connection_error;
     }
     
-    // Journaliser et envoyer la réponse
-    error_log("Envoi de la réponse avec le statut: " . ($database->is_connected ? "200 (OK)" : "500 (Error)"));
-    http_response_code($database->is_connected ? 200 : 500);
-    
-    // S'assurer que la réponse est en UTF-8
-    $json_response = json_encode($response, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
-    if ($json_response === false) {
-        error_log("Erreur d'encodage JSON: " . json_last_error_msg());
-        // Essayer d'encoder sans les caractères Unicode problématiques
-        $json_response = json_encode($response, JSON_PARTIAL_OUTPUT_ON_ERROR);
+    // Récupérer les erreurs capturées
+    $phpOutput = ob_get_clean();
+    if (!empty($phpOutput)) {
+        $response['php_output'] = $phpOutput;
     }
     
-    echo $json_response;
+    // Réponse JSON
+    http_response_code($isConnected ? 200 : 500);
+    echo json_encode($response, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+    
 } catch (Exception $e) {
-    error_log("Exception dans database-test.php: " . $e->getMessage());
-    http_response_code(500);
-    echo json_encode([
+    // Récupérer les erreurs capturées
+    $phpOutput = ob_get_clean();
+    
+    // Réponse d'erreur
+    $errorResponse = [
         'status' => 'error',
-        'message' => 'Erreur lors du test de connexion',
-        'error' => $e->getMessage()
-    ], JSON_UNESCAPED_UNICODE);
+        'message' => 'Erreur lors du test de la base de données',
+        'error' => $e->getMessage(),
+        'server_info' => $serverInfo ?? []
+    ];
+    
+    if (!empty($phpOutput)) {
+        $errorResponse['php_output'] = $phpOutput;
+    }
+    
+    http_response_code(500);
+    echo json_encode($errorResponse, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
 }
-
-// Vider le tampon de sortie
-ob_end_flush();
 ?>
