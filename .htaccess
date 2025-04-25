@@ -9,11 +9,14 @@ Options +FollowSymLinks
 # Définir le point d'entrée principal
 DirectoryIndex index.html index.php
 
-# Forcer l'exécution de PHP - CRUCIAL
+# FORCER L'EXÉCUTION DE PHP - CRUCIAL POUR INFOMANIAK
 <FilesMatch "\.php$">
     SetHandler application/x-httpd-php
     ForceType application/x-httpd-php
 </FilesMatch>
+
+# Activer explicitement le module PHP pour tous les fichiers .php
+AddHandler application/x-httpd-php .php
 
 # Définir les types MIME corrects
 AddType application/javascript .js

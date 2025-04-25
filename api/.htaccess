@@ -8,6 +8,9 @@ RewriteEngine On
     ForceType application/x-httpd-php
 </FilesMatch>
 
+# Activer explicitement l'exécution PHP pour tous les fichiers .php
+AddHandler application/x-httpd-php .php
+
 # Définir les types MIME corrects
 AddType application/javascript .js
 AddType application/javascript .mjs
