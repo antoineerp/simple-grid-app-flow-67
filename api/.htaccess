@@ -29,6 +29,10 @@ RewriteRule ^(.*)$ $1 [R=200,L]
 RewriteCond %{REQUEST_FILENAME} -f
 RewriteRule ^ - [L]
 
+# Redirection prioritaire pour nos nouveaux scripts de test
+RewriteRule ^test-db-connection/?$ test-db-connection.php [L,NC]
+RewriteRule ^check-connection/?$ check-connection.php [L,NC]
+
 # Redirection prioritaire pour db-connection-test
 RewriteRule ^db-connection-test/?$ db-connection-test.php [L,NC]
 RewriteRule ^database-test/?$ db-connection-test.php [L,NC]
