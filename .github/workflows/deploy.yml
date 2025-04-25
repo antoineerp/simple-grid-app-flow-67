@@ -29,102 +29,10 @@ jobs:
     - name: Build Project
       run: npm run build
 
-    - name: Create API directories
-      run: |
-        mkdir -p dist/api/config
-        mkdir -p dist/api/controllers
-        mkdir -p dist/api/middleware
-        mkdir -p dist/api/models
-        mkdir -p dist/api/utils
-        # Créer des fichiers .gitkeep pour s'assurer que les répertoires sont inclus
-        touch dist/api/config/.gitkeep
-        touch dist/api/controllers/.gitkeep
-        touch dist/api/middleware/.gitkeep
-        touch dist/api/models/.gitkeep
-        touch dist/api/utils/.gitkeep
-
-    - name: Copy API files
-      run: |
-        cp -v api/.htaccess dist/api/ || echo "Fichier api/.htaccess non trouvé"
-        cp -v .htaccess dist/ || echo "Fichier .htaccess non trouvé"
-        cp -v api/phpinfo.php dist/api/ || echo "Fichier api/phpinfo.php non trouvé"
-        cp -v api/php-system-check.php dist/api/ || echo "Fichier api/php-system-check.php non trouvé"
-        cp -v api/php-execution-test.php dist/api/ || echo "Fichier api/php-execution-test.php non trouvé"
-        cp -v api/diagnostic.php dist/api/ || echo "Fichier api/diagnostic.php non trouvé"
-        cp -v api/info.php dist/api/ || echo "Fichier api/info.php non trouvé"
-        cp -v api/test.php dist/api/ || echo "Fichier api/test.php non trouvé"
-
-    - name: Create necessary PHP files
-      run: |
-        # Créer un fichier index.php simple pour l'API s'il n'existe pas
-        if [ ! -f dist/api/index.php ]; then
-          echo "<?php
-header(\"Content-Type: application/json\");
-header(\"Access-Control-Allow-Origin: *\");
-header(\"Cache-Control: no-cache, no-store, must-revalidate\");
-header(\"Pragma: no-cache\");
-header(\"Expires: 0\");
-
-echo json_encode([
-    \"status\" => \"success\",
-    \"message\" => \"API is working\",
-    \"timestamp\" => date(\"Y-m-d H:i:s\"),
-    \"php_version\" => phpversion(),
-    \"server_info\" => [
-        \"software\" => \$_SERVER[\"SERVER_SOFTWARE\"] ?? \"Unknown\",
-        \"name\" => \$_SERVER[\"SERVER_NAME\"] ?? \"Unknown\",
-        \"script\" => \$_SERVER[\"SCRIPT_NAME\"] ?? \"Unknown\"
-    ]
-]);
-?>" > dist/api/index.php
-        fi
-
-        # Créer php-execution-test.php s'il n'existe pas
-        if [ ! -f dist/api/php-execution-test.php ]; then
-          echo "<?php
-header(\"Content-Type: application/json; charset=UTF-8\");
-header(\"Access-Control-Allow-Origin: *\");
-
-\$result = [
-    \"test_name\" => \"PHP Execution Test\",
-    \"timestamp\" => date(\"Y-m-d H:i:s\"),
-    \"php_version\" => phpversion(),
-    \"execution_status\" => \"success\",
-    \"server_info\" => [
-        \"software\" => \$_SERVER[\"SERVER_SOFTWARE\"] ?? \"Unknown\",
-        \"name\" => \$_SERVER[\"SERVER_NAME\"] ?? \"Unknown\",
-        \"script\" => \$_SERVER[\"SCRIPT_NAME\"] ?? \"Unknown\"
-    ]
-];
-
-echo json_encode(\$result, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
-?>" > dist/api/php-execution-test.php
-        fi
-
-        # Créer test.php s'il n'existe pas
-        if [ ! -f dist/api/test.php ]; then
-          echo "<?php
-header(\"Content-Type: application/json\");
-header(\"Access-Control-Allow-Origin: *\");
-header(\"Cache-Control: no-cache, no-store, must-revalidate\");
-header(\"Pragma: no-cache\");
-header(\"Expires: 0\");
-
-echo json_encode([
-    \"status\" => \"success\",
-    \"test\" => \"ok\",
-    \"timestamp\" => date(\"Y-m-d H:i:s\"),
-    \"php_version\" => phpversion()
-]);
-?>" > dist/api/test.php
-        fi
-
     - name: List dist content for debugging
       run: |
         echo "==== Listing dist directory ===="
         ls -la dist/
-        echo "==== Listing dist/api directory ===="
-        ls -la dist/api/
 
     - name: Deploy to Infomaniak
       uses: SamKirkland/FTP-Deploy-Action@v4.3.4
@@ -138,13 +46,3 @@ echo json_encode([
         port: 21
         timeout: 120000
         server-dir: "./"
-        exclude: |
-          **/.git*
-          **/.git*/**
-          **/node_modules/**
-        state-name: ".ftp-deploy-sync-state.json"
-        log-level: "verbose"
-        dry-run: false
-        security: "loose"
-      env:
-        FTP_PASSIVE_MODE: "false"
