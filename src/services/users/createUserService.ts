@@ -1,6 +1,7 @@
 
 import { getApiUrl } from '@/config/apiConfig';
 import { getAuthHeaders } from '../auth/authService';
+import { useToast } from '@/hooks/use-toast';
 
 interface CreateUserData {
   nom: string;
@@ -46,7 +47,7 @@ export const createUser = async (userData: CreateUserData) => {
     
     console.log("Données envoyées:", JSON.stringify(requestData));
     
-    // Vérification de l'email
+    // Vérification de l'email (facultatif, peut être désactivé si cause des problèmes)
     try {
       const checkEmailUrl = `${apiUrl}/check-users.php?email=${encodeURIComponent(userData.email)}`;
       console.log(`Vérification de l'email: ${checkEmailUrl}`);
@@ -88,6 +89,7 @@ export const createUser = async (userData: CreateUserData) => {
         'Accept': 'application/json'
       },
       body: JSON.stringify(requestData),
+      // Désactiver le cache pour éviter les problèmes
       cache: 'no-store'
     });
     
@@ -119,9 +121,7 @@ export const createUser = async (userData: CreateUserData) => {
       
       // Gestion des erreurs HTTP
       if (!response.ok) {
-        const errorMsg = responseData.message || `Erreur ${response.status}: ${response.statusText}`;
-        console.error("Erreur API:", errorMsg, responseData);
-        throw new Error(errorMsg);
+        throw new Error(responseData.message || `Erreur ${response.status}: ${response.statusText}`);
       }
       
       // Succès avec réponse JSON
@@ -131,7 +131,7 @@ export const createUser = async (userData: CreateUserData) => {
         identifiant_technique: identifiantTechnique
       };
     } catch (jsonError) {
-      console.error("Erreur lors du parsing JSON:", jsonError, "Texte reçu:", responseText);
+      console.error("Erreur lors du parsing JSON:", jsonError);
       
       // Si la réponse semble être un succès malgré le format incorrect
       if (response.ok || response.status === 201) {

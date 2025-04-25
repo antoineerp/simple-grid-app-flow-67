@@ -6,25 +6,8 @@ if (!function_exists('env')) {
 }
 
 // Activer la journalisation des erreurs
-ini_set('display_errors', 0); // Désactiver l'affichage HTML des erreurs
+ini_set('display_errors', 1);
 error_reporting(E_ALL);
-ini_set('log_errors', 1);
-ini_set('error_log', __DIR__ . '/db_test_errors.log');
-
-// Garantir que nous avons un output buffering pour capturer les erreurs PHP
-ob_start(function($buffer) {
-    // Si le buffer ne commence pas par { ou [ (JSON valide), enregistrer et remplacer
-    $trimmed = trim($buffer);
-    if ($trimmed && !preg_match('/^[\{\[]/', $trimmed)) {
-        error_log("Output non-JSON détecté dans DatabaseTestController: " . substr($trimmed, 0, 200));
-        return json_encode([
-            'status' => 'error',
-            'message' => 'Erreur serveur PHP',
-            'details' => 'Une erreur PHP a interrompu le traitement.'
-        ]);
-    }
-    return $buffer;
-});
 
 // Déterminer l'environnement
 $environment = env('APP_ENV', 'development');
@@ -57,8 +40,7 @@ header("Access-Control-Allow-Headers: Content-Type, Access-Control-Allow-Headers
 
 // Si c'est une requête OPTIONS (preflight), nous la terminons ici
 if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
-    http_response_code(200);
-    echo json_encode(['status' => 200, 'message' => 'Preflight OK']);
+    header("HTTP/1.1 200 OK");
     exit;
 }
 
@@ -68,20 +50,11 @@ error_log("Méthode: " . $_SERVER['REQUEST_METHOD'] . " - URI: " . $_SERVER['REQ
 
 try {
     // Inclure les fichiers nécessaires
-    if (!file_exists('../config/database.php')) {
-        throw new Exception('Fichier de configuration de base de données non trouvé');
-    }
-    
     require_once '../config/database.php';
+    require_once '../utils/ResponseHandler.php';
     
-    if (file_exists('../utils/ResponseHandler.php')) {
-        require_once '../utils/ResponseHandler.php';
-    }
-    
-    // Vérifier si l'authentification est requise (ignorer pour le test)
-    $requireAuth = false;
-    
-    if ($requireAuth && file_exists('../middleware/Auth.php')) {
+    // Vérifier si middleware/Auth.php existe
+    if (file_exists('../middleware/Auth.php')) {
         include_once '../middleware/Auth.php';
         
         // Récupérer les en-têtes pour l'authentification
@@ -107,93 +80,73 @@ try {
                 echo json_encode(["message" => "Permission refusée", "status" => "error"], JSON_UNESCAPED_UNICODE);
                 exit;
             }
+        } else {
+            error_log("La classe Auth n'existe pas");
         }
+    } else {
+        error_log("Le fichier middleware/Auth.php n'existe pas, authentification ignorée");
     }
     
-    // Déterminer la méthode de requête
+    // Détermininer la méthode de requête
     $method = $_SERVER['REQUEST_METHOD'];
     
     if ($method === 'GET' || $method === 'POST') {
-        // Instancier la base de données directement pour tester la connexion
-        $database = new Database();
-        $conn = $database->getConnection(false);
+        // Utiliser ResponseHandler pour vérifier la connexion à la base de données
+        $dbStatus = ResponseHandler::databaseStatus();
         
-        // Vérifier si la connexion est établie
-        $isConnected = $database->is_connected;
-        
-        if ($isConnected) {
+        if ($dbStatus['is_connected']) {
             // La connexion est établie
+            // Instancier également la base de données pour des informations supplémentaires
+            $database = new Database();
+            $conn = $database->getConnection(false);
+            
             try {
-                // Collecter des informations sur la base de données
-                $info = [
-                    'database' => $database->db_name,
-                    'host' => $database->host,
-                    'user' => $database->username
-                ];
+                // Collecter des informations supplémentaires sur la base de données
+                $info = $dbStatus['connection_info'];
                 
                 // Obtenir la liste des tables
                 $tables = [];
-                $tablesStmt = $conn->query("SHOW TABLES");
-                $tables = $tablesStmt->fetchAll(PDO::FETCH_COLUMN);
+                if ($database->is_connected) {
+                    $tablesStmt = $conn->query("SHOW TABLES");
+                    $tables = $tablesStmt->fetchAll(PDO::FETCH_COLUMN);
+                }
                 
                 // Calculer la taille de la base de données
                 $sizeInfo = ['size' => '0 MB'];
-                try {
-                    $sizeStmt = $conn->query("
-                        SELECT 
-                            SUM(data_length + index_length) as size
-                        FROM 
-                            information_schema.TABLES 
-                        WHERE 
-                            table_schema = '" . $database->db_name . "'
-                    ");
-                    $sizeData = $sizeStmt->fetch(PDO::FETCH_ASSOC);
-                    // Convertir la taille en MB
-                    $sizeMB = round(($sizeData['size'] ?? 0) / (1024 * 1024), 2) . ' MB';
-                    $sizeInfo['size'] = $sizeMB;
-                } catch (PDOException $e) {
-                    error_log("Erreur lors du calcul de la taille: " . $e->getMessage());
-                    $sizeInfo['error'] = $e->getMessage();
+                if ($database->is_connected) {
+                    try {
+                        $sizeStmt = $conn->query("
+                            SELECT 
+                                SUM(data_length + index_length) as size
+                            FROM 
+                                information_schema.TABLES 
+                            WHERE 
+                                table_schema = '" . $database->db_name . "'
+                        ");
+                        $sizeData = $sizeStmt->fetch(PDO::FETCH_ASSOC);
+                        // Convertir la taille en MB
+                        $sizeMB = round(($sizeData['size'] ?? 0) / (1024 * 1024), 2) . ' MB';
+                        $sizeInfo['size'] = $sizeMB;
+                    } catch (PDOException $e) {
+                        $sizeInfo['error'] = $e->getMessage();
+                    }
                 }
                 
                 // Obtenir des informations sur l'encodage
                 $encodingInfo = ['encoding' => 'utf8mb4', 'collation' => 'utf8mb4_unicode_ci'];
-                try {
-                    $encodingStmt = $conn->query("
-                        SELECT default_character_set_name, default_collation_name
-                        FROM information_schema.SCHEMATA
-                        WHERE schema_name = '" . $database->db_name . "'
-                    ");
-                    $encodingData = $encodingStmt->fetch(PDO::FETCH_ASSOC);
-                    $encodingInfo['encoding'] = $encodingData['default_character_set_name'] ?? 'utf8mb4';
-                    $encodingInfo['collation'] = $encodingData['default_collation_name'] ?? 'utf8mb4_unicode_ci';
-                } catch (PDOException $e) {
-                    error_log("Erreur lors de la récupération des informations d'encodage: " . $e->getMessage());
-                    $encodingInfo['error'] = $e->getMessage();
-                }
-                
-                // Vérifier si la table utilisateurs existe et récupérer un échantillon
-                $utilisateursInfo = ['count' => 0, 'sample' => []];
-                try {
-                    // Vérifier si la table existe d'abord
-                    $tableCheckStmt = $conn->query("SHOW TABLES LIKE 'utilisateurs'");
-                    if ($tableCheckStmt->rowCount() > 0) {
-                        // La table existe, compter les utilisateurs
-                        $countStmt = $conn->query("SELECT COUNT(*) FROM utilisateurs");
-                        $utilisateursInfo['count'] = (int)$countStmt->fetchColumn();
-                        
-                        // Récupérer un échantillon d'utilisateurs
-                        $sampleStmt = $conn->query("
-                            SELECT id, identifiant_technique, email, role, date_creation 
-                            FROM utilisateurs 
-                            ORDER BY id DESC 
-                            LIMIT 5
+                if ($database->is_connected) {
+                    try {
+                        $encodingStmt = $conn->query("
+                            SELECT default_character_set_name, default_collation_name
+                            FROM information_schema.SCHEMATA
+                            WHERE schema_name = '" . $database->db_name . "'
                         ");
-                        $utilisateursInfo['sample'] = $sampleStmt->fetchAll(PDO::FETCH_ASSOC);
+                        $encodingData = $encodingStmt->fetch(PDO::FETCH_ASSOC);
+                        $encodingInfo['encoding'] = $encodingData['default_character_set_name'] ?? 'utf8mb4';
+                        $encodingInfo['collation'] = $encodingData['default_collation_name'] ?? 'utf8mb4_unicode_ci';
+                    } catch (PDOException $e) {
+                        $encodingInfo['error'] = $e->getMessage();
                     }
-                } catch (PDOException $e) {
-                    error_log("Erreur lors de la vérification des utilisateurs: " . $e->getMessage());
-                    $utilisateursInfo['error'] = $e->getMessage();
                 }
                 
                 // Journaliser le résultat
@@ -212,57 +165,31 @@ try {
                         "table_count" => count($tables),
                         "size" => $sizeInfo['size'],
                         "encoding" => $encodingInfo['encoding'],
-                        "collation" => $encodingInfo['collation'],
-                        "connection_status" => "Online"
-                    ],
-                    "utilisateurs_count" => $utilisateursInfo['count'],
-                    "utilisateurs_sample" => $utilisateursInfo['sample'],
-                    "version" => $conn->getAttribute(PDO::ATTR_SERVER_VERSION)
-                ], JSON_UNESCAPED_UNICODE);
-            } catch (PDOException $e) {
-                // Erreur PDO spécifique lors de la récupération des informations
-                error_log("Erreur PDO lors de la collecte d'informations: " . $e->getMessage());
-                http_response_code(200);
-                echo json_encode([
-                    "message" => "Connexion réussie à la base de données, mais erreur lors de la collecte d'informations",
-                    "status" => "warning",
-                    "info" => [
-                        "database_name" => $database->db_name,
-                        "host" => $database->host,
-                        "connection_status" => "Warning"
-                    ],
-                    "error_details" => $e->getMessage()
+                        "collation" => $encodingInfo['collation']
+                    ]
                 ], JSON_UNESCAPED_UNICODE);
             } catch (Exception $e) {
-                // Autre exception générique
-                error_log("Exception lors de la collecte d'informations: " . $e->getMessage());
+                // La connexion est établie mais il y a un problème avec les requêtes supplémentaires
+                error_log("Erreur lors de la collecte d'informations: " . $e->getMessage());
                 http_response_code(200);
                 echo json_encode([
                     "message" => "Connexion réussie à la base de données, mais erreur lors de la collecte d'informations",
                     "status" => "warning",
                     "info" => [
-                        "database_name" => $database->db_name ?? 'inconnu',
-                        "host" => $database->host ?? 'inconnu',
-                        "connection_status" => "Warning"
-                    ],
-                    "error_details" => $e->getMessage()
+                        "database_name" => $dbStatus['connection_info']['database'] ?? 'inconnu',
+                        "host" => $dbStatus['connection_info']['host'] ?? 'inconnu',
+                        "error_details" => $e->getMessage()
+                    ]
                 ], JSON_UNESCAPED_UNICODE);
             }
         } else {
             // La connexion a échoué
-            error_log("Échec de la connexion à la base de données: " . ($database->connection_error ?? "Raison inconnue"));
+            error_log("Échec de la connexion à la base de données: " . ($dbStatus['error'] ?? "Raison inconnue"));
             http_response_code(500);
             echo json_encode([
                 "message" => "Échec de la connexion à la base de données",
-                "error" => $database->connection_error ?? "Raison inconnue",
-                "status" => "error",
-                "connection_info" => [
-                    "host" => $database->host ?? 'Non défini',
-                    "database" => $database->db_name ?? 'Non défini',
-                    "username" => $database->username ?? 'Non défini',
-                    "php_version" => phpversion(),
-                    "pdo_drivers" => implode(", ", PDO::getAvailableDrivers())
-                ]
+                "error" => $dbStatus['error'] ?? "Raison inconnue",
+                "status" => "error"
             ], JSON_UNESCAPED_UNICODE);
         }
     } else {
@@ -278,7 +205,4 @@ try {
         "status" => "error"
     ], JSON_UNESCAPED_UNICODE);
 }
-
-// Vider le tampon de sortie
-ob_end_flush();
 ?>

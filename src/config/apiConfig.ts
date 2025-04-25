@@ -1,5 +1,3 @@
-import { useState } from 'react';
-
 // Configuration de l'API
 let apiUrl = '/api';
 let isCustomUrl = false;
@@ -9,69 +7,22 @@ function detectEnvironment() {
   const hostname = window.location.hostname;
   const isInfomaniak = hostname.includes('myd.infomaniak.com') || hostname.includes('qualiopi.ch');
   
-  console.log('🔍 CONFIGURATION API - Hostname détecté:', hostname);
-  console.log('🏠 Est un environnement Infomaniak :', isInfomaniak);
-  console.log('🌐 URLs actuellement configurées :', {
-    developmentUrl: 'http://localhost:8080/api',
-    productionUrl: 'https://qualiopi.ch/api'
-  });
+  console.log('Détection d\'environnement - Hostname:', hostname);
+  console.log('Détection d\'environnement - Est Infomaniak:', isInfomaniak);
   
   if (isInfomaniak) {
+    // Configuration pour Infomaniak - utiliser le chemin relatif au domaine
     apiUrl = '/api';
-    console.warn('✅ CONFIGURATION PRODUCTION : URL API relative /api');
+    console.log('Environnement Infomaniak détecté - API URL:', apiUrl);
   } else {
+    // Pour l'environnement de développement ou preview Lovable
     apiUrl = '/api';
-    console.warn('🖥️ CONFIGURATION DÉVELOPPEMENT : URL API relative /api');
-  }
-
-  // Ajout d'une validation supplémentaire
-  console.group('🌐 Détails de configuration API');
-  console.log('URL de base:', apiUrl);
-  console.log('URL complète:', getFullApiUrl());
-  console.log('Hostname:', window.location.hostname);
-  console.log('Protocol:', window.location.protocol);
-  console.groupEnd();
-}
-
-// Ajout d'une fonction de validation
-function validateApiConfiguration() {
-  const fullUrl = getFullApiUrl();
-  const expectedHostnames = [
-    'localhost', 
-    '127.0.0.1', 
-    'myd.infomaniak.com', 
-    'qualiopi.ch',
-    'test.qualiopi.ch'
-  ];
-
-  const isValidHostname = expectedHostnames.some(hostname => 
-    window.location.hostname.includes(hostname)
-  );
-
-  if (!isValidHostname) {
-    console.error('⚠️ AVERTISSEMENT : Hostname inattendu pour la configuration API', {
-      currentHostname: window.location.hostname,
-      fullApiUrl: fullUrl
-    });
+    console.log('Environnement de développement détecté - API URL:', apiUrl);
   }
 }
 
-// Ajouter une fonction pour logger toutes les requêtes
-function logApiRequests() {
-  const originalFetch = window.fetch;
-  window.fetch = async (...args) => {
-    console.log('📡 Requête API', {
-      url: args[0],
-      method: args[1]?.method || 'GET'
-    });
-    return originalFetch(...args);
-  };
-}
-
-// Exécuter ces fonctions au chargement
+// Forcer une détection initiale
 detectEnvironment();
-validateApiConfiguration();
-logApiRequests();
 
 // Obtenir l'URL de l'API
 export function getApiUrl(): string {

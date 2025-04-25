@@ -35,10 +35,6 @@ class Database {
         if (file_exists($configFile)) {
             try {
                 $jsonContent = file_get_contents($configFile);
-                if ($jsonContent === false) {
-                    throw new Exception("Impossible de lire le fichier de configuration");
-                }
-                
                 error_log("Contenu du fichier config: " . substr($jsonContent, 0, 50) . "...");
                 
                 $config = json_decode($jsonContent, true);
@@ -52,12 +48,10 @@ class Database {
                 } else {
                     error_log("Erreur JSON dans db_config.json: " . json_last_error_msg());
                     $this->connection_error = "Erreur de configuration JSON: " . json_last_error_msg();
-                    // Utiliser les valeurs par défaut
                 }
             } catch (Exception $e) {
                 error_log("Erreur lors du chargement de la configuration de base de données: " . $e->getMessage());
                 $this->connection_error = "Erreur de configuration: " . $e->getMessage();
-                // Utiliser les valeurs par défaut
             }
         } else {
             error_log("Fichier de configuration db_config.json non trouvé, utilisation des valeurs par défaut");
@@ -77,10 +71,7 @@ class Database {
         ];
         
         try {
-            $result = file_put_contents($configFile, json_encode($config, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
-            if ($result === false) {
-                throw new Exception("Échec de l'écriture dans le fichier de configuration");
-            }
+            file_put_contents($configFile, json_encode($config, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
             error_log("Configuration sauvegardée avec succès dans: " . $configFile);
             return true;
         } catch (Exception $e) {
@@ -121,10 +112,9 @@ class Database {
                 PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
                 PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
                 PDO::ATTR_EMULATE_PREPARES => false,
-                PDO::ATTR_TIMEOUT => 5, // Timeout de connexion de 5 secondes
             ];
             
-            // Tenter de se connecter à la base de données avec un délai d'attente
+            // Tenter de se connecter à la base de données
             $this->conn = new PDO($dsn, $this->username, $this->password, $options);
             
             // Forcer l'encodage UTF-8 pour toutes les requêtes

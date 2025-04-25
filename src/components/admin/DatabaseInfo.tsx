@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -7,12 +8,12 @@ import { Loader2, RefreshCw, Database, AlertTriangle, ServerCrash, CheckCircle2,
 import { useAdminDatabase } from '@/hooks/useAdminDatabase';
 import DatabaseConfig from './DatabaseConfig';
 import DatabaseGuide from './DatabaseGuide';
-import { getDatabaseConnectionCurrentUser } from '@/services/core/databaseConnectionService';
+import { getDatabaseConnectionCurrentUser } from '@/services';
 
 const DatabaseInfo = () => {
   const { dbInfo, loading, testingConnection, loadDatabaseInfo, handleTestConnection, error } = useAdminDatabase();
   const [activeTab, setActiveTab] = useState("info");
-  const currentUser = getDatabaseConnectionCurrentUser ? getDatabaseConnectionCurrentUser() : null;
+  const currentUser = getDatabaseConnectionCurrentUser();
   
   // Charger les informations de la base de données au chargement du composant
   useEffect(() => {
@@ -20,14 +21,14 @@ const DatabaseInfo = () => {
   }, []);
 
   const getStatusBadge = (status: string) => {
-    if (status === "Online" || status.toLowerCase().includes('online') || (currentUser && status !== "Offline")) {
+    if (status === "Online" || (currentUser && status !== "Offline")) {
       return (
         <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
           <CheckCircle2 className="h-3 w-3 mr-1" />
           Online
         </Badge>
       );
-    } else if (status === "Warning" || status.toLowerCase().includes('warning')) {
+    } else if (status === "Warning") {
       return (
         <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200">
           <AlertTriangle className="h-3 w-3 mr-1" />

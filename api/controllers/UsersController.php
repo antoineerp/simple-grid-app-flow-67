@@ -40,9 +40,6 @@ try {
             $postData = file_get_contents("php://input");
             error_log("UsersController - Données POST brutes: " . $postData);
             
-            // Vider tout buffer de sortie existant
-            if (ob_get_level()) ob_clean();
-            
             if (empty($postData)) {
                 ResponseHandler::error("Aucune donnée reçue", 400);
                 break;
