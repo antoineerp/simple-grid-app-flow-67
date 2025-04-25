@@ -1,122 +1,178 @@
 
-import { getApiUrl } from '@/config/apiConfig';
-import { validateApiResponse } from '../validators/apiResponseValidator';
-import { isPhpContent } from '../validators/apiResponseValidator';
+import { getApiUrl, fetchWithErrorHandling } from '@/config/apiConfig';
 
 /**
- * Check the PHP server status to verify if PHP is executing properly
+ * Fonction pour vérifier l'état du serveur PHP
  */
-export const checkPhpServerStatus = async (): Promise<{
-  isWorking: boolean;
-  errorCode?: string;
-  detail: string;
+export const diagnoseApiConnection = async (): Promise<{
+  isConnected: boolean;
+  message: string;
+  details?: any;
 }> => {
   try {
     const API_URL = getApiUrl();
-    const endpoint = `${API_URL}/phpinfo.php`;
-    const requestId = `req_${new Date().getTime()}_${Math.random().toString(36).substring(2, 9)}`;
+    console.log(`Diagnostic de connexion à l'API: ${API_URL}`);
     
-    console.log(`📡 Testing PHP execution at ${endpoint}`);
-    
-    const response = await fetch(`${endpoint}?_=${requestId}`, {
+    const response = await fetch(`${API_URL}/index.php?test=1`, {
       method: 'GET',
       headers: {
-        'Cache-Control': 'no-cache, no-store',
-        'X-Request-ID': requestId,
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0'
       }
     });
     
+    // Vérifier d'abord si la réponse est OK
     if (!response.ok) {
       return {
-        isWorking: false,
-        errorCode: 'HTTP_ERROR',
-        detail: `HTTP error: ${response.status} ${response.statusText}`
+        isConnected: false,
+        message: `Erreur HTTP: ${response.status} ${response.statusText}`
       };
     }
     
+    // Récupérer le contenu de la réponse
     const responseText = await response.text();
     
-    if (isPhpContent(responseText)) {
+    // Vérifier si la réponse est du PHP non interprété
+    if (responseText.trim().startsWith('<?php')) {
       return {
-        isWorking: false,
-        errorCode: 'PHP_EXECUTION_ERROR',
-        detail: responseText.substring(0, 200) + '...'
+        isConnected: false,
+        message: 'PHP n\'est pas exécuté par le serveur',
+        details: {
+          error: 'PHP execution error',
+          hint: 'Le serveur renvoie le code PHP au lieu de l\'exécuter'
+        }
       };
     }
     
-    // Check if the response contains typical PHP info output indicators
-    const isPHPInfoResponse = 
-      responseText.includes('PHP Version') || 
-      responseText.includes('PHP License') ||
-      responseText.includes('PHP Configuration');
-    
-    if (isPHPInfoResponse) {
+    // Essayer de parser le JSON
+    try {
+      const data = JSON.parse(responseText);
       return {
-        isWorking: true,
-        detail: 'PHP est correctement configuré et exécuté'
+        isConnected: true,
+        message: data.message || 'Connexion réussie',
+        details: data
       };
-    } else {
+    } catch (e) {
+      // Si ce n'est pas du JSON valide
       return {
-        isWorking: false,
-        errorCode: 'UNEXPECTED_RESPONSE',
-        detail: 'Réponse inattendue du serveur PHP'
+        isConnected: false,
+        message: 'Réponse invalide (pas du JSON)',
+        details: {
+          responseText: responseText.substring(0, 200) + '...'
+        }
       };
     }
-    
   } catch (error) {
-    console.error('Error testing PHP server:', error);
     return {
-      isWorking: false,
-      errorCode: 'CONNECTION_ERROR',
-      detail: error instanceof Error ? error.message : 'Erreur inconnue lors du test PHP'
+      isConnected: false,
+      message: `Erreur lors du diagnostic: ${error instanceof Error ? error.message : String(error)}`
     };
   }
 };
 
 /**
- * Diagnose the API connection issues
+ * Fonction spécifique pour vérifier l'exécution de PHP
  */
-export const diagnoseApiConnection = async (): Promise<{
-  success: boolean;
-  issues: string[];
-  details?: any;
+export const checkPhpServerStatus = async (): Promise<{
+  isWorking: boolean;
+  detail: string;
+  errorCode?: string;
 }> => {
   try {
     const API_URL = getApiUrl();
-    const endpoint = `${API_URL}/diagnose-connection.php`;
-    const requestId = `req_${new Date().getTime()}_${Math.random().toString(36).substring(2, 9)}`;
-    
-    console.log(`🔧 Running API connection diagnostics`);
-    
-    const response = await fetch(`${endpoint}?requestId=${requestId}`, {
+    const testUrl = `${API_URL}/php-execution-test.php`;
+    console.log(`Test d'exécution PHP: ${testUrl}`);
+
+    const response = await fetch(testUrl, {
       method: 'GET',
       headers: {
-        'Cache-Control': 'no-cache, no-store',
-        'X-Request-ID': requestId,
+        'Cache-Control': 'no-cache, no-store, must-revalidate'
       }
     });
+
+    // Récupérer le contenu de la réponse
+    const responseText = await response.text();
     
-    try {
-      const result = await validateApiResponse(response);
+    // Vérifier si le PHP est correctement exécuté
+    if (responseText.includes('<?php') || responseText.startsWith('<?php')) {
+      console.error('Le code PHP n\'est pas exécuté:', responseText.substring(0, 200));
       return {
-        success: result.success === true,
-        issues: result.issues || [],
-        details: result.details || {}
-      };
-    } catch (error) {
-      return {
-        success: false,
-        issues: [error instanceof Error ? error.message : 'Erreur de validation de la réponse API'],
-        details: { error: 'validation_failed' }
+        isWorking: false,
+        detail: 'Le serveur renvoie le code PHP au lieu de l\'exécuter',
+        errorCode: 'PHP_EXECUTION_ERROR'
       };
     }
     
+    // Essayer de parser la réponse comme JSON
+    try {
+      const data = JSON.parse(responseText);
+      if (data.success && data.php_version) {
+        return {
+          isWorking: true,
+          detail: `PHP ${data.php_version} fonctionne correctement`
+        };
+      } else {
+        return {
+          isWorking: false,
+          detail: data.message || 'Réponse PHP invalide',
+          errorCode: 'PHP_INVALID_RESPONSE'
+        };
+      }
+    } catch (e) {
+      // Vérifier si la réponse ressemble à du HTML
+      if (responseText.includes('<!DOCTYPE') || responseText.includes('<html')) {
+        return {
+          isWorking: false,
+          detail: 'Le serveur renvoie du HTML au lieu du JSON attendu',
+          errorCode: 'PHP_HTML_RESPONSE'
+        };
+      }
+      
+      return {
+        isWorking: false,
+        detail: 'Impossible de parser la réponse JSON',
+        errorCode: 'PHP_PARSE_ERROR'
+      };
+    }
   } catch (error) {
-    console.error('Error diagnosing API connection:', error);
     return {
-      success: false,
-      issues: [error instanceof Error ? error.message : 'Erreur inconnue lors du diagnostic API'],
-      details: { error: 'connection_failed' }
+      isWorking: false,
+      detail: `Erreur lors du test PHP: ${error instanceof Error ? error.message : String(error)}`,
+      errorCode: 'PHP_CONNECTION_ERROR'
     };
+  }
+};
+
+/**
+ * Fonction utilitaire pour valider les réponses de l'API
+ */
+export const validateApiResponse = async (response: Response): Promise<any> => {
+  try {
+    if (!response.ok) {
+      throw new Error(`HTTP error: ${response.status} ${response.statusText}`);
+    }
+    
+    const responseText = await response.text();
+    
+    // Vérifier si la réponse est du PHP non interprété
+    if (responseText.trim().startsWith('<?php')) {
+      throw new Error('PHP n\'est pas exécuté par le serveur');
+    }
+    
+    // Vérifier si la réponse est vide
+    if (!responseText.trim()) {
+      return { success: true, message: 'Opération réussie (réponse vide)' };
+    }
+    
+    // Essayer de parser le JSON
+    try {
+      return JSON.parse(responseText);
+    } catch (e) {
+      throw new Error(`Impossible de parser le JSON: ${e instanceof Error ? e.message : String(e)}`);
+    }
+  } catch (error) {
+    console.error('Erreur lors de la validation de la réponse API:', error);
+    throw error;
   }
 };

@@ -1,85 +1,25 @@
 
 <?php
-// En-têtes pour JSON et CORS
-header('Content-Type: application/json; charset=UTF-8');
-header('Access-Control-Allow-Origin: *');
+// Headers pour s'assurer que la réponse est en JSON
+header("Content-Type: application/json; charset=UTF-8");
+header("Access-Control-Allow-Origin: *");
+header("Access-Control-Allow-Methods: GET, OPTIONS");
+header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With");
+header("Cache-Control: no-cache, no-store, must-revalidate");
 
-// Tester l'exécution PHP de base
-$result = [
-    'test_name' => 'PHP Execution Test',
-    'timestamp' => date('Y-m-d H:i:s'),
+// Générer une réponse JSON de test pour vérifier que PHP s'exécute
+$response = array(
+    'success' => true,
+    'message' => 'PHP s\'exécute correctement',
     'php_version' => phpversion(),
-    'execution_status' => 'success',
-    'server_info' => [
-        'software' => $_SERVER['SERVER_SOFTWARE'] ?? 'Unknown',
-        'name' => $_SERVER['SERVER_NAME'] ?? 'Unknown',
-        'script' => $_SERVER['SCRIPT_NAME'] ?? 'Unknown'
-    ],
-    'tests' => []
-];
+    'server_software' => $_SERVER['SERVER_SOFTWARE'] ?? 'Non défini',
+    'server_name' => $_SERVER['SERVER_NAME'] ?? 'Non défini',
+    'remote_addr' => $_SERVER['REMOTE_ADDR'] ?? 'Non défini',
+    'timestamp' => time(),
+    'datetime' => date('Y-m-d H:i:s'),
+    'test_string' => 'Cette chaîne confirme que le script PHP est interprété'
+);
 
-// Test 1: Variables
-$test1 = 'Variable test value';
-$result['tests']['variables'] = [
-    'status' => 'success',
-    'value' => $test1
-];
-
-// Test 2: Fonctions
-function testFunction() {
-    return "Function output";
-}
-$result['tests']['functions'] = [
-    'status' => 'success',
-    'value' => testFunction()
-];
-
-// Test 3: Calculs
-$a = 10;
-$b = 20;
-$result['tests']['calculations'] = [
-    'status' => 'success',
-    'values' => [
-        'a' => $a,
-        'b' => $b,
-        'a + b' => $a + $b,
-        'a * b' => $a * b
-    ]
-];
-
-// Test 4: Inclusion de fichier
-$includeTest = [];
-try {
-    if (file_exists(__DIR__ . '/test.php')) {
-        $includeTest['status'] = 'success';
-        $includeTest['message'] = 'test.php exists and can be included';
-    } else {
-        $includeTest['status'] = 'warning';
-        $includeTest['message'] = 'test.php does not exist';
-    }
-} catch (Exception $e) {
-    $includeTest['status'] = 'error';
-    $includeTest['message'] = $e->getMessage();
-}
-$result['tests']['file_inclusion'] = $includeTest;
-
-// Test 5: Accès à la base de données
-$dbTest = [];
-if (extension_loaded('pdo_mysql')) {
-    $dbTest['pdo_mysql'] = 'available';
-    try {
-        // Note: juste tester la disponibilité de PDO, pas de connexion réelle
-        $dbTest['status'] = 'available';
-    } catch (Exception $e) {
-        $dbTest['status'] = 'error';
-        $dbTest['message'] = $e->getMessage();
-    }
-} else {
-    $dbTest['pdo_mysql'] = 'not available';
-    $dbTest['status'] = 'error';
-}
-$result['tests']['database'] = $dbTest;
-
-// Réponse JSON
-echo json_encode($result, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+// Envoyer la réponse JSON
+echo json_encode($response, JSON_PRETTY_PRINT);
 ?>
