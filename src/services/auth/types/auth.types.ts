@@ -14,6 +14,7 @@ export interface LoginResponse {
 }
 
 export interface AuthHeaders {
+  [key: string]: string; // Ajout d'un index signature pour satisfaire Record<string, string>
   'Content-Type': string;
   'Cache-Control': string;
   'Accept': string;
