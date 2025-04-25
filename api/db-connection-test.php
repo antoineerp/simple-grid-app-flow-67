@@ -2,7 +2,7 @@
 <?php
 // En-têtes pour s'assurer que nous renvoyons toujours du JSON, même en cas d'erreur
 header("Content-Type: application/json; charset=UTF-8");
-header("Access-Control-Allow-Origin: https://qualiopi.ch");
+header("Access-Control-Allow-Origin: *");
 header("Access-Control-Allow-Methods: GET, POST, OPTIONS");
 header("Access-Control-Allow-Headers: Content-Type, Authorization");
 header("Cache-Control: no-cache, no-store, must-revalidate");
@@ -22,10 +22,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
 error_log("=== EXÉCUTION DE db-connection-test.php ===");
 error_log("Méthode: " . $_SERVER['REQUEST_METHOD'] . " - URI: " . $_SERVER['REQUEST_URI']);
 
-// Nettoyer tout buffer de sortie existant
-if (ob_get_level()) ob_clean();
-
-// Envelopper tout dans un try/catch pour capturer toutes les erreurs possibles
 try {
     // Connexion directe à la base de données pour test
     $host = "p71x6d.myd.infomaniak.com";

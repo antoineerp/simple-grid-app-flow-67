@@ -2,36 +2,40 @@
 # Activer la réécriture d'URL
 RewriteEngine On
 
+# Forcer HTTPS (décommenter si nécessaire)
+# RewriteCond %{HTTPS} off
+# RewriteRule (.*) https://%{HTTP_HOST}%{REQUEST_URI} [R=301,L]
+
+# Base du répertoire
+RewriteBase /api/
+
+# Autoriser l'accès direct aux fichiers existants
+RewriteCond %{REQUEST_FILENAME} -f
+RewriteRule ^ - [L]
+
+# Redirection spécifique pour le test de base de données
+RewriteRule ^db-connection-test/?$ db-connection-test.php [L,NC]
+RewriteRule ^database-test/?$ db-connection-test.php [L,NC]
+
+# Redirection du test utilisateurs
+RewriteRule ^check-users/?$ check-users.php [L,NC]
+RewriteRule ^utilisateurs/?$ utilisateurs.php [L,NC]
+
+# Redirection générale pour les autres routes
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^([^/]+)/?$ $1.php [L,NC]
+
 # Forcer PHP à traiter les fichiers .php
 <FilesMatch "\.php$">
     SetHandler application/x-httpd-php
 </FilesMatch>
 
-# Forcer le type MIME pour PHP et désactiver toute mise en cache
-AddType application/x-httpd-php .php
-<IfModule mod_headers.c>
-    Header always set Content-Type "application/json; charset=UTF-8" env=IS_JSON
+# Forcer le type MIME pour les réponses JSON
+<FilesMatch "\.(php)$">
+    Header always set Content-Type "application/json; charset=UTF-8"
     Header set Access-Control-Allow-Origin "https://qualiopi.ch"
     Header set Access-Control-Allow-Methods "GET, POST, OPTIONS, PUT, DELETE"
     Header set Access-Control-Allow-Headers "Content-Type, Authorization, X-Requested-With"
     Header set Cache-Control "no-cache, no-store, must-revalidate"
-    Header set Pragma "no-cache"
-    Header set Expires "0"
-</IfModule>
-
-# Vérifier spécifiquement les scripts API
-<FilesMatch "^(check-users|utilisateurs|db-connection-test|database-test)\.php$">
-    SetEnvIf Request_URI "\.php$" IS_JSON=true
 </FilesMatch>
-
-# Configuration PHP pour les fichiers d'API
-<IfModule mod_php.c>
-    php_flag display_errors Off
-    php_flag log_errors On
-    php_value error_log "/tmp/php-errors.log"
-    php_value default_charset "UTF-8"
-    php_flag output_buffering On
-</IfModule>
-
-# Désactiver le moteur de template PHP
-php_flag engine On

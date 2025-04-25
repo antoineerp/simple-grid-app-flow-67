@@ -1,13 +1,28 @@
 
 <?php
-// Forcer l'output buffering pour éviter tout output avant les headers
-ob_start();
+// Inclure la configuration d'environnement
+require_once 'config/env.php';
 
 // Définir explicitement le type de contenu pour les scripts PHP
 header("Content-Type: application/json; charset=UTF-8");
 
-// Définir les headers communs
-header("Access-Control-Allow-Origin: https://qualiopi.ch");
+// Définir les headers CORS appropriés
+$origin = isset($_SERVER['HTTP_ORIGIN']) ? $_SERVER['HTTP_ORIGIN'] : '';
+$allowedOrigins = [
+    'https://qualiopi.ch',
+    'http://localhost:5173',
+    'http://localhost:3000'
+];
+
+// Mode développement: autoriser toutes les origines
+if (env('APP_ENV') === 'development') {
+    header("Access-Control-Allow-Origin: *");
+} elseif (in_array($origin, $allowedOrigins)) {
+    header("Access-Control-Allow-Origin: {$origin}");
+} else {
+    header("Access-Control-Allow-Origin: https://qualiopi.ch");
+}
+
 header("Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS");
 header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With");
 header("Cache-Control: no-cache, no-store, must-revalidate");
@@ -60,34 +75,6 @@ switch ($controller) {
         }
         break;
         
-    case 'documents-load':
-        require_once 'documents-load.php';
-        break;
-        
-    case 'documents-sync':
-        require_once 'documents-sync.php';
-        break;
-        
-    case 'bibliotheque-load':
-        require_once 'bibliotheque-load.php';
-        break;
-        
-    case 'bibliotheque-sync':
-        require_once 'bibliotheque-sync.php';
-        break;
-        
-    case 'config':
-        require_once 'config.php';
-        break;
-        
-    case 'phpinfo':
-        require_once 'phpinfo.php';
-        break;
-        
-    case 'info':
-        require_once 'info.php';
-        break;
-        
     case 'json-test':
         header('Content-Type: application/json');
         echo json_encode([
@@ -112,7 +99,4 @@ switch ($controller) {
         }
         break;
 }
-
-// Vider le tampon de sortie
-ob_end_flush();
 ?>
