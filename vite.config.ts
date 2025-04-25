@@ -37,14 +37,10 @@ export default defineConfig(({ mode }) => {
         },
         output: {
           manualChunks: undefined,
-          entryFileNames: 'assets/[name]-[hash].js',
-          chunkFileNames: 'assets/[name]-[hash].js',
-          assetFileNames: 'assets/[name]-[hash].[ext]'
-        },
-        // Ignorer les assets externes qui ne sont pas disponibles au moment du build
-        external: [
-          // Lister ici les assets externes qui doivent être résolus au runtime
-        ]
+          entryFileNames: 'assets/[name].[hash].js',
+          chunkFileNames: 'assets/[name].[hash].js',
+          assetFileNames: 'assets/[name].[hash].[ext]'
+        }
       }
     },
     publicDir: 'public',

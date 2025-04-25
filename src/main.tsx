@@ -4,7 +4,7 @@ import App from './App.tsx';
 import './index.css';
 
 // Fonction pour attendre que le DOM soit chargé
-document.addEventListener('DOMContentLoaded', () => {
+const renderApp = () => {
   const rootElement = document.getElementById("root");
 
   if (rootElement) {
@@ -36,7 +36,14 @@ document.addEventListener('DOMContentLoaded', () => {
       </div>
     `;
   }
-});
+};
+
+// S'assurer que le DOM est chargé avant le rendu
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', renderApp);
+} else {
+  renderApp();
+}
 
 // Global error handler
 window.addEventListener('error', (event) => {
