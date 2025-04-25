@@ -57,9 +57,8 @@ jobs:
         cp -v api/test.php dist/api/ || echo "Attention: test.php non trouvé"
         
         # Créer un fichier index.php simple pour l'API
-        cat > dist/api/index.php << 'EOF'
-<?php
-// Point d'entrée principal de l'API
+        echo '<?php
+// Point d entrée principal de l API
 header("Content-Type: application/json");
 header("Access-Control-Allow-Origin: *");
 header("Cache-Control: no-cache, no-store, must-revalidate");
@@ -77,13 +76,11 @@ echo json_encode([
         "script" => $_SERVER["SCRIPT_NAME"] ?? "Unknown"
     ]
 ]);
-EOF
-        echo "?>" >> dist/api/index.php
+?>' > dist/api/index.php
         
         # Créer un fichier test.php supplémentaire si celui-ci n'a pas été copié
         if [ ! -f dist/api/test.php ]; then
-          cat > dist/api/test.php << 'EOF'
-<?php
+          echo '<?php
 // Simple test API endpoint
 header("Content-Type: application/json");
 header("Access-Control-Allow-Origin: *");
@@ -97,8 +94,7 @@ echo json_encode([
     "timestamp" => date("Y-m-d H:i:s"),
     "php_version" => phpversion()
 ]);
-EOF
-          echo "?>" >> dist/api/test.php
+?>' > dist/api/test.php
         fi
 
     - name: List dist content for debugging
