@@ -7,6 +7,9 @@ RewriteEngine On
     SetHandler application/x-httpd-php
 </FilesMatch>
 
+# Forcer le type MIME pour PHP
+AddType application/x-httpd-php .php
+
 # Permettre l'accès direct aux fichiers PHP spécifiques
 RewriteCond %{REQUEST_FILENAME} -f
 RewriteRule \.(php)$ - [L]
@@ -18,9 +21,7 @@ RewriteRule ^(.*)$ index.php [QSA,L]
 
 # Définir les en-têtes CORS pour la production
 <IfModule mod_headers.c>
-    # En production, nous limitons l'accès au domaine qualiopi.ch
-    SetEnvIf Origin "^https?://(.*\.)?qualiopi\.ch$" ALLOWED_ORIGIN=$0
-    Header set Access-Control-Allow-Origin "%{ALLOWED_ORIGIN}e" env=ALLOWED_ORIGIN
+    Header set Access-Control-Allow-Origin "https://qualiopi.ch"
     Header set Access-Control-Allow-Methods "GET, POST, OPTIONS, PUT, DELETE"
     Header set Access-Control-Allow-Headers "Content-Type, Authorization"
     

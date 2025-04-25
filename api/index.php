@@ -1,18 +1,12 @@
+
 <?php
 // Forcer l'output buffering pour éviter tout output avant les headers
 ob_start();
 
-// Vérifier si nous sommes dans un environnement de production
-$is_production = true;
-
-// En production, journaliser les erreurs mais ne pas les afficher
-ini_set('display_errors', 0);
-error_reporting(E_ALL);
-ini_set('log_errors', 1);
-ini_set('error_log', 'php_errors.log');
+// Définir explicitement le type de contenu pour les scripts PHP
+header("Content-Type: application/json; charset=UTF-8");
 
 // Définir les headers communs
-header("Content-Type: application/json; charset=UTF-8");
 header("Access-Control-Allow-Origin: https://qualiopi.ch");
 header("Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS");
 header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With");
@@ -44,7 +38,6 @@ switch ($controller) {
         require_once 'controllers/AuthController.php';
         break;
         
-    case 'database-test':
     case 'db-test':
     case 'db-connection-test':
         require_once 'db-connection-test.php';
@@ -65,46 +58,42 @@ switch ($controller) {
         
     // Ajouter des cas explicites pour les fichiers de documents
     case 'documents-load':
-    case 'documents-load.php':
         require_once 'documents-load.php';
         break;
         
     case 'documents-sync':
-    case 'documents-sync.php':
         require_once 'documents-sync.php';
         break;
         
     // Ajouter des cas explicites pour les fichiers de bibliothèque
     case 'bibliotheque-load':
-    case 'bibliotheque-load.php':
         require_once 'bibliotheque-load.php';
         break;
         
     case 'bibliotheque-sync':
-    case 'bibliotheque-sync.php':
         require_once 'bibliotheque-sync.php';
         break;
         
-    // Ajouter un cas explicite pour login-test.php au cas où il serait appelé directement
-    case 'login-test.php':
-        require_once 'login-test.php';
-        break;
-        
-    // Ajouter un cas explicite pour test.php car il manque peut-être aussi
-    case 'test':
-    case 'test.php':
-        require_once 'test.php';
+    case 'config':
+        require_once 'config.php';
         break;
         
     // Ajouter un cas explicite pour phpinfo.php et info.php
     case 'phpinfo':
-    case 'phpinfo.php':
         require_once 'phpinfo.php';
         break;
         
     case 'info':
-    case 'info.php':
         require_once 'info.php';
+        break;
+        
+    case 'json-test':
+        header('Content-Type: application/json');
+        echo json_encode([
+            'status' => 'success',
+            'message' => 'Test JSON réussi',
+            'timestamp' => time()
+        ]);
         break;
         
     default:
