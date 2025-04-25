@@ -3,6 +3,11 @@
 RewriteEngine On
 
 # Permettre l'accès direct aux fichiers PHP spécifiques
+<FilesMatch "\.php$">
+    Order Allow,Deny
+    Allow from all
+</FilesMatch>
+
 RewriteCond %{REQUEST_FILENAME} -f
 RewriteRule \.(php)$ - [L]
 
@@ -10,6 +15,12 @@ RewriteRule \.(php)$ - [L]
 <Files php-execution-test.php>
     ForceType application/json
     Header set Content-Type "application/json; charset=UTF-8"
+</Files>
+
+# Traitement spécifique pour assets-check.php
+<Files assets-check.php>
+    ForceType text/html
+    Header set Content-Type "text/html; charset=UTF-8"
 </Files>
 
 # Rediriger toutes les requêtes vers l'index.php sauf pour les fichiers existants
