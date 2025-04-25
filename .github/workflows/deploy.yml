@@ -1,3 +1,4 @@
+
 name: Deploy to Infomaniak
 
 on:
@@ -31,7 +32,7 @@ jobs:
         find dist -type f | sort
         
         # Vérification spécifique des fichiers API
-        echo "\n🔍 Vérification des fichiers API critiques:"
+        echo -e "\n🔍 Vérification des fichiers API critiques:"
         CRITICAL_FILES=(
           "dist/api/index.php"
           "dist/api/.htaccess"
@@ -124,6 +125,7 @@ EOF
         cp -v api/login-test.php dist/api/ || echo "Attention: login-test.php non trouvé"
         cp -v api/check-users.php dist/api/ || echo "Attention: check-users.php non trouvé"
         cp -v api/php-execution-test.php dist/api/ || echo "Attention: php-execution-test.php non trouvé"
+        cp -v api/php-diagnostic.php dist/api/ || echo "Attention: php-diagnostic.php non trouvé"
         
         # Ajout des fichiers de gestion documentaire
         cp -v api/documents-load.php dist/api/ || echo "Attention: documents-load.php non trouvé"
