@@ -117,10 +117,17 @@ jobs:
         protocol: ftp
         port: 21
         timeout: 60000
+        server-dir: "./"  # Spécifie la racine du site
         exclude: |
           **/.git*
           **/.git*/**
           **/node_modules/**
+        state-name: ".ftp-deploy-sync-state.json"
+        log-level: "minimal"
+        dry-run: false
+        security: "loose"
+        verbose: false
+        # Important : Créer automatiquement les répertoires s'ils n'existent pas
+        strict: false
       env:
         FTP_PASSIVE_MODE: "false"
-
