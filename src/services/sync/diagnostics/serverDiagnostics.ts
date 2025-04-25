@@ -1,7 +1,7 @@
 
 import { getApiUrl } from '@/config/apiConfig';
 import { getAuthHeaders } from '@/services/auth/authService';
-import { validateApiResponse } from '../validators/apiResponseValidator';
+import { validateApiResponse, isPhpContent } from '../validators/apiResponseValidator';
 
 /**
  * Vérifie si le serveur PHP exécute correctement le code ou renvoie du code PHP brut
@@ -64,6 +64,155 @@ export const testServerPhpExecution = async (): Promise<{
       success: false, 
       message: error instanceof Error ? error.message : "Erreur inconnue lors du diagnostic", 
       phpExecuting: false 
+    };
+  }
+};
+
+/**
+ * Effectue un diagnostic complet de la connexion à l'API
+ */
+export const diagnoseApiConnection = async (): Promise<{
+  success: boolean;
+  message: string;
+  details?: any;
+}> => {
+  try {
+    const API_URL = getApiUrl();
+    console.log(`🧪 DIAGNOSTIC API - Test de connexion à ${API_URL}`);
+    
+    const response = await fetch(`${API_URL}/test.php`, {
+      method: 'GET',
+      headers: {
+        'X-Client-Source': 'diagnostics',
+        'Cache-Control': 'no-cache'
+      }
+    });
+    
+    // Si la réponse n'est pas ok, on retourne une erreur
+    if (!response.ok) {
+      return {
+        success: false,
+        message: `Erreur HTTP: ${response.status} - ${response.statusText}`,
+        details: {
+          status: response.status,
+          statusText: response.statusText,
+          url: response.url,
+          tip: "Vérifiez que le serveur est en ligne et accessible."
+        }
+      };
+    }
+    
+    // Vérifier si la réponse est du code PHP brut
+    const responseText = await response.text();
+    if (isPhpContent(responseText)) {
+      return {
+        success: false,
+        message: "Le serveur renvoie du code PHP au lieu de l'exécuter",
+        details: {
+          response: responseText.substring(0, 200),
+          tip: "Vérifiez la configuration PHP sur le serveur."
+        }
+      };
+    }
+    
+    // Essayer de parser la réponse comme du JSON
+    try {
+      const jsonResponse = JSON.parse(responseText);
+      return {
+        success: true,
+        message: jsonResponse.message || "Connexion à l'API réussie",
+        details: jsonResponse
+      };
+    } catch (e) {
+      return {
+        success: false,
+        message: "Réponse non-JSON reçue du serveur",
+        details: {
+          response: responseText.substring(0, 200),
+          tip: "Vérifiez que le script PHP renvoie une réponse JSON valide."
+        }
+      };
+    }
+  } catch (error) {
+    return {
+      success: false,
+      message: error instanceof Error ? error.message : "Erreur inconnue lors du diagnostic",
+      details: {
+        error: error instanceof Error ? error.message : "Erreur inconnue",
+        tip: "Vérifiez votre connexion réseau et l'URL de l'API."
+      }
+    };
+  }
+};
+
+/**
+ * Vérifie spécifiquement si PHP est correctement configuré sur le serveur
+ */
+export const checkPhpServerStatus = async (): Promise<{
+  isWorking: boolean;
+  detail: string;
+  errorCode?: string;
+}> => {
+  try {
+    const API_URL = getApiUrl();
+    console.log(`🧪 DIAGNOSTIC PHP - Test d'exécution PHP sur ${API_URL}`);
+    
+    const response = await fetch(`${API_URL}/phpinfo.php`, {
+      method: 'HEAD',
+      headers: {
+        'X-Client-Source': 'diagnostics',
+        'Cache-Control': 'no-cache'
+      }
+    });
+    
+    // Si le fichier phpinfo.php est accessible, essayons de vérifier le contenu
+    if (response.ok) {
+      // Faire une requête GET pour voir le contenu
+      const contentResponse = await fetch(`${API_URL}/phpinfo.php`, {
+        method: 'GET',
+        headers: {
+          'X-Client-Source': 'diagnostics',
+          'Cache-Control': 'no-cache'
+        }
+      });
+      
+      const contentText = await contentResponse.text();
+      
+      // Si la réponse est du code PHP brut
+      if (isPhpContent(contentText)) {
+        return {
+          isWorking: false,
+          detail: contentText.substring(0, 200),
+          errorCode: 'PHP_EXECUTION_ERROR'
+        };
+      }
+      
+      // Si la réponse contient des informations PHP, c'est bon signe
+      if (contentText.includes('PHP Version') || contentText.includes('phpinfo()')) {
+        return {
+          isWorking: true,
+          detail: "PHP est correctement configuré"
+        };
+      }
+      
+      // Sinon, on ne sait pas trop
+      return {
+        isWorking: false,
+        detail: "Le serveur répond mais PHP ne semble pas correctement configuré",
+        errorCode: 'PHP_UNKNOWN_CONFIG'
+      };
+    } else {
+      return {
+        isWorking: false,
+        detail: `Le fichier phpinfo.php n'est pas accessible (${response.status})`,
+        errorCode: 'PHPINFO_NOT_ACCESSIBLE'
+      };
+    }
+  } catch (error) {
+    return {
+      isWorking: false,
+      detail: error instanceof Error ? error.message : "Erreur inconnue lors du diagnostic PHP",
+      errorCode: 'PHP_DIAGNOSTIC_ERROR'
     };
   }
 };
