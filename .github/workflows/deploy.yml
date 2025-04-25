@@ -29,24 +29,22 @@ jobs:
       run: |
         echo "Préparation de la structure pour Infomaniak..."
         
-        # Créer une structure temporaire pour organiser les fichiers
+        # Créer une structure temporaire simple (sans dossiers imbriqués)
         mkdir -p temp_deploy
         
         # Copier les fichiers buildés dans le répertoire temporaire
         cp -R dist/* temp_deploy/ || true
         
-        # Copier les autres fichiers nécessaires
-        # API et ses sous-dossiers
+        # Créer tous les dossiers nécessaires pour l'API
         mkdir -p temp_deploy/api/config
         mkdir -p temp_deploy/api/controllers
         mkdir -p temp_deploy/api/middleware
-        mkdir -p temp_deploy/api/models
         mkdir -p temp_deploy/api/models/traits
         mkdir -p temp_deploy/api/operations
         mkdir -p temp_deploy/api/utils
         
         # Copier tous les fichiers PHP et autres fichiers de l'API
-        cp -R api/*.php temp_deploy/api/
+        cp -R api/*.php temp_deploy/api/ || true
         cp -R api/config/* temp_deploy/api/config/ || true
         cp -R api/controllers/* temp_deploy/api/controllers/ || true
         cp -R api/middleware/* temp_deploy/api/middleware/ || true
@@ -55,22 +53,20 @@ jobs:
         cp -R api/utils/* temp_deploy/api/utils/ || true
         
         # Copier les fichiers cachés
-        cp -R api/.htaccess temp_deploy/api/ || true
-        cp -R api/.user.ini temp_deploy/api/ || true
+        cp api/.htaccess temp_deploy/api/ || true
+        cp api/.user.ini temp_deploy/api/ || true
         cp .htaccess temp_deploy/ || true
         
-        # Vérifier et créer le .htaccess dans api/config
-        if [ -f "api/config/.htaccess" ]; then
-          cp api/config/.htaccess temp_deploy/api/config/
-        else
-          echo "# Interdire l'accès à ce répertoire
-<IfModule mod_authz_core.c>
-    Require all denied
-</IfModule>
-<IfModule !mod_authz_core.c>
-    Order deny,allow
-    Deny from all
-</IfModule>" > temp_deploy/api/config/.htaccess
+        # Créer le .htaccess dans api/config s'il n'existe pas
+        if [ ! -f "temp_deploy/api/config/.htaccess" ]; then
+          echo "# Interdire l'accès à ce répertoire" > temp_deploy/api/config/.htaccess
+          echo "<IfModule mod_authz_core.c>" >> temp_deploy/api/config/.htaccess
+          echo "    Require all denied" >> temp_deploy/api/config/.htaccess
+          echo "</IfModule>" >> temp_deploy/api/config/.htaccess
+          echo "<IfModule !mod_authz_core.c>" >> temp_deploy/api/config/.htaccess
+          echo "    Order deny,allow" >> temp_deploy/api/config/.htaccess
+          echo "    Deny from all" >> temp_deploy/api/config/.htaccess
+          echo "</IfModule>" >> temp_deploy/api/config/.htaccess
         fi
         
         # Copier les uploads
@@ -115,4 +111,3 @@ jobs:
         echo "Déploiement terminé. Vérification de la structure:"
         curl -v "https://qualiopi.ch/" || echo "Vérification du site échouée"
         curl -v "https://qualiopi.ch/api/diagnostic.php" || echo "Vérification de l'API échouée"
-
