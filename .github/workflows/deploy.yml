@@ -42,6 +42,7 @@ jobs:
         mkdir -p dist/api/middleware
         mkdir -p dist/api/models
         mkdir -p dist/api/utils
+        mkdir -p dist/api/operations
         mkdir -p dist/public/lovable-uploads
         
         # Ajout du fichier .htaccess à la racine
@@ -65,26 +66,70 @@ jobs:
         cp -v api/auth.php dist/api/ || echo "Attention: auth.php non trouvé"
         cp -v api/test.php dist/api/ || echo "Attention: test.php non trouvé"
         cp -v api/login-test.php dist/api/ || echo "Attention: login-test.php non trouvé"
+        cp -v api/test-login.php dist/api/ || echo "Attention: test-login.php non trouvé"
         cp -v api/type-check.php dist/api/ || echo "Attention: type-check.php non trouvé"
         cp -v api/php-json-test.php dist/api/ || echo "Attention: php-json-test.php non trouvé"
+        
+        # Fichiers de test et diagnostic
+        cp -v api/info.php dist/api/ || echo "Attention: info.php non trouvé"
+        cp -v api/phpinfo.php dist/api/ || echo "Attention: phpinfo.php non trouvé"
+        cp -v api/diagnostic.php dist/api/ || echo "Attention: diagnostic.php non trouvé"
+        cp -v api/diagnostic-complet.php dist/api/ || echo "Attention: diagnostic-complet.php non trouvé"
+        cp -v api/diagnose.php dist/api/ || echo "Attention: diagnose.php non trouvé"
+        cp -v api/diagnose-assets.php dist/api/ || echo "Attention: diagnose-assets.php non trouvé"
+        cp -v api/diagnose-connection.php dist/api/ || echo "Attention: diagnose-connection.php non trouvé"
+        cp -v api/database-test.php dist/api/ || echo "Attention: database-test.php non trouvé"
+        cp -v api/db-test.php dist/api/ || echo "Attention: db-test.php non trouvé"
+        cp -v api/direct-db-test.php dist/api/ || echo "Attention: direct-db-test.php non trouvé"
+        cp -v api/db-connection-test.php dist/api/ || echo "Attention: db-connection-test.php non trouvé"
+        cp -v api/database-config.php dist/api/ || echo "Attention: database-config.php non trouvé"
+        cp -v api/database-diagnostics.php dist/api/ || echo "Attention: database-diagnostics.php non trouvé"
+        cp -v api/assets-check.php dist/api/ || echo "Attention: assets-check.php non trouvé"
+        cp -v api/check-users.php dist/api/ || echo "Attention: check-users.php non trouvé"
+        cp -v api/mime-check.php dist/api/ || echo "Attention: mime-check.php non trouvé"
+        cp -v api/json-test.php dist/api/ || echo "Attention: json-test.php non trouvé"
         
         # Fichiers de configuration
         mkdir -p dist/api/config
         cp -v api/config/database.php dist/api/config/ || echo "Attention: database.php non trouvé"
         cp -v api/config/env.php dist/api/config/ || echo "Attention: env.php non trouvé"
+        cp -v api/config/env.example.php dist/api/config/ || echo "Attention: env.example.php non trouvé"
+        cp -v api/config/db_config.json dist/api/config/ || echo "Attention: db_config.json non trouvé"
+        cp -v api/config/db_config.example.json dist/api/config/ || echo "Attention: db_config.example.json non trouvé"
         
         # Contrôleurs
         mkdir -p dist/api/controllers
         cp -v api/controllers/AuthController.php dist/api/controllers/ || echo "Attention: AuthController.php non trouvé"
         cp -v api/controllers/UserController.php dist/api/controllers/ || echo "Attention: UserController.php non trouvé"
+        cp -v api/controllers/UsersController.php dist/api/controllers/ || echo "Attention: UsersController.php non trouvé"
+        cp -v api/controllers/ConfigController.php dist/api/controllers/ || echo "Attention: ConfigController.php non trouvé"
+        cp -v api/controllers/DatabaseConfigController.php dist/api/controllers/ || echo "Attention: DatabaseConfigController.php non trouvé"
+        cp -v api/controllers/DatabaseTestController.php dist/api/controllers/ || echo "Attention: DatabaseTestController.php non trouvé"
         
-        # Modèles
-        mkdir -p dist/api/models
+        # Middleware
+        mkdir -p dist/api/middleware
+        cp -v api/middleware/Auth.php dist/api/middleware/ || echo "Attention: Auth.php non trouvé"
+        cp -v api/middleware/RequestHandler.php dist/api/middleware/ || echo "Attention: RequestHandler.php non trouvé"
+        
+        # Modèles et traits
+        mkdir -p dist/api/models/traits
+        cp -v api/models/BaseModel.php dist/api/models/ || echo "Attention: BaseModel.php non trouvé"
         cp -v api/models/User.php dist/api/models/ || echo "Attention: User.php non trouvé"
+        cp -v api/models/traits/TableManager.php dist/api/models/traits/ || echo "Attention: TableManager.php non trouvé"
+        cp -v api/models/traits/UserQueries.php dist/api/models/traits/ || echo "Attention: UserQueries.php non trouvé"
+        cp -v api/models/traits/UserValidator.php dist/api/models/traits/ || echo "Attention: UserValidator.php non trouvé"
+        
+        # Operations
+        mkdir -p dist/api/operations
+        cp -v api/operations/UserOperations.php dist/api/operations/ || echo "Attention: UserOperations.php non trouvé"
         
         # Utils
         mkdir -p dist/api/utils
         cp -v api/utils/JwtHandler.php dist/api/utils/ || echo "Attention: JwtHandler.php non trouvé"
+        cp -v api/utils/ResponseHandler.php dist/api/utils/ || echo "Attention: ResponseHandler.php non trouvé"
+        
+        # Configuration PHP
+        cp -v api/php.ini dist/api/ || echo "Attention: php.ini non trouvé"
 
     - name: Copy remaining application files
       run: |
