@@ -29,6 +29,8 @@ jobs:
         mkdir -p dist/api
         cp -v api/php-system-check.php dist/api/ || echo "Attention: php-system-check.php non trouvé"
         cp -v api/php-execution-test.php dist/api/ || echo "Attention: php-execution-test.php non trouvé"
+        cp -v api/phpinfo.php dist/api/ || echo "Attention: phpinfo.php non trouvé"
+        cp -v api/diagnostic.php dist/api/ || echo "Attention: diagnostic.php non trouvé"
         # ... keep existing code (other file copies) ...
 
     - name: Deploy to Infomaniak
