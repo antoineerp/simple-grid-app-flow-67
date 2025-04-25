@@ -1,11 +1,10 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { getUtilisateurs, connectAsUser, testDatabaseConnection, type Utilisateur } from '@/services';
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "@/hooks/use-toast";
 import { hasPermission, UserRole } from '@/types/roles';
 
 export const useAdminUsers = () => {
-  const { toast } = useToast();
   const [utilisateurs, setUtilisateurs] = useState<Utilisateur[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -72,7 +71,7 @@ export const useAdminUsers = () => {
     } finally {
       setLoading(false);
     }
-  }, [toast]);
+  }, []);
 
   const handleConnectAsUser = async (identifiantTechnique: string) => {
     const currentUserRole = localStorage.getItem('userRole') as UserRole;

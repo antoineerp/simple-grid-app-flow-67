@@ -1,6 +1,5 @@
 
 import { getApiUrl } from '@/config/apiConfig';
-import { useToast } from '@/hooks/use-toast';
 import { getAuthHeaders } from '../auth/authService';
 
 // URL de l'API
@@ -12,7 +11,7 @@ export interface Utilisateur {
   nom: string;
   prenom: string;
   email: string;
-  mot_de_passe?: string;
+  mot_de_passe: string; // Made this required to match the interface in index.ts
   identifiant_technique: string;
   role: string;
   date_creation: string;
@@ -64,12 +63,6 @@ class UserService {
       return data.records;
     } catch (error) {
       console.error("Erreur lors de la récupération des utilisateurs:", error);
-      const { toast } = useToast();
-      toast({
-        title: "Erreur",
-        description: "Impossible de récupérer les utilisateurs depuis la base de données.",
-        variant: "destructive",
-      });
       throw error;
     }
   }

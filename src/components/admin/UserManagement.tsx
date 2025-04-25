@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -10,7 +9,7 @@ import { Loader2, RefreshCw, UserPlus, LogIn, AlertCircle, Eye, EyeOff, Download
 import { useAdminUsers } from '@/hooks/useAdminUsers';
 import UserForm from './UserForm';
 import { getCurrentUser, getLastConnectionError } from '@/services/core/databaseConnectionService';
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "@/hooks/use-toast";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { adminImportFromManager } from '@/services/core/userInitializationService';
 import type { Utilisateur } from '@/services';
@@ -21,7 +20,6 @@ interface UserManagementProps {
 }
 
 const UserManagement = ({ currentDatabaseUser, onUserConnect }: UserManagementProps) => {
-  const { toast } = useToast();
   const { utilisateurs, loading, error, loadUtilisateurs, handleConnectAsUser } = useAdminUsers();
   const [newUserOpen, setNewUserOpen] = useState(false);
   const [connectionError, setConnectionError] = useState<string | null>(null);
