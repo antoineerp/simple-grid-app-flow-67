@@ -5,10 +5,11 @@ import LoginForm from '@/components/auth/LoginForm';
 import { getApiUrl, getFullApiUrl, testApiConnection } from '@/config/apiConfig';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { AlertCircle, ExternalLink, Server, RefreshCw } from 'lucide-react';
+import { AlertCircle, ExternalLink, Server, RefreshCw, AlertTriangle } from 'lucide-react';
+import { diagnoseApiConnection } from '@/services/sync/userProfileSync';
 
 const Index = () => {
-  const [apiStatus, setApiStatus] = useState<'loading' | 'success' | 'error'>('loading');
+  const [apiStatus, setApiStatus] = useState<'loading' | 'success' | 'error' | 'php-error'>('loading');
   const [apiMessage, setApiMessage] = useState<string>('');
   const [apiDetails, setApiDetails] = useState<any>(null);
   const [version, setVersion] = useState<string>('1.0.7');
@@ -18,17 +19,36 @@ const Index = () => {
   const checkApi = async () => {
     try {
       setApiStatus('loading');
+      
+      // Premier test général de l'API avec testApiConnection
       const result = await testApiConnection();
       
+      // Si l'API générale répond, faire un diagnostic spécifique pour PHP
       if (result.success) {
-        setApiStatus('success');
-        setApiMessage(result.message);
+        try {
+          const phpDiagnostic = await diagnoseApiConnection();
+          
+          if (phpDiagnostic.success) {
+            setApiStatus('success');
+            setApiMessage("API connectée et PHP correctement exécuté");
+          } else if (phpDiagnostic.details?.isPhp) {
+            setApiStatus('php-error');
+            setApiMessage("Erreur de configuration PHP: le code PHP est renvoyé au lieu d'être exécuté");
+            setApiDetails(phpDiagnostic.details);
+          } else {
+            setApiStatus('success');
+            setApiMessage(result.message);
+          }
+        } catch (diagError) {
+          // Si le diagnostic échoue, on garde quand même le succès du test général
+          setApiStatus('success');
+          setApiMessage(result.message + " (Diagnostic avancé indisponible)");
+        }
       } else {
         setApiStatus('error');
         setApiMessage(result.message);
+        setApiDetails(result.details || null);
       }
-      
-      setApiDetails(result.details || null);
     } catch (error) {
       setApiStatus('error');
       setApiMessage(error instanceof Error ? error.message : 'Erreur inconnue');
@@ -46,7 +66,7 @@ const Index = () => {
     setIsInfomaniak(infomaniakDetected);
     
     checkApi();
-    setVersion(`1.0.7 - ${new Date().toLocaleDateString()}`);
+    setVersion(`1.0.8 - ${new Date().toLocaleDateString()}`);
   }, []);
 
   return (
@@ -93,24 +113,65 @@ const Index = () => {
           </Alert>
         )}
         
+        {apiStatus === 'php-error' && (
+          <Alert variant="destructive" className="mb-6">
+            <AlertTriangle className="h-4 w-4 mr-2" />
+            <AlertDescription>
+              <div className="font-semibold mb-1">Erreur de configuration du serveur PHP</div>
+              <div className="mt-2">
+                <p>Le serveur PHP n'exécute pas correctement le code PHP. Au lieu de l'exécuter, il renvoie le code source.</p>
+                <div className="mt-2 p-2 bg-red-100 rounded text-xs font-mono">
+                  Début de la réponse: {apiDetails?.firstChars}...
+                </div>
+                <p className="mt-2 text-sm font-semibold">Solutions possibles:</p>
+                <ul className="list-disc pl-5 text-xs mt-1">
+                  <li>Vérifiez que PHP est correctement installé et configuré sur votre serveur</li>
+                  <li>Vérifiez que les fichiers .php sont bien associés à l'interpréteur PHP</li>
+                  {isInfomaniak && (
+                    <li>Sur Infomaniak, vérifiez que le mode PHP est activé pour votre hébergement</li>
+                  )}
+                </ul>
+              </div>
+              
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="mt-2" 
+                onClick={() => {
+                  setIsRetesting(true);
+                  checkApi();
+                }}
+                disabled={isRetesting}
+              >
+                <RefreshCw className={`h-3 w-3 mr-1 ${isRetesting ? 'animate-spin' : ''}`} />
+                {isRetesting ? 'Test en cours...' : 'Tester à nouveau'}
+              </Button>
+            </AlertDescription>
+          </Alert>
+        )}
+        
         <LoginForm />
         
         <div className="mt-6 text-xs text-gray-500 border-t pt-4">
           <div className="flex justify-between">
-            <span>API: {apiStatus === 'loading' ? 'Vérification...' : apiStatus === 'success' ? '✅ Connectée' : '❌ Erreur'}</span>
-            {apiStatus === 'error' && (
+            <span>
+              API: {apiStatus === 'loading' ? 'Vérification...' : 
+                    apiStatus === 'success' ? '✅ Connectée' : 
+                    apiStatus === 'php-error' ? '❌ Erreur PHP' : '❌ Erreur'}
+            </span>
+            {(apiStatus === 'error' || apiStatus === 'php-error') && (
               <a 
-                href={`${getApiUrl()}/check-users.php`} 
+                href={`${getApiUrl()}/phpinfo.php`} 
                 target="_blank" 
                 rel="noopener noreferrer"
                 className="flex items-center text-blue-500 hover:underline"
               >
-                Vérifier utilisateurs <ExternalLink className="h-3 w-3 ml-1" />
+                Info PHP <ExternalLink className="h-3 w-3 ml-1" />
               </a>
             )}
           </div>
           
-          {apiStatus === 'error' && (
+          {(apiStatus === 'error' || apiStatus === 'php-error') && (
             <div className="mt-2 text-xs text-red-500">
               Pour résoudre ce problème, vérifiez que votre serveur exécute correctement PHP.
             </div>

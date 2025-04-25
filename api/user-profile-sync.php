@@ -5,6 +5,9 @@ header("Access-Control-Allow-Origin: *");
 header("Access-Control-Allow-Methods: POST, OPTIONS");
 header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With, X-Request-ID, X-Client-Source");
 
+// Vérifier que PHP s'exécute correctement
+$php_check = ['php_executing' => true, 'timestamp' => time()];
+
 // Extraire l'ID de requête des en-têtes ou du corps de la requête
 $requestBody = file_get_contents('php://input');
 $requestData = json_decode($requestBody, true);
@@ -19,7 +22,7 @@ error_log("📝 API [{$requestId}] - Headers: " . json_encode(getallheaders()));
 // Si c'est une requête OPTIONS (preflight), nous la terminons ici
 if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
     http_response_code(200);
-    echo json_encode(['status' => 200, 'message' => 'Preflight OK']);
+    echo json_encode(['status' => 200, 'message' => 'Preflight OK', 'php_check' => $php_check]);
     exit;
 }
 
@@ -27,7 +30,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     error_log("❌ API [{$requestId}] - Méthode non autorisée: " . $_SERVER['REQUEST_METHOD']);
     http_response_code(405);
-    echo json_encode(['success' => false, 'message' => 'Méthode non autorisée']);
+    echo json_encode(['success' => false, 'message' => 'Méthode non autorisée', 'php_check' => $php_check]);
     exit;
 }
 
@@ -39,12 +42,15 @@ $data = $requestData;
 if (!$data || !isset($data['userId']) || !isset($data['userData'])) {
     error_log("❌ API [{$requestId}] - Données invalides pour user-profile-sync");
     http_response_code(400);
-    echo json_encode(['success' => false, 'message' => 'Données invalides']);
+    echo json_encode(['success' => false, 'message' => 'Données invalides', 'php_check' => $php_check]);
     exit;
 }
 
+// Normaliser l'ID utilisateur en minuscules
+$userId = strtolower($data['userId']);
+
 // Journaliser la requête avec détails
-error_log("👤 API [{$requestId}] - Synchronisation du profil pour l'utilisateur: " . $data['userId']);
+error_log("👤 API [{$requestId}] - Synchronisation du profil pour l'utilisateur: " . $userId);
 error_log("🕒 API [{$requestId}] - Timestamp de la requête: " . ($data['timestamp'] ?? 'Non spécifié'));
 error_log("📊 API [{$requestId}] - Nombre de clés à synchroniser: " . count($data['userData']));
 
@@ -56,11 +62,12 @@ try {
 
     // Vérifier si la connexion est établie
     if (!$database->is_connected) {
-        throw new Exception("Erreur de connexion à la base de données: " . ($database->connection_error ?? "Erreur inconnue"));
+        $errorDetails = ($database->connection_error ?? "Erreur inconnue");
+        error_log("❌ API [{$requestId}] - Erreur de connexion à la base de données: " . $errorDetails);
+        throw new Exception("Erreur de connexion à la base de données: " . $errorDetails);
     }
 
     // Créer la table des profils utilisateurs si elle n'existe pas
-    $userId = strtolower($data['userId']); // Normaliser l'ID utilisateur
     $tableName = "user_profiles_" . preg_replace('/[^a-z0-9_]/i', '_', $userId);
     error_log("🗄️ API [{$requestId}] - Table cible: {$tableName}");
     
@@ -115,7 +122,8 @@ try {
         'message' => 'Profil utilisateur synchronisé avec succès',
         'timestamp' => date('Y-m-d H:i:s'),
         'requestId' => $requestId,
-        'entriesCount' => $count
+        'entriesCount' => $count,
+        'php_check' => $php_check
     ]);
     
 } catch (Exception $e) {
@@ -130,7 +138,8 @@ try {
         'success' => false, 
         'message' => 'Erreur serveur: ' . $e->getMessage(),
         'timestamp' => date('Y-m-d H:i:s'),
-        'requestId' => $requestId
+        'requestId' => $requestId,
+        'php_check' => $php_check
     ]);
 }
 ?>
