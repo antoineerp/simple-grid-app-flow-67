@@ -12,10 +12,15 @@ export async function checkPhpServerStatus(): Promise<{
   try {
     console.log("Vérification du statut du serveur PHP...");
     
-    // Tester le fichier php-execution-test.php
-    const response = await fetch(`${getApiUrl()}/php-execution-test.php`, {
+    // Tester le fichier php-execution-test.php avec un timestamp pour éviter la mise en cache
+    const timestamp = new Date().getTime();
+    const response = await fetch(`${getApiUrl()}/php-execution-test.php?t=${timestamp}`, {
       method: 'GET',
-      headers: { 'Cache-Control': 'no-cache' }
+      headers: { 
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0'
+      }
     });
     
     // Si le status n'est pas 200, c'est une erreur
@@ -90,13 +95,18 @@ export async function diagnoseApiConnection(): Promise<{
 }> {
   try {
     const apiUrl = getApiUrl();
-    const endpoint = `${apiUrl}/php-execution-test.php`;
+    const timestamp = new Date().getTime();
+    const endpoint = `${apiUrl}/php-execution-test.php?t=${timestamp}`;
     
     console.log(`Diagnostic de connexion API: ${endpoint}`);
     
     const response = await fetch(endpoint, {
       method: 'GET',
-      headers: { 'Cache-Control': 'no-cache' }
+      headers: { 
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0'
+      }
     });
     
     const contentType = response.headers.get('content-type') || '';
@@ -128,4 +138,78 @@ export async function diagnoseApiConnection(): Promise<{
       }
     };
   }
+}
+
+/**
+ * Test complet de tous les composants de l'API
+ */
+export async function fullApiDiagnostic(): Promise<{
+  status: 'success' | 'error' | 'partial';
+  tests: Array<{
+    name: string;
+    url: string;
+    status: 'success' | 'error';
+    detail: string;
+  }>;
+}> {
+  const apiUrl = getApiUrl();
+  const timestamp = new Date().getTime();
+  
+  const endpoints = [
+    { name: 'API Info', url: `${apiUrl}/index.php?test=1&t=${timestamp}` },
+    { name: 'PHP Execution Test', url: `${apiUrl}/php-execution-test.php?t=${timestamp}` },
+    { name: 'PHP Info', url: `${apiUrl}/info.php?t=${timestamp}` },
+    { name: 'System Check', url: `${apiUrl}/system-check.php?t=${timestamp}` }
+  ];
+  
+  const results = [];
+  let successCount = 0;
+  
+  for (const endpoint of endpoints) {
+    try {
+      console.log(`Testing endpoint: ${endpoint.url}`);
+      const response = await fetch(endpoint.url, {
+        method: 'GET',
+        headers: { 
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0' 
+        }
+      });
+      
+      const text = await response.text();
+      const isPhpExecuted = !text.trim().startsWith('<?php');
+      
+      if (response.ok && isPhpExecuted) {
+        successCount++;
+        results.push({
+          name: endpoint.name,
+          url: endpoint.url,
+          status: 'success',
+          detail: `Status code: ${response.status} ${response.statusText}`
+        });
+      } else {
+        results.push({
+          name: endpoint.name,
+          url: endpoint.url,
+          status: 'error',
+          detail: isPhpExecuted 
+            ? `HTTP error: ${response.status} ${response.statusText}` 
+            : 'Le PHP n\'est pas exécuté correctement'
+        });
+      }
+    } catch (error) {
+      results.push({
+        name: endpoint.name,
+        url: endpoint.url,
+        status: 'error',
+        detail: error instanceof Error ? error.message : String(error)
+      });
+    }
+  }
+  
+  return {
+    status: successCount === endpoints.length ? 'success' : successCount > 0 ? 'partial' : 'error',
+    tests: results
+  };
 }

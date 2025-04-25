@@ -2,6 +2,10 @@
 # Activer la réécriture d'URL
 RewriteEngine On
 
+# S'assurer que PHP est traité correctement
+AddHandler php-cgi .php
+AddHandler php-fastcgi .php
+
 # Permettre l'accès direct aux fichiers PHP spécifiques
 RewriteCond %{REQUEST_FILENAME} -f
 RewriteRule \.(php)$ - [L]

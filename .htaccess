@@ -15,6 +15,10 @@ AddType text/css .css
 AddType application/json .json
 AddType image/svg+xml .svg
 
+# S'assurer que PHP est traité correctement
+AddHandler php-cgi .php
+AddHandler php-fastcgi .php
+
 # Permettre l'accès aux assets
 <FilesMatch "\.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot|map|tsx?)$">
     Order Allow,Deny
@@ -25,11 +29,16 @@ AddType image/svg+xml .svg
 RewriteCond %{REQUEST_URI} ^/lovable-uploads/
 RewriteRule ^lovable-uploads/(.*)$ public/lovable-uploads/$1 [L]
 
+# Accès direct aux fichiers PHP spécifiques à la racine
+RewriteCond %{REQUEST_FILENAME} -f
+RewriteRule ^(php-execution-test|info|phpinfo|test)\.php$ api/$1.php [L,QSA]
+
 # Redirections spécifiques pour les fichiers PHP de test - IMPORTANT: Ordre de priorité
 RewriteRule ^php-execution-test\.php$ api/php-execution-test.php [L,QSA]
 RewriteRule ^info\.php$ api/info.php [L,QSA]
 RewriteRule ^phpinfo\.php$ api/phpinfo.php [L,QSA]
 RewriteRule ^test\.php$ api/test.php [L,QSA]
+RewriteRule ^system-check\.php$ api/system-check.php [L,QSA]
 
 # Règle pour l'API - toutes les requêtes /api vers le dossier api
 RewriteRule ^api/?$ api/index.php [L]
