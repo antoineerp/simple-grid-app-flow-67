@@ -36,6 +36,24 @@ RewriteRule \.(php)$ - [L]
     Header set Content-Type "text/html; charset=UTF-8"
 </Files>
 
+# Traitement spécifique pour system-check.php
+<Files system-check.php>
+    ForceType application/x-httpd-php
+    Header set Content-Type "text/html; charset=UTF-8"
+</Files>
+
+# Traitement spécifique pour diagnostic.php
+<Files diagnostic.php>
+    ForceType application/x-httpd-php
+    Header set Content-Type "application/json; charset=UTF-8"
+</Files>
+
+# Traitement spécifique pour diagnose.php
+<Files diagnose.php>
+    ForceType application/x-httpd-php
+    Header set Content-Type "application/json; charset=UTF-8"
+</Files>
+
 # Rediriger toutes les requêtes vers l'index.php sauf pour les fichiers existants
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
