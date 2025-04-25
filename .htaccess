@@ -34,7 +34,7 @@ RewriteRule ^lovable-uploads/(.*)$ public/lovable-uploads/$1 [L]
 # Règle pour l'API - toutes les requêtes /api vers le dossier api
 RewriteRule ^api/?$ api/index.php [L]
 RewriteRule ^api/auth$ api/auth.php [L,QSA]
-RewriteRule ^api/login-test\.php$ api/login-test.php [L,QSA]
+RewriteRule ^api/test-login\.php$ api/test-login.php [L,QSA]
 RewriteRule ^api/(.*)$ api/$1 [QSA,L]
 
 # Règle pour les fichiers de diagnostic
@@ -76,5 +76,10 @@ RewriteRule ^(.*)$ index.html [QSA,L]
     </FilesMatch>
     <FilesMatch "\.js$">
         Header set Content-Type "application/javascript; charset=UTF-8"
+    </FilesMatch>
+    
+    # Définir le type MIME correct pour les fichiers PHP API
+    <FilesMatch "auth\.php|test-login\.php">
+        Header set Content-Type "application/json; charset=UTF-8"
     </FilesMatch>
 </IfModule>

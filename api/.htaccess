@@ -45,7 +45,7 @@ RewriteRule ^(.*)$ index.php [QSA,L]
     </FilesMatch>
     
     # Définir le type MIME correct pour les fichiers PHP qui retournent du JSON
-    <FilesMatch "auth\.php|login-test\.php|index\.php">
+    <FilesMatch "auth\.php|index\.php|test-login\.php|login-test\.php">
         Header set Content-Type "application/json; charset=UTF-8"
     </FilesMatch>
 </IfModule>
