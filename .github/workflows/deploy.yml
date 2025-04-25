@@ -1,4 +1,40 @@
 
-    # Dans la section "Copy API files"
-    cp -v api/php-system-check.php dist/api/ || echo "Attention: php-system-check.php non trouvé"
-    cp -v api/php-execution-test.php dist/api/ || echo "Attention: php-execution-test.php non trouvé"
+name: Deploy to Infomaniak
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Build Project
+      run: npm run build
+
+    - name: Copy API files
+      run: |
+        mkdir -p dist/api
+        cp -v api/php-system-check.php dist/api/ || echo "Attention: php-system-check.php non trouvé"
+        cp -v api/php-execution-test.php dist/api/ || echo "Attention: php-execution-test.php non trouvé"
+        # ... keep existing code (other file copies) ...
+
+    - name: Deploy to Infomaniak
+      uses: SamKirkland/FTP-Deploy-Action@v4.3.4
+      with:
+        server: ${{ secrets.FTP_SERVER }}
+        username: ${{ secrets.FTP_USERNAME }}
+        password: ${{ secrets.FTP_PASSWORD }}
+        local-dir: ./dist/
