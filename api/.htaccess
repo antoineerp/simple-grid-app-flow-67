@@ -2,13 +2,18 @@
 # Activer la réécriture d'URL
 RewriteEngine On
 
+# Forcer l'exécution des fichiers PHP
+<FilesMatch "\.php$">
+    SetHandler application/x-httpd-php
+</FilesMatch>
+
 # Permettre l'accès direct aux fichiers PHP spécifiques
 RewriteCond %{REQUEST_FILENAME} -f
 RewriteRule \.(php)$ - [L]
 
 # Traitement spécifique pour php-execution-test.php
 <Files php-execution-test.php>
-    ForceType application/json
+    ForceType application/x-httpd-php
     Header set Content-Type "application/json; charset=UTF-8"
 </Files>
 
