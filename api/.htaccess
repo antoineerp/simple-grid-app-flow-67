@@ -6,6 +6,12 @@ RewriteEngine On
 RewriteCond %{REQUEST_FILENAME} -f
 RewriteRule \.(php)$ - [L]
 
+# Traitement spécifique pour php-execution-test.php
+<Files php-execution-test.php>
+    ForceType application/json
+    Header set Content-Type "application/json; charset=UTF-8"
+</Files>
+
 # Rediriger toutes les requêtes vers l'index.php sauf pour les fichiers existants
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
@@ -26,4 +32,5 @@ RewriteRule ^(.*)$ index.php [QSA,L]
 # Forcer PHP à utiliser le bon encodage
 <IfModule mod_php.c>
     php_value default_charset "UTF-8"
+    php_value output_buffering Off
 </IfModule>

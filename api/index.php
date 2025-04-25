@@ -39,6 +39,13 @@ $request_uri = $_SERVER['REQUEST_URI'];
 $api_path = parse_url($request_uri, PHP_URL_PATH);
 error_log("API Path: " . $api_path);
 
+// Vérifier directement pour les fichiers spécifiques incluant php-execution-test.php
+if (strpos($api_path, '/api/php-execution-test.php') !== false) {
+    error_log("Route php-execution-test.php détectée, inclusion directe");
+    require_once 'php-execution-test.php';
+    exit;
+}
+
 // Vérifier directement pour les fichiers documents-load.php et documents-sync.php
 if (strpos($api_path, '/api/documents-load.php') !== false) {
     error_log("Route documents-load.php détectée, inclusion directe");
@@ -191,7 +198,6 @@ switch ($controller) {
         require_once 'check-users.php';
         break;
     
-    // Ajouter des cas explicites pour les fichiers de documents
     case 'documents-load':
     case 'documents-load.php':
         require_once 'documents-load.php';
@@ -202,7 +208,6 @@ switch ($controller) {
         require_once 'documents-sync.php';
         break;
         
-    // Ajouter des cas explicites pour les fichiers de bibliothèque
     case 'bibliotheque-load':
     case 'bibliotheque-load.php':
         require_once 'bibliotheque-load.php';
@@ -213,18 +218,20 @@ switch ($controller) {
         require_once 'bibliotheque-sync.php';
         break;
         
-    // Ajouter un cas explicite pour login-test.php au cas où il serait appelé directement
+    case 'php-execution-test':
+    case 'php-execution-test.php':
+        require_once 'php-execution-test.php';
+        break;
+        
     case 'login-test.php':
         require_once 'login-test.php';
         break;
         
-    // Ajouter un cas explicite pour test.php car il manque peut-être aussi
     case 'test':
     case 'test.php':
         require_once 'test.php';
         break;
         
-    // Ajouter un cas explicite pour phpinfo.php et info.php
     case 'phpinfo':
     case 'phpinfo.php':
         require_once 'phpinfo.php';

@@ -13,8 +13,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
     exit;
 }
 
-// Générer une réponse simple pour confirmer l'exécution PHP correcte
-echo json_encode([
+// Forcer la sortie au format JSON
+$response = [
     'status' => 'success',
     'message' => 'Le serveur PHP fonctionne correctement',
     'php_version' => phpversion(),
@@ -24,5 +24,9 @@ echo json_encode([
         'uri' => $_SERVER['REQUEST_URI'],
         'ip' => $_SERVER['REMOTE_ADDR']
     ]
-]);
+];
+
+// Vérifier que la réponse est bien en JSON et pas interceptée
+echo json_encode($response);
+exit;
 ?>

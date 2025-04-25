@@ -25,6 +25,9 @@ AddType image/svg+xml .svg
 RewriteCond %{REQUEST_URI} ^/lovable-uploads/
 RewriteRule ^lovable-uploads/(.*)$ public/lovable-uploads/$1 [L]
 
+# Règle spécifique pour le fichier php-execution-test.php
+RewriteRule ^api/php-execution-test\.php$ api/php-execution-test.php [QSA,L]
+
 # Règle pour l'API - toutes les requêtes /api vers le dossier api
 RewriteRule ^api/?$ api/index.php [L]
 RewriteRule ^api/(.*)$ api/$1 [QSA,L]
@@ -53,4 +56,10 @@ RewriteRule ^(.*)$ index.html [QSA,L]
         Header set Pragma "no-cache"
         Header set Expires "0"
     </FilesMatch>
+    
+    # Forcer le type de contenu pour les scripts PHP
+    <FilesMatch "\.php$">
+        Header set Content-Type "application/json; charset=UTF-8"
+    </FilesMatch>
 </IfModule>
+
