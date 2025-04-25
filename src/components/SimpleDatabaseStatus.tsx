@@ -51,7 +51,7 @@ const SimpleDatabaseStatus: React.FC = () => {
               </Badge>
             )}
             {status === 'success' && (
-              <Badge variant="success" className="flex items-center gap-1 bg-green-100 text-green-800 hover:bg-green-200">
+              <Badge variant="default" className="flex items-center gap-1 bg-green-100 text-green-800 hover:bg-green-200">
                 <CheckCircle className="h-3 w-3" />
                 Connecté
               </Badge>
