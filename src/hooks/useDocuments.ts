@@ -47,8 +47,8 @@ export const useDocuments = () => {
       try {
         const apiStatus = await checkDocumentApiAvailability();
         setApiAvailable({
-          load: apiStatus.loadAvailable,
-          sync: apiStatus.syncAvailable
+          load: apiStatus.load,
+          sync: apiStatus.sync
         });
       } catch (error) {
         console.error("Erreur lors de la vérification de l'API:", error);
