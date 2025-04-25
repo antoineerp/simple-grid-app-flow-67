@@ -6,9 +6,10 @@ RewriteEngine On
 AddType application/javascript .js
 AddType application/javascript .mjs
 
-# S'assurer que les fichiers PHP sont exécutés
+# S'assurer que les fichiers PHP sont exécutés avec une configuration plus stricte
 <FilesMatch "\.php$">
     SetHandler application/x-httpd-php
+    ForceType application/x-httpd-php
 </FilesMatch>
 
 # Permettre l'accès direct aux fichiers PHP spécifiques
@@ -20,11 +21,17 @@ RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^(.*)$ index.php [QSA,L]
 
-# Définir les en-têtes CORS et types MIME
+# Définir les en-têtes CORS et types MIME avec configuration complète
 <IfModule mod_headers.c>
-    Header set Access-Control-Allow-Origin "*"
-    Header set Access-Control-Allow-Methods "GET, POST, OPTIONS, PUT, DELETE"
-    Header set Access-Control-Allow-Headers "Content-Type, Authorization"
+    # Configuration CORS complète
+    Header always set Access-Control-Allow-Origin "*"
+    Header always set Access-Control-Allow-Methods "GET, POST, OPTIONS, PUT, DELETE"
+    Header always set Access-Control-Allow-Headers "Content-Type, Authorization, X-Requested-With, Origin"
+    Header always set Access-Control-Max-Age "3600"
+    
+    # Traiter correctement les requêtes OPTIONS (preflight)
+    RewriteCond %{REQUEST_METHOD} OPTIONS
+    RewriteRule ^(.*)$ $1 [R=200,L]
     
     # Eviter la mise en cache
     Header set Cache-Control "no-cache, no-store, must-revalidate"
