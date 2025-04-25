@@ -2,7 +2,7 @@
 # Activer la réécriture d'URL
 RewriteEngine On
 
-# Permettre l'accès direct aux fichiers PHP existants
+# Permettre l'accès direct aux fichiers PHP spécifiques
 RewriteCond %{REQUEST_FILENAME} -f
 RewriteRule \.(php)$ - [L]
 
@@ -22,11 +22,6 @@ RewriteRule ^(.*)$ index.php [QSA,L]
     Header set Pragma "no-cache"
     Header set Expires 0
 </IfModule>
-
-# Force PHP to process .php files
-<Files *.php>
-    SetHandler application/x-httpd-php
-</Files>
 
 # Forcer PHP à utiliser le bon encodage
 <IfModule mod_php.c>

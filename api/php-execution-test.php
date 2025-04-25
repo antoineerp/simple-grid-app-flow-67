@@ -80,20 +80,6 @@ if (extension_loaded('pdo_mysql')) {
 }
 $result['tests']['database'] = $dbTest;
 
-// Test 6: Vérification des chemins Infomaniak
-$infomaniakTest = [];
-$expectedPath = '/sites/qualiopi.ch';
-if (file_exists($expectedPath)) {
-    $infomaniakTest['status'] = 'success';
-    $infomaniakTest['message'] = 'Le chemin Infomaniak standard existe';
-    $infomaniakTest['path'] = $expectedPath;
-} else {
-    $infomaniakTest['status'] = 'warning';
-    $infomaniakTest['message'] = 'Le chemin Infomaniak standard n\'existe pas';
-    $infomaniakTest['path'] = $expectedPath;
-}
-$result['tests']['infomaniak_paths'] = $infomaniakTest;
-
 // Réponse JSON
 echo json_encode($result, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
 ?>

@@ -15,11 +15,6 @@ AddType text/css .css
 AddType application/json .json
 AddType image/svg+xml .svg
 
-# Forcer le traitement de fichiers .php par PHP
-<Files *.php>
-    SetHandler application/x-httpd-php
-</Files>
-
 # Permettre l'accès aux assets
 <FilesMatch "\.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot|map|tsx?)$">
     Order Allow,Deny
@@ -32,7 +27,6 @@ RewriteRule ^lovable-uploads/(.*)$ public/lovable-uploads/$1 [L]
 
 # Règle pour l'API - toutes les requêtes /api vers le dossier api
 RewriteRule ^api/?$ api/index.php [L]
-RewriteRule ^api/(.*)\.php$ api/$1.php [L]
 RewriteRule ^api/(.*)$ api/$1 [QSA,L]
 
 # Permettre l'accès direct aux assets dans leur dossier
@@ -42,11 +36,6 @@ RewriteRule ^ - [L]
 
 # Permettre l'accès direct aux autres ressources statiques
 RewriteCond %{REQUEST_URI} \.(js|css|png|jpe?g|gif|svg|ico|webp|woff2?|ttf|eot|map|tsx?)$
-RewriteCond %{REQUEST_FILENAME} -f
-RewriteRule ^ - [L]
-
-# Permettre l'accès direct aux fichiers PHP à la racine
-RewriteCond %{REQUEST_URI} ^/[^/]+\.php$
 RewriteCond %{REQUEST_FILENAME} -f
 RewriteRule ^ - [L]
 
