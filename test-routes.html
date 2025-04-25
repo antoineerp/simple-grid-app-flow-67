@@ -1,0 +1,112 @@
+
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test des Routes PHP</title>
+    <style>
+        body { font-family: system-ui, -apple-system, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
+        h1, h2 { color: #334155; }
+        .test-links { margin-bottom: 20px; }
+        .test-links a { display: inline-block; padding: 8px 16px; margin: 5px; background: #f1f5f9; 
+                        color: #0f172a; text-decoration: none; border-radius: 4px; }
+        .test-links a:hover { background: #e2e8f0; }
+        pre { background: #f8fafc; padding: 15px; border-radius: 4px; overflow: auto; }
+        #results { border: 1px solid #e2e8f0; padding: 15px; border-radius: 8px; margin-top: 20px; }
+        .success { color: #16a34a; font-weight: bold; }
+        .error { color: #dc2626; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <h1>Test des Routes PHP</h1>
+    <p>Cette page permet de tester les diverses routes de l'application et les règles de redirection.</p>
+    
+    <div class="test-links">
+        <h2>Liens de test direct</h2>
+        <a href="/php-execution-test.php" target="_blank">Test PHP Exécution (Racine)</a>
+        <a href="/api/php-execution-test.php" target="_blank">Test PHP Exécution (API)</a>
+        <a href="/info.php" target="_blank">PHP Info (Racine)</a>
+        <a href="/api/info.php" target="_blank">PHP Info (API)</a>
+        <a href="/api/system-check.php" target="_blank">Vérification Système Complète</a>
+    </div>
+    
+    <div>
+        <h2>Test automatique des routes</h2>
+        <button id="testButton">Lancer les tests</button>
+        <div id="results">
+            <p>Appuyez sur "Lancer les tests" pour vérifier les routes...</p>
+        </div>
+    </div>
+    
+    <script>
+        document.getElementById('testButton').addEventListener('click', async function() {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = '<p>Exécution des tests...</p>';
+            
+            try {
+                const response = await fetch('/api/system-check.php');
+                const data = await response.json();
+                
+                let resultsHtml = '<h3>Résultats des Tests</h3>';
+                
+                // Informations serveur
+                resultsHtml += '<h4>Informations Serveur</h4>';
+                resultsHtml += `<p>Serveur: ${data.server || 'Non disponible'}</p>`;
+                resultsHtml += `<p>Hôte: ${data.host || 'Non disponible'}</p>`;
+                resultsHtml += `<p>Script: ${data.script_path || 'Non disponible'}</p>`;
+                
+                // Résultats des tests
+                resultsHtml += '<h4>Tests de Routes</h4>';
+                resultsHtml += '<ul>';
+                
+                for (const [key, test] of Object.entries(data.tests)) {
+                    const statusClass = test.success ? 'success' : 'error';
+                    resultsHtml += `
+                        <li>
+                            <strong>${test.description}</strong> - 
+                            <a href="${test.url}" target="_blank">${test.url}</a>
+                            <span class="${statusClass}">
+                                [${test.status_code}] ${test.success ? '✓' : '✗'}
+                            </span>
+                            <br>
+                            <small>Type: ${test.content_type || 'Non spécifié'}</small>
+                            ${test.error ? `<br><small class="error">Erreur: ${test.error}</small>` : ''}
+                        </li>
+                    `;
+                }
+                
+                resultsHtml += '</ul>';
+                
+                // Informations PHP
+                resultsHtml += '<h4>Configuration PHP</h4>';
+                resultsHtml += `<p>Version: ${data.php_info.version || 'Non disponible'}</p>`;
+                resultsHtml += `<p>API Serveur: ${data.php_info.server_api || 'Non disponible'}</p>`;
+                resultsHtml += `<p>Module Rewrite: ${data.php_info.rewrite_module || 'Non disponible'}</p>`;
+                
+                // Afficher les modules chargés
+                if (data.php_info.modules && data.php_info.modules.length) {
+                    resultsHtml += '<details>';
+                    resultsHtml += '<summary>Modules PHP chargés</summary>';
+                    resultsHtml += '<pre>' + data.php_info.modules.join(', ') + '</pre>';
+                    resultsHtml += '</details>';
+                }
+                
+                // Détails complets
+                resultsHtml += '<details>';
+                resultsHtml += '<summary>Données complètes</summary>';
+                resultsHtml += '<pre>' + JSON.stringify(data, null, 2) + '</pre>';
+                resultsHtml += '</details>';
+                
+                resultsDiv.innerHTML = resultsHtml;
+                
+            } catch (error) {
+                resultsDiv.innerHTML = `
+                    <p class="error">Erreur lors de l'exécution des tests</p>
+                    <pre>${error.toString()}</pre>
+                `;
+            }
+        });
+    </script>
+</body>
+</html>
