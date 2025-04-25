@@ -34,6 +34,21 @@ AddType application/x-httpd-php .php
 RewriteCond %{REQUEST_URI} ^/lovable-uploads/
 RewriteRule ^lovable-uploads/(.*)$ public/lovable-uploads/$1 [L]
 
+# Règle spécifique pour rediriger assets-check.php vers api/assets-check.php
+RewriteRule ^assets-check\.php$ api/assets-check.php [L]
+
+# Règle spécifique pour rediriger php-execution-test.php vers api/php-execution-test.php
+RewriteRule ^php-execution-test\.php$ api/php-execution-test.php [L]
+
+# Règle spécifique pour rediriger system-check.php vers api/system-check.php
+RewriteRule ^system-check\.php$ api/system-check.php [L]
+
+# Règle spécifique pour rediriger cors-test.php vers api/cors-test.php
+RewriteRule ^cors-test\.php$ api/cors-test.php [L]
+
+# Règle spécifique pour rediriger test-cors.php vers api/test-cors.php
+RewriteRule ^test-cors\.php$ api/test-cors.php [L]
+
 # Règle spécifique pour les fichiers PHP dans le dossier api
 RewriteRule ^api/([^/]+)\.php$ api/$1.php [QSA,L]
 
