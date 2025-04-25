@@ -25,7 +25,7 @@ AddType image/svg+xml .svg
 RewriteCond %{REQUEST_URI} ^/lovable-uploads/
 RewriteRule ^lovable-uploads/(.*)$ public/lovable-uploads/$1 [L]
 
-# Redirections spécifiques pour les fichiers PHP de test
+# Redirections spécifiques pour les fichiers PHP de test - IMPORTANT: Ordre de priorité
 RewriteRule ^php-execution-test\.php$ api/php-execution-test.php [L,QSA]
 RewriteRule ^info\.php$ api/info.php [L,QSA]
 RewriteRule ^phpinfo\.php$ api/phpinfo.php [L,QSA]
@@ -44,6 +44,9 @@ RewriteRule ^ - [L]
 RewriteCond %{REQUEST_URI} \.(js|css|png|jpe?g|gif|svg|ico|webp|woff2?|ttf|eot|map|tsx?)$
 RewriteCond %{REQUEST_FILENAME} -f
 RewriteRule ^ - [L]
+
+# Accès aux pages HTML spéciales
+RewriteRule ^test-routes\.html$ test-routes.html [L,QSA]
 
 # Rediriger toutes les autres requêtes vers index.html pour React Router
 RewriteCond %{REQUEST_FILENAME} !-f
