@@ -59,13 +59,17 @@ switch ($controller) {
         require_once 'db-connection-test.php';
         break;
         
+    case 'database-config':
+        require_once 'database-config.php';
+        break;
+        
     case 'utilisateurs':
     case 'check-users':
-        if (file_exists('check-users.php')) {
-            require_once 'check-users.php';
-        } else if (file_exists('controllers/UsersController.php')) {
+        if (file_exists('controllers/UsersController.php')) {
             define('DIRECT_ACCESS_CHECK', true);
             require_once 'controllers/UsersController.php';
+        } else if (file_exists('check-users.php')) {
+            require_once 'check-users.php';
         } else {
             http_response_code(500);
             echo json_encode([
@@ -85,16 +89,24 @@ switch ($controller) {
         break;
         
     default:
-        $controller_file = $controller . '.php';
+        // Vérifier d'abord si un fichier existe dans le dossier controllers
+        $controller_file = 'controllers/' . ucfirst($controller) . 'Controller.php';
         if (file_exists($controller_file)) {
             require_once $controller_file;
-        } else {
+        } 
+        // Sinon, vérifier si un fichier PHP direct existe
+        else if (file_exists($controller . '.php')) {
+            require_once $controller . '.php';
+        } 
+        // Si aucun fichier n'est trouvé
+        else {
             http_response_code(404);
             echo json_encode([
                 'message' => 'Route non trouvée: ' . $path,
                 'status' => 404,
                 'controller_requested' => $controller,
-                'file_checked' => $controller_file
+                'file_checked' => $controller_file,
+                'alternate_file_checked' => $controller . '.php'
             ]);
         }
         break;
