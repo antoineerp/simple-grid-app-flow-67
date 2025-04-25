@@ -21,6 +21,14 @@ RewriteRule ^(.*)$ index.php [QSA,L]
     Header set Cache-Control "no-cache, no-store, must-revalidate"
     Header set Pragma "no-cache"
     Header set Expires 0
+    
+    # Définir les types MIME corrects pour JavaScript
+    <FilesMatch "\.js$">
+        Header set Content-Type "application/javascript; charset=UTF-8"
+    </FilesMatch>
+    <FilesMatch "\.mjs$">
+        Header set Content-Type "application/javascript; charset=UTF-8"
+    </FilesMatch>
 </IfModule>
 
 # Forcer PHP à utiliser le bon encodage

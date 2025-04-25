@@ -11,12 +11,18 @@ DirectoryIndex index.html index.php
 
 # Définir les types MIME corrects
 AddType application/javascript .js
+AddType application/javascript .mjs
 AddType text/css .css
 AddType application/json .json
 AddType image/svg+xml .svg
+AddType application/vnd.ms-fontobject .eot
+AddType font/ttf .ttf
+AddType font/otf .otf
+AddType font/woff .woff
+AddType font/woff2 .woff2
 
 # Permettre l'accès aux assets
-<FilesMatch "\.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot|map|tsx?)$">
+<FilesMatch "\.(js|mjs|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot|map|tsx?)$">
     Order Allow,Deny
     Allow from all
 </FilesMatch>
@@ -29,13 +35,19 @@ RewriteRule ^lovable-uploads/(.*)$ public/lovable-uploads/$1 [L]
 RewriteRule ^api/?$ api/index.php [L]
 RewriteRule ^api/(.*)$ api/$1 [QSA,L]
 
+# Règle pour les fichiers de diagnostic
+RewriteRule ^assets-check\.php$ api/assets-check.php [L]
+RewriteRule ^diagnostic\.php$ api/diagnose-assets.php [L]
+RewriteRule ^system-check\.php$ api/system-check.php [L]
+RewriteRule ^php-test\.php$ api/test.php [L]
+
 # Permettre l'accès direct aux assets dans leur dossier
 RewriteCond %{REQUEST_URI} ^/assets/
 RewriteCond %{REQUEST_FILENAME} -f
 RewriteRule ^ - [L]
 
 # Permettre l'accès direct aux autres ressources statiques
-RewriteCond %{REQUEST_URI} \.(js|css|png|jpe?g|gif|svg|ico|webp|woff2?|ttf|eot|map|tsx?)$
+RewriteCond %{REQUEST_URI} \.(js|mjs|css|png|jpe?g|gif|svg|ico|webp|woff2?|ttf|eot|map|tsx?)$
 RewriteCond %{REQUEST_FILENAME} -f
 RewriteRule ^ - [L]
 
@@ -48,9 +60,17 @@ RewriteRule ^(.*)$ index.html [QSA,L]
 # Configuration de sécurité
 <IfModule mod_headers.c>
     # Configuration pour les assets statiques
-    <FilesMatch "\.(js|css|json)$">
+    <FilesMatch "\.(js|mjs|css|json)$">
         Header set Cache-Control "no-cache, no-store, must-revalidate"
         Header set Pragma "no-cache"
         Header set Expires "0"
+    </FilesMatch>
+    
+    # Définir le type MIME correct pour les modules JavaScript
+    <FilesMatch "\.mjs$">
+        Header set Content-Type "application/javascript; charset=UTF-8"
+    </FilesMatch>
+    <FilesMatch "\.js$">
+        Header set Content-Type "application/javascript; charset=UTF-8"
     </FilesMatch>
 </IfModule>
