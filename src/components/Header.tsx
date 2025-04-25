@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
@@ -8,19 +9,20 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { getAuthHeaders, getCurrentUser, isConnected } from '@/services/auth/authService';
+import { getAuthHeaders, getCurrentUser } from '@/services/auth/authService';
+import { isConnected as isConnectedToDatabase } from '@/services/core/databaseConnectionService';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { MenuIcon, User, LogOut, Settings, Database } from "lucide-react";
-import { ModeToggle } from './ui/mode-toggle';
+import { MenuIcon, User, LogOut, Settings, Database, CloudSun } from "lucide-react";
+import { ModeToggle } from '@/components/ui/mode-toggle';
 import SyncStatusIndicator from './common/SyncStatusIndicator';
-import useNetworkStatus from '@/hooks/useNetworkStatus';
+import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { forceReloadUserProfile } from '@/services/sync';
 
 const Header: React.FC = () => {
   const navigate = useNavigate();
   const [user, setUser] = useState<any>(null);
   const [isDatabaseConnected, setIsDatabaseConnected] = useState(false);
-  const isOnline = useNetworkStatus();
+  const { isOnline } = useNetworkStatus();
   const [isSyncing, setIsSyncing] = useState(false);
   const [lastSynced, setLastSynced] = useState<Date | null>(null);
   const [syncError, setSyncError] = useState(false);
@@ -36,7 +38,7 @@ const Header: React.FC = () => {
   
   useEffect(() => {
     const checkDatabaseConnection = async () => {
-      const connected = await isConnected();
+      const connected = await isConnectedToDatabase();
       setIsDatabaseConnected(connected);
     };
     
