@@ -25,54 +25,29 @@ jobs:
     - name: Build React App
       run: npm run build
       
-    - name: Debug build output
+    - name: Prepare API Directory
       run: |
-        echo "============== Debugging build output =============="
-        echo "Liste des fichiers dans dist:"
-        ls -la dist/
-        echo "Liste des fichiers assets:"
-        ls -la dist/assets/ || echo "Dossier assets non trouvé"
-        echo "Contenu de index.html:"
-        cat dist/index.html || echo "index.html non trouvé"
-
-    - name: Create API directory structure
-      run: |
-        echo "Creating API directory structure..."
-        mkdir -p dist/api/config
-        mkdir -p dist/api/controllers
-        mkdir -p dist/api/middleware
-        mkdir -p dist/api/models
-        mkdir -p dist/api/models/traits
-        mkdir -p dist/api/utils
-
-    - name: Copy API files
-      run: |
-        echo "Copying API files..."
-        cp -r api/* dist/api/
-        cp -r api/.htaccess dist/api/
-        cp -r api/.user.ini dist/api/
+        echo "Préparation du répertoire API..."
+        mkdir -p dist/sites/qualiopi.ch/api
         
-        # Vérification de la copie
-        echo "Vérification de la structure API:"
-        ls -R dist/api/
-
-    - name: Copy root files
-      run: |
-        echo "Copying root files..."
-        cp .htaccess dist/
+        # Copier tous les fichiers de l'API
+        cp -R api/* dist/sites/qualiopi.ch/api/
         
-        # Création du dossier public et uploads
-        mkdir -p dist/public/lovable-uploads
+        # Copier les fichiers cachés (.htaccess, .user.ini, etc.)
+        cp -R api/.htaccess dist/sites/qualiopi.ch/api/ || true
+        cp -R api/.user.ini dist/sites/qualiopi.ch/api/ || true
         
-    - name: Check structure before deployment
+        # Créer les sous-répertoires nécessaires
+        mkdir -p dist/sites/qualiopi.ch/api/config
+        mkdir -p dist/sites/qualiopi.ch/api/controllers
+        mkdir -p dist/sites/qualiopi.ch/api/middleware
+        mkdir -p dist/sites/qualiopi.ch/api/models
+        mkdir -p dist/sites/qualiopi.ch/api/utils
+        
+    - name: Debug API Directory Structure
       run: |
-        echo "Verifying structure before deployment:"
-        echo "Root files:"
-        ls -la dist/
-        echo "API files:"
-        ls -la dist/api/
-        echo "API config files:"
-        ls -la dist/api/config/
+        echo "Structure du répertoire API:"
+        tree dist/sites/qualiopi.ch/api || ls -R dist/sites/qualiopi.ch/api
         
     - name: Sync full dist folder to Infomaniak server
       uses: SamKirkland/FTP-Deploy-Action@v4.3.4
@@ -98,7 +73,5 @@ jobs:
 
     - name: Post-deployment verification
       run: |
-        echo "Déploiement terminé. Vérifiez les logs pour toute erreur."
-        echo "Structure finale déployée:"
-        tree dist/ || ls -R dist/
-
+        echo "Déploiement terminé. Vérification de la structure:"
+        curl -v "https://qualiopi.ch/api/diagnostic.php" || echo "Vérification de l'API échouée"
