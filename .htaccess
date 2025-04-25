@@ -40,6 +40,8 @@ RewriteRule ^assets-check\.php$ api/assets-check.php [L]
 RewriteRule ^diagnostic\.php$ api/diagnose-assets.php [L]
 RewriteRule ^system-check\.php$ api/system-check.php [L]
 RewriteRule ^php-test\.php$ api/test.php [L]
+RewriteRule ^mime-test\.html$ mime-test.html [L]
+RewriteRule ^mime-check\.php$ api/mime-check.php [L]
 
 # Permettre l'accès direct aux assets dans leur dossier
 RewriteCond %{REQUEST_URI} ^/assets/
