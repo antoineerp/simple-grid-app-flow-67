@@ -1,6 +1,6 @@
 
 import { getApiUrl } from '@/config/apiConfig';
-import { getAuthHeaders, getCurrentUser } from '@/services/auth/authService';
+import { getAuthHeaders } from '@/services/auth/authService';
 import { validateApiResponse } from '../validators/apiResponseValidator';
 import { toast } from '@/hooks/use-toast';
 
@@ -12,14 +12,12 @@ export const syncUserProfileWithServer = async (
   forceUser?: string
 ): Promise<boolean> => {
   try {
-    const currentUser = forceUser || getCurrentUser();
-    
-    if (!currentUser) {
+    if (!forceUser) {
       console.error('❌ SYNCHRONISATION - Aucun utilisateur spécifié');
       return false;
     }
     
-    console.log(`🔄 SYNCHRONISATION - Profil utilisateur ${currentUser}`);
+    console.log(`🔄 SYNCHRONISATION - Profil utilisateur ${forceUser}`);
     
     const API_URL = getApiUrl();
     const endpoint = `${API_URL}/user-profile-sync.php`;
@@ -31,10 +29,9 @@ export const syncUserProfileWithServer = async (
         ...getAuthHeaders(),
         'Content-Type': 'application/json',
         'X-Request-ID': requestId,
-        'X-Client-Source': 'web-app',
       },
       body: JSON.stringify({ 
-        userId: currentUser, 
+        userId: forceUser, 
         userData,
         timestamp: new Date().toISOString(),
         requestId
@@ -80,9 +77,7 @@ export const syncUserProfileWithServer = async (
  */
 export const loadUserProfileFromServer = async (forceUser?: string): Promise<any | null> => {
   try {
-    const currentUser = forceUser || getCurrentUser();
-    
-    if (!currentUser) {
+    if (!forceUser) {
       console.error('❌ CHARGEMENT - Aucun utilisateur spécifié');
       return null;
     }
@@ -91,14 +86,11 @@ export const loadUserProfileFromServer = async (forceUser?: string): Promise<any
     const endpoint = `${API_URL}/user-profile-load.php`;
     const requestId = `req_${new Date().getTime()}_${Math.random().toString(36).substring(2, 9)}`;
     
-    console.log(`📥 CHARGEMENT - Données de l'utilisateur ${currentUser} depuis ${endpoint}`);
-    
-    const response = await fetch(`${endpoint}?userId=${encodeURIComponent(currentUser)}&requestId=${requestId}`, {
+    const response = await fetch(`${endpoint}?userId=${encodeURIComponent(forceUser)}&requestId=${requestId}`, {
       method: 'GET',
       headers: {
         ...getAuthHeaders(),
         'X-Request-ID': requestId,
-        'X-Client-Source': 'web-app',
       }
     });
     
@@ -138,19 +130,6 @@ export const loadUserProfileFromServer = async (forceUser?: string): Promise<any
 };
 
 export const forceReloadUserProfile = async (): Promise<any> => {
-  const currentUser = getCurrentUser();
-  
-  if (!currentUser) {
-    console.error('🔄 RECHARGEMENT FORCÉ - Aucun utilisateur connecté, impossible de recharger le profil');
-    toast({
-      title: "Synchronisation impossible",
-      description: "Vous devez être connecté pour synchroniser vos données",
-      variant: "destructive"
-    });
-    return null;
-  }
-  
-  console.log(`🔄 RECHARGEMENT FORCÉ - Demande de rechargement du profil utilisateur: ${currentUser}`);
-  return await loadUserProfileFromServer(currentUser);
+  console.log('🔄 RECHARGEMENT FORCÉ - Demande de rechargement du profil utilisateur');
+  return await loadUserProfileFromServer();
 };
-

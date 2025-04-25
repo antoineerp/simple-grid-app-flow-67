@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import Logo from '@/components/auth/Logo';
 import LoginForm from '@/components/auth/LoginForm';
@@ -5,7 +6,7 @@ import { getApiUrl, getFullApiUrl, testApiConnection } from '@/config/apiConfig'
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle, ExternalLink, Server, RefreshCw, AlertTriangle, CheckCircle } from 'lucide-react';
-import { diagnoseApiConnection, checkPhpServerStatus } from '@/services/sync';
+import { diagnoseApiConnection, checkPhpServerStatus } from '@/services/sync/userProfileSync';
 
 const Index = () => {
   const [apiStatus, setApiStatus] = useState<'loading' | 'success' | 'error' | 'php-error' | 'php-success'>('loading');
