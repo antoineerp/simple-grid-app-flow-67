@@ -1,4 +1,3 @@
-
 name: Deploy to Infomaniak
 
 on:
@@ -65,37 +64,28 @@ jobs:
         cp -v api/.user.ini dist/api/ || echo "Attention: .user.ini non trouvé"
         cp -v api/auth.php dist/api/ || echo "Attention: auth.php non trouvé"
         cp -v api/test.php dist/api/ || echo "Attention: test.php non trouvé"
-        cp -v api/info.php dist/api/ || echo "Attention: info.php non trouvé"
-        cp -v api/diagnostic.php dist/api/ || echo "Attention: diagnostic.php non trouvé"
-        cp -v api/diagnostic-complet.php dist/api/ || echo "Attention: diagnostic-complet.php non trouvé"
-        cp -v api/diagnose-assets.php dist/api/ || echo "Attention: diagnose-assets.php non trouvé"
-        cp -v api/assets-check.php dist/api/ || echo "Attention: assets-check.php non trouvé"
-        cp -v api/php.ini dist/api/ || echo "Attention: php.ini non trouvé"
         cp -v api/login-test.php dist/api/ || echo "Attention: login-test.php non trouvé"
-        cp -v api/check-users.php dist/api/ || echo "Attention: check-users.php non trouvé"
+        cp -v api/type-check.php dist/api/ || echo "Attention: type-check.php non trouvé"
+        cp -v api/php-json-test.php dist/api/ || echo "Attention: php-json-test.php non trouvé"
         
-        # Copier les fichiers de configuration
-        cp -v api/config/env.php dist/api/config/ || echo "Attention: env.php non trouvé"
-        cp -v api/config/env.example.php dist/api/config/ || echo "Attention: env.example.php non trouvé"
+        # Fichiers de configuration
+        mkdir -p dist/api/config
         cp -v api/config/database.php dist/api/config/ || echo "Attention: database.php non trouvé"
+        cp -v api/config/env.php dist/api/config/ || echo "Attention: env.php non trouvé"
         
-        # Copier les contrôleurs
+        # Contrôleurs
+        mkdir -p dist/api/controllers
         cp -v api/controllers/AuthController.php dist/api/controllers/ || echo "Attention: AuthController.php non trouvé"
         cp -v api/controllers/UserController.php dist/api/controllers/ || echo "Attention: UserController.php non trouvé"
-        cp -v api/controllers/UsersController.php dist/api/controllers/ || echo "Attention: UsersController.php non trouvé"
-        cp -v api/controllers/ConfigController.php dist/api/controllers/ || echo "Attention: ConfigController.php non trouvé"
-        cp -v api/controllers/DatabaseConfigController.php dist/api/controllers/ || echo "Attention: DatabaseConfigController.php non trouvé"
-        cp -v api/controllers/DatabaseTestController.php dist/api/controllers/ || echo "Attention: DatabaseTestController.php non trouvé"
         
-        # Copier les middlewares
-        cp -v api/middleware/Auth.php dist/api/middleware/ || echo "Attention: Auth.php middleware non trouvé"
+        # Modèles
+        mkdir -p dist/api/models
+        cp -v api/models/User.php dist/api/models/ || echo "Attention: User.php non trouvé"
         
-        # Copier les modèles
-        cp -v api/models/User.php dist/api/models/ || echo "Attention: User.php model non trouvé"
-        
-        # Copier les utilitaires
+        # Utils
+        mkdir -p dist/api/utils
         cp -v api/utils/JwtHandler.php dist/api/utils/ || echo "Attention: JwtHandler.php non trouvé"
-        
+
     - name: Copy remaining application files
       run: |
         # Copier les fichiers principaux
