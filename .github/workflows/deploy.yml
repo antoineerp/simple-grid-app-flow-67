@@ -148,7 +148,6 @@ jobs:
         echo "Public files:"
         ls -la dist/public/ || echo "No public folder"
         
-    # ----------- MODIFICATION ----------- #
     - name: Sync full dist folder to Infomaniak server
       uses: SamKirkland/FTP-Deploy-Action@v4.3.4
       with:
@@ -156,7 +155,7 @@ jobs:
         username: ${{ secrets.FTP_USERNAME }}
         password: ${{ secrets.FTP_PASSWORD }}
         local-dir: ./dist/
-        server-dir: /sites/qualiopi.ch/
+        server-dir: /
         dangerous-clean-slate: false
         exclude: |
           **/.git*
@@ -170,7 +169,6 @@ jobs:
         log-level: verbose
         timeout: 120000
         dry-run: false
-    # ----------- FIN MODIFICATION ----------- #
     
     - name: Post-deployment verification
       run: |
