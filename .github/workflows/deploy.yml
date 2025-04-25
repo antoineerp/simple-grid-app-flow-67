@@ -126,6 +126,9 @@ EOF
         cp -v api/check-users.php dist/api/ || echo "Attention: check-users.php non trouvé"
         cp -v api/php-execution-test.php dist/api/ || echo "Attention: php-execution-test.php non trouvé"
         cp -v api/php-diagnostic.php dist/api/ || echo "Attention: php-diagnostic.php non trouvé"
+        cp -v api/phpinfo.php dist/api/ || echo "Attention: phpinfo.php non trouvé"
+        cp -v api/execution-check.php dist/api/ || echo "Attention: execution-check.php non trouvé"
+        cp -v api/mime-test.php dist/api/ || echo "Attention: mime-test.php non trouvé"
         
         # Ajout des fichiers de gestion documentaire
         cp -v api/documents-load.php dist/api/ || echo "Attention: documents-load.php non trouvé"
@@ -161,6 +164,7 @@ EOF
         cp -v deploy-on-infomaniak.php dist/ || echo "Attention: deploy-on-infomaniak.php non trouvé"
         cp -v verify-deploy.php dist/ || echo "Attention: verify-deploy.php non trouvé"
         cp -v deploy-check.php dist/ || echo "Attention: deploy-check.php non trouvé"
+        cp -v infomaniak-paths-check.php dist/ || echo "Attention: infomaniak-paths-check.php non trouvé"
         
         # Copier les fichiers uploads avec récursion
         cp -r public/lovable-uploads/* dist/public/lovable-uploads/ || echo "Aucun fichier d'upload trouvé"
