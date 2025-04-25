@@ -16,15 +16,17 @@ AddType application/json .json
 AddType image/svg+xml .svg
 AddType application/x-httpd-php .php
 
-# Permettre l'accès aux assets
-<FilesMatch "\.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot|map|tsx?)$">
+# Forcer PHP pour les fichiers .php
+<FilesMatch "\.php$">
+    SetHandler application/x-httpd-php
     Order Allow,Deny
     Allow from all
 </FilesMatch>
 
-# Force PHP execution for PHP files
-<FilesMatch "\.php$">
-    SetHandler application/x-httpd-php
+# Permettre l'accès aux assets
+<FilesMatch "\.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot|map|tsx?)$">
+    Order Allow,Deny
+    Allow from all
 </FilesMatch>
 
 # Traitement des ressources statiques

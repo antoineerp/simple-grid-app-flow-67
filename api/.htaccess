@@ -6,7 +6,7 @@ RewriteEngine On
 AddType application/x-httpd-php .php
 AddHandler application/x-httpd-php .php
 
-# Forcer l'exécution PHP
+# Forcer l'exécution PHP pour tous les fichiers .php
 <FilesMatch "\.php$">
     SetHandler application/x-httpd-php
     Order Allow,Deny
@@ -23,8 +23,8 @@ RewriteRule \.(php)$ - [L]
     Header set Content-Type "application/json; charset=UTF-8"
 </Files>
 
-# Traitement spécifique pour assets-check.php
-<Files assets-check.php>
+# Traitement spécifique pour login-system-check.php
+<Files login-system-check.php>
     ForceType application/x-httpd-php
     Header set Content-Type "text/html; charset=UTF-8"
 </Files>
