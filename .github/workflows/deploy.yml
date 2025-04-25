@@ -56,6 +56,32 @@ jobs:
         cp -v api/info.php dist/api/ || echo "Attention: info.php non trouvé"
         cp -v api/test.php dist/api/ || echo "Attention: test.php non trouvé"
         
+        # Create php-execution-test.php if it doesn't exist
+        if [ ! -f dist/api/php-execution-test.php ]; then
+          echo '<?php
+          // En-têtes pour JSON et CORS
+          header("Content-Type: application/json; charset=UTF-8");
+          header("Access-Control-Allow-Origin: *");
+          
+          // Tester l'"exécution PHP de base
+          $result = [
+              "test_name" => "PHP Execution Test",
+              "timestamp" => date("Y-m-d H:i:s"),
+              "php_version" => phpversion(),
+              "execution_status" => "success",
+              "server_info" => [
+                  "software" => $_SERVER["SERVER_SOFTWARE"] ?? "Unknown",
+                  "name" => $_SERVER["SERVER_NAME"] ?? "Unknown",
+                  "script" => $_SERVER["SCRIPT_NAME"] ?? "Unknown"
+              ]
+          ];
+          
+          // Réponse JSON
+          echo json_encode($result, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+          ?>' > dist/api/php-execution-test.php
+          echo "Created php-execution-test.php"
+        fi
+        
         # Créer un fichier index.php simple pour l'API
         echo '<?php
         header("Content-Type: application/json");
@@ -105,22 +131,27 @@ jobs:
         cat dist/api/index.php
         echo "==== Content of dist/api/test.php ===="
         cat dist/api/test.php || echo "test.php not found"
+        echo "==== Content of dist/api/php-execution-test.php ===="
+        cat dist/api/php-execution-test.php || echo "php-execution-test.php not found"
 
-    - name: Check FTP connection
-      run: |
-        echo "Vérification de la connexion FTP vers ${{ secrets.FTP_SERVER }}..."
-        # On utilise l'outil ftp avec un script simple pour tester la connexion
-        echo "open ${{ secrets.FTP_SERVER }}
-        user ${{ secrets.FTP_USERNAME }} ${{ secrets.FTP_PASSWORD }}
-        pwd
-        mkdir -p api/config
-        mkdir -p api/controllers
-        mkdir -p api/middleware
-        mkdir -p api/models
-        mkdir -p api/utils
-        bye" > ftp_script.txt
-        ftp -n < ftp_script.txt || echo "Échec de connexion FTP - vérifiez les informations d'identification"
-        rm ftp_script.txt
+    - name: Create remote directories first
+      uses: SamKirkland/FTP-Deploy-Action@v4.3.4
+      with:
+        server: ${{ secrets.FTP_SERVER }}
+        username: ${{ secrets.FTP_USERNAME }}
+        password: ${{ secrets.FTP_PASSWORD }}
+        local-dir: ./dist/api/
+        server-dir: "./api/"
+        dangerous-clean-slate: false
+        protocol: ftp
+        port: 21
+        timeout: 120000
+        log-level: "verbose"
+        dry-run: true
+        security: "loose"
+        state-name: ".ftp-deploy-sync-state-dirs.json"
+      env:
+        FTP_PASSIVE_MODE: "false"
 
     - name: Deploy to Infomaniak
       uses: SamKirkland/FTP-Deploy-Action@v4.3.4
