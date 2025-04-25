@@ -4,8 +4,10 @@
 header("Content-Type: application/json; charset=UTF-8");
 header("Access-Control-Allow-Origin: *");
 header("Access-Control-Allow-Methods: GET, POST, OPTIONS");
-header("Access-Control-Allow-Headers: Content-Type, Authorization");
+header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With");
 header("Cache-Control: no-cache, no-store, must-revalidate");
+header("Pragma: no-cache");
+header("Expires: 0");
 
 // Désactiver l'affichage des erreurs PHP - elles seraient journalisées mais pas affichées
 ini_set('display_errors', 0);
@@ -21,6 +23,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
 // Journaliser l'accès
 error_log("=== EXÉCUTION DE db-connection-test.php ===");
 error_log("Méthode: " . $_SERVER['REQUEST_METHOD'] . " - URI: " . $_SERVER['REQUEST_URI']);
+
+// Créer un tampon de sortie pour capturer tout texte non-JSON
+ob_start();
 
 try {
     // Utiliser la classe Database pour la connexion (configuration centralisée)
@@ -46,6 +51,7 @@ try {
             PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
             PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
             PDO::ATTR_EMULATE_PREPARES => false,
+            PDO::ATTR_TIMEOUT => 5
         ];
         
         error_log("Tentative de connexion directe à la base de données");
@@ -68,7 +74,10 @@ try {
     $db_info = $pdo->query("SHOW VARIABLES LIKE 'character_set_database'")->fetch();
     $collation_info = $pdo->query("SHOW VARIABLES LIKE 'collation_database'")->fetch();
     
-    // Envoyer la réponse
+    // Vider le tampon de sortie
+    ob_end_clean();
+    
+    // Renvoyer une réponse JSON valide
     http_response_code(200);
     echo json_encode([
         'status' => 'success',
@@ -93,8 +102,12 @@ try {
     exit;
     
 } catch (PDOException $e) {
+    // Vider le tampon de sortie en cas d'erreur
+    ob_end_clean();
+    
     error_log("Erreur PDO: " . $e->getMessage());
-    // Envoyer toujours une réponse JSON, même en cas d'erreur
+    
+    // Renvoyer une réponse JSON d'erreur
     http_response_code(500);
     echo json_encode([
         'status' => 'error',
@@ -103,8 +116,12 @@ try {
     ]);
     exit;
 } catch (Exception $e) {
+    // Vider le tampon de sortie en cas d'erreur
+    ob_end_clean();
+    
     error_log("Erreur: " . $e->getMessage());
-    // Envoyer toujours une réponse JSON, même en cas d'erreur
+    
+    // Renvoyer une réponse JSON d'erreur
     http_response_code(500);
     echo json_encode([
         'status' => 'error',
@@ -112,5 +129,16 @@ try {
         'error' => $e->getMessage()
     ]);
     exit;
+}
+
+// En cas de sortie inattendue, s'assurer que nous renvoyons toujours du JSON
+$output = ob_get_clean();
+if ($output) {
+    http_response_code(500);
+    echo json_encode([
+        'status' => 'error',
+        'message' => 'Sortie inattendue détectée',
+        'output' => substr($output, 0, 300) // Limiter à 300 caractères
+    ]);
 }
 ?>

@@ -5,10 +5,29 @@ RewriteEngine On
 # Base du répertoire
 RewriteBase /
 
+# Forcer HTTPS (décommenter si nécessaire)
+# RewriteCond %{HTTPS} off
+# RewriteRule (.*) https://%{HTTP_HOST}%{REQUEST_URI} [R=301,L]
+
+# Activer le module Headers si disponible
+<IfModule mod_headers.c>
+    # Désactiver la mise en cache pour les requêtes API
+    <FilesMatch "\.(php)$">
+        Header set Cache-Control "no-cache, no-store, must-revalidate"
+        Header set Pragma "no-cache"
+        Header set Expires "0"
+    </FilesMatch>
+</IfModule>
+
 # Redirection des requêtes /api/* vers le dossier /api/
-RewriteRule ^api/(.*)$ api/$1 [L]
+RewriteRule ^api/(.*)$ api/$1 [L,QSA]
+
+# Autoriser l'accès direct aux fichiers .js, .css et autres assets
+RewriteCond %{REQUEST_FILENAME} -f
+RewriteCond %{REQUEST_URI} \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)$
+RewriteRule ^ - [L]
 
 # Si ce n'est pas un fichier ou un répertoire existant, rediriger vers index.html
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
-RewriteRule ^(.*)$ index.html [L]
+RewriteRule ^(.*)$ index.html [L,QSA]

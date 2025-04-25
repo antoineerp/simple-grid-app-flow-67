@@ -21,7 +21,8 @@ export const syncDocumentsWithServer = async (
       method: 'POST',
       headers: {
         ...getAuthHeaders(),
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        'Cache-Control': 'no-cache, no-store, must-revalidate'
       },
       body: JSON.stringify({ userId: currentUser, documents })
     });
@@ -69,7 +70,10 @@ export const loadDocumentsFromServer = async (currentUser: string): Promise<Docu
     
     const response = await fetch(`${endpoint}?userId=${encodeURIComponent(currentUser)}`, {
       method: 'GET',
-      headers: getAuthHeaders()
+      headers: {
+        ...getAuthHeaders(),
+        'Cache-Control': 'no-cache, no-store, must-revalidate'
+      }
     });
     
     if (!response.ok) {
@@ -122,7 +126,10 @@ export const checkDocumentApiAvailability = async (): Promise<{
     try {
       const loadResponse = await fetch(`${API_URL}/documents-load.php`, {
         method: 'HEAD',
-        headers: getAuthHeaders()
+        headers: {
+          ...getAuthHeaders(),
+          'Cache-Control': 'no-cache, no-store, must-revalidate'
+        }
       });
       result.loadAvailable = loadResponse.ok;
     } catch (e) {
@@ -133,7 +140,10 @@ export const checkDocumentApiAvailability = async (): Promise<{
     try {
       const syncResponse = await fetch(`${API_URL}/documents-sync.php`, {
         method: 'HEAD',
-        headers: getAuthHeaders()
+        headers: {
+          ...getAuthHeaders(),
+          'Cache-Control': 'no-cache, no-store, must-revalidate'
+        }
       });
       result.syncAvailable = syncResponse.ok;
     } catch (e) {

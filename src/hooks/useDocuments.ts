@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from 'react';
 import { useToast } from "@/hooks/use-toast";
 import { Document, DocumentStats, DocumentGroup } from '@/types/documents';
@@ -43,8 +44,19 @@ export const useDocuments = () => {
   // Vérifier la disponibilité de l'API
   useEffect(() => {
     const checkApiStatus = async () => {
-      const apiStatus = await checkDocumentApiAvailability();
-      setApiAvailable(apiStatus);
+      try {
+        const apiStatus = await checkDocumentApiAvailability();
+        setApiAvailable({
+          load: apiStatus.loadAvailable,
+          sync: apiStatus.syncAvailable
+        });
+      } catch (error) {
+        console.error("Erreur lors de la vérification de l'API:", error);
+        setApiAvailable({
+          load: false,
+          sync: false
+        });
+      }
     };
     
     checkApiStatus();
