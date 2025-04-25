@@ -1,62 +1,28 @@
 
-# Activer la réécriture d'URL
-RewriteEngine On
+# Configuration spécifique API pour l'exécution PHP
+Options -MultiViews
 
-# Forcer l'exécution de PHP pour Infomaniak - CRUCIAL
+<IfModule mod_php.c>
+    php_flag engine on
+    php_value default_charset "UTF-8"
+</IfModule>
+
 <FilesMatch "\.php$">
     SetHandler application/x-httpd-php
     ForceType application/x-httpd-php
 </FilesMatch>
 
-# Activer explicitement l'exécution PHP pour tous les fichiers .php
 AddHandler application/x-httpd-php .php
+AddType application/x-httpd-php .php
 
-# Définir les types MIME corrects
-AddType application/javascript .js
-AddType application/javascript .mjs
+# Configuration CORS et headers
+<IfModule mod_headers.c>
+    Header set Access-Control-Allow-Origin "*"
+    Header set Access-Control-Allow-Methods "GET, POST, OPTIONS"
+    Header set Access-Control-Allow-Headers "Content-Type, Authorization"
+</IfModule>
 
-# Permettre l'accès direct aux fichiers PHP spécifiques
+# Règles de routage
+RewriteEngine On
 RewriteCond %{REQUEST_FILENAME} -f
 RewriteRule \.(php)$ - [L]
-
-# Rediriger toutes les requêtes vers l'index.php sauf pour les fichiers existants
-RewriteCond %{REQUEST_FILENAME} !-f
-RewriteCond %{REQUEST_FILENAME} !-d
-RewriteRule ^(.*)$ index.php [QSA,L]
-
-# Définir les en-têtes CORS et types MIME avec configuration complète
-<IfModule mod_headers.c>
-    # Configuration CORS complète
-    Header always set Access-Control-Allow-Origin "*"
-    Header always set Access-Control-Allow-Methods "GET, POST, OPTIONS, PUT, DELETE"
-    Header always set Access-Control-Allow-Headers "Content-Type, Authorization, X-Requested-With, Origin"
-    Header always set Access-Control-Max-Age "3600"
-    
-    # Traiter correctement les requêtes OPTIONS (preflight)
-    RewriteCond %{REQUEST_METHOD} OPTIONS
-    RewriteRule ^(.*)$ $1 [R=200,L]
-    
-    # Eviter la mise en cache
-    Header set Cache-Control "no-cache, no-store, must-revalidate"
-    Header set Pragma "no-cache"
-    Header set Expires 0
-    
-    # Définir les types MIME corrects
-    <FilesMatch "\.js$">
-        Header set Content-Type "application/javascript; charset=UTF-8"
-    </FilesMatch>
-    <FilesMatch "\.mjs$">
-        Header set Content-Type "application/javascript; charset=UTF-8"
-    </FilesMatch>
-    <FilesMatch "\.json$">
-        Header set Content-Type "application/json; charset=UTF-8"
-    </FilesMatch>
-    <FilesMatch "\.(php)$">
-        Header set Content-Type "application/json; charset=UTF-8"
-    </FilesMatch>
-</IfModule>
-
-# Forcer PHP à utiliser le bon encodage
-<IfModule mod_php.c>
-    php_value default_charset "UTF-8"
-</IfModule>

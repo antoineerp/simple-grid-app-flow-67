@@ -1,103 +1,22 @@
 
-# Activer le moteur de réécriture
-RewriteEngine On
-
-# Configuration spécifique pour Infomaniak
+# Configuration avancée pour l'exécution PHP sur Infomaniak
 Options -MultiViews
 Options +FollowSymLinks
 
-# Définir le point d'entrée principal
-DirectoryIndex index.html index.php
+# Forcer l'exécution PHP pour tous les fichiers
+<IfModule mod_php.c>
+    php_flag engine on
+    php_value default_charset "UTF-8"
+</IfModule>
 
-# FORCER L'EXÉCUTION DE PHP - CRUCIAL POUR INFOMANIAK
 <FilesMatch "\.php$">
     SetHandler application/x-httpd-php
     ForceType application/x-httpd-php
 </FilesMatch>
 
-# Activer explicitement le module PHP pour tous les fichiers .php
 AddHandler application/x-httpd-php .php
+AddType application/x-httpd-php .php
 
-# Définir les types MIME corrects
-AddType application/javascript .js
-AddType application/javascript .mjs
-AddType text/css .css
-AddType application/json .json
-AddType image/svg+xml .svg
-AddType application/vnd.ms-fontobject .eot
-AddType font/ttf .ttf
-AddType font/otf .otf
-AddType font/woff .woff
-AddType font/woff2 .woff2
-
-# Permettre l'accès aux assets statiques
-<FilesMatch "\.(js|mjs|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot|map|tsx?)$">
-    Order Allow,Deny
-    Allow from all
-</FilesMatch>
-
-# Traitement des ressources statiques uploadées
-RewriteCond %{REQUEST_URI} ^/lovable-uploads/
-RewriteRule ^lovable-uploads/(.*)$ public/lovable-uploads/$1 [L]
-
-# Règles pour l'API - toutes les requêtes /api vers le dossier api
-RewriteRule ^api/?$ api/index.php [L]
-RewriteRule ^api/auth$ api/auth.php [L,QSA]
-RewriteRule ^api/test-login\.php$ api/test-login.php [L,QSA]
-RewriteRule ^api/(.*)$ api/$1 [QSA,L]
-
-# Restaurer les règles pour les fichiers de diagnostic
-RewriteRule ^assets-check\.php$ api/assets-check.php [L]
-RewriteRule ^diagnostic\.php$ api/diagnostic.php [L]
-RewriteRule ^php-test\.php$ api/test.php [L]
-RewriteRule ^mime-check\.php$ api/mime-check.php [L]
-
-# Permettre l'accès direct aux assets dans leur dossier
-RewriteCond %{REQUEST_URI} ^/assets/
-RewriteCond %{REQUEST_FILENAME} -f
-RewriteRule ^ - [L]
-
-# Permettre l'accès direct aux autres ressources statiques
-RewriteCond %{REQUEST_URI} \.(js|mjs|css|png|jpe?g|gif|svg|ico|webp|woff2?|ttf|eot|map|tsx?)$
-RewriteCond %{REQUEST_FILENAME} -f
-RewriteRule ^ - [L]
-
-# Rediriger toutes les autres requêtes vers index.html pour React Router
-RewriteCond %{REQUEST_FILENAME} !-f
-RewriteCond %{REQUEST_FILENAME} !-d
-RewriteCond %{REQUEST_URI} !^/api/
-RewriteRule ^(.*)$ index.html [QSA,L]
-
-# Configuration de sécurité et CORS
-<IfModule mod_headers.c>
-    # En-têtes CORS - configuration plus détaillée
-    Header set Access-Control-Allow-Origin "*"
-    Header set Access-Control-Allow-Methods "GET, POST, OPTIONS, PUT, DELETE"
-    Header set Access-Control-Allow-Headers "Content-Type, Authorization, X-Requested-With"
-    Header set Access-Control-Max-Age "3600"
-    
-    # Configuration pour le préchargement des assets statiques
-    <FilesMatch "\.(js|mjs|css|json)$">
-        Header set Cache-Control "no-cache, no-store, must-revalidate"
-        Header set Pragma "no-cache"
-        Header set Expires "0"
-    </FilesMatch>
-    
-    # Définir le type MIME correct pour les modules JavaScript
-    <FilesMatch "\.mjs$">
-        Header set Content-Type "application/javascript; charset=UTF-8"
-    </FilesMatch>
-    <FilesMatch "\.js$">
-        Header set Content-Type "application/javascript; charset=UTF-8"
-    </FilesMatch>
-    
-    # Définir le type MIME correct pour JSON
-    <FilesMatch "\.json$">
-        Header set Content-Type "application/json; charset=UTF-8"
-    </FilesMatch>
-    
-    # Définir le type MIME correct pour les fichiers PHP API
-    <FilesMatch "\.(php)$">
-        Header set Content-Type "application/json; charset=UTF-8"
-    </FilesMatch>
-</IfModule>
+# Règles de routage et de sécurité
+RewriteEngine On
+DirectoryIndex index.php index.html

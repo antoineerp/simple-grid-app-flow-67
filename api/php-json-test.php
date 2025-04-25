@@ -1,17 +1,19 @@
 
 <?php
-// Définir le type de contenu en tant que JSON
+// Test PHP avec configuration minimale et explicite
+ini_set('display_errors', 1);
+error_reporting(E_ALL);
+
 header("Content-Type: application/json; charset=UTF-8");
 
-// Envoyer une réponse JSON simple
 echo json_encode([
     'status' => 'success',
-    'message' => 'PHP fonctionne correctement et renvoie du JSON',
+    'message' => 'PHP fonctionne correctement',
     'php_version' => phpversion(),
-    'server_info' => [
-        'software' => $_SERVER['SERVER_SOFTWARE'],
-        'method' => $_SERVER['REQUEST_METHOD'],
-        'time' => date('Y-m-d H:i:s')
+    'timestamp' => date('Y-m-d H:i:s'),
+    'server_details' => [
+        'software' => $_SERVER['SERVER_SOFTWARE'] ?? 'Non disponible',
+        'host' => $_SERVER['HTTP_HOST'] ?? 'Non spécifié'
     ]
 ]);
 ?>
