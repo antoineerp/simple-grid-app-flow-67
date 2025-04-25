@@ -106,6 +106,17 @@ jobs:
         echo "==== Content of dist/api/test.php ===="
         cat dist/api/test.php || echo "test.php not found"
 
+    - name: Check FTP connection
+      run: |
+        echo "Vérification de la connexion FTP vers ${{ secrets.FTP_SERVER }}..."
+        # On utilise l'outil ftp avec un script simple pour tester la connexion
+        echo "open ${{ secrets.FTP_SERVER }}
+        user ${{ secrets.FTP_USERNAME }} ${{ secrets.FTP_PASSWORD }}
+        pwd
+        bye" > ftp_script.txt
+        ftp -n < ftp_script.txt || echo "Échec de connexion FTP - vérifiez les informations d'identification"
+        rm ftp_script.txt
+
     - name: Deploy to Infomaniak
       uses: SamKirkland/FTP-Deploy-Action@v4.3.4
       with:
@@ -116,18 +127,17 @@ jobs:
         dangerous-clean-slate: false
         protocol: ftp
         port: 21
-        timeout: 60000
-        server-dir: "./"  # Spécifie la racine du site
+        timeout: 120000
+        server-dir: "./"
         exclude: |
           **/.git*
           **/.git*/**
           **/node_modules/**
         state-name: ".ftp-deploy-sync-state.json"
-        log-level: "minimal"
+        log-level: "verbose"
         dry-run: false
         security: "loose"
-        verbose: false
-        # Important : Créer automatiquement les répertoires s'ils n'existent pas
+        verbose: true
         strict: false
       env:
         FTP_PASSIVE_MODE: "false"
