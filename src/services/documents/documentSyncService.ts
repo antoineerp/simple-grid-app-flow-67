@@ -112,14 +112,14 @@ export const loadDocumentsFromServer = async (currentUser: string): Promise<Docu
  * Attempts to check API availability for document endpoints
  */
 export const checkDocumentApiAvailability = async (): Promise<{
-  loadAvailable: boolean;
-  syncAvailable: boolean;
+  load: boolean;
+  sync: boolean;
 }> => {
   try {
     const API_URL = getApiUrl();
     const result = {
-      loadAvailable: false,
-      syncAvailable: false
+      load: false,
+      sync: false
     };
     
     // Check load endpoint
@@ -131,7 +131,7 @@ export const checkDocumentApiAvailability = async (): Promise<{
           'Cache-Control': 'no-cache, no-store, must-revalidate'
         }
       });
-      result.loadAvailable = loadResponse.ok;
+      result.load = loadResponse.ok;
     } catch (e) {
       console.warn("Endpoint de chargement indisponible:", e);
     }
@@ -145,7 +145,7 @@ export const checkDocumentApiAvailability = async (): Promise<{
           'Cache-Control': 'no-cache, no-store, must-revalidate'
         }
       });
-      result.syncAvailable = syncResponse.ok;
+      result.sync = syncResponse.ok;
     } catch (e) {
       console.warn("Endpoint de synchronisation indisponible:", e);
     }
@@ -154,8 +154,8 @@ export const checkDocumentApiAvailability = async (): Promise<{
   } catch (error) {
     console.error("Erreur lors de la vérification de l'API:", error);
     return {
-      loadAvailable: false,
-      syncAvailable: false
+      load: false,
+      sync: false
     };
   }
 };
