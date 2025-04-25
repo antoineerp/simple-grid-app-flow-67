@@ -137,7 +137,5 @@ jobs:
         log-level: "verbose"
         dry-run: false
         security: "loose"
-        verbose: true
-        strict: false
       env:
         FTP_PASSIVE_MODE: "false"
