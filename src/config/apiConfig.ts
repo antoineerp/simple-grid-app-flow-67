@@ -18,10 +18,41 @@ function detectEnvironment() {
   
   if (isInfomaniak) {
     apiUrl = '/api';
-    console.log('✅ Configuration Infomaniak : URL API relative /api');
+    console.warn('✅ CONFIGURATION PRODUCTION : URL API relative /api');
   } else {
     apiUrl = '/api';
-    console.log('🖥️ Configuration développement : URL API relative /api');
+    console.warn('🖥️ CONFIGURATION DÉVELOPPEMENT : URL API relative /api');
+  }
+
+  // Ajout d'une validation supplémentaire
+  console.group('🌐 Détails de configuration API');
+  console.log('URL de base:', apiUrl);
+  console.log('URL complète:', getFullApiUrl());
+  console.log('Hostname:', window.location.hostname);
+  console.log('Protocol:', window.location.protocol);
+  console.groupEnd();
+}
+
+// Ajout d'une fonction de validation
+function validateApiConfiguration() {
+  const fullUrl = getFullApiUrl();
+  const expectedHostnames = [
+    'localhost', 
+    '127.0.0.1', 
+    'myd.infomaniak.com', 
+    'qualiopi.ch',
+    'test.qualiopi.ch'
+  ];
+
+  const isValidHostname = expectedHostnames.some(hostname => 
+    window.location.hostname.includes(hostname)
+  );
+
+  if (!isValidHostname) {
+    console.error('⚠️ AVERTISSEMENT : Hostname inattendu pour la configuration API', {
+      currentHostname: window.location.hostname,
+      fullApiUrl: fullUrl
+    });
   }
 }
 
@@ -39,6 +70,7 @@ function logApiRequests() {
 
 // Exécuter ces fonctions au chargement
 detectEnvironment();
+validateApiConfiguration();
 logApiRequests();
 
 // Obtenir l'URL de l'API
