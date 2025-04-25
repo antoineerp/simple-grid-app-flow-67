@@ -8,8 +8,10 @@ header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-W
 // Log des requêtes
 $requestId = $_GET['requestId'] ?? $_SERVER['HTTP_X_REQUEST_ID'] ?? 'no-id';
 $clientSource = $_SERVER['HTTP_X_CLIENT_SOURCE'] ?? 'unknown';
-error_log("📝 API [{$requestId}] - Requête user-profile-load reçue - " . date('Y-m-d H:i:s') . " - Source: {$clientSource}");
+$clientIp = $_SERVER['REMOTE_ADDR'] ?? 'unknown-ip';
+error_log("📝 API [{$requestId}] - Requête user-profile-load reçue - " . date('Y-m-d H:i:s') . " - Source: {$clientSource} - IP: {$clientIp}");
 error_log("📝 API [{$requestId}] - Headers: " . json_encode(getallheaders()));
+error_log("📝 API [{$requestId}] - GET params: " . json_encode($_GET));
 
 // Si c'est une requête OPTIONS (preflight), nous la terminons ici
 if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
@@ -50,8 +52,8 @@ try {
         throw new Exception("Erreur de connexion à la base de données: " . ($database->connection_error ?? "Erreur inconnue"));
     }
 
-    // Nom de la table des profils pour cet utilisateur
-    $tableName = "user_profiles_" . preg_replace('/[^a-z0-9_]/i', '_', $userId);
+    // Nom de la table des profils pour cet utilisateur - Normaliser pour éviter les problèmes de nommage
+    $tableName = "user_profiles_" . preg_replace('/[^a-z0-9_]/i', '_', strtolower($userId));
     error_log("🗄️ API [{$requestId}] - Recherche dans la table: {$tableName}");
     
     // Vérifier si la table existe
@@ -62,7 +64,8 @@ try {
     $userData = [];
     
     if ($stmt->rowCount() > 0) {
-        // Récupérer toutes les données du profil
+        // La table existe, récupérer toutes les données du profil
+        error_log("✅ API [{$requestId}] - Table {$tableName} trouvée");
         $sql = "SELECT `key`, `value`, `updated_at` FROM `$tableName`";
         $stmt = $conn->prepare($sql);
         $stmt->execute();
@@ -75,16 +78,20 @@ try {
             $jsonValue = json_decode($value, true);
             if (json_last_error() === JSON_ERROR_NONE) {
                 $userData[$key] = $jsonValue;
+                error_log("📄 API [{$requestId}] - Clé chargée (JSON): {$key}");
             } else {
                 $userData[$key] = $value;
+                error_log("📄 API [{$requestId}] - Clé chargée (texte): {$key}");
             }
         }
         
         error_log("✅ API [{$requestId}] - Profil utilisateur chargé avec succès pour: " . $userId . " - Entrées: " . count($userData));
     } else {
+        // La table n'existe pas encore, aucune donnée à charger
         error_log("ℹ️ API [{$requestId}] - Aucune table de profil trouvée pour: " . $userId);
     }
 
+    // Répondre avec les données chargées ou un objet vide
     http_response_code(200);
     echo json_encode([
         'success' => true,

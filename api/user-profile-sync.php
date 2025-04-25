@@ -10,9 +10,10 @@ $requestBody = file_get_contents('php://input');
 $requestData = json_decode($requestBody, true);
 $requestId = $requestData['requestId'] ?? $_SERVER['HTTP_X_REQUEST_ID'] ?? 'no-id';
 $clientSource = $_SERVER['HTTP_X_CLIENT_SOURCE'] ?? 'unknown';
+$clientIp = $_SERVER['REMOTE_ADDR'] ?? 'unknown-ip';
 
 // Log des requêtes
-error_log("📝 API [{$requestId}] - Requête user-profile-sync reçue - " . date('Y-m-d H:i:s') . " - Source: {$clientSource}");
+error_log("📝 API [{$requestId}] - Requête user-profile-sync reçue - " . date('Y-m-d H:i:s') . " - Source: {$clientSource} - IP: {$clientIp}");
 error_log("📝 API [{$requestId}] - Headers: " . json_encode(getallheaders()));
 
 // Si c'est une requête OPTIONS (preflight), nous la terminons ici
@@ -59,7 +60,7 @@ try {
     }
 
     // Créer la table des profils utilisateurs si elle n'existe pas
-    $userId = $data['userId'];
+    $userId = strtolower($data['userId']); // Normaliser l'ID utilisateur
     $tableName = "user_profiles_" . preg_replace('/[^a-z0-9_]/i', '_', $userId);
     error_log("🗄️ API [{$requestId}] - Table cible: {$tableName}");
     
@@ -101,13 +102,20 @@ try {
     // Valider la transaction
     $conn->commit();
 
-    error_log("✅ API [{$requestId}] - Profil utilisateur synchronisé avec succès pour: " . $userId);
+    // Vérifier que les données ont bien été enregistrées
+    $verificationSQL = "SELECT COUNT(*) FROM `$tableName`";
+    $stmt = $conn->prepare($verificationSQL);
+    $stmt->execute();
+    $count = $stmt->fetchColumn();
+    
+    error_log("✅ API [{$requestId}] - Profil utilisateur synchronisé avec succès pour: " . $userId . " - Entrées totales: " . $count);
     http_response_code(200);
     echo json_encode([
         'success' => true, 
         'message' => 'Profil utilisateur synchronisé avec succès',
         'timestamp' => date('Y-m-d H:i:s'),
-        'requestId' => $requestId
+        'requestId' => $requestId,
+        'entriesCount' => $count
     ]);
     
 } catch (Exception $e) {

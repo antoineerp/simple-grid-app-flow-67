@@ -5,6 +5,7 @@ import Header from './Header';
 import Footer from './Footer';
 import Sidebar from './Sidebar';
 import { MembresProvider } from '@/contexts/MembresContext';
+import { loadUserProfileFromServer } from '@/services/sync/userProfileSync';
 
 interface LayoutProps {
   children?: React.ReactNode;
@@ -15,6 +16,16 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   const location = useLocation();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [isDataLoaded, setIsDataLoaded] = useState(false);
+  
+  // Chargement initial des données utilisateur après connexion
+  const loadUserData = async () => {
+    if (isAuthenticated && !isDataLoaded) {
+      console.log("🔄 Chargement initial des données utilisateur");
+      await loadUserProfileFromServer();
+      setIsDataLoaded(true);
+    }
+  };
   
   useEffect(() => {
     // Vérifier si l'utilisateur est connecté
@@ -43,6 +54,13 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     
     checkAuth();
   }, [navigate, location.pathname, isLoading]);
+  
+  // Effet pour charger les données utilisateur après connexion
+  useEffect(() => {
+    if (isAuthenticated && !isLoading) {
+      loadUserData();
+    }
+  }, [isAuthenticated, isLoading]);
 
   // Si le composant est en cours de chargement, afficher un loader ou rien
   if (isLoading) {

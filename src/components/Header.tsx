@@ -17,6 +17,8 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   getCurrentUser
 } from '@/services/core/databaseConnectionService';
+import SyncStatusIndicator from './common/SyncStatusIndicator';
+import { forceReloadUserProfile } from '@/services/sync/userProfileSync';
 
 const Header = () => {
   const navigate = useNavigate();
@@ -29,6 +31,9 @@ const Header = () => {
     return localStorage.getItem('userRole') || 'utilisateur';
   });
   const [currentDatabaseUser, setCurrentDatabaseUser] = useState<string | null>(getCurrentUser());
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [lastSynced, setLastSynced] = useState<Date | undefined>(undefined);
   
   // New state for storing user display name
   const [userDisplayName, setUserDisplayName] = useState<string>(() => {
@@ -48,9 +53,20 @@ const Header = () => {
       }
     };
     
+    const handleOnlineStatus = () => {
+      setIsOnline(navigator.onLine);
+    };
+    
+    window.addEventListener('online', handleOnlineStatus);
+    window.addEventListener('offline', handleOnlineStatus);
+    
     const interval = setInterval(checkDatabaseUser, 2000);
     
-    return () => clearInterval(interval);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('online', handleOnlineStatus);
+      window.removeEventListener('offline', handleOnlineStatus);
+    };
   }, [logo, currentDatabaseUser]);
 
   const handleLogout = () => {
@@ -69,6 +85,34 @@ const Header = () => {
 
   const handleLogoChange = (newLogo: string) => {
     setLogo(newLogo);
+  };
+  
+  const handleForceSync = async () => {
+    if (isOnline) {
+      setIsSyncing(true);
+      try {
+        await forceReloadUserProfile();
+        setLastSynced(new Date());
+        toast({
+          title: "Synchronisation terminée",
+          description: "Vos données ont été rechargées depuis le serveur",
+        });
+      } catch (error) {
+        toast({
+          title: "Échec de la synchronisation",
+          description: "Impossible de recharger vos données",
+          variant: "destructive"
+        });
+      } finally {
+        setIsSyncing(false);
+      }
+    } else {
+      toast({
+        title: "Hors ligne",
+        description: "Impossible de synchroniser en mode hors ligne",
+        variant: "destructive"
+      });
+    }
   };
 
   const isAdmin = userRole === 'administrateur' || userRole === 'admin';
@@ -89,6 +133,14 @@ const Header = () => {
               <span>DB: {currentDatabaseUser}</span>
             </div>
           )}
+          
+          <div className="cursor-pointer" onClick={handleForceSync}>
+            <SyncStatusIndicator 
+              isSyncing={isSyncing} 
+              isOnline={isOnline}
+              lastSynced={lastSynced}
+            />
+          </div>
           
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -132,4 +184,3 @@ const Header = () => {
 };
 
 export default Header;
-

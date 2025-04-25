@@ -2,6 +2,7 @@
 import { getApiUrl } from '@/config/apiConfig';
 import { getAuthHeaders } from '@/services/auth/authService';
 import { getCurrentUser } from '@/services/core/databaseConnectionService';
+import { toast } from '@/hooks/use-toast';
 
 /**
  * Synchronise les données du profil utilisateur avec le serveur
@@ -35,14 +36,14 @@ export const syncUserProfileWithServer = async (
       headers: {
         ...getAuthHeaders(),
         'Content-Type': 'application/json',
-        'X-Request-ID': requestId,  // Ajouter l'ID unique dans les en-têtes
+        'X-Request-ID': requestId,
         'X-Client-Source': 'react-app'
       },
       body: JSON.stringify({ 
         userId: currentUser, 
         userData,
         timestamp: new Date().toISOString(),
-        requestId // Inclure également l'ID dans les données pour le traçage côté serveur
+        requestId
       })
     });
     
@@ -60,9 +61,24 @@ export const syncUserProfileWithServer = async (
     const result = await response.json();
     console.log("✅ SUCCÈS - Résultat synchronisation:", result);
     
+    // Notifier l'utilisateur
+    toast({
+      title: "Profil synchronisé",
+      description: "Vos données ont été enregistrées sur le serveur",
+      variant: "default"
+    });
+    
     return result.success === true;
   } catch (error) {
     console.error('❌ EXCEPTION - Synchronisation du profil:', error);
+    
+    // Notifier l'utilisateur de l'échec
+    toast({
+      title: "Échec de synchronisation",
+      description: "Impossible d'enregistrer vos données sur le serveur",
+      variant: "destructive"
+    });
+    
     return false;
   }
 };
@@ -88,7 +104,11 @@ export const loadUserProfileFromServer = async (forceUser?: string): Promise<any
     console.log(`🔑 REQUEST_ID - Identifiant unique pour chargement: ${requestId}`);
     console.log(`🌐 CHARGEMENT - Profil utilisateur ${currentUser} depuis: ${endpoint}?userId=${encodeURIComponent(currentUser)}`);
     
-    const response = await fetch(`${endpoint}?userId=${encodeURIComponent(currentUser)}&requestId=${requestId}`, {
+    // Normaliser l'identifiant utilisateur pour correspondre au format côté serveur
+    const normalizedUserId = currentUser.toLowerCase();
+    console.log(`🔑 UTILISATEUR - ID normalisé: ${normalizedUserId}`);
+    
+    const response = await fetch(`${endpoint}?userId=${encodeURIComponent(normalizedUserId)}&requestId=${requestId}`, {
       method: 'GET',
       headers: {
         ...getAuthHeaders(),
@@ -109,9 +129,30 @@ export const loadUserProfileFromServer = async (forceUser?: string): Promise<any
     const result = await response.json();
     console.log("📥 DONNÉES - Profil chargé:", result);
     
+    if (result.success && Object.keys(result.userData).length > 0) {
+      toast({
+        title: "Profil chargé",
+        description: "Vos données ont été récupérées depuis le serveur",
+        variant: "default"
+      });
+    }
+    
     return result.success ? result.userData : null;
   } catch (error) {
     console.error('❌ EXCEPTION - Chargement du profil:', error);
+    
+    toast({
+      title: "Échec de chargement",
+      description: "Impossible de récupérer vos données depuis le serveur",
+      variant: "destructive"
+    });
+    
     return null;
   }
+};
+
+// Fonction pour recharger explicitement le profil utilisateur
+export const forceReloadUserProfile = async (): Promise<any> => {
+  console.log('🔄 RECHARGEMENT FORCÉ - Demande de rechargement du profil utilisateur');
+  return await loadUserProfileFromServer();
 };
