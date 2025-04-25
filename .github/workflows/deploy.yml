@@ -5,7 +5,6 @@ on:
   push:
     branches: [ main ]
   workflow_dispatch:
-    # Ajouter des inputs optionnels ici pour rendre le bouton plus visible
     inputs:
       deploy_message:
         description: 'Message de déploiement'
@@ -30,53 +29,88 @@ jobs:
     - name: Build Project
       run: npm run build
 
-    - name: Create empty directories first (handled by FTP)
+    - name: Create full directory structure
       run: |
-        mkdir -p dist/api
-        touch dist/api/.gitkeep
-
-    - name: Copy API files
-      run: |
-        mkdir -p dist/api
-        cp -v api/php-system-check.php dist/api/ || echo "Attention: php-system-check.php non trouvé"
-        cp -v api/php-execution-test.php dist/api/ || echo "Attention: php-execution-test.php non trouvé"
-        cp -v api/phpinfo.php dist/api/ || echo "Attention: phpinfo.php non trouvé"
-        cp -v api/diagnostic.php dist/api/ || echo "Attention: diagnostic.php non trouvé"
-        cp -v api/info.php dist/api/ || echo "Attention: info.php non trouvé"
-        # Create simple index.php file without heredoc syntax
-        echo "<?php" > dist/api/index.php
-        echo "// Point d'entrée principal de l'API" >> dist/api/index.php
-        echo "header(\"Content-Type: application/json\");" >> dist/api/index.php
-        echo "header(\"Access-Control-Allow-Origin: *\");" >> dist/api/index.php
-        echo "echo json_encode([\"status\" => \"success\", \"message\" => \"API is working\"]);" >> dist/api/index.php
-        echo "?>" >> dist/api/index.php
-
-    - name: Create API directory structure
-      run: |
-        # Création des sous-dossiers nécessaires dans dist/api
+        # Créer toute la structure de répertoires nécessaire
         mkdir -p dist/api/config
         mkdir -p dist/api/controllers
         mkdir -p dist/api/middleware
         mkdir -p dist/api/models
         mkdir -p dist/api/utils
-        
-        # Copier les fichiers .htaccess nécessaires
-        cp -v api/.htaccess dist/api/ || echo "Attention: .htaccess non trouvé"
-        cp -v .htaccess dist/ || echo "Attention: .htaccess racine non trouvé"
-        
-        # Création de fichiers test pour s'assurer que les dossiers sont créés
+        # Créer des fichiers .gitkeep pour s'assurer que les répertoires sont inclus
         touch dist/api/config/.gitkeep
         touch dist/api/controllers/.gitkeep
         touch dist/api/middleware/.gitkeep
         touch dist/api/models/.gitkeep
         touch dist/api/utils/.gitkeep
+
+    - name: Copy API files
+      run: |
+        # Copier les fichiers API existants
+        cp -v api/.htaccess dist/api/ || echo "Attention: .htaccess non trouvé"
+        cp -v .htaccess dist/ || echo "Attention: .htaccess racine non trouvé"
+        cp -v api/phpinfo.php dist/api/ || echo "Attention: phpinfo.php non trouvé"
+        cp -v api/php-system-check.php dist/api/ || echo "Attention: php-system-check.php non trouvé"
+        cp -v api/php-execution-test.php dist/api/ || echo "Attention: php-execution-test.php non trouvé"
+        cp -v api/diagnostic.php dist/api/ || echo "Attention: diagnostic.php non trouvé"
+        cp -v api/info.php dist/api/ || echo "Attention: info.php non trouvé"
+        cp -v api/test.php dist/api/ || echo "Attention: test.php non trouvé"
         
-        # Create test.php file for basic testing
-        echo "<?php" > dist/api/test.php
-        echo "header(\"Content-Type: application/json\");" >> dist/api/test.php
-        echo "header(\"Access-Control-Allow-Origin: *\");" >> dist/api/test.php
-        echo "echo json_encode([\"status\" => \"success\", \"test\" => \"ok\", \"timestamp\" => time()]);" >> dist/api/test.php
-        echo "?>" >> dist/api/test.php
+        # Créer un fichier index.php simple pour l'API
+        cat > dist/api/index.php << 'EOF'
+<?php
+// Point d'entrée principal de l'API
+header("Content-Type: application/json");
+header("Access-Control-Allow-Origin: *");
+header("Cache-Control: no-cache, no-store, must-revalidate");
+header("Pragma: no-cache");
+header("Expires: 0");
+
+echo json_encode([
+    "status" => "success", 
+    "message" => "API is working", 
+    "timestamp" => date("Y-m-d H:i:s"),
+    "php_version" => phpversion(),
+    "server_info" => [
+        "software" => $_SERVER["SERVER_SOFTWARE"] ?? "Unknown",
+        "name" => $_SERVER["SERVER_NAME"] ?? "Unknown", 
+        "script" => $_SERVER["SCRIPT_NAME"] ?? "Unknown"
+    ]
+]);
+EOF
+        echo "?>" >> dist/api/index.php
+        
+        # Créer un fichier test.php supplémentaire si celui-ci n'a pas été copié
+        if [ ! -f dist/api/test.php ]; then
+          cat > dist/api/test.php << 'EOF'
+<?php
+// Simple test API endpoint
+header("Content-Type: application/json");
+header("Access-Control-Allow-Origin: *");
+header("Cache-Control: no-cache, no-store, must-revalidate");
+header("Pragma: no-cache");
+header("Expires: 0");
+
+echo json_encode([
+    "status" => "success",
+    "test" => "ok",
+    "timestamp" => date("Y-m-d H:i:s"),
+    "php_version" => phpversion()
+]);
+EOF
+          echo "?>" >> dist/api/test.php
+        fi
+
+    - name: List dist content for debugging
+      run: |
+        echo "==== Listing dist directory ===="
+        ls -la dist/
+        echo "==== Listing dist/api directory ===="
+        ls -la dist/api/
+        echo "==== Content of dist/api/index.php ===="
+        cat dist/api/index.php
+        echo "==== Content of dist/api/test.php ===="
+        cat dist/api/test.php || echo "test.php not found"
 
     - name: Deploy to Infomaniak
       uses: SamKirkland/FTP-Deploy-Action@v4.3.4
