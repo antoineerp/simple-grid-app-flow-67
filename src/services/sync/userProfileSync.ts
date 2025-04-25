@@ -318,3 +318,49 @@ export const diagnoseApiConnection = async (): Promise<{
     };
   }
 };
+
+// Nouvelle fonction pour vérifier l'état du serveur PHP de manière détaillée
+export const checkPhpServerStatus = async (): Promise<{
+  isWorking: boolean;
+  detail: string;
+  errorCode?: string;
+}> => {
+  try {
+    const result = await diagnoseApiConnection();
+    
+    if (result.success) {
+      return {
+        isWorking: true,
+        detail: "Le serveur PHP fonctionne correctement"
+      };
+    }
+    
+    if (result.details?.isPhp) {
+      return {
+        isWorking: false,
+        detail: "Le serveur retourne le code PHP au lieu de l'exécuter",
+        errorCode: "PHP_EXECUTION_ERROR"
+      };
+    }
+    
+    if (!result.details?.jsonParsed) {
+      return {
+        isWorking: false,
+        detail: "Le serveur ne renvoie pas de JSON valide",
+        errorCode: "INVALID_JSON"
+      };
+    }
+    
+    return {
+      isWorking: false,
+      detail: result.details?.message || "Problème de configuration du serveur",
+      errorCode: "SERVER_CONFIG_ERROR"
+    };
+  } catch (error) {
+    return {
+      isWorking: false,
+      detail: error instanceof Error ? error.message : "Erreur inconnue",
+      errorCode: "CONNECTION_ERROR"
+    };
+  }
+};

@@ -12,6 +12,8 @@ interface MembresContextProps {
   isSyncing: boolean;
   isOnline: boolean;
   lastSynced?: Date;
+  hasError: boolean;
+  syncError: string | null;
   syncWithServer: () => Promise<void>;
   loadData: () => Promise<void>;
 }
@@ -23,6 +25,8 @@ export const MembresProvider: React.FC<{ children: ReactNode }> = ({ children })
   const [membres, setMembres] = useState<Membre[]>([]);
   const [isSyncing, setIsSyncing] = useState(false);
   const [lastSynced, setLastSynced] = useState<Date | undefined>(undefined);
+  const [hasError, setHasError] = useState(false);
+  const [syncError, setSyncError] = useState<string | null>(null);
   const { isOnline } = useNetworkStatus();
   const currentUser = localStorage.getItem('currentUser') || 'default';
 
@@ -40,21 +44,38 @@ export const MembresProvider: React.FC<{ children: ReactNode }> = ({ children })
 
   // Charger les données
   const loadData = async () => {
+    // Réinitialiser l'état d'erreur
+    setHasError(false);
+    setSyncError(null);
+    
     // D'abord, essayer de charger depuis le serveur
     if (isOnline) {
       try {
+        setIsSyncing(true);
         const serverData = await loadMembresFromServer(currentUser);
+        setIsSyncing(false);
+        
         if (serverData) {
           setMembres(serverData);
           setLastSynced(new Date());
           return;
         }
       } catch (error) {
+        setIsSyncing(false);
+        setHasError(true);
+        setSyncError(error instanceof Error ? error.message : "Erreur inconnue");
         console.error('Erreur lors du chargement depuis le serveur:', error);
+        
+        toast({
+          title: "Erreur de synchronisation",
+          description: "Impossible de charger les données depuis le serveur. Utilisation des données locales.",
+          variant: "destructive",
+        });
       }
     }
     
     // Charger depuis le stockage local si le serveur n'est pas disponible
+    console.log("Chargement des données depuis le stockage local");
     const localData = loadMembresFromStorage(currentUser);
     setMembres(localData);
   };
@@ -71,6 +92,8 @@ export const MembresProvider: React.FC<{ children: ReactNode }> = ({ children })
     }
 
     setIsSyncing(true);
+    setHasError(false);
+    setSyncError(null);
     
     try {
       const success = await syncMembresWithServer(membres, currentUser);
@@ -82,6 +105,8 @@ export const MembresProvider: React.FC<{ children: ReactNode }> = ({ children })
         });
         setLastSynced(new Date());
       } else {
+        setHasError(true);
+        setSyncError("Échec de la synchronisation");
         toast({
           title: "Échec de la synchronisation",
           description: "Une erreur est survenue lors de la synchronisation",
@@ -89,6 +114,8 @@ export const MembresProvider: React.FC<{ children: ReactNode }> = ({ children })
         });
       }
     } catch (error) {
+      setHasError(true);
+      setSyncError(error instanceof Error ? error.message : "Erreur inconnue");
       console.error('Erreur de synchronisation:', error);
       toast({
         title: "Erreur de synchronisation",
@@ -107,6 +134,8 @@ export const MembresProvider: React.FC<{ children: ReactNode }> = ({ children })
       isSyncing,
       isOnline,
       lastSynced,
+      hasError,
+      syncError,
       syncWithServer,
       loadData
     }}>
