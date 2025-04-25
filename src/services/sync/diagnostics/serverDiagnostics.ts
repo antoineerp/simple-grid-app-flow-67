@@ -1,129 +1,122 @@
 
 import { getApiUrl } from '@/config/apiConfig';
-import { validateApiResponse, isPhpContent } from '../validators/apiResponseValidator';
+import { validateApiResponse } from '../validators/apiResponseValidator';
+import { isPhpContent } from '../validators/apiResponseValidator';
 
 /**
- * Fonction utilitaire pour diagnostiquer l'API
+ * Check the PHP server status to verify if PHP is executing properly
  */
-export const diagnoseApiConnection = async (): Promise<{
-  success: boolean;
-  details: any;
+export const checkPhpServerStatus = async (): Promise<{
+  isWorking: boolean;
+  errorCode?: string;
+  detail: string;
 }> => {
   try {
     const API_URL = getApiUrl();
-    const endpoint = `${API_URL}/user-profile-load.php`;
-    const requestId = `diag_${new Date().getTime()}`;
+    const endpoint = `${API_URL}/phpinfo.php`;
+    const requestId = `req_${new Date().getTime()}_${Math.random().toString(36).substring(2, 9)}`;
     
-    console.log(`🔍 DIAGNOSTIC - Connexion à: ${endpoint}`);
+    console.log(`📡 Testing PHP execution at ${endpoint}`);
     
-    const response = await fetch(`${endpoint}?test=1&requestId=${requestId}`, {
+    const response = await fetch(`${endpoint}?_=${requestId}`, {
       method: 'GET',
       headers: {
+        'Cache-Control': 'no-cache, no-store',
         'X-Request-ID': requestId,
-        'X-Client-Source': 'react-app-diagnostic'
       }
     });
     
+    if (!response.ok) {
+      return {
+        isWorking: false,
+        errorCode: 'HTTP_ERROR',
+        detail: `HTTP error: ${response.status} ${response.statusText}`
+      };
+    }
+    
     const responseText = await response.text();
     
-    const diagnosticResult = {
-      status: response.status,
-      statusText: response.statusText,
-      contentType: response.headers.get('content-type') || 'non spécifié',
-      isPhp: isPhpContent(responseText),
-      firstChars: responseText.substring(0, 50).replace(/\n/g, '\\n'),
-      headers: Object.fromEntries(response.headers.entries())
-    };
-    
-    if (diagnosticResult.isPhp) {
+    if (isPhpContent(responseText)) {
       return {
-        success: false,
-        details: {
-          ...diagnosticResult,
-          message: "PHP n'est pas correctement exécuté sur le serveur",
-          tip: "Vérifiez la configuration PHP sur votre serveur."
-        }
+        isWorking: false,
+        errorCode: 'PHP_EXECUTION_ERROR',
+        detail: responseText.substring(0, 200) + '...'
       };
     }
     
-    try {
-      const jsonResult = JSON.parse(responseText);
+    // Check if the response contains typical PHP info output indicators
+    const isPHPInfoResponse = 
+      responseText.includes('PHP Version') || 
+      responseText.includes('PHP License') ||
+      responseText.includes('PHP Configuration');
+    
+    if (isPHPInfoResponse) {
       return {
-        success: jsonResult.php_check ? true : false,
-        details: {
-          ...diagnosticResult,
-          jsonParsed: true,
-          phpExecution: jsonResult.php_check ? true : false,
-          response: jsonResult
-        }
+        isWorking: true,
+        detail: 'PHP est correctement configuré et exécuté'
       };
-    } catch (jsonError) {
+    } else {
       return {
-        success: false,
-        details: {
-          ...diagnosticResult,
-          jsonParsed: false,
-          jsonError: (jsonError as Error).message,
-          message: "La réponse n'est pas un JSON valide"
-        }
+        isWorking: false,
+        errorCode: 'UNEXPECTED_RESPONSE',
+        detail: 'Réponse inattendue du serveur PHP'
       };
     }
+    
   } catch (error) {
-    console.error('❌ DIAGNOSTIC - Erreur:', error);
+    console.error('Error testing PHP server:', error);
     return {
-      success: false,
-      details: {
-        error: error instanceof Error ? error.message : "Erreur inconnue",
-        message: "Impossible de contacter l'API"
-      }
+      isWorking: false,
+      errorCode: 'CONNECTION_ERROR',
+      detail: error instanceof Error ? error.message : 'Erreur inconnue lors du test PHP'
     };
   }
 };
 
 /**
- * Vérifie l'état du serveur PHP de manière détaillée
+ * Diagnose the API connection issues
  */
-export const checkPhpServerStatus = async (): Promise<{
-  isWorking: boolean;
-  detail: string;
-  errorCode?: string;
+export const diagnoseApiConnection = async (): Promise<{
+  success: boolean;
+  issues: string[];
+  details?: any;
 }> => {
   try {
-    const result = await diagnoseApiConnection();
+    const API_URL = getApiUrl();
+    const endpoint = `${API_URL}/diagnose-connection.php`;
+    const requestId = `req_${new Date().getTime()}_${Math.random().toString(36).substring(2, 9)}`;
     
-    if (result.success) {
+    console.log(`🔧 Running API connection diagnostics`);
+    
+    const response = await fetch(`${endpoint}?requestId=${requestId}`, {
+      method: 'GET',
+      headers: {
+        'Cache-Control': 'no-cache, no-store',
+        'X-Request-ID': requestId,
+      }
+    });
+    
+    try {
+      const result = await validateApiResponse(response);
       return {
-        isWorking: true,
-        detail: "Le serveur PHP fonctionne correctement"
+        success: result.success === true,
+        issues: result.issues || [],
+        details: result.details || {}
+      };
+    } catch (error) {
+      return {
+        success: false,
+        issues: [error instanceof Error ? error.message : 'Erreur de validation de la réponse API'],
+        details: { error: 'validation_failed' }
       };
     }
     
-    if (result.details?.isPhp) {
-      return {
-        isWorking: false,
-        detail: "Le serveur retourne le code PHP au lieu de l'exécuter",
-        errorCode: "PHP_EXECUTION_ERROR"
-      };
-    }
-    
-    if (!result.details?.jsonParsed) {
-      return {
-        isWorking: false,
-        detail: "Le serveur ne renvoie pas de JSON valide",
-        errorCode: "INVALID_JSON"
-      };
-    }
-    
-    return {
-      isWorking: false,
-      detail: result.details?.message || "Problème de configuration du serveur",
-      errorCode: "SERVER_CONFIG_ERROR"
-    };
   } catch (error) {
+    console.error('Error diagnosing API connection:', error);
     return {
-      isWorking: false,
-      detail: error instanceof Error ? error.message : "Erreur inconnue",
-      errorCode: "CONNECTION_ERROR"
+      success: false,
+      issues: [error instanceof Error ? error.message : 'Erreur inconnue lors du diagnostic API'],
+      details: { error: 'connection_failed' }
     };
   }
 };
