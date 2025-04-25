@@ -36,8 +36,8 @@ jobs:
         echo "==== Listing dist/assets directory ===="
         ls -la dist/assets/
 
-    # Étape 1: Créer tous les répertoires nécessaires sur le serveur
-    - name: Create directories on server via FTP
+    # Étape 1: Créer les répertoires principaux d'abord
+    - name: Create main directories
       uses: sebastianpopp/ftp-action@releases/v2
       with:
         host: ${{ secrets.FTP_SERVER }}
@@ -46,33 +46,41 @@ jobs:
         script: |
           mkdir -p assets
           mkdir -p api
-          mkdir -p api/config
-          mkdir -p api/controllers
-          mkdir -p api/middleware
-          mkdir -p api/models
-          mkdir -p api/models/traits
-          mkdir -p api/operations
-          mkdir -p api/utils
           mkdir -p public
-          mkdir -p public/lovable-uploads
+          echo "=== Root directories created ==="
           ls -la
 
-    # Étape 2: Vérifier que les répertoires ont été créés correctement
-    - name: Verify directories
+    # Étape 2: Créer les sous-répertoires de api
+    - name: Create api subdirectories
       uses: sebastianpopp/ftp-action@releases/v2
       with:
         host: ${{ secrets.FTP_SERVER }}
         user: ${{ secrets.FTP_USERNAME }}
         password: ${{ secrets.FTP_PASSWORD }}
         script: |
-          echo "=== Listing root directory ==="
-          ls -la
-          echo "=== Listing api directory ==="
-          ls -la api
-          echo "=== Listing api/config directory ==="
-          ls -la api/config
+          mkdir -p api/config
+          mkdir -p api/controllers
+          mkdir -p api/middleware
+          mkdir -p api/models
+          mkdir -p api/operations
+          mkdir -p api/utils
+          echo "=== API subdirectories created ==="
+          ls -la api/
 
-    # Étape 3: Déployer le contenu du dossier dist avec une configuration FTP standard
+    # Étape 3: Créer les sous-sous-répertoires
+    - name: Create deeper subdirectories
+      uses: sebastianpopp/ftp-action@releases/v2
+      with:
+        host: ${{ secrets.FTP_SERVER }}
+        user: ${{ secrets.FTP_USERNAME }}
+        password: ${{ secrets.FTP_PASSWORD }}
+        script: |
+          mkdir -p api/models/traits
+          mkdir -p public/lovable-uploads
+          echo "=== Deep subdirectories created ==="
+          ls -la api/models/
+
+    # Étape 4: Déployer le contenu avec une vitesse réduite pour éviter les erreurs
     - name: Deploy to Infomaniak
       uses: SamKirkland/FTP-Deploy-Action@v4.3.4
       with:
@@ -83,6 +91,7 @@ jobs:
         dangerous-clean-slate: false
         protocol: ftp
         port: 21
-        timeout: 240000
+        timeout: 360000  # Augmenté à 6 minutes
         server-dir: "./"
         log-level: "verbose"
+        max-concurrent-transfers: 4  # Réduire le nombre de transferts simultanés
