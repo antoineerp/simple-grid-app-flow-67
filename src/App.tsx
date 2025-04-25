@@ -13,7 +13,6 @@ import RessourcesHumaines from "./pages/RessourcesHumaines";
 import Bibliotheque from "./pages/Bibliotheque";
 import Administration from "./pages/Administration";
 import NotFound from "./pages/NotFound";
-import Diagnostic from "./pages/Diagnostic";
 
 const queryClient = new QueryClient();
 
@@ -31,7 +30,6 @@ const App = () => (
             <Route path="bibliotheque" element={<Bibliotheque />} />
             <Route path="administration" element={<Administration />} />
           </Route>
-          <Route path="/diagnostic" element={<Diagnostic />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>

@@ -4,7 +4,6 @@ export * from './core/userInitializationService';
 export * from './documents';
 export * from './users/userService';
 export * from './users/createUserService';
-export * from './sync';
 
 // Nous n'avons plus besoin de ces renommages car les fonctions sont maintenant
 // directement exportées depuis les fichiers sources

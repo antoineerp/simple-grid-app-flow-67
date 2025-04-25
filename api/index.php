@@ -64,20 +64,6 @@ if (strpos($api_path, '/api/bibliotheque-sync.php') !== false) {
     exit;
 }
 
-// Vérifier pour php-system-check.php
-if (strpos($api_path, '/api/php-system-check.php') !== false) {
-    error_log("Route php-system-check.php détectée, inclusion directe");
-    require_once 'php-system-check.php';
-    exit;
-}
-
-// Vérifier pour php-execution-test.php
-if (strpos($api_path, '/api/php-execution-test.php') !== false) {
-    error_log("Route php-execution-test.php détectée, inclusion directe");
-    require_once 'php-execution-test.php';
-    exit;
-}
-
 // Normaliser le chemin de l'API
 $base_path = '/api/';
 // Dans certaines configurations, le chemin pourrait être différent
@@ -247,17 +233,6 @@ switch ($controller) {
     case 'info':
     case 'info.php':
         require_once 'info.php';
-        break;
-        
-    // Ajouter des cas explicites pour les fichiers de test système PHP
-    case 'php-system-check':
-    case 'php-system-check.php':
-        require_once 'php-system-check.php';
-        break;
-        
-    case 'php-execution-test':
-    case 'php-execution-test.php':
-        require_once 'php-execution-test.php';
         break;
         
     default:
