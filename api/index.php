@@ -1,36 +1,29 @@
 
 <?php
-// Inclure la configuration d'environnement
-require_once 'config/env.php';
+// Forcer l'output buffering pour éviter tout output avant les headers
+ob_start();
 
-// Définir explicitement le type de contenu pour les scripts PHP
-header("Content-Type: application/json; charset=UTF-8");
+// Vérifier si nous sommes dans un environnement de production ou de développement
+$is_production = (getenv('APP_ENV') === 'production' || !getenv('APP_ENV'));
 
-// Désactiver la mise en cache
-header("Cache-Control: no-cache, no-store, must-revalidate");
-header("Pragma: no-cache");
-header("Expires: 0");
-
-// Définir les headers CORS appropriés
-$origin = isset($_SERVER['HTTP_ORIGIN']) ? $_SERVER['HTTP_ORIGIN'] : '';
-$allowedOrigins = [
-    'https://qualiopi.ch',
-    'http://localhost:5173',
-    'http://localhost:3000',
-    'http://localhost:8080'
-];
-
-// Mode développement: autoriser toutes les origines
-if (env('APP_ENV') === 'development') {
-    header("Access-Control-Allow-Origin: *");
-} elseif (in_array($origin, $allowedOrigins)) {
-    header("Access-Control-Allow-Origin: {$origin}");
+// Activer l'affichage des erreurs en développement
+if (!$is_production) {
+    ini_set('display_errors', 1);
+    error_reporting(E_ALL);
 } else {
-    header("Access-Control-Allow-Origin: https://qualiopi.ch");
+    // En production, journaliser les erreurs mais ne pas les afficher
+    ini_set('display_errors', 0);
+    error_reporting(E_ALL);
+    ini_set('log_errors', 1);
+    ini_set('error_log', 'php_errors.log');
 }
 
+// Définir les headers communs
+header("Content-Type: application/json; charset=UTF-8");
+header("Access-Control-Allow-Origin: *");
 header("Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS");
 header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With");
+header("Cache-Control: no-cache, no-store, must-revalidate");
 
 // Si c'est une requête OPTIONS (preflight), nous la terminons ici
 if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
@@ -44,14 +37,92 @@ error_log("API Request: " . $_SERVER['REQUEST_URI'] . " | Method: " . $_SERVER['
 
 // Obtenir le chemin de la requête
 $request_uri = $_SERVER['REQUEST_URI'];
-$path = trim(parse_url($request_uri, PHP_URL_PATH), '/');
-$path = preg_replace('#^api/#', '', $path);
+
+// Normaliser le chemin de l'API
+$base_path = '/api/';
+// Dans certaines configurations, le chemin pourrait être différent
+if (strpos($request_uri, 'api/index.php') !== false) {
+    $base_path = '/api/index.php/';
+}
+
+// Gérer les paramètres de requête
+$query_string = parse_url($request_uri, PHP_URL_QUERY);
+$is_test_request = false;
+
+// Vérifier si c'est une requête de test
+if ($query_string && strpos($query_string, 'test=1') !== false) {
+    $is_test_request = true;
+}
+
+// Si nous sommes sur l'URL racine de l'API (avec ou sans index.php) ou une requête de test, renvoyer un message de base
+if ($is_test_request || $request_uri == '/api/' || $request_uri == '/api/index.php' || $request_uri == '/api/index.php/') {
+    http_response_code(200);
+    echo json_encode([
+        'message' => 'API PHP disponible',
+        'status' => 200,
+        'environment' => $is_production ? 'production' : 'development',
+        'server_info' => [
+            'host' => $_SERVER['SERVER_NAME'],
+            'uri' => $_SERVER['REQUEST_URI'],
+            'script' => $_SERVER['SCRIPT_NAME']
+        ]
+    ]);
+    exit;
+}
+
+// Définir une fonction pour nettoyer les données UTF-8
+if (!function_exists('cleanUTF8')) {
+    function cleanUTF8($input) {
+        if (is_string($input)) {
+            return mb_convert_encoding($input, 'UTF-8', 'UTF-8');
+        } elseif (is_array($input)) {
+            foreach ($input as $key => $value) {
+                $input[$key] = cleanUTF8($value);
+            }
+        }
+        return $input;
+    }
+}
+
+// Routage des requêtes
+// Nettoyer le chemin pour obtenir la route demandée
+$path = preg_replace([
+    '~^/api/index\.php/~',
+    '~^/api/~'
+], '', parse_url($request_uri, PHP_URL_PATH));
+$path = rtrim(strtok($path, '?'), '/');
 $segments = explode('/', $path);
+
+// Déterminer le contrôleur à partir du premier segment
 $controller = !empty($segments[0]) ? $segments[0] : 'index';
 
-// Nettoyer le nom du contrôleur
-$controller = str_replace('.php', '', $controller);
-error_log("Controller resolved: " . $controller);
+// Journaliser la requête
+error_log("API Controller: $controller | Method: " . $_SERVER['REQUEST_METHOD'] . " | URI: $request_uri | Path: $path");
+
+// Ajouter un point d'accès spécial pour les utilisateurs
+if ($controller == 'utilisateurs') {
+    error_log("Accès à la route utilisateurs");
+    
+    // Chemin complet du contrôleur d'utilisateurs
+    $userControllerPath = __DIR__ . '/controllers/UsersController.php';
+    
+    // Vérifier que le fichier existe
+    if (file_exists($userControllerPath)) {
+        error_log("Fichier contrôleur utilisateurs trouvé: $userControllerPath");
+        define('DIRECT_ACCESS_CHECK', true);
+        require_once $userControllerPath;
+        exit;
+    } else {
+        error_log("ERREUR: Fichier contrôleur utilisateurs NON trouvé: $userControllerPath");
+        http_response_code(500);
+        echo json_encode([
+            'status' => 'error',
+            'message' => 'Fichier contrôleur utilisateurs non trouvé',
+            'path' => $userControllerPath
+        ]);
+        exit;
+    }
+}
 
 // Router vers le bon fichier en fonction du contrôleur
 switch ($controller) {
@@ -59,9 +130,15 @@ switch ($controller) {
         require_once 'controllers/AuthController.php';
         break;
         
-    case 'db-test':
-    case 'db-connection-test':
+    case 'login-test':
+        require_once 'login-test.php';
+        break;
+        
     case 'database-test':
+        require_once 'database-test.php';
+        break;
+        
+    case 'db-connection-test':
         require_once 'db-connection-test.php';
         break;
         
@@ -69,78 +146,54 @@ switch ($controller) {
         require_once 'database-config.php';
         break;
         
-    case 'utilisateurs':
+    case 'direct-db-test':
+    case 'direct-db-test.php':
+        require_once 'direct-db-test.php';
+        break;
+        
     case 'check-users':
-        if (file_exists('controllers/UsersController.php')) {
-            define('DIRECT_ACCESS_CHECK', true);
-            require_once 'controllers/UsersController.php';
-        } else if (file_exists('check-users.php')) {
-            require_once 'check-users.php';
-        } else {
-            http_response_code(500);
-            echo json_encode([
-                'status' => 'error',
-                'message' => 'Contrôleur utilisateurs non trouvé'
-            ]);
-        }
+    case 'check-users.php':
+        require_once 'check-users.php';
         break;
         
-    case 'documents-load':
-        if (file_exists('documents-load.php')) {
-            require_once 'documents-load.php';
-        } else {
-            http_response_code(404);
-            echo json_encode([
-                'status' => 'error',
-                'message' => 'Endpoint documents-load.php non trouvé'
-            ]);
-        }
+    // Ajouter un cas explicite pour login-test.php au cas où il serait appelé directement
+    case 'login-test.php':
+        require_once 'login-test.php';
         break;
         
-    case 'documents-sync':
-        if (file_exists('documents-sync.php')) {
-            require_once 'documents-sync.php';
-        } else {
-            http_response_code(404);
-            echo json_encode([
-                'status' => 'error',
-                'message' => 'Endpoint documents-sync.php non trouvé'
-            ]);
-        }
+    // Ajouter un cas explicite pour test.php car il manque peut-être aussi
+    case 'test':
+    case 'test.php':
+        require_once 'test.php';
         break;
-                
-    case 'json-test':
-        header('Content-Type: application/json');
-        echo json_encode([
-            'status' => 'success',
-            'message' => 'Test JSON réussi',
-            'timestamp' => time()
-        ]);
+        
+    // Ajouter un cas explicite pour phpinfo.php et info.php
+    case 'phpinfo':
+    case 'phpinfo.php':
+        require_once 'phpinfo.php';
+        break;
+        
+    case 'info':
+    case 'info.php':
+        require_once 'info.php';
         break;
         
     default:
-        // Vérifier d'abord si un fichier existe directement
-        if (file_exists($controller . '.php')) {
-            error_log("Loading direct file: " . $controller . '.php');
-            require_once $controller . '.php';
-        }
-        // Vérifier si un fichier existe dans le dossier controllers
-        else if (file_exists('controllers/' . ucfirst($controller) . 'Controller.php')) {
-            error_log("Loading controller: controllers/" . ucfirst($controller) . 'Controller.php');
-            require_once 'controllers/' . ucfirst($controller) . 'Controller.php';
-        }
-        // Si aucun fichier n'est trouvé
-        else {
-            error_log("Route not found: " . $path);
+        // Si le contrôleur n'est pas reconnu, vérifier si un fichier PHP correspondant existe
+        $controller_file = $controller . '.php';
+        if (file_exists($controller_file)) {
+            require_once $controller_file;
+        } else {
+            // Aucune route correspondante trouvée
             http_response_code(404);
             echo json_encode([
-                'status' => 'error',
                 'message' => 'Route non trouvée: ' . $path,
-                'controller_requested' => $controller,
-                'file_checked_1' => $controller . '.php',
-                'file_checked_2' => 'controllers/' . ucfirst($controller) . 'Controller.php'
+                'status' => 404
             ]);
         }
         break;
 }
+
+// Vider le tampon de sortie
+ob_end_flush();
 ?>

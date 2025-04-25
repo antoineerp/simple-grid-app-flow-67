@@ -17,14 +17,14 @@
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:site" content="@lovable_dev" />
     <meta name="twitter:image" content="https://lovable.dev/opengraph-image-p98pqg.png" />
-    <!-- Utiliser le script source plutôt que le compilé pour le développement -->
-    <link rel="stylesheet" href="/src/index.css" />
+    <!-- Utiliser un chemin relatif pour le CSS qui sera remplacé par le build -->
+    <link rel="stylesheet" href="./src/index.css" />
   </head>
 
   <body>
     <div id="root"></div>
-    <!-- Utiliser le script source plutôt que le compilé pour le développement -->
-    <script type="module" src="/src/main.tsx"></script>
+    <!-- Utiliser un chemin relatif pour le JS principal qui sera remplacé par le build -->
+    <script type="module" src="./src/main.tsx"></script>
     <script src="https://cdn.gpteng.co/gptengineer.js" type="module"></script>
   </body>
 </html>

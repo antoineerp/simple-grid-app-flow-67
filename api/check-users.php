@@ -1,36 +1,26 @@
 
 <?php
-// Désactiver l'affichage des erreurs - elles seraient journalisées mais pas affichées
-ini_set('display_errors', 0);
-error_reporting(E_ALL);
-
-// Nettoyer tout buffer de sortie potentiellement existant
-if (ob_get_level()) ob_end_clean();
-
-// Définir les en-têtes CORS et le type de contenu avant toute sortie
+// Fichier pour vérifier l'état des utilisateurs dans la base de données
 header("Content-Type: application/json; charset=UTF-8");
-header("Access-Control-Allow-Origin: https://qualiopi.ch");
+header("Access-Control-Allow-Origin: *");
 header("Access-Control-Allow-Methods: GET, OPTIONS");
 header("Access-Control-Allow-Headers: Content-Type, Authorization");
-header("Cache-Control: no-cache, no-store, must-revalidate");
 
-// Traiter les requêtes preflight OPTIONS
+// Si c'est une requête OPTIONS (preflight), nous la terminons ici
 if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
     http_response_code(200);
     echo json_encode(['status' => 200, 'message' => 'Preflight OK']);
     exit;
 }
 
-// Vérifier si la méthode est GET
-if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
-    http_response_code(405);
-    echo json_encode(['status' => 'error', 'message' => 'Méthode non autorisée']);
-    exit;
-}
-
+// Journaliser l'exécution
 error_log("=== EXÉCUTION DE check-users.php ===");
 
+// Capturer toute sortie pour éviter la contamination du JSON
+ob_start();
+
 try {
+    // Tester la connexion PDO directement
     $host = "p71x6d.myd.infomaniak.com";
     $dbname = "p71x6d_system";
     $username = "p71x6d_system";
@@ -43,44 +33,69 @@ try {
         PDO::ATTR_EMULATE_PREPARES => false,
     ];
     
-    error_log("Tentative de connexion PDO à la base de données");
+    error_log("Tentative de connexion PDO directe à la base de données");
     $pdo = new PDO($dsn, $username, $password, $options);
     error_log("Connexion PDO réussie");
     
+    // Vérifier si la table existe
+    $tableExistsQuery = "SHOW TABLES LIKE 'utilisateurs'";
+    $stmt = $pdo->prepare($tableExistsQuery);
+    $stmt->execute();
+    
+    if ($stmt->rowCount() == 0) {
+        // La table n'existe pas
+        throw new Exception("La table 'utilisateurs' n'existe pas");
+    }
+    
     // Récupérer tous les utilisateurs
-    $query = "SELECT id, nom, prenom, email, role, mot_de_passe, identifiant_technique, date_creation FROM utilisateurs";
+    $query = "SELECT id, nom, prenom, email, role, identifiant_technique, date_creation, mot_de_passe FROM utilisateurs";
     $stmt = $pdo->prepare($query);
     $stmt->execute();
     $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $count = count($users);
     
-    // Nettoyer tout output accumulé avant d'envoyer la réponse
-    if (ob_get_length()) ob_clean();
+    error_log("Nombre d'utilisateurs récupérés: " . $count);
     
-    // Envoyer la réponse
+    // Nettoyer tout output accumulé
+    ob_clean();
+    
+    // Préparer la réponse
     http_response_code(200);
     echo json_encode([
         'status' => 'success',
-        'message' => 'Utilisateurs récupérés avec succès',
+        'message' => 'Connexion réussie à la base de données',
         'records' => $users,
-        'count' => count($users)
+        'count' => $count,
+        'database_info' => [
+            'host' => $host,
+            'database' => $dbname,
+            'user' => $username
+        ]
     ]);
     exit;
-    
 } catch (PDOException $e) {
-    error_log("Erreur PDO: " . $e->getMessage());
+    error_log("Erreur de connexion PDO: " . $e->getMessage());
+    
+    // Nettoyer tout output accumulé
+    ob_clean();
+    
     http_response_code(500);
     echo json_encode([
         'status' => 'error',
-        'message' => 'Erreur de base de données',
+        'message' => 'Échec de la connexion à la base de données',
         'error' => $e->getMessage()
     ]);
     exit;
 } catch (Exception $e) {
-    error_log("Erreur: " . $e->getMessage());
+    error_log("Erreur générale: " . $e->getMessage());
+    
+    // Nettoyer tout output accumulé
+    ob_clean();
+    
     http_response_code(500);
     echo json_encode([
         'status' => 'error',
-        'message' => 'Erreur serveur',
+        'message' => 'Erreur lors du test de connexion',
         'error' => $e->getMessage()
     ]);
     exit;

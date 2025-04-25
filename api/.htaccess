@@ -2,51 +2,28 @@
 # Activer la réécriture d'URL
 RewriteEngine On
 
-# Base du répertoire API
-RewriteBase /api/
-
-# Désactiver le cache pour toutes les requêtes API
-<IfModule mod_headers.c>
-    Header set Cache-Control "no-cache, no-store, must-revalidate"
-    Header set Pragma "no-cache"
-    Header set Expires "0"
-    
-    # Autoriser CORS pour le développement
-    Header set Access-Control-Allow-Origin "*"
-    Header set Access-Control-Allow-Methods "GET, POST, OPTIONS, PUT, DELETE"
-    Header set Access-Control-Allow-Headers "Content-Type, Authorization, X-Requested-With"
-</IfModule>
-
-# Traiter les requêtes OPTIONS pour CORS
-RewriteCond %{REQUEST_METHOD} OPTIONS
-RewriteRule ^(.*)$ $1 [R=200,L]
-
-# Autoriser l'accès direct aux fichiers existants
+# Permettre l'accès direct aux fichiers PHP spécifiques
 RewriteCond %{REQUEST_FILENAME} -f
-RewriteRule ^ - [L]
+RewriteRule \.(php)$ - [L]
 
-# Route unique pour le test de connexion à la base de données
-RewriteRule ^db-test/?$ db-connection-simple.php [L,NC]
-RewriteRule ^test-db/?$ db-connection-simple.php [L,NC]
-RewriteRule ^db-connection-simple/?$ db-connection-simple.php [L,NC]
-
-# Redirection généralisée pour les contrôleurs
-RewriteRule ^([^/]+)/?$ controllers/$1Controller.php [L,NC]
-
-# Redirection générale pour les autres routes
+# Rediriger toutes les requêtes vers l'index.php sauf pour les fichiers existants
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
-RewriteRule ^([^/]+)/?$ $1.php [L,NC]
+RewriteRule ^(.*)$ index.php [QSA,L]
 
-# Forcer PHP à traiter les fichiers .php
-<FilesMatch "\.php$">
-    SetHandler application/x-httpd-php
-</FilesMatch>
-
-# Forcer le type MIME pour les réponses JSON 
-<FilesMatch "\.(php)$">
-    Header always set Content-Type "application/json; charset=UTF-8"
-    Header set Access-Control-Allow-Origin "*" 
+# Définir les en-têtes CORS
+<IfModule mod_headers.c>
+    Header set Access-Control-Allow-Origin "*"
     Header set Access-Control-Allow-Methods "GET, POST, OPTIONS, PUT, DELETE"
-    Header set Access-Control-Allow-Headers "Content-Type, Authorization, X-Requested-With"
-</FilesMatch>
+    Header set Access-Control-Allow-Headers "Content-Type, Authorization"
+    
+    # Eviter la mise en cache
+    Header set Cache-Control "no-cache, no-store, must-revalidate"
+    Header set Pragma "no-cache"
+    Header set Expires 0
+</IfModule>
+
+# Forcer PHP à utiliser le bon encodage
+<IfModule mod_php.c>
+    php_value default_charset "UTF-8"
+</IfModule>

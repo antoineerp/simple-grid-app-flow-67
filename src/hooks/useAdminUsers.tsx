@@ -1,9 +1,11 @@
+
 import { useState, useEffect, useCallback } from 'react';
 import { getUtilisateurs, connectAsUser, testDatabaseConnection, type Utilisateur } from '@/services';
-import { toast } from "@/hooks/use-toast";
+import { useToast } from "@/hooks/use-toast";
 import { hasPermission, UserRole } from '@/types/roles';
 
 export const useAdminUsers = () => {
+  const { toast } = useToast();
   const [utilisateurs, setUtilisateurs] = useState<Utilisateur[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -43,26 +45,34 @@ export const useAdminUsers = () => {
       const data = await getUtilisateurs();
       console.log("Données utilisateurs récupérées:", data);
       
-      // Si data est un tableau, l'utiliser directement
+      // Corriger la vérification du type de data et l'accès aux propriétés
       if (Array.isArray(data)) {
         setUtilisateurs(data);
+      } else if (data && typeof data === 'object') {
+        // Vérification de sécurité pour l'accès à records avec TypeScript
+        const responseData = data as any;
+        if (responseData.records && Array.isArray(responseData.records)) {
+          setUtilisateurs(responseData.records);
+        } else {
+          console.warn("Format de données inattendu:", data);
+          setUtilisateurs([]);
+        }
       } else {
         console.warn("Format de données inattendu:", data);
         setUtilisateurs([]);
       }
     } catch (error) {
       console.error("Erreur lors du chargement des utilisateurs", error);
-      const errorMessage = error instanceof Error ? error.message : "Impossible de charger les utilisateurs.";
-      setError(errorMessage);
+      setError(error instanceof Error ? error.message : "Impossible de charger les utilisateurs.");
       toast({
         title: "Erreur",
-        description: errorMessage,
+        description: "Impossible de charger les utilisateurs.",
         variant: "destructive",
       });
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [toast]);
 
   const handleConnectAsUser = async (identifiantTechnique: string) => {
     const currentUserRole = localStorage.getItem('userRole') as UserRole;

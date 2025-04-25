@@ -216,24 +216,11 @@ class DatabaseConnectionService {
       
       const response = await fetch(`${API_URL}/db-connection-test.php`, {
         method: 'GET',
-        headers: {
-          ...getAuthHeaders(),
-          'Cache-Control': 'no-cache, no-store, must-revalidate',
-          'Pragma': 'no-cache'
-        },
+        headers: getAuthHeaders(),
         cache: 'no-cache'
       });
       
       console.log("Statut de la réponse du test de connexion:", response.status);
-      
-      // Vérifier le type de contenu de la réponse
-      const contentType = response.headers.get('Content-Type');
-      if (contentType && !contentType.includes('application/json')) {
-        console.error(`Type de contenu non-JSON reçu: ${contentType}`);
-        const responseText = await response.text();
-        console.error("Réponse non-JSON:", responseText.substring(0, 200));
-        throw new Error(`Réponse non-JSON reçue (${contentType}). Vérifiez la configuration du serveur.`);
-      }
       
       if (!response.ok) {
         const responseText = await response.text();
@@ -244,13 +231,7 @@ class DatabaseConnectionService {
       const responseText = await response.text();
       console.log("Réponse du test de connexion:", responseText.substring(0, 200));
       
-      let data: DbConnectionResponse;
-      try {
-        data = this.validateJsonResponse(responseText);
-      } catch (error) {
-        console.error("Erreur lors de la validation de la réponse:", error);
-        throw error;
-      }
+      const data = this.validateJsonResponse(responseText) as DbConnectionResponse;
       
       if (data.status !== 'success') {
         console.warn("Échec de la connexion à la base de données:", data.message, data.error || "");
