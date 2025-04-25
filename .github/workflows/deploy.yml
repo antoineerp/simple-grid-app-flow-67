@@ -29,11 +29,22 @@ jobs:
       run: |
         echo "Préparation de la structure pour Infomaniak..."
         
-        # Créer une structure temporaire simple (sans dossiers imbriqués)
+        # Créer une structure temporaire simple
         mkdir -p temp_deploy
         
-        # Copier les fichiers buildés dans le répertoire temporaire
-        cp -R dist/* temp_deploy/ || true
+        # Copier les fichiers buildés dans le répertoire temporaire (y compris les fichiers cachés)
+        echo "Copie des fichiers de build (y compris .dist)..."
+        cp -R dist/. temp_deploy/ || true
+        
+        # Assurer que .dist est bien copié s'il existe
+        if [ -f "dist/.dist" ]; then
+          echo ".dist trouvé et copié"
+          cp dist/.dist temp_deploy/ || true
+        else
+          echo ".dist non trouvé dans le dossier dist"
+          # Listage des fichiers cachés pour debugging
+          ls -la dist/
+        fi
         
         # Créer tous les dossiers nécessaires pour l'API
         mkdir -p temp_deploy/api/config
@@ -52,7 +63,7 @@ jobs:
         cp -R api/operations/* temp_deploy/api/operations/ || true
         cp -R api/utils/* temp_deploy/api/utils/ || true
         
-        # Copier les fichiers cachés
+        # Copier les fichiers cachés explicitement
         cp api/.htaccess temp_deploy/api/ || true
         cp api/.user.ini temp_deploy/api/ || true
         cp .htaccess temp_deploy/ || true
@@ -74,11 +85,13 @@ jobs:
         cp -R public/lovable-uploads/* temp_deploy/public/lovable-uploads/ || true
         
         echo "Structure temporaire créée avec succès"
-        
+
     - name: Debug Directory Structure
       run: |
         echo "Structure finale avant déploiement:"
         ls -la temp_deploy/
+        echo "Recherche des fichiers .dist:"
+        find temp_deploy -name ".dist" -type f
         echo "Structure API:"
         ls -la temp_deploy/api/
         echo "Structure API Config:"
