@@ -29,36 +29,15 @@ jobs:
     - name: Build Project
       run: npm run build
 
-    - name: Create directories on server
-      uses: SamKirkland/FTP-Deploy-Action@v4.3.4
-      with:
-        server: ${{ secrets.FTP_SERVER }}
-        username: ${{ secrets.FTP_USERNAME }}
-        password: ${{ secrets.FTP_PASSWORD }}
-        local-dir: ./
-        include: |
-          mkdir-commands.txt
-        dangerous-clean-slate: false
-        protocol: ftp
-        port: 21
-        timeout: 120000
-        server-dir: "./"
-        dry-run: false
-      env:
-        FTP_PASSIVE_MODE: "true"
-        
-    - name: Create mkdir commands file
+    - name: List dist content for debugging
       run: |
-        echo "mkdir -p assets" > mkdir-commands.txt
-        echo "mkdir -p api" >> mkdir-commands.txt
-        echo "mkdir -p api/config" >> mkdir-commands.txt
-        echo "mkdir -p api/controllers" >> mkdir-commands.txt
-        echo "mkdir -p api/middleware" >> mkdir-commands.txt
-        echo "mkdir -p api/models" >> mkdir-commands.txt
-        echo "mkdir -p api/utils" >> mkdir-commands.txt
-        echo "mkdir -p public/lovable-uploads" >> mkdir-commands.txt
+        echo "==== Listing dist directory ===="
+        ls -la dist/
+        echo "==== Listing dist/assets directory ===="
+        ls -la dist/assets/
 
-    - name: Execute commands on FTP server
+    # Étape 1: Créer tous les répertoires nécessaires sur le serveur
+    - name: Create directories on server via FTP
       uses: sebastianpopp/ftp-action@releases/v2
       with:
         host: ${{ secrets.FTP_SERVER }}
@@ -71,17 +50,29 @@ jobs:
           mkdir -p api/controllers
           mkdir -p api/middleware
           mkdir -p api/models
+          mkdir -p api/models/traits
+          mkdir -p api/operations
           mkdir -p api/utils
           mkdir -p public
           mkdir -p public/lovable-uploads
+          ls -la
 
-    - name: List dist content for debugging
-      run: |
-        echo "==== Listing dist directory ===="
-        ls -la dist/
-        echo "==== Listing dist/assets directory ===="
-        ls -la dist/assets/
+    # Étape 2: Vérifier que les répertoires ont été créés correctement
+    - name: Verify directories
+      uses: sebastianpopp/ftp-action@releases/v2
+      with:
+        host: ${{ secrets.FTP_SERVER }}
+        user: ${{ secrets.FTP_USERNAME }}
+        password: ${{ secrets.FTP_PASSWORD }}
+        script: |
+          echo "=== Listing root directory ==="
+          ls -la
+          echo "=== Listing api directory ==="
+          ls -la api
+          echo "=== Listing api/config directory ==="
+          ls -la api/config
 
+    # Étape 3: Déployer le contenu du dossier dist avec une configuration FTP standard
     - name: Deploy to Infomaniak
       uses: SamKirkland/FTP-Deploy-Action@v4.3.4
       with:
@@ -92,6 +83,6 @@ jobs:
         dangerous-clean-slate: false
         protocol: ftp
         port: 21
-        timeout: 120000
+        timeout: 240000
         server-dir: "./"
         log-level: "verbose"
