@@ -1,10 +1,9 @@
-
 name: Deploy to Infomaniak
 
 on:
   push:
     branches: [ main ]
-  workflow_dispatch:  # This enables the manual trigger button
+  workflow_dispatch:
 
 jobs:
   build-and-deploy:
@@ -25,30 +24,139 @@ jobs:
     - name: Build React App
       run: npm run build
       
+    - name: Debug build output
+      run: |
+        echo "============== Debugging build output =============="
+        echo "Liste des fichiers dans dist:"
+        ls -la dist/
+        echo "Liste des fichiers assets:"
+        ls -la dist/assets/ || echo "Dossier assets non trouvé"
+        echo "Contenu de index.html:"
+        cat dist/index.html || echo "index.html non trouvé"
+
     - name: Create complete directory structure
       run: |
+        echo "Creating all necessary directories..."
         mkdir -p dist/api/config
         mkdir -p dist/api/controllers
         mkdir -p dist/api/middleware
         mkdir -p dist/api/models
         mkdir -p dist/api/utils
         mkdir -p dist/public/lovable-uploads
-
-    - name: Copy API files
+        
+        # Ajout du fichier .htaccess à la racine
+        cp -v .htaccess dist/ || echo "Attention: .htaccess non trouvé dans la racine"
+        
+        # Copier les fichiers PHP d'utilitaires
+        cp -v fix-assets-runtime.php dist/ || echo "Attention: fix-assets-runtime.php non trouvé"
+        cp -v fix-index-references.php dist/ || echo "Attention: fix-index-references.php non trouvé"
+        cp -v utils-assets.php dist/ || echo "Attention: utils-assets.php non trouvé"
+        cp -v utils-directory.php dist/ || echo "Attention: utils-directory.php non trouvé"
+        cp -v index-validator.php dist/ || echo "Attention: index-validator.php non trouvé"
+      
+    - name: Copy API files with explicit paths
       run: |
-        cp -v api/index.php dist/api/ || echo "index.php not found"
-        cp -v api/.htaccess dist/api/ || echo ".htaccess not found"
-        cp -v api/.user.ini dist/api/ || echo ".user.ini not found"
-        cp -v api/phpinfo.php dist/api/ || echo "phpinfo.php not found"
+        echo "Copying API files with detailed logging..."
+        
+        # Copier les fichiers principaux de l'API
+        cp -v api/index.php dist/api/ || echo "Attention: index.php non trouvé"
+        cp -v api/.htaccess dist/api/ || echo "Attention: .htaccess non trouvé"
+        cp -v api/.user.ini dist/api/ || echo "Attention: .user.ini non trouvé"
+        cp -v api/auth.php dist/api/ || echo "Attention: auth.php non trouvé"
+        cp -v api/test.php dist/api/ || echo "Attention: test.php non trouvé"
+        cp -v api/info.php dist/api/ || echo "Attention: info.php non trouvé"
+        cp -v api/diagnostic.php dist/api/ || echo "Attention: diagnostic.php non trouvé"
+        cp -v api/diagnostic-complet.php dist/api/ || echo "Attention: diagnostic-complet.php non trouvé"
+        cp -v api/diagnose-assets.php dist/api/ || echo "Attention: diagnose-assets.php non trouvé"
+        cp -v api/assets-check.php dist/api/ || echo "Attention: assets-check.php non trouvé"
+        cp -v api/php.ini dist/api/ || echo "Attention: php.ini non trouvé"
+        cp -v api/login-test.php dist/api/ || echo "Attention: login-test.php non trouvé"
+        cp -v api/check-users.php dist/api/ || echo "Attention: check-users.php non trouvé"
+        
+        # Ajout des fichiers de gestion documentaire
+        cp -v api/documents-load.php dist/api/ || echo "Attention: documents-load.php non trouvé"
+        cp -v api/documents-sync.php dist/api/ || echo "Attention: documents-sync.php non trouvé"
+        cp -v api/bibliotheque-load.php dist/api/ || echo "Attention: bibliotheque-load.php non trouvé"
+        cp -v api/bibliotheque-sync.php dist/api/ || echo "Attention: bibliotheque-sync.php non trouvé"
+        
+        # Copier les fichiers de configuration
+        cp -v api/config/env.php dist/api/config/ || echo "Attention: env.php non trouvé"
+        cp -v api/config/env.example.php dist/api/config/ || echo "Attention: env.example.php non trouvé"
+        cp -v api/config/database.php dist/api/config/ || echo "Attention: database.php non trouvé"
+        
+        # Copier les contrôleurs
+        cp -v api/controllers/AuthController.php dist/api/controllers/ || echo "Attention: AuthController.php non trouvé"
+        cp -v api/controllers/UserController.php dist/api/controllers/ || echo "Attention: UserController.php non trouvé"
+        cp -v api/controllers/UsersController.php dist/api/controllers/ || echo "Attention: UsersController.php non trouvé"
+        cp -v api/controllers/ConfigController.php dist/api/controllers/ || echo "Attention: ConfigController.php non trouvé"
+        cp -v api/controllers/DatabaseConfigController.php dist/api/controllers/ || echo "Attention: DatabaseConfigController.php non trouvé"
+        cp -v api/controllers/DatabaseTestController.php dist/api/controllers/ || echo "Attention: DatabaseTestController.php non trouvé"
+        
+        # Copier les middlewares
+        cp -v api/middleware/Auth.php dist/api/middleware/ || echo "Attention: Auth.php middleware non trouvé"
+        
+        # Copier les modèles
+        cp -v api/models/User.php dist/api/models/ || echo "Attention: User.php model non trouvé"
+        
+        # Copier les utilitaires
+        cp -v api/utils/JwtHandler.php dist/api/utils/ || echo "Attention: JwtHandler.php non trouvé"
+        
+    - name: Copy remaining application files
+      run: |
+        # Copier les fichiers principaux
+        cp -v deploy-on-infomaniak.php dist/ || echo "Attention: deploy-on-infomaniak.php non trouvé"
+        cp -v verify-deploy.php dist/ || echo "Attention: verify-deploy.php non trouvé"
+        cp -v deploy-check.php dist/ || echo "Attention: deploy-check.php non trouvé"
+        
+        # Copier les fichiers uploads avec récursion
+        cp -r public/lovable-uploads/* dist/public/lovable-uploads/ || echo "Aucun fichier d'upload trouvé"
+        
+        # Vérifier si le dossier public contient d'autres fichiers importants
+        find public -type f -not -path "*/lovable-uploads/*" -exec cp -v {} dist/public/ \; || echo "Pas d'autres fichiers publics trouvés"
 
-    - name: Sync to Infomaniak
+    - name: Run post-build script to fix index references
+      run: |
+        echo "Running post-build script to ensure index.html is correct..."
+        cd dist
+        # Créer un script temporaire pour vérifier les assets
+        cat > check-assets.php << 'EOF'
+        <?php
+        $assets_js = glob('./assets/*.js');
+        $assets_css = glob('./assets/*.css');
+        echo "Found JS assets: " . implode(", ", $assets_js) . "\n";
+        echo "Found CSS assets: " . implode(", ", $assets_css) . "\n";
+        
+        // Vérifier index.html
+        $index_content = file_get_contents('./index.html');
+        echo "Index.html content:\n";
+        echo substr($index_content, 0, 1000) . "...\n";
+        ?>
+        EOF
+        
+        php check-assets.php
+        cd ..
+
+    - name: Check structure before deployment
+      run: |
+        echo "Verifying structure before deployment:"
+        echo "Root files:"
+        ls -la dist/
+        echo "API files:"
+        ls -la dist/api/
+        echo "API config files:"
+        ls -la dist/api/config/
+        echo "Public files:"
+        ls -la dist/public/ || echo "No public folder"
+        
+    # ----------- MODIFICATION ----------- #
+    - name: Sync full dist folder to Infomaniak server
       uses: SamKirkland/FTP-Deploy-Action@v4.3.4
       with:
         server: ${{ secrets.FTP_SERVER }}
         username: ${{ secrets.FTP_USERNAME }}
         password: ${{ secrets.FTP_PASSWORD }}
         local-dir: ./dist/
-        server-dir: /
+        server-dir: /sites/qualiopi.ch/
         dangerous-clean-slate: false
         exclude: |
           **/.git*
@@ -57,7 +165,16 @@ jobs:
           README.md
           package.json
           package-lock.json
+          tsconfig*.json
           *.log
         log-level: verbose
         timeout: 120000
         dry-run: false
+    # ----------- FIN MODIFICATION ----------- #
+    
+    - name: Post-deployment verification
+      run: |
+        echo "Déploiement terminé. Vérifiez les logs pour toute erreur."
+        echo "Exécutez fix-assets-runtime.php sur votre serveur pour vérifier l'état du déploiement."
+        echo "URL: https://qualiopi.ch/fix-assets-runtime.php"
+        echo "Vérifiez également: https://qualiopi.ch/fix-index-references.php"
