@@ -25,29 +25,35 @@ jobs:
     - name: Build React App
       run: npm run build
       
-    - name: Prepare API Directory
+    - name: Prepare Full Directory Structure
       run: |
-        echo "Préparation du répertoire API..."
-        mkdir -p dist/sites/qualiopi.ch/api
+        echo "Préparation de la structure complète..."
         
-        # Copier tous les fichiers de l'API
-        cp -R api/* dist/sites/qualiopi.ch/api/
+        # Créer le dossier principal
+        mkdir -p dist/sites/qualiopi.ch
         
-        # Copier les fichiers cachés (.htaccess, .user.ini, etc.)
+        # Déplacer tous les fichiers buildés dans le bon dossier
+        mv dist/* dist/sites/qualiopi.ch/ || true
+        
+        # Recréer le dossier dist/sites/qualiopi.ch si nécessaire
+        mkdir -p dist/sites/qualiopi.ch
+        
+        # Copier l'API et ses fichiers cachés
+        cp -R api dist/sites/qualiopi.ch/
         cp -R api/.htaccess dist/sites/qualiopi.ch/api/ || true
         cp -R api/.user.ini dist/sites/qualiopi.ch/api/ || true
         
-        # Créer les sous-répertoires nécessaires
-        mkdir -p dist/sites/qualiopi.ch/api/config
-        mkdir -p dist/sites/qualiopi.ch/api/controllers
-        mkdir -p dist/sites/qualiopi.ch/api/middleware
-        mkdir -p dist/sites/qualiopi.ch/api/models
-        mkdir -p dist/sites/qualiopi.ch/api/utils
+        # Copier les fichiers de configuration racine
+        cp .htaccess dist/sites/qualiopi.ch/
         
-    - name: Debug API Directory Structure
+        # Créer et copier les dossiers nécessaires
+        mkdir -p dist/sites/qualiopi.ch/public/lovable-uploads
+        cp -R public/lovable-uploads/* dist/sites/qualiopi.ch/public/lovable-uploads/ || true
+        
+    - name: Debug Directory Structure
       run: |
-        echo "Structure du répertoire API:"
-        tree dist/sites/qualiopi.ch/api || ls -R dist/sites/qualiopi.ch/api
+        echo "Structure finale avant déploiement:"
+        tree dist/sites/qualiopi.ch || ls -R dist/sites/qualiopi.ch
         
     - name: Sync full dist folder to Infomaniak server
       uses: SamKirkland/FTP-Deploy-Action@v4.3.4
@@ -74,4 +80,6 @@ jobs:
     - name: Post-deployment verification
       run: |
         echo "Déploiement terminé. Vérification de la structure:"
+        curl -v "https://qualiopi.ch/" || echo "Vérification du site échouée"
         curl -v "https://qualiopi.ch/api/diagnostic.php" || echo "Vérification de l'API échouée"
+
