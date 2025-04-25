@@ -113,6 +113,11 @@ jobs:
         echo "open ${{ secrets.FTP_SERVER }}
         user ${{ secrets.FTP_USERNAME }} ${{ secrets.FTP_PASSWORD }}
         pwd
+        mkdir -p api/config
+        mkdir -p api/controllers
+        mkdir -p api/middleware
+        mkdir -p api/models
+        mkdir -p api/utils
         bye" > ftp_script.txt
         ftp -n < ftp_script.txt || echo "Échec de connexion FTP - vérifiez les informations d'identification"
         rm ftp_script.txt
