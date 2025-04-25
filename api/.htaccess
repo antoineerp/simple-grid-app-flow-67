@@ -20,7 +20,7 @@ AddType application/x-httpd-php .php
 </IfModule>
 
 # Vérifier spécifiquement les scripts API
-<FilesMatch "^(check-users|utilisateurs)\.php$">
+<FilesMatch "^(check-users|utilisateurs|db-connection-test|database-test)\.php$">
     SetEnvIf Request_URI "\.php$" IS_JSON=true
 </FilesMatch>
 

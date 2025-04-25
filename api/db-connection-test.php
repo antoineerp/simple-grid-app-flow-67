@@ -1,10 +1,15 @@
 
 <?php
-// Fichier de test de connexion à la base de données utilisé par l'application
+// En-têtes pour s'assurer que nous renvoyons toujours du JSON, même en cas d'erreur
 header("Content-Type: application/json; charset=UTF-8");
-header("Access-Control-Allow-Origin: *");
-header("Access-Control-Allow-Methods: GET, OPTIONS");
+header("Access-Control-Allow-Origin: https://qualiopi.ch");
+header("Access-Control-Allow-Methods: GET, POST, OPTIONS");
 header("Access-Control-Allow-Headers: Content-Type, Authorization");
+header("Cache-Control: no-cache, no-store, must-revalidate");
+
+// Désactiver l'affichage des erreurs PHP - elles seraient journalisées mais pas affichées
+ini_set('display_errors', 0);
+error_reporting(E_ALL);
 
 // Si c'est une requête OPTIONS (preflight), nous la terminons ici
 if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
@@ -13,11 +18,16 @@ if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
     exit;
 }
 
-// Journaliser l'exécution
+// Journaliser l'accès
 error_log("=== EXÉCUTION DE db-connection-test.php ===");
+error_log("Méthode: " . $_SERVER['REQUEST_METHOD'] . " - URI: " . $_SERVER['REQUEST_URI']);
 
+// Nettoyer tout buffer de sortie existant
+if (ob_get_level()) ob_clean();
+
+// Envelopper tout dans un try/catch pour capturer toutes les erreurs possibles
 try {
-    // Tester la connexion PDO directement
+    // Connexion directe à la base de données pour test
     $host = "p71x6d.myd.infomaniak.com";
     $dbname = "p71x6d_system";
     $username = "p71x6d_system";
@@ -30,59 +40,61 @@ try {
         PDO::ATTR_EMULATE_PREPARES => false,
     ];
     
-    error_log("Tentative de connexion PDO directe à la base de données");
+    error_log("Tentative de connexion directe à la base de données");
     $pdo = new PDO($dsn, $username, $password, $options);
     error_log("Connexion PDO réussie");
     
-    // Vérifier que la connexion fonctionne en exécutant une requête
+    // Récupérer quelques informations sur la base de données
     $stmt = $pdo->query("SELECT DATABASE() as db");
-    $result = $stmt->fetch();
-    $current_db = $result['db'];
+    $current_db = $stmt->fetch();
     
-    // Tester l'existence de la table utilisateurs
-    $stmt = $pdo->query("SHOW TABLES LIKE 'utilisateurs'");
-    $tableExists = $stmt->rowCount() > 0;
-    
-    // Compter le nombre d'utilisateurs si la table existe
-    $userCount = 0;
-    if ($tableExists) {
-        $stmt = $pdo->query("SELECT COUNT(*) as count FROM utilisateurs");
-        $result = $stmt->fetch();
-        $userCount = $result['count'];
+    // Liste des tables
+    $stmt = $pdo->query("SHOW TABLES");
+    $tables = [];
+    while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+        $tables[] = current($row);
     }
     
-    // Préparer la réponse
+    // Envoyer la réponse
     http_response_code(200);
     echo json_encode([
         'status' => 'success',
-        'message' => 'Connexion PDO directe réussie',
+        'message' => 'Connexion à la base de données établie',
         'connection_info' => [
             'host' => $host,
             'database' => $dbname,
             'user' => $username,
-            'current_database' => $current_db,
-            'table_users_exists' => $tableExists,
-            'user_count' => $userCount
+            'current_db' => $current_db['db'] ?? $dbname
         ],
+        'info' => [
+            'database_name' => $dbname,
+            'host' => $host,
+            'tables' => $tables,
+            'table_count' => count($tables),
+            'size' => 'Non disponible',
+            'encoding' => 'utf8mb4',
+            'collation' => 'utf8mb4_unicode_ci'
+        ]
     ]);
     exit;
-} catch (PDOException $e) {
-    error_log("Erreur de connexion PDO: " . $e->getMessage());
     
+} catch (PDOException $e) {
+    error_log("Erreur PDO: " . $e->getMessage());
+    // Envoyer toujours une réponse JSON, même en cas d'erreur
     http_response_code(500);
     echo json_encode([
         'status' => 'error',
-        'message' => 'Échec de la connexion PDO directe',
+        'message' => 'Échec de la connexion à la base de données',
         'error' => $e->getMessage()
     ]);
     exit;
 } catch (Exception $e) {
-    error_log("Erreur générale: " . $e->getMessage());
-    
+    error_log("Erreur: " . $e->getMessage());
+    // Envoyer toujours une réponse JSON, même en cas d'erreur
     http_response_code(500);
     echo json_encode([
         'status' => 'error',
-        'message' => 'Erreur lors du test de connexion',
+        'message' => 'Erreur serveur',
         'error' => $e->getMessage()
     ]);
     exit;

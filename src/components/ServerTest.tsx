@@ -1,8 +1,9 @@
+
 import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { AlertCircle, CheckCircle, Database, Server, Users } from "lucide-react";
-import { getApiUrl, fetchWithErrorHandling } from '@/config/apiConfig';
+import { getApiUrl } from '@/config/apiConfig';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { getAuthHeaders } from '@/services/auth/authService';
 import {
@@ -12,6 +13,7 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { Badge } from "@/components/ui/badge";
+import { toast } from "@/hooks/use-toast";
 
 interface User {
   id: number;
@@ -39,21 +41,53 @@ const ServerTest = () => {
   const [usersMessage, setUsersMessage] = useState<string>('');
   const [users, setUsers] = useState<User[]>([]);
   const [fallbackUsers, setFallbackUsers] = useState<FallbackUser[]>([]);
+  const [errorDetails, setErrorDetails] = useState<string>('');
+
+  const validateJsonResponse = (responseText: string): any => {
+    try {
+      return JSON.parse(responseText);
+    } catch (e) {
+      console.error("Erreur d'analyse JSON:", e);
+      console.log("Réponse problématique:", responseText.substring(0, 200));
+      
+      if (responseText.trim().startsWith('<!DOCTYPE') || responseText.trim().startsWith('<html')) {
+        const message = "Le serveur a renvoyé une page HTML au lieu de JSON.";
+        setErrorDetails(responseText.substring(0, 500));
+        throw new Error(message);
+      }
+      
+      throw new Error(`Erreur d'analyse JSON: ${(e as Error).message}`);
+    }
+  };
 
   const testApiConnection = async () => {
     setApiStatus('loading');
+    setErrorDetails('');
     try {
       const API_URL = getApiUrl();
       console.log("Testing API connection to:", API_URL);
       
-      const data = await fetchWithErrorHandling(`${API_URL}/test.php`, {
+      const response = await fetch(`${API_URL}/json-test`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
           'Cache-Control': 'no-cache'
-        }
+        },
+        cache: 'no-store'
       });
       
+      const responseText = await response.text();
+      
+      // Vérifier que la réponse est bien du JSON
+      const contentType = response.headers.get('Content-Type');
+      if (contentType && !contentType.includes('application/json')) {
+        console.error(`Type de contenu non-JSON reçu: ${contentType}`);
+        setErrorDetails(responseText.substring(0, 500));
+        throw new Error(`Réponse non-JSON reçue (${contentType})`);
+      }
+      
+      // Parse la réponse JSON
+      const data = validateJsonResponse(responseText);
       console.log("API response:", data);
       
       setApiMessage(`Connexion API réussie (${data.message || 'Pas de message'})`);
@@ -62,28 +96,69 @@ const ServerTest = () => {
       console.error("Erreur API:", error);
       setApiMessage(`Échec de la connexion API: ${error instanceof Error ? error.message : 'Erreur inconnue'}`);
       setApiStatus('error');
+      
+      toast({
+        title: "Erreur de connexion API",
+        description: error instanceof Error ? error.message : 'Erreur inconnue',
+        variant: "destructive",
+      });
     }
   };
 
   const testDatabaseConnection = async () => {
     setDbStatus('loading');
+    setErrorDetails('');
     try {
       const API_URL = getApiUrl();
-      console.log("Testing database connection to:", API_URL + '/database-test');
+      console.log("Testing database connection to:", API_URL + '/db-connection-test.php');
       
-      const data = await fetchWithErrorHandling(`${API_URL}/database-test`, {
+      const response = await fetch(`${API_URL}/db-connection-test.php`, {
         method: 'GET',
-        headers: getAuthHeaders()
+        headers: {
+          ...getAuthHeaders(),
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache'
+        },
+        cache: 'no-store'
       });
       
+      const responseText = await response.text();
+      console.log("Réponse brute de la base de données:", responseText.substring(0, 200));
+      
+      // Vérifier que la réponse est bien du JSON
+      const contentType = response.headers.get('Content-Type');
+      if (contentType && !contentType.includes('application/json')) {
+        console.error(`Type de contenu non-JSON reçu: ${contentType}`);
+        setErrorDetails(responseText.substring(0, 500));
+        throw new Error(`Réponse non-JSON reçue (${contentType})`);
+      }
+      
+      if (!response.ok) {
+        setErrorDetails(responseText.substring(0, 500));
+        throw new Error(`Erreur HTTP: ${response.status} - ${response.statusText}`);
+      }
+      
+      // Parse la réponse JSON
+      const data = validateJsonResponse(responseText);
       console.log("Database response:", data);
       
-      setDbMessage(`Connexion DB réussie (${data.message || 'Pas de message'})`);
-      setDbStatus('success');
+      if (data.status === 'success') {
+        setDbMessage(`Connexion DB réussie (${data.message || 'Base connectée'})`);
+        setDbStatus('success');
+      } else {
+        setErrorDetails(data.error || 'Pas de détails d\'erreur');
+        throw new Error(data.message || 'Erreur de connexion à la base de données');
+      }
     } catch (error) {
       console.error("Erreur DB:", error);
       setDbMessage(`Échec de la connexion DB: ${error instanceof Error ? error.message : 'Erreur inconnue'}`);
       setDbStatus('error');
+      
+      toast({
+        title: "Erreur de connexion à la base de données",
+        description: error instanceof Error ? error.message : 'Erreur inconnue',
+        variant: "destructive",
+      });
     }
   };
 
@@ -221,6 +296,13 @@ const ServerTest = () => {
                 </div>
               </div>
             </Alert>
+          )}
+          
+          {errorDetails && (
+            <div className="mt-2 p-2 bg-gray-100 dark:bg-gray-800 rounded text-xs font-mono overflow-auto max-h-40">
+              <p className="font-semibold mb-1">Détails de l'erreur:</p>
+              <pre className="whitespace-pre-wrap">{errorDetails}</pre>
+            </div>
           )}
         </div>
 

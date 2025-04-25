@@ -40,6 +40,7 @@ switch ($controller) {
         
     case 'db-test':
     case 'db-connection-test':
+    case 'database-test':
         require_once 'db-connection-test.php';
         break;
         
