@@ -7,7 +7,8 @@ import Sidebar from './Sidebar';
 import { MembresProvider } from '@/contexts/MembresContext';
 import { loadUserProfileFromServer } from '@/services/sync/userProfileSync';
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { AlertTriangle } from 'lucide-react';
+import { AlertTriangle, Server } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 interface LayoutProps {
   children?: React.ReactNode;
@@ -20,6 +21,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [isDataLoaded, setIsDataLoaded] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [isPhpError, setIsPhpError] = useState(false);
   
   // Chargement initial des données utilisateur après connexion
   const loadUserData = async () => {
@@ -27,6 +29,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       console.log("🔄 Chargement initial des données utilisateur");
       try {
         setLoadError(null);
+        setIsPhpError(false);
         const userData = await loadUserProfileFromServer();
         if (userData) {
           console.log("✅ Données utilisateur chargées avec succès");
@@ -37,7 +40,17 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         setIsDataLoaded(true);
       } catch (error) {
         console.error("❌ Erreur lors du chargement des données utilisateur:", error);
-        setLoadError(error instanceof Error ? error.message : "Erreur lors du chargement des données");
+        let errorMessage = error instanceof Error ? error.message : "Erreur lors du chargement des données";
+        
+        // Détecter si c'est une erreur de configuration PHP
+        if (error instanceof Error && 
+            (error.message.includes('PHP n\'est pas exécuté') || 
+             error.message.includes('Configuration serveur incorrecte'))) {
+          setIsPhpError(true);
+          errorMessage = "Erreur de configuration du serveur: PHP n'est pas correctement configuré";
+        }
+        
+        setLoadError(errorMessage);
         setIsDataLoaded(true); // Marquer comme chargé malgré l'erreur pour éviter les retentatives infructueuses
       }
     }
@@ -97,6 +110,27 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             <AlertTriangle className="h-4 w-4" />
             <AlertDescription>
               {loadError}
+              
+              {isPhpError && (
+                <div className="mt-2 text-xs">
+                  <p>Le serveur PHP ne semble pas correctement configuré. Votre serveur retourne le code PHP au lieu de l'exécuter.</p>
+                  <p className="mt-1">Solutions recommandées:</p>
+                  <ul className="list-disc pl-5 mt-1">
+                    <li>Vérifiez que PHP est correctement installé et activé sur votre serveur</li>
+                    <li>Assurez-vous que l'extension .php est associée à l'interpréteur PHP</li>
+                    <li>Sur un hébergement partagé, contactez votre hébergeur pour activer PHP</li>
+                  </ul>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="mt-2"
+                    onClick={() => window.open('/api/phpinfo.php', '_blank')}
+                  >
+                    <Server className="h-3 w-3 mr-1" />
+                    Tester la configuration PHP
+                  </Button>
+                </div>
+              )}
             </AlertDescription>
           </Alert>
         )}
