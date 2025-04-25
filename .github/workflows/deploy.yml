@@ -1,4 +1,3 @@
-
 name: Deploy to Infomaniak
 
 on:
@@ -57,49 +56,42 @@ jobs:
         cp -v api/test.php dist/api/ || echo "Attention: test.php non trouvé"
         
         # Créer un fichier index.php simple pour l'API
-        cat > dist/api/index.php << 'EOPHP'
-<?php
-// Point d entrée principal de l API
-header("Content-Type: application/json");
-header("Access-Control-Allow-Origin: *");
-header("Cache-Control: no-cache, no-store, must-revalidate");
-header("Pragma: no-cache");
-header("Expires: 0");
-
-echo json_encode([
-    "status" => "success", 
-    "message" => "API is working", 
-    "timestamp" => date("Y-m-d H:i:s"),
-    "php_version" => phpversion(),
-    "server_info" => [
-        "software" => $_SERVER["SERVER_SOFTWARE"] ?? "Unknown",
-        "name" => $_SERVER["SERVER_NAME"] ?? "Unknown", 
-        "script" => $_SERVER["SCRIPT_NAME"] ?? "Unknown"
-    ]
-]);
-?>
-EOPHP
+        echo "<?php
+        header('Content-Type: application/json');
+        header('Access-Control-Allow-Origin: *');
+        header('Cache-Control: no-cache, no-store, must-revalidate');
+        header('Pragma: no-cache');
+        header('Expires: 0');
+        
+        echo json_encode([
+            'status' => 'success',
+            'message' => 'API is working',
+            'timestamp' => date('Y-m-d H:i:s'),
+            'php_version' => phpversion(),
+            'server_info' => [
+                'software' => \$_SERVER['SERVER_SOFTWARE'] ?? 'Unknown',
+                'name' => \$_SERVER['SERVER_NAME'] ?? 'Unknown',
+                'script' => \$_SERVER['SCRIPT_NAME'] ?? 'Unknown'
+            ]
+        ]);
+        ?>" > dist/api/index.php
         
         # Créer un fichier test.php supplémentaire si celui-ci n'a pas été copié
         if [ ! -f dist/api/test.php ]; then
-          cat > dist/api/test.php << 'EOPHP'
-<?php
-// Simple test API endpoint
-header("Content-Type: application/json");
-header("Access-Control-Allow-Origin: *");
-header("Cache-Control: no-cache, no-store, must-revalidate");
-header("Pragma: no-cache");
-header("Expires: 0");
-
-echo json_encode([
-    "status" => "success",
-    "test" => "ok",
-    "timestamp" => date("Y-m-d H:i:s"),
-    "php_version" => phpversion()
-]);
-?>
-EOPHP
-        fi
+          echo "<?php
+          header('Content-Type: application/json');
+          header('Access-Control-Allow-Origin: *');
+          header('Cache-Control: no-cache, no-store, must-revalidate');
+          header('Pragma: no-cache');
+          header('Expires: 0');
+          
+          echo json_encode([
+              'status' => 'success',
+              'test' => 'ok',
+              'timestamp' => date('Y-m-d H:i:s'),
+              'php_version' => phpversion()
+          ]);
+          ?>" > dist/api/test.php
 
     - name: List dist content for debugging
       run: |
@@ -115,9 +107,9 @@ EOPHP
     - name: Deploy to Infomaniak
       uses: SamKirkland/FTP-Deploy-Action@v4.3.4
       with:
-        server: ${{ secrets.FTP_SERVER }}
-        username: ${{ secrets.FTP_USERNAME }}
-        password: ${{ secrets.FTP_PASSWORD }}
+        server: \${{ secrets.FTP_SERVER }}
+        username: \${{ secrets.FTP_USERNAME }}
+        password: \${{ secrets.FTP_PASSWORD }}
         local-dir: ./dist/
         dangerous-clean-slate: false
         exclude: |
