@@ -21,6 +21,11 @@ AddType font/otf .otf
 AddType font/woff .woff
 AddType font/woff2 .woff2
 
+# Activer l'exécution PHP
+<FilesMatch "\.php$">
+    SetHandler application/x-httpd-php
+</FilesMatch>
+
 # Permettre l'accès aux assets
 <FilesMatch "\.(js|mjs|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot|map|tsx?)$">
     Order Allow,Deny
@@ -36,14 +41,6 @@ RewriteRule ^api/?$ api/index.php [L]
 RewriteRule ^api/auth$ api/auth.php [L,QSA]
 RewriteRule ^api/test-login\.php$ api/test-login.php [L,QSA]
 RewriteRule ^api/(.*)$ api/$1 [QSA,L]
-
-# Règle pour les fichiers de diagnostic
-RewriteRule ^assets-check\.php$ api/assets-check.php [L]
-RewriteRule ^diagnostic\.php$ api/diagnose-assets.php [L]
-RewriteRule ^system-check\.php$ api/system-check.php [L]
-RewriteRule ^php-test\.php$ api/test.php [L]
-RewriteRule ^mime-test\.html$ mime-test.html [L]
-RewriteRule ^mime-check\.php$ api/mime-check.php [L]
 
 # Permettre l'accès direct aux assets dans leur dossier
 RewriteCond %{REQUEST_URI} ^/assets/
@@ -61,8 +58,13 @@ RewriteCond %{REQUEST_FILENAME} !-d
 RewriteCond %{REQUEST_URI} !^/api/
 RewriteRule ^(.*)$ index.html [QSA,L]
 
-# Configuration de sécurité
+# Configuration de sécurité et CORS
 <IfModule mod_headers.c>
+    # En-têtes CORS
+    Header set Access-Control-Allow-Origin "*"
+    Header set Access-Control-Allow-Methods "GET, POST, OPTIONS, PUT, DELETE"
+    Header set Access-Control-Allow-Headers "Content-Type, Authorization"
+    
     # Configuration pour les assets statiques
     <FilesMatch "\.(js|mjs|css|json)$">
         Header set Cache-Control "no-cache, no-store, must-revalidate"
@@ -78,8 +80,13 @@ RewriteRule ^(.*)$ index.html [QSA,L]
         Header set Content-Type "application/javascript; charset=UTF-8"
     </FilesMatch>
     
+    # Définir le type MIME correct pour JSON
+    <FilesMatch "\.json$">
+        Header set Content-Type "application/json; charset=UTF-8"
+    </FilesMatch>
+    
     # Définir le type MIME correct pour les fichiers PHP API
-    <FilesMatch "auth\.php|test-login\.php">
+    <FilesMatch "\.(php)$">
         Header set Content-Type "application/json; charset=UTF-8"
     </FilesMatch>
 </IfModule>

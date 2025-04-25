@@ -6,7 +6,7 @@ RewriteEngine On
 AddType application/javascript .js
 AddType application/javascript .mjs
 
-# S'assurer que les fichiers PHP sont exécutés et non téléchargés
+# S'assurer que les fichiers PHP sont exécutés
 <FilesMatch "\.php$">
     SetHandler application/x-httpd-php
 </FilesMatch>
@@ -20,7 +20,7 @@ RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^(.*)$ index.php [QSA,L]
 
-# Définir les en-têtes CORS
+# Définir les en-têtes CORS et types MIME
 <IfModule mod_headers.c>
     Header set Access-Control-Allow-Origin "*"
     Header set Access-Control-Allow-Methods "GET, POST, OPTIONS, PUT, DELETE"
@@ -31,21 +31,17 @@ RewriteRule ^(.*)$ index.php [QSA,L]
     Header set Pragma "no-cache"
     Header set Expires 0
     
-    # Définir les types MIME corrects pour JavaScript
+    # Définir les types MIME corrects
     <FilesMatch "\.js$">
         Header set Content-Type "application/javascript; charset=UTF-8"
     </FilesMatch>
     <FilesMatch "\.mjs$">
         Header set Content-Type "application/javascript; charset=UTF-8"
     </FilesMatch>
-    
-    # Définir le type MIME correct pour JSON
     <FilesMatch "\.json$">
         Header set Content-Type "application/json; charset=UTF-8"
     </FilesMatch>
-    
-    # Définir le type MIME correct pour les fichiers PHP qui retournent du JSON
-    <FilesMatch "auth\.php|index\.php|test-login\.php|login-test\.php">
+    <FilesMatch "\.(php)$">
         Header set Content-Type "application/json; charset=UTF-8"
     </FilesMatch>
 </IfModule>
