@@ -22,18 +22,20 @@ if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
 error_log("=== EXÉCUTION DE database-test.php ===");
 error_log("Méthode: " . $_SERVER['REQUEST_METHOD'] . " - URI: " . $_SERVER['REQUEST_URI']);
 
-// Pour capturer toute sortie indésirable
-ob_start();
+// Inclure la configuration de la base de données
+if (file_exists('config/database.php')) {
+    require_once 'config/database.php';
+} else {
+    error_log("ERREUR: Fichier database.php non trouvé");
+    http_response_code(500);
+    echo json_encode([
+        'status' => 'error',
+        'message' => 'Fichier de configuration de base de données non trouvé'
+    ]);
+    exit;
+}
 
 try {
-    // Inclure la configuration de la base de données
-    if (file_exists('config/database.php')) {
-        require_once 'config/database.php';
-    } else {
-        error_log("ERREUR: Fichier database.php non trouvé");
-        throw new Exception('Fichier de configuration de base de données non trouvé');
-    }
-
     // Créer une instance de Database
     $database = new Database();
     error_log("Instance de Database créée avec succès");
@@ -105,9 +107,6 @@ try {
             ];
         }
     }
-
-    // Vider le tampon de sortie pour éviter de contaminer le JSON
-    ob_end_clean();
     
     // Journaliser et envoyer la réponse
     error_log("Envoi de la réponse avec le statut: " . ($database->is_connected ? "200 (OK)" : "500 (Error)"));
@@ -124,9 +123,6 @@ try {
     echo $json_response;
     exit;
 } catch (Exception $e) {
-    // Vider le tampon de sortie pour éviter de contaminer le JSON
-    ob_end_clean();
-
     error_log("Exception dans database-test.php: " . $e->getMessage());
     http_response_code(500);
     echo json_encode([
