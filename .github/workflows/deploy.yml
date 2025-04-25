@@ -29,9 +29,8 @@ jobs:
     - name: Build Project
       run: npm run build
 
-    - name: Create full directory structure
+    - name: Create API directories
       run: |
-        # Créer toute la structure de répertoires nécessaire
         mkdir -p dist/api/config
         mkdir -p dist/api/controllers
         mkdir -p dist/api/middleware
@@ -46,79 +45,78 @@ jobs:
 
     - name: Copy API files
       run: |
-        # Copier les fichiers API existants
-        cp -v api/.htaccess dist/api/ || echo "Attention: .htaccess non trouvé"
-        cp -v .htaccess dist/ || echo "Attention: .htaccess racine non trouvé"
-        cp -v api/phpinfo.php dist/api/ || echo "Attention: phpinfo.php non trouvé"
-        cp -v api/php-system-check.php dist/api/ || echo "Attention: php-system-check.php non trouvé"
-        cp -v api/php-execution-test.php dist/api/ || echo "Attention: php-execution-test.php non trouvé"
-        cp -v api/diagnostic.php dist/api/ || echo "Attention: diagnostic.php non trouvé"
-        cp -v api/info.php dist/api/ || echo "Attention: info.php non trouvé"
-        cp -v api/test.php dist/api/ || echo "Attention: test.php non trouvé"
-        
-        # Create php-execution-test.php if it doesn't exist
-        if [ ! -f dist/api/php-execution-test.php ]; then
-          echo '<?php
-          // En-têtes pour JSON et CORS
-          header("Content-Type: application/json; charset=UTF-8");
-          header("Access-Control-Allow-Origin: *");
-          
-          // Tester l'"exécution PHP de base
-          $result = [
-              "test_name" => "PHP Execution Test",
-              "timestamp" => date("Y-m-d H:i:s"),
-              "php_version" => phpversion(),
-              "execution_status" => "success",
-              "server_info" => [
-                  "software" => $_SERVER["SERVER_SOFTWARE"] ?? "Unknown",
-                  "name" => $_SERVER["SERVER_NAME"] ?? "Unknown",
-                  "script" => $_SERVER["SCRIPT_NAME"] ?? "Unknown"
-              ]
-          ];
-          
-          // Réponse JSON
-          echo json_encode($result, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
-          ?>' > dist/api/php-execution-test.php
-          echo "Created php-execution-test.php"
+        cp -v api/.htaccess dist/api/ || echo "Fichier api/.htaccess non trouvé"
+        cp -v .htaccess dist/ || echo "Fichier .htaccess non trouvé"
+        cp -v api/phpinfo.php dist/api/ || echo "Fichier api/phpinfo.php non trouvé"
+        cp -v api/php-system-check.php dist/api/ || echo "Fichier api/php-system-check.php non trouvé"
+        cp -v api/php-execution-test.php dist/api/ || echo "Fichier api/php-execution-test.php non trouvé"
+        cp -v api/diagnostic.php dist/api/ || echo "Fichier api/diagnostic.php non trouvé"
+        cp -v api/info.php dist/api/ || echo "Fichier api/info.php non trouvé"
+        cp -v api/test.php dist/api/ || echo "Fichier api/test.php non trouvé"
+
+    - name: Create necessary PHP files
+      run: |
+        # Créer un fichier index.php simple pour l'API s'il n'existe pas
+        if [ ! -f dist/api/index.php ]; then
+          echo "<?php
+header(\"Content-Type: application/json\");
+header(\"Access-Control-Allow-Origin: *\");
+header(\"Cache-Control: no-cache, no-store, must-revalidate\");
+header(\"Pragma: no-cache\");
+header(\"Expires: 0\");
+
+echo json_encode([
+    \"status\" => \"success\",
+    \"message\" => \"API is working\",
+    \"timestamp\" => date(\"Y-m-d H:i:s\"),
+    \"php_version\" => phpversion(),
+    \"server_info\" => [
+        \"software\" => \$_SERVER[\"SERVER_SOFTWARE\"] ?? \"Unknown\",
+        \"name\" => \$_SERVER[\"SERVER_NAME\"] ?? \"Unknown\",
+        \"script\" => \$_SERVER[\"SCRIPT_NAME\"] ?? \"Unknown\"
+    ]
+]);
+?>" > dist/api/index.php
         fi
-        
-        # Créer un fichier index.php simple pour l'API
-        echo '<?php
-        header("Content-Type: application/json");
-        header("Access-Control-Allow-Origin: *");
-        header("Cache-Control: no-cache, no-store, must-revalidate");
-        header("Pragma: no-cache");
-        header("Expires: 0");
-        
-        echo json_encode([
-            "status" => "success",
-            "message" => "API is working",
-            "timestamp" => date("Y-m-d H:i:s"),
-            "php_version" => phpversion(),
-            "server_info" => [
-                "software" => $_SERVER["SERVER_SOFTWARE"] ?? "Unknown",
-                "name" => $_SERVER["SERVER_NAME"] ?? "Unknown",
-                "script" => $_SERVER["SCRIPT_NAME"] ?? "Unknown"
-            ]
-        ]);
-        ?>' > dist/api/index.php
-        
-        # Créer un fichier test.php supplémentaire si celui-ci n'a pas été copié
+
+        # Créer php-execution-test.php s'il n'existe pas
+        if [ ! -f dist/api/php-execution-test.php ]; then
+          echo "<?php
+header(\"Content-Type: application/json; charset=UTF-8\");
+header(\"Access-Control-Allow-Origin: *\");
+
+\$result = [
+    \"test_name\" => \"PHP Execution Test\",
+    \"timestamp\" => date(\"Y-m-d H:i:s\"),
+    \"php_version\" => phpversion(),
+    \"execution_status\" => \"success\",
+    \"server_info\" => [
+        \"software\" => \$_SERVER[\"SERVER_SOFTWARE\"] ?? \"Unknown\",
+        \"name\" => \$_SERVER[\"SERVER_NAME\"] ?? \"Unknown\",
+        \"script\" => \$_SERVER[\"SCRIPT_NAME\"] ?? \"Unknown\"
+    ]
+];
+
+echo json_encode(\$result, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+?>" > dist/api/php-execution-test.php
+        fi
+
+        # Créer test.php s'il n'existe pas
         if [ ! -f dist/api/test.php ]; then
-          echo '<?php
-          header("Content-Type: application/json");
-          header("Access-Control-Allow-Origin: *");
-          header("Cache-Control: no-cache, no-store, must-revalidate");
-          header("Pragma: no-cache");
-          header("Expires: 0");
-          
-          echo json_encode([
-              "status" => "success",
-              "test" => "ok",
-              "timestamp" => date("Y-m-d H:i:s"),
-              "php_version" => phpversion()
-          ]);
-          ?>' > dist/api/test.php
+          echo "<?php
+header(\"Content-Type: application/json\");
+header(\"Access-Control-Allow-Origin: *\");
+header(\"Cache-Control: no-cache, no-store, must-revalidate\");
+header(\"Pragma: no-cache\");
+header(\"Expires: 0\");
+
+echo json_encode([
+    \"status\" => \"success\",
+    \"test\" => \"ok\",
+    \"timestamp\" => date(\"Y-m-d H:i:s\"),
+    \"php_version\" => phpversion()
+]);
+?>" > dist/api/test.php
         fi
 
     - name: List dist content for debugging
@@ -127,31 +125,6 @@ jobs:
         ls -la dist/
         echo "==== Listing dist/api directory ===="
         ls -la dist/api/
-        echo "==== Content of dist/api/index.php ===="
-        cat dist/api/index.php
-        echo "==== Content of dist/api/test.php ===="
-        cat dist/api/test.php || echo "test.php not found"
-        echo "==== Content of dist/api/php-execution-test.php ===="
-        cat dist/api/php-execution-test.php || echo "php-execution-test.php not found"
-
-    - name: Create remote directories first
-      uses: SamKirkland/FTP-Deploy-Action@v4.3.4
-      with:
-        server: ${{ secrets.FTP_SERVER }}
-        username: ${{ secrets.FTP_USERNAME }}
-        password: ${{ secrets.FTP_PASSWORD }}
-        local-dir: ./dist/api/
-        server-dir: "./api/"
-        dangerous-clean-slate: false
-        protocol: ftp
-        port: 21
-        timeout: 120000
-        log-level: "verbose"
-        dry-run: true
-        security: "loose"
-        state-name: ".ftp-deploy-sync-state-dirs.json"
-      env:
-        FTP_PASSIVE_MODE: "false"
 
     - name: Deploy to Infomaniak
       uses: SamKirkland/FTP-Deploy-Action@v4.3.4
