@@ -1,3 +1,4 @@
+
 name: Deploy to Infomaniak
 
 on:
@@ -92,6 +93,7 @@ jobs:
               'php_version' => phpversion()
           ]);
           ?>" > dist/api/test.php
+        fi
 
     - name: List dist content for debugging
       run: |
