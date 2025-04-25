@@ -14,11 +14,17 @@ AddType application/javascript .js
 AddType text/css .css
 AddType application/json .json
 AddType image/svg+xml .svg
+AddType application/x-httpd-php .php
 
 # Permettre l'accès aux assets
 <FilesMatch "\.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot|map|tsx?)$">
     Order Allow,Deny
     Allow from all
+</FilesMatch>
+
+# Force PHP execution for PHP files
+<FilesMatch "\.php$">
+    SetHandler application/x-httpd-php
 </FilesMatch>
 
 # Traitement des ressources statiques
@@ -59,6 +65,6 @@ RewriteRule ^(.*)$ index.html [QSA,L]
     
     # Forcer le type de contenu pour les scripts PHP
     <FilesMatch "\.php$">
-        Header set Content-Type "application/json; charset=UTF-8"
+        Header set X-Content-Type-Options "nosniff"
     </FilesMatch>
 </IfModule>
