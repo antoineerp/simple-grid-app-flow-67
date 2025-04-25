@@ -5,29 +5,33 @@ RewriteEngine On
 # Base du répertoire
 RewriteBase /
 
-# Forcer HTTPS (décommenter si nécessaire)
-# RewriteCond %{HTTPS} off
-# RewriteRule (.*) https://%{HTTP_HOST}%{REQUEST_URI} [R=301,L]
+# ----- RÉGLAGES CRITIQUES POUR API PHP -----
 
-# Activer le module Headers si disponible
+# Toutes les requêtes vers /api/* doivent aller au dossier api/
+RewriteRule ^api/(.*)$ api/$1 [L,QSA]
+
+# Assurer que les requêtes .php vont être traitées correctement
+<FilesMatch "\.php$">
+    SetHandler application/x-httpd-php
+</FilesMatch>
+
+# Désactiver la mise en cache pour les requêtes API
 <IfModule mod_headers.c>
-    # Désactiver la mise en cache pour les requêtes API
-    <FilesMatch "\.(php)$">
+    <FilesMatch "\.php$">
         Header set Cache-Control "no-cache, no-store, must-revalidate"
         Header set Pragma "no-cache"
         Header set Expires "0"
     </FilesMatch>
 </IfModule>
 
-# Redirection des requêtes /api/* vers le dossier /api/
-RewriteRule ^api/(.*)$ api/$1 [L,QSA]
+# ----- CONFIGURATION POUR L'APPLICATION REACT -----
 
 # Autoriser l'accès direct aux fichiers .js, .css et autres assets
 RewriteCond %{REQUEST_FILENAME} -f
 RewriteCond %{REQUEST_URI} \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)$
 RewriteRule ^ - [L]
 
-# Si ce n'est pas un fichier ou un répertoire existant, rediriger vers index.html
+# Si ce n'est pas un fichier ou répertoire existant, rediriger vers index.html
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^(.*)$ index.html [L,QSA]
