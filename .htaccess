@@ -25,6 +25,9 @@ AddType image/svg+xml .svg
 RewriteCond %{REQUEST_URI} ^/lovable-uploads/
 RewriteRule ^lovable-uploads/(.*)$ public/lovable-uploads/$1 [L]
 
+# Redirection spécifique pour php-execution-test.php
+RewriteRule ^php-execution-test\.php$ api/php-execution-test.php [L]
+
 # Règle pour l'API - toutes les requêtes /api vers le dossier api
 RewriteRule ^api/?$ api/index.php [L]
 RewriteRule ^api/(.*)$ api/$1 [QSA,L]
