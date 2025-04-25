@@ -5,6 +5,12 @@ on:
   push:
     branches: [ main ]
   workflow_dispatch:
+    # Ajouter des inputs optionnels ici pour rendre le bouton plus visible
+    inputs:
+      deploy_message:
+        description: 'Message de déploiement'
+        required: false
+        default: 'Déploiement manuel'
 
 jobs:
   deploy:
@@ -40,6 +46,26 @@ header("Access-Control-Allow-Origin: *");
 echo json_encode(["status" => "success", "message" => "API is working"]);
 ?>' > dist/api/index.php
         # ... keep existing code (other file copies) ...
+
+    - name: Create API directory structure
+      run: |
+        # Création des sous-dossiers nécessaires dans dist/api
+        mkdir -p dist/api/config
+        mkdir -p dist/api/controllers
+        mkdir -p dist/api/middleware
+        mkdir -p dist/api/models
+        mkdir -p dist/api/utils
+        
+        # Copier les fichiers .htaccess nécessaires
+        cp -v api/.htaccess dist/api/ || echo "Attention: .htaccess non trouvé"
+        cp -v .htaccess dist/ || echo "Attention: .htaccess racine non trouvé"
+        
+        # Création de fichiers test pour s'assurer que les dossiers sont créés
+        touch dist/api/config/.gitkeep
+        touch dist/api/controllers/.gitkeep
+        touch dist/api/middleware/.gitkeep
+        touch dist/api/models/.gitkeep
+        touch dist/api/utils/.gitkeep
 
     - name: Deploy to Infomaniak
       uses: SamKirkland/FTP-Deploy-Action@v4.3.4
