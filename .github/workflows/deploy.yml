@@ -4,7 +4,7 @@ name: Deploy to Infomaniak
 on:
   push:
     branches: [ main ]
-  workflow_dispatch:  # Ceci permet de déclencher manuellement le workflow
+  workflow_dispatch:  # This enables the manual trigger button
 
 jobs:
   build-and-deploy:
@@ -38,7 +38,8 @@ jobs:
       run: |
         cp -v api/index.php dist/api/ || echo "index.php not found"
         cp -v api/.htaccess dist/api/ || echo ".htaccess not found"
-        # Ajoutez d'autres fichiers API nécessaires ici
+        cp -v api/.user.ini dist/api/ || echo ".user.ini not found"
+        cp -v api/phpinfo.php dist/api/ || echo "phpinfo.php not found"
 
     - name: Sync to Infomaniak
       uses: SamKirkland/FTP-Deploy-Action@v4.3.4
