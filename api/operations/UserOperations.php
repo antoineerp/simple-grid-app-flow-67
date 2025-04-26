@@ -18,6 +18,8 @@ class UserOperations {
     public function __construct($db) {
         $this->db = $db;
         $this->user = new User($db);
+        
+        // S'assurer que toutes les opérations reçoivent le même modèle d'utilisateur
         $this->getOps = new UserGetOperations($db, $this->user);
         $this->postOps = new UserPostOperations($db, $this->user);
         $this->putOps = new UserPutOperations($db, $this->user);
