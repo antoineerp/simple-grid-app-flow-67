@@ -69,7 +69,19 @@ function routeApi() {
             // Diagnostic de l'API
             require_once __DIR__ . '/diagnostic.php';
             exit;
+        
+        case 'config':
+        case 'config.php':
+            // Configuration de l'API
+            require_once __DIR__ . '/config.php';
+            exit;
             
+        case 'config-test':
+        case 'config-test.php':
+            // Configuration de test de l'API
+            require_once __DIR__ . '/config-test.php';
+            exit;
+        
         case 'database-diagnostic':
         case 'db-diagnostic':
             // Rediriger vers le diagnostic de base de données
@@ -92,6 +104,7 @@ function routeApi() {
             exit;
             
         case 'db-info':
+        case 'db-info.php':
             // Nouveau point d'entrée pour les informations de base de données
             require_once __DIR__ . '/db-info.php';
             exit;

@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { getApiUrl } from '@/config/apiConfig';
 import { getAuthHeaders } from '@/services/auth/authService';
@@ -15,15 +14,22 @@ export const useConfigOperations = (config: ApiConfig, setConfig: (config: ApiCo
     setLastError(null);
     try {
       const API_URL = getApiUrl();
-      console.log(`Chargement de la configuration API depuis: ${API_URL}/config`);
+      console.log(`Chargement de la configuration API depuis: ${API_URL}/config-test.php`);
       
-      const response = await fetch(`${API_URL}/config`, {
+      const response = await fetch(`${API_URL}/config-test.php`, {
         method: 'GET',
-        headers: getAuthHeaders(),
-        cache: 'no-store'
+        headers: {
+          ...getAuthHeaders(),
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache, no-store, must-revalidate'
+        }
       });
       
+      console.log("Statut de la réponse:", response.status);
+      
       const responseText = await response.text();
+      console.log("Réponse brute:", responseText.substring(0, 200));
       
       if (!responseText.trim()) {
         throw new Error("Réponse vide du serveur");
@@ -53,7 +59,7 @@ export const useConfigOperations = (config: ApiConfig, setConfig: (config: ApiCo
         variant: "destructive",
       });
       
-      console.info("Suggestion: testez l'API directement avec: " + getApiUrl() + "/simple-json-test.php");
+      console.info("Suggestion: testez l'API directement avec: " + getApiUrl() + "/config-test.php");
     } finally {
       setLoading(false);
     }
