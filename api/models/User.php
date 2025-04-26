@@ -1,4 +1,3 @@
-
 <?php
 require_once dirname(__FILE__) . '/BaseModel.php';
 require_once dirname(__FILE__) . '/traits/TableManager.php';
@@ -120,6 +119,31 @@ class User extends BaseModel {
         return false;
     }
 
+    public function findById($id) {
+        try {
+            $query = "SELECT * FROM " . $this->table_name . " WHERE id = :id LIMIT 1";
+            $stmt = $this->conn->prepare($query);
+            $stmt->bindParam(":id", $id);
+            $stmt->execute();
+            return $stmt->fetch(PDO::FETCH_ASSOC);
+        } catch (PDOException $e) {
+            error_log("Erreur lors de la recherche par ID: " . $e->getMessage());
+            return null;
+        }
+    }
+
+    public function getAdminCount() {
+        try {
+            $query = "SELECT COUNT(*) FROM " . $this->table_name . " WHERE role IN ('admin', 'administrateur')";
+            $stmt = $this->conn->prepare($query);
+            $stmt->execute();
+            return $stmt;
+        } catch (PDOException $e) {
+            error_log("Erreur lors du comptage des administrateurs: " . $e->getMessage());
+            return null;
+        }
+    }
+
     public function getManager() {
         try {
             $query = "SELECT * FROM " . $this->table_name . " WHERE role = 'gestionnaire' LIMIT 1";
@@ -169,4 +193,3 @@ class User extends BaseModel {
         }
     }
 }
-?>
