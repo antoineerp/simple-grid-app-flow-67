@@ -6,6 +6,8 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { getApiUrl } from '@/config/apiConfig';
 import { Button } from "@/components/ui/button";
+import { AlertCircle } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 const ImageConfiguration = () => {
   const { toast } = useToast();
@@ -13,12 +15,15 @@ const ImageConfiguration = () => {
   const [sidebarLinkUrl, setSidebarLinkUrl] = useState<string>('');
   const [pdfLogo, setPdfLogo] = useState<string>('/lovable-uploads/formacert-logo.png');
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     loadConfigurations();
   }, []);
 
   const loadConfigurations = async () => {
+    setIsLoading(true);
+    setError(null);
     try {
       const [sidebarImage, sidebarLink, pdfImage] = await Promise.all([
         fetchConfig('sidebarImageUrl'),
@@ -31,16 +36,27 @@ const ImageConfiguration = () => {
       if (pdfImage) setPdfLogo(pdfImage);
     } catch (error) {
       console.error('Erreur lors du chargement des configurations:', error);
+      setError("Impossible de charger les configurations. Veuillez réessayer plus tard.");
     } finally {
       setIsLoading(false);
     }
   };
 
   const fetchConfig = async (key: string) => {
-    const response = await fetch(`${getApiUrl()}/controllers/GlobalConfigController.php?key=${key}`);
-    if (!response.ok) throw new Error('Erreur réseau');
-    const data = await response.json();
-    return data.data?.value;
+    try {
+      const response = await fetch(`${getApiUrl()}/controllers/GlobalConfigController.php?key=${key}`);
+      
+      if (!response.ok) {
+        console.error(`Erreur lors de la récupération de la configuration ${key}: ${response.status}`);
+        return null;
+      }
+      
+      const data = await response.json();
+      return data.data?.value;
+    } catch (error) {
+      console.error(`Erreur lors de la récupération de la configuration ${key}:`, error);
+      return null;
+    }
   };
 
   const saveConfig = async (key: string, value: string) => {
@@ -53,7 +69,11 @@ const ImageConfiguration = () => {
         body: JSON.stringify({ key, value }),
       });
 
-      if (!response.ok) throw new Error('Erreur réseau');
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`Erreur lors de la sauvegarde (${response.status}):`, errorText);
+        throw new Error(`Erreur ${response.status}: ${errorText}`);
+      }
 
       // Mettre à jour le localStorage pour une utilisation immédiate
       localStorage.setItem(key, value);
@@ -66,18 +86,83 @@ const ImageConfiguration = () => {
       console.error('Erreur lors de la sauvegarde:', error);
       toast({
         title: "Erreur",
-        description: "Impossible de sauvegarder les modifications.",
+        description: `Impossible de sauvegarder les modifications: ${error instanceof Error ? error.message : 'Erreur inconnue'}`,
         variant: "destructive",
       });
     }
   };
 
+  // Fonction pour redimensionner l'image si elle est trop grande
+  const resizeImage = (file: File, maxWidth: number, maxHeight: number): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          let width = img.width;
+          let height = img.height;
+          
+          // Si l'image est plus grande que les dimensions max, la redimensionner
+          if (width > maxWidth || height > maxHeight) {
+            const ratio = Math.min(maxWidth / width, maxHeight / height);
+            width = Math.floor(width * ratio);
+            height = Math.floor(height * ratio);
+          }
+          
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          
+          const ctx = canvas.getContext('2d');
+          if (!ctx) {
+            reject(new Error("Impossible de créer un contexte canvas"));
+            return;
+          }
+          
+          ctx.drawImage(img, 0, 0, width, height);
+          
+          // Convertir à un format plus léger avec compression
+          const quality = 0.85; // 85% de qualité
+          canvas.toBlob(
+            (blob) => {
+              if (!blob) {
+                reject(new Error("Erreur lors de la conversion du canvas en blob"));
+                return;
+              }
+              
+              const reader = new FileReader();
+              reader.onloadend = () => resolve(reader.result as string);
+              reader.onerror = reject;
+              reader.readAsDataURL(blob);
+            },
+            'image/jpeg',
+            quality
+          );
+        };
+        img.onerror = () => reject(new Error("Erreur lors du chargement de l'image"));
+        img.src = e.target?.result as string;
+      };
+      reader.onerror = () => reject(new Error("Erreur lors de la lecture du fichier"));
+      reader.readAsDataURL(file);
+    });
+  };
+
   const handleImageChange = async (event: React.ChangeEvent<HTMLInputElement>, type: 'sidebar' | 'pdf') => {
     const file = event.target.files?.[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onloadend = async () => {
-        const base64String = reader.result as string;
+      try {
+        // Montrer un toast de chargement
+        toast({
+          title: "Traitement de l'image",
+          description: "Veuillez patienter pendant que nous traitons votre image...",
+        });
+        
+        // Redimensionner si nécessaire
+        const maxWidth = 800; // px
+        const maxHeight = 800; // px
+        
+        const base64String = await resizeImage(file, maxWidth, maxHeight);
+        
         if (type === 'sidebar') {
           setSidebarImageUrl(base64String);
           await saveConfig('sidebarImageUrl', base64String);
@@ -85,8 +170,14 @@ const ImageConfiguration = () => {
           setPdfLogo(base64String);
           await saveConfig('pdfLogo', base64String);
         }
-      };
-      reader.readAsDataURL(file);
+      } catch (error) {
+        console.error("Erreur lors du traitement de l'image:", error);
+        toast({
+          title: "Erreur",
+          description: `Impossible de traiter l'image: ${error instanceof Error ? error.message : 'Erreur inconnue'}`,
+          variant: "destructive",
+        });
+      }
     }
   };
 
@@ -119,12 +210,30 @@ const ImageConfiguration = () => {
     }
   };
 
+  const refreshConfigurations = () => {
+    toast({
+      title: "Rafraîchissement",
+      description: "Récupération des configurations depuis le serveur..."
+    });
+    loadConfigurations();
+  };
+
   if (isLoading) {
-    return <div>Chargement des configurations...</div>;
+    return <div className="p-4">Chargement des configurations...</div>;
   }
 
   return (
     <div className="space-y-6">
+      {error && (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>{error}</AlertDescription>
+          <Button variant="outline" size="sm" className="mt-2" onClick={refreshConfigurations}>
+            Réessayer
+          </Button>
+        </Alert>
+      )}
+
       <Card>
         <CardHeader>
           <CardTitle>Image de la barre latérale</CardTitle>
@@ -185,16 +294,24 @@ const ImageConfiguration = () => {
               accept="image/*"
               onChange={(event) => handleImageChange(event, 'pdf')}
             />
-            <Button 
-              variant="secondary" 
-              className="mt-2" 
-              onClick={testPdfImage}
-            >
-              Tester cette image
-            </Button>
-            <p className="text-sm text-muted-foreground mt-2">
-              Après avoir changé le logo, vous devrez peut-être vider le cache du navigateur ou vous déconnecter/reconnecter pour voir les changements dans les PDF générés.
-            </p>
+            <div className="flex flex-wrap gap-2 mt-2">
+              <Button 
+                variant="secondary" 
+                onClick={testPdfImage}
+              >
+                Tester cette image
+              </Button>
+              <Button 
+                variant="outline" 
+                onClick={refreshConfigurations}
+              >
+                Rafraîchir
+              </Button>
+            </div>
+            <div className="text-sm text-muted-foreground mt-2">
+              <p>Après avoir changé le logo, vous devrez peut-être vider le cache du navigateur ou vous déconnecter/reconnecter pour voir les changements dans les PDF générés.</p>
+              <p className="mt-1">Si votre image est trop grande, elle sera automatiquement redimensionnée pour optimiser les performances.</p>
+            </div>
           </div>
         </CardContent>
       </Card>
