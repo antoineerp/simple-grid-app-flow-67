@@ -1,102 +1,109 @@
 
 <?php
-// Fichier de configuration de la base de données
+// Inclure la configuration de base
+require_once __DIR__ . '/config/index.php';
+
+// Configuration des headers
 header("Content-Type: application/json; charset=UTF-8");
 header("Access-Control-Allow-Origin: *");
 header("Access-Control-Allow-Methods: GET, POST, OPTIONS");
-header("Access-Control-Allow-Headers: Content-Type, Authorization");
+header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With");
+header("Cache-Control: no-cache, no-store, must-revalidate");
 
 // Si c'est une requête OPTIONS (preflight), nous la terminons ici
 if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
     http_response_code(200);
-    echo json_encode(['status' => 200, 'message' => 'Preflight OK']);
+    echo json_encode(['status' => 'success', 'message' => 'Preflight OK']);
     exit;
 }
 
-// Journaliser l'accès
-error_log("=== EXÉCUTION DE database-config.php ===");
-error_log("Méthode: " . $_SERVER['REQUEST_METHOD'] . " - URI: " . $_SERVER['REQUEST_URI']);
-
-// Inclure la configuration de la base de données
-require_once 'config/database.php';
-
 try {
-    $database = new Database();
-    
-    // Si c'est une requête POST, mettre à jour la configuration
-    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-        // Récupérer les données POST JSON
-        $json_input = file_get_contents("php://input");
-        $data = json_decode($json_input, true);
-        
-        if (json_last_error() !== JSON_ERROR_NONE) {
-            throw new Exception("Données JSON invalides: " . json_last_error_msg());
-        }
-        
-        // Journaliser les données reçues (sans le mot de passe)
-        $log_data = $data;
-        if (isset($log_data['password'])) {
-            $log_data['password'] = '********';
-        }
-        error_log("Données reçues: " . json_encode($log_data));
-        
-        // Vérifier si les champs requis sont présents
-        if (empty($data['host']) || empty($data['db_name']) || empty($data['username'])) {
-            throw new Exception("Champs obligatoires manquants (host, db_name, username)");
-        }
-        
-        // Mettre à jour la configuration (le mot de passe peut être vide)
-        $host = filter_var($data['host'], FILTER_SANITIZE_FULL_SPECIAL_CHARS);
-        $db_name = filter_var($data['db_name'], FILTER_SANITIZE_FULL_SPECIAL_CHARS);
-        $username = filter_var($data['username'], FILTER_SANITIZE_FULL_SPECIAL_CHARS);
-        $password = isset($data['password']) ? $data['password'] : '';
-        
-        // Mettre à jour la configuration
-        $database->updateConfig($host, $db_name, $username, $password);
-        
-        // Tester la nouvelle connexion
-        $is_connected = $database->testConnection();
-        
-        // Envoyer la réponse
-        http_response_code(200);
-        echo json_encode([
-            'status' => $is_connected ? 'success' : 'error',
-            'message' => $is_connected ? 'Configuration mise à jour avec succès' : 'La configuration a été mise à jour mais la connexion a échoué',
-            'database_changed' => true,
-            'new_database' => $db_name,
-            'is_connected' => $is_connected,
-            'error' => $is_connected ? null : $database->connection_error
-        ]);
-    } 
-    // Si c'est une requête GET, retourner la configuration actuelle
-    else if ($_SERVER['REQUEST_METHOD'] === 'GET') {
-        $config = $database->getConfig();
-        
-        // Lister les bases de données disponibles pour Infomaniak
-        $available_databases = [
-            'p71x6d_system',
-            'p71x6d_test',
-            'p71x6d_prod',
-            'p71x6d_dev'
-        ];
-        
-        // Envoyer la réponse
-        http_response_code(200);
-        echo json_encode([
-            'host' => $config['host'],
-            'db_name' => $config['db_name'],
-            'username' => $config['username'],
-            'available_databases' => $available_databases,
-            'is_connected' => $config['is_connected'],
-            'error' => $config['error']
-        ]);
+    // Inclure la base de données si elle existe
+    if (file_exists(__DIR__ . '/config/database.php')) {
+        require_once __DIR__ . '/config/database.php';
     }
+
+    // Vérifier l'authentification si le middleware Auth existe
+    if (file_exists(__DIR__ . '/middleware/Auth.php')) {
+        include_once __DIR__ . '/middleware/Auth.php';
+        
+        $allHeaders = getallheaders();
+        
+        if (class_exists('Auth')) {
+            $auth = new Auth($allHeaders);
+            $userData = $auth->isAuth();
+            
+            if (!$userData) {
+                http_response_code(401);
+                echo json_encode(["status" => "error", "message" => "Non autorisé"]);
+                exit;
+            }
+
+            // Vérifier si l'utilisateur est admin
+            if ($userData['data']['role'] !== 'admin' && $userData['data']['role'] !== 'administrateur') {
+                http_response_code(403);
+                echo json_encode(["status" => "error", "message" => "Accès refusé. Vous devez être administrateur."]);
+                exit;
+            }
+        }
+    }
+
+    // Rediriger vers le contrôleur de configuration de base de données si disponible
+    if (file_exists(__DIR__ . '/controllers/DatabaseConfigController.php')) {
+        require_once __DIR__ . '/controllers/DatabaseConfigController.php';
+        exit;
+    }
+
+    // En l'absence du contrôleur, créer une réponse par défaut avec la configuration
+    $database = new Database();
+    $config = $database->getConfig();
+
+    // Masquer le mot de passe pour la sécurité
+    $config['password'] = '********';
+
+    // Ajouter des informations supplémentaires sur la connexion
+    $dbInfo = [
+        'status' => 'success',
+        'message' => 'Configuration de la base de données récupérée',
+        'config' => $config,
+        'connection' => [
+            'is_connected' => $database->is_connected,
+            'error' => $database->connection_error ?? null
+        ]
+    ];
+
+    // Tentative de récupération des bases de données disponibles
+    try {
+        if ($database->is_connected) {
+            $conn = $database->getConnection();
+            $stmt = $conn->query("SHOW DATABASES");
+            $databases = $stmt->fetchAll(PDO::FETCH_COLUMN);
+            
+            // Filtrer les bases de données système
+            $databases = array_filter($databases, function($db) {
+                return $db != 'information_schema' && $db != 'performance_schema' && 
+                       $db != 'mysql' && $db != 'sys';
+            });
+            
+            $dbInfo['available_databases'] = array_values($databases);
+        }
+    } catch (Exception $e) {
+        $dbInfo['available_databases'] = [];
+        $dbInfo['db_list_error'] = $e->getMessage();
+    }
+
+    // Envoyer la réponse
+    http_response_code(200);
+    echo json_encode($dbInfo, JSON_UNESCAPED_UNICODE);
+    
 } catch (Exception $e) {
+    // Gérer les erreurs
     error_log("Erreur dans database-config.php: " . $e->getMessage());
     http_response_code(500);
     echo json_encode([
-        'status' => 'error',
-        'message' => $e->getMessage()
+        "status" => "error", 
+        "message" => "Erreur serveur: " . $e->getMessage(),
+        "trace" => $e->getTraceAsString()
     ]);
 }
 ?>

@@ -108,6 +108,12 @@ function routeApi() {
             // Nouveau point d'entrée pour les informations de base de données
             require_once __DIR__ . '/db-info.php';
             exit;
+        
+        case 'database-config':
+        case 'database-config.php':
+            // Point d'entrée pour la configuration de la base de données
+            require_once __DIR__ . '/database-config.php';
+            exit;
             
         case 'users':
         case 'utilisateurs': // Ajouter un alias pour la compatibilité avec d'anciennes URLs
@@ -208,6 +214,7 @@ function diagnoseRequest() {
             '/api/database-diagnostic' => 'Diagnostic complet de la base de données',
             '/api/db-diagnostic' => 'Diagnostic de base de données optimisé',
             '/api/db-info' => 'Informations simples de la base de données',
+            '/api/database-config' => 'Configuration de la base de données',
             '/api/users' => 'Gestion des utilisateurs',
             '/api/database-test' => 'Test de connexion à la base de données',
             '/api/check-users' => 'Vérification des utilisateurs',
