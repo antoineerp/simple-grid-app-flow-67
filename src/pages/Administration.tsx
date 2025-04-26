@@ -10,6 +10,7 @@ import ImageConfiguration from '@/components/admin/ImageConfiguration';
 import { getDatabaseConnectionCurrentUser } from '@/services';
 import { useToast } from "@/hooks/use-toast";
 import { hasPermission, UserRole } from '@/types/roles';
+import UserDiagnostic from '@/components/admin/UserDiagnostic';
 
 const Administration = () => {
   const navigate = useNavigate();
@@ -55,6 +56,7 @@ const Administration = () => {
           <TabsTrigger value="api">Configuration API</TabsTrigger>
           <TabsTrigger value="systeme">État du système</TabsTrigger>
           <TabsTrigger value="images">Images</TabsTrigger>
+          <TabsTrigger value="diagnostic">Diagnostic</TabsTrigger>
         </TabsList>
         
         <TabsContent value="utilisateurs">
@@ -62,6 +64,7 @@ const Administration = () => {
             currentDatabaseUser={currentDatabaseUser} 
             onUserConnect={handleUserConnect}
           />
+          <UserDiagnostic />
         </TabsContent>
 
         <TabsContent value="database">
@@ -87,9 +90,23 @@ const Administration = () => {
         <TabsContent value="images">
           <ImageConfiguration />
         </TabsContent>
+
+        <TabsContent value="diagnostic">
+          <div className="rounded-lg border bg-card text-card-foreground shadow-sm">
+            <div className="p-6">
+              <h3 className="text-xl font-semibold mb-4">Diagnostic complet du système</h3>
+              <p className="mb-6 text-muted-foreground">
+                Cet outil effectue une analyse approfondie de votre configuration système pour identifier les problèmes potentiels.
+              </p>
+              <div className="space-y-6">
+                <UserDiagnostic />
+              </div>
+            </div>
+          </div>
+        </TabsContent>
       </Tabs>
     </div>
   );
-};
+}
 
 export default Administration;
