@@ -146,6 +146,17 @@ function routeApi() {
             // Rediriger vers le diagnostic utilisateur
             require_once __DIR__ . '/user-diagnostic.php';
             exit;
+        
+        case 'check-permissions':
+            // Vérification des permissions des fichiers
+            require_once __DIR__ . '/check-permissions.php';
+            exit;
+            
+        case 'advanced-diagnostic':
+        case 'diagnostic-avance': // Alias sans accent
+            // Diagnostic avancé du système
+            require_once __DIR__ . '/advanced-diagnostic.php';
+            exit;
             
         // Routes pour la synchronisation des données
         case 'documents-load':
