@@ -13,6 +13,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
     exit;
 }
 
+// Journaliser l'exécution
+error_log("=== EXÉCUTION DE database-diagnostic.php ===");
+
 // Rediriger vers le fichier de diagnostic complet
-require_once 'db-diagnostic.php';
+require_once __DIR__ . '/db-diagnostic.php';
 ?>

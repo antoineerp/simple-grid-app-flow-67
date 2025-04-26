@@ -62,38 +62,38 @@ function routeApi() {
         case 'diagnose':
         case 'diagnostic-complet':
             // Diagnostic complet du serveur
-            require_once 'diagnose.php';
+            require_once __DIR__ . '/diagnose.php';
             exit;
             
         case 'diagnostic':
             // Diagnostic de l'API
-            require_once 'diagnostic.php';
+            require_once __DIR__ . '/diagnostic.php';
             exit;
             
         case 'database-diagnostic':
         case 'db-diagnostic':
             // Rediriger vers le diagnostic de base de données
-            require_once 'db-diagnostic.php';
+            require_once __DIR__ . '/db-diagnostic.php';
             exit;
             
         case 'utilisateurs':
             // Rediriger vers le contrôleur d'utilisateurs
-            require_once 'utilisateurs.php';
+            require_once __DIR__ . '/utilisateurs.php';
             exit;
             
         case 'database-test':
             // Rediriger vers le test de base de données
-            require_once 'database-test.php';
+            require_once __DIR__ . '/database-test.php';
             exit;
             
         case 'db-connection-test':
             // Rediriger vers le test de connexion
-            require_once 'db-connection-test.php';
+            require_once __DIR__ . '/db-connection-test.php';
             exit;
             
         case 'check-users':
             // Rediriger vers la vérification des utilisateurs
-            require_once 'check-users.php';
+            require_once __DIR__ . '/check-users.php';
             exit;
             
         default:
