@@ -21,11 +21,50 @@ class Auth {
             }
             return false;
         }
+        
+        // Tentative alternative de récupération du token
+        $token = $this->getBearerToken();
+        if ($token) {
+            $this->token = $token;
+            $data = $this->jwt->decode($this->token);
+            if ($data) {
+                return $data;
+            }
+        }
+        
         return false;
+    }
+    
+    // Fonction pour obtenir l'en-tête d'autorisation
+    public function getBearerToken() {
+        $headers = $this->getAuthorizationHeader();
+        if (!empty($headers)) {
+            if (preg_match('/Bearer\s(\S+)/', $headers, $matches)) {
+                return $matches[1];
+            }
+        }
+        return null;
+    }
+    
+    // Fonction pour obtenir les en-têtes HTTP
+    protected function getAuthorizationHeader() {
+        $headers = null;
+        if (isset($this->headers['Authorization'])) {
+            $headers = trim($this->headers['Authorization']);
+        } else if (isset($this->headers['authorization'])) {
+            $headers = trim($this->headers['authorization']);
+        } else if (isset($_SERVER['Authorization'])) {
+            $headers = trim($_SERVER['Authorization']);
+        } else if (isset($_SERVER['HTTP_AUTHORIZATION'])) {
+            $headers = trim($_SERVER['HTTP_AUTHORIZATION']);
+        }
+        
+        return $headers;
     }
 }
 
-// Fonction pour obtenir les en-têtes HTTP
+// Fonctions d'assistance pour récupérer les en-têtes d'autorisation
+// (ces fonctions sont utiles pour les scripts qui n'utilisent pas la classe Auth)
 function getAuthorizationHeader() {
     $headers = null;
     if (isset($_SERVER['Authorization'])) {
@@ -42,7 +81,6 @@ function getAuthorizationHeader() {
     return $headers;
 }
 
-// Fonction pour obtenir l'en-tête d'autorisation
 function getBearerToken() {
     $headers = getAuthorizationHeader();
     if (!empty($headers)) {

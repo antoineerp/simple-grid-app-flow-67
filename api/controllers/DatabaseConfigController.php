@@ -28,7 +28,7 @@ if ($origin === $allowedOrigin || $environment === 'development') {
 
 // Autres en-têtes CORS
 header("Content-Type: application/json; charset=UTF-8");
-header("Access-Control-Allow-Methods: GET, POST");
+header("Access-Control-Allow-Methods: GET, POST, OPTIONS");
 header("Access-Control-Max-Age: 3600");
 header("Access-Control-Allow-Headers: Content-Type, Access-Control-Allow-Headers, Authorization, X-Requested-With");
 
@@ -40,27 +40,48 @@ if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
 
 // Inclusion des fichiers nécessaires
 include_once '../config/database.php';
-include_once '../middleware/Auth.php';
 
-// Récupérer les en-têtes pour l'authentification
-$allHeaders = apache_request_headers();
-$auth = new Auth($allHeaders);
+// Vérification de l'authentification si disponible
+$userData = null;
+$isUserAdmin = false;
 
-// Vérifier si l'utilisateur est authentifié
-$userData = $auth->isAuth();
-
-// Si l'utilisateur n'est pas authentifié
-if (!$userData) {
-    http_response_code(401);
-    echo json_encode(["message" => "Accès non autorisé"], JSON_UNESCAPED_UNICODE);
-    exit;
+// Tenter d'authentifier l'utilisateur si le middleware est disponible
+if (file_exists('../middleware/Auth.php')) {
+    include_once '../middleware/Auth.php';
+    $allHeaders = apache_request_headers();
+    $auth = new Auth($allHeaders);
+    $userData = $auth->isAuth();
+    
+    // Vérifier si l'utilisateur est admin
+    if ($userData && ($userData['data']['role'] === 'administrateur' || $userData['data']['role'] === 'admin')) {
+        $isUserAdmin = true;
+    }
 }
 
-// Vérifier si l'utilisateur est administrateur
-if ($userData['data']['role'] !== 'administrateur' && $userData['data']['role'] !== 'admin') {
-    http_response_code(403);
-    echo json_encode(["message" => "Permission refusée"], JSON_UNESCAPED_UNICODE);
-    exit;
+// Pour les requêtes GET, permettre même sans auth en mode dev ou si l'utilisateur est admin
+if ($_SERVER['REQUEST_METHOD'] === 'GET') {
+    if ($environment === 'development' || $isUserAdmin) {
+        // Autoriser la suite du script
+    } else {
+        // En production, restreindre l'accès pour les non-admin
+        http_response_code(403);
+        echo json_encode(["message" => "Accès non autorisé pour la lecture de configuration"], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+}
+// Pour les requêtes POST, exiger que l'utilisateur soit administrateur
+else if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (!$userData) {
+        http_response_code(401);
+        echo json_encode(["message" => "Authentification requise"], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+    
+    if (!$isUserAdmin) {
+        http_response_code(403);
+        echo json_encode(["message" => "Permission refusée. Droits d'administrateur requis."], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
 }
 
 // Instancier l'objet Database
@@ -119,9 +140,9 @@ switch($method) {
         break;
         
     case 'POST':
-        // Obtenir les données postées et assurer qu'elles sont en UTF-8
+        // Obtenir les données postées
         $json_input = file_get_contents("php://input");
-        $data = json_decode(cleanUTF8($json_input), true);
+        $data = json_decode($json_input, true);
         
         if (
             isset($data['host']) && 

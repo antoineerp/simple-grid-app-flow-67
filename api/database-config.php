@@ -23,31 +23,40 @@ try {
         require_once __DIR__ . '/config/database.php';
     }
 
-    // Vérifier l'authentification si le middleware Auth existe
+    // Vérifier si l'utilisateur est authentifié avec un token valide
+    $isAuthenticated = false;
+    $userData = null;
+    
+    // Récupérer les en-têtes de la requête
+    $allHeaders = getallheaders();
+    
+    // Vérification de l'authentification si le middleware Auth existe
     if (file_exists(__DIR__ . '/middleware/Auth.php')) {
         include_once __DIR__ . '/middleware/Auth.php';
-        
-        $allHeaders = getallheaders();
         
         if (class_exists('Auth')) {
             $auth = new Auth($allHeaders);
             $userData = $auth->isAuth();
             
-            if (!$userData) {
-                http_response_code(401);
-                echo json_encode(["status" => "error", "message" => "Non autorisé"]);
-                exit;
-            }
-
-            // Vérifier si l'utilisateur est admin
-            if ($userData['data']['role'] !== 'admin' && $userData['data']['role'] !== 'administrateur') {
-                http_response_code(403);
-                echo json_encode(["status" => "error", "message" => "Accès refusé. Vous devez être administrateur."]);
-                exit;
+            if ($userData) {
+                $isAuthenticated = true;
+                
+                // Si l'authentification est réussie mais que l'utilisateur n'est pas admin,
+                // on vérifie les droits seulement pour les opérations d'écriture
+                if ($_SERVER['REQUEST_METHOD'] === 'POST' || $_SERVER['REQUEST_METHOD'] === 'PUT') {
+                    if ($userData['data']['role'] !== 'admin' && $userData['data']['role'] !== 'administrateur') {
+                        http_response_code(403);
+                        echo json_encode(["status" => "error", "message" => "Accès refusé. Vous devez être administrateur."]);
+                        exit;
+                    }
+                }
             }
         }
     }
 
+    // Pour les opérations de lecture (GET), on autorise même sans authentification
+    // Pour les opérations d'écriture (POST/PUT), on a déjà vérifié les droits admin ci-dessus
+    
     // Rediriger vers le contrôleur de configuration de base de données si disponible
     if (file_exists(__DIR__ . '/controllers/DatabaseConfigController.php')) {
         require_once __DIR__ . '/controllers/DatabaseConfigController.php';
