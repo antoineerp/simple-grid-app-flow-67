@@ -1,4 +1,3 @@
-
 <?php
 // Forcer l'output buffering pour éviter tout output avant les headers
 ob_start();
@@ -109,9 +108,9 @@ function routeApi() {
             require_once __DIR__ . '/db-info.php';
             exit;
             
-        case 'utilisateurs':
+        case 'users':
             // Rediriger vers le contrôleur d'utilisateurs
-            require_once __DIR__ . '/utilisateurs.php';
+            require_once __DIR__ . '/users.php';
             exit;
             
         case 'database-test':
