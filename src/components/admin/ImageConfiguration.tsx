@@ -4,93 +4,24 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { getApiUrl } from '@/config/apiConfig';
 import { Button } from "@/components/ui/button";
-import { AlertCircle } from "lucide-react";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 
 const ImageConfiguration = () => {
   const { toast } = useToast();
   const [sidebarImageUrl, setSidebarImageUrl] = useState<string>('/lovable-uploads/swiss-army-knife-logo.png');
   const [sidebarLinkUrl, setSidebarLinkUrl] = useState<string>('');
   const [pdfLogo, setPdfLogo] = useState<string>('/lovable-uploads/formacert-logo.png');
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    loadConfigurations();
+    // Charger les images sauvegardées dans le localStorage
+    const savedSidebarImage = localStorage.getItem('sidebarImageUrl');
+    const savedSidebarLink = localStorage.getItem('sidebarLinkUrl');
+    const savedPdfLogo = localStorage.getItem('pdfLogo');
+    
+    if (savedSidebarImage) setSidebarImageUrl(savedSidebarImage);
+    if (savedSidebarLink) setSidebarLinkUrl(savedSidebarLink);
+    if (savedPdfLogo) setPdfLogo(savedPdfLogo);
   }, []);
-
-  const loadConfigurations = async () => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      const [sidebarImage, sidebarLink, pdfImage] = await Promise.all([
-        fetchConfig('sidebarImageUrl'),
-        fetchConfig('sidebarLinkUrl'),
-        fetchConfig('pdfLogo')
-      ]);
-
-      if (sidebarImage) setSidebarImageUrl(sidebarImage);
-      if (sidebarLink) setSidebarLinkUrl(sidebarLink);
-      if (pdfImage) setPdfLogo(pdfImage);
-    } catch (error) {
-      console.error('Erreur lors du chargement des configurations:', error);
-      setError("Impossible de charger les configurations. Veuillez réessayer plus tard.");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const fetchConfig = async (key: string) => {
-    try {
-      const response = await fetch(`${getApiUrl()}/controllers/GlobalConfigController.php?key=${key}`);
-      
-      if (!response.ok) {
-        console.error(`Erreur lors de la récupération de la configuration ${key}: ${response.status}`);
-        return null;
-      }
-      
-      const data = await response.json();
-      return data.data?.value;
-    } catch (error) {
-      console.error(`Erreur lors de la récupération de la configuration ${key}:`, error);
-      return null;
-    }
-  };
-
-  const saveConfig = async (key: string, value: string) => {
-    try {
-      const response = await fetch(`${getApiUrl()}/controllers/GlobalConfigController.php`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ key, value }),
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error(`Erreur lors de la sauvegarde (${response.status}):`, errorText);
-        throw new Error(`Erreur ${response.status}: ${errorText}`);
-      }
-
-      // Mettre à jour le localStorage pour une utilisation immédiate
-      localStorage.setItem(key, value);
-
-      toast({
-        title: "Configuration sauvegardée",
-        description: "Les modifications ont été enregistrées avec succès.",
-      });
-    } catch (error) {
-      console.error('Erreur lors de la sauvegarde:', error);
-      toast({
-        title: "Erreur",
-        description: `Impossible de sauvegarder les modifications: ${error instanceof Error ? error.message : 'Erreur inconnue'}`,
-        variant: "destructive",
-      });
-    }
-  };
 
   // Fonction pour redimensionner l'image si elle est trop grande
   const resizeImage = (file: File, maxWidth: number, maxHeight: number): Promise<string> => {
@@ -165,11 +96,16 @@ const ImageConfiguration = () => {
         
         if (type === 'sidebar') {
           setSidebarImageUrl(base64String);
-          await saveConfig('sidebarImageUrl', base64String);
+          localStorage.setItem('sidebarImageUrl', base64String);
         } else {
           setPdfLogo(base64String);
-          await saveConfig('pdfLogo', base64String);
+          localStorage.setItem('pdfLogo', base64String);
         }
+
+        toast({
+          title: "Image enregistrée",
+          description: "L'image a été traitée et enregistrée avec succès.",
+        });
       } catch (error) {
         console.error("Erreur lors du traitement de l'image:", error);
         toast({
@@ -181,10 +117,10 @@ const ImageConfiguration = () => {
     }
   };
 
-  const handleSidebarLinkChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleSidebarLinkChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const url = event.target.value;
     setSidebarLinkUrl(url);
-    await saveConfig('sidebarLinkUrl', url);
+    localStorage.setItem('sidebarLinkUrl', url);
   };
 
   const testPdfImage = () => {
@@ -210,30 +146,8 @@ const ImageConfiguration = () => {
     }
   };
 
-  const refreshConfigurations = () => {
-    toast({
-      title: "Rafraîchissement",
-      description: "Récupération des configurations depuis le serveur..."
-    });
-    loadConfigurations();
-  };
-
-  if (isLoading) {
-    return <div className="p-4">Chargement des configurations...</div>;
-  }
-
   return (
     <div className="space-y-6">
-      {error && (
-        <Alert variant="destructive">
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>{error}</AlertDescription>
-          <Button variant="outline" size="sm" className="mt-2" onClick={refreshConfigurations}>
-            Réessayer
-          </Button>
-        </Alert>
-      )}
-
       <Card>
         <CardHeader>
           <CardTitle>Image de la barre latérale</CardTitle>
@@ -294,23 +208,15 @@ const ImageConfiguration = () => {
               accept="image/*"
               onChange={(event) => handleImageChange(event, 'pdf')}
             />
-            <div className="flex flex-wrap gap-2 mt-2">
-              <Button 
-                variant="secondary" 
-                onClick={testPdfImage}
-              >
-                Tester cette image
-              </Button>
-              <Button 
-                variant="outline" 
-                onClick={refreshConfigurations}
-              >
-                Rafraîchir
-              </Button>
-            </div>
+            <Button 
+              variant="secondary" 
+              onClick={testPdfImage}
+              className="mt-2"
+            >
+              Tester cette image
+            </Button>
             <div className="text-sm text-muted-foreground mt-2">
-              <p>Après avoir changé le logo, vous devrez peut-être vider le cache du navigateur ou vous déconnecter/reconnecter pour voir les changements dans les PDF générés.</p>
-              <p className="mt-1">Si votre image est trop grande, elle sera automatiquement redimensionnée pour optimiser les performances.</p>
+              <p>Les logos sont stockés localement dans votre navigateur. Pour les voir dans les PDF générés, assurez-vous de les configurer sur chaque appareil où vous utilisez l'application.</p>
             </div>
           </div>
         </CardContent>

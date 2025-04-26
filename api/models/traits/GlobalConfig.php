@@ -7,7 +7,7 @@ trait GlobalConfig {
             $this->conn->exec("CREATE TABLE IF NOT EXISTS global_config (
                 id INT AUTO_INCREMENT PRIMARY KEY,
                 config_key VARCHAR(255) NOT NULL UNIQUE,
-                config_value MEDIUMTEXT,
+                config_value TEXT,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
             )");
 
@@ -46,7 +46,7 @@ trait GlobalConfig {
                 $this->conn->exec("CREATE TABLE IF NOT EXISTS global_config (
                     id INT AUTO_INCREMENT PRIMARY KEY,
                     config_key VARCHAR(255) NOT NULL UNIQUE,
-                    config_value MEDIUMTEXT,
+                    config_value TEXT,
                     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
                 )");
                 return null; // Aucune configuration n'existe encore
