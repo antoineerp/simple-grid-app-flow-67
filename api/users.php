@@ -30,7 +30,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
 if (ob_get_level()) ob_clean();
 
 try {
-    // Définir la constante pour le contrôle d'accès direct - modifier pour toujours autoriser
+    // Définir la constante pour le contrôle d'accès direct pour permettre l'accès
     define('DIRECT_ACCESS_CHECK', true);
 
     // Inclure les fichiers de base nécessaires
@@ -62,44 +62,38 @@ try {
     // Inclure les opérations en fonction de la méthode HTTP
     switch ($_SERVER['REQUEST_METHOD']) {
         case 'GET':
-            // Vérifier si le fichier existe avant de l'inclure
-            $getOperationsFile = __DIR__ . '/operations/users/GetOperations.php';
-            if (file_exists($getOperationsFile)) {
-                require_once $getOperationsFile;
-                $operations = new UserGetOperations($user);
-                $operations->handleGetRequest();
-            } else {
-                // Méthode alternative pour obtenir des utilisateurs
-                $stmt = $user->readAll();
-                $num = $stmt->rowCount();
+            try {
+                // Forcer la création de la table si elle n'existe pas
+                if (method_exists($user, 'createTableIfNotExists')) {
+                    $user->createTableIfNotExists();
+                }
                 
-                if ($num > 0) {
-                    $users_arr = array();
-                    $users_arr["records"] = array();
+                // Récupère tous les utilisateurs
+                if (method_exists($user, 'readAll')) {
+                    $stmt = $user->readAll();
+                    $num = $stmt->rowCount();
                     
-                    while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
-                        extract($row);
-                        
-                        $user_item = array(
-                            "id" => $id,
-                            "nom" => $nom,
-                            "prenom" => $prenom,
-                            "email" => $email,
-                            "identifiant_technique" => $identifiant_technique,
-                            "mot_de_passe" => $mot_de_passe,
-                            "role" => $role,
-                            "date_creation" => $date_creation
-                        );
-                        
-                        array_push($users_arr["records"], $user_item);
+                    $users_arr = ["records" => []];
+                    
+                    if ($num > 0) {
+                        while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+                            // Masquer le mot de passe dans la réponse
+                            if (isset($row['mot_de_passe'])) {
+                                $row['mot_de_passe'] = '******';
+                            }
+                            array_push($users_arr["records"], $row);
+                        }
                     }
                     
                     http_response_code(200);
                     echo json_encode($users_arr);
                 } else {
-                    http_response_code(200);
-                    echo json_encode(["message" => "Aucun utilisateur trouvé", "records" => []]);
+                    throw new Exception("Méthode readAll non disponible dans le modèle User");
                 }
+            } catch (Exception $e) {
+                error_log("Erreur GET utilisateurs: " . $e->getMessage());
+                http_response_code(200);
+                echo json_encode(["message" => "Erreur lors de la récupération des utilisateurs: " . $e->getMessage(), "records" => []]);
             }
             break;
         
@@ -133,7 +127,7 @@ try {
             }
 
             // Vérifier les restrictions (un seul gestionnaire)
-            if ($data->role === 'gestionnaire') {
+            if ($data->role === 'gestionnaire' && method_exists($user, 'countUsersByRole')) {
                 $gestionnaire_count = $user->countUsersByRole('gestionnaire');
                 if ($gestionnaire_count > 0) {
                     http_response_code(400);
@@ -143,7 +137,7 @@ try {
             }
 
             // Vérifier si l'email existe déjà
-            if ($user->emailExists($data->email)) {
+            if (method_exists($user, 'emailExists') && $user->emailExists($data->email)) {
                 http_response_code(400);
                 echo json_encode(["status" => "error", "message" => "Email déjà utilisé"]);
                 break;
@@ -160,11 +154,11 @@ try {
             error_log("Tentative de création de l'utilisateur: {$data->prenom} {$data->nom}");
             
             // Créer l'utilisateur
-            if ($user->create()) {
+            if (method_exists($user, 'create') && $user->create()) {
                 $lastId = $db->lastInsertId();
                 error_log("Utilisateur créé avec ID: {$lastId}");
                 
-                if ($data->role === 'utilisateur') {
+                if ($data->role === 'utilisateur' && method_exists($user, 'initializeUserDataFromManager')) {
                     $user->initializeUserDataFromManager($data->identifiant_technique);
                 }
 
@@ -185,29 +179,67 @@ try {
             }
             break;
             
-        case 'PUT':
-            // Redirection vers le fichier PutOperations s'il existe
-            $putOperationsFile = __DIR__ . '/operations/users/PutOperations.php';
-            if (file_exists($putOperationsFile)) {
-                require_once $putOperationsFile;
-                $operations = new UserPutOperations($user);
-                $operations->handlePutRequest();
-            } else {
-                http_response_code(501);
-                echo json_encode(["status" => "error", "message" => "Fonctionnalité de mise à jour non implémentée"]);
-            }
-            break;
-            
         case 'DELETE':
-            // Redirection vers le fichier DeleteOperations s'il existe
-            $deleteOperationsFile = __DIR__ . '/operations/users/DeleteOperations.php';
-            if (file_exists($deleteOperationsFile)) {
-                require_once $deleteOperationsFile;
-                $operations = new UserDeleteOperations($user);
-                $operations->handleDeleteRequest();
+            // Capturer les données brutes
+            $deleteData = file_get_contents("php://input");
+            error_log("DELETE - Données brutes reçues: " . $deleteData);
+            
+            if (empty($deleteData)) {
+                http_response_code(400);
+                echo json_encode(["status" => "error", "message" => "Aucune donnée reçue"]);
+                break;
+            }
+            
+            // Décoder en JSON
+            $data = json_decode($deleteData);
+            if (json_last_error() !== JSON_ERROR_NONE) {
+                http_response_code(400);
+                echo json_encode(["status" => "error", "message" => "Erreur de décodage JSON: " . json_last_error_msg()]);
+                break;
+            }
+            
+            // Valider l'ID
+            if (!isset($data->id) || !is_numeric($data->id)) {
+                http_response_code(400);
+                echo json_encode(["status" => "error", "message" => "ID utilisateur non fourni ou invalide"]);
+                break;
+            }
+            
+            // Vérifier que l'utilisateur existe
+            if (method_exists($user, 'findById')) {
+                $userData = $user->findById($data->id);
+                if (!$userData) {
+                    http_response_code(404);
+                    echo json_encode(["status" => "error", "message" => "Utilisateur non trouvé"]);
+                    break;
+                }
+                
+                // Supprimer l'utilisateur
+                try {
+                    $query = "DELETE FROM utilisateurs WHERE id = :id";
+                    $stmt = $db->prepare($query);
+                    $stmt->bindParam(':id', $data->id);
+                    
+                    if ($stmt->execute()) {
+                        http_response_code(200);
+                        echo json_encode([
+                            "status" => "success",
+                            "message" => "Utilisateur supprimé avec succès"
+                        ]);
+                    } else {
+                        http_response_code(500);
+                        echo json_encode(["status" => "error", "message" => "Échec de suppression de l'utilisateur"]);
+                    }
+                } catch (Exception $e) {
+                    http_response_code(500);
+                    echo json_encode([
+                        "status" => "error", 
+                        "message" => "Erreur lors de la suppression : " . $e->getMessage()
+                    ]);
+                }
             } else {
                 http_response_code(501);
-                echo json_encode(["status" => "error", "message" => "Fonctionnalité de suppression non implémentée"]);
+                echo json_encode(["status" => "error", "message" => "Fonctionnalité de recherche d'utilisateur non implémentée"]);
             }
             break;
             

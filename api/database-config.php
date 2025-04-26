@@ -17,8 +17,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
     exit;
 }
 
-// Suppression de la vérification DIRECT_ACCESS_CHECK qui cause l'erreur 403
-// et remplacement par une définition directe sans condition
+// Définir DIRECT_ACCESS_CHECK comme true pour permettre l'accès direct
 define('DIRECT_ACCESS_CHECK', true);
 
 try {
