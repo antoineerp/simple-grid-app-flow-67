@@ -47,37 +47,6 @@ export const createUser = async (userData: CreateUserData) => {
     
     console.log("Données envoyées:", JSON.stringify(requestData));
     
-    // Vérification de l'email (facultatif, peut être désactivé si cause des problèmes)
-    try {
-      const checkEmailUrl = `${apiUrl}/check-users.php?email=${encodeURIComponent(userData.email)}`;
-      console.log(`Vérification de l'email: ${checkEmailUrl}`);
-      
-      const emailCheckResponse = await fetch(checkEmailUrl, { method: 'GET', headers });
-      
-      if (emailCheckResponse.ok) {
-        const checkResult = await emailCheckResponse.json();
-        console.log("Résultat de la vérification d'email:", checkResult);
-        
-        if (checkResult && checkResult.records && Array.isArray(checkResult.records)) {
-          const existingUser = checkResult.records.find((user: any) => 
-            user.email === userData.email
-          );
-          
-          if (existingUser) {
-            console.error("Un utilisateur avec cet email existe déjà:", existingUser);
-            throw new Error(`Un utilisateur avec l'email ${userData.email} existe déjà.`);
-          }
-        }
-      }
-    } catch (checkError) {
-      // Si l'erreur est liée à la vérification de l'email existant, la propager
-      if (checkError instanceof Error && checkError.message.includes('email existe déjà')) {
-        throw checkError;
-      }
-      // Sinon, continuer avec la création même si la vérification a échoué
-      console.warn("Erreur lors de la vérification de l'email, poursuite de la création:", checkError);
-    }
-    
     // Envoi de la requête principale
     console.log("Envoi de la requête POST avec les données:", JSON.stringify(requestData));
     
@@ -119,6 +88,11 @@ export const createUser = async (userData: CreateUserData) => {
     try {
       const responseData = JSON.parse(responseText);
       
+      // Force un reload des données utilisateur
+      setTimeout(() => {
+        window.location.reload();
+      }, 1500);
+      
       // Gestion des erreurs HTTP
       if (!response.ok) {
         throw new Error(responseData.message || `Erreur ${response.status}: ${response.statusText}`);
@@ -133,8 +107,18 @@ export const createUser = async (userData: CreateUserData) => {
     } catch (jsonError) {
       console.error("Erreur lors du parsing JSON:", jsonError);
       
+      // Si la réponse semble être du HTML ou contient des erreurs PHP
+      if (responseText.includes("<br />") || responseText.includes("Warning") || responseText.includes("Fatal error")) {
+        throw new Error("Erreur serveur PHP. Vérifiez les logs du serveur.");
+      }
+      
       // Si la réponse semble être un succès malgré le format incorrect
       if (response.ok || response.status === 201) {
+        // Force un reload des données utilisateur après un court délai
+        setTimeout(() => {
+          window.location.reload();
+        }, 1500);
+        
         return {
           success: true,
           identifiant_technique: identifiantTechnique,

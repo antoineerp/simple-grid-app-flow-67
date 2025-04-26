@@ -28,8 +28,11 @@ class UserGetOperations extends BaseOperations {
     }
 
     private function getAllUsers() {
+        error_log("UserGetOperations - Getting all users");
         $stmt = $this->model->read();
         $num = $stmt->rowCount();
+        
+        error_log("UserGetOperations - Found {$num} users");
         
         if ($num > 0) {
             $users_arr = ["records" => []];

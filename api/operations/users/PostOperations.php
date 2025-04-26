@@ -34,6 +34,8 @@ class UserPostOperations extends BaseOperations {
             $this->model->mot_de_passe = $data->mot_de_passe;
             $this->model->role = $data->role;
 
+            error_log("UserPostOperations - Trying to create user: {$data->prenom} {$data->nom}");
+            
             if (!$this->model->create()) {
                 error_log("Échec de création de l'utilisateur sans exception");
                 ResponseHandler::error("Échec de création de l'utilisateur", 500);
@@ -41,6 +43,7 @@ class UserPostOperations extends BaseOperations {
             }
 
             $lastId = $this->db->lastInsertId();
+            error_log("UserPostOperations - User created with ID: {$lastId}");
             
             if ($data->role === 'utilisateur') {
                 $this->model->initializeUserDataFromManager($data->identifiant_technique);

@@ -1,3 +1,4 @@
+
 import { getApiUrl } from '@/config/apiConfig';
 import { useToast } from '@/hooks/use-toast';
 import { getAuthHeaders } from '../auth/authService';
@@ -43,10 +44,10 @@ class UserService {
       
       // Utiliser l'URL d'API actuelle
       const currentApiUrl = getApiUrl();
-      console.log(`Récupération des utilisateurs depuis: ${currentApiUrl}/check-users.php`);
+      console.log(`Récupération des utilisateurs depuis: ${currentApiUrl}/utilisateurs`);
       
-      // Modifier ici pour utiliser check-users.php à la place de /utilisateurs
-      const response = await fetch(`${currentApiUrl}/check-users.php`, {
+      // Utiliser le même endpoint que celui utilisé pour la création d'utilisateurs
+      const response = await fetch(`${currentApiUrl}/utilisateurs`, {
         method: 'GET',
         headers: {
           ...getAuthHeaders(),
