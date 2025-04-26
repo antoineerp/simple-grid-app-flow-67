@@ -99,7 +99,7 @@ const DatabaseDiagnostic: React.FC = () => {
         toast({
           title: "Avertissement",
           description: "Les configurations de base de données ne sont pas cohérentes.",
-          variant: "warning",
+          variant: "destructive", // Remplacé "warning" par "destructive"
         });
       } else if (data.pdo_direct.status === 'success' && data.database_class.status === 'success') {
         toast({
@@ -247,7 +247,7 @@ const DatabaseDiagnostic: React.FC = () => {
                   <span>{diagnosticResult.config_consistency.message}</span>
                 </div>
                 {diagnosticResult.config_consistency.differences && (
-                  <Alert variant="warning" className="mt-2">
+                  <Alert variant="destructive" className="mt-2"> {/* Remplacé "warning" par "destructive" */}
                     <div className="text-sm space-y-1">
                       <div><strong>Hôte:</strong> {diagnosticResult.config_consistency.differences.host}</div>
                       <div><strong>Base:</strong> {diagnosticResult.config_consistency.differences.database}</div>

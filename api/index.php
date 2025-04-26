@@ -57,6 +57,17 @@ function routeApi() {
             // Point d'entrée principal de l'API
             return diagnoseRequest();
             
+        case 'diagnose':
+        case 'diagnostic-complet':
+            // Diagnostic complet du serveur
+            require_once 'diagnose.php';
+            exit;
+            
+        case 'diagnostic':
+            // Diagnostic de l'API
+            require_once 'diagnostic.php';
+            exit;
+            
         case 'database-diagnostic':
         case 'db-diagnostic':
             // Rediriger vers le diagnostic de base de données
@@ -102,6 +113,8 @@ function diagnoseRequest() {
         'message' => 'Point de terminaison API principal',
         'endpoints' => [
             '/api' => 'Ce point d\'entrée - informations générales',
+            '/api/diagnostic' => 'Diagnostic de l\'API et du serveur',
+            '/api/diagnose' => 'Diagnostic complet du serveur',
             '/api/database-diagnostic' => 'Diagnostic complet de la base de données',
             '/api/utilisateurs' => 'Gestion des utilisateurs',
             '/api/database-test' => 'Test de connexion à la base de données',
