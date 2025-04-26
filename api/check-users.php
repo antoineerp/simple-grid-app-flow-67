@@ -43,8 +43,34 @@ try {
     $stmt->execute();
     
     if ($stmt->rowCount() == 0) {
-        // La table n'existe pas
-        throw new Exception("La table 'utilisateurs' n'existe pas");
+        // La table n'existe pas, la créer
+        error_log("La table 'utilisateurs' n'existe pas, création en cours");
+        $createTableQuery = "CREATE TABLE IF NOT EXISTS utilisateurs (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            nom VARCHAR(100) NOT NULL,
+            prenom VARCHAR(100) NOT NULL,
+            email VARCHAR(100) NOT NULL UNIQUE,
+            mot_de_passe VARCHAR(255) NOT NULL,
+            identifiant_technique VARCHAR(100) NOT NULL UNIQUE,
+            role VARCHAR(20) NOT NULL,
+            date_creation TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci";
+        
+        $pdo->exec($createTableQuery);
+        error_log("Table 'utilisateurs' créée avec succès");
+        
+        // Créer un utilisateur admin par défaut
+        $defaultAdminQuery = "INSERT INTO utilisateurs (nom, prenom, email, mot_de_passe, identifiant_technique, role) 
+        VALUES ('Admin', 'System', 'admin@system.local', :password, 'p71x6d_system_admin', 'admin')";
+        
+        $stmt = $pdo->prepare($defaultAdminQuery);
+        $hashedPassword = password_hash('admin123', PASSWORD_BCRYPT);
+        $stmt->bindParam(':password', $hashedPassword);
+        $stmt->execute();
+        
+        error_log("Utilisateur admin par défaut créé");
+    } else {
+        error_log("La table 'utilisateurs' existe déjà");
     }
     
     // Récupérer tous les utilisateurs

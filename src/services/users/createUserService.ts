@@ -33,7 +33,7 @@ export const createUser = async (userData: CreateUserData) => {
     // Préparation de la requête
     const apiUrl = getApiUrl();
     
-    // Utiliser spécifiquement le point d'entrée "utilisateurs" défini dans index.php
+    // Utiliser le point d'entrée spécifique pour les utilisateurs
     const url = `${apiUrl}/utilisateurs`;
     
     console.log(`Envoi de la requête à ${url}`);
