@@ -2,14 +2,14 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Loader2, Check, AlertCircle, Info } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { getApiUrl } from '@/config/apiConfig';
 import { getAuthHeaders } from '@/services/auth/authService';
 import { useToast } from "@/hooks/use-toast";
+import { ConfigSection } from './diagnostic/ConfigSection';
+import { ConsistencyCheck } from './diagnostic/ConsistencyCheck';
+import { ServerInfo } from './diagnostic/ServerInfo';
 
-// Interface pour les résultats de diagnostic
 interface DiagnosticResult {
   timestamp: string;
   server_info: {
@@ -67,7 +67,6 @@ const DatabaseDiagnostic: React.FC = () => {
   const [diagnosticResult, setDiagnosticResult] = useState<DiagnosticResult | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  // Fonction pour exécuter le diagnostic
   const runDiagnostic = async () => {
     setLoading(true);
     setError(null);
@@ -94,12 +93,11 @@ const DatabaseDiagnostic: React.FC = () => {
       
       setDiagnosticResult(data);
       
-      // Afficher un toast selon le résultat
       if (data.config_consistency && data.config_consistency.is_consistent === false) {
         toast({
           title: "Avertissement",
           description: "Les configurations de base de données ne sont pas cohérentes.",
-          variant: "destructive", // Remplacé "warning" par "destructive"
+          variant: "destructive",
         });
       } else if (data.pdo_direct.status === 'success' && data.database_class.status === 'success') {
         toast({
@@ -120,44 +118,18 @@ const DatabaseDiagnostic: React.FC = () => {
     }
   };
 
-  // Exécuter le diagnostic au chargement du composant
   useEffect(() => {
     runDiagnostic();
   }, []);
-
-  // Fonction pour afficher un badge de statut
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'success':
-        return (
-          <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
-            <Check className="h-3 w-3 mr-1" />
-            Succès
-          </Badge>
-        );
-      case 'warning':
-        return (
-          <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200">
-            <Info className="h-3 w-3 mr-1" />
-            Avertissement
-          </Badge>
-        );
-      default:
-        return (
-          <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">
-            <AlertCircle className="h-3 w-3 mr-1" />
-            Erreur
-          </Badge>
-        );
-    }
-  };
 
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between">
         <div>
           <CardTitle>Diagnostic de la base de données</CardTitle>
-          <CardDescription>Analyse complète de la configuration et des connexions à la base de données</CardDescription>
+          <CardDescription>
+            Analyse complète de la configuration et des connexions à la base de données
+          </CardDescription>
         </div>
         <Button onClick={runDiagnostic} disabled={loading}>
           {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
@@ -166,12 +138,6 @@ const DatabaseDiagnostic: React.FC = () => {
       </CardHeader>
       
       <CardContent>
-        {error && (
-          <Alert variant="destructive" className="mb-4">
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
-        )}
-        
         {loading && !diagnosticResult ? (
           <div className="flex justify-center items-center h-40">
             <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -179,94 +145,38 @@ const DatabaseDiagnostic: React.FC = () => {
         ) : diagnosticResult ? (
           <div className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-4">
-                <h3 className="text-md font-medium">Connexion PDO directe</h3>
-                <div className="flex items-center gap-2 mb-2">
-                  {getStatusBadge(diagnosticResult.pdo_direct.status)}
-                  <span>{diagnosticResult.pdo_direct.message}</span>
-                </div>
-                {diagnosticResult.pdo_direct.connection_info && (
-                  <div className="text-sm space-y-1">
-                    <div><strong>Hôte:</strong> {diagnosticResult.pdo_direct.connection_info.host}</div>
-                    <div><strong>Base:</strong> {diagnosticResult.pdo_direct.connection_info.database}</div>
-                    <div><strong>Utilisateur:</strong> {diagnosticResult.pdo_direct.connection_info.user}</div>
-                  </div>
-                )}
-                {diagnosticResult.pdo_direct.error && (
-                  <Alert variant="destructive" className="mt-2">
-                    <AlertDescription>{diagnosticResult.pdo_direct.error}</AlertDescription>
-                  </Alert>
-                )}
-              </div>
+              <ConfigSection
+                title="Connexion PDO directe"
+                status={diagnosticResult.pdo_direct.status}
+                message={diagnosticResult.pdo_direct.message}
+                config={diagnosticResult.pdo_direct.connection_info}
+                error={diagnosticResult.pdo_direct.error}
+              />
               
-              <div className="space-y-4">
-                <h3 className="text-md font-medium">Classe Database</h3>
-                <div className="flex items-center gap-2 mb-2">
-                  {getStatusBadge(diagnosticResult.database_class.status)}
-                  <span>{diagnosticResult.database_class.message}</span>
-                </div>
-                <div className="text-sm space-y-1">
-                  <div><strong>Hôte:</strong> {diagnosticResult.database_class.config.host}</div>
-                  <div><strong>Base:</strong> {diagnosticResult.database_class.config.db_name}</div>
-                  <div><strong>Utilisateur:</strong> {diagnosticResult.database_class.config.username}</div>
-                  <div><strong>Source:</strong> {diagnosticResult.database_class.config.source}</div>
-                </div>
-                {diagnosticResult.database_class.error && (
-                  <Alert variant="destructive" className="mt-2">
-                    <AlertDescription>{diagnosticResult.database_class.error}</AlertDescription>
-                  </Alert>
-                )}
-              </div>
+              <ConfigSection
+                title="Classe Database"
+                status={diagnosticResult.database_class.status}
+                message={diagnosticResult.database_class.message}
+                config={diagnosticResult.database_class.config}
+                error={diagnosticResult.database_class.error}
+              />
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-4">
-                <h3 className="text-md font-medium">Fichier de configuration</h3>
-                <div className="flex items-center gap-2 mb-2">
-                  {getStatusBadge(diagnosticResult.config_file.status)}
-                  <span>{diagnosticResult.config_file.message}</span>
-                </div>
-                {diagnosticResult.config_file.config && (
-                  <div className="text-sm space-y-1">
-                    <div><strong>Hôte:</strong> {diagnosticResult.config_file.config.host}</div>
-                    <div><strong>Base:</strong> {diagnosticResult.config_file.config.db_name}</div>
-                    <div><strong>Utilisateur:</strong> {diagnosticResult.config_file.config.username}</div>
-                  </div>
-                )}
-                {diagnosticResult.config_file.error && (
-                  <Alert variant="destructive" className="mt-2">
-                    <AlertDescription>{diagnosticResult.config_file.error}</AlertDescription>
-                  </Alert>
-                )}
-              </div>
+              <ConfigSection
+                title="Fichier de configuration"
+                status={diagnosticResult.config_file.status}
+                message={diagnosticResult.config_file.message}
+                config={diagnosticResult.config_file.config}
+                error={diagnosticResult.config_file.error}
+              />
               
-              <div className="space-y-4">
-                <h3 className="text-md font-medium">Cohérence des configurations</h3>
-                <div className="flex items-center gap-2 mb-2">
-                  {getStatusBadge(diagnosticResult.config_consistency.status)}
-                  <span>{diagnosticResult.config_consistency.message}</span>
-                </div>
-                {diagnosticResult.config_consistency.differences && (
-                  <Alert variant="destructive" className="mt-2"> {/* Remplacé "warning" par "destructive" */}
-                    <div className="text-sm space-y-1">
-                      <div><strong>Hôte:</strong> {diagnosticResult.config_consistency.differences.host}</div>
-                      <div><strong>Base:</strong> {diagnosticResult.config_consistency.differences.database}</div>
-                      <div><strong>Utilisateur:</strong> {diagnosticResult.config_consistency.differences.username}</div>
-                    </div>
-                  </Alert>
-                )}
-              </div>
+              <ConsistencyCheck
+                consistency={diagnosticResult.config_consistency}
+              />
             </div>
             
-            <div className="border-t pt-4">
-              <h3 className="text-md font-medium mb-3">Informations serveur</h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2 text-sm">
-                <div><strong>Version PHP:</strong> {diagnosticResult.server_info.php_version}</div>
-                <div><strong>Serveur:</strong> {diagnosticResult.server_info.server_name}</div>
-                <div><strong>Script:</strong> {diagnosticResult.server_info.script}</div>
-                <div><strong>Adresse IP:</strong> {diagnosticResult.server_info.remote_addr}</div>
-              </div>
-            </div>
+            <ServerInfo serverInfo={diagnosticResult.server_info} />
           </div>
         ) : (
           <div className="text-center py-8 text-muted-foreground">
