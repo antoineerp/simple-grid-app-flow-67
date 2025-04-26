@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { FileText, FolderPlus, CloudSun } from 'lucide-react';
+import { FileText, FolderPlus } from 'lucide-react';
 import { MembresProvider } from '@/contexts/MembresContext';
 import ExigenceForm from '@/components/exigences/ExigenceForm';
 import ExigenceStats from '@/components/exigences/ExigenceStats';
@@ -10,7 +10,6 @@ import { useExigences } from '@/hooks/useExigences';
 import { exportExigencesToPdf } from '@/services/pdfExport';
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
-import SyncStatusIndicator from '@/components/common/SyncStatusIndicator';
 
 const ExigencesContent = () => {
   const {
@@ -21,9 +20,6 @@ const ExigencesContent = () => {
     editingGroup,
     dialogOpen,
     groupDialogOpen,
-    isSyncing,
-    isOnline,
-    lastSynced,
     setDialogOpen,
     setGroupDialogOpen,
     handleResponsabiliteChange,
@@ -40,7 +36,6 @@ const ExigencesContent = () => {
     handleDeleteGroup,
     handleGroupReorder,
     handleToggleGroup,
-    syncWithServer
   } = useExigences();
   
   const { toast } = useToast();
@@ -59,15 +54,7 @@ const ExigencesContent = () => {
         <div>
           <h1 className="text-3xl font-bold text-app-blue">Exigences</h1>
         </div>
-        <div className="flex space-x-2">
-          <button 
-            onClick={syncWithServer}
-            className="text-blue-600 p-2 rounded-md hover:bg-blue-50 transition-colors flex items-center"
-            title="Synchroniser avec le serveur"
-            disabled={isSyncing}
-          >
-            <CloudSun className={`h-6 w-6 stroke-[1.5] ${isSyncing ? 'animate-spin' : ''}`} />
-          </button>
+        <div>
           <button 
             onClick={handleExportPdf}
             className="text-red-600 p-2 rounded-md hover:bg-red-50 transition-colors"
@@ -76,14 +63,6 @@ const ExigencesContent = () => {
             <FileText className="h-6 w-6 stroke-[1.5]" />
           </button>
         </div>
-      </div>
-
-      <div className="mb-4">
-        <SyncStatusIndicator 
-          isSyncing={isSyncing}
-          isOnline={isOnline}
-          lastSynced={lastSynced}
-        />
       </div>
 
       <ExigenceStats stats={stats} />
