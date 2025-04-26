@@ -97,7 +97,9 @@ mb_internal_encoding('UTF-8');
 if ($environment === 'production') {
     // Désactiver l'affichage des erreurs en production
     ini_set('display_errors', 0);
-    error_reporting(E_ALL & ~E_DEPRECATED & ~E_STRICT);
+    // Remplacer E_ALL & ~E_DEPRECATED & ~E_STRICT par simplement E_ALL & ~E_DEPRECATED
+    // car E_STRICT est déprécié dans les versions récentes de PHP
+    error_reporting(E_ALL & ~E_DEPRECATED);
     
     // Journaliser les erreurs dans le fichier de log
     ini_set('log_errors', 1);
