@@ -8,6 +8,7 @@ header("Content-Type: application/json; charset=UTF-8");
 header("Access-Control-Allow-Origin: *");
 header("Access-Control-Allow-Methods: GET, OPTIONS, POST");
 header("Access-Control-Allow-Headers: Content-Type, Authorization");
+header("Cache-Control: no-cache, no-store, must-revalidate");
 
 // Si c'est une requête OPTIONS (preflight), nous la terminons ici
 if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
@@ -20,7 +21,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
 error_log("=== EXÉCUTION DE check-users.php ===");
 
 // Capturer toute sortie pour éviter la contamination du JSON
-ob_start();
+if (ob_get_level()) ob_clean();
 
 try {
     // Tester la connexion PDO directement sans passer par notre classe Database
@@ -86,7 +87,7 @@ try {
     error_log("Nombre d'utilisateurs récupérés: " . $count);
     
     // Nettoyer tout output accumulé
-    ob_clean();
+    if (ob_get_level()) ob_clean();
     
     // Préparer la réponse
     http_response_code(200);
@@ -106,7 +107,7 @@ try {
     error_log("Erreur de connexion PDO: " . $e->getMessage());
     
     // Nettoyer tout output accumulé
-    ob_clean();
+    if (ob_get_level()) ob_clean();
     
     http_response_code(500);
     echo json_encode([
@@ -119,7 +120,7 @@ try {
     error_log("Erreur générale: " . $e->getMessage());
     
     // Nettoyer tout output accumulé
-    ob_clean();
+    if (ob_get_level()) ob_clean();
     
     http_response_code(500);
     echo json_encode([

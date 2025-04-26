@@ -4,39 +4,52 @@ require_once dirname(__DIR__) . '/BaseOperations.php';
 
 class UserGetOperations extends BaseOperations {
     public function handleGetRequest() {
+        // Nettoyer tout buffer de sortie existant
+        if (ob_get_level()) ob_clean();
+        
         // Assurez-vous que les headers sont configurés correctement
         header('Content-Type: application/json; charset=UTF-8');
         
         // Journaliser l'appel pour le débogage
         error_log("UserGetOperations::handleGetRequest - Début");
         
-        if (isset($_GET['email'])) {
-            error_log("UserGetOperations - Recherche par email: " . $_GET['email']);
-            $this->checkEmail($_GET['email']);
-            return;
+        try {
+            if (isset($_GET['email'])) {
+                error_log("UserGetOperations - Recherche par email: " . $_GET['email']);
+                $this->checkEmail($_GET['email']);
+                return;
+            }
+            error_log("UserGetOperations - Récupération de tous les utilisateurs");
+            $this->getAllUsers();
+        } catch (Exception $e) {
+            error_log("UserGetOperations::handleGetRequest - Erreur: " . $e->getMessage());
+            ResponseHandler::error("Erreur lors de la récupération des utilisateurs: " . $e->getMessage(), 500);
         }
-        error_log("UserGetOperations - Récupération de tous les utilisateurs");
-        $this->getAllUsers();
     }
 
     private function checkEmail($email) {
-        error_log("UserGetOperations::checkEmail - Vérification de l'email: $email");
-        $stmt = $this->model->findByEmailQuery($email);
-        $num = $stmt ? $stmt->rowCount() : 0;
-        error_log("UserGetOperations::checkEmail - Nombre d'utilisateurs trouvés: $num");
-        
-        $users_arr = ["records" => []];
-        
-        if ($num > 0) {
-            while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
-                // Masquer le mot de passe dans la réponse
-                $row['mot_de_passe'] = '******';
-                array_push($users_arr["records"], $row);
+        try {
+            error_log("UserGetOperations::checkEmail - Vérification de l'email: $email");
+            $stmt = $this->model->findByEmailQuery($email);
+            $num = $stmt ? $stmt->rowCount() : 0;
+            error_log("UserGetOperations::checkEmail - Nombre d'utilisateurs trouvés: $num");
+            
+            $users_arr = ["records" => []];
+            
+            if ($num > 0) {
+                while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+                    // Masquer le mot de passe dans la réponse
+                    $row['mot_de_passe'] = '******';
+                    array_push($users_arr["records"], $row);
+                }
             }
+            
+            error_log("UserGetOperations::checkEmail - Réponse: " . json_encode($users_arr));
+            ResponseHandler::success($users_arr);
+        } catch (Exception $e) {
+            error_log("UserGetOperations::checkEmail - Erreur: " . $e->getMessage());
+            ResponseHandler::error("Erreur lors de la vérification de l'email: " . $e->getMessage(), 500);
         }
-        
-        error_log("UserGetOperations::checkEmail - Réponse: " . json_encode($users_arr));
-        ResponseHandler::success($users_arr);
     }
 
     private function getAllUsers() {

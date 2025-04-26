@@ -3,9 +3,6 @@
 // Forcer l'output buffering pour éviter tout output avant les headers
 ob_start();
 
-// Fichier de redirection vers le contrôleur d'utilisateurs
-// Ce fichier est nécessaire pour gérer les requêtes API liées aux utilisateurs
-
 // En-têtes CORS et Content-Type
 header("Content-Type: application/json; charset=UTF-8");
 header("Access-Control-Allow-Origin: *");
@@ -27,17 +24,42 @@ error_log("API utilisateurs.php - Méthode: " . $_SERVER['REQUEST_METHOD'] . " -
 if (ob_get_level()) ob_clean();
 
 try {
-    // Inclure directement le contrôleur d'utilisateurs
+    // Vérifier si le contrôleur existe avant de l'inclure
     $userController = __DIR__ . '/controllers/UsersController.php';
-    if (file_exists($userController)) {
-        require_once $userController;
-    } else {
+    if (!file_exists($userController)) {
         throw new Exception("Contrôleur d'utilisateurs non trouvé: $userController");
     }
+    
+    // Définir la constante pour le contrôle d'accès direct
+    if (!defined('DIRECT_ACCESS_CHECK')) {
+        define('DIRECT_ACCESS_CHECK', true);
+    }
+    
+    // Inclure le contrôleur d'utilisateurs
+    require_once $userController;
+    
+    // Si nous arrivons ici sans avoir envoyé de réponse, c'est une erreur
+    if (!headers_sent()) {
+        error_log("API utilisateurs.php - Aucune réponse envoyée par le contrôleur");
+        http_response_code(500);
+        echo json_encode([
+            'status' => 'error',
+            'message' => 'Le contrôleur n\'a pas généré de réponse'
+        ]);
+    }
 } catch (Exception $e) {
+    // Nettoyer le buffer en cas d'erreur
+    if (ob_get_level()) ob_clean();
+    
     // En cas d'erreur, envoyer une réponse JSON propre
     error_log("Erreur dans utilisateurs.php: " . $e->getMessage());
-    http_response_code(500);
+    
+    // S'assurer que les en-têtes sont correctement définis
+    if (!headers_sent()) {
+        header('Content-Type: application/json; charset=UTF-8');
+        http_response_code(500);
+    }
+    
     echo json_encode([
         'status' => 'error',
         'message' => $e->getMessage(),
@@ -45,4 +67,7 @@ try {
         'current_dir' => __DIR__
     ]);
 }
+
+// S'assurer que tout buffer est vidé
+if (ob_get_level()) ob_end_flush();
 ?>

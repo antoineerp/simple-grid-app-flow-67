@@ -59,7 +59,7 @@ class UserService {
       });
       
       if (!response.ok) {
-        console.warn(`Réponse non-OK: ${response.status} ${response.statusText}`);
+        console.log(`Réponse non-OK: ${response.status} ${response.statusText}`);
         // Si le premier essai échoue, essayer avec le endpoint de diagnostic
         return await this.getUtilisateursFromDiagnostic();
       }
@@ -67,8 +67,9 @@ class UserService {
       // Traiter la réponse du endpoint principal
       const responseText = await response.text();
       
-      if (!responseText.trim()) {
-        throw new Error("Empty response from server");
+      if (!responseText || !responseText.trim()) {
+        console.error("Empty response from server");
+        return await this.getUtilisateursFromDiagnostic();
       }
       
       // Vérifier si la réponse ressemble à du PHP ou HTML (erreur)
@@ -85,13 +86,15 @@ class UserService {
       } catch (parseError) {
         console.error("Error parsing JSON:", parseError);
         console.error("Response text (first 500 chars):", responseText.substring(0, 500));
-        throw new Error("Invalid JSON response");
+        return await this.getUtilisateursFromDiagnostic();
       }
       
       console.log("Données utilisateurs reçues:", data);
       
       // Vérifier si nous avons des records avant de les renvoyer
-      if (data && data.records && Array.isArray(data.records)) {
+      if (data && data.data && data.data.records && Array.isArray(data.data.records)) {
+        return data.data.records;
+      } else if (data && data.records && Array.isArray(data.records)) {
         return data.records;
       } else if (data && Array.isArray(data)) {
         return data;
@@ -107,6 +110,7 @@ class UserService {
       try {
         return await this.getUtilisateursFromDiagnostic();
       } catch (fallbackError) {
+        console.error("Fallback retrieval also failed:", fallbackError);
         const { toast } = useToast();
         toast({
           title: "Erreur de connexion",
@@ -153,6 +157,13 @@ class UserService {
     
     // Tester si la réponse est du JSON
     const text = await response.text();
+    
+    // Si la réponse est vide, renvoyer un tableau vide
+    if (!text || !text.trim()) {
+      console.error("Empty response from check-users");
+      return [];
+    }
+    
     try {
       const data = JSON.parse(text);
       console.log("Données reçues du diagnostic:", data);
