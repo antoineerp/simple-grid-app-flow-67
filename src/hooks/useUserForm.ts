@@ -118,8 +118,9 @@ export const useUserForm = ({ onClose, onSuccess, onUserConnect }: UseUserFormPr
       }
       
       // Force un reload de la page après un court délai
+      console.log("Redirection vers la page d'administration dans 2 secondes");
       setTimeout(() => {
-        window.location.reload();
+        window.location.href = "/administration";
       }, 2000);
       
       onClose();

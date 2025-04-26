@@ -3,11 +3,15 @@
 trait TableManager {
     protected function createTableIfNotExists() {
         try {
+            error_log("TableManager::createTableIfNotExists - Vérification de l'existence de la table '{$this->table_name}'");
+            
             $tableExistsQuery = "SHOW TABLES LIKE '" . $this->table_name . "'";
             $stmt = $this->conn->prepare($tableExistsQuery);
             $stmt->execute();
             
             if ($stmt->rowCount() == 0) {
+                error_log("TableManager - La table '{$this->table_name}' n'existe pas, création en cours");
+                
                 $createTableSQL = "CREATE TABLE IF NOT EXISTS `" . $this->table_name . "` (
                     `id` int(11) NOT NULL AUTO_INCREMENT PRIMARY KEY,
                     `nom` varchar(100) NOT NULL,
@@ -22,7 +26,7 @@ trait TableManager {
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;";
                 
                 $this->conn->exec($createTableSQL);
-                error_log("Table 'utilisateurs' créée avec succès");
+                error_log("TableManager - Table '{$this->table_name}' créée avec succès");
                 
                 // Insert default admin user
                 $adminPassword = password_hash('admin123', PASSWORD_BCRYPT);
@@ -31,13 +35,15 @@ trait TableManager {
                     ('Admin', 'Système', 'admin@qualiopi.ch', '" . $adminPassword . "', 'p71x6d_system', 'admin', NOW());";
                 
                 $this->conn->exec($insertAdminQuery);
-                error_log("Utilisateur administrateur créé par défaut");
+                error_log("TableManager - Utilisateur administrateur créé par défaut");
+            } else {
+                error_log("TableManager - La table '{$this->table_name}' existe déjà");
             }
             
             $this->validateTableStructure();
             
         } catch (PDOException $e) {
-            error_log("Erreur lors de la vérification/création de la table: " . $e->getMessage());
+            error_log("TableManager - Erreur lors de la vérification/création de la table: " . $e->getMessage());
         }
     }
 
@@ -54,7 +60,7 @@ trait TableManager {
             
             $this->validateTableEncoding();
         } catch (PDOException $e) {
-            error_log("Erreur lors de la validation de la structure: " . $e->getMessage());
+            error_log("TableManager - Erreur lors de la validation de la structure: " . $e->getMessage());
         }
     }
 
@@ -74,7 +80,7 @@ trait TableManager {
                                  CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
             }
         } catch (PDOException $e) {
-            error_log("Erreur lors de la validation de l'encodage: " . $e->getMessage());
+            error_log("TableManager - Erreur lors de la validation de l'encodage: " . $e->getMessage());
         }
     }
 
@@ -90,7 +96,7 @@ trait TableManager {
                               MODIFY COLUMN `id` int(11) NOT NULL AUTO_INCREMENT PRIMARY KEY";
             $this->conn->exec($alterTableQuery);
         } catch (PDOException $e) {
-            error_log("Erreur lors de la mise à jour de la structure: " . $e->getMessage());
+            error_log("TableManager - Erreur lors de la mise à jour de la structure: " . $e->getMessage());
         }
     }
 }

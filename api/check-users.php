@@ -20,7 +20,7 @@ error_log("=== EXÉCUTION DE check-users.php ===");
 ob_start();
 
 try {
-    // Tester la connexion PDO directement
+    // Tester la connexion PDO directement sans passer par notre classe Database
     $host = "p71x6d.myd.infomaniak.com";
     $dbname = "p71x6d_system";
     $username = "p71x6d_system";
