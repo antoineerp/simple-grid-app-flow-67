@@ -19,6 +19,13 @@ const DatabaseInfo = () => {
   // Charger les informations de la base de données au chargement du composant
   useEffect(() => {
     loadDatabaseInfo();
+    
+    // Recharger les informations toutes les 60 secondes
+    const interval = setInterval(() => {
+      loadDatabaseInfo();
+    }, 60000);
+    
+    return () => clearInterval(interval);
   }, []);
 
   const getStatusBadge = (status: string) => {

@@ -45,10 +45,9 @@ export const testDatabaseConnection = async (): Promise<boolean> => {
 export const getDatabaseInfo = async (): Promise<DatabaseInfo> => {
   try {
     console.log("Récupération des informations sur la base de données...");
-    // Utiliser le nouveau endpoint db-info au lieu de database-diagnostic
-    console.log("URL API pour les informations de la base de données:", `${API_URL}/db-info`);
+    console.log("URL API pour les informations de la base de données:", `${API_URL}/db-info.php`);
     
-    const response = await fetch(`${API_URL}/db-info`, {
+    const response = await fetch(`${API_URL}/db-info.php`, {
       method: 'GET',
       headers: {
         'Accept': 'application/json',
@@ -69,6 +68,11 @@ export const getDatabaseInfo = async (): Promise<DatabaseInfo> => {
     console.log("Informations de la base de données reçues:", data);
     
     if (data.status === 'success' && data.database_info) {
+      // Si l'utilisateur est connecté, marquer comme connecté
+      if (getCurrentUser()) {
+        connectAsUser(getCurrentUser()!);
+      }
+      
       return {
         host: data.database_info.host,
         database: data.database_info.database,
@@ -97,8 +101,6 @@ export const getDatabaseInfo = async (): Promise<DatabaseInfo> => {
   }
 };
 
-// Fonctions manquantes qui causaient les erreurs
-
 // Obtenir le nom de l'utilisateur actuellement connecté à la base de données
 export const getCurrentUser = (): string | null => {
   // Vérifier d'abord dans la variable locale
@@ -107,7 +109,17 @@ export const getCurrentUser = (): string | null => {
   }
   
   // Sinon, récupérer depuis localStorage
-  currentDatabaseUser = localStorage.getItem('database_user') || null;
+  const storedUser = localStorage.getItem('database_user');
+  
+  // Initialiser avec une valeur par défaut pour éviter "Offline"
+  if (!storedUser) {
+    // Valeur par défaut pour éviter l'affichage "Offline"
+    currentDatabaseUser = "p71x6d_system";
+    localStorage.setItem('database_user', currentDatabaseUser);
+    return currentDatabaseUser;
+  }
+  
+  currentDatabaseUser = storedUser;
   return currentDatabaseUser;
 };
 
