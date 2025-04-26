@@ -16,90 +16,35 @@ function fixInfomaniakPath(path) {
 
 // Fonction pour charger dynamiquement le script principal
 function loadMainScript() {
-    // Détection du fichier principal basé sur un pattern de nommage Vite
-    const mainScriptPattern = /main-[a-zA-Z0-9]+\.js$/;
-    const scripts = document.querySelectorAll('script[src]');
-    let mainScriptFound = false;
-    
     console.log("Index.js: Chargement du script principal...");
     console.log("Hostname détecté:", window.location.hostname);
     
-    // Chercher d'abord dans les scripts déjà inclus dans la page
-    for (const script of scripts) {
-        const src = script.getAttribute('src');
-        if (src && mainScriptPattern.test(src)) {
-            console.log(`Script principal déjà chargé : ${src}`);
-            mainScriptFound = true;
-            break;
-        }
-    }
-    
-    // Si le script principal n'est pas trouvé, charger le fichier main.js directement
-    if (!mainScriptFound) {
-        try {
-            // Pour l'environnement de production
-            const mainScript = document.createElement('script');
-            mainScript.type = 'module';
-            mainScript.src = '/src/main.js';
-            document.head.appendChild(mainScript);
-            console.log('Chargement de main.js en tant que fallback');
+    try {
+        // Pour l'environnement de production
+        const mainScript = document.createElement('script');
+        mainScript.type = 'module';
+        mainScript.src = '/src/main.tsx';
+        document.head.appendChild(mainScript);
+        console.log('Chargement de main.tsx');
+        
+        // Ajouter un gestionnaire d'erreurs
+        mainScript.onerror = function() {
+            console.error("Échec du chargement de main.tsx, tentative avec main.js");
+            const jsScript = document.createElement('script');
+            jsScript.type = 'module';
+            jsScript.src = '/src/main.js';
+            document.head.appendChild(jsScript);
             
-            // Ajouter un gestionnaire d'erreurs
-            mainScript.onerror = function() {
-                console.error("Échec du chargement de main.js, tentative avec main.tsx");
-                const tsxScript = document.createElement('script');
-                tsxScript.type = 'module';
-                tsxScript.src = '/src/main.tsx';
-                document.head.appendChild(tsxScript);
-                
-                // Gestion d'erreur pour le script TSX
-                tsxScript.onerror = function() {
-                    console.error("Échec du chargement de main.tsx, utilisation du script de diagnostic");
-                    loadDiagnosticScript();
-                };
+            // Gestion d'erreur pour le script JS
+            jsScript.onerror = function() {
+                console.error("Échec du chargement de main.js, utilisation du script de diagnostic");
+                showErrorMessage("Erreur de chargement des scripts principaux");
             };
-        } catch (error) {
-            console.error('Erreur lors du chargement du script principal:', error);
-            loadDiagnosticScript();
-        }
+        };
+    } catch (error) {
+        console.error('Erreur lors du chargement du script principal:', error);
+        showErrorMessage("Erreur de chargement: " + error.message);
     }
-}
-
-// Fonction pour charger le script de diagnostic en dernier recours
-function loadDiagnosticScript() {
-    console.log("Tentative de chargement du script de diagnostic");
-    // Chercher le premier fichier .js dans le dossier assets
-    fetchAssetsList()
-        .then(files => {
-            if (files && files.length > 0) {
-                const jsFile = files.find(f => f.endsWith('.js') && f !== 'index.js');
-                if (jsFile) {
-                    console.log("Chargement du fichier de secours:", jsFile);
-                    const script = document.createElement('script');
-                    script.type = 'module';
-                    script.src = fixInfomaniakPath('/assets/' + jsFile);
-                    document.head.appendChild(script);
-                }
-            }
-        })
-        .catch(err => {
-            console.error("Impossible de récupérer la liste des assets:", err);
-            showErrorMessage("Erreur critique: Impossible de charger l'application");
-        });
-}
-
-// Fonction pour récupérer la liste des fichiers dans le dossier assets
-function fetchAssetsList() {
-    // Cette fonction simule la récupération des fichiers dans le dossier assets
-    // En production, cette liste serait générée par le serveur
-    return new Promise(resolve => {
-        // Liste par défaut de fichiers potentiels (pour diagnostic)
-        resolve([
-            'index.js',
-            'main-CJp6prML.js', 
-            'html2canvas.esm-CBrSDip1.js'
-        ]);
-    });
 }
 
 // Fonction pour afficher un message d'erreur à l'utilisateur

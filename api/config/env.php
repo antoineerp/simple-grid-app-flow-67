@@ -1,4 +1,3 @@
-
 <?php
 // Fichier de configuration d'environnement
 
@@ -135,6 +134,11 @@ if (!function_exists('getenv_custom')) {
  * Corrige les problèmes de chemins de fichiers, notamment pour les chemins doublés comme /sites/qualiopi.ch/
  */
 function adjustPathForInfomaniak($path) {
+    // Vérifier si le chemin est défini
+    if (!$path) {
+        return $path;
+    }
+    
     // Détecter si nous sommes sur Infomaniak
     $isInfomaniak = env('IS_INFOMANIAK') === 'true';
     
@@ -149,28 +153,7 @@ function adjustPathForInfomaniak($path) {
         return $correctedPath;
     }
     
-    // Chemins absolus commençant par /
-    if (strpos($path, '/') === 0) {
-        // Pour les assets et uploads
-        if (strpos($path, '/assets/') === 0 || strpos($path, '/lovable-uploads/') === 0) {
-            // Vérifier d'abord le chemin direct
-            $directPath = $_SERVER['DOCUMENT_ROOT'] . $path;
-            if (file_exists($directPath)) {
-                return $path;
-            }
-            
-            // Si c'est un upload, essayer avec le préfixe public
-            if (strpos($path, '/lovable-uploads/') === 0) {
-                $publicPath = '/public' . $path;
-                $fullPublicPath = $_SERVER['DOCUMENT_ROOT'] . $publicPath;
-                if (file_exists($fullPublicPath)) {
-                    return $publicPath;
-                }
-            }
-        }
-    }
-    
-    // Par défaut, retourner le chemin inchangé
+    // Pas besoin de correction
     return $path;
 }
 

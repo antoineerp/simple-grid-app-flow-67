@@ -1,4 +1,3 @@
-
 <?php
 // Forcer l'output buffering pour éviter tout output avant les headers
 ob_start();
@@ -241,7 +240,7 @@ function diagnoseRequest() {
 
 try {
     // Assurer que nous n'avons pas de sortie avant les headers
-    ob_clean();
+    if (ob_get_level()) ob_clean();
 
     // Router la requête vers le bon contrôleur
     $response = routeApi();

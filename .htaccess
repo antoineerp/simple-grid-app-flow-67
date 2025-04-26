@@ -22,29 +22,16 @@ AddType image/svg+xml .svg
 </FilesMatch>
 
 # Règles de réécriture spécifiques pour Infomaniak
-# Détecter Infomaniak en vérifiant le document root
-RewriteCond %{DOCUMENT_ROOT} ^/home/clients/[^/]+/sites/[^/]+
-RewriteRule ^(.*)$ - [E=INFOMANIAK_ENV:1]
-
 # Rediriger les chemins incorrects avec /sites/[domain]/
-# Ceci corrige la structure de chemin incorrecte
 RewriteCond %{REQUEST_URI} ^/sites/[^/]+/(.*)$
 RewriteRule ^sites/[^/]+/(.*)$ /$1 [L,R=301]
 
-# Règle améliorée pour les assets sur Infomaniak
-RewriteCond %{ENV:INFOMANIAK_ENV} 1
-RewriteCond %{REQUEST_URI} ^/assets/(.*)$
-RewriteCond %{DOCUMENT_ROOT}/assets/%1 -f
-RewriteRule ^assets/(.*)$ /assets/$1 [L]
-
-# Règle alternative si le fichier n'est pas trouvé dans /assets/
-RewriteCond %{ENV:INFOMANIAK_ENV} 1
-RewriteCond %{REQUEST_URI} ^/assets/(.*)$
-RewriteCond %{DOCUMENT_ROOT}/assets/%1 !-f
-RewriteRule ^assets/(.*)$ /assets/index.js [L]
+# Règles pour les assets
+RewriteCond %{REQUEST_URI} ^/assets/
+RewriteCond %{REQUEST_FILENAME} -f
+RewriteRule ^ - [L]
 
 # Traitement des uploads
-RewriteCond %{ENV:INFOMANIAK_ENV} 1
 RewriteCond %{REQUEST_URI} ^/lovable-uploads/(.*)$
 RewriteCond %{DOCUMENT_ROOT}/lovable-uploads/%1 !-f
 RewriteCond %{DOCUMENT_ROOT}/public/lovable-uploads/%1 -f
@@ -57,11 +44,6 @@ RewriteRule ^lovable-uploads/(.*)$ public/lovable-uploads/$1 [L]
 # Règle pour l'API - toutes les requêtes /api vers le dossier api
 RewriteRule ^api/?$ api/index.php [L]
 RewriteRule ^api/(.*)$ api/$1 [QSA,L]
-
-# Permettre l'accès direct aux assets dans leur dossier
-RewriteCond %{REQUEST_URI} ^/assets/
-RewriteCond %{REQUEST_FILENAME} -f
-RewriteRule ^ - [L]
 
 # Permettre l'accès direct aux autres ressources statiques
 RewriteCond %{REQUEST_URI} \.(js|css|png|jpe?g|gif|svg|ico|webp|woff2?|ttf|eot|map|tsx?)$
