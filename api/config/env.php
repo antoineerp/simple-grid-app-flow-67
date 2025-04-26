@@ -34,13 +34,33 @@ $_ENV['ALLOWED_ORIGIN_PROD'] = 'https://qualiopi.ch'; // URL sans www
 $documentRoot = $_SERVER['DOCUMENT_ROOT'] ?? '';
 $scriptFilename = $_SERVER['SCRIPT_FILENAME'] ?? '';
 
-// Détecter Infomaniak et configurer les chemins
-$isInfomaniak = preg_match('#^(/home/clients/[^/]+/sites/[^/]+)/#', $documentRoot, $matches);
-if ($isInfomaniak) {
+// Détecter Infomaniak de plusieurs façons
+$isInfomaniak = false;
+
+// Méthode 1: Détection par pattern du chemin
+if (preg_match('#^(/home/clients/[^/]+/sites/[^/]+)/#', $documentRoot, $matches)) {
     $_ENV['INFOMANIAK_DOMAIN_ROOT'] = $matches[1];
-    $_ENV['IS_INFOMANIAK'] = 'true';
-    error_log("Détection automatique du chemin Infomaniak: " . $_ENV['INFOMANIAK_DOMAIN_ROOT']);
-    
+    $isInfomaniak = true;
+    error_log("Détection automatique du chemin Infomaniak (méthode 1): " . $_ENV['INFOMANIAK_DOMAIN_ROOT']);
+}
+// Méthode 2: Détection par nom d'hôte
+else if (strpos($currentHost, 'qualiopi.ch') !== false || strpos($currentHost, '.infomaniak.') !== false) {
+    $isInfomaniak = true;
+    $_ENV['INFOMANIAK_DOMAIN_ROOT'] = $documentRoot;
+    error_log("Détection Infomaniak par nom d'hôte (méthode 2): " . $documentRoot);
+}
+// Méthode 3: Vérification du chemin contenant '/sites/'
+else if (strpos($documentRoot, '/sites/') !== false) {
+    $isInfomaniak = true;
+    $_ENV['INFOMANIAK_DOMAIN_ROOT'] = preg_replace('#^(.*?/sites/[^/]+).*$#', '$1', $documentRoot);
+    error_log("Détection Infomaniak par structure de chemin (méthode 3): " . $_ENV['INFOMANIAK_DOMAIN_ROOT']);
+}
+
+// Configurer l'environnement Infomaniak
+$_ENV['IS_INFOMANIAK'] = $isInfomaniak ? 'true' : 'false';
+
+// Configuration des chemins en fonction de l'environnement
+if ($isInfomaniak) {
     // Configurer les chemins avec la bonne structure détectée
     $_ENV['ASSETS_PATH'] = '/assets';
     $_ENV['UPLOADS_PATH'] = '/lovable-uploads';
@@ -48,7 +68,6 @@ if ($isInfomaniak) {
     error_log("Infomaniak détecté: Chemins configurés: ASSETS=" . $_ENV['ASSETS_PATH'] . ", UPLOADS=" . $_ENV['UPLOADS_PATH']);
 } else {
     // Environnement local ou autre
-    $_ENV['IS_INFOMANIAK'] = 'false';
     $_ENV['ASSETS_PATH'] = '/assets';
     $_ENV['UPLOADS_PATH'] = '/lovable-uploads';
     

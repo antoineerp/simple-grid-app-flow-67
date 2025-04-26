@@ -18,7 +18,11 @@ function fixInfomaniakPath(path) {
 function isInfomaniakEnvironment() {
     // Détection basée sur le nom d'hôte
     const host = window.location.hostname;
-    return host === 'qualiopi.ch' || host.endsWith('.qualiopi.ch');
+    // Multiple detection methods
+    return host === 'qualiopi.ch' || 
+           host.endsWith('.qualiopi.ch') ||
+           host.indexOf('.infomaniak.') > -1 ||
+           document.documentElement.innerHTML.indexOf('/sites/') > -1;
 }
 
 // Fonction pour charger dynamiquement le script principal
@@ -26,9 +30,15 @@ function loadMainScript() {
     console.log("Index.js: Chargement du script principal...");
     console.log("Hostname détecté:", window.location.hostname);
     
+    // Forcer la détection Infomaniak par défaut pour qualiopi.ch
+    const forceInfomaniak = window.location.hostname === 'qualiopi.ch';
+    const isInfomaniak = forceInfomaniak || isInfomaniakEnvironment();
+    
+    console.log("Environnement Infomaniak détecté?", isInfomaniak ? "OUI" : "NON");
+    
     // Corriger tous les chemins d'assets qui pourraient être problématiques
-    if (isInfomaniakEnvironment()) {
-        console.log("Environnement Infomaniak détecté, correction des chemins...");
+    if (isInfomaniak) {
+        console.log("Application des corrections de chemin Infomaniak...");
         document.querySelectorAll('link[href], script[src], img[src]').forEach(el => {
             const attrName = el.hasAttribute('href') ? 'href' : 'src';
             const originalPath = el.getAttribute(attrName);

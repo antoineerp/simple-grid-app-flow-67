@@ -53,6 +53,10 @@ RewriteCond %{REQUEST_URI} \.(js|css|png|jpe?g|gif|svg|ico|webp|woff2?|ttf|eot|m
 RewriteCond %{REQUEST_FILENAME} -f
 RewriteRule ^ - [L]
 
+# Correction spécifique pour les chemins Infomaniak doublés
+RewriteCond %{REQUEST_URI} ^/sites/[^/]+/(assets/.+)$
+RewriteRule ^sites/[^/]+/(assets/.+)$ /$1 [L,R=301]
+
 # Rediriger toutes les autres requêtes vers index.html pour React Router
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
