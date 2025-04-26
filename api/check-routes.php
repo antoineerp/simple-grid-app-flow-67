@@ -45,59 +45,80 @@ function checkRoute($path, $options = []) {
     $fullUrl = $baseUrl . "/api/" . $path;
     $domain = get_url_domain($fullUrl);
     
-    // Créer un contexte pour la requête
-    $context = stream_context_create([
-        'http' => [
-            'ignore_errors' => true,
-            'timeout' => $options['timeout'],
-            'follow_location' => $options['followRedirects'] ? 1 : 0,
-            'max_redirects' => $options['maxRedirects'],
-            'header' => [
-                'User-Agent: RouteChecker/1.0',
-                'Connection: close'
-            ]
-        ],
-        'ssl' => [
-            'verify_peer' => $options['verifySSL'],
-            'verify_peer_name' => $options['verifySSL'],
-            'allow_self_signed' => !$options['verifySSL']
-        ]
-    ]);
+    // Vérifier si cURL est disponible
+    if (!function_exists('curl_init')) {
+        return [
+            'url' => $fullUrl,
+            'domain' => $domain,
+            'status' => null,
+            'exists' => false,
+            'response_code' => 0,
+            'error' => 'cURL n\'est pas disponible sur ce serveur',
+            'response_sample' => null
+        ];
+    }
     
-    // Capturer les erreurs avec un gestionnaire personnalisé
+    // Initialiser une session cURL
+    $ch = curl_init();
+    
+    // Configurer les options cURL
+    curl_setopt($ch, CURLOPT_URL, $fullUrl);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_TIMEOUT, $options['timeout']);
+    curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, $options['timeout']);
+    curl_setopt($ch, CURLOPT_HEADER, true);
+    curl_setopt($ch, CURLOPT_NOBODY, false);
+    
+    // Configuration SSL
+    if (!$options['verifySSL']) {
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
+    }
+    
+    // Suivre les redirections si demandé
+    if ($options['followRedirects']) {
+        curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+        curl_setopt($ch, CURLOPT_MAXREDIRS, $options['maxRedirects']);
+    }
+    
+    // Exécuter la requête cURL
+    $response = curl_exec($ch);
     $errorMessage = null;
-    set_error_handler(function($severity, $message, $file, $line) use (&$errorMessage) {
-        $errorMessage = $message;
-        return true;
-    });
     
-    // Essayer d'obtenir le contenu
-    $response = @file_get_contents($fullUrl, false, $context);
-    
-    // Restaurer le gestionnaire d'erreurs
-    restore_error_handler();
-    
-    // Obtenir les en-têtes de réponse
-    $status = isset($http_response_header[0]) ? $http_response_header[0] : null;
-    $responseCode = $status ? intval(substr($status, 9, 3)) : 0;
-    
-    // Vérifier si une erreur s'est produite
+    // Vérifier s'il y a eu une erreur cURL
     if ($response === false) {
-        // Formater le message d'erreur
-        if (strpos($errorMessage, "failed to open stream") !== false) {
-            if (strpos($errorMessage, "Connection refused") !== false) {
-                $errorDetail = "Connexion refusée";
-            } elseif (strpos($errorMessage, "Connection timed out") !== false) {
-                $errorDetail = "Délai de connexion dépassé";
-            } elseif (strpos($errorMessage, "Name or service not known") !== false) {
-                $errorDetail = "Nom de domaine non résolu";
-            } elseif (strpos($errorMessage, "certificate") !== false) {
-                $errorDetail = "Problème de certificat SSL";
-            } else {
-                $errorDetail = "Erreur de connexion";
-            }
+        $errorMessage = curl_error($ch);
+        $responseCode = 0;
+        $exists = false;
+        $status = null;
+        $responseSample = null;
+    } else {
+        // Obtenir le code de réponse HTTP
+        $responseCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $exists = $responseCode >= 200 && $responseCode < 400;
+        $status = "HTTP/1.1 " . $responseCode . " " . getHttpStatusText($responseCode);
+        
+        // Séparer les en-têtes et le corps de la réponse
+        $headerSize = curl_getinfo($ch, CURLINFO_HEADER_SIZE);
+        $responseBody = substr($response, $headerSize);
+        $responseSample = substr($responseBody, 0, 150) . (strlen($responseBody) > 150 ? '...' : '');
+    }
+    
+    // Fermer la session cURL
+    curl_close($ch);
+    
+    // Formater le message d'erreur pour l'uniformité avec la version précédente
+    if ($errorMessage) {
+        if (strpos($errorMessage, "Could not resolve host") !== false) {
+            $errorDetail = "Nom de domaine non résolu";
+        } elseif (strpos($errorMessage, "Connection refused") !== false) {
+            $errorDetail = "Connexion refusée";
+        } elseif (strpos($errorMessage, "Operation timed out") !== false) {
+            $errorDetail = "Délai de connexion dépassé";
+        } elseif (strpos($errorMessage, "SSL certificate") !== false) {
+            $errorDetail = "Problème de certificat SSL";
         } else {
-            $errorDetail = $errorMessage ? $errorMessage : "Erreur inconnue";
+            $errorDetail = "Erreur de connexion: " . $errorMessage;
         }
     } else {
         $errorDetail = null;
@@ -107,14 +128,86 @@ function checkRoute($path, $options = []) {
         'url' => $fullUrl,
         'domain' => $domain,
         'status' => $status,
-        'exists' => $response !== false && $responseCode >= 200 && $responseCode < 400,
+        'exists' => $exists,
         'response_code' => $responseCode,
         'error' => $errorDetail,
-        'response_sample' => $response !== false ? substr($response, 0, 150) . '...' : null
+        'response_sample' => $responseSample
     ];
 }
 
+// Fonction pour obtenir le texte du statut HTTP basé sur le code
+function getHttpStatusText($code) {
+    $statusTexts = [
+        100 => 'Continue',
+        101 => 'Switching Protocols',
+        200 => 'OK',
+        201 => 'Created',
+        202 => 'Accepted',
+        203 => 'Non-Authoritative Information',
+        204 => 'No Content',
+        205 => 'Reset Content',
+        206 => 'Partial Content',
+        300 => 'Multiple Choices',
+        301 => 'Moved Permanently',
+        302 => 'Found',
+        303 => 'See Other',
+        304 => 'Not Modified',
+        305 => 'Use Proxy',
+        307 => 'Temporary Redirect',
+        308 => 'Permanent Redirect',
+        400 => 'Bad Request',
+        401 => 'Unauthorized',
+        402 => 'Payment Required',
+        403 => 'Forbidden',
+        404 => 'Not Found',
+        405 => 'Method Not Allowed',
+        406 => 'Not Acceptable',
+        407 => 'Proxy Authentication Required',
+        408 => 'Request Timeout',
+        409 => 'Conflict',
+        410 => 'Gone',
+        411 => 'Length Required',
+        412 => 'Precondition Failed',
+        413 => 'Payload Too Large',
+        414 => 'URI Too Long',
+        415 => 'Unsupported Media Type',
+        416 => 'Range Not Satisfiable',
+        417 => 'Expectation Failed',
+        418 => 'I\'m a teapot',
+        422 => 'Unprocessable Entity',
+        425 => 'Too Early',
+        426 => 'Upgrade Required',
+        428 => 'Precondition Required',
+        429 => 'Too Many Requests',
+        431 => 'Request Header Fields Too Large',
+        451 => 'Unavailable For Legal Reasons',
+        500 => 'Internal Server Error',
+        501 => 'Not Implemented',
+        502 => 'Bad Gateway',
+        503 => 'Service Unavailable',
+        504 => 'Gateway Timeout',
+        505 => 'HTTP Version Not Supported',
+        506 => 'Variant Also Negotiates',
+        507 => 'Insufficient Storage',
+        508 => 'Loop Detected',
+        510 => 'Not Extended',
+        511 => 'Network Authentication Required',
+    ];
+    
+    return isset($statusTexts[$code]) ? $statusTexts[$code] : 'Unknown Status';
+}
+
 try {
+    // Vérifier si cURL est disponible
+    if (!function_exists('curl_init')) {
+        http_response_code(500);
+        echo json_encode([
+            'status' => 'error',
+            'message' => 'cURL n\'est pas disponible sur ce serveur, impossible de vérifier les routes'
+        ], JSON_PRETTY_PRINT);
+        exit;
+    }
+    
     // Récupérer les paramètres de requête
     $useCurrentDomain = isset($_GET['use_current_domain']) && ($_GET['use_current_domain'] === '1' || $_GET['use_current_domain'] === 'true');
     $customBaseUrl = isset($_GET['base_url']) ? $_GET['base_url'] : null;
