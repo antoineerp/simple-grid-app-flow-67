@@ -10,7 +10,9 @@ import { fr } from 'date-fns/locale';
 
 // Get the current logo from localStorage or return default
 export const getCurrentLogo = (): string => {
-  return localStorage.getItem('pdfLogo') || "/lovable-uploads/formacert-logo.png";
+  const storedLogo = localStorage.getItem('pdfLogo');
+  console.log('Logo stocké :', storedLogo ? storedLogo.substring(0, 50) + '...' : 'Pas de logo');
+  return storedLogo || "/lovable-uploads/formacert-logo.png";
 };
 
 // Format state to human-readable text
