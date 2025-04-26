@@ -1,4 +1,3 @@
-
 name: Deploy to Infomaniak
 
 on:
@@ -73,6 +72,22 @@ jobs:
         cp -v api/php.ini dist/api/ || echo "Attention: php.ini non trouvé"
         cp -v api/login-test.php dist/api/ || echo "Attention: login-test.php non trouvé"
         cp -v api/check-users.php dist/api/ || echo "Attention: check-users.php non trouvé"
+        
+        # Copier les fichiers de gestion des documents
+        cp -v api/documents-load.php dist/api/ || echo "Attention: documents-load.php non trouvé"
+        cp -v api/documents-sync.php dist/api/ || echo "Attention: documents-sync.php non trouvé"
+        
+        # Copier les fichiers de gestion des exigences
+        cp -v api/exigences-load.php dist/api/ || echo "Attention: exigences-load.php non trouvé"
+        cp -v api/exigences-sync.php dist/api/ || echo "Attention: exigences-sync.php non trouvé"
+        
+        # Copier les fichiers de gestion des membres
+        cp -v api/membres-load.php dist/api/ || echo "Attention: membres-load.php non trouvé"
+        cp -v api/membres-sync.php dist/api/ || echo "Attention: membres-sync.php non trouvé"
+        
+        # Copier les fichiers de gestion de la bibliothèque
+        cp -v api/bibliotheque-load.php dist/api/ || echo "Attention: bibliotheque-load.php non trouvé"
+        cp -v api/bibliotheque-sync.php dist/api/ || echo "Attention: bibliotheque-sync.php non trouvé"
         
         # Copier les fichiers de configuration
         cp -v api/config/env.php dist/api/config/ || echo "Attention: env.php non trouvé"
