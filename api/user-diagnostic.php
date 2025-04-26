@@ -24,7 +24,16 @@ function clean_output() {
     if (ob_get_level()) ob_clean();
 }
 
+// Démarrer un buffer de sortie
+ob_start();
+
 try {
+    // Créer le dossier operations s'il n'existe pas
+    if (!is_dir(__DIR__ . '/operations')) {
+        mkdir(__DIR__ . '/operations', 0755, true);
+        error_log("Dossier operations créé");
+    }
+    
     $result = [
         'status' => 'success',
         'message' => 'Diagnostic utilisateur exécuté avec succès',
@@ -76,4 +85,7 @@ try {
         'trace' => $e->getTraceAsString()
     ]);
 }
+
+// Fin du script : vidage du buffer
+ob_end_flush();
 ?>
