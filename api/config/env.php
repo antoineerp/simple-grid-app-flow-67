@@ -1,3 +1,4 @@
+
 <?php
 // Fichier de configuration d'environnement
 
@@ -129,7 +130,7 @@ if (!function_exists('getenv_custom')) {
 
 /**
  * Fonction optimisée pour ajuster les chemins en fonction de l'environnement Infomaniak
- * Vérifie l'existence du fichier avant de décider du chemin à utiliser
+ * Corrige les problèmes de chemins de fichiers, notamment pour les chemins doublés comme /sites/qualiopi.ch/
  */
 function adjustPathForInfomaniak($path) {
     // Détecter si nous sommes sur Infomaniak
@@ -139,6 +140,13 @@ function adjustPathForInfomaniak($path) {
         return $path; // Pas de modification en environnement non-Infomaniak
     }
     
+    // Corriger les chemins avec /sites/domain.com/ (chemins doublés)
+    if (preg_match('|^/sites/[^/]+/(.*)$|', $path, $matches)) {
+        $correctedPath = '/' . $matches[1];
+        error_log("Chemin corrigé: $path -> $correctedPath");
+        return $correctedPath;
+    }
+    
     // Chemins absolus commençant par /
     if (strpos($path, '/') === 0) {
         // Pour les assets et uploads
@@ -146,7 +154,6 @@ function adjustPathForInfomaniak($path) {
             // Vérifier d'abord le chemin direct
             $directPath = $_SERVER['DOCUMENT_ROOT'] . $path;
             if (file_exists($directPath)) {
-                error_log("Fichier trouvé sur chemin direct: " . $directPath);
                 return $path;
             }
             
@@ -155,13 +162,9 @@ function adjustPathForInfomaniak($path) {
                 $publicPath = '/public' . $path;
                 $fullPublicPath = $_SERVER['DOCUMENT_ROOT'] . $publicPath;
                 if (file_exists($fullPublicPath)) {
-                    error_log("Fichier upload trouvé sur chemin public: " . $fullPublicPath);
                     return $publicPath;
                 }
             }
-            
-            error_log("Fichier non trouvé sur les chemins standards. Utilisation du chemin par défaut: " . $path);
-            return $path;
         }
     }
     
