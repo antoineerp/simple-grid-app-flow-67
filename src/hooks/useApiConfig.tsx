@@ -78,7 +78,7 @@ export const useApiConfig = () => {
         variant: "destructive",
       });
       
-      console.info("Suggestion: testez l'API directement avec: " + getApiUrl() + "/json-test.php");
+      console.info("Suggestion: testez l'API directement avec: " + getApiUrl() + "/simple-json-test.php");
     } finally {
       setLoading(false);
     }
@@ -173,8 +173,10 @@ export const useApiConfig = () => {
   const testJsonFormat = async (): Promise<JsonTestResult> => {
     try {
       setLoading(true);
-      const response = await fetch(`${getApiUrl()}/json-test.php`);
+      const response = await fetch(`${getApiUrl()}/simple-json-test.php`);
       const text = await response.text();
+      
+      console.log("Réponse brute du test JSON:", text.substring(0, 300));
       
       try {
         JSON.parse(text);
@@ -183,6 +185,7 @@ export const useApiConfig = () => {
           description: "Le serveur répond avec du JSON valide",
         });
       } catch (e) {
+        console.error("Erreur de parsing JSON:", e);
         toast({
           title: "Test JSON échoué",
           description: "Le serveur ne répond pas avec du JSON valide",
@@ -192,6 +195,7 @@ export const useApiConfig = () => {
       
       return { success: true, response: text };
     } catch (error) {
+      console.error("Erreur de test JSON:", error);
       toast({
         title: "Erreur de connexion",
         description: error instanceof Error ? error.message : "Impossible de contacter le serveur",
