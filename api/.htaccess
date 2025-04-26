@@ -6,6 +6,22 @@ RewriteEngine On
 RewriteCond %{REQUEST_FILENAME} -f
 RewriteRule \.(php)$ - [L]
 
+# Protéger les répertoires sensibles
+<FilesMatch "(database\.php|db_config\.json|env\.php)$">
+    Order deny,allow
+    Deny from all
+</FilesMatch>
+
+# Protéger tous les sous-répertoires du dossier config
+<Directory ~ "config">
+    Options -Indexes
+    Order deny,allow
+    Deny from all
+</Directory>
+
+# Permettre l'accès au dossier config uniquement via les contrôleurs
+RewriteRule ^config/(.*)$ index.php [QSA,L]
+
 # Rediriger toutes les requêtes vers l'index.php sauf pour les fichiers existants
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
