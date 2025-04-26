@@ -30,17 +30,17 @@ export default defineConfig(({ mode }) => {
       outDir: 'dist',
       assetsDir: 'assets',
       minify: true,
-      sourcemap: false,
-      cssCodeSplit: false, // Génère un seul fichier CSS
+      sourcemap: mode === 'development',
+      manifest: true,
       rollupOptions: {
         input: {
           main: path.resolve(__dirname, 'index.html'),
         },
         output: {
           manualChunks: undefined,
-          entryFileNames: 'assets/[name]-[hash].js',
-          chunkFileNames: 'assets/[name]-[hash].js',
-          assetFileNames: 'assets/[name]-[hash].[ext]'
+          entryFileNames: 'assets/[name].[hash].js',
+          chunkFileNames: 'assets/[name].[hash].js',
+          assetFileNames: 'assets/[name].[hash].[ext]'
         }
       }
     },
