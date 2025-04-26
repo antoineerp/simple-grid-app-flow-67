@@ -4,10 +4,11 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2, RefreshCw, Database, AlertTriangle, ServerCrash, CheckCircle2, Table } from 'lucide-react';
+import { Loader2, RefreshCw, Database, AlertTriangle, ServerCrash, CheckCircle2, Table, Stethoscope } from 'lucide-react';
 import { useAdminDatabase } from '@/hooks/useAdminDatabase';
 import DatabaseConfig from './DatabaseConfig';
 import DatabaseGuide from './DatabaseGuide';
+import DatabaseDiagnostic from './DatabaseDiagnostic';
 import { getDatabaseConnectionCurrentUser } from '@/services';
 
 const DatabaseInfo = () => {
@@ -47,14 +48,19 @@ const DatabaseInfo = () => {
 
   return (
     <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-      <TabsList className="grid grid-cols-3 mb-4">
+      <TabsList className="grid grid-cols-4 mb-4">
         <TabsTrigger value="info">Informations</TabsTrigger>
+        <TabsTrigger value="diagnostic">Diagnostic</TabsTrigger>
         <TabsTrigger value="guide">Guide</TabsTrigger>
         <TabsTrigger value="config">Configuration</TabsTrigger>
       </TabsList>
       
       <TabsContent value="guide">
         <DatabaseGuide />
+      </TabsContent>
+      
+      <TabsContent value="diagnostic">
+        <DatabaseDiagnostic />
       </TabsContent>
       
       <TabsContent value="info">
@@ -84,6 +90,12 @@ const DatabaseInfo = () => {
                   Vérifiez la configuration de la base de données dans l'onglet "Configuration".
                   Consultez également le guide de configuration pour plus d'informations.
                 </p>
+                <div className="mt-3">
+                  <Button variant="outline" size="sm" onClick={() => setActiveTab("diagnostic")} className="flex items-center text-red-700">
+                    <Stethoscope className="h-3 w-3 mr-1" />
+                    Exécuter un diagnostic complet
+                  </Button>
+                </div>
               </div>
             )}
             

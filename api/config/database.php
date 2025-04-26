@@ -10,14 +10,18 @@ class Database {
     public $conn;
     public $connection_error = null;
     public $is_connected = false;
+    public $connection_source = null; // Pour tracer d'où vient la connexion
 
     // Constructeur qui charge la configuration
-    public function __construct() {
+    public function __construct($source = 'default') {
+        // Enregistrer la source de la connexion pour le débogage
+        $this->connection_source = $source;
+        
         // Chargement de la configuration depuis le fichier config
         $this->loadConfig();
         
-        // Journaliser l'initialisation
-        error_log("Database class initialized with: Host: {$this->host}, DB: {$this->db_name}, User: {$this->username}");
+        // Journaliser l'initialisation avec la source
+        error_log("Database class initialized from source '{$source}' with: Host: {$this->host}, DB: {$this->db_name}, User: {$this->username}");
     }
 
     // Charger la configuration depuis un fichier JSON
@@ -44,7 +48,7 @@ class Database {
                     if (isset($config['username'])) $this->username = $config['username'];
                     if (isset($config['password'])) $this->password = $config['password'];
                     
-                    error_log("Configuration chargée avec succès: Host: {$this->host}, DB: {$this->db_name}, User: {$this->username}");
+                    error_log("Configuration chargée avec succès depuis {$configFile}: Host: {$this->host}, DB: {$this->db_name}, User: {$this->username}");
                 } else {
                     error_log("Erreur JSON dans db_config.json: " . json_last_error_msg());
                     $this->connection_error = "Erreur de configuration JSON: " . json_last_error_msg();
@@ -102,8 +106,8 @@ class Database {
                 throw new Exception("Le mot de passe de base de données n'est pas configuré");
             }
             
-            // Journaliser la tentative de connexion
-            error_log("Tentative de connexion à la base de données - Host: {$this->host}, DB: {$this->db_name}, User: {$this->username}");
+            // Journaliser la tentative de connexion avec la source
+            error_log("Tentative de connexion à la base de données depuis '{$this->connection_source}' - Host: {$this->host}, DB: {$this->db_name}, User: {$this->username}");
             
             // Construire le DSN exactement comme dans la connexion directe qui fonctionne
             $dsn = "mysql:host=" . $this->host . ";dbname=" . $this->db_name . ";charset=utf8mb4";
@@ -123,11 +127,11 @@ class Database {
             // Marquer la connexion comme réussie
             $this->is_connected = true;
             
-            // Journaliser la connexion réussie
-            error_log("Connexion réussie à la base de données {$this->db_name}");
+            // Journaliser la connexion réussie avec la source
+            error_log("Connexion réussie à la base de données {$this->db_name} depuis '{$this->connection_source}'");
             
         } catch(PDOException $exception) {
-            $error_message = "Erreur de connexion à la base de données: " . $exception->getMessage();
+            $error_message = "Erreur de connexion à la base de données depuis '{$this->connection_source}': " . $exception->getMessage();
             error_log($error_message);
             $this->connection_error = $error_message;
             
@@ -145,7 +149,7 @@ class Database {
             $this->getConnection(false);
             return $this->is_connected;
         } catch (Exception $e) {
-            error_log("Test de connexion échoué: " . $e->getMessage());
+            error_log("Test de connexion échoué depuis '{$this->connection_source}': " . $e->getMessage());
             return false;
         }
     }
@@ -158,7 +162,8 @@ class Database {
             'username' => $this->username,
             'password' => '********', // Masqué pour des raisons de sécurité
             'is_connected' => $this->is_connected,
-            'error' => $this->connection_error
+            'error' => $this->connection_error,
+            'source' => $this->connection_source // Ajouter la source dans les infos de config
         ];
     }
 
@@ -175,6 +180,61 @@ class Database {
         $this->testConnection();
         
         return $success;
+    }
+
+    // Diagnostiquer les problèmes de connexion et retourner des informations détaillées
+    public function diagnoseConnection() {
+        error_log("Diagnostic de connexion exécuté depuis '{$this->connection_source}'");
+        $diagnostics = [
+            'timestamp' => date('Y-m-d H:i:s'),
+            'source' => $this->connection_source,
+            'config' => [
+                'host' => $this->host,
+                'db_name' => $this->db_name,
+                'username' => $this->username,
+                'password_set' => !empty($this->password)
+            ],
+            'connection_result' => null,
+            'error' => null,
+            'pdo_drivers' => PDO::getAvailableDrivers(),
+            'server_details' => [
+                'php_version' => phpversion(),
+                'server_name' => $_SERVER['SERVER_NAME'] ?? 'Inconnu',
+                'remote_addr' => $_SERVER['REMOTE_ADDR'] ?? 'Inconnu',
+                'request_uri' => $_SERVER['REQUEST_URI'] ?? 'Inconnu',
+                'script_name' => $_SERVER['SCRIPT_NAME'] ?? 'Inconnu',
+            ]
+        ];
+
+        try {
+            // Tester la connexion
+            $this->getConnection(false);
+            $diagnostics['connection_result'] = $this->is_connected;
+            $diagnostics['error'] = $this->connection_error;
+            
+            // Si connexion réussie, vérifier si les tables existent
+            if ($this->is_connected) {
+                // Lister les tables
+                $stmt = $this->conn->query("SHOW TABLES");
+                $tables = $stmt->fetchAll(PDO::FETCH_COLUMN);
+                $diagnostics['tables'] = $tables;
+                
+                // Vérifier si la table utilisateurs existe
+                $has_users_table = in_array('utilisateurs', $tables);
+                $diagnostics['has_users_table'] = $has_users_table;
+                
+                // Compter les utilisateurs si la table existe
+                if ($has_users_table) {
+                    $stmt = $this->conn->query("SELECT COUNT(*) FROM utilisateurs");
+                    $diagnostics['user_count'] = $stmt->fetchColumn();
+                }
+            }
+        } catch (Exception $e) {
+            $diagnostics['connection_result'] = false;
+            $diagnostics['error'] = $e->getMessage();
+        }
+        
+        return $diagnostics;
     }
 }
 ?>

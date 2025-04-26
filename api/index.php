@@ -19,27 +19,112 @@ header("Cache-Control: no-cache, no-store, must-revalidate");
 // Journalisation détaillée des requêtes
 error_log("API Request - Method: " . ($_SERVER['REQUEST_METHOD'] ?? 'UNDEFINED'));
 error_log("API Request - URI: " . ($_SERVER['REQUEST_URI'] ?? 'UNDEFINED'));
-error_log("API Request - Full Query: " . json_encode($_SERVER));
+error_log("API Request - Path: " . parse_url($_SERVER['REQUEST_URI'] ?? '', PHP_URL_PATH));
+error_log("API Request - Query: " . parse_url($_SERVER['REQUEST_URI'] ?? '', PHP_URL_QUERY));
+
+// Si c'est une requête OPTIONS (preflight), nous la terminons ici
+if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
+    http_response_code(200);
+    echo json_encode(['status' => 'success', 'message' => 'Preflight request accepted']);
+    exit;
+}
+
+// Fonction pour nettoyer les données UTF-8
+function cleanUTF8($input) {
+    if (is_string($input)) {
+        return mb_convert_encoding($input, 'UTF-8', 'UTF-8');
+    } elseif (is_array($input)) {
+        foreach ($input as $key => $value) {
+            $input[$key] = cleanUTF8($value);
+        }
+    }
+    return $input;
+}
+
+// Fonction de routage pour l'API
+function routeApi() {
+    $uri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
+    error_log("Routage API - URI traitée: {$uri}");
+    
+    // Extraire le chemin de l'API sans le préfixe /api
+    $path = preg_replace('/^\/api\/?/', '', $uri);
+    error_log("Routage API - Chemin traité: {$path}");
+    
+    // Router vers les différents endpoints
+    switch ($path) {
+        case '':
+        case '/':
+            // Point d'entrée principal de l'API
+            return diagnoseRequest();
+            
+        case 'database-diagnostic':
+        case 'db-diagnostic':
+            // Rediriger vers le diagnostic de base de données
+            require_once 'db-diagnostic.php';
+            exit;
+            
+        case 'utilisateurs':
+            // Rediriger vers le contrôleur d'utilisateurs
+            require_once 'utilisateurs.php';
+            exit;
+            
+        case 'database-test':
+            // Rediriger vers le test de base de données
+            require_once 'database-test.php';
+            exit;
+            
+        case 'db-connection-test':
+            // Rediriger vers le test de connexion
+            require_once 'db-connection-test.php';
+            exit;
+            
+        case 'check-users':
+            // Rediriger vers la vérification des utilisateurs
+            require_once 'check-users.php';
+            exit;
+            
+        default:
+            // Si aucun contrôleur n'est trouvé, renvoyer une erreur 404
+            http_response_code(404);
+            return [
+                'status' => 'error',
+                'message' => "Point de terminaison non trouvé: {$path}",
+                'request_uri' => $_SERVER['REQUEST_URI'],
+                'parsed_path' => $path
+            ];
+    }
+}
 
 // Fonction de diagnostic améliorée
 function diagnoseRequest() {
     return [
         'status' => 'success',
         'message' => 'Point de terminaison API principal',
+        'endpoints' => [
+            '/api' => 'Ce point d\'entrée - informations générales',
+            '/api/database-diagnostic' => 'Diagnostic complet de la base de données',
+            '/api/utilisateurs' => 'Gestion des utilisateurs',
+            '/api/database-test' => 'Test de connexion à la base de données',
+            '/api/check-users' => 'Vérification des utilisateurs'
+        ],
         'server_details' => [
             'php_version' => phpversion(),
             'method' => $_SERVER['REQUEST_METHOD'] ?? 'Non défini',
             'uri' => $_SERVER['REQUEST_URI'] ?? 'Non défini',
+            'parsed_uri' => parse_url($_SERVER['REQUEST_URI'] ?? '', PHP_URL_PATH),
             'timestamp' => date('Y-m-d H:i:s')
         ]
     ];
 }
 
 try {
-    // Route par défaut si aucun contrôleur spécifique n'est trouvé
-    $response = diagnoseRequest();
+    // Router la requête vers le bon contrôleur
+    $response = routeApi();
     
-    echo json_encode($response);
+    // Si le routage a renvoyé une réponse (et pas quitté via require), l'envoyer
+    if ($response) {
+        echo json_encode($response, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+    }
 } catch (Exception $e) {
     error_log("Erreur API : " . $e->getMessage());
     http_response_code(500);
