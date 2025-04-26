@@ -29,6 +29,7 @@ const UserManagement = ({ currentDatabaseUser, onUserConnect }: UserManagementPr
   const [connectionError, setConnectionError] = useState<string | null>(null);
   const [showPasswords, setShowPasswords] = useState<{[key: string]: boolean}>({});
   const [importingData, setImportingData] = useState(false);
+  const [deletingUserId, setDeletingUserId] = useState<number | null>(null);
 
   useEffect(() => {
     const lastError = getLastConnectionError();
@@ -91,6 +92,8 @@ const UserManagement = ({ currentDatabaseUser, onUserConnect }: UserManagementPr
       return;
     }
     
+    setDeletingUserId(userId);
+    
     try {
       const response = await fetch(`${getApiUrl()}/users`, {
         method: 'DELETE',
@@ -123,6 +126,8 @@ const UserManagement = ({ currentDatabaseUser, onUserConnect }: UserManagementPr
         description: "Impossible de supprimer l'utilisateur",
         variant: "destructive",
       });
+    } finally {
+      setDeletingUserId(null);
     }
   };
 
@@ -283,9 +288,13 @@ const UserManagement = ({ currentDatabaseUser, onUserConnect }: UserManagementPr
                           size="sm"
                           onClick={() => handleDeleteUser(user.id)}
                           className="text-red-500 hover:text-red-700"
-                          disabled={currentDatabaseUser === user.identifiant_technique}
+                          disabled={currentDatabaseUser === user.identifiant_technique || deletingUserId === user.id}
                         >
-                          <Trash className="h-4 w-4" />
+                          {deletingUserId === user.id ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <Trash className="h-4 w-4" />
+                          )}
                         </Button>
                       </div>
                     </TableCell>

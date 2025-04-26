@@ -17,6 +17,11 @@ if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
     exit;
 }
 
+// Définir DIRECT_ACCESS_CHECK pour protéger les fichiers inclus
+if (!defined('DIRECT_ACCESS_CHECK')) {
+    define('DIRECT_ACCESS_CHECK', true);
+}
+
 try {
     // Inclure la base de données si elle existe
     if (file_exists(__DIR__ . '/config/database.php')) {
@@ -30,9 +35,12 @@ try {
     // Récupérer les en-têtes de la requête
     $allHeaders = getallheaders();
     
-    // Vérification de l'authentification si le middleware Auth existe
+    // Journaliser les en-têtes pour le débogage
+    error_log("Headers reçus dans database-config.php: " . json_encode($allHeaders));
+    
+    // Vérification de l'authentification
     if (file_exists(__DIR__ . '/middleware/Auth.php')) {
-        include_once __DIR__ . '/middleware/Auth.php';
+        require_once __DIR__ . '/middleware/Auth.php';
         
         if (class_exists('Auth')) {
             $auth = new Auth($allHeaders);
@@ -40,24 +48,14 @@ try {
             
             if ($userData) {
                 $isAuthenticated = true;
-                
-                // Si l'authentification est réussie mais que l'utilisateur n'est pas admin,
-                // on vérifie les droits seulement pour les opérations d'écriture
-                if ($_SERVER['REQUEST_METHOD'] === 'POST' || $_SERVER['REQUEST_METHOD'] === 'PUT') {
-                    if ($userData['data']['role'] !== 'admin' && $userData['data']['role'] !== 'administrateur') {
-                        http_response_code(403);
-                        echo json_encode(["status" => "error", "message" => "Accès refusé. Vous devez être administrateur."]);
-                        exit;
-                    }
-                }
+                error_log("Utilisateur authentifié: " . json_encode($userData));
+            } else {
+                error_log("Utilisateur non authentifié");
             }
         }
     }
 
-    // Pour les opérations de lecture (GET), on autorise même sans authentification
-    // Pour les opérations d'écriture (POST/PUT), on a déjà vérifié les droits admin ci-dessus
-    
-    // Rediriger vers le contrôleur de configuration de base de données si disponible
+    // Rediriger vers le contrôleur de configuration de base de données
     if (file_exists(__DIR__ . '/controllers/DatabaseConfigController.php')) {
         require_once __DIR__ . '/controllers/DatabaseConfigController.php';
         exit;

@@ -1,6 +1,10 @@
 
 <?php
 require_once dirname(__DIR__) . '/BaseOperations.php';
+require_once __DIR__ . '/../../config/database.php';
+require_once __DIR__ . '/../../middleware/Auth.php';
+require_once __DIR__ . '/../../models/User.php';
+require_once __DIR__ . '/../../middleware/ResponseHandler.php';
 
 class UserDeleteOperations extends BaseOperations {
     public function handleDeleteRequest() {
