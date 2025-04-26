@@ -1,9 +1,11 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { getApiUrl } from '@/config/apiConfig';
+import { Button } from "@/components/ui/button";
 
 const ImageConfiguration = () => {
   const { toast } = useToast();
@@ -94,6 +96,29 @@ const ImageConfiguration = () => {
     await saveConfig('sidebarLinkUrl', url);
   };
 
+  const testPdfImage = () => {
+    // Tester l'image en ouvrant une petite fenêtre avec l'image
+    const win = window.open("", "_blank", "width=300,height=300");
+    if (win) {
+      win.document.write(`
+        <html>
+          <head><title>Test image PDF</title></head>
+          <body>
+            <h3>Image PDF actuelle:</h3>
+            <img src="${pdfLogo}" style="max-width:100%; max-height:200px;" />
+            <p>Cette image sera utilisée dans les documents PDF générés.</p>
+          </body>
+        </html>
+      `);
+    } else {
+      toast({
+        title: "Impossible d'ouvrir la fenêtre",
+        description: "Veuillez autoriser les popups pour ce site.",
+        variant: "destructive"
+      });
+    }
+  };
+
   if (isLoading) {
     return <div>Chargement des configurations...</div>;
   }
@@ -160,6 +185,16 @@ const ImageConfiguration = () => {
               accept="image/*"
               onChange={(event) => handleImageChange(event, 'pdf')}
             />
+            <Button 
+              variant="secondary" 
+              className="mt-2" 
+              onClick={testPdfImage}
+            >
+              Tester cette image
+            </Button>
+            <p className="text-sm text-muted-foreground mt-2">
+              Après avoir changé le logo, vous devrez peut-être vider le cache du navigateur ou vous déconnecter/reconnecter pour voir les changements dans les PDF générés.
+            </p>
           </div>
         </CardContent>
       </Card>

@@ -2,14 +2,31 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
+import { getApiUrl } from '@/config/apiConfig';
 
 /**
  * Unified PDF generation manager to ensure consistent functionality
  * across all PDF exports in the application
  */
 
-// Get the current logo from localStorage or return default
-export const getCurrentLogo = (): string => {
+// Récupère le logo actuel depuis la configuration globale ou utilise celui du localStorage en secours
+export const getCurrentLogo = async (): Promise<string> => {
+  try {
+    // D'abord essayer de récupérer depuis la configuration globale
+    const response = await fetch(`${getApiUrl()}/controllers/GlobalConfigController.php?key=pdfLogo`);
+    if (response.ok) {
+      const data = await response.json();
+      if (data.data?.value) {
+        // Mettre à jour le localStorage pour une utilisation future
+        localStorage.setItem('pdfLogo', data.data.value);
+        return data.data.value;
+      }
+    }
+  } catch (error) {
+    console.error("Erreur lors de la récupération du logo depuis la configuration globale:", error);
+  }
+  
+  // Fallback sur localStorage ou logo par défaut
   return localStorage.getItem('pdfLogo') || "/lovable-uploads/formacert-logo.png";
 };
 
@@ -32,15 +49,22 @@ export const formatResponsabilities = (responsabilites: { r: string[], a: string
   return result.trim();
 };
 
-const addStandardHeader = (doc: jsPDF, title: string) => {
+const addStandardHeader = async (doc: jsPDF, title: string) => {
   const pageWidth = doc.internal.pageSize.getWidth();
   const currentDate = format(new Date(), 'dd MMMM yyyy à HH:mm', { locale: fr });
   
-  // Add FormaCert logo
+  // Add FormaCert logo from global config
   try {
-    doc.addImage("/lovable-uploads/formacert-logo.png", 'PNG', 15, 10, 25, 25);
+    const logoUrl = await getCurrentLogo();
+    doc.addImage(logoUrl, 'PNG', 15, 10, 25, 25);
   } catch (error) {
     console.error("Erreur lors de l'ajout du logo:", error);
+    // Fallback to default logo if error
+    try {
+      doc.addImage("/lovable-uploads/formacert-logo.png", 'PNG', 15, 10, 25, 25);
+    } catch (secondError) {
+      console.error("Erreur lors de l'ajout du logo par défaut:", secondError);
+    }
   }
   
   // Add title - Centered
@@ -74,22 +98,23 @@ export const createAndDownloadPdf = (
   console.log("Début de la création du PDF:", filename);
   const doc = new jsPDF();
   
-  try {
-    const startY = addStandardHeader(doc, filename);
-    callback(doc, startY);
-    
-    console.log("Sauvegarde du PDF:", generateFilename(filename));
-    doc.save(generateFilename(filename));
-    console.log("PDF sauvegardé avec succès");
-  } catch (error) {
-    console.error("Erreur lors de la génération du PDF:", error);
-    try {
-      const pdfBlob = doc.output('blob');
-      const pdfUrl = URL.createObjectURL(pdfBlob);
-      window.open(pdfUrl, '_blank');
-      console.log("PDF ouvert dans une nouvelle fenêtre");
-    } catch (finalError) {
-      console.error("Échec de la génération du PDF:", finalError);
-    }
-  }
+  Promise.resolve(addStandardHeader(doc, filename))
+    .then(startY => {
+      callback(doc, startY);
+      
+      console.log("Sauvegarde du PDF:", generateFilename(filename));
+      doc.save(generateFilename(filename));
+      console.log("PDF sauvegardé avec succès");
+    })
+    .catch(error => {
+      console.error("Erreur lors de la génération du PDF:", error);
+      try {
+        const pdfBlob = doc.output('blob');
+        const pdfUrl = URL.createObjectURL(pdfBlob);
+        window.open(pdfUrl, '_blank');
+        console.log("PDF ouvert dans une nouvelle fenêtre");
+      } catch (finalError) {
+        console.error("Échec de la génération du PDF:", finalError);
+      }
+    });
 };
