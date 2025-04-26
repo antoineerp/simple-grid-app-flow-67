@@ -46,6 +46,8 @@ try {
         $db_config_path = __DIR__ . '/config/db_config.json';
         if (file_exists($db_config_path)) {
             $config_content = file_get_contents($db_config_path);
+            error_log("Contenu du fichier config: " . substr($config_content, 0, 50) . "...");
+            
             $db_config = json_decode($config_content, true);
             
             if ($db_config && isset($db_config['host']) && isset($db_config['db_name']) && isset($db_config['username']) && isset($db_config['password'])) {
@@ -129,7 +131,7 @@ try {
                     'host' => $database->host,
                     'db_name' => $database->db_name,
                     'username' => $database->username,
-                    'source' => $database->config_source
+                    'source' => $database->connection_source
                 ]
             ];
         } else {
