@@ -21,6 +21,25 @@ AddType image/svg+xml .svg
     Allow from all
 </FilesMatch>
 
+# Règles de réécriture spécifiques pour Infomaniak
+# Détection du chemin Infomaniak basé sur le document root
+RewriteCond %{DOCUMENT_ROOT} ^/home/clients/[^/]+/sites/[^/]+
+RewriteRule ^(.*)$ $1 [E=INFOMANIAK_PATH:1]
+
+# Traitement des ressources statiques - chemin alternatif pour Infomaniak
+RewriteCond %{ENV:INFOMANIAK_PATH} 1
+RewriteCond %{REQUEST_URI} ^/assets/(.*)$
+RewriteCond %{DOCUMENT_ROOT}/assets/%1 !-f
+RewriteCond %{DOCUMENT_ROOT}/sites/qualiopi.ch/assets/%1 -f
+RewriteRule ^assets/(.*)$ /sites/qualiopi.ch/assets/$1 [L]
+
+# Traitement des uploads - chemin alternatif pour Infomaniak
+RewriteCond %{ENV:INFOMANIAK_PATH} 1
+RewriteCond %{REQUEST_URI} ^/lovable-uploads/(.*)$
+RewriteCond %{DOCUMENT_ROOT}/lovable-uploads/%1 !-f
+RewriteCond %{DOCUMENT_ROOT}/sites/qualiopi.ch/public/lovable-uploads/%1 -f
+RewriteRule ^lovable-uploads/(.*)$ /sites/qualiopi.ch/public/lovable-uploads/$1 [L]
+
 # Traitement des ressources statiques
 RewriteCond %{REQUEST_URI} ^/lovable-uploads/
 RewriteRule ^lovable-uploads/(.*)$ public/lovable-uploads/$1 [L]

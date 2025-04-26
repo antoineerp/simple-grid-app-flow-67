@@ -39,7 +39,7 @@ header('Content-Type: text/html; charset=utf-8');
         echo "</table>";
         
         // Vérifier si nous sommes sur Infomaniak
-        $isInfomaniak = strpos($_SERVER['DOCUMENT_ROOT'] ?? '', '/sites/') !== false;
+        $isInfomaniak = strpos($_SERVER['DOCUMENT_ROOT'] ?? '', '/home/clients/') !== false;
         echo "<p>Détection Infomaniak: <strong>" . ($isInfomaniak ? '<span class="success">Oui</span>' : '<span class="warning">Non</span>') . "</strong></p>";
         
         // Tester les chemins courants
@@ -381,6 +381,43 @@ header('Content-Type: text/html; charset=utf-8');
         }
         
         echo "</table>";
+
+        // Test de la fonction adjustPathForInfomaniak
+        echo "<h3>Test de la fonction adjustPathForInfomaniak</h3>";
+        
+        // Inclure le fichier env.php pour accéder à la fonction
+        if (file_exists($_SERVER['DOCUMENT_ROOT'] . '/api/config/env.php')) {
+            require_once $_SERVER['DOCUMENT_ROOT'] . '/api/config/env.php';
+            
+            echo "<p>Fonction adjustPathForInfomaniak disponible: " . (function_exists('adjustPathForInfomaniak') ? '<span class="success">Oui</span>' : '<span class="error">Non</span>') . "</p>";
+            
+            if (function_exists('adjustPathForInfomaniak')) {
+                $pathTests = [
+                    '/assets/index.js' => 'Chemin d\'asset standard',
+                    '/lovable-uploads/formacert-logo.png' => 'Chemin de logo standard',
+                    '/sites/qualiopi.ch/assets/index.js' => 'Chemin d\'asset Infomaniak',
+                    '/sites/qualiopi.ch/public/lovable-uploads/formacert-logo.png' => 'Chemin de logo Infomaniak'
+                ];
+                
+                echo "<table>";
+                echo "<tr><th>Chemin d'origine</th><th>Description</th><th>Chemin ajusté</th></tr>";
+                
+                foreach ($pathTests as $path => $desc) {
+                    $adjustedPath = adjustPathForInfomaniak($path);
+                    $isAdjusted = $path !== $adjustedPath;
+                    
+                    echo "<tr>";
+                    echo "<td class='monospace'>$path</td>";
+                    echo "<td>$desc</td>";
+                    echo "<td class='monospace " . ($isAdjusted ? 'success' : '') . "'>$adjustedPath</td>";
+                    echo "</tr>";
+                }
+                
+                echo "</table>";
+            }
+        } else {
+            echo "<p class='error'>Le fichier env.php n'a pas pu être chargé.</p>";
+        }
         ?>
     </div>
     
@@ -461,6 +498,63 @@ header('Content-Type: text/html; charset=utf-8');
                 echo "<p class='error'>Ce fichier est manquant, ce qui peut causer des problèmes avec les réponses API.</p>";
             }
         }
+
+        // Nouvelle section: Test de la nouvelle configuration de chemins
+        echo "<h3>Test de détection automatique des chemins Infomaniak</h3>";
+        
+        // Essayer d'extraire le chemin Infomaniak
+        $documentRoot = $_SERVER['DOCUMENT_ROOT'] ?? '';
+        $detectedRoot = '';
+        
+        if (preg_match('#^(/home/clients/[^/]+/sites/[^/]+)/#', $documentRoot, $matches)) {
+            $detectedRoot = $matches[1];
+            echo "<p class='success'>Chemin Infomaniak détecté automatiquement: <span class='monospace'>{$detectedRoot}</span></p>";
+        } else {
+            echo "<p class='warning'>Impossible de détecter automatiquement le chemin Infomaniak à partir du document root: <span class='monospace'>{$documentRoot}</span></p>";
+        }
+
+        // Tester les assets avec les nouvelles règles de réécriture
+        echo "<h3>Test d'accès aux assets avec les nouvelles règles de réécriture</h3>";
+        
+        // Préparer un tableau d'URLs à tester
+        $testUrls = [
+            '/assets/index.js' => 'Asset JavaScript via chemin standard',
+            '/lovable-uploads/formacert-logo.png' => 'Logo via chemin standard'
+        ];
+        
+        echo "<table>";
+        echo "<tr><th>URL</th><th>Description</th><th>Statut</th><th>Taille de réponse</th></tr>";
+        
+        foreach ($testUrls as $url => $desc) {
+            $fullUrl = "http://" . $_SERVER['HTTP_HOST'] . $url;
+            
+            // Configurer cURL pour obtenir uniquement les en-têtes
+            $ch = curl_init($fullUrl);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_HEADER, true);
+            curl_setopt($ch, CURLOPT_NOBODY, true);
+            curl_setopt($ch, CURLOPT_TIMEOUT, 10);
+            $response = curl_exec($ch);
+            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            $contentLength = curl_getinfo($ch, CURLINFO_CONTENT_LENGTH_DOWNLOAD);
+            curl_close($ch);
+            
+            echo "<tr>";
+            echo "<td class='monospace'>$url</td>";
+            echo "<td>$desc</td>";
+            
+            if ($httpCode >= 200 && $httpCode < 300) {
+                echo "<td class='success'>$httpCode OK</td>";
+                echo "<td>" . ($contentLength > 0 ? $contentLength . " octets" : "Taille inconnue") . "</td>";
+            } else {
+                echo "<td class='error'>$httpCode Erreur</td>";
+                echo "<td>Pas de contenu</td>";
+            }
+            
+            echo "</tr>";
+        }
+        
+        echo "</table>";
         ?>
     </div>
     

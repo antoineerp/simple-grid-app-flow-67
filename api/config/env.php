@@ -30,14 +30,22 @@ $_ENV['API_URL_PROD'] = 'https://qualiopi.ch/api'; // URL sans www
 $_ENV['ALLOWED_ORIGIN_DEV'] = 'http://localhost:8080';
 $_ENV['ALLOWED_ORIGIN_PROD'] = 'https://qualiopi.ch'; // URL sans www
 
-// Configuration des chemins pour Infomaniak
-$_ENV['INFOMANIAK_SITE_ROOT'] = '/sites/qualiopi.ch';
-$_ENV['INFOMANIAK_DOMAIN_ROOT'] = '/home/clients/df8dceff557ccc0605d45e1581aa661b/sites/qualiopi.ch';
-$_ENV['INFOMANIAK_TEST_DOMAIN_ROOT'] = '/home/clients/df8dceff557ccc0605d45e1581aa661b/sites/test.qualiopi.ch';
-
-// Détection des chemins Infomaniak
+// Détecter automatiquement le chemin complet sur Infomaniak
 $documentRoot = $_SERVER['DOCUMENT_ROOT'] ?? '';
-$_ENV['IS_INFOMANIAK'] = (strpos($documentRoot, '/sites/') !== false) ? 'true' : 'false';
+$scriptFilename = $_SERVER['SCRIPT_FILENAME'] ?? '';
+
+// Déterminer le chemin d'installation sur Infomaniak
+if (preg_match('#^(/home/clients/[^/]+/sites/[^/]+)/#', $documentRoot, $matches)) {
+    $_ENV['INFOMANIAK_DOMAIN_ROOT'] = $matches[1];
+    $_ENV['IS_INFOMANIAK'] = 'true';
+    error_log("Détection automatique du chemin Infomaniak: " . $_ENV['INFOMANIAK_DOMAIN_ROOT']);
+} else {
+    // Configuration manuelle des chemins pour Infomaniak
+    $_ENV['INFOMANIAK_SITE_ROOT'] = '/sites/qualiopi.ch';
+    $_ENV['INFOMANIAK_DOMAIN_ROOT'] = '/home/clients/df8dceff557ccc0605d45e1581aa661b/sites/qualiopi.ch';
+    $_ENV['INFOMANIAK_TEST_DOMAIN_ROOT'] = '/home/clients/df8dceff557ccc0605d45e1581aa661b/sites/test.qualiopi.ch';
+    $_ENV['IS_INFOMANIAK'] = (strpos($documentRoot, '/home/clients/') !== false) ? 'true' : 'false';
+}
 
 // Journaliser l'environnement détecté en production (pour le débogage initial)
 if ($environment === 'production') {
@@ -46,6 +54,9 @@ if ($environment === 'production') {
     error_log("ALLOWED ORIGIN: " . $_ENV['ALLOWED_ORIGIN_PROD']);
     error_log("DOCUMENT_ROOT: " . $documentRoot);
     error_log("IS_INFOMANIAK: " . $_ENV['IS_INFOMANIAK']);
+    if (isset($_ENV['INFOMANIAK_DOMAIN_ROOT'])) {
+        error_log("INFOMANIAK_DOMAIN_ROOT (détecté auto): " . $_ENV['INFOMANIAK_DOMAIN_ROOT']);
+    }
     
     // Journaliser les informations sur les demandes de ressources statiques
     $uri = $_SERVER['REQUEST_URI'] ?? '';
@@ -170,12 +181,77 @@ if (!function_exists('getenv_custom')) {
     }
 }
 
-// Fonction pour ajuster les chemins en fonction de l'environnement Infomaniak
+/**
+ * Fonction améliorée pour ajuster les chemins en fonction de l'environnement Infomaniak
+ * Cette version utilise des détections plus précises et vérifie plusieurs chemins possibles
+ */
 function adjustPathForInfomaniak($path) {
-    // Si nous sommes sur Infomaniak et que le chemin ne commence pas par /sites/
-    if (env('IS_INFOMANIAK') === 'true' && strpos($path, '/sites/') !== 0) {
-        return env('INFOMANIAK_SITE_ROOT') . $path;
+    // Détecter si nous sommes sur Infomaniak
+    $isInfomaniak = env('IS_INFOMANIAK') === 'true';
+    
+    if (!$isInfomaniak) {
+        return $path; // Pas de modification en environnement non-Infomaniak
     }
+    
+    // Obtenir le chemin racine du domaine Infomaniak (auto-détecté ou configuré)
+    $infomaniakDomainRoot = env('INFOMANIAK_DOMAIN_ROOT', '');
+    
+    // Si le chemin commence déjà par le chemin racine, pas de modification nécessaire
+    if (strpos($path, $infomaniakDomainRoot) === 0) {
+        return $path;
+    }
+    
+    // Si le chemin commence par /sites/, il est déjà dans le format Infomaniak
+    if (strpos($path, '/sites/') === 0) {
+        return $path;
+    }
+    
+    // Si le chemin est un chemin absolu commençant par /
+    if (strpos($path, '/') === 0) {
+        // Pour les ressources statiques (assets, uploads)
+        if (strpos($path, '/assets/') === 0 || strpos($path, '/lovable-uploads/') === 0) {
+            // Essayer d'abord le chemin direct
+            $directPath = $_SERVER['DOCUMENT_ROOT'] . $path;
+            if (file_exists($directPath)) {
+                return $path;
+            }
+            
+            // Essayer ensuite avec le préfixe /sites/qualiopi.ch
+            $infoPath = $_SERVER['DOCUMENT_ROOT'] . '/sites/qualiopi.ch' . $path;
+            if (file_exists($infoPath)) {
+                return '/sites/qualiopi.ch' . $path;
+            }
+            
+            // Si le chemin direct contient public mais pas le chemin de base
+            if (strpos($path, '/public/') === false && strpos($path, '/lovable-uploads/') === 0) {
+                $publicPath = str_replace('/lovable-uploads/', '/public/lovable-uploads/', $path);
+                if (file_exists($_SERVER['DOCUMENT_ROOT'] . $publicPath)) {
+                    return $publicPath;
+                }
+            }
+        }
+    }
+    
+    // Par défaut, retourner le chemin inchangé
     return $path;
+}
+
+/**
+ * Fonction pour obtenir l'URL de base de l'application
+ */
+function getBaseUrl() {
+    $protocol = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on') ? "https" : "http";
+    $host = $_SERVER['HTTP_HOST'];
+    return $protocol . "://" . $host;
+}
+
+// Détecter les chemins des assets
+$_ENV['ASSETS_PATH'] = adjustPathForInfomaniak('/assets');
+$_ENV['UPLOADS_PATH'] = adjustPathForInfomaniak('/lovable-uploads');
+
+// Journaliser les chemins des assets en production
+if ($environment === 'production') {
+    error_log("ASSETS_PATH ajusté: " . $_ENV['ASSETS_PATH']);
+    error_log("UPLOADS_PATH ajusté: " . $_ENV['UPLOADS_PATH']);
 }
 ?>
