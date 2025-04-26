@@ -43,6 +43,8 @@ jobs:
         mkdir -p dist/api/middleware
         mkdir -p dist/api/models
         mkdir -p dist/api/utils
+        mkdir -p dist/api/operations
+        mkdir -p dist/api/operations/users
         mkdir -p dist/public/lovable-uploads
         
         # Ajout du fichier .htaccess à la racine
@@ -74,6 +76,15 @@ jobs:
         cp -v api/login-test.php dist/api/ || echo "Attention: login-test.php non trouvé"
         cp -v api/check-users.php dist/api/ || echo "Attention: check-users.php non trouvé"
         cp -v api/database-config.php dist/api/ || echo "Attention: database-config.php non trouvé"
+        cp -v api/users.php dist/api/ || echo "Attention: users.php non trouvé"
+        
+        # Copier les fichiers d'opérations
+        cp -v api/operations/BaseOperations.php dist/api/operations/ || echo "Attention: BaseOperations.php non trouvé"
+        cp -v api/operations/users/DeleteOperations.php dist/api/operations/users/ || echo "Attention: DeleteOperations.php non trouvé"
+        cp -v api/operations/users/GetOperations.php dist/api/operations/users/ || echo "Attention: GetOperations.php non trouvé"
+        cp -v api/operations/users/PostOperations.php dist/api/operations/users/ || echo "Attention: PostOperations.php non trouvé"
+        cp -v api/operations/users/PutOperations.php dist/api/operations/users/ || echo "Attention: PutOperations.php non trouvé"
+        cp -v api/operations/UserOperations.php dist/api/operations/ || echo "Attention: UserOperations.php non trouvé"
         
         # Copier les fichiers de gestion des documents
         cp -v api/documents-load.php dist/api/ || echo "Attention: documents-load.php non trouvé"
@@ -106,12 +117,14 @@ jobs:
         
         # Copier les middlewares
         cp -v api/middleware/Auth.php dist/api/middleware/ || echo "Attention: Auth.php middleware non trouvé"
+        cp -v api/middleware/ResponseHandler.php dist/api/middleware/ || echo "Attention: ResponseHandler.php middleware non trouvé"
         
         # Copier les modèles
         cp -v api/models/User.php dist/api/models/ || echo "Attention: User.php model non trouvé"
         
         # Copier les utilitaires
         cp -v api/utils/JwtHandler.php dist/api/utils/ || echo "Attention: JwtHandler.php non trouvé"
+        cp -v api/utils/ResponseHandler.php dist/api/utils/ || echo "Attention: ResponseHandler.php non trouvé"
         
     - name: Copy remaining application files
       run: |
@@ -119,6 +132,7 @@ jobs:
         cp -v deploy-on-infomaniak.php dist/ || echo "Attention: deploy-on-infomaniak.php non trouvé"
         cp -v verify-deploy.php dist/ || echo "Attention: verify-deploy.php non trouvé"
         cp -v deploy-check.php dist/ || echo "Attention: deploy-check.php non trouvé"
+        cp -v infomaniak-paths-check.php dist/ || echo "Attention: infomaniak-paths-check.php non trouvé"
         
         # Copier les fichiers uploads avec récursion
         cp -r public/lovable-uploads/* dist/public/lovable-uploads/ || echo "Aucun fichier d'upload trouvé"
@@ -157,10 +171,13 @@ jobs:
         ls -la dist/api/
         echo "API config files:"
         ls -la dist/api/config/
+        echo "API operations files:"
+        ls -la dist/api/operations/
+        echo "API operations/users files:"
+        ls -la dist/api/operations/users/
         echo "Public files:"
         ls -la dist/public/ || echo "No public folder"
         
-    # ----------- MODIFICATION ----------- #
     - name: Sync full dist folder to Infomaniak server
       uses: SamKirkland/FTP-Deploy-Action@v4.3.4
       with:
@@ -182,7 +199,6 @@ jobs:
         log-level: verbose
         timeout: 120000
         dry-run: false
-    # ----------- FIN MODIFICATION ----------- #
     
     - name: Post-deployment verification
       run: |
@@ -190,3 +206,5 @@ jobs:
         echo "Exécutez fix-assets-runtime.php sur votre serveur pour vérifier l'état du déploiement."
         echo "URL: https://qualiopi.ch/fix-assets-runtime.php"
         echo "Vérifiez également: https://qualiopi.ch/fix-index-references.php"
+        echo "Vérifiez les chemins avec: https://qualiopi.ch/infomaniak-paths-check.php"
+
