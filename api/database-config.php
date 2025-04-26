@@ -17,7 +17,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
     exit;
 }
 
-// Définir DIRECT_ACCESS_CHECK comme true pour permettre l'accès direct
+// Définir DIRECT_ACCESS_CHECK comme true pour permettre l'accès direct sans vérification
 define('DIRECT_ACCESS_CHECK', true);
 
 try {

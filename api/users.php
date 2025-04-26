@@ -143,6 +143,11 @@ try {
                 break;
             }
 
+            // S'assurer que la table existe
+            if (method_exists($user, 'createTableIfNotExists')) {
+                $user->createTableIfNotExists();
+            }
+
             // Assigner les valeurs à l'objet utilisateur
             $user->nom = $data->nom;
             $user->prenom = $data->prenom;

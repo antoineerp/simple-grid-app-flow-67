@@ -19,6 +19,9 @@ error_reporting(E_ALL);
 ini_set('log_errors', 1);
 ini_set('error_log', __DIR__ . '/php_errors.log');
 
+// Définir DIRECT_ACCESS_CHECK comme true pour permettre l'accès direct sans vérification
+define('DIRECT_ACCESS_CHECK', true);
+
 // Fonction pour nettoyer les données UTF-8
 if (!function_exists('cleanUTF8')) {
     function cleanUTF8($input) {
