@@ -1,3 +1,4 @@
+
 <?php
 // Forcer l'output buffering pour éviter tout output avant les headers
 ob_start();
@@ -51,6 +52,12 @@ function routeApi() {
     
     // Supprimer les slashs au début et à la fin pour une normalisation uniforme
     $path = trim($path, '/');
+    
+    // Traitement spécial pour index.php, le considérer comme la racine
+    if ($path === 'index.php') {
+        $path = '';
+        error_log("Routage API - Chemin normalisé vers la racine de l'API");
+    }
     
     // Router vers les différents endpoints
     switch ($path) {

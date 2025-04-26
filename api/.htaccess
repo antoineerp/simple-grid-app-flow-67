@@ -6,6 +6,9 @@ RewriteEngine On
 RewriteCond %{REQUEST_FILENAME} -f
 RewriteRule \.(php)$ - [L]
 
+# Traitement spécial pour les requêtes vers index.php - les rediriger vers la racine
+RewriteRule ^index\.php$ / [R=301,L]
+
 # Rediriger toutes les requêtes vers l'index.php sauf pour les fichiers existants
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
