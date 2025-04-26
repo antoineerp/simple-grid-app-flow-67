@@ -42,12 +42,12 @@ class UserService {
         throw new Error("Not authenticated");
       }
       
-      // Utiliser le point d'entrée spécifique aux utilisateurs
+      // Utiliser le nouveau point d'entrée "users"
       const currentApiUrl = getApiUrl();
-      console.log(`Récupération des utilisateurs depuis: ${currentApiUrl}/utilisateurs`);
+      console.log(`Récupération des utilisateurs depuis: ${currentApiUrl}/users`);
       
       // Essayer d'abord le endpoint principal
-      const response = await fetch(`${currentApiUrl}/utilisateurs`, {
+      const response = await fetch(`${currentApiUrl}/users`, {
         method: 'GET',
         headers: {
           ...getAuthHeaders(),
