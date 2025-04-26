@@ -29,6 +29,10 @@ RewriteCond %{ENV:REDIRECT_STATUS} ^$
 RewriteCond %{REQUEST_URI} ^/sites/[^/]+/(.*)$
 RewriteRule ^sites/[^/]+/(.*)$ /$1 [L,R=301]
 
+# Traitement spécial pour les requêtes API
+RewriteCond %{REQUEST_URI} ^/api/
+RewriteRule ^api/(.*)$ api/$1 [QSA,L]
+
 # Règles pour les assets
 RewriteCond %{REQUEST_URI} ^/assets/
 RewriteCond %{REQUEST_FILENAME} -f
@@ -44,11 +48,7 @@ RewriteRule ^lovable-uploads/(.*)$ /public/lovable-uploads/$1 [L]
 RewriteCond %{REQUEST_URI} ^/lovable-uploads/
 RewriteRule ^lovable-uploads/(.*)$ public/lovable-uploads/$1 [L]
 
-# Règle pour l'API - toutes les requêtes /api vers le dossier api
-RewriteRule ^api/?$ api/index.php [L]
-RewriteRule ^api/(.*)$ api/$1 [QSA,L]
-
-# Permettre l'accès direct aux autres ressources statiques
+# Permettre l'accès direct aux fichiers statiques
 RewriteCond %{REQUEST_URI} \.(js|css|png|jpe?g|gif|svg|ico|webp|woff2?|ttf|eot|map|tsx?)$
 RewriteCond %{REQUEST_FILENAME} -f
 RewriteRule ^ - [L]

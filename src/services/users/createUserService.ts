@@ -32,10 +32,9 @@ export const createUser = async (userData: CreateUserData) => {
   try {
     // Préparation de la requête
     const apiUrl = getApiUrl();
-    const url = `${apiUrl}/utilisateurs`;
+    const url = `${apiUrl}/users`;
     
     console.log(`Envoi de la requête à ${url}`);
-    const headers = getAuthHeaders();
     
     // Préparation des données
     const requestData = {
@@ -49,19 +48,16 @@ export const createUser = async (userData: CreateUserData) => {
     const response = await fetch(url, {
       method: 'POST',
       headers: {
-        ...headers,
+        ...getAuthHeaders(),
         'Content-Type': 'application/json',
         'Accept': 'application/json',
-        'Cache-Control': 'no-cache, no-store, must-revalidate',
-        'Pragma': 'no-cache',
-        'Expires': '0'
+        'Cache-Control': 'no-cache'
       },
       body: JSON.stringify(requestData),
       cache: 'no-store'
     });
     
     console.log("Statut de la réponse:", response.status, response.statusText);
-    console.log("Headers de réponse:", Object.fromEntries(response.headers.entries()));
     
     // Traitement de la réponse en texte d'abord
     const responseText = await response.text();
@@ -71,13 +67,6 @@ export const createUser = async (userData: CreateUserData) => {
     if (!responseText || responseText.trim() === '') {
       if (response.ok || response.status === 201) {
         // Si la réponse est vide mais le statut est OK, considérer comme un succès
-        
-        // Forcer un rechargement complet de la page après un court délai
-        console.log("Rechargement de la page prévu dans 2 secondes");
-        setTimeout(() => {
-          window.location.reload();
-        }, 2000);
-        
         return {
           success: true,
           identifiant_technique: identifiantTechnique,
@@ -93,15 +82,11 @@ export const createUser = async (userData: CreateUserData) => {
     try {
       const responseData = JSON.parse(responseText);
       
-      // Force un rechargement complet de la page après un court délai
-      console.log("Rechargement de la page prévu dans 2 secondes");
-      setTimeout(() => {
-        window.location.reload();
-      }, 2000);
-      
       // Gestion des erreurs HTTP
       if (!response.ok) {
-        throw new Error(responseData.message || `Erreur ${response.status}: ${response.statusText}`);
+        const errorMsg = responseData.message || `Erreur ${response.status}: ${response.statusText}`;
+        console.error("Erreur API:", errorMsg);
+        throw new Error(errorMsg);
       }
       
       // Succès avec réponse JSON
@@ -115,17 +100,12 @@ export const createUser = async (userData: CreateUserData) => {
       
       // Si la réponse semble être du HTML ou contient des erreurs PHP
       if (responseText.includes("<br />") || responseText.includes("Warning") || responseText.includes("Fatal error")) {
+        console.error("Réponse HTML/PHP détectée:", responseText.substring(0, 500));
         throw new Error("Erreur serveur PHP. Vérifiez les logs du serveur.");
       }
       
       // Si la réponse semble être un succès malgré le format incorrect
       if (response.ok || response.status === 201) {
-        // Force un rechargement de la page après un court délai
-        console.log("Rechargement de la page prévu dans 2 secondes");
-        setTimeout(() => {
-          window.location.reload();
-        }, 2000);
-        
         return {
           success: true,
           identifiant_technique: identifiantTechnique,
@@ -140,6 +120,7 @@ export const createUser = async (userData: CreateUserData) => {
     
     // Essayer de créer l'utilisateur via le endpoint de diagnostic en cas d'échec
     try {
+      console.log("Tentative de solution de secours via check-users");
       const diagnosticResult = await createUserViaDiagnostic({
         ...userData,
         identifiant_technique: identifiantTechnique
@@ -162,9 +143,7 @@ const createUserViaDiagnostic = async (userData: any) => {
     method: 'POST',
     headers: {
       ...getAuthHeaders(),
-      'Content-Type': 'application/json',
-      'Accept': 'application/json',
-      'Cache-Control': 'no-cache'
+      'Content-Type': 'application/json'
     },
     body: JSON.stringify(userData)
   });
@@ -174,11 +153,6 @@ const createUserViaDiagnostic = async (userData: any) => {
   }
   
   const result = await response.json();
-  
-  // Force un rechargement de la page après un court délai
-  setTimeout(() => {
-    window.location.reload();
-  }, 2000);
   
   return {
     ...result,
