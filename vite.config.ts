@@ -31,6 +31,7 @@ export default defineConfig(({ mode }) => {
       assetsDir: 'assets',
       minify: true,
       sourcemap: false,
+      cssCodeSplit: false, // Génère un seul fichier CSS
       rollupOptions: {
         input: {
           main: path.resolve(__dirname, 'index.html'),
@@ -40,11 +41,7 @@ export default defineConfig(({ mode }) => {
           entryFileNames: 'assets/[name]-[hash].js',
           chunkFileNames: 'assets/[name]-[hash].js',
           assetFileNames: 'assets/[name]-[hash].[ext]'
-        },
-        // Ignorer les assets externes qui ne sont pas disponibles au moment du build
-        external: [
-          // Lister ici les assets externes qui doivent être résolus au runtime
-        ]
+        }
       }
     },
     publicDir: 'public',
