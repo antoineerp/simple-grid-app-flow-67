@@ -1,3 +1,4 @@
+
 <?php
 // Forcer l'output buffering pour éviter tout output avant les headers
 ob_start();
@@ -72,7 +73,22 @@ function routeApi() {
         case 'database-diagnostic':
         case 'db-diagnostic':
             // Rediriger vers le diagnostic de base de données
-            require_once __DIR__ . '/database-diagnostic.php';
+            if (file_exists(__DIR__ . '/db-diagnostic.php')) {
+                require_once __DIR__ . '/db-diagnostic.php';
+            } else {
+                // Utiliser database-diagnostic.php comme alternative
+                require_once __DIR__ . '/database-diagnostic.php';
+            }
+            exit;
+            
+        case 'database-diagnostics':
+            // Rediriger vers le diagnostic alternatif si le fichier existe
+            if (file_exists(__DIR__ . '/database-diagnostics.php')) {
+                require_once __DIR__ . '/database-diagnostics.php';
+            } else {
+                // Utiliser database-diagnostic.php comme alternative
+                require_once __DIR__ . '/database-diagnostic.php';
+            }
             exit;
             
         case 'utilisateurs':
