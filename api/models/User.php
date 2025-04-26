@@ -20,6 +20,24 @@ class User extends BaseModel {
     public function __construct($db) {
         parent::__construct($db, 'utilisateurs');
     }
+    
+    public function readAll() {
+        try {
+            $this->createTableIfNotExists();
+            
+            $query = "SELECT id, nom, prenom, email, identifiant_technique, mot_de_passe, role, date_creation 
+                     FROM " . $this->table_name . " 
+                     ORDER BY id ASC";
+            
+            $stmt = $this->conn->prepare($query);
+            $stmt->execute();
+            
+            return $stmt;
+        } catch (PDOException $e) {
+            error_log("Erreur lors de la lecture des utilisateurs: " . $e->getMessage());
+            throw new Exception("Erreur lors de la lecture des utilisateurs: " . $e->getMessage());
+        }
+    }
 
     public function countUsersByRole($role) {
         try {
@@ -190,6 +208,45 @@ class User extends BaseModel {
         } catch (Exception $e) {
             error_log("Erreur lors de la copie des données $dataType: " . $e->getMessage());
             return false;
+        }
+    }
+    
+    public function create() {
+        try {
+            $this->createTableIfNotExists();
+            
+            // Préparer la requête d'insertion
+            $query = "INSERT INTO " . $this->table_name . "
+                      (nom, prenom, email, identifiant_technique, mot_de_passe, role)
+                      VALUES
+                      (:nom, :prenom, :email, :identifiant_technique, :mot_de_passe, :role)";
+            
+            // Préparer la déclaration
+            $stmt = $this->conn->prepare($query);
+            
+            // Nettoyer et lier les données
+            $this->nom = $this->sanitizeInput($this->nom);
+            $this->prenom = $this->sanitizeInput($this->prenom);
+            $this->email = $this->sanitizeInput($this->email);
+            $this->identifiant_technique = $this->sanitizeInput($this->identifiant_technique);
+            $this->role = $this->sanitizeInput($this->role);
+            
+            $stmt->bindParam(":nom", $this->nom);
+            $stmt->bindParam(":prenom", $this->prenom);
+            $stmt->bindParam(":email", $this->email);
+            $stmt->bindParam(":identifiant_technique", $this->identifiant_technique);
+            $stmt->bindParam(":mot_de_passe", $this->mot_de_passe);
+            $stmt->bindParam(":role", $this->role);
+            
+            // Exécuter la requête
+            if ($stmt->execute()) {
+                return true;
+            }
+            
+            return false;
+        } catch (PDOException $e) {
+            error_log("Erreur lors de la création de l'utilisateur: " . $e->getMessage());
+            throw new Exception("Erreur lors de la création de l'utilisateur: " . $e->getMessage());
         }
     }
 }

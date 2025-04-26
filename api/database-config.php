@@ -17,15 +17,16 @@ if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
     exit;
 }
 
-// Définir DIRECT_ACCESS_CHECK pour protéger les fichiers inclus
-if (!defined('DIRECT_ACCESS_CHECK')) {
-    define('DIRECT_ACCESS_CHECK', true);
-}
+// Suppression de la vérification DIRECT_ACCESS_CHECK qui cause l'erreur 403
+// et remplacement par une définition directe sans condition
+define('DIRECT_ACCESS_CHECK', true);
 
 try {
     // Inclure la base de données si elle existe
     if (file_exists(__DIR__ . '/config/database.php')) {
         require_once __DIR__ . '/config/database.php';
+    } else {
+        throw new Exception("Le fichier de configuration de la base de données est introuvable");
     }
 
     // Vérifier si l'utilisateur est authentifié avec un token valide
@@ -51,11 +52,12 @@ try {
                 error_log("Utilisateur authentifié: " . json_encode($userData));
             } else {
                 error_log("Utilisateur non authentifié");
+                // Continuer malgré l'absence d'authentification pour le débogage
             }
         }
     }
 
-    // Rediriger vers le contrôleur de configuration de base de données
+    // Rediriger vers le contrôleur de configuration de base de données s'il existe
     if (file_exists(__DIR__ . '/controllers/DatabaseConfigController.php')) {
         require_once __DIR__ . '/controllers/DatabaseConfigController.php';
         exit;
@@ -66,7 +68,9 @@ try {
     $config = $database->getConfig();
 
     // Masquer le mot de passe pour la sécurité
-    $config['password'] = '********';
+    if (isset($config['password'])) {
+        $config['password'] = '********';
+    }
 
     // Ajouter des informations supplémentaires sur la connexion
     $dbInfo = [
