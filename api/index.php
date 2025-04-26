@@ -5,7 +5,7 @@ ob_start();
 
 // Configuration stricte des erreurs
 error_reporting(E_ALL);
-ini_set('display_errors', 1);
+ini_set('display_errors', 0); // Ne pas afficher les erreurs dans la réponse
 ini_set('log_errors', 1);
 ini_set('error_log', __DIR__ . '/php_errors.log');
 
@@ -174,6 +174,9 @@ function diagnoseRequest() {
 }
 
 try {
+    // Assurer que nous n'avons pas de sortie avant les headers
+    ob_clean();
+
     // Router la requête vers le bon contrôleur
     $response = routeApi();
     
@@ -183,6 +186,10 @@ try {
     }
 } catch (Exception $e) {
     error_log("Erreur API : " . $e->getMessage());
+    
+    // Nettoyer toute sortie existante
+    if (ob_get_length()) ob_clean();
+    
     http_response_code(500);
     echo json_encode([
         'status' => 'error',
@@ -190,6 +197,7 @@ try {
         'error_details' => $e->getMessage()
     ]);
 } finally {
-    ob_end_flush();
+    // S'assurer que tout output est envoyé
+    if (ob_get_length()) ob_end_flush();
 }
 ?>

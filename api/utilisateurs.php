@@ -1,5 +1,8 @@
 
 <?php
+// Forcer l'output buffering pour éviter tout output avant les headers
+ob_start();
+
 // Fichier de redirection vers le contrôleur d'utilisateurs
 // Ce fichier est nécessaire pour gérer les requêtes API liées aux utilisateurs
 
@@ -20,21 +23,26 @@ if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
 // Journaliser l'appel
 error_log("API utilisateurs.php - Méthode: " . $_SERVER['REQUEST_METHOD'] . " - Requête: " . $_SERVER['REQUEST_URI']);
 
-// Vider le buffer de sortie pour éviter les problèmes
+// Nettoyer tout buffer de sortie existant
 if (ob_get_level()) ob_clean();
 
-// Inclure directement le contrôleur d'utilisateurs
-$userController = __DIR__ . '/controllers/UsersController.php';
-if (file_exists($userController)) {
-    require_once $userController;
-} else {
+try {
+    // Inclure directement le contrôleur d'utilisateurs
+    $userController = __DIR__ . '/controllers/UsersController.php';
+    if (file_exists($userController)) {
+        require_once $userController;
+    } else {
+        throw new Exception("Contrôleur d'utilisateurs non trouvé: $userController");
+    }
+} catch (Exception $e) {
+    // En cas d'erreur, envoyer une réponse JSON propre
+    error_log("Erreur dans utilisateurs.php: " . $e->getMessage());
     http_response_code(500);
     echo json_encode([
         'status' => 'error',
-        'message' => 'Contrôleur d\'utilisateurs non trouvé',
-        'path' => $userController,
-        'current_dir' => __DIR__,
-        'file_exists' => file_exists($userController)
+        'message' => $e->getMessage(),
+        'path' => $userController ?? 'undefined',
+        'current_dir' => __DIR__
     ]);
 }
 ?>

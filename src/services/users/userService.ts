@@ -51,6 +51,7 @@ class UserService {
         method: 'GET',
         headers: {
           ...getAuthHeaders(),
+          'Accept': 'application/json',
           'Cache-Control': 'no-cache, no-store, must-revalidate',
           'Pragma': 'no-cache',
           'Expires': '0'
@@ -58,32 +59,9 @@ class UserService {
       });
       
       if (!response.ok) {
+        console.warn(`Réponse non-OK: ${response.status} ${response.statusText}`);
         // Si le premier essai échoue, essayer avec le endpoint de diagnostic
-        console.log("Premier essai échoué, tentative avec /api/check-users");
-        const fallbackResponse = await fetch(`${currentApiUrl}/check-users`, {
-          method: 'GET',
-          headers: {
-            ...getAuthHeaders(),
-            'Cache-Control': 'no-cache, no-store, must-revalidate',
-            'Pragma': 'no-cache',
-            'Expires': '0'
-          }
-        });
-        
-        if (!fallbackResponse.ok) {
-          throw new Error(`HTTP error: ${fallbackResponse.status}`);
-        }
-        
-        const fallbackData = await fallbackResponse.json();
-        console.log("Données reçues du endpoint de diagnostic:", fallbackData);
-        
-        if (fallbackData && fallbackData.records && Array.isArray(fallbackData.records)) {
-          return fallbackData.records;
-        } else if (fallbackData && Array.isArray(fallbackData)) {
-          return fallbackData;
-        }
-        
-        throw new Error("Format de données invalide");
+        return await this.getUtilisateursFromDiagnostic();
       }
       
       // Traiter la réponse du endpoint principal
@@ -93,12 +71,20 @@ class UserService {
         throw new Error("Empty response from server");
       }
       
+      // Vérifier si la réponse ressemble à du PHP ou HTML (erreur)
+      if (responseText.includes('<?php') || responseText.includes('<br />') || responseText.includes('<!DOCTYPE')) {
+        console.error("La réponse contient du PHP/HTML au lieu de JSON:", responseText.substring(0, 200));
+        // Si nous avons reçu du PHP/HTML, utiliser le endpoint de diagnostic
+        return await this.getUtilisateursFromDiagnostic();
+      }
+      
       // Essayer de parser le JSON
       let data;
       try {
         data = JSON.parse(responseText);
       } catch (parseError) {
         console.error("Error parsing JSON:", parseError);
+        console.error("Response text (first 500 chars):", responseText.substring(0, 500));
         throw new Error("Invalid JSON response");
       }
       
@@ -113,10 +99,8 @@ class UserService {
       
       // Pas de données valides trouvées
       console.warn("Aucun utilisateur trouvé dans la réponse:", data);
-      
-      // Faire une dernière tentative avec le endpoint de diagnostic direct
-      console.log("Tentative avec /api/check-users");
       return await this.getUtilisateursFromDiagnostic();
+      
     } catch (error) {
       console.error("Error retrieving users:", error);
       // En cas d'erreur, essayer le endpoint de diagnostic
@@ -156,6 +140,7 @@ class UserService {
       method: 'GET',
       headers: {
         ...getAuthHeaders(),
+        'Accept': 'application/json',
         'Cache-Control': 'no-cache, no-store, must-revalidate',
         'Pragma': 'no-cache',
         'Expires': '0'
@@ -166,16 +151,24 @@ class UserService {
       throw new Error(`HTTP error from diagnostic: ${response.status}`);
     }
     
-    const data = await response.json();
-    console.log("Données reçues du diagnostic:", data);
-    
-    if (data && data.records && Array.isArray(data.records)) {
-      return data.records;
-    } else if (data && Array.isArray(data)) {
-      return data;
+    // Tester si la réponse est du JSON
+    const text = await response.text();
+    try {
+      const data = JSON.parse(text);
+      console.log("Données reçues du diagnostic:", data);
+      
+      if (data && data.records && Array.isArray(data.records)) {
+        return data.records;
+      } else if (data && Array.isArray(data)) {
+        return data;
+      }
+      
+      throw new Error("Format de données invalide du endpoint de diagnostic");
+    } catch (e) {
+      console.error("Erreur parsing JSON du diagnostic:", e);
+      console.error("Réponse brute:", text.substring(0, 500));
+      throw new Error("Format de réponse invalide du diagnostic");
     }
-    
-    throw new Error("Format de données invalide du endpoint de diagnostic");
   }
 }
 

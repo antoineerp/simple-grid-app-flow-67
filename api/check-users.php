@@ -1,9 +1,12 @@
 
 <?php
+// Forcer l'output buffering pour éviter tout output avant les headers
+ob_start();
+
 // Fichier pour vérifier l'état des utilisateurs dans la base de données
 header("Content-Type: application/json; charset=UTF-8");
 header("Access-Control-Allow-Origin: *");
-header("Access-Control-Allow-Methods: GET, OPTIONS");
+header("Access-Control-Allow-Methods: GET, OPTIONS, POST");
 header("Access-Control-Allow-Headers: Content-Type, Authorization");
 
 // Si c'est une requête OPTIONS (preflight), nous la terminons ici
@@ -125,5 +128,8 @@ try {
         'error' => $e->getMessage()
     ]);
     exit;
+} finally {
+    // S'assurer que nous avons terminé proprement
+    if (ob_get_level()) ob_end_clean();
 }
 ?>
