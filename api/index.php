@@ -1,3 +1,4 @@
+
 <?php
 // Forcer l'output buffering pour éviter tout output avant les headers
 ob_start();
@@ -109,6 +110,7 @@ function routeApi() {
             exit;
             
         case 'users':
+        case 'utilisateurs': // Ajouter un alias pour la compatibilité avec d'anciennes URLs
             // Rediriger vers le contrôleur d'utilisateurs
             require_once __DIR__ . '/users.php';
             exit;
@@ -157,7 +159,7 @@ function diagnoseRequest() {
             '/api/database-diagnostic' => 'Diagnostic complet de la base de données',
             '/api/db-diagnostic' => 'Diagnostic de base de données optimisé',
             '/api/db-info' => 'Informations simples de la base de données',
-            '/api/utilisateurs' => 'Gestion des utilisateurs',
+            '/api/users' => 'Gestion des utilisateurs',
             '/api/database-test' => 'Test de connexion à la base de données',
             '/api/check-users' => 'Vérification des utilisateurs',
             '/api/user-diagnostic' => 'Diagnostic des utilisateurs'
