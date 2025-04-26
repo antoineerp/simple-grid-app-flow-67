@@ -91,6 +91,11 @@ function routeApi() {
             }
             exit;
             
+        case 'db-info':
+            // Nouveau point d'entrée pour les informations de base de données
+            require_once __DIR__ . '/db-info.php';
+            exit;
+            
         case 'utilisateurs':
             // Rediriger vers le contrôleur d'utilisateurs
             require_once __DIR__ . '/utilisateurs.php';
@@ -109,6 +114,11 @@ function routeApi() {
         case 'check-users':
             // Rediriger vers la vérification des utilisateurs
             require_once __DIR__ . '/check-users.php';
+            exit;
+            
+        case 'user-diagnostic':
+            // Rediriger vers le diagnostic utilisateur
+            require_once __DIR__ . '/user-diagnostic.php';
             exit;
             
         default:
@@ -133,9 +143,11 @@ function diagnoseRequest() {
             '/api/diagnostic' => 'Diagnostic de l\'API et du serveur',
             '/api/diagnose' => 'Diagnostic complet du serveur',
             '/api/database-diagnostic' => 'Diagnostic complet de la base de données',
+            '/api/db-info' => 'Informations simples de la base de données',
             '/api/utilisateurs' => 'Gestion des utilisateurs',
             '/api/database-test' => 'Test de connexion à la base de données',
-            '/api/check-users' => 'Vérification des utilisateurs'
+            '/api/check-users' => 'Vérification des utilisateurs',
+            '/api/user-diagnostic' => 'Diagnostic des utilisateurs'
         ],
         'server_details' => [
             'php_version' => phpversion(),

@@ -16,14 +16,12 @@ if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
 // Journaliser l'exécution
 error_log("=== EXÉCUTION DE database-diagnostic.php ===");
 
-// Vérifier si le fichier db-diagnostic.php existe
-if (file_exists(__DIR__ . '/db-diagnostic.php')) {
-    require_once __DIR__ . '/db-diagnostic.php';
-    exit;
+// Cette fonction vérifie si la demande est authentifiée (basique, pour tests)
+function is_authenticated_request() {
+    // En production, on devrait vérifier un token JWT
+    // Pour le diagnostic, on accepte toutes les requêtes
+    return true;
 }
-
-// Si le fichier n'existe pas, nous fournissons un diagnostic basique
-require_once __DIR__ . '/config/database.php';
 
 // Fonction pour effectuer un diagnostic de base de données
 function performDatabaseDiagnostic() {
@@ -53,6 +51,38 @@ function performDatabaseDiagnostic() {
                 'user' => 'p71x6d_system'
             ]
         ];
+
+        // Collecter des informations sur la base de données
+        try {
+            // Obtenir la liste des tables
+            $tablesQuery = $pdo->query('SHOW TABLES');
+            $tables = $tablesQuery->fetchAll(PDO::FETCH_COLUMN);
+            
+            // Obtenir les statistiques de la base de données
+            $sizeQuery = $pdo->query("
+                SELECT 
+                    SUM(data_length + index_length) as total_size
+                FROM 
+                    information_schema.TABLES 
+                WHERE 
+                    table_schema = 'p71x6d_system'
+            ");
+            $sizeData = $sizeQuery->fetch(PDO::FETCH_ASSOC);
+            $totalSizeMB = round(($sizeData['total_size'] ?? 0) / (1024 * 1024), 2);
+            
+            $result['database_info'] = [
+                'tables_count' => count($tables),
+                'tables_list' => $tables,
+                'size_mb' => $totalSizeMB . ' MB',
+                'encoding' => 'utf8mb4',
+                'collation' => 'utf8mb4_unicode_ci',
+                'last_backup' => 'Inconnu'
+            ];
+        } catch (PDOException $e) {
+            $result['database_info'] = [
+                'error' => 'Erreur lors de la collecte des informations: ' . $e->getMessage()
+            ];
+        }
     } catch (PDOException $e) {
         $result['pdo_direct'] = [
             'status' => 'error',
@@ -61,100 +91,34 @@ function performDatabaseDiagnostic() {
         ];
     }
 
-    // Test avec la classe Database
-    try {
-        $db = new Database('diagnostic');
-        $connection = $db->getConnection();
-        
-        $result['database_class'] = [
-            'status' => $db->is_connected ? 'success' : 'error',
-            'message' => $db->is_connected ? 'Connexion via la classe Database réussie' : 'Échec de la connexion via la classe Database',
-            'config' => [
-                'host' => $db->host,
-                'db_name' => $db->db_name,
-                'username' => $db->username,
-                'source' => $db->connection_source
-            ]
-        ];
-        
-        if (!$db->is_connected && $db->connection_error) {
-            $result['database_class']['error'] = $db->connection_error;
-        }
-    } catch (Exception $e) {
-        $result['database_class'] = [
-            'status' => 'error',
-            'message' => 'Exception lors de l\'utilisation de la classe Database',
-            'error' => $e->getMessage()
-        ];
-    }
-
-    // Vérification du fichier de configuration
-    $configFile = __DIR__ . '/config/db_config.json';
-    $result['config_file'] = [
-        'status' => file_exists($configFile) ? 'success' : 'error',
-        'message' => file_exists($configFile) ? 'Fichier de configuration trouvé' : 'Fichier de configuration introuvable'
+    // Vérification des fichiers de configuration
+    $result['config_files'] = [
+        'database_php' => file_exists(__DIR__ . '/config/database.php'),
+        'db_config_json' => file_exists(__DIR__ . '/config/db_config.json'),
+        'env_php' => file_exists(__DIR__ . '/config/env.php')
     ];
-    
-    if (file_exists($configFile)) {
-        try {
-            $jsonContent = file_get_contents($configFile);
-            $config = json_decode($jsonContent, true);
-            
-            if (json_last_error() === JSON_ERROR_NONE) {
-                $result['config_file']['config'] = [
-                    'host' => $config['host'] ?? 'Non défini',
-                    'db_name' => $config['db_name'] ?? 'Non défini',
-                    'username' => $config['username'] ?? 'Non défini'
-                ];
-            } else {
-                $result['config_file']['error'] = 'Erreur JSON: ' . json_last_error_msg();
-            }
-        } catch (Exception $e) {
-            $result['config_file']['error'] = $e->getMessage();
-        }
-    }
 
-    // Vérification de cohérence des configurations
-    $result['config_consistency'] = [
-        'status' => 'info',
-        'is_consistent' => true,
-        'message' => 'Les configurations sont cohérentes'
-    ];
-    
-    if (isset($result['pdo_direct']['connection_info']) && isset($result['database_class']['config']) && isset($result['config_file']['config'])) {
-        $pdo_host = $result['pdo_direct']['connection_info']['host'];
-        $pdo_db = $result['pdo_direct']['connection_info']['database'];
-        $pdo_user = $result['pdo_direct']['connection_info']['user'];
-        
-        $db_host = $result['database_class']['config']['host'];
-        $db_name = $result['database_class']['config']['db_name'];
-        $db_user = $result['database_class']['config']['username'];
-        
-        $config_host = $result['config_file']['config']['host'];
-        $config_db = $result['config_file']['config']['db_name'];
-        $config_user = $result['config_file']['config']['username'];
-        
-        $host_consistent = ($pdo_host === $db_host && $db_host === $config_host);
-        $db_consistent = ($pdo_db === $db_name && $db_name === $config_db);
-        $user_consistent = ($pdo_user === $db_user && $db_user === $config_user);
-        
-        $result['config_consistency']['is_consistent'] = $host_consistent && $db_consistent && $user_consistent;
-        
-        if (!$result['config_consistency']['is_consistent']) {
-            $result['config_consistency']['status'] = 'warning';
-            $result['config_consistency']['message'] = 'Incohérences détectées entre les configurations';
-            $result['config_consistency']['differences'] = [
-                'host' => !$host_consistent ? 'Incohérence' : 'Cohérent',
-                'database' => !$db_consistent ? 'Incohérence' : 'Cohérent',
-                'username' => !$user_consistent ? 'Incohérence' : 'Cohérent'
-            ];
-        }
-    }
-    
     return $result;
 }
 
-// Exécution et réponse
-$diagnostic = performDatabaseDiagnostic();
-echo json_encode($diagnostic, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+// Vérifier l'authentification et répondre
+if (is_authenticated_request()) {
+    try {
+        $diagnostic = performDatabaseDiagnostic();
+        echo json_encode($diagnostic, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+    } catch (Exception $e) {
+        http_response_code(500);
+        echo json_encode([
+            'status' => 'error',
+            'message' => 'Erreur lors du diagnostic de la base de données',
+            'error' => $e->getMessage()
+        ], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+    }
+} else {
+    http_response_code(403);
+    echo json_encode([
+        'status' => 'error',
+        'message' => 'Accès non autorisé'
+    ], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+}
 ?>
