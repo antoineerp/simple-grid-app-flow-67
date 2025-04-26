@@ -9,24 +9,50 @@ class ConsistencyChecker {
             'differences' => []
         ];
         
-        // Vérifier la cohérence sur les champs clés
-        $fields = ['host', 'db_name', 'username'];
-        foreach ($fields as $field) {
-            $field2 = $field;
-            
-            // Adapter le nom du champ si nécessaire (config1 utilise db_name, config2 peut utiliser database)
-            if ($field === 'db_name' && !isset($config2['db_name']) && isset($config2['database'])) {
-                $field2 = 'database';
+        // Vérifier si les configurations sont vides ou invalides
+        if (empty($config1) || empty($config2)) {
+            $result['is_consistent'] = false;
+            $result['status'] = 'error';
+            $result['message'] = 'Une ou les deux configurations sont vides ou invalides';
+            return $result;
+        }
+        
+        // Normaliser les noms de champs pour la comparaison
+        $fieldMappings = [
+            'db_name' => ['db_name', 'database', 'dbname'],
+            'host' => ['host', 'hostname', 'server'],
+            'username' => ['username', 'user', 'uid']
+        ];
+        
+        // Vérifier la cohérence sur les champs clés avec différents noms possibles
+        foreach ($fieldMappings as $fieldKey => $possibleNames) {
+            // Trouver la valeur dans config1
+            $value1 = null;
+            foreach ($possibleNames as $name) {
+                if (isset($config1[$name])) {
+                    $value1 = $config1[$name];
+                    break;
+                }
             }
             
-            if (isset($config1[$field]) && isset($config2[$field2]) && $config1[$field] !== $config2[$field2]) {
+            // Trouver la valeur dans config2
+            $value2 = null;
+            foreach ($possibleNames as $name) {
+                if (isset($config2[$name])) {
+                    $value2 = $config2[$name];
+                    break;
+                }
+            }
+            
+            // Si les deux valeurs sont définies et différentes, enregistrer la différence
+            if ($value1 !== null && $value2 !== null && $value1 !== $value2) {
                 $result['is_consistent'] = false;
                 $result['status'] = 'warning';
                 $result['message'] = 'Différences trouvées entre les configurations';
                 
-                // Récupérer la différence
-                $field_name = ($field === 'db_name') ? 'database' : $field;
-                $result['differences'][$field_name] = "Config 1: {$config1[$field]}, Config 2: {$config2[$field2]}";
+                // Récupérer la différence avec des noms normalisés pour l'affichage
+                $displayName = ($fieldKey === 'db_name') ? 'database' : $fieldKey;
+                $result['differences'][$displayName] = "Config 1: {$value1}, Config 2: {$value2}";
             }
         }
         
