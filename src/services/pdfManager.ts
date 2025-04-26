@@ -1,4 +1,3 @@
-
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { format } from 'date-fns';
@@ -8,6 +7,11 @@ import { fr } from 'date-fns/locale';
  * Unified PDF generation manager to ensure consistent functionality
  * across all PDF exports in the application
  */
+
+// Get the current logo from localStorage or return default
+export const getCurrentLogo = (): string => {
+  return localStorage.getItem('pdfLogo') || "/lovable-uploads/formacert-logo.png";
+};
 
 // Format state to human-readable text
 export const formatState = (state: string | null | boolean): string => {
@@ -28,27 +32,15 @@ export const formatResponsabilities = (responsabilites: { r: string[], a: string
   return result.trim();
 };
 
-// Utilise le logo sauvegardé localement
-export const getCurrentLogo = (): string => {
-  return localStorage.getItem('pdfLogo') || "/lovable-uploads/formacert-logo.png";
-};
-
-const addStandardHeader = async (doc: jsPDF, title: string) => {
+const addStandardHeader = (doc: jsPDF, title: string) => {
   const pageWidth = doc.internal.pageSize.getWidth();
   const currentDate = format(new Date(), 'dd MMMM yyyy à HH:mm', { locale: fr });
   
   // Add FormaCert logo
   try {
-    const logoUrl = getCurrentLogo();
-    doc.addImage(logoUrl, 'AUTO', 15, 10, 25, 25);
+    doc.addImage("/lovable-uploads/formacert-logo.png", 'PNG', 15, 10, 25, 25);
   } catch (error) {
     console.error("Erreur lors de l'ajout du logo:", error);
-    // Fallback to default logo if error
-    try {
-      doc.addImage("/lovable-uploads/formacert-logo.png", 'PNG', 15, 10, 25, 25);
-    } catch (secondError) {
-      console.error("Erreur lors de l'ajout du logo par défaut:", secondError);
-    }
   }
   
   // Add title - Centered
@@ -82,23 +74,22 @@ export const createAndDownloadPdf = (
   console.log("Début de la création du PDF:", filename);
   const doc = new jsPDF();
   
-  Promise.resolve(addStandardHeader(doc, filename))
-    .then(startY => {
-      callback(doc, startY);
-      
-      console.log("Sauvegarde du PDF:", generateFilename(filename));
-      doc.save(generateFilename(filename));
-      console.log("PDF sauvegardé avec succès");
-    })
-    .catch(error => {
-      console.error("Erreur lors de la génération du PDF:", error);
-      try {
-        const pdfBlob = doc.output('blob');
-        const pdfUrl = URL.createObjectURL(pdfBlob);
-        window.open(pdfUrl, '_blank');
-        console.log("PDF ouvert dans une nouvelle fenêtre");
-      } catch (finalError) {
-        console.error("Échec de la génération du PDF:", finalError);
-      }
-    });
+  try {
+    const startY = addStandardHeader(doc, filename);
+    callback(doc, startY);
+    
+    console.log("Sauvegarde du PDF:", generateFilename(filename));
+    doc.save(generateFilename(filename));
+    console.log("PDF sauvegardé avec succès");
+  } catch (error) {
+    console.error("Erreur lors de la génération du PDF:", error);
+    try {
+      const pdfBlob = doc.output('blob');
+      const pdfUrl = URL.createObjectURL(pdfBlob);
+      window.open(pdfUrl, '_blank');
+      console.log("PDF ouvert dans une nouvelle fenêtre");
+    } catch (finalError) {
+      console.error("Échec de la génération du PDF:", finalError);
+    }
+  }
 };
