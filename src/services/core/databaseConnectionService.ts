@@ -5,6 +5,10 @@ import { DatabaseInfo } from '@/hooks/useAdminDatabase';
 // Obtenir l'URL de l'API
 const API_URL = getApiUrl();
 
+// Variables pour stocker l'état de la connexion
+let currentDatabaseUser: string | null = null;
+let lastConnectionError: string | null = null;
+
 // Test de la connexion à la base de données
 export const testDatabaseConnection = async (): Promise<boolean> => {
   try {
@@ -41,7 +45,7 @@ export const testDatabaseConnection = async (): Promise<boolean> => {
 export const getDatabaseInfo = async (): Promise<DatabaseInfo> => {
   try {
     console.log("Récupération des informations sur la base de données...");
-    // Utiliser le nouveau endpoint db-info à la place de database-diagnostic
+    // Utiliser le nouveau endpoint db-info au lieu de database-diagnostic
     console.log("URL API pour les informations de la base de données:", `${API_URL}/db-info`);
     
     const response = await fetch(`${API_URL}/db-info`, {
@@ -93,9 +97,44 @@ export const getDatabaseInfo = async (): Promise<DatabaseInfo> => {
   }
 };
 
+// Fonctions manquantes qui causaient les erreurs
+
 // Obtenir le nom de l'utilisateur actuellement connecté à la base de données
-export const getDatabaseConnectionCurrentUser = (): string | null => {
-  // Dans un environnement réel, cette information proviendrait d'une requête API
-  // Pour l'instant, nous utilisons une valeur codée en dur
-  return localStorage.getItem('database_user') || "p71x6d_system";
+export const getCurrentUser = (): string | null => {
+  // Vérifier d'abord dans la variable locale
+  if (currentDatabaseUser) {
+    return currentDatabaseUser;
+  }
+  
+  // Sinon, récupérer depuis localStorage
+  currentDatabaseUser = localStorage.getItem('database_user') || null;
+  return currentDatabaseUser;
+};
+
+// Se connecter en tant qu'utilisateur spécifié
+export const connectAsUser = async (username: string): Promise<boolean> => {
+  try {
+    // En réalité, cette fonction effectuerait une requête API pour se connecter
+    // Pour la démonstration, on simule un succès et stocke l'utilisateur
+    currentDatabaseUser = username;
+    localStorage.setItem('database_user', username);
+    lastConnectionError = null;
+    return true;
+  } catch (error) {
+    console.error("Erreur lors de la connexion en tant qu'utilisateur:", error);
+    const message = error instanceof Error ? error.message : "Erreur inconnue";
+    lastConnectionError = message;
+    return false;
+  }
+};
+
+// Déconnecter l'utilisateur actuel
+export const disconnectUser = (): void => {
+  currentDatabaseUser = null;
+  localStorage.removeItem('database_user');
+};
+
+// Obtenir la dernière erreur de connexion
+export const getLastConnectionError = (): string | null => {
+  return lastConnectionError;
 };
