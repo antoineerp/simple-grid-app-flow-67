@@ -19,15 +19,39 @@ const DatabaseDiagnostic = () => {
     
     try {
       const apiUrl = getApiUrl();
-      const response = await fetch(`${apiUrl}/db-diagnostic.php`);
+      console.log(`Exécution du diagnostic de BDD depuis: ${apiUrl}/db-diagnostic.php`);
+      
+      const response = await fetch(`${apiUrl}/db-diagnostic.php`, {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+          'Cache-Control': 'no-cache, no-store, must-revalidate'
+        }
+      });
+      
+      console.log("Statut de la réponse:", response.status);
       
       if (!response.ok) {
-        throw new Error(`Erreur HTTP: ${response.status} - ${await response.text()}`);
+        const errorText = await response.text();
+        console.error("Erreur de réponse:", errorText);
+        throw new Error(`Erreur HTTP: ${response.status} - ${errorText.substring(0, 200)}`);
       }
       
-      const data = await response.json();
-      console.log("Diagnostic response:", data);
-      setDiagnosticResult(data);
+      const responseText = await response.text();
+      console.log("Réponse brute (début):", responseText.substring(0, 200));
+      
+      if (!responseText.trim()) {
+        throw new Error("Réponse vide du serveur");
+      }
+      
+      try {
+        const data = JSON.parse(responseText);
+        console.log("Diagnostic complet:", data);
+        setDiagnosticResult(data);
+      } catch (jsonError) {
+        console.error("Erreur de parsing JSON:", jsonError, "Texte reçu:", responseText.substring(0, 200));
+        throw new Error(`La réponse n'est pas un JSON valide: ${responseText.substring(0, 100)}...`);
+      }
     } catch (err) {
       console.error("Erreur pendant le diagnostic:", err);
       const message = err instanceof Error ? err.message : 'Erreur inconnue';

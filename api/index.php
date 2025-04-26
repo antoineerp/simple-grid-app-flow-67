@@ -83,14 +83,14 @@ function routeApi() {
             exit;
         
         case 'database-diagnostic':
+            // Rediriger vers le diagnostic de base de données (fichier principal)
+            require_once __DIR__ . '/database-diagnostic.php';
+            exit;
+            
         case 'db-diagnostic':
-            // Rediriger vers le diagnostic de base de données
-            if (file_exists(__DIR__ . '/db-diagnostic.php')) {
-                require_once __DIR__ . '/db-diagnostic.php';
-            } else {
-                // Utiliser database-diagnostic.php comme alternative
-                require_once __DIR__ . '/database-diagnostic.php';
-            }
+        case 'db-diagnostic.php':
+            // Rediriger vers notre fichier db-diagnostic optimisé
+            require_once __DIR__ . '/db-diagnostic.php';
             exit;
             
         case 'database-diagnostics':
@@ -156,6 +156,7 @@ function diagnoseRequest() {
             '/api/diagnostic' => 'Diagnostic de l\'API et du serveur',
             '/api/diagnose' => 'Diagnostic complet du serveur',
             '/api/database-diagnostic' => 'Diagnostic complet de la base de données',
+            '/api/db-diagnostic' => 'Diagnostic de base de données optimisé',
             '/api/db-info' => 'Informations simples de la base de données',
             '/api/utilisateurs' => 'Gestion des utilisateurs',
             '/api/database-test' => 'Test de connexion à la base de données',
