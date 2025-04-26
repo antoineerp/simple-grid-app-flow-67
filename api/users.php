@@ -13,12 +13,12 @@ header("Cache-Control: no-cache, no-store, must-revalidate");
 // Si c'est une requête OPTIONS (preflight), nous la terminons ici
 if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
     http_response_code(200);
-    echo json_encode(['status' => 200, 'message' => 'Preflight OK']);
+    echo json_encode(['status' => 'success', 'message' => 'Preflight OK']);
     exit;
 }
 
 // Journaliser l'appel
-error_log("API utilisateurs.php - Méthode: " . $_SERVER['REQUEST_METHOD'] . " - Requête: " . $_SERVER['REQUEST_URI']);
+error_log("API users.php - Méthode: " . $_SERVER['REQUEST_METHOD'] . " - Requête: " . $_SERVER['REQUEST_URI']);
 
 // Nettoyer tout buffer de sortie existant
 if (ob_get_level()) ob_clean();
@@ -40,7 +40,7 @@ try {
     
     // Si nous arrivons ici sans avoir envoyé de réponse, c'est une erreur
     if (!headers_sent()) {
-        error_log("API utilisateurs.php - Aucune réponse envoyée par le contrôleur");
+        error_log("API users.php - Aucune réponse envoyée par le contrôleur");
         http_response_code(500);
         echo json_encode([
             'status' => 'error',
@@ -52,7 +52,7 @@ try {
     if (ob_get_level()) ob_clean();
     
     // En cas d'erreur, envoyer une réponse JSON propre
-    error_log("Erreur dans utilisateurs.php: " . $e->getMessage());
+    error_log("Erreur dans users.php: " . $e->getMessage());
     
     // S'assurer que les en-têtes sont correctement définis
     if (!headers_sent()) {
