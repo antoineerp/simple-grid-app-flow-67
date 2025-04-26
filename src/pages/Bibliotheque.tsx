@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { FileText, Pencil, Trash, ChevronDown, FolderPlus, GripVertical, ExternalLink, CloudSun } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
@@ -132,8 +131,8 @@ const Bibliotheque = () => {
     <div className="p-8">
       <div className="flex items-center justify-between mb-2">
         <div>
-          <h1 className="text-3xl font-bold text-app-blue">Bibliothèque</h1>
-          <p className="text-gray-600">Gestion des documents administratifs</p>
+          <h1 className="text-3xl font-bold text-app-blue">Collaboration</h1>
+          <p className="text-gray-600">Gestion des documents partagés</p>
         </div>
         <div className="flex space-x-2">
           <button 

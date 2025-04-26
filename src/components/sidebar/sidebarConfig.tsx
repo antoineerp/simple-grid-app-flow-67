@@ -1,5 +1,5 @@
 
-import { BarChart2, FileCheck, FileText, Users, BookOpen } from 'lucide-react';
+import { BarChart2, FileCheck, FileText, Users, Handshake } from 'lucide-react';
 
 export interface NavItem {
   path: string;
@@ -29,8 +29,8 @@ export const navigationItems: NavItem[] = [
     label: 'Ressources Humaines'
   },
   {
-    path: '/bibliotheque',
-    icon: BookOpen,
-    label: 'Bibliothèque'
+    path: '/collaboration',
+    icon: Handshake,
+    label: 'Collaboration'
   }
 ];
