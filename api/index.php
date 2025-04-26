@@ -1,4 +1,3 @@
-
 <?php
 // Forcer l'output buffering pour éviter tout output avant les headers
 ob_start();
@@ -207,6 +206,13 @@ function routeApi() {
             require_once __DIR__ . '/bibliotheque-sync.php';
             exit;
             
+        case 'check-routes':
+        case 'verifier-routes':
+        case 'routes-check':
+            // Nouvel endpoint pour vérifier les routes
+            require_once __DIR__ . '/check-routes.php';
+            exit;
+            
         default:
             // Si aucun contrôleur n'est trouvé, renvoyer une erreur 404
             http_response_code(404);
@@ -236,15 +242,7 @@ function diagnoseRequest() {
             '/api/database-test' => 'Test de connexion à la base de données',
             '/api/check-users' => 'Vérification des utilisateurs',
             '/api/user-diagnostic' => 'Diagnostic des utilisateurs',
-            // Nouvelles routes ajoutées à la documentation
-            '/api/documents-load' => 'Chargement des documents',
-            '/api/documents-sync' => 'Synchronisation des documents',
-            '/api/exigences-load' => 'Chargement des exigences',
-            '/api/exigences-sync' => 'Synchronisation des exigences',
-            '/api/membres-load' => 'Chargement des membres',
-            '/api/membres-sync' => 'Synchronisation des membres',
-            '/api/bibliotheque-load' => 'Chargement de la bibliothèque',
-            '/api/bibliotheque-sync' => 'Synchronisation de la bibliothèque'
+            '/api/check-routes' => 'Vérification des routes et détection des liens cassés',
         ],
         'server_details' => [
             'php_version' => phpversion(),

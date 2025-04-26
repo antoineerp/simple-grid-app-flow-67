@@ -12,6 +12,7 @@ import GestionDocumentaire from "./pages/GestionDocumentaire";
 import RessourcesHumaines from "./pages/RessourcesHumaines";
 import Bibliotheque from "./pages/Bibliotheque";
 import Administration from "./pages/Administration";
+import RoutesCheck from "./pages/RoutesCheck";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -29,6 +30,7 @@ const App = () => (
             <Route path="ressources-humaines" element={<RessourcesHumaines />} />
             <Route path="collaboration" element={<Bibliotheque />} />
             <Route path="administration" element={<Administration />} />
+            <Route path="verification-routes" element={<RoutesCheck />} />
           </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>
