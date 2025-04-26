@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -5,6 +6,7 @@ import UserManagement from '@/components/admin/UserManagement';
 import DatabaseInfo from '@/components/admin/DatabaseInfo';
 import ApiConfiguration from '@/components/admin/ApiConfiguration';
 import ServerTest from '@/components/ServerTest';
+import ImageConfiguration from '@/components/admin/ImageConfiguration';
 import { getDatabaseConnectionCurrentUser } from '@/services';
 import { useToast } from "@/hooks/use-toast";
 import { hasPermission, UserRole } from '@/types/roles';
@@ -52,6 +54,7 @@ const Administration = () => {
           <TabsTrigger value="database">Base de données</TabsTrigger>
           <TabsTrigger value="api">Configuration API</TabsTrigger>
           <TabsTrigger value="systeme">État du système</TabsTrigger>
+          <TabsTrigger value="images">Images</TabsTrigger>
         </TabsList>
         
         <TabsContent value="utilisateurs">
@@ -79,6 +82,10 @@ const Administration = () => {
               <ServerTest />
             </div>
           </div>
+        </TabsContent>
+
+        <TabsContent value="images">
+          <ImageConfiguration />
         </TabsContent>
       </Tabs>
     </div>
