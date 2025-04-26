@@ -1,43 +1,36 @@
 
 <?php
 class ConsistencyChecker {
-    public function checkConfigConsistency($pdo_config, $database_class_config, $file_config) {
-        if ($pdo_config['status'] === 'success' && 
-            $database_class_config['status'] === 'success' && 
-            $file_config['status'] === 'success') {
+    public function checkConsistency($config1, $config2) {
+        $result = [
+            'status' => 'success',
+            'is_consistent' => true,
+            'message' => 'Les configurations sont cohérentes',
+            'differences' => []
+        ];
+        
+        // Vérifier la cohérence sur les champs clés
+        $fields = ['host', 'db_name', 'username'];
+        foreach ($fields as $field) {
+            $field2 = $field;
             
-            $differences = [];
-            
-            if ($pdo_config['connection_info']['host'] !== $database_class_config['config']['host']) {
-                $differences['host'] = "PDO: {$pdo_config['connection_info']['host']} vs DB Class: {$database_class_config['config']['host']}";
-            }
-            if ($pdo_config['connection_info']['database'] !== $database_class_config['config']['db_name']) {
-                $differences['database'] = "PDO: {$pdo_config['connection_info']['database']} vs DB Class: {$database_class_config['config']['db_name']}";
-            }
-            if ($pdo_config['connection_info']['user'] !== $database_class_config['config']['username']) {
-                $differences['username'] = "PDO: {$pdo_config['connection_info']['user']} vs DB Class: {$database_class_config['config']['username']}";
-            }
-            
-            if (!empty($differences)) {
-                return [
-                    'status' => 'warning',
-                    'is_consistent' => false,
-                    'message' => 'Incohérences détectées entre les configurations',
-                    'differences' => $differences
-                ];
+            // Adapter le nom du champ si nécessaire (config1 utilise db_name, config2 peut utiliser database)
+            if ($field === 'db_name' && !isset($config2['db_name']) && isset($config2['database'])) {
+                $field2 = 'database';
             }
             
-            return [
-                'status' => 'success',
-                'is_consistent' => true,
-                'message' => 'Les configurations sont cohérentes'
-            ];
+            if (isset($config1[$field]) && isset($config2[$field2]) && $config1[$field] !== $config2[$field2]) {
+                $result['is_consistent'] = false;
+                $result['status'] = 'warning';
+                $result['message'] = 'Différences trouvées entre les configurations';
+                
+                // Récupérer la différence
+                $field_name = ($field === 'db_name') ? 'database' : $field;
+                $result['differences'][$field_name] = "Config 1: {$config1[$field]}, Config 2: {$config2[$field2]}";
+            }
         }
         
-        return [
-            'status' => 'error',
-            'is_consistent' => false,
-            'message' => 'Impossible de vérifier la cohérence (une ou plusieurs connexions ont échoué)'
-        ];
+        return $result;
     }
 }
+?>

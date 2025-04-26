@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import UserManagement from '@/components/admin/UserManagement';
 import DatabaseInfo from '@/components/admin/DatabaseInfo';
+import DatabaseDiagnostic from '@/components/admin/DatabaseDiagnostic';
 import ApiConfiguration from '@/components/admin/ApiConfiguration';
 import ServerTest from '@/components/ServerTest';
 import ImageConfiguration from '@/components/admin/ImageConfiguration';
@@ -99,6 +100,7 @@ const Administration = () => {
                 Cet outil effectue une analyse approfondie de votre configuration système pour identifier les problèmes potentiels.
               </p>
               <div className="space-y-6">
+                <DatabaseDiagnostic />
                 <UserDiagnostic />
               </div>
             </div>
