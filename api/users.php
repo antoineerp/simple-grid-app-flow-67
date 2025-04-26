@@ -28,6 +28,10 @@ try {
     if (!defined('DIRECT_ACCESS_CHECK')) {
         define('DIRECT_ACCESS_CHECK', true);
     }
+
+    // Inclure les fichiers de base nécessaires
+    require_once __DIR__ . '/config/database.php';
+    require_once __DIR__ . '/models/User.php';
     
     // Inclure les opérations en fonction de la méthode HTTP
     switch ($_SERVER['REQUEST_METHOD']) {

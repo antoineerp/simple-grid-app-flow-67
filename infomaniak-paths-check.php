@@ -93,6 +93,8 @@ header('Content-Type: text/html; charset=utf-8');
             '/api/operations/' => 'Dossier opérations API',
             '/api/operations/users/' => 'Dossier opérations utilisateurs',
             '/api/operations/users/DeleteOperations.php' => 'Opérations de suppression utilisateur',
+            '/api/models/' => 'Dossier modèles',
+            '/api/models/User.php' => 'Modèle utilisateur',
             '/api/db-info.php' => 'Informations base de données',
             '/api/db-connection-test.php' => 'Test de connexion base de données',
             '/api/check-users.php' => 'Vérification des utilisateurs'
@@ -392,7 +394,8 @@ header('Content-Type: text/html; charset=utf-8');
             "/api/config/database.php" => "Configuration base de données",
             "/api/config/db_config.json" => "Fichier JSON de configuration BD",
             "/api/users.php" => "API utilisateurs",
-            "/api/check-users.php" => "Vérification des utilisateurs"
+            "/api/check-users.php" => "Vérification des utilisateurs",
+            "/api/models/User.php" => "Modèle utilisateur"
         ];
         
         echo "<h3>Fichiers critiques</h3>";
