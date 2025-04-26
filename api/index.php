@@ -50,10 +50,12 @@ function routeApi() {
     $path = preg_replace('/^\/api\/?/', '', $uri);
     error_log("Routage API - Chemin traité: {$path}");
     
+    // Supprimer les slashs au début et à la fin pour une normalisation uniforme
+    $path = trim($path, '/');
+    
     // Router vers les différents endpoints
     switch ($path) {
         case '':
-        case '/':
             // Point d'entrée principal de l'API
             return diagnoseRequest();
             
