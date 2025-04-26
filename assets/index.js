@@ -6,18 +6,39 @@
 function fixInfomaniakPath(path) {
     // Supprimer les chemins doublés comme /sites/domain.com/
     if (path && path.startsWith('/sites/')) {
-        const parts = path.split('/', 4);
+        const parts = path.split('/');
         if (parts.length >= 4) {
-            return '/' + path.split('/', 4).slice(3).join('/');
+            return '/' + parts.slice(3).join('/');
         }
     }
     return path;
+}
+
+// Fonction pour détecter l'environnement Infomaniak
+function isInfomaniakEnvironment() {
+    // Détection basée sur le nom d'hôte
+    const host = window.location.hostname;
+    return host === 'qualiopi.ch' || host.endsWith('.qualiopi.ch');
 }
 
 // Fonction pour charger dynamiquement le script principal
 function loadMainScript() {
     console.log("Index.js: Chargement du script principal...");
     console.log("Hostname détecté:", window.location.hostname);
+    
+    // Corriger tous les chemins d'assets qui pourraient être problématiques
+    if (isInfomaniakEnvironment()) {
+        console.log("Environnement Infomaniak détecté, correction des chemins...");
+        document.querySelectorAll('link[href], script[src], img[src]').forEach(el => {
+            const attrName = el.hasAttribute('href') ? 'href' : 'src';
+            const originalPath = el.getAttribute(attrName);
+            const fixedPath = fixInfomaniakPath(originalPath);
+            if (originalPath !== fixedPath) {
+                console.log(`Correction de chemin: ${originalPath} -> ${fixedPath}`);
+                el.setAttribute(attrName, fixedPath);
+            }
+        });
+    }
     
     try {
         // Pour l'environnement de production

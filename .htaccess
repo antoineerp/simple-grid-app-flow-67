@@ -21,6 +21,9 @@ AddType image/svg+xml .svg
     Allow from all
 </FilesMatch>
 
+# Éviter les boucles de redirection
+RewriteCond %{ENV:REDIRECT_STATUS} ^$
+
 # Règles de réécriture spécifiques pour Infomaniak
 # Rediriger les chemins incorrects avec /sites/[domain]/
 RewriteCond %{REQUEST_URI} ^/sites/[^/]+/(.*)$

@@ -1,3 +1,4 @@
+
 <?php
 // Fichier de configuration d'environnement
 
@@ -96,7 +97,7 @@ mb_internal_encoding('UTF-8');
 if ($environment === 'production') {
     // Désactiver l'affichage des erreurs en production
     ini_set('display_errors', 0);
-    // Remplacer E_ALL & ~E_DEPRECATED & ~E_STRICT par simplement E_ALL & ~E_DEPRECATED
+    // Utiliser E_ALL & ~E_DEPRECATED au lieu de E_ALL & ~E_DEPRECATED & ~E_STRICT
     // car E_STRICT est déprécié dans les versions récentes de PHP
     error_reporting(E_ALL & ~E_DEPRECATED);
     
@@ -170,5 +171,11 @@ function getBaseUrl() {
 if ($environment === 'production') {
     error_log("ASSETS_PATH configuré: " . $_ENV['ASSETS_PATH']);
     error_log("UPLOADS_PATH configuré: " . $_ENV['UPLOADS_PATH']);
+    error_log("Application démarrée en environnement de PRODUCTION sur l'hôte: " . $currentHost);
+    error_log("API URL: " . ($_ENV['API_URL_PROD'] ?? 'non définie'));
+    error_log("ALLOWED ORIGIN: " . ($_ENV['ALLOWED_ORIGIN_PROD'] ?? 'non défini'));
+    error_log("DOCUMENT_ROOT: " . $documentRoot);
+    error_log("IS_INFOMANIAK: " . ($_ENV['IS_INFOMANIAK'] ?? 'non défini'));
+    error_log("INFOMANIAK_DOMAIN_ROOT (détecté auto): " . ($_ENV['INFOMANIAK_DOMAIN_ROOT'] ?? 'non détecté'));
 }
 ?>
