@@ -135,6 +135,55 @@ function routeApi() {
             require_once __DIR__ . '/user-diagnostic.php';
             exit;
             
+        // Routes pour la synchronisation des données
+        case 'documents-load':
+        case 'documents-load.php':
+            // Chargement des documents
+            require_once __DIR__ . '/documents-load.php';
+            exit;
+            
+        case 'documents-sync':
+        case 'documents-sync.php':
+            // Synchronisation des documents
+            require_once __DIR__ . '/documents-sync.php';
+            exit;
+            
+        case 'exigences-load':
+        case 'exigences-load.php':
+            // Chargement des exigences
+            require_once __DIR__ . '/exigences-load.php';
+            exit;
+            
+        case 'exigences-sync':
+        case 'exigences-sync.php':
+            // Synchronisation des exigences
+            require_once __DIR__ . '/exigences-sync.php';
+            exit;
+            
+        case 'membres-load':
+        case 'membres-load.php':
+            // Chargement des membres
+            require_once __DIR__ . '/membres-load.php';
+            exit;
+            
+        case 'membres-sync':
+        case 'membres-sync.php':
+            // Synchronisation des membres
+            require_once __DIR__ . '/membres-sync.php';
+            exit;
+            
+        case 'bibliotheque-load':
+        case 'bibliotheque-load.php':
+            // Chargement de la bibliothèque
+            require_once __DIR__ . '/bibliotheque-load.php';
+            exit;
+            
+        case 'bibliotheque-sync':
+        case 'bibliotheque-sync.php':
+            // Synchronisation de la bibliothèque
+            require_once __DIR__ . '/bibliotheque-sync.php';
+            exit;
+            
         default:
             // Si aucun contrôleur n'est trouvé, renvoyer une erreur 404
             http_response_code(404);
@@ -162,7 +211,16 @@ function diagnoseRequest() {
             '/api/users' => 'Gestion des utilisateurs',
             '/api/database-test' => 'Test de connexion à la base de données',
             '/api/check-users' => 'Vérification des utilisateurs',
-            '/api/user-diagnostic' => 'Diagnostic des utilisateurs'
+            '/api/user-diagnostic' => 'Diagnostic des utilisateurs',
+            // Nouvelles routes ajoutées à la documentation
+            '/api/documents-load' => 'Chargement des documents',
+            '/api/documents-sync' => 'Synchronisation des documents',
+            '/api/exigences-load' => 'Chargement des exigences',
+            '/api/exigences-sync' => 'Synchronisation des exigences',
+            '/api/membres-load' => 'Chargement des membres',
+            '/api/membres-sync' => 'Synchronisation des membres',
+            '/api/bibliotheque-load' => 'Chargement de la bibliothèque',
+            '/api/bibliotheque-sync' => 'Synchronisation de la bibliothèque'
         ],
         'server_details' => [
             'php_version' => phpversion(),
