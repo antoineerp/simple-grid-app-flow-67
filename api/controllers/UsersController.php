@@ -13,7 +13,7 @@ require_once $baseDir . '/operations/UserOperations.php';
 // Handle CORS and preflight requests
 RequestHandler::handleCORS();
 
-// Log request information
+// Log request information for debugging
 error_log("UsersController - Méthode: " . $_SERVER['REQUEST_METHOD'] . " - URI: " . $_SERVER['REQUEST_URI']);
 error_log("UsersController - Données brutes: " . file_get_contents("php://input"));
 

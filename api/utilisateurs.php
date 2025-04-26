@@ -1,7 +1,7 @@
 
 <?php
 // Fichier de redirection vers le contrôleur d'utilisateurs
-// Ce fichier simplifier l'accès à l'API via /api/utilisateurs directement
+// Ce fichier est nécessaire pour gérer les requêtes API liées aux utilisateurs
 
 // En-têtes CORS et Content-Type
 header("Content-Type: application/json; charset=UTF-8");
