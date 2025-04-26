@@ -1,4 +1,3 @@
-
 import { toast } from '@/hooks/use-toast';
 import { initializeUserData } from './userInitializationService';
 import { getApiUrl } from '@/config/apiConfig';
@@ -210,50 +209,50 @@ class DatabaseConnectionService {
   // Test the database connection
   public async testConnection(): Promise<boolean> {
     try {
-      console.log("Test de la connexion à la base de données...");
-      const API_URL = getApiUrl();
-      console.log("URL API pour le test de connexion:", `${API_URL}/db-connection-test.php`);
-      
-      const response = await fetch(`${API_URL}/db-connection-test.php`, {
-        method: 'GET',
-        headers: getAuthHeaders(),
-        cache: 'no-cache'
-      });
-      
-      console.log("Statut de la réponse du test de connexion:", response.status);
-      
-      if (!response.ok) {
+        console.log("Test de la connexion à la base de données...");
+        const API_URL = getApiUrl();
+        console.log("URL API pour le test de connexion:", `${API_URL}/db-connection-test.php`);
+        
+        const response = await fetch(`${API_URL}/db-connection-test.php`, {
+            method: 'GET',
+            headers: getAuthHeaders(),
+            cache: 'no-cache'
+        });
+        
+        console.log("Statut de la réponse du test de connexion:", response.status);
+        
+        if (!response.ok) {
+            const responseText = await response.text();
+            console.warn("Réponse d'erreur de la base de données:", responseText);
+            throw new Error(`Échec du test de connexion à la base de données (${response.status}: ${response.statusText})`);
+        }
+        
         const responseText = await response.text();
-        console.warn("Réponse d'erreur de la base de données:", responseText);
-        throw new Error(`Échec du test de connexion à la base de données (${response.status}: ${response.statusText})`);
-      }
-      
-      const responseText = await response.text();
-      console.log("Réponse du test de connexion:", responseText.substring(0, 200));
-      
-      const data = this.validateJsonResponse(responseText) as DbConnectionResponse;
-      
-      if (data.status !== 'success') {
-        console.warn("Échec de la connexion à la base de données:", data.message, data.error || "");
-        throw new Error(data.error || data.message || "Échec de la connexion à la base de données");
-      }
-      
-      toast({
-        title: "Connexion réussie",
-        description: `Connexion établie avec la base de données ${data.connection_info?.database || data.info?.database_name || ''}`,
-      });
-      
-      return true;
+        console.log("Réponse du test de connexion:", responseText.substring(0, 200));
+        
+        const data = this.validateJsonResponse(responseText) as DbConnectionResponse;
+        
+        if (data.status !== 'success') {
+            console.warn("Échec de la connexion à la base de données:", data.message, data.error || "");
+            throw new Error(data.error || data.message || "Échec de la connexion à la base de données");
+        }
+        
+        toast({
+            title: "Connexion réussie",
+            description: `Connexion établie avec la base de données ${data.connection_info?.database || data.info?.database_name || ''}`,
+        });
+        
+        return true;
     } catch (error) {
-      console.error("Erreur lors du test de connexion:", error);
-      this.lastError = error instanceof Error ? error.message : "Impossible d'établir une connexion à la base de données.";
-      
-      toast({
-        title: "Erreur de connexion",
-        description: this.lastError,
-        variant: "destructive",
-      });
-      return false;
+        console.error("Erreur lors du test de connexion:", error);
+        this.lastError = error instanceof Error ? error.message : "Impossible d'établir une connexion à la base de données.";
+        
+        toast({
+            title: "Erreur de connexion",
+            description: this.lastError,
+            variant: "destructive",
+        });
+        return false;
     }
   }
 
@@ -269,145 +268,183 @@ class DatabaseConnectionService {
   // Get information about the database
   public async getDatabaseInfo(): Promise<DatabaseInfo> {
     try {
-      console.log("Récupération des informations sur la base de données...");
-      const API_URL = getApiUrl();
-      console.log("URL API pour les informations de la base de données:", `${API_URL}/database-test.php`);
-      
-      // Vérifier d'abord si un utilisateur est connecté
-      const currentUser = this.getCurrentUser();
-      if (!currentUser) {
-        console.warn("Aucun utilisateur connecté à la base de données");
-        return {
-          host: "Non connecté",
-          database: "Non connecté",
-          size: "N/A",
-          tables: 0,
-          lastBackup: "N/A",
-          status: "Offline",
-          encoding: "N/A",
-          collation: "N/A",
-          tableList: []
-        };
-      }
-      
-      const response = await fetch(`${API_URL}/database-test.php`, {
-        method: 'GET',
-        headers: { 
-          ...getAuthHeaders(),
-          'Cache-Control': 'no-cache, no-store, must-revalidate',
-          'Pragma': 'no-cache'
-        }
-      });
-      
-      console.log("Statut de la réponse des informations DB:", response.status);
-      
-      if (!response.ok) {
-        const responseText = await response.text();
-        console.warn("Réponse d'erreur lors de la récupération des informations:", response.status, responseText.substring(0, 100));
-        throw new Error(`Impossible de récupérer les informations de la base de données (${response.status})`);
-      }
-      
-      const responseText = await response.text();
-      console.log("Réponse des informations DB (longueur):", responseText.length);
-      console.log("Réponse des informations DB (début):", responseText.substring(0, 200));
-      
-      let data: DbConnectionResponse;
-      
-      try {
-        data = this.validateJsonResponse(responseText) as DbConnectionResponse;
-      } catch (e) {
-        console.error("Erreur lors de la validation de la réponse JSON:", e);
-        throw new Error(`Réponse invalide du serveur: ${(e as Error).message}`);
-      }
-      
-      if (!data) {
-        throw new Error("Réponse vide du serveur");
-      }
-      
-      console.log("Données analysées:", data);
-      
-      if (data.status !== 'success') {
-        const errorMessage = data.error || data.message || "Impossible de récupérer les informations de la base de données";
-        console.error("Erreur de base de données:", errorMessage);
+        console.log("Récupération des informations sur la base de données...");
+        const API_URL = getApiUrl();
+        console.log("URL API pour les informations de la base de données:", `${API_URL}/database-diagnostic`);
         
-        // Si on a un utilisateur connecté malgré l'erreur, afficher un statut en ligne
+        // Vérifier d'abord si un utilisateur est connecté
+        const currentUser = this.getCurrentUser();
+        
+        const response = await fetch(`${API_URL}/database-diagnostic`, {
+            method: 'GET',
+            headers: { 
+                ...getAuthHeaders(),
+                'Cache-Control': 'no-cache, no-store, must-revalidate',
+                'Pragma': 'no-cache'
+            }
+        });
+        
+        console.log("Statut de la réponse des informations DB:", response.status);
+        
+        if (!response.ok) {
+            const responseText = await response.text();
+            console.warn("Réponse d'erreur lors de la récupération des informations:", response.status, responseText.substring(0, 100));
+            
+            // Si nous avons un utilisateur connecté malgré l'erreur, on crée un état "connecté"
+            if (currentUser) {
+                console.log("Un utilisateur est connecté malgré l'erreur:", currentUser);
+                // Retourner des informations partielles mais avec statut Online
+                return {
+                    host: `${currentUser}.myd.infomaniak.com`,
+                    database: currentUser,
+                    size: "Information non disponible",
+                    tables: 0,
+                    lastBackup: "N/A",
+                    status: "Online", // Toujours "Online" si un utilisateur est connecté
+                    encoding: "UTF-8",
+                    collation: "utf8mb4_unicode_ci",
+                    tableList: []
+                };
+            }
+            
+            throw new Error(`Impossible de récupérer les informations de la base de données (${response.status})`);
+        }
+        
+        const responseText = await response.text();
+        console.log("Réponse des informations DB (longueur):", responseText.length);
+        console.log("Réponse des informations DB (début):", responseText.substring(0, 200));
+        
+        let data;
+        
+        try {
+            data = this.validateJsonResponse(responseText);
+        } catch (e) {
+            console.error("Erreur lors de la validation de la réponse JSON:", e);
+            
+            // Si nous avons un utilisateur connecté malgré l'erreur, on crée un état "connecté"
+            if (currentUser) {
+                return {
+                    host: `${currentUser}.myd.infomaniak.com`,
+                    database: currentUser,
+                    size: "Information non disponible",
+                    tables: 0,
+                    lastBackup: "N/A",
+                    status: "Online",
+                    encoding: "UTF-8",
+                    collation: "utf8mb4_unicode_ci",
+                    tableList: []
+                };
+            }
+            
+            throw new Error(`Réponse invalide du serveur: ${(e as Error).message}`);
+        }
+        
+        if (!data) {
+            throw new Error("Réponse vide du serveur");
+        }
+        
+        console.log("Données analysées:", data);
+        
+        // Cas 1: Nous avons des informations complètes du diagnostic
+        if (data.pdo_direct && data.pdo_direct.status === 'success') {
+            const connInfo = data.pdo_direct.connection_info;
+            return {
+                host: connInfo.host || "Hôte inconnu",
+                database: connInfo.database || connInfo.current_db || "Base de données inconnue",
+                size: connInfo.size || "Information non disponible",
+                tables: connInfo.tables || 0,
+                lastBackup: new Date().toISOString().split('T')[0], // Date du jour
+                status: "Online",
+                encoding: connInfo.encoding || "UTF-8",
+                collation: connInfo.collation || "utf8mb4_unicode_ci",
+                tableList: connInfo.table_list || []
+            };
+        }
+        
+        // Cas 2: Nous avons des informations de base de la réponse database-test.php
+        if (data.info) {
+            return {
+                host: data.info.host || "Hôte inconnu",
+                database: data.info.database_name || "Base de données inconnue",
+                size: data.info.size || "Taille inconnue",
+                tables: data.info.table_count || 0,
+                lastBackup: new Date().toISOString().split('T')[0], // Date du jour
+                status: "Online",
+                encoding: data.info.encoding || "UTF-8",
+                collation: data.info.collation || "utf8mb4_unicode_ci",
+                tableList: data.info.tables || []
+            };
+        }
+        
+        // Cas 3: Nous avons un utilisateur connecté mais pas d'infos détaillées
+        if (currentUser || (data.status === 'success')) {
+            // Si on a un utilisateur connecté mais pas d'infos, afficher un statut en ligne
+            const host = currentUser ? `${currentUser}.myd.infomaniak.com` : (data.config?.host || "p71x6d.myd.infomaniak.com");
+            const dbName = currentUser || (data.config?.db_name || "p71x6d_system");
+            
+            return {
+                host: host,
+                database: dbName,
+                size: "Information non disponible",
+                tables: 0,
+                lastBackup: "N/A",
+                status: "Online", // Toujours "Online" si un utilisateur est connecté
+                encoding: "UTF-8",
+                collation: "utf8mb4_unicode_ci",
+                tableList: []
+            };
+        }
+        
+        // Cas 4: Échec de connexion
         return {
-          host: `${currentUser}.myd.infomaniak.com`,
-          database: currentUser,
-          size: "Information non disponible",
-          tables: 0,
-          lastBackup: "N/A",
-          status: "Online", // Toujours "Online" si un utilisateur est connecté
-          encoding: "UTF-8",
-          collation: "utf8mb4_unicode_ci",
-          tableList: []
+            host: "Non connecté",
+            database: "Non connecté",
+            size: "N/A",
+            tables: 0,
+            lastBackup: "N/A",
+            status: "Offline",
+            encoding: "N/A",
+            collation: "N/A",
+            tableList: []
         };
-      }
-      
-      if (data.info) {
-        return {
-          host: data.info.host || "Hôte inconnu",
-          database: data.info.database_name || "Base de données inconnue",
-          size: data.info.size || "Taille inconnue",
-          tables: data.info.table_count || 0,
-          lastBackup: new Date().toISOString().split('T')[0], // Date du jour
-          status: "Online",
-          encoding: data.info.encoding || "UTF-8",
-          collation: data.info.collation || "utf8mb4_unicode_ci",
-          tableList: data.info.tables || []
-        };
-      } else {
-        // Si on a un utilisateur connecté mais pas d'infos, afficher un statut en ligne
-        return {
-          host: `${currentUser}.myd.infomaniak.com`,
-          database: currentUser,
-          size: "Information non disponible",
-          tables: 0,
-          lastBackup: "N/A",
-          status: "Online", // Toujours "Online" si un utilisateur est connecté
-          encoding: "UTF-8",
-          collation: "utf8mb4_unicode_ci",
-          tableList: []
-        };
-      }
     } catch (error) {
-      console.error("Erreur lors de la récupération des informations de la base de données:", error);
-      
-      // Vérifier si un utilisateur est connecté malgré l'erreur
-      const currentUser = this.getCurrentUser();
-      if (currentUser) {
-        console.log("Un utilisateur est connecté malgré l'erreur:", currentUser);
-        // Retourner des informations partielles mais avec statut Online
+        console.error("Erreur lors de la récupération des informations de la base de données:", error);
+        
+        // Vérifier si un utilisateur est connecté malgré l'erreur
+        const currentUser = this.getCurrentUser();
+        if (currentUser) {
+            console.log("Un utilisateur est connecté malgré l'erreur:", currentUser);
+            // Retourner des informations partielles mais avec statut Online
+            return {
+                host: `${currentUser}.myd.infomaniak.com`,
+                database: currentUser,
+                size: "Information non disponible",
+                tables: 0,
+                lastBackup: "N/A",
+                status: "Online", // Toujours "Online" si un utilisateur est connecté
+                encoding: "UTF-8",
+                collation: "utf8mb4_unicode_ci",
+                tableList: []
+            };
+        }
+        
+        toast({
+            title: "Erreur",
+            description: "Impossible de récupérer les informations de la base de données.",
+            variant: "destructive",
+        });
+        
         return {
-          host: `${currentUser}.myd.infomaniak.com`,
-          database: currentUser,
-          size: "Information non disponible",
-          tables: 0,
-          lastBackup: "N/A",
-          status: "Online", // Toujours "Online" si un utilisateur est connecté
-          encoding: "UTF-8",
-          collation: "utf8mb4_unicode_ci",
-          tableList: []
+            host: "Non connecté",
+            database: "Non connecté",
+            size: "N/A",
+            tables: 0,
+            lastBackup: "N/A",
+            status: "Offline",
+            encoding: "N/A",
+            collation: "N/A",
+            tableList: []
         };
-      }
-      
-      toast({
-        title: "Erreur",
-        description: "Impossible de récupérer les informations de la base de données.",
-        variant: "destructive",
-      });
-      
-      return {
-        host: "Non connecté",
-        database: "Non connecté",
-        size: "N/A",
-        tables: 0,
-        lastBackup: "N/A",
-        status: "Offline",
-        encoding: "N/A",
-        collation: "N/A",
-        tableList: []
-      };
     }
   }
 }
