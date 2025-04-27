@@ -28,8 +28,13 @@ RewriteRule ^lovable-uploads/(.*)$ public/lovable-uploads/$1 [L]
 # Règle spécifique pour rediriger /api vers le dossier api/index.php
 RewriteRule ^api$ api/index.php [L]
 
+# Règle pour traiter les requêtes d'API avec des sous-chemins directs
+RewriteRule ^api/([^/]+)\.php$ api/$1.php [QSA,L]
+
 # Règle pour traiter les requêtes d'API avec des sous-chemins
 RewriteRule ^api/([^/]+)$ api/$1.php [QSA,L]
+
+# Règle pour autres requêtes API
 RewriteRule ^api/(.*)$ api/$1 [QSA,L]
 
 # Permettre l'accès direct aux assets dans leur dossier
@@ -69,4 +74,6 @@ ErrorDocument 500 /index.html
     php_flag log_errors on
     php_value upload_max_filesize "10M"
     php_value post_max_size "12M"
+    php_value memory_limit "256M"
+    php_value max_execution_time 300
 </IfModule>

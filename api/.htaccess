@@ -33,7 +33,13 @@ RewriteRule ^(.*)$ index.php [QSA,L]
     php_flag display_errors off
     php_value error_log "php_errors.log"
     php_flag log_errors on
+    php_value upload_max_filesize "16M"
+    php_value post_max_size "16M"
+    php_value memory_limit "128M"
+    php_value max_execution_time 300
 </IfModule>
 
-# Définition d'une page d'erreur JSON personnalisée pour les erreurs 500
+# Définition d'une page d'erreur JSON personnalisée pour les erreurs
 ErrorDocument 500 '{"status":"error","message":"Erreur interne du serveur","code":500}'
+ErrorDocument 404 '{"status":"error","message":"Ressource non trouvée","code":404}'
+ErrorDocument 403 '{"status":"error","message":"Accès interdit","code":403}'
