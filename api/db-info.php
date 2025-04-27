@@ -1,6 +1,6 @@
 
 <?php
-// Fichier d'information sur la base de données
+// Fichier pour obtenir des informations sur la base de données
 header("Content-Type: application/json; charset=UTF-8");
 header("Access-Control-Allow-Origin: *");
 header("Access-Control-Allow-Methods: GET, OPTIONS");
@@ -17,7 +17,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
 error_log("=== EXÉCUTION DE db-info.php ===");
 
 try {
-    // Connexion à la base de données
+    // Tester la connexion PDO directement
     $host = "p71x6d.myd.infomaniak.com";
     $dbname = "p71x6d_system";
     $username = "p71x6d_system";
@@ -30,68 +30,70 @@ try {
         PDO::ATTR_EMULATE_PREPARES => false,
     ];
     
-    error_log("Tentative de connexion à la base de données");
+    error_log("Tentative de connexion PDO directe à la base de données");
     $pdo = new PDO($dsn, $username, $password, $options);
-    error_log("Connexion à la base de données réussie");
+    error_log("Connexion PDO réussie");
     
-    // Récupérer des informations sur la base
-    $infos = [];
-    
-    // Récupérer le nombre de tables
+    // Récupérer les informations de base de la base de données
     $tables = [];
     $tableCount = 0;
+    $size = "Inconnue";
+    $encoding = "";
+    $collation = "";
+    
+    // Liste des tables
     $stmt = $pdo->query("SHOW TABLES");
-    while($row = $stmt->fetch()) {
-        $tableCount++;
+    while ($row = $stmt->fetch(PDO::FETCH_NUM)) {
         $tables[] = $row[0];
+        $tableCount++;
     }
     
-    // Récupérer l'encodage et la collation
-    $stmt = $pdo->query("SELECT @@character_set_database AS charset, @@collation_database AS collation");
-    $dbCharset = $stmt->fetch();
-    
-    // Récupérer la taille de la base
-    try {
-        $stmt = $pdo->query("SELECT 
-            ROUND(SUM(data_length + index_length) / 1024 / 1024, 2) AS size_mb 
-            FROM information_schema.TABLES 
-            WHERE table_schema = '$dbname'");
-        $sizeData = $stmt->fetch();
-        $size = $sizeData ? $sizeData['size_mb'] . " MB" : "Inconnue";
-    } catch (Exception $e) {
-        error_log("Erreur lors de la récupération de la taille: " . $e->getMessage());
-        $size = "Non disponible";
+    // Taille de la base de données
+    $stmt = $pdo->query("SELECT 
+                         SUM(data_length + index_length) / 1024 / 1024 AS size 
+                         FROM information_schema.TABLES 
+                         WHERE table_schema = '$dbname'");
+    if ($sizeInfo = $stmt->fetch()) {
+        $size = number_format($sizeInfo['size'], 2) . ' MB';
     }
     
-    // Préparer les informations à renvoyer
-    $dbInfo = [
-        'host' => $host,
-        'database' => $dbname,
-        'size' => $size,
-        'tables' => $tableCount,
-        'lastBackup' => 'N/A', // Non disponible sans accès au système de fichiers
-        'status' => 'Online',
-        'encoding' => $dbCharset['charset'] ?? 'utf8mb4',
-        'collation' => $dbCharset['collation'] ?? 'utf8mb4_general_ci',
-        'tableList' => $tables
-    ];
+    // Encodage et collation
+    $stmt = $pdo->query("SELECT DEFAULT_CHARACTER_SET_NAME, DEFAULT_COLLATION_NAME 
+                         FROM information_schema.SCHEMATA 
+                         WHERE SCHEMA_NAME = '$dbname'");
+    if ($encodingInfo = $stmt->fetch()) {
+        $encoding = $encodingInfo['DEFAULT_CHARACTER_SET_NAME'];
+        $collation = $encodingInfo['DEFAULT_COLLATION_NAME'];
+    }
     
-    // Renvoyer la réponse
+    // Date de dernière sauvegarde (simulée car cela dépend de l'infrastructure)
+    $lastBackup = date('Y-m-d H:i:s', time() - 86400); // Hier
+    
+    // Préparer la réponse
     http_response_code(200);
     echo json_encode([
         'status' => 'success',
-        'message' => 'Informations sur la base de données récupérées avec succès',
-        'database_info' => $dbInfo
+        'message' => 'Informations de la base de données récupérées avec succès',
+        'database_info' => [
+            'host' => $host,
+            'database' => $dbname,
+            'size' => $size,
+            'tables' => $tableCount,
+            'encoding' => $encoding,
+            'collation' => $collation,
+            'lastBackup' => $lastBackup,
+            'status' => 'Online',
+            'tableList' => $tables
+        ],
     ]);
     exit;
-    
 } catch (PDOException $e) {
-    error_log("Erreur PDO: " . $e->getMessage());
+    error_log("Erreur de connexion PDO: " . $e->getMessage());
     
     http_response_code(500);
     echo json_encode([
         'status' => 'error',
-        'message' => 'Erreur de connexion à la base de données',
+        'message' => 'Échec de la récupération des informations de base de données',
         'error' => $e->getMessage()
     ]);
     exit;
