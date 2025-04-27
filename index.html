@@ -18,15 +18,33 @@
     <meta name="twitter:site" content="@lovable_dev" />
     <meta name="twitter:image" content="https://lovable.dev/opengraph-image-p98pqg.png" />
     
-    <!-- Utiliser un chemin relatif pour le CSS qui sera remplacé par le build -->
-    <link rel="stylesheet" href="./src/index.css" />
-    <!-- PHP code is removed for development and only included in production -->
+    <!-- Dynamically adjust asset paths based on environment -->
+    <script>
+      // Function to adjust asset paths for different environments
+      function adjustAssetPath(path) {
+        const isInfomaniak = window.location.hostname === 'qualiopi.ch';
+        return isInfomaniak ? `/sites/qualiopi.ch${path}` : path;
+      }
+    </script>
+    
+    <script type="module" crossorigin src="" id="main-js"></script>
+    <link rel="stylesheet" crossorigin href="" id="main-css">
+    
+    <script>
+      // Dynamically set asset paths
+      document.getElementById('main-js').src = adjustAssetPath('/assets/main--zXaub0H.js');
+      document.getElementById('main-css').href = adjustAssetPath('/assets/main-BRxAxoYR.css');
+    </script>
   </head>
 
   <body>
     <div id="root"></div>
-    <!-- For development, we directly link to the main.tsx -->
-    <script type="module" src="./src/main.tsx"></script>
     <script src="https://cdn.gpteng.co/gptengineer.js" type="module"></script>
+    <script type="module" src="" id="main-js-body"></script>
+    
+    <script>
+      // Also dynamically set the body script source
+      document.getElementById('main-js-body').src = adjustAssetPath('/assets/main--zXaub0H.js');
+    </script>
   </body>
 </html>
