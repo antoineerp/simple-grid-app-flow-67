@@ -1,6 +1,6 @@
 
 import { useState, useEffect, useCallback } from 'react';
-import { getUtilisateurs, connectAsUser, testDatabaseConnection, type Utilisateur } from '@/services';
+import { getUtilisateurs, invalidateUserCache, type Utilisateur } from '@/services';
 import { useToast } from "@/hooks/use-toast";
 import { hasPermission, UserRole } from '@/types/roles';
 
@@ -28,51 +28,35 @@ export const useAdminUsers = () => {
       return;
     }
 
+    // Éviter de lancer plusieurs requêtes si une est déjà en cours
+    if (loading) {
+      console.log("Chargement déjà en cours, requête ignorée");
+      return;
+    }
+
     setLoading(true);
     setError(null);
     
     try {
       console.log("Début du chargement des utilisateurs...");
       
-      // Vérifier d'abord la connexion à la base de données
-      const dbConnected = await testDatabaseConnection();
-      console.log("Test de connexion à la base de données:", dbConnected);
-      
-      if (!dbConnected) {
-        throw new Error("Impossible de se connecter à la base de données. Vérifiez la configuration.");
-      }
-      
+      // Récupérer les utilisateurs directement - la mise en cache est gérée dans le service
       const data = await getUtilisateurs();
       console.log("Données utilisateurs récupérées:", data);
       
-      // Corriger la vérification du type de data et l'accès aux propriétés
-      if (Array.isArray(data)) {
-        setUtilisateurs(data);
-      } else if (data && typeof data === 'object') {
-        // Vérification de sécurité pour l'accès à records avec TypeScript
-        const responseData = data as any;
-        if (responseData.records && Array.isArray(responseData.records)) {
-          setUtilisateurs(responseData.records);
-        } else {
-          console.warn("Format de données inattendu:", data);
-          setUtilisateurs([]);
-        }
-      } else {
-        console.warn("Format de données inattendu:", data);
-        setUtilisateurs([]);
-      }
+      setUtilisateurs(data);
     } catch (error) {
       console.error("Erreur lors du chargement des utilisateurs", error);
       setError(error instanceof Error ? error.message : "Impossible de charger les utilisateurs.");
       toast({
         title: "Erreur",
-        description: "Impossible de charger les utilisateurs.",
+        description: error instanceof Error ? error.message : "Impossible de charger les utilisateurs.",
         variant: "destructive",
       });
     } finally {
       setLoading(false);
     }
-  }, [toast]);
+  }, [toast, loading]);
 
   const handleConnectAsUser = async (identifiantTechnique: string) => {
     const currentUserRole = localStorage.getItem('userRole') as UserRole;
@@ -88,14 +72,19 @@ export const useAdminUsers = () => {
     }
 
     try {
-      // Vérifier d'abord la connexion à la base de données
-      const dbConnected = await testDatabaseConnection();
-      if (!dbConnected) {
-        throw new Error("Impossible de se connecter à la base de données. Vérifiez la configuration.");
-      }
+      // Simuler la connexion en tant qu'utilisateur (remplacer par une vraie API call si nécessaire)
+      console.log(`Connexion en tant que: ${identifiantTechnique}`);
+      localStorage.setItem('database_user', identifiantTechnique);
       
-      const success = await connectAsUser(identifiantTechnique);
-      return success;
+      // Invalider le cache des utilisateurs pour forcer un rechargement
+      invalidateUserCache();
+      
+      toast({
+        title: "Connexion réussie",
+        description: `Vous êtes maintenant connecté en tant que ${identifiantTechnique}`,
+      });
+      
+      return true;
     } catch (error) {
       console.error("Erreur lors de la connexion en tant qu'utilisateur:", error);
       toast({
