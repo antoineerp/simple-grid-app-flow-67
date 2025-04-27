@@ -9,14 +9,21 @@ Options +FollowSymLinks
 # Définir le point d'entrée principal
 DirectoryIndex index.html index.php
 
-# Définir les types MIME corrects
+# Définir les types MIME corrects pour tous les fichiers
 AddType application/javascript .js
-AddType text/css .css
+AddType text/javascript .js
 AddType application/json .json
+AddType text/css .css
 AddType image/svg+xml .svg
 
-# Permettre l'accès aux assets
-<FilesMatch "\.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot|map|tsx?)$">
+# Force le type MIME pour les modules JavaScript
+<FilesMatch "\.m?js$">
+    AddType application/javascript .js
+    Header set Content-Type application/javascript
+</FilesMatch>
+
+# Permettre l'accès aux assets avec les types MIME appropriés
+<FilesMatch "\.(js|mjs|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot|map|tsx?|json)$">
     Order Allow,Deny
     Allow from all
 </FilesMatch>
@@ -28,6 +35,11 @@ RewriteCond %{ENV:REDIRECT_STATUS} ^$
 # Rediriger les chemins incorrects avec /sites/[domain]/
 RewriteCond %{REQUEST_URI} ^/sites/[^/]+/(.*)$
 RewriteRule ^sites/[^/]+/(.*)$ /$1 [L,R=301]
+
+# S'assurer que les fichiers JavaScript sont servis correctement
+<FilesMatch "\.js$">
+    SetHandler application/javascript
+</FilesMatch>
 
 # Traitement spécial pour les requêtes API
 RewriteCond %{REQUEST_URI} ^/api/
@@ -49,7 +61,7 @@ RewriteCond %{REQUEST_URI} ^/lovable-uploads/
 RewriteRule ^lovable-uploads/(.*)$ public/lovable-uploads/$1 [L]
 
 # Permettre l'accès direct aux fichiers statiques
-RewriteCond %{REQUEST_URI} \.(js|css|png|jpe?g|gif|svg|ico|webp|woff2?|ttf|eot|map|tsx?)$
+RewriteCond %{REQUEST_URI} \.(js|mjs|css|png|jpe?g|gif|svg|ico|webp|woff2?|ttf|eot|map|tsx?)$
 RewriteCond %{REQUEST_FILENAME} -f
 RewriteRule ^ - [L]
 
@@ -63,10 +75,19 @@ RewriteCond %{REQUEST_FILENAME} !-d
 RewriteCond %{REQUEST_URI} !^/api/
 RewriteRule ^(.*)$ index.html [QSA,L]
 
-# Configuration de sécurité
+# Configuration de sécurité et en-têtes HTTP
 <IfModule mod_headers.c>
+    # En-têtes de base pour tous les fichiers
+    Header set X-Content-Type-Options "nosniff"
+    Header set X-Frame-Options "SAMEORIGIN"
+    
+    # Configuration CORS
+    Header set Access-Control-Allow-Origin "*"
+    Header set Access-Control-Allow-Methods "GET, POST, OPTIONS, PUT, DELETE"
+    Header set Access-Control-Allow-Headers "Content-Type, Authorization"
+    
     # Configuration pour les assets statiques
-    <FilesMatch "\.(js|css|json)$">
+    <FilesMatch "\.(js|mjs|css|json)$">
         Header set Cache-Control "no-cache, no-store, must-revalidate"
         Header set Pragma "no-cache"
         Header set Expires "0"

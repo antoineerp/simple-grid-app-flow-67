@@ -2,10 +2,20 @@
 # Activer la réécriture d'URL
 RewriteEngine On
 
+# Forcer le traitement des fichiers PHP
+<FilesMatch "\.php$">
+    SetHandler application/x-httpd-php
+</FilesMatch>
+
 # Sécurité - Bloquer l'accès direct aux fichiers sensibles
 <FilesMatch "^(config\.php|database\.php|\.env|\.json)$">
     Order Allow,Deny
     Deny from all
+</FilesMatch>
+
+# Définir les types MIME pour les réponses JSON
+<FilesMatch "\.(json|php)$">
+    Header set Content-Type "application/json; charset=UTF-8"
 </FilesMatch>
 
 # Permettre l'accès direct aux fichiers PHP spécifiques
@@ -27,7 +37,7 @@ RewriteRule ^(.*)$ index.php [QSA,L]
     Header set Strict-Transport-Security "max-age=31536000; includeSubDomains"
     
     # Configuration CORS plus stricte
-    Header set Access-Control-Allow-Origin "https://qualiopi.ch"
+    Header set Access-Control-Allow-Origin "*"
     Header set Access-Control-Allow-Methods "GET, POST, OPTIONS, PUT, DELETE"
     Header set Access-Control-Allow-Headers "Content-Type, Authorization"
     
