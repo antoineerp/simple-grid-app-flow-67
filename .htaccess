@@ -21,6 +21,12 @@ AddType image/svg+xml .svg
     Allow from all
 </FilesMatch>
 
+# Règle IMPORTANTE pour les assets avec hachage (prioritaire)
+RewriteCond %{REQUEST_URI} \.(js|css|png|jpe?g|gif|svg|ico|webp|woff2?|ttf|eot|map)$ [NC]
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_URI} ^/assets/
+RewriteRule ^assets/(.+)$ /assets/$1 [L]
+
 # Traitement des ressources statiques
 RewriteCond %{REQUEST_URI} ^/lovable-uploads/
 RewriteRule ^lovable-uploads/(.*)$ public/lovable-uploads/$1 [L]
