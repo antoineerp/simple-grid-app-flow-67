@@ -13,9 +13,18 @@ try {
     throw new Error("Élément racine introuvable");
   }
 
-  const root = createRoot(rootElement);
-  root.render(<App />);
-  console.log("Application démarrée avec succès");
+  // Wait for DOM to be fully loaded
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", () => {
+      const root = createRoot(rootElement);
+      root.render(<App />);
+      console.log("Application démarrée avec succès");
+    });
+  } else {
+    const root = createRoot(rootElement);
+    root.render(<App />);
+    console.log("Application démarrée avec succès");
+  }
   
 } catch (error) {
   console.error("Erreur lors du démarrage de l'application:", error);
