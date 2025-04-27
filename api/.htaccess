@@ -9,6 +9,15 @@ RewriteBase /api/
     Deny from all
 </FilesMatch>
 
+# Force execution of PHP scripts - IMPORTANT pour Infomaniak
+<FilesMatch "\.php$">
+    SetHandler application/x-httpd-php
+</FilesMatch>
+
+# Add MIME type and handler for PHP files
+AddType application/x-httpd-php .php
+AddHandler application/x-httpd-php .php
+
 # Traiter explicitement les fichiers PHP
 <FilesMatch "\.php$">
     RewriteCond %{REQUEST_FILENAME} -f
