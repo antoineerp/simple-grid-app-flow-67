@@ -137,7 +137,8 @@ function routeApi() {
             exit;
             
         case 'user-diagnostic':
-            // Rediriger vers le diagnostic utilisateur
+        case 'user-diagnostic.php':
+            // Rediriger vers le diagnostic utilisateur (corrigé pour inclure les deux formats)
             require_once __DIR__ . '/user-diagnostic.php';
             exit;
             
@@ -191,6 +192,20 @@ function routeApi() {
             exit;
             
         default:
+            // Vérifier si le fichier existe directement (pour plus de flexibilité)
+            $direct_file_path = __DIR__ . '/' . $path;
+            $direct_file_path_with_php = __DIR__ . '/' . $path . '.php';
+            
+            if (file_exists($direct_file_path) && is_file($direct_file_path)) {
+                require_once $direct_file_path;
+                exit;
+            }
+            
+            if (file_exists($direct_file_path_with_php) && is_file($direct_file_path_with_php)) {
+                require_once $direct_file_path_with_php;
+                exit;
+            }
+            
             // Si aucun contrôleur n'est trouvé, renvoyer une erreur 404
             http_response_code(404);
             return [
