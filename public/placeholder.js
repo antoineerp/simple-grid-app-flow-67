@@ -1,2 +1,3 @@
-// Placeholder JS - safe version
-console.log('Placeholder script loaded');
+
+// Fichier de remplacement minimal
+console.log('Placeholder loaded');
