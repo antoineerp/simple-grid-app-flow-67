@@ -1,13 +1,20 @@
 
 # Activer le moteur de réécriture
 RewriteEngine On
+RewriteBase /
 
 # Configuration spécifique pour Infomaniak
 Options -MultiViews
 Options +FollowSymLinks
 
-# Définir le point d'entrée principal
-DirectoryIndex index.html index.php
+# Force execution of PHP scripts
+<FilesMatch "\.php$">
+    SetHandler application/x-httpd-php
+</FilesMatch>
+
+# Add MIME type and handler for PHP files
+AddType application/x-httpd-php .php
+AddHandler application/x-httpd-php .php
 
 # Définir les types MIME corrects
 AddType application/javascript .js
@@ -21,9 +28,6 @@ AddType image/svg+xml .svg
     Allow from all
 </FilesMatch>
 
-# Éviter les boucles de redirection
-RewriteCond %{ENV:REDIRECT_STATUS} ^$
-
 # Règles de réécriture spécifiques pour Infomaniak
 # Rediriger les chemins incorrects avec /sites/[domain]/
 RewriteCond %{REQUEST_URI} ^/sites/[^/]+/(.*)$
@@ -33,40 +37,36 @@ RewriteRule ^sites/[^/]+/(.*)$ /$1 [L,R=301]
 RewriteCond %{REQUEST_URI} ^/api/
 RewriteRule ^api/(.*)$ api/$1 [QSA,L]
 
-# Règles pour les assets
-RewriteCond %{REQUEST_URI} ^/assets/
-RewriteCond %{REQUEST_FILENAME} -f
-RewriteRule ^ - [L]
-
-# Traitement des uploads
+# Traitement des uploads et ressources statiques
 RewriteCond %{REQUEST_URI} ^/lovable-uploads/(.*)$
 RewriteCond %{DOCUMENT_ROOT}/lovable-uploads/%1 !-f
 RewriteCond %{DOCUMENT_ROOT}/public/lovable-uploads/%1 -f
 RewriteRule ^lovable-uploads/(.*)$ /public/lovable-uploads/$1 [L]
-
-# Traitement des ressources statiques
-RewriteCond %{REQUEST_URI} ^/lovable-uploads/
-RewriteRule ^lovable-uploads/(.*)$ public/lovable-uploads/$1 [L]
 
 # Permettre l'accès direct aux fichiers statiques
 RewriteCond %{REQUEST_URI} \.(js|css|png|jpe?g|gif|svg|ico|webp|woff2?|ttf|eot|map|tsx?)$
 RewriteCond %{REQUEST_FILENAME} -f
 RewriteRule ^ - [L]
 
-# Correction spécifique pour les chemins Infomaniak doublés
-RewriteCond %{REQUEST_URI} ^/sites/[^/]+/(assets/.+)$
-RewriteRule ^sites/[^/]+/(assets/.+)$ /$1 [L,R=301]
-
-# Rediriger toutes les autres requêtes vers index.html pour React Router
+# Toutes les autres requêtes sont envoyées à index.html pour React Router
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
-RewriteCond %{REQUEST_URI} !^/api/
-RewriteRule ^(.*)$ index.html [QSA,L]
+RewriteRule ^(?!api/) index.html [L]
 
-# Configuration de sécurité
+# Fichiers index par défaut
+DirectoryIndex index.html index.php
+
+# Encodage UTF-8 par défaut
+AddDefaultCharset UTF-8
+
+# Configuration de sécurité et cache
 <IfModule mod_headers.c>
-    # Configuration pour les assets statiques
-    <FilesMatch "\.(js|css|json)$">
+    Header set X-Content-Type-Options "nosniff"
+    Header set X-Frame-Options "SAMEORIGIN"
+    Header set Strict-Transport-Security "max-age=31536000; includeSubDomains"
+    
+    # Configuration pour les assets statiques et PHP
+    <FilesMatch "\.(js|css|json|php)$">
         Header set Cache-Control "no-cache, no-store, must-revalidate"
         Header set Pragma "no-cache"
         Header set Expires "0"

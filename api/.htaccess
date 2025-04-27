@@ -1,6 +1,7 @@
 
 # Activer la réécriture d'URL
 RewriteEngine On
+RewriteBase /api/
 
 # Sécurité - Bloquer l'accès direct aux fichiers sensibles
 <FilesMatch "^(config\.php|database\.php|\.env|\.json)$">
@@ -8,11 +9,13 @@ RewriteEngine On
     Deny from all
 </FilesMatch>
 
-# Permettre l'accès direct aux fichiers PHP spécifiques
-RewriteCond %{REQUEST_FILENAME} -f
-RewriteRule \.(php)$ - [L]
+# Traiter explicitement les fichiers PHP
+<FilesMatch "\.php$">
+    RewriteCond %{REQUEST_FILENAME} -f
+    RewriteRule ^(.*)$ $1 [L,E=SCRIPT:$1]
+</FilesMatch>
 
-# Rediriger les requêtes index.php vers la racine
+# Rediriger les requêtes index.php vers la racine de l'API
 RewriteRule ^index\.php$ / [R=301,L]
 
 # Rediriger toutes les requêtes vers index.php sauf pour les fichiers existants
@@ -26,7 +29,7 @@ RewriteRule ^(.*)$ index.php [QSA,L]
     Header set X-Frame-Options "SAMEORIGIN"
     Header set Strict-Transport-Security "max-age=31536000; includeSubDomains"
     
-    # Configuration CORS plus ouverte pour le développement
+    # Configuration CORS
     Header set Access-Control-Allow-Origin "*"
     Header set Access-Control-Allow-Methods "GET, POST, OPTIONS, PUT, DELETE"
     Header set Access-Control-Allow-Headers "Content-Type, Authorization"
@@ -37,7 +40,6 @@ RewriteRule ^(.*)$ index.php [QSA,L]
 
 # Protection contre les attaques de fichiers
 <IfModule mod_rewrite.c>
-    RewriteEngine On
     RewriteCond %{REQUEST_METHOD} ^(TRACE|TRACK)
     RewriteRule .* - [F]
 </IfModule>
