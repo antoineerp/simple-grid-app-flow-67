@@ -7,7 +7,7 @@ RewriteBase /
 Options -MultiViews
 Options +FollowSymLinks
 
-# Force execution of PHP scripts
+# Force execution of PHP scripts - IMPORTANT pour Infomaniak
 <FilesMatch "\.php$">
     SetHandler application/x-httpd-php
 </FilesMatch>
