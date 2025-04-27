@@ -1,4 +1,5 @@
-/* Placeholder CSS - safe version */
+
+/* This is a placeholder CSS that will be replaced at runtime */
 body:before {
   content: '';
   display: none;

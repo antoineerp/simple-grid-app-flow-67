@@ -41,9 +41,10 @@ export default defineConfig(({ mode }) => {
           chunkFileNames: 'assets/[name]-[hash].js',
           assetFileNames: 'assets/[name]-[hash].[ext]'
         },
-        // Ne pas exclure les assets placeholders pour qu'ils soient correctement gérés
+        // Exclure les chemins PHP de l'analyse statique et les placeholders
         external: [
-          /^\/assets\//
+          /^\/assets\//,
+          /placeholder\.(js|css)$/
         ]
       }
     },
