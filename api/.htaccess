@@ -26,8 +26,8 @@ RewriteRule ^(.*)$ index.php [QSA,L]
     Header set X-Frame-Options "SAMEORIGIN"
     Header set Strict-Transport-Security "max-age=31536000; includeSubDomains"
     
-    # Configuration CORS plus stricte
-    Header set Access-Control-Allow-Origin "https://qualiopi.ch"
+    # Configuration CORS plus ouverte pour le développement
+    Header set Access-Control-Allow-Origin "*"
     Header set Access-Control-Allow-Methods "GET, POST, OPTIONS, PUT, DELETE"
     Header set Access-Control-Allow-Headers "Content-Type, Authorization"
     

@@ -1,3 +1,4 @@
+
 <?php
 // Forcer l'output buffering pour éviter tout output avant les headers
 ob_start();
@@ -142,6 +143,7 @@ function routeApi() {
             exit;
             
         case 'user-diagnostic':
+        case 'user-diagnostic.php':
             // Rediriger vers le diagnostic utilisateur
             require_once __DIR__ . '/user-diagnostic.php';
             exit;
