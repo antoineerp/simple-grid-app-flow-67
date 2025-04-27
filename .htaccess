@@ -29,7 +29,7 @@ RewriteRule ^lovable-uploads/(.*)$ public/lovable-uploads/$1 [L]
 RewriteRule ^api$ api/index.php [L]
 
 # Règle pour traiter les requêtes d'API avec des sous-chemins
-RewriteRule ^api/([^/]+)$ api/$1.php [L]
+RewriteRule ^api/([^/]+)$ api/$1.php [QSA,L]
 RewriteRule ^api/(.*)$ api/$1 [QSA,L]
 
 # Permettre l'accès direct aux assets dans leur dossier
@@ -56,4 +56,17 @@ RewriteRule ^(.*)$ index.html [QSA,L]
         Header set Pragma "no-cache"
         Header set Expires "0"
     </FilesMatch>
+</IfModule>
+
+# Gestion des erreurs personnalisée
+ErrorDocument 404 /index.html
+ErrorDocument 500 /index.html
+
+# PHP Settings
+<IfModule mod_php.c>
+    php_flag display_errors off
+    php_value error_log "api/php_errors.log"
+    php_flag log_errors on
+    php_value upload_max_filesize "10M"
+    php_value post_max_size "12M"
 </IfModule>

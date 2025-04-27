@@ -30,4 +30,10 @@ RewriteRule ^(.*)$ index.php [QSA,L]
 # Forcer PHP à utiliser le bon encodage
 <IfModule mod_php.c>
     php_value default_charset "UTF-8"
+    php_flag display_errors off
+    php_value error_log "php_errors.log"
+    php_flag log_errors on
 </IfModule>
+
+# Définition d'une page d'erreur JSON personnalisée pour les erreurs 500
+ErrorDocument 500 '{"status":"error","message":"Erreur interne du serveur","code":500}'

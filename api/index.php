@@ -1,4 +1,3 @@
-
 <?php
 // Forcer l'output buffering pour éviter tout output avant les headers
 ob_start();
@@ -21,6 +20,9 @@ error_log("API Request - Method: " . ($_SERVER['REQUEST_METHOD'] ?? 'UNDEFINED')
 error_log("API Request - URI: " . ($_SERVER['REQUEST_URI'] ?? 'UNDEFINED'));
 error_log("API Request - Path: " . parse_url($_SERVER['REQUEST_URI'] ?? '', PHP_URL_PATH));
 error_log("API Request - Query: " . parse_url($_SERVER['REQUEST_URI'] ?? '', PHP_URL_QUERY));
+
+// Charger l'utilitaire de gestion des erreurs HTTP
+require_once __DIR__ . '/utils/HttpErrorHandler.php';
 
 // Si c'est une requête OPTIONS (preflight), nous la terminons ici
 if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
@@ -139,10 +141,19 @@ function routeApi() {
         case 'user-diagnostic':
         case 'user-diagnostic.php':
             // Rediriger vers le diagnostic utilisateur (corrigé pour inclure les deux formats)
-            require_once __DIR__ . '/user-diagnostic.php';
+            if (file_exists(__DIR__ . '/user-diagnostic.php')) {
+                require_once __DIR__ . '/user-diagnostic.php';
+            } else {
+                HttpErrorHandler::handleNotFound("Fichier de diagnostic utilisateur introuvable", $path);
+            }
             exit;
             
-        // Routes pour la synchronisation des données
+        case 'error-log':
+        case 'error-log.php':
+            // Point d'entrée pour le diagnostic des erreurs
+            require_once __DIR__ . '/error-log.php';
+            exit;
+            
         case 'documents-load':
         case 'documents-load.php':
             // Chargement des documents
@@ -197,23 +208,25 @@ function routeApi() {
             $direct_file_path_with_php = __DIR__ . '/' . $path . '.php';
             
             if (file_exists($direct_file_path) && is_file($direct_file_path)) {
-                require_once $direct_file_path;
+                try {
+                    require_once $direct_file_path;
+                } catch (Exception $e) {
+                    HttpErrorHandler::handleServerError("Erreur lors de l'exécution du fichier: {$path}", $e);
+                }
                 exit;
             }
             
             if (file_exists($direct_file_path_with_php) && is_file($direct_file_path_with_php)) {
-                require_once $direct_file_path_with_php;
+                try {
+                    require_once $direct_file_path_with_php;
+                } catch (Exception $e) {
+                    HttpErrorHandler::handleServerError("Erreur lors de l'exécution du fichier: {$path}.php", $e);
+                }
                 exit;
             }
             
             // Si aucun contrôleur n'est trouvé, renvoyer une erreur 404
-            http_response_code(404);
-            return [
-                'status' => 'error',
-                'message' => "Point de terminaison non trouvé: {$path}",
-                'request_uri' => $_SERVER['REQUEST_URI'],
-                'parsed_path' => $path
-            ];
+            HttpErrorHandler::handleNotFound("Point de terminaison non trouvé", $path);
     }
 }
 
@@ -234,15 +247,7 @@ function diagnoseRequest() {
             '/api/database-test' => 'Test de connexion à la base de données',
             '/api/check-users' => 'Vérification des utilisateurs',
             '/api/user-diagnostic' => 'Diagnostic des utilisateurs',
-            // Nouvelles routes ajoutées à la documentation
-            '/api/documents-load' => 'Chargement des documents',
-            '/api/documents-sync' => 'Synchronisation des documents',
-            '/api/exigences-load' => 'Chargement des exigences',
-            '/api/exigences-sync' => 'Synchronisation des exigences',
-            '/api/membres-load' => 'Chargement des membres',
-            '/api/membres-sync' => 'Synchronisation des membres',
-            '/api/bibliotheque-load' => 'Chargement de la bibliothèque',
-            '/api/bibliotheque-sync' => 'Synchronisation de la bibliothèque'
+            '/api/error-log' => 'Diagnostic des erreurs PHP et du serveur'
         ],
         'server_details' => [
             'php_version' => phpversion(),
@@ -267,16 +272,7 @@ try {
     }
 } catch (Exception $e) {
     error_log("Erreur API : " . $e->getMessage());
-    
-    // Nettoyer toute sortie existante
-    if (ob_get_length()) ob_clean();
-    
-    http_response_code(500);
-    echo json_encode([
-        'status' => 'error',
-        'message' => 'Erreur interne du serveur',
-        'error_details' => $e->getMessage()
-    ]);
+    HttpErrorHandler::handleServerError("Erreur lors du traitement de la requête", $e);
 } finally {
     // S'assurer que tout output est envoyé
     if (ob_get_length()) ob_end_flush();
