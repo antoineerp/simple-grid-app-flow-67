@@ -1,7 +1,6 @@
 
 # Activer la réécriture d'URL
 RewriteEngine On
-RewriteBase /api/
 
 # Sécurité - Bloquer l'accès direct aux fichiers sensibles
 <FilesMatch "^(config\.php|database\.php|\.env|\.json)$">
@@ -9,22 +8,11 @@ RewriteBase /api/
     Deny from all
 </FilesMatch>
 
-# Force execution of PHP scripts - IMPORTANT pour Infomaniak
-<FilesMatch "\.php$">
-    SetHandler application/x-httpd-php
-</FilesMatch>
+# Permettre l'accès direct aux fichiers PHP spécifiques
+RewriteCond %{REQUEST_FILENAME} -f
+RewriteRule \.(php)$ - [L]
 
-# Add MIME type and handler for PHP files
-AddType application/x-httpd-php .php
-AddHandler application/x-httpd-php .php
-
-# Traiter explicitement les fichiers PHP
-<FilesMatch "\.php$">
-    RewriteCond %{REQUEST_FILENAME} -f
-    RewriteRule ^(.*)$ $1 [L,E=SCRIPT:$1]
-</FilesMatch>
-
-# Rediriger les requêtes index.php vers la racine de l'API
+# Rediriger les requêtes index.php vers la racine
 RewriteRule ^index\.php$ / [R=301,L]
 
 # Rediriger toutes les requêtes vers index.php sauf pour les fichiers existants
@@ -38,8 +26,8 @@ RewriteRule ^(.*)$ index.php [QSA,L]
     Header set X-Frame-Options "SAMEORIGIN"
     Header set Strict-Transport-Security "max-age=31536000; includeSubDomains"
     
-    # Configuration CORS
-    Header set Access-Control-Allow-Origin "*"
+    # Configuration CORS plus stricte
+    Header set Access-Control-Allow-Origin "https://qualiopi.ch"
     Header set Access-Control-Allow-Methods "GET, POST, OPTIONS, PUT, DELETE"
     Header set Access-Control-Allow-Headers "Content-Type, Authorization"
     
@@ -49,6 +37,7 @@ RewriteRule ^(.*)$ index.php [QSA,L]
 
 # Protection contre les attaques de fichiers
 <IfModule mod_rewrite.c>
+    RewriteEngine On
     RewriteCond %{REQUEST_METHOD} ^(TRACE|TRACK)
     RewriteRule .* - [F]
 </IfModule>

@@ -191,6 +191,3 @@ export async function fetchWithErrorHandling(url: string, options?: RequestInit)
     throw error;
   }
 }
-
-// Add this export for the base URL
-export const apiBaseUrl = apiUrl;

@@ -143,7 +143,6 @@ function routeApi() {
             exit;
             
         case 'user-diagnostic':
-        case 'user-diagnostic.php':
             // Rediriger vers le diagnostic utilisateur
             require_once __DIR__ . '/user-diagnostic.php';
             exit;
@@ -208,19 +207,6 @@ function routeApi() {
             require_once __DIR__ . '/bibliotheque-sync.php';
             exit;
             
-        case 'check-routes':
-        case 'verifier-routes':
-        case 'routes-check':
-        case 'route-diagnostic':
-        case 'route-diagnostic.php':
-            // Nouvel endpoint pour vérifier les routes
-            if (file_exists(__DIR__ . '/route-diagnostic.php')) {
-                require_once __DIR__ . '/route-diagnostic.php';
-            } else {
-                require_once __DIR__ . '/check-routes.php';
-            }
-            exit;
-            
         default:
             // Si aucun contrôleur n'est trouvé, renvoyer une erreur 404
             http_response_code(404);
@@ -250,7 +236,15 @@ function diagnoseRequest() {
             '/api/database-test' => 'Test de connexion à la base de données',
             '/api/check-users' => 'Vérification des utilisateurs',
             '/api/user-diagnostic' => 'Diagnostic des utilisateurs',
-            '/api/check-routes' => 'Vérification des routes et détection des liens cassés',
+            // Nouvelles routes ajoutées à la documentation
+            '/api/documents-load' => 'Chargement des documents',
+            '/api/documents-sync' => 'Synchronisation des documents',
+            '/api/exigences-load' => 'Chargement des exigences',
+            '/api/exigences-sync' => 'Synchronisation des exigences',
+            '/api/membres-load' => 'Chargement des membres',
+            '/api/membres-sync' => 'Synchronisation des membres',
+            '/api/bibliotheque-load' => 'Chargement de la bibliothèque',
+            '/api/bibliotheque-sync' => 'Synchronisation de la bibliothèque'
         ],
         'server_details' => [
             'php_version' => phpversion(),
