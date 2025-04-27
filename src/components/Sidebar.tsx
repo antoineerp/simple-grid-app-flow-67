@@ -55,6 +55,10 @@ const Sidebar = () => {
     }
   ];
 
+  // Debug route information
+  console.log("Current location:", location.pathname);
+  console.log("Available sidebar routes:", menuItems.map(item => item.path));
+
   return (
     <aside className={cn(
       "bg-gray-900 text-white transition-all duration-300 ease-in-out",

@@ -13,6 +13,18 @@ try {
     throw new Error("Élément racine introuvable");
   }
 
+  // Log available routes for debugging
+  console.log("Routes disponibles:", [
+    "/",
+    "/pilotage",
+    "/exigences",
+    "/gestion-documentaire",
+    "/ressources-humaines",
+    "/collaboration",
+    "/verification-routes",
+    "/administration"
+  ]);
+
   // Wait for DOM to be fully loaded
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", () => {
