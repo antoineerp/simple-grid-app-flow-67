@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { 
@@ -44,8 +43,8 @@ const Sidebar = () => {
       icon: <Library className="h-5 w-5" /> 
     },
     { 
-      path: '/verification-routes', 
-      label: 'Vérification des Routes', 
+      path: '/routes-check', 
+      label: 'Routes Check', 
       icon: <Check className="h-5 w-5" /> 
     },
     { 
