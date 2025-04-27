@@ -28,56 +28,69 @@ function findRootElement() {
   return rootElement;
 }
 
-try {
-  const rootElement = findRootElement();
-  
-  if (rootElement) {
-    console.log("Élément racine trouvé, démarrage du rendu React");
-    const root = createRoot(rootElement);
-    root.render(React.createElement(App));
-    console.log("Rendu React démarré avec succès");
-  } else {
-    console.error("Élément racine non trouvé après plusieurs tentatives");
-    // Créer un élément racine s'il n'existe pas
-    const newRootElement = document.createElement("div");
-    newRootElement.id = "root";
-    document.body.appendChild(newRootElement);
-    console.log("Nouvel élément racine créé, tentative de démarrage React");
+// Wrapper pour gérer les erreurs de rendu React
+function initReactApp() {
+  try {
+    const rootElement = findRootElement();
     
-    const root = createRoot(newRootElement);
-    root.render(React.createElement(App));
+    if (rootElement) {
+      console.log("Élément racine trouvé, démarrage du rendu React");
+      try {
+        const root = createRoot(rootElement);
+        root.render(React.createElement(App));
+        console.log("Rendu React démarré avec succès");
+        // Marquer l'initialisation comme réussie
+        window.ReactDOMRoot = true;
+      } catch (renderError) {
+        console.error("Échec du rendu React:", renderError);
+        throw renderError;
+      }
+    } else {
+      console.error("Élément racine non trouvé après plusieurs tentatives");
+      // Créer un élément racine s'il n'existe pas
+      const newRootElement = document.createElement("div");
+      newRootElement.id = "root";
+      document.body.appendChild(newRootElement);
+      console.log("Nouvel élément racine créé, tentative de démarrage React");
+      
+      const root = createRoot(newRootElement);
+      root.render(React.createElement(App));
+      window.ReactDOMRoot = true;
+    }
+  } catch (error) {
+    console.error("Échec du rendu de l'application React:", error);
+    
+    // Afficher des informations détaillées sur l'erreur
+    console.error("Détails de l'erreur:", {
+      message: error.message,
+      stack: error.stack,
+      name: error.name
+    });
+    
+    // Fallback pour afficher une erreur à l'utilisateur
+    const rootElement = document.getElementById("root") || document.body;
+    if (rootElement) {
+      rootElement.innerHTML = `
+        <div style="text-align:center; margin-top:50px; font-family:sans-serif;">
+          <h1>Erreur de chargement</h1>
+          <p>L'application n'a pas pu être chargée correctement.</p>
+          <p>Erreur: ${error instanceof Error ? error.message : 'Erreur inconnue'}</p>
+          <button onclick="window.location.reload()">Réessayer</button>
+        </div>
+      `;
+    }
+    
+    return false;
   }
-} catch (error) {
-  console.error("Échec du rendu de l'application React:", error);
   
-  // Afficher des informations détaillées sur l'erreur
-  console.error("Détails de l'erreur:", {
-    message: error.message,
-    stack: error.stack,
-    name: error.name
-  });
-  
-  // Fallback pour afficher une erreur à l'utilisateur
-  if (document.getElementById("root")) {
-    document.getElementById("root").innerHTML = `
-      <div style="text-align:center; margin-top:50px; font-family:sans-serif;">
-        <h1>Erreur de chargement</h1>
-        <p>L'application n'a pas pu être chargée correctement.</p>
-        <p>Erreur: ${error instanceof Error ? error.message : 'Erreur inconnue'}</p>
-        <button onclick="window.location.reload()">Réessayer</button>
-      </div>
-    `;
-  } else {
-    document.body.innerHTML = `
-      <div style="text-align:center; margin-top:50px; font-family:sans-serif;">
-        <h1>Erreur de chargement</h1>
-        <p>L'application n'a pas pu être chargée correctement.</p>
-        <p>Erreur: ${error instanceof Error ? error.message : 'Erreur inconnue'}</p>
-        <button onclick="window.location.reload()">Réessayer</button>
-        <p><small>Note: L'élément racine est manquant.</small></p>
-      </div>
-    `;
-  }
+  return true;
+}
+
+// Démarrer l'application
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initReactApp);
+} else {
+  initReactApp();
 }
 
 // Gestionnaire d'erreurs global

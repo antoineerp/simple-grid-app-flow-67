@@ -19,27 +19,27 @@
     <meta name="twitter:image" content="https://lovable.dev/opengraph-image-p98pqg.png" />
 
     <link rel="stylesheet" href="/assets/index.css">
-    <!-- Script de détection et chargement avec délai réduit -->
-    <script>
-      // Script d'initialisation immédiat pour éviter les pages blanches
-      window.addEventListener('DOMContentLoaded', function() {
-        if (!document.getElementById('root')) {
-          console.log("Élément root manquant, création automatique");
-          const root = document.createElement('div');
-          root.id = 'root';
-          document.body.appendChild(root);
-        }
-      });
-    </script>
-    <script src="/assets/index.js" type="module"></script>
   </head>
 
   <body>
     <div id="root"></div>
+    
+    <!-- Chargeur initial pour prévenir les écrans blancs -->
+    <script>
+      if (!document.getElementById('root')) {
+        const root = document.createElement('div');
+        root.id = 'root';
+        document.body.appendChild(root);
+      }
+    </script>
+    
+    <!-- Script GPT Engineer -->
     <script src="https://cdn.gpteng.co/gptengineer.js" type="module"></script>
-    <!-- Intégration directe du script principal pour améliorer la fiabilité -->
+    
+    <!-- Script de détection et chargement avec délai réduit -->
+    <script src="/assets/index.js"></script>
+    
+    <!-- Script principal de l'application -->
     <script type="module" src="/src/main.js"></script>
-    <!-- Fallback en cas de problème avec le module -->
-    <script nomodule src="/src/main.js"></script>
   </body>
 </html>

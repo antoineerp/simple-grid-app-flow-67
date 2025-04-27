@@ -151,9 +151,10 @@ function loadFallbackScript() {
         document.head.appendChild(reactDomScript);
     }
     
-    // Injecter notre propre script de démarrage
+    // Corriger la syntaxe - Voici où était le problème précédent
+    // Injecter notre propre script de démarrage en utilisant createElement correctement
     const inlineScript = document.createElement('script');
-    inlineScript.innerHTML = `
+    inlineScript.textContent = `
         document.addEventListener('DOMContentLoaded', function() {
             try {
                 const rootElement = document.getElementById('root');
@@ -173,7 +174,7 @@ function loadFallbackScript() {
                 console.log("Script fallback exécuté");
             } catch (err) {
                 console.error("Erreur dans le script fallback:", err);
-                document.body.innerHTML = '<div style="text-align:center; padding:30px; font-family:sans-serif;"><h1>Erreur de chargement</h1><p>Impossible de charger l\'application.</p><button onclick="window.location.reload()">Réessayer</button></div>';
+                document.body.innerHTML = '<div style="text-align:center; padding:30px; font-family:sans-serif;"><h1>Erreur de chargement</h1><p>Impossible de charger l\\'application.</p><button onclick="window.location.reload()">Réessayer</button></div>';
             }
         });
     `;
