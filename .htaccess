@@ -25,8 +25,11 @@ AddType image/svg+xml .svg
 RewriteCond %{REQUEST_URI} ^/lovable-uploads/
 RewriteRule ^lovable-uploads/(.*)$ public/lovable-uploads/$1 [L]
 
-# Règle pour l'API - toutes les requêtes /api vers le dossier api
-RewriteRule ^api/?$ api/index.php [L]
+# Règle spécifique pour rediriger /api vers le dossier api/index.php
+RewriteRule ^api$ api/index.php [L]
+
+# Règle pour traiter les requêtes d'API avec des sous-chemins
+RewriteRule ^api/([^/]+)$ api/$1.php [L]
 RewriteRule ^api/(.*)$ api/$1 [QSA,L]
 
 # Permettre l'accès direct aux assets dans leur dossier

@@ -13,9 +13,12 @@ let lastConnectionError: string | null = null;
 export const testDatabaseConnection = async (): Promise<boolean> => {
   try {
     console.log("Test de la connexion à la base de données...");
-    console.log("URL API pour le test de connexion:", `${API_URL}/db-connection-test.php`);
     
-    const response = await fetch(`${API_URL}/db-connection-test.php`, {
+    // Utiliser le fichier de test direct optimisé
+    const directTestUrl = `${API_URL}/direct-db-test.php`;
+    console.log("URL API pour le test direct de connexion:", directTestUrl);
+    
+    const response = await fetch(directTestUrl, {
       method: 'GET',
       headers: {
         'Accept': 'application/json',
@@ -33,10 +36,41 @@ export const testDatabaseConnection = async (): Promise<boolean> => {
     const data = await response.json();
     console.log("Réponse du test de connexion:", data);
     
-    // Retourner true seulement si le statut est success
+    // Si le test direct échoue, essayer le fichier standard
+    if (data.status !== 'success') {
+      console.log("Test direct échoué, essai du fichier standard");
+      return testStandardConnection();
+    }
+    
+    return true;
+  } catch (err) {
+    console.error("Erreur lors du test direct de connexion:", err);
+    console.log("Essai du test de connexion standard comme fallback");
+    return testStandardConnection();
+  }
+};
+
+// Test standard comme fallback
+const testStandardConnection = async (): Promise<boolean> => {
+  try {
+    console.log("Test standard de la connexion à la base de données...");
+    const response = await fetch(`${API_URL}/db-connection-test.php`, {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+        'Cache-Control': 'no-cache, no-store, must-revalidate'
+      }
+    });
+    
+    if (!response.ok) {
+      throw new Error(`HTTP error! Status: ${response.status}`);
+    }
+    
+    const data = await response.json();
     return data.status === 'success';
   } catch (err) {
-    console.error("Erreur lors du test de connexion à la base de données:", err);
+    console.error("Erreur lors du test standard de connexion:", err);
     return false;
   }
 };
