@@ -1,11 +1,36 @@
 
 <?php
-// Supprimer les vérifications de DIRECT_ACCESS_CHECK qui causent les erreurs 403
-// header("Content-Type: application/json; charset=UTF-8");
-// header("Access-Control-Allow-Origin: *");
-// header("Access-Control-Allow-Methods: GET, POST, OPTIONS");
-// header("Access-Control-Max-Age: 3600");
-// header("Access-Control-Allow-Headers: Content-Type, Access-Control-Allow-Headers, Authorization, X-Requested-With");
+// Inclure notre fichier de configuration d'environnement s'il n'est pas déjà inclus
+if (!function_exists('env')) {
+    require_once '../config/env.php';
+}
+
+// Déterminer l'environnement
+$environment = env('APP_ENV', 'development');
+
+// Configuration des en-têtes CORS selon l'environnement
+$allowedOrigins = [
+    'development' => env('ALLOWED_ORIGIN_DEV', 'http://localhost:8080'),
+    'production' => env('ALLOWED_ORIGIN_PROD', 'https://www.qualiopi.ch')
+];
+
+$allowedOrigin = $allowedOrigins[$environment];
+
+// Obtenir l'origine de la requête
+$origin = isset($_SERVER['HTTP_ORIGIN']) ? $_SERVER['HTTP_ORIGIN'] : '';
+
+// Vérifier si l'origine est autorisée
+if ($origin === $allowedOrigin || $environment === 'development') {
+    header("Access-Control-Allow-Origin: $origin");
+} else {
+    header("Access-Control-Allow-Origin: " . $allowedOrigins['production']);
+}
+
+// Autres en-têtes CORS
+header("Content-Type: application/json; charset=UTF-8");
+header("Access-Control-Allow-Methods: GET, POST, OPTIONS");
+header("Access-Control-Max-Age: 3600");
+header("Access-Control-Allow-Headers: Content-Type, Access-Control-Allow-Headers, Authorization, X-Requested-With");
 
 // Si c'est une requête OPTIONS (preflight), nous la terminons ici
 if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
@@ -13,17 +38,17 @@ if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
     exit;
 }
 
-// Inclusion des fichiers nécessaires - s'assurer que les chemins sont corrects
-require_once dirname(__DIR__) . '/config/database.php';
+// Inclusion des fichiers nécessaires
+include_once '../config/database.php';
 
 // Vérification de l'authentification si disponible
 $userData = null;
 $isUserAdmin = false;
 
 // Tenter d'authentifier l'utilisateur si le middleware est disponible
-if (file_exists(dirname(__DIR__) . '/middleware/Auth.php')) {
-    include_once dirname(__DIR__) . '/middleware/Auth.php';
-    $allHeaders = getallheaders();
+if (file_exists('../middleware/Auth.php')) {
+    include_once '../middleware/Auth.php';
+    $allHeaders = apache_request_headers();
     $auth = new Auth($allHeaders);
     $userData = $auth->isAuth();
     
@@ -34,8 +59,30 @@ if (file_exists(dirname(__DIR__) . '/middleware/Auth.php')) {
 }
 
 // Pour les requêtes GET, permettre même sans auth en mode dev ou si l'utilisateur est admin
-// Nous simplifions pour permettre l'accès sans restriction dans un premier temps
-$environment = 'development';
+if ($_SERVER['REQUEST_METHOD'] === 'GET') {
+    if ($environment === 'development' || $isUserAdmin) {
+        // Autoriser la suite du script
+    } else {
+        // En production, restreindre l'accès pour les non-admin
+        http_response_code(403);
+        echo json_encode(["message" => "Accès non autorisé pour la lecture de configuration"], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+}
+// Pour les requêtes POST, exiger que l'utilisateur soit administrateur
+else if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (!$userData) {
+        http_response_code(401);
+        echo json_encode(["message" => "Authentification requise"], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+    
+    if (!$isUserAdmin) {
+        http_response_code(403);
+        echo json_encode(["message" => "Permission refusée. Droits d'administrateur requis."], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+}
 
 // Instancier l'objet Database
 $database = new Database();

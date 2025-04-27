@@ -6,71 +6,40 @@ import { createRoot } from 'react-dom/client';
 import App from './App.tsx';
 import './index.css';
 
-console.log("main.js: Initialisation de l'application React (version JS)");
-
-// Fonction pour trouver l'élément racine avec plusieurs tentatives
-function findRootElement() {
-  // Essayer d'abord l'ID standard
-  let rootElement = document.getElementById("root");
-  
-  // Si l'élément racine n'est pas trouvé, chercher d'autres éléments possibles
-  if (!rootElement) {
-    console.log("Élément 'root' non trouvé, recherche d'alternatives...");
-    rootElement = document.querySelector("[id='root']") || 
-                  document.querySelector(".root") || 
-                  document.querySelector("div[data-reactroot]");
-    
-    if (rootElement) {
-      console.log("Élément racine alternatif trouvé:", rootElement);
-    }
-  }
-  
-  return rootElement;
-}
-
-// Wrapper pour gérer les erreurs de rendu React
-function initReactApp() {
+window.addEventListener('DOMContentLoaded', () => {
   try {
-    const rootElement = findRootElement();
+    console.log("Application initialization started");
+    const rootElement = document.getElementById("root");
     
     if (rootElement) {
-      console.log("Élément racine trouvé, démarrage du rendu React");
-      try {
-        const root = createRoot(rootElement);
-        root.render(React.createElement(App));
-        console.log("Rendu React démarré avec succès");
-        // Marquer l'initialisation comme réussie
-        window.ReactDOMRoot = true;
-      } catch (renderError) {
-        console.error("Échec du rendu React:", renderError);
-        throw renderError;
-      }
-    } else {
-      console.error("Élément racine non trouvé après plusieurs tentatives");
-      // Créer un élément racine s'il n'existe pas
-      const newRootElement = document.createElement("div");
-      newRootElement.id = "root";
-      document.body.appendChild(newRootElement);
-      console.log("Nouvel élément racine créé, tentative de démarrage React");
-      
-      const root = createRoot(newRootElement);
+      console.log("Root element found, starting React rendering");
+      const root = createRoot(rootElement);
       root.render(React.createElement(App));
-      window.ReactDOMRoot = true;
+      
+      console.log("Application rendering successfully started");
+    } else {
+      console.error("Root element not found");
+      document.body.innerHTML = `
+        <div style="text-align:center; margin-top:50px; font-family:sans-serif;">
+          <h1>Erreur critique</h1>
+          <p>L'élément racine de l'application est introuvable.</p>
+          <button onclick="window.location.reload()">Réessayer</button>
+        </div>
+      `;
     }
   } catch (error) {
-    console.error("Échec du rendu de l'application React:", error);
+    console.error("Failed to render React application:", error);
     
     // Afficher des informations détaillées sur l'erreur
-    console.error("Détails de l'erreur:", {
+    console.error("Error details:", {
       message: error.message,
       stack: error.stack,
       name: error.name
     });
     
     // Fallback pour afficher une erreur à l'utilisateur
-    const rootElement = document.getElementById("root") || document.body;
-    if (rootElement) {
-      rootElement.innerHTML = `
+    if (document.getElementById("root")) {
+      document.getElementById("root").innerHTML = `
         <div style="text-align:center; margin-top:50px; font-family:sans-serif;">
           <h1>Erreur de chargement</h1>
           <p>L'application n'a pas pu être chargée correctement.</p>
@@ -79,24 +48,21 @@ function initReactApp() {
         </div>
       `;
     }
-    
-    return false;
   }
-  
-  return true;
-}
-
-// Démarrer l'application
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', initReactApp);
-} else {
-  initReactApp();
-}
-
-// Gestionnaire d'erreurs global
-window.addEventListener('error', (event) => {
-  console.error('Erreur globale détectée:', event.error);
 });
 
-// Assurer que le script est chargé correctement
-console.log("main.js: Script chargé avec succès");
+// Global error handler
+window.addEventListener('error', (event) => {
+  console.error('Global error caught:', event.error);
+  console.error('Error details:', {
+    message: event.error?.message,
+    stack: event.error?.stack,
+    filename: event.filename,
+    lineno: event.lineno,
+    colno: event.colno
+  });
+});
+
+// Check if the application was loaded from the correct domain
+console.log("Application running on domain:", window.location.hostname);
+console.log("Asset path test:", "/assets/index.css exists:", document.querySelector('link[href*="index.css"]') !== null);

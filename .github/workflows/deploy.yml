@@ -1,4 +1,3 @@
-
 name: Deploy to Infomaniak
 
 on:
@@ -81,28 +80,6 @@ jobs:
         cp -v api/check-users.php dist/api/ || echo "Attention: check-users.php non trouvé"
         cp -v api/database-config.php dist/api/ || echo "Attention: database-config.php non trouvé"
         cp -v api/users.php dist/api/ || echo "Attention: users.php non trouvé"
-        cp -v api/utilisateurs.php dist/api/ || echo "Attention: utilisateurs.php non trouvé"
-        
-        # Nouveaux fichiers de test à copier
-        cp -v api/database-test.php dist/api/ || echo "Attention: database-test.php non trouvé"
-        cp -v api/db-test.php dist/api/ || echo "Attention: db-test.php non trouvé"
-        cp -v api/test-auth.php dist/api/ || echo "Attention: test-auth.php non trouvé"
-        cp -v api/json-test.php dist/api/ || echo "Attention: json-test.php non trouvé"
-        cp -v api/simple-json-test.php dist/api/ || echo "Attention: simple-json-test.php non trouvé"
-        cp -v api/direct-db-test.php dist/api/ || echo "Attention: direct-db-test.php non trouvé"
-        
-        # Fichiers de diagnostic supplémentaires
-        cp -v api/diagnose.php dist/api/ || echo "Attention: diagnose.php non trouvé"
-        cp -v api/diagnose-connection.php dist/api/ || echo "Attention: diagnose-connection.php non trouvé"
-        cp -v api/database-diagnostic.php dist/api/ || echo "Attention: database-diagnostic.php non trouvé"
-        cp -v api/database-diagnostics.php dist/api/ || echo "Attention: database-diagnostics.php non trouvé"
-        cp -v api/db-diagnostic.php dist/api/ || echo "Attention: db-diagnostic.php non trouvé"
-        cp -v api/db-info.php dist/api/ || echo "Attention: db-info.php non trouvé"
-        cp -v api/db-connection-test.php dist/api/ || echo "Attention: db-connection-test.php non trouvé"
-        cp -v api/advanced-diagnostic.php dist/api/ || echo "Attention: advanced-diagnostic.php non trouvé"
-        cp -v api/user-diagnostic.php dist/api/ || echo "Attention: user-diagnostic.php non trouvé"
-        cp -v api/check-permissions.php dist/api/ || echo "Attention: check-permissions.php non trouvé"
-        cp -v api/check-routes.php dist/api/ || echo "Attention: check-routes.php non trouvé"
         
         # Copier les fichiers d'opérations
         cp -v api/operations/BaseOperations.php dist/api/operations/ || echo "Attention: BaseOperations.php non trouvé"
@@ -132,9 +109,6 @@ jobs:
         cp -v api/config/env.php dist/api/config/ || echo "Attention: env.php non trouvé"
         cp -v api/config/env.example.php dist/api/config/ || echo "Attention: env.example.php non trouvé"
         cp -v api/config/database.php dist/api/config/ || echo "Attention: database.php non trouvé"
-        cp -v api/config/index.php dist/api/config/ || echo "Attention: index.php config non trouvé"
-        cp -v api/config/db_config.json dist/api/config/ || echo "Attention: db_config.json non trouvé" 
-        cp -v api/config/db_config.example.json dist/api/config/ || echo "Attention: db_config.example.json non trouvé"
         
         # Copier les contrôleurs
         cp -v api/controllers/AuthController.php dist/api/controllers/ || echo "Attention: AuthController.php non trouvé"
@@ -147,39 +121,14 @@ jobs:
         # Copier les middlewares
         cp -v api/middleware/Auth.php dist/api/middleware/ || echo "Attention: Auth.php middleware non trouvé"
         cp -v api/middleware/ResponseHandler.php dist/api/middleware/ || echo "Attention: ResponseHandler.php middleware non trouvé"
-        cp -v api/middleware/RequestHandler.php dist/api/middleware/ || echo "Attention: RequestHandler.php middleware non trouvé"
         
         # Copier les modèles
         cp -v api/models/User.php dist/api/models/ || echo "Attention: User.php model non trouvé"
-        cp -v api/models/BaseModel.php dist/api/models/ || echo "Attention: BaseModel.php non trouvé"
-        cp -v api/models/traits/TableManager.php dist/api/models/traits/ || mkdir -p dist/api/models/traits/ && cp -v api/models/traits/TableManager.php dist/api/models/traits/ || echo "Attention: TableManager.php non trouvé"
-        cp -v api/models/traits/UserQueries.php dist/api/models/traits/ || mkdir -p dist/api/models/traits/ && cp -v api/models/traits/UserQueries.php dist/api/models/traits/ || echo "Attention: UserQueries.php non trouvé"
-        cp -v api/models/traits/UserValidator.php dist/api/models/traits/ || mkdir -p dist/api/models/traits/ && cp -v api/models/traits/UserValidator.php dist/api/models/traits/ || echo "Attention: UserValidator.php non trouvé"
         
         # Copier les utilitaires
         cp -v api/utils/JwtHandler.php dist/api/utils/ || echo "Attention: JwtHandler.php non trouvé"
         cp -v api/utils/ResponseHandler.php dist/api/utils/ || echo "Attention: ResponseHandler.php non trouvé"
         
-        # Copier les utilitaires de diagnostic de base de données
-        mkdir -p dist/api/utils/DatabaseDiagnostics
-        cp -v api/utils/DatabaseDiagnostics/ConfigTester.php dist/api/utils/DatabaseDiagnostics/ || echo "Attention: ConfigTester.php non trouvé"
-        cp -v api/utils/DatabaseDiagnostics/ConsistencyChecker.php dist/api/utils/DatabaseDiagnostics/ || echo "Attention: ConsistencyChecker.php non trouvé"
-        cp -v api/utils/DatabaseDiagnostics/PdoTester.php dist/api/utils/DatabaseDiagnostics/ || echo "Attention: PdoTester.php non trouvé"
-        
-        # Copier tout fichier PHP d'API au cas où
-        find api -name "*.php" -type f | while read file; do
-          target_dir="dist/$(dirname "$file" | sed 's|^api/||')"
-          mkdir -p "$target_dir"
-          cp -v "$file" "dist/$file" || echo "Attention: Impossible de copier $file"
-        done
-        
-        # Créer une liste des fichiers non copiés pour référence
-        find api -name "*.php" -type f | while read file; do
-          if [ ! -f "dist/$file" ]; then
-            echo "MANQUANT: $file" >> dist/missing_files.log
-          fi
-        done
-
     - name: Copy remaining application files
       run: |
         # Copier les fichiers principaux
@@ -188,8 +137,6 @@ jobs:
         cp -v deploy-check.php dist/ || echo "Attention: deploy-check.php non trouvé"
         cp -v infomaniak-paths-check.php dist/ || echo "Attention: infomaniak-paths-check.php non trouvé"
         cp -v copy-assets.php dist/ || echo "Attention: copy-assets.php non trouvé"
-        cp -v verification-build.php dist/ || echo "Attention: verification-build.php non trouvé"
-        cp -v verify-assets.php dist/ || echo "Attention: verify-assets.php non trouvé"
         
         # Copier les fichiers uploads avec récursion si le dossier existe
         if [ -d "public/lovable-uploads" ]; then
@@ -210,9 +157,6 @@ jobs:
         ls -la dist/api/ || echo "ERREUR: dist/api/ n'existe pas!"
         echo "Assets files:"
         ls -la dist/assets/ || echo "ERREUR: dist/assets/ n'existe pas!"
-        
-        echo "Checking API test files:"
-        ls -la dist/api/*test*.php || echo "Aucun fichier de test trouvé"
         
     - name: Copy assets to root
       run: |
@@ -259,4 +203,3 @@ jobs:
         echo "Vérifiez également: https://qualiopi.ch/fix-index-references.php"
         echo "Vérifiez les chemins avec: https://qualiopi.ch/infomaniak-paths-check.php"
         echo "Vérifiez le déploiement avec: https://qualiopi.ch/deploy-check.php"
-        echo "Vérifiez les fichiers API avec: https://qualiopi.ch/api/"

@@ -1,152 +1,114 @@
 
 <?php
-// Configuration stricte des erreurs
-error_reporting(E_ALL);
-ini_set('display_errors', 0); 
-ini_set('log_errors', 1);
-ini_set('error_log', __DIR__ . '/php_errors.log');
+// Définir explicitement l'encodage UTF-8
+header('Content-Type: application/json; charset=utf-8');
+mb_internal_encoding('UTF-8');
 
-// En-têtes CORS et Content-Type
-header("Content-Type: application/json; charset=UTF-8");
-header("Access-Control-Allow-Origin: *");
-header("Access-Control-Allow-Methods: GET, OPTIONS");
-header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With");
+// Désactiver la mise en cache
 header("Cache-Control: no-cache, no-store, must-revalidate");
+header("Pragma: no-cache");
+header("Expires: 0");
 
-// Si c'est une requête OPTIONS (preflight), nous la terminons ici
-if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
-    http_response_code(200);
-    echo json_encode(['status' => 'success', 'message' => 'Preflight OK']);
-    exit;
+// Autoriser l'accès CORS pour le débogage
+header("Access-Control-Allow-Origin: *");
+header("Access-Control-Allow-Methods: GET");
+header("Access-Control-Allow-Headers: Content-Type, Access-Control-Allow-Headers, Authorization, X-Requested-With");
+
+// Journaliser l'accès
+error_log('Diagnostic API accessed from: ' . ($_SERVER['REMOTE_ADDR'] ?? 'unknown'));
+
+// Fonction pour obtenir une information sur le serveur de manière sécurisée
+function get_server_info($key) {
+    return isset($_SERVER[$key]) ? $_SERVER[$key] : 'non disponible';
 }
 
-// Définir DIRECT_ACCESS_CHECK comme true pour permettre l'accès direct
-define('DIRECT_ACCESS_CHECK', true);
+// Vérifier l'environnement PHP
+$phpVersion = phpversion();
+$modules = get_loaded_extensions();
+$docRoot = get_server_info('DOCUMENT_ROOT');
+$scriptFilename = get_server_info('SCRIPT_FILENAME');
+$requestUri = get_server_info('REQUEST_URI');
+$httpHost = get_server_info('HTTP_HOST');
 
-try {
-    // Obtenir des informations sur le serveur
-    $server_info = [
-        'php_version' => phpversion(),
-        'server_software' => $_SERVER['SERVER_SOFTWARE'] ?? 'Inconnu',
-        'system_os' => PHP_OS,
-        'server_protocol' => $_SERVER['SERVER_PROTOCOL'] ?? 'Inconnu',
-        'request_method' => $_SERVER['REQUEST_METHOD'] ?? 'Inconnu',
-        'request_time' => date('Y-m-d H:i:s', $_SERVER['REQUEST_TIME'] ?? time()),
-        'document_root' => $_SERVER['DOCUMENT_ROOT'] ?? 'Inconnu',
-        'script_filename' => $_SERVER['SCRIPT_FILENAME'] ?? 'Inconnu',
-        'server_name' => $_SERVER['SERVER_NAME'] ?? 'Inconnu',
-        'http_host' => $_SERVER['HTTP_HOST'] ?? 'Inconnu',
-        'remote_addr' => $_SERVER['REMOTE_ADDR'] ?? 'Inconnu',
-    ];
+// Vérifier l'existence de fichiers clés
+$indexHtml = file_exists('../index.html');
+$mainHtaccess = file_exists('../.htaccess');
+$apiHtaccess = file_exists('./.htaccess');
+$apiIndex = file_exists('./index.php');
+$assetsDir = is_dir('../assets');
 
-    // Informations sur les extensions PHP
-    $extensions = [
-        'pdo' => extension_loaded('pdo'),
-        'pdo_mysql' => extension_loaded('pdo_mysql'),
-        'mysqli' => extension_loaded('mysqli'),
-        'curl' => extension_loaded('curl'),
-        'json' => extension_loaded('json'),
-        'mbstring' => extension_loaded('mbstring'),
-        'gd' => extension_loaded('gd'),
-        'fileinfo' => extension_loaded('fileinfo'),
-        'openssl' => extension_loaded('openssl')
-    ];
+// Vérifier le fichier de configuration d'environnement
+$configExists = file_exists('./config/env.php');
+$configJson = file_exists('./config/app_config.json');
 
-    // Vérifier la configuration de la base de données
-    $db_config_exists = file_exists(__DIR__ . '/config/database.php');
-    $db_config_status = 'Non vérifié';
-    $db_connection_status = 'Non vérifié';
+// Préparation de la réponse
+$response = [
+    'status' => 200,
+    'message' => 'Diagnostic API fonctionnel',
+    'timestamp' => date('Y-m-d H:i:s'),
+    'server_info' => [
+        'php_version' => $phpVersion,
+        'loaded_modules' => count($modules),
+        'document_root' => $docRoot,
+        'script_filename' => $scriptFilename,
+        'request_uri' => $requestUri,
+        'http_host' => $httpHost
+    ],
+    'files_check' => [
+        'index_html' => $indexHtml,
+        'root_htaccess' => $mainHtaccess,
+        'api_htaccess' => $apiHtaccess,
+        'api_index' => $apiIndex,
+        'assets_directory' => $assetsDir,
+        'env_config' => $configExists,
+        'app_config_json' => $configJson
+    ]
+];
 
-    if ($db_config_exists) {
-        include_once __DIR__ . '/config/database.php';
-        $db_config_status = 'Fichier de configuration trouvé';
-
-        try {
-            $database = new Database();
-            $db = $database->getConnection();
-            if ($database->is_connected) {
-                $db_connection_status = 'Connexion réussie';
-            } else {
-                $db_connection_status = 'Échec de connexion: ' . ($database->connection_error ?? 'Erreur inconnue');
-            }
-        } catch (Exception $e) {
-            $db_connection_status = 'Erreur: ' . $e->getMessage();
+// Si l'API est configurée, inclure les informations de configuration
+if ($configExists) {
+    // Vérifier si la fonction env() existe déjà, sinon la définir
+    if (!function_exists('env')) {
+        function env($key, $default = null) {
+            // Fonction minimale de secours
+            return $default;
         }
-    } else {
-        $db_config_status = 'Fichier de configuration manquant';
     }
+    
+    // Essayer d'inclure le fichier de configuration sans planter
+    try {
+        include_once './config/env.php';
+        
+        // Récupérer les variables d'environnement en utilisant la fonction env()
+        $response['environment'] = env('APP_ENV', 'non défini');
+        $response['api_urls'] = [
+            'dev' => env('API_URL_DEV', 'non défini'),
+            'prod' => env('API_URL_PROD', 'non défini')
+        ];
+        $response['cors'] = [
+            'dev' => env('ALLOWED_ORIGIN_DEV', 'non défini'),
+            'prod' => env('ALLOWED_ORIGIN_PROD', 'non défini')
+        ];
+    } catch (Exception $e) {
+        $response['config_error'] = $e->getMessage();
+    }
+}
 
-    // Vérifier les permissions des dossiers clés
-    $path_permissions = [];
-    $directories = [
-        __DIR__,                 // Dossier API principal
-        __DIR__ . '/config',     // Configuration
-        __DIR__ . '/controllers', // Contrôleurs
-        __DIR__ . '/models',     // Modèles
-        __DIR__ . '/utils',      // Utilitaires
-        __DIR__ . '/middleware'  // Middleware
-    ];
-
-    foreach ($directories as $dir) {
-        if (is_dir($dir)) {
-            $readable = is_readable($dir) ? 'Oui' : 'Non';
-            $writable = is_writable($dir) ? 'Oui' : 'Non';
-            $permission = substr(sprintf('%o', fileperms($dir)), -4);
-            $path_permissions[] = [
-                'path' => $dir,
-                'readable' => $readable,
-                'writable' => $writable,
-                'permission' => $permission
-            ];
+// Vérifier si le fichier app_config.json existe et est lisible
+if ($configJson) {
+    try {
+        $jsonContent = file_get_contents('./config/app_config.json');
+        $jsonData = json_decode($jsonContent, true);
+        if ($jsonData) {
+            $response['app_config'] = $jsonData;
         } else {
-            $path_permissions[] = [
-                'path' => $dir,
-                'exists' => false,
-                'message' => 'Dossier non trouvé'
-            ];
+            $response['app_config_error'] = 'Format JSON invalide';
         }
+    } catch (Exception $e) {
+        $response['app_config_error'] = $e->getMessage();
     }
-
-    // Tester la fonction de nettoyage UTF-8
-    $utf8_test = null;
-    if (function_exists('cleanUTF8')) {
-        $test_string = "Test avec caractères accentués: éèêëàâäôöùûüÿç";
-        $cleaned = cleanUTF8($test_string);
-        $utf8_test = [
-            'original' => $test_string,
-            'cleaned' => $cleaned,
-            'is_same' => $test_string === $cleaned ? 'Oui' : 'Non'
-        ];
-    } else {
-        $utf8_test = [
-            'status' => 'Fonction cleanUTF8 non disponible'
-        ];
-    }
-
-    // Assembler la réponse complète
-    $diagnostic_result = [
-        'status' => 'success',
-        'message' => 'Diagnostic API exécuté avec succès',
-        'timestamp' => date('Y-m-d H:i:s'),
-        'server_info' => $server_info,
-        'php_extensions' => $extensions,
-        'database' => [
-            'config_file_exists' => $db_config_exists,
-            'config_status' => $db_config_status,
-            'connection_status' => $db_connection_status
-        ],
-        'directories' => $path_permissions,
-        'utf8_test' => $utf8_test
-    ];
-
-    http_response_code(200);
-    echo json_encode($diagnostic_result, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
-} catch (Exception $e) {
-    http_response_code(500);
-    echo json_encode([
-        'status' => 'error',
-        'message' => 'Erreur lors du diagnostic: ' . $e->getMessage(),
-        'trace' => $e->getTraceAsString()
-    ], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
 }
+
+// Retourner la réponse en JSON
+echo json_encode($response, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
 ?>

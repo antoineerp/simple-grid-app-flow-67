@@ -21,10 +21,6 @@ class User extends BaseModel {
         parent::__construct($db, 'utilisateurs');
     }
     
-    public function read() {
-        return $this->readAll();
-    }
-    
     public function readAll() {
         try {
             $this->createTableIfNotExists();

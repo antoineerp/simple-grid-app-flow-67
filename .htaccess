@@ -11,16 +11,12 @@ DirectoryIndex index.html index.php
 
 # Définir les types MIME corrects
 AddType application/javascript .js
-AddType application/javascript .mjs
-AddType application/javascript .jsx
-AddType application/javascript .ts
-AddType application/javascript .tsx
 AddType text/css .css
 AddType application/json .json
 AddType image/svg+xml .svg
 
 # Permettre l'accès aux assets
-<FilesMatch "\.(js|mjs|jsx|ts|tsx|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot|map)$">
+<FilesMatch "\.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot|map|tsx?)$">
     Order Allow,Deny
     Allow from all
 </FilesMatch>
@@ -53,7 +49,7 @@ RewriteCond %{REQUEST_URI} ^/lovable-uploads/
 RewriteRule ^lovable-uploads/(.*)$ public/lovable-uploads/$1 [L]
 
 # Permettre l'accès direct aux fichiers statiques
-RewriteCond %{REQUEST_URI} \.(js|mjs|jsx|ts|tsx|css|png|jpe?g|gif|svg|ico|webp|woff2?|ttf|eot|map)$
+RewriteCond %{REQUEST_URI} \.(js|css|png|jpe?g|gif|svg|ico|webp|woff2?|ttf|eot|map|tsx?)$
 RewriteCond %{REQUEST_FILENAME} -f
 RewriteRule ^ - [L]
 
@@ -70,7 +66,7 @@ RewriteRule ^(.*)$ index.html [QSA,L]
 # Configuration de sécurité
 <IfModule mod_headers.c>
     # Configuration pour les assets statiques
-    <FilesMatch "\.(js|mjs|jsx|ts|tsx|css|json)$">
+    <FilesMatch "\.(js|css|json)$">
         Header set Cache-Control "no-cache, no-store, must-revalidate"
         Header set Pragma "no-cache"
         Header set Expires "0"

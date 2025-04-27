@@ -40,33 +40,6 @@ function cleanUTF8($input) {
     return $input;
 }
 
-// Fonction pour normaliser les routes avec accents et caractères spéciaux
-function normalizeRoutePath($path) {
-    // Supprimer les caractères HTML encodés comme &egrave;
-    $path = html_entity_decode($path, ENT_QUOTES, 'UTF-8');
-    
-    // Table de correspondance pour normaliser les caractères accentués
-    $normalizeChars = [
-        'é' => 'e', 'è' => 'e', 'ê' => 'e', 'ë' => 'e',
-        'à' => 'a', 'â' => 'a', 'ä' => 'a',
-        'î' => 'i', 'ï' => 'i',
-        'ô' => 'o', 'ö' => 'o',
-        'ù' => 'u', 'û' => 'u', 'ü' => 'u',
-        'ç' => 'c',
-        'É' => 'E', 'È' => 'E', 'Ê' => 'E', 'Ë' => 'E',
-        'À' => 'A', 'Â' => 'A', 'Ä' => 'A',
-        'Î' => 'I', 'Ï' => 'I',
-        'Ô' => 'O', 'Ö' => 'O',
-        'Ù' => 'U', 'Û' => 'U', 'Ü' => 'U',
-        'Ç' => 'C'
-    ];
-    
-    // Remplacer les caractères accentués
-    $path = strtr($path, $normalizeChars);
-    
-    return $path;
-}
-
 // Fonction de routage pour l'API
 function routeApi() {
     $uri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
@@ -85,94 +58,8 @@ function routeApi() {
         error_log("Routage API - Chemin normalisé vers la racine de l'API");
     }
     
-    // Normaliser le chemin pour gérer les accents et caractères spéciaux
-    $normalizedPath = normalizeRoutePath($path);
-    if ($normalizedPath !== $path) {
-        error_log("Routage API - Chemin normalisé: {$path} -> {$normalizedPath}");
-    }
-    
-    // Table de correspondance des routes alternatives
-    $routeAliases = [
-        // Diagnostic routes and their variations
-        'diagnostics' => 'diagnostic',
-        'diagnostics-complet' => 'diagnostic-complet',
-        'diagnostique' => 'diagnostic',
-        'diagnostique-complet' => 'diagnostic-complet',
-        'diagnostique-avance' => 'diagnostic-avance',
-        'diagnostique-avanc' => 'diagnostic-avance',
-        'diagnostic-avanc' => 'diagnostic-avance',
-        'diagnostics-avance' => 'diagnostic-avance',
-        'diagnostic-avancer' => 'diagnostic-avance',
-        'diagnostic-complete' => 'diagnostic-complet',
-        'diagnostic-compl' => 'diagnostic-complet',
-        'diagnostique-complete' => 'diagnostic-complet',
-        'diagnostique-compl' => 'diagnostic-complet',
-        
-        // Database diagnostic routes
-        'db-diagnostique' => 'db-diagnostic',
-        'db-diagnostics' => 'db-diagnostic',
-        'database-diagnostique' => 'database-diagnostic',
-        'database-diagnostiques' => 'database-diagnostic',
-        'database-diagnosticss' => 'database-diagnostic', 
-        'diagnostique-db' => 'db-diagnostic',
-        'diagnostique-database' => 'database-diagnostic',
-        'diagnostique-base-de-donnees' => 'database-diagnostic',
-        'diagnostique-base-donnees' => 'database-diagnostic',
-        'diagnostique-donnees' => 'database-diagnostic',
-        'base-de-donnees-diagnostic' => 'database-diagnostic',
-        'base-donnees-diagnostic' => 'database-diagnostic',
-        'donnees-diagnostic' => 'database-diagnostic',
-        'base-de-donnees-diagnostics' => 'database-diagnostics',
-        'base-donnees-diagnostics' => 'database-diagnostics',
-        'donnees-diagnostics' => 'database-diagnostics',
-        
-        // Database configuration routes
-        'configuration' => 'config',
-        'db-config' => 'database-config',
-        'base-de-donnees-config' => 'database-config',
-        'base-donnees-config' => 'database-config',
-        'donnees-config' => 'database-config',
-        
-        // Database test routes
-        'test-config' => 'config-test',
-        'db-test' => 'database-test',
-        'base-de-donnees-test' => 'database-test',
-        'base-donnees-test' => 'database-test',
-        'donnees-test' => 'database-test',
-        
-        // User related routes
-        'user' => 'users',
-        'utilisateur' => 'utilisateurs',
-        'user-diagnostique' => 'user-diagnostic',
-        'user-diagnostics' => 'user-diagnostic',
-        'verifier-users' => 'check-users',
-        'verifier-user' => 'check-users',
-        'verifier-utilisateur' => 'check-users',
-        'verifier-utilisateurs' => 'check-users',
-        
-        // Permission routes
-        'permission' => 'check-permissions',
-        'permissions' => 'check-permissions',
-        'check-permission' => 'check-permissions',
-        'check-droits' => 'check-permissions',
-        'droits' => 'check-permissions',
-        
-        // Advanced diagnostic routes
-        'advanced-diagnostique' => 'advanced-diagnostic',
-        'advanced-diagnostics' => 'advanced-diagnostic',
-        'diagnostics-avanc' => 'diagnostic-avance',
-        'info-db' => 'db-info'
-    ];
-    
-    // Vérifier si le chemin est un alias connu
-    if (array_key_exists($normalizedPath, $routeAliases)) {
-        $originalPath = $normalizedPath;
-        $normalizedPath = $routeAliases[$normalizedPath];
-        error_log("Routage API - Alias reconnu: {$originalPath} -> {$normalizedPath}");
-    }
-    
     // Router vers les différents endpoints
-    switch ($normalizedPath) {
+    switch ($path) {
         case '':
             // Point d'entrée principal de l'API
             return diagnoseRequest();

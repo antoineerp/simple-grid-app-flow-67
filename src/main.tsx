@@ -1,51 +1,35 @@
 
-import React from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App.tsx';
 import './index.css';
 
-console.log("Initialisation de l'application React");
+const rootElement = document.getElementById("root");
 
-try {
-  const rootElement = document.getElementById("root");
-  
-  if (!rootElement) {
-    throw new Error("Élément racine introuvable");
-  }
-
-  // Log available routes for debugging
-  console.log("Routes disponibles:", [
-    "/",
-    "/pilotage",
-    "/exigences",
-    "/gestion-documentaire",
-    "/ressources-humaines",
-    "/collaboration",
-    "/verification-routes",
-    "/administration"
-  ]);
-
-  // Wait for DOM to be fully loaded
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", () => {
-      const root = createRoot(rootElement);
-      root.render(<App />);
-      console.log("Application démarrée avec succès");
-    });
-  } else {
+if (rootElement) {
+  try {
+    console.log("React initialization started");
     const root = createRoot(rootElement);
     root.render(<App />);
-    console.log("Application démarrée avec succès");
+    console.log("React rendering complete");
+  } catch (error) {
+    console.error("Failed to render React application:", error);
+    
+    // Fallback pour afficher une erreur à l'utilisateur
+    rootElement.innerHTML = `
+      <div style="text-align:center; margin-top:50px; font-family:sans-serif;">
+        <h1>Erreur de chargement</h1>
+        <p>L'application n'a pas pu être chargée correctement.</p>
+        <p>Erreur: ${error instanceof Error ? error.message : 'Erreur inconnue'}</p>
+        <button onclick="window.location.reload()">Réessayer</button>
+      </div>
+    `;
   }
-  
-} catch (error) {
-  console.error("Erreur lors du démarrage de l'application:", error);
-  
-  const rootElement = document.getElementById("root") || document.body;
-  rootElement.innerHTML = `
+} else {
+  console.error("Root element not found");
+  document.body.innerHTML = `
     <div style="text-align:center; margin-top:50px; font-family:sans-serif;">
-      <h1>Erreur de chargement</h1>
-      <p>L'application n'a pas pu démarrer correctement.</p>
+      <h1>Erreur critique</h1>
+      <p>L'élément racine de l'application est introuvable.</p>
       <button onclick="window.location.reload()">Réessayer</button>
     </div>
   `;

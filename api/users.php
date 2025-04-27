@@ -30,86 +30,192 @@ if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
 if (ob_get_level()) ob_clean();
 
 try {
-    // Définir la constante pour le contrôle d'accès direct pour permettre l'accès
+    // Définir la constante pour le contrôle d'accès direct - modifier pour toujours autoriser
     define('DIRECT_ACCESS_CHECK', true);
-    
-    // Vérifier si la table utilisateurs existe, sinon la créer
-    $host = "p71x6d.myd.infomaniak.com";
-    $dbname = "p71x6d_system";
-    $username = "p71x6d_system";
-    $password = "Trottinette43!";
-    
-    $dsn = "mysql:host={$host};dbname={$dbname};charset=utf8mb4";
-    $options = [
-        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-        PDO::ATTR_EMULATE_PREPARES => false,
+
+    // Inclure les fichiers de base nécessaires
+    $files_to_include = [
+        __DIR__ . '/config/database.php',
+        __DIR__ . '/utils/ResponseHandler.php',
+        __DIR__ . '/models/User.php'
     ];
     
-    // Connexion à la base de données
-    $pdo = new PDO($dsn, $username, $password, $options);
-    
-    // Vérifier si la table existe
-    $tableExistsQuery = "SHOW TABLES LIKE 'utilisateurs'";
-    $stmt = $pdo->prepare($tableExistsQuery);
-    $stmt->execute();
-    
-    if ($stmt->rowCount() == 0) {
-        // La table n'existe pas, la créer
-        $createTableQuery = "CREATE TABLE IF NOT EXISTS utilisateurs (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            nom VARCHAR(100) NOT NULL,
-            prenom VARCHAR(100) NOT NULL,
-            email VARCHAR(100) NOT NULL UNIQUE,
-            mot_de_passe VARCHAR(255) NOT NULL,
-            identifiant_technique VARCHAR(100) NOT NULL UNIQUE,
-            role VARCHAR(20) NOT NULL,
-            date_creation TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci";
-        
-        $pdo->exec($createTableQuery);
-        
-        // Créer un utilisateur admin par défaut
-        $defaultAdminQuery = "INSERT INTO utilisateurs (nom, prenom, email, mot_de_passe, identifiant_technique, role) 
-        VALUES ('Admin', 'System', 'admin@system.local', :password, 'p71x6d_system_admin', 'admin')";
-        
-        $stmt = $pdo->prepare($defaultAdminQuery);
-        $hashedPassword = password_hash('admin123', PASSWORD_BCRYPT);
-        $stmt->bindParam(':password', $hashedPassword);
-        $stmt->execute();
+    // Vérifier et charger chaque fichier
+    foreach ($files_to_include as $file) {
+        if (!file_exists($file)) {
+            throw new Exception("Fichier requis manquant: " . basename($file));
+        }
+        require_once $file;
     }
     
-    // Récupérer tous les utilisateurs
-    $query = "SELECT id, nom, prenom, email, role, identifiant_technique, date_creation FROM utilisateurs";
-    $stmt = $pdo->prepare($query);
-    $stmt->execute();
-    $users = $stmt->fetchAll();
+    // Initialiser la base de données
+    $database = new Database();
+    $db = $database->getConnection();
     
-    // Renvoyer la liste des utilisateurs
-    http_response_code(200);
-    echo json_encode([
-        "status" => "success",
-        "message" => "Service utilisateurs en ligne",
-        "records" => $users,
-        "timestamp" => date('Y-m-d H:i:s')
-    ]);
-    
-} catch (PDOException $e) {
-    error_log("Erreur PDO dans users.php: " . $e->getMessage() . "\n" . $e->getTraceAsString());
-    
-    // Nettoyer tout buffer de sortie existant
-    if (ob_get_level()) ob_clean();
-    
-    // S'assurer que les en-têtes sont correctement définis
-    if (!headers_sent()) {
-        header('Content-Type: application/json; charset=UTF-8');
-        http_response_code(500);
+    if (!$db) {
+        throw new Exception("Erreur de connexion à la base de données: " . ($database->connection_error ?? "Erreur inconnue"));
     }
     
-    echo json_encode([
-        'status' => 'error',
-        'message' => "Erreur de base de données: " . $e->getMessage(),
-    ]);
+    // Initialiser le modèle utilisateur
+    $user = new User($db);
+    
+    // Inclure les opérations en fonction de la méthode HTTP
+    switch ($_SERVER['REQUEST_METHOD']) {
+        case 'GET':
+            // Vérifier si le fichier existe avant de l'inclure
+            $getOperationsFile = __DIR__ . '/operations/users/GetOperations.php';
+            if (file_exists($getOperationsFile)) {
+                require_once $getOperationsFile;
+                $operations = new UserGetOperations($user);
+                $operations->handleGetRequest();
+            } else {
+                // Méthode alternative pour obtenir des utilisateurs
+                $stmt = $user->readAll();
+                $num = $stmt->rowCount();
+                
+                if ($num > 0) {
+                    $users_arr = array();
+                    $users_arr["records"] = array();
+                    
+                    while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+                        extract($row);
+                        
+                        $user_item = array(
+                            "id" => $id,
+                            "nom" => $nom,
+                            "prenom" => $prenom,
+                            "email" => $email,
+                            "identifiant_technique" => $identifiant_technique,
+                            "mot_de_passe" => $mot_de_passe,
+                            "role" => $role,
+                            "date_creation" => $date_creation
+                        );
+                        
+                        array_push($users_arr["records"], $user_item);
+                    }
+                    
+                    http_response_code(200);
+                    echo json_encode($users_arr);
+                } else {
+                    http_response_code(200);
+                    echo json_encode(["message" => "Aucun utilisateur trouvé", "records" => []]);
+                }
+            }
+            break;
+        
+        case 'POST':
+            // Capturer les données brutes
+            $postData = file_get_contents("php://input");
+            error_log("UserPostOperations::handlePostRequest - Données brutes reçues: " . $postData);
+            
+            if (empty($postData)) {
+                http_response_code(400);
+                echo json_encode(["status" => "error", "message" => "Aucune donnée reçue"]);
+                break;
+            }
+            
+            // Décoder en JSON
+            $data = json_decode($postData);
+            if (json_last_error() !== JSON_ERROR_NONE) {
+                http_response_code(400);
+                echo json_encode(["status" => "error", "message" => "Erreur de décodage JSON: " . json_last_error_msg()]);
+                break;
+            }
+            
+            error_log("UserPostOperations - Données décodées: " . json_encode($data));
+
+            // Valider les données minimales requises
+            if (!isset($data->nom) || !isset($data->prenom) || !isset($data->email) || 
+                !isset($data->identifiant_technique) || !isset($data->mot_de_passe) || !isset($data->role)) {
+                http_response_code(400);
+                echo json_encode(["status" => "error", "message" => "Données incomplètes ou invalides"]);
+                break;
+            }
+
+            // Vérifier les restrictions (un seul gestionnaire)
+            if ($data->role === 'gestionnaire') {
+                $gestionnaire_count = $user->countUsersByRole('gestionnaire');
+                if ($gestionnaire_count > 0) {
+                    http_response_code(400);
+                    echo json_encode(["status" => "error", "message" => "Un seul compte gestionnaire peut être créé"]);
+                    break;
+                }
+            }
+
+            // Vérifier si l'email existe déjà
+            if ($user->emailExists($data->email)) {
+                http_response_code(400);
+                echo json_encode(["status" => "error", "message" => "Email déjà utilisé"]);
+                break;
+            }
+
+            // Assigner les valeurs à l'objet utilisateur
+            $user->nom = $data->nom;
+            $user->prenom = $data->prenom;
+            $user->email = $data->email;
+            $user->identifiant_technique = $data->identifiant_technique;
+            $user->mot_de_passe = password_hash($data->mot_de_passe, PASSWORD_DEFAULT); // Hachage sécurisé
+            $user->role = $data->role;
+
+            error_log("Tentative de création de l'utilisateur: {$data->prenom} {$data->nom}");
+            
+            // Créer l'utilisateur
+            if ($user->create()) {
+                $lastId = $db->lastInsertId();
+                error_log("Utilisateur créé avec ID: {$lastId}");
+                
+                if ($data->role === 'utilisateur') {
+                    $user->initializeUserDataFromManager($data->identifiant_technique);
+                }
+
+                http_response_code(201);
+                echo json_encode([
+                    "status" => "success",
+                    "message" => "Utilisateur créé avec succès",
+                    "id" => $lastId,
+                    "identifiant_technique" => $data->identifiant_technique,
+                    "nom" => $data->nom,
+                    "prenom" => $data->prenom,
+                    "email" => $data->email,
+                    "role" => $data->role
+                ]);
+            } else {
+                http_response_code(500);
+                echo json_encode(["status" => "error", "message" => "Échec de création de l'utilisateur"]);
+            }
+            break;
+            
+        case 'PUT':
+            // Redirection vers le fichier PutOperations s'il existe
+            $putOperationsFile = __DIR__ . '/operations/users/PutOperations.php';
+            if (file_exists($putOperationsFile)) {
+                require_once $putOperationsFile;
+                $operations = new UserPutOperations($user);
+                $operations->handlePutRequest();
+            } else {
+                http_response_code(501);
+                echo json_encode(["status" => "error", "message" => "Fonctionnalité de mise à jour non implémentée"]);
+            }
+            break;
+            
+        case 'DELETE':
+            // Redirection vers le fichier DeleteOperations s'il existe
+            $deleteOperationsFile = __DIR__ . '/operations/users/DeleteOperations.php';
+            if (file_exists($deleteOperationsFile)) {
+                require_once $deleteOperationsFile;
+                $operations = new UserDeleteOperations($user);
+                $operations->handleDeleteRequest();
+            } else {
+                http_response_code(501);
+                echo json_encode(["status" => "error", "message" => "Fonctionnalité de suppression non implémentée"]);
+            }
+            break;
+            
+        default:
+            http_response_code(405);
+            echo json_encode(["status" => "error", "message" => "Méthode non autorisée"]);
+            break;
+    }
 } catch (Exception $e) {
     error_log("Erreur dans users.php: " . $e->getMessage() . "\n" . $e->getTraceAsString());
     
@@ -124,7 +230,8 @@ try {
     
     echo json_encode([
         'status' => 'error',
-        'message' => "Erreur serveur: " . $e->getMessage()
+        'message' => "Erreur serveur: " . $e->getMessage(),
+        'trace' => $e->getTraceAsString()
     ]);
 }
 

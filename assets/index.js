@@ -1,33 +1,101 @@
 
-console.log("Index.js: Chargement du script principal...");
+// Point d'entrée dynamique qui charge le fichier JavaScript principal
+// Ce fichier est spécialement conçu pour fonctionner sur Infomaniak
 
-// We'll use this script to load our application bundle
-window.addEventListener('DOMContentLoaded', function() {
-  // Make sure we have a root element
-  if (!document.getElementById('root')) {
-    const newRoot = document.createElement('div');
-    newRoot.id = 'root';
-    document.body.appendChild(newRoot);
-  }
-  
-  // Dynamically load the built JS file (not the TSX directly)
-  const script = document.createElement('script');
-  script.type = 'module';
-  script.src = '/src/main.js';
-  script.onerror = function(error) {
-    console.error('Error loading main script:', error);
-    document.getElementById('root').innerHTML = `
-      <div style="text-align:center; margin-top:50px; font-family:sans-serif;">
+// Fonction pour corriger les chemins Infomaniak
+function fixInfomaniakPath(path) {
+    // Supprimer les chemins doublés comme /sites/domain.com/
+    if (path && path.startsWith('/sites/')) {
+        const parts = path.split('/');
+        if (parts.length >= 4) {
+            return '/' + parts.slice(3).join('/');
+        }
+    }
+    return path;
+}
+
+// Fonction pour détecter l'environnement Infomaniak
+function isInfomaniakEnvironment() {
+    // Détection basée sur le nom d'hôte
+    const host = window.location.hostname;
+    // Multiple detection methods
+    return host === 'qualiopi.ch' || 
+           host.endsWith('.qualiopi.ch') ||
+           host.indexOf('.infomaniak.') > -1 ||
+           document.documentElement.innerHTML.indexOf('/sites/') > -1;
+}
+
+// Fonction pour charger dynamiquement le script principal
+function loadMainScript() {
+    console.log("Index.js: Chargement du script principal...");
+    console.log("Hostname détecté:", window.location.hostname);
+    
+    // Forcer la détection Infomaniak par défaut pour qualiopi.ch
+    const forceInfomaniak = window.location.hostname === 'qualiopi.ch';
+    const isInfomaniak = forceInfomaniak || isInfomaniakEnvironment();
+    
+    console.log("Environnement Infomaniak détecté?", isInfomaniak ? "OUI" : "NON");
+    
+    // Corriger tous les chemins d'assets qui pourraient être problématiques
+    if (isInfomaniak) {
+        console.log("Application des corrections de chemin Infomaniak...");
+        document.querySelectorAll('link[href], script[src], img[src]').forEach(el => {
+            const attrName = el.hasAttribute('href') ? 'href' : 'src';
+            const originalPath = el.getAttribute(attrName);
+            const fixedPath = fixInfomaniakPath(originalPath);
+            if (originalPath !== fixedPath) {
+                console.log(`Correction de chemin: ${originalPath} -> ${fixedPath}`);
+                el.setAttribute(attrName, fixedPath);
+            }
+        });
+    }
+    
+    try {
+        // Pour l'environnement de production
+        const mainScript = document.createElement('script');
+        mainScript.type = 'module';
+        mainScript.src = '/src/main.tsx';
+        document.head.appendChild(mainScript);
+        console.log('Chargement de main.tsx');
+        
+        // Ajouter un gestionnaire d'erreurs
+        mainScript.onerror = function() {
+            console.error("Échec du chargement de main.tsx, tentative avec main.js");
+            const jsScript = document.createElement('script');
+            jsScript.type = 'module';
+            jsScript.src = '/src/main.js';
+            document.head.appendChild(jsScript);
+            
+            // Gestion d'erreur pour le script JS
+            jsScript.onerror = function() {
+                console.error("Échec du chargement de main.js, utilisation du script de diagnostic");
+                showErrorMessage("Erreur de chargement des scripts principaux");
+            };
+        };
+    } catch (error) {
+        console.error('Erreur lors du chargement du script principal:', error);
+        showErrorMessage("Erreur de chargement: " + error.message);
+    }
+}
+
+// Fonction pour afficher un message d'erreur à l'utilisateur
+function showErrorMessage(message) {
+    const root = document.getElementById('root') || document.body;
+    const errorDiv = document.createElement('div');
+    errorDiv.style.cssText = 'text-align:center; margin-top:50px; font-family:sans-serif; color:#e74c3c; padding:20px;';
+    errorDiv.innerHTML = `
         <h1>Erreur de chargement</h1>
-        <p>L'application n'a pas pu démarrer correctement.</p>
-        <button onclick="window.location.reload()">Réessayer</button>
-      </div>
+        <p>${message}</p>
+        <button onclick="window.location.reload()" style="padding:10px 20px; background:#3498db; color:white; border:none; border-radius:4px; cursor:pointer;">
+            Réessayer
+        </button>
     `;
-  };
-  document.body.appendChild(script);
-});
+    root.appendChild(errorDiv);
+}
 
-// Gestionnaire d'erreurs global simplifié
-window.addEventListener('error', function(event) {
-  console.error('Erreur détectée:', event.error);
-});
+// Charger le script principal une fois le DOM chargé
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', loadMainScript);
+} else {
+    loadMainScript();
+}
