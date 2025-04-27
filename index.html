@@ -27,25 +27,13 @@
       }
     </script>
     
-    <!-- Use placeholder values that will be replaced by the script below -->
-    <script type="module" crossorigin src="/assets/placeholder.js" id="main-js"></script>
-    <link rel="stylesheet" crossorigin href="/assets/placeholder.css" id="main-css">
-    
-    <script>
-      // Dynamically set asset paths
-      document.getElementById('main-js').src = adjustAssetPath('/assets/main--zXaub0H.js');
-      document.getElementById('main-css').href = adjustAssetPath('/assets/main-BRxAxoYR.css');
-    </script>
+    <!-- Link to the actual CSS file -->
+    <link rel="stylesheet" href="/assets/main-BRxAxoYR.css" crossorigin>
   </head>
 
   <body>
     <div id="root"></div>
     <script src="https://cdn.gpteng.co/gptengineer.js" type="module"></script>
-    <script type="module" src="/assets/placeholder.js" id="main-js-body"></script>
-    
-    <script>
-      // Also dynamically set the body script source
-      document.getElementById('main-js-body').src = adjustAssetPath('/assets/main--zXaub0H.js');
-    </script>
+    <script type="module" src="/assets/main--zXaub0H.js"></script>
   </body>
 </html>
