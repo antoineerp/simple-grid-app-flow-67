@@ -51,25 +51,58 @@ function loadMainScript() {
     }
     
     try {
-        // Pour l'environnement de production
-        const mainScript = document.createElement('script');
-        mainScript.type = 'module';
-        mainScript.src = '/src/main.tsx';
-        document.head.appendChild(mainScript);
-        console.log('Chargement de main.tsx');
+        // Utiliser une approche plus robuste pour charger les scripts
+        const distScript = document.createElement('script');
+        distScript.type = 'module';
         
-        // Ajouter un gestionnaire d'erreurs
-        mainScript.onerror = function() {
-            console.error("Échec du chargement de main.tsx, tentative avec main.js");
-            const jsScript = document.createElement('script');
-            jsScript.type = 'module';
-            jsScript.src = '/src/main.js';
-            document.head.appendChild(jsScript);
+        // Vérifier si nous sommes en environnement de développement ou de production
+        if (document.querySelector('script[src*="@vite/client"]')) {
+            // Environnement de développement: charger depuis /src/main.tsx
+            distScript.src = '/src/main.tsx';
+            console.log('Chargement de main.tsx en mode développement');
+        } else {
+            // Environnement de production: chercher dans les assets compilés
+            // Recherche d'un script qui contient "main" dans les assets
+            const mainScriptLink = document.querySelector('script[src*="assets/main"]');
+            if (mainScriptLink) {
+                // Utiliser le script main déjà référencé dans le HTML
+                console.log('Script main déjà présent dans le HTML:', mainScriptLink.getAttribute('src'));
+                return; // Ne rien faire, le script est déjà chargé
+            } else {
+                // Chercher d'abord dans /dist/assets/
+                distScript.src = '/dist/assets/index.js';
+                console.log('Tentative de chargement depuis /dist/assets/index.js');
+            }
+        }
+        
+        document.head.appendChild(distScript);
+        
+        // Ajouter un gestionnaire d'erreurs avec multiples fallbacks
+        distScript.onerror = function() {
+            console.error("Échec du chargement du script principal:", distScript.src);
+            
+            // Essayer de charger main.js directement à la racine
+            const fallbackScript = document.createElement('script');
+            fallbackScript.type = 'module';
+            fallbackScript.src = '/src/main.js';
+            document.head.appendChild(fallbackScript);
+            console.log('Tentative de fallback avec /src/main.js');
             
             // Gestion d'erreur pour le script JS
-            jsScript.onerror = function() {
-                console.error("Échec du chargement de main.js, utilisation du script de diagnostic");
-                showErrorMessage("Erreur de chargement des scripts principaux");
+            fallbackScript.onerror = function() {
+                console.error("Échec du chargement des scripts de fallback");
+                
+                // Dernier recours: essayer de charger depuis assets/
+                const lastResortScript = document.createElement('script');
+                lastResortScript.type = 'module';
+                lastResortScript.src = '/assets/index.js';
+                document.head.appendChild(lastResortScript);
+                console.log('Dernier recours: chargement depuis /assets/index.js');
+                
+                lastResortScript.onerror = function() {
+                    console.error("Tous les scripts ont échoué, affichage du message d'erreur");
+                    showErrorMessage("Erreur critique de chargement des scripts principaux");
+                };
             };
         };
     } catch (error) {
@@ -86,10 +119,12 @@ function showErrorMessage(message) {
     errorDiv.innerHTML = `
         <h1>Erreur de chargement</h1>
         <p>${message}</p>
-        <button onclick="window.location.reload()" style="padding:10px 20px; background:#3498db; color:white; border:none; border-radius:4px; cursor:pointer;">
+        <p>Veuillez réessayer ou contacter le support technique si le problème persiste.</p>
+        <button onclick="window.location.reload()" style="padding:10px 20px; background:#3498db; color:white; border:none; border-radius:4px; cursor:pointer; margin-top:15px;">
             Réessayer
         </button>
     `;
+    root.innerHTML = '';
     root.appendChild(errorDiv);
 }
 
@@ -99,3 +134,10 @@ if (document.readyState === 'loading') {
 } else {
     loadMainScript();
 }
+
+// Ajouter un gestionnaire d'erreurs global
+window.addEventListener('error', function(event) {
+    console.error('Erreur globale détectée:', event.error);
+    // Ne pas afficher automatiquement l'erreur pour éviter les cycles
+});
+
