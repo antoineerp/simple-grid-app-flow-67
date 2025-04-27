@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { RefreshCw, CheckCircle, XCircle, AlertTriangle, Globe, Settings, Wifi, WifiOff } from 'lucide-react';
 import { Button } from "@/components/ui/button";
@@ -87,7 +86,6 @@ const RoutesCheck = () => {
   const checkRoutes = async (data: CheckRoutesFormData) => {
     setIsLoading(true);
     try {
-      // Construire l'URL avec les paramètres
       const params = new URLSearchParams();
       params.append('use_current_domain', data.useCurrentDomain ? '1' : '0');
       if (data.baseUrl) {
@@ -96,7 +94,7 @@ const RoutesCheck = () => {
       params.append('timeout', data.timeout.toString());
       params.append('verify_ssl', data.verifySSL ? '1' : '0');
 
-      const url = `${apiBaseUrl}/check-routes?${params.toString()}`;
+      const url = `${apiBaseUrl}/route-diagnostic?${params.toString()}`;
       
       const response = await fetch(url);
       const responseData = await response.json();
@@ -145,7 +143,6 @@ const RoutesCheck = () => {
   };
 
   useEffect(() => {
-    // Vérification initiale avec les paramètres par défaut
     checkRoutes(form.getValues());
   }, []);
 

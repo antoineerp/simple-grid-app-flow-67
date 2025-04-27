@@ -211,8 +211,14 @@ function routeApi() {
         case 'check-routes':
         case 'verifier-routes':
         case 'routes-check':
+        case 'route-diagnostic':
+        case 'route-diagnostic.php':
             // Nouvel endpoint pour vérifier les routes
-            require_once __DIR__ . '/check-routes.php';
+            if (file_exists(__DIR__ . '/route-diagnostic.php')) {
+                require_once __DIR__ . '/route-diagnostic.php';
+            } else {
+                require_once __DIR__ . '/check-routes.php';
+            }
             exit;
             
         default:
