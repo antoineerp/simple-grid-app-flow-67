@@ -31,7 +31,7 @@ if (file_exists(__DIR__ . '/check-routes.php')) {
         'status' => 'success',
         'message' => 'Route diagnostic endpoint',
         'timestamp' => date('Y-m-d H:i:s'),
-        'note': 'Ce point de terminaison est un alias pour check-routes.php',
+        'note' => 'Ce point de terminaison est un alias pour check-routes.php',
         'results' => [
             // Résultats minimaux fournis directement
             'api_routes' => [
