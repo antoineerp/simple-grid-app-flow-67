@@ -25,6 +25,29 @@ function isInfomaniakEnvironment() {
            document.documentElement.innerHTML.indexOf('/sites/') > -1;
 }
 
+// Fonction pour injecter un script dans la page
+function injectScript(src, type = 'module', async = true) {
+    console.log(`Injection de script: ${src}`);
+    return new Promise((resolve, reject) => {
+        const script = document.createElement('script');
+        script.src = src;
+        script.type = type;
+        script.async = async;
+        
+        script.onload = () => {
+            console.log(`Script chargé avec succès: ${src}`);
+            resolve(script);
+        };
+        
+        script.onerror = (error) => {
+            console.error(`Erreur de chargement de script: ${src}`, error);
+            reject(error);
+        };
+        
+        document.head.appendChild(script);
+    });
+}
+
 // Fonction pour charger dynamiquement le script principal
 function loadMainScript() {
     console.log("Index.js: Chargement du script principal...");
@@ -51,81 +74,110 @@ function loadMainScript() {
     }
     
     try {
-        // Utiliser une approche plus robuste pour charger les scripts
-        const distScript = document.createElement('script');
-        distScript.type = 'module';
-        
-        // Vérifier si nous sommes en environnement de développement ou de production
-        if (document.querySelector('script[src*="@vite/client"]')) {
-            // Environnement de développement: charger depuis /src/main.tsx
-            distScript.src = '/src/main.tsx';
-            console.log('Chargement de main.tsx en mode développement');
-        } else {
-            // Environnement de production: chercher dans les assets compilés
-            // Recherche d'un script qui contient "main" dans les assets
-            const mainScriptLink = document.querySelector('script[src*="assets/main"]');
-            if (mainScriptLink) {
-                // Utiliser le script main déjà référencé dans le HTML
-                console.log('Script main déjà présent dans le HTML:', mainScriptLink.getAttribute('src'));
-                return; // Ne rien faire, le script est déjà chargé
-            } else {
-                // Chercher d'abord dans /dist/assets/
-                distScript.src = '/dist/assets/index.js';
-                console.log('Tentative de chargement depuis /dist/assets/index.js');
-            }
+        // Vérifier si un script main est déjà présent
+        const mainScript = document.querySelector('script[src*="main"]');
+        if (mainScript) {
+            console.log('Script main déjà présent dans le HTML:', mainScript.getAttribute('src'));
+            // Même si le script est présent, nous allons vérifier s'il a été exécuté
+            setTimeout(() => {
+                if (!window.ReactDOMRoot) {
+                    console.log("Le script main n'a pas correctement initialisé React, tentative de chargement direct");
+                    loadFallbackScript();
+                }
+            }, 1000); // Attendre 1 seconde pour voir si React s'initialise
+            return;
         }
         
-        document.head.appendChild(distScript);
+        // Stratégie de chargement par priorité
+        loadOptimalScript();
         
-        // Ajouter un gestionnaire d'erreurs avec multiples fallbacks
-        distScript.onerror = function() {
-            console.error("Échec du chargement du script principal:", distScript.src);
-            
-            // Essayer de charger main.js directement à la racine
-            const fallbackScript = document.createElement('script');
-            fallbackScript.type = 'module';
-            fallbackScript.src = '/src/main.js';
-            document.head.appendChild(fallbackScript);
-            console.log('Tentative de fallback avec /src/main.js');
-            
-            // Gestion d'erreur pour le script JS
-            fallbackScript.onerror = function() {
-                console.error("Échec du chargement des scripts de fallback");
-                
-                // Dernier recours: essayer de charger depuis assets/
-                const lastResortScript = document.createElement('script');
-                lastResortScript.type = 'module';
-                lastResortScript.src = '/assets/index.js';
-                document.head.appendChild(lastResortScript);
-                console.log('Dernier recours: chargement depuis /assets/index.js');
-                
-                lastResortScript.onerror = function() {
-                    console.error("Tous les scripts ont échoué, affichage du message d'erreur");
-                    showErrorMessage("Erreur critique de chargement des scripts principaux");
-                };
-            };
-        };
     } catch (error) {
         console.error('Erreur lors du chargement du script principal:', error);
-        showErrorMessage("Erreur de chargement: " + error.message);
+        loadFallbackScript();
     }
 }
 
-// Fonction pour afficher un message d'erreur à l'utilisateur
-function showErrorMessage(message) {
-    const root = document.getElementById('root') || document.body;
-    const errorDiv = document.createElement('div');
-    errorDiv.style.cssText = 'text-align:center; margin-top:50px; font-family:sans-serif; color:#e74c3c; padding:20px;';
-    errorDiv.innerHTML = `
-        <h1>Erreur de chargement</h1>
-        <p>${message}</p>
-        <p>Veuillez réessayer ou contacter le support technique si le problème persiste.</p>
-        <button onclick="window.location.reload()" style="padding:10px 20px; background:#3498db; color:white; border:none; border-radius:4px; cursor:pointer; margin-top:15px;">
-            Réessayer
-        </button>
+// Fonction pour charger le script optimal selon l'environnement
+async function loadOptimalScript() {
+    try {
+        // Essayer d'abord le script compilé dans dist/assets
+        if (await tryLoadScript('/dist/assets/main.js')) return;
+        
+        // Ensuite, essayer le script dans assets
+        if (await tryLoadScript('/assets/main.js')) return;
+        
+        // Ensuite, essayer le script principal dans src
+        if (await tryLoadScript('/src/main.js')) return;
+        
+        // Essayer ensuite le script TSX
+        if (await tryLoadScript('/src/main.tsx')) return;
+        
+        // Si tout échoue, charger le script fallback
+        loadFallbackScript();
+    } catch (error) {
+        console.error("Erreur lors du chargement des scripts:", error);
+        loadFallbackScript();
+    }
+}
+
+// Essayer de charger un script et retourner true si réussi
+async function tryLoadScript(src) {
+    try {
+        console.log(`Tentative de chargement depuis ${src}`);
+        await injectScript(src);
+        console.log(`Chargement réussi depuis ${src}`);
+        return true;
+    } catch (error) {
+        console.log(`Échec du chargement depuis ${src}:`, error);
+        return false;
+    }
+}
+
+// Fonction pour charger le script fallback directement intégré
+function loadFallbackScript() {
+    console.log("Chargement du script fallback intégré...");
+    
+    // Charger React et ReactDOM directement via CDN si nécessaire
+    const reactLoaded = document.querySelector('script[src*="react"]');
+    if (!reactLoaded) {
+        const reactScript = document.createElement('script');
+        reactScript.src = 'https://unpkg.com/react@18/umd/react.production.min.js';
+        reactScript.crossOrigin = 'anonymous';
+        document.head.appendChild(reactScript);
+        
+        const reactDomScript = document.createElement('script');
+        reactDomScript.src = 'https://unpkg.com/react-dom@18/umd/react-dom.production.min.js';
+        reactDomScript.crossOrigin = 'anonymous';
+        document.head.appendChild(reactDomScript);
+    }
+    
+    // Injecter notre propre script de démarrage
+    const inlineScript = document.createElement('script');
+    inlineScript.innerHTML = `
+        document.addEventListener('DOMContentLoaded', function() {
+            try {
+                const rootElement = document.getElementById('root');
+                if (!rootElement) {
+                    const newRoot = document.createElement('div');
+                    newRoot.id = 'root';
+                    document.body.appendChild(newRoot);
+                    console.log("Élément racine créé manuellement");
+                }
+                
+                // Vérifier si la page est complètement blanche
+                if (document.body.children.length <= 1) {
+                    document.body.innerHTML = '<div id="root"></div>';
+                    console.log("Page entièrement réinitialisée");
+                }
+                
+                console.log("Script fallback exécuté");
+            } catch (err) {
+                console.error("Erreur dans le script fallback:", err);
+                document.body.innerHTML = '<div style="text-align:center; padding:30px; font-family:sans-serif;"><h1>Erreur de chargement</h1><p>Impossible de charger l\'application.</p><button onclick="window.location.reload()">Réessayer</button></div>';
+            }
+        });
     `;
-    root.innerHTML = '';
-    root.appendChild(errorDiv);
+    document.head.appendChild(inlineScript);
 }
 
 // Charger le script principal une fois le DOM chargé
@@ -141,3 +193,14 @@ window.addEventListener('error', function(event) {
     // Ne pas afficher automatiquement l'erreur pour éviter les cycles
 });
 
+// Détecter les problèmes de chargement tardifs
+window.addEventListener('load', function() {
+    setTimeout(() => {
+        const rootElement = document.getElementById('root');
+        // Si la page semble vide ou l'élément root est vide
+        if (!rootElement || rootElement.children.length === 0) {
+            console.warn("Page possiblement blanche détectée après chargement complet, tentative de récupération...");
+            loadFallbackScript();
+        }
+    }, 2000); // Vérifier 2 secondes après le chargement complet
+});
