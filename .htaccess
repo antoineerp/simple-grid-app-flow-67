@@ -2,94 +2,25 @@
 # Activer le moteur de réécriture
 RewriteEngine On
 
-# Configuration spécifique pour Infomaniak
-Options -MultiViews
-Options +FollowSymLinks
-
-# Définir le point d'entrée principal
-DirectoryIndex index.html index.php
-
-# Définir les types MIME corrects pour tous les fichiers
+# MIME types corrects
 AddType application/javascript .js
 AddType text/javascript .js
-AddType application/json .json
 AddType text/css .css
-AddType image/svg+xml .svg
 
-# Force le type MIME pour les modules JavaScript
+# Configuration MIME pour les modules JavaScript
 <FilesMatch "\.m?js$">
-    AddType application/javascript .js
     Header set Content-Type application/javascript
 </FilesMatch>
 
 # Permettre l'accès aux assets avec les types MIME appropriés
-<FilesMatch "\.(js|mjs|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot|map|tsx?|json)$">
+<FilesMatch "\.(js|mjs|css)$">
     Order Allow,Deny
     Allow from all
+    Header set Cache-Control "no-cache, no-store, must-revalidate"
 </FilesMatch>
 
-# Éviter les boucles de redirection
-RewriteCond %{ENV:REDIRECT_STATUS} ^$
-
-# Règles de réécriture spécifiques pour Infomaniak
-# Rediriger les chemins incorrects avec /sites/[domain]/
-RewriteCond %{REQUEST_URI} ^/sites/[^/]+/(.*)$
-RewriteRule ^sites/[^/]+/(.*)$ /$1 [L,R=301]
-
-# S'assurer que les fichiers JavaScript sont servis correctement
-<FilesMatch "\.js$">
-    SetHandler application/javascript
-</FilesMatch>
-
-# Traitement spécial pour les requêtes API
-RewriteCond %{REQUEST_URI} ^/api/
-RewriteRule ^api/(.*)$ api/$1 [QSA,L]
-
-# Règles pour les assets
-RewriteCond %{REQUEST_URI} ^/assets/
-RewriteCond %{REQUEST_FILENAME} -f
-RewriteRule ^ - [L]
-
-# Traitement des uploads
-RewriteCond %{REQUEST_URI} ^/lovable-uploads/(.*)$
-RewriteCond %{DOCUMENT_ROOT}/lovable-uploads/%1 !-f
-RewriteCond %{DOCUMENT_ROOT}/public/lovable-uploads/%1 -f
-RewriteRule ^lovable-uploads/(.*)$ /public/lovable-uploads/$1 [L]
-
-# Traitement des ressources statiques
-RewriteCond %{REQUEST_URI} ^/lovable-uploads/
-RewriteRule ^lovable-uploads/(.*)$ public/lovable-uploads/$1 [L]
-
-# Permettre l'accès direct aux fichiers statiques
-RewriteCond %{REQUEST_URI} \.(js|mjs|css|png|jpe?g|gif|svg|ico|webp|woff2?|ttf|eot|map|tsx?)$
-RewriteCond %{REQUEST_FILENAME} -f
-RewriteRule ^ - [L]
-
-# Correction spécifique pour les chemins Infomaniak doublés
-RewriteCond %{REQUEST_URI} ^/sites/[^/]+/(assets/.+)$
-RewriteRule ^sites/[^/]+/(assets/.+)$ /$1 [L,R=301]
-
-# Rediriger toutes les autres requêtes vers index.html pour React Router
+# Rediriger toutes les requêtes vers index.html pour React Router
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteCond %{REQUEST_URI} !^/api/
 RewriteRule ^(.*)$ index.html [QSA,L]
-
-# Configuration de sécurité et en-têtes HTTP
-<IfModule mod_headers.c>
-    # En-têtes de base pour tous les fichiers
-    Header set X-Content-Type-Options "nosniff"
-    Header set X-Frame-Options "SAMEORIGIN"
-    
-    # Configuration CORS
-    Header set Access-Control-Allow-Origin "*"
-    Header set Access-Control-Allow-Methods "GET, POST, OPTIONS, PUT, DELETE"
-    Header set Access-Control-Allow-Headers "Content-Type, Authorization"
-    
-    # Configuration pour les assets statiques
-    <FilesMatch "\.(js|mjs|css|json)$">
-        Header set Cache-Control "no-cache, no-store, must-revalidate"
-        Header set Pragma "no-cache"
-        Header set Expires "0"
-    </FilesMatch>
-</IfModule>
