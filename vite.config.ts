@@ -41,9 +41,9 @@ export default defineConfig(({ mode }) => {
           chunkFileNames: 'assets/[name]-[hash].js',
           assetFileNames: 'assets/[name]-[hash].[ext]'
         },
-        // Ignorer les assets externes qui ne sont pas disponibles au moment du build
+        // Exclure les chemins PHP de l'analyse statique
         external: [
-          // Lister ici les assets externes qui doivent être résolus au runtime
+          /^\/assets\//
         ]
       }
     },

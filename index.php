@@ -20,13 +20,49 @@
     
     <!-- Utiliser un chemin relatif pour le CSS qui sera remplacé par le build -->
     <link rel="stylesheet" href="./src/index.css" />
-    <!-- PHP code is removed for development and only included in production -->
+    <?php
+    // Script PHP inline pour remplacer dynamiquement les références aux assets
+    if (file_exists('./assets')) {
+      $js_files = glob('./assets/*.js');
+      $css_files = glob('./assets/*.css');
+      $main_js = '';
+      $main_css = '';
+      
+      // Trouver le JS principal (main)
+      foreach ($js_files as $file) {
+        if (strpos(basename($file), 'main-') === 0) {
+          $main_js = '/assets/' . basename($file);
+          break;
+        }
+      }
+      
+      // Trouver le CSS principal
+      foreach ($css_files as $file) {
+        if (strpos(basename($file), 'index-') === 0) {
+          $main_css = '/assets/' . basename($file);
+          break;
+        }
+      }
+      
+      // Insérer les références si trouvées
+      if ($main_css) {
+        echo '<link rel="stylesheet" href="' . $main_css . '" />';
+      }
+    }
+    ?>
   </head>
 
   <body>
     <div id="root"></div>
-    <!-- For development, we directly link to the main.tsx -->
-    <script type="module" src="./src/main.tsx"></script>
+    <?php
+    // Insérer le script JS principal
+    if (isset($main_js) && $main_js) {
+      echo '<script type="module" src="' . $main_js . '"></script>';
+    } else {
+      // Fallback vers le script de développement
+      echo '<script type="module" src="./src/main.tsx"></script>';
+    }
+    ?>
     <script src="https://cdn.gpteng.co/gptengineer.js" type="module"></script>
   </body>
 </html>
