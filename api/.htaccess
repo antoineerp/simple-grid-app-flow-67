@@ -6,13 +6,6 @@ RewriteEngine On
 RewriteCond %{REQUEST_FILENAME} -f
 RewriteRule \.(php)$ - [L]
 
-# Ajouter cette règle pour traiter les requêtes auth, db-connection-test, etc.
-RewriteRule ^auth/?$ auth.php [QSA,L]
-RewriteRule ^db-connection-test/?$ db-connection-test.php [QSA,L]
-RewriteRule ^db-info/?$ db-info.php [QSA,L]
-RewriteRule ^users/?$ users.php [QSA,L]
-RewriteRule ^check-users/?$ check-users.php [QSA,L]
-
 # Rediriger toutes les requêtes vers l'index.php sauf pour les fichiers existants
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d

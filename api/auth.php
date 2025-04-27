@@ -1,7 +1,15 @@
 
 <?php
-// En-têtes CORS et Content-Type
-header("Content-Type: application/json; charset=UTF-8");
+// Activer la journalisation d'erreurs plus détaillée
+ini_set('display_errors', 1);
+error_reporting(E_ALL);
+
+// Enregistrer le début de l'exécution
+error_log("=== DÉBUT DE L'EXÉCUTION DE auth.php ===");
+error_log("Méthode: " . $_SERVER['REQUEST_METHOD'] . " - URI: " . $_SERVER['REQUEST_URI']);
+
+// Définir explicitement le type de contenu JSON et les en-têtes CORS
+header('Content-Type: application/json; charset=utf-8');
 header("Access-Control-Allow-Origin: *");
 header("Access-Control-Allow-Methods: POST, OPTIONS");
 header("Access-Control-Allow-Headers: Content-Type, Authorization");
@@ -9,157 +17,123 @@ header("Access-Control-Allow-Headers: Content-Type, Authorization");
 // Si c'est une requête OPTIONS (preflight), nous la terminons ici
 if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
     http_response_code(200);
-    echo json_encode(['status' => 'success', 'message' => 'Preflight OK']);
+    echo json_encode(['status' => 200, 'message' => 'Preflight OK']);
     exit;
 }
 
-// Journaliser l'appel
-error_log("API auth.php - Requête reçue");
-
-// Vérifier si c'est une requête POST
+// Vérifier si la méthode est POST
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    error_log("Méthode non autorisée: " . $_SERVER['REQUEST_METHOD']);
     http_response_code(405);
-    echo json_encode(['status' => 'error', 'message' => 'Méthode non autorisée']);
+    echo json_encode(['message' => 'Méthode non autorisée. Utilisez POST pour l\'authentification.', 'status' => 405]);
     exit;
 }
 
-// Capturer l'entrée JSON
-$input = file_get_contents("php://input");
-$data = json_decode($input);
-
-error_log("Auth - Données reçues: " . print_r($data, true));
-
-// Vérifier si les données sont complètes
-if (!isset($data->email) || !isset($data->password)) {
-    http_response_code(400);
-    echo json_encode(['status' => 'error', 'message' => 'Données incomplètes']);
-    exit;
-}
-
-// Pour la démo, accepter certaines combinaisons prédéfinies
-$specialUsers = [
-    'antcirier@gmail.com' => ['password' => 'password123', 'role' => 'admin'],
-    'admin@formacert.com' => ['password' => 'admin123', 'role' => 'admin'],
-    'p71x6d_system' => ['password' => 'Trottinette43!', 'role' => 'admin'],
-    'gestionnaire@formacert.com' => ['password' => 'gest123', 'role' => 'gestionnaire'],
-    'user@formacert.com' => ['password' => 'user123', 'role' => 'user']
-];
-
-// Vérifier si c'est un utilisateur spécial
-if (array_key_exists($data->email, $specialUsers) && 
-    ($data->password === $specialUsers[$data->email]['password'] || $data->password === 'Password123!')) {
+// Créer un gestionnaire d'exceptions global
+function exception_handler($exception) {
+    error_log("Exception globale attrapée dans auth.php: " . $exception->getMessage());
+    error_log("Trace: " . $exception->getTraceAsString());
     
-    // Générer un token simple
-    $user = [
-        'id' => '1',
-        'nom' => 'Cirier',
-        'prenom' => 'Antoine',
-        'email' => $data->email,
-        'identifiant_technique' => 'p71x6d_system',
-        'role' => $specialUsers[$data->email]['role'],
-        'date_creation' => date('Y-m-d H:i:s')
-    ];
-    
-    $token = base64_encode(json_encode([
-        'user' => 'p71x6d_system',
-        'role' => $specialUsers[$data->email]['role'],
-        'exp' => time() + 3600 // Expiration dans 1 heure
-    ]));
-    
-    http_response_code(200);
+    // Envoyer une réponse JSON en cas d'erreur
+    http_response_code(500);
     echo json_encode([
-        'status' => 'success',
-        'message' => 'Connexion réussie',
-        'token' => $token,
-        'user' => $user
+        'status' => 500,
+        'message' => 'Erreur serveur interne',
+        'error' => $exception->getMessage(),
+        'trace' => $exception->getTraceAsString()
     ]);
-    exit;
 }
 
-// Essayer de se connecter à la base de données pour les autres utilisateurs
+// Définir le gestionnaire d'exceptions
+set_exception_handler('exception_handler');
+
+// Fonction de diagnostic pour vérifier l'existence et l'accessibilité des fichiers
+function check_file($path) {
+    if (!file_exists($path)) {
+        error_log("ERREUR: Fichier introuvable: $path");
+        return false;
+    }
+    if (!is_readable($path)) {
+        error_log("ERREUR: Fichier non lisible: $path");
+        return false;
+    }
+    error_log("OK: Fichier trouvé et lisible: $path");
+    return true;
+}
+
 try {
-    // Tester la connexion PDO directement
-    $host = "p71x6d.myd.infomaniak.com";
-    $dbname = "p71x6d_system";
-    $username = "p71x6d_system";
-    $password = "Trottinette43!";
+    // Journaliser la structure des dossiers
+    error_log("Structure du dossier API:");
+    error_log("__DIR__: " . __DIR__);
+    error_log("DOCUMENT_ROOT: " . $_SERVER['DOCUMENT_ROOT']);
     
-    $dsn = "mysql:host={$host};dbname={$dbname};charset=utf8mb4";
-    $options = [
-        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-        PDO::ATTR_EMULATE_PREPARES => false,
-    ];
+    // Vérifier l'existence des dossiers nécessaires
+    $controllers_dir = __DIR__ . '/controllers';
+    if (!is_dir($controllers_dir)) {
+        error_log("ERREUR CRITIQUE: Le dossier controllers n'existe pas: $controllers_dir");
+        throw new Exception("Dossier controllers introuvable");
+    } else {
+        error_log("Contenu du dossier controllers:");
+        $controllers_files = scandir($controllers_dir);
+        error_log(print_r($controllers_files, true));
+    }
     
-    error_log("Auth - Tentative de connexion à la base de données");
-    $pdo = new PDO($dsn, $username, $password, $options);
+    // Vérifier l'absence de fonctions dupliquées
+    $check_duplication = true;
     
-    // Vérifier l'existence de l'utilisateur
-    $stmt = $pdo->prepare("SELECT * FROM utilisateurs WHERE email = :email LIMIT 1");
-    $stmt->bindParam(':email', $data->email);
-    $stmt->execute();
-    
-    if ($row = $stmt->fetch()) {
-        // Vérifier le mot de passe (en supposant qu'il est haché dans la base de données)
-        if (password_verify($data->password, $row['mot_de_passe']) || $data->password === 'Password123!') {
-            // Générer un token simple
-            $token = base64_encode(json_encode([
-                'user' => $row['identifiant_technique'],
-                'role' => $row['role'],
-                'exp' => time() + 3600 // Expiration dans 1 heure
-            ]));
+    if ($check_duplication) {
+        // Vérifier si config/env.php contient une déclaration conditionnelle pour cleanUTF8
+        $env_file = __DIR__ . '/config/env.php';
+        if (file_exists($env_file)) {
+            $env_content = file_get_contents($env_file);
+            $has_conditional_declaration = strpos($env_content, "if (!function_exists('cleanUTF8'))") !== false;
             
-            http_response_code(200);
-            echo json_encode([
-                'status' => 'success',
-                'message' => 'Connexion réussie',
-                'token' => $token,
-                'user' => $row
-            ]);
-            exit;
+            if (!$has_conditional_declaration) {
+                error_log("AVERTISSEMENT: Le fichier env.php ne contient pas de déclaration conditionnelle pour cleanUTF8");
+            } else {
+                error_log("OK: Le fichier env.php contient une déclaration conditionnelle pour cleanUTF8");
+            }
+        }
+        
+        // Vérifier si AuthController.php contient une déclaration conditionnelle pour cleanUTF8
+        $auth_controller = __DIR__ . '/controllers/AuthController.php';
+        if (file_exists($auth_controller)) {
+            $auth_content = file_get_contents($auth_controller);
+            $has_conditional_declaration = strpos($auth_content, "if (!function_exists('cleanUTF8'))") !== false;
+            
+            if (!$has_conditional_declaration) {
+                error_log("AVERTISSEMENT: Le fichier AuthController.php ne contient pas de déclaration conditionnelle pour cleanUTF8");
+            } else {
+                error_log("OK: Le fichier AuthController.php contient une déclaration conditionnelle pour cleanUTF8");
+            }
         }
     }
     
-    // Si aucune correspondance n'est trouvée
-    http_response_code(401);
-    echo json_encode(['status' => 'error', 'message' => 'Identifiants incorrects']);
-    
-} catch (PDOException $e) {
-    error_log("Auth - Erreur de connexion à la base de données: " . $e->getMessage());
-    
-    // Fallback pour les cas de test/démo
-    if ($data->email === 'antcirier@gmail.com' && ($data->password === 'password123' || $data->password === 'Password123!')) {
-        $user = [
-            'id' => '1',
-            'nom' => 'Cirier',
-            'prenom' => 'Antoine',
-            'email' => 'antcirier@gmail.com',
-            'identifiant_technique' => 'p71x6d_system',
-            'role' => 'admin',
-            'date_creation' => date('Y-m-d H:i:s')
-        ];
-        
-        $token = base64_encode(json_encode([
-            'user' => 'p71x6d_system',
-            'role' => 'admin',
-            'exp' => time() + 3600 // Expiration dans 1 heure
-        ]));
-        
-        http_response_code(200);
-        echo json_encode([
-            'status' => 'success',
-            'message' => 'Connexion réussie (mode fallback)',
-            'token' => $token,
-            'user' => $user
-        ]);
-        exit;
+    // Vérifier l'existence et la lisibilité du contrôleur d'authentification
+    $auth_controller = __DIR__ . '/controllers/AuthController.php';
+    if (!check_file($auth_controller)) {
+        throw new Exception("Contrôleur d'authentification introuvable ou non lisible");
     }
     
+    // Inclure le contrôleur d'authentification
+    error_log("Tentative d'inclusion du contrôleur d'authentification...");
+    include_once $auth_controller;
+    error_log("Contrôleur d'authentification inclus avec succès");
+    
+} catch (Exception $e) {
+    // Log l'erreur
+    error_log("Erreur critique dans auth.php: " . $e->getMessage());
+    error_log("Trace: " . $e->getTraceAsString());
+    
+    // Envoyer une réponse JSON en cas d'erreur
     http_response_code(500);
     echo json_encode([
-        'status' => 'error',
-        'message' => 'Erreur de connexion à la base de données',
-        'error' => $e->getMessage()
+        'status' => 500,
+        'message' => 'Erreur serveur interne',
+        'error' => $e->getMessage(),
+        'trace' => $e->getTraceAsString()
     ]);
+} finally {
+    error_log("=== FIN DE L'EXÉCUTION DE auth.php ===");
 }
 ?>

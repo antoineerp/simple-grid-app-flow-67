@@ -82,36 +82,6 @@ header('Content-Type: text/html; charset=utf-8');
     </div>
     
     <div class="section">
-        <h2>Test des API endpoints</h2>
-        <?php
-        // Vérification des endpoints API
-        $apiEndpoints = [
-            '/api/' => 'API racine',
-            '/api/index.php' => 'Point d\'entrée principal API',
-            '/api/users.php' => 'API Utilisateurs',
-            '/api/operations/' => 'Dossier opérations API',
-            '/api/operations/users/' => 'Dossier opérations utilisateurs',
-            '/api/operations/users/DeleteOperations.php' => 'Opérations de suppression utilisateur'
-        ];
-        
-        echo "<table>";
-        echo "<tr><th>Endpoint</th><th>Description</th><th>Existe</th></tr>";
-        
-        foreach ($apiEndpoints as $endpoint => $desc) {
-            $fullPath = $_SERVER['DOCUMENT_ROOT'] . $endpoint;
-            $exists = file_exists($fullPath);
-            echo "<tr>";
-            echo "<td class='monospace'>$endpoint</td>";
-            echo "<td>$desc</td>";
-            echo "<td>" . ($exists ? '<span class="success">Oui</span>' : '<span class="error">Non</span>') . "</td>";
-            echo "</tr>";
-        }
-        
-        echo "</table>";
-        ?>
-    </div>
-    
-    <div class="section">
         <h2>Test d'accès aux fichiers statiques</h2>
         <?php
         $staticFiles = [
