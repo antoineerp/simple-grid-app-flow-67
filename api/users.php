@@ -3,11 +3,6 @@
 // Forcer l'output buffering pour éviter tout output avant les headers
 ob_start();
 
-// Configuration des erreurs
-error_reporting(E_ALL);
-ini_set('display_errors', 0); // Ne pas afficher les erreurs dans la réponse
-ini_set('log_errors', 1);
-
 // En-têtes CORS et Content-Type
 header("Content-Type: application/json; charset=UTF-8");
 header("Access-Control-Allow-Origin: *");
@@ -15,15 +10,15 @@ header("Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS");
 header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With");
 header("Cache-Control: no-cache, no-store, must-revalidate");
 
-// Journaliser l'appel
-error_log("API users.php - Méthode: " . $_SERVER['REQUEST_METHOD'] . " - Requête: " . $_SERVER['REQUEST_URI']);
-
 // Si c'est une requête OPTIONS (preflight), nous la terminons ici
 if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
     http_response_code(200);
     echo json_encode(['status' => 'success', 'message' => 'Preflight OK']);
     exit;
 }
+
+// Journaliser l'appel
+error_log("API users.php - Méthode: " . $_SERVER['REQUEST_METHOD'] . " - Requête: " . $_SERVER['REQUEST_URI']);
 
 // Nettoyer tout buffer de sortie existant
 if (ob_get_level()) ob_clean();
@@ -33,43 +28,30 @@ try {
     if (!defined('DIRECT_ACCESS_CHECK')) {
         define('DIRECT_ACCESS_CHECK', true);
     }
-
-    // Inclure les fichiers de base nécessaires
-    require_once __DIR__ . '/config/database.php';
-    require_once __DIR__ . '/utils/ResponseHandler.php';
-    require_once __DIR__ . '/models/User.php';
-    
-    // Initialiser la base de données
-    $database = new Database();
-    $db = $database->getConnection();
-    
-    if (!$db) {
-        throw new Exception("Erreur de connexion à la base de données: " . ($database->connection_error ?? "Erreur inconnue"));
-    }
     
     // Inclure les opérations en fonction de la méthode HTTP
     switch ($_SERVER['REQUEST_METHOD']) {
         case 'GET':
             require_once __DIR__ . '/operations/users/GetOperations.php';
-            $operations = new UserGetOperations(new User($db));
+            $operations = new UserGetOperations(new User(Database::getConnection()));
             $operations->handleGetRequest();
             break;
         
         case 'POST':
             require_once __DIR__ . '/operations/users/PostOperations.php';
-            $operations = new UserPostOperations(new User($db));
+            $operations = new UserPostOperations(new User(Database::getConnection()));
             $operations->handlePostRequest();
             break;
             
         case 'PUT':
             require_once __DIR__ . '/operations/users/PutOperations.php';
-            $operations = new UserPutOperations(new User($db));
+            $operations = new UserPutOperations(new User(Database::getConnection()));
             $operations->handlePutRequest();
             break;
             
         case 'DELETE':
             require_once __DIR__ . '/operations/users/DeleteOperations.php';
-            $operations = new UserDeleteOperations(new User($db));
+            $operations = new UserDeleteOperations(new User(Database::getConnection()));
             $operations->handleDeleteRequest();
             break;
             

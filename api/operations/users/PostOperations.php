@@ -4,38 +4,26 @@ require_once dirname(__DIR__) . '/BaseOperations.php';
 
 class UserPostOperations extends BaseOperations {
     public function handlePostRequest() {
+        $data = json_decode(file_get_contents("php://input"));
+        error_log("UserPostOperations::handlePostRequest - Données reçues POST: " . json_encode($data));
+
+        if (!$this->validateUserData($data)) {
+            error_log("UserPostOperations - Validation des données utilisateur échouée");
+            ResponseHandler::error("Données incomplètes ou invalides", 400);
+            return;
+        }
+
         try {
-            // Capturer les données brutes
-            $rawData = file_get_contents("php://input");
-            error_log("UserPostOperations::handlePostRequest - Données brutes reçues: " . $rawData);
-            
-            if (empty($rawData)) {
-                error_log("UserPostOperations - Aucune donnée reçue");
-                throw new Exception("Aucune donnée reçue");
-            }
-            
-            // Décoder en JSON
-            $data = json_decode($rawData);
-            if (json_last_error() !== JSON_ERROR_NONE) {
-                error_log("UserPostOperations - Erreur de décodage JSON: " . json_last_error_msg());
-                throw new Exception("Erreur de décodage JSON: " . json_last_error_msg());
-            }
-            
-            error_log("UserPostOperations::handlePostRequest - Données décodées: " . json_encode($data));
-
-            if (!$this->validateUserData($data)) {
-                error_log("UserPostOperations - Validation des données utilisateur échouée");
-                throw new Exception("Données incomplètes ou invalides");
-            }
-
             if ($data->role === 'gestionnaire' && $this->model->countUsersByRole('gestionnaire') > 0) {
                 error_log("UserPostOperations - Tentative de création d'un second compte gestionnaire rejetée");
-                throw new Exception("Un seul compte gestionnaire peut être créé");
+                ResponseHandler::error("Un seul compte gestionnaire peut être créé", 409);
+                return;
             }
 
             if ($this->model->emailExists($data->email)) {
                 error_log("UserPostOperations - Email déjà utilisé: " . $data->email);
-                throw new Exception("Email déjà utilisé");
+                ResponseHandler::error("Email déjà utilisé", 409);
+                return;
             }
 
             // Assigner les valeurs à l'objet utilisateur
@@ -50,7 +38,8 @@ class UserPostOperations extends BaseOperations {
             
             if (!$this->model->create()) {
                 error_log("UserPostOperations - Échec de création de l'utilisateur sans exception");
-                throw new Exception("Échec de création de l'utilisateur");
+                ResponseHandler::error("Échec de création de l'utilisateur", 500);
+                return;
             }
 
             $lastId = $this->db->lastInsertId();
@@ -71,7 +60,7 @@ class UserPostOperations extends BaseOperations {
 
         } catch (Exception $e) {
             error_log("UserPostOperations - Erreur création utilisateur: " . $e->getMessage());
-            ResponseHandler::error($e->getMessage(), ($e->getCode() >= 400 && $e->getCode() < 600) ? $e->getCode() : 500);
+            ResponseHandler::error($e->getMessage(), 500);
         }
     }
 

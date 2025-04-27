@@ -30,48 +30,71 @@ $_ENV['API_URL_PROD'] = 'https://qualiopi.ch/api'; // URL sans www
 $_ENV['ALLOWED_ORIGIN_DEV'] = 'http://localhost:8080';
 $_ENV['ALLOWED_ORIGIN_PROD'] = 'https://qualiopi.ch'; // URL sans www
 
-// Détecter automatiquement le chemin complet sur Infomaniak
+// Configuration des chemins pour Infomaniak
+$_ENV['INFOMANIAK_SITE_ROOT'] = '/sites/qualiopi.ch';
+$_ENV['INFOMANIAK_DOMAIN_ROOT'] = '/home/clients/df8dceff557ccc0605d45e1581aa661b/sites/qualiopi.ch';
+$_ENV['INFOMANIAK_TEST_DOMAIN_ROOT'] = '/home/clients/df8dceff557ccc0605d45e1581aa661b/sites/test.qualiopi.ch';
+
+// Détection des chemins Infomaniak
 $documentRoot = $_SERVER['DOCUMENT_ROOT'] ?? '';
-$scriptFilename = $_SERVER['SCRIPT_FILENAME'] ?? '';
+$_ENV['IS_INFOMANIAK'] = (strpos($documentRoot, '/sites/') !== false) ? 'true' : 'false';
 
-// Détecter Infomaniak de plusieurs façons
-$isInfomaniak = false;
-
-// Méthode 1: Détection par pattern du chemin
-if (preg_match('#^(/home/clients/[^/]+/sites/[^/]+)/#', $documentRoot, $matches)) {
-    $_ENV['INFOMANIAK_DOMAIN_ROOT'] = $matches[1];
-    $isInfomaniak = true;
-    error_log("Détection automatique du chemin Infomaniak (méthode 1): " . $_ENV['INFOMANIAK_DOMAIN_ROOT']);
-}
-// Méthode 2: Détection par nom d'hôte
-else if (strpos($currentHost, 'qualiopi.ch') !== false || strpos($currentHost, '.infomaniak.') !== false) {
-    $isInfomaniak = true;
-    $_ENV['INFOMANIAK_DOMAIN_ROOT'] = $documentRoot;
-    error_log("Détection Infomaniak par nom d'hôte (méthode 2): " . $documentRoot);
-}
-// Méthode 3: Vérification du chemin contenant '/sites/'
-else if (strpos($documentRoot, '/sites/') !== false) {
-    $isInfomaniak = true;
-    $_ENV['INFOMANIAK_DOMAIN_ROOT'] = preg_replace('#^(.*?/sites/[^/]+).*$#', '$1', $documentRoot);
-    error_log("Détection Infomaniak par structure de chemin (méthode 3): " . $_ENV['INFOMANIAK_DOMAIN_ROOT']);
-}
-
-// Configurer l'environnement Infomaniak
-$_ENV['IS_INFOMANIAK'] = $isInfomaniak ? 'true' : 'false';
-
-// Configuration des chemins en fonction de l'environnement
-if ($isInfomaniak) {
-    // Configurer les chemins avec la bonne structure détectée
-    $_ENV['ASSETS_PATH'] = '/assets';
-    $_ENV['UPLOADS_PATH'] = '/lovable-uploads';
+// Journaliser l'environnement détecté en production (pour le débogage initial)
+if ($environment === 'production') {
+    error_log("Application démarrée en environnement de PRODUCTION sur l'hôte: " . $currentHost);
+    error_log("API URL: " . $_ENV['API_URL_PROD']);
+    error_log("ALLOWED ORIGIN: " . $_ENV['ALLOWED_ORIGIN_PROD']);
+    error_log("DOCUMENT_ROOT: " . $documentRoot);
+    error_log("IS_INFOMANIAK: " . $_ENV['IS_INFOMANIAK']);
     
-    error_log("Infomaniak détecté: Chemins configurés: ASSETS=" . $_ENV['ASSETS_PATH'] . ", UPLOADS=" . $_ENV['UPLOADS_PATH']);
-} else {
-    // Environnement local ou autre
-    $_ENV['ASSETS_PATH'] = '/assets';
-    $_ENV['UPLOADS_PATH'] = '/lovable-uploads';
-    
-    error_log("Environnement non-Infomaniak: Chemins par défaut utilisés");
+    // Journaliser les informations sur les demandes de ressources statiques
+    $uri = $_SERVER['REQUEST_URI'] ?? '';
+    if (strpos($uri, '.js') !== false || 
+        strpos($uri, '.css') !== false || 
+        strpos($uri, '/assets/') !== false) {
+        
+        error_log("[Asset diagnostics] Requête d'asset détectée: " . $uri);
+        error_log("[Asset diagnostics] Document root: " . ($_SERVER['DOCUMENT_ROOT'] ?? 'non défini'));
+        error_log("[Asset diagnostics] Fichier physique: " . ($_SERVER['SCRIPT_FILENAME'] ?? 'non défini'));
+        error_log("[Asset diagnostics] Accept: " . ($_SERVER['HTTP_ACCEPT'] ?? 'non défini'));
+        error_log("[Asset diagnostics] User Agent: " . ($_SERVER['HTTP_USER_AGENT'] ?? 'non défini'));
+        
+        // Vérifiez si le fichier existe
+        $file_path = $_SERVER['DOCUMENT_ROOT'] . $uri;
+        $infomaniak_path = $_SERVER['DOCUMENT_ROOT'] . '/sites/qualiopi.ch' . $uri;
+        
+        error_log("[Asset diagnostics] Tentative de chemin standard: " . $file_path);
+        error_log("[Asset diagnostics] Tentative de chemin Infomaniak: " . $infomaniak_path);
+        
+        if (file_exists($file_path)) {
+            error_log("[Asset diagnostics] Le fichier existe sur le disque: " . $file_path);
+            error_log("[Asset diagnostics] Taille du fichier: " . filesize($file_path) . " octets");
+        } else if (file_exists($infomaniak_path)) {
+            error_log("[Asset diagnostics] Le fichier existe sur le chemin Infomaniak: " . $infomaniak_path);
+            error_log("[Asset diagnostics] Taille du fichier: " . filesize($infomaniak_path) . " octets");
+        } else {
+            error_log("[Asset diagnostics] Le fichier N'EXISTE PAS sur le disque: " . $file_path);
+            error_log("[Asset diagnostics] Le fichier N'EXISTE PAS sur le chemin Infomaniak: " . $infomaniak_path);
+            
+            // Recherche de fichiers similaires
+            $directory = dirname($file_path);
+            if (is_dir($directory)) {
+                $files = scandir($directory);
+                error_log("[Asset diagnostics] Fichiers dans le même dossier: " . implode(", ", $files));
+            } else {
+                error_log("[Asset diagnostics] Le dossier n'existe pas: " . $directory);
+                
+                // Essayer avec le chemin Infomaniak
+                $infomaniak_directory = dirname($infomaniak_path);
+                if (is_dir($infomaniak_directory)) {
+                    $files = scandir($infomaniak_directory);
+                    error_log("[Asset diagnostics] Fichiers dans le dossier Infomaniak: " . implode(", ", $files));
+                } else {
+                    error_log("[Asset diagnostics] Le dossier Infomaniak n'existe pas: " . $infomaniak_directory);
+                }
+            }
+        }
+    }
 }
 
 // Charger la configuration depuis le fichier app_config.json s'il existe
@@ -116,9 +139,7 @@ mb_internal_encoding('UTF-8');
 if ($environment === 'production') {
     // Désactiver l'affichage des erreurs en production
     ini_set('display_errors', 0);
-    // Utiliser E_ALL & ~E_DEPRECATED au lieu de E_ALL & ~E_DEPRECATED & ~E_STRICT
-    // car E_STRICT est déprécié dans les versions récentes de PHP
-    error_reporting(E_ALL & ~E_DEPRECATED);
+    error_reporting(E_ALL & ~E_DEPRECATED & ~E_STRICT);
     
     // Journaliser les erreurs dans le fichier de log
     ini_set('log_errors', 1);
@@ -149,52 +170,12 @@ if (!function_exists('getenv_custom')) {
     }
 }
 
-/**
- * Fonction optimisée pour ajuster les chemins en fonction de l'environnement Infomaniak
- * Corrige les problèmes de chemins de fichiers, notamment pour les chemins doublés comme /sites/qualiopi.ch/
- */
+// Fonction pour ajuster les chemins en fonction de l'environnement Infomaniak
 function adjustPathForInfomaniak($path) {
-    // Vérifier si le chemin est défini
-    if (!$path) {
-        return $path;
+    // Si nous sommes sur Infomaniak et que le chemin ne commence pas par /sites/
+    if (env('IS_INFOMANIAK') === 'true' && strpos($path, '/sites/') !== 0) {
+        return env('INFOMANIAK_SITE_ROOT') . $path;
     }
-    
-    // Détecter si nous sommes sur Infomaniak
-    $isInfomaniak = env('IS_INFOMANIAK') === 'true';
-    
-    if (!$isInfomaniak) {
-        return $path; // Pas de modification en environnement non-Infomaniak
-    }
-    
-    // Corriger les chemins avec /sites/domain.com/ (chemins doublés)
-    if (preg_match('|^/sites/[^/]+/(.*)$|', $path, $matches)) {
-        $correctedPath = '/' . $matches[1];
-        error_log("Chemin corrigé: $path -> $correctedPath");
-        return $correctedPath;
-    }
-    
-    // Pas besoin de correction
     return $path;
-}
-
-/**
- * Fonction pour obtenir l'URL de base de l'application
- */
-function getBaseUrl() {
-    $protocol = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on') ? "https" : "http";
-    $host = $_SERVER['HTTP_HOST'];
-    return $protocol . "://" . $host;
-}
-
-// Journaliser les chemins des assets en production
-if ($environment === 'production') {
-    error_log("ASSETS_PATH configuré: " . $_ENV['ASSETS_PATH']);
-    error_log("UPLOADS_PATH configuré: " . $_ENV['UPLOADS_PATH']);
-    error_log("Application démarrée en environnement de PRODUCTION sur l'hôte: " . $currentHost);
-    error_log("API URL: " . ($_ENV['API_URL_PROD'] ?? 'non définie'));
-    error_log("ALLOWED ORIGIN: " . ($_ENV['ALLOWED_ORIGIN_PROD'] ?? 'non défini'));
-    error_log("DOCUMENT_ROOT: " . $documentRoot);
-    error_log("IS_INFOMANIAK: " . ($_ENV['IS_INFOMANIAK'] ?? 'non défini'));
-    error_log("INFOMANIAK_DOMAIN_ROOT (détecté auto): " . ($_ENV['INFOMANIAK_DOMAIN_ROOT'] ?? 'non détecté'));
 }
 ?>

@@ -1,8 +1,9 @@
 import React from 'react';
-import { FileText, Pencil, Trash, ChevronDown, FolderPlus, GripVertical, ExternalLink } from 'lucide-react';
+import { FileText, Pencil, Trash, ChevronDown, FolderPlus, GripVertical, ExternalLink, CloudSun } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { exportBibliothecaireDocsToPdf } from '@/services/pdfExport';
 import { useBibliotheque } from '@/hooks/useBibliotheque';
+import SyncStatusIndicator from '@/components/common/SyncStatusIndicator';
 import {
   Dialog,
   DialogContent,
@@ -33,6 +34,9 @@ const Bibliotheque = () => {
     isEditing,
     currentDocument,
     currentGroup,
+    isSyncing,
+    isOnline,
+    lastSynced,
     setIsDialogOpen,
     setIsGroupDialogOpen,
     handleEditDocument,
@@ -49,6 +53,7 @@ const Bibliotheque = () => {
     handleGroupDrop,
     toggleGroup,
     setDraggedItem,
+    syncWithServer
   } = useBibliotheque();
   
   const handleExportPdf = () => {
@@ -121,7 +126,7 @@ const Bibliotheque = () => {
       </a>
     );
   };
-  
+
   return (
     <div className="p-8">
       <div className="flex items-center justify-between mb-2">
@@ -129,7 +134,15 @@ const Bibliotheque = () => {
           <h1 className="text-3xl font-bold text-app-blue">Collaboration</h1>
           <p className="text-gray-600">Gestion des documents partagés</p>
         </div>
-        <div>
+        <div className="flex space-x-2">
+          <button 
+            onClick={syncWithServer}
+            className="text-blue-600 p-2 rounded-md hover:bg-blue-50 transition-colors flex items-center"
+            title="Synchroniser avec le serveur"
+            disabled={isSyncing}
+          >
+            <CloudSun className={`h-6 w-6 stroke-[1.5] ${isSyncing ? 'animate-spin' : ''}`} />
+          </button>
           <button 
             onClick={handleExportPdf}
             className="text-red-600 p-2 rounded-md hover:bg-red-50 transition-colors"
@@ -138,6 +151,14 @@ const Bibliotheque = () => {
             <FileText className="h-6 w-6 stroke-[1.5]" />
           </button>
         </div>
+      </div>
+      
+      <div className="mb-4">
+        <SyncStatusIndicator 
+          isSyncing={isSyncing}
+          isOnline={isOnline}
+          lastSynced={lastSynced}
+        />
       </div>
 
       <div className="bg-white rounded-md shadow overflow-hidden mt-6">

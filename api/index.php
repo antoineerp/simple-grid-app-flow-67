@@ -53,12 +53,6 @@ function routeApi() {
     // Supprimer les slashs au début et à la fin pour une normalisation uniforme
     $path = trim($path, '/');
     
-    // Traitement spécial pour index.php, le considérer comme la racine
-    if ($path === 'index.php') {
-        $path = '';
-        error_log("Routage API - Chemin normalisé vers la racine de l'API");
-    }
-    
     // Router vers les différents endpoints
     switch ($path) {
         case '':
@@ -145,17 +139,6 @@ function routeApi() {
         case 'user-diagnostic':
             // Rediriger vers le diagnostic utilisateur
             require_once __DIR__ . '/user-diagnostic.php';
-            exit;
-        
-        case 'check-permissions':
-            // Vérification des permissions des fichiers
-            require_once __DIR__ . '/check-permissions.php';
-            exit;
-            
-        case 'advanced-diagnostic':
-        case 'diagnostic-avance': // Alias sans accent
-            // Diagnostic avancé du système
-            require_once __DIR__ . '/advanced-diagnostic.php';
             exit;
             
         // Routes pour la synchronisation des données
@@ -258,7 +241,7 @@ function diagnoseRequest() {
 
 try {
     // Assurer que nous n'avons pas de sortie avant les headers
-    if (ob_get_level()) ob_clean();
+    ob_clean();
 
     // Router la requête vers le bon contrôleur
     $response = routeApi();

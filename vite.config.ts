@@ -30,18 +30,21 @@ export default defineConfig(({ mode }) => {
       outDir: 'dist',
       assetsDir: 'assets',
       minify: true,
-      sourcemap: mode === 'development',
-      manifest: true,
+      sourcemap: false,
       rollupOptions: {
         input: {
           main: path.resolve(__dirname, 'index.html'),
         },
         output: {
           manualChunks: undefined,
-          entryFileNames: 'assets/[name].[hash].js',
-          chunkFileNames: 'assets/[name].[hash].js',
-          assetFileNames: 'assets/[name].[hash].[ext]'
-        }
+          entryFileNames: 'assets/[name]-[hash].js',
+          chunkFileNames: 'assets/[name]-[hash].js',
+          assetFileNames: 'assets/[name]-[hash].[ext]'
+        },
+        // Ignorer les assets externes qui ne sont pas disponibles au moment du build
+        external: [
+          // Lister ici les assets externes qui doivent être résolus au runtime
+        ]
       }
     },
     publicDir: 'public',

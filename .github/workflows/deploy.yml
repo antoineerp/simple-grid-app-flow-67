@@ -1,3 +1,4 @@
+
 name: Deploy to Infomaniak
 
 on:
@@ -23,8 +24,6 @@ jobs:
       
     - name: Build React App
       run: npm run build
-      env:
-        CI: false # Pour éviter que le build échoue sur des warnings
       
     - name: Debug build output
       run: |
@@ -35,8 +34,6 @@ jobs:
         ls -la dist/assets/ || echo "Dossier assets non trouvé"
         echo "Contenu de index.html:"
         cat dist/index.html || echo "index.html non trouvé"
-        echo "Vérification des emplacements spécifiques:"
-        test -d dist && echo "Dossier dist existe" || echo "ERREUR: Dossier dist n'existe pas!"
 
     - name: Create complete directory structure
       run: |
@@ -83,11 +80,11 @@ jobs:
         
         # Copier les fichiers d'opérations
         cp -v api/operations/BaseOperations.php dist/api/operations/ || echo "Attention: BaseOperations.php non trouvé"
-        cp -v api/operations/UserOperations.php dist/api/operations/ || echo "Attention: UserOperations.php non trouvé"
         cp -v api/operations/users/DeleteOperations.php dist/api/operations/users/ || echo "Attention: DeleteOperations.php non trouvé"
         cp -v api/operations/users/GetOperations.php dist/api/operations/users/ || echo "Attention: GetOperations.php non trouvé"
         cp -v api/operations/users/PostOperations.php dist/api/operations/users/ || echo "Attention: PostOperations.php non trouvé"
         cp -v api/operations/users/PutOperations.php dist/api/operations/users/ || echo "Attention: PutOperations.php non trouvé"
+        cp -v api/operations/UserOperations.php dist/api/operations/ || echo "Attention: UserOperations.php non trouvé"
         
         # Copier les fichiers de gestion des documents
         cp -v api/documents-load.php dist/api/ || echo "Attention: documents-load.php non trouvé"
@@ -136,32 +133,50 @@ jobs:
         cp -v verify-deploy.php dist/ || echo "Attention: verify-deploy.php non trouvé"
         cp -v deploy-check.php dist/ || echo "Attention: deploy-check.php non trouvé"
         cp -v infomaniak-paths-check.php dist/ || echo "Attention: infomaniak-paths-check.php non trouvé"
-        cp -v copy-assets.php dist/ || echo "Attention: copy-assets.php non trouvé"
         
-        # Copier les fichiers uploads avec récursion si le dossier existe
-        if [ -d "public/lovable-uploads" ]; then
-          cp -r public/lovable-uploads/* dist/public/lovable-uploads/ 2>/dev/null || echo "Aucun fichier d'upload trouvé"
-        fi
+        # Copier les fichiers uploads avec récursion
+        cp -r public/lovable-uploads/* dist/public/lovable-uploads/ || echo "Aucun fichier d'upload trouvé"
         
         # Vérifier si le dossier public contient d'autres fichiers importants
-        if [ -d "public" ]; then
-          find public -type f -not -path "*/lovable-uploads/*" -exec cp -v {} dist/public/ \; 2>/dev/null || echo "Pas d'autres fichiers publics trouvés"
-        fi
+        find public -type f -not -path "*/lovable-uploads/*" -exec cp -v {} dist/public/ \; || echo "Pas d'autres fichiers publics trouvés"
+
+    - name: Run post-build script to fix index references
+      run: |
+        echo "Running post-build script to ensure index.html is correct..."
+        cd dist
+        # Créer un script temporaire pour vérifier les assets
+        cat > check-assets.php << 'EOF'
+        <?php
+        $assets_js = glob('./assets/*.js');
+        $assets_css = glob('./assets/*.css');
+        echo "Found JS assets: " . implode(", ", $assets_js) . "\n";
+        echo "Found CSS assets: " . implode(", ", $assets_css) . "\n";
+        
+        // Vérifier index.html
+        $index_content = file_get_contents('./index.html');
+        echo "Index.html content:\n";
+        echo substr($index_content, 0, 1000) . "...\n";
+        ?>
+        EOF
+        
+        php check-assets.php
+        cd ..
 
     - name: Check structure before deployment
       run: |
         echo "Verifying structure before deployment:"
         echo "Root files:"
-        ls -la dist/ || echo "ERREUR: dist/ n'existe pas!"
+        ls -la dist/
         echo "API files:"
-        ls -la dist/api/ || echo "ERREUR: dist/api/ n'existe pas!"
-        echo "Assets files:"
-        ls -la dist/assets/ || echo "ERREUR: dist/assets/ n'existe pas!"
-        
-    - name: Copy assets to root
-      run: |
-        cp -r dist/assets/* assets/ || mkdir -p assets
-        cp dist/index.html . || echo "index.html non trouvé"
+        ls -la dist/api/
+        echo "API config files:"
+        ls -la dist/api/config/
+        echo "API operations files:"
+        ls -la dist/api/operations/
+        echo "API operations/users files:"
+        ls -la dist/api/operations/users/
+        echo "Public files:"
+        ls -la dist/public/ || echo "No public folder"
         
     - name: Sync full dist folder to Infomaniak server
       uses: SamKirkland/FTP-Deploy-Action@v4.3.4
@@ -184,16 +199,6 @@ jobs:
         log-level: verbose
         timeout: 120000
         dry-run: false
-        
-    - name: FTP logs and details
-      if: always()
-      run: |
-        echo "FTP deployment terminé. Vérification supplémentaire:"
-        echo "Variables:"
-        echo "Serveur: ${{ secrets.FTP_SERVER }}" | sed 's/./*/g'
-        echo "Utilisateur: ${{ secrets.FTP_USERNAME }}" | sed 's/./*/g'
-        echo "Dossier local: ./dist/"
-        echo "Dossier distant: /sites/qualiopi.ch/"
     
     - name: Post-deployment verification
       run: |
@@ -202,4 +207,4 @@ jobs:
         echo "URL: https://qualiopi.ch/fix-assets-runtime.php"
         echo "Vérifiez également: https://qualiopi.ch/fix-index-references.php"
         echo "Vérifiez les chemins avec: https://qualiopi.ch/infomaniak-paths-check.php"
-        echo "Vérifiez le déploiement avec: https://qualiopi.ch/deploy-check.php"
+

@@ -1,5 +1,6 @@
+
 import React from 'react';
-import { FileText, UserPlus } from 'lucide-react';
+import { FileText, UserPlus, CloudSun } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import {
   Dialog,
@@ -14,10 +15,11 @@ import MemberList from '@/components/ressources-humaines/MemberList';
 import MemberForm from '@/components/ressources-humaines/MemberForm';
 import { Membre } from '@/types/membres';
 import { exportAllCollaborateursToPdf } from '@/services/collaborateurExport';
+import SyncStatusIndicator from '@/components/common/SyncStatusIndicator';
 
 const RessourcesHumaines = () => {
   const { toast } = useToast();
-  const { membres, setMembres } = useMembres();
+  const { membres, setMembres, isSyncing, isOnline, lastSynced, syncWithServer } = useMembres();
   
   const [isDialogOpen, setIsDialogOpen] = React.useState(false);
   const [currentMembre, setCurrentMembre] = React.useState<Membre>({
@@ -147,7 +149,15 @@ const RessourcesHumaines = () => {
         <div>
           <h1 className="text-3xl font-bold text-app-blue">Ressources Humaines</h1>
         </div>
-        <div>
+        <div className="flex space-x-2">
+          <button 
+            onClick={syncWithServer}
+            className="text-blue-600 p-2 rounded-md hover:bg-blue-50 transition-colors flex items-center"
+            title="Synchroniser avec le serveur"
+            disabled={isSyncing}
+          >
+            <CloudSun className={`h-6 w-6 stroke-[1.5] ${isSyncing ? 'animate-spin' : ''}`} />
+          </button>
           <button 
             onClick={handleExportAllToPdf}
             className="text-red-600 p-2 rounded-md hover:bg-red-50 transition-colors"
@@ -156,6 +166,14 @@ const RessourcesHumaines = () => {
             <FileText className="h-6 w-6 stroke-[1.5]" />
           </button>
         </div>
+      </div>
+
+      <div className="mb-4">
+        <SyncStatusIndicator 
+          isSyncing={isSyncing}
+          isOnline={isOnline}
+          lastSynced={lastSynced}
+        />
       </div>
 
       <div className="bg-white rounded-md shadow overflow-hidden mt-6">
@@ -177,6 +195,7 @@ const RessourcesHumaines = () => {
         </Button>
       </div>
 
+      {/* Modal pour ajouter/modifier un membre */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent>
           <DialogHeader>

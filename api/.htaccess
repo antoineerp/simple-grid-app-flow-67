@@ -2,52 +2,28 @@
 # Activer la réécriture d'URL
 RewriteEngine On
 
-# Forcer le traitement des fichiers PHP
-<FilesMatch "\.php$">
-    SetHandler application/x-httpd-php
-</FilesMatch>
-
-# Sécurité - Bloquer l'accès direct aux fichiers sensibles
-<FilesMatch "^(config\.php|database\.php|\.env|\.json)$">
-    Order Allow,Deny
-    Deny from all
-</FilesMatch>
-
-# Définir les types MIME pour les réponses JSON
-<FilesMatch "\.(json|php)$">
-    Header set Content-Type "application/json; charset=UTF-8"
-</FilesMatch>
-
 # Permettre l'accès direct aux fichiers PHP spécifiques
 RewriteCond %{REQUEST_FILENAME} -f
 RewriteRule \.(php)$ - [L]
 
-# Rediriger les requêtes index.php vers la racine
-RewriteRule ^index\.php$ / [R=301,L]
-
-# Rediriger toutes les requêtes vers index.php sauf pour les fichiers existants
+# Rediriger toutes les requêtes vers l'index.php sauf pour les fichiers existants
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^(.*)$ index.php [QSA,L]
 
-# Headers CORS et sécurité
+# Définir les en-têtes CORS
 <IfModule mod_headers.c>
-    Header set X-Content-Type-Options "nosniff"
-    Header set X-Frame-Options "SAMEORIGIN"
-    Header set Strict-Transport-Security "max-age=31536000; includeSubDomains"
-    
-    # Configuration CORS plus stricte
     Header set Access-Control-Allow-Origin "*"
     Header set Access-Control-Allow-Methods "GET, POST, OPTIONS, PUT, DELETE"
     Header set Access-Control-Allow-Headers "Content-Type, Authorization"
     
-    # Cache-Control
+    # Eviter la mise en cache
     Header set Cache-Control "no-cache, no-store, must-revalidate"
+    Header set Pragma "no-cache"
+    Header set Expires 0
 </IfModule>
 
-# Protection contre les attaques de fichiers
-<IfModule mod_rewrite.c>
-    RewriteEngine On
-    RewriteCond %{REQUEST_METHOD} ^(TRACE|TRACK)
-    RewriteRule .* - [F]
+# Forcer PHP à utiliser le bon encodage
+<IfModule mod_php.c>
+    php_value default_charset "UTF-8"
 </IfModule>
