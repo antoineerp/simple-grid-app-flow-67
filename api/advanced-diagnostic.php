@@ -5,8 +5,8 @@ header('Content-Type: application/json');
 $diagnostics = [
     'server_info' => [
         'php_version' => phpversion(),
-        'server_software' => $_SERVER['SERVER_SOFTWARE'] ?? 'N/A',
-        'document_root' => $_SERVER['DOCUMENT_ROOT'] ?? 'N/A',
+        'server_software' => $_SERVER['SERVER_SOFTWARE'] ?? 'Not Available',
+        'document_root' => $_SERVER['DOCUMENT_ROOT'] ?? 'Not Available',
     ],
     'php_extensions' => get_loaded_extensions(),
     'database_support' => [
