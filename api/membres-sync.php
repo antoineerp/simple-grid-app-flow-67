@@ -31,12 +31,15 @@ try {
     $userId = $service->sanitizeUserId($data['userId']);
     $membres = $data['membres'];
     
+    // Journaliser les données reçues pour le débogage
+    error_log("Données de membres reçues: " . json_encode(array_slice($membres, 0, 2)));
+    
     // Connecter à la base de données
     if (!$service->connectToDatabase()) {
         throw new Exception("Impossible de se connecter à la base de données");
     }
     
-    // Schéma de la table membres
+    // Schéma de la table membres - Mise à jour pour inclure tous les champs nécessaires
     $schema = "CREATE TABLE IF NOT EXISTS `membres_{$userId}` (
         `id` VARCHAR(36) PRIMARY KEY,
         `nom` VARCHAR(100) NOT NULL,
@@ -46,6 +49,7 @@ try {
         `fonction` VARCHAR(100) NULL,
         `organisation` VARCHAR(255) NULL,
         `notes` TEXT NULL,
+        `initiales` VARCHAR(10) NULL,
         `date_creation` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
         `date_modification` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
@@ -53,6 +57,24 @@ try {
     // Créer la table si nécessaire
     if (!$service->ensureTableExists($schema)) {
         throw new Exception("Impossible de créer ou vérifier la table");
+    }
+    
+    // Avant la synchronisation, vérifier et adapter les données si nécessaire
+    foreach ($membres as &$membre) {
+        // S'assurer que tous les champs nécessaires sont présents
+        if (!isset($membre['id']) || empty($membre['id'])) {
+            $membre['id'] = 'mem-' . bin2hex(random_bytes(8));
+        }
+        
+        // Convertir les dates si nécessaires
+        if (isset($membre['date_creation']) && $membre['date_creation'] instanceof \DateTime) {
+            $membre['date_creation'] = $membre['date_creation']->format('Y-m-d\TH:i:s');
+        }
+        
+        // Générer les initiales si elles ne sont pas définies
+        if ((!isset($membre['initiales']) || empty($membre['initiales'])) && isset($membre['prenom']) && isset($membre['nom'])) {
+            $membre['initiales'] = strtoupper(substr($membre['prenom'], 0, 1) . substr($membre['nom'], 0, 1));
+        }
     }
     
     // Synchroniser les données

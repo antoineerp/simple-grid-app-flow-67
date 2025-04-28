@@ -122,7 +122,12 @@ export const loadMembresFromServer = async (currentUser: any): Promise<Membre[]>
           throw new Error(result.message || "Erreur inconnue lors du chargement des membres");
         }
         
-        return result.membres || [];
+        // Transformer les dates string en objets Date
+        const membres = result.membres || [];
+        return membres.map((membre: any) => ({
+          ...membre,
+          date_creation: membre.date_creation ? new Date(membre.date_creation) : new Date()
+        }));
       } catch (jsonError) {
         console.error("Erreur lors du parsing JSON:", jsonError);
         console.error("Réponse brute:", responseText.substring(0, 500));
@@ -155,13 +160,24 @@ export const syncMembresWithServer = async (membres: Membre[], currentUser: any)
     const timeoutId = setTimeout(() => controller.abort(), 20000); // 20 secondes de timeout
     
     try {
+      // Préparer les données à envoyer - convertir les objets Date en chaînes
+      const membresForSync = membres.map(membre => ({
+        ...membre,
+        date_creation: membre.date_creation instanceof Date 
+          ? membre.date_creation.toISOString() 
+          : membre.date_creation
+      }));
+      
+      // Journaliser pour le débogage
+      console.log(`Envoi de ${membresForSync.length} membres pour synchronisation`);
+      
       const response = await fetch(`${API_URL}/membres-sync.php`, {
         method: 'POST',
         headers: {
           ...getAuthHeaders(),
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ userId: userId, membres }),
+        body: JSON.stringify({ userId, membres: membresForSync }),
         signal: controller.signal
       });
       

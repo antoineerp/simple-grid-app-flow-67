@@ -20,7 +20,7 @@ try {
         throw new Exception("Impossible de se connecter à la base de données");
     }
     
-    // Schéma de la table membres
+    // Schéma de la table membres - Mise à jour pour inclure tous les champs nécessaires
     $schema = "CREATE TABLE IF NOT EXISTS `membres_{$userId}` (
         `id` VARCHAR(36) PRIMARY KEY,
         `nom` VARCHAR(100) NOT NULL,
@@ -30,6 +30,7 @@ try {
         `fonction` VARCHAR(100) NULL,
         `organisation` VARCHAR(255) NULL,
         `notes` TEXT NULL,
+        `initiales` VARCHAR(10) NULL,
         `date_creation` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
         `date_modification` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
@@ -68,7 +69,8 @@ try {
                 'telephone' => '0601020304',
                 'fonction' => 'Directeur',
                 'organisation' => 'Entreprise A',
-                'notes' => 'Contact principal'
+                'notes' => 'Contact principal',
+                'initiales' => 'JD'
             ],
             [
                 'id' => '9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d',
@@ -78,7 +80,8 @@ try {
                 'telephone' => '0607080910',
                 'fonction' => 'Responsable RH',
                 'organisation' => 'Entreprise B',
-                'notes' => 'Partenaire stratégique'
+                'notes' => 'Partenaire stratégique',
+                'initiales' => 'SM'
             ]
         ];
         
