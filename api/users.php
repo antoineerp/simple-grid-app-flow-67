@@ -89,7 +89,7 @@ try {
             }
             
             // Validation des données requises
-            $required = ['nom', 'prenom', 'email', 'mot_de_passe', 'identifiant_technique', 'role'];
+            $required = ['nom', 'prenom', 'email'];
             foreach ($required as $field) {
                 if (!isset($data[$field]) || empty($data[$field])) {
                     http_response_code(400);
@@ -98,28 +98,72 @@ try {
                 }
             }
             
-            // Vérifier si l'email existe déjà
-            $query = "SELECT COUNT(*) FROM utilisateurs WHERE email = :email";
-            $stmt = $pdo->prepare($query);
-            $stmt->bindParam(":email", $data['email']);
-            $stmt->execute();
+            // Générer un UUID pour l'ID si non fourni
+            if (!isset($data['id']) || empty($data['id'])) {
+                $data['id'] = sprintf(
+                    '%04x%04x-%04x-%04x-%04x-%04x%04x%04x',
+                    mt_rand(0, 0xffff), mt_rand(0, 0xffff),
+                    mt_rand(0, 0xffff),
+                    mt_rand(0, 0x0fff) | 0x4000,
+                    mt_rand(0, 0x3fff) | 0x8000,
+                    mt_rand(0, 0xffff), mt_rand(0, 0xffff), mt_rand(0, 0xffff)
+                );
+                error_log("UUID généré pour l'ID: " . $data['id']);
+            }
             
-            if ($stmt->fetchColumn() > 0) {
+            // Générer un identifiant technique si non fourni
+            if (!isset($data['identifiant_technique']) || empty($data['identifiant_technique'])) {
+                $timestamp = time();
+                $randomStr = substr(md5(uniqid(mt_rand(), true)), 0, 8);
+                $prenom = isset($data['prenom']) ? preg_replace('/[^a-z0-9]/i', '', strtolower($data['prenom'])) : 'user';
+                $nom = isset($data['nom']) ? preg_replace('/[^a-z0-9]/i', '', strtolower($data['nom'])) : 'test';
+                $data['identifiant_technique'] = "p71x6d_{$prenom}_{$nom}_{$randomStr}_{$timestamp}";
+                error_log("Identifiant technique généré: " . $data['identifiant_technique']);
+            }
+            
+            // Définir un rôle par défaut si non fourni
+            if (!isset($data['role']) || empty($data['role'])) {
+                $data['role'] = 'utilisateur';
+            }
+            
+            // Hasher le mot de passe s'il est fourni et n'est pas déjà hashé
+            if (isset($data['mot_de_passe']) && !empty($data['mot_de_passe'])) {
+                if (!password_get_info($data['mot_de_passe'])['algo']) {
+                    $data['mot_de_passe'] = password_hash($data['mot_de_passe'], PASSWORD_BCRYPT);
+                }
+            } else {
+                // Mot de passe par défaut si non fourni
+                $data['mot_de_passe'] = password_hash('Test123!', PASSWORD_BCRYPT);
+            }
+            
+            // Vérifier si l'email existe déjà
+            $stmt = $pdo->prepare("SELECT id FROM utilisateurs WHERE email = :email");
+            $stmt->execute(['email' => $data['email']]);
+            if ($stmt->rowCount() > 0) {
                 http_response_code(400);
                 echo json_encode(['status' => 'error', 'message' => "Un utilisateur avec cet email existe déjà"]);
                 exit;
             }
             
             // Vérifier si l'identifiant technique existe déjà
-            $query = "SELECT COUNT(*) FROM utilisateurs WHERE identifiant_technique = :identifiant_technique";
-            $stmt = $pdo->prepare($query);
-            $stmt->bindParam(":identifiant_technique", $data['identifiant_technique']);
-            $stmt->execute();
-            
-            if ($stmt->fetchColumn() > 0) {
+            $stmt = $pdo->prepare("SELECT id FROM utilisateurs WHERE identifiant_technique = :identifiant_technique");
+            $stmt->execute(['identifiant_technique' => $data['identifiant_technique']]);
+            if ($stmt->rowCount() > 0) {
                 http_response_code(400);
                 echo json_encode(['status' => 'error', 'message' => "Un utilisateur avec cet identifiant technique existe déjà"]);
                 exit;
+            }
+            
+            // Vérifier le nombre d'utilisateurs gestionnaires si un nouveau gestionnaire est créé
+            if ($data['role'] === 'gestionnaire') {
+                $stmt = $pdo->prepare("SELECT COUNT(*) FROM utilisateurs WHERE role = 'gestionnaire'");
+                $stmt->execute();
+                $count = $stmt->fetchColumn();
+                if ($count > 0) {
+                    http_response_code(400);
+                    echo json_encode(['status' => 'error', 'message' => "Un seul compte gestionnaire est autorisé dans le système"]);
+                    exit;
+                }
             }
             
             // Vérifier si la table existe
@@ -131,63 +175,55 @@ try {
                 // La table n'existe pas, la créer
                 error_log("La table 'utilisateurs' n'existe pas, création en cours");
                 $createTableQuery = "CREATE TABLE IF NOT EXISTS utilisateurs (
-                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    id VARCHAR(36) NOT NULL PRIMARY KEY,
                     nom VARCHAR(100) NOT NULL,
                     prenom VARCHAR(100) NOT NULL,
-                    email VARCHAR(100) NOT NULL UNIQUE,
+                    email VARCHAR(255) NOT NULL UNIQUE,
                     mot_de_passe VARCHAR(255) NOT NULL,
                     identifiant_technique VARCHAR(100) NOT NULL UNIQUE,
-                    role ENUM('admin', 'user', 'administrateur', 'utilisateur', 'gestionnaire') NOT NULL,
-                    date_creation TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    role ENUM('admin','user','administrateur','utilisateur','gestionnaire') NOT NULL,
+                    date_creation DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci";
                 
                 $pdo->exec($createTableQuery);
                 error_log("Table 'utilisateurs' créée avec succès");
             }
             
-            // Hasher le mot de passe s'il n'est pas déjà hashé
-            $password = $data['mot_de_passe'];
-            if (!password_get_info($password)['algo']) {
-                $password = password_hash($password, PASSWORD_BCRYPT);
-            }
-            
             try {
-                // Insérer l'utilisateur
-                $query = "INSERT INTO utilisateurs (nom, prenom, email, mot_de_passe, identifiant_technique, role) 
-                         VALUES (:nom, :prenom, :email, :mot_de_passe, :identifiant_technique, :role)";
+                // Insérer l'utilisateur avec un ID explicite
+                $query = "INSERT INTO utilisateurs (id, nom, prenom, email, mot_de_passe, identifiant_technique, role) 
+                         VALUES (:id, :nom, :prenom, :email, :mot_de_passe, :identifiant_technique, :role)";
                 $stmt = $pdo->prepare($query);
-                $stmt->bindParam(":nom", $data['nom']);
-                $stmt->bindParam(":prenom", $data['prenom']);
-                $stmt->bindParam(":email", $data['email']);
-                $stmt->bindParam(":mot_de_passe", $password);
-                $stmt->bindParam(":identifiant_technique", $data['identifiant_technique']);
-                $stmt->bindParam(":role", $data['role']);
+                
+                $params = [
+                    'id' => $data['id'],
+                    'nom' => $data['nom'],
+                    'prenom' => $data['prenom'],
+                    'email' => $data['email'],
+                    'mot_de_passe' => $data['mot_de_passe'],
+                    'identifiant_technique' => $data['identifiant_technique'],
+                    'role' => $data['role']
+                ];
+                
+                error_log("Exécution de l'insertion avec ID: " . $data['id']);
                 
                 // Exécuter la requête et vérifier le résultat
-                $result = $stmt->execute();
+                $result = $stmt->execute($params);
                 
                 if (!$result) {
                     error_log("Erreur lors de l'exécution de la requête INSERT: " . json_encode($stmt->errorInfo()));
-                    throw new Exception("Échec de l'insertion en base de données");
+                    throw new Exception("Échec de l'insertion en base de données: " . implode(", ", $stmt->errorInfo()));
                 }
                 
-                $id = $pdo->lastInsertId();
-                error_log("Utilisateur créé avec succès. ID: " . $id);
-                
-                if (!$id || $id === "0") {
-                    error_log("Problème avec lastInsertId() - Aucun ID n'a été retourné");
-                    throw new Exception("Erreur lors de la création de l'utilisateur: aucun ID généré");
-                }
+                error_log("Utilisateur créé avec succès. ID: " . $data['id']);
                 
                 // Récupérer l'utilisateur créé
-                $query = "SELECT id, nom, prenom, email, identifiant_technique, role, date_creation FROM utilisateurs WHERE id = :id";
-                $stmt = $pdo->prepare($query);
-                $stmt->bindParam(":id", $id);
-                $stmt->execute();
+                $stmt = $pdo->prepare("SELECT id, nom, prenom, email, identifiant_technique, role, date_creation FROM utilisateurs WHERE id = :id");
+                $stmt->execute(['id' => $data['id']]);
                 $user = $stmt->fetch();
                 
                 if (!$user) {
-                    error_log("Utilisateur non trouvé après création. ID recherché: " . $id);
+                    error_log("Utilisateur non trouvé après création. ID recherché: " . $data['id']);
                     throw new Exception("Utilisateur créé mais impossible de le récupérer");
                 }
                 

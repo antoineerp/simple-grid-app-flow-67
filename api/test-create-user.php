@@ -40,6 +40,16 @@ try {
                 $data->identifiant_technique = "p71x6d_{$prenom}_{$nom}_{$randomStr}_{$timestamp}";
             }
             
+            // Générer un UUID pour l'ID
+            $data->id = sprintf(
+                '%04x%04x-%04x-%04x-%04x-%04x%04x%04x',
+                mt_rand(0, 0xffff), mt_rand(0, 0xffff),
+                mt_rand(0, 0xffff),
+                mt_rand(0, 0x0fff) | 0x4000,
+                mt_rand(0, 0x3fff) | 0x8000,
+                mt_rand(0, 0xffff), mt_rand(0, 0xffff), mt_rand(0, 0xffff)
+            );
+            
             // Hashage du mot de passe si fourni
             if (isset($data->mot_de_passe) && !empty($data->mot_de_passe)) {
                 $data->mot_de_passe = password_hash($data->mot_de_passe, PASSWORD_BCRYPT);
@@ -92,12 +102,13 @@ try {
                 }
             }
             
-            // Tentative d'insertion
-            $query = "INSERT INTO utilisateurs (nom, prenom, email, mot_de_passe, identifiant_technique, role) 
-                      VALUES (:nom, :prenom, :email, :mot_de_passe, :identifiant_technique, :role)";
+            // Tentative d'insertion avec un ID explicite
+            $query = "INSERT INTO utilisateurs (id, nom, prenom, email, mot_de_passe, identifiant_technique, role, date_creation) 
+                      VALUES (:id, :nom, :prenom, :email, :mot_de_passe, :identifiant_technique, :role, NOW())";
             $stmt = $pdo->prepare($query);
             
             $params = [
+                'id' => $data->id,
                 'nom' => $data->nom,
                 'prenom' => $data->prenom,
                 'email' => $data->email,
@@ -107,12 +118,12 @@ try {
             ];
             
             $success = $stmt->execute($params);
-            $newId = $pdo->lastInsertId();
             
-            if ($success && $newId) {
+            if ($success) {
                 // Récupérer l'utilisateur créé pour confirmation
                 $stmt = $pdo->prepare("SELECT id, nom, prenom, email, identifiant_technique, role, date_creation FROM utilisateurs WHERE id = :id");
-                $stmt->execute(['id' => $newId]);
+                $stmt->bindParam(":id", $data->id);
+                $stmt->execute();
                 $user = $stmt->fetch();
                 
                 echo json_encode([
@@ -148,6 +159,8 @@ try {
         echo "<option value='utilisateur'>Utilisateur</option>";
         echo "<option value='gestionnaire'>Gestionnaire</option>";
         echo "<option value='administrateur'>Administrateur</option>";
+        echo "<option value='admin'>Admin</option>";
+        echo "<option value='user'>User</option>";
         echo "</select></label></div>";
         echo "<button type='submit'>Créer l'utilisateur</button>";
         echo "</form>";

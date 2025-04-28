@@ -29,6 +29,10 @@ export const createUser = async (userData: CreateUserData) => {
 
   console.log(`Identifiant technique généré: ${identifiantTechnique}`);
 
+  // Génération d'un UUID pour l'ID
+  const uuid = generateUUID();
+  console.log(`UUID généré pour l'ID: ${uuid}`);
+
   try {
     // Préparation de la requête
     const apiUrl = getApiUrl();
@@ -40,6 +44,7 @@ export const createUser = async (userData: CreateUserData) => {
     // Préparation des données
     const requestData = {
       ...userData,
+      id: uuid,
       identifiant_technique: identifiantTechnique
     };
     
@@ -143,6 +148,7 @@ export const createUser = async (userData: CreateUserData) => {
       console.log("Tentative de création via le endpoint de diagnostic...");
       const diagnosticResult = await createUserViaDiagnostic({
         ...userData,
+        id: uuid,
         identifiant_technique: identifiantTechnique
       });
       
@@ -160,11 +166,20 @@ export const createUser = async (userData: CreateUserData) => {
   }
 };
 
+// Fonction pour générer un UUID conforme au format varchar(36)
+function generateUUID() {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    var r = Math.random() * 16 | 0,
+        v = c === 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+}
+
 // Fonction de secours pour créer un utilisateur via le endpoint de diagnostic
 const createUserViaDiagnostic = async (userData: any) => {
   console.log("Tentative de création d'utilisateur via le endpoint de diagnostic");
   const apiUrl = getApiUrl();
-  const url = `${apiUrl}/check-users`;
+  const url = `${apiUrl}/test-create-user`;
   
   const response = await fetch(url, {
     method: 'POST',
