@@ -1,6 +1,6 @@
 
 import { getApiUrl } from '@/config/apiConfig';
-import { User } from '@/types/auth';
+import { User, AuthResponse } from '@/types/auth';
 
 export const getCurrentUser = (): string | User | null => {
   const token = sessionStorage.getItem('authToken');
@@ -32,23 +32,26 @@ export const getAuthHeaders = () => {
   };
 };
 
-export const login = async (credentials: { username: string; password: string }): Promise<boolean> => {
+export const login = async (username: string, password: string): Promise<AuthResponse> => {
   try {
     const API_URL = getApiUrl();
     const response = await fetch(`${API_URL}/login.php`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(credentials)
+      body: JSON.stringify({ username, password })
     });
 
     const data = await response.json();
     if (data.success && data.token) {
       sessionStorage.setItem('authToken', data.token);
-      return true;
+      return data;
     }
-    return false;
-  } catch {
-    return false;
+    return { success: false, message: data.message || 'Identifiants invalides' };
+  } catch (error) {
+    return { 
+      success: false, 
+      message: error instanceof Error ? error.message : 'Erreur lors de la connexion' 
+    };
   }
 };
 

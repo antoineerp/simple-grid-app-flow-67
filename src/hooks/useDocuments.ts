@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from 'react';
 import { Document, DocumentStats, DocumentGroup } from '@/types/documents';
 import { useToast } from '@/hooks/use-toast';
@@ -117,18 +118,17 @@ export const useDocuments = () => {
 
       setDocuments((prev) => prev.map((doc) => (doc.id === newDoc.id ? newDoc : doc)));
 
-      // Save to localStorage as backup
-      const updatedDocuments = documents.map((doc) =>
-        doc.id === newDoc.id ? newDoc : doc
-      );
-      saveDocumentsToStorage(updatedDocuments, currentUser);
+      // Synchronize with server after document update
+      syncWithServer().catch(error => {
+        console.error("Erreur lors de la synchronisation après mise à jour:", error);
+      });
 
       toast({
         title: "Document mis à jour",
         description: `Le document ${newDoc.id} a été mis à jour avec succès`,
       });
     },
-    [documents, currentUser, toast]
+    [documents, toast]
   );
 
   const handleAddDocument = useCallback(() => {
@@ -151,14 +151,16 @@ export const useDocuments = () => {
     const newDocuments = [...documents, newDocument];
     setDocuments(newDocuments);
     
-    // Save to localStorage as backup
-    saveDocumentsToStorage(newDocuments, currentUser);
+    // Synchronize with server after adding document
+    syncWithServer().catch(error => {
+      console.error("Erreur lors de la synchronisation après ajout:", error);
+    });
     
     toast({
       title: "Nouveau document",
       description: `Le document ${newId} a été ajouté`,
     });
-  }, [documents, currentUser, toast]);
+  }, [documents, toast]);
 
   const handleReorder = useCallback((startIndex: number, endIndex: number, targetGroupId?: string) => {
     setDocuments(prev => {
@@ -171,12 +173,14 @@ export const useDocuments = () => {
       
       result.splice(endIndex, 0, removed);
       
-      // Save to localStorage as backup
-      saveDocumentsToStorage(result, currentUser);
+      // Synchronize with server after reordering
+      syncWithServer().catch(error => {
+        console.error("Erreur lors de la synchronisation après réorganisation:", error);
+      });
       
       return result;
     });
-  }, [currentUser]);
+  }, []);
 
   const handleAddGroup = useCallback(() => {
     setEditingGroup(null);

@@ -1,5 +1,5 @@
 
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { FileText, FolderPlus } from 'lucide-react';
 import { MembresProvider } from '@/contexts/MembresContext';
 import DocumentForm from '@/components/gestion-documentaire/DocumentForm';
@@ -38,24 +38,17 @@ const GestionDocumentaireContent = () => {
     handleGroupReorder,
     handleToggleGroup,
     syncWithServer,
-    isSyncing
+    isSyncing,
+    syncFailed
   } = useDocuments();
   
   const { toast } = useToast();
-  const currentUser = localStorage.getItem('currentUser') || 'default';
-  const [syncFailed, setSyncFailed] = useState(false);
 
-  // Corrigé: Ne synchroniser que manuellement, pas automatiquement à chaque changement
-  // pour éviter les boucles infinies et le scintillement
-  
   const handleSync = async () => {
     try {
-      setSyncFailed(false); 
-      const success = await syncWithServer(documents, currentUser);
-      setSyncFailed(!success);
+      await syncWithServer();
     } catch (error) {
       console.error("Sync failed:", error);
-      setSyncFailed(true);
     }
   };
 
@@ -65,10 +58,6 @@ const GestionDocumentaireContent = () => {
       title: "Export PDF réussi",
       description: "Le document a été généré et téléchargé",
     });
-  };
-
-  const handleResetSync = () => {
-    handleSync();
   };
 
   return (
@@ -88,7 +77,7 @@ const GestionDocumentaireContent = () => {
         </div>
       </div>
 
-      <SyncStatusIndicator syncFailed={syncFailed} onReset={handleResetSync} isSyncing={isSyncing} />
+      <SyncStatusIndicator syncFailed={syncFailed} onReset={handleSync} isSyncing={isSyncing} />
 
       <DocumentStatusDisplay stats={stats} />
 

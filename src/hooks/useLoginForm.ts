@@ -51,7 +51,7 @@ export const useLoginForm = () => {
       
       const result = await loginUser(data.username, data.password);
       
-      if (result && result.token) {
+      if (result.success && result.token) {
         // Réinitialiser l'état d'erreur
         setHasDbError(false);
         setHasServerError(false);
@@ -64,7 +64,7 @@ export const useLoginForm = () => {
         
         toast({
           title: "Connexion réussie",
-          description: `Bienvenue, ${data.username} (${result.user && result.user.role ? result.user.role : 'utilisateur'})`,
+          description: `Bienvenue, ${data.username} ${result.user && result.user.role ? '(' + result.user.role + ')' : ''}`,
         });
         
         // Forcer la navigation vers le pilotage
