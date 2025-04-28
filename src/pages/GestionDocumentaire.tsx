@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { FileText, FolderPlus, CloudSun } from 'lucide-react';
 import { MembresProvider } from '@/contexts/MembresContext';
@@ -21,9 +20,7 @@ const GestionDocumentaireContent = () => {
     editingGroup,
     dialogOpen,
     groupDialogOpen,
-    isSyncing,
-    isOnline,
-    lastSynced,
+    syncFailed,
     setDialogOpen,
     setGroupDialogOpen,
     handleResponsabiliteChange,
@@ -61,14 +58,6 @@ const GestionDocumentaireContent = () => {
         </div>
         <div className="flex space-x-2">
           <button 
-            onClick={syncWithServer}
-            className="text-blue-600 p-2 rounded-md hover:bg-blue-50 transition-colors flex items-center"
-            title="Synchroniser avec le serveur"
-            disabled={isSyncing}
-          >
-            <CloudSun className={`h-6 w-6 stroke-[1.5] ${isSyncing ? 'animate-spin' : ''}`} />
-          </button>
-          <button 
             onClick={handleExportPdf}
             className="text-red-600 p-2 rounded-md hover:bg-red-50 transition-colors"
             title="Exporter en PDF"
@@ -78,13 +67,9 @@ const GestionDocumentaireContent = () => {
         </div>
       </div>
 
-      <div className="mb-4">
-        <SyncStatusIndicator 
-          isSyncing={isSyncing}
-          isOnline={isOnline}
-          lastSynced={lastSynced}
-        />
-      </div>
+      {syncFailed && <div className="mb-4">
+        <SyncStatusIndicator syncFailed={syncFailed} />
+      </div>}
 
       <DocumentStatusDisplay stats={stats} />
 
