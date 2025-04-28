@@ -171,8 +171,8 @@ export const useBibliotheque = () => {
     setDraggedItem(null);
   };
   
-  const syncWithServer = useCallback(() => {
-    return syncWithServerFn(documents, groups, currentUser);
+  const syncWithServer = useCallback(async (): Promise<void> => {
+    await syncWithServerFn(documents, groups, currentUser);
   }, [syncWithServerFn, documents, groups, currentUser]);
 
   return {
@@ -202,7 +202,7 @@ export const useBibliotheque = () => {
     handleAddGroup,
     handleGroupInputChange,
     handleSaveGroup,
-    toggleGroup: handleToggleGroup,
+    handleToggleGroup,
     syncWithServer
   };
 };

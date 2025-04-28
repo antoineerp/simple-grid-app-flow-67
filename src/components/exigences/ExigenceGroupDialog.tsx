@@ -42,7 +42,8 @@ export const ExigenceGroupDialog = ({
     const updatedGroup: ExigenceGroup = {
       id: group?.id || Math.random().toString(36).substr(2, 9),
       name,
-      expanded: group?.expanded || false
+      expanded: group?.expanded || false,
+      items: group?.items || []
     };
     onSave(updatedGroup, isEditing);
     onOpenChange(false);

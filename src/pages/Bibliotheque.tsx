@@ -6,6 +6,7 @@ import { BibliothequeTable } from '@/features/bibliotheque/components/Bibliotheq
 import { BibliothequeActions } from '@/features/bibliotheque/components/BibliothequeActions';
 import { DocumentDialog } from '@/features/bibliotheque/components/DocumentDialog';
 import { DocumentGroupDialog } from '@/components/gestion-documentaire/DocumentGroupDialog';
+import { Document, DocumentGroup } from '@/types/bibliotheque';
 
 const Bibliotheque = () => {
   const {
@@ -33,7 +34,7 @@ const Bibliotheque = () => {
     handleAddGroup,
     handleGroupInputChange,
     handleSaveGroup,
-    toggleGroup,
+    handleToggleGroup,
     syncWithServer,
     setDraggedItem
   } = useBibliotheque();
@@ -72,10 +73,20 @@ const Bibliotheque = () => {
     setDraggedItem(null);
   };
 
+  // Wrap syncWithServer to match the expected void return type
+  const handleSync = async () => {
+    await syncWithServer();
+  };
+
+  // Create a handler for adding documents that takes no arguments
+  const handleAddDocumentClick = () => {
+    handleAddDocument();
+  };
+
   return (
     <div className="p-8">
       <BibliothequeHeader
-        onSync={syncWithServer}
+        onSync={handleSync}
         isSyncing={isSyncing}
         isOnline={isOnline}
         lastSynced={lastSynced}
@@ -88,7 +99,7 @@ const Bibliotheque = () => {
         onDeleteDocument={handleDeleteDocument}
         onEditGroup={handleEditGroup}
         onDeleteGroup={handleDeleteGroup}
-        onToggleGroup={toggleGroup}
+        onToggleGroup={handleToggleGroup}
         onDragStart={handleDragStart}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
@@ -99,7 +110,7 @@ const Bibliotheque = () => {
 
       <BibliothequeActions
         onAddGroup={handleAddGroup}
-        onAddDocument={handleAddDocument}
+        onAddDocument={handleAddDocumentClick}
       />
 
       <DocumentDialog
@@ -112,10 +123,10 @@ const Bibliotheque = () => {
       />
 
       <DocumentGroupDialog
-        group={currentGroup}
+        group={currentGroup as any}
         open={isGroupDialogOpen}
         onOpenChange={setIsGroupDialogOpen}
-        onSave={handleSaveGroup}
+        onSave={handleSaveGroup as any}
         isEditing={isEditing}
       />
     </div>
