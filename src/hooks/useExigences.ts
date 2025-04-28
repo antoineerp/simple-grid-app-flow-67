@@ -32,6 +32,7 @@ export const useExigences = () => {
       try {
         const serverData = await loadFromServer(currentUser);
         if (serverData) {
+          // Fix: Set each state separately with the correct types
           setExigences(serverData.exigences || []);
           setGroups(serverData.groups || []);
         }
