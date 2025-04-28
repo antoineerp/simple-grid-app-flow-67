@@ -78,7 +78,7 @@ try {
             break;
         
         case 'POST':
-            // Récupérer les données POST
+            // Get the POST data
             $data = json_decode(file_get_contents("php://input"), true);
             error_log("Données POST reçues: " . json_encode($data));
             
@@ -88,18 +88,35 @@ try {
                 exit;
             }
             
-            // Validation des données requises
-            $required = ['nom', 'prenom', 'email'];
+            // Validate required fields
+            $required = ['nom', 'prenom', 'email', 'role'];
+            $errors = [];
+            
             foreach ($required as $field) {
-                if (!isset($data[$field]) || empty($data[$field])) {
-                    http_response_code(400);
-                    echo json_encode(['status' => 'error', 'message' => "Le champ {$field} est requis"]);
-                    exit;
+                if (!isset($data[$field]) || trim($data[$field]) === '') {
+                    $errors[] = "Le champ {$field} est requis";
                 }
             }
             
-            // Générer un UUID pour l'ID si non fourni
-            if (!isset($data['id']) || empty($data['id'])) {
+            // Validate email format
+            if (isset($data['email']) && !filter_var($data['email'], FILTER_VALIDATE_EMAIL)) {
+                $errors[] = "Format d'email invalide";
+            }
+            
+            // Validate role
+            $valid_roles = ['admin', 'user', 'administrateur', 'utilisateur', 'gestionnaire'];
+            if (isset($data['role']) && !in_array($data['role'], $valid_roles)) {
+                $errors[] = "Rôle invalide. Les rôles valides sont: " . implode(', ', $valid_roles);
+            }
+            
+            if (!empty($errors)) {
+                http_response_code(400);
+                echo json_encode(['status' => 'error', 'message' => 'Validation échouée', 'errors' => $errors]);
+                exit;
+            }
+            
+            // Generate UUID for ID if not provided or empty
+            if (!isset($data['id']) || empty(trim($data['id']))) {
                 $data['id'] = sprintf(
                     '%04x%04x-%04x-%04x-%04x-%04x%04x%04x',
                     mt_rand(0, 0xffff), mt_rand(0, 0xffff),

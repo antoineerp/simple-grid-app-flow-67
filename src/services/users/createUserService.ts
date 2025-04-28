@@ -1,4 +1,3 @@
-
 import { getApiUrl } from '@/config/apiConfig';
 import { getAuthHeaders } from '../auth/authService';
 import { useToast } from '@/hooks/use-toast';
@@ -14,9 +13,28 @@ interface CreateUserData {
 export const createUser = async (userData: CreateUserData) => {
   console.log("Tentative de création d'utilisateur:", userData.prenom, userData.nom);
   
-  // Validation du mot de passe
+  // Frontend validation
+  const errors = [];
+  
+  // Required fields validation
+  if (!userData.nom?.trim()) errors.push("Le nom est requis");
+  if (!userData.prenom?.trim()) errors.push("Le prénom est requis");
+  if (!userData.email?.trim()) errors.push("L'email est requis");
+  if (!userData.role?.trim()) errors.push("Le rôle est requis");
+  
+  // Email format validation
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (userData.email && !emailRegex.test(userData.email)) {
+    errors.push("Format d'email invalide");
+  }
+  
+  // Password validation
   if (userData.mot_de_passe.length < 6) {
-    throw new Error("Le mot de passe doit contenir au moins 6 caractères");
+    errors.push("Le mot de passe doit contenir au moins 6 caractères");
+  }
+  
+  if (errors.length > 0) {
+    throw new Error(errors.join("\n"));
   }
 
   // Génération de l'identifiant technique
@@ -104,7 +122,7 @@ export const createUser = async (userData: CreateUserData) => {
       }
       
       // Force un rechargement de l'application après création
-      console.log("Rechargement forcé dans 2 secondes pour refléter la création de l'utilisateur");
+      console.log("Rechargement forcé dans 2 secondes pour refléter la cr��tion de l'utilisateur");
       setTimeout(() => {
         window.location.reload();
       }, 2000);
