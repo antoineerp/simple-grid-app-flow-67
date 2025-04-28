@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from 'react';
 import { Exigence, ExigenceGroup, ExigenceStats } from '@/types/exigences';
 import { useExigenceSync } from '@/hooks/useExigenceSync';
@@ -21,7 +20,6 @@ export const useExigences = () => {
   const [lastSyncedDate, setLastSyncedDate] = useState<Date | null>(null);
   const { toast } = useToast();
 
-  // Get current user
   const user = getCurrentUser();
   const userId = typeof user === 'object' ? (user?.email || user?.identifiant_technique || 'p71x6d_system') : user || 'p71x6d_system';
 
@@ -29,7 +27,6 @@ export const useExigences = () => {
   const exigenceMutations = useExigenceMutations(exigences, setExigences);
   const groupOperations = useExigenceGroups(groups, setGroups, setExigences);
 
-  // Calculate exigence statistics
   const stats: ExigenceStats = {
     total: exigences.length,
     conforme: exigences.filter(e => e.atteinte === 'C').length,
@@ -38,7 +35,6 @@ export const useExigences = () => {
     exclusion: exigences.filter(e => e.exclusion).length
   };
 
-  // Define handleSyncWithServer before using it in useEffect
   const handleSyncWithServer = useCallback(async () => {
     setIsSyncing(true);
     try {
@@ -46,7 +42,6 @@ export const useExigences = () => {
       if (success) {
         setSyncFailed(false);
         setLastSyncedDate(new Date());
-        // Silently reload data after successful sync
         try {
           const result = await loadFromServer(userId);
           if (result && Array.isArray(result.exigences)) {
@@ -71,7 +66,6 @@ export const useExigences = () => {
     }
   }, [exigences, userId, groups, syncWithServer, loadFromServer]);
 
-  // Initial data loading
   useEffect(() => {
     const loadExigences = async () => {
       try {
@@ -95,7 +89,6 @@ export const useExigences = () => {
 
     loadExigences();
 
-    // Set up periodic sync every 10 seconds
     const syncInterval = setInterval(() => {
       if (isOnline && !syncFailed) {
         handleSyncWithServer()
@@ -106,7 +99,6 @@ export const useExigences = () => {
     return () => clearInterval(syncInterval);
   }, [loadFromServer, userId, handleSyncWithServer, isOnline, syncFailed]);
 
-  // Handle exigence editing
   const handleEdit = useCallback((id: string) => {
     const exigence = exigences.find(e => e.id === id);
     if (exigence) {
@@ -115,7 +107,6 @@ export const useExigences = () => {
     }
   }, [exigences]);
 
-  // Handle exigence adding
   const handleAddExigence = useCallback(() => {
     const newExigence: Exigence = {
       id: crypto.randomUUID(),
@@ -140,7 +131,6 @@ export const useExigences = () => {
     setDialogOpen(true);
   }, [selectedNiveau]);
 
-  // Handle exigence save
   const handleSaveExigence = useCallback(async (exigence: Exigence) => {
     const isNew = !exigences.some(e => e.id === exigence.id);
 
@@ -152,7 +142,6 @@ export const useExigences = () => {
 
     setDialogOpen(false);
 
-    // Sync with server after saving
     try {
       console.log("Synchronizing after exigence save");
       await handleSyncWithServer();
@@ -161,7 +150,6 @@ export const useExigences = () => {
     }
   }, [exigences, exigenceMutations, handleSyncWithServer]);
 
-  // Handle reordering
   const handleReorder = useCallback((startIndex: number, endIndex: number, targetGroupId?: string) => {
     const newExigences = [...exigences];
     const [removed] = newExigences.splice(startIndex, 1);
@@ -170,13 +158,11 @@ export const useExigences = () => {
     setExigences(newExigences);
   }, [exigences]);
 
-  // Handle group editing
   const handleEditGroup = useCallback((group: ExigenceGroup) => {
     setEditingGroup(group);
     setGroupDialogOpen(true);
   }, []);
 
-  // Handle group adding
   const handleAddGroup = useCallback(() => {
     const newGroup: ExigenceGroup = {
       id: crypto.randomUUID(),
@@ -189,7 +175,6 @@ export const useExigences = () => {
     return newGroup;
   }, []);
 
-  // Handle reset load attempts
   const handleResetLoadAttempts = useCallback(() => {
     resetSyncStatus();
     setLoadError(null);
