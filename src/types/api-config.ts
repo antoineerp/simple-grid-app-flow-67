@@ -14,4 +14,5 @@ export interface JsonTestResult {
   success: boolean;
   response?: any;
   error?: Error | string | unknown;
+  warning?: string;
 }

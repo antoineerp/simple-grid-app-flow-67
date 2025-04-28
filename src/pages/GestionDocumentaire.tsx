@@ -70,6 +70,10 @@ const GestionDocumentaireContent = () => {
     });
   };
 
+  const handleResetSync = () => {
+    handleSync(); // This fixed the missing arguments error
+  };
+
   return (
     <div className="p-8">
       <div className="flex items-center justify-between mb-2">
@@ -88,7 +92,7 @@ const GestionDocumentaireContent = () => {
       </div>
 
       {syncFailed && <div className="mb-4">
-        <SyncStatusIndicator syncFailed={syncFailed} onReset={handleSync} />
+        <SyncStatusIndicator syncFailed={syncFailed} onReset={handleResetSync} />
       </div>}
 
       <DocumentStatusDisplay stats={stats} />

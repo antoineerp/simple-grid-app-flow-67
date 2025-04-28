@@ -34,7 +34,7 @@ export const useJsonTest = () => {
           toast({
             title: "Test JSON partiellement réussi",
             description: "JSON valide extrait d'une réponse partiellement corrompue",
-            variant: "warning",
+            variant: "default",
           });
           return { success: true, response: JSON.stringify(extractedData), warning: "JSON extrait d'une réponse corrompue" };
         }
