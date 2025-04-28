@@ -84,6 +84,12 @@ try {
     }
     
     // Purifier le nom d'utilisateur pour créer un nom de table valide
+    // CORRECTION: Assurer que le userId est toujours une chaîne et jamais un objet
+    if (is_object($userId)) {
+        error_log("UserId est un objet, conversion en chaîne par défaut");
+        $userId = 'p71x6d_system';
+    }
+    
     $safeUserId = preg_replace('/[^a-zA-Z0-9_]/', '_', $userId);
     $tableName = "membres_" . $safeUserId;
     error_log("Table à consulter (après nettoyage): {$tableName}");
