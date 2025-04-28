@@ -1,13 +1,12 @@
-
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
 import { componentTagger } from "lovable-tagger";
 
 export default defineConfig(({ mode }) => {
-  // Détection automatique du chemin de base approprié
-  // Utiliser '/' comme valeur par défaut mais permettre une configuration via des variables d'environnement
-  const basePath = process.env.VITE_BASE_PATH || '/';
+  // Configuration spécifique pour Infomaniak
+  const isInfomaniak = process.env.VITE_HOSTING === 'infomaniak' || process.env.NODE_ENV === 'production';
+  const basePath = isInfomaniak ? '/' : '/';
   
   return {
     server: {
@@ -37,10 +36,15 @@ export default defineConfig(({ mode }) => {
           main: path.resolve(__dirname, 'index.html'),
         },
         output: {
-          manualChunks: undefined,
-          entryFileNames: 'assets/[name].[hash].js',
+          // Configuration spécifique pour Infomaniak
+          assetFileNames: (assetInfo) => {
+            const info = assetInfo.name.split('.');
+            const ext = info.pop();
+            const name = info.join('.');
+            return `assets/${name}.${ext}`;
+          },
           chunkFileNames: 'assets/[name].[hash].js',
-          assetFileNames: 'assets/[name].[hash].[ext]'
+          entryFileNames: 'assets/[name].[hash].js',
         },
       }
     },
