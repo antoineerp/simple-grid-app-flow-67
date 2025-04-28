@@ -1,56 +1,84 @@
 
 import { Membre } from '@/types/membres';
+import { getApiUrl } from '@/config/apiConfig';
+import { getAuthHeaders } from '@/services/auth/authService';
 
 /**
- * Loads membres from localStorage for a specific user
+ * Charge les membres depuis le serveur Infomaniak uniquement
  */
-export const loadMembresFromStorage = (currentUser: string): Membre[] => {
-  const storedMembres = localStorage.getItem(`membres_${currentUser}`);
-  
-  if (storedMembres) {
-    return JSON.parse(storedMembres);
-  } else {
-    const defaultMembres = localStorage.getItem('membres_template') || localStorage.getItem('membres');
+export const loadMembresFromServer = async (currentUser: string): Promise<Membre[]> => {
+  try {
+    const API_URL = getApiUrl();
+    console.log(`Chargement des membres depuis le serveur pour l'utilisateur ${currentUser}`);
     
-    if (defaultMembres) {
-      return JSON.parse(defaultMembres);
+    const encodedUserId = encodeURIComponent(currentUser);
+    const url = `${API_URL}/membres-load.php?userId=${encodedUserId}`;
+    
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: getAuthHeaders(),
+      cache: 'no-store'
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Erreur serveur: ${response.status} ${response.statusText}`);
     }
     
-    return [
-      { 
-        id: '1', 
-        nom: 'Dupont',
-        prenom: 'Jean',
-        fonction: 'Directeur',
-        initiales: 'JD',
-        date_creation: new Date(),
-        mot_de_passe: '' 
-      },
-      { 
-        id: '2', 
-        nom: 'Martin',
-        prenom: 'Sophie',
-        fonction: 'Qualité',
-        initiales: 'SM',
-        date_creation: new Date(),
-        mot_de_passe: ''
-      },
-    ];
+    const result = await response.json();
+    
+    if (!result.success) {
+      throw new Error(result.message || "Erreur inconnue lors du chargement des membres");
+    }
+    
+    return result.membres || [];
+  } catch (error) {
+    console.error('Erreur lors du chargement des membres depuis le serveur:', error);
+    throw error;
   }
 };
 
 /**
- * Saves membres to localStorage for a specific user
+ * Synchronise les membres avec le serveur Infomaniak uniquement
  */
-export const saveMembrestoStorage = (membres: Membre[], currentUser: string): void => {
-  localStorage.setItem(`membres_${currentUser}`, JSON.stringify(membres));
-  
-  // Si user est admin, aussi sauvegarder comme template
-  const userRole = localStorage.getItem('userRole');
-  if (userRole === 'admin' || userRole === 'administrateur') {
-    localStorage.setItem('membres_template', JSON.stringify(membres));
+export const syncMembresWithServer = async (membres: Membre[], currentUser: string): Promise<boolean> => {
+  try {
+    const API_URL = getApiUrl();
+    console.log(`Synchronisation des membres pour l'utilisateur ${currentUser}`);
+    
+    const response = await fetch(`${API_URL}/membres-sync.php`, {
+      method: 'POST',
+      headers: {
+        ...getAuthHeaders(),
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ userId: currentUser, membres })
+    });
+    
+    if (!response.ok) {
+      console.error(`Erreur lors de la synchronisation des membres: ${response.status}`);
+      
+      // Essayer de récupérer les détails de l'erreur
+      const errorText = await response.text();
+      console.error("Détails de l'erreur:", errorText);
+      
+      if (errorText.trim().startsWith('{')) {
+        const errorJson = JSON.parse(errorText);
+        throw new Error(errorJson.message || `Échec de la synchronisation: ${response.statusText}`);
+      }
+      
+      throw new Error(`Échec de la synchronisation: ${response.statusText}`);
+    }
+    
+    const result = await response.json();
+    console.log("Résultat de la synchronisation des membres:", result);
+    
+    if (!result.success) {
+      throw new Error(result.message || "Erreur de synchronisation inconnue");
+    }
+    
+    return true;
+  } catch (error) {
+    console.error('Erreur de synchronisation des membres:', error);
+    throw error;
   }
-  
-  // Notifier sur la mise à jour des membres
-  window.dispatchEvent(new Event('membresUpdate'));
 };

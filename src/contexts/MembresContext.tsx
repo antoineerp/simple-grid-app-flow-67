@@ -1,8 +1,7 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { Membre } from '@/types/membres';
-import { loadMembresFromStorage, saveMembrestoStorage } from '@/services/membres/membresService';
-import { syncMembresWithServer, loadMembresFromServer } from '@/services/membres/membresSync';
+import { loadMembresFromServer, syncMembresWithServer } from '@/services/membres/membresService';
 import { getCurrentUser } from '@/services/auth/authService';
 import { useToast } from '@/hooks/use-toast';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
@@ -65,6 +64,11 @@ export const MembresProvider: React.FC<{ children: ReactNode }> = ({ children })
           title: "Synchronisation réussie",
           description: "Les données ont été synchronisées avec le serveur",
         });
+        
+        // Recharger les données après synchronisation pour avoir l'état le plus récent
+        const updatedMembres = await loadMembresFromServer(currentUser);
+        setMembres(updatedMembres);
+        
         return true;
       } else {
         setError("Échec de la synchronisation");
@@ -89,17 +93,6 @@ export const MembresProvider: React.FC<{ children: ReactNode }> = ({ children })
     }
   };
   
-  // Sauvegarder les membres dans le stockage local quand ils changent
-  useEffect(() => {
-    if (!isLoading && membres.length > 0) {
-      const currentUser = getCurrentUser();
-      if (currentUser) {
-        console.log("Sauvegarde des membres dans le stockage local pour", currentUser);
-        saveMembrestoStorage(membres, currentUser);
-      }
-    }
-  }, [membres, isLoading]);
-  
   // Charger les membres au démarrage
   useEffect(() => {
     const loadMembres = async () => {
@@ -111,36 +104,33 @@ export const MembresProvider: React.FC<{ children: ReactNode }> = ({ children })
         if (!currentUser) {
           console.warn("Aucun utilisateur connecté pour charger les membres");
           setMembres([]);
+          setIsLoading(false);
           return;
         }
         
         console.log("Chargement des membres pour l'utilisateur", currentUser);
         
-        // Essayer d'abord de charger depuis le serveur si en ligne
         if (isOnline) {
           try {
             setIsSyncing(true);
             const serverMembres = await loadMembresFromServer(currentUser);
             
-            if (serverMembres && serverMembres.length > 0) {
-              console.log("Membres chargés depuis le serveur:", serverMembres.length);
-              setMembres(serverMembres);
-              saveMembrestoStorage(serverMembres, currentUser);
-              setLastSynced(new Date());
-              return;
-            }
+            setMembres(serverMembres);
+            setLastSynced(new Date());
+            console.log("Membres chargés depuis le serveur:", serverMembres.length);
           } catch (err) {
             console.error("Erreur lors du chargement des membres depuis le serveur:", err);
+            setError(err instanceof Error ? err.message : "Erreur inconnue");
           } finally {
             setIsSyncing(false);
           }
+        } else {
+          toast({
+            title: "Mode hors-ligne",
+            description: "Vous êtes en mode hors-ligne. Les données peuvent ne pas être à jour.",
+            variant: "warning",
+          });
         }
-        
-        // Fallback: charger depuis le stockage local
-        console.log("Chargement des membres depuis le stockage local");
-        const storageMembres = loadMembresFromStorage(currentUser);
-        setMembres(storageMembres);
-        
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : "Erreur inconnue";
         setError(errorMessage);
