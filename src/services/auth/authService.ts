@@ -9,38 +9,23 @@ export const getCurrentUser = (): User | null => {
 
   try {
     // Vérification plus robuste du format du token
-    if (!token.includes('.')) {
-      console.error("Format de token invalide (ne contient pas de points):", token);
+    if (!token.includes('.') || token.split('.').length !== 3) {
+      console.error("Format de token invalide:", token);
       return null;
     }
     
     // Extraire la partie payload (deuxième partie du token)
     const parts = token.split('.');
-    
-    // Si le token n'a pas au moins 2 parties, c'est invalide
-    if (parts.length < 2) {
-      console.error("Format de token invalide (moins de 2 parties):", token);
-      return null;
-    }
-    
     const payloadBase64 = parts[1];
-    if (!payloadBase64) {
-      console.error("Payload du token manquant:", token);
-      return null;
-    }
     
-    // Assurons-nous que le padding est correct pour le décodage base64
+    // Préparation pour le décodage base64
     const base64 = payloadBase64.replace(/-/g, '+').replace(/_/g, '/');
+    const pad = base64.length % 4;
+    const paddedBase64 = pad ? base64 + '='.repeat(4 - pad) : base64;
     
     // Décodage plus sûr avec try/catch
     try {
-      const rawPayload = atob(base64);
-      const jsonPayload = decodeURIComponent(
-        Array.from(rawPayload)
-          .map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
-          .join('')
-      );
-
+      const jsonPayload = atob(paddedBase64);
       const userData = JSON.parse(jsonPayload);
       
       // Synchroniser avec le service de base de données
@@ -54,7 +39,7 @@ export const getCurrentUser = (): User | null => {
       return null;
     }
   } catch (error) {
-    console.error("Erreur lors de la décodage du token:", error);
+    console.error("Erreur lors du décodage du token:", error);
     return null;
   }
 };
@@ -128,13 +113,16 @@ export const login = async (username: string, password: string): Promise<AuthRes
     console.log('Réponse de l\'authentification:', data);
     
     if (data.token) {
-      // Vérifier que le token a bien le format d'un JWT (contient au moins deux points)
-      if (data.token.includes('.') && data.token.split('.').length >= 2) {
-        // Ajout d'un test de décodage pour vérifier que le token est vraiment valide
+      // Vérifier que le token a bien le format d'un JWT (contient exactement deux points)
+      if (data.token.split('.').length === 3) {
+        // Test de décodage pour vérifier que le token est valide
         try {
           const parts = data.token.split('.');
           const base64Payload = parts[1].replace(/-/g, '+').replace(/_/g, '/');
-          const decodedPayload = JSON.parse(atob(base64Payload));
+          const pad = base64Payload.length % 4;
+          const paddedBase64 = pad ? base64Payload + '='.repeat(4 - pad) : base64Payload;
+          
+          const decodedPayload = JSON.parse(atob(paddedBase64));
           
           if (!decodedPayload || !decodedPayload.user) {
             console.error("Décodage du token réussi mais structure invalide:", decodedPayload);
@@ -170,7 +158,7 @@ export const login = async (username: string, password: string): Promise<AuthRes
         console.error("Token de format invalide reçu:", data.token);
         return {
           success: false,
-          message: "Le format du token reçu est invalide"
+          message: "Le format du token reçu est invalide (doit contenir 3 parties)"
         };
       }
     }

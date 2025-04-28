@@ -148,9 +148,9 @@ try {
             if ($valid_password) {
                 error_log("Mot de passe valide pour: " . $user['email']);
                 
-                // Générer un token JWT valide avec 3 parties (header, payload, signature)
-                $header = base64_encode(json_encode(['alg' => 'HS256', 'typ' => 'JWT']));
-                $payload = base64_encode(json_encode([
+                // Générer un token JWT avec le format correct
+                $header = base64url_encode(json_encode(['alg' => 'HS256', 'typ' => 'JWT']));
+                $payload = base64url_encode(json_encode([
                     'user' => [
                         'id' => $user['id'],
                         'username' => $user['email'],
@@ -162,10 +162,11 @@ try {
                     ],
                     'exp' => time() + 3600 // expire dans 1 heure
                 ]));
-                // Signature simple (en production, utilisez une clé secrète forte)
-                $signature = base64_encode(hash_hmac('sha256', $header . "." . $payload, 'secret_key', true));
                 
-                // Format JWT standard: header.payload.signature
+                // Créer la signature
+                $signature = base64url_encode(hash_hmac('sha256', $header . "." . $payload, 'secret_key', true));
+                
+                // Construire le JWT conforme au standard (header.payload.signature)
                 $token = $header . "." . $payload . "." . $signature;
                 
                 // Envoyer la réponse
@@ -216,5 +217,10 @@ try {
     exit;
 } finally {
     error_log("=== FIN DE L'EXÉCUTION DE auth.php ===");
+}
+
+// Fonction d'encodage URL safe pour base64 (pour JWT)
+function base64url_encode($data) {
+    return rtrim(strtr(base64_encode($data), '+/', '-_'), '=');
 }
 ?>
