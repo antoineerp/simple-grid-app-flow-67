@@ -3,6 +3,7 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
 
+// Configuration pour être compatible avec les dépendances qui exigent Vite 5
 export default defineConfig(({ mode }) => {
   // Configuration spécifique pour Infomaniak
   const isInfomaniak = process.env.VITE_HOSTING === 'infomaniak' || process.env.NODE_ENV === 'production';
@@ -53,5 +54,9 @@ export default defineConfig(({ mode }) => {
     },
     publicDir: 'public',
     base: basePath,
+    // Assurer la compatibilité avec les plugins qui requièrent des versions spécifiques
+    legacy: {
+      buildSsrCjsExternalHeuristics: true
+    },
   };
 });
