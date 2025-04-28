@@ -51,16 +51,22 @@ export const getAuthHeaders = () => {
 export const login = async (username: string, password: string): Promise<AuthResponse> => {
   try {
     const API_URL = getApiUrl();
-    const response = await fetch(`${API_URL}/login.php`, {
+    const response = await fetch(`${API_URL}/auth.php`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ username, password })
     });
 
     const data = await response.json();
-    if (data.success && data.token) {
+    if (data.token) {
+      // Si la réponse contient un token, c'est un succès
       sessionStorage.setItem('authToken', data.token);
-      return data;
+      return { 
+        success: true, 
+        token: data.token,
+        user: data.user || null,
+        message: data.message || 'Connexion réussie'
+      };
     }
     return { success: false, message: data.message || 'Identifiants invalides' };
   } catch (error) {
