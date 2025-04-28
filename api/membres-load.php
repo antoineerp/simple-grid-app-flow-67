@@ -14,7 +14,16 @@ header("Cache-Control: no-cache, no-store, must-revalidate");
 error_log("=== DEBUT DE L'EXÉCUTION DE membres-load.php ===");
 error_log("Méthode: " . $_SERVER['REQUEST_METHOD'] . " - URI: " . $_SERVER['REQUEST_URI']);
 if (isset($_GET['userId'])) {
-    error_log("UserId reçu: " . $_GET['userId']);
+    $rawUserId = $_GET['userId'];
+    error_log("UserId reçu brut: " . $rawUserId);
+    
+    // Détecter si c'est un objet JSON encodé en URL
+    if (strpos($rawUserId, '%5Bobject%20Object%5D') !== false || $rawUserId === '[object Object]') {
+        error_log("Détection d'un [object Object], utilisation de l'ID par défaut");
+        $_GET['userId'] = 'p71x6d_system';
+    }
+    
+    error_log("UserId utilisé après vérification: " . $_GET['userId']);
 } else {
     error_log("UserId non fourni dans la requête");
 }

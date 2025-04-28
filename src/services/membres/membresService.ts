@@ -7,19 +7,34 @@ import { getAuthHeaders } from '@/services/auth/authService';
  * Extrait un identifiant utilisateur valide pour les requêtes
  */
 const extractValidUserId = (userId: any): string => {
+  // Si l'entrée est undefined ou null
+  if (userId === undefined || userId === null) {
+    console.log("userId invalide (null/undefined), utilisation de l'ID par défaut");
+    return 'p71x6d_system';
+  }
+  
+  // Si c'est déjà une chaîne, la retourner directement
   if (typeof userId === 'string') {
     return userId;
   }
   
-  if (userId && typeof userId === 'object') {
+  // Si c'est un objet, essayer d'extraire un identifiant
+  if (typeof userId === 'object') {
     // Journaliser l'identifiant reçu pour débogage
     console.log("Identifiant objet reçu:", userId);
     
-    return userId.identifiant_technique || 
-           userId.email || 
-           'p71x6d_system';
+    // Propriétés potentielles pour extraire un ID
+    const idProperties = ['identifiant_technique', 'email', 'id'];
+    
+    for (const prop of idProperties) {
+      if (userId[prop] && typeof userId[prop] === 'string') {
+        console.log(`ID utilisateur extrait de l'objet: ${prop}=${userId[prop]}`);
+        return userId[prop];
+      }
+    }
   }
   
+  console.log(`Utilisation de l'ID par défaut pour le type: ${typeof userId}`);
   return 'p71x6d_system'; // Valeur par défaut si rien n'est valide
 };
 
@@ -34,7 +49,11 @@ export const loadMembresFromServer = async (currentUser: any): Promise<Membre[]>
     const userId = extractValidUserId(currentUser);
     console.log(`Chargement des membres depuis le serveur pour l'utilisateur ${userId}`);
     
-    // Utiliser userId extrait pour éviter l'encodage d'[object Object]
+    // Vérifier que l'ID est bien une chaîne et non un objet
+    if (typeof userId !== 'string') {
+      throw new Error(`ID utilisateur invalide: ${typeof userId}`);
+    }
+    
     const encodedUserId = encodeURIComponent(userId);
     const url = `${API_URL}/membres-load.php?userId=${encodedUserId}`;
     
@@ -55,8 +74,9 @@ export const loadMembresFromServer = async (currentUser: any): Promise<Membre[]>
       clearTimeout(timeoutId);
       
       if (!response.ok) {
-        console.error(`Erreur serveur (${response.status}) lors du chargement des membres:`, await response.text());
-        throw new Error(`Erreur serveur: ${response.status} ${response.statusText}`);
+        const errorText = await response.text();
+        console.error(`Erreur serveur (${response.status}) lors du chargement des membres:`, errorText);
+        throw new Error(`Erreur serveur: ${response.status}`);
       }
       
       const responseText = await response.text();
@@ -133,8 +153,12 @@ export const syncMembresWithServer = async (membres: Membre[], currentUser: any)
         console.error("Détails de l'erreur:", errorText);
         
         if (errorText.trim().startsWith('{')) {
-          const errorJson = JSON.parse(errorText);
-          throw new Error(errorJson.message || `Échec de la synchronisation: ${response.statusText}`);
+          try {
+            const errorJson = JSON.parse(errorText);
+            throw new Error(errorJson.message || `Échec de la synchronisation: ${response.statusText}`);
+          } catch (e) {
+            console.error("Impossible de parser l'erreur JSON:", e);
+          }
         }
         
         throw new Error(`Échec de la synchronisation: ${response.statusText}`);
