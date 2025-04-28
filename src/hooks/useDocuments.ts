@@ -1,16 +1,16 @@
-
 import { useState, useEffect, useCallback } from 'react';
 import { Document, DocumentStats, DocumentGroup } from '@/types/documents';
 import { useToast } from '@/hooks/use-toast';
 import { calculateDocumentStats } from '@/services/documents/documentStatsService';
-import { loadDocumentsFromStorage, saveDocumentsToStorage } from '@/services/documents';
-import { useDocumentSync } from '@/features/documents/hooks/useDocumentSync';
+import { loadDocumentsFromServer, syncDocumentsWithServer } from '@/services/documents/documentSyncService';
 import { useDocumentMutations } from '@/features/documents/hooks/useDocumentMutations';
 import { useDocumentGroups } from '@/features/documents/hooks/useDocumentGroups';
+import { getCurrentUser } from '@/services/auth/authService';
 
 export const useDocuments = () => {
   const { toast } = useToast();
-  const currentUser = localStorage.getItem('currentUser') || 'default';
+  const user = getCurrentUser();
+  const currentUser = typeof user === 'object' ? user.identifiant_technique || 'p71x6d_system' : user || 'p71x6d_system';
   
   const [documents, setDocuments] = useState<Document[]>([]);
   const [groups, setGroups] = useState<DocumentGroup[]>([]);
@@ -20,62 +20,79 @@ export const useDocuments = () => {
   const [groupDialogOpen, setGroupDialogOpen] = useState(false);
   const [stats, setStats] = useState<DocumentStats>(() => calculateDocumentStats(documents));
   const [isInitialized, setIsInitialized] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [syncFailed, setSyncFailed] = useState(false);
+  const [lastSynced, setLastSynced] = useState<Date | null>(null);
 
-  const { syncWithServer, loadFromServer, isSyncing } = useDocumentSync();
-  const documentMutations = useDocumentMutations(documents, setDocuments);
-  const groupOperations = useDocumentGroups(groups, setGroups);
-
-  // Initial load from server with localStorage fallback
+  // Initial load from server
   useEffect(() => {
     if (isInitialized) return;
     
     const initializeDocuments = async () => {
       try {
-        // Try to load from server first
-        const serverDocuments = await loadFromServer(currentUser);
-        if (serverDocuments && serverDocuments.length > 0) {
+        setIsSyncing(true);
+        const serverDocuments = await loadDocumentsFromServer(currentUser);
+        if (serverDocuments) {
           console.log(`Loaded ${serverDocuments.length} documents from server`);
           setDocuments(serverDocuments);
-          setIsInitialized(true);
-          return;
-        }
-        
-        // Fall back to localStorage if server load fails
-        const localDocuments = loadDocumentsFromStorage(currentUser);
-        if (localDocuments && localDocuments.length > 0) {
-          console.log(`Loaded ${localDocuments.length} documents from localStorage`);
-          setDocuments(localDocuments);
-          
-          // Try to sync with server after loading from localStorage
-          try {
-            await syncWithServer(localDocuments, currentUser);
-          } catch (error) {
-            console.error("Failed to sync after localStorage load:", error);
-          }
+          setLastSynced(new Date());
+          setSyncFailed(false);
         }
       } catch (error) {
         console.error("Error during document initialization:", error);
-        
-        // Ultimate fallback to localStorage
-        const localDocuments = loadDocumentsFromStorage(currentUser);
-        if (localDocuments && localDocuments.length > 0) {
-          setDocuments(localDocuments);
-        }
+        setSyncFailed(true);
+        toast({
+          title: "Erreur de chargement",
+          description: error instanceof Error ? error.message : "Erreur lors du chargement des documents",
+          variant: "destructive"
+        });
       } finally {
+        setIsSyncing(false);
         setIsInitialized(true);
       }
     };
 
     initializeDocuments();
-  }, [currentUser, loadFromServer, syncWithServer]);
+  }, [currentUser, toast]);
 
   // Update stats when documents change
   useEffect(() => {
     setStats(calculateDocumentStats(documents));
   }, [documents]);
 
-  // We've removed the automatic sync effect that was causing flickering
-  // and only sync manually or when calling specific actions
+  const syncWithServer = async (): Promise<boolean> => {
+    if (isSyncing) {
+      console.log("Une synchronisation est déjà en cours");
+      return false;
+    }
+
+    setIsSyncing(true);
+    try {
+      const success = await syncDocumentsWithServer(documents, currentUser);
+      setSyncFailed(!success);
+      if (success) {
+        setLastSynced(new Date());
+        toast({
+          title: "Synchronisation réussie",
+          description: "Les documents ont été synchronisés avec le serveur"
+        });
+      }
+      return success;
+    } catch (error) {
+      setSyncFailed(true);
+      toast({
+        title: "Erreur de synchronisation",
+        description: error instanceof Error ? error.message : "Erreur lors de la synchronisation",
+        variant: "destructive"
+      });
+      return false;
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
+  const documentMutations = useDocumentMutations(documents, setDocuments);
+  const groupOperations = useDocumentGroups(groups, setGroups);
 
   const handleEdit = useCallback((id: string) => {
     const documentToEdit = documents.find(doc => doc.id === id);
@@ -180,6 +197,8 @@ export const useDocuments = () => {
     dialogOpen,
     groupDialogOpen,
     isSyncing,
+    syncFailed,
+    lastSynced,
     setDialogOpen,
     setGroupDialogOpen,
     ...documentMutations,

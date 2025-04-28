@@ -2,11 +2,7 @@
 import { Document } from '@/types/documents';
 import { getApiUrl } from '@/config/apiConfig';
 import { getAuthHeaders } from '@/services/auth/authService';
-import { loadDocumentsFromStorage, saveDocumentsToStorage } from '@/services/documents';
 
-/**
- * Synchronizes documents with the server
- */
 export const syncDocumentsWithServer = async (
   documents: Document[],
   currentUser: string
@@ -41,13 +37,10 @@ export const syncDocumentsWithServer = async (
   }
 };
 
-/**
- * Loads documents from server
- */
 export const loadDocumentsFromServer = async (currentUser: string): Promise<Document[] | null> => {
   try {
     const API_URL = getApiUrl();
-    console.log(`Chargement des documents pour l'utilisateur ${currentUser} depuis: ${API_URL}/documents-load.php`);
+    console.log(`Chargement des documents pour l'utilisateur ${currentUser}`);
     
     const response = await fetch(`${API_URL}/documents-load.php?userId=${encodeURIComponent(currentUser)}`, {
       method: 'GET',
@@ -62,9 +55,8 @@ export const loadDocumentsFromServer = async (currentUser: string): Promise<Docu
     const result = await response.json();
     console.log("Documents chargés depuis le serveur:", result);
     
-    // Transform server data to match our Document type
     if (result.success && result.documents) {
-      const transformedDocuments = result.documents.map((doc: any) => ({
+      return result.documents.map((doc: any) => ({
         id: doc.id || doc.titre,
         nom: doc.titre || doc.nom,
         fichier_path: doc.url_fichier || doc.fichier_path || null,
@@ -74,20 +66,11 @@ export const loadDocumentsFromServer = async (currentUser: string): Promise<Docu
         date_modification: new Date(doc.date_modification || Date.now()),
         groupId: doc.groupId || undefined
       }));
-      
-      // Save to localStorage for offline use
-      if (transformedDocuments.length > 0) {
-        saveDocumentsToStorage(transformedDocuments, currentUser);
-      }
-      
-      return transformedDocuments;
     }
     
     return null;
   } catch (error) {
     console.error('Erreur de chargement des documents:', error);
-    // Fallback to localStorage on server error
-    const localDocuments = loadDocumentsFromStorage(currentUser);
-    return localDocuments;
+    throw error;
   }
 };
