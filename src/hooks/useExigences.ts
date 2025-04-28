@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from 'react';
 import { Exigence, ExigenceGroup, ExigenceStats } from '@/types/exigences';
 import { useExigenceSync } from '@/hooks/useExigenceSync';
@@ -175,10 +176,16 @@ export const useExigences = () => {
 
   // Handle group adding
   const handleAddGroup = useCallback(() => {
-    const newGroup = groupOperations.handleAddGroup();
+    const newGroup: ExigenceGroup = {
+      id: crypto.randomUUID(),
+      title: '',
+      expanded: true,
+      order: groups.length
+    };
     setEditingGroup(newGroup);
     setGroupDialogOpen(true);
-  }, [groupOperations]);
+    return newGroup;
+  }, [groups]);
 
   // Handle reset load attempts
   const handleResetLoadAttempts = useCallback(() => {

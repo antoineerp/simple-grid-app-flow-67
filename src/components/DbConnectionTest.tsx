@@ -28,11 +28,16 @@ const DbConnectionTest = () => {
         }
       });
       
+      if (!response.ok) {
+        throw new Error(`Erreur HTTP: ${response.status}`);
+      }
+      
       const text = await response.text();
-      console.log("Raw response:", text);
+      console.log("Raw response:", text.substring(0, 300));
       
       try {
         const data = JSON.parse(text);
+        console.log("Parsed response:", data);
         setResult(data);
       } catch (e) {
         console.error("Error parsing JSON response:", e);
@@ -99,7 +104,7 @@ const DbConnectionTest = () => {
                 <div className="bg-muted p-3 rounded">
                   <h3 className="font-medium">Tables ({result.tables?.length || 0})</h3>
                   {result.tables && result.tables.length > 0 ? (
-                    <ul className="list-disc pl-5 text-sm">
+                    <ul className="list-disc pl-5 text-sm max-h-40 overflow-y-auto">
                       {result.tables.map((table: string, index: number) => (
                         <li key={index}>{table}</li>
                       ))}

@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { FileText, FolderPlus } from 'lucide-react';
 import { MembresProvider } from '@/contexts/MembresContext';
@@ -28,7 +29,6 @@ const GestionDocumentaireContent = () => {
     handleEdit,
     handleSaveDocument,
     handleDelete,
-    handleAddDocument,
     handleReorder,
     handleAddGroup,
     handleEditGroup,
@@ -59,7 +59,7 @@ const GestionDocumentaireContent = () => {
     });
   };
 
-  const handleAddDocument = () => {
+  const handleAddDocumentClick = () => {
     handleEdit(null); // Pass null to indicate creating a new document
   };
 
@@ -111,7 +111,7 @@ const GestionDocumentaireContent = () => {
         </Button>
         <Button 
           variant="default"
-          onClick={handleAddDocument}
+          onClick={handleAddDocumentClick}
         >
           Nouveau document
         </Button>
