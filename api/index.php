@@ -1,4 +1,3 @@
-
 <?php
 // Forcer l'output buffering pour éviter tout output avant les headers
 ob_start();
@@ -215,6 +214,16 @@ function routeApi() {
                 require_once __DIR__ . '/error-log.php';
             } else {
                 handleSimpleError(404, "Fichier de diagnostic des erreurs introuvable", ['path' => $path]);
+            }
+            exit;
+            
+        case 'view-logs':
+        case 'view-logs.php':
+            // Nouveau point d'entrée plus robuste pour voir les logs
+            if (file_exists(__DIR__ . '/view-logs.php')) {
+                require_once __DIR__ . '/view-logs.php';
+            } else {
+                handleSimpleError(404, "Visualiseur de logs introuvable", ['path' => $path]);
             }
             exit;
             
