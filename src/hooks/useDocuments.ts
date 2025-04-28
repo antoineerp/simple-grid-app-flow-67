@@ -11,7 +11,7 @@ import { getCurrentUser } from '@/services/auth/authService';
 export const useDocuments = () => {
   const { toast } = useToast();
   const user = getCurrentUser();
-  const currentUser = typeof user === 'object' ? user.identifiant_technique || 'p71x6d_system' : user || 'p71x6d_system';
+  const currentUser = typeof user === 'object' ? user?.identifiant_technique || 'p71x6d_system' : user || 'p71x6d_system';
   
   const [documents, setDocuments] = useState<Document[]>([]);
   const [groups, setGroups] = useState<DocumentGroup[]>([]);
@@ -128,7 +128,7 @@ export const useDocuments = () => {
         description: `Le document ${newDoc.id} a été mis à jour avec succès`,
       });
     },
-    [documents, toast]
+    [toast]
   );
 
   const handleAddDocument = useCallback(() => {

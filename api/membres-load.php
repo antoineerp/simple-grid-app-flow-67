@@ -40,16 +40,14 @@ try {
         throw new Exception("Impossible de créer ou vérifier la table");
     }
     
-    // Définir explicitement le nom de la table avec l'userId
-    $service->tableName = "membres_{$userId}";
-    
     // Récupérer les colonnes existantes
     $columns = $service->getTableColumns();
     error_log("Colonnes disponibles dans la table membres_{$userId}: " . implode(", ", $columns));
     
     // Vérifier si la table est vide
     $tableEmpty = true;
-    $checkEmptyQuery = "SELECT COUNT(*) FROM `membres_{$userId}`";
+    $tableName = "membres_{$userId}";
+    $checkEmptyQuery = "SELECT COUNT(*) FROM `{$tableName}`";
     $stmt = $service->getPdo()->prepare($checkEmptyQuery);
     $stmt->execute();
     $count = $stmt->fetchColumn();

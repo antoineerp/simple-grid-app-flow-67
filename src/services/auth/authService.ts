@@ -2,13 +2,13 @@
 import { getApiUrl } from '@/config/apiConfig';
 import { User, AuthResponse } from '@/types/auth';
 
-export const getCurrentUser = (): string | User | null => {
+export const getCurrentUser = (): User | null => {
   const token = sessionStorage.getItem('authToken');
   if (!token) return null;
 
   try {
     const userData = JSON.parse(atob(token.split('.')[1]));
-    return userData.user || userData.identifiant_technique || null;
+    return userData.user || null;
   } catch {
     return null;
   }

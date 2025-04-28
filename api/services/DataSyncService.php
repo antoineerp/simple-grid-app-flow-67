@@ -1,29 +1,26 @@
 
 <?php
+require_once 'RequestHandler.php';
+require_once 'TableManager.php';
+require_once 'TransactionManager.php';
+
 class DataSyncService {
     protected $connection = null;
-    protected $tableName = '';
+    public $tableName = '';
     protected $userId = '';
-    protected $transactionStarted = false;
+    protected $tableManager;
+    protected $transactionManager;
 
     public function __construct($type) {
         $this->tableName = $type;
     }
 
     public function setStandardHeaders($methods = "GET, POST, OPTIONS") {
-        header('Content-Type: application/json; charset=UTF-8');
-        header("Access-Control-Allow-Origin: *");
-        header("Access-Control-Allow-Methods: $methods");
-        header("Access-Control-Allow-Headers: Content-Type, Authorization");
-        header("Cache-Control: no-cache, no-store, must-revalidate");
+        RequestHandler::setStandardHeaders($methods);
     }
 
     public function handleOptionsRequest() {
-        if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
-            http_response_code(200);
-            echo json_encode(['success' => true, 'message' => 'Preflight OK']);
-            exit;
-        }
+        RequestHandler::handleOptionsRequest();
     }
 
     public function connectToDatabase() {
@@ -38,6 +35,10 @@ class DataSyncService {
                 return false;
             }
             
+            // Initialiser les gestionnaires après la connexion
+            $this->tableManager = new TableManager($this->connection, $this->tableName, $this->userId);
+            $this->transactionManager = new TransactionManager($this->connection);
+            
             return true;
         } catch (Exception $e) {
             error_log("Exception lors de la connexion à la base: " . $e->getMessage());
@@ -46,97 +47,49 @@ class DataSyncService {
     }
 
     public function ensureTableExists($schema) {
-        if (!$this->connection) {
-            error_log("Pas de connexion à la base de données");
-            return false;
+        if (!$this->tableManager) {
+            $this->tableManager = new TableManager($this->connection, $this->tableName, $this->userId);
         }
-        
-        try {
-            $stmt = $this->connection->prepare($schema);
-            return $stmt->execute();
-        } catch (PDOException $e) {
-            error_log("Erreur lors de la création de la table: " . $e->getMessage());
-            return false;
-        }
+        return $this->tableManager->ensureTableExists($schema);
     }
 
     public function getTableColumns() {
-        if (!$this->connection) {
-            error_log("Pas de connexion à la base de données pour obtenir les colonnes");
-            return [];
+        if (!$this->tableManager) {
+            $this->tableManager = new TableManager($this->connection, $this->tableName, $this->userId);
         }
-        
-        try {
-            $table = $this->tableName;
-            if (!empty($this->userId)) {
-                $table = "{$this->tableName}_{$this->userId}";
-            }
-            
-            $sql = "SHOW COLUMNS FROM `{$table}`";
-            $stmt = $this->connection->prepare($sql);
-            $stmt->execute();
-            
-            $columns = [];
-            while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
-                $columns[] = $row['Field'];
-            }
-            
-            error_log("Colonnes récupérées pour la table {$table}: " . implode(", ", $columns));
-            return $columns;
-        } catch (PDOException $e) {
-            error_log("Erreur lors de la récupération des colonnes: " . $e->getMessage());
-            return [];
-        }
+        return $this->tableManager->getTableColumns();
     }
 
     public function sanitizeUserId($userId) {
-        // Nettoyage simple de l'userId
-        $userId = preg_replace('/[^a-zA-Z0-9_\-\.]/', '_', $userId);
-        return substr($userId, 0, 50); // Limiter la longueur
+        $this->userId = RequestHandler::sanitizeUserId($userId);
+        
+        // Met à jour le TableManager avec le nouvel userId
+        if ($this->tableManager) {
+            $this->tableManager = new TableManager($this->connection, $this->tableName, $this->userId);
+        }
+        
+        return $this->userId;
     }
 
     public function beginTransaction() {
-        if (!$this->connection || $this->transactionStarted) {
-            return false;
+        if (!$this->transactionManager) {
+            $this->transactionManager = new TransactionManager($this->connection);
         }
-        
-        try {
-            $this->transactionStarted = $this->connection->beginTransaction();
-            return $this->transactionStarted;
-        } catch (Exception $e) {
-            error_log("Erreur lors du démarrage de la transaction: " . $e->getMessage());
-            return false;
-        }
+        return $this->transactionManager->beginTransaction();
     }
 
     public function commitTransaction() {
-        if (!$this->connection || !$this->transactionStarted) {
+        if (!$this->transactionManager) {
             return false;
         }
-        
-        try {
-            $result = $this->connection->commit();
-            $this->transactionStarted = false;
-            return $result;
-        } catch (Exception $e) {
-            error_log("Erreur lors de la validation de la transaction: " . $e->getMessage());
-            return false;
-        }
+        return $this->transactionManager->commitTransaction();
     }
 
     public function rollbackTransaction() {
-        if (!$this->connection || !$this->transactionStarted) {
+        if (!$this->transactionManager) {
             return false;
         }
-        
-        try {
-            $result = $this->connection->rollBack();
-            $this->transactionStarted = false;
-            return $result;
-        } catch (Exception $e) {
-            error_log("Erreur lors de l'annulation de la transaction: " . $e->getMessage());
-            return false;
-        }
+        return $this->transactionManager->rollbackTransaction();
     }
 
     public function syncData($records) {
@@ -144,7 +97,7 @@ class DataSyncService {
             throw new Exception("Pas de connexion à la base de données");
         }
         
-        if (!$this->transactionStarted) {
+        if (!$this->transactionManager || !$this->transactionManager->isTransactionActive()) {
             throw new Exception("Aucune transaction active. Appelez beginTransaction() d'abord.");
         }
         
@@ -174,7 +127,8 @@ class DataSyncService {
 
     protected function getAllIds() {
         try {
-            $query = "SELECT id FROM {$this->tableName}";
+            $tableName = $this->tableManager->getFullTableName();
+            $query = "SELECT id FROM `{$tableName}`";
             $stmt = $this->connection->prepare($query);
             $stmt->execute();
             
@@ -205,7 +159,8 @@ class DataSyncService {
             $fieldsStr = implode(", ", $fields);
             $placeholdersStr = implode(", ", $placeholders);
             
-            $query = "INSERT INTO {$this->tableName} ($fieldsStr) VALUES ($placeholdersStr)";
+            $tableName = $this->tableManager->getFullTableName();
+            $query = "INSERT INTO `{$tableName}` ($fieldsStr) VALUES ($placeholdersStr)";
             $stmt = $this->connection->prepare($query);
             
             return $stmt->execute($values);
@@ -230,7 +185,8 @@ class DataSyncService {
             $values[] = $record['id']; // Pour la condition WHERE
             $updatesStr = implode(", ", $updates);
             
-            $query = "UPDATE {$this->tableName} SET $updatesStr WHERE id = ?";
+            $tableName = $this->tableManager->getFullTableName();
+            $query = "UPDATE `{$tableName}` SET $updatesStr WHERE id = ?";
             $stmt = $this->connection->prepare($query);
             
             return $stmt->execute($values);
@@ -241,55 +197,17 @@ class DataSyncService {
     }
 
     public function loadData() {
-        if (!$this->connection) {
-            throw new Exception("Pas de connexion à la base de données");
+        if (!$this->tableManager) {
+            $this->tableManager = new TableManager($this->connection, $this->tableName, $this->userId);
         }
-        
-        try {
-            $query = "SELECT * FROM {$this->tableName}";
-            $stmt = $this->connection->prepare($query);
-            $stmt->execute();
-            
-            return $stmt->fetchAll(PDO::FETCH_ASSOC);
-        } catch (PDOException $e) {
-            error_log("Erreur lors du chargement des données: " . $e->getMessage());
-            throw new Exception("Erreur lors du chargement des données: " . $e->getMessage());
-        }
+        return $this->tableManager->loadData();
     }
     
     public function insertMultipleData($records) {
-        if (empty($records)) {
-            return true; // Rien à insérer
+        if (!$this->tableManager) {
+            $this->tableManager = new TableManager($this->connection, $this->tableName, $this->userId);
         }
-        
-        try {
-            // Préparer une requête d'insertion multiple
-            $first = reset($records);
-            $fields = array_keys($first);
-            $fieldsStr = implode("`, `", $fields);
-            
-            $values = [];
-            $placeholders = [];
-            
-            foreach ($records as $record) {
-                $recordPlaceholders = [];
-                foreach ($record as $value) {
-                    $values[] = $value;
-                    $recordPlaceholders[] = "?";
-                }
-                $placeholders[] = "(" . implode(", ", $recordPlaceholders) . ")";
-            }
-            
-            $placeholdersStr = implode(", ", $placeholders);
-            
-            $query = "INSERT INTO {$this->tableName} (`" . $fieldsStr . "`) VALUES " . $placeholdersStr;
-            $stmt = $this->connection->prepare($query);
-            
-            return $stmt->execute($values);
-        } catch (PDOException $e) {
-            error_log("Erreur lors de l'insertion multiple: " . $e->getMessage());
-            return false;
-        }
+        return $this->tableManager->insertMultipleData($records);
     }
 
     public function getPdo() {
@@ -297,14 +215,8 @@ class DataSyncService {
     }
 
     public function finalize() {
-        // S'assurer que la transaction est terminée si elle a été démarrée
-        if ($this->connection && $this->transactionStarted) {
-            try {
-                $this->connection->rollBack();
-                $this->transactionStarted = false;
-            } catch (Exception $e) {
-                error_log("Erreur lors de la finalisation de la transaction: " . $e->getMessage());
-            }
+        if ($this->transactionManager) {
+            $this->transactionManager->finalize();
         }
         
         // Fermer la connexion
