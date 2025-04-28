@@ -1,5 +1,6 @@
+
 import React from 'react';
-import { FileText, FolderPlus, RefreshCw, Cloud } from 'lucide-react';
+import { FileText, FolderPlus, RefreshCw } from 'lucide-react';
 import { MembresProvider } from '@/contexts/MembresContext';
 import ExigenceForm from '@/components/exigences/ExigenceForm';
 import ExigenceStats from '@/components/exigences/ExigenceStats';
@@ -56,32 +57,20 @@ const ExigencesContent = () => {
     });
   };
 
-  const handleSyncWithServer = () => {
-    toast({
-      title: "Synchronisation en cours",
-      description: "Veuillez patienter pendant la synchronisation...",
-    });
-    
-    syncWithServer().then(success => {
-      if (success) {
-        toast({
-          title: "Synchronisation réussie",
-          description: "Vos exigences ont été synchronisées avec le serveur",
-        });
-      } else {
-        toast({
-          title: "Synchronisation échouée",
-          description: "Essayez de réinitialiser et réessayer.",
-          variant: "destructive"
-        });
-      }
-    }).catch(error => {
+  const handleSync = async () => {
+    try {
+      await syncWithServer();
+      toast({
+        title: "Synchronisation réussie",
+        description: "Les données ont été synchronisées avec le serveur",
+      });
+    } catch (error) {
       toast({
         title: "Erreur de synchronisation",
-        description: error instanceof Error ? error.message : "Une erreur s'est produite",
+        description: "Une erreur s'est produite lors de la synchronisation",
         variant: "destructive"
       });
-    });
+    }
   };
 
   return (
@@ -91,14 +80,6 @@ const ExigencesContent = () => {
           <h1 className="text-3xl font-bold text-app-blue">Exigences</h1>
         </div>
         <div className="flex space-x-2">
-          <button 
-            onClick={handleSyncWithServer}
-            className="text-blue-600 p-2 rounded-md hover:bg-blue-50 transition-colors flex items-center"
-            title="Synchroniser avec le serveur"
-            disabled={isSyncing}
-          >
-            <Cloud className={`h-6 w-6 stroke-[1.5] ${isSyncing ? 'animate-spin' : ''}`} />
-          </button>
           <button 
             onClick={handleExportPdf}
             className="text-red-600 p-2 rounded-md hover:bg-red-50 transition-colors"
@@ -110,7 +91,13 @@ const ExigencesContent = () => {
       </div>
 
       <div className="mb-4">
-        <SyncStatusIndicator syncFailed={!!loadError} onReset={handleResetLoadAttempts} />
+        <SyncStatusIndicator 
+          syncFailed={syncFailed} 
+          onReset={handleResetLoadAttempts} 
+          isSyncing={isSyncing}
+          isOnline={isOnline}
+          lastSynced={lastSynced}
+        />
       </div>
 
       {loadError && (

@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from 'react';
 import { Exigence, ExigenceGroup, ExigenceStats } from '@/types/exigences';
 import { useExigenceSync } from '@/hooks/useExigenceSync';
@@ -5,6 +6,7 @@ import { useExigenceMutations } from '@/hooks/useExigenceMutations';
 import { useExigenceGroups } from '@/hooks/useExigenceGroups';
 import { getCurrentUser } from '@/services/auth/authService';
 import { useToast } from '@/hooks/use-toast';
+import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 
 export const useExigences = () => {
   const [exigences, setExigences] = useState<Exigence[]>([]);
@@ -14,16 +16,14 @@ export const useExigences = () => {
   const [editingGroup, setEditingGroup] = useState<ExigenceGroup | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [groupDialogOpen, setGroupDialogOpen] = useState(false);
-  const [isSyncing, setIsSyncing] = useState(false);
-  const [syncFailed, setSyncFailed] = useState(false);
-  const [loadError, setLoadError] = useState<string | null>(null);
   const [lastSyncedDate, setLastSyncedDate] = useState<Date | null>(null);
   const { toast } = useToast();
+  const { isOnline } = useNetworkStatus();
 
   const user = getCurrentUser();
   const userId = typeof user === 'object' ? (user?.email || user?.identifiant_technique || 'p71x6d_system') : user || 'p71x6d_system';
 
-  const { loadFromServer, syncWithServer, isOnline, lastSynced, loadError: syncLoadError, resetSyncStatus } = useExigenceSync();
+  const { loadFromServer, syncWithServer, isSyncing, lastSynced, syncFailed, loadError, resetSyncStatus } = useExigenceSync();
   const exigenceMutations = useExigenceMutations(exigences, setExigences);
   const groupOperations = useExigenceGroups(groups, setGroups, setExigences);
 
@@ -36,11 +36,9 @@ export const useExigences = () => {
   };
 
   const handleSyncWithServer = useCallback(async () => {
-    setIsSyncing(true);
     try {
       const success = await syncWithServer(exigences, userId, groups);
       if (success) {
-        setSyncFailed(false);
         setLastSyncedDate(new Date());
         try {
           const result = await loadFromServer(userId);
@@ -55,14 +53,11 @@ export const useExigences = () => {
         }
         return true;
       } else {
-        setSyncFailed(true);
         return false;
       }
     } catch (error) {
-      setSyncFailed(true);
+      console.error("Error synchronizing:", error);
       return false;
-    } finally {
-      setIsSyncing(false);
     }
   }, [exigences, userId, groups, syncWithServer, loadFromServer]);
 
@@ -87,17 +82,20 @@ export const useExigences = () => {
       }
     };
 
-    loadExigences();
+    if (isOnline) {
+      loadExigences();
+    }
 
     const syncInterval = setInterval(() => {
-      if (isOnline && !syncFailed) {
-        handleSyncWithServer()
-          .catch(error => console.error("Error during periodic sync:", error));
+      if (isOnline && !syncFailed && !isSyncing) {
+        handleSyncWithServer().catch(error => 
+          console.error("Error during periodic sync:", error)
+        );
       }
-    }, 10000); // 10 seconds
+    }, 60000); // Changer à 60 secondes au lieu de 10 pour réduire les messages fréquents
 
     return () => clearInterval(syncInterval);
-  }, [loadFromServer, userId, handleSyncWithServer, isOnline, syncFailed]);
+  }, [loadFromServer, userId, handleSyncWithServer, isOnline, syncFailed, isSyncing]);
 
   const handleEdit = useCallback((id: string) => {
     const exigence = exigences.find(e => e.id === id);
@@ -177,9 +175,9 @@ export const useExigences = () => {
 
   const handleResetLoadAttempts = useCallback(() => {
     resetSyncStatus();
-    setLoadError(null);
-    handleSyncWithServer()
-      .catch(error => console.error("Error resetting sync:", error));
+    handleSyncWithServer().catch(error => {
+      console.error("Error resetting sync:", error);
+    });
   }, [resetSyncStatus, handleSyncWithServer]);
 
   return {
@@ -195,7 +193,7 @@ export const useExigences = () => {
     syncFailed,
     isOnline,
     lastSynced,
-    loadError: loadError || syncLoadError,
+    loadError,
     setSelectedNiveau,
     setDialogOpen,
     setGroupDialogOpen,

@@ -17,7 +17,6 @@ export const useExigenceSync = () => {
   const syncWithServer = async (exigences: Exigence[], userId: any, groups: ExigenceGroup[] = []) => {
     if (!isOnline || isSyncing) return false;
     
-    // Si on a déjà eu trop d'échecs consécutifs, bloquer la synchronisation
     if (syncFailed && syncAttempts >= 3) {
       console.error("Synchronisation bloquée après plusieurs échecs consécutifs");
       return false;
