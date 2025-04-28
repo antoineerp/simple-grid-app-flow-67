@@ -2,12 +2,27 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
-import { componentTagger } from "lovable-tagger";
+
+// Suppression de l'import componentTagger qui pourrait causer des problèmes
+// import { componentTagger } from "lovable-tagger";
 
 export default defineConfig(({ mode }) => {
   // Configuration spécifique pour Infomaniak
   const isInfomaniak = process.env.VITE_HOSTING === 'infomaniak' || process.env.NODE_ENV === 'production';
   const basePath = isInfomaniak ? '/' : '/';
+  
+  // Liste des plugins avec vérification conditionnelle
+  const plugins = [react()];
+  
+  // Le plugin componentTagger est supprimé car il peut causer des problèmes avec Vite 6
+  // if (mode === 'development') {
+  //   try {
+  //     const { componentTagger } = require("lovable-tagger");
+  //     plugins.push(componentTagger());
+  //   } catch (e) {
+  //     console.warn("Le plugin componentTagger n'a pas pu être chargé:", e);
+  //   }
+  // }
   
   return {
     server: {
@@ -18,10 +33,7 @@ export default defineConfig(({ mode }) => {
         clientPort: 443
       }
     },
-    plugins: [
-      react(),
-      mode === 'development' && componentTagger(),
-    ].filter(Boolean),
+    plugins: plugins,
     resolve: {
       alias: {
         "@": path.resolve(__dirname, "./src"),
