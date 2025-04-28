@@ -40,11 +40,17 @@ try {
     error_log("Chargement des exigences pour l'utilisateur: {$userId}");
     
     // Connexion à la base de données
-    $pdo = new PDO("mysql:host={$host};dbname={$dbname};charset=utf8mb4", $username, $password, [
-        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-        PDO::ATTR_EMULATE_PREPARES => false,
-    ]);
+    try {
+        $pdo = new PDO("mysql:host={$host};dbname={$dbname};charset=utf8mb4", $username, $password, [
+            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+            PDO::ATTR_EMULATE_PREPARES => false,
+        ]);
+        error_log("Connexion à la base de données réussie");
+    } catch (PDOException $pdoError) {
+        error_log("Erreur de connexion à la base de données: " . $pdoError->getMessage());
+        throw new Exception("Erreur de connexion à la base de données: " . $pdoError->getMessage());
+    }
     
     // Nom des tables spécifiques à l'utilisateur
     $exigencesTableName = "exigences_" . preg_replace('/[^a-zA-Z0-9_]/', '_', $userId);
@@ -55,15 +61,15 @@ try {
     $exigencesTableExists = false;
     $groupsTableExists = false;
     
-    $tableExistsQuery = "SHOW TABLES LIKE :tableName";
+    $tableExistsQuery = "SHOW TABLES LIKE ?";
     $stmt = $pdo->prepare($tableExistsQuery);
     
     // Vérifier la table des exigences
-    $stmt->execute(['tableName' => $exigencesTableName]);
+    $stmt->execute([$exigencesTableName]);
     $exigencesTableExists = $stmt->rowCount() > 0;
     
     // Vérifier la table des groupes
-    $stmt->execute(['tableName' => $groupsTableName]);
+    $stmt->execute([$groupsTableName]);
     $groupsTableExists = $stmt->rowCount() > 0;
     
     // Initialiser les résultats

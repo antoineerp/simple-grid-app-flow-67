@@ -74,10 +74,12 @@ export const useExigenceSync = () => {
       
       console.log(`Données chargées: ${data.exigences.length} exigences, ${data.groups.length} groupes`);
       setSyncFailed(false);
+      setSyncAttempts(0);
       return data;
     } catch (error) {
       console.error("Erreur lors du chargement des exigences:", error);
       setSyncFailed(true);
+      setSyncAttempts(prev => prev + 1);
       toast({
         title: "Erreur de chargement",
         description: "Impossible de charger les exigences depuis le serveur",

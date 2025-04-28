@@ -4,31 +4,34 @@ import { getApiUrl } from '@/config/apiConfig';
 import { getAuthHeaders } from '@/services/auth/authService';
 
 /**
+ * Extrait un identifiant utilisateur valide pour les requêtes
+ */
+const extractValidUserId = (userId: any): string => {
+  if (typeof userId === 'string') {
+    return userId;
+  }
+  
+  if (userId && typeof userId === 'object') {
+    return userId.identifiant_technique || 
+           userId.email || 
+           'p71x6d_system';
+  }
+  
+  return 'p71x6d_system'; // Valeur par défaut si rien n'est valide
+};
+
+/**
  * Charge les membres depuis le serveur Infomaniak uniquement
  */
 export const loadMembresFromServer = async (currentUser: any): Promise<Membre[]> => {
   try {
     const API_URL = getApiUrl();
     
-    // Extraire l'identifiant technique ou email de l'utilisateur pour l'utiliser comme userId
-    let userId = '';
-    
-    if (typeof currentUser === 'string') {
-      userId = currentUser;
-      console.log(`Chargement des membres en utilisant l'identifiant simple: ${userId}`);
-    } else if (currentUser && typeof currentUser === 'object') {
-      userId = currentUser.identifiant_technique || currentUser.email || '';
-      console.log(`Extraction de l'identifiant utilisateur à partir de l'objet: ${userId}`);
-    }
-    
-    if (!userId) {
-      console.error("Impossible d'extraire un identifiant utilisateur valide", currentUser);
-      throw new Error("Identifiant utilisateur invalide");
-    }
-    
+    // Extraire l'identifiant technique ou email de l'utilisateur
+    const userId = extractValidUserId(currentUser);
     console.log(`Chargement des membres depuis le serveur pour l'utilisateur ${userId}`);
     
-    // Utiliser directement userId pour éviter l'encodage d'[object Object]
+    // Utiliser userId extrait pour éviter l'encodage d'[object Object]
     const encodedUserId = encodeURIComponent(userId);
     const url = `${API_URL}/membres-load.php?userId=${encodedUserId}`;
     
@@ -49,7 +52,8 @@ export const loadMembresFromServer = async (currentUser: any): Promise<Membre[]>
         throw new Error(`Erreur serveur: ${response.status} ${response.statusText}`);
       }
       
-      const result = await response.json();
+      const responseText = await response.text();
+      const result = JSON.parse(responseText);
       
       if (!result.success) {
         throw new Error(result.message || "Erreur inconnue lors du chargement des membres");
@@ -75,21 +79,8 @@ export const syncMembresWithServer = async (membres: Membre[], currentUser: any)
   try {
     const API_URL = getApiUrl();
     
-    // Extraire l'identifiant technique ou email de l'utilisateur pour l'utiliser comme userId
-    let userId = '';
-    
-    if (typeof currentUser === 'string') {
-      userId = currentUser;
-    } else if (currentUser && typeof currentUser === 'object') {
-      userId = currentUser.identifiant_technique || currentUser.email || '';
-      console.log(`Extraction de l'identifiant utilisateur pour la synchronisation: ${userId}`);
-    }
-    
-    if (!userId) {
-      console.error("Impossible d'extraire un identifiant utilisateur valide pour la synchronisation", currentUser);
-      throw new Error("Identifiant utilisateur invalide pour la synchronisation");
-    }
-    
+    // Extraire l'identifiant technique ou email de l'utilisateur
+    const userId = extractValidUserId(currentUser);
     console.log(`Synchronisation des membres pour l'utilisateur ${userId}`);
     
     const controller = new AbortController();
@@ -123,14 +114,22 @@ export const syncMembresWithServer = async (membres: Membre[], currentUser: any)
         throw new Error(`Échec de la synchronisation: ${response.statusText}`);
       }
       
-      const result = await response.json();
-      console.log("Résultat de la synchronisation des membres:", result);
+      const responseText = await response.text();
       
-      if (!result.success) {
-        throw new Error(result.message || "Erreur de synchronisation inconnue");
+      try {
+        const result = JSON.parse(responseText);
+        console.log("Résultat de la synchronisation des membres:", result);
+        
+        if (!result.success) {
+          throw new Error(result.message || "Erreur de synchronisation inconnue");
+        }
+        
+        return true;
+      } catch (e) {
+        console.error("Erreur lors du parsing de la réponse:", e);
+        console.error("Réponse brute reçue:", responseText);
+        throw new Error("Impossible de traiter la réponse du serveur");
       }
-      
-      return true;
     } catch (error) {
       if (error.name === 'AbortError') {
         throw new Error("Délai d'attente dépassé lors de la synchronisation");

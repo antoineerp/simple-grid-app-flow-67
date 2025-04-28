@@ -45,12 +45,6 @@ try {
     $userId = $_GET['userId'];
     error_log("Chargement des données pour l'utilisateur: {$userId}");
     
-    // Vérifier et corriger si userId est [object Object]
-    if ($userId === '[object Object]') {
-        error_log("Détection de [object Object] comme userId, utilisation de l'utilisateur par défaut");
-        $userId = "p71x6d_system"; // Valeur par défaut pour la compatibilité
-    }
-    
     // Connexion à la base de données
     try {
         $pdo = new PDO("mysql:host={$host};dbname={$dbname};charset=utf8mb4", $username, $password, [
@@ -75,9 +69,9 @@ try {
     error_log("Table à consulter: {$tableName}");
     
     // Vérifier si la table existe
-    $tableExistsQuery = "SHOW TABLES LIKE :tableName";
+    $tableExistsQuery = "SHOW TABLES LIKE ?";
     $stmt = $pdo->prepare($tableExistsQuery);
-    $stmt->execute(['tableName' => $tableName]);
+    $stmt->execute([$tableName]);
     $tableExists = $stmt->rowCount() > 0;
     
     if (!$tableExists) {
