@@ -22,7 +22,19 @@ error_log("API Request - Path: " . parse_url($_SERVER['REQUEST_URI'] ?? '', PHP_
 error_log("API Request - Query: " . parse_url($_SERVER['REQUEST_URI'] ?? '', PHP_URL_QUERY));
 
 // Charger l'utilitaire de gestion des erreurs HTTP
-require_once __DIR__ . '/utils/HttpErrorHandler.php';
+$httpErrorHandlerPath = __DIR__ . '/utils/HttpErrorHandler.php';
+if (file_exists($httpErrorHandlerPath)) {
+    require_once $httpErrorHandlerPath;
+} else {
+    // Fallback si le fichier de gestion d'erreurs n'est pas disponible
+    function handleSimpleError($code, $message) {
+        http_response_code($code);
+        echo json_encode(['status' => 'error', 'code' => $code, 'message' => $message]);
+        exit;
+    }
+    // Log important pour débogage
+    error_log("ERREUR CRITIQUE: Impossible de charger HttpErrorHandler.php - Le fichier n'existe pas à: " . $httpErrorHandlerPath);
+}
 
 // Si c'est une requête OPTIONS (preflight), nous la terminons ici
 if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
@@ -211,7 +223,11 @@ function routeApi() {
                 try {
                     require_once $direct_file_path;
                 } catch (Exception $e) {
-                    HttpErrorHandler::handleServerError("Erreur lors de l'exécution du fichier: {$path}", $e);
+                    if (class_exists('HttpErrorHandler')) {
+                        HttpErrorHandler::handleServerError("Erreur lors de l'exécution du fichier: {$path}", $e);
+                    } else {
+                        handleSimpleError(500, "Erreur lors de l'exécution du fichier: {$path}");
+                    }
                 }
                 exit;
             }
@@ -220,13 +236,21 @@ function routeApi() {
                 try {
                     require_once $direct_file_path_with_php;
                 } catch (Exception $e) {
-                    HttpErrorHandler::handleServerError("Erreur lors de l'exécution du fichier: {$path}.php", $e);
+                    if (class_exists('HttpErrorHandler')) {
+                        HttpErrorHandler::handleServerError("Erreur lors de l'exécution du fichier: {$path}.php", $e);
+                    } else {
+                        handleSimpleError(500, "Erreur lors de l'exécution du fichier: {$path}.php");
+                    }
                 }
                 exit;
             }
             
             // Si aucun contrôleur n'est trouvé, renvoyer une erreur 404
-            HttpErrorHandler::handleNotFound("Point de terminaison non trouvé", $path);
+            if (class_exists('HttpErrorHandler')) {
+                HttpErrorHandler::handleNotFound("Point de terminaison non trouvé", $path);
+            } else {
+                handleSimpleError(404, "Point de terminaison non trouvé: " . $path);
+            }
     }
 }
 
@@ -261,7 +285,7 @@ function diagnoseRequest() {
 
 try {
     // Assurer que nous n'avons pas de sortie avant les headers
-    ob_clean();
+    if (ob_get_level()) ob_clean();
 
     // Router la requête vers le bon contrôleur
     $response = routeApi();
@@ -272,7 +296,11 @@ try {
     }
 } catch (Exception $e) {
     error_log("Erreur API : " . $e->getMessage());
-    HttpErrorHandler::handleServerError("Erreur lors du traitement de la requête", $e);
+    if (class_exists('HttpErrorHandler')) {
+        HttpErrorHandler::handleServerError("Erreur lors du traitement de la requête", $e);
+    } else {
+        handleSimpleError(500, "Erreur lors du traitement de la requête: " . $e->getMessage());
+    }
 } finally {
     // S'assurer que tout output est envoyé
     if (ob_get_length()) ob_end_flush();

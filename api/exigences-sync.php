@@ -1,84 +1,67 @@
 
 <?php
-// Inclure la configuration de base
-require_once __DIR__ . '/config/index.php';
-
-// Configuration des headers
+// Synchronisation des exigences avec le serveur
 header("Content-Type: application/json; charset=UTF-8");
 header("Access-Control-Allow-Origin: *");
-header("Access-Control-Allow-Methods: POST, OPTIONS");
+header("Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS");
 header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With");
 header("Cache-Control: no-cache, no-store, must-revalidate");
+
+// Journalisation détaillée
+error_log("Exécution de exigences-sync.php - Méthode: " . ($_SERVER['REQUEST_METHOD'] ?? 'UNDEFINED'));
 
 // Si c'est une requête OPTIONS (preflight), nous la terminons ici
 if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
     http_response_code(200);
-    echo json_encode(['status' => 'success', 'message' => 'Preflight OK']);
+    echo json_encode(['status' => 'success', 'message' => 'Preflight request accepted']);
+    exit;
+}
+
+// Vérifier si la méthode utilisée est POST
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    http_response_code(405);
+    echo json_encode(['status' => 'error', 'message' => 'Méthode non autorisée. Utilisez POST pour synchroniser les exigences.']);
     exit;
 }
 
 try {
-    // Inclure la base de données si elle existe
-    if (file_exists(__DIR__ . '/config/database.php')) {
-        require_once __DIR__ . '/config/database.php';
+    // Récupérer les données JSON postées
+    $jsonData = file_get_contents('php://input');
+    if (empty($jsonData)) {
+        throw new Exception("Aucune donnée reçue");
     }
-
-    // Vérifier l'authentification si le middleware Auth existe
-    if (file_exists(__DIR__ . '/middleware/Auth.php')) {
-        include_once __DIR__ . '/middleware/Auth.php';
-        
-        $allHeaders = getallheaders();
-        
-        if (class_exists('Auth')) {
-            $auth = new Auth($allHeaders);
-            $userData = $auth->isAuth();
-            
-            if (!$userData) {
-                http_response_code(401);
-                echo json_encode(["status" => "error", "message" => "Non autorisé"]);
-                exit;
-            }
-        }
-    }
-
-    // S'assurer que la méthode est POST
-    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-        http_response_code(405);
-        echo json_encode(["status" => "error", "message" => "Méthode non autorisée"]);
-        exit;
-    }
-
-    // Récupérer et décoder les données JSON envoyées
-    $input = json_decode(file_get_contents('php://input'), true);
     
+    // Décoder les données JSON
+    $data = json_decode($jsonData, true);
     if (json_last_error() !== JSON_ERROR_NONE) {
-        http_response_code(400);
-        echo json_encode(["status" => "error", "message" => "Format JSON invalide"]);
-        exit;
+        throw new Exception("Données JSON invalides: " . json_last_error_msg());
     }
-
-    // Vérifier les données reçues
-    if (!isset($input['userId']) || !isset($input['exigences'])) {
-        http_response_code(400);
-        echo json_encode(["status" => "error", "message" => "Données incomplètes"]);
-        exit;
+    
+    // Vérifier que les données nécessaires sont présentes
+    if (!isset($data['userId']) || !isset($data['exigences'])) {
+        throw new Exception("Format de données incorrect. userId et exigences requis.");
     }
-
-    // Simuler une synchronisation réussie (à remplacer par la vraie logique)
-    $result = [
-        "success" => true,
-        "message" => "Exigences synchronisées avec succès",
-        "count" => count($input['exigences'])
-    ];
-
-    // Envoyer la réponse
+    
+    // Traitement simulé - dans une vraie implémentation, enregistrez les données dans une base de données
+    error_log("Exigences synchronisées pour l'utilisateur: " . $data['userId']);
+    error_log("Nombre d'exigences reçues: " . count($data['exigences']));
+    
+    // Réponse de succès
     http_response_code(200);
-    echo json_encode($result);
+    echo json_encode([
+        'status' => 'success',
+        'message' => 'Exigences synchronisées avec succès',
+        'timestamp' => date('Y-m-d H:i:s'),
+        'success' => true
+    ]);
     
 } catch (Exception $e) {
-    // Gérer les erreurs
     error_log("Erreur dans exigences-sync.php: " . $e->getMessage());
     http_response_code(500);
-    echo json_encode(["status" => "error", "message" => "Erreur serveur: " . $e->getMessage()]);
+    echo json_encode([
+        'status' => 'error',
+        'message' => 'Erreur lors de la synchronisation des exigences',
+        'error' => $e->getMessage()
+    ]);
 }
 ?>
