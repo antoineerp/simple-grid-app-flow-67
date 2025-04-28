@@ -7,22 +7,36 @@ import { getAuthHeaders } from '@/services/auth/authService';
  * Extrait un identifiant utilisateur valide pour les requêtes
  */
 const extractValidUserId = (userId: any): string => {
+  // Si l'entrée est undefined ou null
+  if (userId === undefined || userId === null) {
+    console.warn("userId invalide (null/undefined), utilisation de l'ID par défaut");
+    return 'p71x6d_system';
+  }
+  
+  // Si c'est déjà une chaîne, la retourner directement
   if (typeof userId === 'string') {
     return userId;
   }
   
-  if (userId && typeof userId === 'object') {
-    // Extraire un identifiant valide de l'objet
-    const id = userId.identifiant_technique || 
-           userId.email || 
-           userId.id ||
-           'p71x6d_system';
-           
-    console.log(`Extraction d'ID utilisateur depuis un objet: ${id}`);
-    return id;
+  // Si c'est un objet, essayer d'extraire un identifiant
+  if (typeof userId === 'object') {
+    // Propriétés potentielles pour extraire un ID
+    const idProperties = ['identifiant_technique', 'email', 'id'];
+    
+    for (const prop of idProperties) {
+      if (userId[prop] && typeof userId[prop] === 'string') {
+        console.log(`ID utilisateur extrait de l'objet: ${prop}=${userId[prop]}`);
+        return userId[prop];
+      }
+    }
+    
+    // Si nous n'avons pas trouvé d'identifiant valide dans l'objet
+    console.warn(`Impossible d'extraire un ID valide depuis l'objet:`, userId);
   }
   
-  return 'p71x6d_system'; // Valeur par défaut si rien n'est valide
+  // Valeur par défaut si aucun identifiant valide n'a été trouvé
+  console.warn(`Utilisation de l'ID par défaut pour le type: ${typeof userId}`);
+  return 'p71x6d_system';
 };
 
 /**
@@ -35,6 +49,11 @@ export const loadExigencesFromServer = async (userId: any): Promise<{exigences: 
     // Extraire un identifiant utilisateur valide
     const validUserId = extractValidUserId(userId);
     console.log(`Chargement des exigences pour l'utilisateur ${validUserId} depuis le serveur: ${API_URL}`);
+    
+    // Vérifier que l'ID est bien une chaîne et non un objet
+    if (typeof validUserId !== 'string') {
+      throw new Error(`ID utilisateur invalide: ${typeof validUserId}`);
+    }
     
     const encodedUserId = encodeURIComponent(validUserId);
     const url = `${API_URL}/exigences-load.php?userId=${encodedUserId}`;

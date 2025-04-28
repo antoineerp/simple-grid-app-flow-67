@@ -5,25 +5,49 @@ import { useExigenceSync } from './useExigenceSync';
 import { useExigenceMutations } from './useExigenceMutations';
 import { useExigenceGroups } from './useExigenceGroups';
 import { getCurrentUser } from '@/services/auth/authService';
+import { useToast } from '@/hooks/use-toast';
 
 export const useExigences = () => {
+  const { toast } = useToast();
+  
   // Extraire un identifiant utilisateur valide
   const extractValidUserId = (user: any): string => {
+    if (!user) {
+      console.warn("Aucun utilisateur fourni, utilisation de l'ID système");
+      return 'p71x6d_system';
+    }
+    
+    // Si c'est déjà une chaîne, la retourner directement
     if (typeof user === 'string') {
       return user;
     }
     
-    if (user && typeof user === 'object') {
-      return user.identifiant_technique || 
-             user.email ||
-             user.id || 
-             'p71x6d_system';
+    // Si c'est un objet, extraire un identifiant
+    if (typeof user === 'object') {
+      // Vérifier si l'objet n'est pas null
+      if (user === null) {
+        console.warn("Objet utilisateur null, utilisation de l'ID système");
+        return 'p71x6d_system';
+      }
+      
+      // Identifiants potentiels par ordre de priorité
+      const possibleIds = ['identifiant_technique', 'email', 'id'];
+      
+      for (const idField of possibleIds) {
+        if (user[idField] && typeof user[idField] === 'string') {
+          console.log(`ID utilisateur extrait: ${idField} = ${user[idField]}`);
+          return user[idField];
+        }
+      }
+      
+      console.warn("Aucun identifiant valide trouvé dans l'objet utilisateur:", user);
     }
     
+    console.warn("Type d'utilisateur non pris en charge, utilisation de l'ID système");
     return 'p71x6d_system';
   };
 
-  // Extraire un identifiant string valide au lieu de l'objet complet
+  // Récupérer l'utilisateur et extraire un ID valide
   const user = getCurrentUser();
   const currentUser = extractValidUserId(user);
   console.log("ID utilisateur extrait pour les exigences:", currentUser);
@@ -59,6 +83,10 @@ export const useExigences = () => {
       
       try {
         console.log(`Chargement des exigences pour l'utilisateur ${currentUser}`);
+        if (typeof currentUser !== 'string') {
+          throw new Error(`ID utilisateur invalide: ${typeof currentUser}`);
+        }
+        
         const serverData = await loadFromServer(currentUser);
         if (serverData) {
           console.log(`Données chargées: exigences=${serverData.exigences?.length || 0}, groupes=${serverData.groups?.length || 0}`);
@@ -71,6 +99,15 @@ export const useExigences = () => {
         console.error("Erreur lors du chargement des exigences:", error);
         setLoadError(error instanceof Error ? error.message : "Erreur de chargement");
         setLoadAttempts(prev => prev + 1);
+        
+        toast({
+          title: "Erreur de chargement",
+          description: error instanceof Error ? 
+            `${error.message}. Vérifiez la console pour plus de détails.` : 
+            "Une erreur s'est produite lors du chargement des exigences",
+          variant: "destructive"
+        });
+        
         // Initialiser avec des tableaux vides pour éviter les erreurs
         setExigences([]);
         setGroups([]);
@@ -80,7 +117,7 @@ export const useExigences = () => {
     if (currentUser) {
       loadExigences();
     }
-  }, [currentUser, loadFromServer]);
+  }, [currentUser, loadFromServer, loadAttempts, toast]);
 
   // Stats calculation
   useEffect(() => {
@@ -138,10 +175,21 @@ export const useExigences = () => {
         if (serverData) {
           setExigences(serverData.exigences || []);
           setGroups(serverData.groups || []);
+          
+          toast({
+            title: "Chargement réussi",
+            description: `${serverData.exigences?.length || 0} exigences chargées`,
+          });
         }
       }).catch(err => {
         console.error("Nouvelle tentative échouée:", err);
         setLoadError(err instanceof Error ? err.message : "Erreur de chargement");
+        
+        toast({
+          title: "Erreur de chargement",
+          description: err instanceof Error ? err.message : "Une erreur s'est produite",
+          variant: "destructive"
+        });
       });
     }
   };

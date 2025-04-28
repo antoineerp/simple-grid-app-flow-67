@@ -57,14 +57,30 @@ const ExigencesContent = () => {
   };
 
   const handleSyncWithServer = () => {
+    toast({
+      title: "Synchronisation en cours",
+      description: "Veuillez patienter pendant la synchronisation...",
+    });
+    
     syncWithServer().then(success => {
-      if (!success) {
+      if (success) {
+        toast({
+          title: "Synchronisation réussie",
+          description: "Vos exigences ont été synchronisées avec le serveur",
+        });
+      } else {
         toast({
           title: "Synchronisation échouée",
           description: "Essayez de réinitialiser et réessayer.",
           variant: "destructive"
         });
       }
+    }).catch(error => {
+      toast({
+        title: "Erreur de synchronisation",
+        description: error instanceof Error ? error.message : "Une erreur s'est produite",
+        variant: "destructive"
+      });
     });
   };
 
