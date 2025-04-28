@@ -45,17 +45,18 @@ const GestionDocumentaireContent = () => {
   const currentUser = localStorage.getItem('currentUser') || 'default';
   const [syncFailed, setSyncFailed] = React.useState(false);
 
-  // Sauvegarder automatiquement les modifications
+  // Automatiquement synchroniser avec le serveur lors des modifications importantes
   useEffect(() => {
     if (documents.length > 0) {
-      saveDocumentsToStorage(documents, currentUser);
+      // Lancer une synchronisation immédiate lorsque les documents changent
+      handleSync();
     }
-  }, [documents, currentUser]);
+  }, [documents]);
 
   const handleSync = async () => {
     try {
-      await syncWithServer();
-      setSyncFailed(false);
+      const success = await syncWithServer(documents, currentUser);
+      setSyncFailed(!success);
     } catch (error) {
       console.error("Sync failed:", error);
       setSyncFailed(true);
@@ -71,7 +72,7 @@ const GestionDocumentaireContent = () => {
   };
 
   const handleResetSync = () => {
-    handleSync(); // This fixed the missing arguments error
+    handleSync(); 
   };
 
   return (
