@@ -84,7 +84,7 @@ export const useUserForm = ({ onClose, onSuccess, onUserConnect }: UseUserFormPr
       
       toast({
         title: "Utilisateur créé",
-        description: "L'utilisateur a été créé avec succès. La page va se recharger.",
+        description: "L'utilisateur a été créé avec succès.",
       });
       
       if (connectAfterCreate && result.identifiant_technique) {
@@ -116,12 +116,6 @@ export const useUserForm = ({ onClose, onSuccess, onUserConnect }: UseUserFormPr
       if (onSuccess) {
         onSuccess();
       }
-      
-      // Force un reload de la page après un court délai
-      console.log("Redirection vers la page d'administration dans 2 secondes");
-      setTimeout(() => {
-        window.location.href = "/administration";
-      }, 2000);
       
       onClose();
     } catch (error) {

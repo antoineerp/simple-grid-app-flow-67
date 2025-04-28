@@ -32,7 +32,7 @@ export const createUser = async (userData: CreateUserData) => {
   try {
     // Préparation de la requête
     const apiUrl = getApiUrl();
-    const url = `${apiUrl}/utilisateurs`;
+    const url = `${apiUrl}/users`;
     
     console.log(`Envoi de la requête à ${url}`);
     const headers = getAuthHeaders();
@@ -72,8 +72,8 @@ export const createUser = async (userData: CreateUserData) => {
       if (response.ok || response.status === 201) {
         // Si la réponse est vide mais le statut est OK, considérer comme un succès
         
-        // Forcer un rechargement complet de la page après un court délai
-        console.log("Rechargement de la page prévu dans 2 secondes");
+        // Force un rechargement complet après création
+        console.log("Rechargement forcé dans 2 secondes pour refléter la création de l'utilisateur");
         setTimeout(() => {
           window.location.reload();
         }, 2000);
@@ -93,16 +93,16 @@ export const createUser = async (userData: CreateUserData) => {
     try {
       const responseData = JSON.parse(responseText);
       
-      // Force un rechargement complet de la page après un court délai
-      console.log("Rechargement de la page prévu dans 2 secondes");
-      setTimeout(() => {
-        window.location.reload();
-      }, 2000);
-      
       // Gestion des erreurs HTTP
       if (!response.ok) {
         throw new Error(responseData.message || `Erreur ${response.status}: ${response.statusText}`);
       }
+      
+      // Force un rechargement de l'application après création
+      console.log("Rechargement forcé dans 2 secondes pour refléter la création de l'utilisateur");
+      setTimeout(() => {
+        window.location.reload();
+      }, 2000);
       
       // Succès avec réponse JSON
       return {
@@ -120,8 +120,8 @@ export const createUser = async (userData: CreateUserData) => {
       
       // Si la réponse semble être un succès malgré le format incorrect
       if (response.ok || response.status === 201) {
-        // Force un rechargement de la page après un court délai
-        console.log("Rechargement de la page prévu dans 2 secondes");
+        // Force un rechargement de l'application après création
+        console.log("Rechargement forcé dans 2 secondes pour refléter la création de l'utilisateur");
         setTimeout(() => {
           window.location.reload();
         }, 2000);
@@ -140,10 +140,18 @@ export const createUser = async (userData: CreateUserData) => {
     
     // Essayer de créer l'utilisateur via le endpoint de diagnostic en cas d'échec
     try {
+      console.log("Tentative de création via le endpoint de diagnostic...");
       const diagnosticResult = await createUserViaDiagnostic({
         ...userData,
         identifiant_technique: identifiantTechnique
       });
+      
+      // Force un rechargement de la page après un court délai
+      console.log("Rechargement forcé dans 2 secondes suite à la création via diagnostic");
+      setTimeout(() => {
+        window.location.reload();
+      }, 2000);
+      
       return diagnosticResult;
     } catch (fallbackError) {
       console.error("Échec de la création via le endpoint de diagnostic:", fallbackError);
@@ -170,19 +178,26 @@ const createUserViaDiagnostic = async (userData: any) => {
   });
   
   if (!response.ok) {
+    const errorText = await response.text();
+    console.error("Erreur de réponse du diagnostic:", errorText);
     throw new Error(`Erreur HTTP: ${response.status}`);
   }
   
-  const result = await response.json();
-  
-  // Force un rechargement de la page après un court délai
-  setTimeout(() => {
-    window.location.reload();
-  }, 2000);
-  
-  return {
-    ...result,
-    success: true,
-    identifiant_technique: userData.identifiant_technique
-  };
+  try {
+    const result = await response.json();
+    return {
+      ...result,
+      success: true,
+      identifiant_technique: userData.identifiant_technique
+    };
+  } catch (e) {
+    const responseText = await response.text();
+    console.log("Réponse non-JSON du diagnostic:", responseText);
+    
+    return {
+      success: response.ok,
+      message: "Opération terminée (réponse non-JSON)",
+      identifiant_technique: userData.identifiant_technique
+    };
+  }
 };

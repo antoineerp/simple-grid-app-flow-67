@@ -1,4 +1,3 @@
-
 <?php
 // Forcer l'output buffering pour éviter tout output avant les headers
 ob_start();
@@ -20,7 +19,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
 // Journaliser l'appel
 error_log("API users.php - Méthode: " . $_SERVER['REQUEST_METHOD'] . " - Requête: " . $_SERVER['REQUEST_URI']);
 
-// Configuration de la base de données (reprise depuis check-users.php)
+// Configuration de la base de données
 $host = "p71x6d.myd.infomaniak.com";
 $dbname = "p71x6d_system";
 $username = "p71x6d_system";
@@ -68,7 +67,7 @@ try {
                 exit;
             } else {
                 // Récupérer tous les utilisateurs
-                $query = "SELECT id, nom, prenom, email, identifiant_technique, role, date_creation, mot_de_passe FROM utilisateurs";
+                $query = "SELECT id, nom, prenom, email, identifiant_technique, role, date_creation FROM utilisateurs";
                 $stmt = $pdo->prepare($query);
                 $stmt->execute();
                 $users = $stmt->fetchAll();
@@ -152,29 +151,58 @@ try {
                 $password = password_hash($password, PASSWORD_BCRYPT);
             }
             
-            // Insérer l'utilisateur
-            $query = "INSERT INTO utilisateurs (nom, prenom, email, mot_de_passe, identifiant_technique, role, date_creation) 
-                      VALUES (:nom, :prenom, :email, :mot_de_passe, :identifiant_technique, :role, NOW())";
-            $stmt = $pdo->prepare($query);
-            $stmt->bindParam(":nom", $data['nom']);
-            $stmt->bindParam(":prenom", $data['prenom']);
-            $stmt->bindParam(":email", $data['email']);
-            $stmt->bindParam(":mot_de_passe", $password);
-            $stmt->bindParam(":identifiant_technique", $data['identifiant_technique']);
-            $stmt->bindParam(":role", $data['role']);
-            $stmt->execute();
-            
-            $id = $pdo->lastInsertId();
-            
-            // Récupérer l'utilisateur créé
-            $query = "SELECT id, nom, prenom, email, identifiant_technique, role, date_creation FROM utilisateurs WHERE id = :id";
-            $stmt = $pdo->prepare($query);
-            $stmt->bindParam(":id", $id);
-            $stmt->execute();
-            $user = $stmt->fetch();
-            
-            echo json_encode(['status' => 'success', 'message' => 'Utilisateur créé avec succès', 'data' => $user]);
-            exit;
+            try {
+                // Insérer l'utilisateur
+                $query = "INSERT INTO utilisateurs (nom, prenom, email, mot_de_passe, identifiant_technique, role) 
+                         VALUES (:nom, :prenom, :email, :mot_de_passe, :identifiant_technique, :role)";
+                $stmt = $pdo->prepare($query);
+                $stmt->bindParam(":nom", $data['nom']);
+                $stmt->bindParam(":prenom", $data['prenom']);
+                $stmt->bindParam(":email", $data['email']);
+                $stmt->bindParam(":mot_de_passe", $password);
+                $stmt->bindParam(":identifiant_technique", $data['identifiant_technique']);
+                $stmt->bindParam(":role", $data['role']);
+                
+                // Exécuter la requête et vérifier le résultat
+                $result = $stmt->execute();
+                
+                if (!$result) {
+                    error_log("Erreur lors de l'exécution de la requête INSERT: " . json_encode($stmt->errorInfo()));
+                    throw new Exception("Échec de l'insertion en base de données");
+                }
+                
+                $id = $pdo->lastInsertId();
+                error_log("Utilisateur créé avec succès. ID: " . $id);
+                
+                if (!$id || $id === "0") {
+                    error_log("Problème avec lastInsertId() - Aucun ID n'a été retourné");
+                    throw new Exception("Erreur lors de la création de l'utilisateur: aucun ID généré");
+                }
+                
+                // Récupérer l'utilisateur créé
+                $query = "SELECT id, nom, prenom, email, identifiant_technique, role, date_creation FROM utilisateurs WHERE id = :id";
+                $stmt = $pdo->prepare($query);
+                $stmt->bindParam(":id", $id);
+                $stmt->execute();
+                $user = $stmt->fetch();
+                
+                if (!$user) {
+                    error_log("Utilisateur non trouvé après création. ID recherché: " . $id);
+                    throw new Exception("Utilisateur créé mais impossible de le récupérer");
+                }
+                
+                http_response_code(201); // Created
+                echo json_encode(['status' => 'success', 'message' => 'Utilisateur créé avec succès', 'data' => $user]);
+                exit;
+            } catch (PDOException $e) {
+                error_log("PDOException lors de l'insertion: " . $e->getMessage());
+                error_log("SQL state: " . $e->getCode());
+                error_log("Error info: " . json_encode($stmt->errorInfo()));
+                
+                http_response_code(500);
+                echo json_encode(['status' => 'error', 'message' => 'Erreur lors de la création de l\'utilisateur: ' . $e->getMessage()]);
+                exit;
+            }
             break;
             
         case 'PUT':
