@@ -80,7 +80,14 @@ const Bibliotheque = () => {
 
   // Create a handler for adding documents that takes no arguments
   const handleAddDocumentClick = () => {
-    handleAddDocument();
+    // Create a default empty document to pass to handleAddDocument
+    const emptyDocument: Document = {
+      id: '',
+      name: '',
+      link: null
+    };
+    
+    handleAddDocument(emptyDocument);
   };
 
   return (

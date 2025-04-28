@@ -1,4 +1,3 @@
-
 import { useCallback } from 'react';
 import { Document } from '@/types/bibliotheque';
 import { useToast } from '@/hooks/use-toast';
