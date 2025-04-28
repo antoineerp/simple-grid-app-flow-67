@@ -1,6 +1,6 @@
 
 import React, { useEffect } from 'react';
-import { FileText, UserPlus, CloudSun } from 'lucide-react';
+import { FileText, UserPlus, CloudSun, AlertTriangle } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import {
   Dialog,
@@ -10,6 +10,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { useMembres } from '@/contexts/MembresContext';
 import MemberList from '@/components/ressources-humaines/MemberList';
 import MemberForm from '@/components/ressources-humaines/MemberForm';
@@ -19,7 +20,18 @@ import SyncStatusIndicator from '@/components/common/SyncStatusIndicator';
 
 const RessourcesHumaines = () => {
   const { toast } = useToast();
-  const { membres, setMembres, isSyncing, isOnline, lastSynced, syncWithServer, isLoading } = useMembres();
+  const { 
+    membres, 
+    setMembres, 
+    isSyncing, 
+    isOnline, 
+    lastSynced, 
+    syncWithServer, 
+    isLoading, 
+    error,
+    syncFailed,
+    resetSyncFailed
+  } = useMembres();
   
   const [isDialogOpen, setIsDialogOpen] = React.useState(false);
   const [currentMembre, setCurrentMembre] = React.useState<Membre>({
@@ -35,7 +47,7 @@ const RessourcesHumaines = () => {
 
   // Synchronisation au chargement de la page si connecté et en ligne
   useEffect(() => {
-    if (isOnline && !isSyncing && !isLoading) {
+    if (isOnline && !isSyncing && !isLoading && !syncFailed) {
       console.log("Synchronisation automatique au chargement de la page");
       syncWithServer().catch(console.error);
     }
@@ -60,7 +72,7 @@ const RessourcesHumaines = () => {
     });
     
     // Synchroniser après la suppression si en ligne
-    if (isOnline) {
+    if (isOnline && !syncFailed) {
       syncWithServer().catch(console.error);
     }
   };
@@ -138,7 +150,7 @@ const RessourcesHumaines = () => {
     setIsDialogOpen(false);
     
     // Synchroniser après l'ajout/modification si en ligne
-    if (isOnline) {
+    if (isOnline && !syncFailed) {
       syncWithServer().catch(console.error);
     }
   };
@@ -161,6 +173,15 @@ const RessourcesHumaines = () => {
     }
   };
 
+  // Handler pour réinitialiser le statut de synchronisation
+  const handleResetSync = () => {
+    resetSyncFailed();
+    toast({
+      title: "Synchronisation",
+      description: "État de synchronisation réinitialisé. Vous pouvez réessayer.",
+    });
+  };
+
   return (
     <div className="p-8">
       <div className="flex items-center justify-between mb-2">
@@ -172,9 +193,9 @@ const RessourcesHumaines = () => {
             onClick={() => syncWithServer()}
             className="text-blue-600 p-2 rounded-md hover:bg-blue-50 transition-colors flex items-center"
             title="Synchroniser avec le serveur"
-            disabled={isSyncing || !isOnline}
+            disabled={isSyncing || !isOnline || syncFailed}
           >
-            <CloudSun className={`h-6 w-6 stroke-[1.5] ${isSyncing ? 'animate-spin' : ''}`} />
+            <CloudSun className={`h-6 w-6 stroke-[1.5] ${isSyncing ? 'animate-spin' : ''} ${syncFailed ? 'text-gray-400' : ''}`} />
           </button>
           <button 
             onClick={handleExportAllToPdf}
@@ -191,8 +212,28 @@ const RessourcesHumaines = () => {
           isSyncing={isSyncing}
           isOnline={isOnline}
           lastSynced={lastSynced}
+          syncFailed={syncFailed}
         />
       </div>
+
+      {/* Afficher une alerte en cas d'échec de synchronisation */}
+      {syncFailed && (
+        <Alert variant="destructive" className="mb-6">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertTitle>Erreur de synchronisation</AlertTitle>
+          <AlertDescription>
+            {error || "La synchronisation avec le serveur a échoué."}
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="ml-2 mt-2"
+              onClick={handleResetSync}
+            >
+              Réinitialiser
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
 
       {isLoading ? (
         <div className="bg-white rounded-md shadow p-8 text-center">

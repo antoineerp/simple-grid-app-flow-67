@@ -32,23 +32,36 @@ export const loadMembresFromServer = async (currentUser: any): Promise<Membre[]>
     const encodedUserId = encodeURIComponent(userId);
     const url = `${API_URL}/membres-load.php?userId=${encodedUserId}`;
     
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: getAuthHeaders(),
-      cache: 'no-store'
-    });
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 secondes de timeout
     
-    if (!response.ok) {
-      throw new Error(`Erreur serveur: ${response.status} ${response.statusText}`);
+    try {
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: getAuthHeaders(),
+        cache: 'no-store',
+        signal: controller.signal
+      });
+      
+      clearTimeout(timeoutId);
+      
+      if (!response.ok) {
+        throw new Error(`Erreur serveur: ${response.status} ${response.statusText}`);
+      }
+      
+      const result = await response.json();
+      
+      if (!result.success) {
+        throw new Error(result.message || "Erreur inconnue lors du chargement des membres");
+      }
+      
+      return result.membres || [];
+    } catch (error) {
+      if (error.name === 'AbortError') {
+        throw new Error("Délai d'attente dépassé lors du chargement des membres");
+      }
+      throw error;
     }
-    
-    const result = await response.json();
-    
-    if (!result.success) {
-      throw new Error(result.message || "Erreur inconnue lors du chargement des membres");
-    }
-    
-    return result.membres || [];
   } catch (error) {
     console.error('Erreur lors du chargement des membres depuis le serveur:', error);
     throw error;
@@ -79,38 +92,51 @@ export const syncMembresWithServer = async (membres: Membre[], currentUser: any)
     
     console.log(`Synchronisation des membres pour l'utilisateur ${userId}`);
     
-    const response = await fetch(`${API_URL}/membres-sync.php`, {
-      method: 'POST',
-      headers: {
-        ...getAuthHeaders(),
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ userId: userId, membres })
-    });
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 20000); // 20 secondes de timeout
     
-    if (!response.ok) {
-      console.error(`Erreur lors de la synchronisation des membres: ${response.status}`);
+    try {
+      const response = await fetch(`${API_URL}/membres-sync.php`, {
+        method: 'POST',
+        headers: {
+          ...getAuthHeaders(),
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ userId: userId, membres }),
+        signal: controller.signal
+      });
       
-      // Essayer de récupérer les détails de l'erreur
-      const errorText = await response.text();
-      console.error("Détails de l'erreur:", errorText);
+      clearTimeout(timeoutId);
       
-      if (errorText.trim().startsWith('{')) {
-        const errorJson = JSON.parse(errorText);
-        throw new Error(errorJson.message || `Échec de la synchronisation: ${response.statusText}`);
+      if (!response.ok) {
+        console.error(`Erreur lors de la synchronisation des membres: ${response.status}`);
+        
+        // Essayer de récupérer les détails de l'erreur
+        const errorText = await response.text();
+        console.error("Détails de l'erreur:", errorText);
+        
+        if (errorText.trim().startsWith('{')) {
+          const errorJson = JSON.parse(errorText);
+          throw new Error(errorJson.message || `Échec de la synchronisation: ${response.statusText}`);
+        }
+        
+        throw new Error(`Échec de la synchronisation: ${response.statusText}`);
       }
       
-      throw new Error(`Échec de la synchronisation: ${response.statusText}`);
+      const result = await response.json();
+      console.log("Résultat de la synchronisation des membres:", result);
+      
+      if (!result.success) {
+        throw new Error(result.message || "Erreur de synchronisation inconnue");
+      }
+      
+      return true;
+    } catch (error) {
+      if (error.name === 'AbortError') {
+        throw new Error("Délai d'attente dépassé lors de la synchronisation");
+      }
+      throw error;
     }
-    
-    const result = await response.json();
-    console.log("Résultat de la synchronisation des membres:", result);
-    
-    if (!result.success) {
-      throw new Error(result.message || "Erreur de synchronisation inconnue");
-    }
-    
-    return true;
   } catch (error) {
     console.error('Erreur de synchronisation des membres:', error);
     throw error;

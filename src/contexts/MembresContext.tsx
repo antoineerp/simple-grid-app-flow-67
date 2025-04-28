@@ -15,6 +15,8 @@ interface MembresContextType {
   lastSynced: Date | null;
   syncWithServer: () => Promise<boolean>;
   isOnline: boolean;
+  syncFailed: boolean;
+  resetSyncFailed: () => void;
 }
 
 const MembresContext = createContext<MembresContextType | undefined>(undefined);
@@ -25,8 +27,16 @@ export const MembresProvider: React.FC<{ children: ReactNode }> = ({ children })
   const [isSyncing, setIsSyncing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [lastSynced, setLastSynced] = useState<Date | null>(null);
+  const [syncFailed, setSyncFailed] = useState(false);
+  const [syncAttempts, setSyncAttempts] = useState(0);
   const { toast } = useToast();
   const { isOnline } = useNetworkStatus();
+  
+  // Fonction pour réinitialiser l'état d'échec de synchronisation
+  const resetSyncFailed = () => {
+    setSyncFailed(false);
+    setSyncAttempts(0);
+  };
   
   // Fonction pour synchroniser les données avec le serveur
   const syncWithServer = async (): Promise<boolean> => {
@@ -51,6 +61,16 @@ export const MembresProvider: React.FC<{ children: ReactNode }> = ({ children })
       return false;
     }
     
+    // Si on a déjà eu trop d'échecs consécutifs, bloquer la synchronisation
+    if (syncFailed && syncAttempts >= 3) {
+      toast({
+        title: "Synchronisation bloquée",
+        description: "La synchronisation a échoué plusieurs fois. Veuillez essayer plus tard ou contacter le support.",
+        variant: "destructive",
+      });
+      return false;
+    }
+    
     try {
       setIsSyncing(true);
       setError(null);
@@ -66,6 +86,8 @@ export const MembresProvider: React.FC<{ children: ReactNode }> = ({ children })
       
       if (success) {
         setLastSynced(new Date());
+        setSyncFailed(false);
+        setSyncAttempts(0);
         toast({
           title: "Synchronisation réussie",
           description: "Les données ont été synchronisées avec le serveur",
@@ -77,6 +99,8 @@ export const MembresProvider: React.FC<{ children: ReactNode }> = ({ children })
         
         return true;
       } else {
+        setSyncFailed(true);
+        setSyncAttempts(prev => prev + 1);
         setError("Échec de la synchronisation");
         toast({
           title: "Échec de synchronisation",
@@ -88,6 +112,8 @@ export const MembresProvider: React.FC<{ children: ReactNode }> = ({ children })
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "Erreur inconnue";
       setError(errorMessage);
+      setSyncFailed(true);
+      setSyncAttempts(prev => prev + 1);
       toast({
         title: "Erreur de synchronisation",
         description: errorMessage,
@@ -134,6 +160,8 @@ export const MembresProvider: React.FC<{ children: ReactNode }> = ({ children })
             setError(err instanceof Error ? err.message : "Erreur inconnue");
             // Si erreur, initialiser avec un tableau vide
             setMembres([]);
+            setSyncFailed(true);
+            setSyncAttempts(prev => prev + 1);
           } finally {
             setIsSyncing(false);
           }
@@ -160,12 +188,13 @@ export const MembresProvider: React.FC<{ children: ReactNode }> = ({ children })
     loadMembres();
     
     // Configurer une synchronisation automatique toutes les 5 minutes si en ligne
+    // et seulement si la synchronisation précédente n'a pas échoué
     const autoSyncInterval = setInterval(() => {
-      if (isOnline && !isSyncing && getCurrentUser()) {
+      if (isOnline && !isSyncing && getCurrentUser() && !syncFailed) {
         console.log("Tentative de synchronisation automatique");
         syncWithServer().catch(console.error);
       }
-    }, 5 * 60 * 1000);
+    }, 5 * 60 * 1000); // 5 minutes
     
     return () => clearInterval(autoSyncInterval);
   }, [isOnline]);
@@ -179,7 +208,9 @@ export const MembresProvider: React.FC<{ children: ReactNode }> = ({ children })
       error,
       lastSynced,
       syncWithServer,
-      isOnline
+      isOnline,
+      syncFailed,
+      resetSyncFailed
     }}>
       {children}
     </MembresContext.Provider>
