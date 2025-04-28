@@ -61,8 +61,9 @@ try {
     ]);
     
     // Nom des tables spécifiques à l'utilisateur
-    $exigencesTableName = "exigences_" . preg_replace('/[^a-zA-Z0-9_]/', '_', $userId);
-    $groupsTableName = "exigence_groups_" . preg_replace('/[^a-zA-Z0-9_]/', '_', $userId);
+    $safeUserId = preg_replace('/[^a-zA-Z0-9_]/', '_', $userId);
+    $exigencesTableName = "exigences_" . $safeUserId;
+    $groupsTableName = "exigence_groups_" . $safeUserId;
     error_log("Tables à utiliser: {$exigencesTableName}, {$groupsTableName}");
     
     // Créer les tables si elles n'existent pas
@@ -97,6 +98,7 @@ try {
     // Démarrer une transaction
     error_log("Début de la transaction");
     $pdo->beginTransaction();
+    $transaction_active = true;
     
     try {
         // Vider les tables avant d'insérer les nouvelles données
@@ -155,8 +157,11 @@ try {
         }
         
         // Valider la transaction
-        $pdo->commit();
-        error_log("Transaction validée");
+        if ($transaction_active && $pdo->inTransaction()) {
+            $pdo->commit();
+            $transaction_active = false;
+            error_log("Transaction validée");
+        }
         
         echo json_encode([
             'success' => true,
@@ -169,7 +174,11 @@ try {
         
     } catch (Exception $e) {
         // Annuler la transaction en cas d'erreur
-        $pdo->rollBack();
+        if ($transaction_active && $pdo->inTransaction()) {
+            $pdo->rollBack();
+            $transaction_active = false;
+            error_log("Transaction annulée suite à une erreur");
+        }
         throw $e;
     }
     
@@ -188,6 +197,16 @@ try {
         'message' => $e->getMessage()
     ]);
 } finally {
+    // S'assurer que la transaction est terminée si elle est encore active
+    if (isset($pdo) && isset($transaction_active) && $transaction_active && $pdo->inTransaction()) {
+        try {
+            error_log("Annulation de la transaction qui était encore active dans le bloc finally");
+            $pdo->rollBack();
+        } catch (Exception $e) {
+            error_log("Erreur lors du rollback final: " . $e->getMessage());
+        }
+    }
+    
     error_log("=== FIN DE L'EXÉCUTION DE exigences-sync.php ===");
     if (ob_get_level()) ob_end_flush();
 }
