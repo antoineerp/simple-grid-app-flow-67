@@ -7,16 +7,30 @@ import { syncDocumentsWithServer, loadDocumentsFromServer } from '@/services/doc
 
 export const useDocumentSync = () => {
   const [isSyncing, setIsSyncing] = useState(false);
-  const [lastSynced, setLastSynced] = useState<Date>();
+  const [lastSynced, setLastSynced] = useState<Date | undefined>(undefined);
   const { isOnline } = useNetworkStatus();
   const { toast } = useToast();
   
-  const syncWithServer = async (documents: Document[], userId: string) => {
-    if (!isOnline || isSyncing) return false;
+  const syncWithServer = async (documents: Document[], userId: string): Promise<boolean> => {
+    if (!isOnline) {
+      toast({
+        title: "Connexion hors ligne",
+        description: "Impossible de synchroniser les documents. Veuillez vérifier votre connexion.",
+        variant: "destructive"
+      });
+      return false;
+    }
+    
+    if (isSyncing) {
+      console.log("Synchronisation déjà en cours, ignorée");
+      return false;
+    }
     
     setIsSyncing(true);
     try {
+      console.log(`Synchronisation de ${documents.length} documents pour l'utilisateur ${userId}`);
       const success = await syncDocumentsWithServer(documents, userId);
+      
       if (success) {
         setLastSynced(new Date());
         toast({
@@ -25,8 +39,10 @@ export const useDocumentSync = () => {
         });
         return true;
       }
-      throw new Error("Échec de la synchronisation");
+      
+      throw new Error("Le serveur a signalé un échec de synchronisation");
     } catch (error) {
+      console.error("Erreur pendant la synchronisation:", error);
       toast({
         title: "Erreur de synchronisation",
         description: error instanceof Error ? error.message : "Impossible de synchroniser vos documents",
@@ -38,16 +54,25 @@ export const useDocumentSync = () => {
     }
   };
 
-  const loadFromServer = async (userId: string) => {
+  const loadFromServer = async (userId: string): Promise<Document[] | null> => {
+    setIsSyncing(true);
     try {
-      return await loadDocumentsFromServer(userId);
+      console.log(`Chargement des documents pour l'utilisateur ${userId}`);
+      const docs = await loadDocumentsFromServer(userId);
+      if (docs) {
+        setLastSynced(new Date());
+      }
+      return docs;
     } catch (error) {
+      console.error("Erreur lors du chargement:", error);
       toast({
         title: "Erreur de chargement",
-        description: "Impossible de charger les documents depuis le serveur",
+        description: error instanceof Error ? error.message : "Impossible de charger les documents du serveur",
         variant: "destructive"
       });
       return null;
+    } finally {
+      setIsSyncing(false);
     }
   };
 

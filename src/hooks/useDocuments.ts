@@ -19,64 +19,63 @@ export const useDocuments = () => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [groupDialogOpen, setGroupDialogOpen] = useState(false);
   const [stats, setStats] = useState<DocumentStats>(() => calculateDocumentStats(documents));
+  const [isInitialized, setIsInitialized] = useState(false);
 
-  const { syncWithServer, loadFromServer } = useDocumentSync();
+  const { syncWithServer, loadFromServer, isSyncing } = useDocumentSync();
   const documentMutations = useDocumentMutations(documents, setDocuments);
   const groupOperations = useDocumentGroups(groups, setGroups);
 
-  // Initial load from localStorage
+  // Initial load from server with localStorage fallback
   useEffect(() => {
-    const loadedDocuments = loadDocumentsFromStorage(currentUser);
-    if (loadedDocuments && loadedDocuments.length > 0) {
-      console.log(`Loaded ${loadedDocuments.length} documents from localStorage`);
-      setDocuments(loadedDocuments);
-    }
+    if (isInitialized) return;
     
-    // Attempt to load from server after loading from localStorage
-    const fetchFromServer = async () => {
+    const initializeDocuments = async () => {
       try {
+        // Try to load from server first
         const serverDocuments = await loadFromServer(currentUser);
         if (serverDocuments && serverDocuments.length > 0) {
           console.log(`Loaded ${serverDocuments.length} documents from server`);
           setDocuments(serverDocuments);
+          setIsInitialized(true);
+          return;
+        }
+        
+        // Fall back to localStorage if server load fails
+        const localDocuments = loadDocumentsFromStorage(currentUser);
+        if (localDocuments && localDocuments.length > 0) {
+          console.log(`Loaded ${localDocuments.length} documents from localStorage`);
+          setDocuments(localDocuments);
+          
+          // Try to sync with server after loading from localStorage
+          try {
+            await syncWithServer(localDocuments, currentUser);
+          } catch (error) {
+            console.error("Failed to sync after localStorage load:", error);
+          }
         }
       } catch (error) {
-        console.error("Error loading documents from server:", error);
+        console.error("Error during document initialization:", error);
+        
+        // Ultimate fallback to localStorage
+        const localDocuments = loadDocumentsFromStorage(currentUser);
+        if (localDocuments && localDocuments.length > 0) {
+          setDocuments(localDocuments);
+        }
+      } finally {
+        setIsInitialized(true);
       }
     };
 
-    fetchFromServer();
-  }, [currentUser, loadFromServer]);
-
-  // Save documents to localStorage whenever they change
-  useEffect(() => {
-    if (documents.length > 0) {
-      saveDocumentsToStorage(documents, currentUser);
-      console.log(`Saved ${documents.length} documents to localStorage`);
-    }
-  }, [documents, currentUser]);
+    initializeDocuments();
+  }, [currentUser, loadFromServer, syncWithServer]);
 
   // Update stats when documents change
   useEffect(() => {
     setStats(calculateDocumentStats(documents));
   }, [documents]);
 
-  // Auto-sync effect with reduced frequency and error handling
-  useEffect(() => {
-    const autoSync = async () => {
-      try {
-        if (documents.length > 0) {
-          await syncWithServer(documents, currentUser);
-          console.log("Auto-sync completed successfully");
-        }
-      } catch (error) {
-        console.error("Auto-sync failed:", error);
-      }
-    };
-
-    const syncInterval = setInterval(autoSync, 600000); // Sync every 10 minutes
-    return () => clearInterval(syncInterval);
-  }, [documents, currentUser, syncWithServer]);
+  // We've removed the automatic sync effect that was causing flickering
+  // and only sync manually or when calling specific actions
 
   const handleEdit = useCallback((id: string) => {
     const documentToEdit = documents.find(doc => doc.id === id);
@@ -92,27 +91,28 @@ export const useDocuments = () => {
     }
   }, [documents, toast]);
 
-  const handleSaveDocument = useCallback((updatedDocument: Document) => {
-    const newDoc = {
-      ...updatedDocument,
-      date_modification: new Date()
-    };
-    
-    setDocuments(prev => 
-      prev.map(doc => doc.id === newDoc.id ? newDoc : doc)
-    );
-    
-    // Save to localStorage immediately after update
-    const updatedDocuments = documents.map(doc => 
-      doc.id === newDoc.id ? newDoc : doc
-    );
-    saveDocumentsToStorage(updatedDocuments, currentUser);
-    
-    toast({
-      title: "Document mis à jour",
-      description: `Le document ${newDoc.id} a été mis à jour avec succès`
-    });
-  }, [documents, currentUser, toast]);
+  const handleSaveDocument = useCallback(
+    (updatedDocument: Document) => {
+      const newDoc = {
+        ...updatedDocument,
+        date_modification: new Date(),
+      };
+
+      setDocuments((prev) => prev.map((doc) => (doc.id === newDoc.id ? newDoc : doc)));
+
+      // Save to localStorage as backup
+      const updatedDocuments = documents.map((doc) =>
+        doc.id === newDoc.id ? newDoc : doc
+      );
+      saveDocumentsToStorage(updatedDocuments, currentUser);
+
+      toast({
+        title: "Document mis à jour",
+        description: `Le document ${newDoc.id} a été mis à jour avec succès`,
+      });
+    },
+    [documents, currentUser, toast]
+  );
 
   const handleAddDocument = useCallback(() => {
     const maxId = documents.length > 0 
@@ -130,10 +130,11 @@ export const useDocuments = () => {
       date_modification: new Date()
     };
     
+    // Important: Create a new array to trigger a proper React state update
     const newDocuments = [...documents, newDocument];
     setDocuments(newDocuments);
     
-    // Save to localStorage immediately after adding
+    // Save to localStorage as backup
     saveDocumentsToStorage(newDocuments, currentUser);
     
     toast({
@@ -153,7 +154,7 @@ export const useDocuments = () => {
       
       result.splice(endIndex, 0, removed);
       
-      // Save to localStorage immediately after reordering
+      // Save to localStorage as backup
       saveDocumentsToStorage(result, currentUser);
       
       return result;
@@ -178,6 +179,7 @@ export const useDocuments = () => {
     editingGroup,
     dialogOpen,
     groupDialogOpen,
+    isSyncing,
     setDialogOpen,
     setGroupDialogOpen,
     ...documentMutations,

@@ -14,18 +14,29 @@ type SyncStatusProps = {
 
 const SyncStatusIndicator: React.FC<SyncStatusProps> = ({ 
   syncFailed = false,
-  onReset
+  onReset,
+  isSyncing = false
 }) => {
-  if (!syncFailed) return null;
+  if (!syncFailed && !isSyncing) return null;
 
   return (
     <TooltipProvider>
       <Tooltip>
         <TooltipTrigger asChild>
-          <div className="flex items-center gap-2 text-xs bg-red-50 p-2 rounded-md">
-            <AlertTriangle className="h-4 w-4 text-red-500" />
-            <span className="text-red-500">Échec de la dernière synchronisation</span>
-            {onReset && (
+          <div className={`flex items-center gap-2 text-xs ${syncFailed ? 'bg-red-50' : 'bg-blue-50'} p-2 rounded-md`}>
+            {syncFailed ? (
+              <>
+                <AlertTriangle className="h-4 w-4 text-red-500" />
+                <span className="text-red-500">Échec de la dernière synchronisation</span>
+              </>
+            ) : isSyncing ? (
+              <>
+                <RotateCw className="h-4 w-4 text-blue-500 animate-spin" />
+                <span className="text-blue-500">Synchronisation en cours...</span>
+              </>
+            ) : null}
+            
+            {onReset && syncFailed && (
               <Button 
                 variant="ghost" 
                 size="sm" 
@@ -39,8 +50,8 @@ const SyncStatusIndicator: React.FC<SyncStatusProps> = ({
           </div>
         </TooltipTrigger>
         <TooltipContent>
-          <p>Échec de la dernière synchronisation</p>
-          <p className="text-xs text-red-500">Cliquez sur "Réinitialiser" pour réessayer</p>
+          <p>{syncFailed ? 'Échec de la dernière synchronisation' : 'Synchronisation en cours'}</p>
+          {syncFailed && <p className="text-xs text-red-500">Cliquez sur "Réinitialiser" pour réessayer</p>}
         </TooltipContent>
       </Tooltip>
     </TooltipProvider>
