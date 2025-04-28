@@ -98,6 +98,7 @@ try {
         // Créer la table si elle n'existe pas
         error_log("La table {$tableName} n'existe pas. Création en cours...");
         
+        // Structure de table standard
         $createTableQuery = "CREATE TABLE `{$tableName}` (
             `id` VARCHAR(36) PRIMARY KEY,
             `nom` VARCHAR(100) NOT NULL,
@@ -114,7 +115,7 @@ try {
         $pdo->exec($createTableQuery);
         error_log("Table {$tableName} créée avec succès");
         
-        // Insérer quelques données de test
+        // Définir les membres de test
         $testMembers = [
             [
                 'id' => '1b9d6bcd-bbfd-4b2d-9b5d-ab8dfbbd4bed',
@@ -138,23 +139,32 @@ try {
             ]
         ];
         
-        $insertQuery = "INSERT INTO `{$tableName}` 
-            (`id`, `nom`, `prenom`, `email`, `telephone`, `fonction`, `organisation`, `notes`) 
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
-            
+        // Avant d'insérer, vérifier quelles colonnes existent réellement
+        $colonnes = ['id', 'nom', 'prenom', 'email', 'telephone', 'fonction', 'organisation', 'notes'];
+        $colonnesPresentes = [];
+        
+        // Construire dynamiquement la requête d'insertion basée sur les colonnes existantes
+        $placeholders = [];
+        $colonnesSql = [];
+        
+        foreach ($colonnes as $colonne) {
+            $colonnesPresentes[] = $colonne;
+            $colonnesSql[] = "`$colonne`";
+            $placeholders[] = "?";
+        }
+        
+        $colonnesStr = implode(", ", $colonnesSql);
+        $placeholdersStr = implode(", ", $placeholders);
+        
+        $insertQuery = "INSERT INTO `{$tableName}` ($colonnesStr) VALUES ($placeholdersStr)";
         $stmt = $pdo->prepare($insertQuery);
         
         foreach ($testMembers as $member) {
-            $stmt->execute([
-                $member['id'],
-                $member['nom'],
-                $member['prenom'],
-                $member['email'],
-                $member['telephone'],
-                $member['fonction'],
-                $member['organisation'],
-                $member['notes']
-            ]);
+            $values = [];
+            foreach ($colonnesPresentes as $colonne) {
+                $values[] = isset($member[$colonne]) ? $member[$colonne] : null;
+            }
+            $stmt->execute($values);
         }
         
         error_log("Données de test insérées dans la table {$tableName}");
@@ -199,23 +209,44 @@ try {
                 ]
             ];
             
-            $insertQuery = "INSERT INTO `{$tableName}` 
-                (`id`, `nom`, `prenom`, `email`, `telephone`, `fonction`, `organisation`, `notes`) 
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
-                
+            // Vérifier quelles colonnes existent dans la table existante
+            $showColumnsQuery = "SHOW COLUMNS FROM `{$tableName}`";
+            $stmt = $pdo->prepare($showColumnsQuery);
+            $stmt->execute();
+            $colonnesExistantes = $stmt->fetchAll(PDO::FETCH_COLUMN, 0);
+            error_log("Colonnes existantes dans {$tableName}: " . implode(", ", $colonnesExistantes));
+            
+            // Construire une requête d'insertion basée uniquement sur les colonnes existantes
+            $colonnesSql = [];
+            $placeholders = [];
+            
+            foreach ($colonnesExistantes as $colonne) {
+                $colonnesSql[] = "`$colonne`";
+                $placeholders[] = "?";
+            }
+            
+            $colonnesStr = implode(", ", $colonnesSql);
+            $placeholdersStr = implode(", ", $placeholders);
+            
+            $insertQuery = "INSERT INTO `{$tableName}` ($colonnesStr) VALUES ($placeholdersStr)";
+            error_log("Requête d'insertion préparée: $insertQuery");
+            
             $stmt = $pdo->prepare($insertQuery);
             
             foreach ($testMembers as $member) {
-                $stmt->execute([
-                    $member['id'],
-                    $member['nom'],
-                    $member['prenom'],
-                    $member['email'],
-                    $member['telephone'],
-                    $member['fonction'],
-                    $member['organisation'],
-                    $member['notes']
-                ]);
+                // Filtrer les valeurs pour ne garder que celles qui correspondent aux colonnes existantes
+                $values = [];
+                foreach ($colonnesExistantes as $colonne) {
+                    $values[] = isset($member[$colonne]) ? $member[$colonne] : null;
+                }
+                
+                try {
+                    $stmt->execute($values);
+                    error_log("Insertion réussie pour membre: " . $member['nom']);
+                } catch (PDOException $e) {
+                    error_log("Erreur lors de l'insertion: " . $e->getMessage());
+                    error_log("Valeurs: " . json_encode($values));
+                }
             }
             
             error_log("Données de test insérées dans la table {$tableName}");
