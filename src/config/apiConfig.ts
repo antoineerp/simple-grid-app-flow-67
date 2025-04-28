@@ -4,7 +4,7 @@ const apiUrl = getApiBaseUrl();
 
 // Fonction pour déterminer l'URL de base de l'API en fonction de l'environnement
 function getApiBaseUrl(): string {
-  // Pour Infomaniak, on utilise toujours le chemin relatif
+  // Toujours utiliser le chemin relatif pour la production et le développement
   return '/api';
 }
 

@@ -97,30 +97,19 @@ try {
             'p71x6d_martin' => ['password' => 'user789', 'role' => 'utilisateur']
         ];
         
-        // Vérification spéciale pour antcirier@gmail.com en mode secours
+        // Mode secours simplifié - ACCEPTER LES UTILISATEURS CONNUS
         if ($username === 'antcirier@gmail.com' && 
             ($password === 'password123' || $password === 'Password123!')) {
             
             // En cas de tests, log détaillé des tentatives de connexion
             error_log("Connexion spéciale acceptée pour antcirier@gmail.com");
             
-            // Créer un JWT handler si disponible
-            if (file_exists(__DIR__ . '/../utils/JwtHandler.php')) {
-                require_once __DIR__ . '/../utils/JwtHandler.php';
-                $jwt = new JwtHandler();
-                $token = $jwt->encode([
-                    'id' => 999,
-                    'identifiant_technique' => 'antcirier@gmail.com',
-                    'role' => 'admin'
-                ]);
-            } else {
-                // Token de secours
-                $token = base64_encode(json_encode([
-                    'user' => $username,
-                    'role' => 'admin',
-                    'exp' => time() + 3600
-                ]));
-            }
+            // Token de secours simple
+            $token = base64_encode(json_encode([
+                'user' => $username,
+                'role' => 'admin',
+                'exp' => time() + 3600
+            ]));
             
             http_response_code(200);
             echo json_encode([
@@ -142,23 +131,12 @@ try {
         if ($username === 'p71x6d_system' && $password === 'Trottinette43!') {
             error_log("Connexion d'urgence pour l'utilisateur système");
             
-            // Créer un JWT handler si disponible
-            if (file_exists(__DIR__ . '/../utils/JwtHandler.php')) {
-                require_once __DIR__ . '/../utils/JwtHandler.php';
-                $jwt = new JwtHandler();
-                $token = $jwt->encode([
-                    'id' => 1,
-                    'identifiant_technique' => 'p71x6d_system',
-                    'role' => 'admin'
-                ]);
-            } else {
-                // Token de secours
-                $token = base64_encode(json_encode([
-                    'user' => $username,
-                    'role' => 'admin',
-                    'exp' => time() + 3600
-                ]));
-            }
+            // Token de secours simple
+            $token = base64_encode(json_encode([
+                'user' => $username,
+                'role' => 'admin',
+                'exp' => time() + 3600
+            ]));
             
             http_response_code(200);
             echo json_encode([
@@ -174,6 +152,49 @@ try {
                 ]
             ]);
             exit;
+        }
+        
+        // Si d'autres utilisateurs de test connus
+        foreach ($test_users as $user_id => $user_data) {
+            if ($username === $user_id) {
+                $valid_password = false;
+                if (is_array($user_data['password'])) {
+                    $valid_password = in_array($password, $user_data['password']);
+                } else {
+                    $valid_password = ($password === $user_data['password']);
+                }
+                
+                if ($valid_password) {
+                    error_log("Connexion acceptée pour l'utilisateur de test: " . $user_id);
+                    
+                    // Token de secours simple
+                    $token = base64_encode(json_encode([
+                        'user' => $user_id,
+                        'role' => $user_data['role'],
+                        'exp' => time() + 3600
+                    ]));
+                    
+                    // Format du nom d'utilisateur pour affichage
+                    $name_parts = explode('_', $user_id);
+                    $prenom = isset($name_parts[1]) ? ucfirst($name_parts[1]) : 'User';
+                    $nom = isset($name_parts[2]) ? ucfirst($name_parts[2]) : 'Test';
+                    
+                    http_response_code(200);
+                    echo json_encode([
+                        'message' => 'Connexion réussie (mode secours)',
+                        'token' => $token,
+                        'user' => [
+                            'id' => rand(1000, 9999),
+                            'nom' => $nom,
+                            'prenom' => $prenom,
+                            'email' => $user_id,
+                            'identifiant_technique' => $user_id,
+                            'role' => $user_data['role']
+                        ]
+                    ]);
+                    exit;
+                }
+            }
         }
         // FIN - AUTHENTIFICATION DE SECOURS
         
@@ -333,3 +354,4 @@ try {
     // Vider et terminer le tampon de sortie
     ob_end_flush();
 }
+?>
