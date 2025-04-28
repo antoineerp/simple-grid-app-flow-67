@@ -21,26 +21,62 @@ ini_set('display_startup_errors', 0);
 error_reporting(E_ALL);
 
 try {
+    // Fonction pour vérifier les dernières erreurs SQL dans les logs
+    function getSqlErrors($log_content) {
+        $sql_errors = [];
+        $lines = explode("\n", $log_content);
+        
+        foreach ($lines as $line) {
+            if (stripos($line, 'SQL') !== false || 
+                stripos($line, 'PDO') !== false || 
+                stripos($line, 'SQLSTATE') !== false ||
+                stripos($line, 'syntax error') !== false ||
+                stripos($line, 'MariaDB') !== false) {
+                $sql_errors[] = $line;
+            }
+        }
+        
+        return $sql_errors;
+    }
+    
     // Vérifier si le fichier de log existe et est accessible
     $log_file = __DIR__ . '/php_errors.log';
     $alt_log_file = ini_get('error_log');
+    $tmp_log_file = __DIR__ . '/tmp/php_errors.log';
     
     $log_exists = file_exists($log_file);
-    $log_readable = is_readable($log_file);
-    $log_writable = is_writable($log_file);
+    $log_readable = $log_exists && is_readable($log_file);
+    $log_writable = $log_exists && is_writable($log_file);
     $log_size = $log_exists ? filesize($log_file) : 0;
     
     // Récupérer les dernières erreurs du log
     $recent_errors = [];
+    $sql_errors = [];
+    
     if ($log_exists && $log_readable) {
         $log_content = file_get_contents($log_file);
         $lines = explode("\n", $log_content);
         $recent_errors = array_filter(array_slice($lines, -100)); // Prendre les 100 dernières lignes non vides
+        $sql_errors = getSqlErrors($log_content);
+    } else if (file_exists($tmp_log_file) && is_readable($tmp_log_file)) {
+        // Essayer avec un fichier de log dans /tmp
+        $log_content = file_get_contents($tmp_log_file);
+        $lines = explode("\n", $log_content);
+        $recent_errors = array_filter(array_slice($lines, -100));
+        $sql_errors = getSqlErrors($log_content);
+        
+        // Mettre à jour les informations sur le fichier
+        $log_file = $tmp_log_file;
+        $log_exists = true;
+        $log_readable = true;
+        $log_writable = is_writable($tmp_log_file);
+        $log_size = filesize($tmp_log_file);
     } else if ($alt_log_file && file_exists($alt_log_file) && is_readable($alt_log_file)) {
         // Essayer avec le fichier de log alternatif
         $log_content = file_get_contents($alt_log_file);
         $lines = explode("\n", $log_content);
         $recent_errors = array_filter(array_slice($lines, -100));
+        $sql_errors = getSqlErrors($log_content);
         
         // Mettre à jour les informations sur le fichier
         $log_file = $alt_log_file;
@@ -68,7 +104,8 @@ try {
         'error_log_path' => ini_get('error_log'),
         'error_reporting_level' => ini_get('error_reporting'),
         'display_errors' => ini_get('display_errors'),
-        'log_errors' => ini_get('log_errors')
+        'log_errors' => ini_get('log_errors'),
+        'pdo_drivers' => PDO::getAvailableDrivers()
     ];
     
     // Assembler et renvoyer la réponse
@@ -84,6 +121,7 @@ try {
             'size' => $log_size . ' bytes'
         ],
         'recent_errors' => $recent_errors,
+        'sql_errors' => $sql_errors,
         'php_info' => $php_info,
         'request_details' => [
             'method' => $_SERVER['REQUEST_METHOD'],
