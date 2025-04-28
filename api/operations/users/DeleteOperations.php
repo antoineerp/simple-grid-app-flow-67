@@ -1,58 +1,60 @@
 
 <?php
-require_once dirname(__DIR__) . '/BaseOperations.php';
-require_once __DIR__ . '/../../config/database.php';
-require_once __DIR__ . '/../../middleware/Auth.php';
-require_once __DIR__ . '/../../models/User.php';
-require_once __DIR__ . '/../../middleware/ResponseHandler.php';
+require_once dirname(dirname(__FILE__)) . '/BaseOperations.php';
 
 class UserDeleteOperations extends BaseOperations {
     public function handleDeleteRequest() {
+        // Nettoyer tout buffer de sortie existant
+        if (ob_get_level()) ob_clean();
+        
+        // Assurez-vous que les headers sont configurés correctement
+        header('Content-Type: application/json; charset=UTF-8');
+        
+        // Journaliser l'appel pour le débogage
+        error_log("UserDeleteOperations::handleDeleteRequest - Début");
+        
         try {
-            // Récupérer et vérifier le token d'authentification
-            $headers = apache_request_headers();
-            $auth = new Auth($headers);
-            $userData = $auth->isAuth();
+            // Récupérer les données DELETE
+            $json_data = file_get_contents("php://input");
+            error_log("UserDeleteOperations - Données DELETE brutes: " . $json_data);
             
-            if (!$userData) {
-                ResponseHandler::error("Non autorisé", 401);
+            if (empty($json_data)) {
+                ResponseHandler::error("Aucune donnée reçue", 400);
                 return;
             }
             
-            // Vérifier si l'utilisateur est admin
-            if ($userData['data']['role'] !== 'admin' && $userData['data']['role'] !== 'administrateur') {
-                ResponseHandler::error("Accès refusé. Droits d'administrateur requis.", 403);
+            $data = json_decode($json_data);
+            if (json_last_error() !== JSON_ERROR_NONE) {
+                ResponseHandler::error("JSON invalide: " . json_last_error_msg(), 400);
                 return;
             }
-
-            // Récupérer les données
-            $data = json_decode(file_get_contents("php://input"));
-            error_log("Données reçues DELETE: " . json_encode($data));
             
-            if (empty($data->id)) {
-                ResponseHandler::error("ID non fourni", 400);
+            // Vérifier que l'ID est présent
+            if (!isset($data->id)) {
+                ResponseHandler::error("ID de l'utilisateur non spécifié", 400);
                 return;
             }
-
-            // Vérifier qu'on ne supprime pas le dernier administrateur
-            $stmt = $this->model->getAdminCount();
-            $adminCount = $stmt->fetchColumn();
-
-            $userToDelete = $this->model->findById($data->id);
-            if ($userToDelete && ($userToDelete['role'] === 'admin' || $userToDelete['role'] === 'administrateur') && $adminCount <= 1) {
-                ResponseHandler::error("Impossible de supprimer le dernier administrateur", 400);
+            
+            // Récupérer l'utilisateur existant
+            $user = $this->model->findById($data->id);
+            if (!$user) {
+                ResponseHandler::error("Utilisateur non trouvé", 404);
                 return;
             }
-
+            
+            // Supprimer l'utilisateur
             $this->model->id = $data->id;
             if ($this->model->delete()) {
-                ResponseHandler::success(null, "Utilisateur supprimé avec succès");
+                ResponseHandler::success([
+                    "message" => "Utilisateur supprimé avec succès",
+                    "id" => $data->id
+                ]);
             } else {
-                ResponseHandler::error("Impossible de supprimer l'utilisateur", 503);
+                ResponseHandler::error("Impossible de supprimer l'utilisateur", 500);
             }
         } catch (Exception $e) {
-            error_log("Erreur lors de la suppression: " . $e->getMessage());
-            ResponseHandler::error($e->getMessage(), 500);
+            error_log("UserDeleteOperations::handleDeleteRequest - Erreur: " . $e->getMessage());
+            ResponseHandler::error("Erreur lors de la suppression de l'utilisateur: " . $e->getMessage(), 500);
         }
     }
 }

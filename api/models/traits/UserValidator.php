@@ -1,21 +1,24 @@
 
 <?php
 trait UserValidator {
-    protected function validateUserData($data) {
-        return !empty($data->nom) &&
-               !empty($data->prenom) &&
-               !empty($data->email) &&
-               !empty($data->identifiant_technique) &&
-               !empty($data->mot_de_passe) &&
-               !empty($data->role);
+    public function validateEmail($email) {
+        return filter_var($email, FILTER_VALIDATE_EMAIL);
     }
-
-    protected function validateUpdateData($data) {
-        return !empty($data->id) &&
-               !empty($data->nom) &&
-               !empty($data->prenom) &&
-               !empty($data->email) &&
-               !empty($data->role);
+    
+    public function validateRole($role) {
+        $allowedRoles = ['admin', 'gestionnaire', 'utilisateur', 'visiteur'];
+        return in_array($role, $allowedRoles);
+    }
+    
+    public function validatePassword($password) {
+        // Minimum 8 caractères, au moins une lettre et un chiffre
+        return strlen($password) >= 8 && 
+               preg_match('/[A-Za-z]/', $password) && 
+               preg_match('/\d/', $password);
+    }
+    
+    public function validateName($name) {
+        return strlen(trim($name)) >= 2;
     }
 }
 ?>

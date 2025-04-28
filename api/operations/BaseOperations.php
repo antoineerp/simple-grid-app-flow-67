@@ -1,23 +1,32 @@
 
 <?php
-require_once dirname(__DIR__) . '/utils/ResponseHandler.php';
-
-abstract class BaseOperations {
-    protected $db;
+class BaseOperations {
     protected $model;
-
-    public function __construct($db, $model) {
-        $this->db = $db;
+    
+    public function __construct($model) {
         $this->model = $model;
     }
-
-    protected function validateData($data, array $requiredFields): bool {
-        foreach ($requiredFields as $field) {
-            if (!isset($data->$field) || empty($data->$field)) {
-                return false;
+    
+    protected function sanitizeInput($input) {
+        if (is_array($input)) {
+            foreach ($input as $key => $value) {
+                $input[$key] = $this->sanitizeInput($value);
+            }
+        } else {
+            $input = htmlspecialchars(strip_tags($input));
+        }
+        return $input;
+    }
+    
+    protected function cleanUTF8($input) {
+        if (is_string($input)) {
+            return mb_convert_encoding($input, 'UTF-8', 'UTF-8');
+        } elseif (is_array($input)) {
+            foreach ($input as $key => $value) {
+                $input[$key] = $this->cleanUTF8($value);
             }
         }
-        return true;
+        return $input;
     }
 }
 ?>

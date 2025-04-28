@@ -1,78 +1,92 @@
 
 <?php
-require_once dirname(__DIR__) . '/BaseOperations.php';
+require_once dirname(dirname(__FILE__)) . '/BaseOperations.php';
 
 class UserPostOperations extends BaseOperations {
     public function handlePostRequest() {
-        $data = json_decode(file_get_contents("php://input"));
-        error_log("UserPostOperations::handlePostRequest - Données reçues POST: " . json_encode($data));
-
-        if (!$this->validateUserData($data)) {
-            error_log("UserPostOperations - Validation des données utilisateur échouée");
-            ResponseHandler::error("Données incomplètes ou invalides", 400);
-            return;
-        }
-
+        // Nettoyer tout buffer de sortie existant
+        if (ob_get_level()) ob_clean();
+        
+        // Assurez-vous que les headers sont configurés correctement
+        header('Content-Type: application/json; charset=UTF-8');
+        
+        // Journaliser l'appel pour le débogage
+        error_log("UserPostOperations::handlePostRequest - Début");
+        
         try {
-            if ($data->role === 'gestionnaire' && $this->model->countUsersByRole('gestionnaire') > 0) {
-                error_log("UserPostOperations - Tentative de création d'un second compte gestionnaire rejetée");
-                ResponseHandler::error("Un seul compte gestionnaire peut être créé", 409);
+            // Récupérer les données POST en JSON
+            $json_data = file_get_contents("php://input");
+            error_log("UserPostOperations - Données POST brutes: " . $json_data);
+            
+            if (empty($json_data)) {
+                ResponseHandler::error("Aucune donnée reçue", 400);
                 return;
             }
-
-            if ($this->model->emailExists($data->email)) {
-                error_log("UserPostOperations - Email déjà utilisé: " . $data->email);
-                ResponseHandler::error("Email déjà utilisé", 409);
+            
+            $data = json_decode($json_data);
+            if (json_last_error() !== JSON_ERROR_NONE) {
+                ResponseHandler::error("JSON invalide: " . json_last_error_msg(), 400);
                 return;
             }
-
-            // Assigner les valeurs à l'objet utilisateur
+            
+            // Vérifier que les données nécessaires sont présentes
+            if (!isset($data->nom) || !isset($data->prenom) || !isset($data->email) || !isset($data->role)) {
+                ResponseHandler::error("Données incomplètes pour la création de l'utilisateur", 400);
+                return;
+            }
+            
+            // Préparer les données pour la création d'un nouvel utilisateur
             $this->model->nom = $data->nom;
             $this->model->prenom = $data->prenom;
             $this->model->email = $data->email;
-            $this->model->identifiant_technique = $data->identifiant_technique;
-            $this->model->mot_de_passe = $data->mot_de_passe;
             $this->model->role = $data->role;
-
-            error_log("UserPostOperations - Tentative de création de l'utilisateur: {$data->prenom} {$data->nom}");
             
-            if (!$this->model->create()) {
-                error_log("UserPostOperations - Échec de création de l'utilisateur sans exception");
-                ResponseHandler::error("Échec de création de l'utilisateur", 500);
-                return;
+            // Définir l'identifiant technique s'il est fourni, sinon en créer un
+            $this->model->identifiant_technique = isset($data->identifiant_technique) ? 
+                $data->identifiant_technique : 
+                $this->generateIdentifiantTechnique($data->nom, $data->prenom);
+                
+            // Définir le mot de passe s'il est fourni
+            if (isset($data->mot_de_passe) && !empty($data->mot_de_passe)) {
+                $this->model->mot_de_passe = $data->mot_de_passe;
             }
-
-            $lastId = $this->db->lastInsertId();
-            error_log("UserPostOperations - Utilisateur créé avec ID: {$lastId}");
             
-            if ($data->role === 'utilisateur') {
-                $this->model->initializeUserDataFromManager($data->identifiant_technique);
+            // Créer l'utilisateur
+            if ($this->model->create()) {
+                ResponseHandler::success([
+                    "message" => "Utilisateur créé avec succès",
+                    "user" => [
+                        "id" => $this->model->id,
+                        "nom" => $this->model->nom,
+                        "prenom" => $this->model->prenom,
+                        "email" => $this->model->email,
+                        "identifiant_technique" => $this->model->identifiant_technique,
+                        "role" => $this->model->role
+                    ]
+                ], 201);
+            } else {
+                ResponseHandler::error("Impossible de créer l'utilisateur", 500);
             }
-
-            ResponseHandler::success([
-                'id' => $lastId,
-                'identifiant_technique' => $data->identifiant_technique,
-                'nom' => $data->nom,
-                'prenom' => $data->prenom,
-                'email' => $data->email,
-                'role' => $data->role
-            ], "Utilisateur créé avec succès", 201);
-
         } catch (Exception $e) {
-            error_log("UserPostOperations - Erreur création utilisateur: " . $e->getMessage());
-            ResponseHandler::error($e->getMessage(), 500);
+            error_log("UserPostOperations::handlePostRequest - Erreur: " . $e->getMessage());
+            ResponseHandler::error("Erreur lors de la création de l'utilisateur: " . $e->getMessage(), 500);
         }
     }
-
-    private function validateUserData($data) {
-        return $this->validateData($data, [
-            'nom',
-            'prenom',
-            'email',
-            'identifiant_technique',
-            'mot_de_passe',
-            'role'
-        ]);
+    
+    private function generateIdentifiantTechnique($nom, $prenom) {
+        // Supprimer les espaces et les caractères spéciaux
+        $nom = preg_replace('/[^a-z0-9]/i', '', $nom);
+        $prenom = preg_replace('/[^a-z0-9]/i', '', $prenom);
+        
+        // Convertir en minuscules
+        $nom = strtolower($nom);
+        $prenom = strtolower($prenom);
+        
+        // Générer un identifiant au format prenom_nom avec un suffixe aléatoire
+        $base = substr($prenom, 0, 3) . "_" . $nom;
+        $suffix = "_" . substr(md5(uniqid()), 0, 6);
+        
+        return "user_" . $base . $suffix;
     }
 }
 ?>
