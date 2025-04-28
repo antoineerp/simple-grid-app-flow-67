@@ -22,7 +22,9 @@ export function getFullApiUrl(): string {
 export async function testApiConnection(): Promise<{ success: boolean; message: string; details?: any }> {
   try {
     console.log(`Test de connexion à l'API: ${getFullApiUrl()}`);
-    const response = await fetch(`${getApiUrl()}`, {
+    
+    // Pour le test direct, utiliser info.php qui renvoie l'état du serveur
+    const response = await fetch(`${getApiUrl()}/info.php`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',

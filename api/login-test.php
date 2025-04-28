@@ -6,6 +6,10 @@ header("Access-Control-Allow-Origin: *");
 header("Access-Control-Allow-Methods: POST, OPTIONS");
 header("Access-Control-Allow-Headers: Content-Type, Authorization");
 
+// Journalisation pour le débogage
+error_log("=== DEBUT DE L'EXÉCUTION DE login-test.php ===");
+error_log("Méthode: " . $_SERVER['REQUEST_METHOD'] . " - URI: " . $_SERVER['REQUEST_URI']);
+
 // Si c'est une requête OPTIONS (preflight), nous la terminons ici
 if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
     http_response_code(200);
@@ -24,10 +28,18 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 $json = file_get_contents('php://input');
 $data = json_decode($json, true);
 
+// Journaliser les données reçues (masquer le mot de passe)
+$log_data = $data;
+if (isset($log_data['password'])) {
+    $log_data['password'] = '******';
+}
+error_log("Données reçues: " . json_encode($log_data));
+
 // Vérifier si les données sont valides
 if (!$data || !isset($data['username']) || !isset($data['password'])) {
     http_response_code(400);
     echo json_encode(['message' => 'Données invalides', 'status' => 400]);
+    error_log("Données invalides reçues");
     exit;
 }
 
@@ -44,6 +56,9 @@ $test_users = [
 $username = $data['username'];
 $password = $data['password'];
 
+// Journaliser l'utilisateur qui tente de se connecter
+error_log("Tentative de connexion pour: " . $username);
+
 // Vérifier l'existence de l'utilisateur
 $username_exists = array_key_exists($username, $test_users);
 $available_users = array_keys($test_users);
@@ -56,12 +71,28 @@ $user_role = null;
 if ($username_exists) {
     $user_data = $test_users[$username];
     
+    // Journaliser le format du mot de passe pour l'utilisateur
+    error_log("Vérification du mot de passe pour: " . $username);
+    error_log("Type du mot de passe stocké: " . (is_array($user_data['password']) ? 'array' : 'string'));
+    error_log("Mot de passe fourni (longueur): " . strlen($password));
+    
     if (is_array($user_data['password'])) {
         // Si plusieurs mots de passe sont acceptés
         $is_authenticated = in_array($password, $user_data['password']);
+        if ($is_authenticated) {
+            error_log("Authentification réussie avec mot de passe multiple");
+        } else {
+            error_log("Échec d'authentification avec mot de passe multiple. Mot de passe fourni: " . substr($password, 0, 2) . "****");
+        }
     } else {
         // Si un seul mot de passe est accepté
         $is_authenticated = ($password === $user_data['password']);
+        if ($is_authenticated) {
+            error_log("Authentification réussie avec mot de passe simple");
+        } else {
+            error_log("Échec d'authentification. Mot de passe attendu: " . substr($user_data['password'], 0, 2) . "****");
+            error_log("Mot de passe fourni: " . substr($password, 0, 2) . "****");
+        }
     }
     
     $user_role = $user_data['role'];
@@ -89,6 +120,8 @@ if ($is_authenticated) {
         $nom = isset($name_parts[2]) ? ucfirst($name_parts[2]) : 'Test';
     }
     
+    error_log("Connexion réussie pour: " . $username . " (rôle: " . $user_role . ")");
+    
     http_response_code(200);
     echo json_encode([
         'message' => 'Connexion réussie',
@@ -103,6 +136,9 @@ if ($is_authenticated) {
         ]
     ]);
 } else {
+    error_log("Échec d'authentification pour: " . $username);
+    error_log("Utilisateur existe: " . ($username_exists ? "oui" : "non"));
+    
     http_response_code(401);
     echo json_encode([
         'message' => 'Identifiants invalides',
@@ -114,4 +150,6 @@ if ($is_authenticated) {
         ]
     ]);
 }
+
+error_log("=== FIN DE L'EXÉCUTION DE login-test.php ===");
 ?>

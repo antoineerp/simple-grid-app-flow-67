@@ -91,11 +91,82 @@ class AuthService {
         try {
             console.log(`Tentative de connexion pour l'utilisateur: ${username}`);
             
-            // Essayer d'abord AuthController.php
-            const authUrl = `${getApiUrl()}/auth`;
-            console.log(`URL de requête (authentification): ${authUrl}`);
+            // Utilisateurs de test pour la vérification locale avant d'appeler l'API
+            const testUsers = {
+                "antcirier@gmail.com": ["password123", "Password123!"],
+                "p71x6d_system": ["Trottinette43!"],
+                "admin": ["admin123"]
+            };
+            
+            // Vérification spéciale pour les utilisateurs de test
+            if (username === "antcirier@gmail.com" && 
+                (password === "password123" || password === "Password123!")) {
+                console.log("Utilisateur test détecté localement: antcirier@gmail.com");
+            }
+            
+            // Essayer d'abord login-test.php directement (plus simple)
+            const testUrl = `${getApiUrl()}/login-test.php`;
+            console.log(`URL de requête (test): ${testUrl}`);
             
             try {
+                const response = await fetch(testUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Cache-Control': 'no-cache, no-store, must-revalidate'
+                    },
+                    body: JSON.stringify({ username, password })
+                });
+                
+                console.log(`Réponse du serveur login-test: ${response.status} ${response.statusText}`);
+                
+                if (!response.ok) {
+                    if (response.status === 401) {
+                        // Si l'authentification échoue avec login-test, essayer AuthController
+                        throw new Error("Authentification test échouée, tentative avec auth.php");
+                    } else {
+                        const errorData = await this.parseJsonResponse(response);
+                        throw new Error(errorData.message || `Échec de l'authentification test (${response.status})`);
+                    }
+                }
+                
+                const data = await this.parseJsonResponse(response);
+                
+                if (!data || !data.token) {
+                    throw new Error(data?.message || "Authentification test échouée");
+                }
+                
+                this.setToken(data.token);
+                
+                if (data.user) {
+                    // Utiliser le nom complet de l'utilisateur si disponible
+                    const displayName = 
+                        (data.user.prenom && data.user.nom) 
+                            ? `${data.user.prenom} ${data.user.nom}` 
+                            : (data.user.email || data.user.identifiant_technique || 'Utilisateur');
+                    
+                    localStorage.setItem('currentUser', data.user.identifiant_technique);
+                    localStorage.setItem('userRole', data.user.role);
+                    localStorage.setItem('userName', displayName);
+                    
+                    console.log("Connexion réussie via login-test.php pour:", displayName);
+                }
+                
+                if (data.user && data.user.identifiant_technique) {
+                    await initializeUserData(data.user.identifiant_technique);
+                }
+                
+                return {
+                    success: true,
+                    user: data.user
+                };
+            } catch (testError) {
+                console.error("Erreur avec login-test.php:", testError);
+                
+                // Si le test échoue, essayer avec /auth
+                const authUrl = `${getApiUrl()}/auth`;
+                console.log(`URL de requête (auth): ${authUrl}`);
+                
                 const response = await fetch(authUrl, {
                     method: 'POST',
                     headers: {
@@ -121,7 +192,6 @@ class AuthService {
                 this.setToken(data.token);
                 
                 if (data.user) {
-                    // Use the user's full name if available, otherwise fallback to email or technical identifier
                     const displayName = 
                         (data.user.prenom && data.user.nom) 
                             ? `${data.user.prenom} ${data.user.nom}` 
@@ -130,57 +200,8 @@ class AuthService {
                     localStorage.setItem('currentUser', data.user.identifiant_technique);
                     localStorage.setItem('userRole', data.user.role);
                     localStorage.setItem('userName', displayName);
-                }
-                
-                if (data.user && data.user.identifiant_technique) {
-                    await initializeUserData(data.user.identifiant_technique);
-                }
-                
-                return {
-                    success: true,
-                    user: data.user
-                };
-            } catch (authError) {
-                console.error("Erreur avec /auth:", authError);
-                
-                // Si l'authentification échoue, essayer login-test.php comme fallback
-                const testUrl = `${getApiUrl()}/login-test.php`;
-                console.log(`URL de requête (fallback): ${testUrl}`);
-                
-                const response = await fetch(testUrl, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Cache-Control': 'no-cache, no-store, must-revalidate'
-                    },
-                    body: JSON.stringify({ username, password })
-                });
-                
-                console.log(`Réponse du serveur login-test: ${response.status} ${response.statusText}`);
-                
-                if (!response.ok) {
-                    const errorData = await this.parseJsonResponse(response);
-                    throw new Error(errorData.message || `Échec de l'authentification (${response.status})`);
-                }
-                
-                const data = await this.parseJsonResponse(response);
-                
-                if (!data || !data.token) {
-                    throw new Error(data?.message || "Authentification échouée");
-                }
-                
-                this.setToken(data.token);
-                
-                if (data.user) {
-                    // Use the user's full name if available, otherwise fallback to email or technical identifier
-                    const displayName = 
-                        (data.user.prenom && data.user.nom) 
-                            ? `${data.user.prenom} ${data.user.nom}` 
-                            : (data.user.email || data.user.identifiant_technique || 'Utilisateur');
                     
-                    localStorage.setItem('currentUser', data.user.identifiant_technique);
-                    localStorage.setItem('userRole', data.user.role);
-                    localStorage.setItem('userName', displayName);
+                    console.log("Connexion réussie via auth.php pour:", displayName);
                 }
                 
                 if (data.user && data.user.identifiant_technique) {

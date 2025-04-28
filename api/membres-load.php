@@ -10,6 +10,10 @@ header("Access-Control-Allow-Methods: GET, OPTIONS");
 header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With");
 header("Cache-Control: no-cache, no-store, must-revalidate");
 
+// Journalisation
+error_log("=== DEBUT DE L'EXÉCUTION DE membres-load.php ===");
+error_log("Méthode: " . $_SERVER['REQUEST_METHOD'] . " - URI: " . $_SERVER['REQUEST_URI']);
+
 // Gestion des requêtes OPTIONS (preflight)
 if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
     http_response_code(200);
@@ -47,6 +51,7 @@ try {
     
     // Nom de la table spécifique à l'utilisateur
     $tableName = "membres_" . preg_replace('/[^a-zA-Z0-9_]/', '_', $userId);
+    error_log("Table à consulter: {$tableName}");
     
     // Vérifier si la table existe
     $tableExistsQuery = "SHOW TABLES LIKE ?";
@@ -66,10 +71,11 @@ try {
     }
     
     // Récupérer les membres depuis la table - Construction sécurisée de la requête
+    // Utiliser la syntaxe des backticks pour échapper les noms de tables
     $query = "SELECT * FROM `" . $tableName . "` ORDER BY nom, prenom";
     error_log("Exécution de la requête: {$query}");
     
-    // Exécuter directement la requête (pas besoin de paramètre)
+    // Exécuter directement la requête puisque le nom de la table est déjà sécurisé
     $stmt = $pdo->query($query);
     $membres = $stmt->fetchAll();
     
@@ -105,6 +111,7 @@ try {
         'message' => $e->getMessage()
     ]);
 } finally {
+    error_log("=== FIN DE L'EXÉCUTION DE membres-load.php ===");
     if (ob_get_level()) ob_end_flush();
 }
 ?>
