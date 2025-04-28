@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React from 'react';
 import { FileText, FolderPlus } from 'lucide-react';
 import { MembresProvider } from '@/contexts/MembresContext';
 import DocumentForm from '@/components/gestion-documentaire/DocumentForm';
@@ -99,7 +99,7 @@ const GestionDocumentaireContent = () => {
       <div className="flex justify-end mt-4 space-x-2">
         <Button 
           variant="outline"
-          onClick={handleAddGroup}
+          onClick={() => handleAddGroup()}
           className="hover:bg-gray-100 transition-colors mr-2"
           title="Nouveau groupe"
         >
@@ -108,7 +108,7 @@ const GestionDocumentaireContent = () => {
         </Button>
         <Button 
           variant="default"
-          onClick={handleAddDocument}
+          onClick={() => handleAddDocument()}
         >
           Nouveau document
         </Button>

@@ -17,15 +17,16 @@ export const useExigences = () => {
   const [groupDialogOpen, setGroupDialogOpen] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncFailed, setSyncFailed] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const { toast } = useToast();
 
   // Get current user
   const user = getCurrentUser();
   const userId = typeof user === 'object' ? (user?.email || user?.identifiant_technique || 'p71x6d_system') : user || 'p71x6d_system';
 
-  const { loadFromServer, syncWithServer, isOnline, lastSynced, loadError, resetSyncStatus } = useExigenceSync();
+  const { loadFromServer, syncWithServer, isOnline, lastSynced, loadError: syncLoadError, resetSyncStatus } = useExigenceSync();
   const exigenceMutations = useExigenceMutations(exigences, setExigences);
-  const groupOperations = useExigenceGroups(groups, setGroups);
+  const groupOperations = useExigenceGroups(groups, setGroups, setExigences);
 
   // Calculate exigence statistics
   const stats: ExigenceStats = {
@@ -174,9 +175,17 @@ export const useExigences = () => {
     setGroupDialogOpen(true);
   }, []);
 
+  // Handle group adding
+  const handleAddGroup = useCallback(() => {
+    const newGroup = groupOperations.handleAddGroup();
+    setEditingGroup(newGroup);
+    setGroupDialogOpen(true);
+  }, [groupOperations]);
+
   // Handle reset load attempts
   const handleResetLoadAttempts = useCallback(() => {
     resetSyncStatus();
+    setLoadError(null);
   }, [resetSyncStatus]);
 
   return {
@@ -192,7 +201,7 @@ export const useExigences = () => {
     syncFailed,
     isOnline,
     lastSynced,
-    loadError,
+    loadError: loadError || syncLoadError,
     setSelectedNiveau,
     setDialogOpen,
     setGroupDialogOpen,
@@ -202,7 +211,8 @@ export const useExigences = () => {
     handleSaveExigence,
     handleEditExigence: exigenceMutations.handleSaveExigence,
     handleReorder,
-    handleAddGroup: groupOperations.handleAddGroup,
+    handleAddGroup,
+    handleEditGroup,
     handleSaveGroup: groupOperations.handleSaveGroup,
     handleDeleteGroup: groupOperations.handleDeleteGroup,
     handleToggleGroup: groupOperations.handleToggleGroup,

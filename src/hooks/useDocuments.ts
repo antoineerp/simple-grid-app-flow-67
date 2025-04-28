@@ -33,10 +33,10 @@ export const useDocuments = () => {
   // Calculate document statistics
   const stats: DocumentStats = {
     total: documents.length,
-    conforme: documents.filter(d => d.atteinte === 'C' || d.etat === 'C').length,
-    partiellementConforme: documents.filter(d => d.atteinte === 'PC' || d.etat === 'PC').length,
-    nonConforme: documents.filter(d => d.atteinte === 'NC' || d.etat === 'NC').length,
-    exclusion: documents.filter(d => d.exclusion || d.etat === 'EX').length
+    conforme: documents.filter(d => d.etat === 'C').length,
+    partiellementConforme: documents.filter(d => d.etat === 'PC').length,
+    nonConforme: documents.filter(d => d.etat === 'NC').length,
+    exclusion: documents.filter(d => d.etat === 'EX' || d.exclusion === true).length
   };
 
   // Initial data loading
@@ -184,6 +184,13 @@ export const useDocuments = () => {
     handleSyncWithServer().catch(console.error);
   }, [handleSyncWithServer]);
 
+  // Handle group adding
+  const handleAddGroup = useCallback(() => {
+    const newGroup = groupOperations.handleAddGroup();
+    setEditingGroup(newGroup);
+    setGroupDialogOpen(true);
+  }, [groupOperations]);
+
   return {
     documents,
     groups,
@@ -204,7 +211,7 @@ export const useDocuments = () => {
     handleReorder,
     handleAddDocument,
     handleSaveDocument,
-    handleAddGroup: groupOperations.handleAddGroup,
+    handleAddGroup,
     handleEditGroup: (group: DocumentGroup) => {
       setEditingGroup(group);
       setGroupDialogOpen(true);

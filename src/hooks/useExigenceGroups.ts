@@ -6,7 +6,7 @@ import { useToast } from '@/hooks/use-toast';
 export const useExigenceGroups = (
   groups: ExigenceGroup[],
   setGroups: React.Dispatch<React.SetStateAction<ExigenceGroup[]>>,
-  setExigences: React.Dispatch<React.SetStateAction<any[]>>
+  setExigences?: React.Dispatch<React.SetStateAction<any[]>>
 ) => {
   const { toast } = useToast();
 
@@ -27,9 +27,11 @@ export const useExigenceGroups = (
   }, [setGroups, toast]);
 
   const handleDeleteGroup = useCallback((groupId: string) => {
-    setExigences(prev => prev.map(exigence => 
-      exigence.groupId === groupId ? { ...exigence, groupId: undefined } : exigence
-    ));
+    if (setExigences) {
+      setExigences(prev => prev.map(exigence => 
+        exigence.groupId === groupId ? { ...exigence, groupId: undefined } : exigence
+      ));
+    }
     
     setGroups(prev => prev.filter(g => g.id !== groupId));
     
@@ -56,10 +58,27 @@ export const useExigenceGroups = (
     });
   }, [setGroups]);
 
+  const handleAddGroup = useCallback(() => {
+    const newGroup: ExigenceGroup = {
+      id: crypto.randomUUID(),
+      name: "Nouveau groupe",
+      expanded: true,
+      items: []
+    };
+    
+    toast({
+      title: "Nouveau groupe",
+      description: "Veuillez modifier les informations du groupe",
+    });
+    
+    return newGroup;
+  }, [toast]);
+
   return {
     handleSaveGroup,
     handleDeleteGroup,
     handleToggleGroup,
-    handleGroupReorder
+    handleGroupReorder,
+    handleAddGroup
   };
 };

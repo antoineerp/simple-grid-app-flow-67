@@ -1,5 +1,6 @@
+
 import React from 'react';
-import { FileText, FolderPlus, CloudSun, RefreshCw } from 'lucide-react';
+import { FileText, FolderPlus, RefreshCw } from 'lucide-react';
 import { MembresProvider } from '@/contexts/MembresContext';
 import ExigenceForm from '@/components/exigences/ExigenceForm';
 import ExigenceStats from '@/components/exigences/ExigenceStats';
@@ -25,6 +26,7 @@ const ExigencesContent = () => {
     isOnline,
     lastSynced,
     loadError,
+    syncFailed,
     setDialogOpen,
     setGroupDialogOpen,
     handleResponsabiliteChange,

@@ -50,10 +50,27 @@ export const useDocumentGroups = (
     });
   }, [setGroups, toast]);
 
+  const handleAddGroup = useCallback(() => {
+    const newGroup: DocumentGroup = {
+      id: crypto.randomUUID(),
+      name: "Nouveau groupe",
+      expanded: true,
+      items: []
+    };
+    
+    toast({
+      title: "Nouveau groupe",
+      description: "Veuillez modifier les informations du groupe",
+    });
+    
+    return newGroup;
+  }, [toast]);
+
   return {
     handleGroupReorder,
     handleToggleGroup,
     handleSaveGroup,
-    handleDeleteGroup
+    handleDeleteGroup,
+    handleAddGroup
   };
 };
