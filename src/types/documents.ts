@@ -9,6 +9,7 @@ export interface DocumentGroup {
 export interface Document {
   id: string;
   nom: string;
+  titre?: string;
   fichier_path: string | null;
   responsabilites: {
     r: string[];
@@ -16,9 +17,11 @@ export interface Document {
     c: string[];
     i: string[];
   };
-  etat: 'NC' | 'PC' | 'C' | 'EX' | null;
-  date_creation: Date;
-  date_modification: Date;
+  atteinte?: 'NC' | 'PC' | 'C' | null;
+  etat?: 'NC' | 'PC' | 'C' | 'EX' | null;
+  exclusion?: boolean;
+  date_creation: Date | string;
+  date_modification: Date | string;
   groupId?: string;
 }
 

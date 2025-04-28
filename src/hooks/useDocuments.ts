@@ -6,6 +6,7 @@ import { useDocumentMutations } from '@/features/documents/hooks/useDocumentMuta
 import { useDocumentGroups } from '@/features/documents/hooks/useDocumentGroups';
 import { getCurrentUser } from '@/services/auth/authService';
 import { useToast } from '@/hooks/use-toast';
+import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 
 export const useDocuments = () => {
   const [documents, setDocuments] = useState<Document[]>([]);
@@ -16,7 +17,10 @@ export const useDocuments = () => {
   const [groupDialogOpen, setGroupDialogOpen] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncFailed, setSyncFailed] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [lastSynced, setLastSynced] = useState<Date | null>(null);
   const { toast } = useToast();
+  const { isOnline } = useNetworkStatus();
 
   // Get current user
   const user = getCurrentUser();
@@ -29,10 +33,10 @@ export const useDocuments = () => {
   // Calculate document statistics
   const stats: DocumentStats = {
     total: documents.length,
-    conforme: documents.filter(d => d.atteinte === 'C').length,
-    partiellementConforme: documents.filter(d => d.atteinte === 'PC').length,
-    nonConforme: documents.filter(d => d.atteinte === 'NC').length,
-    exclusion: documents.filter(d => d.exclusion).length
+    conforme: documents.filter(d => d.atteinte === 'C' || d.etat === 'C').length,
+    partiellementConforme: documents.filter(d => d.atteinte === 'PC' || d.etat === 'PC').length,
+    nonConforme: documents.filter(d => d.atteinte === 'NC' || d.etat === 'NC').length,
+    exclusion: documents.filter(d => d.exclusion || d.etat === 'EX').length
   };
 
   // Initial data loading
@@ -54,6 +58,7 @@ export const useDocuments = () => {
         }
       } catch (error) {
         console.error("Error loading documents:", error);
+        setLoadError(error instanceof Error ? error.message : "Erreur inconnue");
         toast({
           title: "Erreur de chargement",
           description: error instanceof Error ? error.message : "Erreur lors du chargement des documents",
@@ -77,6 +82,7 @@ export const useDocuments = () => {
           description: "Les documents ont été synchronisés avec le serveur",
         });
         setSyncFailed(false);
+        setLastSynced(new Date());
         
         // Reload data after successful sync
         const result = await loadFromServer(userId);
@@ -120,8 +126,13 @@ export const useDocuments = () => {
   const handleAddDocument = useCallback(() => {
     const newDocument: Document = {
       id: crypto.randomUUID(),
+      nom: '',
       titre: '',
-      // Propriétés typées correctement pour Document type
+      fichier_path: null,
+      responsabilites: { r: [], a: [], c: [], i: [] },
+      atteinte: null,
+      etat: null,
+      exclusion: false,
       date_creation: new Date().toISOString(),
       date_modification: new Date().toISOString()
     };
@@ -150,31 +161,28 @@ export const useDocuments = () => {
     }
   }, [documents, documentMutations, handleSyncWithServer]);
   
-  // Définir les fonctions manquantes pour corriger les erreurs
-  const handleAddGroup = useCallback(() => {
-    // Implémenter selon besoin
-    groupOperations.handleSaveGroup({
-      id: crypto.randomUUID(),
-      name: 'Nouveau groupe',
-      expanded: false,
-      items: []
-    }, false);
-  }, [groupOperations]);
+  const handleReorder = useCallback((startIndex: number, endIndex: number, targetGroupId?: string) => {
+    console.log('Reorder documents:', startIndex, endIndex, targetGroupId);
+    const newDocuments = [...documents];
+    const [removed] = newDocuments.splice(startIndex, 1);
+    const updated = { ...removed, groupId: targetGroupId };
+    newDocuments.splice(endIndex, 0, updated);
+    setDocuments(newDocuments);
+  }, [documents]);
   
-  const handleEditGroup = useCallback((group: DocumentGroup) => {
-    setEditingGroup(group);
-    setGroupDialogOpen(true);
-  }, []);
-  
-  const handleReorderDocuments = useCallback((startIndex: number, endIndex: number) => {
-    // Implémenter selon besoin
-    console.log('Reorder documents:', startIndex, endIndex);
-  }, []);
-  
-  const handleReorderGroups = useCallback((startIndex: number, endIndex: number) => {
-    // Implémenter selon besoin
+  const handleGroupReorder = useCallback((startIndex: number, endIndex: number) => {
     console.log('Reorder groups:', startIndex, endIndex);
-  }, []);
+    const newGroups = [...groups];
+    const [removed] = newGroups.splice(startIndex, 1);
+    newGroups.splice(endIndex, 0, removed);
+    setGroups(newGroups);
+  }, [groups]);
+  
+  const handleResetLoadAttempts = useCallback(() => {
+    setLoadError(null);
+    setSyncFailed(false);
+    handleSyncWithServer().catch(console.error);
+  }, [handleSyncWithServer]);
 
   return {
     documents,
@@ -186,24 +194,27 @@ export const useDocuments = () => {
     groupDialogOpen,
     isSyncing,
     syncFailed,
+    isOnline,
+    lastSynced,
+    loadError,
     setDialogOpen,
     setGroupDialogOpen,
     handleEdit,
     handleDelete: documentMutations.handleDelete,
-    handleReorder: handleReorderDocuments,
+    handleReorder,
     handleAddDocument,
     handleSaveDocument,
-    handleAddGroup,
-    handleEditGroup,
+    handleAddGroup: groupOperations.handleAddGroup,
+    handleEditGroup: (group: DocumentGroup) => {
+      setEditingGroup(group);
+      setGroupDialogOpen(true);
+    },
     handleDeleteGroup: groupOperations.handleDeleteGroup,
     handleSaveGroup: groupOperations.handleSaveGroup,
-    handleGroupReorder: handleReorderGroups,
+    handleGroupReorder,
     handleToggleGroup: groupOperations.handleToggleGroup,
     syncWithServer: handleSyncWithServer,
-    // Ajout des fonctions supplémentaires
-    handleEditDocument: documentMutations.handleEditDocument,
-    handleDeleteDocument: documentMutations.handleDelete,
-    handleReorderDocuments,
+    handleResetLoadAttempts,
     ...documentMutations
   };
 };
