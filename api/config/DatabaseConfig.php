@@ -14,6 +14,7 @@ class DatabaseConfig {
     }
 
     private function loadDefaultConfig() {
+        // Utiliser uniquement les valeurs d'Infomaniak
         $this->host = "p71x6d.myd.infomaniak.com";
         $this->db_name = "p71x6d_system";
         $this->username = "p71x6d_system";
@@ -27,7 +28,11 @@ class DatabaseConfig {
                 $config = json_decode($jsonContent, true);
                 
                 if (json_last_error() === JSON_ERROR_NONE) {
-                    if (isset($config['host'])) $this->host = $config['host'];
+                    // Vérifier que l'hôte contient "infomaniak" pour éviter localhost
+                    if (isset($config['host']) && strpos($config['host'], 'infomaniak') !== false) {
+                        $this->host = $config['host'];
+                    }
+                    
                     if (isset($config['db_name'])) $this->db_name = $config['db_name'];
                     if (isset($config['username'])) $this->username = $config['username'];
                     if (isset($config['password'])) $this->password = $config['password'];
@@ -68,7 +73,14 @@ class DatabaseConfig {
     }
 
     public function updateConfig($host, $db_name, $username, $password) {
-        $this->host = $host;
+        // Vérifier que le nouvel hôte contient "infomaniak"
+        if (strpos($host, 'infomaniak') !== false) {
+            $this->host = $host;
+        } else {
+            // Forcer l'utilisation d'Infomaniak
+            $this->host = "p71x6d.myd.infomaniak.com";
+        }
+        
         $this->db_name = $db_name;
         $this->username = $username;
         $this->password = $password;

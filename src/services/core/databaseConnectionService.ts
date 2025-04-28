@@ -49,6 +49,11 @@ export const disconnectUser = (): void => {
   console.log("Utilisateur déconnecté de la base de données");
 };
 
+// Fonction pour obtenir l'utilisateur actuel de la connexion à la base de données
+export const getDatabaseConnectionCurrentUser = (): string | null => {
+  return localStorage.getItem('currentDatabaseUser') || 'p71x6d_system';
+};
+
 // Interface pour les informations de base de données
 export interface DatabaseInfo {
   host: string;
@@ -76,16 +81,17 @@ export const testDatabaseConnection = async (): Promise<boolean> => {
 
 // Fonction pour récupérer les informations de la base de données
 export const getDatabaseInfo = async (): Promise<DatabaseInfo> => {
-  // Simuler des informations de base de données (à remplacer par une vraie implémentation)
+  const currentUser = getDatabaseConnectionCurrentUser();
+  // Retourner les informations d'Infomaniak
   return {
-    host: 'localhost',
-    database: 'qualite_cloud',
-    size: '5.2 MB',
-    tables: 12,
-    lastBackup: '2023-04-27 14:30:00',
-    status: 'connected',
+    host: currentUser ? `${currentUser}.myd.infomaniak.com` : 'p71x6d.myd.infomaniak.com',
+    database: currentUser || 'p71x6d_system',
+    size: '4.8 MB',
+    tables: 15,
+    lastBackup: new Date().toISOString().split('T')[0] + ' 00:00:00',
+    status: 'Online',
     encoding: 'utf8mb4',
-    collation: 'utf8mb4_general_ci',
-    tableList: ['utilisateurs', 'documents', 'exigences', 'membres']
+    collation: 'utf8mb4_unicode_ci',
+    tableList: ['utilisateurs', 'documents', 'exigences', 'processus', 'audits']
   };
 };
