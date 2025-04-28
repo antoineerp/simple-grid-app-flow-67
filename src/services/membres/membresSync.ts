@@ -14,6 +14,8 @@ export const syncMembresWithServer = async (
     console.log(`Synchronisation des membres pour l'utilisateur ${currentUser}`);
     
     const API_URL = getApiUrl();
+    console.log(`Envoi des données à: ${API_URL}/membres-sync.php`);
+    
     const response = await fetch(`${API_URL}/membres-sync.php`, {
       method: 'POST',
       headers: {
@@ -25,18 +27,35 @@ export const syncMembresWithServer = async (
     
     if (!response.ok) {
       console.error(`Erreur lors de la synchronisation des membres: ${response.status}`);
-      const errorText = await response.text();
-      console.error("Détails de l'erreur:", errorText);
+      
+      // Essayer de récupérer les détails de l'erreur
+      try {
+        const errorText = await response.text();
+        console.error("Détails de l'erreur:", errorText);
+        
+        // Si c'est du JSON, parserons-le
+        if (errorText.trim().startsWith('{')) {
+          const errorJson = JSON.parse(errorText);
+          throw new Error(errorJson.message || `Échec de la synchronisation des membres: ${response.statusText}`);
+        }
+      } catch (parseErr) {
+        // Rien à faire, on utilisera le message d'erreur générique
+      }
+      
       throw new Error(`Échec de la synchronisation des membres: ${response.statusText}`);
     }
     
     const result = await response.json();
     console.log("Résultat de la synchronisation des membres:", result);
     
+    if (!result.success) {
+      throw new Error(result.message || "Erreur de synchronisation inconnue");
+    }
+    
     return result.success === true;
   } catch (error) {
     console.error('Erreur de synchronisation des membres:', error);
-    return false;
+    throw error; // Propager l'erreur pour la gestion côté contexte
   }
 };
 
@@ -48,13 +67,33 @@ export const loadMembresFromServer = async (currentUser: string): Promise<Membre
     const API_URL = getApiUrl();
     console.log(`Chargement des membres pour l'utilisateur ${currentUser} depuis: ${API_URL}/membres-load.php`);
     
-    const response = await fetch(`${API_URL}/membres-load.php?userId=${encodeURIComponent(currentUser)}`, {
+    const encodedUserId = encodeURIComponent(currentUser);
+    const url = `${API_URL}/membres-load.php?userId=${encodedUserId}`;
+    console.log(`URL complète: ${url}`);
+    
+    const response = await fetch(url, {
       method: 'GET',
-      headers: getAuthHeaders()
+      headers: getAuthHeaders(),
+      cache: 'no-store' // Désactiver la mise en cache
     });
     
     if (!response.ok) {
       console.error(`Erreur lors du chargement des membres: ${response.status}`);
+      
+      // Essayer de récupérer les détails de l'erreur
+      try {
+        const errorText = await response.text();
+        console.error("Détails de l'erreur:", errorText);
+        
+        // Si c'est du JSON, parserons-le
+        if (errorText.trim().startsWith('{')) {
+          const errorJson = JSON.parse(errorText);
+          throw new Error(errorJson.message || `Échec du chargement des membres: ${response.statusText}`);
+        }
+      } catch (parseErr) {
+        // Rien à faire, on utilisera le message d'erreur générique
+      }
+      
       throw new Error(`Échec du chargement des membres: ${response.statusText}`);
     }
     
@@ -64,6 +103,6 @@ export const loadMembresFromServer = async (currentUser: string): Promise<Membre
     return result.membres || null;
   } catch (error) {
     console.error('Erreur de chargement des membres:', error);
-    return null;
+    throw error; // Propager l'erreur pour la gestion côté contexte
   }
 };

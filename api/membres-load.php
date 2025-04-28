@@ -55,6 +55,7 @@ try {
     
     if (!$tableExists) {
         // Si la table n'existe pas, renvoyer un tableau vide
+        error_log("Table {$tableName} n'existe pas, retour d'un tableau vide");
         echo json_encode([
             'success' => true,
             'membres' => [],
@@ -64,7 +65,9 @@ try {
     }
     
     // Récupérer les membres depuis la table
-    $stmt = $pdo->query("SELECT * FROM `{$tableName}` ORDER BY nom, prenom");
+    $query = "SELECT * FROM `{$tableName}` ORDER BY nom, prenom";
+    error_log("Exécution de la requête: {$query}");
+    $stmt = $pdo->query($query);
     $membres = $stmt->fetchAll();
     
     // Formater les dates pour le client
@@ -77,6 +80,7 @@ try {
         }
     }
     
+    error_log("Membres récupérés: " . count($membres));
     echo json_encode([
         'success' => true,
         'membres' => $membres,

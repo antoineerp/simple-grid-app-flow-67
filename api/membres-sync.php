@@ -48,6 +48,8 @@ try {
     $userId = $data['userId'];
     $membres = $data['membres'];
     
+    error_log("Synchronisation pour l'utilisateur: {$userId} - Nombre de membres: " . count($membres));
+    
     // Connexion à la base de données
     $pdo = new PDO("mysql:host={$host};dbname={$dbname};charset=utf8mb4", $username, $password, [
         PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
@@ -57,9 +59,10 @@ try {
     
     // Vérifier si la table de synchronisation existe
     $tableName = "membres_" . preg_replace('/[^a-zA-Z0-9_]/', '_', $userId);
+    error_log("Nom de la table: {$tableName}");
     
     // Créer la table si elle n'existe pas
-    $pdo->exec("CREATE TABLE IF NOT EXISTS `{$tableName}` (
+    $createTableQuery = "CREATE TABLE IF NOT EXISTS `{$tableName}` (
         `id` VARCHAR(36) PRIMARY KEY,
         `nom` VARCHAR(100) NOT NULL,
         `prenom` VARCHAR(100) NOT NULL,
@@ -68,24 +71,34 @@ try {
         `mot_de_passe` VARCHAR(255),
         `date_creation` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
         `date_modification` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
+    
+    error_log("Exécution de la requête: {$createTableQuery}");
+    $pdo->exec($createTableQuery);
     
     // Commencer une transaction
+    error_log("Début de transaction");
     $pdo->beginTransaction();
     
     try {
         // Vider la table avant d'insérer les données actualisées
-        $pdo->exec("TRUNCATE TABLE `{$tableName}`");
+        $truncateQuery = "TRUNCATE TABLE `{$tableName}`";
+        error_log("Exécution de la requête: {$truncateQuery}");
+        $pdo->exec($truncateQuery);
         
         // Préparer la requête d'insertion
-        $stmt = $pdo->prepare("INSERT INTO `{$tableName}` 
+        $insertQuery = "INSERT INTO `{$tableName}` 
             (id, nom, prenom, fonction, initiales, mot_de_passe, date_creation)
-            VALUES (:id, :nom, :prenom, :fonction, :initiales, :mot_de_passe, :date_creation)");
+            VALUES (:id, :nom, :prenom, :fonction, :initiales, :mot_de_passe, :date_creation)";
+        error_log("Préparation de la requête: {$insertQuery}");
+        $stmt = $pdo->prepare($insertQuery);
         
         // Insérer chaque membre
+        $memberCount = 0;
         foreach ($membres as $membre) {
             // S'assurer que l'id existe
             if (!isset($membre['id']) || empty($membre['id'])) {
+                error_log("Membre sans ID ignoré");
                 continue; // Sauter cet enregistrement
             }
             
@@ -100,8 +113,7 @@ try {
                 $dateCreation = date('Y-m-d H:i:s');
             }
             
-            // Exécuter l'insertion
-            $stmt->execute([
+            $memberData = [
                 'id' => $membre['id'],
                 'nom' => $membre['nom'] ?? '',
                 'prenom' => $membre['prenom'] ?? '',
@@ -109,21 +121,30 @@ try {
                 'initiales' => $membre['initiales'] ?? '',
                 'mot_de_passe' => $membre['mot_de_passe'] ?? '',
                 'date_creation' => $dateCreation
-            ]);
+            ];
+            
+            // Exécuter l'insertion
+            error_log("Insertion du membre ID: {$membre['id']}");
+            $stmt->execute($memberData);
+            $memberCount++;
         }
         
         // Valider la transaction
+        error_log("Validation de la transaction après {$memberCount} insertions");
         $pdo->commit();
         
         echo json_encode([
             'success' => true,
             'message' => 'Synchronisation des membres réussie',
-            'count' => count($membres)
+            'count' => $memberCount
         ]);
         
     } catch (Exception $e) {
         // Annuler la transaction en cas d'erreur
-        $pdo->rollBack();
+        if ($pdo->inTransaction()) {
+            error_log("Erreur détectée, annulation de la transaction");
+            $pdo->rollBack();
+        }
         throw $e;
     }
     
@@ -142,6 +163,12 @@ try {
         'message' => $e->getMessage()
     ]);
 } finally {
+    // Terminer la transaction si elle est toujours active
+    if (isset($pdo) && $pdo->inTransaction()) {
+        error_log("Annulation de la transaction qui était encore active dans le bloc finally");
+        $pdo->rollBack();
+    }
+    
     if (ob_get_level()) ob_end_flush();
 }
 ?>

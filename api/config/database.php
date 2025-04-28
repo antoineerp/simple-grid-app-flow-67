@@ -1,4 +1,3 @@
-
 <?php
 // Configuration de la connexion à la base de données
 class Database {
@@ -80,7 +79,7 @@ class Database {
             return true;
         } catch (Exception $e) {
             error_log("Erreur lors de la sauvegarde de la configuration de base de données: " . $e->getMessage());
-            $this->connection_error = "Erreur de sauvegarde: " . $e->getMessage();
+            $this->connection_error = "Erreur de sauvegarde: "e->getMessage();
             return false;
         }
     }
