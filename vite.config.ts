@@ -3,7 +3,7 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
 
-// Configuration pour Vite
+// Configuration pour Vite (compatible avec v5 et v6)
 export default defineConfig(({ mode }) => {
   // Configuration spécifique pour Infomaniak
   const isInfomaniak = process.env.VITE_HOSTING === 'infomaniak' || process.env.NODE_ENV === 'production';
@@ -54,7 +54,7 @@ export default defineConfig(({ mode }) => {
     },
     publicDir: 'public',
     base: basePath,
-    // La propriété legacy avec buildSsrCjsExternalHeuristics a été supprimée
-    // car elle n'est pas compatible avec Vite 6
+    // La propriété legacy a été complètement supprimée
+    // car elle n'est pas compatible entre Vite 5 et Vite 6
   };
 });
