@@ -86,11 +86,11 @@ try {
     $tableName = "membres_" . $safeUserId;
     error_log("Table à consulter (après nettoyage): {$tableName}");
     
-    // Vérifier si la table existe
-    $tableExistsQuery = "SHOW TABLES LIKE ?";
+    // CORRECTION: Vérifier si la table existe en utilisant information_schema au lieu de SHOW TABLES LIKE
+    $tableExistsQuery = "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = ? AND table_name = ?";
     $stmt = $pdo->prepare($tableExistsQuery);
-    $stmt->execute([$tableName]);
-    $tableExists = $stmt->rowCount() > 0;
+    $stmt->execute([$dbname, $tableName]);
+    $tableExists = (int)$stmt->fetchColumn() > 0;
     
     if (!$tableExists) {
         // Si la table n'existe pas, renvoyer un tableau vide
