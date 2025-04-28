@@ -25,6 +25,8 @@ export default defineConfig(({ mode }) => {
     resolve: {
       alias: {
         "@": path.resolve(__dirname, "./src"),
+        "jspdf": path.resolve(__dirname, "node_modules/jspdf/dist/jspdf.es.min.js"),
+        "jspdf-autotable": path.resolve(__dirname, "node_modules/jspdf-autotable/dist/jspdf.plugin.autotable.js")
       },
     },
     build: {
@@ -51,14 +53,14 @@ export default defineConfig(({ mode }) => {
           entryFileNames: 'assets/[name].[hash].js',
         },
         // Configuration explicite des dépendances externes pour éviter les erreurs de compilation
-        external: ['jspdf', 'jspdf-autotable']
+        external: []
       }
     },
     publicDir: 'public',
     base: basePath,
     optimizeDeps: {
-      // Exclure ces packages de l'optimisation pour éviter les erreurs de résolution
-      exclude: ['jspdf', 'jspdf-autotable']
+      // Inclure jspdf et jspdf-autotable pour s'assurer qu'ils sont correctement traités
+      include: ['jspdf', 'jspdf-autotable']
     }
   };
 });
