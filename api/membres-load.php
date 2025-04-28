@@ -90,6 +90,12 @@ try {
         $userId = 'p71x6d_system';
     }
     
+    // Correction: vérification supplémentaire pour les chaînes [object Object]
+    if ($userId === '[object Object]' || strpos($userId, 'object') !== false) {
+        error_log("UserId contient 'object', utilisation de l'ID par défaut");
+        $userId = 'p71x6d_system';
+    }
+    
     $safeUserId = preg_replace('/[^a-zA-Z0-9_]/', '_', $userId);
     $tableName = "membres_" . $safeUserId;
     error_log("Table à consulter (après nettoyage): {$tableName}");
@@ -113,12 +119,12 @@ try {
     }
     
     // Récupérer les membres depuis la table en utilisant une requête préparée
-    // NOTE: Pour les noms de tables dynamiques, on doit construire la requête manuellement
-    // mais on peut quand même utiliser des requêtes préparées pour les autres valeurs
-    $query = "SELECT * FROM `" . $tableName . "` ORDER BY nom, prenom";
+    // CORRECTION: Utiliser un identifiant de table explicite sans point d'interrogation
+    // La syntaxe SQL est modifiée pour utiliser des guillemets et éviter les erreurs de syntaxe
+    $query = "SELECT * FROM `{$tableName}` ORDER BY nom, prenom";
     error_log("Exécution de la requête: {$query}");
     
-    // Exécuter la requête (les noms de tables ne peuvent pas être liés dans les requêtes préparées)
+    // Exécuter la requête directement puisque le nom de la table est déjà sécurisé
     $stmt = $pdo->query($query);
     $membres = $stmt->fetchAll();
     

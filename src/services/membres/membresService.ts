@@ -13,28 +13,40 @@ const extractValidUserId = (userId: any): string => {
     return 'p71x6d_system';
   }
   
-  // Si c'est déjà une chaîne, la retourner directement
+  // Si c'est déjà une chaîne, la retourner directement (mais vérifier si c'est [object Object])
   if (typeof userId === 'string') {
+    // Vérifier si la chaîne est [object Object]
+    if (userId === '[object Object]' || userId.includes('object')) {
+      console.log("userId est la chaîne '[object Object]', utilisation de l'ID par défaut");
+      return 'p71x6d_system';
+    }
     return userId;
   }
   
   // Si c'est un objet, essayer d'extraire un identifiant
   if (typeof userId === 'object') {
     // Journaliser l'identifiant reçu pour débogage
-    console.log("Identifiant objet reçu:", userId);
+    console.log("Identifiant objet reçu:", JSON.stringify(userId));
     
     // Propriétés potentielles pour extraire un ID
     const idProperties = ['identifiant_technique', 'email', 'id'];
     
     for (const prop of idProperties) {
-      if (userId[prop] && typeof userId[prop] === 'string') {
+      if (userId[prop] && typeof userId[prop] === 'string' && userId[prop].length > 0) {
         console.log(`ID utilisateur extrait de l'objet: ${prop}=${userId[prop]}`);
         return userId[prop];
       }
     }
+    
+    // Si toString() renvoie quelque chose d'autre que [object Object], l'utiliser
+    const userIdString = String(userId);
+    if (userIdString !== '[object Object]' && userIdString !== 'null' && userIdString !== 'undefined') {
+      console.log(`Conversion de l'objet en chaîne: ${userIdString}`);
+      return userIdString;
+    }
   }
   
-  console.log(`Utilisation de l'ID par défaut pour le type: ${typeof userId}`);
+  console.log(`Utilisation de l'ID par défaut: p71x6d_system`);
   return 'p71x6d_system'; // Valeur par défaut si rien n'est valide
 };
 
