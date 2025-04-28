@@ -1,7 +1,7 @@
 
 export interface ExigenceGroup {
   id: string;
-  name: string;
+  name: string;  // The type uses 'name' not 'title'
   expanded: boolean;
   items: Exigence[];
 }
