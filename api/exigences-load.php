@@ -76,16 +76,17 @@ try {
     $exigencesTableExists = false;
     $groupsTableExists = false;
     
-    $tableExistsQuery = "SHOW TABLES LIKE ?";
+    // CORRECTION: Utiliser information_schema pour vérifier l'existence des tables, plutôt que SHOW TABLES LIKE
+    $tableExistsQuery = "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = ? AND table_name = ?";
     $stmt = $pdo->prepare($tableExistsQuery);
     
     // Vérifier la table des exigences
-    $stmt->execute([$exigencesTableName]);
-    $exigencesTableExists = $stmt->rowCount() > 0;
+    $stmt->execute([$dbname, $exigencesTableName]);
+    $exigencesTableExists = (int)$stmt->fetchColumn() > 0;
     
     // Vérifier la table des groupes
-    $stmt->execute([$groupsTableName]);
-    $groupsTableExists = $stmt->rowCount() > 0;
+    $stmt->execute([$dbname, $groupsTableName]);
+    $groupsTableExists = (int)$stmt->fetchColumn() > 0;
     
     // Initialiser les résultats
     $exigences = [];

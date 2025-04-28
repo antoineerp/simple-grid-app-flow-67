@@ -135,7 +135,7 @@ try {
         
         // Valider la transaction
         error_log("Validation de la transaction après {$memberCount} insertions");
-        if ($transaction_started) {
+        if ($transaction_started && $pdo->inTransaction()) {
             $pdo->commit();
             $transaction_started = false;
         }
