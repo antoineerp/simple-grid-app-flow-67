@@ -82,7 +82,7 @@ header('Content-Type: text/html; charset=utf-8');
         // Corriger la référence JS
         if ($mainJs) {
             $new_content = preg_replace(
-                '/<script[^>]*src="\/assets\/main[^"]*\.js"[^>]*>/i',
+                '/<script[^>]*src="[^"]*\/src\/main\.tsx"[^>]*>/i', 
                 '<script type="module" src="' . $mainJs . '">',
                 $content
             );
@@ -90,13 +90,25 @@ header('Content-Type: text/html; charset=utf-8');
                 $content = $new_content;
                 $changes_made = true;
                 echo "<p>Référence JS mise à jour vers: <span class='success'>" . htmlspecialchars($mainJs) . "</span></p>";
+            } else {
+                // Essayer une autre approche pour trouver la référence JS
+                $new_content = preg_replace(
+                    '/<script[^>]*src="[^"]*"[^>]*type="module"[^>]*>/i',
+                    '<script type="module" src="' . $mainJs . '">',
+                    $content
+                );
+                if ($new_content != $content) {
+                    $content = $new_content;
+                    $changes_made = true;
+                    echo "<p>Référence JS (alternative) mise à jour vers: <span class='success'>" . htmlspecialchars($mainJs) . "</span></p>";
+                }
             }
         }
         
         // Corriger la référence CSS
         if ($mainCss) {
             $new_content = preg_replace(
-                '/<link[^>]*href="\/assets\/[^"]*\.css"[^>]*>/i',
+                '/<link[^>]*href="\.\/src\/index\.css"[^>]*>/i',
                 '<link rel="stylesheet" href="' . $mainCss . '">',
                 $content
             );
