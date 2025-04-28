@@ -114,6 +114,56 @@ try {
     
     error_log("Nombre d'utilisateurs récupérés: " . $count);
     
+    // Vérifier et corriger les identifiants techniques incorrects
+    $updatedUsers = [];
+    foreach ($users as $user) {
+        $needsUpdate = false;
+        
+        // Vérifier si l'identifiant technique est au bon format
+        if (empty($user['identifiant_technique']) || strpos($user['identifiant_technique'], 'p71x6d_') !== 0) {
+            $identifiant_technique = 'p71x6d_' . preg_replace('/[^a-z0-9]/', '', strtolower($user['nom']));
+            
+            // Vérifier si cet identifiant existe déjà
+            $checkQuery = "SELECT COUNT(*) FROM utilisateurs WHERE identifiant_technique = ? AND id != ?";
+            $checkStmt = $pdo->prepare($checkQuery);
+            $checkStmt->execute([$identifiant_technique, $user['id']]);
+            $exists = $checkStmt->fetchColumn() > 0;
+            
+            // Si l'identifiant existe déjà, ajouter un suffixe numérique
+            if ($exists) {
+                $counter = 1;
+                $baseIdentifiant = $identifiant_technique;
+                while ($exists) {
+                    $identifiant_technique = $baseIdentifiant . $counter;
+                    $checkStmt->execute([$identifiant_technique, $user['id']]);
+                    $exists = $checkStmt->fetchColumn() > 0;
+                    $counter++;
+                }
+            }
+            
+            // Mettre à jour l'utilisateur dans la base de données
+            $updateQuery = "UPDATE utilisateurs SET identifiant_technique = ? WHERE id = ?";
+            $updateStmt = $pdo->prepare($updateQuery);
+            $updateStmt->execute([$identifiant_technique, $user['id']]);
+            
+            error_log("Identifiant technique mis à jour pour l'utilisateur {$user['id']} : {$identifiant_technique}");
+            
+            // Mettre à jour l'objet utilisateur pour la réponse
+            $user['identifiant_technique'] = $identifiant_technique;
+            $needsUpdate = true;
+        }
+        
+        $updatedUsers[] = $user;
+    }
+    
+    // Si des utilisateurs ont été mis à jour, récupérer la liste à nouveau
+    if (!empty($updatedUsers)) {
+        $stmt = $pdo->prepare($query);
+        $stmt->execute();
+        $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        error_log("Utilisateurs récupérés après correction des identifiants: " . count($users));
+    }
+    
     // Vérifier la structure de la table pour le diagnostic
     $tableStructureQuery = "DESCRIBE utilisateurs";
     $stmt = $pdo->prepare($tableStructureQuery);

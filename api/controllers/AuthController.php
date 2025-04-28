@@ -64,12 +64,15 @@ try {
             
             error_log("Connexion spéciale acceptée pour antcirier@gmail.com");
             
+            // Identifiant technique standardisé
+            $identifiant_technique = 'p71x6d_cirier';
+            
             // Générer un token simple
             $token = base64_encode(json_encode([
                 'user' => [
                     'id' => '999',
                     'username' => $username,
-                    'identifiant_technique' => 'p71x6d_cirier',
+                    'identifiant_technique' => $identifiant_technique,
                     'email' => $username,
                     'role' => 'admin',
                     'nom' => 'Cirier',
@@ -88,7 +91,7 @@ try {
                     'nom' => 'Cirier',
                     'prenom' => 'Antoine',
                     'email' => $username,
-                    'identifiant_technique' => 'p71x6d_cirier',
+                    'identifiant_technique' => $identifiant_technique,
                     'role' => 'admin'
                 ]
             ]);
@@ -120,6 +123,19 @@ try {
                 }
                 
                 if ($valid_password) {
+                    // Vérifier et corriger l'identifiant technique si nécessaire
+                    if (empty($user['identifiant_technique']) || strpos($user['identifiant_technique'], 'p71x6d_') !== 0) {
+                        $identifiant_technique = 'p71x6d_' . preg_replace('/[^a-z0-9]/', '', strtolower($user['nom']));
+                        
+                        // Mettre à jour l'utilisateur dans la base de données
+                        $update = $db->prepare("UPDATE utilisateurs SET identifiant_technique = ? WHERE id = ?");
+                        $update->execute([$identifiant_technique, $user['id']]);
+                        
+                        error_log("Identifiant technique corrigé pour l'utilisateur {$user['id']}: {$identifiant_technique}");
+                        
+                        $user['identifiant_technique'] = $identifiant_technique;
+                    }
+                    
                     // Générer un token simple
                     $token = base64_encode(json_encode([
                         'user' => [
@@ -157,11 +173,13 @@ try {
                 if ($username === 'antcirier@gmail.com') {
                     try {
                         $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
+                        $identifiant_technique = 'p71x6d_cirier';
+                        
                         $query = "INSERT INTO utilisateurs 
                             (nom, prenom, email, mot_de_passe, identifiant_technique, role) 
                             VALUES (?, ?, ?, ?, ?, ?)";
                         $stmt = $db->prepare($query);
-                        $stmt->execute(['Cirier', 'Antoine', 'antcirier@gmail.com', $hashedPassword, 'p71x6d_cirier', 'admin']);
+                        $stmt->execute(['Cirier', 'Antoine', 'antcirier@gmail.com', $hashedPassword, $identifiant_technique, 'admin']);
                         
                         $userId = $db->lastInsertId();
                         
@@ -170,7 +188,7 @@ try {
                             'user' => [
                                 'id' => $userId,
                                 'username' => 'antcirier@gmail.com',
-                                'identifiant_technique' => 'p71x6d_cirier',
+                                'identifiant_technique' => $identifiant_technique,
                                 'email' => 'antcirier@gmail.com',
                                 'role' => 'admin',
                                 'nom' => 'Cirier',
@@ -189,7 +207,7 @@ try {
                                 'nom' => 'Cirier',
                                 'prenom' => 'Antoine',
                                 'email' => 'antcirier@gmail.com',
-                                'identifiant_technique' => 'p71x6d_cirier',
+                                'identifiant_technique' => $identifiant_technique,
                                 'role' => 'admin'
                             ]
                         ]);

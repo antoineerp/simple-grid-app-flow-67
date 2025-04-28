@@ -77,8 +77,32 @@ try {
         // Récupérer quelques utilisateurs pour vérification
         $stmt = $pdo->query('SELECT id, identifiant_technique, email, role FROM utilisateurs LIMIT 5');
         $utilisateurs_sample = $stmt->fetchAll();
+        
+        // Vérifier et corriger les identifiants techniques
+        foreach ($utilisateurs_sample as $key => $user) {
+            if (empty($user['identifiant_technique']) || strpos($user['identifiant_technique'], 'p71x6d_') !== 0) {
+                // Récupérer le nom complet
+                $userStmt = $pdo->prepare("SELECT nom FROM utilisateurs WHERE id = ?");
+                $userStmt->execute([$user['id']]);
+                $userInfo = $userStmt->fetch();
+                
+                if ($userInfo) {
+                    $identifiant_technique = 'p71x6d_' . preg_replace('/[^a-z0-9]/', '', strtolower($userInfo['nom']));
+                    
+                    // Mettre à jour l'utilisateur dans la base de données
+                    $update = $pdo->prepare("UPDATE utilisateurs SET identifiant_technique = ? WHERE id = ?");
+                    $update->execute([$identifiant_technique, $user['id']]);
+                    
+                    error_log("Identifiant technique corrigé pour l'utilisateur {$user['id']}: {$identifiant_technique}");
+                    
+                    // Mettre à jour l'échantillon
+                    $utilisateurs_sample[$key]['identifiant_technique'] = $identifiant_technique;
+                }
+            }
+        }
     } catch (PDOException $e) {
         // Ignorer cette erreur - la table peut ne pas exister
+        error_log("Erreur lors de la récupération des utilisateurs: " . $e->getMessage());
     }
     
     // Récupérer la taille de la base de données

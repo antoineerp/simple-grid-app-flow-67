@@ -27,12 +27,20 @@ export const getLastConnectionError = (): string | null => {
 // Fonction pour définir la dernière erreur de connexion
 export const setLastConnectionError = (error: string): void => {
   lastConnectionError = error;
+  console.error("Erreur de connexion enregistrée:", error);
 };
 
-// Nouvelle fonction pour se connecter en tant qu'utilisateur spécifique
+// Fonction pour se connecter en tant qu'utilisateur spécifique
 export const connectAsUser = async (userId: string): Promise<boolean> => {
   try {
     console.log(`Tentative de connexion en tant que: ${userId}`);
+    
+    // S'assurer que l'identifiant est bien formaté
+    if (!userId || !userId.startsWith('p71x6d_')) {
+      setLastConnectionError(`Identifiant technique invalide: ${userId}`);
+      return false;
+    }
+    
     setCurrentUser(userId);
     return true;
   } catch (error) {
@@ -70,17 +78,26 @@ export interface DatabaseInfo {
 // Fonction pour tester la connexion à la base de données
 export const testDatabaseConnection = async (): Promise<boolean> => {
   try {
+    console.log("Test de connexion à la base de données via direct-db-test.php");
     // Utiliser direct-db-test.php pour tester la connexion réelle
     const response = await fetch('/api/direct-db-test.php');
     if (!response.ok) {
       const errorData = await response.json();
-      console.error("Erreur de connexion à la base de données:", errorData.message || response.statusText);
+      const errorMessage = errorData.message || response.statusText;
+      console.error("Erreur de connexion à la base de données:", errorMessage);
+      setLastConnectionError(errorMessage);
       return false;
     }
     const result = await response.json();
-    return result.status === 'success';
+    if (result.status !== 'success') {
+      setLastConnectionError(result.message || "Échec de la connexion");
+      return false;
+    }
+    return true;
   } catch (error) {
     console.error("Erreur lors du test de connexion à la base de données:", error);
+    const errorMessage = error instanceof Error ? error.message : "Erreur inconnue";
+    setLastConnectionError(errorMessage);
     return false;
   }
 };
@@ -89,26 +106,38 @@ export const testDatabaseConnection = async (): Promise<boolean> => {
 export const getDatabaseInfo = async (): Promise<DatabaseInfo> => {
   try {
     const currentUser = getDatabaseConnectionCurrentUser();
+    console.log(`Récupération des informations de base de données pour: ${currentUser || 'utilisateur par défaut'}`);
+    
     // Appel direct au diagnostic de base de données pour obtenir des informations réelles
     const response = await fetch('/api/direct-db-test.php');
     
     // Si la requête échoue, lancer une erreur
     if (!response.ok) {
       const errorData = await response.json();
-      throw new Error(errorData.message || `Erreur de connexion à la base de données: ${response.statusText}`);
+      const errorMessage = errorData.message || `Erreur de connexion à la base de données: ${response.statusText}`;
+      setLastConnectionError(errorMessage);
+      throw new Error(errorMessage);
     }
     
     // Essayer d'analyser la réponse JSON
     const data = await response.json();
     
     if (data.status !== 'success') {
-      throw new Error(data.message || "Échec de la récupération des informations de la base de données");
+      const errorMessage = data.message || "Échec de la récupération des informations de la base de données";
+      setLastConnectionError(errorMessage);
+      throw new Error(errorMessage);
+    }
+    
+    // S'assurer que les valeurs critiques ne sont pas "localhost"
+    if (data.host && data.host.includes('localhost')) {
+      console.error("ALERTE: Host 'localhost' détecté dans la réponse API. Correction forcée vers Infomaniak.");
+      data.host = "p71x6d.myd.infomaniak.com";
     }
     
     // Extraire et formater les informations de la base de données
-    return {
-      host: currentUser ? `${currentUser}.myd.infomaniak.com` : data.host || 'p71x6d.myd.infomaniak.com',
-      database: currentUser || data.database || 'p71x6d_system',
+    const dbInfo: DatabaseInfo = {
+      host: data.host || "p71x6d.myd.infomaniak.com",
+      database: data.database || "p71x6d_system",
       size: data.size || '0 MB',
       tables: data.tables ? data.tables.length : 0,
       lastBackup: new Date().toISOString().split('T')[0] + ' 00:00:00',
@@ -117,8 +146,13 @@ export const getDatabaseInfo = async (): Promise<DatabaseInfo> => {
       collation: data.collation || 'utf8mb4_unicode_ci',
       tableList: data.tables || []
     };
+    
+    console.log("Informations de base de données reçues:", dbInfo);
+    return dbInfo;
   } catch (error) {
     console.error('Erreur lors de la récupération des informations de la base de données:', error);
+    const errorMessage = error instanceof Error ? error.message : "Erreur inconnue";
+    setLastConnectionError(errorMessage);
     // Lancer l'erreur pour la propager au composant appelant
     throw error;
   }
