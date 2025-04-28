@@ -2,13 +2,13 @@
 import React, { useEffect } from 'react';
 import { CloudSun, FileText } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
-import { useBibliotheque } from '@/contexts/BibliothequeContext';
-import { exportBibliothecaireDocsToPdf } from '@/services/bibliothequeExport';
+import { useCollaboration } from '@/contexts/CollaborationContext';
+import { exportCollaborationDocsToPdf } from '@/services/collaborationExport';
 import SyncStatusIndicator from '@/components/common/SyncStatusIndicator';
-import { BibliothequeTable } from '@/features/bibliotheque/components/BibliothequeTable';
-import { BibliothequeActions } from '@/features/bibliotheque/components/BibliothequeActions';
+import { CollaborationTable } from '@/features/collaboration/components/CollaborationTable';
+import { CollaborationActions } from '@/features/collaboration/components/CollaborationActions';
 
-const Bibliotheque = () => {
+const Collaboration = () => {
   const { toast } = useToast();
   const { 
     documents, 
@@ -36,22 +36,22 @@ const Bibliotheque = () => {
     setCurrentDocument,
     setCurrentGroup,
     setIsEditing
-  } = useBibliotheque();
+  } = useCollaboration();
 
   // Effectuer une seule synchronisation au chargement de la page
   useEffect(() => {
     if (!isLoading && isOnline && !syncFailed && !isSyncing) {
-      console.log("Synchronisation initiale de la bibliothèque");
+      console.log("Synchronisation initiale de la collaboration");
       syncWithServer().catch(console.error);
     }
   }, [isLoading, isOnline, syncFailed, isSyncing, syncWithServer]);
 
   const handleExportAllToPdf = () => {
     try {
-      exportBibliothecaireDocsToPdf(documents, groups);
+      exportCollaborationDocsToPdf(documents, groups);
       toast({
         title: "Export PDF",
-        description: "La bibliothèque a été exportée en PDF",
+        description: "La collaboration a été exportée en PDF",
       });
     } catch (error) {
       console.error("Erreur lors de l'export PDF:", error);
@@ -154,7 +154,7 @@ const Bibliotheque = () => {
         </div>
       ) : (
         <>
-          <BibliothequeTable
+          <CollaborationTable
             documents={documents}
             groups={groups}
             onEditDocument={handleEditDocument}
@@ -170,7 +170,7 @@ const Bibliotheque = () => {
             onGroupDrop={handleGroupDrop}
           />
           
-          <BibliothequeActions 
+          <CollaborationActions 
             onAddGroup={onAddGroup}
             onAddDocument={onAddDocument}
           />
@@ -180,4 +180,4 @@ const Bibliotheque = () => {
   );
 };
 
-export default Bibliotheque;
+export default Collaboration;

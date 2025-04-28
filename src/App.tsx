@@ -10,11 +10,11 @@ import Pilotage from "./pages/Pilotage";
 import Exigences from "./pages/Exigences";
 import GestionDocumentaire from "./pages/GestionDocumentaire";
 import RessourcesHumaines from "./pages/RessourcesHumaines";
-import Bibliotheque from "./pages/Bibliotheque";
+import Collaboration from "./pages/Collaboration";
 import Administration from "./pages/Administration";
 import NotFound from "./pages/NotFound";
 import { MembresProvider } from "./contexts/MembresContext";
-import { BibliothequeProvider } from "./contexts/BibliothequeContext";
+import { CollaborationProvider } from "./contexts/CollaborationContext";
 
 const queryClient = new QueryClient();
 
@@ -22,7 +22,7 @@ const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <MembresProvider>
-        <BibliothequeProvider>
+        <CollaborationProvider>
           <BrowserRouter>
             <Routes>
               <Route path="/" element={<Layout />}>
@@ -31,7 +31,7 @@ const App = () => (
                 <Route path="exigences" element={<Exigences />} />
                 <Route path="gestion-documentaire" element={<GestionDocumentaire />} />
                 <Route path="ressources-humaines" element={<RessourcesHumaines />} />
-                <Route path="collaboration" element={<Bibliotheque />} />
+                <Route path="collaboration" element={<Collaboration />} />
                 <Route path="administration" element={<Administration />} />
               </Route>
               <Route path="*" element={<NotFound />} />
@@ -39,7 +39,7 @@ const App = () => (
           </BrowserRouter>
           <Toaster />
           <Sonner />
-        </BibliothequeProvider>
+        </CollaborationProvider>
       </MembresProvider>
     </TooltipProvider>
   </QueryClientProvider>
