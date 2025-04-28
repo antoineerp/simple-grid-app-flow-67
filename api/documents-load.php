@@ -31,12 +31,18 @@ try {
     // Nettoyer le buffer
     if (ob_get_level()) ob_clean();
     
-    // Vérifier si l'userId est présent
-    if (!isset($_GET['userId'])) {
+    // Vérifier si l'userId est présent (accepter aussi le paramètre 'user' pour compatibilité)
+    $userId = null;
+    if (isset($_GET['userId'])) {
+        $userId = $_GET['userId'];
+    } else if (isset($_GET['user'])) {
+        $userId = $_GET['user'];
+    }
+    
+    if (!$userId) {
         throw new Exception("ID utilisateur manquant");
     }
     
-    $userId = $_GET['userId'];
     error_log("UserId reçu: " . $userId);
     
     // Connexion à la base de données

@@ -8,8 +8,14 @@ export const getCurrentUser = (): User | null => {
   if (!token) return null;
 
   try {
-    const payloadBase64 = token.split('.')[1];
-    if (!payloadBase64) return null;
+    // Vérifier le format du token avant de le traiter
+    const parts = token.split('.');
+    if (!parts || parts.length < 2 || !parts[1]) {
+      console.error("Format de token invalide:", token);
+      return null;
+    }
+    
+    const payloadBase64 = parts[1];
     
     // Assurons-nous que le padding est correct pour le décodage base64
     const base64 = payloadBase64.replace(/-/g, '+').replace(/_/g, '/');
@@ -103,13 +109,35 @@ export const login = async (username: string, password: string): Promise<AuthRes
     console.log('Réponse de l\'authentification:', data);
     
     if (data.token) {
-      sessionStorage.setItem('authToken', data.token);
-      return { 
-        success: true, 
-        token: data.token,
-        user: data.user || null,
-        message: data.message || 'Connexion réussie'
-      };
+      // Vérifier le format du token avant de le sauvegarder
+      try {
+        const parts = data.token.split('.');
+        if (parts && parts.length >= 2) {
+          sessionStorage.setItem('authToken', data.token);
+          // Initialiser l'utilisateur courant pour la base de données
+          if (data.user && data.user.identifiant_technique) {
+            setDbUser(data.user.identifiant_technique);
+          }
+          return { 
+            success: true, 
+            token: data.token,
+            user: data.user || null,
+            message: data.message || 'Connexion réussie'
+          };
+        } else {
+          console.error("Token de format invalide reçu:", data.token);
+          return {
+            success: false,
+            message: "Le format du token reçu est invalide"
+          };
+        }
+      } catch (tokenError) {
+        console.error("Erreur lors du traitement du token:", tokenError);
+        return {
+          success: false,
+          message: "Erreur lors du traitement du token d'authentification"
+        };
+      }
     }
     
     return { 

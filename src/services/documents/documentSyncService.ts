@@ -10,7 +10,8 @@ export const loadDocumentsFromServer = async (userId: string): Promise<Document[
   try {
     console.log(`Chargement des documents pour l'utilisateur ${userId}`);
     
-    const response = await fetch(`${getApiUrl()}/documents-load.php?user=${userId}`, {
+    // Ajout du paramètre userId au lieu de user pour correspondre au backend
+    const response = await fetch(`${getApiUrl()}/documents-load.php?userId=${userId}`, {
       method: 'GET',
       headers: getAuthHeaders()
     });
