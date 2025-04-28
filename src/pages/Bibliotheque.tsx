@@ -1,8 +1,7 @@
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import { CloudSun, FileText } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
-import { Document, DocumentGroup } from '@/types/bibliotheque';
 import { useBibliotheque } from '@/contexts/BibliothequeContext';
 import { exportBibliothecaireDocsToPdf } from '@/services/bibliothequeExport';
 import SyncStatusIndicator from '@/components/common/SyncStatusIndicator';
@@ -45,7 +44,7 @@ const Bibliotheque = () => {
       console.log("Synchronisation initiale de la bibliothèque");
       syncWithServer().catch(console.error);
     }
-  }, [isLoading]);
+  }, [isLoading, isOnline, syncFailed, isSyncing, syncWithServer]);
 
   const handleExportAllToPdf = () => {
     try {

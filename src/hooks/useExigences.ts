@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Exigence, ExigenceStats, ExigenceGroup } from '@/types/exigences';
 import { useExigenceSync } from './useExigenceSync';
 import { useExigenceMutations } from './useExigenceMutations';
@@ -94,6 +94,12 @@ export const useExigences = () => {
           setExigences(serverData.exigences || []);
           setGroups(serverData.groups || []);
           setLoadError(null);
+          
+          // Notify user of successful load
+          toast({
+            title: "Chargement réussi",
+            description: `${serverData.exigences?.length || 0} exigences chargées`,
+          });
         }
       } catch (error) {
         console.error("Erreur lors du chargement des exigences:", error);
@@ -134,25 +140,38 @@ export const useExigences = () => {
     setStats(newStats);
   }, [exigences]);
 
-  const handleEdit = (id: string) => {
+  const handleEdit = useCallback((id: string) => {
     const exigenceToEdit = exigences.find(exigence => exigence.id === id);
     if (exigenceToEdit) {
       setEditingExigence(exigenceToEdit);
       setDialogOpen(true);
     }
-  };
+  }, [exigences]);
 
-  const handleAddGroup = () => {
+  const handleAddExigence = useCallback(() => {
+    setEditingExigence({
+      id: crypto.randomUUID(),
+      nom: '',
+      responsabilites: { r: [], a: [], c: [], i: [] },
+      exclusion: false,
+      atteinte: null,
+      date_creation: new Date().toISOString(),
+      date_modification: new Date().toISOString()
+    });
+    setDialogOpen(true);
+  }, []);
+
+  const handleAddGroup = useCallback(() => {
     setEditingGroup(null);
     setGroupDialogOpen(true);
-  };
+  }, []);
 
-  const handleEditGroup = (group: ExigenceGroup) => {
+  const handleEditGroup = useCallback((group: ExigenceGroup) => {
     setEditingGroup(group);
     setGroupDialogOpen(true);
-  };
+  }, []);
 
-  const handleReorder = (startIndex: number, endIndex: number, targetGroupId?: string) => {
+  const handleReorder = useCallback((startIndex: number, endIndex: number, targetGroupId?: string) => {
     setExigences(prev => {
       const result = Array.from(prev);
       const [removed] = result.splice(startIndex, 1);
@@ -164,9 +183,29 @@ export const useExigences = () => {
       result.splice(endIndex, 0, removed);
       return result;
     });
-  };
+  }, []);
 
-  const handleResetLoadAttempts = () => {
+  const handleSaveExigence = useCallback(async (exigence: Exigence) => {
+    const isNew = !exigences.some(e => e.id === exigence.id);
+    
+    if (isNew) {
+      mutations.handleAddExigence(exigence);
+    } else {
+      mutations.handleEditExigence(exigence);
+    }
+    
+    setDialogOpen(false);
+    
+    // Sync with server after adding/updating
+    try {
+      console.log("Synchronisation après sauvegarde d'une exigence");
+      await syncWithServer([...exigences, exigence], currentUser, groups);
+    } catch (error) {
+      console.error("Erreur lors de la synchronisation après sauvegarde:", error);
+    }
+  }, [exigences, groups, mutations, syncWithServer, currentUser]);
+
+  const handleResetLoadAttempts = useCallback(() => {
     setLoadError(null);
     setLoadAttempts(0);
     // Retenter le chargement
@@ -192,7 +231,7 @@ export const useExigences = () => {
         });
       });
     }
-  };
+  }, [currentUser, loadFromServer, toast]);
 
   return {
     exigences,
@@ -209,12 +248,25 @@ export const useExigences = () => {
     setDialogOpen,
     setGroupDialogOpen,
     handleEdit,
+    handleSaveExigence,
+    handleAddExigence,
     handleReorder,
     handleAddGroup,
     handleEditGroup,
     handleResetLoadAttempts,
     ...mutations,
     ...groupOperations,
-    syncWithServer: () => syncWithServer(exigences, currentUser, groups)
+    syncWithServer: async () => {
+      const success = await syncWithServer(exigences, currentUser, groups);
+      // Reload data after successful sync
+      if (success) {
+        const serverData = await loadFromServer(currentUser);
+        if (serverData) {
+          setExigences(serverData.exigences || []);
+          setGroups(serverData.groups || []);
+        }
+      }
+      return success;
+    }
   };
 };

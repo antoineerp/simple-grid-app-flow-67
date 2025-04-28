@@ -5,6 +5,9 @@ import { loadBibliothequeFromServer, syncBibliothequeWithServer } from '@/servic
 import { getCurrentUser } from '@/services/auth/authService';
 import { useToast } from '@/hooks/use-toast';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
+import { useBibliothequeMutations } from '@/features/bibliotheque/hooks/useBibliothequeMutations';
+import { useBibliothequeDragAndDrop } from '@/features/bibliotheque/hooks/useBibliothequeDragAndDrop';
+import { useBibliothequeDialogs } from '@/features/bibliotheque/hooks/useBibliothequeDialogs';
 
 interface BibliothequeContextType {
   documents: Document[];
@@ -19,6 +22,25 @@ interface BibliothequeContextType {
   isOnline: boolean;
   syncFailed: boolean;
   resetSyncFailed: () => void;
+  // Document mutations
+  handleEditDocument: (doc: Document) => void;
+  handleDeleteDocument: (id: string) => void;
+  handleAddDocument: (document: Document) => void;
+  // Group operations
+  handleEditGroup: (group: DocumentGroup) => void;
+  handleDeleteGroup: (id: string) => void;
+  handleToggleGroup: (id: string) => void;
+  // Drag and drop
+  draggedItem: { id: string; groupId?: string } | null;
+  setDraggedItem: React.Dispatch<React.SetStateAction<{ id: string; groupId?: string } | null>>;
+  handleDrop: (e: React.DragEvent<HTMLTableRowElement>, targetId: string, targetGroupId?: string) => void;
+  handleGroupDrop: (e: React.DragEvent<HTMLTableRowElement>, targetGroupId: string) => void;
+  // Dialog controls
+  setIsDialogOpen: React.Dispatch<React.SetStateAction<boolean>>;
+  setIsGroupDialogOpen: React.Dispatch<React.SetStateAction<boolean>>;
+  setCurrentDocument: React.Dispatch<React.SetStateAction<Document | null>>;
+  setCurrentGroup: React.Dispatch<React.SetStateAction<DocumentGroup | null>>;
+  setIsEditing: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
 const BibliothequeContext = createContext<BibliothequeContextType | undefined>(undefined);
@@ -34,6 +56,11 @@ export const BibliothequeProvider: React.FC<{ children: ReactNode }> = ({ childr
   const [syncAttempts, setSyncAttempts] = useState(0);
   const { toast } = useToast();
   const { isOnline } = useNetworkStatus();
+  
+  // Use custom hooks for mutations, drag and drop, and dialogs
+  const mutations = useBibliothequeMutations(documents, setDocuments);
+  const dragAndDrop = useBibliothequeDragAndDrop(documents, setGroups, setDocuments);
+  const dialogs = useBibliothequeDialogs();
   
   // Fonction pour réinitialiser l'état d'échec de synchronisation
   const resetSyncFailed = () => {
@@ -216,7 +243,13 @@ export const BibliothequeProvider: React.FC<{ children: ReactNode }> = ({ childr
       syncWithServer,
       isOnline,
       syncFailed,
-      resetSyncFailed
+      resetSyncFailed,
+      // Add the mutation functions
+      ...mutations,
+      // Add drag and drop handlers
+      ...dragAndDrop,
+      // Add dialog controls
+      ...dialogs
     }}>
       {children}
     </BibliothequeContext.Provider>

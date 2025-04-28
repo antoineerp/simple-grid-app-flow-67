@@ -1,195 +1,156 @@
+
 import { useState, useEffect, useCallback } from 'react';
 import { Document, DocumentStats, DocumentGroup } from '@/types/documents';
-import { useToast } from '@/hooks/use-toast';
-import { calculateDocumentStats } from '@/services/documents/documentStatsService';
-import { loadDocumentsFromServer, syncDocumentsWithServer } from '@/services/documents/documentSyncService';
+import { useDocumentSync } from '@/features/documents/hooks/useDocumentSync';
 import { useDocumentMutations } from '@/features/documents/hooks/useDocumentMutations';
 import { useDocumentGroups } from '@/features/documents/hooks/useDocumentGroups';
-import { getCurrentUser } from '@/services/core/databaseConnectionService';
+import { getCurrentUser } from '@/services/auth/authService';
+import { useToast } from '@/hooks/use-toast';
 
 export const useDocuments = () => {
-  const { toast } = useToast();
-  const currentUser = getCurrentUser() || 'p71x6d_system';
-  
-  console.log("Current user dans useDocuments:", currentUser);
-  
   const [documents, setDocuments] = useState<Document[]>([]);
   const [groups, setGroups] = useState<DocumentGroup[]>([]);
   const [editingDocument, setEditingDocument] = useState<Document | null>(null);
   const [editingGroup, setEditingGroup] = useState<DocumentGroup | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [groupDialogOpen, setGroupDialogOpen] = useState(false);
-  const [stats, setStats] = useState<DocumentStats>(() => calculateDocumentStats(documents));
-  const [isInitialized, setIsInitialized] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncFailed, setSyncFailed] = useState(false);
-  const [lastSynced, setLastSynced] = useState<Date | null>(null);
+  const { toast } = useToast();
 
+  // Get current user
+  const user = getCurrentUser();
+  const userId = typeof user === 'object' ? (user?.email || user?.identifiant_technique || 'p71x6d_system') : user || 'p71x6d_system';
+
+  const { loadFromServer, syncWithServer } = useDocumentSync();
+  const documentMutations = useDocumentMutations(documents, setDocuments);
+  const groupOperations = useDocumentGroups(groups, setGroups, setDocuments);
+
+  // Calculate document statistics
+  const stats: DocumentStats = {
+    total: documents.length,
+    conforme: documents.filter(d => d.atteinte === 'C').length,
+    partiellementConforme: documents.filter(d => d.atteinte === 'PC').length,
+    nonConforme: documents.filter(d => d.atteinte === 'NC').length,
+    exclusion: documents.filter(d => d.exclusion).length
+  };
+
+  // Initial data loading
   useEffect(() => {
-    if (isInitialized) return;
-    
-    const initializeDocuments = async () => {
+    const loadDocuments = async () => {
       try {
-        setIsSyncing(true);
-        const serverDocuments = await loadDocumentsFromServer(currentUser);
-        if (serverDocuments) {
-          console.log(`Loaded ${serverDocuments.length} documents from server for user ${currentUser}`);
-          setDocuments(serverDocuments);
-          setLastSynced(new Date());
-          setSyncFailed(false);
+        console.log(`Loading documents for user: ${userId}`);
+        const result = await loadFromServer(userId);
+        if (Array.isArray(result)) {
+          console.log(`Loaded ${result.length} documents`);
+          setDocuments(result);
+          toast({
+            title: "Chargement réussi",
+            description: `${result.length} documents chargés`,
+          });
+        } else {
+          console.error("Unexpected result format:", result);
+          setDocuments([]);
         }
       } catch (error) {
-        console.error(`Error during document initialization for user ${currentUser}:`, error);
-        setSyncFailed(true);
+        console.error("Error loading documents:", error);
         toast({
           title: "Erreur de chargement",
           description: error instanceof Error ? error.message : "Erreur lors du chargement des documents",
-          variant: "destructive"
+          variant: "destructive",
         });
-      } finally {
-        setIsSyncing(false);
-        setIsInitialized(true);
+        setDocuments([]);
       }
     };
 
-    if (currentUser) {
-      initializeDocuments();
-    } else {
-      console.error("Impossible d'initialiser les documents: utilisateur non défini");
-      setSyncFailed(true);
-    }
-  }, [currentUser, toast, isInitialized]);
+    loadDocuments();
+  }, [loadFromServer, userId, toast]);
 
-  useEffect(() => {
-    setStats(calculateDocumentStats(documents));
-  }, [documents]);
-
-  const syncWithServer = async (): Promise<boolean> => {
-    if (isSyncing) {
-      console.log("Une synchronisation est déjà en cours");
-      return false;
-    }
-
+  // Handle synchronization with server
+  const handleSyncWithServer = useCallback(async () => {
     setIsSyncing(true);
     try {
-      const success = await syncDocumentsWithServer(documents, currentUser);
-      setSyncFailed(!success);
+      const success = await syncWithServer(documents, userId);
       if (success) {
-        setLastSynced(new Date());
         toast({
           title: "Synchronisation réussie",
-          description: "Les documents ont été synchronisés avec le serveur"
+          description: "Les documents ont été synchronisés avec le serveur",
         });
+        setSyncFailed(false);
+        
+        // Reload data after successful sync
+        const result = await loadFromServer(userId);
+        if (Array.isArray(result)) {
+          setDocuments(result);
+        }
+        
+        return true;
+      } else {
+        setSyncFailed(true);
+        toast({
+          title: "Échec de synchronisation",
+          description: "La synchronisation avec le serveur a échoué",
+          variant: "destructive",
+        });
+        return false;
       }
-      return success;
     } catch (error) {
       setSyncFailed(true);
       toast({
         title: "Erreur de synchronisation",
-        description: error instanceof Error ? error.message : "Erreur lors de la synchronisation",
-        variant: "destructive"
+        description: error instanceof Error ? error.message : "Une erreur s'est produite",
+        variant: "destructive",
       });
       return false;
     } finally {
       setIsSyncing(false);
     }
-  };
+  }, [documents, userId, syncWithServer, loadFromServer, toast]);
 
-  const documentMutations = useDocumentMutations(documents, setDocuments);
-  const groupOperations = useDocumentGroups(groups, setGroups);
-
+  // Handle document editing
   const handleEdit = useCallback((id: string) => {
-    const documentToEdit = documents.find(doc => doc.id === id);
-    if (documentToEdit) {
-      setEditingDocument(documentToEdit);
+    const doc = documents.find(d => d.id === id);
+    if (doc) {
+      setEditingDocument(doc);
       setDialogOpen(true);
-    } else {
-      toast({
-        title: "Erreur",
-        description: `Le document ${id} n'a pas été trouvé`,
-        variant: "destructive"
-      });
     }
-  }, [documents, toast]);
+  }, [documents]);
 
-  const handleSaveDocument = useCallback(
-    (updatedDocument: Document) => {
-      const newDoc = {
-        ...updatedDocument,
-        date_modification: new Date(),
-      };
-
-      setDocuments((prev) => prev.map((doc) => (doc.id === newDoc.id ? newDoc : doc)));
-
-      syncWithServer().catch(error => {
-        console.error("Erreur lors de la synchronisation après mise à jour:", error);
-      });
-
-      toast({
-        title: "Document mis à jour",
-        description: `Le document ${newDoc.id} a été mis à jour avec succès`,
-      });
-    },
-    [toast]
-  );
-
+  // Handle document adding
   const handleAddDocument = useCallback(() => {
-    const maxId = documents.length > 0 
-      ? Math.max(...documents.map(d => parseInt(d.id)))
-      : 0;
-    
-    const newId = (maxId + 1).toString();
     const newDocument: Document = {
-      id: newId,
-      nom: `Document ${newId}`,
-      fichier_path: null,
+      id: crypto.randomUUID(),
+      titre: '',
+      atteinte: null,
+      exclusion: false,
       responsabilites: { r: [], a: [], c: [], i: [] },
-      etat: null,
-      date_creation: new Date(),
-      date_modification: new Date()
+      date_creation: new Date().toISOString(),
+      date_modification: new Date().toISOString()
     };
-    
-    const newDocuments = [...documents, newDocument];
-    setDocuments(newDocuments);
-    
-    syncWithServer().catch(error => {
-      console.error("Erreur lors de la synchronisation après ajout:", error);
-    });
-    
-    toast({
-      title: "Nouveau document",
-      description: `Le document ${newId} a été ajouté`,
-    });
-  }, [documents, toast]);
-
-  const handleReorder = useCallback((startIndex: number, endIndex: number, targetGroupId?: string) => {
-    setDocuments(prev => {
-      const result = Array.from(prev);
-      const [removed] = result.splice(startIndex, 1);
-      
-      if (targetGroupId !== undefined) {
-        removed.groupId = targetGroupId;
-      }
-      
-      result.splice(endIndex, 0, removed);
-      
-      syncWithServer().catch(error => {
-        console.error("Erreur lors de la synchronisation après réorganisation:", error);
-      });
-      
-      return result;
-    });
+    setEditingDocument(newDocument);
+    setDialogOpen(true);
   }, []);
 
-  const handleAddGroup = useCallback(() => {
-    setEditingGroup(null);
-    setGroupDialogOpen(true);
-  }, []);
-
-  const handleEditGroup = useCallback((group: DocumentGroup) => {
-    setEditingGroup(group);
-    setGroupDialogOpen(true);
-  }, []);
+  // Handle document save
+  const handleSaveDocument = useCallback(async (document: Document) => {
+    const isNew = !documents.some(d => d.id === document.id);
+    
+    if (isNew) {
+      documentMutations.handleAddDocument(document);
+    } else {
+      documentMutations.handleEditDocument(document);
+    }
+    
+    setDialogOpen(false);
+    
+    // Sync with server after saving
+    try {
+      console.log("Synchronizing after document save");
+      await handleSyncWithServer();
+    } catch (error) {
+      console.error("Error synchronizing after document save:", error);
+    }
+  }, [documents, documentMutations, handleSyncWithServer]);
 
   return {
     documents,
@@ -201,17 +162,20 @@ export const useDocuments = () => {
     groupDialogOpen,
     isSyncing,
     syncFailed,
-    lastSynced,
     setDialogOpen,
     setGroupDialogOpen,
-    ...documentMutations,
     handleEdit,
-    handleSaveDocument,
+    handleDelete: documentMutations.handleDeleteDocument,
+    handleReorder: documentMutations.handleReorderDocuments,
     handleAddDocument,
-    handleReorder,
-    handleAddGroup,
-    handleEditGroup,
-    ...groupOperations,
-    syncWithServer
+    handleSaveDocument,
+    handleAddGroup: groupOperations.handleAddGroup,
+    handleEditGroup: groupOperations.handleEditGroup,
+    handleDeleteGroup: groupOperations.handleDeleteGroup,
+    handleSaveGroup: groupOperations.handleSaveGroup,
+    handleGroupReorder: groupOperations.handleReorderGroups,
+    handleToggleGroup: groupOperations.handleToggleGroup,
+    syncWithServer: handleSyncWithServer,
+    ...documentMutations
   };
 };
