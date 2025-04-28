@@ -128,7 +128,7 @@ export const MembresProvider: React.FC<{ children: ReactNode }> = ({ children })
           toast({
             title: "Mode hors-ligne",
             description: "Vous êtes en mode hors-ligne. Les données peuvent ne pas être à jour.",
-            variant: "warning",
+            variant: "default",  // Changed from "warning" to "default"
           });
         }
       } catch (err) {
