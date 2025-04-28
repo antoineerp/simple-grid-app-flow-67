@@ -49,7 +49,8 @@ try {
     $tableName = "membres_" . preg_replace('/[^a-zA-Z0-9_]/', '_', $userId);
     
     // Vérifier si la table existe
-    $stmt = $pdo->prepare("SHOW TABLES LIKE :tableName");
+    $tableExistsQuery = "SHOW TABLES LIKE :tableName";
+    $stmt = $pdo->prepare($tableExistsQuery);
     $stmt->execute(['tableName' => $tableName]);
     $tableExists = $stmt->rowCount() > 0;
     
@@ -64,10 +65,13 @@ try {
         exit;
     }
     
-    // Récupérer les membres depuis la table
+    // Récupérer les membres depuis la table - Utiliser des backticks pour encadrer le nom de la table
     $query = "SELECT * FROM `{$tableName}` ORDER BY nom, prenom";
     error_log("Exécution de la requête: {$query}");
-    $stmt = $pdo->query($query);
+    
+    // Utiliser une requête préparée pour éviter les problèmes de syntaxe SQL
+    $stmt = $pdo->prepare($query);
+    $stmt->execute();
     $membres = $stmt->fetchAll();
     
     // Formater les dates pour le client
