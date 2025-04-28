@@ -104,6 +104,21 @@ try {
                 $exigence['exclusion'] = (bool)$exigence['exclusion'];
             }
         }
+    } else {
+        // Créer la table si elle n'existe pas
+        $createExigencesTable = "CREATE TABLE IF NOT EXISTS `" . $exigencesTableName . "` (
+            `id` VARCHAR(36) NOT NULL PRIMARY KEY,
+            `nom` VARCHAR(255) NOT NULL,
+            `responsabilites` TEXT,
+            `exclusion` TINYINT(1) DEFAULT 0,
+            `atteinte` ENUM('NC', 'PC', 'C') NULL,
+            `date_creation` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            `date_modification` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            `groupId` VARCHAR(36) NULL
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci";
+        
+        $pdo->exec($createExigencesTable);
+        error_log("Table {$exigencesTableName} créée");
     }
     
     // Récupérer les groupes si la table existe
@@ -120,6 +135,16 @@ try {
                 $group['expanded'] = (bool)$group['expanded'];
             }
         }
+    } else {
+        // Créer la table si elle n'existe pas
+        $createGroupsTable = "CREATE TABLE IF NOT EXISTS `" . $groupsTableName . "` (
+            `id` VARCHAR(36) NOT NULL PRIMARY KEY,
+            `name` VARCHAR(255) NOT NULL,
+            `expanded` TINYINT(1) DEFAULT 1
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci";
+        
+        $pdo->exec($createGroupsTable);
+        error_log("Table {$groupsTableName} créée");
     }
     
     error_log("Exigences récupérées: " . count($exigences) . ", Groupes récupérés: " . count($groups));

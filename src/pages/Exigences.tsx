@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { FileText, FolderPlus, CloudSun } from 'lucide-react';
+import { FileText, FolderPlus, CloudSun, RefreshCw } from 'lucide-react';
 import { MembresProvider } from '@/contexts/MembresContext';
 import ExigenceForm from '@/components/exigences/ExigenceForm';
 import ExigenceStats from '@/components/exigences/ExigenceStats';
@@ -10,6 +10,7 @@ import { useExigences } from '@/hooks/useExigences';
 import { exportExigencesToPdf } from '@/services/pdfExport';
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import SyncStatusIndicator from '@/components/common/SyncStatusIndicator';
 
 const ExigencesContent = () => {
@@ -24,6 +25,7 @@ const ExigencesContent = () => {
     isSyncing,
     isOnline,
     lastSynced,
+    loadError,
     setDialogOpen,
     setGroupDialogOpen,
     handleResponsabiliteChange,
@@ -40,6 +42,7 @@ const ExigencesContent = () => {
     handleDeleteGroup,
     handleGroupReorder,
     handleToggleGroup,
+    handleResetLoadAttempts,
     syncWithServer
   } = useExigences();
   
@@ -83,8 +86,27 @@ const ExigencesContent = () => {
           isSyncing={isSyncing}
           isOnline={isOnline}
           lastSynced={lastSynced}
+          syncFailed={!!loadError}
         />
       </div>
+
+      {loadError && (
+        <Alert variant="destructive" className="mb-4">
+          <AlertTitle>Erreur de chargement</AlertTitle>
+          <AlertDescription className="flex items-center justify-between">
+            <div>{loadError}</div>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={handleResetLoadAttempts}
+              className="ml-4"
+            >
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Réessayer
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
 
       <ExigenceStats stats={stats} />
 

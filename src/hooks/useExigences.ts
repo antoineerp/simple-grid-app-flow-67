@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Exigence, ExigenceStats, ExigenceGroup } from '@/types/exigences';
 import { useExigenceSync } from './useExigenceSync';
@@ -6,7 +7,12 @@ import { useExigenceGroups } from './useExigenceGroups';
 import { getCurrentUser } from '@/services/auth/authService';
 
 export const useExigences = () => {
-  const currentUser = getCurrentUser() || 'p71x6d_system';
+  // Extraire un identifiant string valide au lieu de l'objet complet
+  const user = getCurrentUser();
+  const currentUser = typeof user === 'object' 
+    ? (user.identifiant_technique || user.email || 'p71x6d_system') 
+    : user || 'p71x6d_system';
+  
   const [exigences, setExigences] = useState<Exigence[]>([]);
   const [groups, setGroups] = useState<ExigenceGroup[]>([]);
   const [editingExigence, setEditingExigence] = useState<Exigence | null>(null);
@@ -20,6 +26,8 @@ export const useExigences = () => {
     conforme: 0,
     total: 0
   });
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [loadAttempts, setLoadAttempts] = useState(0);
 
   const { syncWithServer, loadFromServer, isSyncing, isOnline, lastSynced } = useExigenceSync();
   const mutations = useExigenceMutations(exigences, setExigences);
@@ -28,6 +36,12 @@ export const useExigences = () => {
   // Initial load from server
   useEffect(() => {
     const loadExigences = async () => {
+      if (loadAttempts > 3) {
+        console.warn("Trop de tentatives de chargement échouées, abandon");
+        setLoadError("Trop de tentatives de chargement échouées");
+        return;
+      }
+      
       try {
         console.log(`Chargement des exigences pour l'utilisateur ${currentUser}`);
         const serverData = await loadFromServer(currentUser);
@@ -36,9 +50,12 @@ export const useExigences = () => {
           // Fix: Set each state separately with the correct types
           setExigences(serverData.exigences || []);
           setGroups(serverData.groups || []);
+          setLoadError(null);
         }
       } catch (error) {
         console.error("Erreur lors du chargement des exigences:", error);
+        setLoadError(error instanceof Error ? error.message : "Erreur de chargement");
+        setLoadAttempts(prev => prev + 1);
         // Initialiser avec des tableaux vides pour éviter les erreurs
         setExigences([]);
         setGroups([]);
@@ -97,6 +114,23 @@ export const useExigences = () => {
     });
   };
 
+  const handleResetLoadAttempts = () => {
+    setLoadError(null);
+    setLoadAttempts(0);
+    // Retenter le chargement
+    if (currentUser) {
+      loadFromServer(currentUser).then(serverData => {
+        if (serverData) {
+          setExigences(serverData.exigences || []);
+          setGroups(serverData.groups || []);
+        }
+      }).catch(err => {
+        console.error("Nouvelle tentative échouée:", err);
+        setLoadError(err instanceof Error ? err.message : "Erreur de chargement");
+      });
+    }
+  };
+
   return {
     exigences,
     groups,
@@ -108,12 +142,14 @@ export const useExigences = () => {
     isSyncing,
     isOnline,
     lastSynced,
+    loadError,
     setDialogOpen,
     setGroupDialogOpen,
     handleEdit,
     handleReorder,
     handleAddGroup,
     handleEditGroup,
+    handleResetLoadAttempts,
     ...mutations,
     ...groupOperations,
     syncWithServer: () => syncWithServer(exigences, currentUser, groups)
