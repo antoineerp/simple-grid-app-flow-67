@@ -29,6 +29,18 @@ header('Content-Type: text/html; charset=utf-8');
             });
             return '/assets/' . basename($files[0]);
         }
+        
+        // Chercher également d'autres fichiers JS potentiels
+        $pattern = './assets/*.js';
+        $files = glob($pattern);
+        if (!empty($files)) {
+            // Trier par taille (le plus gros d'abord car c'est probablement le bundle principal)
+            usort($files, function($a, $b) {
+                return filesize($b) - filesize($a);
+            });
+            return '/assets/' . basename($files[0]);
+        }
+        
         return false;
     }
     
@@ -38,6 +50,7 @@ header('Content-Type: text/html; charset=utf-8');
             return '/assets/main.css';
         }
         
+        // Chercher tous les CSS
         $pattern = './assets/*.css';
         $files = glob($pattern);
         if (!empty($files)) {
@@ -81,6 +94,7 @@ header('Content-Type: text/html; charset=utf-8');
         
         // Corriger la référence JS
         if ($mainJs) {
+            // Remplacer la référence de développement
             $new_content = preg_replace(
                 '/<script[^>]*src="[^"]*\/src\/main\.tsx"[^>]*>/i', 
                 '<script type="module" src="' . $mainJs . '">',
@@ -93,7 +107,7 @@ header('Content-Type: text/html; charset=utf-8');
             } else {
                 // Essayer une autre approche pour trouver la référence JS
                 $new_content = preg_replace(
-                    '/<script[^>]*src="[^"]*"[^>]*type="module"[^>]*>/i',
+                    '/<script[^>]*type="module"[^>]*src="[^"]*"[^>]*>/i',
                     '<script type="module" src="' . $mainJs . '">',
                     $content
                 );
