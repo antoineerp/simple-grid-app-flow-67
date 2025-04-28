@@ -1,11 +1,12 @@
 
-import { Document, DocumentStats } from '@/types/documents';
+import { Document } from '@/types/documents';
 import { getApiUrl } from '@/config/apiConfig';
 import { getAuthHeaders } from '@/services/auth/authService';
 import { getCurrentUser } from '@/services/core/databaseConnectionService';
 
 /**
  * Chargement des documents depuis le serveur pour un utilisateur spécifique
+ * @deprecated Use the function from documentSyncService.ts instead
  */
 export const loadDocumentsFromServer = async (userId: string | null = null): Promise<Document[]> => {
   try {
@@ -40,6 +41,7 @@ export const loadDocumentsFromServer = async (userId: string | null = null): Pro
 
 /**
  * Synchronisation des documents avec le serveur
+ * @deprecated Use the function from documentSyncService.ts instead
  */
 export const syncDocumentsWithServer = async (documents: Document[], userId: string | null = null): Promise<boolean> => {
   try {
@@ -71,13 +73,10 @@ export const syncDocumentsWithServer = async (documents: Document[], userId: str
 
 /**
  * Calculate document statistics
+ * @deprecated Use the function from documentStatsService.ts instead
  */
-export const calculateDocumentStats = (documents: Document[]): DocumentStats => {
-  return {
-    exclusion: documents.filter(doc => doc.etat === 'EX').length,
-    nonConforme: documents.filter(doc => doc.etat === 'NC').length,
-    partiellementConforme: documents.filter(doc => doc.etat === 'PC').length,
-    conforme: documents.filter(doc => doc.etat === 'C').length,
-    total: documents.length
-  };
+export const calculateDocumentStats = (documents: Document[]) => {
+  // Import and use the implementation from documentStatsService
+  const { calculateDocumentStats } = require('./documentStatsService');
+  return calculateDocumentStats(documents);
 };
