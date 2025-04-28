@@ -6,6 +6,8 @@ import { Document, DocumentGroup } from '@/types/bibliotheque';
 import { useBibliotheque } from '@/contexts/BibliothequeContext';
 import { exportBibliothecaireDocsToPdf } from '@/services/bibliothequeExport';
 import SyncStatusIndicator from '@/components/common/SyncStatusIndicator';
+import { BibliothequeTable } from '@/features/bibliotheque/components/BibliothequeTable';
+import { BibliothequeActions } from '@/features/bibliotheque/components/BibliothequeActions';
 
 const Bibliotheque = () => {
   const { toast } = useToast();
@@ -19,7 +21,22 @@ const Bibliotheque = () => {
     syncWithServer,
     lastSynced,
     syncFailed,
-    resetSyncFailed
+    resetSyncFailed,
+    handleEditDocument,
+    handleDeleteDocument,
+    handleAddDocument,
+    handleEditGroup,
+    handleDeleteGroup,
+    handleToggleGroup,
+    draggedItem,
+    setDraggedItem,
+    handleDrop,
+    handleGroupDrop,
+    setIsDialogOpen,
+    setIsGroupDialogOpen,
+    setCurrentDocument,
+    setCurrentGroup,
+    setIsEditing
   } = useBibliotheque();
 
   // Effectuer une seule synchronisation au chargement de la page
@@ -52,11 +69,55 @@ const Bibliotheque = () => {
     syncWithServer().catch(console.error);
   };
 
+  const onDragStart = (e: React.DragEvent<HTMLTableRowElement>, id: string, groupId?: string) => {
+    e.dataTransfer.setData('text/plain', JSON.stringify({ id, groupId }));
+    setDraggedItem({ id, groupId });
+    e.currentTarget.classList.add('opacity-50');
+  };
+
+  const onDragOver = (e: React.DragEvent<HTMLTableRowElement>) => {
+    e.preventDefault();
+    e.currentTarget.classList.add('bg-gray-100');
+  };
+
+  const onDragLeave = (e: React.DragEvent<HTMLTableRowElement>) => {
+    e.currentTarget.classList.remove('bg-gray-100');
+  };
+
+  const onDragEnd = (e: React.DragEvent<HTMLTableRowElement>) => {
+    e.currentTarget.classList.remove('opacity-50');
+    setDraggedItem(null);
+  };
+
+  const onAddDocument = () => {
+    setCurrentDocument({
+      id: '',
+      titre: '',
+      description: '',
+      date_creation: new Date().toISOString(),
+      url: ''
+    });
+    setIsEditing(false);
+    setIsDialogOpen(true);
+  };
+
+  const onAddGroup = () => {
+    setCurrentGroup({
+      id: '',
+      name: '',
+      expanded: false,
+      items: []
+    });
+    setIsEditing(false);
+    setIsGroupDialogOpen(true);
+  };
+
   return (
     <div className="p-8">
       <div className="flex items-center justify-between mb-2">
         <div>
-          <h1 className="text-3xl font-bold text-app-blue">Bibliothèque de documents</h1>
+          <h1 className="text-3xl font-bold text-app-blue">Collaboration</h1>
+          <p className="text-gray-600">Gestion des documents partagés</p>
         </div>
         <div className="flex space-x-2">
           <button 
@@ -94,68 +155,26 @@ const Bibliotheque = () => {
         </div>
       ) : (
         <>
-          {groups.map(group => (
-            <div key={group.id} className="bg-white rounded-md shadow mb-4 p-4">
-              <h2 className="text-xl font-semibold text-app-blue mb-2">{group.name}</h2>
-              {group.items && group.items.length > 0 ? (
-                <div className="space-y-2">
-                  {group.items.map(doc => (
-                    <div key={doc.id} className="flex items-center p-2 border-b">
-                      <div className="flex-1">
-                        <p className="font-medium">{doc.titre}</p>
-                        {doc.description && <p className="text-sm text-gray-600">{doc.description}</p>}
-                      </div>
-                      {doc.url && (
-                        <a 
-                          href={doc.url} 
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                          className="ml-2 text-blue-600 hover:underline"
-                        >
-                          Lien
-                        </a>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-gray-500 italic">Aucun document dans cette catégorie</p>
-              )}
-            </div>
-          ))}
+          <BibliothequeTable
+            documents={documents}
+            groups={groups}
+            onEditDocument={handleEditDocument}
+            onDeleteDocument={handleDeleteDocument}
+            onEditGroup={handleEditGroup}
+            onDeleteGroup={handleDeleteGroup}
+            onToggleGroup={handleToggleGroup}
+            onDragStart={onDragStart}
+            onDragOver={onDragOver}
+            onDragLeave={onDragLeave}
+            onDrop={handleDrop}
+            onDragEnd={onDragEnd}
+            onGroupDrop={handleGroupDrop}
+          />
           
-          {documents.filter(doc => !doc.type).length > 0 && (
-            <div className="bg-white rounded-md shadow mb-4 p-4">
-              <h2 className="text-xl font-semibold text-app-blue mb-2">Documents non catégorisés</h2>
-              <div className="space-y-2">
-                {documents.filter(doc => !doc.type).map(doc => (
-                  <div key={doc.id} className="flex items-center p-2 border-b">
-                    <div className="flex-1">
-                      <p className="font-medium">{doc.titre}</p>
-                      {doc.description && <p className="text-sm text-gray-600">{doc.description}</p>}
-                    </div>
-                    {doc.url && (
-                      <a 
-                        href={doc.url} 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="ml-2 text-blue-600 hover:underline"
-                      >
-                        Lien
-                      </a>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-          
-          {documents.length === 0 && groups.length === 0 && (
-            <div className="bg-white rounded-md shadow p-8 text-center">
-              <p className="text-gray-500">Aucun document dans la bibliothèque.</p>
-              <p className="text-sm mt-2 text-gray-400">La bibliothèque se synchronisera automatiquement lorsque des documents seront disponibles.</p>
-            </div>
-          )}
+          <BibliothequeActions 
+            onAddGroup={onAddGroup}
+            onAddDocument={onAddDocument}
+          />
         </>
       )}
     </div>

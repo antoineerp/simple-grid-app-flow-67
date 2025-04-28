@@ -1,3 +1,4 @@
+
 import { useCallback } from 'react';
 import { Document } from '@/types/bibliotheque';
 import { useToast } from '@/hooks/use-toast';
@@ -12,7 +13,7 @@ export const useBibliothequeMutations = (
     setDocuments(prev => prev.map(d => d.id === doc.id ? doc : d));
     toast({
       title: "Document modifié",
-      description: `Le document ${doc.name} a été mis à jour`,
+      description: `Le document ${doc.titre} a été mis à jour`,
     });
   }, [setDocuments, toast]);
 
@@ -28,7 +29,7 @@ export const useBibliothequeMutations = (
     setDocuments(prev => [...prev, document]);
     toast({
       title: "Document ajouté",
-      description: `Le document ${document.name} a été ajouté`,
+      description: `Le document ${document.titre} a été ajouté`,
     });
   }, [setDocuments, toast]);
 
