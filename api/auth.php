@@ -150,6 +150,8 @@ try {
                 
                 // Générer un token JWT avec le format correct
                 $header = base64url_encode(json_encode(['alg' => 'HS256', 'typ' => 'JWT']));
+                
+                // Créer le payload avec les informations utilisateur
                 $payload = base64url_encode(json_encode([
                     'user' => [
                         'id' => $user['id'],
@@ -163,15 +165,19 @@ try {
                     'exp' => time() + 3600 // expire dans 1 heure
                 ]));
                 
-                // Créer la signature
-                $signature = base64url_encode(hash_hmac('sha256', $header . "." . $payload, 'secret_key', true));
+                // Créer la signature avec un secret (à remplacer par une clé sécurisée en production)
+                $secret = 'your_jwt_secret_key_here';
+                $signature = base64url_encode(hash_hmac('sha256', "$header.$payload", $secret, true));
                 
                 // Construire le JWT conforme au standard (header.payload.signature)
-                $token = $header . "." . $payload . "." . $signature;
+                $token = "$header.$payload.$signature";
+                
+                error_log("Token JWT généré: " . substr($token, 0, 20) . "...");
                 
                 // Envoyer la réponse
                 http_response_code(200);
                 echo json_encode([
+                    'success' => true,
                     'message' => 'Connexion réussie',
                     'token' => $token,
                     'user' => [
@@ -211,6 +217,7 @@ try {
     
     http_response_code(500);
     echo json_encode([
+        'success' => false,
         'message' => 'Erreur serveur', 
         'error' => $e->getMessage()
     ]);
