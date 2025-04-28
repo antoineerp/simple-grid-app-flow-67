@@ -48,60 +48,54 @@ export const useExigences = () => {
           if (Array.isArray(result.groups)) {
             setGroups(result.groups);
           }
-          toast({
-            title: "Chargement réussi",
-            description: `${result.exigences.length} exigences chargées`,
-          });
         } else {
           console.error("Unexpected result format:", result);
           setExigences([]);
         }
       } catch (error) {
         console.error("Error loading exigences:", error);
-        toast({
-          title: "Erreur de chargement",
-          description: error instanceof Error ? error.message : "Erreur lors du chargement des exigences",
-          variant: "destructive",
-        });
         setExigences([]);
       }
     };
 
     loadExigences();
-  }, [loadFromServer, userId, toast]);
+
+    // Set up periodic sync every 10 seconds
+    const syncInterval = setInterval(async () => {
+      try {
+        await handleSyncWithServer();
+      } catch (error) {
+        console.error("Error during periodic sync:", error);
+      }
+    }, 10000); // 10 seconds
+
+    return () => clearInterval(syncInterval);
+  }, [loadFromServer, userId, handleSyncWithServer]);
 
   const handleSyncWithServer = useCallback(async () => {
     setIsSyncing(true);
     try {
       const success = await syncWithServer(exigences, userId);
       if (success) {
-        toast({
-          title: "Synchronisation réussie",
-          description: "Les exigences ont été synchronisées avec le serveur",
-        });
         setSyncFailed(false);
+        setLastSynced(new Date());
+        // Silently reload data after successful sync
+        const result = await loadFromServer(userId);
+        if (Array.isArray(result)) {
+          setExigences(result);
+        }
         return true;
       } else {
         setSyncFailed(true);
-        toast({
-          title: "Échec de synchronisation",
-          description: "La synchronisation avec le serveur a échoué",
-          variant: "destructive",
-        });
         return false;
       }
     } catch (error) {
       setSyncFailed(true);
-      toast({
-        title: "Erreur de synchronisation",
-        description: error instanceof Error ? error.message : "Une erreur s'est produite",
-        variant: "destructive",
-      });
       return false;
     } finally {
       setIsSyncing(false);
     }
-  }, [exigences, userId, syncWithServer, toast]);
+  }, [exigences, userId, syncWithServer, loadFromServer]);
 
   // Handle exigence editing
   const handleEdit = useCallback((id: string) => {
