@@ -16,6 +16,7 @@ export const useExigenceSync = () => {
     
     setIsSyncing(true);
     try {
+      console.log(`Début de la synchronisation pour ${userId} avec ${exigences.length} exigences et ${groups.length} groupes`);
       const success = await syncExigencesWithServer(exigences, userId, groups);
       if (success) {
         setLastSynced(new Date());
@@ -27,6 +28,7 @@ export const useExigenceSync = () => {
       }
       throw new Error("Échec de la synchronisation");
     } catch (error) {
+      console.error("Erreur lors de la synchronisation:", error);
       toast({
         title: "Erreur de synchronisation",
         description: error instanceof Error ? error.message : "Impossible de synchroniser vos exigences",
@@ -40,9 +42,12 @@ export const useExigenceSync = () => {
 
   const loadFromServer = async (userId: string) => {
     try {
+      console.log(`Chargement des exigences pour l'utilisateur ${userId} depuis le serveur`);
       const data = await loadExigencesFromServer(userId);
+      console.log(`Données chargées: ${data.exigences.length} exigences, ${data.groups.length} groupes`);
       return data;
     } catch (error) {
+      console.error("Erreur lors du chargement des exigences:", error);
       toast({
         title: "Erreur de chargement",
         description: "Impossible de charger les exigences depuis le serveur",

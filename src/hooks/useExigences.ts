@@ -4,9 +4,10 @@ import { Exigence, ExigenceStats, ExigenceGroup } from '@/types/exigences';
 import { useExigenceSync } from './useExigenceSync';
 import { useExigenceMutations } from './useExigenceMutations';
 import { useExigenceGroups } from './useExigenceGroups';
+import { getCurrentUser } from '@/services/auth/authService';
 
 export const useExigences = () => {
-  const currentUser = localStorage.getItem('currentUser') || 'default';
+  const currentUser = getCurrentUser() || 'default';
   const [exigences, setExigences] = useState<Exigence[]>([]);
   const [groups, setGroups] = useState<ExigenceGroup[]>([]);
   const [editingExigence, setEditingExigence] = useState<Exigence | null>(null);
@@ -28,14 +29,21 @@ export const useExigences = () => {
   // Initial load from server
   useEffect(() => {
     const loadExigences = async () => {
-      const serverExigences = await loadFromServer(currentUser);
-      if (serverExigences) {
-        setExigences(serverExigences);
+      try {
+        const serverData = await loadFromServer(currentUser);
+        if (serverData) {
+          setExigences(serverData.exigences || []);
+          setGroups(serverData.groups || []);
+        }
+      } catch (error) {
+        console.error("Erreur lors du chargement des exigences:", error);
       }
     };
 
-    loadExigences();
-  }, [currentUser]);
+    if (currentUser) {
+      loadExigences();
+    }
+  }, [currentUser, loadFromServer]);
 
   // Stats calculation
   useEffect(() => {
@@ -103,6 +111,6 @@ export const useExigences = () => {
     handleEditGroup,
     ...mutations,
     ...groupOperations,
-    syncWithServer: () => syncWithServer(exigences, currentUser)
+    syncWithServer: () => syncWithServer(exigences, currentUser, groups)
   };
 };

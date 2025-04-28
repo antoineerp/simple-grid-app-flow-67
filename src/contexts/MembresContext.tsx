@@ -56,6 +56,7 @@ export const MembresProvider: React.FC<{ children: ReactNode }> = ({ children })
       setError(null);
       
       // Envoyer les données au serveur
+      console.log(`Synchronisation des membres pour ${currentUser} avec ${membres.length} membres`);
       const success = await syncMembresWithServer(membres, currentUser);
       
       if (success) {
@@ -128,7 +129,7 @@ export const MembresProvider: React.FC<{ children: ReactNode }> = ({ children })
           toast({
             title: "Mode hors-ligne",
             description: "Vous êtes en mode hors-ligne. Les données peuvent ne pas être à jour.",
-            variant: "default",  // Changed from "warning" to "default"
+            variant: "default",
           });
         }
       } catch (err) {

@@ -14,6 +14,8 @@ export const loadExigencesFromServer = async (userId: string): Promise<{exigence
     const encodedUserId = encodeURIComponent(userId);
     const url = `${API_URL}/exigences-load.php?userId=${encodedUserId}`;
     
+    console.log(`Requête vers: ${url}`);
+    
     const response = await fetch(url, {
       method: 'GET',
       headers: getAuthHeaders(),
@@ -35,7 +37,8 @@ export const loadExigencesFromServer = async (userId: string): Promise<{exigence
     const exigences = (result.exigences || []).map((exigence: any) => ({
       ...exigence,
       date_creation: exigence.date_creation ? new Date(exigence.date_creation) : new Date(),
-      date_modification: exigence.date_modification ? new Date(exigence.date_modification) : new Date()
+      date_modification: exigence.date_modification ? new Date(exigence.date_modification) : new Date(),
+      exclusion: Boolean(exigence.exclusion)
     }));
     
     // Conversion du champ expanded pour les groupes

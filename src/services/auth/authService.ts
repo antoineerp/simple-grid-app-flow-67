@@ -1,277 +1,138 @@
-import { getApiUrl } from '@/config/apiConfig';
-import { toast } from '@/hooks/use-toast';
-import { disconnectUser } from '../core/databaseConnectionService';
-import { initializeUserData } from '../core/userInitializationService';
+import { getApiUrl, fetchWithErrorHandling } from '@/config/apiConfig';
 
-const API_URL = getApiUrl();
-
-class AuthService {
-    private static instance: AuthService;
-    private token: string | null = null;
-    private currentUser: string | null = null;
-
-    private constructor() {
-        console.log("Authentication service initialized");
-        this.token = localStorage.getItem('authToken');
-        this.currentUser = localStorage.getItem('currentUser');
-    }
-
-    public static getInstance(): AuthService {
-        if (!AuthService.instance) {
-            AuthService.instance = new AuthService();
-        }
-        return AuthService.instance;
-    }
-
-    public setToken(token: string | null): void {
-        this.token = token;
-        if (token) {
-            localStorage.setItem('authToken', token);
-            localStorage.setItem('isLoggedIn', 'true');
-        } else {
-            localStorage.removeItem('authToken');
-            localStorage.removeItem('isLoggedIn');
-        }
-    }
-
-    public getToken(): string | null {
-        if (!this.token) {
-            this.token = localStorage.getItem('authToken');
-        }
-        return this.token;
-    }
-
-    public getAuthHeaders(): HeadersInit {
-        const headers: HeadersInit = {
-            'Content-Type': 'application/json',
-            'Cache-Control': 'no-cache, no-store, must-revalidate',
-            'Accept': 'application/json'
-        };
-        
-        const token = this.getToken();
-        if (token) {
-            headers['Authorization'] = `Bearer ${token}`;
-        }
-        
-        return headers;
-    }
-
-    private async parseJsonResponse(response: Response): Promise<any> {
-        const responseText = await response.text();
-        console.log(`Réponse reçue (${response.status}): ${responseText.substring(0, 200)}...`);
-        
-        if (!responseText || responseText.trim() === '') {
-            console.warn('Réponse vide reçue du serveur');
-            throw new Error('Réponse vide du serveur');
-        }
-        
-        // Ne pas traiter la réponse de test comme une erreur, mais la reconnaître comme une réponse spéciale
-        if (responseText.includes('API PHP disponible') && !responseText.includes('token')) {
-            console.log('Détecté: réponse API info standard');
-            return { info: true, message: 'API info response' };
-        }
-        
-        if (responseText.trim().startsWith('<!DOCTYPE') || 
-            responseText.trim().startsWith('<html') ||
-            responseText.includes('<body')) {
-            console.error('Réponse HTML reçue au lieu de JSON:', responseText.substring(0, 200));
-            throw new Error('Le serveur a renvoyé une page HTML au lieu de JSON. Vérifiez la configuration du serveur.');
-        }
-        
-        try {
-            return JSON.parse(responseText);
-        } catch (e) {
-            console.error('Erreur lors du parsing JSON:', e);
-            console.error('Texte reçu:', responseText.substring(0, 500));
-            throw new Error('Réponse du serveur non valide. Format JSON attendu.');
-        }
-    }
-
-    public async login(username: string, password: string): Promise<any> {
-        try {
-            console.log(`Tentative de connexion pour l'utilisateur: ${username}`);
-            
-            // Utilisateurs de test pour la vérification locale avant d'appeler l'API
-            const testUsers = {
-                "antcirier@gmail.com": ["password123", "Password123!"],
-                "p71x6d_system": ["Trottinette43!"],
-                "admin": ["admin123"]
-            };
-            
-            // Vérification spéciale pour les utilisateurs de test
-            if (username === "antcirier@gmail.com" && 
-                (password === "password123" || password === "Password123!")) {
-                console.log("Utilisateur test détecté localement: antcirier@gmail.com");
-            }
-            
-            // Essayer d'abord login-test.php directement (plus simple)
-            const testUrl = `${getApiUrl()}/login-test.php`;
-            console.log(`URL de requête (test): ${testUrl}`);
-            
-            try {
-                const response = await fetch(testUrl, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Cache-Control': 'no-cache, no-store, must-revalidate'
-                    },
-                    body: JSON.stringify({ username, password })
-                });
-                
-                console.log(`Réponse du serveur login-test: ${response.status} ${response.statusText}`);
-                
-                if (!response.ok) {
-                    if (response.status === 401) {
-                        // Si l'authentification échoue avec login-test, essayer AuthController
-                        throw new Error("Authentification test échouée, tentative avec auth.php");
-                    } else {
-                        const errorData = await this.parseJsonResponse(response);
-                        throw new Error(errorData.message || `Échec de l'authentification test (${response.status})`);
-                    }
-                }
-                
-                const data = await this.parseJsonResponse(response);
-                
-                if (!data || !data.token) {
-                    throw new Error(data?.message || "Authentification test échouée");
-                }
-                
-                this.setToken(data.token);
-                
-                if (data.user) {
-                    // Utiliser le nom complet de l'utilisateur si disponible
-                    const displayName = 
-                        (data.user.prenom && data.user.nom) 
-                            ? `${data.user.prenom} ${data.user.nom}` 
-                            : (data.user.email || data.user.identifiant_technique || 'Utilisateur');
-                    
-                    localStorage.setItem('currentUser', data.user.identifiant_technique);
-                    localStorage.setItem('userRole', data.user.role);
-                    localStorage.setItem('userName', displayName);
-                    
-                    console.log("Connexion réussie via login-test.php pour:", displayName);
-                }
-                
-                if (data.user && data.user.identifiant_technique) {
-                    await initializeUserData(data.user.identifiant_technique);
-                }
-                
-                return {
-                    success: true,
-                    user: data.user
-                };
-            } catch (testError) {
-                console.error("Erreur avec login-test.php:", testError);
-                
-                // Si le test échoue, essayer avec /auth
-                const authUrl = `${getApiUrl()}/auth`;
-                console.log(`URL de requête (auth): ${authUrl}`);
-                
-                const response = await fetch(authUrl, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Cache-Control': 'no-cache, no-store, must-revalidate'
-                    },
-                    body: JSON.stringify({ username, password })
-                });
-                
-                console.log(`Réponse du serveur auth: ${response.status} ${response.statusText}`);
-                
-                if (!response.ok) {
-                    const errorData = await this.parseJsonResponse(response);
-                    throw new Error(errorData.message || `Échec de l'authentification (${response.status})`);
-                }
-                
-                const data = await this.parseJsonResponse(response);
-                
-                if (!data || !data.token) {
-                    throw new Error(data?.message || "Authentification échouée");
-                }
-                
-                this.setToken(data.token);
-                
-                if (data.user) {
-                    const displayName = 
-                        (data.user.prenom && data.user.nom) 
-                            ? `${data.user.prenom} ${data.user.nom}` 
-                            : (data.user.email || data.user.identifiant_technique || 'Utilisateur');
-                    
-                    localStorage.setItem('currentUser', data.user.identifiant_technique);
-                    localStorage.setItem('userRole', data.user.role);
-                    localStorage.setItem('userName', displayName);
-                    
-                    console.log("Connexion réussie via auth.php pour:", displayName);
-                }
-                
-                if (data.user && data.user.identifiant_technique) {
-                    await initializeUserData(data.user.identifiant_technique);
-                }
-                
-                return {
-                    success: true,
-                    user: data.user
-                };
-            }
-        } catch (error) {
-            console.error("Erreur lors de la connexion:", error);
-            
-            toast({
-                title: "Échec de la connexion",
-                description: error instanceof Error ? error.message : "Erreur inconnue",
-                variant: "destructive",
-            });
-            
-            throw error;
-        }
-    }
-
-    public logout(): void {
-        this.setToken(null);
-        localStorage.removeItem('currentUser');
-        localStorage.removeItem('userRole');
-        localStorage.removeItem('userName');
-        localStorage.removeItem('isLoggedIn');
-        
-        disconnectUser();
-        
-        toast({
-            title: "Déconnexion réussie",
-            description: "Vous avez été déconnecté avec succès",
-        });
-    }
-
-    public isLoggedIn(): boolean {
-        return !!this.getToken();
-    }
-
-    public getCurrentUser(): string | null {
-        return this.currentUser || localStorage.getItem('currentUser');
-    }
-}
-
-const authService = AuthService.getInstance();
-
-export const login = (username: string, password: string): Promise<any> => {
-    return authService.login(username, password);
+/**
+ * Enregistre le token d'authentification dans le sessionStorage
+ * @param token Le token d'authentification à enregistrer
+ */
+export const setAuthToken = (token: string): void => {
+  sessionStorage.setItem('authToken', token);
 };
 
-export const logout = (): void => {
-    authService.logout();
+/**
+ * Supprime le token d'authentification du sessionStorage
+ */
+export const removeAuthToken = (): void => {
+  sessionStorage.removeItem('authToken');
 };
 
-export const isLoggedIn = (): boolean => {
-    return authService.isLoggedIn();
+/**
+ * Récupère le token d'authentification depuis le sessionStorage
+ * @returns Le token d'authentification ou null s'il n'existe pas
+ */
+export const getAuthToken = (): string | null => {
+  return sessionStorage.getItem('authToken');
 };
 
+/**
+ * Définit si l'utilisateur est connecté ou non dans le sessionStorage
+ * @param isLoggedIn Un booléen indiquant si l'utilisateur est connecté
+ */
+export const setIsLoggedIn = (isLoggedIn: boolean): void => {
+  sessionStorage.setItem('isLoggedIn', String(isLoggedIn));
+};
+
+/**
+ * Récupère l'état de connexion de l'utilisateur depuis le sessionStorage
+ * @returns Un booléen indiquant si l'utilisateur est connecté ou false par défaut
+ */
+export const getIsLoggedIn = (): boolean => {
+  return sessionStorage.getItem('isLoggedIn') === 'true';
+};
+
+/**
+ * Supprime l'état de connexion de l'utilisateur du sessionStorage
+ */
+export const removeIsLoggedIn = (): void => {
+  sessionStorage.removeItem('isLoggedIn');
+};
+
+/**
+ * Enregistre les données d'authentification de l'utilisateur dans le sessionStorage
+ * @param user L'utilisateur à enregistrer
+ */
+export const setAuthData = (user: string): void => {
+  sessionStorage.setItem('authData', JSON.stringify({ user }));
+};
+
+/**
+ * Supprime les données d'authentification de l'utilisateur du sessionStorage
+ */
+export const removeAuthData = (): void => {
+  sessionStorage.removeItem('authData');
+};
+
+/**
+ * Récupère l'utilisateur actuellement connecté
+ */
 export const getCurrentUser = (): string | null => {
-    return authService.getCurrentUser();
+  const authData = sessionStorage.getItem('authData');
+  if (authData) {
+    try {
+      const parsedData = JSON.parse(authData);
+      return parsedData.user || 'p71x6d_system';
+    } catch (e) {
+      console.error('Erreur lors de la lecture des données d\'authentification:', e);
+      return 'p71x6d_system'; // Valeur par défaut pour la compatibilité
+    }
+  }
+  // Valeur par défaut pour assurer le fonctionnement avec Infomaniak
+  return 'p71x6d_system';
 };
 
+/**
+ * Génère les headers d'authentification pour les requêtes API
+ * @returns Un objet contenant les headers d'authentification
+ */
 export const getAuthHeaders = (): HeadersInit => {
-    return authService.getAuthHeaders();
+  const token = getAuthToken();
+  const headers: HeadersInit = {
+    'Content-Type': 'application/json',
+    'Cache-Control': 'no-cache, no-store, must-revalidate'
+  };
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+  return headers;
 };
 
-export const loginUser = login;
-export const logoutUser = logout;
-export const getToken = authService.getToken.bind(authService);
+/**
+ * Envoie une requête de connexion à l'API
+ * @param email L'email de l'utilisateur
+ * @param password Le mot de passe de l'utilisateur
+ * @returns Une promesse contenant les données de l'utilisateur ou null en cas d'erreur
+ */
+export const login = async (email: string, password: string): Promise<any | null> => {
+  try {
+    const API_URL = getApiUrl();
+    const response = await fetchWithErrorHandling(`${API_URL}/login.php`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Cache-Control': 'no-cache, no-store, must-revalidate'
+      },
+      body: JSON.stringify({ email, password })
+    });
+    
+    if (response && response.success) {
+      setAuthToken(response.token);
+      setIsLoggedIn(true);
+      setAuthData(response.user);
+      return response;
+    } else {
+      console.error('Erreur lors de la connexion:', response ? response.message : 'Erreur inconnue');
+      return null;
+    }
+  } catch (error) {
+    console.error('Erreur lors de la requête de connexion:', error);
+    throw error;
+  }
+};
+
+/**
+ * Déconnecte l'utilisateur
+ */
+export const logout = (): void => {
+  removeAuthToken();
+  removeIsLoggedIn();
+  removeAuthData();
+};
