@@ -174,7 +174,7 @@ export const useExigences = () => {
   const handleAddGroup = useCallback(() => {
     const newGroup: ExigenceGroup = {
       id: crypto.randomUUID(),
-      name: '',  // Using 'name' instead of 'title' to match ExigenceGroup type
+      name: '',
       expanded: true,
       items: []
     };
