@@ -60,6 +60,35 @@ class DataSyncService {
         }
     }
 
+    public function getTableColumns() {
+        if (!$this->connection) {
+            error_log("Pas de connexion à la base de données pour obtenir les colonnes");
+            return [];
+        }
+        
+        try {
+            $table = $this->tableName;
+            if (!empty($this->userId)) {
+                $table = "{$this->tableName}_{$this->userId}";
+            }
+            
+            $sql = "SHOW COLUMNS FROM `{$table}`";
+            $stmt = $this->connection->prepare($sql);
+            $stmt->execute();
+            
+            $columns = [];
+            while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+                $columns[] = $row['Field'];
+            }
+            
+            error_log("Colonnes récupérées pour la table {$table}: " . implode(", ", $columns));
+            return $columns;
+        } catch (PDOException $e) {
+            error_log("Erreur lors de la récupération des colonnes: " . $e->getMessage());
+            return [];
+        }
+    }
+
     public function sanitizeUserId($userId) {
         // Nettoyage simple de l'userId
         $userId = preg_replace('/[^a-zA-Z0-9_\-\.]/', '_', $userId);
@@ -209,6 +238,62 @@ class DataSyncService {
             error_log("Erreur lors de la mise à jour: " . $e->getMessage());
             return false;
         }
+    }
+
+    public function loadData() {
+        if (!$this->connection) {
+            throw new Exception("Pas de connexion à la base de données");
+        }
+        
+        try {
+            $query = "SELECT * FROM {$this->tableName}";
+            $stmt = $this->connection->prepare($query);
+            $stmt->execute();
+            
+            return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        } catch (PDOException $e) {
+            error_log("Erreur lors du chargement des données: " . $e->getMessage());
+            throw new Exception("Erreur lors du chargement des données: " . $e->getMessage());
+        }
+    }
+    
+    public function insertMultipleData($records) {
+        if (empty($records)) {
+            return true; // Rien à insérer
+        }
+        
+        try {
+            // Préparer une requête d'insertion multiple
+            $first = reset($records);
+            $fields = array_keys($first);
+            $fieldsStr = implode("`, `", $fields);
+            
+            $values = [];
+            $placeholders = [];
+            
+            foreach ($records as $record) {
+                $recordPlaceholders = [];
+                foreach ($record as $value) {
+                    $values[] = $value;
+                    $recordPlaceholders[] = "?";
+                }
+                $placeholders[] = "(" . implode(", ", $recordPlaceholders) . ")";
+            }
+            
+            $placeholdersStr = implode(", ", $placeholders);
+            
+            $query = "INSERT INTO {$this->tableName} (`" . $fieldsStr . "`) VALUES " . $placeholdersStr;
+            $stmt = $this->connection->prepare($query);
+            
+            return $stmt->execute($values);
+        } catch (PDOException $e) {
+            error_log("Erreur lors de l'insertion multiple: " . $e->getMessage());
+            return false;
+        }
+    }
+
+    public function getPdo() {
+        return $this->connection;
     }
 
     public function finalize() {
