@@ -50,22 +50,27 @@ export const useLoginForm = () => {
       
       const result = await loginUser(data.username, data.password);
       
-      if (result.success && result.user) {
+      if (result && result.token) {
         // Réinitialiser l'état d'erreur
         setHasDbError(false);
         setHasServerError(false);
         setHasAuthError(false);
         
-        localStorage.setItem('isLoggedIn', 'true');
-        
         toast({
           title: "Connexion réussie",
-          description: `Bienvenue, ${data.username} (${result.user.role || 'utilisateur'})`,
+          description: `Bienvenue, ${data.username} (${result.user && result.user.role ? result.user.role : 'utilisateur'})`,
         });
         
         // Forcer la navigation vers le pilotage
         console.log("Redirection vers /pilotage après connexion réussie");
         navigate("/pilotage", { replace: true });
+      } else {
+        setHasAuthError(true);
+        toast({
+          title: "Échec de la connexion",
+          description: "Identifiants invalides ou problème de connexion au serveur",
+          variant: "destructive",
+        });
       }
     } catch (error) {
       console.error("Erreur lors de la connexion:", error);
@@ -86,7 +91,8 @@ export const useLoginForm = () => {
           });
         } else if (errorMessage.includes("serveur") || 
                   errorMessage.includes("inaccessible") ||
-                  errorMessage.includes("réponse invalide")) {
+                  errorMessage.includes("réponse invalide") ||
+                  errorMessage.includes("404")) {
           setHasServerError(true);
           toast({
             title: "Erreur de connexion au serveur",

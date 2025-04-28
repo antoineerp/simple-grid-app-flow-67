@@ -99,9 +99,11 @@ export const getAuthHeaders = (): HeadersInit => {
 export const login = async (email: string, password: string): Promise<any | null> => {
   try {
     const API_URL = getApiUrl();
-    console.log('Tentative de connexion vers:', `${API_URL}/login.php`);
     
-    const response = await fetchWithErrorHandling(`${API_URL}/login.php`, {
+    // Essayer d'abord auth.php (point d'entrée principal pour l'authentification)
+    console.log('Tentative de connexion vers:', `${API_URL}/auth.php`);
+    
+    const response = await fetchWithErrorHandling(`${API_URL}/auth.php`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -116,13 +118,41 @@ export const login = async (email: string, password: string): Promise<any | null
       setIsLoggedIn(true);
       setAuthData(response.user);
       return response;
-    } else {
-      console.error('Erreur lors de la connexion:', response ? response.message : 'Erreur inconnue');
+    } else if (response) {
+      console.error('Erreur lors de la connexion:', response.message || 'Erreur inconnue');
       return null;
+    } else {
+      throw new Error("Pas de réponse du serveur d'authentification");
     }
   } catch (error) {
-    console.error('Erreur lors de la requête de connexion:', error);
-    throw error;
+    // En cas d'échec avec auth.php, essayer login-test.php
+    try {
+      console.log('Premier essai échoué, tentative avec login-test.php');
+      const API_URL = getApiUrl();
+      
+      const response = await fetchWithErrorHandling(`${API_URL}/login-test.php`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache, no-store, must-revalidate'
+        },
+        body: JSON.stringify({ username: email, password })
+      });
+      
+      if (response && response.token) {
+        console.log('Connexion réussie avec login-test.php, sauvegarde des informations en mémoire');
+        setAuthToken(response.token);
+        setIsLoggedIn(true);
+        setAuthData(response.user || email);
+        return { success: true, token: response.token, user: response.user || email };
+      } else {
+        console.error('Erreur lors de la connexion avec login-test:', response ? response.message : 'Erreur inconnue');
+        throw new Error(response ? response.message : 'Erreur inconnue lors de la connexion');
+      }
+    } catch (secondError) {
+      console.error('Erreur lors des deux tentatives de connexion:', secondError);
+      throw secondError;
+    }
   }
 };
 
