@@ -1,143 +1,163 @@
 
-import React, { useState } from 'react';
-import { useBibliotheque } from '@/hooks/useBibliotheque';
-import { BibliothequeHeader } from '@/features/bibliotheque/components/BibliothequeHeader';
-import { BibliothequeTable } from '@/features/bibliotheque/components/BibliothequeTable';
-import { BibliothequeActions } from '@/features/bibliotheque/components/BibliothequeActions';
-import { DocumentDialog } from '@/features/bibliotheque/components/DocumentDialog';
-import { DocumentGroupDialog } from '@/components/gestion-documentaire/DocumentGroupDialog';
+import React, { useEffect, useState } from 'react';
+import { CloudSun, FileText } from 'lucide-react';
+import { useToast } from "@/hooks/use-toast";
 import { Document, DocumentGroup } from '@/types/bibliotheque';
+import { useBibliotheque } from '@/contexts/BibliothequeContext';
+import { exportBibliothecaireDocsToPdf } from '@/services/bibliothequeExport';
+import SyncStatusIndicator from '@/components/common/SyncStatusIndicator';
 
 const Bibliotheque = () => {
-  const {
-    documents,
+  const { toast } = useToast();
+  const { 
+    documents, 
     groups,
-    isDialogOpen,
-    isGroupDialogOpen,
-    isEditing,
-    currentDocument,
-    currentGroup,
-    setIsDialogOpen,
-    setIsGroupDialogOpen,
-    handleDrop,
-    handleGroupDrop,
-    handleEditDocument,
-    handleDeleteDocument,
-    handleAddDocument,
-    handleDocumentInputChange,
-    handleSaveDocument,
-    handleEditGroup,
-    handleDeleteGroup,
-    handleAddGroup,
-    handleGroupInputChange,
-    handleSaveGroup,
-    handleToggleGroup,
+    isLoading, 
+    isSyncing, 
+    error, 
+    isOnline, 
     syncWithServer,
-    setDraggedItem
+    lastSynced,
+    syncFailed,
+    resetSyncFailed
   } = useBibliotheque();
-  
-  const [syncFailed, setSyncFailed] = useState(false);
 
-  const handleDragStart = (e: React.DragEvent<HTMLTableRowElement>, id: string, groupId?: string) => {
-    setDraggedItem({ id, groupId });
-    e.dataTransfer.setData('text/plain', JSON.stringify({ id, groupId }));
-    e.currentTarget.classList.add('opacity-50');
-  };
+  // Effectuer une seule synchronisation au chargement de la page
+  useEffect(() => {
+    if (!isLoading && isOnline && !syncFailed && !isSyncing) {
+      console.log("Synchronisation initiale de la bibliothèque");
+      syncWithServer().catch(console.error);
+    }
+  }, [isLoading]);
 
-  const handleDragOver = (e: React.DragEvent<HTMLTableRowElement>) => {
-    e.preventDefault();
-    e.currentTarget.classList.add('border-dashed', 'border-2', 'border-primary');
-  };
-
-  const handleDragLeave = (e: React.DragEvent<HTMLTableRowElement>) => {
-    e.currentTarget.classList.remove('border-dashed', 'border-2', 'border-primary');
-  };
-
-  const handleDocDrop = (e: React.DragEvent<HTMLTableRowElement>, targetId: string, targetGroupId?: string) => {
-    e.preventDefault();
-    e.currentTarget.classList.remove('border-dashed', 'border-2', 'border-primary');
-    handleDrop(targetId, targetGroupId);
-    setDraggedItem(null);
-  };
-
-  const handleDocGroupDrop = (e: React.DragEvent<HTMLTableRowElement>, targetGroupId: string) => {
-    e.preventDefault();
-    e.currentTarget.classList.remove('border-dashed', 'border-2', 'border-primary');
-    handleGroupDrop(targetGroupId);
-    setDraggedItem(null);
-  };
-
-  const handleDragEnd = (e: React.DragEvent<HTMLTableRowElement>) => {
-    e.currentTarget.classList.remove('opacity-50');
-    setDraggedItem(null);
-  };
-
-  const handleSync = async () => {
+  const handleExportAllToPdf = () => {
     try {
-      await syncWithServer();
-      setSyncFailed(false);
+      exportBibliothecaireDocsToPdf(documents, groups);
+      toast({
+        title: "Export PDF",
+        description: "La bibliothèque a été exportée en PDF",
+      });
     } catch (error) {
-      console.error("Sync failed:", error);
-      setSyncFailed(true);
+      console.error("Erreur lors de l'export PDF:", error);
+      toast({
+        title: "Erreur",
+        description: error instanceof Error ? error.message : "Erreur lors de l'export PDF",
+        variant: "destructive",
+      });
     }
   };
 
-  // Create a handler for adding documents that takes no arguments
-  const handleAddDocumentClick = () => {
-    // Create a default empty document to pass to handleAddDocument
-    const emptyDocument: Document = {
-      id: '',
-      name: '',
-      link: null
-    };
-    
-    handleAddDocument(emptyDocument);
+  const handleResetSync = () => {
+    resetSyncFailed();
+    syncWithServer().catch(console.error);
   };
 
   return (
     <div className="p-8">
-      <BibliothequeHeader
-        onSync={handleSync}
-        syncFailed={syncFailed}
-      />
-      
-      <BibliothequeTable
-        documents={documents}
-        groups={groups}
-        onEditDocument={handleEditDocument}
-        onDeleteDocument={handleDeleteDocument}
-        onEditGroup={handleEditGroup}
-        onDeleteGroup={handleDeleteGroup}
-        onToggleGroup={handleToggleGroup}
-        onDragStart={handleDragStart}
-        onDragOver={handleDragOver}
-        onDragLeave={handleDragLeave}
-        onDrop={handleDocDrop}
-        onDragEnd={handleDragEnd}
-        onGroupDrop={handleDocGroupDrop}
-      />
+      <div className="flex items-center justify-between mb-2">
+        <div>
+          <h1 className="text-3xl font-bold text-app-blue">Bibliothèque de documents</h1>
+        </div>
+        <div className="flex space-x-2">
+          <button 
+            onClick={() => syncWithServer()}
+            className="text-blue-600 p-2 rounded-md hover:bg-blue-50 transition-colors flex items-center"
+            title="Synchroniser avec le serveur"
+            disabled={isSyncing || !isOnline || syncFailed}
+          >
+            <CloudSun className={`h-6 w-6 stroke-[1.5] ${isSyncing ? 'animate-spin' : ''} ${syncFailed ? 'text-gray-400' : ''}`} />
+          </button>
+          <button 
+            onClick={handleExportAllToPdf}
+            className="text-red-600 p-2 rounded-md hover:bg-red-50 transition-colors"
+            title="Exporter en PDF"
+          >
+            <FileText className="h-6 w-6 stroke-[1.5]" />
+          </button>
+        </div>
+      </div>
 
-      <BibliothequeActions
-        onAddGroup={handleAddGroup}
-        onAddDocument={handleAddDocumentClick}
-      />
+      <div className="mb-4">
+        <SyncStatusIndicator 
+          syncFailed={syncFailed} 
+          onReset={handleResetSync} 
+          isSyncing={isSyncing} 
+          isOnline={isOnline}
+          lastSynced={lastSynced}
+        />
+      </div>
 
-      <DocumentDialog
-        isOpen={isDialogOpen}
-        onOpenChange={setIsDialogOpen}
-        currentDocument={currentDocument}
-        isEditing={isEditing}
-        onInputChange={handleDocumentInputChange}
-        onSave={handleSaveDocument}
-      />
-
-      <DocumentGroupDialog
-        group={currentGroup as any}
-        open={isGroupDialogOpen}
-        onOpenChange={setIsGroupDialogOpen}
-        onSave={handleSaveGroup as any}
-        isEditing={isEditing}
-      />
+      {isLoading ? (
+        <div className="bg-white rounded-md shadow p-8 text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-app-blue mx-auto"></div>
+          <p className="mt-4 text-gray-600">Chargement des données...</p>
+        </div>
+      ) : (
+        <>
+          {groups.map(group => (
+            <div key={group.id} className="bg-white rounded-md shadow mb-4 p-4">
+              <h2 className="text-xl font-semibold text-app-blue mb-2">{group.name}</h2>
+              {group.items && group.items.length > 0 ? (
+                <div className="space-y-2">
+                  {group.items.map(doc => (
+                    <div key={doc.id} className="flex items-center p-2 border-b">
+                      <div className="flex-1">
+                        <p className="font-medium">{doc.titre}</p>
+                        {doc.description && <p className="text-sm text-gray-600">{doc.description}</p>}
+                      </div>
+                      {doc.url && (
+                        <a 
+                          href={doc.url} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="ml-2 text-blue-600 hover:underline"
+                        >
+                          Lien
+                        </a>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-gray-500 italic">Aucun document dans cette catégorie</p>
+              )}
+            </div>
+          ))}
+          
+          {documents.filter(doc => !doc.type).length > 0 && (
+            <div className="bg-white rounded-md shadow mb-4 p-4">
+              <h2 className="text-xl font-semibold text-app-blue mb-2">Documents non catégorisés</h2>
+              <div className="space-y-2">
+                {documents.filter(doc => !doc.type).map(doc => (
+                  <div key={doc.id} className="flex items-center p-2 border-b">
+                    <div className="flex-1">
+                      <p className="font-medium">{doc.titre}</p>
+                      {doc.description && <p className="text-sm text-gray-600">{doc.description}</p>}
+                    </div>
+                    {doc.url && (
+                      <a 
+                        href={doc.url} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="ml-2 text-blue-600 hover:underline"
+                      >
+                        Lien
+                      </a>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          
+          {documents.length === 0 && groups.length === 0 && (
+            <div className="bg-white rounded-md shadow p-8 text-center">
+              <p className="text-gray-500">Aucun document dans la bibliothèque.</p>
+              <p className="text-sm mt-2 text-gray-400">La bibliothèque se synchronisera automatiquement lorsque des documents seront disponibles.</p>
+            </div>
+          )}
+        </>
+      )}
     </div>
   );
 };

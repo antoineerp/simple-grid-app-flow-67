@@ -13,28 +13,34 @@ import RessourcesHumaines from "./pages/RessourcesHumaines";
 import Bibliotheque from "./pages/Bibliotheque";
 import Administration from "./pages/Administration";
 import NotFound from "./pages/NotFound";
+import { MembresProvider } from "./contexts/MembresContext";
+import { BibliothequeProvider } from "./contexts/BibliothequeContext";
 
 const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Layout />}>
-            <Route index element={<Index />} />
-            <Route path="pilotage" element={<Pilotage />} />
-            <Route path="exigences" element={<Exigences />} />
-            <Route path="gestion-documentaire" element={<GestionDocumentaire />} />
-            <Route path="ressources-humaines" element={<RessourcesHumaines />} />
-            <Route path="collaboration" element={<Bibliotheque />} />
-            <Route path="administration" element={<Administration />} />
-          </Route>
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </BrowserRouter>
-      <Toaster />
-      <Sonner />
+      <MembresProvider>
+        <BibliothequeProvider>
+          <BrowserRouter>
+            <Routes>
+              <Route path="/" element={<Layout />}>
+                <Route index element={<Index />} />
+                <Route path="pilotage" element={<Pilotage />} />
+                <Route path="exigences" element={<Exigences />} />
+                <Route path="gestion-documentaire" element={<GestionDocumentaire />} />
+                <Route path="ressources-humaines" element={<RessourcesHumaines />} />
+                <Route path="collaboration" element={<Bibliotheque />} />
+                <Route path="administration" element={<Administration />} />
+              </Route>
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </BrowserRouter>
+          <Toaster />
+          <Sonner />
+        </BibliothequeProvider>
+      </MembresProvider>
     </TooltipProvider>
   </QueryClientProvider>
 );
