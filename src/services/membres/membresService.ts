@@ -53,13 +53,32 @@ export const loadMembresFromServer = async (currentUser: any): Promise<Membre[]>
       }
       
       const responseText = await response.text();
-      const result = JSON.parse(responseText);
       
-      if (!result.success) {
-        throw new Error(result.message || "Erreur inconnue lors du chargement des membres");
+      // Vérifier si la réponse est vide
+      if (!responseText || !responseText.trim()) {
+        console.warn("Réponse vide du serveur");
+        return [];
       }
       
-      return result.membres || [];
+      // Vérifier si la réponse contient du HTML ou PHP (erreur)
+      if (responseText.includes('<?php') || responseText.includes('<html') || responseText.includes('<br')) {
+        console.error("La réponse contient du HTML/PHP au lieu de JSON:", responseText.substring(0, 200));
+        throw new Error("Le serveur a renvoyé une page HTML au lieu de données JSON");
+      }
+      
+      try {
+        const result = JSON.parse(responseText);
+        
+        if (!result.success) {
+          throw new Error(result.message || "Erreur inconnue lors du chargement des membres");
+        }
+        
+        return result.membres || [];
+      } catch (jsonError) {
+        console.error("Erreur lors du parsing JSON:", jsonError);
+        console.error("Réponse brute:", responseText.substring(0, 500));
+        throw new Error("Format de réponse invalide");
+      }
     } catch (error) {
       if (error.name === 'AbortError') {
         throw new Error("Délai d'attente dépassé lors du chargement des membres");
@@ -115,6 +134,18 @@ export const syncMembresWithServer = async (membres: Membre[], currentUser: any)
       }
       
       const responseText = await response.text();
+      
+      // Vérifier si la réponse est vide
+      if (!responseText || !responseText.trim()) {
+        console.warn("Réponse vide du serveur lors de la synchronisation");
+        return false;
+      }
+      
+      // Vérifier si la réponse contient du HTML ou PHP (erreur)
+      if (responseText.includes('<?php') || responseText.includes('<html') || responseText.includes('<br')) {
+        console.error("La réponse de synchronisation contient du HTML/PHP au lieu de JSON:", responseText.substring(0, 200));
+        throw new Error("Le serveur a renvoyé une page HTML au lieu de données JSON");
+      }
       
       try {
         const result = JSON.parse(responseText);

@@ -64,14 +64,16 @@ try {
         exit;
     }
     
-    // Nom de la table spécifique à l'utilisateur
-    $tableName = "membres_" . preg_replace('/[^a-zA-Z0-9_]/', '_', $userId);
-    error_log("Table à consulter: {$tableName}");
+    // Purifier le nom d'utilisateur pour créer un nom de table valide
+    $safeUserId = preg_replace('/[^a-zA-Z0-9_]/', '_', $userId);
+    $tableName = "membres_" . $safeUserId;
+    error_log("Table à consulter (après nettoyage): {$tableName}");
     
     // Vérifier si la table existe
-    $tableExistsQuery = "SHOW TABLES LIKE ?";
+    $tableExistsQuery = "SHOW TABLES LIKE :tableName";
     $stmt = $pdo->prepare($tableExistsQuery);
-    $stmt->execute([$tableName]);
+    $stmt->bindValue(':tableName', $tableName);
+    $stmt->execute();
     $tableExists = $stmt->rowCount() > 0;
     
     if (!$tableExists) {
@@ -85,11 +87,13 @@ try {
         exit;
     }
     
-    // Récupérer les membres depuis la table - Construction sécurisée de la requête
+    // Récupérer les membres depuis la table en utilisant une requête préparée
+    // NOTE: Pour les noms de tables dynamiques, on doit construire la requête manuellement
+    // mais on peut quand même utiliser des requêtes préparées pour les autres valeurs
     $query = "SELECT * FROM `" . $tableName . "` ORDER BY nom, prenom";
     error_log("Exécution de la requête: {$query}");
     
-    // Exécuter directement la requête puisque le nom de la table est déjà sécurisé
+    // Exécuter la requête (les noms de tables ne peuvent pas être liés dans les requêtes préparées)
     $stmt = $pdo->query($query);
     $membres = $stmt->fetchAll();
     
