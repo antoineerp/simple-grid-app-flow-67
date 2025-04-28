@@ -66,11 +66,15 @@ export const loadMembresFromServer = async (currentUser: any): Promise<Membre[]>
       throw new Error(`ID utilisateur invalide: ${typeof userId}`);
     }
     
+    // Utiliser encodeURIComponent pour encoder l'ID utilisateur en toute sécurité
     const encodedUserId = encodeURIComponent(userId);
     const url = `${API_URL}/membres-load.php?userId=${encodedUserId}`;
     
     // Ajouter un timestamp pour éviter la mise en cache
     const urlWithTimestamp = `${url}&_t=${new Date().getTime()}`;
+    
+    // Ajout d'un logging pour déboguer
+    console.log(`Requête membres: ${urlWithTimestamp}`);
     
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 secondes de timeout
@@ -85,6 +89,9 @@ export const loadMembresFromServer = async (currentUser: any): Promise<Membre[]>
       
       clearTimeout(timeoutId);
       
+      // Debug: Journaliser le statut et le texte de la réponse
+      console.log(`Réponse membres statut: ${response.status}`);
+      
       if (!response.ok) {
         const errorText = await response.text();
         console.error(`Erreur serveur (${response.status}) lors du chargement des membres:`, errorText);
@@ -92,6 +99,9 @@ export const loadMembresFromServer = async (currentUser: any): Promise<Membre[]>
       }
       
       const responseText = await response.text();
+      
+      // Debug: Journaliser les 200 premiers caractères de la réponse 
+      console.log(`Réponse membres début: ${responseText.substring(0, 200)}`);
       
       // Vérifier si la réponse est vide
       if (!responseText || !responseText.trim()) {

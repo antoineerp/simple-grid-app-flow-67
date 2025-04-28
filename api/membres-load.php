@@ -49,20 +49,18 @@ try {
     if (ob_get_level()) ob_clean();
     
     // Vérifier si l'userId est présent - Version robuste qui fonctionne même avec des paramètres d'URL mal formés
-    $userId = '';
-    if (isset($_GET['userId']) && !empty($_GET['userId'])) {
+    $userId = 'p71x6d_system'; // valeur par défaut
+    
+    if (isset($_GET['userId']) && !empty($_GET['userId']) && $_GET['userId'] !== '[object Object]') {
         $userId = $_GET['userId'];
-    } else if (isset($_REQUEST['userId']) && !empty($_REQUEST['userId'])) {
-        $userId = $_REQUEST['userId'];
+        // Vérification supplémentaire pour les chaînes contenant "object"
+        if (strpos($userId, 'object') !== false) {
+            error_log("UserId contient 'object', utilisation de l'ID par défaut");
+            $userId = 'p71x6d_system';
+        }
     }
     
-    if (empty($userId)) {
-        // Pour les tests, fournir une valeur par défaut si userId est manquant
-        $userId = 'p71x6d_system';
-        error_log("UserId manquant, utilisation de la valeur par défaut: {$userId}");
-    } else {
-        error_log("Chargement des données pour l'utilisateur: {$userId}");
-    }
+    error_log("UserId final utilisé: {$userId}");
     
     // Connexion à la base de données
     try {
@@ -84,27 +82,14 @@ try {
     }
     
     // Purifier le nom d'utilisateur pour créer un nom de table valide
-    // CORRECTION: Assurer que le userId est toujours une chaîne et jamais un objet
-    if (is_object($userId)) {
-        error_log("UserId est un objet, conversion en chaîne par défaut");
-        $userId = 'p71x6d_system';
-    }
-    
-    // Correction: vérification supplémentaire pour les chaînes [object Object]
-    if ($userId === '[object Object]' || strpos($userId, 'object') !== false) {
-        error_log("UserId contient 'object', utilisation de l'ID par défaut");
-        $userId = 'p71x6d_system';
-    }
-    
     $safeUserId = preg_replace('/[^a-zA-Z0-9_]/', '_', $userId);
     $tableName = "membres_" . $safeUserId;
     error_log("Table à consulter (après nettoyage): {$tableName}");
     
     // Vérifier si la table existe
-    $tableExistsQuery = "SHOW TABLES LIKE :tableName";
+    $tableExistsQuery = "SHOW TABLES LIKE ?";
     $stmt = $pdo->prepare($tableExistsQuery);
-    $stmt->bindValue(':tableName', $tableName);
-    $stmt->execute();
+    $stmt->execute([$tableName]);
     $tableExists = $stmt->rowCount() > 0;
     
     if (!$tableExists) {
@@ -118,13 +103,13 @@ try {
         exit;
     }
     
-    // Récupérer les membres depuis la table en utilisant une requête préparée
-    // CORRECTION: Utiliser un identifiant de table explicite sans point d'interrogation
-    // La syntaxe SQL est modifiée pour utiliser des guillemets et éviter les erreurs de syntaxe
+    // Récupérer les membres depuis la table sans utiliser de requête préparée pour le nom de table
+    // Les noms de table ne peuvent pas être passés comme paramètres dans les requêtes préparées
+    // Mais comme nous avons nettoyé l'identifiant, c'est sécurisé
     $query = "SELECT * FROM `{$tableName}` ORDER BY nom, prenom";
     error_log("Exécution de la requête: {$query}");
     
-    // Exécuter la requête directement puisque le nom de la table est déjà sécurisé
+    // Exécuter la requête directement
     $stmt = $pdo->query($query);
     $membres = $stmt->fetchAll();
     
