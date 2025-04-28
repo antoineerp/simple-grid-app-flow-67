@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from 'react';
 import { Document, DocumentStats, DocumentGroup } from '@/types/documents';
 import { useToast } from '@/hooks/use-toast';
@@ -6,12 +5,13 @@ import { calculateDocumentStats } from '@/services/documents/documentStatsServic
 import { loadDocumentsFromServer, syncDocumentsWithServer } from '@/services/documents/documentSyncService';
 import { useDocumentMutations } from '@/features/documents/hooks/useDocumentMutations';
 import { useDocumentGroups } from '@/features/documents/hooks/useDocumentGroups';
-import { getCurrentUser } from '@/services/auth/authService';
+import { getCurrentUser } from '@/services/core/databaseConnectionService';
 
 export const useDocuments = () => {
   const { toast } = useToast();
-  const user = getCurrentUser();
-  const currentUser = typeof user === 'object' ? user?.identifiant_technique || 'p71x6d_system' : user || 'p71x6d_system';
+  const currentUser = getCurrentUser() || 'p71x6d_system';
+  
+  console.log("Current user dans useDocuments:", currentUser);
   
   const [documents, setDocuments] = useState<Document[]>([]);
   const [groups, setGroups] = useState<DocumentGroup[]>([]);
@@ -25,7 +25,6 @@ export const useDocuments = () => {
   const [syncFailed, setSyncFailed] = useState(false);
   const [lastSynced, setLastSynced] = useState<Date | null>(null);
 
-  // Initial load from server
   useEffect(() => {
     if (isInitialized) return;
     
@@ -34,13 +33,13 @@ export const useDocuments = () => {
         setIsSyncing(true);
         const serverDocuments = await loadDocumentsFromServer(currentUser);
         if (serverDocuments) {
-          console.log(`Loaded ${serverDocuments.length} documents from server`);
+          console.log(`Loaded ${serverDocuments.length} documents from server for user ${currentUser}`);
           setDocuments(serverDocuments);
           setLastSynced(new Date());
           setSyncFailed(false);
         }
       } catch (error) {
-        console.error("Error during document initialization:", error);
+        console.error(`Error during document initialization for user ${currentUser}:`, error);
         setSyncFailed(true);
         toast({
           title: "Erreur de chargement",
@@ -53,10 +52,14 @@ export const useDocuments = () => {
       }
     };
 
-    initializeDocuments();
-  }, [currentUser, toast]);
+    if (currentUser) {
+      initializeDocuments();
+    } else {
+      console.error("Impossible d'initialiser les documents: utilisateur non défini");
+      setSyncFailed(true);
+    }
+  }, [currentUser, toast, isInitialized]);
 
-  // Update stats when documents change
   useEffect(() => {
     setStats(calculateDocumentStats(documents));
   }, [documents]);
@@ -118,7 +121,6 @@ export const useDocuments = () => {
 
       setDocuments((prev) => prev.map((doc) => (doc.id === newDoc.id ? newDoc : doc)));
 
-      // Synchronize with server after document update
       syncWithServer().catch(error => {
         console.error("Erreur lors de la synchronisation après mise à jour:", error);
       });
@@ -147,11 +149,9 @@ export const useDocuments = () => {
       date_modification: new Date()
     };
     
-    // Important: Create a new array to trigger a proper React state update
     const newDocuments = [...documents, newDocument];
     setDocuments(newDocuments);
     
-    // Synchronize with server after adding document
     syncWithServer().catch(error => {
       console.error("Erreur lors de la synchronisation après ajout:", error);
     });
@@ -173,7 +173,6 @@ export const useDocuments = () => {
       
       result.splice(endIndex, 0, removed);
       
-      // Synchronize with server after reordering
       syncWithServer().catch(error => {
         console.error("Erreur lors de la synchronisation après réorganisation:", error);
       });

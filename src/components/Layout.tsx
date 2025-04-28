@@ -6,6 +6,7 @@ import Footer from './Footer';
 import Sidebar from './Sidebar';
 import { MembresProvider } from '@/contexts/MembresContext';
 import { getIsLoggedIn, getAuthToken, getCurrentUser } from '@/services/auth/authService';
+import { initializeCurrentUser } from '@/services/core/databaseConnectionService';
 
 interface LayoutProps {
   children?: React.ReactNode;
@@ -18,6 +19,9 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   const [isLoading, setIsLoading] = useState(true);
   
   useEffect(() => {
+    // Initialiser l'utilisateur courant pour la base de données
+    initializeCurrentUser();
+    
     // Vérifier si l'utilisateur est connecté
     const checkAuth = () => {
       const isLoggedIn = getIsLoggedIn();

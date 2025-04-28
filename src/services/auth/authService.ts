@@ -1,15 +1,34 @@
-
 import { getApiUrl } from '@/config/apiConfig';
 import { User, AuthResponse } from '@/types/auth';
+import { setCurrentUser as setDbUser } from '@/services/core/databaseConnectionService';
 
 export const getCurrentUser = (): User | null => {
   const token = sessionStorage.getItem('authToken');
   if (!token) return null;
 
   try {
-    const userData = JSON.parse(atob(token.split('.')[1]));
+    const payloadBase64 = token.split('.')[1];
+    if (!payloadBase64) return null;
+    
+    // Assurons-nous que le padding est correct pour le décodage base64
+    const base64 = payloadBase64.replace(/-/g, '+').replace(/_/g, '/');
+    const jsonPayload = decodeURIComponent(
+      atob(base64)
+        .split('')
+        .map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+        .join('')
+    );
+
+    const userData = JSON.parse(jsonPayload);
+    
+    // Synchroniser avec le service de base de données
+    if (userData.user && userData.user.identifiant_technique) {
+      setDbUser(userData.user.identifiant_technique);
+    }
+    
     return userData.user || null;
-  } catch {
+  } catch (error) {
+    console.error("Erreur lors de la décodage du token:", error);
     return null;
   }
 };
@@ -19,7 +38,9 @@ export const getAuthToken = (): string | null => {
 };
 
 export const getIsLoggedIn = (): boolean => {
-  return !!getAuthToken();
+  const token = getAuthToken();
+  const user = getCurrentUser();
+  return !!(token && user && user.identifiant_technique);
 };
 
 export const getAuthHeaders = () => {

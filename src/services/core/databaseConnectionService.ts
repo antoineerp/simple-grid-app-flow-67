@@ -1,13 +1,42 @@
-
 // Fonction pour récupérer l'utilisateur actuel depuis localStorage ou mémoire
 export const getCurrentUser = (): string | null => {
-  return localStorage.getItem('currentUser') || 'p71x6d_system';
+  const storedUser = localStorage.getItem('currentUser');
+  if (storedUser) return storedUser;
+  
+  // Essayer de récupérer depuis l'authentification
+  try {
+    const authToken = sessionStorage.getItem('authToken');
+    if (authToken) {
+      const base64 = authToken.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+      const jsonPayload = decodeURIComponent(
+        atob(base64)
+          .split('')
+          .map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+          .join('')
+      );
+
+      const userData = JSON.parse(jsonPayload);
+      if (userData.user && userData.user.identifiant_technique) {
+        return userData.user.identifiant_technique;
+      }
+    }
+  } catch (error) {
+    console.error("Erreur lors de la récupération de l'utilisateur depuis le token:", error);
+  }
+  
+  return 'p71x6d_system';
 };
 
 // Fonction pour définir l'utilisateur actuel
 export const setCurrentUser = (userId: string): void => {
+  if (!userId || !userId.startsWith('p71x6d_')) {
+    console.error(`Tentative d'utilisation d'un identifiant technique invalide: ${userId}`);
+    userId = 'p71x6d_system';
+  }
+  
   localStorage.setItem('currentDatabaseUser', userId);
   localStorage.setItem('currentUser', userId);
+  console.log(`Utilisateur défini: ${userId}`);
 };
 
 // Fonction pour supprimer l'utilisateur actuel
@@ -156,4 +185,35 @@ export const getDatabaseInfo = async (): Promise<DatabaseInfo> => {
     // Lancer l'erreur pour la propager au composant appelant
     throw error;
   }
+};
+
+// Ajoutons une fonction d'initialisation qui sera appelée au démarrage de l'application
+export const initializeCurrentUser = (): void => {
+  // Essayer de récupérer l'utilisateur depuis le token d'authentification
+  try {
+    const authToken = sessionStorage.getItem('authToken');
+    if (authToken) {
+      const base64 = authToken.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+      const jsonPayload = decodeURIComponent(
+        atob(base64)
+          .split('')
+          .map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+          .join('')
+      );
+
+      const userData = JSON.parse(jsonPayload);
+      if (userData.user && userData.user.identifiant_technique) {
+        setCurrentUser(userData.user.identifiant_technique);
+        console.log(`Utilisateur initialisé depuis le token: ${userData.user.identifiant_technique}`);
+        return;
+      }
+    }
+  } catch (error) {
+    console.error("Erreur lors de l'initialisation de l'utilisateur depuis le token:", error);
+  }
+  
+  // Si aucun utilisateur n'est trouvé dans le token, utiliser celui du localStorage ou le défaut
+  const storedUser = localStorage.getItem('currentUser') || 'p71x6d_system';
+  setCurrentUser(storedUser);
+  console.log(`Utilisateur initialisé depuis localStorage: ${storedUser}`);
 };
