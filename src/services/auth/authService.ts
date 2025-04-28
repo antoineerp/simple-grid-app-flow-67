@@ -4,7 +4,7 @@ import { getApiUrl, fetchWithErrorHandling } from '@/config/apiConfig';
 // Variables en mémoire pour stocker les informations d'authentification pendant la session
 let inMemoryToken: string | null = null;
 let inMemoryLoggedIn: boolean = false;
-let inMemoryUser: string | null = null;
+let inMemoryUser: any = null; // Peut être une chaîne ou un objet
 
 /**
  * Enregistre le token d'authentification en mémoire
@@ -56,7 +56,7 @@ export const removeIsLoggedIn = (): void => {
  * Enregistre les données d'authentification de l'utilisateur en mémoire
  * @param user L'utilisateur à enregistrer
  */
-export const setAuthData = (user: string): void => {
+export const setAuthData = (user: any): void => {
   inMemoryUser = user;
 };
 
@@ -69,8 +69,9 @@ export const removeAuthData = (): void => {
 
 /**
  * Récupère l'utilisateur actuellement connecté
+ * @returns L'utilisateur actuellement connecté ou l'identifiant technique par défaut
  */
-export const getCurrentUser = (): string | null => {
+export const getCurrentUser = (): any => {
   return inMemoryUser || 'p71x6d_system'; // Valeur par défaut pour la compatibilité
 };
 
@@ -103,33 +104,32 @@ export const login = async (email: string, password: string): Promise<any | null
     // Essayer d'abord auth.php (point d'entrée principal pour l'authentification)
     console.log('Tentative de connexion vers:', `${API_URL}/auth.php`);
     
-    const response = await fetchWithErrorHandling(`${API_URL}/auth.php`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Cache-Control': 'no-cache, no-store, must-revalidate'
-      },
-      body: JSON.stringify({ email, password })
-    });
-    
-    if (response && response.success) {
-      console.log('Connexion réussie, sauvegarde des informations en mémoire');
-      setAuthToken(response.token);
-      setIsLoggedIn(true);
-      setAuthData(response.user);
-      return response;
-    } else if (response) {
-      console.error('Erreur lors de la connexion:', response.message || 'Erreur inconnue');
-      return null;
-    } else {
-      throw new Error("Pas de réponse du serveur d'authentification");
-    }
-  } catch (error) {
-    // En cas d'échec avec auth.php, essayer login-test.php
     try {
-      console.log('Premier essai échoué, tentative avec login-test.php');
-      const API_URL = getApiUrl();
+      const response = await fetchWithErrorHandling(`${API_URL}/auth.php`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache, no-store, must-revalidate'
+        },
+        body: JSON.stringify({ email, password })
+      });
       
+      if (response && response.success) {
+        console.log('Connexion réussie, sauvegarde des informations en mémoire');
+        setAuthToken(response.token);
+        setIsLoggedIn(true);
+        setAuthData(response.user);
+        return response;
+      } else if (response) {
+        console.error('Erreur lors de la connexion:', response.message || 'Erreur inconnue');
+        throw new Error(response.message || 'Erreur serveur');
+      } else {
+        throw new Error("Pas de réponse du serveur d'authentification");
+      }
+    } catch (firstError) {
+      console.error('Premier essai échoué, tentative avec login-test.php');
+      
+      // En cas d'échec avec auth.php, essayer login-test.php
       const response = await fetchWithErrorHandling(`${API_URL}/login-test.php`, {
         method: 'POST',
         headers: {
@@ -149,10 +149,10 @@ export const login = async (email: string, password: string): Promise<any | null
         console.error('Erreur lors de la connexion avec login-test:', response ? response.message : 'Erreur inconnue');
         throw new Error(response ? response.message : 'Erreur inconnue lors de la connexion');
       }
-    } catch (secondError) {
-      console.error('Erreur lors des deux tentatives de connexion:', secondError);
-      throw secondError;
     }
+  } catch (error) {
+    console.error('Erreur lors des tentatives de connexion:', error);
+    throw error;
   }
 };
 

@@ -56,7 +56,9 @@ export const MembresProvider: React.FC<{ children: ReactNode }> = ({ children })
       setError(null);
       
       // Envoyer les données au serveur
-      console.log(`Synchronisation des membres pour ${currentUser} avec ${membres.length} membres`);
+      console.log(`Synchronisation des membres pour l'utilisateur ${typeof currentUser === 'object' ? 
+        (currentUser.identifiant_technique || currentUser.email) : currentUser} avec ${membres.length} membres`);
+        
       const success = await syncMembresWithServer(membres, currentUser);
       
       if (success) {
@@ -109,7 +111,11 @@ export const MembresProvider: React.FC<{ children: ReactNode }> = ({ children })
           return;
         }
         
-        console.log("Chargement des membres pour l'utilisateur", currentUser);
+        // Extraire l'identifiant utilisateur
+        const userId = typeof currentUser === 'object' ? 
+          (currentUser.identifiant_technique || currentUser.email || '') : currentUser;
+          
+        console.log("Chargement des membres pour l'utilisateur", userId);
         
         if (isOnline) {
           try {

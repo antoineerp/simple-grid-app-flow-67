@@ -6,12 +6,28 @@ import { getAuthHeaders } from '@/services/auth/authService';
 /**
  * Charge les membres depuis le serveur Infomaniak uniquement
  */
-export const loadMembresFromServer = async (currentUser: string): Promise<Membre[]> => {
+export const loadMembresFromServer = async (currentUser: any): Promise<Membre[]> => {
   try {
     const API_URL = getApiUrl();
-    console.log(`Chargement des membres depuis le serveur pour l'utilisateur ${currentUser}`);
     
-    const encodedUserId = encodeURIComponent(currentUser);
+    // Extraire l'identifiant technique ou email de l'utilisateur pour l'utiliser comme userId
+    let userId = '';
+    
+    if (typeof currentUser === 'string') {
+      userId = currentUser;
+    } else if (currentUser && typeof currentUser === 'object') {
+      userId = currentUser.identifiant_technique || currentUser.email || '';
+      console.log(`Extraction de l'identifiant utilisateur à partir de l'objet: ${userId}`);
+    }
+    
+    if (!userId) {
+      console.error("Impossible d'extraire un identifiant utilisateur valide", currentUser);
+      throw new Error("Identifiant utilisateur invalide");
+    }
+    
+    console.log(`Chargement des membres depuis le serveur pour l'utilisateur ${userId}`);
+    
+    const encodedUserId = encodeURIComponent(userId);
     const url = `${API_URL}/membres-load.php?userId=${encodedUserId}`;
     
     const response = await fetch(url, {
@@ -40,10 +56,26 @@ export const loadMembresFromServer = async (currentUser: string): Promise<Membre
 /**
  * Synchronise les membres avec le serveur Infomaniak uniquement
  */
-export const syncMembresWithServer = async (membres: Membre[], currentUser: string): Promise<boolean> => {
+export const syncMembresWithServer = async (membres: Membre[], currentUser: any): Promise<boolean> => {
   try {
     const API_URL = getApiUrl();
-    console.log(`Synchronisation des membres pour l'utilisateur ${currentUser}`);
+    
+    // Extraire l'identifiant technique ou email de l'utilisateur pour l'utiliser comme userId
+    let userId = '';
+    
+    if (typeof currentUser === 'string') {
+      userId = currentUser;
+    } else if (currentUser && typeof currentUser === 'object') {
+      userId = currentUser.identifiant_technique || currentUser.email || '';
+      console.log(`Extraction de l'identifiant utilisateur pour la synchronisation: ${userId}`);
+    }
+    
+    if (!userId) {
+      console.error("Impossible d'extraire un identifiant utilisateur valide pour la synchronisation", currentUser);
+      throw new Error("Identifiant utilisateur invalide pour la synchronisation");
+    }
+    
+    console.log(`Synchronisation des membres pour l'utilisateur ${userId}`);
     
     const response = await fetch(`${API_URL}/membres-sync.php`, {
       method: 'POST',
@@ -51,7 +83,7 @@ export const syncMembresWithServer = async (membres: Membre[], currentUser: stri
         ...getAuthHeaders(),
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({ userId: currentUser, membres })
+      body: JSON.stringify({ userId: userId, membres })
     });
     
     if (!response.ok) {

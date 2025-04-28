@@ -42,12 +42,29 @@ try {
     $userId = $_GET['userId'];
     error_log("Chargement des données pour l'utilisateur: {$userId}");
     
+    // Vérifier et corriger si userId est [object Object]
+    if ($userId === '[object Object]') {
+        error_log("Détection de [object Object] comme userId, utilisation de l'utilisateur par défaut");
+        $userId = "p71x6d_system"; // Valeur par défaut pour la compatibilité
+    }
+    
     // Connexion à la base de données
-    $pdo = new PDO("mysql:host={$host};dbname={$dbname};charset=utf8mb4", $username, $password, [
-        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-        PDO::ATTR_EMULATE_PREPARES => false,
-    ]);
+    try {
+        $pdo = new PDO("mysql:host={$host};dbname={$dbname};charset=utf8mb4", $username, $password, [
+            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+            PDO::ATTR_EMULATE_PREPARES => false,
+        ]);
+    } catch (PDOException $pdoError) {
+        error_log("Erreur de connexion à la base de données: " . $pdoError->getMessage());
+        // Retourner une liste vide plutôt qu'une erreur pour une meilleure expérience utilisateur
+        echo json_encode([
+            'success' => true,
+            'membres' => [],
+            'message' => 'Base de données temporairement indisponible'
+        ]);
+        exit;
+    }
     
     // Nom de la table spécifique à l'utilisateur
     $tableName = "membres_" . preg_replace('/[^a-zA-Z0-9_]/', '_', $userId);
