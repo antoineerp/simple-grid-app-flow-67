@@ -1,4 +1,3 @@
-
 import React, { useEffect } from 'react';
 import { FileText, UserPlus, CloudSun, AlertTriangle } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
@@ -45,7 +44,6 @@ const RessourcesHumaines = () => {
   });
   const [isEditing, setIsEditing] = React.useState(false);
 
-  // Synchronisation au chargement de la page si connecté et en ligne
   useEffect(() => {
     if (isOnline && !isSyncing && !isLoading && !syncFailed) {
       console.log("Synchronisation automatique au chargement de la page");
@@ -53,7 +51,6 @@ const RessourcesHumaines = () => {
     }
   }, [isLoading]);
 
-  // Handler for edit action
   const handleEdit = (id: string) => {
     const membre = membres.find(m => m.id === id);
     if (membre) {
@@ -63,7 +60,6 @@ const RessourcesHumaines = () => {
     }
   };
 
-  // Handler for delete action
   const handleDelete = (id: string) => {
     setMembres(prev => prev.filter(membre => membre.id !== id));
     toast({
@@ -71,15 +67,12 @@ const RessourcesHumaines = () => {
       description: `Le membre ${id} a été supprimé`,
     });
     
-    // Synchroniser après la suppression si en ligne
     if (isOnline && !syncFailed) {
       syncWithServer().catch(console.error);
     }
   };
 
-  // Handler for adding a new member
   const handleAddMember = () => {
-    // Generate a new ID for the new member - convert to string
     const newId = membres.length > 0 
       ? String(Math.max(...membres.map(membre => parseInt(membre.id))) + 1)
       : '1';
@@ -97,13 +90,10 @@ const RessourcesHumaines = () => {
     setIsDialogOpen(true);
   };
 
-  // Handler for export function
   const handleExportMember = (id: string) => {
-    // Implementation for export functionality
     console.log(`Exporting member with id: ${id}`);
   };
 
-  // Handler for input changes in the form
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setCurrentMembre({
@@ -112,7 +102,6 @@ const RessourcesHumaines = () => {
     });
   };
 
-  // Handler for saving member (add or update)
   const handleSaveMember = () => {
     if (currentMembre.nom.trim() === '' || currentMembre.prenom.trim() === '') {
       toast({
@@ -123,14 +112,12 @@ const RessourcesHumaines = () => {
       return;
     }
 
-    // Calculate initials if not provided
     if (currentMembre.initiales.trim() === '') {
       const initiales = `${currentMembre.prenom.charAt(0)}${currentMembre.nom.charAt(0)}`;
       currentMembre.initiales = initiales.toUpperCase();
     }
 
     if (isEditing) {
-      // Update existing member
       setMembres(prev => 
         prev.map(membre => membre.id === currentMembre.id ? currentMembre : membre)
       );
@@ -139,7 +126,6 @@ const RessourcesHumaines = () => {
         description: `Le membre ${currentMembre.id} a été modifié`,
       });
     } else {
-      // Add new member
       setMembres(prev => [...prev, currentMembre]);
       toast({
         title: "Ajout",
@@ -149,13 +135,11 @@ const RessourcesHumaines = () => {
     
     setIsDialogOpen(false);
     
-    // Synchroniser après l'ajout/modification si en ligne
     if (isOnline && !syncFailed) {
       syncWithServer().catch(console.error);
     }
   };
 
-  // Handler for exporting all members to PDF
   const handleExportAllToPdf = () => {
     try {
       exportAllCollaborateursToPdf(membres);
@@ -173,7 +157,6 @@ const RessourcesHumaines = () => {
     }
   };
 
-  // Handler pour réinitialiser le statut de synchronisation
   const handleResetSync = () => {
     resetSyncFailed();
     toast({
@@ -208,15 +191,9 @@ const RessourcesHumaines = () => {
       </div>
 
       <div className="mb-4">
-        <SyncStatusIndicator 
-          isSyncing={isSyncing}
-          isOnline={isOnline}
-          lastSynced={lastSynced}
-          syncFailed={syncFailed}
-        />
+        <SyncStatusIndicator syncFailed={syncFailed} onReset={handleResetSync} />
       </div>
 
-      {/* Afficher une alerte en cas d'échec de synchronisation */}
       {syncFailed && (
         <Alert variant="destructive" className="mb-6">
           <AlertTriangle className="h-4 w-4" />
@@ -268,7 +245,6 @@ const RessourcesHumaines = () => {
             </Button>
           </div>
 
-          {/* Modal pour ajouter/modifier un membre */}
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogContent>
               <DialogHeader>

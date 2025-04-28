@@ -7,6 +7,9 @@ import { Button } from "@/components/ui/button";
 type SyncStatusProps = {
   syncFailed?: boolean;
   onReset?: () => void;
+  isSyncing?: boolean;
+  isOnline?: boolean;
+  lastSynced?: Date;
 };
 
 const SyncStatusIndicator: React.FC<SyncStatusProps> = ({ 
