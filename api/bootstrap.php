@@ -124,7 +124,12 @@ try {
     $membresExistent = (int)$stmt->fetchColumn() > 0;
     
     if (!$membresExistent) {
-        // Insérer des membres de test
+        // Vérifier structure de la table membres
+        $stmt = $pdo->prepare("DESCRIBE `membres_{$userId}`");
+        $stmt->execute();
+        $columns = $stmt->fetchAll(PDO::FETCH_COLUMN);
+        
+        // Insérer des membres de test en s'assurant que les colonnes existent
         $insertMembre = $pdo->prepare("INSERT INTO `membres_{$userId}` 
             (id, nom, prenom, email, telephone, fonction, organisation, notes) 
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
@@ -160,6 +165,11 @@ try {
     $exigencesExistent = (int)$stmt->fetchColumn() > 0;
     
     if (!$exigencesExistent) {
+        // Vérifier structure de la table exigences
+        $stmt = $pdo->prepare("DESCRIBE `exigences_{$userId}`");
+        $stmt->execute();
+        $columns = $stmt->fetchAll(PDO::FETCH_COLUMN);
+        
         // Insérer des exigences de test
         $insertExigence = $pdo->prepare("INSERT INTO `exigences_{$userId}` 
             (id, code, description, niveau, categorie, etat, notes) 
@@ -230,6 +240,11 @@ try {
     $membresExistent = (int)$stmt->fetchColumn() > 0;
     
     if (!$membresExistent) {
+        // Vérifier structure de la table membres
+        $stmt = $pdo->prepare("DESCRIBE `membres_{$userId}`");
+        $stmt->execute();
+        $columns = $stmt->fetchAll(PDO::FETCH_COLUMN);
+        
         // Insérer des membres de test
         $insertMembre = $pdo->prepare("INSERT INTO `membres_{$userId}` 
             (id, nom, prenom, email, telephone, fonction, organisation, notes) 
