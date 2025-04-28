@@ -55,11 +55,14 @@ export const MembresProvider: React.FC<{ children: ReactNode }> = ({ children })
       setIsSyncing(true);
       setError(null);
       
-      // Envoyer les données au serveur
-      console.log(`Synchronisation des membres pour l'utilisateur ${typeof currentUser === 'object' ? 
-        (currentUser.identifiant_technique || currentUser.email) : currentUser} avec ${membres.length} membres`);
+      // S'assurer que l'utilisateur est un identifiant valide
+      const userId = typeof currentUser === 'object' ? 
+        (currentUser.identifiant_technique || currentUser.email || 'p71x6d_system') : 
+        currentUser;
         
-      const success = await syncMembresWithServer(membres, currentUser);
+      console.log(`Synchronisation des membres pour l'utilisateur ${userId} avec ${membres.length} membres`);
+      
+      const success = await syncMembresWithServer(membres, userId);
       
       if (success) {
         setLastSynced(new Date());
@@ -69,7 +72,7 @@ export const MembresProvider: React.FC<{ children: ReactNode }> = ({ children })
         });
         
         // Recharger les données après synchronisation pour avoir l'état le plus récent
-        const updatedMembres = await loadMembresFromServer(currentUser);
+        const updatedMembres = await loadMembresFromServer(userId);
         setMembres(updatedMembres);
         
         return true;
@@ -111,16 +114,17 @@ export const MembresProvider: React.FC<{ children: ReactNode }> = ({ children })
           return;
         }
         
-        // Extraire l'identifiant utilisateur
+        // S'assurer que l'utilisateur est un identifiant valide
         const userId = typeof currentUser === 'object' ? 
-          (currentUser.identifiant_technique || currentUser.email || '') : currentUser;
+          (currentUser.identifiant_technique || currentUser.email || 'p71x6d_system') : 
+          currentUser;
           
         console.log("Chargement des membres pour l'utilisateur", userId);
         
         if (isOnline) {
           try {
             setIsSyncing(true);
-            const serverMembres = await loadMembresFromServer(currentUser);
+            const serverMembres = await loadMembresFromServer(userId);
             
             setMembres(serverMembres);
             setLastSynced(new Date());

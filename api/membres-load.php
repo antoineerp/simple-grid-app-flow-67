@@ -13,6 +13,9 @@ header("Cache-Control: no-cache, no-store, must-revalidate");
 // Journalisation
 error_log("=== DEBUT DE L'EXÉCUTION DE membres-load.php ===");
 error_log("Méthode: " . $_SERVER['REQUEST_METHOD'] . " - URI: " . $_SERVER['REQUEST_URI']);
+if (isset($_GET['userId'])) {
+    error_log("UserId reçu: " . $_GET['userId']);
+}
 
 // Gestion des requêtes OPTIONS (preflight)
 if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
@@ -55,6 +58,7 @@ try {
             PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
             PDO::ATTR_EMULATE_PREPARES => false,
         ]);
+        error_log("Connexion à la base de données réussie");
     } catch (PDOException $pdoError) {
         error_log("Erreur de connexion à la base de données: " . $pdoError->getMessage());
         // Retourner une liste vide plutôt qu'une erreur pour une meilleure expérience utilisateur

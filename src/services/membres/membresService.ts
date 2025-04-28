@@ -15,6 +15,7 @@ export const loadMembresFromServer = async (currentUser: any): Promise<Membre[]>
     
     if (typeof currentUser === 'string') {
       userId = currentUser;
+      console.log(`Chargement des membres en utilisant l'identifiant simple: ${userId}`);
     } else if (currentUser && typeof currentUser === 'object') {
       userId = currentUser.identifiant_technique || currentUser.email || '';
       console.log(`Extraction de l'identifiant utilisateur à partir de l'objet: ${userId}`);
@@ -27,6 +28,7 @@ export const loadMembresFromServer = async (currentUser: any): Promise<Membre[]>
     
     console.log(`Chargement des membres depuis le serveur pour l'utilisateur ${userId}`);
     
+    // Utiliser directement userId pour éviter l'encodage d'[object Object]
     const encodedUserId = encodeURIComponent(userId);
     const url = `${API_URL}/membres-load.php?userId=${encodedUserId}`;
     

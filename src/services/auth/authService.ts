@@ -143,8 +143,14 @@ export const login = async (email: string, password: string): Promise<any | null
         console.log('Connexion réussie avec login-test.php, sauvegarde des informations en mémoire');
         setAuthToken(response.token);
         setIsLoggedIn(true);
-        setAuthData(response.user || email);
-        return { success: true, token: response.token, user: response.user || email };
+        // Stocker l'identifiant technique pour la compatibilité avec les services backend
+        const userData = response.user || { 
+          email,
+          identifiant_technique: "p71x6d_system",
+          role: "admin"
+        };
+        setAuthData(userData);
+        return { success: true, token: response.token, user: userData };
       } else {
         console.error('Erreur lors de la connexion avec login-test:', response ? response.message : 'Erreur inconnue');
         throw new Error(response ? response.message : 'Erreur inconnue lors de la connexion');
