@@ -69,7 +69,7 @@ try {
         throw new Exception("Erreur de décodage JSON: " . json_last_error_msg());
     }
 
-    // Vérifier si les données sont présentes
+    // Vérifier si les données sont présentes et récupérer le nom d'utilisateur et le mot de passe
     $username = null;
     $password = null;
     
@@ -87,72 +87,128 @@ try {
     if ($username && $password) {
         error_log("Tentative de connexion pour: " . $username);
         
-        // DÉBUT - AUTHENTIFICATION DE SECOURS
-        // Liste des utilisateurs de test
-        $test_users = [
-            'admin' => ['password' => 'admin123', 'role' => 'admin'],
-            'p71x6d_system' => ['password' => 'Trottinette43!', 'role' => 'admin'],
-            'antcirier@gmail.com' => ['password' => ['password123', 'Password123!', 'Trottinette43!'], 'role' => 'admin'],
-            'p71x6d_dupont' => ['password' => 'manager456', 'role' => 'gestionnaire'],
-            'p71x6d_martin' => ['password' => 'user789', 'role' => 'utilisateur']
-        ];
+        // Configuration de la base de données
+        $host = "p71x6d.myd.infomaniak.com";
+        $dbname = "p71x6d_system";
+        $db_username = "p71x6d_system";
+        $db_password = "Trottinette43!";
         
-        // Vérifier les utilisateurs de test
-        foreach ($test_users as $user_id => $user_data) {
-            if ($username === $user_id) {
-                $valid_password = false;
-                if (is_array($user_data['password'])) {
-                    $valid_password = in_array($password, $user_data['password']);
-                } else {
-                    $valid_password = ($password === $user_data['password']);
+        // Connexion à la base de données
+        try {
+            $pdo = new PDO("mysql:host={$host};dbname={$dbname};charset=utf8mb4", $db_username, $db_password, [
+                PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+                PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+                PDO::ATTR_EMULATE_PREPARES => false,
+            ]);
+            error_log("Connexion à la base de données réussie");
+            
+            // Vérifier si la table utilisateurs existe
+            $tableExistsQuery = "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = ? AND table_name = ?";
+            $stmt = $pdo->prepare($tableExistsQuery);
+            $stmt->execute([$dbname, 'utilisateurs']);
+            $tableExists = (int)$stmt->fetchColumn() > 0;
+            
+            if (!$tableExists) {
+                error_log("La table 'utilisateurs' n'existe pas, création en cours...");
+                
+                // Créer la table utilisateurs
+                $createTableQuery = "CREATE TABLE `utilisateurs` (
+                    `id` INT AUTO_INCREMENT PRIMARY KEY,
+                    `nom` VARCHAR(100) NOT NULL,
+                    `prenom` VARCHAR(100) NOT NULL,
+                    `email` VARCHAR(255) NOT NULL UNIQUE,
+                    `mot_de_passe` VARCHAR(255) NOT NULL,
+                    `identifiant_technique` VARCHAR(100) NOT NULL UNIQUE,
+                    `role` VARCHAR(50) NOT NULL DEFAULT 'utilisateur',
+                    `date_creation` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
+                $pdo->exec($createTableQuery);
+                
+                // Créer un utilisateur administrateur par défaut
+                $adminEmail = "admin@example.com";
+                $adminPassword = password_hash("admin123", PASSWORD_DEFAULT);
+                $insertAdminQuery = "INSERT INTO `utilisateurs` 
+                    (`nom`, `prenom`, `email`, `mot_de_passe`, `identifiant_technique`, `role`) 
+                    VALUES (?, ?, ?, ?, ?, ?)";
+                $stmt = $pdo->prepare($insertAdminQuery);
+                $stmt->execute(['Admin', 'System', $adminEmail, $adminPassword, 'p71x6d_system', 'admin']);
+                
+                error_log("Table 'utilisateurs' créée avec un utilisateur administrateur par défaut");
+                
+                // Créer également un utilisateur avec l'e-mail antcirier@gmail.com pour faciliter les tests
+                $insertUserQuery = "INSERT INTO `utilisateurs` 
+                    (`nom`, `prenom`, `email`, `mot_de_passe`, `identifiant_technique`, `role`) 
+                    VALUES (?, ?, ?, ?, ?, ?)";
+                $userPassword = password_hash("Trottinette43!", PASSWORD_DEFAULT);
+                $stmt = $pdo->prepare($insertUserQuery);
+                $stmt->execute(['Cirier', 'Antoine', 'antcirier@gmail.com', $userPassword, 'p71x6d_cirier', 'admin']);
+                
+                error_log("Utilisateur de test 'antcirier@gmail.com' créé");
+            }
+            
+            // Rechercher l'utilisateur par email
+            $query = "SELECT * FROM utilisateurs WHERE email = ? LIMIT 1";
+            $stmt = $pdo->prepare($query);
+            $stmt->execute([$username]);
+            $user = $stmt->fetch();
+            
+            // Si pas trouvé par email, essayer par identifiant technique
+            if (!$user) {
+                $query = "SELECT * FROM utilisateurs WHERE identifiant_technique = ? LIMIT 1";
+                $stmt = $pdo->prepare($query);
+                $stmt->execute([$username]);
+                $user = $stmt->fetch();
+            }
+            
+            if ($user) {
+                error_log("Utilisateur trouvé: " . $user['email']);
+                
+                // Vérifier le mot de passe
+                $valid_password = password_verify($password, $user['mot_de_passe']);
+                
+                // Pour la compatibilité, accepter aussi les mots de passe non hashés
+                if (!$valid_password && $password === $user['mot_de_passe']) {
+                    $valid_password = true;
                 }
                 
                 if ($valid_password) {
-                    error_log("Connexion acceptée pour l'utilisateur: " . $user_id);
+                    error_log("Mot de passe valide pour: " . $user['email']);
                     
-                    // Token de secours simple
+                    // Générer un token simple
                     $token = base64_encode(json_encode([
-                        'user' => $user_id,
-                        'role' => $user_data['role'],
-                        'exp' => time() + 3600
+                        'user_id' => $user['id'],
+                        'email' => $user['email'],
+                        'role' => $user['role'],
+                        'exp' => time() + 3600 // expire dans 1 heure
                     ]));
                     
-                    // Format du nom d'utilisateur pour affichage
-                    $name_parts = explode('_', $user_id);
-                    $prenom = isset($name_parts[1]) ? ucfirst($name_parts[1]) : 'User';
-                    $nom = isset($name_parts[2]) ? ucfirst($name_parts[2]) : 'Test';
-                    
-                    // Si c'est un email, extraire le nom
-                    if (strpos($user_id, '@') !== false) {
-                        $prenom = 'Antoine';
-                        $nom = 'Cirier';
-                    }
-                    
+                    // Envoyer la réponse
                     http_response_code(200);
                     echo json_encode([
                         'message' => 'Connexion réussie',
                         'token' => $token,
                         'user' => [
-                            'id' => rand(1000, 9999),
-                            'nom' => $nom,
-                            'prenom' => $prenom,
-                            'email' => $user_id,
-                            'identifiant_technique' => $user_id === 'antcirier@gmail.com' ? 'p71x6d_system' : $user_id,
-                            'role' => $user_data['role']
+                            'id' => $user['id'],
+                            'nom' => $user['nom'],
+                            'prenom' => $user['prenom'],
+                            'email' => $user['email'],
+                            'identifiant_technique' => $user['identifiant_technique'],
+                            'role' => $user['role']
                         ]
                     ]);
                     exit;
+                } else {
+                    error_log("Mot de passe invalide pour: " . $user['email']);
+                    throw new Exception("Identifiants invalides");
                 }
+            } else {
+                error_log("Utilisateur non trouvé: " . $username);
+                throw new Exception("Identifiants invalides");
             }
+        } catch (PDOException $e) {
+            error_log("Erreur PDO: " . $e->getMessage());
+            throw new Exception("Erreur de connexion à la base de données: " . $e->getMessage());
         }
-        
-        // Si on arrive ici, l'authentification a échoué
-        http_response_code(401);
-        echo json_encode([
-            'message' => 'Identifiants invalides',
-            'status' => 401
-        ]);
-        exit;
     } else {
         // Si des données sont manquantes
         error_log("Données incomplètes pour la connexion. Username: " . ($username ? 'présent' : 'manquant') . 

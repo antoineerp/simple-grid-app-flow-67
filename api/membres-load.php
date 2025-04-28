@@ -86,32 +86,146 @@ try {
     $tableName = "membres_" . $safeUserId;
     error_log("Table à consulter (après nettoyage): {$tableName}");
     
-    // CORRECTION: Vérifier si la table existe en utilisant information_schema au lieu de SHOW TABLES LIKE
+    // Vérifier si la table existe
     $tableExistsQuery = "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = ? AND table_name = ?";
     $stmt = $pdo->prepare($tableExistsQuery);
     $stmt->execute([$dbname, $tableName]);
     $tableExists = (int)$stmt->fetchColumn() > 0;
     
+    $membres = [];
+    
     if (!$tableExists) {
-        // Si la table n'existe pas, renvoyer un tableau vide
-        error_log("Table {$tableName} n'existe pas, retour d'un tableau vide");
-        echo json_encode([
-            'success' => true,
-            'membres' => [],
-            'message' => 'Aucune donnée trouvée pour cet utilisateur'
-        ]);
-        exit;
+        // Créer la table si elle n'existe pas
+        error_log("La table {$tableName} n'existe pas. Création en cours...");
+        
+        $createTableQuery = "CREATE TABLE `{$tableName}` (
+            `id` VARCHAR(36) PRIMARY KEY,
+            `nom` VARCHAR(100) NOT NULL,
+            `prenom` VARCHAR(100) NOT NULL,
+            `email` VARCHAR(255) NULL,
+            `telephone` VARCHAR(20) NULL,
+            `fonction` VARCHAR(100) NULL,
+            `organisation` VARCHAR(255) NULL,
+            `notes` TEXT NULL,
+            `date_creation` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            `date_modification` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
+        
+        $pdo->exec($createTableQuery);
+        error_log("Table {$tableName} créée avec succès");
+        
+        // Insérer quelques données de test
+        $testMembers = [
+            [
+                'id' => '1b9d6bcd-bbfd-4b2d-9b5d-ab8dfbbd4bed',
+                'nom' => 'Dupont',
+                'prenom' => 'Jean',
+                'email' => 'jean.dupont@example.com',
+                'telephone' => '0601020304',
+                'fonction' => 'Directeur',
+                'organisation' => 'Entreprise A',
+                'notes' => 'Contact principal'
+            ],
+            [
+                'id' => '9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d',
+                'nom' => 'Martin',
+                'prenom' => 'Sophie',
+                'email' => 'sophie.martin@example.com',
+                'telephone' => '0607080910',
+                'fonction' => 'Responsable RH',
+                'organisation' => 'Entreprise B',
+                'notes' => 'Partenaire stratégique'
+            ]
+        ];
+        
+        $insertQuery = "INSERT INTO `{$tableName}` 
+            (`id`, `nom`, `prenom`, `email`, `telephone`, `fonction`, `organisation`, `notes`) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+            
+        $stmt = $pdo->prepare($insertQuery);
+        
+        foreach ($testMembers as $member) {
+            $stmt->execute([
+                $member['id'],
+                $member['nom'],
+                $member['prenom'],
+                $member['email'],
+                $member['telephone'],
+                $member['fonction'],
+                $member['organisation'],
+                $member['notes']
+            ]);
+        }
+        
+        error_log("Données de test insérées dans la table {$tableName}");
+        
+        // Récupérer les données nouvellement insérées
+        $query = "SELECT * FROM `{$tableName}`";
+        $stmt = $pdo->query($query);
+        $membres = $stmt->fetchAll();
+    } else {
+        // La table existe, récupérer les données
+        $query = "SELECT * FROM `{$tableName}`";
+        $stmt = $pdo->query($query);
+        $membres = $stmt->fetchAll();
+        
+        error_log("Nombre de membres récupérés: " . count($membres));
+        
+        // Si aucun membre n'est trouvé et que c'est l'utilisateur système, ajouter des données de test
+        if (count($membres) === 0 && ($userId === 'p71x6d_system' || $userId === 'p71x6d_cirier')) {
+            error_log("Aucun membre trouvé pour {$userId}. Ajout de données de test.");
+            
+            // Insérer quelques données de test
+            $testMembers = [
+                [
+                    'id' => '1b9d6bcd-bbfd-4b2d-9b5d-ab8dfbbd4bed',
+                    'nom' => 'Dupont',
+                    'prenom' => 'Jean',
+                    'email' => 'jean.dupont@example.com',
+                    'telephone' => '0601020304',
+                    'fonction' => 'Directeur',
+                    'organisation' => 'Entreprise A',
+                    'notes' => 'Contact principal'
+                ],
+                [
+                    'id' => '9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d',
+                    'nom' => 'Martin',
+                    'prenom' => 'Sophie',
+                    'email' => 'sophie.martin@example.com',
+                    'telephone' => '0607080910',
+                    'fonction' => 'Responsable RH',
+                    'organisation' => 'Entreprise B',
+                    'notes' => 'Partenaire stratégique'
+                ]
+            ];
+            
+            $insertQuery = "INSERT INTO `{$tableName}` 
+                (`id`, `nom`, `prenom`, `email`, `telephone`, `fonction`, `organisation`, `notes`) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+                
+            $stmt = $pdo->prepare($insertQuery);
+            
+            foreach ($testMembers as $member) {
+                $stmt->execute([
+                    $member['id'],
+                    $member['nom'],
+                    $member['prenom'],
+                    $member['email'],
+                    $member['telephone'],
+                    $member['fonction'],
+                    $member['organisation'],
+                    $member['notes']
+                ]);
+            }
+            
+            error_log("Données de test insérées dans la table {$tableName}");
+            
+            // Récupérer les données nouvellement insérées
+            $query = "SELECT * FROM `{$tableName}`";
+            $stmt = $pdo->query($query);
+            $membres = $stmt->fetchAll();
+        }
     }
-    
-    // Récupérer les membres depuis la table sans utiliser de requête préparée pour le nom de table
-    // Les noms de table ne peuvent pas être passés comme paramètres dans les requêtes préparées
-    // Mais comme nous avons nettoyé l'identifiant, c'est sécurisé
-    $query = "SELECT * FROM `{$tableName}` ORDER BY nom, prenom";
-    error_log("Exécution de la requête: {$query}");
-    
-    // Exécuter la requête directement
-    $stmt = $pdo->query($query);
-    $membres = $stmt->fetchAll();
     
     // Formater les dates pour le client
     foreach ($membres as &$membre) {
@@ -123,28 +237,25 @@ try {
         }
     }
     
-    error_log("Membres récupérés: " . count($membres));
+    // Journaliser le résultat
+    error_log("Réponse membres: " . count($membres) . " membres trouvés pour {$userId}");
+    
+    // Renvoyer les données au format JSON
     echo json_encode([
         'success' => true,
         'membres' => $membres,
         'count' => count($membres)
     ]);
     
-} catch (PDOException $e) {
-    error_log("Erreur PDO dans membres-load.php: " . $e->getMessage());
+} catch (Exception $e) {
+    error_log("Exception dans membres-load.php: " . $e->getMessage());
     http_response_code(500);
     echo json_encode([
         'success' => false,
-        'message' => 'Erreur de base de données: ' . $e->getMessage()
-    ]);
-} catch (Exception $e) {
-    error_log("Exception dans membres-load.php: " . $e->getMessage());
-    http_response_code(400);
-    echo json_encode([
-        'success' => false,
-        'message' => $e->getMessage()
+        'message' => 'Erreur serveur: ' . $e->getMessage()
     ]);
 } finally {
     error_log("=== FIN DE L'EXÉCUTION DE membres-load.php ===");
     if (ob_get_level()) ob_end_flush();
 }
+?>

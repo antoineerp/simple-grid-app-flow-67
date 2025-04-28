@@ -63,6 +63,48 @@ try {
     
     error_log("Connexion à la base de données réussie, recherche de l'utilisateur: " . $username);
     
+    // Vérifier si la table utilisateurs existe
+    $tableExistsQuery = "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = ? AND table_name = ?";
+    $stmt = $pdo->prepare($tableExistsQuery);
+    $stmt->execute([$dbname, 'utilisateurs']);
+    $tableExists = (int)$stmt->fetchColumn() > 0;
+    
+    if (!$tableExists) {
+        error_log("La table 'utilisateurs' n'existe pas, création en cours...");
+        
+        // Créer la table utilisateurs
+        $createTableQuery = "CREATE TABLE `utilisateurs` (
+            `id` INT AUTO_INCREMENT PRIMARY KEY,
+            `nom` VARCHAR(100) NOT NULL,
+            `prenom` VARCHAR(100) NOT NULL,
+            `email` VARCHAR(255) NOT NULL UNIQUE,
+            `mot_de_passe` VARCHAR(255) NOT NULL,
+            `identifiant_technique` VARCHAR(100) NOT NULL UNIQUE,
+            `role` VARCHAR(50) NOT NULL DEFAULT 'utilisateur',
+            `date_creation` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
+        $pdo->exec($createTableQuery);
+        
+        // Créer un utilisateur administrateur par défaut
+        $adminEmail = "admin@example.com";
+        $adminPassword = password_hash("admin123", PASSWORD_DEFAULT);
+        $insertAdminQuery = "INSERT INTO `utilisateurs` 
+            (`nom`, `prenom`, `email`, `mot_de_passe`, `identifiant_technique`, `role`) 
+            VALUES (?, ?, ?, ?, ?, ?)";
+        $stmt = $pdo->prepare($insertAdminQuery);
+        $stmt->execute(['Admin', 'System', $adminEmail, $adminPassword, 'p71x6d_system', 'admin']);
+        
+        // Créer également un utilisateur avec l'e-mail antcirier@gmail.com pour faciliter les tests
+        $insertUserQuery = "INSERT INTO `utilisateurs` 
+            (`nom`, `prenom`, `email`, `mot_de_passe`, `identifiant_technique`, `role`) 
+            VALUES (?, ?, ?, ?, ?, ?)";
+        $userPassword = password_hash("Trottinette43!", PASSWORD_DEFAULT);
+        $stmt = $pdo->prepare($insertUserQuery);
+        $stmt->execute(['Cirier', 'Antoine', 'antcirier@gmail.com', $userPassword, 'p71x6d_cirier', 'admin']);
+        
+        error_log("Table 'utilisateurs' et utilisateurs par défaut créés");
+    }
+    
     // Recherche par email
     $query = "SELECT * FROM utilisateurs WHERE email = ? LIMIT 1";
     $stmt = $pdo->prepare($query);
@@ -81,8 +123,25 @@ try {
     if ($user) {
         error_log("Utilisateur trouvé en base de données: " . $user['email']);
         
-        $valid_password = password_verify($password, $user['mot_de_passe']) || 
-                         $password === $user['mot_de_passe'];
+        $valid_password = password_verify($password, $user['mot_de_passe']);
+        
+        // Pour la compatibilité, accepter aussi les mots de passe non hashés
+        if (!$valid_password && $password === $user['mot_de_passe']) {
+            $valid_password = true;
+        }
+        
+        // Au début, pour faciliter les tests, accepter le mot de passe "Trottinette43!" pour antcirier@gmail.com
+        if (!$valid_password && $user['email'] === 'antcirier@gmail.com' && $password === 'Trottinette43!') {
+            $valid_password = true;
+            
+            // Mettre à jour le mot de passe hashé pour les prochaines connexions
+            $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
+            $updateQuery = "UPDATE utilisateurs SET mot_de_passe = ? WHERE email = ?";
+            $stmt = $pdo->prepare($updateQuery);
+            $stmt->execute([$hashedPassword, 'antcirier@gmail.com']);
+            
+            error_log("Mot de passe mis à jour pour antcirier@gmail.com");
+        }
         
         if ($valid_password) {
             error_log("Authentification réussie pour l'utilisateur");
@@ -113,7 +172,44 @@ try {
         
         error_log("Mot de passe incorrect pour l'utilisateur");
     } else {
-        error_log("Utilisateur non trouvé en base de données");
+        error_log("Utilisateur non trouvé en base de données: " . $username);
+        
+        // Si c'est antcirier@gmail.com et que l'utilisateur n'existe pas, le créer automatiquement
+        if ($username === 'antcirier@gmail.com') {
+            error_log("Création automatique de l'utilisateur antcirier@gmail.com");
+            
+            $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
+            $insertQuery = "INSERT INTO utilisateurs 
+                (nom, prenom, email, mot_de_passe, identifiant_technique, role) 
+                VALUES (?, ?, ?, ?, ?, ?)";
+            $stmt = $pdo->prepare($insertQuery);
+            $stmt->execute(['Cirier', 'Antoine', 'antcirier@gmail.com', $hashedPassword, 'p71x6d_cirier', 'admin']);
+            
+            $userId = $pdo->lastInsertId();
+            
+            // Génération du token
+            $token = base64_encode(json_encode([
+                'user' => 'p71x6d_cirier',
+                'role' => 'admin',
+                'exp' => time() + 3600
+            ]));
+            
+            // Réponse réussie
+            http_response_code(200);
+            echo json_encode([
+                'message' => 'Compte créé et connexion réussie',
+                'token' => $token,
+                'user' => [
+                    'id' => $userId,
+                    'nom' => 'Cirier',
+                    'prenom' => 'Antoine',
+                    'email' => 'antcirier@gmail.com',
+                    'identifiant_technique' => 'p71x6d_cirier',
+                    'role' => 'admin'
+                ]
+            ]);
+            exit;
+        }
     }
 
     // Si on arrive ici, l'authentification a échoué
