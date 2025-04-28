@@ -38,6 +38,14 @@ jobs:
         # Création des dossiers nécessaires
         mkdir -p deploy/assets
         mkdir -p deploy/api
+        mkdir -p deploy/api/config
+        mkdir -p deploy/api/services
+        mkdir -p deploy/api/controllers
+        mkdir -p deploy/api/models
+        mkdir -p deploy/api/models/traits
+        mkdir -p deploy/api/middleware
+        mkdir -p deploy/api/operations
+        mkdir -p deploy/api/utils
         mkdir -p deploy/public/lovable-uploads
         
         # Copie des fichiers compilés directement dans assets
@@ -45,7 +53,7 @@ jobs:
         
         # Copie des autres fichiers nécessaires
         cp dist/index.html deploy/
-        cp .htaccess deploy/
+        cp .htaccess deploy/ || echo "Fichier .htaccess non trouvé"
         
         # Copie explicite des fichiers API
         if [ -d "api" ]; then
