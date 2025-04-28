@@ -5,6 +5,7 @@ import Header from './Header';
 import Footer from './Footer';
 import Sidebar from './Sidebar';
 import { MembresProvider } from '@/contexts/MembresContext';
+import { getIsLoggedIn } from '@/services/auth/authService';
 
 interface LayoutProps {
   children?: React.ReactNode;
@@ -19,12 +20,10 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   useEffect(() => {
     // Vérifier si l'utilisateur est connecté
     const checkAuth = () => {
-      const token = localStorage.getItem('authToken');
-      const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
+      const isLoggedIn = getIsLoggedIn();
       
       console.log('Auth status:', isLoggedIn ? 'Logged in' : 'Not logged in');
       console.log('Current path:', location.pathname);
-      console.log('Auth token exists:', !!token);
       
       setIsAuthenticated(isLoggedIn);
       

@@ -122,6 +122,8 @@ export const MembresProvider: React.FC<{ children: ReactNode }> = ({ children })
           } catch (err) {
             console.error("Erreur lors du chargement des membres depuis le serveur:", err);
             setError(err instanceof Error ? err.message : "Erreur inconnue");
+            // Si erreur, initialiser avec un tableau vide
+            setMembres([]);
           } finally {
             setIsSyncing(false);
           }
@@ -131,11 +133,15 @@ export const MembresProvider: React.FC<{ children: ReactNode }> = ({ children })
             description: "Vous êtes en mode hors-ligne. Les données peuvent ne pas être à jour.",
             variant: "default",
           });
+          // Initialiser avec un tableau vide en mode hors ligne
+          setMembres([]);
         }
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : "Erreur inconnue";
         setError(errorMessage);
         console.error("Erreur lors du chargement des membres:", errorMessage);
+        // Si erreur, initialiser avec un tableau vide
+        setMembres([]);
       } finally {
         setIsLoading(false);
       }

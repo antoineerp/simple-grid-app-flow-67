@@ -23,34 +23,43 @@ export const loadExigencesFromServer = async (userId: string): Promise<{exigence
     });
     
     if (!response.ok) {
-      console.error(`Erreur lors du chargement des exigences: ${response.status}`);
+      const errorText = await response.text();
+      console.error(`Erreur HTTP lors du chargement des exigences: ${response.status}`, errorText);
       throw new Error(`Erreur serveur: ${response.status} ${response.statusText}`);
     }
     
-    const result = await response.json();
+    const responseText = await response.text();
     
-    if (!result.success) {
-      throw new Error(result.message || "Échec du chargement des exigences");
+    try {
+      const result = JSON.parse(responseText);
+      
+      if (!result.success) {
+        throw new Error(result.message || "Échec du chargement des exigences");
+      }
+      
+      // Conversion des dates pour les objets exigences
+      const exigences = (result.exigences || []).map((exigence: any) => ({
+        ...exigence,
+        date_creation: exigence.date_creation ? new Date(exigence.date_creation) : new Date(),
+        date_modification: exigence.date_modification ? new Date(exigence.date_modification) : new Date(),
+        exclusion: Boolean(exigence.exclusion)
+      }));
+      
+      // Conversion du champ expanded pour les groupes
+      const groups = (result.groups || []).map((group: any) => ({
+        ...group,
+        expanded: Boolean(group.expanded),
+        items: [] // Initialiser le tableau items pour la compatibilité avec l'interface ExigenceGroup
+      }));
+      
+      console.log(`Exigences chargées: ${exigences.length}, Groupes chargés: ${groups.length}`);
+      
+      return { exigences, groups };
+    } catch (e) {
+      console.error("Erreur lors du parsing de la réponse:", e);
+      console.error("Réponse brute reçue:", responseText);
+      throw new Error("Impossible de traiter la réponse du serveur");
     }
-    
-    // Conversion des dates pour les objets exigences
-    const exigences = (result.exigences || []).map((exigence: any) => ({
-      ...exigence,
-      date_creation: exigence.date_creation ? new Date(exigence.date_creation) : new Date(),
-      date_modification: exigence.date_modification ? new Date(exigence.date_modification) : new Date(),
-      exclusion: Boolean(exigence.exclusion)
-    }));
-    
-    // Conversion du champ expanded pour les groupes
-    const groups = (result.groups || []).map((group: any) => ({
-      ...group,
-      expanded: Boolean(group.expanded),
-      items: [] // Initialiser le tableau items pour la compatibilité avec l'interface ExigenceGroup
-    }));
-    
-    console.log(`Exigences chargées: ${exigences.length}, Groupes chargés: ${groups.length}`);
-    
-    return { exigences, groups };
   } catch (error) {
     console.error('Erreur lors du chargement des exigences depuis le serveur:', error);
     throw error;
@@ -65,40 +74,59 @@ export const syncExigencesWithServer = async (exigences: Exigence[], userId: str
     const API_URL = getApiUrl();
     console.log(`Synchronisation des exigences pour l'utilisateur ${userId}`);
     
+    const requestData = { 
+      userId,
+      exigences,
+      groups
+    };
+    
+    console.log("Données à synchroniser:", {
+      userId,
+      exigencesCount: exigences.length,
+      groupsCount: groups.length
+    });
+    
     const response = await fetch(`${API_URL}/exigences-sync.php`, {
       method: 'POST',
       headers: {
         ...getAuthHeaders(),
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({ 
-        userId,
-        exigences,
-        groups
-      })
+      body: JSON.stringify(requestData)
     });
     
     if (!response.ok) {
-      console.error(`Erreur lors de la synchronisation des exigences: ${response.status}`);
       const errorText = await response.text();
-      console.error("Détails de l'erreur:", errorText);
+      console.error(`Erreur HTTP lors de la synchronisation: ${response.status}`, errorText);
       
       if (errorText.trim().startsWith('{')) {
-        const errorJson = JSON.parse(errorText);
-        throw new Error(errorJson.message || `Échec de la synchronisation: ${response.statusText}`);
+        try {
+          const errorJson = JSON.parse(errorText);
+          throw new Error(errorJson.message || `Échec de la synchronisation: ${response.statusText}`);
+        } catch (e) {
+          console.error("Impossible de parser l'erreur JSON:", e);
+        }
       }
       
       throw new Error(`Échec de la synchronisation: ${response.statusText}`);
     }
     
-    const result = await response.json();
-    console.log("Résultat de la synchronisation des exigences:", result);
+    const responseText = await response.text();
     
-    if (!result.success) {
-      throw new Error(result.message || "Erreur de synchronisation inconnue");
+    try {
+      const result = JSON.parse(responseText);
+      console.log("Résultat de la synchronisation des exigences:", result);
+      
+      if (!result.success) {
+        throw new Error(result.message || "Erreur de synchronisation inconnue");
+      }
+      
+      return true;
+    } catch (e) {
+      console.error("Erreur lors du parsing de la réponse:", e);
+      console.error("Réponse brute reçue:", responseText);
+      throw new Error("Impossible de traiter la réponse du serveur");
     }
-    
-    return true;
   } catch (error) {
     console.error('Erreur lors de la synchronisation des exigences:', error);
     throw error;

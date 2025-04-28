@@ -17,15 +17,23 @@ export const useExigenceSync = () => {
     setIsSyncing(true);
     try {
       console.log(`Début de la synchronisation pour ${userId} avec ${exigences.length} exigences et ${groups.length} groupes`);
+      
+      // Ajout de logs pour aider au debug
+      console.log('Données envoyées au serveur:', { userId, exigencesCount: exigences.length, groupsCount: groups.length });
+      
       const success = await syncExigencesWithServer(exigences, userId, groups);
+      
       if (success) {
         setLastSynced(new Date());
         toast({
           title: "Synchronisation réussie",
           description: "Vos exigences ont été synchronisées avec le serveur",
         });
+        console.log('Synchronisation réussie avec le serveur');
         return true;
       }
+      
+      console.error('Échec de la synchronisation: réponse négative du serveur');
       throw new Error("Échec de la synchronisation");
     } catch (error) {
       console.error("Erreur lors de la synchronisation:", error);
@@ -43,7 +51,9 @@ export const useExigenceSync = () => {
   const loadFromServer = async (userId: string) => {
     try {
       console.log(`Chargement des exigences pour l'utilisateur ${userId} depuis le serveur`);
+      
       const data = await loadExigencesFromServer(userId);
+      
       console.log(`Données chargées: ${data.exigences.length} exigences, ${data.groups.length} groupes`);
       return data;
     } catch (error) {
@@ -53,7 +63,8 @@ export const useExigenceSync = () => {
         description: "Impossible de charger les exigences depuis le serveur",
         variant: "destructive"
       });
-      return null;
+      // Retourner un objet vide mais structuré pour éviter les erreurs
+      return { exigences: [], groups: [] };
     }
   };
 

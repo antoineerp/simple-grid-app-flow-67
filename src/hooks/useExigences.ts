@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Exigence, ExigenceStats, ExigenceGroup } from '@/types/exigences';
 import { useExigenceSync } from './useExigenceSync';
@@ -7,7 +6,7 @@ import { useExigenceGroups } from './useExigenceGroups';
 import { getCurrentUser } from '@/services/auth/authService';
 
 export const useExigences = () => {
-  const currentUser = getCurrentUser() || 'default';
+  const currentUser = getCurrentUser() || 'p71x6d_system';
   const [exigences, setExigences] = useState<Exigence[]>([]);
   const [groups, setGroups] = useState<ExigenceGroup[]>([]);
   const [editingExigence, setEditingExigence] = useState<Exigence | null>(null);
@@ -30,14 +29,19 @@ export const useExigences = () => {
   useEffect(() => {
     const loadExigences = async () => {
       try {
+        console.log(`Chargement des exigences pour l'utilisateur ${currentUser}`);
         const serverData = await loadFromServer(currentUser);
         if (serverData) {
+          console.log(`Données chargées: exigences=${serverData.exigences?.length || 0}, groupes=${serverData.groups?.length || 0}`);
           // Fix: Set each state separately with the correct types
           setExigences(serverData.exigences || []);
           setGroups(serverData.groups || []);
         }
       } catch (error) {
         console.error("Erreur lors du chargement des exigences:", error);
+        // Initialiser avec des tableaux vides pour éviter les erreurs
+        setExigences([]);
+        setGroups([]);
       }
     };
 
