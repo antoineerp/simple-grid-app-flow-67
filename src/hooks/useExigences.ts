@@ -96,13 +96,10 @@ export const useExigences = () => {
     loadExigences();
 
     // Set up periodic sync every 10 seconds
-    const syncInterval = setInterval(async () => {
+    const syncInterval = setInterval(() => {
       if (isOnline && !syncFailed) {
-        try {
-          await handleSyncWithServer();
-        } catch (error) {
-          console.error("Error during periodic sync:", error);
-        }
+        handleSyncWithServer()
+          .catch(error => console.error("Error during periodic sync:", error));
       }
     }, 10000); // 10 seconds
 
@@ -196,7 +193,8 @@ export const useExigences = () => {
   const handleResetLoadAttempts = useCallback(() => {
     resetSyncStatus();
     setLoadError(null);
-    handleSyncWithServer().catch(console.error);
+    handleSyncWithServer()
+      .catch(error => console.error("Error resetting sync:", error));
   }, [resetSyncStatus, handleSyncWithServer]);
 
   return {
