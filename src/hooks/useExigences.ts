@@ -42,14 +42,21 @@ export const useExigences = () => {
   const handleSyncWithServer = useCallback(async () => {
     setIsSyncing(true);
     try {
-      const success = await syncWithServer(exigences, userId);
+      const success = await syncWithServer(exigences, userId, groups);
       if (success) {
         setSyncFailed(false);
         setLastSyncedDate(new Date());
         // Silently reload data after successful sync
-        const result = await loadFromServer(userId);
-        if (result && Array.isArray(result.exigences)) {
-          setExigences(result.exigences);
+        try {
+          const result = await loadFromServer(userId);
+          if (result && Array.isArray(result.exigences)) {
+            setExigences(result.exigences);
+            if (Array.isArray(result.groups)) {
+              setGroups(result.groups);
+            }
+          }
+        } catch (loadError) {
+          console.error("Error reloading data after sync:", loadError);
         }
         return true;
       } else {
@@ -62,7 +69,7 @@ export const useExigences = () => {
     } finally {
       setIsSyncing(false);
     }
-  }, [exigences, userId, syncWithServer, loadFromServer]);
+  }, [exigences, userId, groups, syncWithServer, loadFromServer]);
 
   // Initial data loading
   useEffect(() => {
@@ -90,15 +97,17 @@ export const useExigences = () => {
 
     // Set up periodic sync every 10 seconds
     const syncInterval = setInterval(async () => {
-      try {
-        await handleSyncWithServer();
-      } catch (error) {
-        console.error("Error during periodic sync:", error);
+      if (isOnline && !syncFailed) {
+        try {
+          await handleSyncWithServer();
+        } catch (error) {
+          console.error("Error during periodic sync:", error);
+        }
       }
     }, 10000); // 10 seconds
 
     return () => clearInterval(syncInterval);
-  }, [loadFromServer, userId, handleSyncWithServer]);
+  }, [loadFromServer, userId, handleSyncWithServer, isOnline, syncFailed]);
 
   // Handle exigence editing
   const handleEdit = useCallback((id: string) => {
@@ -187,7 +196,8 @@ export const useExigences = () => {
   const handleResetLoadAttempts = useCallback(() => {
     resetSyncStatus();
     setLoadError(null);
-  }, [resetSyncStatus]);
+    handleSyncWithServer().catch(console.error);
+  }, [resetSyncStatus, handleSyncWithServer]);
 
   return {
     exigences,

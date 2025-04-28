@@ -39,6 +39,40 @@ export const useDocuments = () => {
     exclusion: documents.filter(d => d.etat === 'EX' || d.exclusion === true).length
   };
 
+  // Handle synchronization with server
+  const handleSyncWithServer = useCallback(async () => {
+    if (!isOnline || isSyncing) return false;
+    
+    setIsSyncing(true);
+    try {
+      const success = await syncWithServer(documents, userId);
+      if (success) {
+        setSyncFailed(false);
+        setLastSynced(new Date());
+        
+        // Silently reload data after successful sync
+        try {
+          const result = await loadFromServer(userId);
+          if (Array.isArray(result)) {
+            setDocuments(result);
+          }
+        } catch (loadError) {
+          console.error("Error reloading data after sync:", loadError);
+        }
+        
+        return true;
+      } else {
+        setSyncFailed(true);
+        return false;
+      }
+    } catch (error) {
+      setSyncFailed(true);
+      return false;
+    } finally {
+      setIsSyncing(false);
+    }
+  }, [documents, userId, syncWithServer, loadFromServer, isOnline, isSyncing]);
+
   // Initial data loading
   useEffect(() => {
     const loadDocuments = async () => {
@@ -48,10 +82,6 @@ export const useDocuments = () => {
         if (Array.isArray(result)) {
           console.log(`Loaded ${result.length} documents`);
           setDocuments(result);
-          toast({
-            title: "Chargement réussi",
-            description: `${result.length} documents chargés`,
-          });
         } else {
           console.error("Unexpected result format:", result);
           setDocuments([]);
@@ -59,62 +89,32 @@ export const useDocuments = () => {
       } catch (error) {
         console.error("Error loading documents:", error);
         setLoadError(error instanceof Error ? error.message : "Erreur inconnue");
-        toast({
-          title: "Erreur de chargement",
-          description: error instanceof Error ? error.message : "Erreur lors du chargement des documents",
-          variant: "destructive",
-        });
         setDocuments([]);
       }
     };
 
     loadDocuments();
-  }, [loadFromServer, userId, toast]);
-
-  // Handle synchronization with server
-  const handleSyncWithServer = useCallback(async () => {
-    setIsSyncing(true);
-    try {
-      const success = await syncWithServer(documents, userId);
-      if (success) {
-        toast({
-          title: "Synchronisation réussie",
-          description: "Les documents ont été synchronisés avec le serveur",
+    
+    // Set up periodic sync every 10 seconds
+    const syncInterval = setInterval(() => {
+      if (isOnline && !syncFailed && !isSyncing) {
+        handleSyncWithServer().catch(error => {
+          console.error("Error during periodic sync:", error);
         });
-        setSyncFailed(false);
-        setLastSynced(new Date());
-        
-        // Reload data after successful sync
-        const result = await loadFromServer(userId);
-        if (Array.isArray(result)) {
-          setDocuments(result);
-        }
-        
-        return true;
-      } else {
-        setSyncFailed(true);
-        toast({
-          title: "Échec de synchronisation",
-          description: "La synchronisation avec le serveur a échoué",
-          variant: "destructive",
-        });
-        return false;
       }
-    } catch (error) {
-      setSyncFailed(true);
-      toast({
-        title: "Erreur de synchronisation",
-        description: error instanceof Error ? error.message : "Une erreur s'est produite",
-        variant: "destructive",
-      });
-      return false;
-    } finally {
-      setIsSyncing(false);
-    }
-  }, [documents, userId, syncWithServer, loadFromServer, toast]);
+    }, 10000);
+
+    return () => clearInterval(syncInterval);
+  }, [loadFromServer, userId, isOnline, syncFailed, isSyncing, handleSyncWithServer]);
 
   // Handle document editing
-  const handleEdit = useCallback((id: string) => {
+  const handleEdit = useCallback((id: string | null) => {
+    if (id === null) {
+      // Handle adding a new document
+      handleAddDocument();
+      return;
+    }
+    
     const doc = documents.find(d => d.id === id);
     if (doc) {
       setEditingDocument(doc);
@@ -152,7 +152,7 @@ export const useDocuments = () => {
     
     setDialogOpen(false);
     
-    // Sync with server after saving
+    // Silently sync with server after saving
     try {
       console.log("Synchronizing after document save");
       await handleSyncWithServer();
@@ -189,7 +189,13 @@ export const useDocuments = () => {
     const newGroup = groupOperations.handleAddGroup();
     setEditingGroup(newGroup);
     setGroupDialogOpen(true);
+    return newGroup;
   }, [groupOperations]);
+  
+  const handleEditGroup = useCallback((group: DocumentGroup) => {
+    setEditingGroup(group);
+    setGroupDialogOpen(true);
+  }, []);
 
   return {
     documents,
@@ -212,10 +218,7 @@ export const useDocuments = () => {
     handleAddDocument,
     handleSaveDocument,
     handleAddGroup,
-    handleEditGroup: (group: DocumentGroup) => {
-      setEditingGroup(group);
-      setGroupDialogOpen(true);
-    },
+    handleEditGroup,
     handleDeleteGroup: groupOperations.handleDeleteGroup,
     handleSaveGroup: groupOperations.handleSaveGroup,
     handleGroupReorder,
