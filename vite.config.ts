@@ -50,11 +50,15 @@ export default defineConfig(({ mode }) => {
           chunkFileNames: 'assets/[name].[hash].js',
           entryFileNames: 'assets/[name].[hash].js',
         },
-        // Spécifier explicitement jspdf comme externe pour éviter les erreurs de résolution
+        // Configuration explicite des dépendances externes pour éviter les erreurs de compilation
         external: ['jspdf', 'jspdf-autotable']
       }
     },
     publicDir: 'public',
     base: basePath,
+    optimizeDeps: {
+      // Exclure ces packages de l'optimisation pour éviter les erreurs de résolution
+      exclude: ['jspdf', 'jspdf-autotable']
+    }
   };
 });
