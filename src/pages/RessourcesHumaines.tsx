@@ -1,3 +1,4 @@
+
 import React, { useEffect } from 'react';
 import { FileText, UserPlus, CloudSun, AlertTriangle } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
@@ -44,9 +45,12 @@ const RessourcesHumaines = () => {
   });
   const [isEditing, setIsEditing] = React.useState(false);
 
+  // Effectuer une seule synchronisation au chargement de la page, si nécessaire
   useEffect(() => {
-    if (isOnline && !isSyncing && !isLoading && !syncFailed) {
-      console.log("Synchronisation automatique au chargement de la page");
+    // Ne synchroniser que lorsque le chargement initial est terminé
+    // et uniquement si on est en ligne et qu'il n'y a pas d'échec précédent
+    if (!isLoading && isOnline && !syncFailed && !isSyncing) {
+      console.log("Synchronisation initiale des membres");
       syncWithServer().catch(console.error);
     }
   }, [isLoading]);
@@ -67,7 +71,8 @@ const RessourcesHumaines = () => {
       description: `Le membre ${id} a été supprimé`,
     });
     
-    if (isOnline && !syncFailed) {
+    // Synchroniser manuellement après une suppression
+    if (isOnline && !syncFailed && !isSyncing) {
       syncWithServer().catch(console.error);
     }
   };
@@ -135,7 +140,8 @@ const RessourcesHumaines = () => {
     
     setIsDialogOpen(false);
     
-    if (isOnline && !syncFailed) {
+    // Synchroniser manuellement après un ajout/modification
+    if (isOnline && !syncFailed && !isSyncing) {
       syncWithServer().catch(console.error);
     }
   };
@@ -159,10 +165,8 @@ const RessourcesHumaines = () => {
 
   const handleResetSync = () => {
     resetSyncFailed();
-    toast({
-      title: "Synchronisation",
-      description: "État de synchronisation réinitialisé. Vous pouvez réessayer.",
-    });
+    // Tenter une nouvelle synchronisation après réinitialisation
+    syncWithServer().catch(console.error);
   };
 
   return (
@@ -191,26 +195,14 @@ const RessourcesHumaines = () => {
       </div>
 
       <div className="mb-4">
-        <SyncStatusIndicator syncFailed={syncFailed} onReset={handleResetSync} />
+        <SyncStatusIndicator 
+          syncFailed={syncFailed} 
+          onReset={handleResetSync} 
+          isSyncing={isSyncing} 
+          isOnline={isOnline}
+          lastSynced={lastSynced}
+        />
       </div>
-
-      {syncFailed && (
-        <Alert variant="destructive" className="mb-6">
-          <AlertTriangle className="h-4 w-4" />
-          <AlertTitle>Erreur de synchronisation</AlertTitle>
-          <AlertDescription>
-            {error || "La synchronisation avec le serveur a échoué."}
-            <Button 
-              variant="outline" 
-              size="sm" 
-              className="ml-2 mt-2"
-              onClick={handleResetSync}
-            >
-              Réinitialiser
-            </Button>
-          </AlertDescription>
-        </Alert>
-      )}
 
       {isLoading ? (
         <div className="bg-white rounded-md shadow p-8 text-center">

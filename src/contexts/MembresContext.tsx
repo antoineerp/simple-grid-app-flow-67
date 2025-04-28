@@ -61,6 +61,12 @@ export const MembresProvider: React.FC<{ children: ReactNode }> = ({ children })
       return false;
     }
     
+    // Si on est déjà en train de synchroniser, ne pas démarrer une nouvelle sync
+    if (isSyncing) {
+      console.log("Une synchronisation est déjà en cours");
+      return false;
+    }
+    
     // Si on a déjà eu trop d'échecs consécutifs, bloquer la synchronisation
     if (syncFailed && syncAttempts >= 3) {
       toast({
@@ -92,11 +98,6 @@ export const MembresProvider: React.FC<{ children: ReactNode }> = ({ children })
           title: "Synchronisation réussie",
           description: "Les données ont été synchronisées avec le serveur",
         });
-        
-        // Recharger les données après synchronisation pour avoir l'état le plus récent
-        const updatedMembres = await loadMembresFromServer(userId);
-        setMembres(updatedMembres);
-        
         return true;
       } else {
         setSyncFailed(true);
@@ -187,16 +188,6 @@ export const MembresProvider: React.FC<{ children: ReactNode }> = ({ children })
     
     loadMembres();
     
-    // Configurer une synchronisation automatique toutes les 5 minutes si en ligne
-    // et seulement si la synchronisation précédente n'a pas échoué
-    const autoSyncInterval = setInterval(() => {
-      if (isOnline && !isSyncing && getCurrentUser() && !syncFailed) {
-        console.log("Tentative de synchronisation automatique");
-        syncWithServer().catch(console.error);
-      }
-    }, 5 * 60 * 1000); // 5 minutes
-    
-    return () => clearInterval(autoSyncInterval);
   }, [isOnline]);
   
   return (

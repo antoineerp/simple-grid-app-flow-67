@@ -77,18 +77,37 @@ try {
         }
     }
     
-    // Synchroniser les données
-    $service->syncData($membres);
+    // Démarrer une transaction explicite
+    $service->beginTransaction();
     
-    // Réponse réussie
-    echo json_encode([
-        'success' => true,
-        'message' => 'Synchronisation des membres réussie',
-        'count' => count($membres)
-    ]);
+    try {
+        // Synchroniser les données
+        $service->syncData($membres);
+        
+        // Valider la transaction
+        $service->commitTransaction();
+        
+        // Réponse réussie
+        echo json_encode([
+            'success' => true,
+            'message' => 'Synchronisation des membres réussie',
+            'count' => count($membres)
+        ]);
+        
+    } catch (Exception $innerEx) {
+        // Annuler la transaction en cas d'erreur
+        $service->rollbackTransaction();
+        throw $innerEx;
+    }
     
 } catch (Exception $e) {
     error_log("Erreur dans membres-sync.php: " . $e->getMessage());
+    
+    // S'assurer que tout buffer de sortie est nettoyé
+    if (ob_get_level()) {
+        ob_clean();
+    }
+    
     http_response_code(500);
     echo json_encode([
         'success' => false,
