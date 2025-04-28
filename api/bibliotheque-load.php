@@ -13,6 +13,11 @@ header("Cache-Control: no-cache, no-store, must-revalidate");
 // Journalisation
 error_log("=== DEBUT DE L'EXÉCUTION DE bibliotheque-load.php ===");
 error_log("Méthode: " . $_SERVER['REQUEST_METHOD'] . " - URI: " . $_SERVER['REQUEST_URI']);
+if (isset($_GET['userId'])) {
+    error_log("UserId reçu: " . $_GET['userId']);
+} else {
+    error_log("UserId non fourni dans la requête");
+}
 
 // Si c'est une requête OPTIONS (preflight), nous la terminons ici
 if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
@@ -64,4 +69,3 @@ try {
     error_log("=== FIN DE L'EXÉCUTION DE bibliotheque-load.php ===");
     if (ob_get_level()) ob_end_flush();
 }
-?>

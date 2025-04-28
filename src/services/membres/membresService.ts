@@ -55,6 +55,7 @@ export const loadMembresFromServer = async (currentUser: any): Promise<Membre[]>
       clearTimeout(timeoutId);
       
       if (!response.ok) {
+        console.error(`Erreur serveur (${response.status}) lors du chargement des membres:`, await response.text());
         throw new Error(`Erreur serveur: ${response.status} ${response.statusText}`);
       }
       
