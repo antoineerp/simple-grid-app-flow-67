@@ -1,6 +1,5 @@
-
 import React from 'react';
-import { FileText, FolderPlus, RefreshCw } from 'lucide-react';
+import { FileText, FolderPlus, RefreshCw, Cloud } from 'lucide-react';
 import { MembresProvider } from '@/contexts/MembresContext';
 import ExigenceForm from '@/components/exigences/ExigenceForm';
 import ExigenceStats from '@/components/exigences/ExigenceStats';
@@ -98,7 +97,7 @@ const ExigencesContent = () => {
             title="Synchroniser avec le serveur"
             disabled={isSyncing}
           >
-            <CloudSun className={`h-6 w-6 stroke-[1.5] ${isSyncing ? 'animate-spin' : ''}`} />
+            <Cloud className={`h-6 w-6 stroke-[1.5] ${isSyncing ? 'animate-spin' : ''}`} />
           </button>
           <button 
             onClick={handleExportPdf}

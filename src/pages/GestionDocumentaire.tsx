@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { FileText, FolderPlus } from 'lucide-react';
 import { MembresProvider } from '@/contexts/MembresContext';
@@ -60,6 +59,10 @@ const GestionDocumentaireContent = () => {
     });
   };
 
+  const handleAddDocument = () => {
+    handleEdit(null); // Pass null to indicate creating a new document
+  };
+
   return (
     <div className="p-8">
       <div className="flex items-center justify-between mb-2">
@@ -108,7 +111,7 @@ const GestionDocumentaireContent = () => {
         </Button>
         <Button 
           variant="default"
-          onClick={() => handleAddDocument()}
+          onClick={handleAddDocument}
         >
           Nouveau document
         </Button>

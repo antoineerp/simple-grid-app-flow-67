@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from 'react';
 import { Exigence, ExigenceGroup, ExigenceStats } from '@/types/exigences';
 import { useExigenceSync } from '@/hooks/useExigenceSync';
@@ -71,11 +70,10 @@ export const useExigences = () => {
     loadExigences();
   }, [loadFromServer, userId, toast]);
 
-  // Handle synchronization with server
   const handleSyncWithServer = useCallback(async () => {
     setIsSyncing(true);
     try {
-      const success = await syncWithServer(exigences, userId, groups);
+      const success = await syncWithServer(exigences, userId);
       if (success) {
         toast({
           title: "Synchronisation réussie",
@@ -103,7 +101,7 @@ export const useExigences = () => {
     } finally {
       setIsSyncing(false);
     }
-  }, [exigences, userId, groups, syncWithServer, toast]);
+  }, [exigences, userId, syncWithServer, toast]);
 
   // Handle exigence editing
   const handleEdit = useCallback((id: string) => {
