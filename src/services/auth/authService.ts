@@ -1,22 +1,6 @@
 
 import { getApiUrl } from '@/config/apiConfig';
-
-export interface User {
-  id?: string;
-  username?: string;
-  identifiant_technique?: string;
-  email?: string;
-  role?: string;
-  nom?: string;
-  prenom?: string;
-}
-
-export interface AuthResponse {
-  success: boolean;
-  token?: string;
-  user?: User;
-  message?: string;
-}
+import { User, AuthResponse } from '@/types/auth';
 
 export const getCurrentUser = (): User | null => {
   const token = sessionStorage.getItem('authToken');
@@ -51,15 +35,26 @@ export const getAuthHeaders = () => {
 export const login = async (username: string, password: string): Promise<AuthResponse> => {
   try {
     const API_URL = getApiUrl();
+    console.log(`Tentative de connexion à: ${API_URL}/auth.php avec l'utilisateur: ${username}`);
+    
     const response = await fetch(`${API_URL}/auth.php`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ username, password })
     });
 
+    if (!response.ok) {
+      console.error(`Erreur HTTP: ${response.status}`);
+      return { 
+        success: false, 
+        message: `Erreur serveur: ${response.status} ${response.statusText}` 
+      };
+    }
+
     const data = await response.json();
+    console.log('Réponse de l\'authentification:', data);
+    
     if (data.token) {
-      // Si la réponse contient un token, c'est un succès
       sessionStorage.setItem('authToken', data.token);
       return { 
         success: true, 
@@ -68,8 +63,13 @@ export const login = async (username: string, password: string): Promise<AuthRes
         message: data.message || 'Connexion réussie'
       };
     }
-    return { success: false, message: data.message || 'Identifiants invalides' };
+    
+    return { 
+      success: false, 
+      message: data.message || data.error || 'Identifiants invalides' 
+    };
   } catch (error) {
+    console.error('Erreur lors de la connexion:', error);
     return { 
       success: false, 
       message: error instanceof Error ? error.message : 'Erreur lors de la connexion' 

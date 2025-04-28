@@ -1,7 +1,7 @@
 
 <?php
 class DatabaseConnection {
-    private $conn;
+    public $conn;
     private $config;
     public $is_connected = false;
     public $connection_error = null;

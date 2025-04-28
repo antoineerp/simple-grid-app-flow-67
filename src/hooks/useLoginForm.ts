@@ -33,12 +33,7 @@ export const useLoginForm = () => {
     setHasServerError(false);
     setHasAuthError(false);
     
-    // Special test for antcirier@gmail.com
-    if (values.username === 'antcirier@gmail.com') {
-      console.log('Utilisateur spécial détecté:', values.username);
-      console.log('Mot de passe attendu: password123 ou Password123!');
-      console.log('Mot de passe fourni (longueur):', values.password.length);
-    }
+    console.log('Tentative de connexion pour:', values.username);
     
     try {
       const result = await login(values.username, values.password);
