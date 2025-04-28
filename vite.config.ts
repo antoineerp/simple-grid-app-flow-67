@@ -50,11 +50,11 @@ export default defineConfig(({ mode }) => {
           chunkFileNames: 'assets/[name].[hash].js',
           entryFileNames: 'assets/[name].[hash].js',
         },
+        // Spécifier explicitement jspdf comme externe pour éviter les erreurs de résolution
+        external: ['jspdf', 'jspdf-autotable']
       }
     },
     publicDir: 'public',
     base: basePath,
-    // La propriété legacy a été complètement supprimée
-    // car elle n'est pas compatible entre Vite 5 et Vite 6
   };
 });
