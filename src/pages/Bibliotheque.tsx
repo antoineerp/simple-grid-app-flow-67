@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback } from 'react';
 import { FileText, Pencil, Trash, ChevronDown, FolderPlus, GripVertical, ExternalLink, CloudSun } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { exportBibliothecaireDocsToPdf } from '@/services/pdfExport';
@@ -23,6 +23,7 @@ import {
   TableHeader,
   TableRow
 } from "@/components/ui/table";
+import { Document } from '@/types/bibliotheque';
 
 const Bibliotheque = () => {
   const { toast } = useToast();
@@ -49,11 +50,11 @@ const Bibliotheque = () => {
     handleAddGroup,
     handleGroupInputChange,
     handleSaveGroup,
-    handleDrop,
-    handleGroupDrop,
     toggleGroup,
     setDraggedItem,
-    syncWithServer
+    syncWithServer,
+    handleDrop,
+    handleGroupDrop
   } = useBibliotheque();
   
   const handleExportPdf = () => {
@@ -126,6 +127,23 @@ const Bibliotheque = () => {
       </a>
     );
   };
+
+  const handleAddDocButtonClick = useCallback(() => {
+    handleAddDocument({
+      id: Math.random().toString(36).substr(2, 9),
+      name: '',
+      link: null
+    });
+  }, [handleAddDocument]);
+
+  const handleEditDocButtonClick = useCallback((e: React.MouseEvent, doc: Document) => {
+    e.stopPropagation();
+    handleEditDocument(doc);
+  }, [handleEditDocument]);
+
+  const handleSaveGroupClick = useCallback(() => {
+    handleSaveGroup(currentGroup, isEditing);
+  }, [handleSaveGroup, currentGroup, isEditing]);
 
   return (
     <div className="p-8">
@@ -272,10 +290,7 @@ const Bibliotheque = () => {
                       <TableCell className="py-3 px-4 text-right">
                         <button 
                           className="text-gray-600 hover:text-app-blue mr-3"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleEditDocument({...item, groupId: group.id});
-                          }}
+                          onClick={(e) => handleEditDocButtonClick(e, {...item, groupId: group.id})}
                         >
                           <Pencil className="h-5 w-5 inline-block" />
                         </button>
@@ -317,10 +332,7 @@ const Bibliotheque = () => {
                 <TableCell className="py-3 px-4 text-right">
                   <button 
                     className="text-gray-600 hover:text-app-blue mr-3"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleEditDocument(doc);
-                    }}
+                    onClick={(e) => handleEditDocButtonClick(e, doc)}
                   >
                     <Pencil className="h-5 w-5 inline-block" />
                   </button>
@@ -351,7 +363,7 @@ const Bibliotheque = () => {
         </Button>
         <Button 
           variant="default"
-          onClick={handleAddDocument}
+          onClick={handleAddDocButtonClick}
         >
           Nouveau document
         </Button>
@@ -442,7 +454,7 @@ const Bibliotheque = () => {
             <Button variant="outline" onClick={() => setIsGroupDialogOpen(false)}>
               Annuler
             </Button>
-            <Button onClick={handleSaveGroup}>
+            <Button onClick={handleSaveGroupClick}>
               {isEditing ? "Mettre à jour" : "Ajouter"}
             </Button>
           </DialogFooter>

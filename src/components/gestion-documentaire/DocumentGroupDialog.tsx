@@ -17,7 +17,7 @@ interface DocumentGroupDialogProps {
   group: DocumentGroup | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSave: (group: DocumentGroup) => void;
+  onSave: (group: DocumentGroup, isEditing: boolean) => void;
   isEditing: boolean;
 }
 
@@ -45,7 +45,7 @@ export const DocumentGroupDialog = ({
       expanded: group?.expanded || false,
       items: group?.items || []
     };
-    onSave(updatedGroup);
+    onSave(updatedGroup, isEditing);
     onOpenChange(false);
   };
 
