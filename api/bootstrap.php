@@ -1,4 +1,3 @@
-
 <?php
 // Script d'initialisation de la base de données
 header("Content-Type: application/json; charset=UTF-8");
@@ -102,15 +101,14 @@ try {
     $pdo->exec($tableMembres);
     echo "Table membres_{$userId} créée ou existante.<br>";
     
-    // Table exigences
+    // Table exigences - Mise à jour de la structure pour correspondre aux fichiers de synchronisation
     $tableExigences = "CREATE TABLE IF NOT EXISTS `exigences_{$userId}` (
         `id` VARCHAR(36) PRIMARY KEY,
-        `code` VARCHAR(50) NOT NULL,
-        `description` TEXT NOT NULL,
-        `niveau` VARCHAR(20) NULL,
-        `categorie` VARCHAR(100) NULL,
-        `etat` VARCHAR(50) NULL DEFAULT 'à traiter',
-        `notes` TEXT NULL,
+        `nom` VARCHAR(255) NOT NULL,
+        `responsabilites` TEXT,
+        `exclusion` TINYINT(1) DEFAULT 0,
+        `atteinte` ENUM('NC', 'PC', 'C') NULL,
+        `groupId` VARCHAR(36) NULL,
         `date_creation` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
         `date_modification` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
@@ -127,7 +125,7 @@ try {
         // Vérifier structure de la table membres
         $stmt = $pdo->prepare("SHOW COLUMNS FROM `membres_{$userId}`");
         $stmt->execute();
-        $colonnes = $stmt->fetchAll(PDO::FETCH_COLUMN, 0); // Récupère juste les noms de colonnes
+        $colonnes = $stmt->fetchAll(PDO::FETCH_COLUMN, 0);
         
         error_log("Colonnes trouvées dans membres_{$userId}: " . implode(", ", $colonnes));
         
@@ -136,11 +134,10 @@ try {
         $colonnesValides = array_intersect($colonnesDispo, $colonnes);
         
         if (count($colonnesValides) < 3) {
-            // Si moins de 3 colonnes valides, il y a un problème avec la structure
             throw new Exception("Structure de table membres_{$userId} invalide. Colonnes disponibles: " . implode(", ", $colonnes));
         }
         
-        // Construire la requête dynamiquement en fonction des colonnes disponibles
+        // Construire la requête dynamiquement
         $champs = implode(", ", $colonnesValides);
         $placeholders = implode(", ", array_fill(0, count($colonnesValides), "?"));
         
@@ -195,7 +192,7 @@ try {
         error_log("Colonnes trouvées dans exigences_{$userId}: " . implode(", ", $colonnes));
         
         // Préparer la requête d'insertion avec les colonnes existantes
-        $colonnesDispo = ['id', 'code', 'description', 'niveau', 'categorie', 'etat', 'notes'];
+        $colonnesDispo = ['id', 'nom', 'responsabilites', 'exclusion', 'atteinte', 'groupId'];
         $colonnesValides = array_intersect($colonnesDispo, $colonnes);
         
         if (count($colonnesValides) < 3) {
@@ -211,12 +208,11 @@ try {
         // Première exigence test
         $exigence1 = [
             'id' => 'exig-' . bin2hex(random_bytes(8)),
-            'code' => 'EX-001',
-            'description' => 'Mettre en place un système de gestion documentaire',
-            'niveau' => 'Critique',
-            'categorie' => 'Documentation',
-            'etat' => 'En cours',
-            'notes' => 'Priorité haute pour l\'audit'
+            'nom' => 'Mettre en place un système de gestion documentaire',
+            'responsabilites' => json_encode(['r' => [], 'a' => [], 'c' => [], 'i' => []]),
+            'exclusion' => 0,
+            'atteinte' => 'NC',
+            'groupId' => null
         ];
         
         // Filtrer les valeurs
@@ -226,12 +222,11 @@ try {
         // Deuxième exigence test
         $exigence2 = [
             'id' => 'exig-' . bin2hex(random_bytes(8)),
-            'code' => 'EX-002',
-            'description' => 'Former le personnel aux procédures qualité',
-            'niveau' => 'Important',
-            'categorie' => 'Formation',
-            'etat' => 'À traiter',
-            'notes' => 'Planifier avant fin du mois'
+            'nom' => 'Former le personnel aux procédures qualité',
+            'responsabilites' => json_encode(['r' => [], 'a' => [], 'c' => [], 'i' => []]),
+            'exclusion' => 0,
+            'atteinte' => 'PC',
+            'groupId' => null
         ];
         
         // Filtrer les valeurs
@@ -261,15 +256,14 @@ try {
     $pdo->exec($tableMembres);
     echo "Table membres_{$userId} créée ou existante.<br>";
     
-    // Table exigences
+    // Table exigences - Mise à jour de la structure pour correspondre aux fichiers de synchronisation
     $tableExigences = "CREATE TABLE IF NOT EXISTS `exigences_{$userId}` (
         `id` VARCHAR(36) PRIMARY KEY,
-        `code` VARCHAR(50) NOT NULL,
-        `description` TEXT NOT NULL,
-        `niveau` VARCHAR(20) NULL,
-        `categorie` VARCHAR(100) NULL,
-        `etat` VARCHAR(50) NULL DEFAULT 'à traiter',
-        `notes` TEXT NULL,
+        `nom` VARCHAR(255) NOT NULL,
+        `responsabilites` TEXT,
+        `exclusion` TINYINT(1) DEFAULT 0,
+        `atteinte` ENUM('NC', 'PC', 'C') NULL,
+        `groupId` VARCHAR(36) NULL,
         `date_creation` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
         `date_modification` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
