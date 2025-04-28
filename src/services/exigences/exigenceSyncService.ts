@@ -25,8 +25,6 @@ export const syncExigencesWithServer = async (
     
     if (!response.ok) {
       console.error(`Erreur lors de la synchronisation des exigences: ${response.status}`);
-      const errorText = await response.text();
-      console.error("Détails de l'erreur:", errorText);
       throw new Error(`Échec de la synchronisation des exigences: ${response.statusText}`);
     }
     
@@ -36,7 +34,7 @@ export const syncExigencesWithServer = async (
     return result.success === true;
   } catch (error) {
     console.error('Erreur de synchronisation des exigences:', error);
-    return false;
+    throw error;
   }
 };
 
@@ -64,6 +62,6 @@ export const loadExigencesFromServer = async (currentUser: string): Promise<Exig
     return result.exigences || null;
   } catch (error) {
     console.error('Erreur de chargement des exigences:', error);
-    return null;
+    throw error;
   }
 };
