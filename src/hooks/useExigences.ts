@@ -7,11 +7,26 @@ import { useExigenceGroups } from './useExigenceGroups';
 import { getCurrentUser } from '@/services/auth/authService';
 
 export const useExigences = () => {
+  // Extraire un identifiant utilisateur valide
+  const extractValidUserId = (user: any): string => {
+    if (typeof user === 'string') {
+      return user;
+    }
+    
+    if (user && typeof user === 'object') {
+      return user.identifiant_technique || 
+             user.email ||
+             user.id || 
+             'p71x6d_system';
+    }
+    
+    return 'p71x6d_system';
+  };
+
   // Extraire un identifiant string valide au lieu de l'objet complet
   const user = getCurrentUser();
-  const currentUser = typeof user === 'object' 
-    ? (user.identifiant_technique || user.email || 'p71x6d_system') 
-    : user || 'p71x6d_system';
+  const currentUser = extractValidUserId(user);
+  console.log("ID utilisateur extrait pour les exigences:", currentUser);
   
   const [exigences, setExigences] = useState<Exigence[]>([]);
   const [groups, setGroups] = useState<ExigenceGroup[]>([]);

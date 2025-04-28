@@ -12,9 +12,14 @@ const extractValidUserId = (userId: any): string => {
   }
   
   if (userId && typeof userId === 'object') {
-    return userId.identifiant_technique || 
+    // Extraire un identifiant valide de l'objet
+    const id = userId.identifiant_technique || 
            userId.email || 
+           userId.id ||
            'p71x6d_system';
+           
+    console.log(`Extraction d'ID utilisateur depuis un objet: ${id}`);
+    return id;
   }
   
   return 'p71x6d_system'; // Valeur par défaut si rien n'est valide

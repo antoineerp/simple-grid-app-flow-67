@@ -56,6 +56,18 @@ const ExigencesContent = () => {
     });
   };
 
+  const handleSyncWithServer = () => {
+    syncWithServer().then(success => {
+      if (!success) {
+        toast({
+          title: "Synchronisation échouée",
+          description: "Essayez de réinitialiser et réessayer.",
+          variant: "destructive"
+        });
+      }
+    });
+  };
+
   return (
     <div className="p-8">
       <div className="flex items-center justify-between mb-2">
@@ -64,7 +76,7 @@ const ExigencesContent = () => {
         </div>
         <div className="flex space-x-2">
           <button 
-            onClick={syncWithServer}
+            onClick={handleSyncWithServer}
             className="text-blue-600 p-2 rounded-md hover:bg-blue-50 transition-colors flex items-center"
             title="Synchroniser avec le serveur"
             disabled={isSyncing}
@@ -110,20 +122,30 @@ const ExigencesContent = () => {
 
       <ExigenceStats stats={stats} />
 
-      <ExigenceTable 
-        exigences={exigences}
-        groups={groups}
-        onResponsabiliteChange={handleResponsabiliteChange}
-        onAtteinteChange={handleAtteinteChange}
-        onExclusionChange={handleExclusionChange}
-        onEdit={handleEdit}
-        onDelete={handleDelete}
-        onReorder={handleReorder}
-        onGroupReorder={handleGroupReorder}
-        onToggleGroup={handleToggleGroup}
-        onEditGroup={handleEditGroup}
-        onDeleteGroup={handleDeleteGroup}
-      />
+      {exigences.length > 0 ? (
+        <ExigenceTable 
+          exigences={exigences}
+          groups={groups}
+          onResponsabiliteChange={handleResponsabiliteChange}
+          onAtteinteChange={handleAtteinteChange}
+          onExclusionChange={handleExclusionChange}
+          onEdit={handleEdit}
+          onDelete={handleDelete}
+          onReorder={handleReorder}
+          onGroupReorder={handleGroupReorder}
+          onToggleGroup={handleToggleGroup}
+          onEditGroup={handleEditGroup}
+          onDeleteGroup={handleDeleteGroup}
+        />
+      ) : loadError ? (
+        <div className="text-center p-8 border border-dashed rounded-md mt-4 bg-gray-50">
+          <p className="text-gray-500">Impossible de charger les exigences.</p>
+        </div>
+      ) : (
+        <div className="text-center p-8 border border-dashed rounded-md mt-4 bg-gray-50">
+          <p className="text-gray-500">Aucune exigence trouvée. Cliquez sur "Ajouter une exigence" pour commencer.</p>
+        </div>
+      )}
 
       <div className="flex justify-end mt-4 space-x-2">
         <Button 

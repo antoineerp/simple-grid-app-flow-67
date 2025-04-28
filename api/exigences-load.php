@@ -32,12 +32,27 @@ try {
     if (ob_get_level()) ob_clean();
     
     // Vérifier si l'userId est présent
-    if (!isset($_GET['userId']) || empty($_GET['userId'])) {
-        throw new Exception("Paramètre 'userId' manquant");
+    $userId = "";
+    
+    if (isset($_GET['userId']) && !empty($_GET['userId'])) {
+        $userId = $_GET['userId'];
+        // Vérifier si c'est un objet JSON sérialisé
+        if (strpos($userId, '[object Object]') !== false || $userId === '[object Object]') {
+            error_log("UserId invalide (object détecté): {$userId}");
+            $userId = 'p71x6d_system';  // Utiliser une valeur par défaut
+            error_log("Utilisation de l'ID par défaut: {$userId}");
+        }
+    } else {
+        error_log("UserId manquant dans la requête");
+        $userId = 'p71x6d_system';  // Utiliser une valeur par défaut
+        error_log("Utilisation de l'ID par défaut: {$userId}");
     }
     
-    $userId = $_GET['userId'];
     error_log("Chargement des exigences pour l'utilisateur: {$userId}");
+    
+    // S'assurer que userId est une chaîne valide pour les noms de table
+    $safeUserId = preg_replace('/[^a-zA-Z0-9_]/', '_', $userId);
+    error_log("ID utilisateur normalisé pour les tables: {$safeUserId}");
     
     // Connexion à la base de données
     try {
@@ -53,8 +68,8 @@ try {
     }
     
     // Nom des tables spécifiques à l'utilisateur
-    $exigencesTableName = "exigences_" . preg_replace('/[^a-zA-Z0-9_]/', '_', $userId);
-    $groupsTableName = "exigence_groups_" . preg_replace('/[^a-zA-Z0-9_]/', '_', $userId);
+    $exigencesTableName = "exigences_" . $safeUserId;
+    $groupsTableName = "exigence_groups_" . $safeUserId;
     error_log("Tables à consulter: {$exigencesTableName}, {$groupsTableName}");
     
     // Vérifier si les tables existent
@@ -78,7 +93,7 @@ try {
     
     // Récupérer les exigences si la table existe
     if ($exigencesTableExists) {
-        $query = "SELECT * FROM `" . $exigencesTableName . "` ORDER BY id";
+        $query = "SELECT * FROM `{$exigencesTableName}` ORDER BY id";
         error_log("Exécution de la requête: {$query}");
         $stmt = $pdo->query($query);
         $exigences = $stmt->fetchAll();
@@ -112,7 +127,7 @@ try {
         }
     } else {
         // Créer la table si elle n'existe pas
-        $createExigencesTable = "CREATE TABLE IF NOT EXISTS `" . $exigencesTableName . "` (
+        $createExigencesTable = "CREATE TABLE IF NOT EXISTS `{$exigencesTableName}` (
             `id` VARCHAR(36) NOT NULL PRIMARY KEY,
             `nom` VARCHAR(255) NOT NULL,
             `responsabilites` TEXT,
@@ -129,7 +144,7 @@ try {
     
     // Récupérer les groupes si la table existe
     if ($groupsTableExists) {
-        $query = "SELECT * FROM `" . $groupsTableName . "` ORDER BY id";
+        $query = "SELECT * FROM `{$groupsTableName}` ORDER BY id";
         error_log("Exécution de la requête: {$query}");
         $stmt = $pdo->query($query);
         $groups = $stmt->fetchAll();
@@ -143,7 +158,7 @@ try {
         }
     } else {
         // Créer la table si elle n'existe pas
-        $createGroupsTable = "CREATE TABLE IF NOT EXISTS `" . $groupsTableName . "` (
+        $createGroupsTable = "CREATE TABLE IF NOT EXISTS `{$groupsTableName}` (
             `id` VARCHAR(36) NOT NULL PRIMARY KEY,
             `name` VARCHAR(255) NOT NULL,
             `expanded` TINYINT(1) DEFAULT 1
