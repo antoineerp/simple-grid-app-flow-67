@@ -85,7 +85,7 @@ try {
     // Initialiser les tables pour les utilisateurs
     $userId = 'p71x6d_system';
     
-    // Table membres
+    // Table membres - Définition complète avec toutes les colonnes nécessaires
     $tableMembres = "CREATE TABLE IF NOT EXISTS `membres_{$userId}` (
         `id` VARCHAR(36) PRIMARY KEY,
         `nom` VARCHAR(100) NOT NULL,
@@ -125,36 +125,58 @@ try {
     
     if (!$membresExistent) {
         // Vérifier structure de la table membres
-        $stmt = $pdo->prepare("DESCRIBE `membres_{$userId}`");
+        $stmt = $pdo->prepare("SHOW COLUMNS FROM `membres_{$userId}`");
         $stmt->execute();
-        $columns = $stmt->fetchAll(PDO::FETCH_COLUMN);
+        $colonnes = $stmt->fetchAll(PDO::FETCH_COLUMN, 0); // Récupère juste les noms de colonnes
         
-        // Insérer des membres de test en s'assurant que les colonnes existent
-        $insertMembre = $pdo->prepare("INSERT INTO `membres_{$userId}` 
-            (id, nom, prenom, email, telephone, fonction, organisation, notes) 
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
+        error_log("Colonnes trouvées dans membres_{$userId}: " . implode(", ", $colonnes));
         
-        $insertMembre->execute([
-            'mem-'.bin2hex(random_bytes(8)),
-            'Dupont',
-            'Jean',
-            'jean.dupont@example.com',
-            '0601020304',
-            'Directeur',
-            'Entreprise A',
-            'Contact principal'
-        ]);
+        // Préparer la requête d'insertion avec les colonnes existantes
+        $colonnesDispo = ['id', 'nom', 'prenom', 'email', 'telephone', 'fonction', 'organisation', 'notes'];
+        $colonnesValides = array_intersect($colonnesDispo, $colonnes);
         
-        $insertMembre->execute([
-            'mem-'.bin2hex(random_bytes(8)),
-            'Martin',
-            'Sophie',
-            'sophie.martin@example.com',
-            '0607080910',
-            'Responsable RH',
-            'Entreprise B',
-            'Partenaire stratégique'
-        ]);
+        if (count($colonnesValides) < 3) {
+            // Si moins de 3 colonnes valides, il y a un problème avec la structure
+            throw new Exception("Structure de table membres_{$userId} invalide. Colonnes disponibles: " . implode(", ", $colonnes));
+        }
+        
+        // Construire la requête dynamiquement en fonction des colonnes disponibles
+        $champs = implode(", ", $colonnesValides);
+        $placeholders = implode(", ", array_fill(0, count($colonnesValides), "?"));
+        
+        $insertMembre = $pdo->prepare("INSERT INTO `membres_{$userId}` ({$champs}) VALUES ({$placeholders})");
+        
+        // Premier membre test
+        $membre1 = [
+            'id' => 'mem-' . bin2hex(random_bytes(8)),
+            'nom' => 'Dupont',
+            'prenom' => 'Jean',
+            'email' => 'jean.dupont@example.com',
+            'telephone' => '0601020304',
+            'fonction' => 'Directeur',
+            'organisation' => 'Entreprise A',
+            'notes' => 'Contact principal'
+        ];
+        
+        // Filtrer les valeurs en fonction des colonnes disponibles
+        $valeurs1 = array_intersect_key($membre1, array_flip($colonnesValides));
+        $insertMembre->execute(array_values($valeurs1));
+        
+        // Deuxième membre test
+        $membre2 = [
+            'id' => 'mem-' . bin2hex(random_bytes(8)),
+            'nom' => 'Martin',
+            'prenom' => 'Sophie',
+            'email' => 'sophie.martin@example.com',
+            'telephone' => '0607080910',
+            'fonction' => 'Responsable RH',
+            'organisation' => 'Entreprise B',
+            'notes' => 'Partenaire stratégique'
+        ];
+        
+        // Filtrer les valeurs en fonction des colonnes disponibles
+        $valeurs2 = array_intersect_key($membre2, array_flip($colonnesValides));
+        $insertMembre->execute(array_values($valeurs2));
         
         echo "Membres de test ajoutés.<br>";
     }
@@ -166,34 +188,55 @@ try {
     
     if (!$exigencesExistent) {
         // Vérifier structure de la table exigences
-        $stmt = $pdo->prepare("DESCRIBE `exigences_{$userId}`");
+        $stmt = $pdo->prepare("SHOW COLUMNS FROM `exigences_{$userId}`");
         $stmt->execute();
-        $columns = $stmt->fetchAll(PDO::FETCH_COLUMN);
+        $colonnes = $stmt->fetchAll(PDO::FETCH_COLUMN, 0);
         
-        // Insérer des exigences de test
-        $insertExigence = $pdo->prepare("INSERT INTO `exigences_{$userId}` 
-            (id, code, description, niveau, categorie, etat, notes) 
-            VALUES (?, ?, ?, ?, ?, ?, ?)");
+        error_log("Colonnes trouvées dans exigences_{$userId}: " . implode(", ", $colonnes));
         
-        $insertExigence->execute([
-            'exig-'.bin2hex(random_bytes(8)),
-            'EX-001',
-            'Mettre en place un système de gestion documentaire',
-            'Critique',
-            'Documentation',
-            'En cours',
-            'Priorité haute pour l\'audit'
-        ]);
+        // Préparer la requête d'insertion avec les colonnes existantes
+        $colonnesDispo = ['id', 'code', 'description', 'niveau', 'categorie', 'etat', 'notes'];
+        $colonnesValides = array_intersect($colonnesDispo, $colonnes);
         
-        $insertExigence->execute([
-            'exig-'.bin2hex(random_bytes(8)),
-            'EX-002',
-            'Former le personnel aux procédures qualité',
-            'Important',
-            'Formation',
-            'À traiter',
-            'Planifier avant fin du mois'
-        ]);
+        if (count($colonnesValides) < 3) {
+            throw new Exception("Structure de table exigences_{$userId} invalide. Colonnes disponibles: " . implode(", ", $colonnes));
+        }
+        
+        // Construire la requête dynamiquement
+        $champs = implode(", ", $colonnesValides);
+        $placeholders = implode(", ", array_fill(0, count($colonnesValides), "?"));
+        
+        $insertExigence = $pdo->prepare("INSERT INTO `exigences_{$userId}` ({$champs}) VALUES ({$placeholders})");
+        
+        // Première exigence test
+        $exigence1 = [
+            'id' => 'exig-' . bin2hex(random_bytes(8)),
+            'code' => 'EX-001',
+            'description' => 'Mettre en place un système de gestion documentaire',
+            'niveau' => 'Critique',
+            'categorie' => 'Documentation',
+            'etat' => 'En cours',
+            'notes' => 'Priorité haute pour l\'audit'
+        ];
+        
+        // Filtrer les valeurs
+        $valeurs1 = array_intersect_key($exigence1, array_flip($colonnesValides));
+        $insertExigence->execute(array_values($valeurs1));
+        
+        // Deuxième exigence test
+        $exigence2 = [
+            'id' => 'exig-' . bin2hex(random_bytes(8)),
+            'code' => 'EX-002',
+            'description' => 'Former le personnel aux procédures qualité',
+            'niveau' => 'Important',
+            'categorie' => 'Formation',
+            'etat' => 'À traiter',
+            'notes' => 'Planifier avant fin du mois'
+        ];
+        
+        // Filtrer les valeurs
+        $valeurs2 = array_intersect_key($exigence2, array_flip($colonnesValides));
+        $insertExigence->execute(array_values($valeurs2));
         
         echo "Exigences de test ajoutées.<br>";
     }
@@ -241,36 +284,57 @@ try {
     
     if (!$membresExistent) {
         // Vérifier structure de la table membres
-        $stmt = $pdo->prepare("DESCRIBE `membres_{$userId}`");
+        $stmt = $pdo->prepare("SHOW COLUMNS FROM `membres_{$userId}`");
         $stmt->execute();
-        $columns = $stmt->fetchAll(PDO::FETCH_COLUMN);
+        $colonnes = $stmt->fetchAll(PDO::FETCH_COLUMN, 0);
         
-        // Insérer des membres de test
-        $insertMembre = $pdo->prepare("INSERT INTO `membres_{$userId}` 
-            (id, nom, prenom, email, telephone, fonction, organisation, notes) 
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
+        error_log("Colonnes trouvées dans membres_{$userId}: " . implode(", ", $colonnes));
         
-        $insertMembre->execute([
-            'mem-'.bin2hex(random_bytes(8)),
-            'Dubois',
-            'Philippe',
-            'philippe.dubois@example.com',
-            '0612345678',
-            'Directeur Qualité',
-            'Entreprise C',
-            'Expert Qualiopi'
-        ]);
+        // Préparer la requête d'insertion avec les colonnes existantes
+        $colonnesDispo = ['id', 'nom', 'prenom', 'email', 'telephone', 'fonction', 'organisation', 'notes'];
+        $colonnesValides = array_intersect($colonnesDispo, $colonnes);
         
-        $insertMembre->execute([
-            'mem-'.bin2hex(random_bytes(8)),
-            'Garcia',
-            'Maria',
-            'maria.garcia@example.com',
-            '0698765432',
-            'Consultante',
-            'Entreprise D',
-            'Spécialiste certification'
-        ]);
+        if (count($colonnesValides) < 3) {
+            throw new Exception("Structure de table membres_{$userId} invalide. Colonnes disponibles: " . implode(", ", $colonnes));
+        }
+        
+        // Construire la requête dynamiquement
+        $champs = implode(", ", $colonnesValides);
+        $placeholders = implode(", ", array_fill(0, count($colonnesValides), "?"));
+        
+        $insertMembre = $pdo->prepare("INSERT INTO `membres_{$userId}` ({$champs}) VALUES ({$placeholders})");
+        
+        // Premier membre test pour cet utilisateur
+        $membre1 = [
+            'id' => 'mem-' . bin2hex(random_bytes(8)),
+            'nom' => 'Dubois',
+            'prenom' => 'Philippe',
+            'email' => 'philippe.dubois@example.com',
+            'telephone' => '0612345678',
+            'fonction' => 'Directeur Qualité',
+            'organisation' => 'Entreprise C',
+            'notes' => 'Expert Qualiopi'
+        ];
+        
+        // Filtrer les valeurs
+        $valeurs1 = array_intersect_key($membre1, array_flip($colonnesValides));
+        $insertMembre->execute(array_values($valeurs1));
+        
+        // Deuxième membre test
+        $membre2 = [
+            'id' => 'mem-' . bin2hex(random_bytes(8)),
+            'nom' => 'Garcia',
+            'prenom' => 'Maria',
+            'email' => 'maria.garcia@example.com',
+            'telephone' => '0698765432',
+            'fonction' => 'Consultante',
+            'organisation' => 'Entreprise D',
+            'notes' => 'Spécialiste certification'
+        ];
+        
+        // Filtrer les valeurs
+        $valeurs2 = array_intersect_key($membre2, array_flip($colonnesValides));
+        $insertMembre->execute(array_values($valeurs2));
         
         echo "Membres de test ajoutés pour {$userId}.<br>";
     }
