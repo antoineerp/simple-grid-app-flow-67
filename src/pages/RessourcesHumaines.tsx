@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { FileText, UserPlus, CloudSun } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -19,7 +19,7 @@ import SyncStatusIndicator from '@/components/common/SyncStatusIndicator';
 
 const RessourcesHumaines = () => {
   const { toast } = useToast();
-  const { membres, setMembres, isSyncing, isOnline, lastSynced, syncWithServer } = useMembres();
+  const { membres, setMembres, isSyncing, isOnline, lastSynced, syncWithServer, isLoading } = useMembres();
   
   const [isDialogOpen, setIsDialogOpen] = React.useState(false);
   const [currentMembre, setCurrentMembre] = React.useState<Membre>({
@@ -32,6 +32,14 @@ const RessourcesHumaines = () => {
     mot_de_passe: '' 
   });
   const [isEditing, setIsEditing] = React.useState(false);
+
+  // Synchronisation au chargement de la page si connecté et en ligne
+  useEffect(() => {
+    if (isOnline && !isSyncing && !isLoading) {
+      console.log("Synchronisation automatique au chargement de la page");
+      syncWithServer().catch(console.error);
+    }
+  }, [isLoading]);
 
   // Handler for edit action
   const handleEdit = (id: string) => {
@@ -50,6 +58,11 @@ const RessourcesHumaines = () => {
       title: "Suppression",
       description: `Le membre ${id} a été supprimé`,
     });
+    
+    // Synchroniser après la suppression si en ligne
+    if (isOnline) {
+      syncWithServer().catch(console.error);
+    }
   };
 
   // Handler for adding a new member
@@ -123,6 +136,11 @@ const RessourcesHumaines = () => {
     }
     
     setIsDialogOpen(false);
+    
+    // Synchroniser après l'ajout/modification si en ligne
+    if (isOnline) {
+      syncWithServer().catch(console.error);
+    }
   };
 
   // Handler for exporting all members to PDF
@@ -151,10 +169,10 @@ const RessourcesHumaines = () => {
         </div>
         <div className="flex space-x-2">
           <button 
-            onClick={syncWithServer}
+            onClick={() => syncWithServer()}
             className="text-blue-600 p-2 rounded-md hover:bg-blue-50 transition-colors flex items-center"
             title="Synchroniser avec le serveur"
-            disabled={isSyncing}
+            disabled={isSyncing || !isOnline}
           >
             <CloudSun className={`h-6 w-6 stroke-[1.5] ${isSyncing ? 'animate-spin' : ''}`} />
           </button>
@@ -176,48 +194,64 @@ const RessourcesHumaines = () => {
         />
       </div>
 
-      <div className="bg-white rounded-md shadow overflow-hidden mt-6">
-        <MemberList 
-          membres={membres} 
-          onEdit={handleEdit} 
-          onDelete={handleDelete}
-          onExport={handleExportMember} 
-        />
-      </div>
+      {isLoading ? (
+        <div className="bg-white rounded-md shadow p-8 text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-app-blue mx-auto"></div>
+          <p className="mt-4 text-gray-600">Chargement des données...</p>
+        </div>
+      ) : (
+        <>
+          <div className="bg-white rounded-md shadow overflow-hidden mt-6">
+            {membres.length > 0 ? (
+              <MemberList 
+                membres={membres} 
+                onEdit={handleEdit} 
+                onDelete={handleDelete}
+                onExport={handleExportMember} 
+              />
+            ) : (
+              <div className="p-8 text-center text-gray-500">
+                <p>Aucun membre à afficher.</p>
+                <p className="text-sm mt-2">Cliquez sur "Ajouter un membre" pour commencer.</p>
+              </div>
+            )}
+          </div>
 
-      <div className="flex justify-end mt-4 gap-4">
-        <Button 
-          className="flex items-center"
-          onClick={handleAddMember}
-        >
-          <UserPlus className="h-4 w-4 mr-2" />
-          Ajouter un membre
-        </Button>
-      </div>
+          <div className="flex justify-end mt-4 gap-4">
+            <Button 
+              className="flex items-center"
+              onClick={handleAddMember}
+            >
+              <UserPlus className="h-4 w-4 mr-2" />
+              Ajouter un membre
+            </Button>
+          </div>
 
-      {/* Modal pour ajouter/modifier un membre */}
-      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>
-              {isEditing ? "Modifier le membre" : "Ajouter un membre"}
-            </DialogTitle>
-            <DialogDescription>
-              {isEditing 
-                ? "Modifiez les informations du membre ci-dessous." 
-                : "Remplissez les informations pour ajouter un nouveau membre."}
-            </DialogDescription>
-          </DialogHeader>
-          
-          <MemberForm 
-            currentMembre={currentMembre}
-            isEditing={isEditing}
-            onInputChange={handleInputChange}
-            onSave={handleSaveMember}
-            onCancel={() => setIsDialogOpen(false)}
-          />
-        </DialogContent>
-      </Dialog>
+          {/* Modal pour ajouter/modifier un membre */}
+          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>
+                  {isEditing ? "Modifier le membre" : "Ajouter un membre"}
+                </DialogTitle>
+                <DialogDescription>
+                  {isEditing 
+                    ? "Modifiez les informations du membre ci-dessous." 
+                    : "Remplissez les informations pour ajouter un nouveau membre."}
+                </DialogDescription>
+              </DialogHeader>
+              
+              <MemberForm 
+                currentMembre={currentMembre}
+                isEditing={isEditing}
+                onInputChange={handleInputChange}
+                onSave={handleSaveMember}
+                onCancel={() => setIsDialogOpen(false)}
+              />
+            </DialogContent>
+          </Dialog>
+        </>
+      )}
     </div>
   );
 };

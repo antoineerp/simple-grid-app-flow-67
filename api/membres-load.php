@@ -1,69 +1,103 @@
 
 <?php
-// Inclure la configuration de base
-require_once __DIR__ . '/config/index.php';
+// Force output buffering to prevent output before headers
+ob_start();
 
-// Configuration des headers
+// Fichier pour charger les données des membres depuis le serveur
 header("Content-Type: application/json; charset=UTF-8");
 header("Access-Control-Allow-Origin: *");
 header("Access-Control-Allow-Methods: GET, OPTIONS");
 header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With");
 header("Cache-Control: no-cache, no-store, must-revalidate");
 
-// Si c'est une requête OPTIONS (preflight), nous la terminons ici
+// Gestion des requêtes OPTIONS (preflight)
 if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
     http_response_code(200);
     echo json_encode(['status' => 'success', 'message' => 'Preflight OK']);
     exit;
 }
 
+// Journalisation
+error_log("API membres-load.php - Méthode: " . $_SERVER['REQUEST_METHOD'] . " - Requête: " . $_SERVER['REQUEST_URI']);
+
+// Configuration de la base de données
+$host = "p71x6d.myd.infomaniak.com";
+$dbname = "p71x6d_system";
+$username = "p71x6d_system";
+$password = "Trottinette43!";
+
 try {
-    // Inclure la base de données si elle existe
-    if (file_exists(__DIR__ . '/config/database.php')) {
-        require_once __DIR__ . '/config/database.php';
-    }
-
-    // Vérifier l'authentification si le middleware Auth existe
-    if (file_exists(__DIR__ . '/middleware/Auth.php')) {
-        include_once __DIR__ . '/middleware/Auth.php';
-        
-        $allHeaders = getallheaders();
-        
-        if (class_exists('Auth')) {
-            $auth = new Auth($allHeaders);
-            $userData = $auth->isAuth();
-            
-            if (!$userData) {
-                http_response_code(401);
-                echo json_encode(["status" => "error", "message" => "Non autorisé"]);
-                exit;
-            }
-        }
-    }
-
-    // Récupérer l'identifiant de l'utilisateur depuis les paramètres GET
-    $userId = isset($_GET['userId']) ? $_GET['userId'] : null;
+    // Nettoyer le buffer
+    if (ob_get_level()) ob_clean();
     
-    if (!$userId) {
-        http_response_code(400);
-        echo json_encode(["status" => "error", "message" => "L'identifiant utilisateur est requis"]);
+    // Vérifier si l'userId est présent
+    if (!isset($_GET['userId']) || empty($_GET['userId'])) {
+        throw new Exception("Paramètre 'userId' manquant");
+    }
+    
+    $userId = $_GET['userId'];
+    error_log("Chargement des données pour l'utilisateur: {$userId}");
+    
+    // Connexion à la base de données
+    $pdo = new PDO("mysql:host={$host};dbname={$dbname};charset=utf8mb4", $username, $password, [
+        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+        PDO::ATTR_EMULATE_PREPARES => false,
+    ]);
+    
+    // Nom de la table spécifique à l'utilisateur
+    $tableName = "membres_" . preg_replace('/[^a-zA-Z0-9_]/', '_', $userId);
+    
+    // Vérifier si la table existe
+    $stmt = $pdo->prepare("SHOW TABLES LIKE :tableName");
+    $stmt->execute(['tableName' => $tableName]);
+    $tableExists = $stmt->rowCount() > 0;
+    
+    if (!$tableExists) {
+        // Si la table n'existe pas, renvoyer un tableau vide
+        echo json_encode([
+            'success' => true,
+            'membres' => [],
+            'message' => 'Aucune donnée trouvée pour cet utilisateur'
+        ]);
         exit;
     }
-
-    // Simuler un chargement réussi (à remplacer par la vraie logique)
-    $result = [
-        "success" => true,
-        "membres" => []
-    ];
-
-    // Envoyer la réponse
-    http_response_code(200);
-    echo json_encode($result);
     
-} catch (Exception $e) {
-    // Gérer les erreurs
-    error_log("Erreur dans membres-load.php: " . $e->getMessage());
+    // Récupérer les membres depuis la table
+    $stmt = $pdo->query("SELECT * FROM `{$tableName}` ORDER BY nom, prenom");
+    $membres = $stmt->fetchAll();
+    
+    // Formater les dates pour le client
+    foreach ($membres as &$membre) {
+        if (isset($membre['date_creation']) && $membre['date_creation']) {
+            $membre['date_creation'] = date('Y-m-d\TH:i:s', strtotime($membre['date_creation']));
+        }
+        if (isset($membre['date_modification']) && $membre['date_modification']) {
+            $membre['date_modification'] = date('Y-m-d\TH:i:s', strtotime($membre['date_modification']));
+        }
+    }
+    
+    echo json_encode([
+        'success' => true,
+        'membres' => $membres,
+        'count' => count($membres)
+    ]);
+    
+} catch (PDOException $e) {
+    error_log("Erreur PDO dans membres-load.php: " . $e->getMessage());
     http_response_code(500);
-    echo json_encode(["status" => "error", "message" => "Erreur serveur: " . $e->getMessage()]);
+    echo json_encode([
+        'success' => false,
+        'message' => 'Erreur de base de données: ' . $e->getMessage()
+    ]);
+} catch (Exception $e) {
+    error_log("Exception dans membres-load.php: " . $e->getMessage());
+    http_response_code(400);
+    echo json_encode([
+        'success' => false,
+        'message' => $e->getMessage()
+    ]);
+} finally {
+    if (ob_get_level()) ob_end_flush();
 }
 ?>
