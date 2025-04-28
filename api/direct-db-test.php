@@ -33,8 +33,9 @@ try {
     $username = DB_USER;
     $password = DB_PASS;
     
-    // Vérifier qu'on utilise bien Infomaniak
-    if (strpos($host, 'infomaniak') === false) {
+    // Vérifier qu'on utilise bien Infomaniak et jamais localhost
+    if (strpos($host, 'infomaniak') === false || strpos($host, 'localhost') !== false) {
+        error_log("Tentative d'utilisation d'un hôte non-Infomaniak détectée: $host");
         $host = "p71x6d.myd.infomaniak.com";
     }
 
@@ -80,15 +81,36 @@ try {
         // Ignorer cette erreur - la table peut ne pas exister
     }
     
+    // Récupérer la taille de la base de données
+    $sizeInfo = '0 MB';
+    try {
+        $sizeStmt = $pdo->query("
+            SELECT SUM(data_length + index_length) as size 
+            FROM information_schema.TABLES 
+            WHERE table_schema = '$dbname'
+        ");
+        $sizeData = $sizeStmt->fetch();
+        if ($sizeData && isset($sizeData['size'])) {
+            // Convertir en MB
+            $sizeInfo = round(($sizeData['size'] / (1024 * 1024)), 2) . ' MB';
+        }
+    } catch (PDOException $e) {
+        // Ignorer l'erreur
+        error_log("Erreur lors de la récupération de la taille de la base: " . $e->getMessage());
+    }
+    
     // Réponse en cas de succès
     echo json_encode([
         'status' => 'success',
         'message' => 'Connexion à la base de données établie avec succès',
         'host' => $host,
+        'database' => $dbname,
         'version' => $version,
         'tables' => $tables,
+        'size' => $sizeInfo,
         'utilisateurs_count' => $utilisateurs_count,
-        'utilisateurs_sample' => $utilisateurs_sample
+        'utilisateurs_sample' => $utilisateurs_sample,
+        'connection_info' => $connection_info
     ]);
     
 } catch (PDOException $e) {

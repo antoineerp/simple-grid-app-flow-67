@@ -28,8 +28,10 @@ class DatabaseConfig {
                 $config = json_decode($jsonContent, true);
                 
                 if (json_last_error() === JSON_ERROR_NONE) {
-                    // Vérifier que l'hôte contient "infomaniak" pour éviter localhost
-                    if (isset($config['host']) && strpos($config['host'], 'infomaniak') !== false) {
+                    // Vérification renforcée: rejeter explicitement localhost et n'accepter que infomaniak
+                    if (isset($config['host']) && 
+                        strpos($config['host'], 'infomaniak') !== false && 
+                        strpos($config['host'], 'localhost') === false) {
                         $this->host = $config['host'];
                     }
                     
@@ -73,11 +75,16 @@ class DatabaseConfig {
     }
 
     public function updateConfig($host, $db_name, $username, $password) {
+        // Vérification renforcée pour rejeter explicitement localhost
+        if (strpos($host, 'localhost') !== false) {
+            // Forcer l'utilisation d'Infomaniak
+            $this->host = "p71x6d.myd.infomaniak.com";
+        }
         // Vérifier que le nouvel hôte contient "infomaniak"
-        if (strpos($host, 'infomaniak') !== false) {
+        else if (strpos($host, 'infomaniak') !== false) {
             $this->host = $host;
         } else {
-            // Forcer l'utilisation d'Infomaniak
+            // Forcer l'utilisation d'Infomaniak par défaut
             $this->host = "p71x6d.myd.infomaniak.com";
         }
         

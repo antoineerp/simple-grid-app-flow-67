@@ -70,9 +70,15 @@ export interface DatabaseInfo {
 // Fonction pour tester la connexion à la base de données
 export const testDatabaseConnection = async (): Promise<boolean> => {
   try {
-    // Simuler un test de connexion réussi (à remplacer par une vraie implémentation)
-    console.log("Test de connexion à la base de données");
-    return true;
+    // Utiliser direct-db-test.php pour tester la connexion réelle
+    const response = await fetch('/api/direct-db-test.php');
+    if (!response.ok) {
+      const errorData = await response.json();
+      console.error("Erreur de connexion à la base de données:", errorData.message || response.statusText);
+      return false;
+    }
+    const result = await response.json();
+    return result.status === 'success';
   } catch (error) {
     console.error("Erreur lors du test de connexion à la base de données:", error);
     return false;
@@ -81,17 +87,39 @@ export const testDatabaseConnection = async (): Promise<boolean> => {
 
 // Fonction pour récupérer les informations de la base de données
 export const getDatabaseInfo = async (): Promise<DatabaseInfo> => {
-  const currentUser = getDatabaseConnectionCurrentUser();
-  // Retourner les informations d'Infomaniak
-  return {
-    host: currentUser ? `${currentUser}.myd.infomaniak.com` : 'p71x6d.myd.infomaniak.com',
-    database: currentUser || 'p71x6d_system',
-    size: '4.8 MB',
-    tables: 15,
-    lastBackup: new Date().toISOString().split('T')[0] + ' 00:00:00',
-    status: 'Online',
-    encoding: 'utf8mb4',
-    collation: 'utf8mb4_unicode_ci',
-    tableList: ['utilisateurs', 'documents', 'exigences', 'processus', 'audits']
-  };
+  try {
+    const currentUser = getDatabaseConnectionCurrentUser();
+    // Appel direct au diagnostic de base de données pour obtenir des informations réelles
+    const response = await fetch('/api/direct-db-test.php');
+    
+    // Si la requête échoue, lancer une erreur
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || `Erreur de connexion à la base de données: ${response.statusText}`);
+    }
+    
+    // Essayer d'analyser la réponse JSON
+    const data = await response.json();
+    
+    if (data.status !== 'success') {
+      throw new Error(data.message || "Échec de la récupération des informations de la base de données");
+    }
+    
+    // Extraire et formater les informations de la base de données
+    return {
+      host: currentUser ? `${currentUser}.myd.infomaniak.com` : data.host || 'p71x6d.myd.infomaniak.com',
+      database: currentUser || data.database || 'p71x6d_system',
+      size: data.size || '0 MB',
+      tables: data.tables ? data.tables.length : 0,
+      lastBackup: new Date().toISOString().split('T')[0] + ' 00:00:00',
+      status: data.status === 'success' ? 'Online' : 'Offline',
+      encoding: data.encoding || 'utf8mb4',
+      collation: data.collation || 'utf8mb4_unicode_ci',
+      tableList: data.tables || []
+    };
+  } catch (error) {
+    console.error('Erreur lors de la récupération des informations de la base de données:', error);
+    // Lancer l'erreur pour la propager au composant appelant
+    throw error;
+  }
 };
