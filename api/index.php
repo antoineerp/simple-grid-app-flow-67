@@ -1,3 +1,4 @@
+
 <?php
 // Forcer l'output buffering pour éviter tout output avant les headers
 ob_start();
@@ -21,19 +22,16 @@ error_log("API Request - URI: " . ($_SERVER['REQUEST_URI'] ?? 'UNDEFINED'));
 error_log("API Request - Path: " . parse_url($_SERVER['REQUEST_URI'] ?? '', PHP_URL_PATH));
 error_log("API Request - Query: " . parse_url($_SERVER['REQUEST_URI'] ?? '', PHP_URL_QUERY));
 
-// Charger l'utilitaire de gestion des erreurs HTTP
-$httpErrorHandlerPath = __DIR__ . '/utils/HttpErrorHandler.php';
-if (file_exists($httpErrorHandlerPath)) {
-    require_once $httpErrorHandlerPath;
-} else {
-    // Fallback si le fichier de gestion d'erreurs n'est pas disponible
-    function handleSimpleError($code, $message) {
-        http_response_code($code);
-        echo json_encode(['status' => 'error', 'code' => $code, 'message' => $message]);
-        exit;
-    }
-    // Log important pour débogage
-    error_log("ERREUR CRITIQUE: Impossible de charger HttpErrorHandler.php - Le fichier n'existe pas à: " . $httpErrorHandlerPath);
+// Fonction simple pour gérer les erreurs (ne dépend pas de HttpErrorHandler)
+function handleSimpleError($code, $message, $details = []) {
+    http_response_code($code);
+    echo json_encode([
+        'status' => 'error', 
+        'code' => $code, 
+        'message' => $message,
+        'details' => $details
+    ]);
+    exit;
 }
 
 // Si c'est une requête OPTIONS (preflight), nous la terminons ici
@@ -76,142 +74,258 @@ function routeApi() {
         case 'diagnose':
         case 'diagnostic-complet':
             // Diagnostic complet du serveur
-            require_once __DIR__ . '/diagnose.php';
+            if (file_exists(__DIR__ . '/diagnose.php')) {
+                require_once __DIR__ . '/diagnose.php';
+            } else {
+                handleSimpleError(404, "Fichier de diagnostic introuvable", ['path' => $path]);
+            }
             exit;
             
         case 'diagnostic':
             // Diagnostic de l'API
-            require_once __DIR__ . '/diagnostic.php';
+            if (file_exists(__DIR__ . '/diagnostic.php')) {
+                require_once __DIR__ . '/diagnostic.php';
+            } else {
+                handleSimpleError(404, "Fichier de diagnostic introuvable", ['path' => $path]);
+            }
             exit;
         
         case 'config':
         case 'config.php':
             // Configuration de l'API
-            require_once __DIR__ . '/config.php';
+            if (file_exists(__DIR__ . '/config.php')) {
+                require_once __DIR__ . '/config.php';
+            } else {
+                handleSimpleError(404, "Fichier de configuration introuvable", ['path' => $path]);
+            }
             exit;
             
         case 'config-test':
         case 'config-test.php':
             // Configuration de test de l'API
-            require_once __DIR__ . '/config-test.php';
+            if (file_exists(__DIR__ . '/config-test.php')) {
+                require_once __DIR__ . '/config-test.php';
+            } else {
+                handleSimpleError(404, "Fichier de test de configuration introuvable", ['path' => $path]);
+            }
             exit;
         
         case 'database-diagnostic':
             // Rediriger vers le diagnostic de base de données (fichier principal)
-            require_once __DIR__ . '/database-diagnostic.php';
+            if (file_exists(__DIR__ . '/database-diagnostic.php')) {
+                require_once __DIR__ . '/database-diagnostic.php';
+            } else {
+                handleSimpleError(404, "Fichier de diagnostic de base de données introuvable", ['path' => $path]);
+            }
             exit;
             
         case 'db-diagnostic':
         case 'db-diagnostic.php':
             // Rediriger vers notre fichier db-diagnostic optimisé
-            require_once __DIR__ . '/db-diagnostic.php';
+            if (file_exists(__DIR__ . '/db-diagnostic.php')) {
+                require_once __DIR__ . '/db-diagnostic.php';
+            } else {
+                handleSimpleError(404, "Fichier de diagnostic de base de données optimisé introuvable", ['path' => $path]);
+            }
             exit;
             
         case 'database-diagnostics':
             // Rediriger vers le diagnostic alternatif si le fichier existe
             if (file_exists(__DIR__ . '/database-diagnostics.php')) {
                 require_once __DIR__ . '/database-diagnostics.php';
-            } else {
+            } elseif (file_exists(__DIR__ . '/database-diagnostic.php')) {
                 // Utiliser database-diagnostic.php comme alternative
                 require_once __DIR__ . '/database-diagnostic.php';
+            } else {
+                handleSimpleError(404, "Fichiers de diagnostic de base de données introuvables", ['path' => $path]);
             }
             exit;
             
         case 'db-info':
         case 'db-info.php':
             // Nouveau point d'entrée pour les informations de base de données
-            require_once __DIR__ . '/db-info.php';
+            if (file_exists(__DIR__ . '/db-info.php')) {
+                require_once __DIR__ . '/db-info.php';
+            } else {
+                handleSimpleError(404, "Fichier d'informations de base de données introuvable", ['path' => $path]);
+            }
             exit;
         
         case 'database-config':
         case 'database-config.php':
             // Point d'entrée pour la configuration de la base de données
-            require_once __DIR__ . '/database-config.php';
+            if (file_exists(__DIR__ . '/database-config.php')) {
+                require_once __DIR__ . '/database-config.php';
+            } else {
+                handleSimpleError(404, "Fichier de configuration de base de données introuvable", ['path' => $path]);
+            }
             exit;
             
         case 'users':
         case 'utilisateurs': // Ajouter un alias pour la compatibilité avec d'anciennes URLs
             // Rediriger vers le contrôleur d'utilisateurs
-            require_once __DIR__ . '/users.php';
+            if (file_exists(__DIR__ . '/users.php')) {
+                require_once __DIR__ . '/users.php';
+            } else {
+                handleSimpleError(404, "Contrôleur d'utilisateurs introuvable", ['path' => $path]);
+            }
             exit;
             
         case 'database-test':
             // Rediriger vers le test de base de données
-            require_once __DIR__ . '/database-test.php';
+            if (file_exists(__DIR__ . '/database-test.php')) {
+                require_once __DIR__ . '/database-test.php';
+            } else {
+                handleSimpleError(404, "Fichier de test de base de données introuvable", ['path' => $path]);
+            }
             exit;
             
         case 'db-connection-test':
             // Rediriger vers le test de connexion
-            require_once __DIR__ . '/db-connection-test.php';
+            if (file_exists(__DIR__ . '/db-connection-test.php')) {
+                require_once __DIR__ . '/db-connection-test.php';
+            } else {
+                handleSimpleError(404, "Fichier de test de connexion introuvable", ['path' => $path]);
+            }
             exit;
             
         case 'check-users':
             // Rediriger vers la vérification des utilisateurs
-            require_once __DIR__ . '/check-users.php';
+            if (file_exists(__DIR__ . '/check-users.php')) {
+                require_once __DIR__ . '/check-users.php';
+            } else {
+                handleSimpleError(404, "Fichier de vérification des utilisateurs introuvable", ['path' => $path]);
+            }
             exit;
             
         case 'user-diagnostic':
         case 'user-diagnostic.php':
-            // Rediriger vers le diagnostic utilisateur (corrigé pour inclure les deux formats)
+            // Rediriger vers le diagnostic utilisateur
             if (file_exists(__DIR__ . '/user-diagnostic.php')) {
                 require_once __DIR__ . '/user-diagnostic.php';
             } else {
-                HttpErrorHandler::handleNotFound("Fichier de diagnostic utilisateur introuvable", $path);
+                handleSimpleError(404, "Fichier de diagnostic utilisateur introuvable", ['path' => $path]);
             }
             exit;
             
         case 'error-log':
         case 'error-log.php':
             // Point d'entrée pour le diagnostic des erreurs
-            require_once __DIR__ . '/error-log.php';
+            if (file_exists(__DIR__ . '/error-log.php')) {
+                require_once __DIR__ . '/error-log.php';
+            } else {
+                handleSimpleError(404, "Fichier de diagnostic des erreurs introuvable", ['path' => $path]);
+            }
             exit;
             
         case 'documents-load':
         case 'documents-load.php':
             // Chargement des documents
-            require_once __DIR__ . '/documents-load.php';
+            if (file_exists(__DIR__ . '/documents-load.php')) {
+                require_once __DIR__ . '/documents-load.php';
+            } else {
+                handleSimpleError(404, "Fichier de chargement des documents introuvable", ['path' => $path]);
+            }
             exit;
             
         case 'documents-sync':
         case 'documents-sync.php':
             // Synchronisation des documents
-            require_once __DIR__ . '/documents-sync.php';
+            if (file_exists(__DIR__ . '/documents-sync.php')) {
+                require_once __DIR__ . '/documents-sync.php';
+            } else {
+                handleSimpleError(404, "Fichier de synchronisation des documents introuvable", ['path' => $path]);
+            }
             exit;
             
         case 'exigences-load':
         case 'exigences-load.php':
             // Chargement des exigences
-            require_once __DIR__ . '/exigences-load.php';
+            if (file_exists(__DIR__ . '/exigences-load.php')) {
+                require_once __DIR__ . '/exigences-load.php';
+            } else {
+                handleSimpleError(404, "Fichier de chargement des exigences introuvable", ['path' => $path]);
+            }
             exit;
             
         case 'exigences-sync':
         case 'exigences-sync.php':
             // Synchronisation des exigences
-            require_once __DIR__ . '/exigences-sync.php';
+            if (file_exists(__DIR__ . '/exigences-sync.php')) {
+                require_once __DIR__ . '/exigences-sync.php';
+            } else {
+                handleSimpleError(404, "Fichier de synchronisation des exigences introuvable", ['path' => $path]);
+            }
             exit;
             
         case 'membres-load':
         case 'membres-load.php':
             // Chargement des membres
-            require_once __DIR__ . '/membres-load.php';
+            if (file_exists(__DIR__ . '/membres-load.php')) {
+                require_once __DIR__ . '/membres-load.php';
+            } else {
+                handleSimpleError(404, "Fichier de chargement des membres introuvable", ['path' => $path]);
+            }
             exit;
             
         case 'membres-sync':
         case 'membres-sync.php':
             // Synchronisation des membres
-            require_once __DIR__ . '/membres-sync.php';
+            if (file_exists(__DIR__ . '/membres-sync.php')) {
+                require_once __DIR__ . '/membres-sync.php';
+            } else {
+                handleSimpleError(404, "Fichier de synchronisation des membres introuvable", ['path' => $path]);
+            }
             exit;
             
         case 'bibliotheque-load':
         case 'bibliotheque-load.php':
             // Chargement de la bibliothèque
-            require_once __DIR__ . '/bibliotheque-load.php';
+            if (file_exists(__DIR__ . '/bibliotheque-load.php')) {
+                require_once __DIR__ . '/bibliotheque-load.php';
+            } else {
+                handleSimpleError(404, "Fichier de chargement de la bibliothèque introuvable", ['path' => $path]);
+            }
             exit;
             
         case 'bibliotheque-sync':
         case 'bibliotheque-sync.php':
             // Synchronisation de la bibliothèque
-            require_once __DIR__ . '/bibliotheque-sync.php';
+            if (file_exists(__DIR__ . '/bibliotheque-sync.php')) {
+                require_once __DIR__ . '/bibliotheque-sync.php';
+            } else {
+                handleSimpleError(404, "Fichier de synchronisation de la bibliothèque introuvable", ['path' => $path]);
+            }
+            exit;
+            
+        case 'server-status':
+        case 'server-status.php':
+            // Diagnostic du statut du serveur
+            if (file_exists(__DIR__ . '/server-status.php')) {
+                require_once __DIR__ . '/server-status.php';
+            } else {
+                handleSimpleError(404, "Fichier de statut du serveur introuvable", ['path' => $path]);
+            }
+            exit;
+            
+        case 'phpinfo-test':
+        case 'phpinfo-test.php':
+            // Test phpinfo
+            if (file_exists(__DIR__ . '/phpinfo-test.php')) {
+                require_once __DIR__ . '/phpinfo-test.php';
+            } else {
+                handleSimpleError(404, "Fichier de test phpinfo introuvable", ['path' => $path]);
+            }
+            exit;
+            
+        case 'clear-log':
+        case 'clear-log.php':
+            // Nettoyage des logs
+            if (file_exists(__DIR__ . '/clear-log.php')) {
+                require_once __DIR__ . '/clear-log.php';
+            } else {
+                handleSimpleError(404, "Fichier de nettoyage des logs introuvable", ['path' => $path]);
+            }
             exit;
             
         default:
@@ -223,11 +337,7 @@ function routeApi() {
                 try {
                     require_once $direct_file_path;
                 } catch (Exception $e) {
-                    if (class_exists('HttpErrorHandler')) {
-                        HttpErrorHandler::handleServerError("Erreur lors de l'exécution du fichier: {$path}", $e);
-                    } else {
-                        handleSimpleError(500, "Erreur lors de l'exécution du fichier: {$path}");
-                    }
+                    handleSimpleError(500, "Erreur lors de l'exécution du fichier: {$path}", ['error' => $e->getMessage()]);
                 }
                 exit;
             }
@@ -236,21 +346,13 @@ function routeApi() {
                 try {
                     require_once $direct_file_path_with_php;
                 } catch (Exception $e) {
-                    if (class_exists('HttpErrorHandler')) {
-                        HttpErrorHandler::handleServerError("Erreur lors de l'exécution du fichier: {$path}.php", $e);
-                    } else {
-                        handleSimpleError(500, "Erreur lors de l'exécution du fichier: {$path}.php");
-                    }
+                    handleSimpleError(500, "Erreur lors de l'exécution du fichier: {$path}.php", ['error' => $e->getMessage()]);
                 }
                 exit;
             }
             
             // Si aucun contrôleur n'est trouvé, renvoyer une erreur 404
-            if (class_exists('HttpErrorHandler')) {
-                HttpErrorHandler::handleNotFound("Point de terminaison non trouvé", $path);
-            } else {
-                handleSimpleError(404, "Point de terminaison non trouvé: " . $path);
-            }
+            handleSimpleError(404, "Point de terminaison non trouvé", ['path' => $path]);
     }
 }
 
@@ -271,7 +373,10 @@ function diagnoseRequest() {
             '/api/database-test' => 'Test de connexion à la base de données',
             '/api/check-users' => 'Vérification des utilisateurs',
             '/api/user-diagnostic' => 'Diagnostic des utilisateurs',
-            '/api/error-log' => 'Diagnostic des erreurs PHP et du serveur'
+            '/api/error-log' => 'Diagnostic des erreurs PHP et du serveur',
+            '/api/server-status' => 'Statut du serveur',
+            '/api/phpinfo-test' => 'Test phpinfo',
+            '/api/clear-log' => 'Nettoyage des logs'
         ],
         'server_details' => [
             'php_version' => phpversion(),
@@ -296,11 +401,7 @@ try {
     }
 } catch (Exception $e) {
     error_log("Erreur API : " . $e->getMessage());
-    if (class_exists('HttpErrorHandler')) {
-        HttpErrorHandler::handleServerError("Erreur lors du traitement de la requête", $e);
-    } else {
-        handleSimpleError(500, "Erreur lors du traitement de la requête: " . $e->getMessage());
-    }
+    handleSimpleError(500, "Erreur lors du traitement de la requête", ['error' => $e->getMessage()]);
 } finally {
     // S'assurer que tout output est envoyé
     if (ob_get_length()) ob_end_flush();
