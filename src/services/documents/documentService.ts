@@ -1,16 +1,18 @@
 
-import { Document } from '@/types/documents';
+import { Document, DocumentStats } from '@/types/documents';
 import { getApiUrl } from '@/config/apiConfig';
 import { getAuthHeaders } from '@/services/auth/authService';
+import { getCurrentUser } from '@/services/core/databaseConnectionService';
 
 /**
  * Chargement des documents depuis le serveur pour un utilisateur spécifique
  */
-export const loadDocumentsFromServer = async (userId: string): Promise<Document[]> => {
+export const loadDocumentsFromServer = async (userId: string | null = null): Promise<Document[]> => {
   try {
-    console.log(`Chargement des documents pour l'utilisateur ${userId}`);
+    const currentUser = userId || getCurrentUser() || 'p71x6d_system';
+    console.log(`Chargement des documents pour l'utilisateur ${currentUser}`);
     
-    const response = await fetch(`${getApiUrl()}/documents-load.php?user=${userId}`, {
+    const response = await fetch(`${getApiUrl()}/documents-load.php?user=${currentUser}`, {
       method: 'GET',
       headers: getAuthHeaders()
     });
@@ -39,15 +41,16 @@ export const loadDocumentsFromServer = async (userId: string): Promise<Document[
 /**
  * Synchronisation des documents avec le serveur
  */
-export const syncDocumentsWithServer = async (documents: Document[], userId: string): Promise<boolean> => {
+export const syncDocumentsWithServer = async (documents: Document[], userId: string | null = null): Promise<boolean> => {
   try {
-    console.log(`Synchronisation des documents pour l'utilisateur ${userId}`);
+    const currentUser = userId || getCurrentUser() || 'p71x6d_system';
+    console.log(`Synchronisation des documents pour l'utilisateur ${currentUser}`);
     
     const response = await fetch(`${getApiUrl()}/documents-sync.php`, {
       method: 'POST',
       headers: getAuthHeaders(),
       body: JSON.stringify({
-        user: userId,
+        user: currentUser,
         documents: documents
       })
     });
@@ -64,4 +67,17 @@ export const syncDocumentsWithServer = async (documents: Document[], userId: str
     console.error('Erreur lors de la synchronisation des documents:', error);
     return false;
   }
+};
+
+/**
+ * Calculate document statistics
+ */
+export const calculateDocumentStats = (documents: Document[]): DocumentStats => {
+  return {
+    exclusion: documents.filter(doc => doc.etat === 'EX').length,
+    nonConforme: documents.filter(doc => doc.etat === 'NC').length,
+    partiellementConforme: documents.filter(doc => doc.etat === 'PC').length,
+    conforme: documents.filter(doc => doc.etat === 'C').length,
+    total: documents.length
+  };
 };

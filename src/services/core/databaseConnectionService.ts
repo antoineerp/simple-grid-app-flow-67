@@ -1,7 +1,14 @@
-// Fonction pour récupérer l'utilisateur actuel depuis localStorage ou mémoire
+
+import { getApiUrl } from '@/config/apiConfig';
+import { getAuthHeaders } from '@/services/auth/authService';
+
+// Variable en mémoire pour stocker l'utilisateur actuel
+let currentDatabaseUser: string | null = null;
+
+// Fonction pour récupérer l'utilisateur actuel depuis la mémoire ou token JWT
 export const getCurrentUser = (): string | null => {
-  const storedUser = localStorage.getItem('currentUser');
-  if (storedUser) return storedUser;
+  // Si nous avons déjà récupéré l'utilisateur, le renvoyer
+  if (currentDatabaseUser) return currentDatabaseUser;
   
   // Essayer de récupérer depuis l'authentification
   try {
@@ -17,6 +24,7 @@ export const getCurrentUser = (): string | null => {
 
       const userData = JSON.parse(jsonPayload);
       if (userData.user && userData.user.identifiant_technique) {
+        currentDatabaseUser = userData.user.identifiant_technique;
         return userData.user.identifiant_technique;
       }
     }
@@ -24,25 +32,24 @@ export const getCurrentUser = (): string | null => {
     console.error("Erreur lors de la récupération de l'utilisateur depuis le token:", error);
   }
   
+  // Valeur par défaut pour les opérations sans authentification
   return 'p71x6d_system';
 };
 
 // Fonction pour définir l'utilisateur actuel
 export const setCurrentUser = (userId: string): void => {
-  if (!userId || !userId.startsWith('p71x6d_')) {
+  if (!userId || typeof userId !== 'string' || !userId.startsWith('p71x6d_')) {
     console.error(`Tentative d'utilisation d'un identifiant technique invalide: ${userId}`);
     userId = 'p71x6d_system';
   }
   
-  localStorage.setItem('currentDatabaseUser', userId);
-  localStorage.setItem('currentUser', userId);
+  currentDatabaseUser = userId;
   console.log(`Utilisateur défini: ${userId}`);
 };
 
 // Fonction pour supprimer l'utilisateur actuel
 export const removeCurrentUser = (): void => {
-  localStorage.removeItem('currentDatabaseUser');
-  localStorage.removeItem('currentUser');
+  currentDatabaseUser = null;
 };
 
 // Variable pour stocker la dernière erreur de connexion
@@ -88,7 +95,7 @@ export const disconnectUser = (): void => {
 
 // Fonction pour obtenir l'utilisateur actuel de la connexion à la base de données
 export const getDatabaseConnectionCurrentUser = (): string | null => {
-  return localStorage.getItem('currentDatabaseUser') || 'p71x6d_system';
+  return currentDatabaseUser || 'p71x6d_system';
 };
 
 // Interface pour les informations de base de données
@@ -109,7 +116,10 @@ export const testDatabaseConnection = async (): Promise<boolean> => {
   try {
     console.log("Test de connexion à la base de données via direct-db-test.php");
     // Utiliser direct-db-test.php pour tester la connexion réelle
-    const response = await fetch('/api/direct-db-test.php');
+    const response = await fetch(`${getApiUrl()}/direct-db-test.php`, {
+      headers: getAuthHeaders()
+    });
+    
     if (!response.ok) {
       const errorData = await response.json();
       const errorMessage = errorData.message || response.statusText;
@@ -138,7 +148,9 @@ export const getDatabaseInfo = async (): Promise<DatabaseInfo> => {
     console.log(`Récupération des informations de base de données pour: ${currentUser || 'utilisateur par défaut'}`);
     
     // Appel direct au diagnostic de base de données pour obtenir des informations réelles
-    const response = await fetch('/api/direct-db-test.php');
+    const response = await fetch(`${getApiUrl()}/direct-db-test.php`, {
+      headers: getAuthHeaders() 
+    });
     
     // Si la requête échoue, lancer une erreur
     if (!response.ok) {
@@ -204,7 +216,7 @@ export const initializeCurrentUser = (): void => {
       const userData = JSON.parse(jsonPayload);
       if (userData.user && userData.user.identifiant_technique) {
         setCurrentUser(userData.user.identifiant_technique);
-        console.log(`Utilisateur initialisé depuis le token: ${userData.user.identifiant_technique}`);
+        console.log(`Utilisateur initialisé depuis le token JWT: ${userData.user.identifiant_technique}`);
         return;
       }
     }
@@ -212,8 +224,7 @@ export const initializeCurrentUser = (): void => {
     console.error("Erreur lors de l'initialisation de l'utilisateur depuis le token:", error);
   }
   
-  // Si aucun utilisateur n'est trouvé dans le token, utiliser celui du localStorage ou le défaut
-  const storedUser = localStorage.getItem('currentUser') || 'p71x6d_system';
-  setCurrentUser(storedUser);
-  console.log(`Utilisateur initialisé depuis localStorage: ${storedUser}`);
+  // Si aucun utilisateur n'est trouvé dans le token, utiliser la valeur par défaut
+  setCurrentUser('p71x6d_system');
+  console.log(`Utilisateur initialisé avec la valeur par défaut: p71x6d_system`);
 };

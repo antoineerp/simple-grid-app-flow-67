@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { ChevronDown, Upload, LogOut, Settings, Database, Users, LogIn } from 'lucide-react';
+import { ChevronDown, LogOut, Settings, Database, Users } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from "@/hooks/use-toast";
 import LogoSelector from './LogoSelector';
@@ -15,36 +15,24 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
-  getCurrentUser,
-  removeCurrentUser
+  getCurrentUser as getDatabaseUser,
 } from '@/services/core/databaseConnectionService';
-import { logout } from '@/services/auth/authService';
+import { logout, getCurrentUser } from '@/services/auth/authService';
 
 const Header = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const [logo, setLogo] = useState(() => {
-    const savedLogo = localStorage.getItem('appLogo');
-    return savedLogo || "/lovable-uploads/4c7adb52-3da0-4757-acbf-50a1eb1d4bf5.png";
-  });
-  const [userRole, setUserRole] = useState(() => {
-    return localStorage.getItem('userRole') || 'utilisateur';
-  });
-  const [currentDatabaseUser, setCurrentDatabaseUser] = useState<string | null>(getCurrentUser());
+  const [logo, setLogo] = useState("/lovable-uploads/4c7adb52-3da0-4757-acbf-50a1eb1d4bf5.png");
+  const [currentDatabaseUser, setCurrentDatabaseUser] = useState<string | null>(getDatabaseUser());
   
-  // New state for storing user display name
-  const [userDisplayName, setUserDisplayName] = useState<string>(() => {
-    // Try to get user name from localStorage, fallback to technical identifier
-    return localStorage.getItem('userName') || 
-           localStorage.getItem('currentUser') || 
-           'Utilisateur';
-  });
+  // Obtenir les informations utilisateur depuis le token JWT
+  const user = getCurrentUser();
+  const userRole = user?.role || 'utilisateur';
+  const userDisplayName = user ? `${user.prenom || ''} ${user.nom || ''}`.trim() : 'Utilisateur';
 
   useEffect(() => {
-    localStorage.setItem('appLogo', logo);
-    
     const checkDatabaseUser = () => {
-      const dbUser = getCurrentUser();
+      const dbUser = getDatabaseUser();
       if (dbUser !== currentDatabaseUser) {
         setCurrentDatabaseUser(dbUser);
       }
@@ -53,22 +41,11 @@ const Header = () => {
     const interval = setInterval(checkDatabaseUser, 2000);
     
     return () => clearInterval(interval);
-  }, [logo, currentDatabaseUser]);
+  }, [currentDatabaseUser]);
 
   const handleLogout = () => {
     // Appel à la fonction logout du service d'authentification
     logout();
-    
-    // Suppression de l'utilisateur courant de la base de données
-    removeCurrentUser();
-    
-    // Nettoyage explicite du localStorage pour s'assurer que tous les éléments sont supprimés
-    localStorage.removeItem('isLoggedIn');
-    localStorage.removeItem('authToken');
-    localStorage.removeItem('currentDatabaseUser');
-    localStorage.removeItem('userName');
-    localStorage.removeItem('userRole');
-    localStorage.removeItem('currentUser');
     
     toast({
       title: "Déconnexion réussie",
