@@ -4,13 +4,7 @@ const apiUrl = getApiBaseUrl();
 
 // Fonction pour déterminer l'URL de base de l'API en fonction de l'environnement
 function getApiBaseUrl(): string {
-  // Détection automatique de l'environnement
-  const isLocalhost = 
-    window.location.hostname === 'localhost' || 
-    window.location.hostname === '127.0.0.1' ||
-    window.location.hostname.includes('.local');
-    
-  // En production (déploiement sur Infomaniak), on utilise le chemin relatif
+  // Pour Infomaniak, on utilise toujours le chemin relatif
   return '/api';
 }
 
