@@ -12,6 +12,9 @@ const extractValidUserId = (userId: any): string => {
   }
   
   if (userId && typeof userId === 'object') {
+    // Journaliser l'identifiant reçu pour débogage
+    console.log("Identifiant objet reçu:", userId);
+    
     return userId.identifiant_technique || 
            userId.email || 
            'p71x6d_system';
@@ -35,11 +38,14 @@ export const loadMembresFromServer = async (currentUser: any): Promise<Membre[]>
     const encodedUserId = encodeURIComponent(userId);
     const url = `${API_URL}/membres-load.php?userId=${encodedUserId}`;
     
+    // Ajouter un timestamp pour éviter la mise en cache
+    const urlWithTimestamp = `${url}&_t=${new Date().getTime()}`;
+    
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 secondes de timeout
     
     try {
-      const response = await fetch(url, {
+      const response = await fetch(urlWithTimestamp, {
         method: 'GET',
         headers: getAuthHeaders(),
         cache: 'no-store',
