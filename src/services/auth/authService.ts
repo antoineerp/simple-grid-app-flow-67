@@ -1,6 +1,22 @@
 
 import { getApiUrl } from '@/config/apiConfig';
-import { User, AuthResponse } from '@/types/auth';
+
+export interface User {
+  id?: string;
+  username?: string;
+  identifiant_technique?: string;
+  email?: string;
+  role?: string;
+  nom?: string;
+  prenom?: string;
+}
+
+export interface AuthResponse {
+  success: boolean;
+  token?: string;
+  user?: User;
+  message?: string;
+}
 
 export const getCurrentUser = (): User | null => {
   const token = sessionStorage.getItem('authToken');

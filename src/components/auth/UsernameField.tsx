@@ -29,7 +29,6 @@ const UsernameField: React.FC<UsernameFieldProps> = ({ control }) => {
               onBlur={(e) => {
                 const value = e.target.value.trim();
                 console.log("Nom d'utilisateur validé:", value);
-                console.log("Nom d'utilisateur saisi:", value);
                 field.onBlur();
               }}
             />

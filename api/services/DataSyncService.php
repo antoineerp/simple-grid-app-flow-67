@@ -6,7 +6,7 @@ require_once 'TransactionManager.php';
 
 class DataSyncService {
     protected $connection = null;
-    public $tableName = '';
+    public $tableName = '';  // Changed from protected to public
     protected $userId = '';
     protected $tableManager;
     protected $transactionManager;

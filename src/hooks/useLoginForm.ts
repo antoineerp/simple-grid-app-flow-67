@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { login } from '@/services/auth/authService';
 import { useToast } from '@/hooks/use-toast';
 
-interface LoginFormValues {
+export interface LoginFormValues {
   username: string;
   password: string;
 }
@@ -15,6 +15,9 @@ export const useLoginForm = () => {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [hasDbError, setHasDbError] = useState(false);
+  const [hasServerError, setHasServerError] = useState(false);
+  const [hasAuthError, setHasAuthError] = useState(false);
   
   const form = useForm<LoginFormValues>({
     defaultValues: {
@@ -26,6 +29,16 @@ export const useLoginForm = () => {
   const onSubmit = async (values: LoginFormValues) => {
     setIsLoading(true);
     setError(null);
+    setHasDbError(false);
+    setHasServerError(false);
+    setHasAuthError(false);
+    
+    // Special test for antcirier@gmail.com
+    if (values.username === 'antcirier@gmail.com') {
+      console.log('Utilisateur spécial détecté:', values.username);
+      console.log('Mot de passe attendu: password123 ou Password123!');
+      console.log('Mot de passe fourni (longueur):', values.password.length);
+    }
     
     try {
       const result = await login(values.username, values.password);
@@ -40,6 +53,16 @@ export const useLoginForm = () => {
         navigate('/pilotage');
       } else {
         setError(result.message || 'Échec de la connexion');
+        
+        // Déterminer le type d'erreur
+        if (result.message?.includes('base de données')) {
+          setHasDbError(true);
+        } else if (result.message?.includes('serveur')) {
+          setHasServerError(true);
+        } else {
+          setHasAuthError(true);
+        }
+        
         toast({
           title: "Erreur de connexion",
           description: result.message || "Identifiants invalides",
@@ -49,6 +72,16 @@ export const useLoginForm = () => {
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "Erreur lors de la connexion";
       setError(errorMessage);
+      
+      // Déterminer le type d'erreur
+      if (errorMessage.includes('base de données')) {
+        setHasDbError(true);
+      } else if (errorMessage.includes('serveur')) {
+        setHasServerError(true);
+      } else {
+        setHasAuthError(true);
+      }
+      
       toast({
         title: "Erreur",
         description: errorMessage,
@@ -63,6 +96,9 @@ export const useLoginForm = () => {
     form,
     isLoading,
     error,
-    onSubmit
+    hasDbError,
+    hasServerError,
+    hasAuthError,
+    onSubmit: form.handleSubmit(onSubmit)
   };
 };
