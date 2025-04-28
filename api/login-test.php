@@ -43,7 +43,89 @@ if (!$data || !isset($data['username']) || !isset($data['password'])) {
     exit;
 }
 
-// Utilisateurs de test
+// Extraire les données
+$username = $data['username'];
+$password = $data['password'];
+
+// Journaliser l'utilisateur qui tente de se connecter
+error_log("Tentative de connexion pour: " . $username);
+
+// Essayer d'abord de vérifier dans la base de données
+try {
+    // Configuration de la base de données (identique à celle de membres-load.php)
+    $host = "p71x6d.myd.infomaniak.com";
+    $dbname = "p71x6d_system";
+    $db_username = "p71x6d_system";
+    $db_password = "Trottinette43!";
+    
+    // Connexion à la base de données
+    $pdo = new PDO("mysql:host={$host};dbname={$dbname};charset=utf8mb4", $db_username, $db_password, [
+        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+        PDO::ATTR_EMULATE_PREPARES => false,
+    ]);
+    
+    error_log("Connexion à la base de données réussie, recherche de l'utilisateur: " . $username);
+    
+    // Rechercher d'abord par email
+    $query = "SELECT * FROM utilisateurs WHERE email = ? LIMIT 1";
+    $stmt = $pdo->prepare($query);
+    $stmt->execute([$username]);
+    $user = $stmt->fetch();
+    
+    // Si pas trouvé par email, essayer par identifiant technique
+    if (!$user) {
+        $query = "SELECT * FROM utilisateurs WHERE identifiant_technique = ? LIMIT 1";
+        $stmt = $pdo->prepare($query);
+        $stmt->execute([$username]);
+        $user = $stmt->fetch();
+    }
+    
+    // Si l'utilisateur est trouvé dans la base de données
+    if ($user) {
+        error_log("Utilisateur trouvé en base de données: " . $user['email']);
+        
+        // Vérifier le mot de passe (texte simple ou haché)
+        $valid_password = ($password === $user['mot_de_passe']) || 
+                          (function_exists('password_verify') && password_verify($password, $user['mot_de_passe']));
+        
+        if ($valid_password) {
+            error_log("Authentification réussie pour l'utilisateur en base de données");
+            
+            // Générer un token simple
+            $token = base64_encode(json_encode([
+                'user' => $user['identifiant_technique'],
+                'role' => $user['role'],
+                'exp' => time() + 3600
+            ]));
+            
+            http_response_code(200);
+            echo json_encode([
+                'message' => 'Connexion réussie (via BD)',
+                'token' => $token,
+                'user' => [
+                    'id' => $user['id'],
+                    'nom' => $user['nom'],
+                    'prenom' => $user['prenom'],
+                    'email' => $user['email'],
+                    'identifiant_technique' => $user['identifiant_technique'],
+                    'role' => $user['role']
+                ]
+            ]);
+            exit;
+        }
+        
+        error_log("Mot de passe incorrect pour l'utilisateur de la base de données");
+        // Ne pas sortir ici, continuer pour vérifier les utilisateurs test
+    } else {
+        error_log("Utilisateur non trouvé en base de données, vérification des utilisateurs test");
+    }
+} catch (PDOException $e) {
+    error_log("Erreur de base de données: " . $e->getMessage());
+    // Continuer pour vérifier les utilisateurs test
+}
+
+// Utilisateurs de test (fallback)
 $test_users = [
     'admin' => ['password' => 'admin123', 'role' => 'admin'],
     'p71x6d_system' => ['password' => 'Trottinette43!', 'role' => 'admin'],
@@ -52,14 +134,7 @@ $test_users = [
     'p71x6d_martin' => ['password' => 'user789', 'role' => 'utilisateur']
 ];
 
-// Extraire les données
-$username = $data['username'];
-$password = $data['password'];
-
-// Journaliser l'utilisateur qui tente de se connecter
-error_log("Tentative de connexion pour: " . $username);
-
-// Vérifier l'existence de l'utilisateur
+// Vérifier l'existence de l'utilisateur dans la liste de test
 $username_exists = array_key_exists($username, $test_users);
 $available_users = array_keys($test_users);
 
@@ -98,7 +173,7 @@ if ($username_exists) {
     $user_role = $user_data['role'];
 }
 
-// Réponse
+// Réponse pour les utilisateurs de test
 if ($is_authenticated) {
     // Générer un token simple
     $token = base64_encode(json_encode([

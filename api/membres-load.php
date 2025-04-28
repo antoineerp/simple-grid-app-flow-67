@@ -54,9 +54,10 @@ try {
     error_log("Table à consulter: {$tableName}");
     
     // Vérifier si la table existe
-    $tableExistsQuery = "SHOW TABLES LIKE ?";
+    $tableExistsQuery = "SHOW TABLES LIKE :tableName";
     $stmt = $pdo->prepare($tableExistsQuery);
-    $stmt->execute([$tableName]);
+    $stmt->bindParam(':tableName', $tableName);
+    $stmt->execute();
     $tableExists = $stmt->rowCount() > 0;
     
     if (!$tableExists) {
@@ -71,7 +72,6 @@ try {
     }
     
     // Récupérer les membres depuis la table - Construction sécurisée de la requête
-    // Utiliser la syntaxe des backticks pour échapper les noms de tables
     $query = "SELECT * FROM `" . $tableName . "` ORDER BY nom, prenom";
     error_log("Exécution de la requête: {$query}");
     
