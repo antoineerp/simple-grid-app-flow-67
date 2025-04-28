@@ -91,8 +91,10 @@ function routeApi() {
         
         case 'config':
         case 'config.php':
-            // Configuration de l'API
-            if (file_exists(__DIR__ . '/config.php')) {
+            // Configuration de l'API - Utiliser un chemin absolu
+            if (file_exists(__DIR__ . '/controllers/ConfigController.php')) {
+                require_once __DIR__ . '/controllers/ConfigController.php';
+            } else if (file_exists(__DIR__ . '/config.php')) {
                 require_once __DIR__ . '/config.php';
             } else {
                 handleSimpleError(404, "Fichier de configuration introuvable", ['path' => $path]);

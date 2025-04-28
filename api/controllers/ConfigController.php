@@ -1,8 +1,9 @@
 
 <?php
-// Inclure notre fichier de configuration d'environnement s'il n'est pas déjà inclus
+// Use absolute path for including configuration files
 if (!function_exists('env')) {
-    require_once __DIR__ . '/../config/env.php';
+    // Updated path to use __DIR__ for absolute path resolution
+    require_once __DIR__ . '/../../api/config/env.php';
 }
 
 // Déterminer l'environnement
@@ -41,9 +42,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
 // Journaliser l'accès à ce contrôleur (pour débogage)
 error_log("Accès au ConfigController - Méthode: " . $_SERVER['REQUEST_METHOD']);
 
-// Inclusion des fichiers nécessaires
-include_once __DIR__ . '/../config/database.php';
-include_once __DIR__ . '/../middleware/Auth.php';
+// Inclusion des fichiers nécessaires avec chemins absolus
+include_once __DIR__ . '/../../api/config/database.php';
+include_once __DIR__ . '/../../api/middleware/Auth.php';
 
 // Récupérer les en-têtes pour l'authentification
 $allHeaders = getallheaders();
@@ -66,8 +67,8 @@ if ($userData['data']['role'] !== 'administrateur' && $userData['data']['role'] 
     exit;
 }
 
-// Fichier de configuration
-$configFile = __DIR__ . '/../config/app_config.json';
+// Fichier de configuration avec chemin absolu
+$configFile = __DIR__ . '/../../api/config/app_config.json';
 
 // Détermininer la méthode de requête
 $method = $_SERVER['REQUEST_METHOD'];
