@@ -23,7 +23,7 @@ export {
 } from './collaborateurExport';
 
 // Export pilotage documents to PDF format
-export { exportPilotageToOdf } from './pilotageExport';
+export { exportPilotageDocsToPdf } from './pilotageExport';
 
 // Export bibliothèque documents to PDF format
 export { exportBibliothecaireDocsToPdf } from './bibliothequeExport';

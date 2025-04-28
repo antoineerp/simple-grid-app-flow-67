@@ -8,8 +8,10 @@ export const useBibliothequeDialogs = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [currentDocument, setCurrentDocument] = useState<Document>({
     id: '',
-    name: '',
-    link: null
+    titre: '',
+    description: '',
+    date_creation: new Date().toISOString(),
+    url: ''
   });
   const [currentGroup, setCurrentGroup] = useState<DocumentGroup>({
     id: '',
