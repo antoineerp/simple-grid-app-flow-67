@@ -5,7 +5,7 @@ import Header from './Header';
 import Footer from './Footer';
 import Sidebar from './Sidebar';
 import { MembresProvider } from '@/contexts/MembresContext';
-import { getIsLoggedIn, getAuthToken } from '@/services/auth/authService';
+import { getIsLoggedIn, getAuthToken, getCurrentUser } from '@/services/auth/authService';
 
 interface LayoutProps {
   children?: React.ReactNode;
@@ -22,18 +22,20 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     const checkAuth = () => {
       const isLoggedIn = getIsLoggedIn();
       const hasToken = !!getAuthToken();
+      const user = getCurrentUser();
       
       console.log('Auth status:', isLoggedIn ? 'Logged in' : 'Not logged in');
       console.log('Current path:', location.pathname);
       console.log('Auth token exists:', hasToken);
+      console.log('Current user:', user);
       
-      setIsAuthenticated(isLoggedIn);
+      setIsAuthenticated(isLoggedIn && hasToken);
       
       // Si l'utilisateur n'est pas connecté et n'est pas déjà sur la page d'accueil, rediriger vers la page d'accueil
-      if (!isLoggedIn && location.pathname !== '/') {
+      if ((!isLoggedIn || !hasToken) && location.pathname !== '/') {
         console.log('Redirecting to home page from', location.pathname);
         navigate('/', { replace: true });
-      } else if (isLoggedIn && location.pathname === '/' && !isLoading) {
+      } else if (isLoggedIn && hasToken && location.pathname === '/' && !isLoading) {
         // Si l'utilisateur est connecté et se trouve sur la page d'accueil, rediriger vers le tableau de bord
         console.log('Redirecting to dashboard from home page');
         navigate('/pilotage', { replace: true });

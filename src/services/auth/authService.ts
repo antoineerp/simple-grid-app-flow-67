@@ -12,6 +12,8 @@ let inMemoryUser: any = null; // Peut être une chaîne ou un objet
  */
 export const setAuthToken = (token: string): void => {
   inMemoryToken = token;
+  // Stocker également dans localStorage pour persistance entre les rechargements de page
+  localStorage.setItem('authToken', token);
 };
 
 /**
@@ -19,13 +21,21 @@ export const setAuthToken = (token: string): void => {
  */
 export const removeAuthToken = (): void => {
   inMemoryToken = null;
+  localStorage.removeItem('authToken');
 };
 
 /**
- * Récupère le token d'authentification depuis la mémoire
+ * Récupère le token d'authentification depuis la mémoire ou localStorage
  * @returns Le token d'authentification ou null s'il n'existe pas
  */
 export const getAuthToken = (): string | null => {
+  // Si pas en mémoire, essayer de récupérer depuis localStorage
+  if (!inMemoryToken) {
+    const storedToken = localStorage.getItem('authToken');
+    if (storedToken) {
+      inMemoryToken = storedToken;
+    }
+  }
   return inMemoryToken;
 };
 
@@ -35,13 +45,18 @@ export const getAuthToken = (): string | null => {
  */
 export const setIsLoggedIn = (isLoggedIn: boolean): void => {
   inMemoryLoggedIn = isLoggedIn;
+  localStorage.setItem('isLoggedIn', isLoggedIn ? 'true' : 'false');
 };
 
 /**
- * Récupère l'état de connexion de l'utilisateur depuis la mémoire
+ * Récupère l'état de connexion de l'utilisateur depuis la mémoire ou localStorage
  * @returns Un booléen indiquant si l'utilisateur est connecté ou false par défaut
  */
 export const getIsLoggedIn = (): boolean => {
+  if (!inMemoryLoggedIn) {
+    const storedStatus = localStorage.getItem('isLoggedIn');
+    inMemoryLoggedIn = storedStatus === 'true';
+  }
   return inMemoryLoggedIn;
 };
 
@@ -50,6 +65,7 @@ export const getIsLoggedIn = (): boolean => {
  */
 export const removeIsLoggedIn = (): void => {
   inMemoryLoggedIn = false;
+  localStorage.removeItem('isLoggedIn');
 };
 
 /**
@@ -58,6 +74,17 @@ export const removeIsLoggedIn = (): void => {
  */
 export const setAuthData = (user: any): void => {
   inMemoryUser = user;
+  if (user && user.identifiant_technique) {
+    localStorage.setItem('currentUser', user.identifiant_technique);
+    
+    // Stocker également le nom et le rôle de l'utilisateur
+    if (user.nom && user.prenom) {
+      localStorage.setItem('userName', `${user.prenom} ${user.nom}`);
+    }
+    if (user.role) {
+      localStorage.setItem('userRole', user.role);
+    }
+  }
 };
 
 /**
@@ -65,6 +92,9 @@ export const setAuthData = (user: any): void => {
  */
 export const removeAuthData = (): void => {
   inMemoryUser = null;
+  localStorage.removeItem('currentUser');
+  localStorage.removeItem('userName');
+  localStorage.removeItem('userRole');
 };
 
 /**
@@ -72,6 +102,12 @@ export const removeAuthData = (): void => {
  * @returns L'utilisateur actuellement connecté ou l'identifiant technique par défaut
  */
 export const getCurrentUser = (): any => {
+  if (!inMemoryUser) {
+    const storedUser = localStorage.getItem('currentUser');
+    if (storedUser) {
+      inMemoryUser = storedUser;
+    }
+  }
   return inMemoryUser || 'p71x6d_system'; // Valeur par défaut pour la compatibilité
 };
 
@@ -170,4 +206,7 @@ export const logout = (): void => {
   removeAuthToken();
   removeIsLoggedIn();
   removeAuthData();
+  
+  // Vider complètement le localStorage pour éviter les problèmes de synchronisation
+  console.log('Nettoyage des données de session');
 };

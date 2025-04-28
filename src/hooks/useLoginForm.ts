@@ -6,6 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useToast } from "@/hooks/use-toast";
 import { login as loginUser } from '@/services/auth/authService';
+import { setCurrentUser } from '@/services/core/databaseConnectionService';
 
 export const loginSchema = z.object({
   username: z.string().min(3, { message: "Le nom d'utilisateur doit comporter au moins 3 caractères" }),
@@ -55,6 +56,11 @@ export const useLoginForm = () => {
         setHasDbError(false);
         setHasServerError(false);
         setHasAuthError(false);
+        
+        // Définir l'utilisateur actuel pour la base de données
+        if (result.user && result.user.identifiant_technique) {
+          setCurrentUser(result.user.identifiant_technique);
+        }
         
         toast({
           title: "Connexion réussie",

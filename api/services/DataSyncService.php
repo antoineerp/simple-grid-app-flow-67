@@ -76,6 +76,13 @@ class DataSyncService {
     }
     
     /**
+     * Récupère l'objet PDO
+     */
+    public function getPdo() {
+        return $this->pdo;
+    }
+    
+    /**
      * Vérifie et sanitize l'ID de l'utilisateur
      */
     public function sanitizeUserId($rawUserId) {
@@ -239,6 +246,72 @@ class DataSyncService {
     }
     
     /**
+     * Nouvelle méthode pour insérer plusieurs éléments de données
+     */
+    public function insertMultipleData($items) {
+        try {
+            if (empty($items)) {
+                error_log("Aucune donnée à insérer");
+                return true;
+            }
+            
+            // Récupérer les colonnes disponibles
+            $columns = $this->getTableColumns();
+            if (count($columns) === 0) {
+                throw new Exception("Table {$this->tableName} n'a pas de colonnes ou n'existe pas");
+            }
+            
+            // Démarrer une transaction
+            $this->pdo->beginTransaction();
+            $this->transaction_active = true;
+            
+            // Pour chaque élément, vérifier ses colonnes et ne prendre que celles qui existent dans la table
+            foreach ($items as $item) {
+                // Collecter les colonnes valides et leurs valeurs
+                $validColumns = [];
+                $values = [];
+                
+                foreach ($item as $columnName => $value) {
+                    if (in_array($columnName, $columns)) {
+                        $validColumns[] = "`$columnName`";
+                        $values[] = $value;
+                        $placeholders[] = "?";
+                    }
+                }
+                
+                if (count($validColumns) > 0) {
+                    // Construire la requête d'insertion
+                    $columnsStr = implode(", ", $validColumns);
+                    $placeholders = array_fill(0, count($validColumns), "?");
+                    $placeholdersStr = implode(", ", $placeholders);
+                    
+                    $insertQuery = "INSERT INTO `{$this->tableName}` ($columnsStr) VALUES ($placeholdersStr)";
+                    $stmt = $this->pdo->prepare($insertQuery);
+                    
+                    error_log("Insertion d'un élément avec colonnes: " . $columnsStr);
+                    $stmt->execute($values);
+                }
+            }
+            
+            // Valider la transaction
+            $this->pdo->commit();
+            $this->transaction_active = false;
+            
+            error_log("Insertion de données en masse réussie");
+            return true;
+        } catch (Exception $e) {
+            // Annuler la transaction en cas d'erreur
+            if ($this->transaction_active && $this->pdo->inTransaction()) {
+                $this->pdo->rollBack();
+                $this->transaction_active = false;
+            }
+            
+            error_log("Erreur lors de l'insertion multiple: " . $e->getMessage());
+            throw $e;
+        }
+    }
+    
+    /**
      * Gère l'insertion de données de test si nécessaire
      */
     public function insertTestData($testData) {
@@ -256,36 +329,7 @@ class DataSyncService {
             
             if (!$dataExists) {
                 error_log("Aucune donnée trouvée dans {$this->tableName}, ajout de données de test");
-                
-                // Préparer la requête d'insertion
-                $placeholders = [];
-                $columnsToInsert = [];
-                
-                foreach ($columns as $column) {
-                    if ($column !== 'date_modification' || !in_array('date_creation', $columns)) {
-                        $columnsToInsert[] = "`$column`";
-                        $placeholders[] = "?";
-                    }
-                }
-                
-                $columnsStr = implode(", ", $columnsToInsert);
-                $placeholdersStr = implode(", ", $placeholders);
-                
-                $insertQuery = "INSERT INTO `{$this->tableName}` ($columnsStr) VALUES ($placeholdersStr)";
-                $stmt = $this->pdo->prepare($insertQuery);
-                
-                foreach ($testData as $item) {
-                    $values = [];
-                    foreach ($columns as $column) {
-                        if ($column !== 'date_modification' || !in_array('date_creation', $columns)) {
-                            $values[] = isset($item[$column]) ? $item[$column] : null;
-                        }
-                    }
-                    
-                    $stmt->execute($values);
-                }
-                
-                error_log("Données de test insérées dans {$this->tableName}");
+                return $this->insertMultipleData($testData);
             }
             
             return true;

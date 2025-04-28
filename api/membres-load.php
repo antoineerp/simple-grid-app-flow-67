@@ -39,32 +39,67 @@ try {
         throw new Exception("Impossible de créer ou vérifier la table");
     }
     
-    // Données de test pour les nouveaux utilisateurs
-    $testMembers = [
-        [
-            'id' => '1b9d6bcd-bbfd-4b2d-9b5d-ab8dfbbd4bed',
-            'nom' => 'Dupont',
-            'prenom' => 'Jean',
-            'email' => 'jean.dupont@example.com',
-            'telephone' => '0601020304',
-            'fonction' => 'Directeur',
-            'organisation' => 'Entreprise A',
-            'notes' => 'Contact principal'
-        ],
-        [
-            'id' => '9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d',
-            'nom' => 'Martin',
-            'prenom' => 'Sophie',
-            'email' => 'sophie.martin@example.com',
-            'telephone' => '0607080910',
-            'fonction' => 'Responsable RH',
-            'organisation' => 'Entreprise B',
-            'notes' => 'Partenaire stratégique'
-        ]
-    ];
+    // Récupérer les colonnes existantes
+    $columns = $service->getTableColumns();
+    error_log("Colonnes disponibles dans la table membres_{$userId}: " . implode(", ", $columns));
     
-    // Insérer des données de test si nécessaire
-    $service->insertTestData($testMembers);
+    // Vérifier si la table est vide
+    $tableEmpty = true;
+    $checkEmptyQuery = "SELECT COUNT(*) FROM `membres_{$userId}`";
+    $stmt = $service->getPdo()->prepare($checkEmptyQuery);
+    $stmt->execute();
+    $count = $stmt->fetchColumn();
+    if ($count > 0) {
+        $tableEmpty = false;
+    }
+    
+    error_log("La table membres_{$userId} " . ($tableEmpty ? "est vide" : "contient des données"));
+    
+    // Données de test pour les nouveaux utilisateurs ou tables vides
+    if ($tableEmpty) {
+        error_log("Insertion de données de test pour membres_{$userId}");
+        
+        $testMembers = [
+            [
+                'id' => '1b9d6bcd-bbfd-4b2d-9b5d-ab8dfbbd4bed',
+                'nom' => 'Dupont',
+                'prenom' => 'Jean',
+                'email' => 'jean.dupont@example.com',
+                'telephone' => '0601020304',
+                'fonction' => 'Directeur',
+                'organisation' => 'Entreprise A',
+                'notes' => 'Contact principal'
+            ],
+            [
+                'id' => '9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d',
+                'nom' => 'Martin',
+                'prenom' => 'Sophie',
+                'email' => 'sophie.martin@example.com',
+                'telephone' => '0607080910',
+                'fonction' => 'Responsable RH',
+                'organisation' => 'Entreprise B',
+                'notes' => 'Partenaire stratégique'
+            ]
+        ];
+        
+        // Filtrer les données de test pour correspondre aux colonnes existantes
+        $filteredMembers = [];
+        foreach ($testMembers as $member) {
+            $filteredMember = [];
+            foreach ($columns as $column) {
+                if (isset($member[$column])) {
+                    $filteredMember[$column] = $member[$column];
+                }
+            }
+            $filteredMembers[] = $filteredMember;
+        }
+        
+        // Insérer les données filtrées
+        if (!empty($filteredMembers)) {
+            error_log("Insertion de " . count($filteredMembers) . " membres filtrés selon les colonnes disponibles");
+            $service->insertMultipleData($filteredMembers);
+        }
+    }
     
     // Charger les données
     $membres = $service->loadData();

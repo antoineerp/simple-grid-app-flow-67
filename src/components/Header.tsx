@@ -15,8 +15,10 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
-  getCurrentUser
+  getCurrentUser,
+  removeCurrentUser
 } from '@/services/core/databaseConnectionService';
+import { logout } from '@/services/auth/authService';
 
 const Header = () => {
   const navigate = useNavigate();
@@ -54,17 +56,27 @@ const Header = () => {
   }, [logo, currentDatabaseUser]);
 
   const handleLogout = () => {
+    // Appel à la fonction logout du service d'authentification
+    logout();
+    
+    // Suppression de l'utilisateur courant de la base de données
+    removeCurrentUser();
+    
+    // Nettoyage explicite du localStorage pour s'assurer que tous les éléments sont supprimés
     localStorage.removeItem('isLoggedIn');
     localStorage.removeItem('authToken');
     localStorage.removeItem('currentDatabaseUser');
     localStorage.removeItem('userName');
+    localStorage.removeItem('userRole');
+    localStorage.removeItem('currentUser');
     
     toast({
       title: "Déconnexion réussie",
       description: "Vous avez été déconnecté avec succès",
     });
     
-    navigate('/');
+    // Force la navigation vers la page d'accueil
+    window.location.href = '/';
   };
 
   const handleLogoChange = (newLogo: string) => {
@@ -132,4 +144,3 @@ const Header = () => {
 };
 
 export default Header;
-
