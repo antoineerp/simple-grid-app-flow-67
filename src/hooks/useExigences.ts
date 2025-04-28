@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from 'react';
 import { Exigence, ExigenceGroup, ExigenceStats } from '@/types/exigences';
 import { useExigenceSync } from '@/hooks/useExigenceSync';
@@ -17,6 +18,7 @@ export const useExigences = () => {
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncFailed, setSyncFailed] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [lastSyncedDate, setLastSyncedDate] = useState<Date | null>(null);
   const { toast } = useToast();
 
   // Get current user
@@ -35,6 +37,32 @@ export const useExigences = () => {
     nonConforme: exigences.filter(e => e.atteinte === 'NC').length,
     exclusion: exigences.filter(e => e.exclusion).length
   };
+
+  // Define handleSyncWithServer before using it in useEffect
+  const handleSyncWithServer = useCallback(async () => {
+    setIsSyncing(true);
+    try {
+      const success = await syncWithServer(exigences, userId);
+      if (success) {
+        setSyncFailed(false);
+        setLastSyncedDate(new Date());
+        // Silently reload data after successful sync
+        const result = await loadFromServer(userId);
+        if (result && Array.isArray(result.exigences)) {
+          setExigences(result.exigences);
+        }
+        return true;
+      } else {
+        setSyncFailed(true);
+        return false;
+      }
+    } catch (error) {
+      setSyncFailed(true);
+      return false;
+    } finally {
+      setIsSyncing(false);
+    }
+  }, [exigences, userId, syncWithServer, loadFromServer]);
 
   // Initial data loading
   useEffect(() => {
@@ -71,31 +99,6 @@ export const useExigences = () => {
 
     return () => clearInterval(syncInterval);
   }, [loadFromServer, userId, handleSyncWithServer]);
-
-  const handleSyncWithServer = useCallback(async () => {
-    setIsSyncing(true);
-    try {
-      const success = await syncWithServer(exigences, userId);
-      if (success) {
-        setSyncFailed(false);
-        setLastSynced(new Date());
-        // Silently reload data after successful sync
-        const result = await loadFromServer(userId);
-        if (Array.isArray(result)) {
-          setExigences(result);
-        }
-        return true;
-      } else {
-        setSyncFailed(true);
-        return false;
-      }
-    } catch (error) {
-      setSyncFailed(true);
-      return false;
-    } finally {
-      setIsSyncing(false);
-    }
-  }, [exigences, userId, syncWithServer, loadFromServer]);
 
   // Handle exigence editing
   const handleEdit = useCallback((id: string) => {
