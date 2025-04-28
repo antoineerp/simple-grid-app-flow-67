@@ -22,209 +22,231 @@ try {
         PDO::ATTR_EMULATE_PREPARES => false,
     ];
     
-    echo "<h1>Diagnostic de création d'utilisateur</h1>";
-    echo "<h2>Étape 1: Test de connexion à la base de données</h2>";
-    
     $pdo = new PDO($dsn, $username, $password, $options);
-    echo "<p style='color: green'>✓ Connexion à la base de données réussie</p>";
     
-    // Vérifier la table utilisateurs
-    echo "<h2>Étape 2: Vérification de la table utilisateurs</h2>";
-    
-    $tableExistsQuery = "SHOW TABLES LIKE 'utilisateurs'";
-    $stmt = $pdo->prepare($tableExistsQuery);
-    $stmt->execute();
-    
-    if ($stmt->rowCount() > 0) {
-        echo "<p style='color: green'>✓ Table 'utilisateurs' trouvée</p>";
+    // Traitement de la requête POST
+    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+        // Récupérer les données envoyées
+        $input = file_get_contents('php://input');
+        $data = json_decode($input);
         
-        // Vérifier la structure de la table
-        echo "<h3>Structure de la table</h3>";
-        echo "<pre>";
-        
-        $describeQuery = "DESCRIBE utilisateurs";
-        $stmt = $pdo->prepare($describeQuery);
-        $stmt->execute();
-        $columns = $stmt->fetchAll();
-        
-        echo "<table border='1' cellpadding='5'>";
-        echo "<tr><th>Champ</th><th>Type</th><th>Null</th><th>Clé</th><th>Défaut</th><th>Extra</th></tr>";
-        
-        foreach ($columns as $column) {
-            echo "<tr>";
-            echo "<td>" . $column['Field'] . "</td>";
-            echo "<td>" . $column['Type'] . "</td>";
-            echo "<td>" . $column['Null'] . "</td>";
-            echo "<td>" . $column['Key'] . "</td>";
-            echo "<td>" . $column['Default'] . "</td>";
-            echo "<td>" . $column['Extra'] . "</td>";
-            echo "</tr>";
-        }
-        
-        echo "</table>";
-        
-        // Vérifier les valeurs autorisées pour le champ 'role'
-        if(stripos($columns[5]['Type'], 'enum') !== false) {
-            echo "<h3>Valeurs ENUM autorisées pour 'role':</h3>";
-            echo "<p>" . $columns[5]['Type'] . "</p>";
-        }
-        
-        // Compter les utilisateurs
-        $countQuery = "SELECT COUNT(*) FROM utilisateurs";
-        $stmt = $pdo->prepare($countQuery);
-        $stmt->execute();
-        $count = $stmt->fetchColumn();
-        
-        echo "<h3>Nombre d'utilisateurs: " . $count . "</h3>";
-        
-        if ($count > 0) {
-            // Afficher les utilisateurs existants
-            $query = "SELECT id, nom, prenom, email, identifiant_technique, role, date_creation FROM utilisateurs";
-            $stmt = $pdo->prepare($query);
-            $stmt->execute();
-            $users = $stmt->fetchAll();
-            
-            echo "<h3>Utilisateurs existants:</h3>";
-            echo "<table border='1' cellpadding='5'>";
-            echo "<tr><th>ID</th><th>Nom</th><th>Prénom</th><th>Email</th><th>Identifiant Technique</th><th>Rôle</th><th>Date Création</th></tr>";
-            
-            foreach ($users as $user) {
-                echo "<tr>";
-                echo "<td>" . $user['id'] . "</td>";
-                echo "<td>" . $user['nom'] . "</td>";
-                echo "<td>" . $user['prenom'] . "</td>";
-                echo "<td>" . $user['email'] . "</td>";
-                echo "<td>" . $user['identifiant_technique'] . "</td>";
-                echo "<td>" . $user['role'] . "</td>";
-                echo "<td>" . $user['date_creation'] . "</td>";
-                echo "</tr>";
+        if ($data) {
+            // Générer un identifiant technique unique si non fourni
+            if (!isset($data->identifiant_technique) || empty($data->identifiant_technique)) {
+                $timestamp = time();
+                $randomStr = substr(md5(uniqid(mt_rand(), true)), 0, 8);
+                $prenom = isset($data->prenom) ? preg_replace('/[^a-z0-9]/i', '', strtolower($data->prenom)) : 'user';
+                $nom = isset($data->nom) ? preg_replace('/[^a-z0-9]/i', '', strtolower($data->nom)) : 'test';
+                $data->identifiant_technique = "p71x6d_{$prenom}_{$nom}_{$randomStr}_{$timestamp}";
             }
             
-            echo "</table>";
-        }
-    } else {
-        echo "<p style='color: red'>✗ Table 'utilisateurs' non trouvée</p>";
-        
-        // Créer la table si elle n'existe pas
-        echo "<h3>Création de la table 'utilisateurs'...</h3>";
-        
-        $createTableQuery = "CREATE TABLE IF NOT EXISTS utilisateurs (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            nom VARCHAR(100) NOT NULL,
-            prenom VARCHAR(100) NOT NULL,
-            email VARCHAR(100) NOT NULL UNIQUE,
-            mot_de_passe VARCHAR(255) NOT NULL,
-            identifiant_technique VARCHAR(100) NOT NULL UNIQUE,
-            role ENUM('admin', 'user', 'administrateur', 'utilisateur', 'gestionnaire') NOT NULL,
-            date_creation TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci";
-        
-        $pdo->exec($createTableQuery);
-        echo "<p style='color: green'>✓ Table 'utilisateurs' créée avec succès</p>";
-    }
-    
-    // Tester la création d'un utilisateur
-    echo "<h2>Étape 3: Test de création d'un utilisateur</h2>";
-    
-    // Générer des données uniques
-    $testEmail = "test_" . time() . "@example.com";
-    $testIdentifiant = "p71x6d_test_" . time();
-    
-    echo "<h3>Tentative d'insertion d'un utilisateur test</h3>";
-    echo "<p>Email: " . $testEmail . "<br>Identifiant: " . $testIdentifiant . "</p>";
-    
-    // Hasher le mot de passe
-    $password = password_hash("Test123!", PASSWORD_BCRYPT);
-    
-    try {
-        // Insérer l'utilisateur test
-        $query = "INSERT INTO utilisateurs (nom, prenom, email, mot_de_passe, identifiant_technique, role) 
-                  VALUES ('Test', 'Utilisateur', :email, :mot_de_passe, :identifiant_technique, 'utilisateur')";
-        $stmt = $pdo->prepare($query);
-        $stmt->bindParam(":email", $testEmail);
-        $stmt->bindParam(":mot_de_passe", $password);
-        $stmt->bindParam(":identifiant_technique", $testIdentifiant);
-        
-        $result = $stmt->execute();
-        
-        if ($result) {
-            $id = $pdo->lastInsertId();
-            
-            if ($id) {
-                echo "<p style='color: green'>✓ Utilisateur test créé avec succès! ID: " . $id . "</p>";
-                
-                // Vérifier que l'utilisateur a bien été inséré
-                $query = "SELECT * FROM utilisateurs WHERE id = :id";
-                $stmt = $pdo->prepare($query);
-                $stmt->bindParam(":id", $id);
-                $stmt->execute();
-                
-                if ($user = $stmt->fetch()) {
-                    echo "<h3>Utilisateur inséré:</h3>";
-                    echo "<pre>";
-                    print_r($user);
-                    echo "</pre>";
-                } else {
-                    echo "<p style='color: red'>✗ Utilisateur introuvable après insertion!</p>";
-                }
-                
-                // Supprimer l'utilisateur test
-                echo "<h3>Suppression de l'utilisateur test...</h3>";
-                
-                $query = "DELETE FROM utilisateurs WHERE id = :id";
-                $stmt = $pdo->prepare($query);
-                $stmt->bindParam(":id", $id);
-                $stmt->execute();
-                
-                echo "<p style='color: green'>✓ Utilisateur test supprimé</p>";
+            // Hashage du mot de passe si fourni
+            if (isset($data->mot_de_passe) && !empty($data->mot_de_passe)) {
+                $data->mot_de_passe = password_hash($data->mot_de_passe, PASSWORD_BCRYPT);
             } else {
-                echo "<p style='color: red'>✗ Erreur: Aucun ID retourné après insertion</p>";
+                $data->mot_de_passe = password_hash('Test123!', PASSWORD_BCRYPT); // Mot de passe par défaut
+            }
+            
+            // Définir un rôle par défaut si non fourni
+            if (!isset($data->role) || empty($data->role)) {
+                $data->role = 'utilisateur';
+            }
+            
+            // Validation de base
+            $errors = [];
+            if (!isset($data->nom) || empty($data->nom)) $errors[] = "Le nom est requis";
+            if (!isset($data->prenom) || empty($data->prenom)) $errors[] = "Le prénom est requis";
+            if (!isset($data->email) || empty($data->email)) $errors[] = "L'email est requis";
+            
+            if (count($errors) > 0) {
+                echo json_encode([
+                    'status' => 'error',
+                    'message' => 'Validation échouée',
+                    'errors' => $errors
+                ]);
+                exit;
+            }
+            
+            // Vérifier si l'email existe déjà
+            $stmt = $pdo->prepare("SELECT id FROM utilisateurs WHERE email = :email");
+            $stmt->execute(['email' => $data->email]);
+            if ($stmt->rowCount() > 0) {
+                echo json_encode([
+                    'status' => 'error',
+                    'message' => "L'email existe déjà dans la base de données"
+                ]);
+                exit;
+            }
+            
+            // Vérifier le nombre d'utilisateurs gestionnaires si un nouveau gestionnaire est créé
+            if ($data->role === 'gestionnaire') {
+                $stmt = $pdo->prepare("SELECT COUNT(*) FROM utilisateurs WHERE role = 'gestionnaire'");
+                $stmt->execute();
+                $count = $stmt->fetchColumn();
+                if ($count > 0) {
+                    echo json_encode([
+                        'status' => 'error',
+                        'message' => "Un seul compte gestionnaire est autorisé dans le système"
+                    ]);
+                    exit;
+                }
+            }
+            
+            // Tentative d'insertion
+            $query = "INSERT INTO utilisateurs (nom, prenom, email, mot_de_passe, identifiant_technique, role) 
+                      VALUES (:nom, :prenom, :email, :mot_de_passe, :identifiant_technique, :role)";
+            $stmt = $pdo->prepare($query);
+            
+            $params = [
+                'nom' => $data->nom,
+                'prenom' => $data->prenom,
+                'email' => $data->email,
+                'mot_de_passe' => $data->mot_de_passe,
+                'identifiant_technique' => $data->identifiant_technique,
+                'role' => $data->role
+            ];
+            
+            $success = $stmt->execute($params);
+            $newId = $pdo->lastInsertId();
+            
+            if ($success && $newId) {
+                // Récupérer l'utilisateur créé pour confirmation
+                $stmt = $pdo->prepare("SELECT id, nom, prenom, email, identifiant_technique, role, date_creation FROM utilisateurs WHERE id = :id");
+                $stmt->execute(['id' => $newId]);
+                $user = $stmt->fetch();
+                
+                echo json_encode([
+                    'status' => 'success',
+                    'message' => 'Utilisateur créé avec succès',
+                    'user' => $user
+                ]);
+            } else {
+                echo json_encode([
+                    'status' => 'error',
+                    'message' => 'Échec de la création de l\'utilisateur',
+                    'details' => $stmt->errorInfo()
+                ]);
             }
         } else {
-            echo "<p style='color: red'>✗ Échec de l'insertion</p>";
-            echo "<pre>";
-            print_r($stmt->errorInfo());
-            echo "</pre>";
+            echo json_encode([
+                'status' => 'error',
+                'message' => 'Données JSON invalides ou manquantes'
+            ]);
         }
-    } catch (PDOException $e) {
-        echo "<p style='color: red'>✗ Erreur PDO lors de l'insertion: " . $e->getMessage() . "</p>";
-        echo "<p>Code: " . $e->getCode() . "</p>";
+    } else {
+        // Réponse pour les requêtes GET - Interface HTML simple
+        echo "<h1>Diagnostic de création d'utilisateur</h1>";
         
-        if ($stmt) {
-            echo "<p>Détails de l'erreur:</p>";
-            echo "<pre>";
-            print_r($stmt->errorInfo());
-            echo "</pre>";
+        // Afficher le formulaire
+        echo "<h2>Formulaire de test</h2>";
+        echo "<form id='createUserForm'>";
+        echo "<div style='margin-bottom: 10px;'><label>Prénom: <input type='text' name='prenom' value='Test' /></label></div>";
+        echo "<div style='margin-bottom: 10px;'><label>Nom: <input type='text' name='nom' value='Utilisateur' /></label></div>";
+        echo "<div style='margin-bottom: 10px;'><label>Email: <input type='email' name='email' value='test" . time() . "@example.com' /></label></div>";
+        echo "<div style='margin-bottom: 10px;'><label>Mot de passe: <input type='password' name='mot_de_passe' value='Test123!' /></label></div>";
+        echo "<div style='margin-bottom: 10px;'><label>Rôle: <select name='role'>";
+        echo "<option value='utilisateur'>Utilisateur</option>";
+        echo "<option value='gestionnaire'>Gestionnaire</option>";
+        echo "<option value='administrateur'>Administrateur</option>";
+        echo "</select></label></div>";
+        echo "<button type='submit'>Créer l'utilisateur</button>";
+        echo "</form>";
+        
+        echo "<div id='result' style='margin-top: 20px; padding: 10px; border: 1px solid #ccc;'></div>";
+        
+        echo "<h2>Utilisateurs existants</h2>";
+        echo "<div id='users'>";
+        
+        // Afficher les utilisateurs existants
+        try {
+            $stmt = $pdo->query("SELECT id, nom, prenom, email, identifiant_technique, role, date_creation FROM utilisateurs");
+            $users = $stmt->fetchAll();
+            
+            if (count($users) > 0) {
+                echo "<table border='1' cellpadding='5'>";
+                echo "<tr><th>ID</th><th>Nom</th><th>Prénom</th><th>Email</th><th>Identifiant</th><th>Rôle</th><th>Date de création</th></tr>";
+                
+                foreach ($users as $user) {
+                    echo "<tr>";
+                    echo "<td>" . $user['id'] . "</td>";
+                    echo "<td>" . $user['nom'] . "</td>";
+                    echo "<td>" . $user['prenom'] . "</td>";
+                    echo "<td>" . $user['email'] . "</td>";
+                    echo "<td>" . $user['identifiant_technique'] . "</td>";
+                    echo "<td>" . $user['role'] . "</td>";
+                    echo "<td>" . $user['date_creation'] . "</td>";
+                    echo "</tr>";
+                }
+                
+                echo "</table>";
+            } else {
+                echo "<p>Aucun utilisateur trouvé dans la base de données.</p>";
+            }
+        } catch (PDOException $e) {
+            echo "<p style='color: red;'>Erreur lors de la récupération des utilisateurs: " . $e->getMessage() . "</p>";
         }
+        
+        echo "</div>";
+        
+        // JavaScript pour le formulaire
+        echo "<script>
+            document.getElementById('createUserForm').addEventListener('submit', function(e) {
+                e.preventDefault();
+                
+                const formData = new FormData(this);
+                const data = {};
+                
+                for (let [key, value] of formData.entries()) {
+                    data[key] = value;
+                }
+                
+                fetch(window.location.href, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(data)
+                })
+                .then(response => response.json())
+                .then(result => {
+                    document.getElementById('result').innerHTML = 
+                        '<h3>' + (result.status === 'success' ? 'Succès' : 'Erreur') + '</h3>' +
+                        '<pre>' + JSON.stringify(result, null, 2) + '</pre>';
+                        
+                    if (result.status === 'success') {
+                        setTimeout(() => {
+                            window.location.reload();
+                        }, 2000);
+                    }
+                })
+                .catch(error => {
+                    document.getElementById('result').innerHTML = 
+                        '<h3>Erreur</h3><pre>' + error + '</pre>';
+                });
+            });
+        </script>";
     }
-    
-    // Afficher les permissions de l'utilisateur MySQL
-    echo "<h2>Étape 4: Vérification des permissions MySQL</h2>";
-    
-    try {
-        $query = "SHOW GRANTS FOR CURRENT_USER()";
-        $stmt = $pdo->prepare($query);
-        $stmt->execute();
-        $grants = $stmt->fetchAll(PDO::FETCH_COLUMN);
-        
-        echo "<h3>Permissions de l'utilisateur MySQL:</h3>";
-        echo "<ul>";
-        
-        foreach ($grants as $grant) {
-            echo "<li>" . htmlspecialchars($grant) . "</li>";
-        }
-        
-        echo "</ul>";
-    } catch (PDOException $e) {
-        echo "<p style='color: red'>✗ Impossible de vérifier les permissions: " . $e->getMessage() . "</p>";
-    }
-    
-    echo "<h2>Diagnostic terminé</h2>";
-    
 } catch (PDOException $e) {
-    echo "<h1 style='color: red'>Erreur PDO: " . $e->getMessage() . "</h1>";
-    echo "<p>Code: " . $e->getCode() . "</p>";
+    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+        echo json_encode([
+            'status' => 'error',
+            'message' => 'Erreur de base de données: ' . $e->getMessage(),
+            'code' => $e->getCode()
+        ]);
+    } else {
+        echo "<h1 style='color: red;'>Erreur de connexion à la base de données</h1>";
+        echo "<p>" . $e->getMessage() . "</p>";
+        echo "<p>Code d'erreur: " . $e->getCode() . "</p>";
+    }
 } catch (Exception $e) {
-    echo "<h1 style='color: red'>Erreur: " . $e->getMessage() . "</h1>";
+    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+        echo json_encode([
+            'status' => 'error',
+            'message' => 'Erreur: ' . $e->getMessage()
+        ]);
+    } else {
+        echo "<h1 style='color: red;'>Erreur</h1>";
+        echo "<p>" . $e->getMessage() . "</p>";
+    }
 }
 ?>

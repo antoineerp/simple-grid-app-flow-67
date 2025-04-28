@@ -1,3 +1,4 @@
+
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
@@ -38,6 +39,7 @@ export default defineConfig(({ mode }) => {
         output: {
           // Configuration spécifique pour Infomaniak
           assetFileNames: (assetInfo) => {
+            if (!assetInfo.name) return 'assets/[name].[hash].[ext]';
             const info = assetInfo.name.split('.');
             const ext = info.pop();
             const name = info.join('.');
