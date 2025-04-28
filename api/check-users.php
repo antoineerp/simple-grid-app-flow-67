@@ -56,7 +56,7 @@ try {
             email VARCHAR(100) NOT NULL UNIQUE,
             mot_de_passe VARCHAR(255) NOT NULL,
             identifiant_technique VARCHAR(100) NOT NULL UNIQUE,
-            role VARCHAR(20) NOT NULL,
+            role ENUM('admin', 'user', 'administrateur', 'utilisateur', 'gestionnaire') NOT NULL,
             date_creation TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci";
         
@@ -75,6 +75,34 @@ try {
         error_log("Utilisateur admin par défaut créé");
     } else {
         error_log("La table 'utilisateurs' existe déjà");
+        
+        // Vérifier la structure de la colonne 'role'
+        $roleColumnQuery = "SHOW COLUMNS FROM utilisateurs LIKE 'role'";
+        $stmt = $pdo->prepare($roleColumnQuery);
+        $stmt->execute();
+        $roleColumn = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if ($roleColumn) {
+            error_log("Structure actuelle de la colonne 'role': " . $roleColumn['Type']);
+            
+            // Vérifier si la colonne 'role' inclut tous les types nécessaires
+            if (strpos($roleColumn['Type'], 'enum') === 0 && 
+                (!strpos($roleColumn['Type'], 'gestionnaire') || 
+                 !strpos($roleColumn['Type'], 'utilisateur') || 
+                 !strpos($roleColumn['Type'], 'administrateur'))) {
+                
+                error_log("Tentative de modification de la colonne 'role' pour inclure tous les types nécessaires");
+                try {
+                    $alterQuery = "ALTER TABLE utilisateurs MODIFY COLUMN role ENUM('admin', 'user', 'administrateur', 'utilisateur', 'gestionnaire') NOT NULL";
+                    $pdo->exec($alterQuery);
+                    error_log("Colonne 'role' modifiée avec succès");
+                } catch (PDOException $e) {
+                    error_log("Erreur lors de la modification de la colonne 'role': " . $e->getMessage());
+                }
+            }
+        } else {
+            error_log("Colonne 'role' introuvable dans la table 'utilisateurs'");
+        }
     }
     
     // Récupérer tous les utilisateurs
@@ -85,6 +113,12 @@ try {
     $count = count($users);
     
     error_log("Nombre d'utilisateurs récupérés: " . $count);
+    
+    // Vérifier la structure de la table pour le diagnostic
+    $tableStructureQuery = "DESCRIBE utilisateurs";
+    $stmt = $pdo->prepare($tableStructureQuery);
+    $stmt->execute();
+    $tableStructure = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
     // Nettoyer tout output accumulé
     if (ob_get_level()) ob_clean();
@@ -100,7 +134,8 @@ try {
             'host' => $host,
             'database' => $dbname,
             'user' => $username
-        ]
+        ],
+        'table_structure' => $tableStructure
     ]);
     exit;
 } catch (PDOException $e) {
