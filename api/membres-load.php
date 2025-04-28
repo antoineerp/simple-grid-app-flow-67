@@ -54,10 +54,9 @@ try {
     error_log("Table à consulter: {$tableName}");
     
     // Vérifier si la table existe
-    $tableExistsQuery = "SHOW TABLES LIKE :tableName";
+    $tableExistsQuery = "SHOW TABLES LIKE ?";
     $stmt = $pdo->prepare($tableExistsQuery);
-    $stmt->bindParam(':tableName', $tableName);
-    $stmt->execute();
+    $stmt->execute([$tableName]);
     $tableExists = $stmt->rowCount() > 0;
     
     if (!$tableExists) {

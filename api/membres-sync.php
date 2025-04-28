@@ -76,11 +76,15 @@ try {
     error_log("Exécution de la requête: {$createTableQuery}");
     $pdo->exec($createTableQuery);
     
-    // Commencer une transaction
-    error_log("Début de transaction");
-    $pdo->beginTransaction();
+    // Variable pour suivre si une transaction est active
+    $transaction_started = false;
     
     try {
+        // Commencer une transaction
+        error_log("Début de transaction");
+        $pdo->beginTransaction();
+        $transaction_started = true;
+        
         // Vider la table avant d'insérer les données actualisées
         $truncateQuery = "TRUNCATE TABLE `{$tableName}`";
         error_log("Exécution de la requête: {$truncateQuery}");
@@ -131,7 +135,10 @@ try {
         
         // Valider la transaction
         error_log("Validation de la transaction après {$memberCount} insertions");
-        $pdo->commit();
+        if ($transaction_started) {
+            $pdo->commit();
+            $transaction_started = false;
+        }
         
         echo json_encode([
             'success' => true,
@@ -141,9 +148,10 @@ try {
         
     } catch (Exception $e) {
         // Annuler la transaction en cas d'erreur
-        if ($pdo->inTransaction()) {
+        if ($transaction_started && $pdo->inTransaction()) {
             error_log("Erreur détectée, annulation de la transaction");
             $pdo->rollBack();
+            $transaction_started = false;
         }
         throw $e;
     }
@@ -164,9 +172,13 @@ try {
     ]);
 } finally {
     // Terminer la transaction si elle est toujours active
-    if (isset($pdo) && $pdo->inTransaction()) {
+    if (isset($pdo) && isset($transaction_started) && $transaction_started && $pdo->inTransaction()) {
         error_log("Annulation de la transaction qui était encore active dans le bloc finally");
-        $pdo->rollBack();
+        try {
+            $pdo->rollBack();
+        } catch (Exception $e) {
+            error_log("Erreur lors du rollback final: " . $e->getMessage());
+        }
     }
     
     if (ob_get_level()) ob_end_flush();
