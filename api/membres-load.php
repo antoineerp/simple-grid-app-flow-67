@@ -54,9 +54,9 @@ try {
     error_log("Table à consulter: {$tableName}");
     
     // Vérifier si la table existe
-    $tableExistsQuery = "SHOW TABLES LIKE ?";
+    $tableExistsQuery = "SHOW TABLES LIKE :tableName";
     $stmt = $pdo->prepare($tableExistsQuery);
-    $stmt->execute([$tableName]);
+    $stmt->execute(['tableName' => $tableName]);
     $tableExists = $stmt->rowCount() > 0;
     
     if (!$tableExists) {
@@ -113,4 +113,3 @@ try {
     error_log("=== FIN DE L'EXÉCUTION DE membres-load.php ===");
     if (ob_get_level()) ob_end_flush();
 }
-?>

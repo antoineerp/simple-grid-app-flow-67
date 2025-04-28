@@ -1,22 +1,22 @@
 
 import { useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
-import { Exigence } from '@/types/exigences';
+import { Exigence, ExigenceGroup } from '@/types/exigences';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { syncExigencesWithServer, loadExigencesFromServer } from '@/services/exigences/exigenceSyncService';
 
 export const useExigenceSync = () => {
   const [isSyncing, setIsSyncing] = useState(false);
-  const [lastSynced, setLastSynced] = useState<Date>();
+  const [lastSynced, setLastSynced] = useState<Date | null>(null);
   const { isOnline } = useNetworkStatus();
   const { toast } = useToast();
   
-  const syncWithServer = async (exigences: Exigence[], userId: string) => {
+  const syncWithServer = async (exigences: Exigence[], userId: string, groups: ExigenceGroup[] = []) => {
     if (!isOnline || isSyncing) return false;
     
     setIsSyncing(true);
     try {
-      const success = await syncExigencesWithServer(exigences, userId);
+      const success = await syncExigencesWithServer(exigences, userId, groups);
       if (success) {
         setLastSynced(new Date());
         toast({
@@ -40,7 +40,8 @@ export const useExigenceSync = () => {
 
   const loadFromServer = async (userId: string) => {
     try {
-      return await loadExigencesFromServer(userId);
+      const data = await loadExigencesFromServer(userId);
+      return data;
     } catch (error) {
       toast({
         title: "Erreur de chargement",
