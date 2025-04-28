@@ -39,19 +39,45 @@ export const login = async (username: string, password: string): Promise<AuthRes
     
     const response = await fetch(`${API_URL}/auth.php`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 
+        'Content-Type': 'application/json', 
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache' 
+      },
       body: JSON.stringify({ username, password })
     });
+
+    const responseText = await response.text();
+    
+    // Tenter de parser la réponse en JSON
+    let data;
+    try {
+      data = JSON.parse(responseText);
+    } catch (parseError) {
+      console.error('Erreur lors du parsing de la réponse JSON:', parseError);
+      console.error('Réponse brute:', responseText.substring(0, 500));
+      
+      if (responseText.includes('env.php') || responseText.includes('Failed to open stream')) {
+        return { 
+          success: false, 
+          message: "Erreur de configuration du serveur: Fichier env.php manquant" 
+        };
+      }
+      
+      return { 
+        success: false, 
+        message: `Erreur dans la réponse JSON: ${parseError}. Réponse reçue: ${responseText.substring(0, 100)}...` 
+      };
+    }
 
     if (!response.ok) {
       console.error(`Erreur HTTP: ${response.status}`);
       return { 
         success: false, 
-        message: `Erreur serveur: ${response.status} ${response.statusText}` 
+        message: data.message || `Erreur serveur: ${response.status} ${response.statusText}` 
       };
     }
-
-    const data = await response.json();
+    
     console.log('Réponse de l\'authentification:', data);
     
     if (data.token) {

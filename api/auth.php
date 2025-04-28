@@ -1,7 +1,7 @@
 
 <?php
 // Activer la journalisation d'erreurs plus détaillée
-ini_set('display_errors', 1);
+ini_set('display_errors', 0);
 error_reporting(E_ALL);
 
 // Enregistrer le début de l'exécution
@@ -47,6 +47,18 @@ function exception_handler($exception) {
 set_exception_handler('exception_handler');
 
 try {
+    // Chargement des configurations d'environnement
+    if (file_exists(__DIR__ . '/config/env.php')) {
+        require_once __DIR__ . '/config/env.php';
+    } else {
+        error_log("Le fichier env.php est manquant, utilisation des valeurs par défaut");
+        // Valeurs par défaut si le fichier env.php n'est pas trouvé
+        define('DB_HOST', 'p71x6d.myd.infomaniak.com');
+        define('DB_NAME', 'p71x6d_system');
+        define('DB_USER', 'p71x6d_system');
+        define('DB_PASS', 'Trottinette43!');
+    }
+
     // Récupérer les données POST
     $json_input = file_get_contents("php://input");
 
@@ -87,16 +99,17 @@ try {
     if ($username && $password) {
         error_log("Tentative de connexion pour: " . $username);
         
-        // Se connecter à la base de données via le module de configuration
-        require_once __DIR__ . '/config/database.php';
+        // Se connecter directement avec PDO pour plus de fiabilité
         try {
-            $database = new Database();
-            $pdo = $database->getConnection(true);
+            // Connexion directe à la base
+            $dsn = "mysql:host=" . DB_HOST . ";dbname=" . DB_NAME . ";charset=utf8mb4";
+            $options = [
+                PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+                PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+                PDO::ATTR_EMULATE_PREPARES => false,
+            ];
             
-            if (!$pdo) {
-                throw new Exception("Impossible de se connecter à la base de données");
-            }
-            
+            $pdo = new PDO($dsn, DB_USER, DB_PASS, $options);
             error_log("Connexion à la base de données réussie");
             
             // Rechercher l'utilisateur par email

@@ -50,9 +50,9 @@ export const useLoginForm = () => {
         setError(result.message || 'Échec de la connexion');
         
         // Déterminer le type d'erreur
-        if (result.message?.includes('base de données')) {
+        if (result.message?.includes('base de données') || result.message?.includes('database')) {
           setHasDbError(true);
-        } else if (result.message?.includes('serveur')) {
+        } else if (result.message?.includes('serveur') || result.message?.includes('server') || result.message?.includes('env.php')) {
           setHasServerError(true);
         } else {
           setHasAuthError(true);
@@ -69,9 +69,9 @@ export const useLoginForm = () => {
       setError(errorMessage);
       
       // Déterminer le type d'erreur
-      if (errorMessage.includes('base de données')) {
+      if (errorMessage.includes('base de données') || errorMessage.includes('database')) {
         setHasDbError(true);
-      } else if (errorMessage.includes('serveur')) {
+      } else if (errorMessage.includes('serveur') || errorMessage.includes('server') || errorMessage.includes('env.php')) {
         setHasServerError(true);
       } else {
         setHasAuthError(true);

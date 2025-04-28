@@ -6,6 +6,7 @@ class DatabaseConnection {
     public $is_connected = false;
     public $connection_error = null;
     public $connection_source = null;
+    public $tableName;
 
     public function __construct($config, $source = 'default') {
         $this->config = $config;

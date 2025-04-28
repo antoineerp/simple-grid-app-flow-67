@@ -55,6 +55,14 @@ jobs:
         cp dist/index.html deploy/
         cp .htaccess deploy/ || echo "Fichier .htaccess non trouvé"
         
+        # Copie des fichiers de configuration
+        echo "Copie des fichiers de configuration..."
+        mkdir -p deploy/api/config
+        cp api/config/env.php deploy/api/config/ || echo "Fichier env.php non trouvé"
+        cp api/config/DatabaseConfig.php deploy/api/config/ || echo "Fichier DatabaseConfig.php non trouvé"
+        cp api/config/DatabaseConnection.php deploy/api/config/ || echo "Fichier DatabaseConnection.php non trouvé"
+        cp api/config/DatabaseDiagnostics.php deploy/api/config/ || echo "Fichier DatabaseDiagnostics.php non trouvé"
+        
         # Copie explicite des fichiers API
         if [ -d "api" ]; then
           echo "Copie des fichiers API..."
