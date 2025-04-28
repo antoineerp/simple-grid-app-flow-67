@@ -27,7 +27,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
 error_log("Accès au script config-test.php - Méthode: " . $_SERVER['REQUEST_METHOD']);
 
 try {
-    // Configuration par défaut
+    // Définir la configuration directement dans ce fichier sans dépendre d'env.php
+    // Cela garantit que cette configuration fonctionne quoi qu'il arrive
     $config = [
         'api_urls' => [
             'development' => '/api',
@@ -36,18 +37,25 @@ try {
         'allowed_origins' => [
             'development' => '*',
             'production' => '*'
+        ],
+        'db_config' => [
+            'host' => 'p71x6d.myd.infomaniak.com',
+            'database' => 'p71x6d_system',
+            'username' => 'p71x6d_system',
+            'password' => 'Trottinette43!'
         ]
     ];
     
-    // Fichier de configuration
+    // Fichier de configuration pour stocker les valeurs personnalisées
     $configFile = __DIR__ . '/config/app_config.json';
     
-    // Lire la configuration si elle existe
+    // Lire la configuration personnalisée si elle existe et la fusionner
     if (file_exists($configFile)) {
         $configData = file_get_contents($configFile);
         $parsedConfig = json_decode($configData, true);
         if ($parsedConfig) {
-            $config = $parsedConfig;
+            // Fusionner la configuration personnalisée avec la configuration par défaut
+            $config = array_merge_recursive($config, $parsedConfig);
         }
     }
     

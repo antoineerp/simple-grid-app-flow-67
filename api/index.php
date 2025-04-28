@@ -387,7 +387,8 @@ function diagnoseRequest() {
             '/api/error-log' => 'Diagnostic des erreurs PHP et du serveur',
             '/api/server-status' => 'Statut du serveur',
             '/api/phpinfo-test' => 'Test phpinfo',
-            '/api/clear-log' => 'Nettoyage des logs'
+            '/api/clear-log' => 'Nettoyage des logs',
+            '/api/config-test' => 'Configuration en lecture seule (toujours disponible)'
         ],
         'server_details' => [
             'php_version' => phpversion(),
