@@ -148,8 +148,9 @@ try {
             if ($valid_password) {
                 error_log("Mot de passe valide pour: " . $user['email']);
                 
-                // Générer un token simple
-                $token = base64_encode(json_encode([
+                // Générer un token JWT valide avec 3 parties (header, payload, signature)
+                $header = base64_encode(json_encode(['alg' => 'HS256', 'typ' => 'JWT']));
+                $payload = base64_encode(json_encode([
                     'user' => [
                         'id' => $user['id'],
                         'username' => $user['email'],
@@ -161,6 +162,11 @@ try {
                     ],
                     'exp' => time() + 3600 // expire dans 1 heure
                 ]));
+                // Signature simple (en production, utilisez une clé secrète forte)
+                $signature = base64_encode(hash_hmac('sha256', $header . "." . $payload, 'secret_key', true));
+                
+                // Format JWT standard: header.payload.signature
+                $token = $header . "." . $payload . "." . $signature;
                 
                 // Envoyer la réponse
                 http_response_code(200);

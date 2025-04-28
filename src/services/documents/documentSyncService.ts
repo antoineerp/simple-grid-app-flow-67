@@ -10,7 +10,7 @@ export const loadDocumentsFromServer = async (userId: string): Promise<Document[
   try {
     console.log(`Chargement des documents pour l'utilisateur ${userId}`);
     
-    // Ajout du paramètre userId au lieu de user pour correspondre au backend
+    // Utilisation du paramètre userId pour compatibilité avec le back-end
     const response = await fetch(`${getApiUrl()}/documents-load.php?userId=${userId}`, {
       method: 'GET',
       headers: getAuthHeaders()
@@ -48,7 +48,7 @@ export const syncDocumentsWithServer = async (documents: Document[], userId: str
       method: 'POST',
       headers: getAuthHeaders(),
       body: JSON.stringify({
-        user: userId,
+        userId: userId, // Utiliser userId pour correspondre au format attendu
         documents: documents
       })
     });

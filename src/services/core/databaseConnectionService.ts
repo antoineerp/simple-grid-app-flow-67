@@ -1,3 +1,4 @@
+
 import { getApiUrl } from '@/config/apiConfig';
 import { getAuthHeaders } from '@/services/auth/authService';
 
@@ -16,21 +17,25 @@ export const getCurrentUser = (): string | null => {
       // Vérifier que le token a le bon format avant de le traiter
       const parts = authToken.split('.');
       if (parts && parts.length >= 2 && parts[1]) {
-        const base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
-        const jsonPayload = decodeURIComponent(
-          atob(base64)
-            .split('')
-            .map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
-            .join('')
-        );
+        try {
+          const base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+          const rawPayload = atob(base64);
+          const jsonPayload = decodeURIComponent(
+            Array.from(rawPayload)
+              .map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+              .join('')
+          );
 
-        const userData = JSON.parse(jsonPayload);
-        if (userData.user && userData.user.identifiant_technique) {
-          currentDatabaseUser = userData.user.identifiant_technique;
-          return userData.user.identifiant_technique;
+          const userData = JSON.parse(jsonPayload);
+          if (userData.user && userData.user.identifiant_technique) {
+            currentDatabaseUser = userData.user.identifiant_technique;
+            return userData.user.identifiant_technique;
+          }
+        } catch (decodeError) {
+          console.error("Erreur lors du décodage du token:", decodeError);
         }
       } else {
-        console.error("Format de token invalide:", authToken);
+        console.error("Format de token invalide lors de l'initialisation");
       }
     }
   } catch (error) {
@@ -210,22 +215,26 @@ export const initializeCurrentUser = (): void => {
   try {
     const authToken = sessionStorage.getItem('authToken');
     if (authToken) {
-      // Vérifier que le token est correctement formaté
+      // Vérifier que le token est correctement formaté (format JWT)
       const parts = authToken.split('.');
-      if (parts && parts.length >= 2 && parts[1]) {
-        const base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
-        const jsonPayload = decodeURIComponent(
-          atob(base64)
-            .split('')
-            .map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
-            .join('')
-        );
+      if (parts && parts.length >= 3) { // Un token JWT valide a 3 parties
+        try {
+          const base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+          const rawPayload = atob(base64);
+          const jsonPayload = decodeURIComponent(
+            Array.from(rawPayload)
+              .map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+              .join('')
+          );
 
-        const userData = JSON.parse(jsonPayload);
-        if (userData.user && userData.user.identifiant_technique) {
-          setCurrentUser(userData.user.identifiant_technique);
-          console.log(`Utilisateur initialisé depuis le token JWT: ${userData.user.identifiant_technique}`);
-          return;
+          const userData = JSON.parse(jsonPayload);
+          if (userData.user && userData.user.identifiant_technique) {
+            setCurrentUser(userData.user.identifiant_technique);
+            console.log(`Utilisateur initialisé depuis le token JWT: ${userData.user.identifiant_technique}`);
+            return;
+          }
+        } catch (decodeError) {
+          console.error("Erreur lors du décodage du token:", decodeError);
         }
       } else {
         console.error("Format de token invalide lors de l'initialisation");
