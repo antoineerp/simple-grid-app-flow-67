@@ -12,6 +12,7 @@ header('Content-Type: text/html; charset=utf-8');
         .error { color: red; font-weight: bold; }
         .warning { color: orange; font-weight: bold; }
         pre { background: #f5f5f5; padding: 10px; border-radius: 5px; overflow-x: auto; }
+        .section { margin-bottom: 30px; padding: 15px; border: 1px solid #ddd; border-radius: 4px; }
     </style>
 </head>
 <body>
@@ -69,12 +70,34 @@ header('Content-Type: text/html; charset=utf-8');
     checkMimeType('dist/assets');
     ?>
     
-    <h2>Test de chargement de module</h2>
-    <div id="module-test">Test de chargement de module JavaScript...</div>
+    <div class="section">
+        <h2>Test de chargement de module</h2>
+        <div id="module-test">Test de chargement de module JavaScript...</div>
+        
+        <script type="module">
+            document.getElementById('module-test').innerHTML = '<span class="success">Le chargement de module JavaScript fonctionne correctement!</span>';
+        </script>
+    </div>
     
-    <script type="module">
-        document.getElementById('module-test').innerHTML = '<span class="success">Le chargement de module JavaScript fonctionne correctement!</span>';
-    </script>
+    <div class="section">
+        <h2>Vérification des scripts dans index.html</h2>
+        <?php
+        if (file_exists('index.html')) {
+            $content = file_get_contents('index.html');
+            $has_module_script = preg_match('/<script[^>]*type=["\']module["\'][^>]*>/i', $content);
+            $has_js_script = preg_match('/<script[^>]*src=["\'][^"\']*\.js["\'][^>]*>/i', $content);
+            
+            echo "<p>Script avec type=\"module\": " . ($has_module_script ? '<span class="success">TROUVÉ</span>' : '<span class="warning">NON TROUVÉ</span>') . "</p>";
+            echo "<p>Script JavaScript: " . ($has_js_script ? '<span class="success">TROUVÉ</span>' : '<span class="warning">NON TROUVÉ</span>') . "</p>";
+            
+            if (!$has_module_script && $has_js_script) {
+                echo "<p class='warning'>Le script JavaScript doit avoir l'attribut type=\"module\" pour être chargé comme un module ES.</p>";
+            }
+        } else {
+            echo "<p><span class='error'>Fichier index.html introuvable</span></p>";
+        }
+        ?>
+    </div>
     
     <h2>Recommandations</h2>
     <ol>
@@ -82,18 +105,21 @@ header('Content-Type: text/html; charset=utf-8');
         <li>Vérifiez que les directives AddType et Header sont actives sur votre serveur</li>
         <li>Si vous utilisez un CDN ou un proxy, assurez-vous qu'il n'écrase pas les en-têtes HTTP</li>
         <li>En cas de problème persistant, contactez votre hébergeur pour vérifier la configuration du serveur</li>
+        <li>Assurez-vous que tous les scripts de module dans index.html ont l'attribut <code>type="module"</code></li>
     </ol>
     
     <h2>Configuration .htaccess recommandée</h2>
     <pre>
 AddType application/javascript .js
 AddType application/javascript .mjs
+AddType application/javascript .es.js
 AddType text/css .css
 AddType application/json .json
 
 &lt;IfModule mod_headers.c&gt;
-    &lt;FilesMatch "\.m?js$"&gt;
+    &lt;FilesMatch "\.(m?js|es\.js)$"&gt;
         Header set Content-Type "application/javascript"
+        Header set X-Content-Type-Options "nosniff"
     &lt;/FilesMatch&gt;
 &lt;/IfModule&gt;
     </pre>

@@ -104,4 +104,3 @@ jobs:
         echo "Exécutez fix-assets-runtime.php sur votre serveur pour vérifier l'état du déploiement."
         echo "URL: https://qualiopi.ch/fix-assets-runtime.php"
         echo "Vérifiez également: https://qualiopi.ch/fix-index-references.php"
-

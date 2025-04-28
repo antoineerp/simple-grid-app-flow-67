@@ -1,3 +1,4 @@
+
 # Activer le moteur de réécriture
 RewriteEngine On
 
@@ -50,7 +51,7 @@ RewriteCond %{REQUEST_FILENAME} -f
 RewriteRule ^ - [L]
 
 # Permettre l'accès direct aux autres ressources statiques
-RewriteCond %{REQUEST_URI} \.(js|mjs|css|png|jpe?g|gif|svg|ico|webp|woff2?|ttf|eot|map|tsx?)$
+RewriteCond %{REQUEST_URI} \.(js|mjs|es\.js|css|png|jpe?g|gif|svg|ico|webp|woff2?|ttf|eot|map|tsx?)$
 RewriteCond %{REQUEST_FILENAME} -f
 RewriteRule ^ - [L]
 
