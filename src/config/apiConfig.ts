@@ -1,29 +1,6 @@
 
 // Configuration de l'API
-let apiUrl = '/api';
-let isCustomUrl = false;
-
-// Détection automatique de l'environnement
-function detectEnvironment() {
-  const hostname = window.location.hostname;
-  const isInfomaniak = hostname.includes('myd.infomaniak.com') || hostname.includes('qualiopi.ch');
-  
-  console.log('Détection d\'environnement - Hostname:', hostname);
-  console.log('Détection d\'environnement - Est Infomaniak:', isInfomaniak);
-  
-  if (isInfomaniak) {
-    // Configuration pour Infomaniak - utiliser le chemin relatif au domaine
-    apiUrl = '/api';
-    console.log('Environnement Infomaniak détecté - API URL:', apiUrl);
-  } else {
-    // Pour l'environnement de développement ou preview Lovable
-    apiUrl = '/api';
-    console.log('Environnement de développement détecté - API URL:', apiUrl);
-  }
-}
-
-// Forcer une détection initiale
-detectEnvironment();
+const apiUrl = '/api';
 
 // Obtenir l'URL de l'API
 export function getApiUrl(): string {
@@ -32,9 +9,7 @@ export function getApiUrl(): string {
 
 // Obtenir l'URL complète de l'API (avec le hostname)
 export function getFullApiUrl(): string {
-  return apiUrl.startsWith('http') 
-    ? apiUrl 
-    : `${window.location.protocol}//${window.location.host}${apiUrl}`;
+  return `${window.location.protocol}//${window.location.host}${apiUrl}`;
 }
 
 // Diagnostic de l'API simple
@@ -50,11 +25,9 @@ export async function testApiConnection(): Promise<{ success: boolean; message: 
     });
     
     console.log('Réponse du test API:', response.status, response.statusText);
-    console.log('Headers:', [...response.headers.entries()]);
     
     const responseText = await response.text();
     
-    // Essayer de parser la réponse comme JSON
     try {
       const data = JSON.parse(responseText);
       return {
@@ -80,25 +53,6 @@ export async function testApiConnection(): Promise<{ success: boolean; message: 
       details: { error }
     };
   }
-}
-
-// Définir une URL personnalisée pour l'API
-export function setCustomApiUrl(url: string): void {
-  apiUrl = url;
-  isCustomUrl = true;
-  console.log('URL API personnalisée définie:', url);
-}
-
-// Réinitialiser l'URL de l'API à sa valeur par défaut
-export function resetToDefaultApiUrl(): void {
-  detectEnvironment();
-  isCustomUrl = false;
-  console.log('URL API réinitialisée à la valeur par défaut:', apiUrl);
-}
-
-// Vérifier si une URL personnalisée est utilisée
-export function isUsingCustomApiUrl(): boolean {
-  return isCustomUrl;
 }
 
 // Fonction utilitaire pour les requêtes fetch avec gestion d'erreur
