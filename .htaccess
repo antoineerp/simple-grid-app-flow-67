@@ -11,12 +11,13 @@ DirectoryIndex index.html index.php
 
 # Définir les types MIME corrects
 AddType application/javascript .js
+AddType application/javascript .mjs
 AddType text/css .css
 AddType application/json .json
 AddType image/svg+xml .svg
 
 # Permettre l'accès aux assets
-<FilesMatch "\.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot|map|tsx?)$">
+<FilesMatch "\.(js|mjs|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot|map|tsx?)$">
     Order Allow,Deny
     Allow from all
 </FilesMatch>
@@ -43,7 +44,7 @@ RewriteCond %{REQUEST_FILENAME} -f
 RewriteRule ^ - [L]
 
 # Permettre l'accès direct aux autres ressources statiques
-RewriteCond %{REQUEST_URI} \.(js|css|png|jpe?g|gif|svg|ico|webp|woff2?|ttf|eot|map|tsx?)$
+RewriteCond %{REQUEST_URI} \.(js|mjs|css|png|jpe?g|gif|svg|ico|webp|woff2?|ttf|eot|map|tsx?)$
 RewriteCond %{REQUEST_FILENAME} -f
 RewriteRule ^ - [L]
 
@@ -55,6 +56,11 @@ RewriteRule ^(.*)$ index.html [QSA,L]
 
 # Configuration de sécurité
 <IfModule mod_headers.c>
+    # Force le bon type MIME pour les JavaScript modules
+    <FilesMatch "\.m?js$">
+        Header set Content-Type "application/javascript"
+    </FilesMatch>
+    
     # Configuration pour les assets statiques
     <FilesMatch "\.(js|css|json)$">
         Header set Cache-Control "no-cache, no-store, must-revalidate"
