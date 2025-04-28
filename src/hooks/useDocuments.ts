@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { Document, DocumentStats, DocumentGroup } from '@/types/documents';
 import { useToast } from '@/hooks/use-toast';
 import { calculateDocumentStats } from '@/services/documents/documentStatsService';
+import { loadDocumentsFromStorage, saveDocumentsToStorage } from '@/services/documents';
 import { useDocumentSync } from '@/features/documents/hooks/useDocumentSync';
 import { useDocumentMutations } from '@/features/documents/hooks/useDocumentMutations';
 import { useDocumentGroups } from '@/features/documents/hooks/useDocumentGroups';
@@ -19,38 +20,63 @@ export const useDocuments = () => {
   const [groupDialogOpen, setGroupDialogOpen] = useState(false);
   const [stats, setStats] = useState<DocumentStats>(() => calculateDocumentStats(documents));
 
-  const { syncWithServer, loadFromServer, isSyncing, isOnline, lastSynced } = useDocumentSync();
+  const { syncWithServer, loadFromServer } = useDocumentSync();
   const documentMutations = useDocumentMutations(documents, setDocuments);
   const groupOperations = useDocumentGroups(groups, setGroups);
 
-  // Initial load
+  // Initial load from localStorage
   useEffect(() => {
-    const fetchDocuments = async () => {
-      const serverDocuments = await loadFromServer(currentUser);
-      if (serverDocuments) {
-        setDocuments(serverDocuments);
+    const loadedDocuments = loadDocumentsFromStorage(currentUser);
+    if (loadedDocuments && loadedDocuments.length > 0) {
+      console.log(`Loaded ${loadedDocuments.length} documents from localStorage`);
+      setDocuments(loadedDocuments);
+    }
+    
+    // Attempt to load from server after loading from localStorage
+    const fetchFromServer = async () => {
+      try {
+        const serverDocuments = await loadFromServer(currentUser);
+        if (serverDocuments && serverDocuments.length > 0) {
+          console.log(`Loaded ${serverDocuments.length} documents from server`);
+          setDocuments(serverDocuments);
+        }
+      } catch (error) {
+        console.error("Error loading documents from server:", error);
       }
     };
 
-    fetchDocuments();
-  }, [currentUser]);
+    fetchFromServer();
+  }, [currentUser, loadFromServer]);
+
+  // Save documents to localStorage whenever they change
+  useEffect(() => {
+    if (documents.length > 0) {
+      saveDocumentsToStorage(documents, currentUser);
+      console.log(`Saved ${documents.length} documents to localStorage`);
+    }
+  }, [documents, currentUser]);
 
   // Update stats when documents change
   useEffect(() => {
     setStats(calculateDocumentStats(documents));
   }, [documents]);
 
-  // Auto-sync effect
+  // Auto-sync effect with reduced frequency and error handling
   useEffect(() => {
     const autoSync = async () => {
-      if (documents.length > 0) {
-        await syncWithServer(documents, currentUser);
+      try {
+        if (documents.length > 0) {
+          await syncWithServer(documents, currentUser);
+          console.log("Auto-sync completed successfully");
+        }
+      } catch (error) {
+        console.error("Auto-sync failed:", error);
       }
     };
 
-    const syncInterval = setInterval(autoSync, 300000); // Sync every 5 minutes
+    const syncInterval = setInterval(autoSync, 600000); // Sync every 10 minutes
     return () => clearInterval(syncInterval);
-  }, [documents, currentUser]);
+  }, [documents, currentUser, syncWithServer]);
 
   const handleEdit = useCallback((id: string) => {
     const documentToEdit = documents.find(doc => doc.id === id);
@@ -76,11 +102,17 @@ export const useDocuments = () => {
       prev.map(doc => doc.id === newDoc.id ? newDoc : doc)
     );
     
+    // Save to localStorage immediately after update
+    const updatedDocuments = documents.map(doc => 
+      doc.id === newDoc.id ? newDoc : doc
+    );
+    saveDocumentsToStorage(updatedDocuments, currentUser);
+    
     toast({
       title: "Document mis à jour",
       description: `Le document ${newDoc.id} a été mis à jour avec succès`
     });
-  }, [toast]);
+  }, [documents, currentUser, toast]);
 
   const handleAddDocument = useCallback(() => {
     const maxId = documents.length > 0 
@@ -98,12 +130,17 @@ export const useDocuments = () => {
       date_modification: new Date()
     };
     
-    setDocuments(prev => [...prev, newDocument]);
+    const newDocuments = [...documents, newDocument];
+    setDocuments(newDocuments);
+    
+    // Save to localStorage immediately after adding
+    saveDocumentsToStorage(newDocuments, currentUser);
+    
     toast({
       title: "Nouveau document",
       description: `Le document ${newId} a été ajouté`,
     });
-  }, [documents, toast]);
+  }, [documents, currentUser, toast]);
 
   const handleReorder = useCallback((startIndex: number, endIndex: number, targetGroupId?: string) => {
     setDocuments(prev => {
@@ -115,9 +152,13 @@ export const useDocuments = () => {
       }
       
       result.splice(endIndex, 0, removed);
+      
+      // Save to localStorage immediately after reordering
+      saveDocumentsToStorage(result, currentUser);
+      
       return result;
     });
-  }, []);
+  }, [currentUser]);
 
   const handleAddGroup = useCallback(() => {
     setEditingGroup(null);
@@ -129,10 +170,6 @@ export const useDocuments = () => {
     setGroupDialogOpen(true);
   }, []);
 
-  const forceSyncWithServer = async () => {
-    await syncWithServer(documents, currentUser);
-  };
-
   return {
     documents,
     groups,
@@ -141,9 +178,6 @@ export const useDocuments = () => {
     editingGroup,
     dialogOpen,
     groupDialogOpen,
-    isSyncing,
-    isOnline,
-    lastSynced,
     setDialogOpen,
     setGroupDialogOpen,
     ...documentMutations,
@@ -154,6 +188,6 @@ export const useDocuments = () => {
     handleAddGroup,
     handleEditGroup,
     ...groupOperations,
-    syncWithServer: forceSyncWithServer
+    syncWithServer
   };
 };

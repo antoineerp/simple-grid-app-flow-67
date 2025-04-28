@@ -6,11 +6,12 @@ import { useToast } from '@/hooks/use-toast';
 import SyncStatusIndicator from '@/components/common/SyncStatusIndicator';
 
 interface BibliothequeHeaderProps {
-  onSync: () => Promise<void>;
+  onSync?: () => Promise<void>;
   syncFailed?: boolean;
 }
 
 export const BibliothequeHeader: React.FC<BibliothequeHeaderProps> = ({
+  onSync,
   syncFailed
 }) => {
   const { toast } = useToast();
@@ -42,7 +43,7 @@ export const BibliothequeHeader: React.FC<BibliothequeHeaderProps> = ({
       </div>
       
       {syncFailed && <div className="mb-4">
-        <SyncStatusIndicator syncFailed={syncFailed} />
+        <SyncStatusIndicator syncFailed={syncFailed} onReset={onSync} />
       </div>}
     </>
   );

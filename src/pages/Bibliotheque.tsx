@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { useBibliotheque } from '@/hooks/useBibliotheque';
 import { BibliothequeHeader } from '@/features/bibliotheque/components/BibliothequeHeader';
 import { BibliothequeTable } from '@/features/bibliotheque/components/BibliothequeTable';
@@ -17,9 +17,6 @@ const Bibliotheque = () => {
     isEditing,
     currentDocument,
     currentGroup,
-    isSyncing,
-    isOnline,
-    lastSynced,
     setIsDialogOpen,
     setIsGroupDialogOpen,
     handleDrop,
@@ -38,6 +35,8 @@ const Bibliotheque = () => {
     syncWithServer,
     setDraggedItem
   } = useBibliotheque();
+  
+  const [syncFailed, setSyncFailed] = useState(false);
 
   const handleDragStart = (e: React.DragEvent<HTMLTableRowElement>, id: string, groupId?: string) => {
     setDraggedItem({ id, groupId });
@@ -73,9 +72,14 @@ const Bibliotheque = () => {
     setDraggedItem(null);
   };
 
-  // Wrap syncWithServer to match the expected void return type
   const handleSync = async () => {
-    await syncWithServer();
+    try {
+      await syncWithServer();
+      setSyncFailed(false);
+    } catch (error) {
+      console.error("Sync failed:", error);
+      setSyncFailed(true);
+    }
   };
 
   // Create a handler for adding documents that takes no arguments
@@ -94,9 +98,7 @@ const Bibliotheque = () => {
     <div className="p-8">
       <BibliothequeHeader
         onSync={handleSync}
-        isSyncing={isSyncing}
-        isOnline={isOnline}
-        lastSynced={lastSynced}
+        syncFailed={syncFailed}
       />
       
       <BibliothequeTable

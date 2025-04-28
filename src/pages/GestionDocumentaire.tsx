@@ -1,5 +1,6 @@
-import React from 'react';
-import { FileText, FolderPlus, CloudSun } from 'lucide-react';
+
+import React, { useEffect } from 'react';
+import { FileText, FolderPlus } from 'lucide-react';
 import { MembresProvider } from '@/contexts/MembresContext';
 import DocumentForm from '@/components/gestion-documentaire/DocumentForm';
 import DocumentStatusDisplay from '@/components/gestion-documentaire/DocumentStats';
@@ -10,6 +11,7 @@ import { exportDocumentsToPdf } from '@/services/pdfExport';
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import SyncStatusIndicator from '@/components/common/SyncStatusIndicator';
+import { saveDocumentsToStorage } from '@/services/documents';
 
 const GestionDocumentaireContent = () => {
   const {
@@ -20,7 +22,6 @@ const GestionDocumentaireContent = () => {
     editingGroup,
     dialogOpen,
     groupDialogOpen,
-    syncFailed,
     setDialogOpen,
     setGroupDialogOpen,
     handleResponsabiliteChange,
@@ -41,6 +42,25 @@ const GestionDocumentaireContent = () => {
   } = useDocuments();
   
   const { toast } = useToast();
+  const currentUser = localStorage.getItem('currentUser') || 'default';
+  const [syncFailed, setSyncFailed] = React.useState(false);
+
+  // Sauvegarder automatiquement les modifications
+  useEffect(() => {
+    if (documents.length > 0) {
+      saveDocumentsToStorage(documents, currentUser);
+    }
+  }, [documents, currentUser]);
+
+  const handleSync = async () => {
+    try {
+      await syncWithServer();
+      setSyncFailed(false);
+    } catch (error) {
+      console.error("Sync failed:", error);
+      setSyncFailed(true);
+    }
+  };
 
   const handleExportPdf = () => {
     exportDocumentsToPdf(documents, groups);
@@ -68,7 +88,7 @@ const GestionDocumentaireContent = () => {
       </div>
 
       {syncFailed && <div className="mb-4">
-        <SyncStatusIndicator syncFailed={syncFailed} />
+        <SyncStatusIndicator syncFailed={syncFailed} onReset={handleSync} />
       </div>}
 
       <DocumentStatusDisplay stats={stats} />

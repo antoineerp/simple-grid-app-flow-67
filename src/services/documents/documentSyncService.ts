@@ -2,6 +2,7 @@
 import { Document } from '@/types/documents';
 import { getApiUrl } from '@/config/apiConfig';
 import { getAuthHeaders } from '@/services/auth/authService';
+import { loadDocumentsFromStorage, saveDocumentsToStorage } from '@/services/documents';
 
 /**
  * Synchronizes documents with the server
@@ -36,7 +37,7 @@ export const syncDocumentsWithServer = async (
     return result.success === true;
   } catch (error) {
     console.error('Erreur de synchronisation:', error);
-    return false;
+    throw error;
   }
 };
 
@@ -61,9 +62,32 @@ export const loadDocumentsFromServer = async (currentUser: string): Promise<Docu
     const result = await response.json();
     console.log("Documents chargés depuis le serveur:", result);
     
-    return result.documents || null;
+    // Transform server data to match our Document type
+    if (result.success && result.documents) {
+      const transformedDocuments = result.documents.map((doc: any) => ({
+        id: doc.id || doc.titre,
+        nom: doc.titre || doc.nom,
+        fichier_path: doc.url_fichier || doc.fichier_path || null,
+        responsabilites: doc.responsabilites || { r: [], a: [], c: [], i: [] },
+        etat: doc.etat || null,
+        date_creation: new Date(doc.date_creation || Date.now()),
+        date_modification: new Date(doc.date_modification || Date.now()),
+        groupId: doc.groupId || undefined
+      }));
+      
+      // Save to localStorage for offline use
+      if (transformedDocuments.length > 0) {
+        saveDocumentsToStorage(transformedDocuments, currentUser);
+      }
+      
+      return transformedDocuments;
+    }
+    
+    return null;
   } catch (error) {
     console.error('Erreur de chargement des documents:', error);
-    return null;
+    // Fallback to localStorage on server error
+    const localDocuments = loadDocumentsFromStorage(currentUser);
+    return localDocuments;
   }
 };
