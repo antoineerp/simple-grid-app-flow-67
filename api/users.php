@@ -104,7 +104,7 @@ try {
             }
             
             // Validate role
-            $valid_roles = ['admin', 'user', 'administrateur', 'utilisateur', 'gestionnaire'];
+            $valid_roles = ['administrateur', 'utilisateur', 'gestionnaire'];
             if (isset($data['role']) && !in_array($data['role'], $valid_roles)) {
                 $errors[] = "Rôle invalide. Les rôles valides sont: " . implode(', ', $valid_roles);
             }
