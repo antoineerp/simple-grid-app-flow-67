@@ -36,7 +36,7 @@ export const useExigences = () => {
     }
   }, [exigences]);
 
-  // Handle exigence adding
+  // Handle exigence adding - corrigé pour ne pas prendre d'argument
   const handleAddExigence = useCallback(() => {
     const newExigence: Exigence = {
       id: crypto.randomUUID(),
