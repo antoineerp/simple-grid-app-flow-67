@@ -19,12 +19,34 @@ const BootLoader: React.FC<BootLoaderProps> = ({ children }) => {
   const [debugInfo, setDebugInfo] = useState<string[]>([]);
   const [retryCount, setRetryCount] = useState(0);
   const [apiError, setApiError] = useState<string | null>(null);
+  const [initTimeout, setInitTimeout] = useState<boolean>(false);
   const syncService = useSyncService();
   const { isOnline } = useNetworkStatus();
   const { toast } = useToast();
   
   // Utilisons une référence pour suivre si le composant est monté
   const isMounted = useRef(true);
+  
+  // Effet pour gérer le timeout de chargement
+  useEffect(() => {
+    // Si le chargement prend plus de 10 secondes, on continue quand même
+    const timeoutId = setTimeout(() => {
+      if (isLoading && isMounted.current) {
+        console.log('BootLoader: Timeout de chargement dépassé, poursuite de l\'application');
+        setInitTimeout(true);
+        setIsLoading(false);
+        toast({
+          title: "Chargement partiel",
+          description: "L'application a été chargée partiellement, certaines données pourraient être manquantes.",
+          variant: "warning"
+        });
+      }
+    }, 10000); // 10 secondes de timeout
+    
+    return () => {
+      clearTimeout(timeoutId);
+    };
+  }, [isLoading, toast]);
   
   useEffect(() => {
     // Fonction pour initialiser l'application
@@ -37,7 +59,7 @@ const BootLoader: React.FC<BootLoaderProps> = ({ children }) => {
         console.log("BootLoader: Utilisateur actuel:", user);
         
         if (isMounted.current) {
-          setDebugInfo(prev => [...prev, `Utilisateur: ${user ? JSON.stringify(user) : 'Non connecté'}`]);
+          setDebugInfo(prev => [...prev, `Utilisateur: ${user ? JSON.stringify(user).substring(0, 100) + '...' : 'Non connecté'}`]);
         }
         
         // Si l'utilisateur n'est pas connecté, on ne charge pas les données
@@ -82,6 +104,14 @@ const BootLoader: React.FC<BootLoaderProps> = ({ children }) => {
           
           console.log(`BootLoader: userId identifié: ${userId}`);
           
+          if (!userId) {
+            console.warn('BootLoader: Identifiant utilisateur non disponible, chargement impossible');
+            if (isMounted.current) {
+              setIsLoading(false);
+            }
+            return;
+          }
+          
           // Documents (premier chargement)
           if (isMounted.current) {
             setDebugInfo(prev => [...prev, 'Chargement des documents...']);
@@ -93,18 +123,26 @@ const BootLoader: React.FC<BootLoaderProps> = ({ children }) => {
             endpoint: 'documents-sync.php',
             loadEndpoint: 'documents-load.php',
             userId: userId,
-            maxRetries: 2,
-            retryDelay: 1000
+            maxRetries: 1,
+            retryDelay: 500
+          }).catch(err => {
+            console.warn('Erreur lors du chargement des documents:', err);
+            return null;
           });
           
-          console.log('BootLoader: Résultat du chargement des documents:', documentsResult);
+          console.log('BootLoader: Résultat du chargement des documents:', documentsResult ? 'OK' : 'Échec');
           
           if (isMounted.current) {
             setDebugInfo(prev => [...prev, `Documents chargés: ${documentsResult ? Array.isArray(documentsResult) ? documentsResult.length : 'Format invalide' : 'Erreur'}`]);
           }
           
+          // Si le timeout est déjà déclenché, on arrête le chargement
+          if (initTimeout || !isMounted.current) {
+            return;
+          }
+          
           // Attendre un peu avant de lancer le prochain chargement (évite de surcharger le serveur)
-          await new Promise(resolve => setTimeout(resolve, 500));
+          await new Promise(resolve => setTimeout(resolve, 300));
           
           // Exigences
           if (isMounted.current) {
@@ -117,11 +155,14 @@ const BootLoader: React.FC<BootLoaderProps> = ({ children }) => {
             endpoint: 'exigences-sync.php',
             loadEndpoint: 'exigences-load.php',
             userId: userId,
-            maxRetries: 2,
-            retryDelay: 1000
+            maxRetries: 1,
+            retryDelay: 500
+          }).catch(err => {
+            console.warn('Erreur lors du chargement des exigences:', err);
+            return null;
           });
           
-          console.log('BootLoader: Résultat du chargement des exigences:', exigencesResult);
+          console.log('BootLoader: Résultat du chargement des exigences:', exigencesResult ? 'OK' : 'Échec');
           
           if (isMounted.current) {
             setDebugInfo(prev => [...prev, `Exigences chargées: ${exigencesResult ? Array.isArray(exigencesResult) ? exigencesResult.length : 'Format invalide' : 'Erreur'}`]);
@@ -136,17 +177,17 @@ const BootLoader: React.FC<BootLoaderProps> = ({ children }) => {
             setApiError(loadError instanceof Error ? loadError.message : String(loadError));
             
             // Si on a moins de 3 tentatives, on réessaie
-            if (retryCount < 2) {
+            if (retryCount < 1) {
               setRetryCount(prev => prev + 1);
-              setLoadingStatus(`Nouvelle tentative (${retryCount + 1}/3)... `);
-              console.log(`BootLoader: Nouvelle tentative ${retryCount + 1}/3`);
+              setLoadingStatus(`Nouvelle tentative (${retryCount + 1}/2)... `);
+              console.log(`BootLoader: Nouvelle tentative ${retryCount + 1}/2`);
               
               // Attendre un peu avant de réessayer
               setTimeout(() => {
                 if (isMounted.current) {
                   initializeApp();
                 }
-              }, 2000);
+              }, 1000);
               return;
             }
             
@@ -182,7 +223,7 @@ const BootLoader: React.FC<BootLoaderProps> = ({ children }) => {
       console.log('BootLoader: Démontage du composant');
       isMounted.current = false;
     };
-  }, [isOnline, toast, syncService, retryCount]);
+  }, [isOnline, toast, syncService, retryCount, initTimeout]);
   
   // Séparation des effets pour éviter les problèmes de dépendance cyclique
   useEffect(() => {
@@ -197,6 +238,7 @@ const BootLoader: React.FC<BootLoaderProps> = ({ children }) => {
   const handleRetry = () => {
     setRetryCount(0);
     setApiError(null);
+    setInitTimeout(false);
     setIsLoading(true);
     setLoadingStatus('Nouvelle tentative...');
   };
@@ -209,7 +251,7 @@ const BootLoader: React.FC<BootLoaderProps> = ({ children }) => {
           <h3 className="text-lg font-medium text-gray-900">{loadingStatus}</h3>
           <p className="text-sm text-gray-500 mt-2">Veuillez patienter pendant le chargement initial...</p>
           {retryCount > 0 && (
-            <p className="text-sm text-amber-600 mt-2">Tentative {retryCount + 1}/3</p>
+            <p className="text-sm text-amber-600 mt-2">Tentative {retryCount + 1}/2</p>
           )}
           
           {apiError && (
@@ -232,6 +274,15 @@ const BootLoader: React.FC<BootLoaderProps> = ({ children }) => {
               </AlertDescription>
             </Alert>
           )}
+          
+          <Button 
+            variant="link" 
+            size="sm" 
+            onClick={() => setIsLoading(false)}
+            className="mt-4"
+          >
+            Continuer sans attendre
+          </Button>
         </div>
       </div>
     );

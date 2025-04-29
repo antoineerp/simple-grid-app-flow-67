@@ -30,11 +30,18 @@ export const useGlobalSync = (options: {
   const { toast } = useToast();
 
   // Fonction pour synchroniser un type de données spécifique
-  const syncData = useCallback(async (dataType: DataType, data: any[]) => {
+  const syncData = useCallback(async (dataType: DataType, data: any[] | undefined) => {
     if (!isOnline || !isSyncEnabled) return false;
+    if (!data || data.length === 0) {
+      console.log(`Pas de données à synchroniser pour ${dataType}`);
+      return false;
+    }
     
     const currentUser = getCurrentUser();
-    if (!currentUser) return false;
+    if (!currentUser) {
+      console.log(`Pas d'utilisateur connecté pour synchroniser ${dataType}`);
+      return false;
+    }
     
     const userId = typeof currentUser === 'object' ? 
       (currentUser as any).identifiant_technique || 
@@ -89,7 +96,7 @@ export const useGlobalSync = (options: {
     exigences?: any[],
     membres?: any[],
     bibliotheque?: any[]
-  }) => {
+  } = {}) => {
     if (!isOnline || !isSyncEnabled) {
       if (!isOnline) {
         toast({
@@ -121,6 +128,11 @@ export const useGlobalSync = (options: {
         promises.push(syncData('bibliotheque', data.bibliotheque));
       }
       
+      if (promises.length === 0) {
+        console.log("Aucune donnée à synchroniser");
+        return false;
+      }
+      
       const results = await Promise.allSettled(promises);
       const allSucceeded = results.every(r => r.status === 'fulfilled' && r.value === true);
       
@@ -129,6 +141,9 @@ export const useGlobalSync = (options: {
       }
       
       return allSucceeded;
+    } catch (error) {
+      console.error("Erreur lors de la synchronisation globale:", error);
+      return false;
     } finally {
       setIsGlobalSyncing(false);
     }
@@ -137,8 +152,6 @@ export const useGlobalSync = (options: {
   // Configurer la synchronisation périodique
   useEffect(() => {
     if (isSyncEnabled) {
-      // Le hook de synchronisation est utilisé, mais la synchronisation elle-même
-      // sera déclenchée par les composants qui ont des données à synchroniser
       console.log(`Configuration de la synchronisation globale toutes les ${syncIntervalSeconds} secondes`);
     }
     
@@ -158,7 +171,6 @@ export const useGlobalSync = (options: {
     syncInterval: syncIntervalSeconds,
     setSyncInterval: (seconds: number) => {
       // Cette fonction serait utilisée pour ajuster l'intervalle de synchronisation
-      // Les composants utilisant ce hook adapteraient leurs propres intervalles
       console.log(`Nouvel intervalle de synchronisation: ${seconds} secondes`);
     },
     isOnline

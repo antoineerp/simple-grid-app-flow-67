@@ -27,9 +27,9 @@ export interface LoadOptions {
 // Configuration globale pour la synchronisation
 export const SYNC_CONFIG = {
   intervalSeconds: 15, // Intervalle de synchronisation en secondes (15s par défaut)
-  retryMaxAttempts: 3,  // Nombre maximum de tentatives en cas d'échec
-  retryDelayMs: 2000,   // Délai entre les tentatives en millisecondes
-  syncTimeoutMs: 30000, // Timeout pour une opération de synchronisation
+  retryMaxAttempts: 2,  // Nombre maximum de tentatives en cas d'échec
+  retryDelayMs: 1000,   // Délai entre les tentatives en millisecondes
+  syncTimeoutMs: 8000, // Timeout pour une opération de synchronisation
 };
 
 // Stockage partagé pour la dernière synchronisation
@@ -46,6 +46,7 @@ export const useSyncService = () => {
   const { toast } = useToast();
   const syncTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const syncIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   // Effet pour nettoyer les intervalles à la destruction du composant
   useEffect(() => {
@@ -56,6 +57,9 @@ export const useSyncService = () => {
       if (syncTimeoutRef.current) {
         clearTimeout(syncTimeoutRef.current);
       }
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
     };
   }, []);
 
@@ -65,6 +69,9 @@ export const useSyncService = () => {
       console.log("[SyncService] Tentative de synchronisation hors ligne, annulée.");
       return false;
     }
+    
+    // Créer un nouveau AbortController pour cette requête
+    abortControllerRef.current = new AbortController();
     
     setIsSyncing(true);
     setSyncFailed(false);
@@ -95,7 +102,8 @@ export const useSyncService = () => {
               userId: options.userId,
               data: options.dataName ? { [options.dataName]: options.data } : options.data,
               ...options.additionalData
-            })
+            }),
+            signal: abortControllerRef.current.signal
           });
 
           console.log(`[SyncService] Réponse de synchronisation:`, response);
@@ -106,17 +114,26 @@ export const useSyncService = () => {
           
           resolve(true);
         } catch (error) {
-          console.error(`[SyncService] Erreur de synchronisation avec ${options.endpoint}:`, error);
-          setSyncFailed(true);
-          reject(error);
+          // Si l'erreur est due à une annulation, ne pas marquer comme échec
+          if (error instanceof DOMException && error.name === 'AbortError') {
+            console.warn("[SyncService] Synchronisation annulée par le timeout");
+            resolve(false);
+          } else {
+            console.error(`[SyncService] Erreur de synchronisation avec ${options.endpoint}:`, error);
+            setSyncFailed(true);
+            reject(error);
+          }
         }
       });
       
       // Créer un timeout pour la synchronisation
       const timeoutPromise = new Promise<boolean>((_, reject) => {
         syncTimeoutRef.current = setTimeout(() => {
-          reject(new Error("Timeout de synchronisation dépassé"));
-        }, options.maxRetries ? options.maxRetries * SYNC_CONFIG.syncTimeoutMs : SYNC_CONFIG.syncTimeoutMs);
+          if (abortControllerRef.current) {
+            abortControllerRef.current.abort();
+            reject(new Error("Timeout de synchronisation dépassé"));
+          }
+        }, SYNC_CONFIG.syncTimeoutMs);
       });
       
       // Attendre la première promesse qui se résout
@@ -131,6 +148,8 @@ export const useSyncService = () => {
       if (syncTimeoutRef.current) {
         clearTimeout(syncTimeoutRef.current);
       }
+      
+      abortControllerRef.current = null;
       setIsSyncing(false);
       isSyncingGlobally = false;
       
@@ -144,8 +163,12 @@ export const useSyncService = () => {
 
   const loadFromServer = async <T>(options: LoadOptions): Promise<T[]> => {
     if (isSyncing) {
+      console.warn("Une synchronisation est déjà en cours, chargement reporté");
       throw new Error("Une synchronisation est déjà en cours");
     }
+    
+    // Créer un nouveau AbortController pour cette requête
+    abortControllerRef.current = new AbortController();
     
     setIsSyncing(true);
     setLoadError(null);
@@ -159,7 +182,10 @@ export const useSyncService = () => {
         'default_user' : 
         options.userId;
 
-      const response = await fetchWithErrorHandling(`${getApiUrl()}/${options.loadEndpoint}?userId=${encodeURIComponent(String(userId))}`);
+      const response = await fetchWithErrorHandling(
+        `${getApiUrl()}/${options.loadEndpoint}?userId=${encodeURIComponent(String(userId))}&_t=${Date.now()}`,
+        { signal: abortControllerRef.current.signal }
+      );
       
       // Vérifier si la réponse contient un champ de données
       const result = Array.isArray(response) ? response : 
@@ -174,16 +200,33 @@ export const useSyncService = () => {
       
       return result as T[];
     } catch (error) {
-      console.error(`[SyncService] Erreur de chargement depuis ${options.loadEndpoint}:`, error);
-      const message = error instanceof Error ? error.message : "Erreur inconnue";
-      setLoadError(message);
-      toast({
-        title: "Erreur de chargement",
-        description: message,
-        variant: "destructive"
-      });
+      // Si l'erreur est due à une annulation, utiliser un message plus clair
+      if (error instanceof DOMException && error.name === 'AbortError') {
+        const message = "Le chargement a été annulé car il prenait trop de temps";
+        console.warn(`[SyncService] ${message}`);
+        setLoadError(message);
+        toast({
+          title: "Chargement annulé",
+          description: message,
+          variant: "warning"
+        });
+      } else {
+        console.error(`[SyncService] Erreur de chargement depuis ${options.loadEndpoint}:`, error);
+        const message = error instanceof Error ? error.message : "Erreur inconnue";
+        setLoadError(message);
+        toast({
+          title: "Erreur de chargement",
+          description: message,
+          variant: "destructive"
+        });
+      }
       throw error;
     } finally {
+      if (syncTimeoutRef.current) {
+        clearTimeout(syncTimeoutRef.current);
+      }
+      
+      abortControllerRef.current = null;
       setIsSyncing(false);
     }
   };
@@ -191,6 +234,23 @@ export const useSyncService = () => {
   const resetSyncStatus = () => {
     setSyncFailed(false);
     setLoadError(null);
+    
+    // Annuler toute requête en cours
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+    
+    // Nettoyer les timeouts et intervalles
+    if (syncTimeoutRef.current) {
+      clearTimeout(syncTimeoutRef.current);
+      syncTimeoutRef.current = null;
+    }
+    
+    // Vider la file d'attente
+    syncQueue = [];
+    isSyncingGlobally = false;
+    setIsSyncing(false);
   };
 
   // Fonction pour planifier une synchronisation périodique
@@ -258,4 +318,3 @@ export const useSyncService = () => {
     SYNC_CONFIG
   };
 };
-

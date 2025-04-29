@@ -43,6 +43,14 @@ export const useDocuments = () => {
   // Fonction de synchronisation avec le serveur adaptée pour utiliser le service centralisé
   const handleSyncWithServer = useCallback(async () => {
     if (!isOnline || isSyncing) return false;
+    if (!userId) {
+      console.log("Impossible de synchroniser: pas d'identifiant utilisateur");
+      return false;
+    }
+    if (documents.length === 0) {
+      console.log("Pas de documents à synchroniser");
+      return false;
+    }
     
     try {
       console.log("Tentative de synchronisation des documents avec le serveur...");
@@ -60,8 +68,8 @@ export const useDocuments = () => {
             endpoint: 'documents-sync.php',
             loadEndpoint: 'documents-load.php',
             userId: userId,
-            maxRetries: 2,
-            retryDelay: 1000
+            maxRetries: 1,
+            retryDelay: 500
           });
           
           if (Array.isArray(result)) {
@@ -130,8 +138,8 @@ export const useDocuments = () => {
         endpoint: 'documents-sync.php',
         loadEndpoint: 'documents-load.php',
         userId: userId,
-        maxRetries: 2,
-        retryDelay: 1000
+        maxRetries: 1,
+        retryDelay: 500
       });
       
       if (Array.isArray(result)) {
@@ -165,23 +173,31 @@ export const useDocuments = () => {
 
   // Chargement initial des données avec le service centralisé
   useEffect(() => {
-    if (userId) {
+    const shouldLoad = userId && isOnline;
+    
+    if (shouldLoad) {
       loadDocuments();
     } else {
-      console.log("Pas d'utilisateur identifié, chargement des documents ignoré");
+      console.log("Pas d'utilisateur identifié ou hors ligne, chargement des documents ignoré");
     }
     
     // Configurer la synchronisation périodique
-    const cleanup = syncService.setupPeriodicSync(() => {
-      if (isOnline && !syncFailed && !isSyncing && userId && documents.length > 0) {
-        console.log(`Synchronisation périodique des documents (${documents.length})`);
-        return handleSyncWithServer();
-      }
-      return Promise.resolve(false);
-    }, SYNC_CONFIG.intervalSeconds);
+    let cleanupSync: (() => void) | undefined;
     
-    return cleanup;
-  }, [userId, isOnline, syncFailed, isSyncing, handleSyncWithServer, loadDocuments, syncService, documents.length]);
+    if (shouldLoad) {
+      cleanupSync = syncService.setupPeriodicSync(() => {
+        if (isOnline && !syncFailed && !isSyncing && userId && documents.length > 0) {
+          console.log(`Synchronisation périodique des documents (${documents.length})`);
+          return handleSyncWithServer();
+        }
+        return Promise.resolve(false);
+      }, SYNC_CONFIG.intervalSeconds);
+    }
+    
+    return () => {
+      if (cleanupSync) cleanupSync();
+    };
+  }, [userId, isOnline, documents.length, loadDocuments, syncService, syncFailed, isSyncing, handleSyncWithServer]);
 
   return {
     documents,
