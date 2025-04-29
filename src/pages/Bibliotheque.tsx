@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useBibliotheque } from '@/hooks/useBibliotheque';
 import { BibliothequeTable } from '@/features/bibliotheque/components/BibliothequeTable';
@@ -158,6 +159,7 @@ const Bibliotheque = () => {
       <DocumentDialog
         isOpen={isDialogOpen}
         onOpenChange={setIsDialogOpen}
+        onClose={() => setIsDialogOpen(false)}
         document={currentDocument}
         isEditing={isEditing}
         onChange={handleDocumentInputChange}

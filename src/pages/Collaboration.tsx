@@ -97,7 +97,7 @@ const Collaboration = () => {
       if (isEditing) {
         handleEditGroup(currentGroup);
       } else {
-        handleAddGroup(currentGroup);
+        handleAddGroup();
       }
       setIsGroupDialogOpen(false);
     }
