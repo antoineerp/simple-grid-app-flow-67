@@ -15,6 +15,7 @@ import Administration from "./pages/Administration";
 import NotFound from "./pages/NotFound";
 import { MembresProvider } from "./contexts/MembresContext";
 import { CollaborationProvider } from "./contexts/CollaborationContext";
+import BootLoader from "./components/system/BootLoader";
 
 const queryClient = new QueryClient();
 
@@ -23,20 +24,22 @@ const App = () => (
     <TooltipProvider>
       <MembresProvider>
         <CollaborationProvider>
-          <BrowserRouter>
-            <Routes>
-              <Route path="/" element={<Layout />}>
-                <Route index element={<Index />} />
-                <Route path="pilotage" element={<Pilotage />} />
-                <Route path="exigences" element={<Exigences />} />
-                <Route path="gestion-documentaire" element={<GestionDocumentaire />} />
-                <Route path="ressources-humaines" element={<RessourcesHumaines />} />
-                <Route path="collaboration" element={<Collaboration />} />
-                <Route path="administration" element={<Administration />} />
-              </Route>
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </BrowserRouter>
+          <BootLoader>
+            <BrowserRouter>
+              <Routes>
+                <Route path="/" element={<Layout />}>
+                  <Route index element={<Index />} />
+                  <Route path="pilotage" element={<Pilotage />} />
+                  <Route path="exigences" element={<Exigences />} />
+                  <Route path="gestion-documentaire" element={<GestionDocumentaire />} />
+                  <Route path="ressources-humaines" element={<RessourcesHumaines />} />
+                  <Route path="collaboration" element={<Collaboration />} />
+                  <Route path="administration" element={<Administration />} />
+                </Route>
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </BrowserRouter>
+          </BootLoader>
           <Toaster />
           <Sonner />
         </CollaborationProvider>

@@ -1,3 +1,4 @@
+
 import { getApiUrl } from '@/config/apiConfig';
 import { getAuthHeaders } from '@/services/auth/authService';
 import { useState } from 'react';
@@ -54,7 +55,7 @@ export const extractValidUserId = (userId: any): string => {
 export interface SyncOptions<T> {
   endpoint: string; // endpoint à appeler (ex: "documents-sync.php")
   loadEndpoint: string; // endpoint pour charger les données (ex: "documents-load.php")
-  data: T[]; // données à synchroniser
+  data?: T[]; // données à synchroniser (optionnel pour loadFromServer)
   userId: any; // ID utilisateur
   dataName?: string; // nom de la propriété dans le corps de la requête (ex: "documents", "membres")
   additionalData?: Record<string, any>; // données supplémentaires à envoyer
@@ -75,7 +76,7 @@ export const useSyncService = () => {
   /**
    * Fonction générique pour synchroniser les données avec le serveur
    */
-  const syncWithServer = async <T extends { id: string }>(options: SyncOptions<T>): Promise<boolean> => {
+  const syncWithServer = async <T extends any>(options: SyncOptions<T>): Promise<boolean> => {
     if (!isOnline || isSyncing) return false;
     
     // Si trop d'échecs consécutifs, bloquer la synchronisation
@@ -89,7 +90,7 @@ export const useSyncService = () => {
       return false;
     }
     
-    const { endpoint, data, userId, dataName = getDataNameFromEndpoint(endpoint), additionalData = {} } = options;
+    const { endpoint, data = [], userId, dataName = getDataNameFromEndpoint(endpoint), additionalData = {} } = options;
     const safeUserId = extractValidUserId(userId);
     
     setIsSyncing(true);
@@ -159,8 +160,8 @@ export const useSyncService = () => {
   /**
    * Fonction générique pour charger des données depuis le serveur
    */
-  const loadFromServer = async <T>(options: Omit<SyncOptions<T>, 'data' | 'dataName'>): Promise<T[] | null> => {
-    const { loadEndpoint, userId, endpoint } = options;
+  const loadFromServer = async <T>(options: SyncOptions<T>): Promise<T[] | null> => {
+    const { endpoint, loadEndpoint, userId } = options;
     const safeUserId = extractValidUserId(userId);
     
     setIsSyncing(true);
@@ -204,7 +205,7 @@ export const useSyncService = () => {
         setLoadError(null);
         
         if (Array.isArray(data)) {
-          return data;
+          return data as T[];
         } else {
           console.warn(`Format de données inattendu pour ${loadEndpoint}:`, data);
           return [];
