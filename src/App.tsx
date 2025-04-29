@@ -8,6 +8,9 @@ import DbTest from '@/pages/DbTest';
 import Index from '@/pages/Index';
 import Layout from '@/components/Layout';
 import Pilotage from '@/pages/Pilotage';
+import Exigences from '@/pages/Exigences';
+import GestionDocumentaire from '@/pages/GestionDocumentaire';
+import RessourcesHumaines from '@/pages/RessourcesHumaines';
 import { getIsLoggedIn } from '@/services/auth/authService';
 
 // Composant de route protégée qui vérifie l'authentification
@@ -45,20 +48,20 @@ function App() {
             </ProtectedRoute>
           } />
           
-          {/* Pour les routes des autres items du menu de navigation */}
+          {/* Routes vers les pages réelles au lieu des placeholders */}
           <Route path="exigences" element={
             <ProtectedRoute>
-              <div className="p-8">Page des exigences en cours de développement</div>
+              <Exigences />
             </ProtectedRoute>
           } />
           <Route path="gestion-documentaire" element={
             <ProtectedRoute>
-              <div className="p-8">Page de gestion documentaire en cours de développement</div>
+              <GestionDocumentaire />
             </ProtectedRoute>
           } />
           <Route path="ressources-humaines" element={
             <ProtectedRoute>
-              <div className="p-8">Page des ressources humaines en cours de développement</div>
+              <RessourcesHumaines />
             </ProtectedRoute>
           } />
           <Route path="collaboration" element={
