@@ -2,15 +2,13 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
+import { componentTagger } from "lovable-tagger";
 
 // Configuration pour Vite (compatible avec v5 et v6)
 export default defineConfig(({ mode }) => {
   // Configuration spécifique pour Infomaniak
   const isInfomaniak = process.env.VITE_HOSTING === 'infomaniak' || process.env.NODE_ENV === 'production';
   const basePath = isInfomaniak ? '/' : '/';
-  
-  // Liste des plugins avec vérification conditionnelle
-  const plugins = [react()];
   
   return {
     server: {
@@ -21,7 +19,10 @@ export default defineConfig(({ mode }) => {
         clientPort: 443
       }
     },
-    plugins: plugins,
+    plugins: [
+      react(),
+      mode === 'development' && componentTagger(),
+    ].filter(Boolean),
     resolve: {
       alias: {
         "@": path.resolve(__dirname, "./src"),
