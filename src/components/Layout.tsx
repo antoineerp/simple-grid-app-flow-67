@@ -7,6 +7,7 @@ import Sidebar from './Sidebar';
 import { MembresProvider } from '@/contexts/MembresContext';
 import { getIsLoggedIn, getAuthToken, getCurrentUser } from '@/services/auth/authService';
 import { initializeCurrentUser } from '@/services/core/databaseConnectionService';
+import GlobalSyncManager from './common/GlobalSyncManager';
 
 interface LayoutProps {
   children?: React.ReactNode;
@@ -71,6 +72,12 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         <div className="flex flex-1">
           <Sidebar />
           <main className="flex-1 bg-gray-50 overflow-auto">
+            {/* Ajouter le gestionnaire de synchronisation global en haut de chaque page */}
+            {isAuthenticated && (
+              <div className="p-2 border-b bg-white shadow-sm">
+                <GlobalSyncManager showControls={false} showStatus={true} />
+              </div>
+            )}
             {children || <Outlet />}
           </main>
         </div>

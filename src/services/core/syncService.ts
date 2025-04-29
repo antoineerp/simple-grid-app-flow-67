@@ -1,3 +1,4 @@
+
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { getApiUrl, fetchWithErrorHandling } from '@/config/apiConfig';
@@ -25,16 +26,32 @@ export interface LoadOptions {
 
 // Configuration globale pour la synchronisation
 export const SYNC_CONFIG = {
-  intervalSeconds: 15, // Intervalle de synchronisation en secondes (15s par défaut)
-  retryMaxAttempts: 2,  // Nombre maximum de tentatives en cas d'échec
-  retryDelayMs: 1000,   // Délai entre les tentatives en millisecondes
-  syncTimeoutMs: 8000, // Timeout pour une opération de synchronisation
+  intervalSeconds: 30, // Augmenté à 30 secondes pour réduire la charge serveur
+  retryMaxAttempts: 3,  // Nombre maximum de tentatives en cas d'échec
+  retryDelayMs: 2000,   // Délai entre les tentatives en millisecondes
+  syncTimeoutMs: 12000, // Timeout pour une opération de synchronisation
 };
 
 // Stockage partagé pour la dernière synchronisation
 let lastGlobalSync: Date | null = null;
 let isSyncingGlobally = false;
 let syncQueue: (() => Promise<boolean>)[] = [];
+let globalSyncSuccess = true;
+let globalSyncAttempts = 0;
+
+// Événement personnalisé pour la synchronisation
+export const createSyncEvent = (success: boolean, type: string, details?: any) => {
+  const event = new CustomEvent('app-sync', {
+    detail: {
+      success,
+      type,
+      timestamp: new Date(),
+      details
+    }
+  });
+  window.dispatchEvent(event);
+  return event;
+};
 
 export const useSyncService = () => {
   const [isSyncing, setIsSyncing] = useState(false);
@@ -46,6 +63,7 @@ export const useSyncService = () => {
   const syncTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const syncIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const syncAttemptsRef = useRef<number>(0);
 
   // Effet pour nettoyer les intervalles à la destruction du composant
   useEffect(() => {
@@ -62,10 +80,39 @@ export const useSyncService = () => {
     };
   }, []);
 
+  // Fonction pour initialiser un utilisateur pour les appels API
+  const normalizeUserId = (userId: string | object): string => {
+    if (typeof userId === 'object' && userId !== null) {
+      return (userId as any).identifiant_technique || 
+             (userId as any).email || 
+             'default_user';
+    }
+    return String(userId);
+  };
+
   const syncWithServer = async <T>(options: SyncOptions<T>): Promise<boolean> => {
-    if (isSyncing) return false;
+    if (isSyncing) {
+      console.log("[SyncService] Synchronisation déjà en cours, mise en file d'attente");
+      return new Promise((resolve) => {
+        syncQueue.push(async () => {
+          const result = await _internalSync(options);
+          resolve(result);
+          return result;
+        });
+      });
+    }
+
+    return _internalSync(options);
+  };
+
+  const _internalSync = async <T>(options: SyncOptions<T>): Promise<boolean> => {
     if (!isOnline) {
       console.log("[SyncService] Tentative de synchronisation hors ligne, annulée.");
+      toast({
+        title: "Mode hors ligne",
+        description: "La synchronisation sera effectuée lorsque vous serez en ligne",
+        variant: "default"
+      });
       return false;
     }
     
@@ -87,10 +134,18 @@ export const useSyncService = () => {
           const currentUser = getCurrentUser();
           if (!currentUser) {
             console.warn("[SyncService] Pas d'utilisateur connecté pour synchroniser");
+            toast({
+              title: "Non connecté",
+              description: "Vous devez être connecté pour synchroniser vos données",
+              variant: "destructive"
+            });
             resolve(false);
             return;
           }
 
+          // Normaliser l'ID utilisateur
+          const userId = normalizeUserId(options.userId);
+          
           // Utiliser l'API configurée pour envoyer les données
           const response = await fetchWithErrorHandling(`${getApiUrl()}/${options.endpoint}`, {
             method: 'POST',
@@ -98,7 +153,7 @@ export const useSyncService = () => {
               'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-              userId: options.userId,
+              userId: userId,
               data: options.dataName ? { [options.dataName]: options.data } : options.data,
               ...options.additionalData
             }),
@@ -110,6 +165,14 @@ export const useSyncService = () => {
           // Mise à jour des états
           setLastSynced(new Date());
           lastGlobalSync = new Date();
+          globalSyncSuccess = true;
+          globalSyncAttempts = 0;
+          
+          // Émettre un événement de synchronisation réussie
+          createSyncEvent(true, options.endpoint, {
+            dataLength: options.data.length,
+            timestamp: new Date()
+          });
           
           resolve(true);
         } catch (error) {
@@ -120,6 +183,16 @@ export const useSyncService = () => {
           } else {
             console.error(`[SyncService] Erreur de synchronisation avec ${options.endpoint}:`, error);
             setSyncFailed(true);
+            globalSyncSuccess = false;
+            syncAttemptsRef.current += 1;
+            globalSyncAttempts += 1;
+            
+            // Émettre un événement d'échec de synchronisation
+            createSyncEvent(false, options.endpoint, { 
+              error: error instanceof Error ? error.message : String(error),
+              attempts: syncAttemptsRef.current
+            });
+            
             reject(error);
           }
         }
@@ -162,7 +235,7 @@ export const useSyncService = () => {
 
   const loadFromServer = async <T>(options: LoadOptions): Promise<T[]> => {
     if (isSyncing) {
-      console.warn("Une synchronisation est déjà en cours, chargement reporté");
+      console.warn("[SyncService] Une synchronisation est déjà en cours, chargement reporté");
       throw new Error("Une synchronisation est déjà en cours");
     }
     
@@ -175,16 +248,21 @@ export const useSyncService = () => {
     try {
       console.log(`[SyncService] Chargement depuis ${options.loadEndpoint}`);
       
-      const userId = typeof options.userId === 'object' ? 
-        (options.userId as any).identifiant_technique || 
-        (options.userId as any).email || 
-        'default_user' : 
-        options.userId;
+      // Normaliser l'ID utilisateur
+      const userId = normalizeUserId(options.userId);
 
-      const response = await fetchWithErrorHandling(
-        `${getApiUrl()}/${options.loadEndpoint}?userId=${encodeURIComponent(String(userId))}&_t=${Date.now()}`,
-        { signal: abortControllerRef.current.signal }
-      );
+      // Utiliser timestamp pour éviter la mise en cache
+      const timestamp = Date.now();
+      const url = `${getApiUrl()}/${options.loadEndpoint}?userId=${encodeURIComponent(String(userId))}&_t=${timestamp}`;
+      
+      console.log(`[SyncService] URL de chargement: ${url}`);
+      
+      const response = await fetchWithErrorHandling(url, { 
+        signal: abortControllerRef.current.signal,
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate'
+        }
+      });
       
       // Vérifier si la réponse contient un champ de données
       const result = Array.isArray(response) ? response : 
@@ -193,6 +271,12 @@ export const useSyncService = () => {
                       response.documents || response.exigences || response.membres || [];
       
       console.log(`[SyncService] Données chargées:`, result);
+      
+      // Émettre un événement de chargement réussi
+      createSyncEvent(true, options.loadEndpoint, {
+        dataLength: result.length,
+        timestamp: new Date()
+      });
       
       setLastSynced(new Date());
       lastGlobalSync = new Date();
@@ -213,6 +297,13 @@ export const useSyncService = () => {
         console.error(`[SyncService] Erreur de chargement depuis ${options.loadEndpoint}:`, error);
         const message = error instanceof Error ? error.message : "Erreur inconnue";
         setLoadError(message);
+        
+        // Émettre un événement d'échec de chargement
+        createSyncEvent(false, options.loadEndpoint, { 
+          error: message,
+          timestamp: new Date()
+        });
+        
         toast({
           title: "Erreur de chargement",
           description: message,
@@ -233,6 +324,8 @@ export const useSyncService = () => {
   const resetSyncStatus = () => {
     setSyncFailed(false);
     setLoadError(null);
+    syncAttemptsRef.current = 0;
+    globalSyncAttempts = 0;
     
     // Annuler toute requête en cours
     if (abortControllerRef.current) {
@@ -271,6 +364,12 @@ export const useSyncService = () => {
         return;
       }
       
+      // Si trop d'échecs consécutifs, augmenter l'intervalle temporairement
+      if (globalSyncAttempts > SYNC_CONFIG.retryMaxAttempts) {
+        console.log("[SyncService] Trop d'échecs consécutifs, synchronisation suspendue temporairement");
+        return;
+      }
+      
       // Exécuter la synchronisation
       syncFn().catch(error => {
         console.error("[SyncService] Erreur lors de la synchronisation périodique:", error);
@@ -288,6 +387,11 @@ export const useSyncService = () => {
   const queueSync = useCallback(<T>(
     options: SyncOptions<T>
   ): Promise<boolean> => {
+    if (!isOnline) {
+      console.log("[SyncService] Mode hors ligne, synchronisation impossible");
+      return Promise.resolve(false);
+    }
+    
     if (!isSyncingGlobally) {
       return syncWithServer(options);
     }
@@ -301,7 +405,7 @@ export const useSyncService = () => {
         return result;
       });
     });
-  }, []);
+  }, [isOnline]);
 
   return {
     syncWithServer,

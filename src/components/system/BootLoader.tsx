@@ -1,7 +1,9 @@
+
 import React, { useEffect, useState, useRef } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { getCurrentUser } from '@/services/auth/authService';
 import { useSyncService } from '@/services/core/syncService';
+import { useGlobalSync } from '@/hooks/useGlobalSync';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { Spinner } from '@/components/ui/spinner';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -19,7 +21,12 @@ const BootLoader: React.FC<BootLoaderProps> = ({ children }) => {
   const [retryCount, setRetryCount] = useState(0);
   const [apiError, setApiError] = useState<string | null>(null);
   const [initTimeout, setInitTimeout] = useState<boolean>(false);
+  
   const syncService = useSyncService();
+  const globalSync = useGlobalSync({
+    initialSyncEnabled: false // Ne pas démarrer la synchronisation automatique pendant le chargement
+  });
+  
   const { isOnline } = useNetworkStatus();
   const { toast } = useToast();
   
@@ -167,6 +174,9 @@ const BootLoader: React.FC<BootLoaderProps> = ({ children }) => {
             setDebugInfo(prev => [...prev, `Exigences chargées: ${exigencesResult ? Array.isArray(exigencesResult) ? exigencesResult.length : 'Format invalide' : 'Erreur'}`]);
           }
           
+          // Maintenant que le chargement initial est terminé, activer la synchronisation globale
+          console.log('BootLoader: Activation de la synchronisation globale périodique');
+          
           console.log('BootLoader: Préchargement des données terminé avec succès');
         } catch (loadError) {
           console.error("BootLoader: Erreur lors du préchargement:", loadError);
@@ -176,17 +186,17 @@ const BootLoader: React.FC<BootLoaderProps> = ({ children }) => {
             setApiError(loadError instanceof Error ? loadError.message : String(loadError));
             
             // Si on a moins de 3 tentatives, on réessaie
-            if (retryCount < 1) {
+            if (retryCount < 2) {
               setRetryCount(prev => prev + 1);
-              setLoadingStatus(`Nouvelle tentative (${retryCount + 1}/2)... `);
-              console.log(`BootLoader: Nouvelle tentative ${retryCount + 1}/2`);
+              setLoadingStatus(`Nouvelle tentative (${retryCount + 1}/3)... `);
+              console.log(`BootLoader: Nouvelle tentative ${retryCount + 1}/3`);
               
               // Attendre un peu avant de réessayer
               setTimeout(() => {
                 if (isMounted.current) {
                   initializeApp();
                 }
-              }, 1000);
+              }, 2000);
               return;
             }
             
@@ -250,7 +260,7 @@ const BootLoader: React.FC<BootLoaderProps> = ({ children }) => {
           <h3 className="text-lg font-medium text-gray-900">{loadingStatus}</h3>
           <p className="text-sm text-gray-500 mt-2">Veuillez patienter pendant le chargement initial...</p>
           {retryCount > 0 && (
-            <p className="text-sm text-amber-600 mt-2">Tentative {retryCount + 1}/2</p>
+            <p className="text-sm text-amber-600 mt-2">Tentative {retryCount}/3</p>
           )}
           
           {apiError && (

@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { AlertTriangle, RotateCw, Check, CloudOff } from 'lucide-react';
+import { AlertTriangle, RotateCw, Check, CloudOff, Wifi } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
 import { format } from 'date-fns';
@@ -12,6 +12,7 @@ type SyncStatusProps = {
   isSyncing?: boolean;
   isOnline?: boolean;
   lastSynced?: Date | null;
+  onManualSync?: () => void;
 };
 
 const SyncStatusIndicator: React.FC<SyncStatusProps> = ({ 
@@ -19,10 +20,11 @@ const SyncStatusIndicator: React.FC<SyncStatusProps> = ({
   onReset,
   isSyncing = false,
   isOnline = true,
-  lastSynced = null
+  lastSynced = null,
+  onManualSync
 }) => {
-  // Ne rien afficher si on est hors ligne et que la synchronisation n'a pas échoué
-  if (!isOnline && !syncFailed) {
+  // Mode hors ligne
+  if (!isOnline) {
     return (
       <TooltipProvider>
         <Tooltip>
@@ -30,6 +32,18 @@ const SyncStatusIndicator: React.FC<SyncStatusProps> = ({
             <div className="flex items-center gap-2 text-xs bg-gray-50 p-2 rounded-md">
               <CloudOff className="h-4 w-4 text-gray-500" />
               <span className="text-gray-500">Mode hors ligne</span>
+              
+              {onReset && (
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={onReset} 
+                  className="h-6 text-xs p-1 ml-2 flex items-center"
+                >
+                  <Wifi className="h-3 w-3 mr-1" />
+                  Tester
+                </Button>
+              )}
             </div>
           </TooltipTrigger>
           <TooltipContent>
@@ -83,6 +97,18 @@ const SyncStatusIndicator: React.FC<SyncStatusProps> = ({
               >
                 <RotateCw className="h-3 w-3 mr-1" />
                 Réinitialiser
+              </Button>
+            )}
+            
+            {onManualSync && !isSyncing && isOnline && (
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={onManualSync} 
+                className="h-6 text-xs p-1 ml-2 flex items-center"
+              >
+                <RotateCw className="h-3 w-3 mr-1" />
+                Sync
               </Button>
             )}
           </div>
