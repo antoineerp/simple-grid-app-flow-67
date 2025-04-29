@@ -71,17 +71,28 @@ const ServerTest = () => {
     setDbStatus('loading');
     try {
       const API_URL = getApiUrl();
-      console.log("Testing database connection to:", API_URL + '/database-test');
+      console.log("Testing database connection using check-users endpoint");
       
-      const data = await fetchWithErrorHandling(`${API_URL}/database-test`, {
+      // Utiliser le même endpoint que celui qui fonctionne pour les utilisateurs
+      const response = await fetch(`${API_URL}/check-users.php`, {
         method: 'GET',
         headers: getAuthHeaders()
       });
       
+      if (!response.ok) {
+        throw new Error(`Erreur HTTP: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      
       console.log("Database response:", data);
       
-      setDbMessage(`Connexion DB réussie (${data.message || 'Pas de message'})`);
-      setDbStatus('success');
+      if (data.status === 'success') {
+        setDbMessage(`Connexion DB réussie (${data.message || 'Pas de message'})`);
+        setDbStatus('success');
+      } else {
+        throw new Error(data.message || 'Échec de la connexion à la base de données');
+      }
     } catch (error) {
       console.error("Erreur DB:", error);
       setDbMessage(`Échec de la connexion DB: ${error instanceof Error ? error.message : 'Erreur inconnue'}`);

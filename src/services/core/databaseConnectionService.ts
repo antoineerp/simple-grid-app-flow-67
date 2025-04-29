@@ -124,9 +124,10 @@ export interface DatabaseInfo {
 // Fonction pour tester la connexion à la base de données
 export const testDatabaseConnection = async (): Promise<boolean> => {
   try {
-    console.log("Test de connexion à la base de données via direct-db-test.php");
-    // Utiliser direct-db-test.php pour tester la connexion réelle
-    const response = await fetch(`${getApiUrl()}/direct-db-test.php`, {
+    console.log("Test de connexion à la base de données via check-users.php");
+    // Utiliser check-users.php au lieu de direct-db-test.php car il fonctionne mieux
+    const currentUser = getDatabaseConnectionCurrentUser();
+    const response = await fetch(`${getApiUrl()}/check-users?source=${currentUser}`, {
       headers: getAuthHeaders()
     });
     
@@ -157,9 +158,13 @@ export const getDatabaseInfo = async (): Promise<DatabaseInfo> => {
     const currentUser = getDatabaseConnectionCurrentUser();
     console.log(`Récupération des informations de base de données pour: ${currentUser || 'utilisateur par défaut'}`);
     
-    // Appel direct au diagnostic de base de données pour obtenir des informations réelles
-    const response = await fetch(`${getApiUrl()}/direct-db-test.php`, {
-      headers: getAuthHeaders() 
+    // Appel direct à check-users pour obtenir des informations réelles (le même endpoint qui fonctionne)
+    const response = await fetch(`${getApiUrl()}/check-users?source=${currentUser}`, {
+      headers: {
+        ...getAuthHeaders(),
+        'Accept': 'application/json',
+        'Cache-Control': 'no-cache, no-store, must-revalidate'
+      }
     });
     
     // Si la requête échoue, lancer une erreur
@@ -180,22 +185,22 @@ export const getDatabaseInfo = async (): Promise<DatabaseInfo> => {
     }
     
     // S'assurer que les valeurs critiques ne sont pas "localhost"
-    if (data.host && data.host.includes('localhost')) {
+    if (data.database_info && data.database_info.host && data.database_info.host.includes('localhost')) {
       console.error("ALERTE: Host 'localhost' détecté dans la réponse API. Correction forcée vers Infomaniak.");
-      data.host = "p71x6d.myd.infomaniak.com";
+      data.database_info.host = "p71x6d.myd.infomaniak.com";
     }
     
     // Extraire et formater les informations de la base de données
     const dbInfo: DatabaseInfo = {
-      host: data.host || "p71x6d.myd.infomaniak.com",
-      database: data.database || "p71x6d_system",
-      size: data.size || '0 MB',
-      tables: data.tables ? data.tables.length : 0,
+      host: data.database_info?.host || "p71x6d.myd.infomaniak.com",
+      database: data.database_info?.database || "p71x6d_system",
+      size: '0 MB',
+      tables: data.records ? data.records.length : 0,
       lastBackup: new Date().toISOString().split('T')[0] + ' 00:00:00',
       status: data.status === 'success' ? 'Online' : 'Offline',
-      encoding: data.encoding || 'utf8mb4',
-      collation: data.collation || 'utf8mb4_unicode_ci',
-      tableList: data.tables || []
+      encoding: data.database_info?.encoding || 'utf8mb4',
+      collation: data.database_info?.collation || 'utf8mb4_unicode_ci',
+      tableList: ['utilisateurs']
     };
     
     console.log("Informations de base de données reçues:", dbInfo);

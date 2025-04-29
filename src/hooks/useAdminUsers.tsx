@@ -1,8 +1,10 @@
+
 import { useState, useEffect, useCallback } from 'react';
-import { getUtilisateurs, connectAsUser, testDatabaseConnection, type Utilisateur } from '@/services';
+import { connectAsUser, testDatabaseConnection, Utilisateur } from '@/services';
 import { useToast } from "@/hooks/use-toast";
 import { hasPermission, UserRole } from '@/types/roles';
 import { getDatabaseConnectionCurrentUser } from '@/services/core/databaseConnectionService';
+import { UserManager } from '@/services/users/userManager';
 
 export const useAdminUsers = () => {
   const { toast } = useToast();
@@ -57,7 +59,7 @@ export const useAdminUsers = () => {
       }
       
       // Forcer le rafraîchissement du cache lors d'un chargement explicite
-      const data = await getUtilisateurs(true);
+      const data = await UserManager.getUtilisateurs(true);
       console.log("Données utilisateurs récupérées:", data);
       
       setUtilisateurs(data);

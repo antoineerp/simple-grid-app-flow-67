@@ -2,7 +2,7 @@
 import { getApiUrl } from '@/config/apiConfig';
 import { getAuthHeaders } from '../auth/authService';
 import { getDatabaseConnectionCurrentUser } from '../core/databaseConnectionService';
-import { Utilisateur } from '@/types';
+import { Utilisateur } from '@/services';
 
 // Un cache pour les utilisateurs
 let usersCache: Utilisateur[] | null = null;
