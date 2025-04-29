@@ -32,6 +32,8 @@ jobs:
         ls -la dist/
         echo "Liste des fichiers assets:"
         ls -la dist/assets/ || echo "Dossier assets non trouvé"
+        echo "Liste des fichiers PHP à la racine:"
+        find . -maxdepth 1 -name "*.php" | sort
 
     - name: Prepare deployment directory
       run: |
@@ -54,6 +56,10 @@ jobs:
         # Copie des autres fichiers nécessaires
         cp dist/index.html deploy/
         cp .htaccess deploy/ || echo "Fichier .htaccess non trouvé"
+        
+        # Copie des fichiers PHP à la racine
+        echo "Copie des fichiers PHP à la racine..."
+        find . -maxdepth 1 -name "*.php" -exec cp {} deploy/ \;
         
         # Copie des fichiers de configuration
         echo "Copie des fichiers de configuration..."
@@ -95,12 +101,58 @@ jobs:
           echo "Dossier API non trouvé"
         fi
         
+        # Vérification des fichiers PHP cruciaux sont bien copiés
+        echo "Vérification des fichiers PHP cruciaux :"
+        [ -f "deploy/api/index.php" ] && echo "- api/index.php: OK" || echo "- api/index.php: MANQUANT"
+        [ -f "deploy/api/phpinfo.php" ] && echo "- api/phpinfo.php: OK" || echo "- api/phpinfo.php: MANQUANT" 
+        [ -f "deploy/api/test.php" ] && echo "- api/test.php: OK" || echo "- api/test.php: MANQUANT"
+        [ -f "deploy/fix-php-processing.php" ] && echo "- fix-php-processing.php: OK" || echo "- fix-php-processing.php: MANQUANT"
+        
         # Copie des uploads si existants
         if [ -d "public/lovable-uploads" ]; then
           echo "Copie des uploads..."
           cp -r public/lovable-uploads/* deploy/public/lovable-uploads/
         else
           echo "Dossier uploads non trouvé"
+        fi
+        
+        # S'assurer que les fichiers .htaccess et .user.ini sont copiés dans /api
+        if [ -f "api/.htaccess" ]; then
+          echo "Copie du fichier .htaccess dans /api..."
+          cp api/.htaccess deploy/api/
+        else
+          echo "Fichier api/.htaccess non trouvé, création d'un fichier par défaut"
+          echo "# Configuration Apache pour PHP
+<FilesMatch \\.php$>
+    SetHandler application/x-httpd-php
+</FilesMatch>
+
+# Activation des headers CORS
+<IfModule mod_headers.c>
+    Header set Access-Control-Allow-Origin \"*\"
+    Header set Access-Control-Allow-Methods \"GET, POST, OPTIONS, PUT, DELETE\"
+    Header set Access-Control-Allow-Headers \"Content-Type, Authorization, X-Requested-With\"
+</IfModule>
+
+# Activation du moteur PHP
+<IfModule mod_php.c>
+    php_flag engine on
+    php_value display_errors 1
+    php_value display_startup_errors 1
+    php_value error_reporting E_ALL
+</IfModule>" > deploy/api/.htaccess
+        fi
+        
+        if [ -f "api/.user.ini" ]; then
+          echo "Copie du fichier .user.ini dans /api..."
+          cp api/.user.ini deploy/api/
+        else
+          echo "Fichier api/.user.ini non trouvé, création d'un fichier par défaut"
+          echo "; Configuration PHP pour Infomaniak
+display_errors = On
+error_log = php_errors.log
+log_errors = On
+engine = On" > deploy/api/.user.ini
         fi
         
         echo "Structure du dossier de déploiement:"
@@ -130,3 +182,4 @@ jobs:
       run: |
         rm -rf deploy
         rm -rf dist
+
