@@ -1,23 +1,40 @@
 
 import { useExigenceCore } from './useExigenceCore';
 import { useExigenceEditHandlers } from './useExigenceEditHandlers';
-import { useExigenceSyncHandlers } from './useExigenceSyncHandlers';
 import { useExigenceSaveHandlers } from './useExigenceSaveHandlers';
 import { useExigenceReorderHandlers } from './useExigenceReorderHandlers';
-import { useExigenceSync } from '@/hooks/useExigenceSync';
 import { useExigenceMutations } from '@/hooks/useExigenceMutations';
 import { useExigenceGroups } from '@/hooks/useExigenceGroups';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
+import { useSync } from '@/hooks/useSync';
 
 export const useExigences = () => {
   // États et valeurs de base
   const core = useExigenceCore();
   const { isOnline } = useNetworkStatus();
   
+  // Nouveau hook de synchronisation unified
+  const syncHook = useSync({
+    entityType: 'exigences',
+    initialData: core.exigences,
+    onDataUpdate: (updatedExigences) => {
+      core.setExigences(updatedExigences);
+    }
+  });
+  
   // Hooks de dépendances
-  const { loadFromServer, syncWithServer, isSyncing, lastSynced, syncFailed, loadError, resetSyncStatus } = useExigenceSync();
   const exigenceMutations = useExigenceMutations(core.exigences, core.setExigences);
   const groupOperations = useExigenceGroups(core.groups, core.setGroups, core.setExigences);
+
+  // Fonction de synchronisation
+  const handleSyncWithServer = async () => {
+    return await syncHook.syncWithServer(core.exigences);
+  };
+  
+  // Fonction de réinitialisation
+  const handleResetLoadAttempts = () => {
+    syncHook.resetSyncStatus();
+  };
 
   // Hooks de fonctionnalités
   const editHandlers = useExigenceEditHandlers(
@@ -27,32 +44,18 @@ export const useExigences = () => {
     core.selectedNiveau
   );
 
-  const syncHandlers = useExigenceSyncHandlers(
-    core.exigences,
-    core.groups,
-    core.userId,
-    syncWithServer,
-    loadFromServer,
-    core.setExigences,
-    core.setGroups,
-    core.setLastSyncedDate,
-    isSyncing,
-    syncFailed,
-    resetSyncStatus
-  );
-
   const saveHandlers = useExigenceSaveHandlers(
     core.exigences,
     exigenceMutations.handleAddExigence,
     exigenceMutations.handleSaveExigence,
     core.setDialogOpen,
-    syncHandlers.handleSyncWithServer
+    handleSyncWithServer
   );
 
   const reorderHandlers = useExigenceReorderHandlers(
     core.exigences,
     core.setExigences,
-    syncHandlers.handleSyncWithServer
+    handleSyncWithServer
   );
 
   // Gestion des groupes
@@ -79,11 +82,11 @@ export const useExigences = () => {
     editingGroup: core.editingGroup,
     dialogOpen: core.dialogOpen,
     groupDialogOpen: core.groupDialogOpen,
-    isSyncing,
-    syncFailed,
-    isOnline,
-    lastSynced,
-    loadError,
+    isSyncing: syncHook.isSyncing,
+    syncFailed: syncHook.syncFailed,
+    isOnline: syncHook.isOnline,
+    lastSynced: syncHook.lastSynced,
+    loadError: null,
     
     // Setters
     setSelectedNiveau: core.setSelectedNiveau,
@@ -107,8 +110,8 @@ export const useExigences = () => {
     handleGroupReorder: groupOperations.handleGroupReorder,
     
     // Fonctions de synchronisation
-    syncWithServer: syncHandlers.handleSyncWithServer,
-    handleResetLoadAttempts: syncHandlers.handleResetLoadAttempts,
+    syncWithServer: handleSyncWithServer,
+    handleResetLoadAttempts,
     
     // Réexport des fonctions de l'useExigenceMutations pour compatibilité
     ...exigenceMutations
@@ -117,6 +120,5 @@ export const useExigences = () => {
 
 export * from './useExigenceCore';
 export * from './useExigenceEditHandlers';
-export * from './useExigenceSyncHandlers';
 export * from './useExigenceSaveHandlers';
 export * from './useExigenceReorderHandlers';

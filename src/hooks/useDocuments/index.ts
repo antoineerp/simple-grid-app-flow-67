@@ -1,27 +1,33 @@
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useDocumentCore } from '@/features/documents/hooks/useDocumentCore';
 import { useDocumentMutations } from '@/features/documents/hooks/useDocumentMutations';
 import { useDocumentGroups } from '@/features/documents/hooks/useDocumentGroups';
 import { useDocumentHandlers } from '@/features/documents/hooks/useDocumentHandlers';
 import { useDocumentReorder } from '@/features/documents/hooks/useDocumentReorder';
-import { SYNC_CONFIG } from '@/services/core/syncService';
-import { useDocumentLoading } from './useDocumentLoading';
-import { useDocumentSyncHandlers } from './useDocumentSyncHandlers';
-import { usePeriodicSync } from './usePeriodicSync';
-import { useSyncStatus } from './useSyncStatus';
+import { useSync } from '@/hooks/useSync';
+import { Document } from '@/types/documents';
 
 export const useDocuments = () => {
+  const [loadError, setLoadError] = useState<string | null>(null);
+  
+  // Base document state
   const core = useDocumentCore();
   const {
     documents, setDocuments, groups, setGroups,
     editingDocument, setEditingDocument, editingGroup,
     dialogOpen, setDialogOpen, groupDialogOpen, setGroupDialogOpen,
-    isSyncing: coreIsSyncing, setIsSyncing: setCoreSyncSync, 
-    syncFailed: coreSyncFailed, setSyncFailed: setCoreSyncFailed,
-    loadError, setLoadError, lastSynced: coreLastSynced, setLastSynced: setCoreLastSynced,
-    stats, isOnline, userId
+    stats, userId
   } = core;
+  
+  // Document synchronization with the new unified sync hook
+  const syncHook = useSync<Document>({
+    entityType: 'documents',
+    initialData: documents,
+    onDataUpdate: (updatedDocuments) => {
+      setDocuments(updatedDocuments);
+    }
+  });
   
   // Document mutations (add, edit, delete)
   const documentMutations = useDocumentMutations(documents, setDocuments);
@@ -29,31 +35,15 @@ export const useDocuments = () => {
   // Group operations (add, edit, delete, toggle)
   const groupOperations = useDocumentGroups(groups, setGroups);
   
-  // Sync status management
-  const syncStatus = useSyncStatus({
-    coreIsSyncing,
-    coreSyncFailed,
-    coreLastSynced
-  });
-  
-  // Document sync handlers
-  const { handleSyncWithServer } = useDocumentSyncHandlers({
-    documents,
-    userId,
-    isOnline,
-    isSyncing: syncStatus.isSyncing,
-    setCoreSyncFailed,
-    setCoreLastSynced,
-    setDocuments
-  });
-  
-  // Document loading
-  const { loadDocuments, handleResetLoadAttempts } = useDocumentLoading({
-    userId,
-    setDocuments,
-    setLoadError,
-    documents
-  });
+  // Handler for syncing documents
+  const handleSyncWithServer = async () => {
+    if (documents.length === 0) {
+      console.log("Pas de documents à synchroniser");
+      return false;
+    }
+    
+    return await syncHook.syncWithServer(documents);
+  };
   
   // Document handlers (edit, add, save)
   const documentHandlers = useDocumentHandlers({
@@ -73,26 +63,31 @@ export const useDocuments = () => {
     handleSyncWithServer
   });
   
-  // Set up periodic sync
-  usePeriodicSync({
-    userId,
-    isOnline,
-    syncFailed: syncStatus.syncFailed,
-    isSyncing: syncStatus.isSyncing,
-    documents,
-    handleSyncWithServer
-  });
+  // Reset sync status
+  const handleResetLoadAttempts = () => {
+    setLoadError(null);
+    syncHook.resetSyncStatus();
+  };
+  
+  // Load documents initially
+  const loadDocuments = async () => {
+    try {
+      await syncHook.loadFromAPI(userId || 'p71x6d_system');
+      setLoadError(null);
+    } catch (error) {
+      console.error("Erreur lors du chargement des documents:", error);
+      setLoadError(error instanceof Error ? error.message : "Erreur inconnue");
+    }
+  };
 
   // Initial document loading
   useEffect(() => {
-    const shouldLoad = userId && isOnline;
-    
-    if (shouldLoad) {
+    if (userId && syncHook.isOnline) {
       loadDocuments();
     } else {
       console.log("Pas d'utilisateur identifié ou hors ligne, chargement des documents ignoré");
     }
-  }, [userId, isOnline, loadDocuments]);
+  }, [userId, syncHook.isOnline]);
 
   return {
     documents,
@@ -102,10 +97,10 @@ export const useDocuments = () => {
     editingGroup,
     dialogOpen,
     groupDialogOpen,
-    isSyncing: syncStatus.isSyncing,
-    syncFailed: syncStatus.syncFailed,
-    isOnline,
-    lastSynced: syncStatus.lastSynced,
+    isSyncing: syncHook.isSyncing,
+    syncFailed: syncHook.syncFailed,
+    isOnline: syncHook.isOnline,
+    lastSynced: syncHook.lastSynced,
     loadError,
     setDialogOpen,
     setGroupDialogOpen,

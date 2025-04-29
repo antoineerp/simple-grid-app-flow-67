@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { AlertTriangle, RotateCw, Check, CloudOff, Wifi } from 'lucide-react';
+import { AlertTriangle, RotateCw, Check, CloudOff, Wifi, Radio } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
 import { format } from 'date-fns';
@@ -13,6 +13,7 @@ type SyncStatusProps = {
   isOnline?: boolean;
   lastSynced?: Date | null;
   onManualSync?: () => void;
+  webSocketStatus?: 'connected' | 'disconnected' | 'connecting';
 };
 
 const SyncStatusIndicator: React.FC<SyncStatusProps> = ({ 
@@ -21,7 +22,8 @@ const SyncStatusIndicator: React.FC<SyncStatusProps> = ({
   isSyncing = false,
   isOnline = true,
   lastSynced = null,
-  onManualSync
+  onManualSync,
+  webSocketStatus = 'disconnected'
 }) => {
   // Mode hors ligne
   if (!isOnline) {
@@ -55,6 +57,22 @@ const SyncStatusIndicator: React.FC<SyncStatusProps> = ({
     );
   }
 
+  // WebSocket status
+  const wsStatusElement = (
+    <span 
+      className={`flex items-center ${
+        webSocketStatus === 'connected' ? 'text-green-500' : 
+        webSocketStatus === 'connecting' ? 'text-amber-500' : 
+        'text-gray-400'
+      } ml-1 text-xs`}
+    >
+      <Radio className={`h-3 w-3 mr-1 ${
+        webSocketStatus === 'connected' ? 'animate-pulse' : ''
+      }`} />
+      {webSocketStatus === 'connected' ? 'WS' : ''}
+    </span>
+  );
+
   // Ne rien afficher si tout est normal et qu'on n'est pas en synchronisation
   if (!syncFailed && !isSyncing && !lastSynced) return null;
 
@@ -87,6 +105,8 @@ const SyncStatusIndicator: React.FC<SyncStatusProps> = ({
                 <span className="text-green-500">Dernière synchronisation: {formattedDate}</span>
               </>
             ) : null}
+            
+            {wsStatusElement}
             
             {onReset && syncFailed && (
               <Button 
@@ -124,6 +144,16 @@ const SyncStatusIndicator: React.FC<SyncStatusProps> = ({
           ) : lastSynced ? (
             <p>Dernière synchronisation réussie le {formattedDate}</p>
           ) : null}
+          
+          {webSocketStatus === 'connected' && (
+            <p className="text-xs text-green-500 mt-1">Connexion WebSocket active</p>
+          )}
+          {webSocketStatus === 'connecting' && (
+            <p className="text-xs text-amber-500 mt-1">Connexion WebSocket en cours...</p>
+          )}
+          {webSocketStatus === 'disconnected' && (
+            <p className="text-xs text-gray-400 mt-1">WebSocket déconnecté - Mode API REST</p>
+          )}
         </TooltipContent>
       </Tooltip>
     </TooltipProvider>

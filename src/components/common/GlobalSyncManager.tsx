@@ -1,20 +1,17 @@
 
 import React, { useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
-import { useGlobalSync } from '@/hooks/useGlobalSync';
-import { SYNC_CONFIG } from '@/services/core/syncService';
+import { useGlobalSync } from '@/hooks/useSync';
 import SyncStatusIndicator from '@/components/common/SyncStatusIndicator';
 import { Button } from '@/components/ui/button';
 import { RotateCw } from 'lucide-react';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
-import { useMembres } from '@/contexts/MembresContext';
-import { useDocuments } from '@/hooks/useDocuments';
-import { useCollaboration } from '@/hooks/useCollaboration';
 
 interface GlobalSyncManagerProps {
   autoSync?: boolean;
   showControls?: boolean;
   showStatus?: boolean;
+  data?: Record<string, any[]>;
 }
 
 /**
@@ -23,39 +20,27 @@ interface GlobalSyncManagerProps {
 const GlobalSyncManager: React.FC<GlobalSyncManagerProps> = ({
   autoSync = true,
   showControls = true,
-  showStatus = true
+  showStatus = true,
+  data = {}
 }) => {
   const { toast } = useToast();
   const { isOnline } = useNetworkStatus();
   
-  // Récupérer les données de différentes parties de l'application
-  const { membres } = useMembres();
-  const { documents } = useDocuments();
-  const { documents: collaborationDocs } = useCollaboration();
-  
   // Utiliser le hook de synchronisation global
-  const globalSync = useGlobalSync({
-    initialSyncEnabled: autoSync,
-    syncIntervalSeconds: SYNC_CONFIG.intervalSeconds,
-    autoSyncTypes: ['documents', 'exigences', 'membres', 'bibliotheque']
-  });
+  const globalSync = useGlobalSync();
 
   // Effectuer une synchronisation en réponse à un changement d'état du réseau
   useEffect(() => {
-    if (isOnline && globalSync.isSyncEnabled) {
+    if (isOnline && autoSync) {
       // Si nous venons de repasser en ligne, synchroniser toutes les données
       const syncOnReconnect = async () => {
         console.log("Reconnexion détectée, synchronisation des données");
-        await globalSync.syncAllData({
-          documents,
-          membres,
-          // Inclure d'autres types de données si nécessaire
-        });
+        await globalSync.syncAllData(data);
       };
       
       syncOnReconnect();
     }
-  }, [isOnline]);
+  }, [isOnline, autoSync, data, globalSync]);
 
   // Fonction pour effectuer une synchronisation manuelle
   const handleManualSync = async () => {
@@ -74,11 +59,7 @@ const GlobalSyncManager: React.FC<GlobalSyncManagerProps> = ({
     });
     
     try {
-      const result = await globalSync.syncAllData({
-        documents,
-        membres,
-        // Inclure d'autres types de données si nécessaire
-      });
+      const result = await globalSync.syncAllData(data);
       
       if (result) {
         toast({
@@ -107,6 +88,7 @@ const GlobalSyncManager: React.FC<GlobalSyncManagerProps> = ({
           isSyncing={globalSync.isGlobalSyncing}
           isOnline={isOnline}
           lastSynced={globalSync.lastGlobalSync}
+          webSocketStatus={globalSync.webSocketStatus}
         />
       )}
       
