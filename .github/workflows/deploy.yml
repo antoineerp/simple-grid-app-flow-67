@@ -18,6 +18,8 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
 
     - name: Setup Node.js
       uses: actions/setup-node@v3
@@ -29,6 +31,9 @@ jobs:
       
     - name: Build React App
       run: npm run build
+      env:
+        NODE_ENV: production
+        VITE_HOSTING: 'infomaniak'
       
     - name: Debug build output
       run: |
@@ -55,6 +60,7 @@ jobs:
         
         # Copie des autres fichiers nécessaires
         cp .htaccess deploy/ || echo "Fichier .htaccess non trouvé"
+        cp .user.ini deploy/ || echo "Fichier .user.ini non trouvé"
         
         # Copie des fichiers PHP à la racine
         echo "Copie des fichiers PHP à la racine..."
@@ -85,50 +91,9 @@ jobs:
           echo "Dossier uploads non trouvé"
         fi
         
-        # S'assurer que les fichiers .htaccess et .user.ini sont copiés dans /api
-        if [ -f "api/.htaccess" ]; then
-          echo "Copie du fichier .htaccess dans /api..."
-          cp api/.htaccess deploy/api/
-        else
-          echo "Fichier api/.htaccess non trouvé, création d'un fichier par défaut"
-          echo "# Configuration Apache pour PHP
-<FilesMatch \\.php$>
-    SetHandler application/x-httpd-php
-</FilesMatch>
-
-# Activation des headers CORS
-<IfModule mod_headers.c>
-    Header set Access-Control-Allow-Origin \"*\"
-    Header set Access-Control-Allow-Methods \"GET, POST, OPTIONS, PUT, DELETE\"
-    Header set Access-Control-Allow-Headers \"Content-Type, Authorization, X-Requested-With\"
-</IfModule>
-
-# Activation du moteur PHP
-<IfModule mod_php.c>
-    php_flag engine on
-    php_value display_errors 1
-    php_value display_startup_errors 1
-    php_value error_reporting E_ALL
-</IfModule>" > deploy/api/.htaccess
-        fi
-        
-        if [ -f "api/.user.ini" ]; then
-          echo "Copie du fichier .user.ini dans /api..."
-          cp api/.user.ini deploy/api/
-        else
-          echo "Fichier api/.user.ini non trouvé, création d'un fichier par défaut"
-          echo "; Configuration PHP pour Infomaniak
-display_errors = On
-error_log = php_errors.log
-log_errors = On
-engine = On" > deploy/api/.user.ini
-        fi
-
-        # Copie des fichiers .user.ini et .htaccess à la racine
-        if [ -f ".user.ini" ]; then
-          echo "Copie du fichier .user.ini à la racine..."
-          cp .user.ini deploy/
-        fi
+        # Créer un pont entre le point d'entrée principal et les assets générés
+        echo "/* Fichier pont pour la compatibilité avec les scripts de diagnostic */
+import './main.js';" > deploy/assets/index.js
         
         echo "Structure du dossier de déploiement:"
         find deploy -type f | sort | head -n 20
@@ -148,7 +113,6 @@ engine = On" > deploy/api/.user.ini
           **/.git*/**
           **/node_modules/**
           README.md
-          dist/**
           package.json
           package-lock.json
         log-level: verbose

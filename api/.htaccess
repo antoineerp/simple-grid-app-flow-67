@@ -49,3 +49,8 @@ AddType application/json .json
 # Permettre l'accès direct aux fichiers PHP
 RewriteCond %{REQUEST_FILENAME} -f
 RewriteRule \.(php)$ - [L]
+
+# Rediriger toutes les requêtes vers l'index.php sauf pour les fichiers existants
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^(.*)$ index.php [QSA,L]

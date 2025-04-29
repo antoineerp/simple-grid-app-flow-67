@@ -18,6 +18,11 @@ RewriteCond %{REQUEST_FILENAME} !-d
     </FilesMatch>
 </IfModule>
 
+# Activer le moteur PHP s'il est disponible
+<IfModule mod_php.c>
+    php_flag engine on
+</IfModule>
+
 # En-têtes de sécurité
 <IfModule mod_headers.c>
     Header always set X-Content-Type-Options "nosniff"

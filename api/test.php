@@ -9,6 +9,7 @@ echo json_encode([
     'success' => true,
     'message' => 'PHP is executing correctly',
     'timestamp' => date('Y-m-d H:i:s'),
-    'php_version' => phpversion()
+    'php_version' => phpversion(),
+    'server_info' => $_SERVER['SERVER_SOFTWARE'] ?? 'Unknown'
 ]);
 ?>
