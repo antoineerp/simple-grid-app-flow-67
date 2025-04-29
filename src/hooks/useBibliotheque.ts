@@ -1,5 +1,5 @@
 
-import { useState, useEffect, useCallback, Dispatch, SetStateAction } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Document, DocumentGroup } from '@/types/bibliotheque';
 import { useToast } from '@/hooks/use-toast';
 import { useSyncContext } from '@/hooks/useSyncContext';
@@ -18,7 +18,9 @@ export const useBibliotheque = () => {
   });
   const [currentGroup, setCurrentGroup] = useState<DocumentGroup>({
     id: "",
-    name: ""
+    name: "",
+    expanded: false,
+    items: []
   });
   
   const { toast } = useToast();
@@ -85,6 +87,13 @@ export const useBibliotheque = () => {
   const handleDeleteDocument = useCallback((id: string) => {
     setDocuments((prevDocs) => prevDocs.filter((d) => d.id !== id));
   }, []);
+
+  // Fonctions pour gérer les documents - pour la compatibilité avec Collaboration.tsx
+  const handleEditDocument = useCallback((doc: Document) => {
+    setDocuments((prevDocs) =>
+      prevDocs.map((d) => (d.id === doc.id ? doc : d))
+    );
+  }, []);
   
   // Fonctions pour gérer les groupes
   const handleAddGroup = useCallback((group: DocumentGroup) => {
@@ -105,6 +114,21 @@ export const useBibliotheque = () => {
     
     // Supprimer le groupe
     setGroups((prevGroups) => prevGroups.filter((g) => g.id !== id));
+  }, []);
+
+  // Fonctions pour gérer les groupes - pour la compatibilité avec Collaboration.tsx
+  const handleEditGroup = useCallback((group: DocumentGroup) => {
+    setGroups((prevGroups) =>
+      prevGroups.map((g) => (g.id === group.id ? group : g))
+    );
+  }, []);
+
+  const handleToggleGroup = useCallback((id: string) => {
+    setGroups(prevGroups => 
+      prevGroups.map(group => 
+        group.id === id ? { ...group, expanded: !group.expanded } : group
+      )
+    );
   }, []);
   
   // Fonction de synchronisation manuelle
@@ -138,6 +162,11 @@ export const useBibliotheque = () => {
     handleUpdateGroup,
     handleDeleteGroup,
     handleSyncDocuments,
+    // Ajouter ces méthodes pour la compatibilité avec Collaboration.tsx
+    handleEditDocument,
+    handleEditGroup,
+    handleToggleGroup,
+    syncWithServer,
     isSyncing,
     isOnline,
     lastSynced,

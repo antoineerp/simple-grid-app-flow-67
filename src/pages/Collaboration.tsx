@@ -4,11 +4,115 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Pencil, Trash, ExternalLink, ChevronDown, ChevronUp, FolderPlus, Plus } from 'lucide-react';
 import { useBibliotheque } from '@/hooks/useBibliotheque';
-import { DocumentDialog } from '@/features/bibliotheque/components/DocumentDialog';
-import { GroupDialog } from '@/features/bibliotheque/components/GroupDialog';
 import { Document, DocumentGroup } from '@/types/bibliotheque';
 import { useDragAndDrop } from '@/components/gestion-documentaire/table/useDragAndDrop';
 import SyncIndicator from '@/components/common/SyncIndicator';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+
+// Simplified document dialog component
+const DocumentDialog = ({ 
+  isOpen, 
+  onOpenChange, 
+  onClose, 
+  document, 
+  isEditing, 
+  onChange, 
+  onSave 
+}: { 
+  isOpen: boolean;
+  onOpenChange: (open: boolean) => void;
+  onClose: () => void;
+  document: Document | null;
+  isEditing: boolean;
+  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onSave: () => void;
+}) => {
+  if (!document) return null;
+  
+  return (
+    <Dialog open={isOpen} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{isEditing ? "Modifier le document" : "Ajouter un document"}</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4 py-4">
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="name" className="text-right">Nom</Label>
+            <Input 
+              id="name" 
+              name="name" 
+              value={document.name} 
+              onChange={onChange} 
+              className="col-span-3" 
+            />
+          </div>
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="link" className="text-right">Lien</Label>
+            <Input 
+              id="link" 
+              name="link" 
+              value={document.link || ''} 
+              onChange={onChange} 
+              className="col-span-3"
+              placeholder="https://..." 
+            />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>Annuler</Button>
+          <Button onClick={onSave}>{isEditing ? "Mettre à jour" : "Ajouter"}</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
+// Simplified group dialog component
+const GroupDialog = ({ 
+  isOpen, 
+  onOpenChange, 
+  group, 
+  isEditing, 
+  onChange, 
+  onSave 
+}: { 
+  isOpen: boolean;
+  onOpenChange: (open: boolean) => void;
+  group: DocumentGroup | null;
+  isEditing: boolean;
+  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onSave: () => void;
+}) => {
+  if (!group) return null;
+  
+  return (
+    <Dialog open={isOpen} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{isEditing ? "Modifier le groupe" : "Ajouter un groupe"}</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4 py-4">
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="name" className="text-right">Nom</Label>
+            <Input 
+              id="name" 
+              name="name" 
+              value={group.name} 
+              onChange={onChange} 
+              className="col-span-3" 
+            />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Annuler</Button>
+          <Button onClick={onSave}>{isEditing ? "Mettre à jour" : "Ajouter"}</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+};
 
 const Collaboration = () => {
   const {
@@ -34,7 +138,7 @@ const Collaboration = () => {
   const [currentGroup, setCurrentGroup] = useState<DocumentGroup | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   
-  // Use the useDragAndDrop hook for drag and drop functionality
+  // Use the useDragAndDrop hook for drag and drop functionality - but with the proper document type
   const { 
     draggedItem,
     handleDragStart,
@@ -43,9 +147,8 @@ const Collaboration = () => {
     handleDrop,
     handleDragEnd,
     handleGroupDrop
-  } = useDragAndDrop(documents, (sourceIndex, targetIndex, targetGroupId) => {
+  } = useDragAndDrop(documents as any[], (sourceIndex, targetIndex, targetGroupId) => {
     // Handle reordering through the useBibliotheque hook
-    // This would need to be implemented in useBibliotheque if it's not already
     console.log('Reordering:', sourceIndex, targetIndex, targetGroupId);
   });
 
@@ -142,7 +245,7 @@ const Collaboration = () => {
     if (!documents.length && isOnline) {
       syncWithServer();
     }
-  }, [documents.length, isOnline]);
+  }, [documents.length, isOnline, syncWithServer]);
 
   return (
     <div className="w-full px-6 py-6">
@@ -230,23 +333,23 @@ const Collaboration = () => {
                       </Button>
                     </td>
                   </tr>
-                  {group.expanded && group.items && group.items.map((doc) => (
+                  {group.expanded && group.items && group.items.map((item) => (
                     <tr 
-                      key={doc.id} 
+                      key={item.id} 
                       className="bg-white"
                       draggable
-                      onDragStart={(e) => handleDragStart(e, doc.id, group.id)}
+                      onDragStart={(e) => handleDragStart(e, item.id, group.id)}
                       onDragOver={(e) => handleDragOver(e)}
                       onDragLeave={(e) => handleDragLeave(e)}
-                      onDrop={(e) => handleDrop(e, doc.id, group.id)}
+                      onDrop={(e) => handleDrop(e, item.id, group.id)}
                       onDragEnd={handleDragEnd}
                     >
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="pl-8">{doc.name}</div>
+                        <div className="pl-8">{item.name}</div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        {doc.link && (
-                          <a href={doc.link} target="_blank" rel="noopener noreferrer" className="flex items-center text-blue-600 hover:underline">
+                        {item.link && (
+                          <a href={item.link} target="_blank" rel="noopener noreferrer" className="flex items-center text-blue-600 hover:underline">
                             Voir le document <ExternalLink className="h-4 w-4 ml-1" />
                           </a>
                         )}
@@ -257,7 +360,7 @@ const Collaboration = () => {
                           size="icon" 
                           onClick={(e) => {
                             e.preventDefault();
-                            handleEditDocumentClick(doc);
+                            handleEditDocumentClick(item);
                           }}
                         >
                           <Pencil className="h-4 w-4" />
@@ -267,7 +370,7 @@ const Collaboration = () => {
                           size="icon" 
                           onClick={(e) => {
                             e.preventDefault();
-                            handleDeleteDocument(doc.id);
+                            handleDeleteDocument(item.id);
                           }}
                         >
                           <Trash className="h-4 w-4" />
@@ -279,7 +382,7 @@ const Collaboration = () => {
               ))}
 
               {/* Afficher les documents qui ne sont pas dans un groupe */}
-              {documents.map((doc) => (
+              {documents.filter(doc => !doc.groupId).map((doc) => (
                 <tr 
                   key={doc.id} 
                   className="bg-white"
