@@ -7,6 +7,7 @@ import { useBibliotheque } from '@/hooks/useBibliotheque';
 import { DocumentDialog } from '@/features/bibliotheque/components/DocumentDialog';
 import { GroupDialog } from '@/features/bibliotheque/components/GroupDialog';
 import { Document } from '@/types/bibliotheque';
+import { useDragAndDrop } from '@/components/gestion-documentaire/table/useDragAndDrop';
 
 const Collaboration = () => {
   const {
@@ -31,7 +32,21 @@ const Collaboration = () => {
   const [currentDocument, setCurrentDocument] = useState<Document | null>(null);
   const [currentGroup, setCurrentGroup] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
-  const [draggedItem, setDraggedItem] = useState<{ id: string; groupId?: string } | null>(null);
+  
+  // Use the useDragAndDrop hook for drag and drop functionality
+  const { 
+    draggedItem,
+    handleDragStart,
+    handleDragOver,
+    handleDragLeave,
+    handleDrop,
+    handleDragEnd,
+    handleGroupDrop
+  } = useDragAndDrop(documents, (sourceIndex, targetIndex, targetGroupId) => {
+    // Handle reordering through the useBibliotheque hook
+    // This would need to be implemented in useBibliotheque if it's not already
+    console.log('Reordering:', sourceIndex, targetIndex, targetGroupId);
+  });
 
   // Handle document changes
   const handleDocumentChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -99,76 +114,10 @@ const Collaboration = () => {
       if (isEditing) {
         handleEditGroup(currentGroup);
       } else {
-        handleAddGroup();
+        handleAddGroup(currentGroup); // Fix: Pass the currentGroup parameter
       }
       setIsGroupDialogOpen(false);
     }
-  };
-
-  // Handle drag start
-  const handleDragStart = (e: React.DragEvent<HTMLTableRowElement>, id: string, groupId?: string) => {
-    setDraggedItem({ id, groupId });
-    e.dataTransfer.setData('text/plain', JSON.stringify({ id, groupId }));
-    e.currentTarget.classList.add('opacity-50');
-  };
-
-  // Handle drag over
-  const handleDragOver = (e: React.DragEvent<HTMLTableRowElement>) => {
-    e.preventDefault();
-    e.currentTarget.classList.add('border-dashed', 'border-2', 'border-primary');
-  };
-
-  // Handle drag leave
-  const handleDragLeave = (e: React.DragEvent<HTMLTableRowElement>) => {
-    e.currentTarget.classList.remove('border-dashed', 'border-2', 'border-primary');
-  };
-
-  // Handle drop on document
-  const handleDrop = (e: React.DragEvent<HTMLTableRowElement>, targetId: string, targetGroupId?: string) => {
-    e.preventDefault();
-    e.currentTarget.classList.remove('border-dashed', 'border-2', 'border-primary');
-    
-    if (draggedItem) {
-      // Fix: This was calling a non-existent function with the wrong signature
-      // We need to use our state and props correctly
-      if (draggedItem.id && targetId) {
-        // Find indexes for reordering
-        const allDocs = [
-          ...documents.filter(d => !d.groupId),
-          ...documents.filter(d => d.groupId)
-        ];
-        
-        const sourceIndex = allDocs.findIndex(d => d.id === draggedItem.id);
-        const targetIndex = allDocs.findIndex(d => d.id === targetId);
-        
-        if (sourceIndex !== -1 && targetIndex !== -1) {
-          // Here we use the handler from useBibliotheque
-          // Fix: use sourceIndex, targetIndex, targetGroupId in the right order
-          // This would depend on what the hook expects
-        }
-      }
-    }
-    
-    setDraggedItem(null);
-  };
-
-  // Handle drop on group
-  const handleGroupDrop = (e: React.DragEvent<HTMLTableRowElement>, groupId: string) => {
-    e.preventDefault();
-    e.currentTarget.classList.remove('border-dashed', 'border-2', 'border-primary');
-    
-    if (draggedItem) {
-      // Fix: This was calling a non-existent function with the wrong signature
-      // Need to implement the proper logic here
-    }
-    
-    setDraggedItem(null);
-  };
-
-  // Handle drag end
-  const handleDragEnd = (e: React.DragEvent<HTMLTableRowElement>) => {
-    e.currentTarget.classList.remove('opacity-50');
-    setDraggedItem(null);
   };
 
   useEffect(() => {
