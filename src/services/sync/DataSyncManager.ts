@@ -418,7 +418,7 @@ export class DataSyncManager {
       
       if (showToast) {
         toast({
-          variant: "warning",
+          variant: "default",  // Changed from "warning" to "default"
           title: "Mode hors ligne",
           description: "Utilisation des données locales."
         });
@@ -503,7 +503,7 @@ export class DataSyncManager {
     } else {
       const failedCount = Object.values(results).filter(r => !r.success).length;
       toast({
-        variant: "warning",
+        variant: "destructive",  // Changed from "warning" to "destructive"
         title: "Synchronisation partielle",
         description: `${failedCount} table(s) n'ont pas pu être synchronisée(s).`
       });
