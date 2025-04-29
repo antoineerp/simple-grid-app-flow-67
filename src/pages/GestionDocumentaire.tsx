@@ -10,7 +10,6 @@ import { useDocuments } from '@/hooks/useDocuments';
 import { exportDocumentsToPdf } from '@/services/pdfExport';
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
-import SyncStatusIndicator from '@/components/common/SyncStatusIndicator';
 
 const GestionDocumentaireContent = () => {
   const {
@@ -36,21 +35,10 @@ const GestionDocumentaireContent = () => {
     handleSaveGroup,
     handleDeleteGroup,
     handleGroupReorder,
-    handleToggleGroup,
-    syncWithServer,
-    isSyncing,
-    syncFailed
+    handleToggleGroup
   } = useDocuments();
   
   const { toast } = useToast();
-
-  const handleSync = async () => {
-    try {
-      await syncWithServer();
-    } catch (error) {
-      console.error("Sync failed:", error);
-    }
-  };
 
   const handleExportPdf = () => {
     exportDocumentsToPdf(documents, groups);
@@ -80,8 +68,6 @@ const GestionDocumentaireContent = () => {
           </button>
         </div>
       </div>
-
-      <SyncStatusIndicator syncFailed={syncFailed} onReset={handleSync} isSyncing={isSyncing} />
 
       <DocumentStatusDisplay stats={stats} />
 

@@ -1,12 +1,9 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { Exigence, ExigenceGroup, ExigenceStats } from '@/types/exigences';
-import { useExigenceSync } from '@/hooks/useExigenceSync';
 import { useExigenceMutations } from '@/hooks/useExigenceMutations';
 import { useExigenceGroups } from '@/hooks/useExigenceGroups';
-import { getCurrentUser } from '@/services/auth/authService';
 import { useToast } from '@/hooks/use-toast';
-import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 
 export const useExigences = () => {
   const [exigences, setExigences] = useState<Exigence[]>([]);
@@ -16,18 +13,8 @@ export const useExigences = () => {
   const [editingGroup, setEditingGroup] = useState<ExigenceGroup | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [groupDialogOpen, setGroupDialogOpen] = useState(false);
-  const [isSyncing, setIsSyncing] = useState(false);
-  const [syncFailed, setSyncFailed] = useState(false);
-  const [loadError, setLoadError] = useState<string | null>(null);
-  const [lastSynced, setLastSynced] = useState<Date | null>(null);
-  const { isOnline } = useNetworkStatus();
   const { toast } = useToast();
 
-  // Get current user
-  const user = getCurrentUser();
-  const userId = typeof user === 'object' ? (user?.email || user?.identifiant_technique || 'p71x6d_system') : user || 'p71x6d_system';
-
-  const exigenceSync = useExigenceSync();
   const exigenceMutations = useExigenceMutations(exigences, setExigences);
   const groupOperations = useExigenceGroups(groups, setGroups, setExigences);
 
@@ -39,70 +26,6 @@ export const useExigences = () => {
     nonConforme: exigences.filter(e => e.atteinte === 'NC').length,
     exclusion: exigences.filter(e => e.exclusion).length
   };
-
-  // Initial data loading
-  useEffect(() => {
-    const loadExigences = async () => {
-      try {
-        console.log(`Loading exigences for user: ${userId}`);
-        const result = await exigenceSync.loadFromServer(userId);
-        console.log(`Loaded ${result.exigences.length} exigences`);
-        setExigences(result.exigences);
-        setGroups(result.groups);
-        toast({
-          title: "Chargement réussi",
-          description: `${result.exigences.length} exigences chargées`,
-        });
-      } catch (error) {
-        console.error("Error loading exigences:", error);
-        setLoadError(error instanceof Error ? error.message : "Erreur lors du chargement des exigences");
-        toast({
-          title: "Erreur de chargement",
-          description: error instanceof Error ? error.message : "Erreur lors du chargement des exigences",
-          variant: "destructive",
-        });
-        setExigences([]);
-        setGroups([]);
-      }
-    };
-
-    loadExigences();
-  }, [exigenceSync, userId, toast]);
-
-  // Handle synchronization with server
-  const handleSyncWithServer = useCallback(async () => {
-    setIsSyncing(true);
-    try {
-      const success = await exigenceSync.syncWithServer(exigences, userId, groups);
-      if (success) {
-        toast({
-          title: "Synchronisation réussie",
-          description: "Les exigences ont été synchronisées avec le serveur",
-        });
-        setSyncFailed(false);
-        setLastSynced(new Date());
-        return true;
-      } else {
-        setSyncFailed(true);
-        toast({
-          title: "Échec de synchronisation",
-          description: "La synchronisation avec le serveur a échoué",
-          variant: "destructive",
-        });
-        return false;
-      }
-    } catch (error) {
-      setSyncFailed(true);
-      toast({
-        title: "Erreur de synchronisation",
-        description: error instanceof Error ? error.message : "Une erreur s'est produite",
-        variant: "destructive",
-      });
-      return false;
-    } finally {
-      setIsSyncing(false);
-    }
-  }, [exigences, userId, groups, exigenceSync, toast]);
 
   // Handle exigence editing
   const handleEdit = useCallback((id: string) => {
@@ -139,7 +62,7 @@ export const useExigences = () => {
   }, [selectedNiveau]);
 
   // Handle exigence save
-  const handleSaveExigence = useCallback(async (exigence: Exigence) => {
+  const handleSaveExigence = useCallback((exigence: Exigence) => {
     const isNew = !exigences.some(e => e.id === exigence.id);
 
     if (isNew) {
@@ -149,30 +72,7 @@ export const useExigences = () => {
     }
 
     setDialogOpen(false);
-
-    // Sync with server after saving
-    try {
-      console.log("Synchronizing after exigence save");
-      await handleSyncWithServer();
-    } catch (error) {
-      console.error("Error synchronizing after exigence save:", error);
-    }
-  }, [exigences, exigenceMutations, handleSyncWithServer]);
-
-  const handleResetLoadAttempts = useCallback(() => {
-    setLoadError(null);
-    // Recharger les exigences
-    const loadExigences = async () => {
-      try {
-        const result = await exigenceSync.loadFromServer(userId);
-        setExigences(result.exigences);
-        setGroups(result.groups);
-      } catch (error) {
-        setLoadError(error instanceof Error ? error.message : "Erreur lors du chargement des exigences");
-      }
-    };
-    loadExigences();
-  }, [exigenceSync, userId]);
+  }, [exigences, exigenceMutations]);
 
   // Définir des fonctions pour la réorganisation
   const handleReorder = useCallback((startIndex: number, endIndex: number, targetGroupId?: string) => {
@@ -193,7 +93,7 @@ export const useExigences = () => {
       expanded: false,
       items: []
     };
-    groupOperations.handleSaveGroup(newGroup, false);
+    groupOperations.handleSaveGroup(newGroup);
   }, [groupOperations]);
 
   // Fonction pour éditer un groupe
@@ -211,11 +111,7 @@ export const useExigences = () => {
     editingGroup,
     dialogOpen,
     groupDialogOpen,
-    isSyncing,
-    syncFailed,
-    isOnline,
-    lastSynced,
-    loadError,
+    isOnline: true, // Valeur fixe pour éviter les erreurs de compilation
     setSelectedNiveau,
     setDialogOpen,
     setGroupDialogOpen,
@@ -230,8 +126,8 @@ export const useExigences = () => {
     handleToggleGroup: groupOperations.handleToggleGroup,
     handleReorder,
     handleGroupReorder,
-    handleResetLoadAttempts,
-    syncWithServer: handleSyncWithServer,
+    handleResetLoadAttempts: () => {}, // Fonction vide pour maintenir la compatibilité
+    syncWithServer: async () => false, // Retourne simplement false
     ...exigenceMutations
   };
 };
