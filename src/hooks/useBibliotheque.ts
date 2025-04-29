@@ -134,7 +134,14 @@ export const useBibliotheque = () => {
   // Fonction de synchronisation manuelle
   const handleSyncDocuments = async (): Promise<void> => {
     try {
+      // Ajouter des logs pour déboguer la synchronisation
+      console.log("Début de la synchronisation des documents");
+      console.log("Documents à synchroniser:", documents);
+      console.log("Groupes à synchroniser:", groups);
+      
       await syncWithServer();
+      
+      console.log("Fin de la synchronisation des documents");
       return Promise.resolve();
     } catch (error) {
       console.error("Erreur lors de la synchronisation des documents:", error);

@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useGlobalSync } from '@/contexts/GlobalSyncContext';
 import { useToast } from '@/hooks/use-toast';
 import { triggerSync } from '@/services/sync/triggerSync';
+import { getCurrentUser } from '@/services/core/databaseConnectionService';
 
 interface SyncHookOptions {
   showToasts?: boolean;
@@ -34,12 +35,14 @@ export function useSyncContext<T>(tableName: string, data: T[], options: SyncHoo
       // Notifier seulement, ne pas synchroniser immédiatement
       triggerSync.notifyDataChange(tableName, data);
     }
-  }, [autoSync, isOnline, data, tableName]);
+  }, [autoSync, isOnline, data, tableName, syncState.isSyncing]);
   
   // Effet pour sauvegarder les données localement quand elles changent
   useEffect(() => {
     if (data.length > 0) {
-      localStorage.setItem(`${tableName}_data`, JSON.stringify(data));
+      // Sauvegarder avec l'ID utilisateur pour éviter les conflits
+      const userId = getCurrentUser() || 'default';
+      localStorage.setItem(`${tableName}_${userId}`, JSON.stringify(data));
       setDataChanged(true);
     }
   }, [data, tableName]);
@@ -57,15 +60,48 @@ export function useSyncContext<T>(tableName: string, data: T[], options: SyncHoo
     }
 
     try {
-      const result = await syncTable(tableName, data);
+      console.log(`Synchronisation de ${tableName} initiée avec ${data.length} éléments`);
+      
+      // Utiliser l'ID utilisateur actuel
+      const userId = getCurrentUser() || 'default';
+      
+      // Appeler la synchronisation avec des données explicitement spécifiées
+      const result = await syncTable(tableName, data, userId);
       
       if (result) {
         setDataChanged(false);
+        console.log(`Synchronisation de ${tableName} réussie`);
+        
+        if (showToasts) {
+          toast({
+            title: "Synchronisation réussie",
+            description: `Les données de ${tableName} ont été synchronisées`
+          });
+        }
+      } else {
+        console.error(`Échec de la synchronisation de ${tableName}`);
+        
+        if (showToasts) {
+          toast({
+            variant: "destructive",
+            title: "Échec de la synchronisation",
+            description: `La synchronisation de ${tableName} a échoué`
+          });
+        }
       }
       
       return result;
     } catch (error) {
       console.error(`Erreur lors de la synchronisation de ${tableName}:`, error);
+      
+      if (showToasts) {
+        toast({
+          variant: "destructive",
+          title: "Erreur de synchronisation",
+          description: `Une erreur s'est produite lors de la synchronisation de ${tableName}`
+        });
+      }
+      
       return false;
     }
   }, [isOnline, syncTable, tableName, data, showToasts, toast]);

@@ -107,21 +107,22 @@ export class SyncService {
   
   /**
    * Synchronise une table avec le serveur
-   * @param table Table à synchroniser
-   * @param userId ID de l'utilisateur (optionnel)
+   * @param tableName Nom de la table à synchroniser 
+   * @param data Données à synchroniser
+   * @param userId ID de l'utilisateur
    * @param trigger Type de déclenchement de la synchronisation
    */
   public syncTable<T>(
-    table: DataTable<T>, 
-    userId?: any, 
+    tableName: string,
+    data: T[],
+    userId?: any,
     trigger: "auto" | "manual" | "initial" = "auto"
   ): Promise<SyncResult> {
-    const { tableName, data, groups } = table;
-    
     // Enregistrer le type de déclencheur
     this.syncTriggers[tableName] = trigger;
     
     console.log(`Synchronisation ${trigger} de ${tableName} demandée avec ${data?.length || 0} éléments`);
+    console.log("Données à synchroniser:", JSON.stringify(data).substring(0, 200) + "...");
     
     // Si la table est déjà en synchronisation, renvoyer la promesse existante
     if (this.syncQueue.has(tableName)) {
@@ -129,111 +130,92 @@ export class SyncService {
       return this.syncPromises[tableName];
     }
     
+    // Stocker les données à synchroniser dans le localStorage pour les récupérer plus tard
+    this.storeDataToSync(tableName, data);
+    
+    // Récupérer l'ID utilisateur valide
+    const validUserId = this.extractValidUserId(userId);
+    
     // Créer une nouvelle promesse pour cette synchronisation
     this.syncPromises[tableName] = new Promise<SyncResult>((resolve, reject) => {
       this.resolvers[tableName] = resolve;
       this.rejecters[tableName] = reject;
+      
+      // Exécuter la synchronisation immédiatement
+      this.performSync(tableName, data, validUserId)
+        .then((result) => {
+          // Mettre à jour la dernière date de synchronisation
+          this.lastSynced[tableName] = new Date();
+          
+          // Informer du succès
+          if (this.resolvers[tableName]) {
+            this.resolvers[tableName](result);
+            delete this.resolvers[tableName];
+            delete this.rejecters[tableName];
+          }
+          
+          // Supprimer de la file d'attente
+          this.syncQueue.delete(tableName);
+          delete this.syncPromises[tableName];
+        })
+        .catch((error) => {
+          // En cas d'erreur
+          if (this.rejecters[tableName]) {
+            this.rejecters[tableName](error);
+            delete this.resolvers[tableName];
+            delete this.rejecters[tableName];
+          }
+          
+          // Supprimer de la file d'attente
+          this.syncQueue.delete(tableName);
+          delete this.syncPromises[tableName];
+        });
     });
     
     // Ajouter la table à la file d'attente
     this.syncQueue.add(tableName);
     
-    // Si aucune synchronisation n'est en cours, démarrer le processus
-    if (!this.isSyncing) {
-      this.processQueue();
-    }
-    
     return this.syncPromises[tableName];
   }
-  
+
   /**
-   * Traite la file d'attente de synchronisation
+   * Stocke les données à synchroniser
    */
-  private async processQueue(): Promise<void> {
-    // Si la file d'attente est vide, terminer le processus
-    if (this.syncQueue.size === 0) {
-      this.isSyncing = false;
-      return;
-    }
-    
-    this.isSyncing = true;
-    
-    // Récupérer la première table de la file d'attente
-    const tableName = Array.from(this.syncQueue)[0];
-    
+  private storeDataToSync<T>(tableName: string, data: T[]): void {
     try {
-      const result = await this.performSync(tableName);
+      const userId = this.extractValidUserId(getCurrentUser());
+      localStorage.setItem(`pending_sync_${tableName}`, JSON.stringify({
+        data,
+        timestamp: new Date().toISOString()
+      }));
       
-      // Mettre à jour la dernière date de synchronisation
-      this.lastSynced[tableName] = new Date();
-      
-      // Résoudre la promesse
-      if (this.resolvers[tableName]) {
-        this.resolvers[tableName](result);
-        delete this.resolvers[tableName];
-        delete this.rejecters[tableName];
-      }
-      
-      // Informer le DataSyncManager du succès
-      const { dataSyncManager } = await import('./DataSyncManager');
-      dataSyncManager.markSyncSuccess(tableName);
-    } catch (error) {
-      // En cas d'erreur, rejeter la promesse
-      if (this.rejecters[tableName]) {
-        this.rejecters[tableName](error);
-        delete this.resolvers[tableName];
-        delete this.rejecters[tableName];
-      }
-      
-      // Informer le DataSyncManager de l'échec
-      try {
-        const { dataSyncManager } = await import('./DataSyncManager');
-        dataSyncManager.markSyncFailed(tableName, error instanceof Error ? error.message : 'Erreur inconnue');
-      } catch (e) {
-        console.error("Erreur lors de la notification d'échec au DataSyncManager:", e);
-      }
-    } finally {
-      // Supprimer la table de la file d'attente
-      this.syncQueue.delete(tableName);
-      delete this.syncPromises[tableName];
-      
-      // Traiter la table suivante
-      this.processQueue();
+      // Sauvegarder aussi dans le format spécifique à l'utilisateur
+      localStorage.setItem(`${tableName}_${userId}`, JSON.stringify(data));
+    } catch (e) {
+      console.error(`Erreur lors du stockage des données à synchroniser pour ${tableName}:`, e);
     }
   }
-  
+
   /**
    * Effectue la synchronisation avec le serveur
    * @param tableName Nom de la table
+   * @param data Données à synchroniser
+   * @param userId ID utilisateur
    */
-  private async performSync(tableName: string): Promise<SyncResult> {
+  private async performSync<T>(tableName: string, data: T[], userId: string): Promise<SyncResult> {
     const API_URL = getApiUrl();
     
     // Construire l'URL de l'endpoint de synchronisation
     const endpoint = `${API_URL}/${tableName}-sync.php`;
     
     console.log(`Synchronisation de ${tableName} vers ${endpoint}`);
+    console.log(`Utilisateur: ${userId}`);
     
     try {
-      // Avant de synchroniser, vérifier si la structure de la table est valide
-      try {
-        // Import dynamique du helper de base de données pour éviter les dépendances circulaires
-        const { databaseHelper } = await import('./DatabaseHelper');
-        const isValid = await databaseHelper.validateTable(tableName);
-        
-        if (!isValid) {
-          console.warn(`La structure de la table ${tableName} n'est pas valide, tentative de synchronisation quand même`);
-        }
-      } catch (validationError) {
-        console.error("Erreur lors de la validation de la structure:", validationError);
-        // Continuer malgré l'erreur de validation
-      }
+      // Récupérer les groupes à synchroniser si disponibles
+      const groups = this.getGroupsToSync(tableName, userId);
       
-      // Récupérer les données à synchroniser
-      const dataToSync = this.getDataToSync(tableName);
-      const userId = this.extractValidUserId(getCurrentUser());
-      
-      if (!dataToSync || !Array.isArray(dataToSync) || dataToSync.length === 0) {
+      if (!data || !Array.isArray(data) || data.length === 0) {
         console.warn(`Aucune donnée à synchroniser pour ${tableName}`);
         // Retourner comme succès si aucune donnée à synchroniser
         return {
@@ -244,18 +226,22 @@ export class SyncService {
       }
       
       // Effectuer la requête de synchronisation
-      console.log(`Envoi de ${dataToSync.length} éléments pour synchronisation de ${tableName}`);
+      console.log(`Envoi de ${data.length} éléments pour synchronisation de ${tableName}`);
       
       const requestData: any = {
-        userId
+        userId: userId
       };
-      requestData[tableName] = dataToSync;
       
-      // Ajouter la propriété 'groups' si disponible (pour les tables qui ont des groupes comme bibliotheque)
-      const groups = this.getGroupsToSync(tableName);
+      // Utiliser le nom correct pour les propriétés de la requête
+      // Par exemple 'bibliotheque', 'documents', etc.
+      requestData[tableName] = data;
+      
+      // Ajouter la propriété 'groups' si disponible
       if (groups && Array.isArray(groups) && groups.length > 0) {
         requestData.groups = groups;
       }
+      
+      console.log("Données de requête:", JSON.stringify(requestData).substring(0, 200) + "...");
       
       const response = await fetch(endpoint, {
         method: 'POST',
@@ -265,6 +251,9 @@ export class SyncService {
         },
         body: JSON.stringify(requestData)
       });
+      
+      // Log pour déboguer la réponse HTTP
+      console.log(`Réponse HTTP: ${response.status} ${response.statusText}`);
       
       if (!response.ok) {
         // En cas d'erreur, essayer une URL alternative (infomaniak)
@@ -280,12 +269,17 @@ export class SyncService {
           body: JSON.stringify(requestData)
         });
         
+        // Log pour déboguer la réponse HTTP alternative
+        console.log(`Réponse HTTP alternative: ${alternativeResponse.status} ${alternativeResponse.statusText}`);
+        
         if (!alternativeResponse.ok) {
           const errorText = await alternativeResponse.text();
+          console.error(`Erreur de synchronisation alternative: ${errorText}`);
           throw new Error(`Erreur ${alternativeResponse.status}: ${errorText}`);
         }
         
         const alternativeResult = await alternativeResponse.json();
+        console.log(`Résultat de la synchronisation alternative: ${JSON.stringify(alternativeResult)}`);
         
         if (!alternativeResult.success) {
           throw new Error(alternativeResult.message || "Échec de la synchronisation");
@@ -294,11 +288,23 @@ export class SyncService {
         return {
           success: true,
           message: alternativeResult.message || "Synchronisation réussie (URL alternative)",
-          count: alternativeResult.count || dataToSync.length
+          count: alternativeResult.count || data.length
         };
       }
       
-      const result = await response.json();
+      // Obtenir le résultat de la requête principale
+      const responseText = await response.text();
+      console.log(`Réponse brute: ${responseText}`);
+      
+      let result;
+      try {
+        result = JSON.parse(responseText);
+      } catch (e) {
+        console.error("Erreur lors de l'analyse de la réponse JSON:", e);
+        throw new Error(`Réponse invalide du serveur: ${responseText}`);
+      }
+      
+      console.log(`Résultat de la synchronisation: ${JSON.stringify(result)}`);
       
       if (!result.success) {
         throw new Error(result.message || "Échec de la synchronisation");
@@ -308,13 +314,13 @@ export class SyncService {
       this.storeLastSyncResult(tableName, {
         success: true,
         timestamp: new Date().toISOString(),
-        count: result.count || dataToSync.length
+        count: result.count || data.length
       });
       
       return {
         success: true,
         message: result.message || "Synchronisation réussie",
-        count: result.count || dataToSync.length
+        count: result.count || data.length
       };
       
     } catch (error) {
@@ -340,39 +346,12 @@ export class SyncService {
   }
   
   /**
-   * Récupère les données à synchroniser pour une table
-   */
-  private getDataToSync(tableName: string): any[] {
-    try {
-      // Vérifier dans le localStorage pour les données en attente
-      const pendingKey = `pending_sync_${tableName}`;
-      const pendingData = localStorage.getItem(pendingKey);
-      
-      if (pendingData) {
-        try {
-          const parsedData = JSON.parse(pendingData);
-          if (parsedData.data && Array.isArray(parsedData.data)) {
-            return parsedData.data;
-          }
-        } catch (e) {
-          console.error(`Erreur lors de la lecture des données en attente pour ${tableName}:`, e);
-        }
-      }
-      
-      return [];
-    } catch (e) {
-      console.error(`Erreur lors de la récupération des données à synchroniser pour ${tableName}:`, e);
-      return [];
-    }
-  }
-  
-  /**
    * Récupère les groupes à synchroniser pour une table
    */
-  private getGroupsToSync(tableName: string): any[] {
+  private getGroupsToSync(tableName: string, userId: string): any[] {
     try {
       // Vérifier dans le localStorage pour les groupes en attente
-      const groupsKey = `${tableName}_groups_${this.extractValidUserId(getCurrentUser())}`;
+      const groupsKey = `${tableName}_groups_${userId}`;
       const groupsData = localStorage.getItem(groupsKey);
       
       if (groupsData) {

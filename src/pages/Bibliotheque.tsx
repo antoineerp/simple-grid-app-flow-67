@@ -88,7 +88,9 @@ const Bibliotheque: React.FC = () => {
   const handleNewGroup = () => {
     setCurrentGroup({
       id: `group-${Date.now()}`,
-      name: ""
+      name: "",
+      expanded: false,
+      items: []
     });
     setIsEditing(false);
     setIsGroupDialogOpen(true);
