@@ -14,7 +14,8 @@ import { DocumentGroup } from '@/types/bibliotheque';
 
 interface GroupDialogProps {
   isOpen: boolean;
-  onClose: () => void;
+  onClose?: () => void;
+  onOpenChange?: (open: boolean) => void;
   group: DocumentGroup | null;
   onSave: () => void;
   onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
@@ -24,13 +25,24 @@ interface GroupDialogProps {
 export const GroupDialog = ({
   isOpen,
   onClose,
+  onOpenChange,
   group,
   onSave,
   onChange,
   isEditing,
 }: GroupDialogProps) => {
+  // Handle both styles of dialog closing
+  const handleOpenChange = (open: boolean) => {
+    if (!open && onClose) {
+      onClose();
+    }
+    if (onOpenChange) {
+      onOpenChange(open);
+    }
+  };
+
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog open={isOpen} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>

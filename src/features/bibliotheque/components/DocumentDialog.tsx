@@ -1,5 +1,5 @@
 
-import React, { useEffect } from 'react';
+import React from 'react';
 import {
   Dialog,
   DialogContent,
@@ -14,7 +14,8 @@ import { Document } from '@/types/bibliotheque';
 
 interface DocumentDialogProps {
   isOpen: boolean;
-  onClose: () => void;
+  onClose?: () => void;
+  onOpenChange?: (open: boolean) => void;
   document: Document | null;
   onSave: () => void;
   onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
@@ -24,13 +25,24 @@ interface DocumentDialogProps {
 export const DocumentDialog = ({
   isOpen,
   onClose,
+  onOpenChange,
   document,
   onSave,
   onChange,
   isEditing,
 }: DocumentDialogProps) => {
+  // Handle both styles of dialog closing
+  const handleOpenChange = (open: boolean) => {
+    if (!open && onClose) {
+      onClose();
+    }
+    if (onOpenChange) {
+      onOpenChange(open);
+    }
+  };
+
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog open={isOpen} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>

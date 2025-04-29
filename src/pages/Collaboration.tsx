@@ -107,14 +107,20 @@ const Collaboration = () => {
                         <Button 
                           variant="ghost" 
                           size="icon" 
-                          onClick={() => handleEditDocument(doc)}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            handleEditDocument(doc);
+                          }}
                         >
                           <Pencil className="h-4 w-4" />
                         </Button>
                         <Button 
                           variant="ghost" 
                           size="icon" 
-                          onClick={() => handleDeleteDocument(doc.id)}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            handleDeleteDocument(doc.id);
+                          }}
                         >
                           <Trash className="h-4 w-4" />
                         </Button>
@@ -141,14 +147,20 @@ const Collaboration = () => {
                     <Button 
                       variant="ghost" 
                       size="icon" 
-                      onClick={() => handleEditDocument(doc)}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        handleEditDocument(doc);
+                      }}
                     >
                       <Pencil className="h-4 w-4" />
                     </Button>
                     <Button 
                       variant="ghost" 
                       size="icon" 
-                      onClick={() => handleDeleteDocument(doc.id)}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        handleDeleteDocument(doc.id);
+                      }}
                     >
                       <Trash className="h-4 w-4" />
                     </Button>
@@ -164,13 +176,13 @@ const Collaboration = () => {
         <Button 
           variant="outline"
           className="flex items-center gap-1"
-          onClick={handleAddGroup}
+          onClick={() => handleAddGroup()}
         >
           <FolderPlus className="h-4 w-4" /> Nouveau groupe
         </Button>
         <Button 
           className="flex items-center gap-1"
-          onClick={handleAddDocument}
+          onClick={() => handleAddDocument()}
         >
           <Plus className="h-4 w-4" /> Nouveau document
         </Button>
