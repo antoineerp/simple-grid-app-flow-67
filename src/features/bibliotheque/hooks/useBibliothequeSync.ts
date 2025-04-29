@@ -36,11 +36,8 @@ export const useBibliothequeSync = () => {
     if (!isOnline) {
       console.log('Mode hors ligne - chargement des documents locaux');
       try {
-        // Vérifier d'abord sous le nouveau nom puis sous l'ancien
-        let localData = localStorage.getItem(`collaboration_${userId || 'default'}`);
-        if (!localData) {
-          localData = localStorage.getItem(`bibliotheque_${userId || 'default'}`);
-        }
+        // UNIQUEMENT chercher sous le nouveau nom (collaboration)
+        const localData = localStorage.getItem(`collaboration_${userId || 'default'}`);
         
         if (localData) {
           const localDocs = JSON.parse(localData);
@@ -54,7 +51,7 @@ export const useBibliothequeSync = () => {
     
     try {
       // Utiliser le service central pour charger les données
-      // Mise à jour pour utiliser "collaboration" au lieu de "bibliotheque"
+      // UNIQUEMENT utiliser "collaboration"
       const documents = await syncService.loadDataFromServer<SystemDocument>('collaboration', userId);
       setLastSynced(syncService.getLastSynced('collaboration') || new Date());
       return documents.map(convertSystemToBibliothequeDoc);
@@ -68,11 +65,8 @@ export const useBibliothequeSync = () => {
       
       // En cas d'erreur, chargement des documents locaux comme solution de secours
       try {
-        // Vérifier d'abord sous le nouveau nom puis sous l'ancien
-        let localData = localStorage.getItem(`collaboration_${userId || 'default'}`);
-        if (!localData) {
-          localData = localStorage.getItem(`bibliotheque_${userId || 'default'}`);
-        }
+        // UNIQUEMENT chercher sous le nouveau nom (collaboration)
+        const localData = localStorage.getItem(`collaboration_${userId || 'default'}`);
         
         if (localData) {
           const localDocs = JSON.parse(localData);
@@ -89,7 +83,7 @@ export const useBibliothequeSync = () => {
     if (!isOnline) {
       // Mode hors ligne - enregistrement local uniquement
       const systemDocs = documents.map(convertBibliothequeToSystemDoc);
-      // Mise à jour pour utiliser le nouveau nom de stockage
+      // UNIQUEMENT utiliser le nouveau nom de stockage
       localStorage.setItem(`collaboration_${userId || 'default'}`, JSON.stringify(systemDocs));
       localStorage.setItem(`collaboration_groups_${userId || 'default'}`, JSON.stringify(groups));
       
@@ -105,7 +99,7 @@ export const useBibliothequeSync = () => {
     try {
       // Toujours enregistrer localement d'abord pour éviter la perte de données
       const systemDocs = documents.map(convertBibliothequeToSystemDoc);
-      // Mise à jour pour utiliser le nouveau nom de stockage
+      // UNIQUEMENT utiliser le nouveau nom de stockage
       localStorage.setItem(`collaboration_${userId || 'default'}`, JSON.stringify(systemDocs));
       localStorage.setItem(`collaboration_groups_${userId || 'default'}`, JSON.stringify(groups));
       

@@ -1,3 +1,4 @@
+
 <?php
 // Force output buffering to prevent output before headers
 ob_start();
@@ -10,12 +11,8 @@ header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-W
 header("Cache-Control: no-cache, no-store, must-revalidate");
 
 // Journalisation
-error_log("=== DEBUT DE L'EXÉCUTION DE bibliotheque-sync.php ===");
+error_log("=== DEBUT DE L'EXÉCUTION DE bibliotheque-sync.php (REDIRECTEUR) ===");
 error_log("Méthode: " . $_SERVER['REQUEST_METHOD'] . " - URI: " . $_SERVER['REQUEST_URI']);
-
-// Capturer les données brutes pour le débogage
-$rawInput = file_get_contents("php://input");
-error_log("Données brutes reçues: " . $rawInput);
 
 // Gestion des requêtes OPTIONS (preflight)
 if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
@@ -24,11 +21,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
     exit;
 }
 
-// Configuration de la base de données
-$host = "p71x6d.myd.infomaniak.com";
-$dbname = "p71x6d_system";
-$username = "p71x6d_system";
-$password = "Trottinette43!";
+// Capturer les données brutes pour le débogage et la redirection
+$rawInput = file_get_contents("php://input");
+error_log("Données brutes reçues par bibliotheque-sync.php (redirecteur): " . $rawInput);
 
 try {
     // Nettoyer le buffer
@@ -41,7 +36,7 @@ try {
         throw new Exception("Aucune donnée reçue ou format JSON invalide");
     }
     
-    error_log("Données décodées pour synchronisation de la bibliothèque/collaboration");
+    error_log("Redirection des données de bibliotheque vers collaboration");
     
     // Vérifier si les données nécessaires sont présentes
     if (!isset($data['userId'])) {
@@ -49,34 +44,27 @@ try {
     }
     
     $userId = $data['userId'];
-    error_log("Synchronisation pour l'utilisateur: {$userId}");
+    error_log("Redirection pour l'utilisateur: {$userId}");
     
-    // Récupérer les données à synchroniser
-    // Pour plus de flexibilité, vérifier plusieurs noms possibles
+    // Récupérer les données à synchroniser et les transformer pour collaboration
     $ressources = null;
-    if (isset($data['collaboration']) && is_array($data['collaboration'])) {
-        $ressources = $data['collaboration'];
-        error_log("Données trouvées sous 'collaboration'");
-        $tablePrefix = "collaboration";
-    } elseif (isset($data['bibliotheque']) && is_array($data['bibliotheque'])) {
+    
+    // Chercher les données sous différentes clés
+    if (isset($data['bibliotheque']) && is_array($data['bibliotheque'])) {
         $ressources = $data['bibliotheque'];
-        error_log("Données trouvées sous 'bibliotheque'");
-        $tablePrefix = "bibliotheque";
+        error_log("Données trouvées sous 'bibliotheque', conversion en 'collaboration'");
     } elseif (isset($data['documents']) && is_array($data['documents'])) {
         $ressources = $data['documents'];
-        error_log("Données trouvées sous 'documents'");
-        $tablePrefix = "bibliotheque";
+        error_log("Données trouvées sous 'documents', conversion en 'collaboration'");
     } elseif (isset($data['ressources']) && is_array($data['ressources'])) {
         $ressources = $data['ressources'];
-        error_log("Données trouvées sous 'ressources'");
-        $tablePrefix = "bibliotheque";
+        error_log("Données trouvées sous 'ressources', conversion en 'collaboration'");
     } else {
         // Parcourir toutes les clés pour trouver un tableau potentiel
         foreach ($data as $key => $value) {
             if (is_array($value) && $key !== 'userId' && $key !== 'groups') {
                 $ressources = $value;
-                error_log("Données trouvées sous '{$key}'");
-                $tablePrefix = ($key === "collaboration") ? "collaboration" : "bibliotheque";
+                error_log("Données trouvées sous '{$key}', conversion en 'collaboration'");
                 break;
             }
         }
@@ -86,184 +74,71 @@ try {
         throw new Exception("Aucune donnée de bibliothèque/collaboration trouvée dans la requête");
     }
     
-    error_log("Nombre de ressources: " . count($ressources));
-    
     // Récupérer également les groupes si présents
     $groups = isset($data['groups']) ? $data['groups'] : [];
-    error_log("Nombre de groupes: " . count($groups));
     
-    // Connexion à la base de données
-    $pdo = new PDO("mysql:host={$host};dbname={$dbname};charset=utf8mb4", $username, $password, [
-        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-        PDO::ATTR_EMULATE_PREPARES => false,
-    ]);
-    error_log("Connexion à la base de données réussie");
+    // Construire la nouvelle requête pour collaboration-sync.php
+    $newRequestData = [
+        'userId' => $userId,
+        'collaboration' => $ressources,
+    ];
     
-    // Nom de la table spécifique à l'utilisateur
-    $safeUserId = preg_replace('/[^a-zA-Z0-9_]/', '_', $userId);
-    $tableName = $tablePrefix . "_" . $safeUserId;
-    $groupsTableName = $tablePrefix . "_groups_" . $safeUserId;
-    error_log("Tables à utiliser: {$tableName}, {$groupsTableName}");
-    
-    // Créer la table des ressources si elle n'existe pas
-    $createTableQuery = "CREATE TABLE IF NOT EXISTS `{$tableName}` (
-        `id` VARCHAR(36) PRIMARY KEY,
-        `name` VARCHAR(255) NOT NULL,
-        `link` TEXT NULL,
-        `groupId` VARCHAR(36) NULL,
-        `date_creation` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        `date_modification` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-    )";
-    
-    error_log("Création de la table des ressources si nécessaire");
-    $pdo->exec($createTableQuery);
-    
-    // Créer la table des groupes si elle n'existe pas
-    $createGroupsTableQuery = "CREATE TABLE IF NOT EXISTS `{$groupsTableName}` (
-        `id` VARCHAR(36) PRIMARY KEY,
-        `name` VARCHAR(255) NOT NULL,
-        `expanded` TINYINT(1) DEFAULT 0,
-        `date_creation` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        `date_modification` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-    )";
-    
-    error_log("Création de la table des groupes si nécessaire");
-    $pdo->exec($createGroupsTableQuery);
-    
-    // Démarrer une transaction
-    error_log("Début de la transaction");
-    $pdo->beginTransaction();
-    $transaction_active = true;
-    
-    try {
-        // Vider les tables avant d'insérer les nouvelles données
-        $pdo->exec("TRUNCATE TABLE `{$tableName}`");
-        $pdo->exec("TRUNCATE TABLE `{$groupsTableName}`");
-        error_log("Tables vidées");
-        
-        // Insérer les groupes
-        if (count($groups) > 0) {
-            error_log("Insertion des groupes...");
-            $insertQuery = "INSERT INTO `{$groupsTableName}` 
-                (id, name, expanded) 
-                VALUES (:id, :name, :expanded)";
-            $stmt = $pdo->prepare($insertQuery);
-            
-            foreach ($groups as $index => $group) {
-                error_log("Traitement du groupe " . ($index + 1) . "/" . count($groups) . " - ID: " . $group['id']);
-                
-                // Vérifier les champs requis
-                if (!isset($group['id']) || !isset($group['name'])) {
-                    error_log("AVERTISSEMENT: Groupe incomplet, ignoré");
-                    continue;
-                }
-                
-                $expanded = isset($group['expanded']) ? ($group['expanded'] ? 1 : 0) : 0;
-                
-                $stmt->execute([
-                    'id' => $group['id'],
-                    'name' => $group['name'],
-                    'expanded' => $expanded
-                ]);
-            }
-            error_log("Tous les groupes ont été insérés");
-        }
-        
-        // Insérer les ressources
-        if (count($ressources) > 0) {
-            error_log("Insertion des ressources...");
-            $insertQuery = "INSERT INTO `{$tableName}` 
-                (id, name, link, groupId) 
-                VALUES (:id, :name, :link, :groupId)";
-            $stmt = $pdo->prepare($insertQuery);
-            
-            foreach ($ressources as $index => $ressource) {
-                error_log("Traitement de la ressource " . ($index + 1) . "/" . count($ressources) . " - ID: " . $ressource['id']);
-                
-                // Vérifier les champs requis
-                if (!isset($ressource['id']) || !isset($ressource['name'])) {
-                    error_log("AVERTISSEMENT: Ressource incomplète, ignorée");
-                    continue;
-                }
-                
-                $stmt->execute([
-                    'id' => $ressource['id'],
-                    'name' => $ressource['name'],
-                    'link' => isset($ressource['link']) ? $ressource['link'] : null,
-                    'groupId' => isset($ressource['groupId']) ? $ressource['groupId'] : null
-                ]);
-            }
-            error_log("Toutes les ressources ont été insérées");
-        }
-        
-        // Valider la transaction
-        if ($transaction_active && $pdo->inTransaction()) {
-            $pdo->commit();
-            $transaction_active = false;
-            error_log("Transaction validée");
-        }
-        
-        // Vérifier que les données ont bien été enregistrées
-        $countStmt = $pdo->query("SELECT COUNT(*) FROM `{$tableName}`");
-        $resourceCount = $countStmt->fetchColumn();
-        
-        $countGroupsStmt = $pdo->query("SELECT COUNT(*) FROM `{$groupsTableName}`");
-        $groupCount = $countGroupsStmt->fetchColumn();
-        
-        error_log("Nombre de ressources enregistrées: {$resourceCount}");
-        error_log("Nombre de groupes enregistrés: {$groupCount}");
-        
-        // Réponse réussie
-        $response = [
-            'success' => true,
-            'message' => 'Synchronisation réussie',
-            'count' => $resourceCount,
-            'groups_count' => $groupCount
-        ];
-        
-        error_log("Réponse finale: " . json_encode($response));
-        echo json_encode($response);
-        
-    } catch (Exception $e) {
-        // Annuler la transaction en cas d'erreur
-        if ($transaction_active && $pdo->inTransaction()) {
-            $pdo->rollBack();
-            $transaction_active = false;
-            error_log("Transaction annulée suite à une erreur: " . $e->getMessage());
-        }
-        throw $e;
+    // Ajouter les groupes si présents
+    if (!empty($groups)) {
+        $newRequestData['groups'] = $groups;
     }
     
-} catch (PDOException $e) {
-    error_log("Erreur PDO dans bibliotheque-sync.php: " . $e->getMessage());
-    http_response_code(500);
-    $errorResponse = [
-        'success' => false,
-        'message' => 'Erreur de base de données: ' . $e->getMessage()
-    ];
-    echo json_encode($errorResponse);
-    error_log("Réponse d'erreur PDO: " . json_encode($errorResponse));
+    // Convertir en JSON
+    $newRequestBody = json_encode($newRequestData);
+    
+    // Déterminer l'URL de redirection
+    $redirectUrl = str_replace("bibliotheque-sync.php", "collaboration-sync.php", $_SERVER['REQUEST_URI']);
+    $host = $_SERVER['HTTP_HOST'];
+    $isHttps = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on';
+    $protocol = $isHttps ? "https" : "http";
+    
+    // Construire l'URL complète
+    $fullRedirectUrl = "{$protocol}://{$host}{$redirectUrl}";
+    error_log("Redirection vers: {$fullRedirectUrl}");
+    
+    // Initialiser cURL pour effectuer la redirection
+    $ch = curl_init($fullRedirectUrl);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_POST, true);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, $newRequestBody);
+    curl_setopt($ch, CURLOPT_HTTPHEADER, [
+        'Content-Type: application/json',
+        'Content-Length: ' . strlen($newRequestBody)
+    ]);
+    
+    // Exécuter la requête
+    $result = curl_exec($ch);
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $error = curl_error($ch);
+    curl_close($ch);
+    
+    if ($httpCode >= 200 && $httpCode < 300) {
+        // Succès - renvoyer la réponse
+        echo $result;
+        error_log("Redirection réussie, code de réponse: {$httpCode}");
+    } else {
+        // Erreur - journaliser et renvoyer un message d'erreur
+        error_log("Erreur lors de la redirection: Code HTTP {$httpCode}, Erreur: {$error}");
+        error_log("Réponse reçue: {$result}");
+        throw new Exception("Erreur lors de la redirection vers collaboration-sync.php: Code {$httpCode}");
+    }
+    
 } catch (Exception $e) {
-    error_log("Exception dans bibliotheque-sync.php: " . $e->getMessage());
+    error_log("Exception dans bibliotheque-sync.php (redirecteur): " . $e->getMessage());
     http_response_code(400);
     $errorResponse = [
         'success' => false,
-        'message' => $e->getMessage()
+        'message' => $e->getMessage(),
+        'redirection_error' => true
     ];
     echo json_encode($errorResponse);
-    error_log("Réponse d'erreur générale: " . json_encode($errorResponse));
+    error_log("Réponse d'erreur: " . json_encode($errorResponse));
 } finally {
-    // S'assurer que la transaction est terminée si elle est encore active
-    if (isset($pdo) && isset($transaction_active) && $transaction_active && $pdo->inTransaction()) {
-        try {
-            error_log("Annulation de la transaction qui était encore active dans le bloc finally");
-            $pdo->rollBack();
-        } catch (Exception $e) {
-            error_log("Erreur lors du rollback final: " . $e->getMessage());
-        }
-    }
-    
-    error_log("=== FIN DE L'EXÉCUTION DE bibliotheque-sync.php ===");
+    error_log("=== FIN DE L'EXÉCUTION DE bibliotheque-sync.php (REDIRECTEUR) ===");
     if (ob_get_level()) ob_end_flush();
 }

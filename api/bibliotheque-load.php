@@ -11,7 +11,7 @@ header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-W
 header("Cache-Control: no-cache, no-store, must-revalidate");
 
 // Journalisation
-error_log("=== DEBUT DE L'EXÉCUTION DE collaboration-load.php ===");
+error_log("=== DEBUT DE L'EXÉCUTION DE bibliotheque-load.php (REDIRECTEUR) ===");
 error_log("Méthode: " . $_SERVER['REQUEST_METHOD'] . " - URI: " . $_SERVER['REQUEST_URI']);
 
 // Gestion des requêtes OPTIONS (preflight)
@@ -21,15 +21,11 @@ if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
     exit;
 }
 
-// Configuration de la base de données (sans dépendre de env.php)
-$host = "p71x6d.myd.infomaniak.com";
-$dbname = "p71x6d_system";
-$username = "p71x6d_system";
-$password = "Trottinette43!";
-
 try {
     // Nettoyer le buffer
     if (ob_get_level()) ob_clean();
+    
+    error_log("Redirection vers collaboration-load.php");
     
     // Vérifier si l'userId est présent
     if (!isset($_GET['userId'])) {
@@ -39,92 +35,49 @@ try {
     $userId = $_GET['userId'];
     error_log("UserId reçu: " . $userId);
     
-    // Connexion à la base de données
-    $pdo = new PDO("mysql:host={$host};dbname={$dbname};charset=utf8mb4", $username, $password, [
-        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-        PDO::ATTR_EMULATE_PREPARES => false,
+    // Construire l'URL de redirection
+    $redirectUrl = str_replace("bibliotheque-load.php", "collaboration-load.php", $_SERVER['REQUEST_URI']);
+    $host = $_SERVER['HTTP_HOST'];
+    $isHttps = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on';
+    $protocol = $isHttps ? "https" : "http";
+    
+    // Construire l'URL complète
+    $fullRedirectUrl = "{$protocol}://{$host}{$redirectUrl}";
+    error_log("Redirection vers: {$fullRedirectUrl}");
+    
+    // Initialiser cURL pour effectuer la redirection
+    $ch = curl_init($fullRedirectUrl);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_HTTPHEADER, [
+        'Content-Type: application/json',
     ]);
     
-    // Nom de la table spécifique à l'utilisateur
-    $safeUserId = preg_replace('/[^a-zA-Z0-9_]/', '_', $userId);
-    $tableName = "collaboration_" . $safeUserId;
-    error_log("Table à consulter: {$tableName}");
+    // Exécuter la requête
+    $result = curl_exec($ch);
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $error = curl_error($ch);
+    curl_close($ch);
     
-    // Vérifier si la table existe
-    $tableExistsQuery = "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = ? AND table_name = ?";
-    $stmt = $pdo->prepare($tableExistsQuery);
-    $stmt->execute([$dbname, $tableName]);
-    $tableExists = (int)$stmt->fetchColumn() > 0;
-    
-    $ressources = [];
-    
-    if ($tableExists) {
-        // Récupérer les ressources
-        $query = "SELECT * FROM `{$tableName}`";
-        $stmt = $pdo->query($query);
-        $ressources = $stmt->fetchAll();
-        
-        // Formater les dates pour le client
-        foreach ($ressources as &$ressource) {
-            if (isset($ressource['date_creation']) && $ressource['date_creation']) {
-                $ressource['date_creation'] = date('Y-m-d\TH:i:s', strtotime($ressource['date_creation']));
-            }
-            if (isset($ressource['date_modification']) && $ressource['date_modification']) {
-                $ressource['date_modification'] = date('Y-m-d\TH:i:s', strtotime($ressource['date_modification']));
-            }
-            
-            // Convertir les tags JSON en tableau
-            if (isset($ressource['tags']) && $ressource['tags']) {
-                try {
-                    $ressource['tags'] = json_decode($ressource['tags'], true);
-                } catch (Exception $e) {
-                    $ressource['tags'] = [];
-                }
-            } else {
-                $ressource['tags'] = [];
-            }
-        }
+    if ($httpCode >= 200 && $httpCode < 300) {
+        // Succès - renvoyer la réponse
+        echo $result;
+        error_log("Redirection réussie, code de réponse: {$httpCode}");
     } else {
-        // Créer la table si elle n'existe pas
-        $createTableQuery = "CREATE TABLE `{$tableName}` (
-            `id` VARCHAR(36) PRIMARY KEY,
-            `titre` VARCHAR(255) NOT NULL,
-            `description` TEXT NULL,
-            `url` VARCHAR(255) NULL,
-            `type` VARCHAR(50) NULL,
-            `tags` TEXT NULL,
-            `date_creation` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            `date_modification` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-        )";
-        $pdo->exec($createTableQuery);
-        error_log("Table {$tableName} créée");
+        // Erreur - journaliser et renvoyer un message d'erreur
+        error_log("Erreur lors de la redirection: Code HTTP {$httpCode}, Erreur: {$error}");
+        error_log("Réponse reçue: {$result}");
+        throw new Exception("Erreur lors de la redirection vers collaboration-load.php: Code {$httpCode}");
     }
     
-    error_log("Ressources récupérées: " . count($ressources));
-    
-    // Renvoyer les ressources au format JSON
-    echo json_encode([
-        'success' => true,
-        'ressources' => $ressources,
-        'count' => count($ressources)
-    ]);
-    
-} catch (PDOException $e) {
-    error_log("PDOException dans collaboration-load.php: " . $e->getMessage());
-    http_response_code(500);
-    echo json_encode([
-        'success' => false,
-        'message' => 'Erreur de base de données: ' . $e->getMessage()
-    ]);
 } catch (Exception $e) {
-    error_log("Exception dans collaboration-load.php: " . $e->getMessage());
+    error_log("Exception dans bibliotheque-load.php (redirecteur): " . $e->getMessage());
     http_response_code(400);
     echo json_encode([
         'success' => false,
-        'message' => $e->getMessage()
+        'message' => $e->getMessage(),
+        'redirection_error' => true
     ]);
 } finally {
-    error_log("=== FIN DE L'EXÉCUTION DE collaboration-load.php ===");
+    error_log("=== FIN DE L'EXÉCUTION DE bibliotheque-load.php (REDIRECTEUR) ===");
     if (ob_get_level()) ob_end_flush();
 }
