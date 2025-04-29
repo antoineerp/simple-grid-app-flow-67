@@ -18,7 +18,7 @@ export function getFullApiUrl(): string {
   return `${window.location.protocol}//${window.location.host}${apiUrl}`;
 }
 
-// Diagnostic de l'API simple
+// Diagnostic de l'API simple - version améliorée pour mieux détecter les problèmes PHP
 export async function testApiConnection(): Promise<{ success: boolean; message: string; details?: any }> {
   try {
     console.log(`Test de connexion à l'API: ${getFullApiUrl()}`);
@@ -26,12 +26,16 @@ export async function testApiConnection(): Promise<{ success: boolean; message: 
     // Ajouter un timestamp pour éviter la mise en cache
     const timestamp = new Date().getTime();
     
-    // Pour le test direct, utiliser check-php.php qui est plus simple
-    const response = await fetch(`${getApiUrl()}/check-php.php?_t=${timestamp}`, {
+    // D'abord essayer avec index.php qui est plus simple
+    const url = `${getApiUrl()}/index.php?_t=${timestamp}`;
+    console.log(`Tentative de connexion à: ${url}`);
+    
+    const response = await fetch(url, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
-        'Cache-Control': 'no-cache, no-store, must-revalidate'
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Accept': 'application/json'
       },
       // Timeout après 5 secondes
       signal: AbortSignal.timeout(5000)
@@ -40,25 +44,34 @@ export async function testApiConnection(): Promise<{ success: boolean; message: 
     console.log('Réponse du test API:', response.status, response.statusText);
     
     const responseText = await response.text();
+    console.log('Début de la réponse:', responseText.substring(0, 100));
     
     try {
       // Vérifier si la réponse commence par "<?php"
       if (responseText.trim().startsWith('<?php')) {
-        console.error('Le serveur renvoie du code PHP au lieu de l\'exécuter:', responseText.substring(0, 100));
+        console.error('ERREUR CRITIQUE: Le serveur renvoie du code PHP au lieu de l\'exécuter:', responseText.substring(0, 100));
+        
+        // Erreur détaillée avec instructions
         return {
           success: false,
-          message: 'Le serveur renvoie du code PHP au lieu de l\'exécuter',
+          message: 'Le serveur ne traite pas les fichiers PHP correctement',
           details: {
             error: 'Configuration PHP incorrecte',
             responseText: responseText.substring(0, 300),
-            tip: 'Vérifiez que PHP est correctement configuré sur votre serveur et que les fichiers .php sont bien interprétés.'
+            tip: 'Cette erreur indique que votre serveur web n\'exécute pas PHP. Si vous êtes sur un hébergement partagé, vérifiez que PHP est activé. Si vous êtes sur un serveur dédié, vérifiez que le module PHP est installé et activé.',
+            stackTrace: new Error().stack,
+            serverInfo: {
+              url: url,
+              status: response.status,
+              headers: Object.fromEntries(response.headers.entries())
+            }
           }
         };
       }
       
       // Essayer de parser le JSON
       const data = JSON.parse(responseText);
-      console.log('Test de connectivité API réussi');
+      console.log('Test de connectivité API réussi:', data);
       return {
         success: true,
         message: data.message || 'API connectée',
@@ -68,11 +81,15 @@ export async function testApiConnection(): Promise<{ success: boolean; message: 
       console.error('Réponse API non-JSON:', responseText.substring(0, 100));
       return {
         success: false,
-        message: 'Réponse non-JSON',
+        message: 'Erreur de format: Réponse non-JSON',
         details: {
           error: e instanceof Error ? e.message : String(e),
           responseText: responseText.substring(0, 300),
-          serverError: true
+          serverError: true,
+          responseStatus: response.status,
+          isHTML: responseText.includes('<html') || responseText.includes('<body'),
+          isPHP: responseText.includes('<?php'),
+          stackTrace: new Error().stack
         }
       };
     }
@@ -91,12 +108,15 @@ export async function testApiConnection(): Promise<{ success: boolean; message: 
     return {
       success: false,
       message: error instanceof Error ? error.message : 'Erreur inconnue',
-      details: { error }
+      details: { 
+        error: String(error),
+        stackTrace: error instanceof Error ? error.stack : new Error().stack
+      }
     };
   }
 }
 
-// Fonction utilitaire pour les requêtes fetch avec gestion d'erreur
+// Fonction utilitaire pour les requêtes fetch avec gestion d'erreur améliorée
 export async function fetchWithErrorHandling(url: string, options?: RequestInit): Promise<any> {
   try {
     console.log(`Requête vers: ${url}`, options?.method || 'GET');
@@ -108,7 +128,12 @@ export async function fetchWithErrorHandling(url: string, options?: RequestInit)
     
     const response = await fetch(url, {
       ...options,
-      signal
+      signal,
+      headers: {
+        ...options?.headers,
+        'Accept': 'application/json',
+        'Cache-Control': 'no-cache, no-store, must-revalidate'
+      }
     });
     
     if (timeoutId) clearTimeout(timeoutId);

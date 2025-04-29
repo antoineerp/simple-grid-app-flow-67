@@ -3,6 +3,23 @@
 AddType application/javascript .js
 AddType application/javascript .mjs
 
+# Force PHP pour tous les fichiers .php
+<FilesMatch "\.php$">
+    SetHandler application/x-httpd-php
+</FilesMatch>
+
+# Activer le moteur PHP s'il est disponible
+<IfModule mod_php.c>
+    php_flag engine on
+</IfModule>
+
+# Support pour FastCGI
+<IfModule mod_fcgid.c>
+    <FilesMatch "\.php$">
+        SetHandler fcgid-script
+    </FilesMatch>
+</IfModule>
+
 # Configuration spécifique pour le Service Worker
 <Files "sync-service-worker.js">
   Header set Content-Type "application/javascript"
@@ -21,13 +38,3 @@ AddType application/javascript .mjs
   Order Allow,Deny
   Allow from all
 </Files>
-
-# Forcer l'interprétation de PHP
-<FilesMatch "\.php$">
-    SetHandler application/x-httpd-php
-</FilesMatch>
-
-# Activer le moteur PHP s'il est disponible
-<IfModule mod_php.c>
-    php_flag engine on
-</IfModule>

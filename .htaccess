@@ -6,6 +6,30 @@ RewriteEngine On
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 
+# Spécifier explicitement le handler PHP
+<FilesMatch "\.php$">
+    SetHandler application/x-httpd-php
+</FilesMatch>
+
+# Activer le moteur PHP s'il est disponible
+<IfModule mod_php.c>
+    php_flag engine on
+</IfModule>
+
+# Autoriser PHP en tant que module FastCGI
+<IfModule mod_fastcgi.c>
+    <FilesMatch "\.php$">
+        SetHandler php-fcgi
+    </FilesMatch>
+</IfModule>
+
+# Autoriser PHP via CGI
+<IfModule mod_cgi.c>
+    <FilesMatch "\.php$">
+        SetHandler cgi-script
+    </FilesMatch>
+</IfModule>
+
 # Rediriger les requêtes non-fichier vers index.html (pour le routage côté client)
 RewriteRule ^(.*)$ index.html [L]
 
@@ -34,14 +58,4 @@ AddType image/svg+xml .svg
     <FilesMatch "\.(js|mjs|es\.js)$">
         Header set Content-Type "application/javascript"
     </FilesMatch>
-</IfModule>
-
-# Configuration spécifique pour PHP - s'assurer que PHP est correctement interprété
-<FilesMatch "\.php$">
-    SetHandler application/x-httpd-php
-</FilesMatch>
-
-# Forcer l'interprétation de PHP si le module est présent
-<IfModule mod_php.c>
-    php_flag engine on
 </IfModule>
