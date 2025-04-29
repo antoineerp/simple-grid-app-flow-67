@@ -41,7 +41,7 @@ const GlobalDataContext = createContext<GlobalDataContextType | undefined>(undef
 export const useGlobalData = () => {
   const context = useContext(GlobalDataContext);
   if (context === undefined) {
-    throw new Error('useGlobalData doit être utilisé à l'intérieur d'un GlobalDataProvider');
+    throw new Error("useGlobalData doit être utilisé à l'intérieur d'un GlobalDataProvider");
   }
   return context;
 };
