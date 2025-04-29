@@ -85,7 +85,6 @@ export const useDocuments = () => {
     setEditingGroup(null);
   };
 
-  // Correction ici: modification de la signature pour ne pas attendre d'argument
   const handleAddGroup = () => {
     const newGroup: DocumentGroup = {
       id: crypto.randomUUID(),

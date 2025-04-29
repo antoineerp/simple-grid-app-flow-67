@@ -85,7 +85,6 @@ const GestionDocumentaireContent = () => {
       <div className="flex justify-end mt-4 space-x-2">
         <Button 
           variant="outline"
-          // Correction ici: Nous ajoutons un nouvel objet vide comme argument
           onClick={() => handleAddGroup()}
           className="hover:bg-gray-100 transition-colors mr-2"
           title="Nouveau groupe"
