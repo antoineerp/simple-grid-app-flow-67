@@ -1,24 +1,17 @@
 
 <?php
-// Simple test file to verify PHP execution
-header("Content-Type: application/json; charset=UTF-8");
+// Simple API test endpoint
+header('Content-Type: application/json; charset=utf-8');
+header("Cache-Control: no-cache, no-store, must-revalidate");
+header("Pragma: no-cache");
+header("Expires: 0");
 header("Access-Control-Allow-Origin: *");
-header("Access-Control-Allow-Methods: GET, OPTIONS");
+header("Access-Control-Allow-Methods: GET");
 
-// Extra debug information
-$debug = [
-    'php_version' => phpversion(),
-    'server_software' => $_SERVER['SERVER_SOFTWARE'] ?? 'Unknown',
-    'document_root' => $_SERVER['DOCUMENT_ROOT'],
-    'script_filename' => $_SERVER['SCRIPT_FILENAME'],
-    'hostname' => gethostname(),
-    'current_dir' => getcwd(),
-    'timestamp' => date('Y-m-d H:i:s')
-];
-
+// Sortie simple pour confirmer que l'API fonctionne
 echo json_encode([
-    'success' => true,
-    'message' => 'PHP is executing correctly on Infomaniak',
-    'debug' => $debug
-], JSON_PRETTY_PRINT);
+    'status' => 200,
+    'message' => 'API test endpoint fonctionnel',
+    'timestamp' => date('Y-m-d H:i:s')
+]);
 ?>

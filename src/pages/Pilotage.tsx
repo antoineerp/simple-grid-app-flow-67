@@ -11,7 +11,6 @@ import DocumentDialog from '@/components/pilotage/DocumentDialog';
 import ExigenceSummary from '@/components/pilotage/ExigenceSummary';
 import DocumentSummary from '@/components/pilotage/DocumentSummary';
 import ResponsabilityMatrix from '@/components/pilotage/ResponsabilityMatrix';
-import GlobalSyncManager from '@/components/common/GlobalSyncManager';
 
 const Pilotage = () => {
   const { toast } = useToast();
@@ -27,11 +26,6 @@ const Pilotage = () => {
     handleInputChange,
     handleSaveDocument,
     handleReorder,
-    isOnline,
-    isSyncing,
-    syncFailed,
-    lastSynced,
-    syncWithServer
   } = usePilotageDocuments();
 
   const handleExportPdf = () => {
@@ -45,10 +39,7 @@ const Pilotage = () => {
   return (
     <MembresProvider>
       <div className="p-8">
-        <div className="flex justify-between items-center mb-6">
-          <PilotageHeader onExport={handleExportPdf} />
-          <GlobalSyncManager autoSync={true} showControls={true} showStatus={true} />
-        </div>
+        <PilotageHeader onExport={handleExportPdf} />
 
         <PilotageDocumentsTable 
           documents={documents}

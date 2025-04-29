@@ -2,17 +2,10 @@
 # Activer le moteur de réécriture
 RewriteEngine On
 
-# Configuration des types MIME - Critique pour les modules JavaScript
+# Configuration des types MIME
 AddType application/javascript .js
 AddType application/javascript .mjs
-AddType application/javascript .es.js
 AddType text/css .css
-
-# Force le bon type MIME pour JavaScript
-<FilesMatch "\.(js|mjs|es\.js)$">
-    Header set Content-Type "application/javascript"
-    Header set X-Content-Type-Options "nosniff"
-</FilesMatch>
 
 # En-têtes de cache pour les assets
 <FilesMatch "\.(js|mjs|css)$">

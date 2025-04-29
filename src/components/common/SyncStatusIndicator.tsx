@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { AlertTriangle, RotateCw, Check, CloudOff, Wifi, Radio } from 'lucide-react';
+import { AlertTriangle, RotateCw, Check, CloudOff } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
 import { format } from 'date-fns';
@@ -12,8 +12,6 @@ type SyncStatusProps = {
   isSyncing?: boolean;
   isOnline?: boolean;
   lastSynced?: Date | null;
-  onManualSync?: () => void;
-  webSocketStatus?: 'connected' | 'disconnected' | 'connecting';
 };
 
 const SyncStatusIndicator: React.FC<SyncStatusProps> = ({ 
@@ -21,12 +19,10 @@ const SyncStatusIndicator: React.FC<SyncStatusProps> = ({
   onReset,
   isSyncing = false,
   isOnline = true,
-  lastSynced = null,
-  onManualSync,
-  webSocketStatus = 'disconnected'
+  lastSynced = null
 }) => {
-  // Mode hors ligne
-  if (!isOnline) {
+  // Ne rien afficher si on est hors ligne et que la synchronisation n'a pas échoué
+  if (!isOnline && !syncFailed) {
     return (
       <TooltipProvider>
         <Tooltip>
@@ -34,18 +30,6 @@ const SyncStatusIndicator: React.FC<SyncStatusProps> = ({
             <div className="flex items-center gap-2 text-xs bg-gray-50 p-2 rounded-md">
               <CloudOff className="h-4 w-4 text-gray-500" />
               <span className="text-gray-500">Mode hors ligne</span>
-              
-              {onReset && (
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  onClick={onReset} 
-                  className="h-6 text-xs p-1 ml-2 flex items-center"
-                >
-                  <Wifi className="h-3 w-3 mr-1" />
-                  Tester
-                </Button>
-              )}
             </div>
           </TooltipTrigger>
           <TooltipContent>
@@ -56,22 +40,6 @@ const SyncStatusIndicator: React.FC<SyncStatusProps> = ({
       </TooltipProvider>
     );
   }
-
-  // WebSocket status
-  const wsStatusElement = (
-    <span 
-      className={`flex items-center ${
-        webSocketStatus === 'connected' ? 'text-green-500' : 
-        webSocketStatus === 'connecting' ? 'text-amber-500' : 
-        'text-gray-400'
-      } ml-1 text-xs`}
-    >
-      <Radio className={`h-3 w-3 mr-1 ${
-        webSocketStatus === 'connected' ? 'animate-pulse' : ''
-      }`} />
-      {webSocketStatus === 'connected' ? 'WS' : ''}
-    </span>
-  );
 
   // Ne rien afficher si tout est normal et qu'on n'est pas en synchronisation
   if (!syncFailed && !isSyncing && !lastSynced) return null;
@@ -106,8 +74,6 @@ const SyncStatusIndicator: React.FC<SyncStatusProps> = ({
               </>
             ) : null}
             
-            {wsStatusElement}
-            
             {onReset && syncFailed && (
               <Button 
                 variant="ghost" 
@@ -117,18 +83,6 @@ const SyncStatusIndicator: React.FC<SyncStatusProps> = ({
               >
                 <RotateCw className="h-3 w-3 mr-1" />
                 Réinitialiser
-              </Button>
-            )}
-            
-            {onManualSync && !isSyncing && isOnline && (
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                onClick={onManualSync} 
-                className="h-6 text-xs p-1 ml-2 flex items-center"
-              >
-                <RotateCw className="h-3 w-3 mr-1" />
-                Sync
               </Button>
             )}
           </div>
@@ -144,16 +98,6 @@ const SyncStatusIndicator: React.FC<SyncStatusProps> = ({
           ) : lastSynced ? (
             <p>Dernière synchronisation réussie le {formattedDate}</p>
           ) : null}
-          
-          {webSocketStatus === 'connected' && (
-            <p className="text-xs text-green-500 mt-1">Connexion WebSocket active</p>
-          )}
-          {webSocketStatus === 'connecting' && (
-            <p className="text-xs text-amber-500 mt-1">Connexion WebSocket en cours...</p>
-          )}
-          {webSocketStatus === 'disconnected' && (
-            <p className="text-xs text-gray-400 mt-1">WebSocket déconnecté - Mode API REST</p>
-          )}
         </TooltipContent>
       </Tooltip>
     </TooltipProvider>

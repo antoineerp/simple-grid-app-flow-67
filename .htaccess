@@ -1,39 +1,15 @@
 
-# Main .htaccess - Forces PHP execution and handles routing for Infomaniak production
-
-# Enable rewrite engine
+# Activer le moteur de réécriture
 RewriteEngine On
 
-# Set PHP handler explicitly for Infomaniak
-AddHandler application/x-httpd-php .php
-AddType application/x-httpd-php .php
+# Configuration spécifique pour Infomaniak
+Options -MultiViews
+Options +FollowSymLinks
 
-# Force PHP for all .php files
-<FilesMatch "\.php$">
-    SetHandler application/x-httpd-php
-</FilesMatch>
+# Définir le point d'entrée principal
+DirectoryIndex index.html index.php
 
-# Force PHP interpreter for all PHP files
-<FilesMatch "\.php$">
-    <IfModule mod_mime.c>
-        ForceType application/x-httpd-php
-    </IfModule>
-</FilesMatch>
-
-# Enable PHP engine explicitly
-<IfModule mod_php.c>
-    php_flag engine on
-</IfModule>
-
-# Security headers
-<IfModule mod_headers.c>
-    Header always set X-Content-Type-Options "nosniff"
-    Header set Access-Control-Allow-Origin "*"
-    Header set Access-Control-Allow-Methods "GET, POST, OPTIONS"
-    Header set Access-Control-Allow-Headers "Content-Type, Authorization"
-</IfModule>
-
-# Set correct MIME types - Critical for JavaScript modules
+# Définir les types MIME corrects
 AddType application/javascript .js
 AddType application/javascript .mjs
 AddType application/javascript .es.js
@@ -41,25 +17,74 @@ AddType text/css .css
 AddType application/json .json
 AddType image/svg+xml .svg
 
-# Force JavaScript MIME types explicitly - Important for modules
-<FilesMatch "\.(js|mjs|es.js)$">
+# Configuration spécifique pour les modules ES
+<FilesMatch "\.(m?js|es\.js)$">
     Header set Content-Type "application/javascript"
+    Header set X-Content-Type-Options "nosniff"
 </FilesMatch>
 
-# API requests should not be redirected
-RewriteRule ^api/ - [L]
+# Permettre l'accès aux assets
+<FilesMatch "\.(js|mjs|es\.js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot|map|tsx?)$">
+    Order Allow,Deny
+    Allow from all
+</FilesMatch>
 
-# PHP files should be processed directly
+# Traitement des ressources statiques
+RewriteCond %{REQUEST_URI} ^/lovable-uploads/
+RewriteRule ^lovable-uploads/(.*)$ public/lovable-uploads/$1 [L]
+
+# Règle spécifique pour rediriger /api vers le dossier api/index.php
+RewriteRule ^api$ api/index.php [L]
+
+# Règle pour traiter les requêtes d'API avec des sous-chemins directs
+RewriteRule ^api/([^/]+)\.php$ api/$1.php [QSA,L]
+
+# Règle pour traiter les requêtes d'API avec des sous-chemins
+RewriteRule ^api/([^/]+)$ api/$1.php [QSA,L]
+
+# Règle pour autres requêtes API
+RewriteRule ^api/(.*)$ api/$1 [QSA,L]
+
+# Permettre l'accès direct aux assets dans leur dossier
+RewriteCond %{REQUEST_URI} ^/assets/
 RewriteCond %{REQUEST_FILENAME} -f
-RewriteRule \.(php)$ - [L]
+RewriteRule ^ - [L]
 
-# For service workers
-<Files "sync-service-worker.js">
-    Header set Content-Type "application/javascript"
-    Header set Service-Worker-Allowed "/"
-</Files>
+# Permettre l'accès direct aux autres ressources statiques
+RewriteCond %{REQUEST_URI} \.(js|mjs|es\.js|css|png|jpe?g|gif|svg|ico|webp|woff2?|ttf|eot|map|tsx?)$
+RewriteCond %{REQUEST_FILENAME} -f
+RewriteRule ^ - [L]
 
-# Redirect all other requests to index.html for client-side routing
+# Rediriger toutes les autres requêtes vers index.html pour React Router
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
+RewriteCond %{REQUEST_URI} !^/api/
 RewriteRule ^(.*)$ index.html [QSA,L]
+
+# Configuration de sécurité et CORS
+<IfModule mod_headers.c>
+    # Headers pour les assets statiques
+    <FilesMatch "\.(js|mjs|es\.js|css|json)$">
+        Header set Cache-Control "no-cache, no-store, must-revalidate"
+        Header set Pragma "no-cache"
+        Header set Expires "0"
+        Header set Access-Control-Allow-Origin "*"
+        Header set Access-Control-Allow-Methods "GET, OPTIONS"
+        Header set Access-Control-Allow-Headers "Content-Type"
+    </FilesMatch>
+</IfModule>
+
+# Gestion des erreurs personnalisée
+ErrorDocument 404 /index.html
+ErrorDocument 500 /index.html
+
+# PHP Settings
+<IfModule mod_php.c>
+    php_flag display_errors off
+    php_value error_log "api/php_errors.log"
+    php_flag log_errors on
+    php_value upload_max_filesize "10M"
+    php_value post_max_size "12M"
+    php_value memory_limit "256M"
+    php_value max_execution_time 300
+</IfModule>

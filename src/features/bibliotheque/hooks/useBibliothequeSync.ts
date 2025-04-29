@@ -1,108 +1,60 @@
 
 import { useState } from 'react';
-import { useNetworkStatus } from '@/hooks/useNetworkStatus';
+import { useToast } from '@/hooks/use-toast';
 import { Document, DocumentGroup } from '@/types/bibliotheque';
-import { getApiUrl } from '@/config/apiConfig';
-import { getAuthHeaders } from '@/services/auth/authService';
+import { useNetworkStatus } from '@/hooks/useNetworkStatus';
+import { syncBibliothequeWithServer, loadBibliothequeFromServer } from '@/services/bibliotheque/bibliothequeSync';
 
 export const useBibliothequeSync = () => {
   const [isSyncing, setIsSyncing] = useState(false);
-  const [syncFailed, setSyncFailed] = useState(false);
-  const [lastSynced, setLastSynced] = useState<Date | null>(null);
+  const [lastSynced, setLastSynced] = useState<Date>();
   const { isOnline } = useNetworkStatus();
-
-  const loadFromServer = async (): Promise<Document[]> => {
-    if (!isOnline) {
-      throw new Error('Impossible de charger les documents en mode hors ligne');
-    }
-
-    setIsSyncing(true);
+  const { toast } = useToast();
+  
+  const syncWithServer = async (documents: Document[], groups: DocumentGroup[], userId: string): Promise<void> => {
+    if (!isOnline || isSyncing) return;
     
+    setIsSyncing(true);
     try {
-      const API_URL = getApiUrl();
-      const response = await fetch(`${API_URL}/bibliotheque-load.php`, {
-        method: 'GET',
-        headers: getAuthHeaders()
-      });
-      
-      if (!response.ok) {
-        throw new Error(`Erreur HTTP: ${response.status}`);
+      const success = await syncBibliothequeWithServer(documents, groups, userId);
+      if (success) {
+        setLastSynced(new Date());
+        toast({
+          title: "Synchronisation réussie",
+          description: "La bibliothèque a été synchronisée avec le serveur",
+        });
+      } else {
+        throw new Error("Échec de la synchronisation");
       }
-      
-      const result = await response.json();
-      
-      if (!result.success) {
-        throw new Error(result.message || 'Échec du chargement des documents');
-      }
-      
-      setLastSynced(new Date());
-      setSyncFailed(false);
-      
-      return result.documents || [];
     } catch (error) {
-      console.error('Erreur lors du chargement des documents:', error);
-      setSyncFailed(true);
-      throw error;
+      toast({
+        title: "Erreur de synchronisation",
+        description: error instanceof Error ? error.message : "Impossible de synchroniser la bibliothèque",
+        variant: "destructive"
+      });
     } finally {
       setIsSyncing(false);
     }
   };
 
-  const syncWithServer = async (
-    documents: Document[], 
-    groups: DocumentGroup[],
-    userId: string
-  ): Promise<boolean> => {
-    if (!isOnline) {
-      return false;
-    }
-    
-    setIsSyncing(true);
-    
+  const loadFromServer = async (userId: string) => {
     try {
-      const API_URL = getApiUrl();
-      const response = await fetch(`${API_URL}/bibliotheque-sync.php`, {
-        method: 'POST',
-        headers: {
-          ...getAuthHeaders(),
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          documents,
-          groups,
-          userId
-        })
-      });
-      
-      if (!response.ok) {
-        throw new Error(`Erreur HTTP: ${response.status}`);
-      }
-      
-      const result = await response.json();
-      
-      if (!result.success) {
-        throw new Error(result.message || 'Échec de la synchronisation');
-      }
-      
-      setLastSynced(new Date());
-      setSyncFailed(false);
-      
-      return true;
+      return await loadBibliothequeFromServer(userId);
     } catch (error) {
-      console.error('Erreur lors de la synchronisation de la bibliothèque:', error);
-      setSyncFailed(true);
-      return false;
-    } finally {
-      setIsSyncing(false);
+      toast({
+        title: "Erreur de chargement",
+        description: "Impossible de charger la bibliothèque depuis le serveur",
+        variant: "destructive"
+      });
+      return null;
     }
   };
 
   return {
-    isSyncing,
-    syncFailed,
-    lastSynced,
-    isOnline,
+    syncWithServer,
     loadFromServer,
-    syncWithServer
+    isSyncing,
+    isOnline,
+    lastSynced
   };
 };

@@ -8,13 +8,13 @@ const API_URL = getApiUrl();
 
 // User type
 export interface Utilisateur {
-  id: string; // Changé de number à string pour correspondre au varchar(36)
+  id: number;
   nom: string;
   prenom: string;
   email: string;
   mot_de_passe: string; // Always stored hashed
   identifiant_technique: string;
-  role: 'administrateur' | 'utilisateur' | 'gestionnaire'; // Limité aux valeurs exactes de l'enum
+  role: string;
   date_creation: string;
 }
 
@@ -121,13 +121,13 @@ class UserService {
         // Fallback pour le développement - garder uniquement en dernier recours
         return [
           {
-            id: "1", // Changé de number à string
+            id: 1,
             nom: "Cirier",
             prenom: "Antoine",
             email: "antcirier@gmail.com",
             mot_de_passe: "****",
             identifiant_technique: "p71x6d_system",
-            role: "administrateur", // Changé de "admin" à "administrateur"
+            role: "admin",
             date_creation: "2025-03-31 16:10:09"
           }
         ];

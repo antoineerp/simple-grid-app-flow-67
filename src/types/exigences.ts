@@ -1,7 +1,7 @@
 
 export interface ExigenceGroup {
   id: string;
-  name: string;  // The type uses 'name' not 'title'
+  name: string;
   expanded: boolean;
   items: Exigence[];
 }
@@ -9,10 +9,6 @@ export interface ExigenceGroup {
 export interface Exigence {
   id: string;
   nom: string;
-  code?: string;
-  titre?: string;
-  description?: string;
-  niveau?: string;
   responsabilites: {
     r: string[];
     a: string[];
@@ -21,10 +17,9 @@ export interface Exigence {
   };
   exclusion: boolean;
   atteinte: 'NC' | 'PC' | 'C' | null;
-  date_creation: Date | string;
-  date_modification: Date | string;
+  date_creation: Date;
+  date_modification: Date;
   groupId?: string;
-  documents_associes?: any[];
 }
 
 export interface ExigenceStats {
@@ -33,11 +28,4 @@ export interface ExigenceStats {
   partiellementConforme: number;
   conforme: number;
   total: number;
-}
-
-// Type for document references
-export interface Documents {
-  id: string;
-  titre: string;
-  url?: string;
 }

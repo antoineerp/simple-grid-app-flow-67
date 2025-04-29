@@ -1,96 +1,100 @@
 
 import { useState } from 'react';
-import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { Document, DocumentGroup } from '@/types/collaboration';
-import { getApiUrl } from '@/config/apiConfig';
-import { getAuthHeaders } from '@/services/auth/authService';
+import { loadCollaborationFromServer, syncCollaborationWithServer } from '@/services/collaboration/collaborationSync';
+import { useToast } from '@/hooks/use-toast';
 
 export const useCollaborationSync = () => {
   const [isSyncing, setIsSyncing] = useState(false);
-  const [syncFailed, setSyncFailed] = useState(false);
   const [lastSynced, setLastSynced] = useState<Date | null>(null);
-  const { isOnline } = useNetworkStatus();
+  const [isOnline, setIsOnline] = useState(true);
+  const { toast } = useToast();
 
-  const loadFromServer = async (userId: string): Promise<Document[]> => {
+  // Détecter la connectivité réseau
+  useState(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+    
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  });
+
+  // Charger les données depuis le serveur
+  const loadFromServer = async (userId: string) => {
     if (!isOnline) {
-      throw new Error('Impossible de charger les documents en mode hors ligne');
+      toast({
+        title: "Mode hors-ligne",
+        description: "Impossible de charger les données en mode hors-ligne",
+        variant: "destructive"
+      });
+      return [];
     }
 
-    setIsSyncing(true);
-    
     try {
-      const API_URL = getApiUrl();
-      const response = await fetch(`${API_URL}/collaboration-load.php?userId=${userId}`, {
-        method: 'GET',
-        headers: getAuthHeaders()
-      });
+      setIsSyncing(true);
+      const result = await loadCollaborationFromServer(userId);
       
-      if (!response.ok) {
-        throw new Error(`Erreur HTTP: ${response.status}`);
+      if (result) {
+        setLastSynced(new Date());
+        return result.documents;
+      } else {
+        return [];
       }
-      
-      const result = await response.json();
-      
-      if (!result.success) {
-        throw new Error(result.message || 'Échec du chargement des documents');
-      }
-      
-      setLastSynced(new Date());
-      setSyncFailed(false);
-      
-      return result.documents || [];
     } catch (error) {
-      console.error('Erreur lors du chargement des documents:', error);
-      setSyncFailed(true);
-      throw error;
+      const errorMessage = error instanceof Error ? error.message : "Erreur inconnue";
+      toast({
+        title: "Erreur de chargement",
+        description: errorMessage,
+        variant: "destructive"
+      });
+      return [];
     } finally {
       setIsSyncing(false);
     }
   };
 
-  const syncWithServer = async (
-    documents: Document[],
-    groups: DocumentGroup[],
-    userId: string
-  ): Promise<boolean> => {
+  // Synchroniser avec le serveur
+  const syncWithServer = async (documents: Document[], groups: DocumentGroup[], userId: string) => {
     if (!isOnline) {
+      toast({
+        title: "Mode hors-ligne",
+        description: "Impossible de synchroniser en mode hors-ligne",
+        variant: "destructive"
+      });
       return false;
     }
-    
-    setIsSyncing(true);
-    
+
     try {
-      const API_URL = getApiUrl();
-      const response = await fetch(`${API_URL}/collaboration-sync.php`, {
-        method: 'POST',
-        headers: {
-          ...getAuthHeaders(),
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          documents,
-          groups,
-          userId
-        })
-      });
+      setIsSyncing(true);
+      const success = await syncCollaborationWithServer(documents, groups, userId);
       
-      if (!response.ok) {
-        throw new Error(`Erreur HTTP: ${response.status}`);
+      if (success) {
+        setLastSynced(new Date());
+        toast({
+          title: "Synchronisation réussie",
+          description: "Les données ont été synchronisées avec le serveur"
+        });
+        return true;
+      } else {
+        toast({
+          title: "Échec de synchronisation",
+          description: "La synchronisation a échoué",
+          variant: "destructive"
+        });
+        return false;
       }
-      
-      const result = await response.json();
-      
-      if (!result.success) {
-        throw new Error(result.message || 'Échec de la synchronisation');
-      }
-      
-      setLastSynced(new Date());
-      setSyncFailed(false);
-      
-      return true;
     } catch (error) {
-      console.error('Erreur lors de la synchronisation de la collaboration:', error);
-      setSyncFailed(true);
+      const errorMessage = error instanceof Error ? error.message : "Erreur inconnue";
+      toast({
+        title: "Erreur de synchronisation",
+        description: errorMessage,
+        variant: "destructive"
+      });
       return false;
     } finally {
       setIsSyncing(false);
@@ -99,9 +103,8 @@ export const useCollaborationSync = () => {
 
   return {
     isSyncing,
-    syncFailed,
-    lastSynced,
     isOnline,
+    lastSynced,
     loadFromServer,
     syncWithServer
   };

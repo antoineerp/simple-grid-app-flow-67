@@ -1,7 +1,6 @@
 
 import { useState } from 'react';
 import { useToast } from "@/hooks/use-toast";
-import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 
 interface Document {
   id: number;
@@ -12,7 +11,6 @@ interface Document {
 
 export const usePilotageDocuments = () => {
   const { toast } = useToast();
-  const { isOnline } = useNetworkStatus();
   const [documents, setDocuments] = useState<Document[]>([
     { id: 1, ordre: 1, nom: 'Charte institutionnelle', lien: 'Voir le document' },
     { id: 2, ordre: 2, nom: 'Objectifs stratégiques', lien: null },
@@ -22,10 +20,6 @@ export const usePilotageDocuments = () => {
 
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
-  const [isSyncing, setIsSyncing] = useState(false);
-  const [syncFailed, setSyncFailed] = useState(false);
-  const [lastSynced, setLastSynced] = useState<Date | null>(null);
-  
   const [currentDocument, setCurrentDocument] = useState<Document>({
     id: 0,
     ordre: 0,
@@ -123,49 +117,6 @@ export const usePilotageDocuments = () => {
     });
   };
 
-  // Fonction simulée de synchronisation avec le serveur
-  const syncWithServer = async () => {
-    if (!isOnline) {
-      toast({
-        title: "Mode hors ligne",
-        description: "La synchronisation est impossible en mode hors ligne",
-        variant: "destructive"
-      });
-      return false;
-    }
-
-    setIsSyncing(true);
-    
-    try {
-      // Simuler une requête API
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Simuler une réponse réussie
-      setLastSynced(new Date());
-      setSyncFailed(false);
-      
-      toast({
-        title: "Synchronisation réussie",
-        description: "Les documents ont été synchronisés avec le serveur",
-      });
-      
-      return true;
-    } catch (error) {
-      console.error("Erreur de synchronisation:", error);
-      setSyncFailed(true);
-      
-      toast({
-        title: "Erreur de synchronisation",
-        description: "Impossible de synchroniser les documents",
-        variant: "destructive"
-      });
-      
-      return false;
-    } finally {
-      setIsSyncing(false);
-    }
-  };
-
   return {
     documents,
     isDialogOpen,
@@ -178,10 +129,5 @@ export const usePilotageDocuments = () => {
     handleInputChange,
     handleSaveDocument,
     handleReorder,
-    isOnline,
-    isSyncing,
-    syncFailed,
-    lastSynced,
-    syncWithServer
   };
 };

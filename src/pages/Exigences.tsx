@@ -1,6 +1,5 @@
-
 import React from 'react';
-import { FileText, FolderPlus, RefreshCw, Loader2 } from 'lucide-react';
+import { FileText, FolderPlus, CloudSun, RefreshCw } from 'lucide-react';
 import { MembresProvider } from '@/contexts/MembresContext';
 import ExigenceForm from '@/components/exigences/ExigenceForm';
 import ExigenceStats from '@/components/exigences/ExigenceStats';
@@ -26,7 +25,6 @@ const ExigencesContent = () => {
     isOnline,
     lastSynced,
     loadError,
-    syncFailed,
     setDialogOpen,
     setGroupDialogOpen,
     handleResponsabiliteChange,
@@ -35,8 +33,8 @@ const ExigencesContent = () => {
     handleEdit,
     handleSaveExigence,
     handleDelete,
-    handleReorder,
     handleAddExigence,
+    handleReorder,
     handleAddGroup,
     handleEditGroup,
     handleSaveGroup,
@@ -49,12 +47,39 @@ const ExigencesContent = () => {
   
   const { toast } = useToast();
 
-  // Gestionnaire d'événement correctement typé
-  const handleExportPdf = (event: React.MouseEvent) => {
+  const handleExportPdf = () => {
     exportExigencesToPdf(exigences, groups);
     toast({
       title: "Export PDF réussi",
       description: "Le document a été généré et téléchargé",
+    });
+  };
+
+  const handleSyncWithServer = () => {
+    toast({
+      title: "Synchronisation en cours",
+      description: "Veuillez patienter pendant la synchronisation...",
+    });
+    
+    syncWithServer().then(success => {
+      if (success) {
+        toast({
+          title: "Synchronisation réussie",
+          description: "Vos exigences ont été synchronisées avec le serveur",
+        });
+      } else {
+        toast({
+          title: "Synchronisation échouée",
+          description: "Essayez de réinitialiser et réessayer.",
+          variant: "destructive"
+        });
+      }
+    }).catch(error => {
+      toast({
+        title: "Erreur de synchronisation",
+        description: error instanceof Error ? error.message : "Une erreur s'est produite",
+        variant: "destructive"
+      });
     });
   };
 
@@ -66,6 +91,14 @@ const ExigencesContent = () => {
         </div>
         <div className="flex space-x-2">
           <button 
+            onClick={handleSyncWithServer}
+            className="text-blue-600 p-2 rounded-md hover:bg-blue-50 transition-colors flex items-center"
+            title="Synchroniser avec le serveur"
+            disabled={isSyncing}
+          >
+            <CloudSun className={`h-6 w-6 stroke-[1.5] ${isSyncing ? 'animate-spin' : ''}`} />
+          </button>
+          <button 
             onClick={handleExportPdf}
             className="text-red-600 p-2 rounded-md hover:bg-red-50 transition-colors"
             title="Exporter en PDF"
@@ -76,13 +109,7 @@ const ExigencesContent = () => {
       </div>
 
       <div className="mb-4">
-        <SyncStatusIndicator 
-          syncFailed={syncFailed} 
-          onReset={handleResetLoadAttempts} 
-          isSyncing={isSyncing}
-          isOnline={isOnline}
-          lastSynced={lastSynced}
-        />
+        <SyncStatusIndicator syncFailed={!!loadError} onReset={handleResetLoadAttempts} />
       </div>
 
       {loadError && (
@@ -105,12 +132,7 @@ const ExigencesContent = () => {
 
       <ExigenceStats stats={stats} />
 
-      {isSyncing ? (
-        <div className="flex flex-col items-center justify-center p-12 border border-dashed rounded-md bg-gray-50">
-          <Loader2 className="h-10 w-10 text-app-blue animate-spin mb-4" />
-          <p className="text-gray-600">Chargement des exigences en cours...</p>
-        </div>
-      ) : exigences && exigences.length > 0 ? (
+      {exigences.length > 0 ? (
         <ExigenceTable 
           exigences={exigences}
           groups={groups}
@@ -128,15 +150,6 @@ const ExigencesContent = () => {
       ) : loadError ? (
         <div className="text-center p-8 border border-dashed rounded-md mt-4 bg-gray-50">
           <p className="text-gray-500">Impossible de charger les exigences.</p>
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={handleResetLoadAttempts}
-            className="mt-4"
-          >
-            <RefreshCw className="h-4 w-4 mr-2" />
-            Réessayer
-          </Button>
         </div>
       ) : (
         <div className="text-center p-8 border border-dashed rounded-md mt-4 bg-gray-50">

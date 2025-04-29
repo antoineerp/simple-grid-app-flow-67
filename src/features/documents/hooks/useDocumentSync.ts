@@ -1,102 +1,86 @@
 
 import { useState } from 'react';
-import { useNetworkStatus } from '@/hooks/useNetworkStatus';
+import { useToast } from '@/hooks/use-toast';
 import { Document } from '@/types/documents';
-import { getApiUrl } from '@/config/apiConfig';
-import { getAuthHeaders } from '@/services/auth/authService';
+import { useNetworkStatus } from '@/hooks/useNetworkStatus';
+import { syncDocumentsWithServer, loadDocumentsFromServer } from '@/services/documents/documentSyncService';
 
 export const useDocumentSync = () => {
   const [isSyncing, setIsSyncing] = useState(false);
-  const [syncFailed, setSyncFailed] = useState(false);
-  const [lastSynced, setLastSynced] = useState<Date | null>(null);
+  const [lastSynced, setLastSynced] = useState<Date | undefined>(undefined);
   const { isOnline } = useNetworkStatus();
-
-  const loadFromServer = async (userId: string): Promise<Document[]> => {
+  const { toast } = useToast();
+  
+  const syncWithServer = async (documents: Document[], userId: string): Promise<boolean> => {
     if (!isOnline) {
-      throw new Error('Impossible de charger les documents en mode hors ligne');
-    }
-
-    setIsSyncing(true);
-    
-    try {
-      const API_URL = getApiUrl();
-      const response = await fetch(`${API_URL}/documents-load.php?userId=${userId}`, {
-        method: 'GET',
-        headers: getAuthHeaders()
+      toast({
+        title: "Connexion hors ligne",
+        description: "Impossible de synchroniser les documents. Veuillez vérifier votre connexion.",
+        variant: "destructive"
       });
+      return false;
+    }
+    
+    if (isSyncing) {
+      console.log("Synchronisation déjà en cours, ignorée");
+      return false;
+    }
+    
+    setIsSyncing(true);
+    try {
+      console.log(`Synchronisation de ${documents.length} documents pour l'utilisateur ${userId}`);
+      const success = await syncDocumentsWithServer(documents, userId);
       
-      if (!response.ok) {
-        throw new Error(`Erreur HTTP: ${response.status}`);
+      if (success) {
+        setLastSynced(new Date());
+        toast({
+          title: "Synchronisation réussie",
+          description: "Vos documents ont été synchronisés avec le serveur",
+        });
+        return true;
       }
       
-      const result = await response.json();
-      
-      if (!result.success) {
-        throw new Error(result.message || 'Échec du chargement des documents');
-      }
-      
-      setLastSynced(new Date());
-      setSyncFailed(false);
-      
-      return result.documents || [];
+      throw new Error("Le serveur a signalé un échec de synchronisation");
     } catch (error) {
-      console.error('Erreur lors du chargement des documents:', error);
-      setSyncFailed(true);
-      throw error;
+      console.error("Erreur pendant la synchronisation:", error);
+      toast({
+        title: "Erreur de synchronisation",
+        description: error instanceof Error ? error.message : "Impossible de synchroniser vos documents",
+        variant: "destructive"
+      });
+      return false;
     } finally {
       setIsSyncing(false);
     }
   };
 
-  const syncWithServer = async (documents: Document[]): Promise<boolean> => {
-    if (!isOnline) {
-      return false;
-    }
-    
+  const loadFromServer = async (userId: string): Promise<Document[] | null> => {
     setIsSyncing(true);
-    
     try {
-      const API_URL = getApiUrl();
-      const response = await fetch(`${API_URL}/documents-sync.php`, {
-        method: 'POST',
-        headers: {
-          ...getAuthHeaders(),
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          documents
-        })
-      });
-      
-      if (!response.ok) {
-        throw new Error(`Erreur HTTP: ${response.status}`);
+      console.log(`Chargement des documents pour l'utilisateur ${userId}`);
+      const docs = await loadDocumentsFromServer(userId);
+      if (docs) {
+        setLastSynced(new Date());
       }
-      
-      const result = await response.json();
-      
-      if (!result.success) {
-        throw new Error(result.message || 'Échec de la synchronisation');
-      }
-      
-      setLastSynced(new Date());
-      setSyncFailed(false);
-      
-      return true;
+      return docs;
     } catch (error) {
-      console.error('Erreur lors de la synchronisation des documents:', error);
-      setSyncFailed(true);
-      return false;
+      console.error("Erreur lors du chargement:", error);
+      toast({
+        title: "Erreur de chargement",
+        description: error instanceof Error ? error.message : "Impossible de charger les documents du serveur",
+        variant: "destructive"
+      });
+      return null;
     } finally {
       setIsSyncing(false);
     }
   };
 
   return {
-    isSyncing,
-    syncFailed,
-    lastSynced,
-    isOnline,
+    syncWithServer,
     loadFromServer,
-    syncWithServer
+    isSyncing,
+    isOnline,
+    lastSynced
   };
 };

@@ -25,12 +25,12 @@ export {
 
 // Define types here if needed
 export interface Utilisateur {
-  id: string; // Changed from number to string to match database schema
+  id: number;
   nom: string;
   prenom: string;
   email: string;
   mot_de_passe: string;
   identifiant_technique: string;
-  role: 'administrateur' | 'utilisateur' | 'gestionnaire'; // Restricted to match enum values
+  role: string;
   date_creation: string;
 }

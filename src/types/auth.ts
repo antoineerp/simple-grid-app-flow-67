@@ -1,10 +1,10 @@
 
 export interface User {
-  id?: string; // Changé de number/string à string pour correspondre au varchar(36)
+  id?: string;
   username?: string;
   identifiant_technique?: string;
   email?: string;
-  role?: 'administrateur' | 'utilisateur' | 'gestionnaire'; // Limité aux valeurs exactes de l'enum
+  role?: string;
   nom?: string;
   prenom?: string;
 }
