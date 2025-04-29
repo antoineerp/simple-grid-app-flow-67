@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { getApiUrl } from '@/config/apiConfig';
 import { useToast } from "@/hooks/use-toast";
 import { JsonTestResult } from '@/types/api-config';
-import { validateJsonResponse, extractValidJson } from '@/utils/jsonValidator';
+import { validateJsonResponse, extractValidJson, parseFetchResponse } from '@/utils/jsonValidator';
 
 export const useJsonTest = () => {
   const { toast } = useToast();
@@ -12,7 +12,27 @@ export const useJsonTest = () => {
   const testJsonFormat = async (): Promise<JsonTestResult> => {
     try {
       setLoading(true);
-      const response = await fetch(`${getApiUrl()}/simple-json-test.php`);
+      
+      console.log("Démarrage du test JSON avec l'URL:", `${getApiUrl()}/simple-json-test.php`);
+      
+      const response = await fetch(`${getApiUrl()}/simple-json-test.php`, {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+          'Cache-Control': 'no-cache, no-store, must-revalidate'
+        }
+      });
+      
+      console.log("Statut de la réponse:", response.status, response.statusText);
+      
+      // Analyser les en-têtes pour vérifier le content-type
+      const contentType = response.headers.get('content-type');
+      console.log("Content-Type:", contentType);
+      
+      if (contentType && !contentType.includes('application/json')) {
+        console.warn(`Le Content-Type '${contentType}' ne correspond pas à 'application/json'`);
+      }
+      
       const text = await response.text();
       
       console.log("Réponse brute du test JSON:", text.substring(0, 300));
@@ -43,12 +63,30 @@ export const useJsonTest = () => {
           };
         }
         
+        // Analyser l'erreur plus en détail pour donner des conseils utiles
+        let errorDetails = error || "Format JSON invalide";
+        let recommendation = "";
+        
+        if (text.includes('<br />') || text.includes('<b>')) {
+          errorDetails = "La réponse contient des balises HTML (erreur PHP affichée)";
+          recommendation = "Vérifiez les logs d'erreur PHP sur votre serveur et désactivez l'affichage des erreurs dans la production.";
+        } else if (text.includes('<?php')) {
+          errorDetails = "Le code PHP est affiché au lieu d'être exécuté";
+          recommendation = "Vérifiez que le module PHP est correctement configuré sur votre serveur.";
+        }
+        
         toast({
           title: "Test JSON échoué",
-          description: error || "Le serveur ne répond pas avec du JSON valide",
+          description: errorDetails,
           variant: "destructive",
         });
-        return { success: false, error: error || "Format JSON invalide", response: text };
+        
+        return { 
+          success: false, 
+          error: errorDetails, 
+          response: text,
+          recommendation
+        };
       }
     } catch (error) {
       console.error("Erreur de test JSON:", error);
