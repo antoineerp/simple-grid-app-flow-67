@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Bell, User, Menu, X } from 'lucide-react';
+import { Bell, User } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { 
   DropdownMenu,
@@ -11,14 +11,14 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { getCurrentUser, logout } from '@/services/auth/authService';
 import { useToast } from '@/hooks/use-toast';
-import { Sheet, SheetContent } from "@/components/ui/sheet";
 
 const Header = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   
   const user = getCurrentUser();
+  const [imageError, setImageError] = useState(false);
+  const logoPath = "/lovable-uploads/4c7adb52-3da0-4757-acbf-50a1eb1d4bf5.png";
   
   const handleLogout = () => {
     logout();
@@ -27,15 +27,6 @@ const Header = () => {
       description: "Vous avez été déconnecté avec succès",
     });
     navigate('/');
-  };
-  
-  const toggleMobileMenu = () => {
-    setIsMobileMenuOpen(!isMobileMenuOpen);
-  };
-  
-  const navigateAndCloseMobile = (path: string) => {
-    navigate(path);
-    setIsMobileMenuOpen(false);
   };
 
   // Vérifier si l'utilisateur est administrateur
@@ -50,46 +41,58 @@ const Header = () => {
       <div className="container mx-auto flex justify-between items-center">
         {/* Logo et titre */}
         <div className="flex items-center">
-          <div className="text-xl font-bold text-gray-800 mr-10">QualiOpi</div>
-          
-          {/* Menu de navigation - Desktop */}
-          <nav className="hidden md:flex space-x-6">
-            <button 
-              onClick={() => navigate('/pilotage')}
-              className="text-gray-600 hover:text-gray-900 transition-colors"
-            >
-              Tableau de bord
-            </button>
-            <button 
-              onClick={() => navigate('/gestion-documentaire')}
-              className="text-gray-600 hover:text-gray-900 transition-colors"
-            >
-              Gestion documentaire
-            </button>
-            <button 
-              onClick={() => navigate('/exigences')}
-              className="text-gray-600 hover:text-gray-900 transition-colors"
-            >
-              Exigences
-            </button>
-            {isManagerOrAdmin && (
-              <button 
-                onClick={() => navigate('/ressources-humaines')}
-                className="text-gray-600 hover:text-gray-900 transition-colors"
-              >
-                Ressources humaines
-              </button>
-            )}
-            {isAdmin && (
-              <button 
-                onClick={() => navigate('/admin')}
-                className="text-gray-600 hover:text-gray-900 transition-colors"
-              >
-                Administration
-              </button>
-            )}
-          </nav>
+          {!imageError ? (
+            <img 
+              src={logoPath}
+              alt="Formacert Logo" 
+              className="h-10 mr-3"
+              onError={() => setImageError(true)}
+            />
+          ) : (
+            <div className="h-10 mr-3 flex items-center justify-center">
+              <span className="text-xl font-bold text-app-blue">FormaCert</span>
+            </div>
+          )}
+          <div className="text-xl font-bold text-gray-800">QualiOpi</div>
         </div>
+        
+        {/* Navigation */}
+        <nav className="hidden md:flex space-x-6">
+          <button 
+            onClick={() => navigate('/pilotage')}
+            className="text-gray-600 hover:text-gray-900 transition-colors"
+          >
+            Tableau de bord
+          </button>
+          <button 
+            onClick={() => navigate('/gestion-documentaire')}
+            className="text-gray-600 hover:text-gray-900 transition-colors"
+          >
+            Gestion documentaire
+          </button>
+          <button 
+            onClick={() => navigate('/exigences')}
+            className="text-gray-600 hover:text-gray-900 transition-colors"
+          >
+            Exigences
+          </button>
+          {isManagerOrAdmin && (
+            <button 
+              onClick={() => navigate('/ressources-humaines')}
+              className="text-gray-600 hover:text-gray-900 transition-colors"
+            >
+              Ressources humaines
+            </button>
+          )}
+          {isAdmin && (
+            <button 
+              onClick={() => navigate('/administration')}
+              className="text-gray-600 hover:text-gray-900 transition-colors"
+            >
+              Administration
+            </button>
+          )}
+        </nav>
         
         {/* Actions utilisateur */}
         <div className="flex items-center space-x-4">
@@ -117,71 +120,8 @@ const Header = () => {
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-          
-          {/* Bouton de menu mobile */}
-          <Button variant="ghost" size="icon" className="md:hidden" onClick={toggleMobileMenu}>
-            <Menu className="h-5 w-5" />
-          </Button>
         </div>
       </div>
-      
-      {/* Menu mobile */}
-      <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
-        <SheetContent side="left" className="w-[250px] sm:w-[300px]">
-          <div className="flex flex-col h-full">
-            <div className="flex justify-between items-center py-4 border-b">
-              <span className="font-bold text-lg">QualiOpi</span>
-              <Button variant="ghost" size="icon" onClick={() => setIsMobileMenuOpen(false)}>
-                <X className="h-5 w-5" />
-              </Button>
-            </div>
-            <nav className="flex flex-col space-y-4 pt-4">
-              <button 
-                onClick={() => navigateAndCloseMobile('/pilotage')}
-                className="text-left px-2 py-2 hover:bg-gray-100 rounded-md"
-              >
-                Tableau de bord
-              </button>
-              <button 
-                onClick={() => navigateAndCloseMobile('/gestion-documentaire')}
-                className="text-left px-2 py-2 hover:bg-gray-100 rounded-md"
-              >
-                Gestion documentaire
-              </button>
-              <button 
-                onClick={() => navigateAndCloseMobile('/exigences')}
-                className="text-left px-2 py-2 hover:bg-gray-100 rounded-md"
-              >
-                Exigences
-              </button>
-              {isManagerOrAdmin && (
-                <button 
-                  onClick={() => navigateAndCloseMobile('/ressources-humaines')}
-                  className="text-left px-2 py-2 hover:bg-gray-100 rounded-md"
-                >
-                  Ressources humaines
-                </button>
-              )}
-              {isAdmin && (
-                <button 
-                  onClick={() => navigateAndCloseMobile('/admin')}
-                  className="text-left px-2 py-2 hover:bg-gray-100 rounded-md"
-                >
-                  Administration
-                </button>
-              )}
-            </nav>
-            <div className="mt-auto border-t py-4">
-              <button 
-                onClick={handleLogout}
-                className="w-full text-left px-2 py-2 text-red-500 hover:bg-red-50 rounded-md"
-              >
-                Se déconnecter
-              </button>
-            </div>
-          </div>
-        </SheetContent>
-      </Sheet>
     </header>
   );
 };

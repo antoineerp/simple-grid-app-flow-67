@@ -13,6 +13,7 @@ import GestionDocumentaire from "./pages/GestionDocumentaire";
 import RessourcesHumaines from "./pages/RessourcesHumaines";
 import Collaboration from "./pages/Collaboration";
 import Administration from "./pages/Administration";
+import Admin from "./pages/Admin";
 import NotFound from "./pages/NotFound";
 import { MembresProvider } from "./contexts/MembresContext";
 import { CollaborationProvider } from "./contexts/CollaborationContext";
@@ -68,6 +69,7 @@ const App = () => (
                       <Route path="ressources-humaines" element={<RessourcesHumaines />} />
                       <Route path="collaboration" element={<Collaboration />} />
                       <Route path="administration" element={<Administration />} />
+                      <Route path="admin" element={<Admin />} />
                     </Route>
                     <Route path="*" element={<NotFound />} />
                   </Routes>
