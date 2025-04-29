@@ -1,65 +1,35 @@
 
+// Main entry point for the application
 import React from 'react';
 import { createRoot } from 'react-dom/client';
-import App from './App.tsx';
+import App from './App';
 import './index.css';
 
-// Fonction pour initialiser l'application de façon plus fiable
-function initializeApp() {
-  const rootElement = document.getElementById("root");
-
-  if (rootElement) {
-    try {
-      console.log("React initialization started");
+// Fonction pour initialiser l'application
+const initApp = () => {
+  try {
+    console.log("Initialisation de l'application...");
+    const rootElement = document.getElementById("root");
+    
+    if (rootElement) {
+      console.log("Élément racine trouvé, démarrage du rendu React");
       const root = createRoot(rootElement);
-      
-      // Utiliser un composant racine pour éviter les erreurs de hooks lors du rendu
-      const AppWithErrorBoundary = () => {
-        return (
-          <React.StrictMode>
-            <App />
-          </React.StrictMode>
-        );
-      };
-      
-      root.render(<AppWithErrorBoundary />);
-      console.log("React rendering complete");
-    } catch (error) {
-      console.error("Failed to render React application:", error);
-      
-      // Fallback pour afficher une erreur à l'utilisateur
-      rootElement.innerHTML = `
-        <div style="text-align:center; margin-top:50px; font-family:sans-serif;">
-          <h1>Erreur de chargement</h1>
-          <p>L'application n'a pas pu être chargée correctement.</p>
-          <p>Erreur: ${error instanceof Error ? error.message : 'Erreur inconnue'}</p>
-          <button onclick="window.location.reload()">Réessayer</button>
-        </div>
-      `;
+      root.render(React.createElement(App));
+      console.log("Application React démarrée avec succès");
+    } else {
+      console.error("Élément racine non trouvé dans le DOM");
     }
-  } else {
-    console.error("Root element not found");
-    document.body.innerHTML = `
-      <div style="text-align:center; margin-top:50px; font-family:sans-serif;">
-        <h1>Erreur critique</h1>
-        <p>L'élément racine de l'application est introuvable.</p>
-        <button onclick="window.location.reload()">Réessayer</button>
-      </div>
-    `;
+  } catch (error) {
+    console.error("Erreur lors du démarrage de l'application:", error);
   }
+};
+
+// Démarrer l'application quand le DOM est chargé
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initApp);
+} else {
+  initApp();
 }
 
-// Initialiser l'application
-initializeApp();
-
-// Global error handler
-window.addEventListener('error', (event) => {
-  console.error('Global error caught:', event.error);
-  console.error('Error details:', {
-    message: event.error?.message,
-    stack: event.error?.stack,
-    filename: event.filename,
-    lineno: event.lineno,
-    colno: event.colno
-  });
-});
+// Exporter explicitement pour une compatibilité optimale
+export { initApp };
