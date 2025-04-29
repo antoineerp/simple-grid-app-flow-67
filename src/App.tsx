@@ -13,6 +13,7 @@ import RessourcesHumaines from '@/pages/RessourcesHumaines';
 import Administration from '@/pages/Administration';
 import Collaboration from '@/pages/Collaboration';
 import { getIsLoggedIn } from '@/services/auth/authService';
+import { MembresProvider } from '@/contexts/MembresContext';
 
 // Composant de route protégée qui vérifie l'authentification
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
@@ -62,7 +63,9 @@ function App() {
           } />
           <Route path="ressources-humaines" element={
             <ProtectedRoute>
-              <RessourcesHumaines />
+              <MembresProvider>
+                <RessourcesHumaines />
+              </MembresProvider>
             </ProtectedRoute>
           } />
           <Route path="collaboration" element={
