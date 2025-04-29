@@ -20,7 +20,7 @@ export default defineConfig(({ mode }) => {
       cors: true,
       proxy: {},
       // Configuration explicite des hôtes autorisés
-      allowedHosts: 'all', // 'all' est une valeur valide pour allowedHosts en TypeScript
+      allowedHosts: true, // Changed from 'all' to true to match the expected type
     },
     preview: {
       // Également autoriser tous les hôtes pour le mode preview
