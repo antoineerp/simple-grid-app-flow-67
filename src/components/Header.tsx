@@ -63,7 +63,7 @@ const Header = () => {
   const isAdmin = userRole === 'administrateur' || userRole === 'admin';
 
   return (
-    <header className="border-b bg-white">
+    <header className="w-full border-b bg-white">
       <div className="flex items-center justify-between h-14 px-4">
         <div className="flex items-center w-full">
           <LogoSelector currentLogo={logo} onLogoChange={handleLogoChange} />
