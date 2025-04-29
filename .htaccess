@@ -33,12 +33,18 @@ AddType application/x-httpd-php .php
     Header set Access-Control-Allow-Headers "Content-Type, Authorization"
 </IfModule>
 
-# Set correct MIME types
+# Set correct MIME types - Critical for JavaScript modules
 AddType application/javascript .js
 AddType application/javascript .mjs
+AddType application/javascript .es.js
 AddType text/css .css
 AddType application/json .json
 AddType image/svg+xml .svg
+
+# Force JavaScript MIME types explicitly - Important for modules
+<FilesMatch "\.(js|mjs|es.js)$">
+    Header set Content-Type "application/javascript"
+</FilesMatch>
 
 # API requests should not be redirected
 RewriteRule ^api/ - [L]
@@ -46,6 +52,12 @@ RewriteRule ^api/ - [L]
 # PHP files should be processed directly
 RewriteCond %{REQUEST_FILENAME} -f
 RewriteRule \.(php)$ - [L]
+
+# For service workers
+<Files "sync-service-worker.js">
+    Header set Content-Type "application/javascript"
+    Header set Service-Worker-Allowed "/"
+</Files>
 
 # Redirect all other requests to index.html for client-side routing
 RewriteCond %{REQUEST_FILENAME} !-f

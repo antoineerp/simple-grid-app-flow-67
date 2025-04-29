@@ -49,8 +49,16 @@ AddType application/x-httpd-php .php
 
 # Set correct MIME types
 AddType application/javascript .js
+AddType application/javascript .mjs
+AddType application/javascript .es.js
 AddType text/css .css
 AddType application/json .json
+
+# Force JavaScript MIME types explicitly
+<FilesMatch "\.(js|mjs|es.js)$">
+    Header set Content-Type "application/javascript"
+    Header set X-Content-Type-Options "nosniff"
+</FilesMatch>
 
 # CORS headers
 <IfModule mod_headers.c>

@@ -33,6 +33,10 @@ export default defineConfig({
       },
     }
   },
+  // Server configuration for development
+  server: {
+    port: 8080
+  },
   // Script de post-build pour copier les fichiers PHP dans le répertoire de sortie
   optimizeDeps: {
     exclude: []
