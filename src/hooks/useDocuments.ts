@@ -33,7 +33,7 @@ export const useDocuments = () => {
     }
   }, [documents]);
 
-  // Handle document adding
+  // Handle document adding - modifié pour ne pas prendre d'argument
   const handleAddDocument = useCallback(() => {
     const newDocument: Document = {
       id: crypto.randomUUID(),
