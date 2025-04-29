@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from '@/components/ui/toaster';
@@ -10,7 +11,6 @@ import Exigences from '@/pages/Exigences';
 import GestionDocumentaire from '@/pages/GestionDocumentaire';
 import RessourcesHumaines from '@/pages/RessourcesHumaines';
 import Administration from '@/pages/Administration';
-import DashboardLayout from '@/components/layouts/DashboardLayout';
 import { getIsLoggedIn } from '@/services/auth/authService';
 import Collaboration from '@/pages/Collaboration';
 
@@ -62,7 +62,9 @@ function App() {
           } />
           <Route path="ressources-humaines" element={
             <ProtectedRoute>
-              <RessourcesHumaines />
+              <DashboardLayout>
+                <RessourcesHumaines />
+              </DashboardLayout>
             </ProtectedRoute>
           } />
           <Route path="collaboration" element={
