@@ -121,10 +121,19 @@ const Collaboration = () => {
       if (isEditing) {
         handleEditGroup(currentGroup);
       } else {
-        // Fixed: Call handleAddGroup without arguments, since it already uses currentGroup from state
+        // Fixed: Call handleAddGroup with the currentGroup
         handleAddGroup(currentGroup);
       }
       setIsGroupDialogOpen(false);
+    }
+  };
+
+  // Create a wrapper function that converts Promise<boolean> to Promise<void>
+  const handleSync = async (): Promise<void> => {
+    try {
+      await syncWithServer();
+    } catch (error) {
+      console.error('Sync error:', error);
     }
   };
 
@@ -149,7 +158,7 @@ const Collaboration = () => {
             isOnline={isOnline}
             syncFailed={syncFailed}
             lastSynced={lastSynced}
-            onSync={syncWithServer}
+            onSync={handleSync}
             showOnlyErrors={true}
           />
         </div>

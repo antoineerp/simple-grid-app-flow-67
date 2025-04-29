@@ -87,7 +87,6 @@ const Bibliotheque = () => {
         title: "Synchronisation réussie",
         description: "Les documents ont été synchronisés avec succès."
       });
-      return Promise.resolve();
     } catch (error) {
       console.error("Sync failed:", error);
       setSyncFailed(true);
@@ -96,7 +95,6 @@ const Bibliotheque = () => {
         title: "Synchronisation échouée",
         description: "Une erreur s'est produite lors de la synchronisation.",
       });
-      return Promise.reject(error);
     }
   };
 
@@ -115,6 +113,20 @@ const Bibliotheque = () => {
     setIsEditing(false);
     // Ouvrir le dialogue
     setIsDialogOpen(true);
+  };
+
+  // Create an empty function to match the action signature
+  const handleAddGroupClick = () => {
+    const newId = Date.now().toString();
+    const newGroup: DocumentGroup = {
+      id: newId,
+      name: '',
+      expanded: false,
+      items: []
+    };
+    setCurrentGroup(newGroup);
+    setIsEditing(false);
+    setIsGroupDialogOpen(true);
   };
 
   return (
@@ -152,7 +164,7 @@ const Bibliotheque = () => {
       />
 
       <BibliothequeActions
-        onAddGroup={handleAddGroup}
+        onAddGroup={handleAddGroupClick}
         onAddDocument={handleAddDocumentClick}
       />
 

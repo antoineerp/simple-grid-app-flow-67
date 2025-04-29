@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from 'react';
 import { Document, DocumentGroup } from '@/types/bibliotheque';
 import { useToast } from '@/hooks/use-toast';
@@ -114,13 +115,13 @@ export const useBibliotheque = () => {
     setIsDialogOpen(true);
   };
 
-  // Ajouter un groupe - Updated to properly handle the group parameter
+  // Ajouter un groupe
   const handleAddGroup = (group: DocumentGroup) => {
     if (!group) return;
     
     // Create a copy of the current groups and add the new group
     const newGroups = [...globalGroups, group];
-    setBibliothequeGroups(newGroups);
+    setGlobalGroups(newGroups);
     
     // Show a toast notification
     toast({
