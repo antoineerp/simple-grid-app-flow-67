@@ -33,10 +33,9 @@ const GlobalSyncManager: React.FC<GlobalSyncManagerProps> = ({
   // Effet pour suivre l'état de la connexion WebSocket
   useEffect(() => {
     // Transformer le webSocketStatus string en un type valide
-    if (globalSync.webSocketStatus === 'connected') {
-      setWsStatus('connected');
-    } else if (globalSync.webSocketStatus === 'connecting') {
-      setWsStatus('connecting');
+    const status = globalSync.webSocketStatus;
+    if (status === 'connected' || status === 'connecting' || status === 'disconnected') {
+      setWsStatus(status);
     } else {
       setWsStatus('disconnected');
     }

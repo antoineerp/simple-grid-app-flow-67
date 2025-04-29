@@ -15,7 +15,7 @@ type SyncStatus = {
   lastSynced: Date | null;
 };
 
-type SyncConfig = {
+export type SyncConfig = {
   endpoint: string;
   loadEndpoint?: string;
   userId: string;
@@ -23,7 +23,7 @@ type SyncConfig = {
   retryDelay?: number;
 };
 
-type SyncOptions = {
+export type SyncOptions = {
   silent?: boolean; // Ne pas afficher de toast
   force?: boolean;  // Forcer la synchronisation même si le délai n'est pas écoulé
 };
@@ -38,13 +38,15 @@ export const useSync = <T>(entityType: string) => {
     lastSynced: null
   });
   
+  const [data, setData] = useState<T[] | null>(null);
+  
   const { isOnline } = useNetworkStatus();
   const { toast } = useToast();
   const lastSyncTime = useRef<number>(0);
   
   // Référence pour stocker les données en attente de synchronisation
   const pendingData = useRef<T[]>([]);
-  const syncTimeoutRef = useRef<number | null>(null);
+  const syncTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   
   // Réinitialiser le statut de synchronisation
   const resetSyncStatus = useCallback(() => {
@@ -95,7 +97,7 @@ export const useSync = <T>(entityType: string) => {
           throw new Error(result.message || `Échec du chargement des ${entityType}`);
         }
         
-        const data = Array.isArray(result) ? result : (result[entityType] || result.data || []);
+        const responseData = Array.isArray(result) ? result : (result[entityType] || result.data || []);
         
         setStatus({
           isSyncing: false,
@@ -103,10 +105,13 @@ export const useSync = <T>(entityType: string) => {
           lastSynced: new Date()
         });
         
-        console.log(`[${entityType}] ${data.length} éléments chargés avec succès`);
+        console.log(`[${entityType}] ${responseData.length} éléments chargés avec succès`);
         lastSyncTime.current = Date.now();
         
-        return data;
+        // Stocker les données dans le state
+        setData(responseData as T[]);
+        
+        return responseData as T[];
       } catch (error) {
         console.error(`[${entityType}] Erreur de chargement (tentative ${attempt + 1}/${maxRetries + 1}):`, error);
         
@@ -136,7 +141,7 @@ export const useSync = <T>(entityType: string) => {
     
     // Annuler tout timeout existant
     if (syncTimeoutRef.current !== null) {
-      window.clearTimeout(syncTimeoutRef.current);
+      clearTimeout(syncTimeoutRef.current);
     }
     
     const now = Date.now();
@@ -151,7 +156,7 @@ export const useSync = <T>(entityType: string) => {
     console.log(`[${entityType}] Planification de la synchronisation dans ${delay}ms`);
     
     // Planifier la synchronisation
-    syncTimeoutRef.current = window.setTimeout(() => {
+    syncTimeoutRef.current = setTimeout(() => {
       console.log(`[${entityType}] Exécution de la synchronisation différée`);
       syncWithServer(pendingData.current, config, options);
       syncTimeoutRef.current = null;
@@ -259,13 +264,14 @@ export const useSync = <T>(entityType: string) => {
   useEffect(() => {
     return () => {
       if (syncTimeoutRef.current !== null) {
-        window.clearTimeout(syncTimeoutRef.current);
+        clearTimeout(syncTimeoutRef.current);
       }
     };
   }, []);
   
   return {
     ...status,
+    data,
     isOnline,
     loadFromServer,
     syncWithServer,
@@ -285,7 +291,7 @@ export const useGlobalSync = () => {
   const { isOnline } = useNetworkStatus();
   const { toast } = useToast();
   const lastGlobalSyncTime = useRef<number>(0);
-  const syncTimeoutRef = useRef<number | null>(null);
+  const syncTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   
   // Fonction pour synchroniser toutes les données
   const syncAllData = useCallback(async (data: Record<string, any[]> = {}) => {
@@ -298,11 +304,11 @@ export const useGlobalSync = () => {
       
       // Annuler tout timeout existant
       if (syncTimeoutRef.current !== null) {
-        window.clearTimeout(syncTimeoutRef.current);
+        clearTimeout(syncTimeoutRef.current);
       }
       
       return new Promise<boolean>(resolve => {
-        syncTimeoutRef.current = window.setTimeout(async () => {
+        syncTimeoutRef.current = setTimeout(async () => {
           console.log(`[Global] Exécution de la synchronisation globale différée`);
           const result = await syncAllData(data);
           resolve(result);
@@ -397,7 +403,7 @@ export const useGlobalSync = () => {
   useEffect(() => {
     return () => {
       if (syncTimeoutRef.current !== null) {
-        window.clearTimeout(syncTimeoutRef.current);
+        clearTimeout(syncTimeoutRef.current);
       }
     };
   }, []);

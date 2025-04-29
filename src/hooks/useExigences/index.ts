@@ -1,4 +1,5 @@
 
+import { useEffect } from 'react';
 import { useExigenceCore } from './useExigenceCore';
 import { useExigenceEditHandlers } from './useExigenceEditHandlers';
 import { useExigenceSaveHandlers } from './useExigenceSaveHandlers';
@@ -7,6 +8,7 @@ import { useExigenceMutations } from '@/hooks/useExigenceMutations';
 import { useExigenceGroups } from '@/hooks/useExigenceGroups';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { useSync } from '@/hooks/useSync';
+import { Exigence } from '@/types/exigences';
 
 export const useExigences = () => {
   // États et valeurs de base
@@ -14,13 +16,14 @@ export const useExigences = () => {
   const { isOnline } = useNetworkStatus();
   
   // Nouveau hook de synchronisation unified
-  const syncHook = useSync({
-    entityType: 'exigences',
-    initialData: core.exigences,
-    onDataUpdate: (updatedExigences) => {
-      core.setExigences(updatedExigences);
+  const syncHook = useSync("exigences");
+  
+  // Observer pour mettre à jour les exigences quand elles changent
+  useEffect(() => {
+    if (syncHook.data && Array.isArray(syncHook.data)) {
+      core.setExigences(syncHook.data as Exigence[]);
     }
-  });
+  }, [syncHook.data, core.setExigences]);
   
   // Hooks de dépendances
   const exigenceMutations = useExigenceMutations(core.exigences, core.setExigences);
@@ -28,7 +31,10 @@ export const useExigences = () => {
 
   // Fonction de synchronisation
   const handleSyncWithServer = async () => {
-    return await syncHook.syncWithServer(core.exigences);
+    return await syncHook.syncWithServer(core.exigences, {
+      endpoint: 'exigences-sync.php',
+      userId: 'system' // À adapter selon votre configuration
+    });
   };
   
   // Fonction de réinitialisation
@@ -70,6 +76,17 @@ export const useExigences = () => {
     core.setGroupDialogOpen(true);
     return newGroup;
   };
+  
+  // Charger les données au démarrage
+  useEffect(() => {
+    if (syncHook.isOnline) {
+      syncHook.loadFromServer({
+        endpoint: 'exigences-sync.php',
+        loadEndpoint: 'exigences-load.php',
+        userId: 'system' // À adapter selon votre configuration
+      });
+    }
+  }, [syncHook.isOnline]);
 
   // Retourne toutes les fonctions et valeurs
   return {

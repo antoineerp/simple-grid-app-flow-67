@@ -21,13 +21,14 @@ export const useDocuments = () => {
   } = core;
   
   // Document synchronization with the new unified sync hook
-  const syncHook = useSync<Document>({
-    entityType: 'documents',
-    initialData: documents,
-    onDataUpdate: (updatedDocuments) => {
-      setDocuments(updatedDocuments);
+  const syncHook = useSync("documents");
+  
+  // Observer pour mettre à jour les documents quand ils changent
+  useEffect(() => {
+    if (syncHook.data && Array.isArray(syncHook.data)) {
+      setDocuments(syncHook.data as Document[]);
     }
-  });
+  }, [syncHook.data, setDocuments]);
   
   // Document mutations (add, edit, delete)
   const documentMutations = useDocumentMutations(documents, setDocuments);
@@ -42,7 +43,10 @@ export const useDocuments = () => {
       return false;
     }
     
-    return await syncHook.syncWithServer(documents);
+    return await syncHook.syncWithServer(documents, {
+      endpoint: 'documents-sync.php',
+      userId: userId || 'system'
+    });
   };
   
   // Document handlers (edit, add, save)
@@ -72,7 +76,17 @@ export const useDocuments = () => {
   // Load documents initially
   const loadDocuments = async () => {
     try {
-      await syncHook.loadFromAPI(userId || 'p71x6d_system');
+      if (!userId) {
+        console.log("Pas d'utilisateur identifié, impossible de charger les documents");
+        return;
+      }
+      
+      await syncHook.loadFromServer({
+        endpoint: 'documents-sync.php',
+        loadEndpoint: 'documents-load.php',
+        userId: userId
+      });
+      
       setLoadError(null);
     } catch (error) {
       console.error("Erreur lors du chargement des documents:", error);
