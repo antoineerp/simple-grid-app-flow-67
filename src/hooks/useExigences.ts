@@ -111,7 +111,6 @@ export const useExigences = () => {
     editingGroup,
     dialogOpen,
     groupDialogOpen,
-    isOnline: true, // Valeur fixe pour éviter les erreurs de compilation
     setSelectedNiveau,
     setDialogOpen,
     setGroupDialogOpen,
@@ -121,14 +120,12 @@ export const useExigences = () => {
     handleSaveExigence,
     handleAddGroup,
     handleEditGroup,
-    // Fix: The handleSaveGroup expects a second boolean parameter
+    // Fonction de sauvegarde de groupe modifiée pour correspondre à la signature attendue
     handleSaveGroup: (group: ExigenceGroup) => groupOperations.handleSaveGroup(group, !!editingGroup),
     handleDeleteGroup: groupOperations.handleDeleteGroup,
     handleToggleGroup: groupOperations.handleToggleGroup,
     handleReorder,
     handleGroupReorder,
-    handleResetLoadAttempts: () => {}, // Fonction vide pour maintenir la compatibilité
-    syncWithServer: async () => false, // Retourne simplement false
     ...exigenceMutations
   };
 };

@@ -1,5 +1,5 @@
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { Document, DocumentStats, DocumentGroup } from '@/types/documents';
 import { useDocumentMutations } from './useDocumentMutations';
 import { useToast } from '@/hooks/use-toast';
@@ -111,10 +111,6 @@ export const useDocuments = () => {
     editingGroup,
     dialogOpen,
     groupDialogOpen,
-    isSyncing: false,
-    syncFailed: false,
-    lastSynced: null,
-    loadError: null,
     setDialogOpen,
     setGroupDialogOpen,
     handleEdit,
@@ -131,8 +127,6 @@ export const useDocuments = () => {
     handleSaveGroup,
     handleGroupReorder: handleReorderGroups,
     handleToggleGroup,
-    syncWithServer: async () => false,
-    handleResetLoadAttempts: () => {},
     handleResponsabiliteChange: documentMutations.handleResponsabiliteChange,
     handleAtteinteChange: documentMutations.handleAtteinteChange,
     handleExclusionChange: documentMutations.handleExclusionChange,
