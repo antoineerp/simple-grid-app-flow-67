@@ -1,4 +1,3 @@
-
 import { getApiUrl } from '@/config/apiConfig';
 import { getAuthHeaders } from '@/services/auth/authService';
 import { getCurrentUser } from '@/services/core/databaseConnectionService';
@@ -204,6 +203,21 @@ export class SyncService {
     console.log(`Synchronisation de ${tableName} vers ${endpoint}`);
     
     try {
+      // Avant de synchroniser, vérifier si la structure de la table est valide
+      try {
+        // Import dynamique du helper de base de données pour éviter les dépendances circulaires
+        const { databaseHelper } = await import('./DatabaseHelper');
+        const isValid = await databaseHelper.validateTable(tableName);
+        
+        if (!isValid) {
+          console.warn(`La structure de la table ${tableName} n'est pas valide, tentative de synchronisation quand même`);
+        }
+      } catch (validationError) {
+        console.error("Erreur lors de la validation de la structure:", validationError);
+        // Continuer malgré l'erreur de validation
+      }
+      
+      // Effectuer la requête de synchronisation
       const response = await fetch(endpoint, {
         method: 'POST',
         headers: {
