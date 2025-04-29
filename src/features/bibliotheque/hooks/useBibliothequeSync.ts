@@ -1,61 +1,80 @@
 
-import { useState } from 'react';
-import { useToast } from '@/hooks/use-toast';
+import { useState, useCallback } from 'react';
 import { Document, DocumentGroup } from '@/types/bibliotheque';
+import { 
+  loadDocumentsFromServer, 
+  syncDocumentsWithServer, 
+  getLocalDocuments 
+} from '@/services/documents/documentSyncService';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
-import { useSync } from '@/hooks/useSync';
+import { toast } from '@/components/ui/use-toast';
 
 export const useBibliothequeSync = () => {
-  const [lastSynced, setLastSynced] = useState<Date>();
+  const [isSyncing, setIsSyncing] = useState<boolean>(false);
+  const [lastSynced, setLastSynced] = useState<Date | null>(null);
   const { isOnline } = useNetworkStatus();
-  const { toast } = useToast();
   
-  // Utiliser le hook de synchronisation central
-  const { isSyncing, syncAndProcess } = useSync('bibliotheque');
-  
-  const syncWithServer = async (documents: Document[], groups: DocumentGroup[], userId: string): Promise<void> => {
-    if (!isOnline || isSyncing) return;
+  const loadFromServer = useCallback(async (userId?: string): Promise<Document[]> => {
+    if (!isOnline) {
+      console.log('Mode hors ligne - chargement des documents locaux');
+      const localDocs = getLocalDocuments(userId || null);
+      return localDocs;
+    }
     
     try {
-      const result = await syncAndProcess({
-        tableName: 'bibliotheque',
-        data: documents,
-        groups: groups
+      setIsSyncing(true);
+      const documents = await loadDocumentsFromServer(userId || null);
+      setLastSynced(new Date());
+      return documents;
+    } catch (error) {
+      console.error('Erreur lors du chargement des documents:', error);
+      toast({
+        variant: "destructive",
+        title: "Erreur",
+        description: "Impossible de charger les documents du serveur. Mode hors-ligne activé.",
       });
       
-      if (result.success) {
+      // En cas d'erreur, chargement des documents locaux comme solution de secours
+      return getLocalDocuments(userId || null);
+    } finally {
+      setIsSyncing(false);
+    }
+  }, [isOnline]);
+  
+  const syncWithServer = useCallback(async (documents: Document[], groups: DocumentGroup[], userId?: string): Promise<void> => {
+    if (!isOnline) {
+      // Mode hors ligne - enregistrement local uniquement
+      localStorage.setItem(`documents_${userId || 'default'}`, JSON.stringify(documents));
+      localStorage.setItem(`groups_${userId || 'default'}`, JSON.stringify(groups));
+      
+      toast({
+        variant: "warning",
+        title: "Mode hors ligne",
+        description: "Les modifications ont été enregistrées localement uniquement.",
+      });
+      
+      return;
+    }
+    
+    try {
+      setIsSyncing(true);
+      const success = await syncDocumentsWithServer(documents, userId || null);
+      
+      if (success) {
         setLastSynced(new Date());
-        toast({
-          title: "Synchronisation réussie",
-          description: "La bibliothèque a été synchronisée avec le serveur",
-        });
-      } else {
-        throw new Error("Échec de la synchronisation");
       }
     } catch (error) {
+      console.error('Erreur lors de la synchronisation:', error);
       toast({
+        variant: "destructive",
         title: "Erreur de synchronisation",
-        description: error instanceof Error ? error.message : "Impossible de synchroniser la bibliothèque",
-        variant: "destructive"
+        description: "Les documents ont été enregistrés localement, mais la synchronisation a échoué.",
       });
+    } finally {
+      setIsSyncing(false);
     }
-  };
-
-  const loadFromServer = async (userId: string) => {
-    try {
-      // Cette fonctionnalité sera gérée par le service de synchronisation central
-      // dans une future mise à jour
-      return null;
-    } catch (error) {
-      toast({
-        title: "Erreur de chargement",
-        description: "Impossible de charger la bibliothèque depuis le serveur",
-        variant: "destructive"
-      });
-      return null;
-    }
-  };
-
+  }, [isOnline]);
+  
   return {
     syncWithServer,
     loadFromServer,
