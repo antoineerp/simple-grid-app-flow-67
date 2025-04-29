@@ -10,7 +10,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { useMembres } from '@/contexts/MembresContext';
 import MemberList from '@/components/ressources-humaines/MemberList';
 import MemberForm from '@/components/ressources-humaines/MemberForm';

@@ -11,9 +11,8 @@ import Exigences from '@/pages/Exigences';
 import GestionDocumentaire from '@/pages/GestionDocumentaire';
 import RessourcesHumaines from '@/pages/RessourcesHumaines';
 import Administration from '@/pages/Administration';
-import DashboardLayout from '@/components/layouts/DashboardLayout';
-import { getIsLoggedIn } from '@/services/auth/authService';
 import Collaboration from '@/pages/Collaboration';
+import { getIsLoggedIn } from '@/services/auth/authService';
 
 // Composant de route protégée qui vérifie l'authentification
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
@@ -63,9 +62,7 @@ function App() {
           } />
           <Route path="ressources-humaines" element={
             <ProtectedRoute>
-              <DashboardLayout>
-                <RessourcesHumaines />
-              </DashboardLayout>
+              <RessourcesHumaines />
             </ProtectedRoute>
           } />
           <Route path="collaboration" element={
