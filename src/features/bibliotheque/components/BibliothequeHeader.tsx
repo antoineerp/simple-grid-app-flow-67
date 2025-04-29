@@ -33,6 +33,7 @@ export const BibliothequeHeader: React.FC<BibliothequeHeaderProps> = ({
           syncFailed={syncFailed}
           lastSynced={lastSynced}
           onSync={onSync}
+          showOnlyErrors={true}
         />
       </div>
     </div>

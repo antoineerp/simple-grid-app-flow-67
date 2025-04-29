@@ -7,6 +7,7 @@ import { DocumentDialog } from '@/features/bibliotheque/components/DocumentDialo
 import { GroupDialog } from '@/features/bibliotheque/components/GroupDialog';
 import { Document, DocumentGroup } from '@/types/bibliotheque';
 import { useDragAndDrop } from '@/components/gestion-documentaire/table/useDragAndDrop';
+import SyncIndicator from '@/components/common/SyncIndicator';
 
 const Collaboration = () => {
   const {
@@ -119,8 +120,8 @@ const Collaboration = () => {
       if (isEditing) {
         handleEditGroup(currentGroup);
       } else {
-        // Fix: Pass the currentGroup to handleAddGroup
-        handleSaveGroup(currentGroup);
+        // Fix: Call handleAddGroup with the currentGroup
+        handleAddGroup(currentGroup);
       }
       setIsGroupDialogOpen(false);
     }
@@ -138,6 +139,20 @@ const Collaboration = () => {
       <div className="mb-6">
         <h1 className="text-3xl font-bold text-blue-600">Collaboration</h1>
       </div>
+
+      {/* Only show sync indicator if there's an error */}
+      {syncFailed && (
+        <div className="mb-4">
+          <SyncIndicator
+            isSyncing={isSyncing}
+            isOnline={isOnline}
+            syncFailed={syncFailed}
+            lastSynced={lastSynced}
+            onSync={syncWithServer}
+            showOnlyErrors={true}
+          />
+        </div>
+      )}
 
       <div className="bg-white rounded-md shadow overflow-hidden">
         <div className="overflow-x-auto">

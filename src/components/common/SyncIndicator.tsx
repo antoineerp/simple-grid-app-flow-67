@@ -19,6 +19,8 @@ export interface SyncIndicatorProps {
   // Options de personnalisation (optionnelles)
   compact?: boolean;
   className?: string;
+  // New prop to control visibility
+  showOnlyErrors?: boolean;
 }
 
 /**
@@ -31,8 +33,14 @@ const SyncIndicator: React.FC<SyncIndicatorProps> = ({
   lastSynced,
   onSync,
   compact = false,
-  className = ''
+  className = '',
+  showOnlyErrors = true
 }) => {
+  // If showOnlyErrors is true and there's no error, don't show anything
+  if (showOnlyErrors && !syncFailed && isOnline) {
+    return null;
+  }
+  
   // Formatage de la date de dernière synchronisation
   const formattedDate = lastSynced 
     ? format(lastSynced, compact ? "HH:mm" : "dd MMM HH:mm", { locale: fr })
@@ -106,6 +114,11 @@ const SyncIndicator: React.FC<SyncIndicatorProps> = ({
         </Tooltip>
       </TooltipProvider>
     );
+  }
+  
+  // If we're only showing errors, don't show these states
+  if (showOnlyErrors) {
+    return null;
   }
   
   // Dernière synchronisation
