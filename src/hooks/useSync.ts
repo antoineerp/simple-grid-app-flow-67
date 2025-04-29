@@ -1,4 +1,3 @@
-
 import { useState, useCallback, useEffect } from 'react';
 import { syncService, DataTable, SyncResult } from '@/services/sync/SyncService';
 import { useToast } from '@/components/ui/use-toast';
@@ -90,12 +89,7 @@ export const useSync = (tableName: string): SyncState => {
         });
       }
       
-      // Create a DataTable object to pass to syncTable
-      const dataTable: DataTable<T> = {
-        tableName: tableName,
-        data: data
-      };
-      
+      // Directly call syncTable with the table name and data
       const result = await syncService.syncTable(tableName, data, null, trigger);
       
       if (result.success) {

@@ -1,4 +1,3 @@
-
 import { useCallback, useEffect, useState } from 'react';
 import { useGlobalSync } from '@/contexts/GlobalSyncContext';
 import { useToast } from '@/hooks/use-toast';
@@ -62,10 +61,7 @@ export function useSyncContext<T>(tableName: string, data: T[], options: SyncHoo
     try {
       console.log(`Synchronisation de ${tableName} initiée avec ${data.length} éléments`);
       
-      // Utiliser l'ID utilisateur actuel
-      const userId = getCurrentUser() || 'default';
-      
-      // Appeler la synchronisation avec des données explicitement spécifiées
+      // Use only two parameters: tableName and data
       const result = await syncTable(tableName, data);
       
       if (result) {
