@@ -1,3 +1,4 @@
+
 export interface ApiResponse<T> {
   success: boolean;
   data?: T;
@@ -17,4 +18,15 @@ export interface JsonTestResult {
   error?: any;
   warning?: string;
   recommendation?: string;
+}
+
+export interface ApiConfig {
+  api_urls: {
+    development: string;
+    production: string;
+  };
+  allowed_origins: {
+    development: string;
+    production: string;
+  };
 }

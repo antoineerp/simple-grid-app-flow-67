@@ -110,6 +110,7 @@ export const useDocuments = () => {
         
         if (Array.isArray(result)) {
           setDocuments(result as Document[]);
+          console.log(`${result.length} documents chargés avec succès`);
         } else {
           console.error("Format de résultat inattendu:", result);
           setDocuments([]);
@@ -121,11 +122,15 @@ export const useDocuments = () => {
       }
     };
 
-    loadDocuments();
+    if (userId) {
+      loadDocuments();
+    } else {
+      console.log("Pas d'utilisateur identifié, chargement des documents ignoré");
+    }
     
     // Synchronisation périodique moins fréquente (toutes les 60 secondes)
     const syncInterval = setInterval(() => {
-      if (isOnline && !syncFailed && !isSyncing) {
+      if (isOnline && !syncFailed && !isSyncing && userId) {
         handleSyncWithServer().catch(error => {
           console.error("Erreur lors de la synchronisation périodique:", error);
         });

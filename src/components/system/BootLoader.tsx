@@ -12,6 +12,7 @@ interface BootLoaderProps {
 const BootLoader: React.FC<BootLoaderProps> = ({ children }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [loadingStatus, setLoadingStatus] = useState('Initialisation...');
+  const [debugInfo, setDebugInfo] = useState<string[]>([]);
   const syncService = useSyncService();
   const { isOnline } = useNetworkStatus();
   const { toast } = useToast();
@@ -21,9 +22,12 @@ const BootLoader: React.FC<BootLoaderProps> = ({ children }) => {
       try {
         const user = getCurrentUser();
         
+        setDebugInfo(prev => [...prev, `Utilisateur: ${user ? JSON.stringify(user) : 'Non connecté'}`]);
+        
         // Si l'utilisateur n'est pas connecté, on ne charge pas les données
         if (!user) {
           console.log('Aucun utilisateur connecté, pas de chargement initial');
+          setDebugInfo(prev => [...prev, 'Aucun utilisateur connecté, pas de chargement initial']);
           setIsLoading(false);
           return;
         }
@@ -35,6 +39,7 @@ const BootLoader: React.FC<BootLoaderProps> = ({ children }) => {
             description: "Vous êtes actuellement hors ligne. L'application fonctionne en mode local.",
             variant: "default"
           });
+          setDebugInfo(prev => [...prev, 'Mode Hors-ligne activé']);
           setIsLoading(false);
           return;
         }
@@ -43,33 +48,36 @@ const BootLoader: React.FC<BootLoaderProps> = ({ children }) => {
         setLoadingStatus('Chargement des données...');
         
         // On lance les chargements en parallèle
-        const loadPromises = [
+        setDebugInfo(prev => [...prev, 'Début du chargement des données']);
+        
+        try {
           // Documents
-          syncService.loadFromServer({
+          setDebugInfo(prev => [...prev, 'Chargement des documents...']);
+          const documentsResult = await syncService.loadFromServer({
             endpoint: 'documents-sync.php',
             loadEndpoint: 'documents-load.php',
             userId: user
-          }).catch(err => {
-            console.error("Erreur lors du préchargement des documents:", err);
-            return [];
-          }),
+          });
+          setDebugInfo(prev => [...prev, `Documents chargés: ${documentsResult ? Array.isArray(documentsResult) ? documentsResult.length : 'Format invalide' : 'Erreur'}`]);
           
           // Exigences
-          syncService.loadFromServer({
+          setDebugInfo(prev => [...prev, 'Chargement des exigences...']);
+          const exigencesResult = await syncService.loadFromServer({
             endpoint: 'exigences-sync.php',
             loadEndpoint: 'exigences-load.php',
             userId: user
-          }).catch(err => {
-            console.error("Erreur lors du préchargement des exigences:", err);
-            return [];
-          })
-        ];
-        
-        await Promise.all(loadPromises);
-        console.log('Préchargement des données terminé');
+          });
+          setDebugInfo(prev => [...prev, `Exigences chargées: ${exigencesResult ? Array.isArray(exigencesResult) ? exigencesResult.length : 'Format invalide' : 'Erreur'}`]);
+          
+          console.log('Préchargement des données terminé', { documentsResult, exigencesResult });
+        } catch (loadError) {
+          console.error("Erreur lors du préchargement:", loadError);
+          setDebugInfo(prev => [...prev, `Erreur lors du préchargement: ${loadError instanceof Error ? loadError.message : String(loadError)}`]);
+        }
         
       } catch (error) {
         console.error('Erreur lors de l\'initialisation de l\'application:', error);
+        setDebugInfo(prev => [...prev, `Erreur lors de l'initialisation: ${error instanceof Error ? error.message : String(error)}`]);
       } finally {
         setIsLoading(false);
       }
@@ -89,6 +97,15 @@ const BootLoader: React.FC<BootLoaderProps> = ({ children }) => {
       </div>
     );
   }
+
+  // Log debugging info to console once loading is complete
+  useEffect(() => {
+    if (!isLoading && debugInfo.length > 0) {
+      console.log('=== INFORMATIONS DE DÉMARRAGE ===');
+      debugInfo.forEach(info => console.log(info));
+      console.log('================================');
+    }
+  }, [isLoading, debugInfo]);
   
   return <>{children}</>;
 };
