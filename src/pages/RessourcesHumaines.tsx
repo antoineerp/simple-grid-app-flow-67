@@ -1,4 +1,3 @@
-
 import React, { useEffect } from 'react';
 import { FileText, UserPlus, CloudSun, AlertTriangle } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
@@ -163,10 +162,11 @@ const RessourcesHumaines = () => {
     }
   };
 
-  const handleResetSync = () => {
+  // Modified to return Promise<void>
+  const handleResetSync = async (): Promise<void> => {
     resetSyncFailed();
-    // Tenter une nouvelle synchronisation après réinitialisation
-    syncWithServer().catch(console.error);
+    // Return the promise from syncWithServer
+    return syncWithServer().catch(console.error);
   };
 
   return (

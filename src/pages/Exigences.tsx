@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { FileText, FolderPlus, CloudSun, RefreshCw } from 'lucide-react';
 import { MembresProvider } from '@/contexts/MembresContext';
@@ -83,6 +82,11 @@ const ExigencesContent = () => {
         variant: "destructive"
       });
     });
+  };
+
+  // Modified to return Promise<void>
+  const handleResetLoadAttempts = async (): Promise<void> => {
+    return Promise.resolve(handleResetLoadAttempts());
   };
 
   return (
