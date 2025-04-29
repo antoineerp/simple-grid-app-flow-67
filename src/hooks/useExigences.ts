@@ -1,11 +1,11 @@
 
 import { useState, useEffect } from 'react';
 import { Exigence, ExigenceStats, ExigenceGroup } from '@/types/exigences';
-import { useExigenceSync } from './useExigenceSync';
 import { useExigenceMutations } from './useExigenceMutations';
 import { useExigenceGroups } from './useExigenceGroups';
 import { getCurrentUser } from '@/services/auth/authService';
 import { useToast } from '@/hooks/use-toast';
+import { useSync } from './useSync';
 
 export const useExigences = () => {
   const { toast } = useToast();
@@ -68,56 +68,11 @@ export const useExigences = () => {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [loadAttempts, setLoadAttempts] = useState(0);
 
-  const { syncWithServer, loadFromServer, isSyncing, isOnline, lastSynced } = useExigenceSync();
+  // Nouveau hook de synchronisation
+  const { isSyncing, isOnline, lastSynced, syncFailed, syncAndProcess, resetSyncStatus } = useSync('exigences');
+  
   const mutations = useExigenceMutations(exigences, setExigences);
   const groupOperations = useExigenceGroups(groups, setGroups, setExigences);
-
-  // Initial load from server
-  useEffect(() => {
-    const loadExigences = async () => {
-      if (loadAttempts > 3) {
-        console.warn("Trop de tentatives de chargement échouées, abandon");
-        setLoadError("Trop de tentatives de chargement échouées");
-        return;
-      }
-      
-      try {
-        console.log(`Chargement des exigences pour l'utilisateur ${currentUser}`);
-        if (typeof currentUser !== 'string') {
-          throw new Error(`ID utilisateur invalide: ${typeof currentUser}`);
-        }
-        
-        const serverData = await loadFromServer(currentUser);
-        if (serverData) {
-          console.log(`Données chargées: exigences=${serverData.exigences?.length || 0}, groupes=${serverData.groups?.length || 0}`);
-          // Fix: Set each state separately with the correct types
-          setExigences(serverData.exigences || []);
-          setGroups(serverData.groups || []);
-          setLoadError(null);
-        }
-      } catch (error) {
-        console.error("Erreur lors du chargement des exigences:", error);
-        setLoadError(error instanceof Error ? error.message : "Erreur de chargement");
-        setLoadAttempts(prev => prev + 1);
-        
-        toast({
-          title: "Erreur de chargement",
-          description: error instanceof Error ? 
-            `${error.message}. Vérifiez la console pour plus de détails.` : 
-            "Une erreur s'est produite lors du chargement des exigences",
-          variant: "destructive"
-        });
-        
-        // Initialiser avec des tableaux vides pour éviter les erreurs
-        setExigences([]);
-        setGroups([]);
-      }
-    };
-
-    if (currentUser) {
-      loadExigences();
-    }
-  }, [currentUser, loadFromServer, loadAttempts, toast]);
 
   // Stats calculation
   useEffect(() => {
@@ -169,28 +124,19 @@ export const useExigences = () => {
   const handleResetLoadAttempts = () => {
     setLoadError(null);
     setLoadAttempts(0);
-    // Retenter le chargement
-    if (currentUser) {
-      loadFromServer(currentUser).then(serverData => {
-        if (serverData) {
-          setExigences(serverData.exigences || []);
-          setGroups(serverData.groups || []);
-          
-          toast({
-            title: "Chargement réussi",
-            description: `${serverData.exigences?.length || 0} exigences chargées`,
-          });
-        }
-      }).catch(err => {
-        console.error("Nouvelle tentative échouée:", err);
-        setLoadError(err instanceof Error ? err.message : "Erreur de chargement");
-        
-        toast({
-          title: "Erreur de chargement",
-          description: err instanceof Error ? err.message : "Une erreur s'est produite",
-          variant: "destructive"
-        });
+    resetSyncStatus();
+  };
+
+  const syncWithServer = async () => {
+    try {
+      return await syncAndProcess({
+        tableName: 'exigences',
+        data: exigences,
+        groups: groups
       });
+    } catch (error) {
+      console.error('Erreur lors de la synchronisation:', error);
+      return { success: false, message: error instanceof Error ? error.message : 'Erreur inconnue' };
     }
   };
 
@@ -206,6 +152,7 @@ export const useExigences = () => {
     isOnline,
     lastSynced,
     loadError,
+    syncFailed,
     setDialogOpen,
     setGroupDialogOpen,
     handleEdit,
@@ -215,6 +162,6 @@ export const useExigences = () => {
     handleResetLoadAttempts,
     ...mutations,
     ...groupOperations,
-    syncWithServer: () => syncWithServer(exigences, currentUser, groups)
+    syncWithServer
   };
 };

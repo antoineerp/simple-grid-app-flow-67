@@ -1,20 +1,19 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { Membre } from '@/types/membres';
-import { loadMembresFromServer, syncMembresWithServer } from '@/services/membres/membresService';
 import { getCurrentUser } from '@/services/auth/authService';
 import { useToast } from '@/hooks/use-toast';
-import { useNetworkStatus } from '@/hooks/useNetworkStatus';
+import { useSync } from '@/hooks/useSync';
 
 interface MembresContextType {
   membres: Membre[];
   setMembres: React.Dispatch<React.SetStateAction<Membre[]>>;
   isLoading: boolean;
-  isSyncing: boolean;
   error: string | null;
-  lastSynced: Date | null;
   syncWithServer: () => Promise<boolean>;
+  isSyncing: boolean;
   isOnline: boolean;
+  lastSynced: Date | null;
   syncFailed: boolean;
   resetSyncFailed: () => void;
 }
@@ -24,19 +23,18 @@ const MembresContext = createContext<MembresContextType | undefined>(undefined);
 export const MembresProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [membres, setMembres] = useState<Membre[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isSyncing, setIsSyncing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [lastSynced, setLastSynced] = useState<Date | null>(null);
-  const [syncFailed, setSyncFailed] = useState(false);
-  const [syncAttempts, setSyncAttempts] = useState(0);
   const { toast } = useToast();
-  const { isOnline } = useNetworkStatus();
   
-  // Fonction pour réinitialiser l'état d'échec de synchronisation
-  const resetSyncFailed = () => {
-    setSyncFailed(false);
-    setSyncAttempts(0);
-  };
+  // Utilisation du hook de synchronisation central
+  const { 
+    isSyncing, 
+    isOnline, 
+    lastSynced, 
+    syncFailed, 
+    syncAndProcess, 
+    resetSyncStatus 
+  } = useSync('membres');
   
   // Fonction pour synchroniser les données avec le serveur
   const syncWithServer = async (): Promise<boolean> => {
@@ -52,77 +50,17 @@ export const MembresProvider: React.FC<{ children: ReactNode }> = ({ children })
       return false;
     }
     
-    if (!isOnline) {
-      toast({
-        title: "Mode hors-ligne",
-        description: "La synchronisation est indisponible en mode hors-ligne",
-        variant: "destructive",
-      });
-      return false;
-    }
-    
-    // Si on est déjà en train de synchroniser, ne pas démarrer une nouvelle sync
-    if (isSyncing) {
-      console.log("Une synchronisation est déjà en cours");
-      return false;
-    }
-    
-    // Si on a déjà eu trop d'échecs consécutifs, bloquer la synchronisation
-    if (syncFailed && syncAttempts >= 3) {
-      toast({
-        title: "Synchronisation bloquée",
-        description: "La synchronisation a échoué plusieurs fois. Veuillez essayer plus tard ou contacter le support.",
-        variant: "destructive",
-      });
-      return false;
-    }
-    
     try {
-      setIsSyncing(true);
-      setError(null);
+      const result = await syncAndProcess({
+        tableName: 'membres',
+        data: membres
+      });
       
-      // S'assurer que l'utilisateur est un identifiant valide
-      const userId = typeof currentUser === 'object' ? 
-        (currentUser.identifiant_technique || currentUser.email || 'p71x6d_system') : 
-        currentUser;
-        
-      console.log(`Synchronisation des membres pour l'utilisateur ${userId} avec ${membres.length} membres`);
-      
-      const success = await syncMembresWithServer(membres, userId);
-      
-      if (success) {
-        setLastSynced(new Date());
-        setSyncFailed(false);
-        setSyncAttempts(0);
-        toast({
-          title: "Synchronisation réussie",
-          description: "Les données ont été synchronisées avec le serveur",
-        });
-        return true;
-      } else {
-        setSyncFailed(true);
-        setSyncAttempts(prev => prev + 1);
-        setError("Échec de la synchronisation");
-        toast({
-          title: "Échec de synchronisation",
-          description: "Impossible de synchroniser avec le serveur",
-          variant: "destructive",
-        });
-        return false;
-      }
+      return result.success;
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "Erreur inconnue";
       setError(errorMessage);
-      setSyncFailed(true);
-      setSyncAttempts(prev => prev + 1);
-      toast({
-        title: "Erreur de synchronisation",
-        description: errorMessage,
-        variant: "destructive",
-      });
       return false;
-    } finally {
-      setIsSyncing(false);
     }
   };
   
@@ -141,45 +79,21 @@ export const MembresProvider: React.FC<{ children: ReactNode }> = ({ children })
           return;
         }
         
-        // S'assurer que l'utilisateur est un identifiant valide
-        const userId = typeof currentUser === 'object' ? 
-          (currentUser.identifiant_technique || currentUser.email || 'p71x6d_system') : 
-          currentUser;
-          
-        console.log("Chargement des membres pour l'utilisateur", userId);
+        // Pour l'instant, initialisons avec un tableau vide
+        // Le chargement depuis le serveur sera implémenté plus tard
+        setMembres([]);
         
-        if (isOnline) {
-          try {
-            setIsSyncing(true);
-            const serverMembres = await loadMembresFromServer(userId);
-            
-            setMembres(serverMembres);
-            setLastSynced(new Date());
-            console.log("Membres chargés depuis le serveur:", serverMembres.length);
-          } catch (err) {
-            console.error("Erreur lors du chargement des membres depuis le serveur:", err);
-            setError(err instanceof Error ? err.message : "Erreur inconnue");
-            // Si erreur, initialiser avec un tableau vide
-            setMembres([]);
-            setSyncFailed(true);
-            setSyncAttempts(prev => prev + 1);
-          } finally {
-            setIsSyncing(false);
-          }
-        } else {
+        if (!isOnline) {
           toast({
             title: "Mode hors-ligne",
             description: "Vous êtes en mode hors-ligne. Les données peuvent ne pas être à jour.",
             variant: "default",
           });
-          // Initialiser avec un tableau vide en mode hors ligne
-          setMembres([]);
         }
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : "Erreur inconnue";
         setError(errorMessage);
         console.error("Erreur lors du chargement des membres:", errorMessage);
-        // Si erreur, initialiser avec un tableau vide
         setMembres([]);
       } finally {
         setIsLoading(false);
@@ -187,8 +101,7 @@ export const MembresProvider: React.FC<{ children: ReactNode }> = ({ children })
     };
     
     loadMembres();
-    
-  }, [isOnline]);
+  }, [isOnline, toast]);
   
   return (
     <MembresContext.Provider value={{
@@ -201,7 +114,7 @@ export const MembresProvider: React.FC<{ children: ReactNode }> = ({ children })
       syncWithServer,
       isOnline,
       syncFailed,
-      resetSyncFailed
+      resetSyncFailed: resetSyncStatus
     }}>
       {children}
     </MembresContext.Provider>

@@ -1,11 +1,12 @@
+
 import { useState, useEffect, useCallback } from 'react';
 import { Document, DocumentStats, DocumentGroup } from '@/types/documents';
 import { useToast } from '@/hooks/use-toast';
 import { calculateDocumentStats } from '@/services/documents/documentStatsService';
-import { loadDocumentsFromServer, syncDocumentsWithServer } from '@/services/documents/documentSyncService';
 import { useDocumentMutations } from '@/features/documents/hooks/useDocumentMutations';
 import { useDocumentGroups } from '@/features/documents/hooks/useDocumentGroups';
 import { getCurrentUser } from '@/services/core/databaseConnectionService';
+import { useSync } from './useSync';
 
 export const useDocuments = () => {
   const { toast } = useToast();
@@ -21,77 +22,24 @@ export const useDocuments = () => {
   const [groupDialogOpen, setGroupDialogOpen] = useState(false);
   const [stats, setStats] = useState<DocumentStats>(() => calculateDocumentStats(documents));
   const [isInitialized, setIsInitialized] = useState(false);
-  const [isSyncing, setIsSyncing] = useState(false);
-  const [syncFailed, setSyncFailed] = useState(false);
-  const [lastSynced, setLastSynced] = useState<Date | null>(null);
-
-  useEffect(() => {
-    if (isInitialized) return;
-    
-    const initializeDocuments = async () => {
-      try {
-        setIsSyncing(true);
-        const serverDocuments = await loadDocumentsFromServer(currentUser);
-        if (serverDocuments) {
-          console.log(`Loaded ${serverDocuments.length} documents from server for user ${currentUser}`);
-          setDocuments(serverDocuments);
-          setLastSynced(new Date());
-          setSyncFailed(false);
-        }
-      } catch (error) {
-        console.error(`Error during document initialization for user ${currentUser}:`, error);
-        setSyncFailed(true);
-        toast({
-          title: "Erreur de chargement",
-          description: error instanceof Error ? error.message : "Erreur lors du chargement des documents",
-          variant: "destructive"
-        });
-      } finally {
-        setIsSyncing(false);
-        setIsInitialized(true);
-      }
-    };
-
-    if (currentUser) {
-      initializeDocuments();
-    } else {
-      console.error("Impossible d'initialiser les documents: utilisateur non défini");
-      setSyncFailed(true);
-    }
-  }, [currentUser, toast, isInitialized]);
+  
+  // Utilisation du hook de synchronisation central
+  const { isSyncing, syncFailed, lastSynced, syncAndProcess } = useSync('documents');
 
   useEffect(() => {
     setStats(calculateDocumentStats(documents));
   }, [documents]);
 
   const syncWithServer = async (): Promise<boolean> => {
-    if (isSyncing) {
-      console.log("Une synchronisation est déjà en cours");
-      return false;
-    }
-
-    setIsSyncing(true);
     try {
-      const success = await syncDocumentsWithServer(documents, currentUser);
-      setSyncFailed(!success);
-      if (success) {
-        setLastSynced(new Date());
-        toast({
-          title: "Synchronisation réussie",
-          description: "Les documents ont été synchronisés avec le serveur"
-        });
-      }
-      return success;
-    } catch (error) {
-      setSyncFailed(true);
-      toast({
-        title: "Erreur de synchronisation",
-        description: error instanceof Error ? error.message : "Erreur lors de la synchronisation",
-        variant: "destructive"
+      const result = await syncAndProcess({
+        tableName: 'documents',
+        data: documents
       });
+      return result.success;
+    } catch (error) {
+      console.error("Erreur lors de la synchronisation des documents:", error);
       return false;
-    } finally {
-      setIsSyncing(false);
     }
   };
 

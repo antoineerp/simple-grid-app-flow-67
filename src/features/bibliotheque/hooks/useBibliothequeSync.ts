@@ -3,21 +3,27 @@ import { useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { Document, DocumentGroup } from '@/types/bibliotheque';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
-import { syncBibliothequeWithServer, loadBibliothequeFromServer } from '@/services/bibliotheque/bibliothequeSync';
+import { useSync } from '@/hooks/useSync';
 
 export const useBibliothequeSync = () => {
-  const [isSyncing, setIsSyncing] = useState(false);
   const [lastSynced, setLastSynced] = useState<Date>();
   const { isOnline } = useNetworkStatus();
   const { toast } = useToast();
   
+  // Utiliser le hook de synchronisation central
+  const { isSyncing, syncAndProcess } = useSync('bibliotheque');
+  
   const syncWithServer = async (documents: Document[], groups: DocumentGroup[], userId: string): Promise<void> => {
     if (!isOnline || isSyncing) return;
     
-    setIsSyncing(true);
     try {
-      const success = await syncBibliothequeWithServer(documents, groups, userId);
-      if (success) {
+      const result = await syncAndProcess({
+        tableName: 'bibliotheque',
+        data: documents,
+        groups: groups
+      });
+      
+      if (result.success) {
         setLastSynced(new Date());
         toast({
           title: "Synchronisation réussie",
@@ -32,14 +38,14 @@ export const useBibliothequeSync = () => {
         description: error instanceof Error ? error.message : "Impossible de synchroniser la bibliothèque",
         variant: "destructive"
       });
-    } finally {
-      setIsSyncing(false);
     }
   };
 
   const loadFromServer = async (userId: string) => {
     try {
-      return await loadBibliothequeFromServer(userId);
+      // Cette fonctionnalité sera gérée par le service de synchronisation central
+      // dans une future mise à jour
+      return null;
     } catch (error) {
       toast({
         title: "Erreur de chargement",

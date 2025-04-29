@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { FileText, FolderPlus, CloudSun, RefreshCw } from 'lucide-react';
 import { MembresProvider } from '@/contexts/MembresContext';
@@ -24,6 +25,7 @@ const ExigencesContent = () => {
     isSyncing,
     isOnline,
     lastSynced,
+    syncFailed,
     loadError,
     setDialogOpen,
     setGroupDialogOpen,
@@ -61,8 +63,8 @@ const ExigencesContent = () => {
       description: "Veuillez patienter pendant la synchronisation...",
     });
     
-    syncWithServer().then(success => {
-      if (success) {
+    syncWithServer().then(result => {
+      if (result.success) {
         toast({
           title: "Synchronisation réussie",
           description: "Vos exigences ont été synchronisées avec le serveur",
@@ -109,7 +111,13 @@ const ExigencesContent = () => {
       </div>
 
       <div className="mb-4">
-        <SyncStatusIndicator syncFailed={!!loadError} onReset={handleResetLoadAttempts} />
+        <SyncStatusIndicator 
+          syncFailed={syncFailed || !!loadError} 
+          onReset={handleResetLoadAttempts} 
+          isSyncing={isSyncing}
+          isOnline={isOnline}
+          lastSynced={lastSynced}
+        />
       </div>
 
       {loadError && (
