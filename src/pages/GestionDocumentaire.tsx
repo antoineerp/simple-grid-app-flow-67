@@ -6,7 +6,7 @@ import DocumentForm from '@/components/gestion-documentaire/DocumentForm';
 import DocumentStatusDisplay from '@/components/gestion-documentaire/DocumentStats';
 import DocumentTable from '@/components/gestion-documentaire/DocumentTable';
 import { DocumentGroupDialog } from '@/components/gestion-documentaire/DocumentGroupDialog';
-import { useDocuments } from '@/hooks/useDocuments';
+import { useDocumentManagement } from '@/hooks/useDocumentManagement';
 import { exportDocumentsToPdf } from '@/services/pdfExport';
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
@@ -39,7 +39,7 @@ const GestionDocumentaireContent = () => {
     handleGroupReorder,
     handleToggleGroup,
     syncWithServer
-  } = useDocuments();
+  } = useDocumentManagement();
   
   const { toast } = useToast();
 
@@ -87,25 +87,31 @@ const GestionDocumentaireContent = () => {
 
       <DocumentStatusDisplay stats={stats} />
 
-      <DocumentTable 
-        documents={documents}
-        groups={groups}
-        onResponsabiliteChange={handleResponsabiliteChange}
-        onAtteinteChange={handleAtteinteChange}
-        onExclusionChange={handleExclusionChange}
-        onEdit={handleEdit}
-        onDelete={handleDelete}
-        onReorder={handleReorder}
-        onGroupReorder={handleGroupReorder}
-        onToggleGroup={handleToggleGroup}
-        onEditGroup={handleEditGroup}
-        onDeleteGroup={handleDeleteGroup}
-      />
+      {documents.length > 0 ? (
+        <DocumentTable 
+          documents={documents}
+          groups={groups}
+          onResponsabiliteChange={handleResponsabiliteChange}
+          onAtteinteChange={handleAtteinteChange}
+          onExclusionChange={handleExclusionChange}
+          onEdit={handleEdit}
+          onDelete={handleDelete}
+          onReorder={handleReorder}
+          onGroupReorder={handleGroupReorder}
+          onToggleGroup={handleToggleGroup}
+          onEditGroup={handleEditGroup}
+          onDeleteGroup={handleDeleteGroup}
+        />
+      ) : (
+        <div className="text-center p-8 border border-dashed rounded-md mt-4 bg-gray-50">
+          <p className="text-gray-500">Aucun document trouvé. Cliquez sur "Nouveau document" pour commencer.</p>
+        </div>
+      )}
 
       <div className="flex justify-end mt-4 space-x-2">
         <Button 
           variant="outline"
-          onClick={() => handleAddGroup()}
+          onClick={handleAddGroup}
           className="hover:bg-gray-100 transition-colors mr-2"
           title="Nouveau groupe"
         >
@@ -114,7 +120,7 @@ const GestionDocumentaireContent = () => {
         </Button>
         <Button 
           variant="default"
-          onClick={() => handleAddDocument()}
+          onClick={handleAddDocument}
         >
           Nouveau document
         </Button>

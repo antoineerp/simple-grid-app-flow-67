@@ -22,11 +22,12 @@ const DocumentForm: React.FC<DocumentFormProps> = ({ document, open, onOpenChang
     fichier_path: null,
     responsabilites: { r: [], a: [], c: [], i: [] },
     etat: null,
-    date_creation: new Date(),
-    date_modification: new Date()
+    date_creation: new Date().toISOString(),
+    date_modification: new Date().toISOString(),
+    exclusion: false
   });
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (document) {
       setFormData({
         id: document.id || crypto.randomUUID(),
@@ -34,8 +35,9 @@ const DocumentForm: React.FC<DocumentFormProps> = ({ document, open, onOpenChang
         fichier_path: document.fichier_path || null,
         responsabilites: document.responsabilites || { r: [], a: [], c: [], i: [] },
         etat: document.etat || null,
-        date_creation: document.date_creation || new Date(),
-        date_modification: document.date_modification || new Date()
+        date_creation: document.date_creation || new Date().toISOString(),
+        date_modification: document.date_modification || new Date().toISOString(),
+        exclusion: document.exclusion || false
       });
     }
   }, [document]);
@@ -50,15 +52,12 @@ const DocumentForm: React.FC<DocumentFormProps> = ({ document, open, onOpenChang
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSave({
+    const updatedDocument = {
       ...formData,
-      date_modification: new Date() // Always update modification date on save
-    });
-    toast({
-      title: "Document sauvegardé",
-      description: `Les modifications du document ont été enregistrées`
-    });
-    onOpenChange(false);
+      date_modification: new Date().toISOString() // Always update modification date on save
+    };
+    
+    onSave(updatedDocument);
   };
 
   return (

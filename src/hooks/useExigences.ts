@@ -124,7 +124,7 @@ export const useExigences = () => {
     }
   }, [exigences]);
 
-  // Handle exigence adding - pas d'argument
+  // Handle exigence adding - sans paramètre
   const handleAddExigence = useCallback(() => {
     const newExigence: Exigence = {
       id: crypto.randomUUID(),
@@ -165,14 +165,12 @@ export const useExigences = () => {
     syncWithServer();
   }, [exigences, exigenceMutations, syncWithServer]);
 
-  // Définir des fonctions pour la réorganisation
+  // Réorganisation des exigences
   const handleReorder = useCallback((startIndex: number, endIndex: number, targetGroupId?: string) => {
-    // Implémentation simple
     console.log('Reorder exigences:', startIndex, endIndex, targetGroupId);
   }, []);
 
   const handleGroupReorder = useCallback((startIndex: number, endIndex: number) => {
-    // Implémentation simple
     console.log('Reorder groups:', startIndex, endIndex);
   }, []);
 
@@ -184,11 +182,9 @@ export const useExigences = () => {
       expanded: false,
       items: []
     };
-    groupOperations.handleSaveGroup(newGroup);
-    
-    // Sync with server after adding a group
-    syncWithServer();
-  }, [groupOperations, syncWithServer]);
+    setEditingGroup(newGroup);
+    setGroupDialogOpen(true);
+  }, []);
 
   // Fonction pour éditer un groupe
   const handleEditGroup = useCallback((group: ExigenceGroup) => {
