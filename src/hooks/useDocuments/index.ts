@@ -145,7 +145,7 @@ export const useDocuments = () => {
     handleAddDocument: documentHandlers.handleAddDocument,
     handleSaveDocument: documentHandlers.handleSaveDocument,
     handleAddGroup: groupOperations.handleAddGroup,
-    handleEditGroup: groupOperations.handleEditGroup,
+    handleEditGroup: groupOperations.handleEditGroup,  // Utilisation correcte de la propriété
     handleDeleteGroup: groupOperations.handleDeleteGroup,
     handleSaveGroup: groupOperations.handleSaveGroup,
     handleGroupReorder: reorderHandlers.handleGroupReorder,

@@ -5,26 +5,9 @@ import { useToast } from '@/hooks/use-toast';
 
 export const useDocumentGroups = (
   groups: DocumentGroup[],
-  setGroups: React.Dispatch<React.SetStateAction<DocumentGroup[]>>
+  setGroups: React.Dispatch<React.SetStateAction<DocumentGroup[]>>,
 ) => {
   const { toast } = useToast();
-
-  const handleGroupReorder = useCallback((startIndex: number, endIndex: number) => {
-    setGroups(prev => {
-      const result = Array.from(prev);
-      const [removed] = result.splice(startIndex, 1);
-      result.splice(endIndex, 0, removed);
-      return result;
-    });
-  }, [setGroups]);
-
-  const handleToggleGroup = useCallback((groupId: string) => {
-    setGroups(prev => 
-      prev.map(group => 
-        group.id === groupId ? { ...group, expanded: !group.expanded } : group
-      )
-    );
-  }, [setGroups]);
 
   const handleSaveGroup = useCallback((group: DocumentGroup, isEditing: boolean) => {
     if (isEditing) {
@@ -50,6 +33,14 @@ export const useDocumentGroups = (
     });
   }, [setGroups, toast]);
 
+  const handleToggleGroup = useCallback((groupId: string) => {
+    setGroups(prev => 
+      prev.map(group => 
+        group.id === groupId ? { ...group, expanded: !group.expanded } : group
+      )
+    );
+  }, [setGroups]);
+
   const handleAddGroup = useCallback(() => {
     const newGroup: DocumentGroup = {
       id: crypto.randomUUID(),
@@ -66,11 +57,26 @@ export const useDocumentGroups = (
     return newGroup;
   }, [toast]);
 
+  const handleEditGroup = useCallback((group: DocumentGroup) => {
+    toast({
+      title: "Édition de groupe",
+      description: "Veuillez modifier les informations du groupe",
+    });
+  }, [toast]);
+
   return {
-    handleGroupReorder,
-    handleToggleGroup,
     handleSaveGroup,
     handleDeleteGroup,
-    handleAddGroup
+    handleToggleGroup,
+    handleGroupReorder: (startIndex: number, endIndex: number) => {
+      setGroups(prev => {
+        const result = Array.from(prev);
+        const [removed] = result.splice(startIndex, 1);
+        result.splice(endIndex, 0, removed);
+        return result;
+      });
+    },
+    handleAddGroup,
+    handleEditGroup
   };
 };
