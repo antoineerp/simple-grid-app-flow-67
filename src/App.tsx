@@ -11,7 +11,9 @@ import Pilotage from '@/pages/Pilotage';
 import Exigences from '@/pages/Exigences';
 import GestionDocumentaire from '@/pages/GestionDocumentaire';
 import RessourcesHumaines from '@/pages/RessourcesHumaines';
+import Administration from '@/pages/Administration';
 import { getIsLoggedIn } from '@/services/auth/authService';
+import Collaboration from '@/pages/Collaboration';
 
 // Composant de route protégée qui vérifie l'authentification
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
@@ -66,7 +68,12 @@ function App() {
           } />
           <Route path="collaboration" element={
             <ProtectedRoute>
-              <div className="p-8">Page de collaboration en cours de développement</div>
+              <Collaboration />
+            </ProtectedRoute>
+          } />
+          <Route path="administration" element={
+            <ProtectedRoute>
+              <Administration />
             </ProtectedRoute>
           } />
         </Route>

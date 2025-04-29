@@ -8,11 +8,13 @@ import SyncStatusIndicator from '@/components/common/SyncStatusIndicator';
 interface BibliothequeHeaderProps {
   onSync?: () => Promise<void>;
   syncFailed?: boolean;
+  isSyncing?: boolean;
 }
 
 export const BibliothequeHeader: React.FC<BibliothequeHeaderProps> = ({
   onSync,
-  syncFailed
+  syncFailed,
+  isSyncing = false
 }) => {
   const { toast } = useToast();
 
@@ -42,11 +44,11 @@ export const BibliothequeHeader: React.FC<BibliothequeHeaderProps> = ({
         </div>
       </div>
       
-      {syncFailed && <div className="mb-4">
+      {(syncFailed || isSyncing) && <div className="mb-4">
         <SyncStatusIndicator 
-          syncFailed={syncFailed} 
-          onReset={onSync} 
-          isSyncing={false}
+          syncFailed={syncFailed || false} 
+          onReset={onSync || (() => Promise.resolve())} 
+          isSyncing={isSyncing || false}
         />
       </div>}
     </>
