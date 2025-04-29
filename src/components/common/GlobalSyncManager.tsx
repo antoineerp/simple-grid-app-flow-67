@@ -1,43 +1,30 @@
 
-import React, { useEffect, useState } from 'react';
-import { syncService } from '@/services/sync/SyncService';
-import { useToast } from '@/hooks/use-toast';
+import React, { useState, useEffect } from 'react';
+import { dataSyncManager } from '@/services/sync/DataSyncManager';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
-import { AlertTriangle, CloudOff, Save } from 'lucide-react';
+import { CloudOff, AlertTriangle, RotateCw, Check } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Button } from '@/components/ui/button';
 
 const GlobalSyncManager: React.FC = () => {
-  const [syncStatus, setSyncStatus] = useState(syncService.getSyncStatus());
-  const [pendingChanges, setPendingChanges] = useState<Record<string, boolean>>({});
-  const { toast } = useToast();
+  const [globalStatus, setGlobalStatus] = useState(() => dataSyncManager.getGlobalSyncStatus());
   const { isOnline } = useNetworkStatus();
   
-  // Vérifier l'état de synchronisation toutes les 5 secondes
+  // Mettre à jour le statut global périodiquement
   useEffect(() => {
     const intervalId = setInterval(() => {
-      setSyncStatus(syncService.getSyncStatus());
-      
-      // Vérifier s'il y a des changements en attente
-      const tables = ['documents', 'exigences', 'membres', 'bibliotheque', 'pilotage'];
-      const changes: Record<string, boolean> = {};
-      
-      tables.forEach(table => {
-        const failedSync = localStorage.getItem(`sync_failed_${table}`);
-        changes[table] = !!failedSync;
-      });
-      
-      setPendingChanges(changes);
-    }, 5000);
+      setGlobalStatus(dataSyncManager.getGlobalSyncStatus());
+    }, 2000);
     
     return () => clearInterval(intervalId);
   }, []);
   
-  // Déterminer si une synchronisation est en cours
-  const anySyncInProgress = syncStatus.activeSyncs.length > 0 || syncStatus.isSyncing;
+  // Déterminer quel indicateur afficher
+  const anySyncing = globalStatus.activeSyncCount > 0;
+  const anyPending = globalStatus.pendingChangesCount > 0;
+  const anyFailed = globalStatus.failedSyncCount > 0;
   
-  // Déterminer s'il y a des changements en attente
-  const anyPendingChanges = Object.values(pendingChanges).some(val => val);
-  
+  // Mode hors ligne
   if (!isOnline) {
     return (
       <div className="fixed bottom-4 right-4 z-50">
@@ -63,7 +50,48 @@ const GlobalSyncManager: React.FC = () => {
     );
   }
   
-  if (anyPendingChanges) {
+  // Erreur de synchronisation
+  if (anyFailed) {
+    return (
+      <div className="fixed bottom-4 right-4 z-50">
+        <Popover>
+          <PopoverTrigger asChild>
+            <button 
+              className="flex items-center gap-2 bg-red-100 text-red-800 px-4 py-2 rounded-full shadow-md"
+              title="Échec de synchronisation"
+            >
+              <AlertTriangle size={16} />
+              <span className="hidden sm:inline">Échec de synchronisation</span>
+            </button>
+          </PopoverTrigger>
+          <PopoverContent className="w-80 p-4">
+            <h4 className="font-medium mb-2">Problèmes de synchronisation</h4>
+            <p className="text-sm text-gray-600 mb-4">
+              La synchronisation de certaines données a échoué. Cliquez sur le bouton ci-dessous 
+              pour réessayer.
+            </p>
+            <div className="max-h-32 overflow-auto mb-4">
+              <ul className="text-xs">
+                {globalStatus.failedTables.map(table => (
+                  <li key={table} className="mb-1 text-red-600">{table}</li>
+                ))}
+              </ul>
+            </div>
+            <Button 
+              className="w-full bg-primary text-white"
+              onClick={() => dataSyncManager.syncAllPending()}
+            >
+              <RotateCw size={16} className="mr-2" />
+              Réessayer la synchronisation
+            </Button>
+          </PopoverContent>
+        </Popover>
+      </div>
+    );
+  }
+  
+  // Modifications en attente
+  if (anyPending && !anySyncing) {
     return (
       <div className="fixed bottom-4 right-4 z-50">
         <Popover>
@@ -80,34 +108,29 @@ const GlobalSyncManager: React.FC = () => {
             <h4 className="font-medium mb-2">Modifications en attente</h4>
             <p className="text-sm text-gray-600 mb-4">
               Certaines modifications n'ont pas été synchronisées avec le serveur. 
-              Cliquez sur le bouton ci-dessous pour forcer la synchronisation.
+              Cliquez sur le bouton ci-dessous pour synchroniser maintenant.
             </p>
-            <button 
-              className="w-full bg-primary text-white py-2 rounded flex items-center justify-center gap-2"
-              onClick={() => {
-                toast({
-                  title: "Synchronisation manuelle",
-                  description: "Tentative de synchronisation des modifications en attente..."
-                });
-                
-                Object.keys(pendingChanges).forEach(table => {
-                  if (pendingChanges[table]) {
-                    syncService.syncTable({ tableName: table, data: [] }, null, "manual")
-                      .catch(console.error);
-                  }
-                });
-              }}
+            <div className="max-h-32 overflow-auto mb-4">
+              <ul className="text-xs">
+                {globalStatus.pendingTables.map(table => (
+                  <li key={table} className="mb-1">{table}</li>
+                ))}
+              </ul>
+            </div>
+            <Button 
+              className="w-full bg-primary text-white"
+              onClick={() => dataSyncManager.syncAllPending()}
             >
-              <Save size={16} />
               Synchroniser maintenant
-            </button>
+            </Button>
           </PopoverContent>
         </Popover>
       </div>
     );
   }
   
-  if (anySyncInProgress) {
+  // Synchronisation en cours
+  if (anySyncing) {
     return (
       <div className="fixed bottom-4 right-4 z-50">
         <div className="flex items-center gap-2 bg-blue-100 text-blue-800 px-4 py-2 rounded-full shadow-md">
@@ -118,8 +141,15 @@ const GlobalSyncManager: React.FC = () => {
     );
   }
   
-  // Pas d'affichage si tout est normal
-  return null;
+  // Tout est synchronisé
+  return (
+    <div className="fixed bottom-4 right-4 z-50 opacity-70 hover:opacity-100 transition-opacity">
+      <div className="flex items-center gap-2 bg-green-100 text-green-800 px-4 py-2 rounded-full shadow-md">
+        <Check size={16} />
+        <span className="hidden sm:inline">Synchronisé</span>
+      </div>
+    </div>
+  );
 };
 
 export default GlobalSyncManager;
