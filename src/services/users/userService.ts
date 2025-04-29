@@ -8,13 +8,13 @@ const API_URL = getApiUrl();
 
 // User type
 export interface Utilisateur {
-  id: number;
+  id: string; // Changé de number à string pour correspondre au varchar(36)
   nom: string;
   prenom: string;
   email: string;
   mot_de_passe: string; // Always stored hashed
   identifiant_technique: string;
-  role: string;
+  role: 'administrateur' | 'utilisateur' | 'gestionnaire'; // Limité aux valeurs exactes de l'enum
   date_creation: string;
 }
 

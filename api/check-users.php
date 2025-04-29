@@ -1,4 +1,3 @@
-
 <?php
 // Forcer l'output buffering pour éviter tout output avant les headers
 ob_start();
@@ -50,13 +49,13 @@ try {
         // La table n'existe pas, la créer
         error_log("La table 'utilisateurs' n'existe pas, création en cours");
         $createTableQuery = "CREATE TABLE IF NOT EXISTS utilisateurs (
-            id INT AUTO_INCREMENT PRIMARY KEY,
+            id VARCHAR(36) NOT NULL PRIMARY KEY,
             nom VARCHAR(100) NOT NULL,
             prenom VARCHAR(100) NOT NULL,
-            email VARCHAR(100) NOT NULL UNIQUE,
+            email VARCHAR(255) NOT NULL UNIQUE,
             mot_de_passe VARCHAR(255) NOT NULL,
             identifiant_technique VARCHAR(100) NOT NULL UNIQUE,
-            role ENUM('admin', 'user', 'administrateur', 'utilisateur', 'gestionnaire') NOT NULL,
+            role ENUM('administrateur', 'utilisateur', 'gestionnaire') NOT NULL,
             date_creation TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci";
         

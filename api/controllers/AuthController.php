@@ -1,4 +1,3 @@
-
 <?php
 // Assurons-nous que rien ne sera affiché avant les en-têtes
 ob_start();
@@ -74,7 +73,7 @@ try {
                     'username' => $username,
                     'identifiant_technique' => $identifiant_technique,
                     'email' => $username,
-                    'role' => 'admin',
+                    'role' => 'administrateur', // Modifié de 'admin' à 'administrateur'
                     'nom' => 'Cirier',
                     'prenom' => 'Antoine'
                 ],
@@ -92,7 +91,7 @@ try {
                     'prenom' => 'Antoine',
                     'email' => $username,
                     'identifiant_technique' => $identifiant_technique,
-                    'role' => 'admin'
+                    'role' => 'administrateur' // Modifié de 'admin' à 'administrateur'
                 ]
             ]);
             exit;
