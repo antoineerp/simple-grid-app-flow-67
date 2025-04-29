@@ -45,14 +45,6 @@ jobs:
         # Création des dossiers nécessaires
         mkdir -p deploy/assets
         mkdir -p deploy/api
-        mkdir -p deploy/api/config
-        mkdir -p deploy/api/services
-        mkdir -p deploy/api/controllers
-        mkdir -p deploy/api/models
-        mkdir -p deploy/api/models/traits
-        mkdir -p deploy/api/middleware
-        mkdir -p deploy/api/operations
-        mkdir -p deploy/api/utils
         mkdir -p deploy/public/lovable-uploads
         
         # Copie des fichiers compilés directement dans assets
@@ -66,47 +58,22 @@ jobs:
         echo "Copie des fichiers PHP à la racine..."
         find . -maxdepth 1 -name "*.php" -exec cp {} deploy/ \;
         
-        # Copie des fichiers de configuration
-        echo "Copie des fichiers de configuration..."
-        cp api/config/env.php deploy/api/config/ || echo "Fichier env.php non trouvé"
-        cp api/config/DatabaseConfig.php deploy/api/config/ || echo "Fichier DatabaseConfig.php non trouvé"
-        cp api/config/DatabaseConnection.php deploy/api/config/ || echo "Fichier DatabaseConnection.php non trouvé"
-        cp api/config/DatabaseDiagnostics.php deploy/api/config/ || echo "Fichier DatabaseDiagnostics.php non trouvé"
-        cp api/config/database.php deploy/api/config/ || echo "Fichier database.php non trouvé"
+        # S'assurer que tous les sous-répertoires existent dans api/
+        echo "Création de la structure complète des répertoires API"
+        find api -type d | while read dir; do
+          mkdir -p "deploy/${dir}"
+        done
         
-        # Vérifier et créer env.php s'il n'existe pas
-        if [ ! -f "deploy/api/config/env.php" ]; then
-          echo "<?php
-          // Configuration des variables d'environnement pour Infomaniak
-          define('DB_HOST', 'p71x6d.myd.infomaniak.com');
-          define('DB_NAME', 'p71x6d_system');
-          define('DB_USER', 'p71x6d_system');
-          define('DB_PASS', 'Trottinette43!');
-          define('API_BASE_URL', '/api');
-          define('APP_ENV', 'production');
-
-          // Fonction d'aide pour récupérer les variables d'environnement
-          function get_env(\$key, \$default = null) {
-              \$const_name = strtoupper(\$key);
-              if (defined(\$const_name)) {
-                  return constant(\$const_name);
-              }
-              return \$default;
-          }
-          ?>" > deploy/api/config/env.php
-          echo "Fichier env.php créé manuellement"
-        fi
-        
-        # Copie des fichiers API
-        echo "Copie complète du dossier API..."
-        cp -r api/* deploy/api/
+        # Copie complète et récursive du dossier API et tous ses sous-dossiers
+        echo "Copie complète et récursive du dossier API..."
+        find api -type f -exec cp --parents {} deploy/ \;
         
         # Vérification des fichiers PHP cruciaux sont bien copiés
         echo "Vérification des fichiers PHP cruciaux :"
         [ -f "deploy/api/index.php" ] && echo "- api/index.php: OK" || echo "- api/index.php: MANQUANT"
         [ -f "deploy/api/phpinfo.php" ] && echo "- api/phpinfo.php: OK" || echo "- api/phpinfo.php: MANQUANT" 
         [ -f "deploy/api/test.php" ] && echo "- api/test.php: OK" || echo "- api/test.php: MANQUANT"
-        [ -f "deploy/fix-php-processing.php" ] && echo "- fix-php-processing.php: OK" || echo "- fix-php-processing.php: MANQUANT"
+        [ -f "deploy/api/env.php" ] && echo "- api/env.php: OK" || echo "- api/env.php: MANQUANT"
         
         # Copie des uploads si existants
         if [ -d "public/lovable-uploads" ]; then
@@ -156,7 +123,8 @@ engine = On" > deploy/api/.user.ini
         fi
         
         echo "Structure du dossier de déploiement:"
-        find deploy -type f | sort
+        find deploy -type f | sort | head -n 20
+        echo "... et plus de fichiers"
 
     - name: Sync to Infomaniak server
       uses: SamKirkland/FTP-Deploy-Action@v4.3.4
