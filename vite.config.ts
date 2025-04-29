@@ -58,7 +58,10 @@ export default defineConfig(({ mode }) => {
           entryFileNames: 'assets/[name].js',
         },
         external: []
-      }
+      },
+      emptyOutDir: true,
+      copyPublicDir: true,
+      manifest: true
     },
     publicDir: 'public',
     base: basePath,
