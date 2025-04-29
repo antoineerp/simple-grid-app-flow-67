@@ -1,6 +1,6 @@
 
 import React, { useEffect, useState } from 'react';
-import { Outlet, useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, Outlet } from 'react-router-dom';
 import Header from './Header';
 import Footer from './Footer';
 import Sidebar from './Sidebar';
@@ -39,21 +39,22 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       if ((!isLoggedIn || !hasToken) && location.pathname !== '/') {
         console.log('Redirecting to home page from', location.pathname);
         navigate('/', { replace: true });
-      } else if (isLoggedIn && hasToken && location.pathname === '/' && !isLoading) {
-        // Si l'utilisateur est connecté et se trouve sur la page d'accueil, rediriger vers le tableau de bord
-        console.log('Redirecting to dashboard from home page');
-        navigate('/pilotage', { replace: true });
       }
       
       setIsLoading(false);
     };
     
     checkAuth();
-  }, [navigate, location.pathname, isLoading]);
+  }, [navigate, location.pathname]);
 
-  // Si le composant est en cours de chargement, afficher un loader ou rien
+  // Si le composant est en cours de chargement, afficher un loader
   if (isLoading) {
-    return <div className="flex items-center justify-center min-h-screen">Chargement...</div>;
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-700"></div>
+        <span className="ml-3">Chargement...</span>
+      </div>
+    );
   }
 
   // Si nous sommes sur la page d'accueil et non authentifié, ne pas afficher le header, sidebar et footer
@@ -61,13 +62,14 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     return children || <Outlet />;
   }
 
+  // Afficher le layout complet pour les pages authentifiées
   return (
     <MembresProvider>
       <div className="flex min-h-screen flex-col">
         <Header />
         <div className="flex flex-1">
           <Sidebar />
-          <main className="flex-1 bg-gray-50 overflow-auto">
+          <main className="flex-1 bg-gray-50 overflow-auto p-4">
             {children || <Outlet />}
           </main>
         </div>

@@ -44,8 +44,10 @@ export const useLoginForm = () => {
           description: "Vous êtes maintenant connecté",
         });
         
-        // Rediriger vers le tableau de bord
-        navigate('/pilotage');
+        console.log("Redirection vers le tableau de bord après connexion réussie");
+        
+        // Force la navigation en utilisant window.location pour un rechargement complet
+        window.location.href = '/pilotage';
       } else {
         setError(result.message || 'Échec de la connexion');
         
