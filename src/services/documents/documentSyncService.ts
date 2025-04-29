@@ -60,7 +60,7 @@ export const loadDocumentsFromServer = async (userId: string | null = null): Pro
     
     // Si le serveur ne retourne pas la structure attendue, afficher un toast d'avertissement
     toast({
-      variant: "warning",
+      variant: "destructive",
       title: "Format de données inattendu",
       description: "Le serveur a répondu mais le format des données n'est pas celui attendu. Mode hors-ligne activé."
     });
@@ -134,7 +134,7 @@ export const syncDocumentsWithServer = async (documents: Document[], userId: str
         localStorage.setItem(`documents_${currentUser}`, JSON.stringify(documents));
         
         toast({
-          variant: "warning",
+          variant: "destructive",
           title: "Synchronisation en mode hors-ligne",
           description: "Les documents ont été sauvegardés localement. La synchronisation avec le serveur sera tentée ultérieurement.",
         });
