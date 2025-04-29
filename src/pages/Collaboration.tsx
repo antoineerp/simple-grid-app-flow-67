@@ -114,7 +114,7 @@ const Collaboration = () => {
       if (isEditing) {
         handleEditGroup(currentGroup);
       } else {
-        handleAddGroup(currentGroup); // Fix: Pass the currentGroup parameter
+        handleAddGroup(); // Fix: Remove the argument as handleAddGroup doesn't expect any
       }
       setIsGroupDialogOpen(false);
     }
