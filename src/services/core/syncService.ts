@@ -9,12 +9,16 @@ export interface SyncOptions<T> {
   userId: string | object;
   dataName?: string;
   additionalData?: any; // Ajout du support pour des données supplémentaires
+  maxRetries?: number;
+  retryDelay?: number;
 }
 
 export interface LoadOptions {
   endpoint: string;
   loadEndpoint: string;
   userId: string | object;
+  maxRetries?: number;
+  retryDelay?: number;
 }
 
 export const useSyncService = () => {

@@ -41,9 +41,7 @@ export const useDocuments = () => {
         loadEndpoint: 'documents-load.php',
         data: documents,
         userId: userId,
-        dataName: 'documents',
-        maxRetries: 3,
-        retryDelay: 1000
+        dataName: 'documents'
       });
       
       if (success) {
@@ -108,9 +106,7 @@ export const useDocuments = () => {
       const result = await syncService.loadFromServer<Document>({
         endpoint: 'documents-sync.php',
         loadEndpoint: 'documents-load.php',
-        userId: userId,
-        maxRetries: 3,
-        retryDelay: 1000
+        userId: userId
       });
       
       if (Array.isArray(result)) {

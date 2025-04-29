@@ -89,7 +89,6 @@ const BootLoader: React.FC<BootLoaderProps> = ({ children }) => {
             endpoint: 'documents-sync.php',
             loadEndpoint: 'documents-load.php',
             userId: userId,
-            retryDelay: 1000,
             maxRetries: 2
           });
           
@@ -113,7 +112,6 @@ const BootLoader: React.FC<BootLoaderProps> = ({ children }) => {
             endpoint: 'exigences-sync.php',
             loadEndpoint: 'exigences-load.php',
             userId: userId,
-            retryDelay: 1000,
             maxRetries: 2
           });
           

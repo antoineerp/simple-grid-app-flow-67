@@ -19,6 +19,8 @@ export default defineConfig(({ mode }) => {
       // Ajout de la configuration pour autoriser tous les hôtes
       cors: true,
       proxy: {},
+      // Configuration explicite des hôtes autorisés
+      allowedHosts: 'all', // 'all' est une valeur valide pour allowedHosts en TypeScript
     },
     preview: {
       // Également autoriser tous les hôtes pour le mode preview
@@ -66,11 +68,7 @@ export default defineConfig(({ mode }) => {
     optimizeDeps: {
       include: ['jspdf', 'jspdf-autotable']
     },
-    // Ajout de la configuration des hôtes autorisés
+    // Configuration des variables d'environnement
     envPrefix: 'VITE_',
-    server: {
-      host: true, // Autoriser tous les hôtes
-      allowedHosts: 'all', // Explicitement autoriser tous les hôtes
-    }
   };
 });

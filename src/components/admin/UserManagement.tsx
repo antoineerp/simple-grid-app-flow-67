@@ -29,7 +29,7 @@ const UserManagement = ({ currentDatabaseUser, onUserConnect }: UserManagementPr
   const [connectionError, setConnectionError] = useState<string | null>(null);
   const [showPasswords, setShowPasswords] = useState<{[key: string]: boolean}>({});
   const [importingData, setImportingData] = useState(false);
-  const [deletingUserId, setDeletingUserId] = useState<number | null>(null);
+  const [deletingUserId, setDeletingUserId] = useState<string | null>(null);
 
   useEffect(() => {
     const lastError = getLastConnectionError();
@@ -47,7 +47,7 @@ const UserManagement = ({ currentDatabaseUser, onUserConnect }: UserManagementPr
     return `${prenom.charAt(0)}${nom.charAt(0)}`.toUpperCase();
   };
 
-  const togglePasswordVisibility = (userId: number) => {
+  const togglePasswordVisibility = (userId: string) => {
     setShowPasswords(prev => ({
       ...prev,
       [userId]: !prev[userId]
@@ -87,7 +87,7 @@ const UserManagement = ({ currentDatabaseUser, onUserConnect }: UserManagementPr
     }
   };
   
-  const handleDeleteUser = async (userId: number) => {
+  const handleDeleteUser = async (userId: string) => {
     if (!window.confirm("Êtes-vous sûr de vouloir supprimer cet utilisateur ?")) {
       return;
     }
@@ -134,7 +134,7 @@ const UserManagement = ({ currentDatabaseUser, onUserConnect }: UserManagementPr
   const isCurrentUserAdmin = () => {
     if (!currentDatabaseUser || !utilisateurs.length) return false;
     const currentUser = utilisateurs.find(user => user.identifiant_technique === currentDatabaseUser);
-    return currentUser?.role === 'admin';
+    return currentUser?.role === 'administrateur';
   };
   
   const hasManager = utilisateurs.some(user => user.role === 'gestionnaire');
@@ -267,7 +267,7 @@ const UserManagement = ({ currentDatabaseUser, onUserConnect }: UserManagementPr
                       </div>
                     </TableCell>
                     <TableCell>
-                      <Badge variant={user.role === 'admin' ? 'default' : user.role === 'gestionnaire' ? 'destructive' : 'secondary'}>
+                      <Badge variant={user.role === 'administrateur' ? 'default' : user.role === 'gestionnaire' ? 'destructive' : 'secondary'}>
                         {user.role}
                       </Badge>
                     </TableCell>
