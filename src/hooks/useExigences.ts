@@ -173,6 +173,7 @@ export const useExigences = () => {
     return newGroup;
   }, []);
 
+  // This is where the error was: removed the unnecessary argument
   const handleResetLoadAttempts = useCallback(() => {
     resetSyncStatus();
     handleSyncWithServer().catch(error => {

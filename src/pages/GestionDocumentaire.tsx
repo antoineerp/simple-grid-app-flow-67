@@ -49,7 +49,8 @@ const GestionDocumentaireContent = () => {
   
   const { toast } = useToast();
 
-  const handleExportPdf = () => {
+  // Fix: Changed to a proper React event handler
+  const handleExportPdf = (event: React.MouseEvent) => {
     exportDocumentsToPdf(documents, groups);
     toast({
       title: "Export PDF réussi",
