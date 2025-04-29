@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { webSocketService, WebSocketMessageType } from '@/services/sync/webSocketService';
@@ -448,7 +447,7 @@ export function useGlobalSync() {
         toast({
           title: "Synchronisation partielle",
           description: "Certaines données ont été synchronisées avec succès",
-          variant: "warning"
+          variant: "default"
         });
       } else {
         toast({

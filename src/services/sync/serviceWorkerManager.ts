@@ -32,6 +32,8 @@ class ServiceWorkerManager {
    * Configure les gestionnaires de messages pour le Service Worker
    */
   private setupMessageHandlers(): void {
+    if (!navigator.serviceWorker) return;
+    
     navigator.serviceWorker.addEventListener('message', (event) => {
       const { type, data } = event.data;
       
@@ -86,7 +88,7 @@ class ServiceWorkerManager {
     try {
       // Vérifier si la synchronisation en arrière-plan est supportée
       if ('sync' in this.registration) {
-        await this.registration.sync.register(`sync:${syncType}`);
+        await (this.registration.sync as { register(tag: string): Promise<void> }).register(`sync:${syncType}`);
         console.log(`Synchronisation en arrière-plan "${syncType}" enregistrée`);
         return true;
       } else {

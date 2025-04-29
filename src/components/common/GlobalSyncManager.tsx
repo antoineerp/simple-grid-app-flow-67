@@ -88,7 +88,7 @@ const GlobalSyncManager: React.FC<GlobalSyncManagerProps> = ({
           isSyncing={globalSync.isGlobalSyncing}
           isOnline={isOnline}
           lastSynced={globalSync.lastGlobalSync}
-          webSocketStatus={globalSync.webSocketStatus}
+          webSocketStatus={globalSync.webSocketStatus as 'connected' | 'disconnected' | 'connecting'}
         />
       )}
       

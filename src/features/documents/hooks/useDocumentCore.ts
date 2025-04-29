@@ -4,8 +4,6 @@ import { Document, DocumentStats, DocumentGroup } from '@/types/documents';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { useToast } from '@/hooks/use-toast';
 import { useDocumentSync } from './useDocumentSync';
-import { useDocumentMutations } from './useDocumentMutations';
-import { useDocumentGroups } from './useDocumentGroups';
 import { getCurrentUser } from '@/services/auth/authService';
 
 export const useDocumentCore = () => {
