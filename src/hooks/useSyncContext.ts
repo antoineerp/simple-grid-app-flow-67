@@ -66,7 +66,7 @@ export function useSyncContext<T>(tableName: string, data: T[], options: SyncHoo
       const userId = getCurrentUser() || 'default';
       
       // Appeler la synchronisation avec des données explicitement spécifiées
-      const result = await syncTable(tableName, data, userId);
+      const result = await syncTable(tableName, data);
       
       if (result) {
         setDataChanged(false);
