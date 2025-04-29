@@ -1,51 +1,43 @@
 
-import { Toaster } from "@/components/ui/toaster";
-import { Toaster as Sonner } from "@/components/ui/sonner";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
-import Layout from "./components/Layout";
-import Index from "./pages/Index";
-import Pilotage from "./pages/Pilotage";
-import Exigences from "./pages/Exigences";
-import GestionDocumentaire from "./pages/GestionDocumentaire";
-import RessourcesHumaines from "./pages/RessourcesHumaines";
-import Bibliotheque from "./pages/Bibliotheque";
-import Administration from "./pages/Administration";
-import NotFound from "./pages/NotFound";
+import React from 'react';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { Toaster } from '@/components/ui/toaster';
+import Layout from '@/components/layout';
+import Dashboard from '@/pages/Dashboard';
+import Documentation from '@/pages/Documentation';
+import GestionDocumentaire from '@/pages/GestionDocumentaire';
+import Pilotage from '@/pages/Pilotage';
+import Exigences from '@/pages/Exigences';
+import Bibliotheque from '@/pages/Bibliotheque';
+import Administration from '@/pages/Administration';
+import RessourcesHumaines from '@/pages/RessourcesHumaines';
+import Login from '@/pages/Login';
+import AuthProvider from '@/contexts/AuthContext';
+import ProtectedRoute from '@/components/ProtectedRoute';
+import GlobalSyncManager from '@/components/common/GlobalSyncManager';
 
-// Create a new QueryClient instance for React Query
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      staleTime: 60 * 1000, // 1 minute
-      retry: 1,
-      refetchOnWindowFocus: false,
-    },
-  },
-});
-
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <BrowserRouter>
+function App() {
+  return (
+    <AuthProvider>
+      <Router>
         <Routes>
-          <Route path="/" element={<Layout />}>
-            <Route index element={<Index />} />
-            <Route path="pilotage" element={<Pilotage />} />
-            <Route path="exigences" element={<Exigences />} />
-            <Route path="gestion-documentaire" element={<GestionDocumentaire />} />
-            <Route path="ressources-humaines" element={<RessourcesHumaines />} />
-            <Route path="collaboration" element={<Bibliotheque />} />
-            <Route path="administration" element={<Administration />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
+            <Route index element={<Dashboard />} />
+            <Route path="/documentation" element={<Documentation />} />
+            <Route path="/gestion-documentaire" element={<GestionDocumentaire />} />
+            <Route path="/exigences" element={<Exigences />} />
+            <Route path="/pilotage" element={<Pilotage />} />
+            <Route path="/bibliotheque" element={<Bibliotheque />} />
+            <Route path="/administration" element={<Administration />} />
+            <Route path="/ressources-humaines" element={<RessourcesHumaines />} />
           </Route>
-          <Route path="*" element={<NotFound />} />
         </Routes>
-      </BrowserRouter>
-      <Toaster />
-      <Sonner />
-    </TooltipProvider>
-  </QueryClientProvider>
-);
+        <Toaster />
+        <GlobalSyncManager />
+      </Router>
+    </AuthProvider>
+  );
+}
 
 export default App;
