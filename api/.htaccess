@@ -35,49 +35,28 @@ RewriteRule ^(.*)$ $1 [R=200,L]
 RewriteCond %{REQUEST_FILENAME} -f
 RewriteRule \.(php)$ - [L]
 
-# Gérer les requêtes OPTIONS pour CORS
-RewriteCond %{REQUEST_METHOD} OPTIONS
-RewriteRule ^(.*)$ $1 [R=200,L]
-
 # Rediriger toutes les requêtes vers l'index.php sauf pour les fichiers existants
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^(.*)$ index.php [QSA,L]
 
-# Définir les types MIME corrects
-AddType application/javascript .js
-AddType application/javascript .mjs
-AddType text/css .css
-AddType application/json .json
-
-# Définir les en-têtes CORS
-<IfModule mod_headers.c>
-    # Force le bon type MIME pour les JavaScript modules
-    <FilesMatch "\.m?js$">
-        Header set Content-Type "application/javascript"
-    </FilesMatch>
-    
-    Header set Access-Control-Allow-Origin "*"
-    Header set Access-Control-Allow-Methods "GET, POST, OPTIONS, PUT, DELETE"
-    Header set Access-Control-Allow-Headers "Content-Type, Authorization, X-Requested-With"
-    
-    # Eviter la mise en cache
-    Header set Cache-Control "no-cache, no-store, must-revalidate"
-    Header set Pragma "no-cache"
-    Header set Expires 0
-</IfModule>
-
 # Forcer PHP à utiliser le bon encodage
 <IfModule mod_php.c>
     php_value default_charset "UTF-8"
-    php_flag display_errors off
+    php_flag display_errors on
     php_value error_log "php_errors.log"
     php_flag log_errors on
     php_value upload_max_filesize "16M"
     php_value post_max_size "16M"
     php_value memory_limit "128M"
     php_value max_execution_time 300
+    php_flag engine on
 </IfModule>
+
+# S'assurer que tous les fichiers .php sont traités par PHP
+<FilesMatch "\.php$">
+    SetHandler application/x-httpd-php
+</FilesMatch>
 
 # Définition d'une page d'erreur JSON personnalisée pour les erreurs
 ErrorDocument 500 '{"status":"error","message":"Erreur interne du serveur","code":500}'

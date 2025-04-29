@@ -26,8 +26,8 @@ export async function testApiConnection(): Promise<{ success: boolean; message: 
     // Ajouter un timestamp pour éviter la mise en cache
     const timestamp = new Date().getTime();
     
-    // Pour le test direct, utiliser info.php qui renvoie l'état du serveur
-    const response = await fetch(`${getApiUrl()}/info.php?_t=${timestamp}`, {
+    // Pour le test direct, utiliser check-php.php qui est plus simple
+    const response = await fetch(`${getApiUrl()}/check-php.php?_t=${timestamp}`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -71,7 +71,8 @@ export async function testApiConnection(): Promise<{ success: boolean; message: 
         message: 'Réponse non-JSON',
         details: {
           error: e instanceof Error ? e.message : String(e),
-          responseText: responseText.substring(0, 300)
+          responseText: responseText.substring(0, 300),
+          serverError: true
         }
       };
     }
@@ -125,7 +126,7 @@ export async function fetchWithErrorHandling(url: string, options?: RequestInit)
     
     // Vérifier si la réponse commence par "<?php"
     if (text.trim().startsWith('<?php')) {
-      throw new Error('Le serveur renvoie du code PHP au lieu de l\'exécuter. Vérifiez la configuration du serveur.');
+      throw new Error('Le serveur renvoie du code PHP au lieu de l\'exécuter. Vérifiez la configuration du serveur. Contactez votre hébergeur pour activer PHP.');
     }
     
     try {
@@ -133,6 +134,10 @@ export async function fetchWithErrorHandling(url: string, options?: RequestInit)
     } catch (e) {
       console.error("Erreur de parsing JSON:", e);
       console.log("Réponse brute:", text.substring(0, 300)); // Log de la réponse brute limitée
+      
+      if (text.includes('<?php') || text.includes('<?')) {
+        throw new Error('Le serveur renvoie du code PHP au lieu de l\'exécuter. Vérifiez la configuration du serveur ou contactez votre hébergeur.');
+      }
       
       // Si le texte contient "success" ou des données qui ressemblent à un résultat valide,
       // essayer de le transformer en un objet simple

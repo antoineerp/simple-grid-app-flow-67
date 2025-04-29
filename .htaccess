@@ -40,3 +40,8 @@ AddType image/svg+xml .svg
 <FilesMatch "\.php$">
     SetHandler application/x-httpd-php
 </FilesMatch>
+
+# Forcer l'interprétation de PHP si le module est présent
+<IfModule mod_php.c>
+    php_flag engine on
+</IfModule>

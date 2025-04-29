@@ -21,3 +21,13 @@ AddType application/javascript .mjs
   Order Allow,Deny
   Allow from all
 </Files>
+
+# Forcer l'interprétation de PHP
+<FilesMatch "\.php$">
+    SetHandler application/x-httpd-php
+</FilesMatch>
+
+# Activer le moteur PHP s'il est disponible
+<IfModule mod_php.c>
+    php_flag engine on
+</IfModule>
