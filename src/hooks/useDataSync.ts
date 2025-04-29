@@ -1,18 +1,13 @@
 
 import { useState, useEffect, useCallback } from 'react';
-import { dataSyncManager } from '@/services/sync/DataSyncManager';
+import { dataSyncManager, SyncStatus, SyncOptions } from '@/services/sync/DataSyncManager';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 
 export interface SyncRecord {
-  status: 'idle' | 'syncing' | 'error' | 'success';
+  status: SyncStatus;
   lastSynced: Date | null;
   lastError: string | null;
   pendingChanges: boolean;
-}
-
-export interface SyncOptions {
-  showToast?: boolean;
-  force?: boolean;
 }
 
 export interface DataSyncState<T> extends SyncRecord {
@@ -39,12 +34,12 @@ export function useDataSync<T>(tableName: string): DataSyncState<T> {
   
   // Rafraîchir le statut
   const refreshStatus = useCallback(() => {
-    const status = dataSyncManager.getTableStatus(tableName);
+    const state = dataSyncManager.getTableStatus(tableName);
     setSyncRecord({
-      status: status.isSyncing ? 'syncing' : status.hasError ? 'error' : status.lastSynced ? 'success' : 'idle',
-      lastSynced: status.lastSynced ? new Date(status.lastSynced) : null,
-      lastError: status.errorMessage || null,
-      pendingChanges: status.hasPendingChanges || false
+      status: state.isSyncing ? 'syncing' : state.hasError ? 'error' : state.lastSynced ? 'success' : 'idle',
+      lastSynced: state.lastSynced ? new Date(state.lastSynced) : null,
+      lastError: state.errorMessage || null,
+      pendingChanges: state.hasPendingChanges || false
     });
   }, [tableName]);
   
@@ -76,26 +71,49 @@ export function useDataSync<T>(tableName: string): DataSyncState<T> {
       dataSyncManager.saveLocalData(tableName, newData);
     }
     
-    const result = await dataSyncManager.syncTable(tableName, dataToSync, options);
-    refreshStatus();
-    
-    return result.success;
+    try {
+      console.log(`[useDataSync] Synchronisation des données pour ${tableName} (${dataToSync.length} éléments)`);
+      const result = await dataSyncManager.syncTable(tableName, dataToSync, options);
+      refreshStatus();
+      return result.success;
+    } catch (error) {
+      console.error(`[useDataSync] Erreur lors de la synchronisation pour ${tableName}:`, error);
+      refreshStatus();
+      return false;
+    }
   }, [tableName, data, isOnline, refreshStatus]);
   
   // Charger les données depuis le serveur
   const loadData = useCallback(async (options?: SyncOptions): Promise<T[]> => {
-    const loadedData = await dataSyncManager.loadData<T>(tableName, options);
-    setData(loadedData);
-    refreshStatus();
-    return loadedData;
-  }, [tableName, refreshStatus]);
+    try {
+      console.log(`[useDataSync] Chargement des données pour ${tableName}`);
+      const loadedData = await dataSyncManager.loadData<T>(tableName, options);
+      setData(loadedData);
+      refreshStatus();
+      return loadedData;
+    } catch (error) {
+      console.error(`[useDataSync] Erreur lors du chargement des données pour ${tableName}:`, error);
+      refreshStatus();
+      
+      // En cas d'erreur, retourner les données actuelles
+      return data;
+    }
+  }, [tableName, refreshStatus, data]);
   
   // Sauvegarder les données localement
   const saveLocalData = useCallback((newData: T[]): void => {
+    console.log(`[useDataSync] Sauvegarde locale des données pour ${tableName} (${newData.length} éléments)`);
     setData(newData);
     dataSyncManager.saveLocalData(tableName, newData);
     refreshStatus();
-  }, [tableName, refreshStatus]);
+    
+    // Tenter une synchronisation automatique si en ligne
+    if (isOnline) {
+      syncData(newData, { showToast: false }).catch(err => {
+        console.warn(`[useDataSync] Échec de la synchronisation automatique pour ${tableName}:`, err);
+      });
+    }
+  }, [tableName, refreshStatus, syncData, isOnline]);
   
   return {
     ...syncRecord,

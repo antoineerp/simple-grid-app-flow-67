@@ -1,16 +1,14 @@
 
 import React from 'react';
-import { AlertCircle, CheckCircle, RefreshCw } from 'lucide-react';
+import { AlertTriangle, RotateCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
-interface SyncStatusIndicatorProps {
+export interface SyncStatusIndicatorProps {
   syncFailed: boolean;
-  onReset: () => void;
+  onReset: () => Promise<void>;
   isSyncing: boolean;
   isOnline?: boolean;
-  lastSynced?: Date | null;
+  lastSynced?: Date;
 }
 
 const SyncStatusIndicator: React.FC<SyncStatusIndicatorProps> = ({
@@ -22,53 +20,49 @@ const SyncStatusIndicator: React.FC<SyncStatusIndicatorProps> = ({
 }) => {
   if (isSyncing) {
     return (
-      <div className="mb-4 flex items-center text-blue-600">
-        <RefreshCw className="animate-spin h-4 w-4 mr-2" />
-        <span className="text-sm">Synchronisation en cours...</span>
+      <div className="flex items-center bg-blue-50 p-2 rounded">
+        <div className="animate-spin h-4 w-4 border-2 border-blue-500 rounded-full border-t-transparent mr-2"></div>
+        <span className="text-sm text-blue-500">Synchronisation en cours...</span>
       </div>
     );
   }
-  
+
+  if (!isOnline) {
+    return (
+      <div className="flex items-center bg-gray-50 p-2 rounded">
+        <span className="text-sm text-gray-500">Mode hors ligne</span>
+      </div>
+    );
+  }
+
   if (syncFailed) {
     return (
-      <Alert variant="destructive" className="mb-4">
-        <AlertCircle className="h-4 w-4 mr-2" />
-        <AlertDescription>
-          <div className="flex items-center justify-between">
-            <span>La dernière synchronisation a échoué.</span>
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={onReset}
-              className="ml-2"
-            >
-              <RefreshCw className="h-3 w-3 mr-1" />
-              Réessayer
-            </Button>
-          </div>
-        </AlertDescription>
-      </Alert>
+      <div className="flex items-center bg-red-50 p-2 rounded">
+        <AlertTriangle className="h-4 w-4 text-red-500 mr-2" />
+        <span className="text-sm text-red-500 mr-2">Échec de synchronisation</span>
+        <Button 
+          variant="ghost" 
+          size="sm" 
+          onClick={onReset}
+          disabled={isSyncing}
+          className="p-1 h-6 text-xs"
+        >
+          <RotateCw className={`h-3 w-3 mr-1 ${isSyncing ? 'animate-spin' : ''}`} />
+          Réessayer
+        </Button>
+      </div>
     );
   }
-  
+
   if (lastSynced) {
+    const formattedDate = lastSynced.toLocaleTimeString();
     return (
-      <TooltipProvider>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <div className="mb-4 flex items-center text-green-600 cursor-help">
-              <CheckCircle className="h-4 w-4 mr-2" />
-              <span className="text-sm">Synchronisé</span>
-            </div>
-          </TooltipTrigger>
-          <TooltipContent>
-            <p>Dernière synchronisation: {lastSynced.toLocaleString()}</p>
-          </TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
+      <div className="flex items-center bg-green-50 p-2 rounded">
+        <span className="text-sm text-green-500">Synchronisé à {formattedDate}</span>
+      </div>
     );
   }
-  
+
   return null;
 };
 

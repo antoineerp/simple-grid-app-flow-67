@@ -5,7 +5,9 @@ import { fr } from 'date-fns/locale';
 import { AlertTriangle, RotateCw, Check, CloudOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
-import { SyncStatus } from '@/services/sync/DataSyncManager';
+
+// Correction : définir correctement le type SyncStatus
+type SyncStatus = 'idle' | 'syncing' | 'error' | 'success';
 
 interface DataSyncStatusProps {
   status: SyncStatus;
@@ -53,7 +55,7 @@ const DataSyncStatus: React.FC<DataSyncStatusProps> = ({
   
   let statusComponent;
   
-  if (status === 'failed') {
+  if (status === 'error') {
     // Échec de synchronisation
     statusComponent = (
       <TooltipProvider>
