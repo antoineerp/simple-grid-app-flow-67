@@ -1,145 +1,199 @@
-import { useState, useEffect, useCallback } from 'react';
-import { useToast } from '@/hooks/use-toast';
-import { webSocketService, WebSocketMessageType } from '@/services/sync/webSocketService';
-import { indexedDBService } from '@/services/sync/indexedDBService';
-import { serviceWorkerManager } from '@/services/sync/serviceWorkerManager';
-import { SYNC_CONFIG } from '@/services/sync/syncConfig';
-import { useNetworkStatus } from '@/hooks/useNetworkStatus';
-import { getCurrentUser } from '@/services/auth/authService';
+
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { useNetworkStatus } from './useNetworkStatus';
+import { useToast } from './use-toast';
 import { getApiUrl } from '@/config/apiConfig';
 import { getAuthHeaders } from '@/services/auth/authService';
 
-interface SyncOptions<T> {
-  entityType: string;
-  initialData?: T[];
-  autoSync?: boolean;
-  syncInterval?: number;
-  onDataUpdate?: (data: T[]) => void;
-}
+// Délai minimal entre deux synchronisations (en ms)
+const SYNC_DELAY = 10000; // 10 secondes
+
+// Types pour la synchronisation
+type SyncStatus = {
+  isSyncing: boolean;
+  syncFailed: boolean;
+  lastSynced: Date | null;
+};
+
+type SyncConfig = {
+  endpoint: string;
+  loadEndpoint?: string;
+  userId: string;
+  maxRetries?: number;
+  retryDelay?: number;
+};
+
+type SyncOptions = {
+  silent?: boolean; // Ne pas afficher de toast
+  force?: boolean;  // Forcer la synchronisation même si le délai n'est pas écoulé
+};
 
 /**
- * Hook unifié pour la synchronisation des données
+ * Hook principal pour la synchronisation des données
  */
-export function useSync<T extends { id: string }>({
-  entityType,
-  initialData = [],
-  autoSync = true,
-  syncInterval = SYNC_CONFIG.backgroundSyncInterval,
-  onDataUpdate
-}: SyncOptions<T>) {
-  const [data, setData] = useState<T[]>(initialData);
-  const [isSyncing, setIsSyncing] = useState(false);
-  const [lastSynced, setLastSynced] = useState<Date | null>(null);
-  const [syncFailed, setSyncFailed] = useState(false);
-  const [isInitialized, setIsInitialized] = useState(false);
+export const useSync = <T>(entityType: string) => {
+  const [status, setStatus] = useState<SyncStatus>({
+    isSyncing: false,
+    syncFailed: false,
+    lastSynced: null
+  });
+  
   const { isOnline } = useNetworkStatus();
   const { toast } = useToast();
+  const lastSyncTime = useRef<number>(0);
   
-  // Charger les données depuis IndexedDB
-  const loadFromIndexedDB = useCallback(async () => {
-    try {
-      const cachedData = await indexedDBService.loadData<T>(entityType);
-      if (cachedData.length > 0) {
-        console.log(`${cachedData.length} éléments de type "${entityType}" chargés depuis IndexedDB`);
-        setData(cachedData);
-        onDataUpdate?.(cachedData);
-        return true;
-      }
-      return false;
-    } catch (error) {
-      console.error(`Erreur lors du chargement des données "${entityType}" depuis IndexedDB:`, error);
-      return false;
+  // Référence pour stocker les données en attente de synchronisation
+  const pendingData = useRef<T[]>([]);
+  const syncTimeoutRef = useRef<number | null>(null);
+  
+  // Réinitialiser le statut de synchronisation
+  const resetSyncStatus = useCallback(() => {
+    setStatus({
+      isSyncing: false,
+      syncFailed: false,
+      lastSynced: null
+    });
+  }, []);
+  
+  // Charger les données depuis le serveur
+  const loadFromServer = useCallback(async (config: SyncConfig): Promise<T[]> => {
+    if (!isOnline) {
+      console.log(`[${entityType}] Mode hors ligne, chargement depuis le serveur impossible`);
+      throw new Error('Impossible de charger les données en mode hors ligne');
     }
-  }, [entityType, onDataUpdate]);
-  
-  // Charger les données depuis l'API REST
-  const loadFromAPI = useCallback(async (userId: string): Promise<boolean> => {
-    if (!isOnline) return false;
     
-    setIsSyncing(true);
-    try {
-      // Trouver l'endpoint correspondant au type d'entité
-      const endpoint = SYNC_CONFIG.apiEndpoints[entityType as keyof typeof SYNC_CONFIG.apiEndpoints]?.load;
-      if (!endpoint) {
-        throw new Error(`Endpoint de chargement non configuré pour "${entityType}"`);
-      }
-      
-      const API_URL = getApiUrl();
-      const response = await fetch(`${API_URL}/${endpoint}?userId=${userId}`, {
-        method: 'GET',
-        headers: getAuthHeaders()
-      });
-      
-      if (!response.ok) {
-        throw new Error(`Erreur HTTP: ${response.status}`);
-      }
-      
-      const result = await response.json();
-      if (!result.success) {
-        throw new Error(result.message || 'Échec du chargement des données');
-      }
-      
-      // Les API peuvent renvoyer les données sous des noms différents
-      const responseData = result[entityType] || 
-                        result.data || 
-                        result[entityType + 's'] || 
-                        result.items ||
-                        [];
-                        
-      if (Array.isArray(responseData)) {
-        setData(responseData);
-        onDataUpdate?.(responseData);
+    if (status.isSyncing) {
+      console.log(`[${entityType}] Synchronisation déjà en cours, chargement annulé`);
+      throw new Error('Synchronisation déjà en cours');
+    }
+    
+    setStatus(prev => ({ ...prev, isSyncing: true }));
+    
+    const { endpoint, loadEndpoint = endpoint, userId, maxRetries = 1, retryDelay = 1000 } = config;
+    
+    let attempt = 0;
+    
+    while (attempt <= maxRetries) {
+      try {
+        const API_URL = getApiUrl();
+        const url = `${API_URL}/${loadEndpoint}?userId=${encodeURIComponent(userId)}`;
         
-        // Mettre en cache dans IndexedDB
-        await indexedDBService.saveData(entityType, responseData);
+        console.log(`[${entityType}] Tentative ${attempt + 1}/${maxRetries + 1} de chargement depuis ${url}`);
         
-        setLastSynced(new Date());
-        setSyncFailed(false);
-        return true;
-      } else {
-        throw new Error('Format de données invalide');
-      }
-    } catch (error) {
-      console.error(`Erreur lors du chargement des données "${entityType}" depuis l'API:`, error);
-      setSyncFailed(true);
-      return false;
-    } finally {
-      setIsSyncing(false);
-    }
-  }, [entityType, isOnline, onDataUpdate]);
-  
-  // Synchroniser les données avec le serveur via WebSocket ou API REST
-  const syncWithServer = useCallback(async (dataToSync: T[] = data): Promise<boolean> => {
-    if (!isOnline || isSyncing) return false;
-    
-    const userId = getCurrentUser();
-    if (!userId) {
-      console.error('Impossible de synchroniser: utilisateur non connecté');
-      return false;
-    }
-    
-    setIsSyncing(true);
-    
-    try {
-      // D'abord essayer via WebSocket si connecté
-      if (webSocketService.isConnected()) {
-        const syncSuccess = webSocketService.requestSync(entityType, dataToSync);
-        if (syncSuccess) {
-          console.log(`Demande de synchronisation "${entityType}" envoyée via WebSocket`);
-          // La réponse sera traitée par les écouteurs WebSocket
-          return true;
+        const response = await fetch(url, {
+          method: 'GET',
+          headers: getAuthHeaders()
+        });
+        
+        if (!response.ok) {
+          throw new Error(`Erreur HTTP: ${response.status}`);
         }
+        
+        const result = await response.json();
+        
+        if (!result.success && !Array.isArray(result)) {
+          throw new Error(result.message || `Échec du chargement des ${entityType}`);
+        }
+        
+        const data = Array.isArray(result) ? result : (result[entityType] || result.data || []);
+        
+        setStatus({
+          isSyncing: false,
+          syncFailed: false,
+          lastSynced: new Date()
+        });
+        
+        console.log(`[${entityType}] ${data.length} éléments chargés avec succès`);
+        lastSyncTime.current = Date.now();
+        
+        return data;
+      } catch (error) {
+        console.error(`[${entityType}] Erreur de chargement (tentative ${attempt + 1}/${maxRetries + 1}):`, error);
+        
+        if (attempt === maxRetries) {
+          setStatus({
+            isSyncing: false,
+            syncFailed: true,
+            lastSynced: null
+          });
+          throw error;
+        }
+        
+        // Attendre avant de réessayer
+        await new Promise(resolve => setTimeout(resolve, retryDelay));
+        attempt++;
       }
-      
-      // Fallback à l'API REST
-      const endpoint = SYNC_CONFIG.apiEndpoints[entityType as keyof typeof SYNC_CONFIG.apiEndpoints]?.sync;
-      if (!endpoint) {
-        throw new Error(`Endpoint de synchronisation non configuré pour "${entityType}"`);
+    }
+    
+    // Ce code ne devrait jamais être atteint grâce au throw dans le if (attempt === maxRetries)
+    throw new Error(`Échec du chargement après ${maxRetries} tentatives`);
+  }, [entityType, isOnline, status.isSyncing]);
+  
+  // Fonction pour planifier une synchronisation différée
+  const scheduleSyncWithServer = useCallback((data: T[], config: SyncConfig, options: SyncOptions = {}) => {
+    // Stocker les données à synchroniser
+    pendingData.current = data;
+    
+    // Annuler tout timeout existant
+    if (syncTimeoutRef.current !== null) {
+      window.clearTimeout(syncTimeoutRef.current);
+    }
+    
+    const now = Date.now();
+    const timeSinceLastSync = now - lastSyncTime.current;
+    
+    // Calculer le délai avant la prochaine synchronisation
+    let delay = 0;
+    if (!options.force && timeSinceLastSync < SYNC_DELAY) {
+      delay = SYNC_DELAY - timeSinceLastSync;
+    }
+    
+    console.log(`[${entityType}] Planification de la synchronisation dans ${delay}ms`);
+    
+    // Planifier la synchronisation
+    syncTimeoutRef.current = window.setTimeout(() => {
+      console.log(`[${entityType}] Exécution de la synchronisation différée`);
+      syncWithServer(pendingData.current, config, options);
+      syncTimeoutRef.current = null;
+    }, delay);
+    
+    return true;
+  }, [entityType]);
+  
+  // Synchroniser les données avec le serveur
+  const syncWithServer = useCallback(async (data: T[], config: SyncConfig, options: SyncOptions = {}): Promise<boolean> => {
+    // Vérifier si nous devons planifier une synchronisation différée
+    const now = Date.now();
+    const timeSinceLastSync = now - lastSyncTime.current;
+    
+    if (!options.force && timeSinceLastSync < SYNC_DELAY) {
+      return scheduleSyncWithServer(data, config, options);
+    }
+    
+    if (!isOnline) {
+      console.log(`[${entityType}] Mode hors ligne, synchronisation avec le serveur impossible`);
+      if (!options.silent) {
+        toast({
+          title: "Mode hors ligne",
+          description: "La synchronisation sera effectuée lorsque la connexion sera rétablie",
+          variant: "default"
+        });
       }
-      
+      return false;
+    }
+    
+    if (status.isSyncing) {
+      console.log(`[${entityType}] Synchronisation déjà en cours, nouvelle requête planifiée`);
+      return scheduleSyncWithServer(data, config, options);
+    }
+    
+    setStatus(prev => ({ ...prev, isSyncing: true }));
+    
+    const { endpoint, userId } = config;
+    
+    try {
       const API_URL = getApiUrl();
-      const validUserId = typeof userId === 'object' ? 
-        (userId.identifiant_technique || userId.email || 'p71x6d_system') : userId;
+      console.log(`[${entityType}] Synchronisation avec ${API_URL}/${endpoint}`);
       
       const response = await fetch(`${API_URL}/${endpoint}`, {
         method: 'POST',
@@ -148,8 +202,8 @@ export function useSync<T extends { id: string }>({
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          userId: validUserId,
-          [entityType]: dataToSync
+          userId,
+          [entityType]: data
         })
       });
       
@@ -158,366 +212,201 @@ export function useSync<T extends { id: string }>({
       }
       
       const result = await response.json();
+      
       if (!result.success) {
-        throw new Error(result.message || 'Échec de la synchronisation');
+        throw new Error(result.message || `Échec de la synchronisation de ${entityType}`);
       }
       
-      // Mettre à jour le statut
-      setLastSynced(new Date());
-      setSyncFailed(false);
-      
-      // Mettre en cache dans IndexedDB
-      await indexedDBService.saveData(entityType, dataToSync);
-      
-      toast({
-        title: 'Synchronisation réussie',
-        description: `Les données ont été synchronisées avec le serveur (${dataToSync.length} éléments)`
+      setStatus({
+        isSyncing: false,
+        syncFailed: false,
+        lastSynced: new Date()
       });
+      
+      console.log(`[${entityType}] Synchronisation réussie`);
+      lastSyncTime.current = Date.now();
+      
+      if (!options.silent) {
+        toast({
+          title: "Synchronisation réussie",
+          description: `Les ${entityType} ont été synchronisés avec le serveur`,
+        });
+      }
       
       return true;
     } catch (error) {
-      console.error(`Erreur lors de la synchronisation "${entityType}":`, error);
-      setSyncFailed(true);
+      console.error(`[${entityType}] Erreur lors de la synchronisation:`, error);
       
-      toast({
-        title: 'Erreur de synchronisation',
-        description: error instanceof Error ? error.message : 'Une erreur est survenue',
-        variant: 'destructive'
+      setStatus({
+        isSyncing: false,
+        syncFailed: true,
+        lastSynced: status.lastSynced
       });
       
+      if (!options.silent) {
+        toast({
+          title: "Erreur de synchronisation",
+          description: error instanceof Error ? error.message : "Une erreur est survenue",
+          variant: "destructive"
+        });
+      }
+      
       return false;
-    } finally {
-      setIsSyncing(false);
     }
-  }, [data, entityType, isOnline, isSyncing, toast]);
+  }, [entityType, isOnline, status, toast, scheduleSyncWithServer]);
   
-  // Réinitialiser le statut de synchronisation
-  const resetSyncStatus = useCallback(() => {
-    setSyncFailed(false);
-    
-    // Recharger les données
-    const userId = getCurrentUser();
-    if (userId && isOnline) {
-      loadFromAPI(typeof userId === 'object' ? 
-        (userId.identifiant_technique || userId.email || 'p71x6d_system') : userId);
-    }
-  }, [loadFromAPI, isOnline]);
-  
-  // Initialisation et configuration des écouteurs WebSocket
+  // Nettoyer les timeouts à la destruction du composant
   useEffect(() => {
-    const init = async () => {
-      // Initialiser IndexedDB
-      await indexedDBService.initDatabase();
-      
-      // Charger d'abord depuis le cache
-      const hasCachedData = await loadFromIndexedDB();
-      
-      // Connecter au WebSocket si en ligne
-      const userId = getCurrentUser();
-      if (userId && isOnline) {
-        const validUserId = typeof userId === 'object' ? 
-          (userId.identifiant_technique || userId.email || 'p71x6d_system') : userId;
-        
-        // Charger depuis l'API si pas de données en cache
-        if (!hasCachedData) {
-          await loadFromAPI(validUserId);
-        }
-        
-        // Connecter au WebSocket
-        webSocketService.connect(validUserId);
-        
-        // Initialiser le Service Worker
-        serviceWorkerManager.register();
-      }
-      
-      setIsInitialized(true);
-    };
-    
-    init();
-    
-    // Configuration des écouteurs WebSocket
-    const handleDataUpdate = (message: any) => {
-      if (message.entityType === entityType && Array.isArray(message.data)) {
-        console.log(`Mise à jour des données "${entityType}" reçue via WebSocket`);
-        setData(message.data);
-        onDataUpdate?.(message.data);
-        setLastSynced(new Date());
-      }
-    };
-    
-    webSocketService.subscribe(
-      `${WebSocketMessageType.DATA_UPDATE}:${entityType}`, 
-      handleDataUpdate
-    );
-    
-    // Nettoyer lors du démontage
     return () => {
-      webSocketService.unsubscribe(
-        `${WebSocketMessageType.DATA_UPDATE}:${entityType}`, 
-        handleDataUpdate
-      );
-    };
-  }, [entityType, loadFromIndexedDB, loadFromAPI, isOnline, onDataUpdate]);
-  
-  // Synchronisation périodique si autoSync est activé
-  useEffect(() => {
-    if (!autoSync || !isInitialized || !isOnline) return;
-    
-    const syncIntervalId = setInterval(() => {
-      if (!isSyncing && isOnline) {
-        syncWithServer().catch(console.error);
-      }
-    }, syncInterval);
-    
-    return () => clearInterval(syncIntervalId);
-  }, [autoSync, isInitialized, isOnline, isSyncing, syncWithServer, syncInterval]);
-  
-  // Gérer les changements d'état en ligne/hors ligne
-  useEffect(() => {
-    if (isOnline && isInitialized) {
-      // En reconnexion, synchroniser les données
-      const userId = getCurrentUser();
-      if (userId) {
-        const validUserId = typeof userId === 'object' ? 
-          (userId.identifiant_technique || userId.email || 'p71x6d_system') : userId;
-        
-        webSocketService.connect(validUserId);
-        
-        // Déclencher une synchronisation
-        if (data.length > 0) {
-          syncWithServer().catch(console.error);
-        } else {
-          loadFromAPI(validUserId).catch(console.error);
-        }
-      }
-    }
-  }, [isOnline, isInitialized, data.length, syncWithServer, loadFromAPI]);
-  
-  // Écouter les événements de synchronisation en arrière-plan
-  useEffect(() => {
-    const handleBackgroundSyncComplete = (event: Event) => {
-      const detail = (event as CustomEvent).detail;
-      if (detail.entityType === entityType) {
-        setLastSynced(new Date());
-        
-        // Recharger les données si nécessaire
-        const userId = getCurrentUser();
-        if (userId && isOnline) {
-          loadFromAPI(typeof userId === 'object' ? 
-            (userId.identifiant_technique || userId.email || 'p71x6d_system') : userId).catch(console.error);
-        }
+      if (syncTimeoutRef.current !== null) {
+        window.clearTimeout(syncTimeoutRef.current);
       }
     };
-    
-    window.addEventListener('background_sync_complete', handleBackgroundSyncComplete);
-    
-    return () => {
-      window.removeEventListener('background_sync_complete', handleBackgroundSyncComplete);
-    };
-  }, [entityType, loadFromAPI, isOnline]);
-  
-  // Mettre à jour IndexedDB quand les données changent
-  useEffect(() => {
-    if (isInitialized && data.length > 0) {
-      indexedDBService.saveData(entityType, data).catch(console.error);
-    }
-  }, [entityType, data, isInitialized]);
+  }, []);
   
   return {
-    data,
-    setData,
-    isSyncing,
-    syncFailed,
-    lastSynced,
+    ...status,
     isOnline,
-    isInitialized,
+    loadFromServer,
     syncWithServer,
-    loadFromAPI,
+    scheduleSyncWithServer,
     resetSyncStatus
   };
-}
+};
 
 /**
- * Hook pour gérer la synchronisation globale de l'application
+ * Hook global pour la synchronisation de toutes les données de l'application
  */
-export function useGlobalSync() {
-  const { isOnline } = useNetworkStatus();
-  const { toast } = useToast();
+export const useGlobalSync = () => {
   const [isGlobalSyncing, setIsGlobalSyncing] = useState(false);
   const [lastGlobalSync, setLastGlobalSync] = useState<Date | null>(null);
+  const [webSocketStatus, setWebSocketStatus] = useState<'connected' | 'disconnected' | 'connecting'>('disconnected');
   
-  // Synchroniser toutes les données
-  const syncAllData = useCallback(async (allData: Record<string, any[]> = {}): Promise<boolean> => {
-    if (!isOnline || isGlobalSyncing) {
+  const { isOnline } = useNetworkStatus();
+  const { toast } = useToast();
+  const lastGlobalSyncTime = useRef<number>(0);
+  const syncTimeoutRef = useRef<number | null>(null);
+  
+  // Fonction pour synchroniser toutes les données
+  const syncAllData = useCallback(async (data: Record<string, any[]> = {}) => {
+    // Vérifier si nous devons planifier une synchronisation différée
+    const now = Date.now();
+    const timeSinceLastSync = now - lastGlobalSyncTime.current;
+    
+    if (timeSinceLastSync < SYNC_DELAY) {
+      console.log(`[Global] Synchronisation demandée trop tôt, planification dans ${SYNC_DELAY - timeSinceLastSync}ms`);
+      
+      // Annuler tout timeout existant
+      if (syncTimeoutRef.current !== null) {
+        window.clearTimeout(syncTimeoutRef.current);
+      }
+      
+      return new Promise<boolean>(resolve => {
+        syncTimeoutRef.current = window.setTimeout(async () => {
+          console.log(`[Global] Exécution de la synchronisation globale différée`);
+          const result = await syncAllData(data);
+          resolve(result);
+          syncTimeoutRef.current = null;
+        }, SYNC_DELAY - timeSinceLastSync);
+      });
+    }
+    
+    if (!isOnline) {
+      console.log('[Global] Mode hors ligne, synchronisation impossible');
       toast({
-        title: isGlobalSyncing ? "Synchronisation en cours" : "Hors ligne",
-        description: isGlobalSyncing ?
-          "Une synchronisation est déjà en cours" :
-          "La synchronisation est impossible en mode hors ligne",
-        variant: "destructive"
+        title: "Mode hors ligne",
+        description: "La synchronisation sera effectuée lorsque la connexion sera rétablie",
+        variant: "default"
       });
       return false;
     }
     
-    const userId = getCurrentUser();
-    if (!userId) {
-      toast({
-        title: "Non authentifié",
-        description: "Vous devez être connecté pour synchroniser vos données",
-        variant: "destructive"
-      });
+    if (isGlobalSyncing) {
+      console.log('[Global] Synchronisation déjà en cours');
       return false;
     }
     
     setIsGlobalSyncing(true);
     
     try {
-      const validUserId = typeof userId === 'object' ?
-        (userId.identifiant_technique || userId.email || 'p71x6d_system') : userId;
+      // Synchroniser toutes les données de manière séquentielle
+      const types = Object.keys(data);
+      console.log(`[Global] Synchronisation de ${types.length} types de données: ${types.join(', ')}`);
       
-      // Connecter au WebSocket si pas déjà connecté
-      if (!webSocketService.isConnected()) {
-        webSocketService.connect(validUserId);
-      }
+      let allSuccess = true;
       
-      const syncPromises: Promise<boolean>[] = [];
-      
-      // Pour chaque type d'entité, synchroniser via l'API REST
-      Object.entries(allData).forEach(([entityType, items]) => {
-        if (!items || !Array.isArray(items) || items.length === 0) return;
-        
-        const endpoint = SYNC_CONFIG.apiEndpoints[entityType as keyof typeof SYNC_CONFIG.apiEndpoints]?.sync;
-        if (!endpoint) {
-          console.warn(`Endpoint de synchronisation non configuré pour "${entityType}"`);
-          return;
-        }
-        
-        // Créer une promesse pour chaque synchronisation
-        const syncPromise = (async () => {
+      if (types.length === 0) {
+        console.log('[Global] Aucune donnée à synchroniser');
+        // Quand même mettre à jour la date de dernière synchronisation car
+        // c'est peut-être juste un contrôle
+        setLastGlobalSync(new Date());
+        lastGlobalSyncTime.current = Date.now();
+      } else {
+        for (const type of types) {
           try {
+            console.log(`[Global] Synchronisation des ${type}...`);
             const API_URL = getApiUrl();
-            const response = await fetch(`${API_URL}/${endpoint}`, {
+            const userId = 'system'; // À adapter selon votre système
+            
+            const response = await fetch(`${API_URL}/${type}-sync.php`, {
               method: 'POST',
               headers: {
                 ...getAuthHeaders(),
                 'Content-Type': 'application/json'
               },
               body: JSON.stringify({
-                userId: validUserId,
-                [entityType]: items
+                userId,
+                [type]: data[type]
               })
             });
             
             if (!response.ok) {
-              throw new Error(`Erreur HTTP: ${response.status}`);
+              console.error(`[Global] Erreur HTTP lors de la synchronisation des ${type}: ${response.status}`);
+              allSuccess = false;
+              continue;
             }
             
             const result = await response.json();
+            
             if (!result.success) {
-              throw new Error(result.message || 'Échec de la synchronisation');
+              console.error(`[Global] Échec de la synchronisation des ${type}: ${result.message || 'Erreur inconnue'}`);
+              allSuccess = false;
+            } else {
+              console.log(`[Global] Synchronisation des ${type} réussie`);
             }
-            
-            // Mettre en cache dans IndexedDB
-            await indexedDBService.saveData(entityType, items);
-            
-            return true;
           } catch (error) {
-            console.error(`Erreur lors de la synchronisation "${entityType}":`, error);
-            return false;
+            console.error(`[Global] Erreur lors de la synchronisation des ${type}:`, error);
+            allSuccess = false;
           }
-        })();
+        }
         
-        syncPromises.push(syncPromise);
-      });
-      
-      // Attendre que toutes les synchronisations soient terminées
-      const results = await Promise.all(syncPromises);
-      const allSuccess = results.length > 0 && results.every(result => result === true);
-      
-      if (allSuccess) {
         setLastGlobalSync(new Date());
-        
-        toast({
-          title: "Synchronisation globale réussie",
-          description: "Toutes les données ont été synchronisées avec le serveur",
-        });
-      } else if (results.some(result => result === true)) {
-        setLastGlobalSync(new Date());
-        
-        toast({
-          title: "Synchronisation partielle",
-          description: "Certaines données ont été synchronisées avec succès",
-          variant: "default"
-        });
-      } else {
-        toast({
-          title: "Échec de synchronisation",
-          description: "Aucune données n'a pu être synchronisée",
-          variant: "destructive"
-        });
+        lastGlobalSyncTime.current = Date.now();
       }
       
       return allSuccess;
     } catch (error) {
-      console.error("Erreur lors de la synchronisation globale:", error);
-      
-      toast({
-        title: "Erreur de synchronisation",
-        description: error instanceof Error ? error.message : "Une erreur est survenue",
-        variant: "destructive"
-      });
-      
+      console.error('[Global] Erreur lors de la synchronisation globale:', error);
       return false;
     } finally {
       setIsGlobalSyncing(false);
     }
   }, [isOnline, isGlobalSyncing, toast]);
   
-  // Gérer les événements de connectivité réseau
+  // Nettoyer les timeouts à la destruction du composant
   useEffect(() => {
-    const handleOnline = () => {
-      console.log("Connexion réseau rétablie");
-      
-      // Reconnecter au WebSocket
-      const userId = getCurrentUser();
-      if (userId) {
-        const validUserId = typeof userId === 'object' ?
-          (userId.identifiant_technique || userId.email || 'p71x6d_system') : userId;
-        
-        webSocketService.connect(validUserId);
-        
-        toast({
-          title: "Connexion rétablie",
-          description: "La connexion réseau a été rétablie"
-        });
+    return () => {
+      if (syncTimeoutRef.current !== null) {
+        window.clearTimeout(syncTimeoutRef.current);
       }
     };
-    
-    const handleOffline = () => {
-      console.log("Connexion réseau perdue");
-      
-      toast({
-        title: "Mode hors ligne",
-        description: "La connexion réseau a été perdue. L'application fonctionne maintenant en mode hors ligne.",
-        variant: "destructive"
-      });
-    };
-    
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
-    
-    return () => {
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
-    };
-  }, [toast]);
+  }, []);
   
   return {
-    syncAllData,
     isGlobalSyncing,
     lastGlobalSync,
+    syncAllData,
     isOnline,
-    webSocketStatus: webSocketService.isConnected() ? 'connected' : 'disconnected',
-    serviceWorkerActive: serviceWorkerManager.isActive()
+    webSocketStatus
   };
-}
+};

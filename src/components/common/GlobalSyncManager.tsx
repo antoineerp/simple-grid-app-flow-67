@@ -1,5 +1,5 @@
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { useGlobalSync } from '@/hooks/useSync';
 import SyncStatusIndicator from '@/components/common/SyncStatusIndicator';
@@ -25,9 +25,22 @@ const GlobalSyncManager: React.FC<GlobalSyncManagerProps> = ({
 }) => {
   const { toast } = useToast();
   const { isOnline } = useNetworkStatus();
+  const [wsStatus, setWsStatus] = useState<'connected' | 'disconnected' | 'connecting'>('disconnected');
   
   // Utiliser le hook de synchronisation global
   const globalSync = useGlobalSync();
+
+  // Effet pour suivre l'état de la connexion WebSocket
+  useEffect(() => {
+    // Transformer le webSocketStatus string en un type valide
+    if (globalSync.webSocketStatus === 'connected') {
+      setWsStatus('connected');
+    } else if (globalSync.webSocketStatus === 'connecting') {
+      setWsStatus('connecting');
+    } else {
+      setWsStatus('disconnected');
+    }
+  }, [globalSync.webSocketStatus]);
 
   // Effectuer une synchronisation en réponse à un changement d'état du réseau
   useEffect(() => {
@@ -88,7 +101,7 @@ const GlobalSyncManager: React.FC<GlobalSyncManagerProps> = ({
           isSyncing={globalSync.isGlobalSyncing}
           isOnline={isOnline}
           lastSynced={globalSync.lastGlobalSync}
-          webSocketStatus={globalSync.webSocketStatus as 'connected' | 'disconnected' | 'connecting'}
+          webSocketStatus={wsStatus}
         />
       )}
       

@@ -1,0 +1,217 @@
+
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Test des Types MIME</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+      line-height: 1.6;
+    }
+    h1, h2 {
+      color: #1a56db;
+    }
+    .success {
+      color: #03543f;
+      background: #def7ec;
+      padding: 8px 12px;
+      border-radius: 4px;
+      font-weight: 500;
+    }
+    .error {
+      color: #9b1c1c;
+      background: #fde8e8;
+      padding: 8px 12px;
+      border-radius: 4px;
+      font-weight: 500;
+    }
+    .card {
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      padding: 16px;
+      margin-bottom: 16px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    button {
+      background: #1a56db;
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    button:hover {
+      background: #1e429f;
+    }
+    code {
+      background: #f9fafb;
+      padding: 2px 4px;
+      border-radius: 4px;
+      font-family: monospace;
+    }
+    #results {
+      white-space: pre-wrap;
+      background: #f9fafb;
+      padding: 16px;
+      border-radius: 4px;
+      font-family: monospace;
+      overflow: auto;
+    }
+  </style>
+</head>
+<body>
+  <h1>Test des Types MIME</h1>
+  
+  <div class="card">
+    <h2>1. Test du Service Worker</h2>
+    <p>Vérifie si le Service Worker peut être enregistré correctement.</p>
+    <button id="test-sw">Tester l'enregistrement du Service Worker</button>
+    <div id="sw-result" class="mt-2"></div>
+  </div>
+  
+  <div class="card">
+    <h2>2. Test des requêtes AJAX</h2>
+    <p>Vérifie si les API PHP sont accessibles.</p>
+    <button id="test-api">Tester l'accès à l'API</button>
+    <div id="api-result" class="mt-2"></div>
+  </div>
+  
+  <div class="card">
+    <h2>3. Test des types MIME</h2>
+    <p>Vérifie les types MIME retournés pour différents fichiers.</p>
+    <button id="test-mime">Tester les types MIME</button>
+    <div id="mime-result" class="mt-2"></div>
+  </div>
+  
+  <div class="card">
+    <h2>Résultats détaillés</h2>
+    <div id="results">Les résultats apparaîtront ici...</div>
+  </div>
+  
+  <script>
+    document.getElementById('test-sw').addEventListener('click', async () => {
+      const swResult = document.getElementById('sw-result');
+      const results = document.getElementById('results');
+      
+      try {
+        if (!('serviceWorker' in navigator)) {
+          swResult.innerHTML = '<span class="error">Service Worker non supporté par ce navigateur</span>';
+          return;
+        }
+        
+        swResult.innerHTML = 'Test en cours...';
+        results.textContent = 'Tentative d\'enregistrement du Service Worker...';
+        
+        // Ajouter un timestamp pour éviter la mise en cache
+        const registration = await navigator.serviceWorker.register('/sync-service-worker.js?v=' + Date.now(), {
+          scope: '/'
+        });
+        
+        swResult.innerHTML = '<span class="success">Service Worker enregistré avec succès!</span>';
+        results.textContent += '\nService Worker enregistré avec succès!\nScope: ' + registration.scope;
+      } catch (error) {
+        swResult.innerHTML = '<span class="error">Échec de l\'enregistrement du Service Worker</span>';
+        results.textContent += '\nErreur: ' + error.message;
+        
+        if (error.message.includes('MIME type')) {
+          results.textContent += '\n\nErreur de type MIME détectée. Vérifiez que le serveur sert correctement les fichiers JavaScript avec Content-Type: application/javascript.';
+        }
+      }
+    });
+    
+    document.getElementById('test-api').addEventListener('click', async () => {
+      const apiResult = document.getElementById('api-result');
+      const results = document.getElementById('results');
+      
+      try {
+        apiResult.innerHTML = 'Test en cours...';
+        results.textContent = 'Tentative d\'accès à l\'API...';
+        
+        const response = await fetch('/api/info.php?_t=' + Date.now());
+        
+        if (!response.ok) {
+          throw new Error(`HTTP error! Status: ${response.status}`);
+        }
+        
+        const contentType = response.headers.get('content-type');
+        const data = await response.text();
+        
+        apiResult.innerHTML = '<span class="success">API accessible!</span>';
+        results.textContent += '\nAPI accessible!\nContent-Type: ' + contentType;
+        results.textContent += '\nRéponse: ' + data.substring(0, 100) + '...';
+        
+        try {
+          JSON.parse(data);
+          results.textContent += '\nLa réponse est un JSON valide.';
+        } catch (e) {
+          results.textContent += '\nLa réponse n\'est pas un JSON valide. Vérifiez la configuration PHP.';
+        }
+      } catch (error) {
+        apiResult.innerHTML = '<span class="error">Échec d\'accès à l\'API</span>';
+        results.textContent += '\nErreur: ' + error.message;
+      }
+    });
+    
+    document.getElementById('test-mime').addEventListener('click', async () => {
+      const mimeResult = document.getElementById('mime-result');
+      const results = document.getElementById('results');
+      
+      try {
+        mimeResult.innerHTML = 'Test en cours...';
+        results.textContent = 'Vérification des types MIME...';
+        
+        // Liste des fichiers à vérifier
+        const files = [
+          '/sync-service-worker.js',
+          '/assets/index.js',
+          '/assets/index.css',
+          '/api/info.php'
+        ];
+        
+        const mimeResults = {};
+        
+        for (const file of files) {
+          try {
+            const response = await fetch(file, { method: 'HEAD' });
+            mimeResults[file] = {
+              status: response.status,
+              contentType: response.headers.get('content-type')
+            };
+          } catch (error) {
+            mimeResults[file] = {
+              error: error.message
+            };
+          }
+        }
+        
+        mimeResult.innerHTML = '<span class="success">Test des types MIME terminé</span>';
+        
+        results.textContent = 'Résultats des tests MIME:\n\n';
+        for (const [file, result] of Object.entries(mimeResults)) {
+          results.textContent += `${file}:\n`;
+          if (result.error) {
+            results.textContent += `  Erreur: ${result.error}\n`;
+          } else {
+            results.textContent += `  Status: ${result.status}\n`;
+            results.textContent += `  Content-Type: ${result.contentType}\n`;
+            
+            // Vérifier si le type MIME est correct pour les fichiers JS
+            if (file.endsWith('.js') && !result.contentType?.includes('javascript')) {
+              results.textContent += `  ⚠️ PROBLÈME: Fichier JavaScript avec type MIME incorrect!\n`;
+            }
+          }
+          results.textContent += '\n';
+        }
+      } catch (error) {
+        mimeResult.innerHTML = '<span class="error">Échec du test des types MIME</span>';
+        results.textContent += '\nErreur: ' + error.message;
+      }
+    });
+  </script>
+</body>
+</html>

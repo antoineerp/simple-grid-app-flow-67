@@ -1,17 +1,20 @@
 
 // Service Worker pour la synchronisation en arrière-plan
-const CACHE_NAME = 'app-sync-cache-v1';
+const CACHE_NAME = 'app-sync-cache-v2';
 const DB_NAME = 'appSyncDB';
 const DB_VERSION = 1;
+const SYNC_DELAY = 10000; // 10 secondes entre chaque tentative de synchronisation
 
 // Liste des ressources à mettre en cache
 const CACHE_ASSETS = [
   '/',
   '/index.html',
   '/offline.html',
-  '/favicon.ico',
-  '/manifest.json'
+  '/favicon.ico'
 ];
+
+// Stockage des tentatives de synchronisation
+const syncAttempts = new Map();
 
 // Installation du Service Worker
 self.addEventListener('install', (event) => {
@@ -49,7 +52,12 @@ self.addEventListener('activate', (event) => {
 
 // Intercepter les requêtes fetch
 self.addEventListener('fetch', (event) => {
-  // Stratégie network-first pour les API
+  // Ne pas intercepter les requêtes POST
+  if (event.request.method === 'POST') {
+    return;
+  }
+  
+  // Stratégie pour les API
   if (event.request.url.includes('/api/') || event.request.url.includes('.php')) {
     event.respondWith(
       fetch(event.request)
@@ -67,7 +75,7 @@ self.addEventListener('fetch', (event) => {
         })
     );
   } else {
-    // Stratégie cache-first pour les ressources statiques
+    // Stratégie pour les ressources statiques
     event.respondWith(
       caches.match(event.request)
         .then(cachedResponse => {
@@ -82,9 +90,12 @@ self.addEventListener('fetch', (event) => {
             })
             .catch(() => {
               // Si c'est une page HTML, retourner la page offline
-              if (event.request.headers.get('Accept').includes('text/html')) {
+              if (event.request.headers.get('Accept')?.includes('text/html')) {
                 return caches.match('/offline.html');
               }
+              
+              // Sinon, propager l'erreur
+              throw new Error('Ressource non disponible en mode hors ligne');
             });
         })
     );
@@ -98,6 +109,16 @@ self.addEventListener('sync', (event) => {
   // Traiter les différents types de synchronisation
   if (event.tag.startsWith('sync:')) {
     const syncType = event.tag.replace('sync:', '');
+    const lastAttempt = syncAttempts.get(syncType) || 0;
+    const now = Date.now();
+    
+    // Limiter la fréquence des tentatives de synchronisation
+    if (now - lastAttempt < SYNC_DELAY) {
+      console.log(`[Service Worker] Tentative de synchronisation trop fréquente pour ${syncType}, ignorée`);
+      return;
+    }
+    
+    syncAttempts.set(syncType, now);
     event.waitUntil(performSync(syncType));
   }
 });
@@ -107,7 +128,24 @@ self.addEventListener('message', (event) => {
   console.log('[Service Worker] Message reçu:', event.data);
   
   if (event.data.type === 'manual_sync') {
-    event.waitUntil(performSync(event.data.syncType));
+    const syncType = event.data.syncType;
+    const lastAttempt = syncAttempts.get(syncType) || 0;
+    const now = Date.now();
+    
+    // Limiter la fréquence des tentatives de synchronisation
+    if (now - lastAttempt < SYNC_DELAY) {
+      console.log(`[Service Worker] Tentative de synchronisation manuelle trop fréquente pour ${syncType}, ignorée`);
+      notifyClients({
+        type: 'sync_throttled',
+        entityType: syncType,
+        message: 'Synchronisation ignorée (trop fréquente)',
+        nextAttemptIn: SYNC_DELAY - (now - lastAttempt)
+      });
+      return;
+    }
+    
+    syncAttempts.set(syncType, now);
+    event.waitUntil(performSync(syncType));
   }
 });
 
@@ -120,7 +158,7 @@ async function performSync(syncType) {
     const db = await openDatabase();
     const data = await loadDataFromIndexedDB(db, syncType);
     
-    if (!data.length) {
+    if (!data || !Array.isArray(data) || data.length === 0) {
       console.log(`[Service Worker] Aucune donnée à synchroniser pour: ${syncType}`);
       notifyClients({ 
         type: 'sync_complete',
@@ -131,30 +169,30 @@ async function performSync(syncType) {
       return;
     }
     
-    // Récupérer les informations d'authentification depuis les cookies
-    const allCookies = document.cookie.split(';').reduce((cookies, cookie) => {
-      const [name, value] = cookie.split('=').map(c => c.trim());
-      cookies[name] = value;
-      return cookies;
-    }, {});
-    
-    const authToken = allCookies['authToken'] || '';
+    // Récupérer les informations d'authentification
+    const authInfo = await getAuthInfo();
     
     // Envoyer les données au serveur
-    const response = await fetch(`/api/${syncType}-sync.php`, {
+    const apiUrl = self.location.origin + '/api';
+    const endpoint = `${apiUrl}/${syncType}-sync.php`;
+    
+    console.log(`[Service Worker] Envoi de la synchronisation à ${endpoint}`);
+    
+    const response = await fetch(endpoint, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': authToken ? `Bearer ${authToken}` : ''
+        'Authorization': authInfo.authToken ? `Bearer ${authInfo.authToken}` : ''
       },
       body: JSON.stringify({
-        userId: allCookies['userId'] || 'p71x6d_system',
+        userId: authInfo.userId || 'system',
         [syncType]: data
       })
     });
     
     if (!response.ok) {
-      throw new Error(`Erreur HTTP: ${response.status}`);
+      const errorText = await response.text();
+      throw new Error(`Erreur HTTP: ${response.status} - ${errorText}`);
     }
     
     const result = await response.json();
@@ -181,6 +219,33 @@ async function performSync(syncType) {
       message: `Erreur: ${error.message}`
     });
   }
+}
+
+// Récupérer les informations d'authentification
+async function getAuthInfo() {
+  // Essayer de récupérer depuis le localStorage (via les clients)
+  const clients = await self.clients.matchAll();
+  
+  if (clients.length > 0) {
+    try {
+      const response = await clients[0].postMessage({
+        type: 'get_auth_info',
+        requestId: Date.now()
+      });
+      
+      if (response && response.authToken) {
+        return response;
+      }
+    } catch (error) {
+      console.error('[Service Worker] Erreur lors de la récupération des infos d\'authentification:', error);
+    }
+  }
+  
+  // Par défaut, retourner un objet vide
+  return {
+    userId: 'system',
+    authToken: ''
+  };
 }
 
 // Ouvrir la base de données IndexedDB
@@ -219,17 +284,23 @@ function loadDataFromIndexedDB(db, storeName) {
       return;
     }
     
-    const transaction = db.transaction(storeName, 'readonly');
-    const store = transaction.objectStore(storeName);
-    const request = store.getAll();
-    
-    request.onsuccess = () => {
-      resolve(request.result);
-    };
-    
-    request.onerror = () => {
-      reject(new Error(`Erreur de lecture des données depuis "${storeName}"`));
-    };
+    try {
+      const transaction = db.transaction(storeName, 'readonly');
+      const store = transaction.objectStore(storeName);
+      const request = store.getAll();
+      
+      request.onsuccess = () => {
+        resolve(request.result || []);
+      };
+      
+      request.onerror = (event) => {
+        console.error(`[Service Worker] Erreur lors de la lecture depuis "${storeName}":`, event);
+        reject(new Error(`Erreur de lecture des données depuis "${storeName}"`));
+      };
+    } catch (error) {
+      console.error(`[Service Worker] Exception lors de l'accès à "${storeName}":`, error);
+      reject(error);
+    }
   });
 }
 
