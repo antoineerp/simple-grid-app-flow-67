@@ -98,13 +98,9 @@ jobs:
           echo "Fichier env.php créé manuellement"
         fi
         
-        # Copie explicite des fichiers API
-        if [ -d "api" ]; then
-          echo "Copie des fichiers API..."
-          cp -r api/* deploy/api/
-        else
-          echo "Dossier API non trouvé"
-        fi
+        # Copie récursive de tous les fichiers du dossier API
+        echo "Copie complète du dossier API..."
+        cp -r api/* deploy/api/
         
         # Vérification des fichiers PHP cruciaux sont bien copiés
         echo "Vérification des fichiers PHP cruciaux :"
