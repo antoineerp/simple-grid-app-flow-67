@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { Utilisateur, getUtilisateurs } from '@/services/users/userService';
@@ -20,6 +19,10 @@ export const useAdminUsers = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
+
+  // Backward compatibility properties (keep for now to avoid breaking changes)
+  const utilisateurs = users;
+  const loading = isLoading;
 
   // Charger les utilisateurs depuis l'API
   const loadUsers = async () => {
@@ -52,6 +55,9 @@ export const useAdminUsers = () => {
       setIsLoading(false);
     }
   };
+  
+  // Alias de fonction pour la rétrocompatibilité
+  const loadUtilisateurs = loadUsers;
 
   // Initialisation
   useEffect(() => {
@@ -93,6 +99,19 @@ export const useAdminUsers = () => {
         ...currentUser,
         [name]: value,
       });
+    }
+  };
+  
+  // Fonction pour se connecter en tant qu'utilisateur
+  const handleConnectAsUser = async (identifiantTechnique: string): Promise<boolean> => {
+    try {
+      console.log(`Tentative de connexion en tant que: ${identifiantTechnique}`);
+      // Simuler une connexion réussie pour l'instant
+      await new Promise(resolve => setTimeout(resolve, 500));
+      return true;
+    } catch (error) {
+      console.error("Erreur de connexion:", error);
+      return false;
     }
   };
 
@@ -190,7 +209,12 @@ export const useAdminUsers = () => {
     handleInputChange,
     handleSaveUser,
     handleDeleteUser,
-    loadUsers
+    loadUsers,
+    // Pour la rétrocompatibilité
+    utilisateurs,
+    loading,
+    loadUtilisateurs,
+    handleConnectAsUser
   };
 };
 

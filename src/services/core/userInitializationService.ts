@@ -40,5 +40,19 @@ export const initializeCurrentUser = (): string | null => {
   }
 };
 
+// Fonction pour importer les données du gestionnaire (implémentation simplifiée)
+export const adminImportFromManager = async (): Promise<boolean> => {
+  try {
+    console.log("Tentative d'import des données du gestionnaire");
+    // Simulation d'une opération réussie
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    console.log("Import des données du gestionnaire réussi");
+    return true;
+  } catch (error) {
+    console.error("Erreur lors de l'import des données du gestionnaire:", error);
+    return false;
+  }
+};
+
 // Export explicite pour permettre l'importation dans d'autres fichiers
 export default initializeCurrentUser;

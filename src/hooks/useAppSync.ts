@@ -51,6 +51,9 @@ export const useAppSync = () => {
     setIsGlobalSyncing(true);
     try {
       const allPromises = [];
+      const userId = typeof currentUser === 'object' ? 
+        currentUser.identifiant_technique || currentUser.email || 'default_user' : 
+        currentUser;
 
       // Synchroniser les documents si fournis
       if (options.documents) {
@@ -58,7 +61,7 @@ export const useAppSync = () => {
           endpoint: 'documents-sync.php',
           loadEndpoint: 'documents-load.php',
           data: options.documents,
-          userId: currentUser
+          userId: userId
         }));
       }
 
@@ -68,7 +71,7 @@ export const useAppSync = () => {
           endpoint: 'membres-sync.php',
           loadEndpoint: 'membres-load.php',
           data: options.membres,
-          userId: currentUser,
+          userId: userId,
           dataName: 'membres'
         }));
       }
@@ -79,7 +82,7 @@ export const useAppSync = () => {
           endpoint: 'exigences-sync.php',
           loadEndpoint: 'exigences-load.php',
           data: options.exigences,
-          userId: currentUser,
+          userId: userId,
           dataName: 'exigences'
         }));
       }
@@ -90,7 +93,7 @@ export const useAppSync = () => {
           endpoint: 'bibliotheque-sync.php',
           loadEndpoint: 'bibliotheque-load.php',
           data: options.bibliotheque,
-          userId: currentUser,
+          userId: userId,
           dataName: 'ressources'
         }));
       }

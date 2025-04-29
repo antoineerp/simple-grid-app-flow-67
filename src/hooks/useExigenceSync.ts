@@ -11,7 +11,7 @@ export const useExigenceSync = () => {
   const { toast } = useToast();
   const [syncAttempts, setSyncAttempts] = useState(0);
   
-  const syncWithServer = async (exigences: Exigence[], userId: any, groups: ExigenceGroup[] = []) => {
+  const syncWithServer = async (exigences: Exigence[], userId: string | object, groups: ExigenceGroup[] = []) => {
     if (!isOnline || syncService.isSyncing) return false;
     
     if (syncService.syncFailed && syncAttempts >= 3) {
@@ -22,12 +22,13 @@ export const useExigenceSync = () => {
     try {
       console.log(`Début de la synchronisation pour ${userId} avec ${exigences.length} exigences et ${groups.length} groupes`);
       
+      // Adaptation pour utiliser additionalData
       const success = await syncService.syncWithServer({
         endpoint: 'exigences-sync.php',
         loadEndpoint: 'exigences-load.php',
         data: exigences,
         userId: userId,
-        additionalData: { groups }
+        additionalData: { groups } // Utilisation correcte de additionalData
       });
       
       if (success) {
@@ -46,7 +47,7 @@ export const useExigenceSync = () => {
     }
   };
 
-  const loadFromServer = async (userId: any) => {
+  const loadFromServer = async (userId: string | object) => {
     try {
       console.log(`Chargement des exigences pour l'utilisateur ${userId} depuis le serveur`);
       

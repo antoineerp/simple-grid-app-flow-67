@@ -15,7 +15,15 @@ export default defineConfig(({ mode }) => {
       strictPort: true,
       hmr: {
         clientPort: 443
-      }
+      },
+      // Ajout de la configuration pour autoriser tous les hôtes
+      cors: true,
+      proxy: {},
+    },
+    preview: {
+      // Également autoriser tous les hôtes pour le mode preview
+      port: 8080,
+      host: true,
     },
     plugins: [
       react(),
@@ -57,6 +65,12 @@ export default defineConfig(({ mode }) => {
     base: basePath,
     optimizeDeps: {
       include: ['jspdf', 'jspdf-autotable']
+    },
+    // Ajout de la configuration des hôtes autorisés
+    envPrefix: 'VITE_',
+    server: {
+      host: true, // Autoriser tous les hôtes
+      allowedHosts: 'all', // Explicitement autoriser tous les hôtes
     }
   };
 });
