@@ -7,24 +7,35 @@ import { useDocumentMutations } from '@/features/documents/hooks/useDocumentMuta
 import { useDocumentGroups } from '@/features/documents/hooks/useDocumentGroups';
 import { getCurrentUser } from '@/services/core/databaseConnectionService';
 import { useSync } from './useSync';
+import { useGlobalData } from '@/contexts/GlobalDataContext';
+import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 
 export const useDocuments = () => {
   const { toast } = useToast();
-  const currentUser = getCurrentUser() || 'p71x6d_system';
+  const { isOnline } = useNetworkStatus();
   
-  console.log("Current user dans useDocuments:", currentUser);
+  // Utiliser le contexte global au lieu des états locaux
+  const { 
+    documents, 
+    setDocuments, 
+    documentGroups: groups, 
+    setDocumentGroups: setGroups,
+    lastSynced,
+    setLastSynced,
+    syncFailed,
+    setSyncFailed,
+    isSyncing,
+    setIsSyncing
+  } = useGlobalData();
   
-  const [documents, setDocuments] = useState<Document[]>([]);
-  const [groups, setGroups] = useState<DocumentGroup[]>([]);
   const [editingDocument, setEditingDocument] = useState<Document | null>(null);
   const [editingGroup, setEditingGroup] = useState<DocumentGroup | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [groupDialogOpen, setGroupDialogOpen] = useState(false);
   const [stats, setStats] = useState<DocumentStats>(() => calculateDocumentStats(documents));
-  const [isInitialized, setIsInitialized] = useState(false);
-  
-  // Utilisation du hook de synchronisation central
-  const { isSyncing, syncFailed, lastSynced, syncAndProcess } = useSync('documents');
+
+  // Utiliser le hook de synchronisation central, mais avec les états du contexte global
+  const { syncAndProcess } = useSync('documents');
 
   useEffect(() => {
     setStats(calculateDocumentStats(documents));
@@ -32,13 +43,25 @@ export const useDocuments = () => {
 
   const syncWithServer = async (): Promise<boolean> => {
     try {
+      setIsSyncing(true);
       const result = await syncAndProcess({
         tableName: 'documents',
         data: documents
       });
+      
+      if (result.success) {
+        setLastSynced(new Date());
+        setSyncFailed(false);
+      } else {
+        setSyncFailed(true);
+      }
+      
+      setIsSyncing(false);
       return result.success;
     } catch (error) {
       console.error("Erreur lors de la synchronisation des documents:", error);
+      setSyncFailed(true);
+      setIsSyncing(false);
       return false;
     }
   };
@@ -78,7 +101,7 @@ export const useDocuments = () => {
         description: `Le document ${newDoc.id} a été mis à jour avec succès`,
       });
     },
-    [toast]
+    [toast, setDocuments]
   );
 
   const handleAddDocument = useCallback(() => {
@@ -97,8 +120,7 @@ export const useDocuments = () => {
       date_modification: new Date()
     };
     
-    const newDocuments = [...documents, newDocument];
-    setDocuments(newDocuments);
+    setDocuments(prev => [...prev, newDocument]);
     
     syncWithServer().catch(error => {
       console.error("Erreur lors de la synchronisation après ajout:", error);
@@ -108,7 +130,7 @@ export const useDocuments = () => {
       title: "Nouveau document",
       description: `Le document ${newId} a été ajouté`,
     });
-  }, [documents, toast]);
+  }, [documents, toast, setDocuments]);
 
   const handleReorder = useCallback((startIndex: number, endIndex: number, targetGroupId?: string) => {
     setDocuments(prev => {
@@ -127,7 +149,7 @@ export const useDocuments = () => {
       
       return result;
     });
-  }, []);
+  }, [setDocuments]);
 
   const handleAddGroup = useCallback(() => {
     setEditingGroup(null);
@@ -150,6 +172,7 @@ export const useDocuments = () => {
     isSyncing,
     syncFailed,
     lastSynced,
+    isOnline,
     setDialogOpen,
     setGroupDialogOpen,
     ...documentMutations,

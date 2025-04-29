@@ -1,13 +1,13 @@
 
 import React, { useState, useEffect } from 'react';
-import { BibliothequeHeader } from '@/features/bibliotheque/components/BibliothequeHeader';
 import { Card, CardContent } from '@/components/ui/card';
-import { useDataSync } from '@/hooks/useDataSync';
-import { triggerSync } from '@/services/sync/triggerSync';
 import { useToast } from '@/hooks/use-toast';
 import { AlertCircle, Plus, FolderPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import SyncIndicator from '@/components/common/SyncIndicator';
+import { useGlobalData } from '@/contexts/GlobalDataContext';
+import { useNetworkStatus } from '@/hooks/useNetworkStatus';
+import { triggerSync } from '@/services/sync/triggerSync';
 
 interface Document {
   id: string;
@@ -21,60 +21,52 @@ interface Document {
 const Collaboration = () => {
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
-  const { 
-    data: documents, 
-    syncData, 
-    loadData,
-    saveLocalData,
-    status,
-    lastError,
-    pendingChanges,
-    isOnline,
-    lastSynced
-  } = useDataSync<Document>('bibliotheque');
+  const { isOnline } = useNetworkStatus();
   
-  const syncFailed = status === 'error';
-  const isSyncing = isLoading || status === 'syncing';
-
+  // Utiliser le contexte global
+  const {
+    bibliothequeDocuments: documents,
+    setBibliothequeDocuments: setDocuments,
+    lastSynced,
+    setLastSynced,
+    syncFailed,
+    setSyncFailed,
+    isSyncing,
+    setIsSyncing
+  } = useGlobalData();
+  
   useEffect(() => {
-    const initialize = async () => {
-      setIsLoading(true);
-      try {
-        await loadData({ showToast: false });
-        console.log("Documents chargés:", documents.length);
-      } catch (error) {
-        console.error("Erreur lors du chargement des documents:", error);
-        toast({
-          title: "Erreur de chargement",
-          description: "Les documents n'ont pas pu être chargés correctement.",
-          variant: "destructive"
-        });
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    initialize();
-    
-    // Essayer de synchroniser automatiquement lors du premier chargement
-    if (isOnline) {
-      syncData().catch(err => {
-        console.warn("Erreur lors de la synchronisation initiale:", err);
-      });
-    }
-  }, [loadData, syncData, isOnline, toast, documents.length]);
+    // Initialisation
+    setIsLoading(false);
+  }, []);
 
   const handleSync = async (): Promise<void> => {
     try {
       setIsLoading(true);
-      await syncData();
-      toast({
-        title: "Synchronisation réussie",
-        description: "Les documents ont été synchronisés avec succès.",
-      });
+      setIsSyncing(true);
+      
+      const result = await triggerSync.synchronizeAllPending();
+      
+      if (Object.values(result).some(success => success)) {
+        setLastSynced(new Date());
+        setSyncFailed(false);
+        toast({
+          title: "Synchronisation réussie",
+          description: "Les documents ont été synchronisés avec succès.",
+        });
+      } else {
+        setSyncFailed(true);
+        toast({
+          title: "Erreur de synchronisation",
+          description: "La synchronisation a échoué.",
+          variant: "destructive"
+        });
+      }
+      
       return Promise.resolve();
     } catch (error) {
       console.error("Erreur lors de la synchronisation:", error);
+      setSyncFailed(true);
       toast({
         title: "Erreur de synchronisation",
         description: "La synchronisation a échoué.",
@@ -83,6 +75,7 @@ const Collaboration = () => {
       return Promise.reject(error);
     } finally {
       setIsLoading(false);
+      setIsSyncing(false);
     }
   };
   
@@ -95,11 +88,10 @@ const Collaboration = () => {
       date_creation: new Date().toISOString()
     };
     
-    const newDocuments = [...documents, newDocument];
-    saveLocalData(newDocuments);
+    setDocuments([...documents, newDocument]);
     
     // Notifier le système de synchronisation global
-    triggerSync.notifyDataChange('bibliotheque', newDocuments);
+    triggerSync.notifyDataChange('bibliotheque', [...documents, newDocument]);
     
     toast({
       title: "Document ajouté",
