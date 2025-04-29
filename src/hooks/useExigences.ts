@@ -121,7 +121,8 @@ export const useExigences = () => {
     handleSaveExigence,
     handleAddGroup,
     handleEditGroup,
-    handleSaveGroup: groupOperations.handleSaveGroup,
+    // Fix: The handleSaveGroup expects a second boolean parameter
+    handleSaveGroup: (group: ExigenceGroup) => groupOperations.handleSaveGroup(group, !!editingGroup),
     handleDeleteGroup: groupOperations.handleDeleteGroup,
     handleToggleGroup: groupOperations.handleToggleGroup,
     handleReorder,
