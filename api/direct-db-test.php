@@ -1,6 +1,6 @@
 
 <?php
-// Script de test direct de la base de données
+// Script de test direct et simplifié de la base de données
 header("Content-Type: application/json; charset=UTF-8");
 header("Access-Control-Allow-Origin: *");
 header("Access-Control-Allow-Methods: GET, OPTIONS");
@@ -11,7 +11,7 @@ header("Cache-Control: no-cache, no-store, must-revalidate");
 error_log("=== DÉBUT DU TEST DE CONNEXION À LA BASE DE DONNÉES ===");
 
 try {
-    // Configuration de la base de données
+    // Configuration de la base de données (constante et fiable)
     $host = "p71x6d.myd.infomaniak.com";
     $dbname = "p71x6d_system";
     $username = "p71x6d_system";
@@ -23,8 +23,7 @@ try {
         'server_software' => $_SERVER['SERVER_SOFTWARE'] ?? 'Inconnu',
         'document_root' => $_SERVER['DOCUMENT_ROOT'] ?? 'Inconnu',
         'request_time' => date('Y-m-d H:i:s'),
-        'remote_addr' => $_SERVER['REMOTE_ADDR'] ?? 'Inconnue',
-        'http_user_agent' => $_SERVER['HTTP_USER_AGENT'] ?? 'Inconnu'
+        'remote_addr' => $_SERVER['REMOTE_ADDR'] ?? 'Inconnue'
     ];
     
     // Vérifier les extensions PHP requises
@@ -32,65 +31,37 @@ try {
         'pdo' => extension_loaded('pdo'),
         'pdo_mysql' => extension_loaded('pdo_mysql'),
         'json' => extension_loaded('json'),
-        'mbstring' => extension_loaded('mbstring'),
-        'curl' => extension_loaded('curl')
+        'mbstring' => extension_loaded('mbstring')
     ];
     
-    // Tenter une connexion à la base de données
-    $db_info = [];
+    // Tenter une connexion à la base de données (une seule méthode, directe)
     try {
         $pdo = new PDO("mysql:host={$host};dbname={$dbname};charset=utf8mb4", $username, $password, [
             PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION
         ]);
         
         $db_version = $pdo->query('SELECT VERSION()')->fetchColumn();
+        
+        // Vérifier les tableaux existants
+        $stmt = $pdo->query("SHOW TABLES");
+        $tables = $stmt->fetchAll(PDO::FETCH_COLUMN);
+        
+        // Compiler les informations de la base de données
         $db_info = [
+            'status' => 'success',
             'connected' => true,
-            'version' => $db_version
+            'version' => $db_version,
+            'host' => $host,
+            'database' => $dbname,
+            'tables_count' => count($tables),
+            'tables' => $tables
         ];
     } catch (PDOException $e) {
         $db_info = [
+            'status' => 'error',
             'connected' => false,
             'error' => $e->getMessage()
         ];
-    }
-    
-    // Vérifier les tableaux existants pour l'utilisateur system
-    $tables = [];
-    $userId = 'p71x6d_system';
-    
-    if ($db_info['connected']) {
-        $expectedTables = ['bibliotheque', 'documents', 'exigences', 'membres', 'pilotage'];
-        
-        foreach ($expectedTables as $baseTable) {
-            $fullTableName = "{$baseTable}_{$userId}";
-            try {
-                $stmt = $pdo->prepare("SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = ? AND table_name = ?");
-                $stmt->execute([$dbname, $fullTableName]);
-                $exists = (int)$stmt->fetchColumn() > 0;
-                
-                if ($exists) {
-                    $countStmt = $pdo->prepare("SELECT COUNT(*) FROM `{$fullTableName}`");
-                    $countStmt->execute();
-                    $count = $countStmt->fetchColumn();
-                    
-                    $tables[$fullTableName] = [
-                        'exists' => true,
-                        'record_count' => (int)$count
-                    ];
-                } else {
-                    $tables[$fullTableName] = [
-                        'exists' => false,
-                        'record_count' => 0
-                    ];
-                }
-            } catch (PDOException $e) {
-                $tables[$fullTableName] = [
-                    'exists' => false,
-                    'error' => $e->getMessage()
-                ];
-            }
-        }
     }
     
     // Compiler toutes les informations et renvoyer le résultat
@@ -98,15 +69,14 @@ try {
         'timestamp' => date('Y-m-d H:i:s'),
         'server_info' => $server_info,
         'php_extensions' => $php_extensions,
-        'database' => $db_info,
-        'tables' => $tables
+        'database' => $db_info
     ], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
     
 } catch (Exception $e) {
     error_log("Exception dans le test de connexion: " . $e->getMessage());
     http_response_code(500);
     echo json_encode([
-        'error' => true,
+        'status' => 'error',
         'message' => 'Erreur lors du test de connexion: ' . $e->getMessage()
     ]);
 } finally {
