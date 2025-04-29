@@ -45,7 +45,8 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     };
     
     checkAuth();
-  }, [navigate, location.pathname]);
+    // Supprimer location.pathname de la dépendance pour éviter de vérifier à chaque changement de route
+  }, [navigate]);
 
   // Si le composant est en cours de chargement, afficher un loader
   if (isLoading) {
