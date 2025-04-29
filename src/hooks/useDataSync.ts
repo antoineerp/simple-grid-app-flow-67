@@ -1,6 +1,6 @@
 
 import { useState, useEffect, useCallback } from 'react';
-import { dataSyncManager, SyncRecord, SyncOptions } from '@/services/sync/DataSyncManager';
+import { dataSyncManager, SyncStatus, SyncRecord, SyncOptions } from '@/services/sync/DataSyncManager';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 
 export interface DataSyncState<T> extends SyncRecord {

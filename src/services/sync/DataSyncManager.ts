@@ -3,6 +3,21 @@
  * Gestionnaire centralisé pour la synchronisation des données
  * Ce service surveille et coordonne toutes les opérations de synchronisation
  */
+
+export type SyncStatus = 'idle' | 'syncing' | 'failed';
+
+export interface SyncRecord {
+  status: SyncStatus;
+  lastSynced: Date | null;
+  lastError: string | null;
+  pendingChanges: boolean;
+}
+
+export interface SyncOptions {
+  showToast?: boolean;
+  forceReload?: boolean;
+}
+
 class DataSyncManager {
   private static instance: DataSyncManager;
   
@@ -10,6 +25,8 @@ class DataSyncManager {
   private activeSyncOperations: Map<string, Promise<any>> = new Map();
   private failedSyncs: Map<string, { error: string, timestamp: Date }> = new Map();
   private syncHistory: { table: string, success: boolean, timestamp: Date }[] = [];
+  private syncStatus: Map<string, SyncRecord> = new Map();
+  private localData: Map<string, any[]> = new Map();
   
   private constructor() {
     console.log("DataSyncManager initialisé");
@@ -123,6 +140,9 @@ class DataSyncManager {
         return table;
       }));
       
+      // Mettre à jour le statut de synchronisation
+      this.updateSyncStatus(table, 'syncing');
+      
       // Supprimer des modifications en attente (seront traitées par GlobalSyncManager)
       this.pendingChanges.delete(table);
     }
@@ -148,6 +168,9 @@ class DataSyncManager {
     this.failedSyncs.delete(table);
     this.syncHistory.push({ table, success: true, timestamp: new Date() });
     
+    // Mettre à jour le statut de synchronisation
+    this.updateSyncStatus(table, 'idle', null, new Date(), false);
+    
     // Limiter l'historique à 100 entrées
     if (this.syncHistory.length > 100) {
       this.syncHistory.shift();
@@ -166,9 +189,118 @@ class DataSyncManager {
     this.failedSyncs.set(table, { error, timestamp: new Date() });
     this.syncHistory.push({ table, success: false, timestamp: new Date() });
     
+    // Mettre à jour le statut de synchronisation
+    this.updateSyncStatus(table, 'failed', error);
+    
     // Limiter l'historique à 100 entrées
     if (this.syncHistory.length > 100) {
       this.syncHistory.shift();
+    }
+  }
+
+  /**
+   * Mettre à jour le statut de synchronisation pour une table
+   */
+  private updateSyncStatus(table: string, status: SyncStatus, error: string | null = null, timestamp: Date | null = null, pendingChanges: boolean = false): void {
+    const currentStatus = this.syncStatus.get(table) || { 
+      status: 'idle', 
+      lastSynced: null, 
+      lastError: null, 
+      pendingChanges: false 
+    };
+    
+    this.syncStatus.set(table, {
+      status,
+      lastSynced: timestamp || currentStatus.lastSynced,
+      lastError: error || currentStatus.lastError,
+      pendingChanges: pendingChanges || currentStatus.pendingChanges
+    });
+  }
+
+  /**
+   * Obtenir le statut de synchronisation pour une table
+   */
+  public getSyncStatus(table: string): SyncRecord {
+    return this.syncStatus.get(table) || { 
+      status: 'idle', 
+      lastSynced: null, 
+      lastError: null, 
+      pendingChanges: false 
+    };
+  }
+
+  /**
+   * Synchroniser des données pour une table
+   */
+  public async syncData<T>(table: string, data: T[], options?: SyncOptions): Promise<{ success: boolean }> {
+    this.updateSyncStatus(table, 'syncing');
+    
+    try {
+      // Sauvegarder les données localement
+      this.saveLocalData(table, data);
+      
+      // Ajouter les modifications pour synchronisation
+      this.addChangesToSync(table, data as any[]);
+      
+      return { success: true };
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+      this.updateSyncStatus(table, 'failed', errorMsg);
+      return { success: false };
+    }
+  }
+
+  /**
+   * Sauvegarder les données localement
+   */
+  public saveLocalData<T>(table: string, data: T[]): void {
+    try {
+      this.localData.set(table, data as any[]);
+      localStorage.setItem(`local_data_${table}`, JSON.stringify(data));
+    } catch (error) {
+      console.error(`DataSyncManager: Erreur lors de la sauvegarde des données locales pour ${table}:`, error);
+    }
+  }
+
+  /**
+   * Obtenir les données locales pour une table
+   */
+  public getLocalData<T>(table: string): T[] {
+    try {
+      if (this.localData.has(table)) {
+        return this.localData.get(table) as T[];
+      }
+      
+      const localData = localStorage.getItem(`local_data_${table}`);
+      if (localData) {
+        const parsedData = JSON.parse(localData);
+        this.localData.set(table, parsedData);
+        return parsedData as T[];
+      }
+    } catch (error) {
+      console.error(`DataSyncManager: Erreur lors de la lecture des données locales pour ${table}:`, error);
+    }
+    
+    return [] as T[];
+  }
+
+  /**
+   * Charger des données depuis le serveur
+   */
+  public async loadData<T>(table: string, options?: SyncOptions): Promise<T[]> {
+    this.updateSyncStatus(table, 'syncing');
+    
+    try {
+      // En mode production, on devrait charger depuis le serveur
+      // Pour l'instant, on se contente des données locales
+      const data = this.getLocalData<T>(table);
+      
+      this.updateSyncStatus(table, 'idle', null, new Date(), false);
+      return data;
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+      this.updateSyncStatus(table, 'failed', errorMsg);
+      return [] as T[];
     }
   }
 }

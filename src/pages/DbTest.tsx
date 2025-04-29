@@ -16,14 +16,15 @@ interface TestData {
 export default function DbTest() {
   const { 
     data, 
-    status, 
-    lastSynced, 
-    lastError, 
-    pendingChanges, 
-    isOnline,
     syncData, 
     loadData, 
-    saveLocalData 
+    saveLocalData,
+    refreshStatus,
+    status,
+    lastSynced,
+    lastError,
+    pendingChanges,
+    isOnline
   } = useDataSync<TestData>('test_table');
 
   // Charger les données au démarrage

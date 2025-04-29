@@ -9,6 +9,7 @@ interface SyncStatusIndicatorProps {
   syncFailed: boolean;
   onReset: () => void;
   isSyncing: boolean;
+  isOnline?: boolean;
   lastSynced?: Date | null;
 }
 
@@ -16,6 +17,7 @@ const SyncStatusIndicator: React.FC<SyncStatusIndicatorProps> = ({
   syncFailed,
   onReset,
   isSyncing,
+  isOnline = true,
   lastSynced
 }) => {
   if (isSyncing) {

@@ -115,7 +115,6 @@ const ExigencesContent = () => {
           syncFailed={syncFailed || !!loadError} 
           onReset={handleResetLoadAttempts} 
           isSyncing={isSyncing}
-          isOnline={isOnline}
           lastSynced={lastSynced}
         />
       </div>

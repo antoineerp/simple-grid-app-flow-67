@@ -198,8 +198,7 @@ const RessourcesHumaines = () => {
         <SyncStatusIndicator 
           syncFailed={syncFailed} 
           onReset={handleResetSync} 
-          isSyncing={isSyncing} 
-          isOnline={isOnline}
+          isSyncing={isSyncing}
           lastSynced={lastSynced}
         />
       </div>
