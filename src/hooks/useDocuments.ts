@@ -1,4 +1,3 @@
-
 import { useState, useCallback, useEffect } from 'react';
 import { Document, DocumentStats, DocumentGroup } from '@/types/documents';
 import { useDocumentMutations } from './useDocumentMutations';
