@@ -48,7 +48,7 @@ const GestionDocumentaireContent = () => {
   
   const { toast } = useToast();
 
-  // Correction: Gestionnaire d'événement correctement typé
+  // Gestionnaire d'événement correctement typé
   const handleExportPdf = (event: React.MouseEvent) => {
     exportDocumentsToPdf(documents, groups);
     toast({
@@ -56,9 +56,6 @@ const GestionDocumentaireContent = () => {
       description: "Le document a été généré et téléchargé",
     });
   };
-
-  // Correction: Supprimer handleSync car il est redondant avec syncWithServer
-  // et ajouter la gestion des toasts directement dans useDocuments.ts
 
   return (
     <div className="p-8">
@@ -144,7 +141,7 @@ const GestionDocumentaireContent = () => {
         </Button>
         <Button 
           variant="default"
-          onClick={() => handleAddDocument()}
+          onClick={handleAddDocument}
         >
           Nouveau document
         </Button>
