@@ -11,7 +11,7 @@ header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-W
 header("Cache-Control: no-cache, no-store, must-revalidate");
 
 // Journalisation
-error_log("=== DEBUT DE L'EXÉCUTION DE bibliotheque-load.php ===");
+error_log("=== DEBUT DE L'EXÉCUTION DE collaboration-load.php ===");
 error_log("Méthode: " . $_SERVER['REQUEST_METHOD'] . " - URI: " . $_SERVER['REQUEST_URI']);
 
 // Gestion des requêtes OPTIONS (preflight)
@@ -48,7 +48,7 @@ try {
     
     // Nom de la table spécifique à l'utilisateur
     $safeUserId = preg_replace('/[^a-zA-Z0-9_]/', '_', $userId);
-    $tableName = "bibliotheque_" . $safeUserId;
+    $tableName = "collaboration_" . $safeUserId;
     error_log("Table à consulter: {$tableName}");
     
     // Vérifier si la table existe
@@ -111,20 +111,20 @@ try {
     ]);
     
 } catch (PDOException $e) {
-    error_log("PDOException dans bibliotheque-load.php: " . $e->getMessage());
+    error_log("PDOException dans collaboration-load.php: " . $e->getMessage());
     http_response_code(500);
     echo json_encode([
         'success' => false,
         'message' => 'Erreur de base de données: ' . $e->getMessage()
     ]);
 } catch (Exception $e) {
-    error_log("Exception dans bibliotheque-load.php: " . $e->getMessage());
+    error_log("Exception dans collaboration-load.php: " . $e->getMessage());
     http_response_code(400);
     echo json_encode([
         'success' => false,
         'message' => $e->getMessage()
     ]);
 } finally {
-    error_log("=== FIN DE L'EXÉCUTION DE bibliotheque-load.php ===");
+    error_log("=== FIN DE L'EXÉCUTION DE collaboration-load.php ===");
     if (ob_get_level()) ob_end_flush();
 }

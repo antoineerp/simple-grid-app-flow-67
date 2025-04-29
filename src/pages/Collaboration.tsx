@@ -4,6 +4,9 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Pencil, Trash, ExternalLink, ChevronDown, ChevronUp, FolderPlus, Plus } from 'lucide-react';
 import { useBibliotheque } from '@/hooks/useBibliotheque';
+import { DocumentDialog } from '@/features/bibliotheque/components/DocumentDialog';
+import { GroupDialog } from '@/features/bibliotheque/components/GroupDialog';
+import { Document } from '@/types/bibliotheque';
 
 const Collaboration = () => {
   const {
@@ -22,6 +25,80 @@ const Collaboration = () => {
     handleAddDocument,
     syncWithServer,
   } = useBibliotheque();
+
+  const [isDocumentDialogOpen, setIsDocumentDialogOpen] = useState(false);
+  const [isGroupDialogOpen, setIsGroupDialogOpen] = useState(false);
+  const [currentDocument, setCurrentDocument] = useState<Document | null>(null);
+  const [currentGroup, setCurrentGroup] = useState(null);
+  const [isEditing, setIsEditing] = useState(false);
+
+  // Handle document changes
+  const handleDocumentChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (currentDocument) {
+      setCurrentDocument({
+        ...currentDocument,
+        [e.target.name]: e.target.value
+      });
+    }
+  };
+
+  // Handle group changes
+  const handleGroupChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (currentGroup) {
+      setCurrentGroup({
+        ...currentGroup,
+        [e.target.name]: e.target.value
+      });
+    }
+  };
+
+  // Handle edit document button click
+  const handleEditDocumentClick = (doc: Document) => {
+    setCurrentDocument(doc);
+    setIsEditing(true);
+    setIsDocumentDialogOpen(true);
+  };
+
+  // Handle add document button click
+  const handleAddDocumentClick = () => {
+    setCurrentDocument({ id: '', name: '', link: null });
+    setIsEditing(false);
+    setIsDocumentDialogOpen(true);
+  };
+
+  // Handle save document
+  const handleSaveDocument = () => {
+    if (currentDocument) {
+      if (isEditing) {
+        handleEditDocument(currentDocument);
+      } else {
+        handleAddDocument(currentDocument);
+      }
+      setIsDocumentDialogOpen(false);
+    }
+  };
+
+  // Handle edit group button click
+  const handleEditGroupClick = (group: any) => {
+    setCurrentGroup(group);
+    setIsEditing(true);
+    setIsGroupDialogOpen(true);
+  };
+
+  // Handle add group button click
+  const handleAddGroupClick = () => {
+    setCurrentGroup({ id: '', name: '', expanded: false, items: [] });
+    setIsEditing(false);
+    setIsGroupDialogOpen(true);
+  };
+
+  // Handle save group
+  const handleSaveGroup = () => {
+    if (currentGroup) {
+      // Logic for saving group
+      setIsGroupDialogOpen(false);
+    }
+  };
 
   useEffect(() => {
     // Initialiser la synchronisation si nécessaire
@@ -74,7 +151,7 @@ const Collaboration = () => {
                         size="icon" 
                         onClick={(e) => {
                           e.stopPropagation();
-                          handleEditGroup(group);
+                          handleEditGroupClick(group);
                         }}
                       >
                         <Pencil className="h-4 w-4" />
@@ -109,7 +186,7 @@ const Collaboration = () => {
                           size="icon" 
                           onClick={(e) => {
                             e.preventDefault();
-                            handleEditDocument(doc);
+                            handleEditDocumentClick(doc);
                           }}
                         >
                           <Pencil className="h-4 w-4" />
@@ -149,7 +226,7 @@ const Collaboration = () => {
                       size="icon" 
                       onClick={(e) => {
                         e.preventDefault();
-                        handleEditDocument(doc);
+                        handleEditDocumentClick(doc);
                       }}
                     >
                       <Pencil className="h-4 w-4" />
@@ -176,17 +253,36 @@ const Collaboration = () => {
         <Button 
           variant="outline"
           className="flex items-center gap-1"
-          onClick={() => handleAddGroup()}
+          onClick={handleAddGroupClick}
         >
           <FolderPlus className="h-4 w-4" /> Nouveau groupe
         </Button>
         <Button 
           className="flex items-center gap-1"
-          onClick={() => handleAddDocument()}
+          onClick={handleAddDocumentClick}
         >
           <Plus className="h-4 w-4" /> Nouveau document
         </Button>
       </div>
+
+      {/* Dialog components */}
+      <DocumentDialog 
+        isOpen={isDocumentDialogOpen} 
+        onOpenChange={setIsDocumentDialogOpen}
+        document={currentDocument}
+        isEditing={isEditing}
+        onChange={handleDocumentChange}
+        onSave={handleSaveDocument}
+      />
+
+      <GroupDialog 
+        isOpen={isGroupDialogOpen}
+        onOpenChange={setIsGroupDialogOpen}
+        group={currentGroup}
+        isEditing={isEditing}
+        onChange={handleGroupChange}
+        onSave={handleSaveGroup}
+      />
     </div>
   );
 };

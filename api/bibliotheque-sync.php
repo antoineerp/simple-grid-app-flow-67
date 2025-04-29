@@ -11,7 +11,7 @@ header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-W
 header("Cache-Control: no-cache, no-store, must-revalidate");
 
 // Journalisation
-error_log("=== DEBUT DE L'EXÉCUTION DE bibliotheque-sync.php ===");
+error_log("=== DEBUT DE L'EXÉCUTION DE collaboration-sync.php ===");
 error_log("Méthode: " . $_SERVER['REQUEST_METHOD'] . " - URI: " . $_SERVER['REQUEST_URI']);
 
 // Gestion des requêtes OPTIONS (preflight)
@@ -39,7 +39,7 @@ try {
         throw new Exception("Aucune donnée reçue ou format JSON invalide");
     }
     
-    error_log("Données reçues pour synchronisation de la bibliothèque");
+    error_log("Données reçues pour synchronisation de la collaboration");
     
     // Vérifier si les données nécessaires sont présentes
     if (!isset($data['userId']) || !isset($data['ressources'])) {
@@ -61,7 +61,7 @@ try {
     
     // Nom de la table spécifique à l'utilisateur
     $safeUserId = preg_replace('/[^a-zA-Z0-9_]/', '_', $userId);
-    $tableName = "bibliotheque_" . $safeUserId;
+    $tableName = "collaboration_" . $safeUserId;
     error_log("Table à utiliser: {$tableName}");
     
     // Créer la table si elle n'existe pas
@@ -146,14 +146,14 @@ try {
     }
     
 } catch (PDOException $e) {
-    error_log("Erreur PDO dans bibliotheque-sync.php: " . $e->getMessage());
+    error_log("Erreur PDO dans collaboration-sync.php: " . $e->getMessage());
     http_response_code(500);
     echo json_encode([
         'success' => false,
         'message' => 'Erreur de base de données: ' . $e->getMessage()
     ]);
 } catch (Exception $e) {
-    error_log("Exception dans bibliotheque-sync.php: " . $e->getMessage());
+    error_log("Exception dans collaboration-sync.php: " . $e->getMessage());
     http_response_code(400);
     echo json_encode([
         'success' => false,
@@ -170,6 +170,6 @@ try {
         }
     }
     
-    error_log("=== FIN DE L'EXÉCUTION DE bibliotheque-sync.php ===");
+    error_log("=== FIN DE L'EXÉCUTION DE collaboration-sync.php ===");
     if (ob_get_level()) ob_end_flush();
 }

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useBibliotheque } from '@/hooks/useBibliotheque';
 import { BibliothequeTable } from '@/features/bibliotheque/components/BibliothequeTable';
@@ -92,9 +91,9 @@ const Bibliotheque = () => {
       console.error("Sync failed:", error);
       setSyncFailed(true);
       toast({
+        variant: "destructive",
         title: "Synchronisation échouée",
         description: "Une erreur s'est produite lors de la synchronisation.",
-        variant: "destructive"
       });
       return Promise.reject(error);
     }
@@ -159,9 +158,9 @@ const Bibliotheque = () => {
       <DocumentDialog
         isOpen={isDialogOpen}
         onOpenChange={setIsDialogOpen}
-        currentDocument={currentDocument}
+        document={currentDocument}
         isEditing={isEditing}
-        onInputChange={handleDocumentInputChange}
+        onChange={handleDocumentInputChange}
         onSave={handleSaveDocument}
       />
 
