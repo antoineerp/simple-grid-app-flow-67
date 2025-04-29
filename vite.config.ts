@@ -47,15 +47,15 @@ export default defineConfig(({ mode }) => {
         output: {
           assetFileNames: (assetInfo) => {
             if (!assetInfo.name) {
-              return 'assets/[name].[hash].[ext]';
+              return 'assets/[name].[ext]';
             }
             const info = assetInfo.name.split('.');
             const ext = info.pop();
             const name = info.join('.');
             return `assets/${name}.${ext}`;
           },
-          chunkFileNames: 'assets/[name].[hash].js',
-          entryFileNames: 'assets/[name].[hash].js',
+          chunkFileNames: 'assets/[name].js',
+          entryFileNames: 'assets/[name].js',
         },
         external: []
       }

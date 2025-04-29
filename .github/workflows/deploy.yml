@@ -44,7 +44,11 @@ jobs:
         # Copy the index.html file
         cp dist/index.html deploy/
         
-        # Copy all asset files
+        # Copy all asset files directly to the assets folder
+        cp -r dist/assets/* deploy/assets/
+        
+        # Create assets at the root level (important for Infomaniak)
+        mkdir -p deploy/assets
         cp -r dist/assets/* deploy/assets/
         
         # Copy PHP bridge file
