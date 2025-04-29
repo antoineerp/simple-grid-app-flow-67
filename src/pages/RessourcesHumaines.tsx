@@ -17,6 +17,7 @@ import { Membre } from '@/types/membres';
 import { exportAllCollaborateursToPdf } from '@/services/collaborateurExport';
 import SyncIndicator from '@/components/common/SyncIndicator';
 import { useGlobalSync } from '@/contexts/GlobalSyncContext';
+import { useSyncContext } from '@/hooks/useSyncContext';
 
 const RessourcesHumaines = () => {
   const { toast } = useToast();
@@ -30,9 +31,13 @@ const RessourcesHumaines = () => {
     resetSyncFailed
   } = useMembres();
   
-  // Utiliser le système de synchronisation global
-  const { syncTable, syncStates, isOnline } = useGlobalSync();
-  const isSyncing = syncStates['membres']?.isSyncing || false;
+  // Utiliser le hook useSyncContext pour une synchronisation standardisée
+  const { 
+    syncWithServer,
+    isSyncing,
+    isOnline,
+    notifyChanges
+  } = useSyncContext('membres', membres, { autoSync: true });
   
   const [isDialogOpen, setIsDialogOpen] = React.useState(false);
   const [currentMembre, setCurrentMembre] = React.useState<Membre>({
@@ -46,16 +51,6 @@ const RessourcesHumaines = () => {
   });
   const [isEditing, setIsEditing] = React.useState(false);
 
-  // Effectuer une seule synchronisation au chargement de la page, si nécessaire
-  useEffect(() => {
-    // Ne synchroniser que lorsque le chargement initial est terminé
-    // et uniquement si on est en ligne et qu'il n'y a pas d'échec précédent
-    if (!isLoading && isOnline && !syncFailed && !isSyncing && membres.length > 0) {
-      console.log("Synchronisation initiale des membres via GlobalSync");
-      syncTable('membres', membres).catch(console.error);
-    }
-  }, [isLoading, isOnline, syncFailed, isSyncing, membres]);
-
   const handleEdit = (id: string) => {
     const membre = membres.find(m => m.id === id);
     if (membre) {
@@ -66,16 +61,16 @@ const RessourcesHumaines = () => {
   };
 
   const handleDelete = (id: string) => {
-    setMembres(prev => prev.filter(membre => membre.id !== id));
+    const updatedMembres = membres.filter(membre => membre.id !== id);
+    setMembres(updatedMembres);
+    
     toast({
       title: "Suppression",
       description: `Le membre ${id} a été supprimé`,
     });
     
-    // Synchroniser manuellement après une suppression
-    if (isOnline && !syncFailed && !isSyncing) {
-      syncTable('membres', membres.filter(membre => membre.id !== id)).catch(console.error);
-    }
+    // Utiliser notifyChanges pour signaler le changement
+    notifyChanges();
   };
 
   const handleAddMember = () => {
@@ -127,26 +122,17 @@ const RessourcesHumaines = () => {
       ? membres.map(membre => membre.id === currentMembre.id ? currentMembre : membre)
       : [...membres, currentMembre];
 
-    if (isEditing) {
-      setMembres(updatedMembres);
-      toast({
-        title: "Modification",
-        description: `Le membre ${currentMembre.id} a été modifié`,
-      });
-    } else {
-      setMembres(updatedMembres);
-      toast({
-        title: "Ajout",
-        description: `Le membre ${currentMembre.id} a été ajouté`,
-      });
-    }
+    setMembres(updatedMembres);
+    
+    toast({
+      title: isEditing ? "Modification" : "Ajout",
+      description: `Le membre ${currentMembre.id} a été ${isEditing ? 'modifié' : 'ajouté'}`,
+    });
     
     setIsDialogOpen(false);
     
-    // Synchroniser manuellement après un ajout/modification en utilisant le système global
-    if (isOnline && !syncFailed && !isSyncing) {
-      syncTable('membres', updatedMembres).catch(console.error);
-    }
+    // Utiliser notifyChanges pour signaler le changement
+    notifyChanges();
   };
 
   const handleExportAllToPdf = () => {
@@ -166,11 +152,11 @@ const RessourcesHumaines = () => {
     }
   };
 
-  // Fonction asynchrone pour la synchronisation
+  // Fonction asynchrone pour la synchronisation manuelle
   const handleSync = async (): Promise<void> => {
     resetSyncFailed();
     try {
-      await syncTable('membres', membres);
+      await syncWithServer();
       return Promise.resolve();
     } catch (error) {
       console.error("Erreur lors de la synchronisation:", error);
@@ -179,7 +165,7 @@ const RessourcesHumaines = () => {
   };
 
   return (
-    <div className="p-8">
+    <div className="p-8 w-full">
       <div className="flex items-center justify-between mb-2">
         <div>
           <h1 className="text-3xl font-bold text-app-blue">Ressources Humaines</h1>

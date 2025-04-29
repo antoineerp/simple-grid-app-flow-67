@@ -1,5 +1,5 @@
 
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { useLocation } from 'react-router-dom';
 import { useGlobalSync } from '@/contexts/GlobalSyncContext';
@@ -10,46 +10,75 @@ const GlobalSyncManager: React.FC = () => {
   const location = useLocation();
   const previousPath = useRef<string | null>(null);
   const { syncAll, syncStates, isOnline } = useGlobalSync();
+  const [isSyncPending, setIsSyncPending] = useState<boolean>(false);
   
   // Référence pour suivre les synchronisations déjà traitées
   const processedSyncs = useRef<Set<string>>(new Set());
   
-  // Check for pending changes in localStorage when page loads or path changes
+  // Vérifier les données en attente de synchronisation dans localStorage
+  const checkPendingSyncs = () => {
+    const hasPending = triggerSync.hasPendingChanges();
+    setIsSyncPending(hasPending);
+    return hasPending;
+  };
+  
+  // Synchroniser les changements en attente
   const syncPendingChanges = () => {
     if (!isOnline) return;
     
-    // Find all pending sync tables from localStorage
-    const pendingSyncKeys = Object.keys(localStorage).filter(key => key.startsWith('pending_sync_'));
-    
-    if (pendingSyncKeys.length > 0) {
-      console.log(`GlobalSyncManager: Found ${pendingSyncKeys.length} pending sync tables`);
+    // Vérifier s'il y a des syncs en attente
+    if (checkPendingSyncs()) {
+      console.log(`GlobalSyncManager: Des changements en attente détectés, synchronisation...`);
       
-      // Only sync if we have pending changes
+      // Synchroniser toutes les modifications en attente
       syncAll().catch(error => {
         console.error("Erreur lors de la synchronisation des modifications en attente:", error);
       });
     }
   };
   
+  // Écouter les événements de changement de données
   useEffect(() => {
     console.log("GlobalSyncManager: Initialisation du gestionnaire de synchronisation globale");
     
-    // Initial check for pending changes
-    syncPendingChanges();
+    // Callback pour les événements dataUpdate
+    const handleDataUpdate = (e: CustomEvent) => {
+      console.log("GlobalSyncManager: Événement de mise à jour des données reçu", e.detail);
+      checkPendingSyncs();
+    };
     
-    // Listen for storage changes in other tabs
+    // Callback pour les changements de localStorage (communication entre onglets)
     const handleStorageChange = (e: StorageEvent) => {
-      if (e.key && e.key.startsWith('pending_sync_')) {
-        syncPendingChanges();
+      if (e.key && (e.key.startsWith('sync_pending_') || e.key.startsWith('pending_sync_'))) {
+        console.log("GlobalSyncManager: Changement de stockage détecté", e.key);
+        checkPendingSyncs();
       }
     };
     
+    // Vérification initiale
+    checkPendingSyncs();
+    
+    // Ajouter les écouteurs d'événements
+    window.addEventListener('dataUpdate', handleDataUpdate as EventListener);
     window.addEventListener('storage', handleStorageChange);
     
+    // Retirer les écouteurs lors du démontage du composant
     return () => {
+      window.removeEventListener('dataUpdate', handleDataUpdate as EventListener);
       window.removeEventListener('storage', handleStorageChange);
     };
-  }, [syncAll, isOnline]);
+  }, []);
+  
+  // Effectuer une synchronisation lorsque isSyncPending change
+  useEffect(() => {
+    if (isSyncPending && isOnline) {
+      const timer = setTimeout(() => {
+        syncPendingChanges();
+      }, 2000); // Délai pour éviter trop de synchronisations rapprochées
+      
+      return () => clearTimeout(timer);
+    }
+  }, [isSyncPending, isOnline]);
   
   // Synchroniser les données en attente quand on change de page
   useEffect(() => {
@@ -64,9 +93,11 @@ const GlobalSyncManager: React.FC = () => {
       console.log(`GlobalSyncManager: Changement de page détecté (${previousPath.current} -> ${location.pathname})`);
       previousPath.current = location.pathname;
       
-      syncPendingChanges();
+      if (isOnline) {
+        syncPendingChanges();
+      }
     }
-  }, [location.pathname, isOnline, syncAll]);
+  }, [location.pathname, isOnline]);
   
   return null; // Ce composant n'affiche rien, il gère uniquement la logique en arrière-plan
 };

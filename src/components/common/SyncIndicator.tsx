@@ -85,38 +85,37 @@ const SyncIndicator: React.FC<SyncIndicatorProps> = ({
     );
   }
 
-  // If not showing errors only, show sync status
-  if (!showOnlyErrors) {
-    if (isSyncing) {
-      return (
-        <Alert variant="default" className="bg-blue-50 border-blue-200 text-blue-700">
-          <RefreshCw className="h-4 w-4 animate-spin" />
-          <AlertDescription>Synchronisation en cours...</AlertDescription>
-        </Alert>
-      );
-    }
-
+  // If syncing, show sync indicator
+  if (isSyncing) {
     return (
-      <Alert variant="default" className="bg-green-50 border-green-200 text-green-700">
-        <CheckCircle className="h-4 w-4" />
-        <AlertDescription className="flex items-center justify-between">
-          <div>Données synchronisées. Dernière synchronisation : {formatLastSynced()}</div>
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={onSync}
-            className="ml-4 bg-white hover:bg-gray-50"
-          >
-            <RefreshCw className="h-4 w-4 mr-2" />
-            Synchroniser
-          </Button>
+      <Alert variant="default" className="bg-blue-50 border-blue-200 text-blue-700">
+        <RefreshCw className="h-4 w-4 animate-spin" />
+        <AlertDescription>
+          Synchronisation en cours...
         </AlertDescription>
       </Alert>
     );
   }
 
-  // Default case, don't show anything
-  return null;
+  // If everything is fine, show success or basic info
+  return (
+    <Alert variant="default" className="bg-gray-50 border-gray-200 text-gray-700">
+      <CheckCircle className="h-4 w-4 text-green-500" />
+      <AlertDescription className="flex items-center justify-between">
+        <div>Dernière synchronisation: {formatLastSynced()}</div>
+        <Button 
+          variant="ghost" 
+          size="sm" 
+          onClick={onSync}
+          disabled={isSyncing}
+          className="ml-4"
+        >
+          <RefreshCw className="h-4 w-4 mr-2" />
+          Synchroniser
+        </Button>
+      </AlertDescription>
+    </Alert>
+  );
 };
 
 export default SyncIndicator;

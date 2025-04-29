@@ -1,17 +1,25 @@
 
 /**
  * Service pour déclencher la synchronisation des données
+ * Service unifié pour toute l'application
  */
 import { dataSyncManager } from './DataSyncManager';
 
 export const triggerSync = {
   /**
    * Déclenche une synchronisation immédiate pour une table spécifique
+   * @param tableName Nom de la table à synchroniser
+   * @param data Données à synchroniser
+   * @returns Promise<boolean> indiquant le succès de l'opération
    */
   triggerTableSync: async <T>(tableName: string, data: T[]): Promise<boolean> => {
-    console.log(`TriggerSync: Déclenchement de la synchronisation pour ${tableName}`);
+    console.log(`TriggerSync: Déclenchement de la synchronisation pour ${tableName} (${data?.length || 0} éléments)`);
     
     try {
+      // Sauvegarder les données localement d'abord pour éviter toute perte
+      dataSyncManager.saveLocalData(tableName, data);
+      
+      // Effectuer la synchronisation
       const result = await dataSyncManager.syncTable(tableName, data);
       return result.success;
     } catch (error) {
@@ -22,6 +30,9 @@ export const triggerSync = {
   
   /**
    * Notifie qu'une modification a été faite et doit être synchronisée
+   * Cette méthode est plus légère et ne déclenche pas de synchronisation immédiate
+   * @param tableName Nom de la table concernée
+   * @param data Données modifiées
    */
   notifyDataChange: <T>(tableName: string, data: T[]): void => {
     console.log(`TriggerSync: Notification de changement de données pour ${tableName}`);
@@ -33,15 +44,24 @@ export const triggerSync = {
     const event = new CustomEvent('dataUpdate', {
       detail: {
         table: tableName,
-        data: data
+        data: data,
+        timestamp: new Date().getTime()
       }
     });
     
     window.dispatchEvent(event);
+    
+    // Ajouter un indicateur dans le localStorage pour que d'autres onglets soient informés
+    try {
+      localStorage.setItem('sync_pending_' + tableName, new Date().toISOString());
+    } catch (e) {
+      console.error("Erreur lors de l'enregistrement de l'indicateur de synchronisation:", e);
+    }
   },
   
   /**
    * Déclenche une synchronisation de toutes les données en attente
+   * @returns Promise avec les résultats de synchronisation par table
    */
   synchronizeAllPending: async (): Promise<Record<string, boolean>> => {
     console.log("TriggerSync: Déclenchement de la synchronisation de toutes les données en attente");
@@ -61,5 +81,18 @@ export const triggerSync = {
       console.error("TriggerSync: Erreur lors de la synchronisation des données en attente:", error);
       return {};
     }
+  },
+  
+  /**
+   * Vérifie s'il y a des données en attente de synchronisation
+   * @returns true s'il y a des données en attente
+   */
+  hasPendingChanges: (): boolean => {
+    // Parcourir le localStorage pour trouver des indicateurs de synchronisation en attente
+    const pendingKeys = Object.keys(localStorage).filter(key => 
+      key.startsWith('sync_pending_') || key.startsWith('pending_sync_')
+    );
+    
+    return pendingKeys.length > 0;
   }
 };
