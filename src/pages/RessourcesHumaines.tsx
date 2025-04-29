@@ -16,21 +16,23 @@ import MemberForm from '@/components/ressources-humaines/MemberForm';
 import { Membre } from '@/types/membres';
 import { exportAllCollaborateursToPdf } from '@/services/collaborateurExport';
 import SyncIndicator from '@/components/common/SyncIndicator';
+import { useGlobalSync } from '@/contexts/GlobalSyncContext';
 
 const RessourcesHumaines = () => {
   const { toast } = useToast();
   const { 
     membres, 
     setMembres, 
-    isSyncing, 
-    isOnline, 
     lastSynced, 
-    syncWithServer, 
     isLoading, 
     error,
     syncFailed,
     resetSyncFailed
   } = useMembres();
+  
+  // Utiliser le système de synchronisation global
+  const { syncTable, syncStates, isOnline } = useGlobalSync();
+  const isSyncing = syncStates['membres']?.isSyncing || false;
   
   const [isDialogOpen, setIsDialogOpen] = React.useState(false);
   const [currentMembre, setCurrentMembre] = React.useState<Membre>({
@@ -48,11 +50,11 @@ const RessourcesHumaines = () => {
   useEffect(() => {
     // Ne synchroniser que lorsque le chargement initial est terminé
     // et uniquement si on est en ligne et qu'il n'y a pas d'échec précédent
-    if (!isLoading && isOnline && !syncFailed && !isSyncing) {
-      console.log("Synchronisation initiale des membres");
-      syncWithServer().catch(console.error);
+    if (!isLoading && isOnline && !syncFailed && !isSyncing && membres.length > 0) {
+      console.log("Synchronisation initiale des membres via GlobalSync");
+      syncTable('membres', membres).catch(console.error);
     }
-  }, [isLoading]);
+  }, [isLoading, isOnline, syncFailed, isSyncing, membres]);
 
   const handleEdit = (id: string) => {
     const membre = membres.find(m => m.id === id);
@@ -72,7 +74,7 @@ const RessourcesHumaines = () => {
     
     // Synchroniser manuellement après une suppression
     if (isOnline && !syncFailed && !isSyncing) {
-      syncWithServer().catch(console.error);
+      syncTable('membres', membres.filter(membre => membre.id !== id)).catch(console.error);
     }
   };
 
@@ -121,16 +123,18 @@ const RessourcesHumaines = () => {
       currentMembre.initiales = initiales.toUpperCase();
     }
 
+    const updatedMembres = isEditing
+      ? membres.map(membre => membre.id === currentMembre.id ? currentMembre : membre)
+      : [...membres, currentMembre];
+
     if (isEditing) {
-      setMembres(prev => 
-        prev.map(membre => membre.id === currentMembre.id ? currentMembre : membre)
-      );
+      setMembres(updatedMembres);
       toast({
         title: "Modification",
         description: `Le membre ${currentMembre.id} a été modifié`,
       });
     } else {
-      setMembres(prev => [...prev, currentMembre]);
+      setMembres(updatedMembres);
       toast({
         title: "Ajout",
         description: `Le membre ${currentMembre.id} a été ajouté`,
@@ -139,9 +143,9 @@ const RessourcesHumaines = () => {
     
     setIsDialogOpen(false);
     
-    // Synchroniser manuellement après un ajout/modification
+    // Synchroniser manuellement après un ajout/modification en utilisant le système global
     if (isOnline && !syncFailed && !isSyncing) {
-      syncWithServer().catch(console.error);
+      syncTable('membres', updatedMembres).catch(console.error);
     }
   };
 
@@ -166,7 +170,7 @@ const RessourcesHumaines = () => {
   const handleSync = async (): Promise<void> => {
     resetSyncFailed();
     try {
-      await syncWithServer();
+      await syncTable('membres', membres);
       return Promise.resolve();
     } catch (error) {
       console.error("Erreur lors de la synchronisation:", error);

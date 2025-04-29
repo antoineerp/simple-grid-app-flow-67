@@ -1,11 +1,11 @@
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { Membre } from '@/types/membres';
-import { useSync } from '@/hooks/useSync';
 import { useToast } from '@/hooks/use-toast';
 import { getCurrentUser } from '@/services/auth/authService';
 import { useGlobalData } from './GlobalDataContext';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
+import { useGlobalSync } from './GlobalSyncContext';
 
 interface MembresContextProps {
   membres: Membre[];
@@ -13,9 +13,6 @@ interface MembresContextProps {
   addMembre: (membre: Membre) => void;
   updateMembre: (id: string, membre: Membre) => void;
   deleteMembre: (id: string) => void;
-  syncWithServer: () => Promise<boolean>;
-  isSyncing: boolean;
-  isOnline: boolean;
   lastSynced: Date | null;
   isLoading: boolean;
   error: string | null;
@@ -39,11 +36,8 @@ export const MembresProvider: React.FC<{ children: React.ReactNode }> = ({ child
     membres: globalMembres, 
     setMembres: setGlobalMembres,
     lastSynced: globalLastSynced,
-    setLastSynced: setGlobalLastSynced,
     syncFailed: globalSyncFailed,
-    setSyncFailed: setGlobalSyncFailed,
-    isSyncing: globalIsSyncing,
-    setIsSyncing: setGlobalIsSyncing
+    setSyncFailed: setGlobalSyncFailed
   } = useGlobalData();
   
   const [isLoading, setIsLoading] = useState(true);
@@ -51,7 +45,7 @@ export const MembresProvider: React.FC<{ children: React.ReactNode }> = ({ child
   
   const { isOnline } = useNetworkStatus();
   const { toast } = useToast();
-  const { syncAndProcess } = useSync('membres');
+  const { syncTable, syncStates } = useGlobalSync();
   
   // Charger les membres depuis le localStorage au démarrage
   useEffect(() => {
@@ -59,52 +53,34 @@ export const MembresProvider: React.FC<{ children: React.ReactNode }> = ({ child
   }, []);
 
   const addMembre = useCallback((membre: Membre) => {
-    setGlobalMembres(prev => [...prev, membre]);
-  }, [setGlobalMembres]);
+    const updatedMembres = [...globalMembres, membre];
+    setGlobalMembres(updatedMembres);
+    
+    // Si connecté, synchroniser immédiatement
+    if (isOnline && !globalSyncFailed && !syncStates['membres']?.isSyncing) {
+      syncTable('membres', updatedMembres).catch(console.error);
+    }
+  }, [globalMembres, setGlobalMembres, isOnline, globalSyncFailed, syncStates, syncTable]);
 
   const updateMembre = useCallback((id: string, membre: Membre) => {
-    setGlobalMembres(prev => prev.map(m => m.id === id ? membre : m));
-  }, [setGlobalMembres]);
+    const updatedMembres = globalMembres.map(m => m.id === id ? membre : m);
+    setGlobalMembres(updatedMembres);
+    
+    // Si connecté, synchroniser immédiatement
+    if (isOnline && !globalSyncFailed && !syncStates['membres']?.isSyncing) {
+      syncTable('membres', updatedMembres).catch(console.error);
+    }
+  }, [globalMembres, setGlobalMembres, isOnline, globalSyncFailed, syncStates, syncTable]);
 
   const deleteMembre = useCallback((id: string) => {
-    setGlobalMembres(prev => prev.filter(m => m.id !== id));
-  }, [setGlobalMembres]);
-
-  const syncWithServer = async (): Promise<boolean> => {
-    if (!isOnline) {
-      toast({
-        title: "Mode hors ligne",
-        description: "Les données sont sauvegardées localement. La synchronisation sera effectuée lorsque vous serez en ligne.",
-        variant: "destructive"
-      });
-      return false;
+    const updatedMembres = globalMembres.filter(m => m.id !== id);
+    setGlobalMembres(updatedMembres);
+    
+    // Si connecté, synchroniser immédiatement
+    if (isOnline && !globalSyncFailed && !syncStates['membres']?.isSyncing) {
+      syncTable('membres', updatedMembres).catch(console.error);
     }
-
-    setGlobalIsSyncing(true);
-
-    try {
-      const result = await syncAndProcess({
-        tableName: 'membres',
-        data: globalMembres
-      });
-
-      if (result.success) {
-        setGlobalLastSynced(new Date());
-        setGlobalSyncFailed(false);
-        return true;
-      } else {
-        setGlobalSyncFailed(true);
-        return false;
-      }
-    } catch (error) {
-      console.error("Erreur lors de la synchronisation des membres:", error);
-      setGlobalSyncFailed(true);
-      setError(error instanceof Error ? error.message : "Erreur de synchronisation");
-      return false;
-    } finally {
-      setGlobalIsSyncing(false);
-    }
-  };
+  }, [globalMembres, setGlobalMembres, isOnline, globalSyncFailed, syncStates, syncTable]);
 
   const resetSyncFailed = () => {
     setGlobalSyncFailed(false);
@@ -117,9 +93,6 @@ export const MembresProvider: React.FC<{ children: React.ReactNode }> = ({ child
     addMembre,
     updateMembre,
     deleteMembre,
-    syncWithServer,
-    isSyncing: globalIsSyncing,
-    isOnline,
     lastSynced: globalLastSynced,
     isLoading,
     error,
