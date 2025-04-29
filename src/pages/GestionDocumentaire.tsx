@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { FileText, FolderPlus, RefreshCw } from 'lucide-react';
+import { FileText, FolderPlus, RefreshCw, Loader2 } from 'lucide-react';
 import { MembresProvider } from '@/contexts/MembresContext';
 import DocumentForm from '@/components/gestion-documentaire/DocumentForm';
 import DocumentStatusDisplay from '@/components/gestion-documentaire/DocumentStats';
@@ -49,7 +49,7 @@ const GestionDocumentaireContent = () => {
   
   const { toast } = useToast();
 
-  // Gestionnaire d'événement correctement typé
+  // Gestionnaire d'événement pour l'export PDF
   const handleExportPdf = (event: React.MouseEvent) => {
     exportDocumentsToPdf(documents, groups);
     toast({
@@ -105,7 +105,12 @@ const GestionDocumentaireContent = () => {
 
       <DocumentStatusDisplay stats={stats} />
 
-      {documents.length > 0 ? (
+      {isSyncing ? (
+        <div className="flex flex-col items-center justify-center p-12 border border-dashed rounded-md bg-gray-50">
+          <Loader2 className="h-10 w-10 text-app-blue animate-spin mb-4" />
+          <p className="text-gray-600">Chargement des documents en cours...</p>
+        </div>
+      ) : documents && documents.length > 0 ? (
         <DocumentTable 
           documents={documents}
           groups={groups}
@@ -123,6 +128,15 @@ const GestionDocumentaireContent = () => {
       ) : loadError ? (
         <div className="text-center p-8 border border-dashed rounded-md mt-4 bg-gray-50">
           <p className="text-gray-500">Impossible de charger les documents.</p>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={handleResetLoadAttempts}
+            className="mt-4"
+          >
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Réessayer
+          </Button>
         </div>
       ) : (
         <div className="text-center p-8 border border-dashed rounded-md mt-4 bg-gray-50">

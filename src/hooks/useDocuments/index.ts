@@ -41,7 +41,9 @@ export const useDocuments = () => {
         loadEndpoint: 'documents-load.php',
         data: documents,
         userId: userId,
-        dataName: 'documents'
+        dataName: 'documents',
+        maxRetries: 3,
+        retryDelay: 1000
       });
       
       if (success) {
@@ -94,34 +96,45 @@ export const useDocuments = () => {
     setLoadError(null);
     setCoreSyncFailed(false);
     syncService.resetSyncStatus();
-    handleSyncWithServer().catch(console.error);
-  }, [handleSyncWithServer, setLoadError, setCoreSyncFailed, syncService]);
+    
+    // Réessayer le chargement
+    loadDocuments();
+  }, [setLoadError, setCoreSyncFailed, syncService]);
+
+  // Fonction de chargement initial des documents
+  const loadDocuments = useCallback(async () => {
+    try {
+      console.log(`Chargement des documents pour l'utilisateur: ${userId}`);
+      const result = await syncService.loadFromServer<Document>({
+        endpoint: 'documents-sync.php',
+        loadEndpoint: 'documents-load.php',
+        userId: userId,
+        maxRetries: 3,
+        retryDelay: 1000
+      });
+      
+      if (Array.isArray(result)) {
+        setDocuments(result as Document[]);
+        console.log(`${result.length} documents chargés avec succès`);
+      } else {
+        console.error("Format de résultat inattendu:", result);
+        // Ne pas vider les documents si le résultat est invalide mais qu'on a déjà des documents
+        if (documents.length === 0) {
+          setDocuments([]);
+        }
+      }
+    } catch (error) {
+      console.error("Erreur lors du chargement des documents:", error);
+      setLoadError(error instanceof Error ? error.message : "Erreur inconnue");
+      // Ne pas vider les documents en cas d'erreur si on en a déjà
+      if (documents.length === 0) {
+        setDocuments([]);
+      }
+    }
+  }, [userId, syncService, setDocuments, setLoadError, documents]);
 
   // Chargement initial des données avec le service centralisé
   useEffect(() => {
-    const loadDocuments = async () => {
-      try {
-        console.log(`Chargement des documents pour l'utilisateur: ${userId}`);
-        const result = await syncService.loadFromServer<Document>({
-          endpoint: 'documents-sync.php',
-          loadEndpoint: 'documents-load.php',
-          userId: userId
-        });
-        
-        if (Array.isArray(result)) {
-          setDocuments(result as Document[]);
-          console.log(`${result.length} documents chargés avec succès`);
-        } else {
-          console.error("Format de résultat inattendu:", result);
-          setDocuments([]);
-        }
-      } catch (error) {
-        console.error("Erreur lors du chargement des documents:", error);
-        setLoadError(error instanceof Error ? error.message : "Erreur inconnue");
-        setDocuments([]);
-      }
-    };
-
     if (userId) {
       loadDocuments();
     } else {
@@ -138,7 +151,7 @@ export const useDocuments = () => {
     }, 60000); // Une minute
 
     return () => clearInterval(syncInterval);
-  }, [userId, isOnline, syncFailed, isSyncing, handleSyncWithServer, setDocuments, setLoadError, syncService]);
+  }, [userId, isOnline, syncFailed, isSyncing, handleSyncWithServer, loadDocuments]);
 
   return {
     documents,
@@ -168,6 +181,7 @@ export const useDocuments = () => {
     handleToggleGroup: groupOperations.handleToggleGroup,
     syncWithServer: handleSyncWithServer,
     handleResetLoadAttempts,
+    loadDocuments,
     ...documentMutations
   };
 };

@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { FileText, FolderPlus, RefreshCw } from 'lucide-react';
+import { FileText, FolderPlus, RefreshCw, Loader2 } from 'lucide-react';
 import { MembresProvider } from '@/contexts/MembresContext';
 import ExigenceForm from '@/components/exigences/ExigenceForm';
 import ExigenceStats from '@/components/exigences/ExigenceStats';
@@ -35,8 +35,8 @@ const ExigencesContent = () => {
     handleEdit,
     handleSaveExigence,
     handleDelete,
-    handleAddExigence,
     handleReorder,
+    handleAddExigence,
     handleAddGroup,
     handleEditGroup,
     handleSaveGroup,
@@ -105,7 +105,12 @@ const ExigencesContent = () => {
 
       <ExigenceStats stats={stats} />
 
-      {exigences.length > 0 ? (
+      {isSyncing ? (
+        <div className="flex flex-col items-center justify-center p-12 border border-dashed rounded-md bg-gray-50">
+          <Loader2 className="h-10 w-10 text-app-blue animate-spin mb-4" />
+          <p className="text-gray-600">Chargement des exigences en cours...</p>
+        </div>
+      ) : exigences && exigences.length > 0 ? (
         <ExigenceTable 
           exigences={exigences}
           groups={groups}
@@ -123,6 +128,15 @@ const ExigencesContent = () => {
       ) : loadError ? (
         <div className="text-center p-8 border border-dashed rounded-md mt-4 bg-gray-50">
           <p className="text-gray-500">Impossible de charger les exigences.</p>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={handleResetLoadAttempts}
+            className="mt-4"
+          >
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Réessayer
+          </Button>
         </div>
       ) : (
         <div className="text-center p-8 border border-dashed rounded-md mt-4 bg-gray-50">
