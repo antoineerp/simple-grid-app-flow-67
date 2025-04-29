@@ -1,7 +1,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
-import { useGlobalSync } from '@/hooks/useSync';
+import { useSync } from '@/hooks/useSync';
 import SyncStatusIndicator from '@/components/common/SyncStatusIndicator';
 import { Button } from '@/components/ui/button';
 import { RotateCw } from 'lucide-react';
@@ -27,32 +27,22 @@ const GlobalSyncManager: React.FC<GlobalSyncManagerProps> = ({
   const { isOnline } = useNetworkStatus();
   const [wsStatus, setWsStatus] = useState<'connected' | 'disconnected' | 'connecting'>('disconnected');
   
-  // Utiliser le hook de synchronisation global
-  const globalSync = useGlobalSync();
+  // Utiliser le hook de synchronisation global (maintenant useSync au lieu de useGlobalSync)
+  const syncHook = useSync("global-sync");
+  const [isGlobalSyncing, setIsGlobalSyncing] = useState(false);
+  const [lastGlobalSync, setLastGlobalSync] = useState<Date | null>(null);
 
-  // Effet pour suivre l'état de la connexion WebSocket
+  // Effet pour suivre l'état de la synchronisation
   useEffect(() => {
-    // Transformer le webSocketStatus string en un type valide
-    const status = globalSync.webSocketStatus;
-    if (status === 'connected' || status === 'connecting' || status === 'disconnected') {
-      setWsStatus(status);
-    } else {
-      setWsStatus('disconnected');
-    }
-  }, [globalSync.webSocketStatus]);
+    setIsGlobalSyncing(syncHook.isSyncing);
+  }, [syncHook.isSyncing]);
 
-  // Effectuer une synchronisation en réponse à un changement d'état du réseau
+  // Effet pour mettre à jour la dernière date de synchronisation
   useEffect(() => {
-    if (isOnline && autoSync) {
-      // Si nous venons de repasser en ligne, synchroniser toutes les données
-      const syncOnReconnect = async () => {
-        console.log("Reconnexion détectée, synchronisation des données");
-        await globalSync.syncAllData(data);
-      };
-      
-      syncOnReconnect();
+    if (syncHook.lastSynced) {
+      setLastGlobalSync(syncHook.lastSynced);
     }
-  }, [isOnline, autoSync, data, globalSync]);
+  }, [syncHook.lastSynced]);
 
   // Fonction pour effectuer une synchronisation manuelle
   const handleManualSync = async () => {
@@ -71,14 +61,34 @@ const GlobalSyncManager: React.FC<GlobalSyncManagerProps> = ({
     });
     
     try {
-      const result = await globalSync.syncAllData(data);
-      
-      if (result) {
-        toast({
-          title: "Synchronisation réussie",
-          description: "Toutes les données ont été synchronisées avec le serveur"
+      // Synchroniser les différents types de données
+      if (data.documents && data.documents.length > 0) {
+        await syncHook.syncWithServer(data.documents, {
+          endpoint: 'documents-sync.php',
+          userId: 'system'
         });
       }
+      
+      if (data.exigences && data.exigences.length > 0) {
+        await syncHook.syncWithServer(data.exigences, {
+          endpoint: 'exigences-sync.php',
+          userId: 'system'
+        });
+      }
+      
+      if (data.membres && data.membres.length > 0) {
+        await syncHook.syncWithServer(data.membres, {
+          endpoint: 'membres-sync.php',
+          userId: 'system'
+        });
+      }
+
+      setLastGlobalSync(new Date());
+      
+      toast({
+        title: "Synchronisation réussie",
+        description: "Toutes les données ont été synchronisées avec le serveur"
+      });
     } catch (error) {
       console.error("Erreur lors de la synchronisation manuelle:", error);
       toast({
@@ -96,11 +106,12 @@ const GlobalSyncManager: React.FC<GlobalSyncManagerProps> = ({
     <div className="flex flex-col gap-2">
       {showStatus && (
         <SyncStatusIndicator 
-          syncFailed={false} 
-          isSyncing={globalSync.isGlobalSyncing}
+          syncFailed={syncHook.syncFailed} 
+          isSyncing={isGlobalSyncing}
           isOnline={isOnline}
-          lastSynced={globalSync.lastGlobalSync}
+          lastSynced={lastGlobalSync}
           webSocketStatus={wsStatus}
+          onReset={syncHook.resetSyncStatus}
         />
       )}
       
@@ -110,10 +121,10 @@ const GlobalSyncManager: React.FC<GlobalSyncManagerProps> = ({
             variant="outline"
             size="sm"
             onClick={handleManualSync}
-            disabled={globalSync.isGlobalSyncing || !isOnline}
+            disabled={isGlobalSyncing || !isOnline}
             className="gap-1"
           >
-            <RotateCw className={`h-3.5 w-3.5 ${globalSync.isGlobalSyncing ? 'animate-spin' : ''}`} />
+            <RotateCw className={`h-3.5 w-3.5 ${isGlobalSyncing ? 'animate-spin' : ''}`} />
             Synchroniser maintenant
           </Button>
         </div>

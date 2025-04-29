@@ -20,7 +20,7 @@ export const useDocuments = () => {
     stats, userId
   } = core;
   
-  // Document synchronization with the new unified sync hook
+  // Document synchronization with the unified sync hook
   const syncHook = useSync<Document>("documents");
   
   // Observer pour mettre à jour les documents quand ils changent
