@@ -11,7 +11,7 @@ const CACHE_DURATION = 60000; // 1 minute de cache
 /**
  * Service pour la gestion des membres (ressources humaines)
  */
-export const getMembres = async (forceRefresh: boolean = false): Promise<Membre[]> {
+export const getMembres = async (forceRefresh: boolean = false): Promise<Membre[]> => {
   // Retourner les données du cache si disponibles et pas encore expirées
   if (!forceRefresh && membresCache && lastFetchTimestamp && (Date.now() - lastFetchTimestamp < CACHE_DURATION)) {
     console.log("Utilisation du cache pour les membres", membresCache.length);

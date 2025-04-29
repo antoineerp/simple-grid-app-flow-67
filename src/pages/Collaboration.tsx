@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -6,7 +5,7 @@ import { Pencil, Trash, ExternalLink, ChevronDown, ChevronUp, FolderPlus, Plus }
 import { useBibliotheque } from '@/hooks/useBibliotheque';
 import { DocumentDialog } from '@/features/bibliotheque/components/DocumentDialog';
 import { GroupDialog } from '@/features/bibliotheque/components/GroupDialog';
-import { Document } from '@/types/bibliotheque';
+import { Document, DocumentGroup } from '@/types/bibliotheque';
 import { useDragAndDrop } from '@/components/gestion-documentaire/table/useDragAndDrop';
 
 const Collaboration = () => {
@@ -30,7 +29,7 @@ const Collaboration = () => {
   const [isDocumentDialogOpen, setIsDocumentDialogOpen] = useState(false);
   const [isGroupDialogOpen, setIsGroupDialogOpen] = useState(false);
   const [currentDocument, setCurrentDocument] = useState<Document | null>(null);
-  const [currentGroup, setCurrentGroup] = useState(null);
+  const [currentGroup, setCurrentGroup] = useState<DocumentGroup | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   
   // Use the useDragAndDrop hook for drag and drop functionality
@@ -95,7 +94,7 @@ const Collaboration = () => {
   };
 
   // Handle edit group button click
-  const handleEditGroupClick = (group: any) => {
+  const handleEditGroupClick = (group: DocumentGroup) => {
     setCurrentGroup(group);
     setIsEditing(true);
     setIsGroupDialogOpen(true);
@@ -103,7 +102,13 @@ const Collaboration = () => {
 
   // Handle add group button click
   const handleAddGroupClick = () => {
-    setCurrentGroup({ id: '', name: '', expanded: false, items: [] });
+    const newId = Date.now().toString();
+    setCurrentGroup({
+      id: newId,
+      name: '',
+      expanded: false,
+      items: []
+    });
     setIsEditing(false);
     setIsGroupDialogOpen(true);
   };
@@ -114,7 +119,8 @@ const Collaboration = () => {
       if (isEditing) {
         handleEditGroup(currentGroup);
       } else {
-        handleAddGroup(); // Fix: Remove the argument as handleAddGroup doesn't expect any
+        // Fix: Pass the currentGroup to handleAddGroup
+        handleSaveGroup(currentGroup);
       }
       setIsGroupDialogOpen(false);
     }
