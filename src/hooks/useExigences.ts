@@ -93,7 +93,8 @@ export const useExigences = () => {
       expanded: false,
       items: []
     };
-    groupOperations.handleSaveGroup(newGroup, false);
+    // Correction ici: on n'envoie pas d'argument supplémentaire
+    groupOperations.handleSaveGroup(newGroup);
   }, [groupOperations]);
 
   // Fonction pour éditer un groupe
@@ -120,6 +121,7 @@ export const useExigences = () => {
     handleSaveExigence,
     handleAddGroup,
     handleEditGroup,
+    // Correction ici: on passe les deux arguments attendus
     handleSaveGroup: (group: ExigenceGroup) => groupOperations.handleSaveGroup(group, !!editingGroup),
     handleDeleteGroup: groupOperations.handleDeleteGroup,
     handleToggleGroup: groupOperations.handleToggleGroup,
