@@ -9,7 +9,6 @@ export const useCollaborationDialogs = () => {
   const [currentGroup, setCurrentGroup] = useState<DocumentGroup | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   
-  // Ajout des fonctions manquantes qui causaient les erreurs
   const handleDocumentInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!currentDocument) return;
     
