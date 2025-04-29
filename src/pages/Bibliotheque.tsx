@@ -36,6 +36,7 @@ const Bibliotheque = () => {
     syncWithServer,
     setDraggedItem,
     setCurrentDocument,
+    setCurrentGroup,
     setIsEditing,
     isSyncing,
     isOnline,
