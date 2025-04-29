@@ -4,9 +4,20 @@
 # Enable URL rewriting
 RewriteEngine On
 
+# Force PHP for all .php files - MULTIPLE METHODS FOR COMPATIBILITY
+AddHandler application/x-httpd-php .php
+AddType application/x-httpd-php .php
+
 # Force PHP for all .php files
 <FilesMatch "\.php$">
     SetHandler application/x-httpd-php
+</FilesMatch>
+
+# Force PHP interpreter for all PHP files
+<FilesMatch "\.php$">
+    <IfModule mod_mime.c>
+        ForceType application/x-httpd-php
+    </IfModule>
 </FilesMatch>
 
 # Ensure PHP is activated

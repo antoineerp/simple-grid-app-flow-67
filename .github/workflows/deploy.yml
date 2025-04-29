@@ -1,4 +1,3 @@
-
 name: Deploy to Infomaniak
 
 on:
@@ -54,13 +53,16 @@ jobs:
         # Copy PHP bridge file
         echo "<?php /* PHP bridge file */ ?>" > deploy/assets/index.php
         
-        # Copy htaccess files
+        # Copy htaccess files - IMPORTANT FOR PHP EXECUTION
         cp .htaccess deploy/ || echo "Root .htaccess not found"
         cp api/.htaccess deploy/api/ || echo "API .htaccess not found"
         
         # Copy user.ini files for PHP configuration
         cp .user.ini deploy/ || echo "Root .user.ini not found"
         cp api/.user.ini deploy/api/ || echo "API .user.ini not found"
+        
+        # Copy php.ini files for extra PHP configuration
+        cp api/php.ini deploy/api/ || echo "API php.ini not found"
         
         # Copy all PHP files from root
         find . -maxdepth 1 -name "*.php" -exec cp {} deploy/ \;
@@ -70,6 +72,9 @@ jobs:
           mkdir -p "deploy/$(dirname "$file")"
           cp "$file" "deploy/$file"
         done
+        
+        # Make a special diagnostic file in API root
+        echo '<?php phpinfo(); ?>' > deploy/api/phpinfo.php
         
         # Copy uploads if they exist
         if [ -d "public/lovable-uploads" ]; then
