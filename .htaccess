@@ -14,10 +14,11 @@ AddType application/javascript .js
 AddType application/javascript .mjs
 AddType application/javascript .cjs
 
-# Configuration des types MIME pour les Service Workers
+# Configuration spécifique pour les Service Workers
 <Files "sync-service-worker.js">
     Header set Content-Type "application/javascript"
     Header set Service-Worker-Allowed "/"
+    Header set X-Content-Type-Options "nosniff"
 </Files>
 
 # Configuration des autres types MIME
@@ -34,3 +35,8 @@ AddType image/svg+xml .svg
         Header set Content-Type "application/javascript"
     </FilesMatch>
 </IfModule>
+
+# Configuration spécifique pour PHP - s'assurer que PHP est correctement interprété
+<FilesMatch "\.php$">
+    SetHandler application/x-httpd-php
+</FilesMatch>

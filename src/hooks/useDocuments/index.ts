@@ -21,7 +21,7 @@ export const useDocuments = () => {
   } = core;
   
   // Document synchronization with the new unified sync hook
-  const syncHook = useSync("documents");
+  const syncHook = useSync<Document>("documents");
   
   // Observer pour mettre à jour les documents quand ils changent
   useEffect(() => {

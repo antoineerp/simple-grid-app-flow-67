@@ -16,7 +16,7 @@ export const useExigences = () => {
   const { isOnline } = useNetworkStatus();
   
   // Nouveau hook de synchronisation unified
-  const syncHook = useSync("exigences");
+  const syncHook = useSync<Exigence>("exigences");
   
   // Observer pour mettre à jour les exigences quand elles changent
   useEffect(() => {
@@ -33,7 +33,7 @@ export const useExigences = () => {
   const handleSyncWithServer = async () => {
     return await syncHook.syncWithServer(core.exigences, {
       endpoint: 'exigences-sync.php',
-      userId: 'system' // À adapter selon votre configuration
+      userId: core.userId || 'system'
     });
   };
   
@@ -83,10 +83,10 @@ export const useExigences = () => {
       syncHook.loadFromServer({
         endpoint: 'exigences-sync.php',
         loadEndpoint: 'exigences-load.php',
-        userId: 'system' // À adapter selon votre configuration
+        userId: core.userId || 'system'
       });
     }
-  }, [syncHook.isOnline]);
+  }, [syncHook.isOnline, core.userId]);
 
   // Retourne toutes les fonctions et valeurs
   return {

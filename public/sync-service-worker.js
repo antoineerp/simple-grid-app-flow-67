@@ -1,314 +1,175 @@
 
-// Service Worker pour la synchronisation en arrière-plan
-const CACHE_NAME = 'app-sync-cache-v2';
-const DB_NAME = 'appSyncDB';
-const DB_VERSION = 1;
-const SYNC_DELAY = 10000; // 10 secondes entre chaque tentative de synchronisation
+/**
+ * Service Worker pour gérer la synchronisation offline
+ * Version: 1.0.1
+ * Date: 2025-04-29
+ */
 
-// Liste des ressources à mettre en cache
-const CACHE_ASSETS = [
-  '/',
-  '/index.html',
-  '/offline.html',
-  '/favicon.ico'
-];
+const CACHE_NAME = 'qualiopi-sync-cache-v1';
+const SYNC_QUEUE_NAME = 'sync-queue';
 
-// Stockage des tentatives de synchronisation
-const syncAttempts = new Map();
-
-// Installation du Service Worker
+// Installation du service worker
 self.addEventListener('install', (event) => {
   console.log('[Service Worker] Installation');
-  
-  event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then(cache => {
-        console.log('[Service Worker] Mise en cache des ressources');
-        return cache.addAll(CACHE_ASSETS);
-      })
-      .then(() => self.skipWaiting())
-  );
+  self.skipWaiting();
 });
 
-// Activation du Service Worker
+// Activation du service worker
 self.addEventListener('activate', (event) => {
   console.log('[Service Worker] Activation');
-  
-  // Supprimer les anciens caches
-  event.waitUntil(
-    caches.keys().then(cacheNames => {
-      return Promise.all(
-        cacheNames.map(cacheName => {
-          if (cacheName !== CACHE_NAME) {
-            console.log('[Service Worker] Suppression de l\'ancien cache:', cacheName);
-            return caches.delete(cacheName);
-          }
-        })
-      );
-    })
-    .then(() => self.clients.claim())
-  );
+  return self.clients.claim();
 });
 
-// Intercepter les requêtes fetch
+// Interception des requêtes
 self.addEventListener('fetch', (event) => {
-  // Ne pas intercepter les requêtes POST
-  if (event.request.method === 'POST') {
+  // On laisse passer toutes les requêtes normalement
+  if (event.request.method === 'GET') {
     return;
   }
-  
-  // Stratégie pour les API
-  if (event.request.url.includes('/api/') || event.request.url.includes('.php')) {
-    event.respondWith(
-      fetch(event.request)
-        .then(response => {
-          // Mettre en cache la réponse
-          const responseClone = response.clone();
-          caches.open(CACHE_NAME).then(cache => {
-            cache.put(event.request, responseClone);
-          });
-          return response;
-        })
-        .catch(() => {
-          // Si offline, essayer de récupérer depuis le cache
-          return caches.match(event.request);
-        })
-    );
-  } else {
-    // Stratégie pour les ressources statiques
-    event.respondWith(
-      caches.match(event.request)
-        .then(cachedResponse => {
-          return cachedResponse || fetch(event.request)
-            .then(response => {
-              // Mettre en cache la nouvelle ressource
-              const responseClone = response.clone();
-              caches.open(CACHE_NAME).then(cache => {
-                cache.put(event.request, responseClone);
-              });
-              return response;
-            })
-            .catch(() => {
-              // Si c'est une page HTML, retourner la page offline
-              if (event.request.headers.get('Accept')?.includes('text/html')) {
-                return caches.match('/offline.html');
-              }
-              
-              // Sinon, propager l'erreur
-              throw new Error('Ressource non disponible en mode hors ligne');
-            });
-        })
-    );
-  }
-});
 
-// Gérer les événements de synchronisation en arrière-plan
-self.addEventListener('sync', (event) => {
-  console.log('[Service Worker] Background Sync:', event.tag);
-  
-  // Traiter les différents types de synchronisation
-  if (event.tag.startsWith('sync:')) {
-    const syncType = event.tag.replace('sync:', '');
-    const lastAttempt = syncAttempts.get(syncType) || 0;
-    const now = Date.now();
-    
-    // Limiter la fréquence des tentatives de synchronisation
-    if (now - lastAttempt < SYNC_DELAY) {
-      console.log(`[Service Worker] Tentative de synchronisation trop fréquente pour ${syncType}, ignorée`);
+  // Pour les requêtes POST (synchronisation), on les met en queue si offline
+  if (event.request.method === 'POST' && !navigator.onLine) {
+    // Si la requête contient 'sync' dans l'URL, on la met en queue
+    if (event.request.url.includes('sync')) {
+      console.log('[Service Worker] Mise en queue de synchronisation', event.request.url);
+      event.respondWith(
+        new Response(JSON.stringify({
+          success: false,
+          queued: true,
+          message: 'Requête mise en queue - hors ligne'
+        }), {
+          headers: { 'Content-Type': 'application/json' }
+        })
+      );
+      
+      // Enregistrement pour synchronisation ultérieure
+      event.waitUntil(
+        saveForLater(event.request.clone())
+      );
+      
       return;
     }
-    
-    syncAttempts.set(syncType, now);
-    event.waitUntil(performSync(syncType));
   }
 });
 
-// Gérer les messages du client
-self.addEventListener('message', (event) => {
-  console.log('[Service Worker] Message reçu:', event.data);
-  
-  if (event.data.type === 'manual_sync') {
-    const syncType = event.data.syncType;
-    const lastAttempt = syncAttempts.get(syncType) || 0;
-    const now = Date.now();
-    
-    // Limiter la fréquence des tentatives de synchronisation
-    if (now - lastAttempt < SYNC_DELAY) {
-      console.log(`[Service Worker] Tentative de synchronisation manuelle trop fréquente pour ${syncType}, ignorée`);
-      notifyClients({
-        type: 'sync_throttled',
-        entityType: syncType,
-        message: 'Synchronisation ignorée (trop fréquente)',
-        nextAttemptIn: SYNC_DELAY - (now - lastAttempt)
-      });
-      return;
-    }
-    
-    syncAttempts.set(syncType, now);
-    event.waitUntil(performSync(syncType));
-  }
-});
-
-// Fonction pour effectuer une synchronisation
-async function performSync(syncType) {
-  console.log(`[Service Worker] Exécution de la synchronisation: ${syncType}`);
-  
+// Enregistrement d'une requête pour synchronisation ultérieure
+async function saveForLater(request) {
   try {
-    // Récupérer les données depuis IndexedDB
-    const db = await openDatabase();
-    const data = await loadDataFromIndexedDB(db, syncType);
+    const cache = await caches.open(CACHE_NAME);
+    const reqData = {
+      url: request.url,
+      method: request.method,
+      headers: Array.from(request.headers.entries()),
+      body: await request.text(),
+      timestamp: Date.now()
+    };
     
-    if (!data || !Array.isArray(data) || data.length === 0) {
-      console.log(`[Service Worker] Aucune donnée à synchroniser pour: ${syncType}`);
-      notifyClients({ 
-        type: 'sync_complete',
-        entityType: syncType,
-        message: 'Aucune donnée à synchroniser',
-        count: 0
-      });
-      return;
+    const key = `${SYNC_QUEUE_NAME}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    await cache.put(key, new Response(JSON.stringify(reqData)));
+    
+    console.log('[Service Worker] Requête enregistrée pour synchronisation ultérieure:', key);
+    
+    return true;
+  } catch (error) {
+    console.error('[Service Worker] Erreur lors de l\'enregistrement pour synchronisation:', error);
+    return false;
+  }
+}
+
+// Événement de synchronisation (si le navigateur le supporte)
+self.addEventListener('sync', (event) => {
+  if (event.tag === 'sync-data') {
+    console.log('[Service Worker] Tentative de synchronisation en arrière-plan');
+    event.waitUntil(syncQueuedRequests());
+  }
+});
+
+// Traitement des requêtes en attente de synchronisation
+async function syncQueuedRequests() {
+  try {
+    const cache = await caches.open(CACHE_NAME);
+    const keys = await cache.keys();
+    const syncKeys = keys.filter(key => key.url.includes(SYNC_QUEUE_NAME));
+    
+    console.log(`[Service Worker] ${syncKeys.length} requêtes à synchroniser`);
+    
+    for (const key of syncKeys) {
+      const response = await cache.match(key);
+      const reqData = await response.json();
+      
+      console.log('[Service Worker] Tentative de synchronisation:', reqData.url);
+      
+      try {
+        const syncResponse = await fetch(reqData.url, {
+          method: reqData.method,
+          headers: new Headers(reqData.headers),
+          body: reqData.body
+        });
+        
+        if (syncResponse.ok) {
+          console.log('[Service Worker] Synchronisation réussie:', reqData.url);
+          await cache.delete(key);
+        } else {
+          console.error('[Service Worker] Échec de synchronisation:', await syncResponse.text());
+        }
+      } catch (fetchError) {
+        console.error('[Service Worker] Erreur lors de la synchronisation:', fetchError);
+      }
     }
     
-    // Récupérer les informations d'authentification
-    const authInfo = await getAuthInfo();
+    // Notification aux clients
+    const clients = await self.clients.matchAll();
+    for (const client of clients) {
+      client.postMessage({
+        type: 'SYNC_COMPLETED',
+        timestamp: Date.now()
+      });
+    }
     
-    // Envoyer les données au serveur
-    const apiUrl = self.location.origin + '/api';
-    const endpoint = `${apiUrl}/${syncType}-sync.php`;
-    
-    console.log(`[Service Worker] Envoi de la synchronisation à ${endpoint}`);
-    
-    const response = await fetch(endpoint, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': authInfo.authToken ? `Bearer ${authInfo.authToken}` : ''
-      },
-      body: JSON.stringify({
-        userId: authInfo.userId || 'system',
-        [syncType]: data
+    return true;
+  } catch (error) {
+    console.error('[Service Worker] Erreur lors de la synchronisation des requêtes:', error);
+    return false;
+  }
+}
+
+// Écouter les messages des clients
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'CHECK_SYNC_QUEUE') {
+    event.waitUntil(
+      checkSyncQueue().then(count => {
+        event.source.postMessage({
+          type: 'SYNC_QUEUE_STATUS',
+          count,
+          timestamp: Date.now()
+        });
       })
-    });
-    
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`Erreur HTTP: ${response.status} - ${errorText}`);
-    }
-    
-    const result = await response.json();
-    
-    if (result.success) {
-      console.log(`[Service Worker] Synchronisation réussie pour: ${syncType}`);
-      notifyClients({
-        type: 'sync_complete',
-        entityType: syncType,
-        success: true,
-        count: data.length,
-        message: 'Synchronisation réussie'
-      });
-    } else {
-      throw new Error(result.message || 'Échec de la synchronisation');
+    );
+  } else if (event.data && event.data.type === 'TRIGGER_SYNC') {
+    event.waitUntil(syncQueuedRequests());
+  }
+});
+
+// Vérifier le nombre de requêtes en attente
+async function checkSyncQueue() {
+  try {
+    const cache = await caches.open(CACHE_NAME);
+    const keys = await cache.keys();
+    return keys.filter(key => key.url.includes(SYNC_QUEUE_NAME)).length;
+  } catch (error) {
+    console.error('[Service Worker] Erreur lors de la vérification de la file d\'attente:', error);
+    return 0;
+  }
+}
+
+// Rapport périodique sur l'état
+setInterval(async () => {
+  try {
+    const count = await checkSyncQueue();
+    if (count > 0) {
+      console.log(`[Service Worker] ${count} requêtes en attente de synchronisation`);
     }
   } catch (error) {
-    console.error(`[Service Worker] Erreur de synchronisation pour ${syncType}:`, error);
-    notifyClients({
-      type: 'sync_error',
-      entityType: syncType,
-      success: false,
-      error: error.message,
-      message: `Erreur: ${error.message}`
-    });
+    console.error('[Service Worker] Erreur lors du rapport périodique:', error);
   }
-}
-
-// Récupérer les informations d'authentification
-async function getAuthInfo() {
-  // Essayer de récupérer depuis le localStorage (via les clients)
-  const clients = await self.clients.matchAll();
-  
-  if (clients.length > 0) {
-    try {
-      const response = await clients[0].postMessage({
-        type: 'get_auth_info',
-        requestId: Date.now()
-      });
-      
-      if (response && response.authToken) {
-        return response;
-      }
-    } catch (error) {
-      console.error('[Service Worker] Erreur lors de la récupération des infos d\'authentification:', error);
-    }
-  }
-  
-  // Par défaut, retourner un objet vide
-  return {
-    userId: 'system',
-    authToken: ''
-  };
-}
-
-// Ouvrir la base de données IndexedDB
-function openDatabase() {
-  return new Promise((resolve, reject) => {
-    const request = indexedDB.open(DB_NAME, DB_VERSION);
-    
-    request.onerror = (event) => {
-      reject(new Error('Erreur d\'ouverture de la base de données'));
-    };
-    
-    request.onsuccess = (event) => {
-      resolve(event.target.result);
-    };
-    
-    request.onupgradeneeded = (event) => {
-      const db = event.target.result;
-      
-      // Créer les object stores si nécessaire
-      ['documents', 'exigences', 'membres', 'bibliotheque', 'collaboration'].forEach(storeName => {
-        if (!db.objectStoreNames.contains(storeName)) {
-          db.createObjectStore(storeName, { keyPath: 'id' });
-          console.log(`[Service Worker] Store "${storeName}" créé dans IndexedDB`);
-        }
-      });
-    };
-  });
-}
-
-// Charger les données depuis IndexedDB
-function loadDataFromIndexedDB(db, storeName) {
-  return new Promise((resolve, reject) => {
-    if (!db.objectStoreNames.contains(storeName)) {
-      console.warn(`[Service Worker] Le store "${storeName}" n'existe pas dans IndexedDB`);
-      resolve([]);
-      return;
-    }
-    
-    try {
-      const transaction = db.transaction(storeName, 'readonly');
-      const store = transaction.objectStore(storeName);
-      const request = store.getAll();
-      
-      request.onsuccess = () => {
-        resolve(request.result || []);
-      };
-      
-      request.onerror = (event) => {
-        console.error(`[Service Worker] Erreur lors de la lecture depuis "${storeName}":`, event);
-        reject(new Error(`Erreur de lecture des données depuis "${storeName}"`));
-      };
-    } catch (error) {
-      console.error(`[Service Worker] Exception lors de l'accès à "${storeName}":`, error);
-      reject(error);
-    }
-  });
-}
-
-// Notifier tous les clients
-function notifyClients(message) {
-  self.clients.matchAll().then(clients => {
-    clients.forEach(client => {
-      client.postMessage(message);
-    });
-  });
-}
+}, 60000); // Vérification toutes les minutes
