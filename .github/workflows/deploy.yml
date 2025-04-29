@@ -47,11 +47,13 @@ jobs:
         mkdir -p deploy/api
         mkdir -p deploy/public/lovable-uploads
         
-        # Copie des fichiers compilés directement dans assets
+        # Copie du fichier index.html
+        cp dist/index.html deploy/
+        
+        # Copie des fichiers compilés directement dans assets (sans sous-dossier)
         cp -r dist/assets/* deploy/assets/
         
         # Copie des autres fichiers nécessaires
-        cp dist/index.html deploy/
         cp .htaccess deploy/ || echo "Fichier .htaccess non trouvé"
         
         # Copie des fichiers PHP à la racine
@@ -121,6 +123,12 @@ error_log = php_errors.log
 log_errors = On
 engine = On" > deploy/api/.user.ini
         fi
+
+        # Copie des fichiers .user.ini et .htaccess à la racine
+        if [ -f ".user.ini" ]; then
+          echo "Copie du fichier .user.ini à la racine..."
+          cp .user.ini deploy/
+        fi
         
         echo "Structure du dossier de déploiement:"
         find deploy -type f | sort | head -n 20
@@ -150,4 +158,3 @@ engine = On" > deploy/api/.user.ini
       run: |
         rm -rf deploy
         rm -rf dist
-

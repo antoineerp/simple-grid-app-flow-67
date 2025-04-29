@@ -16,14 +16,11 @@ export default defineConfig(({ mode }) => {
       hmr: {
         clientPort: 443
       },
-      // Ajout de la configuration pour autoriser tous les hôtes
       cors: true,
       proxy: {},
-      // Configuration explicite des hôtes autorisés
-      allowedHosts: true, // Changed from 'all' to true to match the expected type
+      allowedHosts: true,
     },
     preview: {
-      // Également autoriser tous les hôtes pour le mode preview
       port: 8080,
       host: true,
     },
@@ -68,7 +65,6 @@ export default defineConfig(({ mode }) => {
     optimizeDeps: {
       include: ['jspdf', 'jspdf-autotable']
     },
-    // Configuration des variables d'environnement
     envPrefix: 'VITE_',
   };
 });
