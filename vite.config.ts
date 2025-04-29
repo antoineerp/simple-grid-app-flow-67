@@ -45,15 +45,7 @@ export default defineConfig(({ mode }) => {
           main: path.resolve(__dirname, 'index.html'),
         },
         output: {
-          assetFileNames: (assetInfo) => {
-            if (!assetInfo.name) {
-              return 'assets/[name].[ext]';
-            }
-            const info = assetInfo.name.split('.');
-            const ext = info.pop();
-            const name = info.join('.');
-            return `assets/${name}.${ext}`;
-          },
+          assetFileNames: 'assets/[name].[ext]',
           chunkFileNames: 'assets/[name].js',
           entryFileNames: 'assets/[name].js',
         },

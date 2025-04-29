@@ -18,15 +18,15 @@
     <meta name="twitter:site" content="@lovable_dev" />
     <meta name="twitter:image" content="https://lovable.dev/opengraph-image-p98pqg.png" />
     
-    <!-- CSS référence directe vers le dossier assets -->
-    <link rel="stylesheet" href="/assets/main.css" />
+    <!-- Vite remplacera ceci par les fichiers compilés -->
+    <link rel="stylesheet" href="./src/index.css" />
   </head>
 
   <body>
     <div id="root"></div>
     
-    <!-- Script principal depuis le dossier assets -->
-    <script type="module" src="/assets/main.js"></script>
+    <!-- Vite peut transformer ce chemin pendant le build -->
+    <script type="module" src="./src/main.js"></script>
     
     <!-- External reference with https protocol -->
     <script src="https://cdn.gpteng.co/gptengineer.js" type="module"></script>
