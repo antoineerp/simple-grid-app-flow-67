@@ -6,7 +6,7 @@ import { useExigenceMutations } from '@/hooks/useExigenceMutations';
 import { useExigenceGroups } from '@/hooks/useExigenceGroups';
 import { getCurrentUser } from '@/services/auth/authService';
 import { useToast } from '@/hooks/use-toast';
-import { loadExigencesFromServer, syncExigencesWithServer } from '@/hooks/useExigenceSync';
+import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 
 export const useExigences = () => {
   const [exigences, setExigences] = useState<Exigence[]>([]);
@@ -20,6 +20,7 @@ export const useExigences = () => {
   const [syncFailed, setSyncFailed] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [lastSynced, setLastSynced] = useState<Date | null>(null);
+  const { isOnline } = useNetworkStatus();
   const { toast } = useToast();
 
   // Get current user
@@ -130,8 +131,8 @@ export const useExigences = () => {
         c: [],
         i: []
       },
-      date_creation: new Date().toISOString(),
-      date_modification: new Date().toISOString()
+      date_creation: new Date(),
+      date_modification: new Date()
     };
     setEditingExigence(newExigence);
     setDialogOpen(true);
@@ -212,7 +213,7 @@ export const useExigences = () => {
     groupDialogOpen,
     isSyncing,
     syncFailed,
-    isOnline: exigenceSync.isOnline,
+    isOnline,
     lastSynced,
     loadError,
     setSelectedNiveau,
