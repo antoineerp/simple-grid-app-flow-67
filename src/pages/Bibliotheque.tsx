@@ -33,7 +33,9 @@ const Bibliotheque = () => {
     handleSaveGroup,
     handleToggleGroup,
     syncWithServer,
-    setDraggedItem
+    setDraggedItem,
+    setCurrentDocument,
+    setIsEditing
   } = useBibliotheque();
   
   const [syncFailed, setSyncFailed] = useState(false);
@@ -82,16 +84,21 @@ const Bibliotheque = () => {
     }
   };
 
-  // Create a handler for adding documents that takes no arguments
+  // Corriger la fonction pour ouvrir le dialogue d'ajout de document
   const handleAddDocumentClick = () => {
-    // Create a default empty document to pass to handleAddDocument
+    // Créer un document vide
     const emptyDocument: Document = {
       id: '',
       name: '',
       link: null
     };
     
-    handleAddDocument(emptyDocument);
+    // Définir ce document comme document courant
+    setCurrentDocument(emptyDocument);
+    // Indiquer qu'il s'agit d'un nouvel ajout (pas d'édition)
+    setIsEditing(false);
+    // Ouvrir le dialogue
+    setIsDialogOpen(true);
   };
 
   return (

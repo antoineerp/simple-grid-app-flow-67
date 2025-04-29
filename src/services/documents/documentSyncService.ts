@@ -12,7 +12,7 @@ export const loadDocumentsFromServer = async (userId: string | null = null): Pro
     const currentUser = userId || getCurrentUser() || 'p71x6d_system';
     console.log(`Chargement des documents pour l'utilisateur ${currentUser}`);
     
-    const response = await fetch(`${getApiUrl()}/documents-load.php?user=${currentUser}`, {
+    const response = await fetch(`${getApiUrl()}/documents-load.php?userId=${currentUser}`, {
       method: 'GET',
       headers: getAuthHeaders()
     });
@@ -48,9 +48,12 @@ export const syncDocumentsWithServer = async (documents: Document[], userId: str
     
     const response = await fetch(`${getApiUrl()}/documents-sync.php`, {
       method: 'POST',
-      headers: getAuthHeaders(),
+      headers: {
+        ...getAuthHeaders(),
+        'Content-Type': 'application/json'
+      },
       body: JSON.stringify({
-        user: currentUser,
+        userId: currentUser,
         documents: documents
       })
     });
