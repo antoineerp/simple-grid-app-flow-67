@@ -118,7 +118,7 @@ const Bibliotheque = () => {
   };
 
   return (
-    <div className="p-8">
+    <div className="w-full px-6 py-6">
       <div className="mb-6">
         <div className="flex justify-between items-center mb-2">
           <h1 className="text-3xl font-bold text-app-blue">Bibliothèque de documents</h1>

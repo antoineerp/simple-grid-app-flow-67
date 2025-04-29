@@ -30,6 +30,7 @@ const Collaboration = () => {
   const [currentDocument, setCurrentDocument] = useState<Document | null>(null);
   const [currentGroup, setCurrentGroup] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
+  const [draggedItem, setDraggedItem] = useState<{ id: string; groupId?: string } | null>(null);
 
   // Handle document changes
   const handleDocumentChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -103,15 +104,63 @@ const Collaboration = () => {
     }
   };
 
+  // Handle drag start
+  const handleDragStart = (e: React.DragEvent<HTMLTableRowElement>, id: string, groupId?: string) => {
+    setDraggedItem({ id, groupId });
+    e.dataTransfer.setData('text/plain', JSON.stringify({ id, groupId }));
+    e.currentTarget.classList.add('opacity-50');
+  };
+
+  // Handle drag over
+  const handleDragOver = (e: React.DragEvent<HTMLTableRowElement>) => {
+    e.preventDefault();
+    e.currentTarget.classList.add('border-dashed', 'border-2', 'border-primary');
+  };
+
+  // Handle drag leave
+  const handleDragLeave = (e: React.DragEvent<HTMLTableRowElement>) => {
+    e.currentTarget.classList.remove('border-dashed', 'border-2', 'border-primary');
+  };
+
+  // Handle drop on document
+  const handleDrop = (e: React.DragEvent<HTMLTableRowElement>, targetId: string, targetGroupId?: string) => {
+    e.preventDefault();
+    e.currentTarget.classList.remove('border-dashed', 'border-2', 'border-primary');
+    
+    if (draggedItem) {
+      handleDrop(draggedItem.id, targetId, targetGroupId);
+    }
+    
+    setDraggedItem(null);
+  };
+
+  // Handle drop on group
+  const handleGroupDrop = (e: React.DragEvent<HTMLTableRowElement>, groupId: string) => {
+    e.preventDefault();
+    e.currentTarget.classList.remove('border-dashed', 'border-2', 'border-primary');
+    
+    if (draggedItem) {
+      handleGroupDrop(groupId);
+    }
+    
+    setDraggedItem(null);
+  };
+
+  // Handle drag end
+  const handleDragEnd = (e: React.DragEvent<HTMLTableRowElement>) => {
+    e.currentTarget.classList.remove('opacity-50');
+    setDraggedItem(null);
+  };
+
   useEffect(() => {
-    // Initialiser la synchronisation si nécessaire
+    // Initialize synchronization if necessary
     if (!documents.length && isOnline) {
       syncWithServer();
     }
   }, [documents.length, isOnline]);
 
   return (
-    <div className="container mx-auto py-6">
+    <div className="w-full px-6 py-6">
       <div className="mb-6">
         <h1 className="text-3xl font-bold text-blue-600">Bibliothèque</h1>
         <p className="text-gray-600">Gestion des documents administratifs</p>
@@ -137,7 +186,19 @@ const Collaboration = () => {
               {/* Afficher les groupes et leurs documents */}
               {groups.map((group) => (
                 <React.Fragment key={group.id}>
-                  <tr className="bg-gray-50 cursor-pointer" onClick={() => handleToggleGroup(group.id)}>
+                  <tr 
+                    className="bg-gray-50 cursor-pointer" 
+                    onClick={() => handleToggleGroup(group.id)}
+                    draggable
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      e.currentTarget.classList.add('border-dashed', 'border-2', 'border-primary');
+                    }}
+                    onDragLeave={(e) => {
+                      e.currentTarget.classList.remove('border-dashed', 'border-2', 'border-primary');
+                    }}
+                    onDrop={(e) => handleGroupDrop(e, group.id)}
+                  >
                     <td className="px-6 py-4 whitespace-nowrap" colSpan={2}>
                       <div className="flex items-center">
                         {group.expanded ? (
@@ -172,7 +233,16 @@ const Collaboration = () => {
                     </td>
                   </tr>
                   {group.expanded && group.items && group.items.map((doc) => (
-                    <tr key={doc.id} className="bg-white">
+                    <tr 
+                      key={doc.id} 
+                      className="bg-white"
+                      draggable
+                      onDragStart={(e) => handleDragStart(e, doc.id, group.id)}
+                      onDragOver={(e) => handleDragOver(e)}
+                      onDragLeave={(e) => handleDragLeave(e)}
+                      onDrop={(e) => handleDrop(e, doc.id, group.id)}
+                      onDragEnd={handleDragEnd}
+                    >
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="pl-8">{doc.name}</div>
                       </td>
@@ -212,7 +282,16 @@ const Collaboration = () => {
 
               {/* Afficher les documents qui ne sont pas dans un groupe */}
               {documents.map((doc) => (
-                <tr key={doc.id} className="bg-white">
+                <tr 
+                  key={doc.id} 
+                  className="bg-white"
+                  draggable
+                  onDragStart={(e) => handleDragStart(e, doc.id)}
+                  onDragOver={(e) => handleDragOver(e)}
+                  onDragLeave={(e) => handleDragLeave(e)}
+                  onDrop={(e) => handleDrop(e, doc.id)}
+                  onDragEnd={handleDragEnd}
+                >
                   <td className="px-6 py-4 whitespace-nowrap">
                     {doc.name}
                   </td>

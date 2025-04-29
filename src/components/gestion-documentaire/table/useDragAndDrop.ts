@@ -37,32 +37,21 @@ export const useDragAndDrop = (
     e.preventDefault();
     e.currentTarget.classList.remove('border-dashed', 'border-2', 'border-primary');
     
-    const data = JSON.parse(e.dataTransfer.getData('text/plain'));
-    const { id: sourceId, groupId: sourceGroupId } = data;
+    if (!draggedItem) return;
     
-    if (sourceId === targetId) return;
+    const { id: sourceId, groupId: sourceGroupId } = draggedItem;
     
-    let sourceIndex = -1;
-    let targetIndex = -1;
-
-    // Calculate sourceIndex
-    if (sourceGroupId) {
-      const groupStartIndex = documents.filter(d => !d.groupId).length;
-      sourceIndex = groupStartIndex + documents.filter(d => d.groupId === sourceGroupId)
-        .findIndex(d => d.id === sourceId);
-    } else {
-      sourceIndex = documents.filter(d => !d.groupId).findIndex(d => d.id === sourceId);
-    }
-
-    // Calculate targetIndex
-    if (targetGroupId) {
-      const groupStartIndex = documents.filter(d => !d.groupId).length;
-      targetIndex = groupStartIndex + documents.filter(d => d.groupId === targetGroupId)
-        .findIndex(d => d.id === targetId);
-    } else {
-      targetIndex = documents.filter(d => !d.groupId).findIndex(d => d.id === targetId);
-    }
-
+    if (sourceId === targetId && sourceGroupId === targetGroupId) return;
+    
+    // Find indexes for reordering
+    const allDocs = [
+      ...documents.filter(d => !d.groupId),
+      ...documents.filter(d => d.groupId)
+    ];
+    
+    const sourceIndex = allDocs.findIndex(d => d.id === sourceId);
+    const targetIndex = allDocs.findIndex(d => d.id === targetId);
+    
     if (sourceIndex !== -1 && targetIndex !== -1) {
       onReorder(sourceIndex, targetIndex, targetGroupId);
     }
@@ -79,24 +68,30 @@ export const useDragAndDrop = (
     e.preventDefault();
     e.currentTarget.classList.remove('border-dashed', 'border-2', 'border-primary');
     
-    try {
-      const data = JSON.parse(e.dataTransfer.getData('text/plain'));
+    if (!draggedItem) return;
+    
+    const { id: sourceId, groupId: sourceGroupId } = draggedItem;
+    
+    if (sourceGroupId === groupId) return;
+    
+    // Find the document being dragged
+    let sourceDocument: Document | undefined;
+    
+    if (sourceGroupId) {
+      sourceDocument = documents.find(d => d.id === sourceId && d.groupId === sourceGroupId);
+    } else {
+      sourceDocument = documents.find(d => d.id === sourceId && !d.groupId);
+    }
+    
+    if (sourceDocument) {
+      const sourceIndex = documents.findIndex(d => d.id === sourceId);
+      // Get the last position in the target group
+      const targetGroupDocs = documents.filter(d => d.groupId === groupId);
+      const targetIndex = targetGroupDocs.length > 0 ? 
+        documents.indexOf(targetGroupDocs[targetGroupDocs.length - 1]) + 1 : 
+        documents.length;
       
-      if (data.id) {
-        const sourceId = data.id;
-        const sourceGroupId = data.groupId;
-        
-        if (sourceGroupId === groupId) return;
-        
-        const sourceIndex = documents.findIndex(d => d.id === sourceId);
-        const targetIndex = documents.filter(d => d.groupId === groupId).length;
-        
-        if (sourceIndex !== -1) {
-          onReorder(sourceIndex, targetIndex, groupId);
-        }
-      }
-    } catch (error) {
-      console.error("Erreur lors du drop:", error);
+      onReorder(sourceIndex, targetIndex, groupId);
     }
     
     setDraggedItem(null);

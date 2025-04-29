@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { FileText, FolderPlus } from 'lucide-react';
 import { MembresProvider } from '@/contexts/MembresContext';
@@ -67,7 +66,7 @@ const GestionDocumentaireContent = () => {
   };
 
   return (
-    <div className="p-8">
+    <div className="w-full px-6 py-6">
       <div className="flex items-center justify-between mb-2">
         <div>
           <h1 className="text-3xl font-bold text-app-blue">Gestion Documentaire</h1>

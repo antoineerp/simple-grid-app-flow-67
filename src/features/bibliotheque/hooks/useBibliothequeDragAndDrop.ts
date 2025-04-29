@@ -20,29 +20,75 @@ export const useBibliothequeDragAndDrop = (
     
     if (sourceId === targetId && sourceGroupId === targetGroupId) return;
     
-    if (targetGroupId !== undefined && sourceGroupId !== targetGroupId) {
+    if (targetGroupId !== undefined) {
       // Move document to a group
-      let docToMove;
+      let docToMove: Document | undefined;
       
       if (sourceGroupId) {
-        setGroups(groups => groups.map(group => 
-          group.id === sourceGroupId 
-            ? { ...group, items: group.items.filter(item => item.id !== sourceId) }
-            : group
-        ));
-        
-        docToMove = documents.find(doc => doc.id === sourceId);
+        // Source is in a group
+        setGroups(groups => {
+          const updatedGroups = groups.map(group => {
+            if (group.id === sourceGroupId) {
+              const filteredItems = group.items.filter(item => item.id !== sourceId);
+              const foundItem = group.items.find(item => item.id === sourceId);
+              if (foundItem) docToMove = foundItem;
+              return { ...group, items: filteredItems };
+            }
+            return group;
+          });
+          
+          return updatedGroups;
+        });
       } else {
+        // Source is not in a group
+        docToMove = documents.find(doc => doc.id === sourceId);
         setDocuments(docs => docs.filter(doc => doc.id !== sourceId));
-        docToMove = documents.find(d => d.id === sourceId);
       }
       
       if (docToMove) {
-        setGroups(groups => groups.map(group => 
-          group.id === targetGroupId
-            ? { ...group, items: [...group.items, { ...docToMove, groupId: targetGroupId }] }
-            : group
-        ));
+        // Ensure we update the groupId on the document
+        const docWithGroupId = { ...docToMove, groupId: targetGroupId };
+        
+        setGroups(groups => {
+          return groups.map(group => {
+            if (group.id === targetGroupId) {
+              // Add the document to the target group
+              return { 
+                ...group, 
+                items: [...group.items, docWithGroupId] 
+              };
+            }
+            return group;
+          });
+        });
+      }
+    } else {
+      // Move to standalone documents
+      if (sourceGroupId) {
+        // Source is in a group, move to standalone
+        let docToMove: Document | undefined;
+        
+        setGroups(groups => {
+          const updatedGroups = groups.map(group => {
+            if (group.id === sourceGroupId) {
+              const filteredItems = group.items.filter(item => item.id !== sourceId);
+              const foundItem = group.items.find(item => item.id === sourceId);
+              if (foundItem) docToMove = foundItem;
+              return { ...group, items: filteredItems };
+            }
+            return group;
+          });
+          
+          return updatedGroups;
+        });
+        
+        if (docToMove) {
+          // Remove the groupId
+          const docWithoutGroupId = { ...docToMove };
+          delete docWithoutGroupId.groupId;
+          
+          setDocuments(docs => [...docs, docWithoutGroupId]);
+        }
       }
     }
     
@@ -54,20 +100,47 @@ export const useBibliothequeDragAndDrop = (
     
     const { id: sourceId, groupId: sourceGroupId } = draggedItem;
     
-    if (sourceGroupId !== undefined && sourceId === targetGroupId) return;
+    if (sourceGroupId === targetGroupId) return;
     
-    if (sourceGroupId === undefined && sourceId) {
+    let docToMove: Document | undefined;
+    
+    if (sourceGroupId) {
+      // Moving from one group to another
+      setGroups(groups => {
+        const updatedGroups = groups.map(group => {
+          if (group.id === sourceGroupId) {
+            const filteredItems = group.items.filter(item => item.id !== sourceId);
+            const foundItem = group.items.find(item => item.id === sourceId);
+            if (foundItem) docToMove = foundItem;
+            return { ...group, items: filteredItems };
+          }
+          return group;
+        });
+        
+        return updatedGroups;
+      });
+    } else {
+      // Moving from standalone to a group
+      docToMove = documents.find(d => d.id === sourceId);
       setDocuments(docs => docs.filter(doc => doc.id !== sourceId));
+    }
+    
+    if (docToMove) {
+      // Ensure we update the groupId on the document
+      const docWithGroupId = { ...docToMove, groupId: targetGroupId };
       
-      const docToMove = documents.find(d => d.id === sourceId);
-      
-      if (docToMove) {
-        setGroups(groups => groups.map(group => 
-          group.id === targetGroupId
-            ? { ...group, items: [...group.items, { ...docToMove, groupId: targetGroupId }] }
-            : group
-        ));
-      }
+      setGroups(groups => {
+        return groups.map(group => {
+          if (group.id === targetGroupId) {
+            // Add the document to the target group
+            return { 
+              ...group, 
+              items: [...group.items, docWithGroupId] 
+            };
+          }
+          return group;
+        });
+      });
     }
     
     setDraggedItem(null);
