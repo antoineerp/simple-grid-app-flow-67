@@ -1,5 +1,5 @@
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { Document as BibliothequeDocument, DocumentGroup } from '@/types/bibliotheque';
 import { Document as SystemDocument } from '@/types/documents';
 import { syncService } from '@/services/sync/SyncService';
@@ -29,9 +29,11 @@ const convertBibliothequeToSystemDoc = (doc: BibliothequeDocument): SystemDocume
 export const useBibliothequeSync = () => {
   const [lastSynced, setLastSynced] = useState<Date | null>(null);
   const { isOnline } = useNetworkStatus();
-  // Mise à jour pour utiliser "collaboration" au lieu de "bibliotheque"
   const { isSyncing, syncFailed, syncAndProcess } = useSync('collaboration');
+  const syncTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const pendingSyncRef = useRef<boolean>(false);
   
+  // Fonction pour charger les documents depuis le serveur
   const loadFromServer = useCallback(async (userId?: string): Promise<BibliothequeDocument[]> => {
     if (!isOnline) {
       console.log('Mode hors ligne - chargement des documents locaux');
@@ -51,9 +53,13 @@ export const useBibliothequeSync = () => {
     
     try {
       // Utiliser le service central pour charger les données
-      // UNIQUEMENT utiliser "collaboration"
       const documents = await syncService.loadDataFromServer<SystemDocument>('collaboration', userId);
-      setLastSynced(syncService.getLastSynced('collaboration') || new Date());
+      const lastSyncTime = syncService.getLastSynced('collaboration');
+      if (lastSyncTime) {
+        setLastSynced(lastSyncTime);
+      } else {
+        setLastSynced(new Date());
+      }
       return documents.map(convertSystemToBibliothequeDoc);
     } catch (error) {
       console.error('Erreur lors du chargement des documents:', error);
@@ -79,19 +85,60 @@ export const useBibliothequeSync = () => {
     }
   }, [isOnline]);
   
-  const syncWithServer = useCallback(async (documents: BibliothequeDocument[], groups: DocumentGroup[], userId?: string, trigger: "auto" | "manual" | "initial" = "manual"): Promise<boolean> => {
+  // Fonction pour synchroniser avec délai (debounce)
+  const debounceSyncWithServer = useCallback((
+    documents: BibliothequeDocument[], 
+    groups: DocumentGroup[], 
+    userId?: string
+  ) => {
+    // Toujours sauvegarder localement immédiatement
+    const systemDocs = documents.map(convertBibliothequeToSystemDoc);
+    localStorage.setItem(`collaboration_${userId || 'default'}`, JSON.stringify(systemDocs));
+    localStorage.setItem(`collaboration_groups_${userId || 'default'}`, JSON.stringify(groups));
+    
+    // Marquer qu'une synchronisation est en attente
+    pendingSyncRef.current = true;
+    
+    // Si un timeout est déjà en cours, l'annuler
+    if (syncTimeoutRef.current) {
+      clearTimeout(syncTimeoutRef.current);
+    }
+    
+    // Programmer une nouvelle synchronisation après 10 secondes
+    syncTimeoutRef.current = setTimeout(() => {
+      if (pendingSyncRef.current && isOnline) {
+        // Exécuter la synchronisation
+        syncWithServer(documents, groups, userId, "auto").catch(err => {
+          console.error("Erreur lors de la synchronisation différée:", err);
+        });
+        pendingSyncRef.current = false;
+      }
+      syncTimeoutRef.current = null;
+    }, 10000); // 10 secondes de délai
+    
+    return true;
+  }, [isOnline]);
+  
+  // Fonction principale de synchronisation
+  const syncWithServer = useCallback(async (
+    documents: BibliothequeDocument[], 
+    groups: DocumentGroup[], 
+    userId?: string, 
+    trigger: "auto" | "manual" | "initial" = "manual"
+  ): Promise<boolean> => {
     if (!isOnline) {
       // Mode hors ligne - enregistrement local uniquement
       const systemDocs = documents.map(convertBibliothequeToSystemDoc);
-      // UNIQUEMENT utiliser le nouveau nom de stockage
       localStorage.setItem(`collaboration_${userId || 'default'}`, JSON.stringify(systemDocs));
       localStorage.setItem(`collaboration_groups_${userId || 'default'}`, JSON.stringify(groups));
       
-      toast({
-        variant: "destructive",
-        title: "Mode hors ligne",
-        description: "Les modifications ont été enregistrées localement uniquement.",
-      });
+      if (trigger !== "auto") {
+        toast({
+          variant: "destructive",
+          title: "Mode hors ligne",
+          description: "Les modifications ont été enregistrées localement uniquement.",
+        });
+      }
       
       return false;
     }
@@ -99,7 +146,6 @@ export const useBibliothequeSync = () => {
     try {
       // Toujours enregistrer localement d'abord pour éviter la perte de données
       const systemDocs = documents.map(convertBibliothequeToSystemDoc);
-      // UNIQUEMENT utiliser le nouveau nom de stockage
       localStorage.setItem(`collaboration_${userId || 'default'}`, JSON.stringify(systemDocs));
       localStorage.setItem(`collaboration_groups_${userId || 'default'}`, JSON.stringify(groups));
       
@@ -107,7 +153,16 @@ export const useBibliothequeSync = () => {
       const result = await syncAndProcess('collaboration', systemDocs, trigger);
       
       if (result.success) {
-        setLastSynced(syncService.getLastSynced('collaboration') || new Date());
+        const lastSyncTime = syncService.getLastSynced('collaboration');
+        if (lastSyncTime) {
+          setLastSynced(lastSyncTime);
+        } else {
+          setLastSynced(new Date());
+        }
+        
+        // Réinitialiser l'indicateur de synchronisation en attente
+        pendingSyncRef.current = false;
+        
         return true;
       }
       
@@ -121,9 +176,11 @@ export const useBibliothequeSync = () => {
   
   return {
     syncWithServer,
+    debounceSyncWithServer, // Nouvelle fonction pour la synchronisation différée
     loadFromServer,
     isSyncing,
     isOnline,
-    lastSynced
+    lastSynced,
+    syncFailed
   };
 };

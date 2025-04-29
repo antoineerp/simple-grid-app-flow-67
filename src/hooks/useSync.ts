@@ -1,3 +1,4 @@
+
 import { useState, useCallback, useEffect } from 'react';
 import { syncService, DataTable, SyncResult } from '@/services/sync/SyncService';
 import { useToast } from '@/components/ui/use-toast';
@@ -62,26 +63,34 @@ export const useSync = (tableName: string): SyncState => {
     trigger: "auto" | "manual" | "initial" = "auto"
   ): Promise<SyncResult> => {
     if (!isOnline) {
-      toast({
-        title: "Mode hors ligne",
-        description: "La synchronisation n'est pas disponible en mode hors ligne",
-        variant: "destructive"
-      });
-      throw new Error("Mode hors ligne");
+      const result: SyncResult = {
+        success: false,
+        message: "Mode hors ligne"
+      };
+      
+      if (trigger !== "auto") {
+        toast({
+          title: "Mode hors ligne",
+          description: "La synchronisation n'est pas disponible en mode hors ligne",
+          variant: "destructive"
+        });
+      }
+      
+      return result;
     }
     
-    if (isSyncing) {
-      toast({
-        title: "Synchronisation en cours",
-        description: "Veuillez attendre la fin de la synchronisation en cours",
-      });
-      throw new Error("Synchronisation déjà en cours");
+    // Si déjà en cours de synchronisation, éviter les appels redondants
+    if (syncService.isSyncingTable(tableName)) {
+      return {
+        success: false,
+        message: "Synchronisation déjà en cours"
+      };
     }
     
     setIsSyncing(true);
     
     try {
-      // Si c'est une synchronisation automatique, ne pas afficher de toast de début
+      // Si ce n'est pas une synchronisation automatique, afficher un toast
       if (trigger !== "auto") {
         toast({
           title: "Synchronisation en cours",
@@ -89,7 +98,7 @@ export const useSync = (tableName: string): SyncState => {
         });
       }
       
-      // Directly call syncTable with the table name and data
+      // Appeler directement le service de synchronisation
       const result = await syncService.syncTable(tableName, data, null, trigger);
       
       if (result.success) {
@@ -108,11 +117,14 @@ export const useSync = (tableName: string): SyncState => {
         }
       } else {
         setSyncFailed(true);
-        toast({
-          title: "Échec de la synchronisation",
-          description: result.message || "Une erreur est survenue lors de la synchronisation",
-          variant: "destructive"
-        });
+        
+        if (trigger !== "auto") {
+          toast({
+            title: "Échec de la synchronisation",
+            description: result.message || "Une erreur est survenue lors de la synchronisation",
+            variant: "destructive"
+          });
+        }
       }
       
       return result;
@@ -126,16 +138,22 @@ export const useSync = (tableName: string): SyncState => {
         error: errorMessage
       }));
       
-      toast({
-        title: "Erreur de synchronisation",
-        description: errorMessage,
-        variant: "destructive"
-      });
-      throw error;
+      if (trigger !== "auto") {
+        toast({
+          title: "Erreur de synchronisation",
+          description: errorMessage,
+          variant: "destructive"
+        });
+      }
+      
+      return {
+        success: false,
+        message: errorMessage
+      };
     } finally {
       setIsSyncing(false);
     }
-  }, [isOnline, isSyncing, tableName, toast]);
+  }, [isOnline, tableName, toast]);
   
   // Réinitialiser l'état de synchronisation
   const resetSyncStatus = useCallback(() => {

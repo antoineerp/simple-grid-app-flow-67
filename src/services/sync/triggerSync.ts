@@ -19,8 +19,20 @@ export const triggerSync = {
       // Sauvegarder les données localement d'abord pour éviter toute perte
       dataSyncManager.saveLocalData(tableName, data);
       
+      // Vérifier si la table doit être mappée (ancien nom vers nouveau nom)
+      const tableMappings: Record<string, string> = {
+        'bibliotheque': 'collaboration'
+      };
+      
+      // Utiliser le nom correct de la table pour la synchronisation
+      const actualTableName = tableMappings[tableName] || tableName;
+      
+      if (actualTableName !== tableName) {
+        console.log(`TriggerSync: Redirection de "${tableName}" vers "${actualTableName}"`);
+      }
+      
       // Effectuer la synchronisation
-      const result = await dataSyncManager.syncTable(tableName, data);
+      const result = await dataSyncManager.syncTable(actualTableName, data);
       return result.success;
     } catch (error) {
       console.error(`TriggerSync: Erreur lors de la synchronisation de ${tableName}:`, error);
@@ -37,13 +49,27 @@ export const triggerSync = {
   notifyDataChange: <T>(tableName: string, data: T[]): void => {
     console.log(`TriggerSync: Notification de changement de données pour ${tableName}`);
     
+    // Vérifier si la table doit être mappée (ancien nom vers nouveau nom)
+    const tableMappings: Record<string, string> = {
+      'bibliotheque': 'collaboration'
+    };
+    
+    // Utiliser le nom correct de la table pour le stockage
+    const actualTableName = tableMappings[tableName] || tableName;
+    
     // Sauvegarder les données localement
-    dataSyncManager.saveLocalData(tableName, data);
+    dataSyncManager.saveLocalData(actualTableName, data);
+    
+    // Sauvegarder aussi sous l'ancien nom si c'est un nom mappé
+    if (actualTableName !== tableName) {
+      console.log(`TriggerSync: Sauvegarde sous l'ancien nom "${tableName}" également`);
+      dataSyncManager.saveLocalData(tableName, data);
+    }
     
     // Émettre un événement pour le GlobalSyncManager
     const event = new CustomEvent('dataUpdate', {
       detail: {
-        table: tableName,
+        table: actualTableName,
         data: data,
         timestamp: new Date().getTime()
       }
@@ -53,7 +79,12 @@ export const triggerSync = {
     
     // Ajouter un indicateur dans le localStorage pour que d'autres onglets soient informés
     try {
-      localStorage.setItem('sync_pending_' + tableName, new Date().toISOString());
+      localStorage.setItem('sync_pending_' + actualTableName, new Date().toISOString());
+      
+      // Si c'est un nom mappé, également ajouter sous l'ancien nom
+      if (actualTableName !== tableName) {
+        localStorage.setItem('sync_pending_' + tableName, new Date().toISOString());
+      }
     } catch (e) {
       console.error("Erreur lors de l'enregistrement de l'indicateur de synchronisation:", e);
     }

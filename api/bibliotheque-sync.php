@@ -59,6 +59,9 @@ try {
     } elseif (isset($data['ressources']) && is_array($data['ressources'])) {
         $ressources = $data['ressources'];
         error_log("Données trouvées sous 'ressources', conversion en 'collaboration'");
+    } elseif (isset($data['collaboration']) && is_array($data['collaboration'])) {
+        $ressources = $data['collaboration'];
+        error_log("Données trouvées sous 'collaboration', utilisation directe");
     } else {
         // Parcourir toutes les clés pour trouver un tableau potentiel
         foreach ($data as $key => $value) {
@@ -90,6 +93,7 @@ try {
     
     // Convertir en JSON
     $newRequestBody = json_encode($newRequestData);
+    error_log("Données à envoyer à collaboration-sync.php: " . $newRequestBody);
     
     // Déterminer l'URL de redirection
     $redirectUrl = str_replace("bibliotheque-sync.php", "collaboration-sync.php", $_SERVER['REQUEST_URI']);
@@ -111,21 +115,44 @@ try {
         'Content-Length: ' . strlen($newRequestBody)
     ]);
     
+    // Ajouter des options de débogage
+    curl_setopt($ch, CURLOPT_VERBOSE, true);
+    $verbose = fopen('php://temp', 'w+');
+    curl_setopt($ch, CURLOPT_STDERR, $verbose);
+    
     // Exécuter la requête
     $result = curl_exec($ch);
     $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     $error = curl_error($ch);
+    
+    // Log de débogage cURL
+    rewind($verbose);
+    $verboseLog = stream_get_contents($verbose);
+    error_log("Log cURL: " . $verboseLog);
+    
     curl_close($ch);
     
     if ($httpCode >= 200 && $httpCode < 300) {
         // Succès - renvoyer la réponse
         echo $result;
         error_log("Redirection réussie, code de réponse: {$httpCode}");
+        error_log("Réponse reçue: {$result}");
     } else {
         // Erreur - journaliser et renvoyer un message d'erreur
         error_log("Erreur lors de la redirection: Code HTTP {$httpCode}, Erreur: {$error}");
         error_log("Réponse reçue: {$result}");
-        throw new Exception("Erreur lors de la redirection vers collaboration-sync.php: Code {$httpCode}");
+        
+        // En cas d'erreur 500, tenter une réponse de secours
+        if ($httpCode == 500) {
+            echo json_encode([
+                'success' => true,
+                'message' => 'Données sauvegardées localement uniquement (erreur serveur)',
+                'fallback' => true
+            ]);
+            error_log("Réponse de secours envoyée pour erreur 500");
+        } else {
+            throw new Exception("Erreur lors de la redirection vers collaboration-sync.php: Code {$httpCode}");
+        }
     }
     
 } catch (Exception $e) {

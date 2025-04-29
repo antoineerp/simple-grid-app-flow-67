@@ -14,6 +14,7 @@ const GlobalSyncManager: React.FC = () => {
   
   // Référence pour suivre les synchronisations déjà traitées
   const processedSyncs = useRef<Set<string>>(new Set());
+  const syncTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   
   // Vérifier les données en attente de synchronisation dans localStorage
   const checkPendingSyncs = () => {
@@ -30,10 +31,19 @@ const GlobalSyncManager: React.FC = () => {
     if (checkPendingSyncs()) {
       console.log(`GlobalSyncManager: Des changements en attente détectés, synchronisation...`);
       
-      // Synchroniser toutes les modifications en attente
-      syncAll().catch(error => {
-        console.error("Erreur lors de la synchronisation des modifications en attente:", error);
-      });
+      // Annuler tout timer existant
+      if (syncTimeoutRef.current) {
+        clearTimeout(syncTimeoutRef.current);
+      }
+      
+      // Créer un nouveau timer pour ne pas synchroniser trop souvent
+      syncTimeoutRef.current = setTimeout(() => {
+        // Synchroniser toutes les modifications en attente
+        syncAll().catch(error => {
+          console.error("Erreur lors de la synchronisation des modifications en attente:", error);
+        });
+        syncTimeoutRef.current = null;
+      }, 10000); // 10 secondes de délai
     }
   };
   
@@ -66,17 +76,20 @@ const GlobalSyncManager: React.FC = () => {
     return () => {
       window.removeEventListener('dataUpdate', handleDataUpdate as EventListener);
       window.removeEventListener('storage', handleStorageChange);
+      
+      // Nettoyer le timeout s'il existe
+      if (syncTimeoutRef.current) {
+        clearTimeout(syncTimeoutRef.current);
+      }
     };
   }, []);
   
   // Effectuer une synchronisation lorsque isSyncPending change
   useEffect(() => {
     if (isSyncPending && isOnline) {
-      const timer = setTimeout(() => {
-        syncPendingChanges();
-      }, 2000); // Délai pour éviter trop de synchronisations rapprochées
-      
-      return () => clearTimeout(timer);
+      // Ne pas déclencher la synchronisation trop souvent
+      // Utiliser un délai pour regrouper plusieurs modifications
+      syncPendingChanges();
     }
   }, [isSyncPending, isOnline]);
   

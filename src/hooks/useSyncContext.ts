@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from 'react';
+
+import { useCallback, useEffect, useState, useRef } from 'react';
 import { useGlobalSync } from '@/contexts/GlobalSyncContext';
 import { useToast } from '@/hooks/use-toast';
 import { triggerSync } from '@/services/sync/triggerSync';
@@ -7,6 +8,7 @@ import { getCurrentUser } from '@/services/core/databaseConnectionService';
 interface SyncHookOptions {
   showToasts?: boolean;
   autoSync?: boolean; // Option pour synchroniser automatiquement au chargement
+  debounceTime?: number; // Temps d'attente avant synchronisation (ms)
 }
 
 /**
@@ -16,8 +18,17 @@ interface SyncHookOptions {
 export function useSyncContext<T>(tableName: string, data: T[], options: SyncHookOptions = {}) {
   const { syncStates, syncTable, isOnline } = useGlobalSync();
   const { toast } = useToast();
-  const { showToasts = true, autoSync = false } = options;
+  const { 
+    showToasts = true, 
+    autoSync = false, 
+    debounceTime = 10000 // 10 secondes par défaut
+  } = options;
   const [dataChanged, setDataChanged] = useState(false);
+  
+  // Références pour la synchronisation différée
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const pendingSyncRef = useRef<boolean>(false);
+  const lastDataRef = useRef<T[]>(data);
 
   // Obtenir l'état de synchronisation pour cette table
   const syncState = syncStates[tableName] || {
@@ -26,25 +37,47 @@ export function useSyncContext<T>(tableName: string, data: T[], options: SyncHoo
     syncFailed: false
   };
   
-  // Effet pour synchroniser automatiquement si autoSync est activé
+  // Stocker les données dans localStorage et déclencher la synchronisation différée
   useEffect(() => {
-    if (autoSync && isOnline && data.length > 0 && !syncState.isSyncing) {
-      console.log(`useSyncContext: Auto-synchronisation activée pour ${tableName}`);
-      
-      // Notifier seulement, ne pas synchroniser immédiatement
-      triggerSync.notifyDataChange(tableName, data);
-    }
-  }, [autoSync, isOnline, data, tableName, syncState.isSyncing]);
-  
-  // Effet pour sauvegarder les données localement quand elles changent
-  useEffect(() => {
-    if (data.length > 0) {
+    if (data.length > 0 && JSON.stringify(data) !== JSON.stringify(lastDataRef.current)) {
       // Sauvegarder avec l'ID utilisateur pour éviter les conflits
       const userId = getCurrentUser() || 'default';
       localStorage.setItem(`${tableName}_${userId}`, JSON.stringify(data));
       setDataChanged(true);
+      pendingSyncRef.current = true;
+      lastDataRef.current = [...data];
+      
+      // Si autoSync est activé, planifier une synchronisation différée
+      if (autoSync && isOnline) {
+        // Annuler tout timeout existant
+        if (timeoutRef.current) {
+          clearTimeout(timeoutRef.current);
+        }
+        
+        // Créer un nouveau timeout
+        timeoutRef.current = setTimeout(() => {
+          if (pendingSyncRef.current && isOnline) {
+            console.log(`Synchronisation différée de ${tableName} après ${debounceTime}ms`);
+            syncTable(tableName, data)
+              .then(() => {
+                pendingSyncRef.current = false;
+                setDataChanged(false);
+              })
+              .catch(error => {
+                console.error(`Erreur lors de la synchronisation différée de ${tableName}:`, error);
+              });
+          }
+        }, debounceTime);
+      }
     }
-  }, [data, tableName]);
+    
+    // Nettoyage lors du démontage du composant
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
+  }, [data, tableName, autoSync, isOnline, debounceTime, syncTable]);
 
   // Méthode de synchronisation adaptée pour cette table spécifique
   const syncWithServer = useCallback(async (): Promise<boolean> => {
@@ -61,11 +94,18 @@ export function useSyncContext<T>(tableName: string, data: T[], options: SyncHoo
     try {
       console.log(`Synchronisation de ${tableName} initiée avec ${data.length} éléments`);
       
+      // Annuler toute synchronisation différée en attente
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+      }
+      
       // Use only two parameters: tableName and data
       const result = await syncTable(tableName, data);
       
       if (result) {
         setDataChanged(false);
+        pendingSyncRef.current = false;
         console.log(`Synchronisation de ${tableName} réussie`);
         
         if (showToasts) {
@@ -104,9 +144,37 @@ export function useSyncContext<T>(tableName: string, data: T[], options: SyncHoo
   
   // Méthode pour notifier seulement les changements (sauvegarde locale)
   const notifyChanges = useCallback(() => {
-    triggerSync.notifyDataChange(tableName, data);
+    // Sauvegarder dans localStorage
+    const userId = getCurrentUser() || 'default';
+    localStorage.setItem(`${tableName}_${userId}`, JSON.stringify(data));
+    
+    // Indiquer que des changements sont en attente
+    pendingSyncRef.current = true;
     setDataChanged(true);
-  }, [tableName, data]);
+    
+    // Si autoSync est activé, planifier une synchronisation différée
+    if (autoSync && isOnline) {
+      // Annuler tout timeout existant
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+      
+      // Créer un nouveau timeout
+      timeoutRef.current = setTimeout(() => {
+        if (pendingSyncRef.current && isOnline) {
+          console.log(`Synchronisation différée après notification de changements dans ${tableName}`);
+          syncTable(tableName, data)
+            .then(() => {
+              pendingSyncRef.current = false;
+              setDataChanged(false);
+            })
+            .catch(error => {
+              console.error(`Erreur lors de la synchronisation différée de ${tableName}:`, error);
+            });
+        }
+      }, debounceTime);
+    }
+  }, [tableName, data, autoSync, isOnline, debounceTime, syncTable]);
 
   return {
     isSyncing: syncState.isSyncing,
