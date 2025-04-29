@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -120,7 +121,7 @@ const Collaboration = () => {
       if (isEditing) {
         handleEditGroup(currentGroup);
       } else {
-        // Fix: Call handleAddGroup with the currentGroup
+        // Fixed: Call handleAddGroup without arguments, since it already uses currentGroup from state
         handleAddGroup(currentGroup);
       }
       setIsGroupDialogOpen(false);

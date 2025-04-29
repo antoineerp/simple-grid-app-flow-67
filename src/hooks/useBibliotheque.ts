@@ -114,19 +114,22 @@ export const useBibliotheque = () => {
     setIsDialogOpen(true);
   };
 
-  // Ajouter un groupe
-  const handleAddGroup = () => {
-    const newId = Date.now().toString();
+  // Ajouter un groupe - Updated to properly handle the group parameter
+  const handleAddGroup = (group: DocumentGroup) => {
+    if (!group) return;
     
-    setCurrentGroup({
-      id: newId,
-      name: '',
-      expanded: true,
-      items: []
+    // Create a copy of the current groups and add the new group
+    const newGroups = [...globalGroups, group];
+    setBibliothequeGroups(newGroups);
+    
+    // Show a toast notification
+    toast({
+      title: "Nouveau groupe ajouté",
+      description: `Le groupe "${group.name}" a été ajouté avec succès.`
     });
     
-    setIsEditing(false);
-    setIsGroupDialogOpen(true);
+    // Synchronize with server
+    syncWithServer();
   };
 
   // Modifier un groupe

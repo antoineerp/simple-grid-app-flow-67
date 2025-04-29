@@ -26,6 +26,7 @@ export const BibliothequeHeader: React.FC<BibliothequeHeaderProps> = ({
         <h1 className="text-3xl font-bold text-app-blue">Bibliothèque de documents</h1>
       </div>
       
+      {/* Only show the SyncIndicator if there's an error or we're offline */}
       <div className="mb-4">
         <SyncIndicator
           isSyncing={isSyncing}
