@@ -8,7 +8,7 @@ export interface SyncOptions<T> {
   data: T[];
   userId: string | object;
   dataName?: string;
-  additionalData?: any; // Ajout du support pour des données supplémentaires
+  additionalData?: any;
   maxRetries?: number;
   retryDelay?: number;
 }

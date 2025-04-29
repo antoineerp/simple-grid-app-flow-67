@@ -5,6 +5,9 @@ import { getCurrentUser } from '@/services/auth/authService';
 import { useSyncService } from '@/services/core/syncService';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { Spinner } from '@/components/ui/spinner';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { AlertCircle, RefreshCw } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 interface BootLoaderProps {
   children: React.ReactNode;
@@ -15,6 +18,7 @@ const BootLoader: React.FC<BootLoaderProps> = ({ children }) => {
   const [loadingStatus, setLoadingStatus] = useState('Initialisation...');
   const [debugInfo, setDebugInfo] = useState<string[]>([]);
   const [retryCount, setRetryCount] = useState(0);
+  const [apiError, setApiError] = useState<string | null>(null);
   const syncService = useSyncService();
   const { isOnline } = useNetworkStatus();
   const { toast } = useToast();
@@ -89,7 +93,8 @@ const BootLoader: React.FC<BootLoaderProps> = ({ children }) => {
             endpoint: 'documents-sync.php',
             loadEndpoint: 'documents-load.php',
             userId: userId,
-            maxRetries: 2
+            maxRetries: 2,
+            retryDelay: 1000
           });
           
           console.log('BootLoader: Résultat du chargement des documents:', documentsResult);
@@ -112,7 +117,8 @@ const BootLoader: React.FC<BootLoaderProps> = ({ children }) => {
             endpoint: 'exigences-sync.php',
             loadEndpoint: 'exigences-load.php',
             userId: userId,
-            maxRetries: 2
+            maxRetries: 2,
+            retryDelay: 1000
           });
           
           console.log('BootLoader: Résultat du chargement des exigences:', exigencesResult);
@@ -127,6 +133,7 @@ const BootLoader: React.FC<BootLoaderProps> = ({ children }) => {
           
           if (isMounted.current) {
             setDebugInfo(prev => [...prev, `Erreur lors du préchargement: ${loadError instanceof Error ? loadError.message : String(loadError)}`]);
+            setApiError(loadError instanceof Error ? loadError.message : String(loadError));
             
             // Si on a moins de 3 tentatives, on réessaie
             if (retryCount < 2) {
@@ -156,6 +163,7 @@ const BootLoader: React.FC<BootLoaderProps> = ({ children }) => {
         console.error('BootLoader: Erreur lors de l\'initialisation de l\'application:', error);
         if (isMounted.current) {
           setDebugInfo(prev => [...prev, `Erreur lors de l'initialisation: ${error instanceof Error ? error.message : String(error)}`]);
+          setApiError(error instanceof Error ? error.message : String(error));
         }
       } finally {
         if (isMounted.current) {
@@ -184,16 +192,45 @@ const BootLoader: React.FC<BootLoaderProps> = ({ children }) => {
       console.log('================================');
     }
   }, [isLoading, debugInfo]);
+
+  // Fonction pour réessayer le chargement manuellement
+  const handleRetry = () => {
+    setRetryCount(0);
+    setApiError(null);
+    setIsLoading(true);
+    setLoadingStatus('Nouvelle tentative...');
+  };
   
   if (isLoading) {
     return (
       <div className="fixed inset-0 flex items-center justify-center bg-white bg-opacity-90 z-50">
-        <div className="text-center">
+        <div className="text-center p-6 max-w-md">
           <Spinner size="lg" color="primary" className="mx-auto mb-4" />
           <h3 className="text-lg font-medium text-gray-900">{loadingStatus}</h3>
           <p className="text-sm text-gray-500 mt-2">Veuillez patienter pendant le chargement initial...</p>
           {retryCount > 0 && (
             <p className="text-sm text-amber-600 mt-2">Tentative {retryCount + 1}/3</p>
+          )}
+          
+          {apiError && (
+            <Alert variant="destructive" className="mt-4">
+              <AlertCircle className="h-4 w-4 mr-2" />
+              <AlertDescription>
+                <div className="text-sm">
+                  <p className="font-semibold">Erreur détectée:</p>
+                  <p className="break-words">{apiError}</p>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={handleRetry}
+                    className="mt-2 w-full"
+                  >
+                    <RefreshCw className="h-3 w-3 mr-1" />
+                    Réessayer le chargement
+                  </Button>
+                </div>
+              </AlertDescription>
+            </Alert>
           )}
         </div>
       </div>

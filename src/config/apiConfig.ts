@@ -37,6 +37,20 @@ export async function testApiConnection(): Promise<{ success: boolean; message: 
     const responseText = await response.text();
     
     try {
+      // Vérifier si la réponse commence par "<?php"
+      if (responseText.trim().startsWith('<?php')) {
+        return {
+          success: false,
+          message: 'Le serveur renvoie du code PHP au lieu de l\'exécuter',
+          details: {
+            error: 'Configuration PHP incorrecte',
+            responseText: responseText.substring(0, 300),
+            tip: 'Vérifiez que PHP est correctement configuré sur votre serveur et que les fichiers .php sont bien interprétés.'
+          }
+        };
+      }
+      
+      // Essayer de parser le JSON
       const data = JSON.parse(responseText);
       return {
         success: true,
@@ -78,6 +92,11 @@ export async function fetchWithErrorHandling(url: string, options?: RequestInit)
     const text = await response.text();
     if (!text) {
       return {};
+    }
+    
+    // Vérifier si la réponse commence par "<?php"
+    if (text.trim().startsWith('<?php')) {
+      throw new Error('Le serveur renvoie du code PHP au lieu de l\'exécuter. Vérifiez la configuration du serveur.');
     }
     
     try {

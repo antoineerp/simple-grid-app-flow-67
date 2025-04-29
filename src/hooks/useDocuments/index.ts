@@ -7,6 +7,7 @@ import { useDocumentHandlers } from '@/features/documents/hooks/useDocumentHandl
 import { useDocumentReorder } from '@/features/documents/hooks/useDocumentReorder';
 import { useSyncService } from '@/services/core/syncService';
 import { Document } from '@/types/documents';
+import { useToast } from '@/hooks/use-toast';
 
 export const useDocuments = () => {
   const core = useDocumentCore();
@@ -19,6 +20,7 @@ export const useDocuments = () => {
     loadError, setLoadError, lastSynced: coreLastSynced, setLastSynced: setCoreLastSynced,
     stats, isOnline, userId, toast
   } = core;
+  const { toast: internalToast } = useToast();
   
   // Utilisation du service de synchronisation centralisé
   const syncService = useSyncService();
@@ -36,12 +38,15 @@ export const useDocuments = () => {
     if (!isOnline || isSyncing) return false;
     
     try {
+      console.log("Tentative de synchronisation des documents avec le serveur...");
       const success = await syncService.syncWithServer<Document>({
         endpoint: 'documents-sync.php',
         loadEndpoint: 'documents-load.php',
         data: documents,
         userId: userId,
-        dataName: 'documents'
+        dataName: 'documents',
+        maxRetries: 2,
+        retryDelay: 1000
       });
       
       if (success) {
@@ -53,11 +58,17 @@ export const useDocuments = () => {
           const result = await syncService.loadFromServer<Document>({
             endpoint: 'documents-sync.php',
             loadEndpoint: 'documents-load.php',
-            userId: userId
+            userId: userId,
+            maxRetries: 2,
+            retryDelay: 1000
           });
           
           if (Array.isArray(result)) {
             setDocuments(result as Document[]);
+            internalToast({
+              title: "Synchronisation réussie",
+              description: `${result.length} documents chargés du serveur`,
+            });
           }
         } catch (loadError) {
           console.error("Erreur lors du rechargement après synchronisation:", loadError);
@@ -69,10 +80,16 @@ export const useDocuments = () => {
         return false;
       }
     } catch (error) {
+      console.error("Erreur lors de la synchronisation:", error);
       setCoreSyncFailed(true);
+      internalToast({
+        title: "Erreur de synchronisation",
+        description: error instanceof Error ? error.message : "Erreur lors de la synchronisation",
+        variant: "destructive"
+      });
       return false;
     }
-  }, [documents, userId, isOnline, isSyncing, syncService, setCoreSyncFailed, setCoreLastSynced, setDocuments]);
+  }, [documents, userId, isOnline, isSyncing, syncService, setCoreSyncFailed, setCoreLastSynced, setDocuments, internalToast]);
   
   const documentHandlers = useDocumentHandlers({
     documents,
@@ -102,16 +119,27 @@ export const useDocuments = () => {
   // Fonction de chargement initial des documents
   const loadDocuments = useCallback(async () => {
     try {
+      if (!userId) {
+        console.log("Pas d'utilisateur identifié, chargement des documents ignoré");
+        return;
+      }
+      
       console.log(`Chargement des documents pour l'utilisateur: ${userId}`);
       const result = await syncService.loadFromServer<Document>({
         endpoint: 'documents-sync.php',
         loadEndpoint: 'documents-load.php',
-        userId: userId
+        userId: userId,
+        maxRetries: 2,
+        retryDelay: 1000
       });
       
       if (Array.isArray(result)) {
         setDocuments(result as Document[]);
         console.log(`${result.length} documents chargés avec succès`);
+        internalToast({
+          title: "Documents chargés",
+          description: `${result.length} documents disponibles`
+        });
       } else {
         console.error("Format de résultat inattendu:", result);
         // Ne pas vider les documents si le résultat est invalide mais qu'on a déjà des documents
@@ -122,12 +150,17 @@ export const useDocuments = () => {
     } catch (error) {
       console.error("Erreur lors du chargement des documents:", error);
       setLoadError(error instanceof Error ? error.message : "Erreur inconnue");
+      internalToast({
+        title: "Erreur de chargement",
+        description: error instanceof Error ? error.message : "Erreur lors du chargement des documents",
+        variant: "destructive"
+      });
       // Ne pas vider les documents en cas d'erreur si on en a déjà
       if (documents.length === 0) {
         setDocuments([]);
       }
     }
-  }, [userId, syncService, setDocuments, setLoadError, documents]);
+  }, [userId, syncService, setDocuments, setLoadError, documents, internalToast]);
 
   // Chargement initial des données avec le service centralisé
   useEffect(() => {
