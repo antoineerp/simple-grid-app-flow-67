@@ -6,9 +6,12 @@ import { useExigenceGroups } from './useExigenceGroups';
 import { getCurrentUser } from '@/services/auth/authService';
 import { useToast } from '@/hooks/use-toast';
 import { useSync } from './useSync';
+import { useGlobalSync } from '@/contexts/GlobalSyncContext';
+import { triggerSync } from '@/services/sync/triggerSync';
 
 export const useExigences = () => {
   const { toast } = useToast();
+  const { syncTable, syncStates, isOnline } = useGlobalSync();
   
   // Extraire un identifiant utilisateur valide
   const extractValidUserId = (user: any): string => {
@@ -67,12 +70,68 @@ export const useExigences = () => {
   });
   const [loadError, setLoadError] = useState<string | null>(null);
   const [loadAttempts, setLoadAttempts] = useState(0);
+  const [dataChanged, setDataChanged] = useState(false);
 
-  // Nouveau hook de synchronisation
-  const { isSyncing, isOnline, lastSynced, syncFailed, syncAndProcess, resetSyncStatus } = useSync('exigences');
+  // Get synchronization state for exigences from the global sync context
+  const tableName = 'exigences';
+  const syncState = syncStates[tableName] || { 
+    isSyncing: false, 
+    lastSynced: null, 
+    syncFailed: false 
+  };
+  const isSyncing = syncState.isSyncing;
+  const lastSynced = syncState.lastSynced;
+  const syncFailed = syncState.syncFailed;
   
   const mutations = useExigenceMutations(exigences, setExigences);
   const groupOperations = useExigenceGroups(groups, setGroups, setExigences);
+
+  // Load data from local storage on initial render
+  useEffect(() => {
+    const loadLocalData = () => {
+      try {
+        const storedExigences = localStorage.getItem(`${tableName}_${currentUser}`);
+        const storedGroups = localStorage.getItem(`${tableName}_groups_${currentUser}`);
+        
+        if (storedExigences) {
+          const parsedExigences = JSON.parse(storedExigences);
+          setExigences(parsedExigences);
+          console.log(`Loaded ${parsedExigences.length} exigences from local storage`);
+        }
+        
+        if (storedGroups) {
+          const parsedGroups = JSON.parse(storedGroups);
+          setGroups(parsedGroups);
+          console.log(`Loaded ${parsedGroups.length} groups from local storage`);
+        }
+      } catch (error) {
+        console.error("Error loading data from local storage:", error);
+        setLoadError("Erreur lors du chargement des données locales");
+      }
+    };
+    
+    loadLocalData();
+    
+    // Try to load from server after loading from local storage
+    syncWithServer().catch(error => {
+      console.error("Error during initial sync:", error);
+    });
+  }, [currentUser]);
+
+  // Save data to local storage whenever it changes
+  useEffect(() => {
+    if (exigences.length > 0) {
+      localStorage.setItem(`${tableName}_${currentUser}`, JSON.stringify(exigences));
+      setDataChanged(true);
+    }
+  }, [exigences, currentUser]);
+  
+  useEffect(() => {
+    if (groups.length > 0) {
+      localStorage.setItem(`${tableName}_groups_${currentUser}`, JSON.stringify(groups));
+      setDataChanged(true);
+    }
+  }, [groups, currentUser]);
 
   // Stats calculation
   useEffect(() => {
@@ -88,6 +147,22 @@ export const useExigences = () => {
     };
     setStats(newStats);
   }, [exigences]);
+
+  // Listen for window beforeunload event to sync data if needed
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      if (dataChanged) {
+        // Store the data that needs to be synced
+        triggerSync.notifyDataChange(tableName, exigences);
+      }
+    };
+    
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [dataChanged, exigences]);
 
   const handleEdit = (id: string) => {
     const exigenceToEdit = exigences.find(exigence => exigence.id === id);
@@ -125,20 +200,49 @@ export const useExigences = () => {
   const handleResetLoadAttempts = async (): Promise<void> => {
     setLoadError(null);
     setLoadAttempts(0);
-    resetSyncStatus();
     return Promise.resolve();
   };
 
   const syncWithServer = async () => {
+    if (!isOnline) {
+      return { success: false, message: "Vous êtes hors ligne" };
+    }
+    
+    // Only sync if there are actual changes
+    if (!dataChanged && !syncFailed) {
+      console.log("No changes to sync for exigences");
+      return { success: true, message: "Aucun changement à synchroniser" };
+    }
+
     try {
-      return await syncAndProcess({
-        tableName: 'exigences',
-        data: exigences,
-        groups: groups
-      });
+      const syncResult = await syncTable(tableName, exigences);
+      
+      if (syncResult) {
+        setDataChanged(false);
+        return { success: true, message: "Synchronisation réussie" };
+      } else {
+        return { success: false, message: "Échec de la synchronisation" };
+      }
     } catch (error) {
       console.error('Erreur lors de la synchronisation:', error);
-      return { success: false, message: error instanceof Error ? error.message : 'Erreur inconnue' };
+      return { 
+        success: false, 
+        message: error instanceof Error ? error.message : 'Erreur inconnue'
+      };
+    }
+  };
+
+  // Fonction pour la synchronisation avec retour de Promise
+  const handleSync = async (): Promise<void> => {
+    try {
+      const result = await syncWithServer();
+      if (loadError && result.success) {
+        await handleResetLoadAttempts();
+      }
+      return Promise.resolve();
+    } catch (error) {
+      console.error("Erreur lors de la synchronisation:", error);
+      return Promise.reject(error);
     }
   };
 
@@ -164,6 +268,7 @@ export const useExigences = () => {
     handleResetLoadAttempts,
     ...mutations,
     ...groupOperations,
-    syncWithServer
+    syncWithServer,
+    handleSync
   };
 };

@@ -48,7 +48,7 @@ const DocumentRow: React.FC<DocumentRowProps> = ({
   };
   
   // Calculate if the document is excluded
-  const isExcluded = doc.exclusion === true;
+  const isExcluded = doc.etat === 'EX';
   
   return (
     <TableRow 
@@ -69,7 +69,7 @@ const DocumentRow: React.FC<DocumentRowProps> = ({
       <TableCell className="py-3 px-4 font-medium">{doc.nom}</TableCell>
       
       <TableCell className="py-3 px-4">
-        <FileLink path={doc.fichier_path} />
+        <FileLink filePath={doc.fichier_path} />
       </TableCell>
       
       {/* RACI Columns - these are the ones that were missing or not rendering */}

@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { FileText, FolderPlus, CloudSun, RefreshCw } from 'lucide-react';
+import { FileText, FolderPlus } from 'lucide-react';
 import { MembresProvider } from '@/contexts/MembresContext';
 import ExigenceForm from '@/components/exigences/ExigenceForm';
 import ExigenceStats from '@/components/exigences/ExigenceStats';
@@ -44,7 +44,7 @@ const ExigencesContent = () => {
     handleGroupReorder,
     handleToggleGroup,
     handleResetLoadAttempts,
-    syncWithServer
+    handleSync
   } = useExigences();
   
   const { toast } = useToast();
@@ -55,48 +55,6 @@ const ExigencesContent = () => {
       title: "Export PDF réussi",
       description: "Le document a été généré et téléchargé",
     });
-  };
-
-  const handleSyncWithServer = () => {
-    toast({
-      title: "Synchronisation en cours",
-      description: "Veuillez patienter pendant la synchronisation...",
-    });
-    
-    syncWithServer().then(result => {
-      if (result.success) {
-        toast({
-          title: "Synchronisation réussie",
-          description: "Vos exigences ont été synchronisées avec le serveur",
-        });
-      } else {
-        toast({
-          title: "Synchronisation échouée",
-          description: "Essayez de réinitialiser et réessayer.",
-          variant: "destructive"
-        });
-      }
-    }).catch(error => {
-      toast({
-        title: "Erreur de synchronisation",
-        description: error instanceof Error ? error.message : "Une erreur s'est produite",
-        variant: "destructive"
-      });
-    });
-  };
-
-  // Fonction pour la synchronisation avec retour de Promise
-  const handleSync = async (): Promise<void> => {
-    try {
-      await syncWithServer();
-      if (loadError) {
-        await handleResetLoadAttempts();
-      }
-      return Promise.resolve();
-    } catch (error) {
-      console.error("Erreur lors de la synchronisation:", error);
-      return Promise.reject(error);
-    }
   };
 
   return (
@@ -123,6 +81,7 @@ const ExigencesContent = () => {
           syncFailed={syncFailed || !!loadError}
           lastSynced={lastSynced}
           onSync={handleSync}
+          showOnlyErrors={true}
         />
       </div>
 
@@ -137,7 +96,6 @@ const ExigencesContent = () => {
               onClick={() => handleSync()}
               className="ml-4"
             >
-              <RefreshCw className="h-4 w-4 mr-2" />
               Réessayer
             </Button>
           </AlertDescription>
