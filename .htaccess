@@ -6,15 +6,10 @@ RewriteEngine On
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 
-# Spécifier explicitement le handler PHP
+# Configuration spécifique pour les fichiers PHP
 <FilesMatch "\.php$">
     SetHandler application/x-httpd-php
 </FilesMatch>
-
-# Activer le moteur PHP s'il est disponible
-<IfModule mod_php.c>
-    php_flag engine on
-</IfModule>
 
 # Autoriser PHP en tant que module FastCGI
 <IfModule mod_fastcgi.c>
@@ -22,33 +17,6 @@ RewriteCond %{REQUEST_FILENAME} !-d
         SetHandler php-fcgi
     </FilesMatch>
 </IfModule>
-
-# Autoriser PHP via CGI
-<IfModule mod_cgi.c>
-    <FilesMatch "\.php$">
-        SetHandler cgi-script
-    </FilesMatch>
-</IfModule>
-
-# Rediriger les requêtes non-fichier vers index.html (pour le routage côté client)
-RewriteRule ^(.*)$ index.html [L]
-
-# Configuration des types MIME pour JavaScript
-AddType application/javascript .js
-AddType application/javascript .mjs
-AddType application/javascript .cjs
-
-# Configuration spécifique pour les Service Workers
-<Files "sync-service-worker.js">
-    Header set Content-Type "application/javascript"
-    Header set Service-Worker-Allowed "/"
-    Header set X-Content-Type-Options "nosniff"
-</Files>
-
-# Configuration des autres types MIME
-AddType text/css .css
-AddType application/json .json
-AddType image/svg+xml .svg
 
 # En-têtes de sécurité
 <IfModule mod_headers.c>
@@ -59,3 +27,24 @@ AddType image/svg+xml .svg
         Header set Content-Type "application/javascript"
     </FilesMatch>
 </IfModule>
+
+# Configuration des types MIME pour JavaScript
+AddType application/javascript .js
+AddType application/javascript .mjs
+AddType application/javascript .cjs
+AddType text/css .css
+AddType application/json .json
+AddType image/svg+xml .svg
+
+# Pour les requêtes vers l'API, ne pas rediriger
+RewriteRule ^api/ - [L]
+
+# Configuration des Service Workers
+<Files "sync-service-worker.js">
+    Header set Content-Type "application/javascript"
+    Header set Service-Worker-Allowed "/"
+    Header set X-Content-Type-Options "nosniff"
+</Files>
+
+# Rediriger les requêtes non-fichier vers index.html (pour le routage côté client)
+RewriteRule ^(.*)$ index.html [L]

@@ -1,17 +1,14 @@
 
 <?php
-// Simple API test endpoint
-header('Content-Type: application/json; charset=utf-8');
-header("Cache-Control: no-cache, no-store, must-revalidate");
-header("Pragma: no-cache");
-header("Expires: 0");
+// Simple test file to verify PHP execution
+header("Content-Type: application/json; charset=UTF-8");
 header("Access-Control-Allow-Origin: *");
-header("Access-Control-Allow-Methods: GET");
+header("Access-Control-Allow-Methods: GET, OPTIONS");
 
-// Sortie simple pour confirmer que l'API fonctionne
 echo json_encode([
-    'status' => 200,
-    'message' => 'API test endpoint fonctionnel',
-    'timestamp' => date('Y-m-d H:i:s')
+    'success' => true,
+    'message' => 'PHP is executing correctly',
+    'timestamp' => date('Y-m-d H:i:s'),
+    'php_version' => phpversion()
 ]);
 ?>
