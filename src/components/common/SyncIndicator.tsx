@@ -14,7 +14,7 @@ export interface SyncIndicatorProps {
   lastSynced: Date | null;
   
   // Fonction de resynchronisation qui doit retourner une Promise
-  onSync: () => Promise<void>;
+  onSync: () => Promise<void | boolean>;
   
   // Options de personnalisation (optionnelles)
   compact?: boolean;

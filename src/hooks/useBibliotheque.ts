@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from 'react';
 import { Document, DocumentGroup } from '@/types/bibliotheque';
 import { useToast } from '@/hooks/use-toast';
@@ -7,7 +6,7 @@ import { useBibliothequeGroups } from '@/features/bibliotheque/hooks/useBiblioth
 import { useBibliothequeSync } from '@/features/bibliotheque/hooks/useBibliothequeSync';
 import { getCurrentUser } from '@/services/auth/authService';
 import { useGlobalData } from '@/contexts/GlobalDataContext';
-import { useNetworkStatus } from '@/hooks/useNetworkStatus';
+import { useGlobalSync } from '@/contexts/GlobalSyncContext';
 
 export const useBibliotheque = () => {
   // Utiliser les données du contexte global
@@ -15,17 +14,24 @@ export const useBibliotheque = () => {
     bibliothequeDocuments: globalDocuments, 
     setBibliothequeDocuments: setGlobalDocuments,
     bibliothequeGroups: globalGroups,
-    setBibliothequeGroups: setGlobalGroups,
-    lastSynced: globalLastSynced,
-    setLastSynced: setGlobalLastSynced,
-    isSyncing: globalIsSyncing,
-    setIsSyncing: setGlobalIsSyncing,
-    syncFailed: globalSyncFailed,
-    setSyncFailed: setGlobalSyncFailed
+    setBibliothequeGroups: setGlobalGroups
   } = useGlobalData();
   
+  // Utiliser le contexte de synchronisation global
+  const { 
+    syncStates, 
+    syncTable, 
+    isOnline 
+  } = useGlobalSync();
+  
+  // Obtenir l'état de synchronisation pour la bibliothèque
+  const bibliothequeSync = syncStates['bibliotheque'] || {
+    isSyncing: false,
+    lastSynced: null,
+    syncFailed: false
+  };
+  
   const { toast } = useToast();
-  const { isOnline } = useNetworkStatus();
   
   // États locaux pour l'interface utilisateur
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -35,7 +41,7 @@ export const useBibliotheque = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [draggedItem, setDraggedItem] = useState<{ id: string, groupId?: string } | null>(null);
   
-  const { loadFromServer, syncWithServer: syncWithServerAPI } = useBibliothequeSync();
+  const { loadFromServer } = useBibliothequeSync();
 
   // Initialiser les données s'il n'y en a pas
   useEffect(() => {
@@ -132,27 +138,14 @@ export const useBibliotheque = () => {
 
   // Synchroniser avec le serveur
   const syncWithServer = async () => {
-    if (!isOnline) return;
-    
-    setGlobalIsSyncing(true);
+    if (!isOnline) return false;
     
     try {
-      const result = await syncWithServerAPI(globalDocuments, globalGroups);
-      
-      if (result) {
-        setGlobalLastSynced(new Date());
-        setGlobalSyncFailed(false);
-      } else {
-        setGlobalSyncFailed(true);
-      }
-      
-      return result;
+      // Utiliser le contexte de synchronisation global
+      return await syncTable('bibliotheque', globalDocuments);
     } catch (error) {
       console.error("Erreur lors de la synchronisation:", error);
-      setGlobalSyncFailed(true);
       return false;
-    } finally {
-      setGlobalIsSyncing(false);
     }
   };
 
@@ -220,16 +213,8 @@ export const useBibliotheque = () => {
       if (targetGroupId) {
         const targetGroupIndex = newGroups.findIndex(g => g.id === targetGroupId);
         if (targetGroupIndex !== -1) {
-          // Trouver l'index de la cible dans le groupe
-          const targetItemIndex = newGroups[targetGroupIndex].items.findIndex(item => item.id === targetId);
-          
-          if (targetItemIndex !== -1) {
-            // Insérer après la cible
-            newGroups[targetGroupIndex].items.splice(targetItemIndex + 1, 0, { ...removedItem, groupId: targetGroupId });
-          } else {
-            // Ajouter à la fin si la cible n'est pas trouvée
-            newGroups[targetGroupIndex].items.push({ ...removedItem, groupId: targetGroupId });
-          }
+          // Ajouter le document au groupe cible
+          newGroups[targetGroupIndex].items.push({ ...removedItem, groupId: targetGroupId });
         }
       } else {
         // Si la cible n'est pas dans un groupe
@@ -335,8 +320,9 @@ export const useBibliotheque = () => {
     setDraggedItem,
     setCurrentDocument,
     setIsEditing,
-    isSyncing: globalIsSyncing,
+    isSyncing: bibliothequeSync.isSyncing,
     isOnline,
-    lastSynced: globalLastSynced
+    lastSynced: bibliothequeSync.lastSynced,
+    syncFailed: bibliothequeSync.syncFailed
   };
 };
