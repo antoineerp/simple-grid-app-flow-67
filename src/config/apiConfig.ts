@@ -81,7 +81,17 @@ export async function testApiConnection(): Promise<{ success: boolean; message: 
 export async function fetchWithErrorHandling(url: string, options?: RequestInit): Promise<any> {
   try {
     console.log(`Requête vers: ${url}`, options);
-    const response = await fetch(url, options);
+    
+    // Ajouter un timeout à la requête
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 secondes
+    
+    const response = await fetch(url, {
+      ...options,
+      signal: controller.signal
+    });
+    
+    clearTimeout(timeoutId);
     
     console.log(`Réponse reçue: ${response.status} ${response.statusText}`);
     
@@ -103,9 +113,22 @@ export async function fetchWithErrorHandling(url: string, options?: RequestInit)
       return JSON.parse(text);
     } catch (e) {
       console.error("Erreur de parsing JSON:", e);
+      console.log("Réponse brute:", text.substring(0, 500)); // Log de la réponse brute limitée
+      
+      // Si le texte contient "success" ou des données qui ressemblent à un résultat valide,
+      // essayer de le transformer en un objet simple
+      if (text.includes('success') || text.includes('data')) {
+        return { rawText: text, success: text.includes('success') };
+      }
+      
       throw new Error(`Réponse invalide: ${text.substring(0, 100)}...`);
     }
   } catch (error) {
+    if (error.name === 'AbortError') {
+      console.error("Timeout de la requête:", error);
+      throw new Error("La requête a pris trop de temps à s'exécuter et a été annulée.");
+    }
+    
     console.error("Erreur lors de la requête:", error);
     throw error;
   }

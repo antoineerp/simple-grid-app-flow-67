@@ -5,7 +5,8 @@ import { useDocumentMutations } from '@/features/documents/hooks/useDocumentMuta
 import { useDocumentGroups } from '@/features/documents/hooks/useDocumentGroups';
 import { useDocumentHandlers } from '@/features/documents/hooks/useDocumentHandlers';
 import { useDocumentReorder } from '@/features/documents/hooks/useDocumentReorder';
-import { useSyncService } from '@/services/core/syncService';
+import { useSyncService, SYNC_CONFIG } from '@/services/core/syncService';
+import { useGlobalSync } from '@/hooks/useGlobalSync';
 import { Document } from '@/types/documents';
 import { useToast } from '@/hooks/use-toast';
 
@@ -25,10 +26,16 @@ export const useDocuments = () => {
   // Utilisation du service de synchronisation centralisé
   const syncService = useSyncService();
   
+  // Utiliser le service de synchronisation globale
+  const globalSync = useGlobalSync({
+    syncIntervalSeconds: SYNC_CONFIG.intervalSeconds,
+    autoSyncTypes: ['documents']
+  });
+  
   // Utiliser les états du service de synchronisation centralisé
-  const isSyncing = syncService.isSyncing;
+  const isSyncing = syncService.isSyncing || globalSync.isGlobalSyncing;
   const syncFailed = syncService.syncFailed;
-  const lastSynced = syncService.lastSynced || coreLastSynced;
+  const lastSynced = syncService.lastSynced || coreLastSynced || globalSync.lastGlobalSync;
   
   const documentMutations = useDocumentMutations(documents, setDocuments);
   const groupOperations = useDocumentGroups(groups, setGroups);
@@ -39,15 +46,9 @@ export const useDocuments = () => {
     
     try {
       console.log("Tentative de synchronisation des documents avec le serveur...");
-      const success = await syncService.syncWithServer<Document>({
-        endpoint: 'documents-sync.php',
-        loadEndpoint: 'documents-load.php',
-        data: documents,
-        userId: userId,
-        dataName: 'documents',
-        maxRetries: 2,
-        retryDelay: 1000
-      });
+      
+      // Utiliser le service global pour synchroniser
+      const success = await globalSync.syncData('documents', documents);
       
       if (success) {
         setCoreSyncFailed(false);
@@ -89,7 +90,7 @@ export const useDocuments = () => {
       });
       return false;
     }
-  }, [documents, userId, isOnline, isSyncing, syncService, setCoreSyncFailed, setCoreLastSynced, setDocuments, internalToast]);
+  }, [documents, userId, isOnline, isSyncing, globalSync, syncService, setCoreSyncFailed, setCoreLastSynced, setDocuments, internalToast]);
   
   const documentHandlers = useDocumentHandlers({
     documents,
@@ -170,17 +171,17 @@ export const useDocuments = () => {
       console.log("Pas d'utilisateur identifié, chargement des documents ignoré");
     }
     
-    // Synchronisation périodique moins fréquente (toutes les 60 secondes)
-    const syncInterval = setInterval(() => {
-      if (isOnline && !syncFailed && !isSyncing && userId) {
-        handleSyncWithServer().catch(error => {
-          console.error("Erreur lors de la synchronisation périodique:", error);
-        });
+    // Configurer la synchronisation périodique
+    const cleanup = syncService.setupPeriodicSync(() => {
+      if (isOnline && !syncFailed && !isSyncing && userId && documents.length > 0) {
+        console.log(`Synchronisation périodique des documents (${documents.length})`);
+        return handleSyncWithServer();
       }
-    }, 60000); // Une minute
-
-    return () => clearInterval(syncInterval);
-  }, [userId, isOnline, syncFailed, isSyncing, handleSyncWithServer, loadDocuments]);
+      return Promise.resolve(false);
+    }, SYNC_CONFIG.intervalSeconds);
+    
+    return cleanup;
+  }, [userId, isOnline, syncFailed, isSyncing, handleSyncWithServer, loadDocuments, syncService, documents.length]);
 
   return {
     documents,
