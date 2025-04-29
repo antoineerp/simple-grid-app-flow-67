@@ -39,7 +39,7 @@ export const useDocuments = () => {
     exclusion: documents.filter(d => d.etat === 'EX' || d.exclusion === true).length
   };
 
-  // Handle synchronization with server
+  // Harmonisation avec RessourcesHumaines: synchroniser uniquement quand nécessaire
   const handleSyncWithServer = useCallback(async () => {
     if (!isOnline || isSyncing) return false;
     
@@ -50,44 +50,58 @@ export const useDocuments = () => {
         setSyncFailed(false);
         setLastSynced(new Date());
         
-        // Silently reload data after successful sync
+        // Charger discrètement les données après une synchronisation réussie
         try {
           const result = await loadFromServer(userId);
           if (Array.isArray(result)) {
             setDocuments(result);
           }
         } catch (loadError) {
-          console.error("Error reloading data after sync:", loadError);
+          console.error("Erreur lors du rechargement après synchronisation:", loadError);
         }
+        
+        toast({
+          title: "Synchronisation réussie",
+          description: "Les données ont été synchronisées avec le serveur",
+        });
         
         return true;
       } else {
         setSyncFailed(true);
+        toast({
+          title: "Erreur de synchronisation",
+          description: "Une erreur s'est produite lors de la synchronisation",
+          variant: "destructive"
+        });
         return false;
       }
     } catch (error) {
       setSyncFailed(true);
+      toast({
+        title: "Erreur de synchronisation",
+        description: error instanceof Error ? error.message : "Une erreur s'est produite",
+        variant: "destructive"
+      });
       return false;
     } finally {
       setIsSyncing(false);
     }
-  }, [documents, userId, syncWithServer, loadFromServer, isOnline, isSyncing]);
+  }, [documents, userId, syncWithServer, loadFromServer, isOnline, isSyncing, toast]);
 
-  // Initial data loading
+  // Chargement initial des données (comme dans RessourcesHumaines)
   useEffect(() => {
     const loadDocuments = async () => {
       try {
-        console.log(`Loading documents for user: ${userId}`);
+        console.log(`Chargement des documents pour l'utilisateur: ${userId}`);
         const result = await loadFromServer(userId);
         if (Array.isArray(result)) {
-          console.log(`Loaded ${result.length} documents`);
           setDocuments(result);
         } else {
-          console.error("Unexpected result format:", result);
+          console.error("Format de résultat inattendu:", result);
           setDocuments([]);
         }
       } catch (error) {
-        console.error("Error loading documents:", error);
+        console.error("Erreur lors du chargement des documents:", error);
         setLoadError(error instanceof Error ? error.message : "Erreur inconnue");
         setDocuments([]);
       }
@@ -95,22 +109,22 @@ export const useDocuments = () => {
 
     loadDocuments();
     
-    // Set up periodic sync every 10 seconds
+    // Synchronisation périodique moins fréquente (toutes les 60 secondes)
     const syncInterval = setInterval(() => {
       if (isOnline && !syncFailed && !isSyncing) {
         handleSyncWithServer().catch(error => {
-          console.error("Error during periodic sync:", error);
+          console.error("Erreur lors de la synchronisation périodique:", error);
         });
       }
-    }, 10000);
+    }, 60000); // Une minute au lieu de 10 secondes
 
     return () => clearInterval(syncInterval);
   }, [loadFromServer, userId, isOnline, syncFailed, isSyncing, handleSyncWithServer]);
 
-  // Handle document editing
+  // Gestion des documents
   const handleEdit = useCallback((id: string | null) => {
     if (id === null) {
-      // Handle adding a new document
+      // Ajout d'un nouveau document
       handleAddDocument();
       return;
     }
@@ -122,7 +136,6 @@ export const useDocuments = () => {
     }
   }, [documents]);
 
-  // Handle document adding
   const handleAddDocument = useCallback(() => {
     const newDocument: Document = {
       id: crypto.randomUUID(),
@@ -140,7 +153,7 @@ export const useDocuments = () => {
     setDialogOpen(true);
   }, []);
 
-  // Handle document save
+  // Sauvegarde d'un document + synchronisation
   const handleSaveDocument = useCallback(async (document: Document) => {
     const isNew = !documents.some(d => d.id === document.id);
     
@@ -152,31 +165,37 @@ export const useDocuments = () => {
     
     setDialogOpen(false);
     
-    // Silently sync with server after saving
+    // Synchroniser après sauvegarde
     try {
-      console.log("Synchronizing after document save");
+      console.log("Synchronisation après sauvegarde de document");
       await handleSyncWithServer();
     } catch (error) {
-      console.error("Error synchronizing after document save:", error);
+      console.error("Erreur lors de la synchronisation après sauvegarde:", error);
     }
   }, [documents, documentMutations, handleSyncWithServer]);
   
   const handleReorder = useCallback((startIndex: number, endIndex: number, targetGroupId?: string) => {
-    console.log('Reorder documents:', startIndex, endIndex, targetGroupId);
+    console.log('Réorganisation des documents:', startIndex, endIndex, targetGroupId);
     const newDocuments = [...documents];
     const [removed] = newDocuments.splice(startIndex, 1);
     const updated = { ...removed, groupId: targetGroupId };
     newDocuments.splice(endIndex, 0, updated);
     setDocuments(newDocuments);
-  }, [documents]);
+    
+    // Synchroniser après réorganisation
+    handleSyncWithServer().catch(err => console.error("Erreur lors de la synchronisation après réorganisation:", err));
+  }, [documents, handleSyncWithServer]);
   
   const handleGroupReorder = useCallback((startIndex: number, endIndex: number) => {
-    console.log('Reorder groups:', startIndex, endIndex);
+    console.log('Réorganisation des groupes:', startIndex, endIndex);
     const newGroups = [...groups];
     const [removed] = newGroups.splice(startIndex, 1);
     newGroups.splice(endIndex, 0, removed);
     setGroups(newGroups);
-  }, [groups]);
+    
+    // Synchroniser après réorganisation des groupes
+    handleSyncWithServer().catch(err => console.error("Erreur lors de la synchronisation après réorganisation des groupes:", err));
+  }, [groups, handleSyncWithServer]);
   
   const handleResetLoadAttempts = useCallback(() => {
     setLoadError(null);
@@ -184,7 +203,7 @@ export const useDocuments = () => {
     handleSyncWithServer().catch(console.error);
   }, [handleSyncWithServer]);
 
-  // Handle group adding
+  // Gestion des groupes
   const handleAddGroup = useCallback(() => {
     const newGroup = groupOperations.handleAddGroup();
     setEditingGroup(newGroup);

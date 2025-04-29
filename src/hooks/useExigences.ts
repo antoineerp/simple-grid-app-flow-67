@@ -35,11 +35,15 @@ export const useExigences = () => {
     exclusion: exigences.filter(e => e.exclusion).length
   };
 
+  // Fonction harmonisée pour la synchronisation (basée sur RessourcesHumaines)
   const handleSyncWithServer = useCallback(async () => {
+    if (!isOnline || isSyncing) return false;
+    
     try {
       const success = await syncWithServer(exigences, userId, groups);
       if (success) {
         setLastSyncedDate(new Date());
+        // Charger les dernières données après une synchronisation réussie
         try {
           const result = await loadFromServer(userId);
           if (result && Array.isArray(result.exigences)) {
@@ -49,35 +53,34 @@ export const useExigences = () => {
             }
           }
         } catch (loadError) {
-          console.error("Error reloading data after sync:", loadError);
+          console.error("Erreur lors du rechargement après synchronisation:", loadError);
         }
         return true;
-      } else {
-        return false;
-      }
+      } 
+      return false;
     } catch (error) {
-      console.error("Error synchronizing:", error);
+      console.error("Erreur de synchronisation:", error);
       return false;
     }
-  }, [exigences, userId, groups, syncWithServer, loadFromServer]);
+  }, [exigences, userId, groups, syncWithServer, loadFromServer, isOnline, isSyncing]);
 
+  // Chargement initial des données - harmonisé avec RessourcesHumaines
   useEffect(() => {
     const loadExigences = async () => {
       try {
-        console.log(`Loading exigences for user: ${userId}`);
+        console.log(`Chargement des exigences pour l'utilisateur: ${userId}`);
         const result = await loadFromServer(userId);
         if (result && Array.isArray(result.exigences)) {
-          console.log(`Loaded ${result.exigences.length} exigences`);
           setExigences(result.exigences);
           if (Array.isArray(result.groups)) {
             setGroups(result.groups);
           }
         } else {
-          console.error("Unexpected result format:", result);
+          console.error("Format de résultat inattendu:", result);
           setExigences([]);
         }
       } catch (error) {
-        console.error("Error loading exigences:", error);
+        console.error("Erreur lors du chargement des exigences:", error);
         setExigences([]);
       }
     };
@@ -86,16 +89,17 @@ export const useExigences = () => {
       loadExigences();
     }
 
+    // Synchronisation périodique moins fréquente (toutes les 60 secondes)
     const syncInterval = setInterval(() => {
       if (isOnline && !syncFailed && !isSyncing) {
         handleSyncWithServer().catch(error => 
-          console.error("Error during periodic sync:", error)
+          console.error("Erreur lors de la synchronisation périodique:", error)
         );
       }
-    }, 60000); // Changer à 60 secondes au lieu de 10 pour réduire les messages fréquents
+    }, 60000); // Une minute au lieu de 10 secondes
 
     return () => clearInterval(syncInterval);
-  }, [loadFromServer, userId, handleSyncWithServer, isOnline, syncFailed, isSyncing]);
+  }, [loadFromServer, userId, isOnline, syncFailed, isSyncing, handleSyncWithServer]);
 
   const handleEdit = useCallback((id: string) => {
     const exigence = exigences.find(e => e.id === id);
@@ -129,6 +133,7 @@ export const useExigences = () => {
     setDialogOpen(true);
   }, [selectedNiveau]);
 
+  // Fonction sauvegarde synchronisée uniquement après modification
   const handleSaveExigence = useCallback(async (exigence: Exigence) => {
     const isNew = !exigences.some(e => e.id === exigence.id);
 
@@ -140,11 +145,12 @@ export const useExigences = () => {
 
     setDialogOpen(false);
 
+    // Synchroniser uniquement après une modification
     try {
-      console.log("Synchronizing after exigence save");
+      console.log("Synchronisation après sauvegarde d'exigence");
       await handleSyncWithServer();
     } catch (error) {
-      console.error("Error synchronizing after exigence save:", error);
+      console.error("Erreur de synchronisation après sauvegarde:", error);
     }
   }, [exigences, exigenceMutations, handleSyncWithServer]);
 
@@ -154,7 +160,10 @@ export const useExigences = () => {
     const updated = { ...removed, groupId: targetGroupId };
     newExigences.splice(endIndex, 0, updated);
     setExigences(newExigences);
-  }, [exigences]);
+    
+    // Synchroniser après réorganisation
+    handleSyncWithServer().catch(err => console.error("Erreur lors de la synchronisation après réorganisation:", err));
+  }, [exigences, handleSyncWithServer]);
 
   const handleEditGroup = useCallback((group: ExigenceGroup) => {
     setEditingGroup(group);
@@ -173,11 +182,11 @@ export const useExigences = () => {
     return newGroup;
   }, []);
 
-  // This is where the error was: removed the unnecessary argument
+  // Corrigé: Plus d'argument inutile
   const handleResetLoadAttempts = useCallback(() => {
     resetSyncStatus();
     handleSyncWithServer().catch(error => {
-      console.error("Error resetting sync:", error);
+      console.error("Erreur lors de la réinitialisation de la synchronisation:", error);
     });
   }, [resetSyncStatus, handleSyncWithServer]);
 

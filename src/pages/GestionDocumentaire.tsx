@@ -49,7 +49,7 @@ const GestionDocumentaireContent = () => {
   
   const { toast } = useToast();
 
-  // Fix: Changed to a proper React event handler
+  // Correction: Gestionnaire d'événement correctement typé
   const handleExportPdf = (event: React.MouseEvent) => {
     exportDocumentsToPdf(documents, groups);
     toast({
@@ -58,21 +58,8 @@ const GestionDocumentaireContent = () => {
     });
   };
 
-  const handleSync = async () => {
-    try {
-      await syncWithServer();
-      toast({
-        title: "Synchronisation réussie",
-        description: "Les données ont été synchronisées avec le serveur",
-      });
-    } catch (error) {
-      toast({
-        title: "Erreur de synchronisation",
-        description: "Une erreur s'est produite lors de la synchronisation",
-        variant: "destructive"
-      });
-    }
-  };
+  // Correction: Supprimer handleSync car il est redondant avec syncWithServer
+  // et ajouter la gestion des toasts directement dans useDocuments.ts
 
   return (
     <div className="p-8">

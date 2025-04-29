@@ -49,28 +49,13 @@ const ExigencesContent = () => {
   
   const { toast } = useToast();
 
-  const handleExportPdf = () => {
+  // Gestionnaire d'événement correctement typé
+  const handleExportPdf = (event: React.MouseEvent) => {
     exportExigencesToPdf(exigences, groups);
     toast({
       title: "Export PDF réussi",
       description: "Le document a été généré et téléchargé",
     });
-  };
-
-  const handleSync = async () => {
-    try {
-      await syncWithServer();
-      toast({
-        title: "Synchronisation réussie",
-        description: "Les données ont été synchronisées avec le serveur",
-      });
-    } catch (error) {
-      toast({
-        title: "Erreur de synchronisation",
-        description: "Une erreur s'est produite lors de la synchronisation",
-        variant: "destructive"
-      });
-    }
   };
 
   return (
