@@ -15,7 +15,7 @@ export const useDocuments = () => {
 
   const documentMutations = useDocumentMutations(documents, setDocuments);
 
-  // Calculate document statistics
+  // Calculate document statistics safely handling undefined values
   const stats: DocumentStats = {
     total: documents.length,
     conforme: documents.filter(d => d.etat === 'C' || d.atteinte === 'C').length,
@@ -37,12 +37,12 @@ export const useDocuments = () => {
   const handleAddDocument = useCallback(() => {
     const newDocument: Document = {
       id: crypto.randomUUID(),
-      titre: '',
       nom: '',
+      fichier_path: null,
       date_creation: new Date().toISOString(),
       date_modification: new Date().toISOString(),
       responsabilites: { r: [], a: [], c: [], i: [] },
-      atteinte: null,
+      etat: null,
       exclusion: false
     };
     setEditingDocument(newDocument);
@@ -62,7 +62,7 @@ export const useDocuments = () => {
     setDialogOpen(false);
   }, [documents, documentMutations]);
 
-  // Groupe fonctions
+  // Group functions
   const handleToggleGroup = (id: string) => {
     setGroups(prevGroups => 
       prevGroups.map(g => g.id === id ? { ...g, expanded: !g.expanded } : g)

@@ -1,5 +1,5 @@
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { Exigence, ExigenceGroup, ExigenceStats } from '@/types/exigences';
 import { useExigenceMutations } from '@/hooks/useExigenceMutations';
 import { useExigenceGroups } from '@/hooks/useExigenceGroups';
@@ -93,7 +93,7 @@ export const useExigences = () => {
       expanded: false,
       items: []
     };
-    groupOperations.handleSaveGroup(newGroup);
+    groupOperations.handleSaveGroup(newGroup, false);
   }, [groupOperations]);
 
   // Fonction pour éditer un groupe
@@ -120,7 +120,6 @@ export const useExigences = () => {
     handleSaveExigence,
     handleAddGroup,
     handleEditGroup,
-    // Fonction de sauvegarde de groupe modifiée pour correspondre à la signature attendue
     handleSaveGroup: (group: ExigenceGroup) => groupOperations.handleSaveGroup(group, !!editingGroup),
     handleDeleteGroup: groupOperations.handleDeleteGroup,
     handleToggleGroup: groupOperations.handleToggleGroup,

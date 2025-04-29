@@ -35,11 +35,19 @@ export const useDocumentMutations = (
 
   const handleExclusionChange = useCallback((id: string) => {
     setDocuments(prev => 
-      prev.map(doc => 
-        doc.id === id 
-          ? { ...doc, exclusion: !doc.exclusion, etat: doc.etat === 'EX' ? null : 'EX', date_modification: new Date() }
-          : doc
-      )
+      prev.map(doc => {
+        if (doc.id === id) {
+          // Check if doc.etat exists before trying to use it
+          const currentEtat = doc.etat || null;
+          return { 
+            ...doc, 
+            exclusion: !doc.exclusion, 
+            etat: currentEtat === 'EX' ? null : 'EX', 
+            date_modification: new Date() 
+          };
+        }
+        return doc;
+      })
     );
   }, [setDocuments]);
 
@@ -52,7 +60,15 @@ export const useDocumentMutations = (
   }, [setDocuments, toast]);
 
   const handleAddDocument = useCallback((document: Document) => {
-    setDocuments(prev => [...prev, document]);
+    // Ensure all required properties are present
+    const newDocument = {
+      ...document,
+      etat: document.etat || null,
+      responsabilites: document.responsabilites || { r: [], a: [], c: [], i: [] },
+      date_modification: new Date()
+    };
+    
+    setDocuments(prev => [...prev, newDocument]);
     toast({
       title: "Nouveau document",
       description: `Le document a été ajouté`,
