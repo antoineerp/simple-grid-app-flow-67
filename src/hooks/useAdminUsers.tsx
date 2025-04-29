@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from 'react';
 import { getUtilisateurs, connectAsUser, testDatabaseConnection, type Utilisateur } from '@/services';
 import { useToast } from "@/hooks/use-toast";
@@ -57,31 +56,13 @@ export const useAdminUsers = () => {
         throw new Error("Impossible de se connecter à la base de données. Vérifiez la configuration.");
       }
       
-      const data = await getUtilisateurs();
+      // Forcer le rafraîchissement du cache lors d'un chargement explicite
+      const data = await getUtilisateurs(true);
       console.log("Données utilisateurs récupérées:", data);
       
-      // Corriger la vérification du type de data et l'accès aux propriétés
-      if (Array.isArray(data)) {
-        setUtilisateurs(data);
-        setError(null); // Réinitialiser l'erreur si réussite
-        setRetryCount(0); // Réinitialiser le compteur de tentatives
-      } else if (data && typeof data === 'object') {
-        // Vérification de sécurité pour l'accès à records avec TypeScript
-        const responseData = data as any;
-        if (responseData.records && Array.isArray(responseData.records)) {
-          setUtilisateurs(responseData.records);
-          setError(null);
-          setRetryCount(0);
-        } else {
-          console.warn("Format de données inattendu:", data);
-          setUtilisateurs([]);
-          setError("Format de données inattendu");
-        }
-      } else {
-        console.warn("Format de données inattendu:", data);
-        setUtilisateurs([]);
-        setError("Format de données inattendu");
-      }
+      setUtilisateurs(data);
+      setError(null); // Réinitialiser l'erreur si réussite
+      setRetryCount(0); // Réinitialiser le compteur de tentatives
     } catch (error) {
       console.error("Erreur lors du chargement des utilisateurs", error);
       setError(error instanceof Error ? error.message : "Impossible de charger les utilisateurs.");

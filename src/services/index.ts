@@ -4,6 +4,7 @@ export * from './core/userInitializationService';
 export * from './documents';
 export * from './users/userService';
 export * from './users/createUserService';
+export * from './users/userManager';
 
 // Explicitement renommer les exports de getCurrentUser pour éviter l'ambiguïté
 export { 

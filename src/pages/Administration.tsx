@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -13,7 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import { hasPermission, UserRole } from '@/types/roles';
 import UserDiagnostic from '@/components/admin/UserDiagnostic';
 import ManagerDataImport from '@/components/admin/ManagerDataImport';
-import { getUtilisateurs } from '@/services/users/userService';
+import { UserManager } from '@/services/users/userManager';
 
 const Administration = () => {
   const navigate = useNavigate();
@@ -39,8 +38,7 @@ const Administration = () => {
     // Vérifier s'il y a un gestionnaire dans le système
     const checkForManager = async () => {
       try {
-        const users = await getUtilisateurs();
-        const managerExists = users.some(user => user.role === 'gestionnaire');
+        const managerExists = await UserManager.hasUserWithRole('gestionnaire');
         setHasManager(managerExists);
       } catch (error) {
         console.error("Erreur lors de la vérification des gestionnaires:", error);
