@@ -21,7 +21,7 @@ export const ConsistencyCheck: React.FC<ConsistencyCheckProps> = ({ consistency 
     <div className="p-4 border rounded-lg bg-background shadow-sm">
       <h3 className="text-lg font-semibold mb-2">Cohérence des configurations</h3>
       
-      <Alert variant={consistency.is_consistent ? "default" : "warning"}>
+      <Alert variant={consistency.is_consistent ? "default" : "destructive"}>
         <div className="flex items-start">
           {consistency.is_consistent ? 
             <CheckCircle2 className="h-4 w-4 mr-2 mt-0.5 text-green-500" /> :

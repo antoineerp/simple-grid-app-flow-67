@@ -1,11 +1,12 @@
 
 import { useState, useEffect, useCallback } from 'react';
-import { Exigence, ExigenceGroup, ExigenceStats, Documents } from '@/types/exigences';
+import { Exigence, ExigenceGroup, ExigenceStats } from '@/types/exigences';
 import { useExigenceSync } from '@/hooks/useExigenceSync';
 import { useExigenceMutations } from '@/hooks/useExigenceMutations';
 import { useExigenceGroups } from '@/hooks/useExigenceGroups';
 import { getCurrentUser } from '@/services/auth/authService';
 import { useToast } from '@/hooks/use-toast';
+import { loadExigencesFromServer, syncExigencesWithServer } from '@/hooks/useExigenceSync';
 
 export const useExigences = () => {
   const [exigences, setExigences] = useState<Exigence[]>([]);
@@ -17,15 +18,17 @@ export const useExigences = () => {
   const [groupDialogOpen, setGroupDialogOpen] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncFailed, setSyncFailed] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [lastSynced, setLastSynced] = useState<Date | null>(null);
   const { toast } = useToast();
 
   // Get current user
   const user = getCurrentUser();
   const userId = typeof user === 'object' ? (user?.email || user?.identifiant_technique || 'p71x6d_system') : user || 'p71x6d_system';
 
-  const { loadExigencesFromServer, syncExigencesWithServer } = useExigenceSync();
+  const exigenceSync = useExigenceSync();
   const exigenceMutations = useExigenceMutations(exigences, setExigences);
-  const groupOperations = useExigenceGroups(groups, setGroups);
+  const groupOperations = useExigenceGroups(groups, setGroups, setExigences);
 
   // Calculate exigence statistics
   const stats: ExigenceStats = {
@@ -41,43 +44,42 @@ export const useExigences = () => {
     const loadExigences = async () => {
       try {
         console.log(`Loading exigences for user: ${userId}`);
-        const result = await loadExigencesFromServer(userId);
-        if (Array.isArray(result)) {
-          console.log(`Loaded ${result.length} exigences`);
-          setExigences(result);
-          toast({
-            title: "Chargement réussi",
-            description: `${result.length} exigences chargées`,
-          });
-        } else {
-          console.error("Unexpected result format:", result);
-          setExigences([]);
-        }
+        const result = await exigenceSync.loadFromServer(userId);
+        console.log(`Loaded ${result.exigences.length} exigences`);
+        setExigences(result.exigences);
+        setGroups(result.groups);
+        toast({
+          title: "Chargement réussi",
+          description: `${result.exigences.length} exigences chargées`,
+        });
       } catch (error) {
         console.error("Error loading exigences:", error);
+        setLoadError(error instanceof Error ? error.message : "Erreur lors du chargement des exigences");
         toast({
           title: "Erreur de chargement",
           description: error instanceof Error ? error.message : "Erreur lors du chargement des exigences",
           variant: "destructive",
         });
         setExigences([]);
+        setGroups([]);
       }
     };
 
     loadExigences();
-  }, [loadExigencesFromServer, userId, toast]);
+  }, [exigenceSync, userId, toast]);
 
   // Handle synchronization with server
   const handleSyncWithServer = useCallback(async () => {
     setIsSyncing(true);
     try {
-      const success = await syncExigencesWithServer(exigences, userId);
+      const success = await exigenceSync.syncWithServer(exigences, userId, groups);
       if (success) {
         toast({
           title: "Synchronisation réussie",
           description: "Les exigences ont été synchronisées avec le serveur",
         });
         setSyncFailed(false);
+        setLastSynced(new Date());
         return true;
       } else {
         setSyncFailed(true);
@@ -99,7 +101,7 @@ export const useExigences = () => {
     } finally {
       setIsSyncing(false);
     }
-  }, [exigences, userId, syncExigencesWithServer, toast]);
+  }, [exigences, userId, groups, exigenceSync, toast]);
 
   // Handle exigence editing
   const handleEdit = useCallback((id: string) => {
@@ -116,6 +118,7 @@ export const useExigences = () => {
       id: crypto.randomUUID(),
       code: '',
       titre: '',
+      nom: '',
       description: '',
       niveau: selectedNiveau || 'NA',
       atteinte: null,
@@ -155,8 +158,48 @@ export const useExigences = () => {
     }
   }, [exigences, exigenceMutations, handleSyncWithServer]);
 
-  // Corrections pour les fonctions manquantes
-  const handleEditExigence = exigenceMutations.handleSaveExigence;
+  const handleResetLoadAttempts = useCallback(() => {
+    setLoadError(null);
+    // Recharger les exigences
+    const loadExigences = async () => {
+      try {
+        const result = await exigenceSync.loadFromServer(userId);
+        setExigences(result.exigences);
+        setGroups(result.groups);
+      } catch (error) {
+        setLoadError(error instanceof Error ? error.message : "Erreur lors du chargement des exigences");
+      }
+    };
+    loadExigences();
+  }, [exigenceSync, userId]);
+
+  // Définir des fonctions pour la réorganisation
+  const handleReorder = useCallback((startIndex: number, endIndex: number, targetGroupId?: string) => {
+    // Implémentation simple
+    console.log('Reorder exigences:', startIndex, endIndex, targetGroupId);
+  }, []);
+
+  const handleGroupReorder = useCallback((startIndex: number, endIndex: number) => {
+    // Implémentation simple
+    console.log('Reorder groups:', startIndex, endIndex);
+  }, []);
+
+  // Fonction pour ajouter un groupe
+  const handleAddGroup = useCallback(() => {
+    const newGroup: ExigenceGroup = {
+      id: crypto.randomUUID(),
+      name: 'Nouveau groupe',
+      expanded: false,
+      items: []
+    };
+    groupOperations.handleSaveGroup(newGroup, false);
+  }, [groupOperations]);
+
+  // Fonction pour éditer un groupe
+  const handleEditGroup = useCallback((group: ExigenceGroup) => {
+    setEditingGroup(group);
+    setGroupDialogOpen(true);
+  }, []);
 
   return {
     exigences,
@@ -169,6 +212,9 @@ export const useExigences = () => {
     groupDialogOpen,
     isSyncing,
     syncFailed,
+    isOnline: exigenceSync.isOnline,
+    lastSynced,
+    loadError,
     setSelectedNiveau,
     setDialogOpen,
     setGroupDialogOpen,
@@ -176,11 +222,14 @@ export const useExigences = () => {
     handleDelete: exigenceMutations.handleDelete,
     handleAddExigence,
     handleSaveExigence,
-    handleEditExigence,
-    handleAddGroup: groupOperations.handleAddGroup,
+    handleAddGroup,
+    handleEditGroup,
     handleSaveGroup: groupOperations.handleSaveGroup,
     handleDeleteGroup: groupOperations.handleDeleteGroup,
     handleToggleGroup: groupOperations.handleToggleGroup,
+    handleReorder,
+    handleGroupReorder,
+    handleResetLoadAttempts,
     syncWithServer: handleSyncWithServer,
     ...exigenceMutations
   };

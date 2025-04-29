@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Document, DocumentStats, DocumentGroup } from '@/types/documents';
 import { useDocumentSync } from '@/features/documents/hooks/useDocumentSync';
-import { useDocumentMutations } from '@/features/documents/hooks/useDocumentMutations';
+import { useDocumentMutations } from './useDocumentMutations';
 import { useDocumentGroups } from '@/features/documents/hooks/useDocumentGroups';
 import { getCurrentUser } from '@/services/auth/authService';
 import { useToast } from '@/hooks/use-toast';
@@ -16,6 +16,8 @@ export const useDocuments = () => {
   const [groupDialogOpen, setGroupDialogOpen] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncFailed, setSyncFailed] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [lastSynced, setLastSynced] = useState<Date | null>(null);
   const { toast } = useToast();
 
   // Get current user
@@ -29,10 +31,10 @@ export const useDocuments = () => {
   // Calculate document statistics
   const stats: DocumentStats = {
     total: documents.length,
-    conforme: documents.filter(d => d.atteinte === 'C').length,
-    partiellementConforme: documents.filter(d => d.atteinte === 'PC').length,
-    nonConforme: documents.filter(d => d.atteinte === 'NC').length,
-    exclusion: documents.filter(d => d.exclusion).length
+    conforme: documents.filter(d => d.etat === 'C' || d.atteinte === 'C').length,
+    partiellementConforme: documents.filter(d => d.etat === 'PC' || d.atteinte === 'PC').length,
+    nonConforme: documents.filter(d => d.etat === 'NC' || d.atteinte === 'NC').length,
+    exclusion: documents.filter(d => d.exclusion || d.etat === 'EX').length
   };
 
   // Initial data loading
@@ -54,6 +56,7 @@ export const useDocuments = () => {
         }
       } catch (error) {
         console.error("Error loading documents:", error);
+        setLoadError(error instanceof Error ? error.message : "Erreur lors du chargement des documents");
         toast({
           title: "Erreur de chargement",
           description: error instanceof Error ? error.message : "Erreur lors du chargement des documents",
@@ -77,6 +80,7 @@ export const useDocuments = () => {
           description: "Les documents ont été synchronisés avec le serveur",
         });
         setSyncFailed(false);
+        setLastSynced(new Date());
         
         // Reload data after successful sync
         const result = await loadFromServer(userId);
@@ -121,9 +125,12 @@ export const useDocuments = () => {
     const newDocument: Document = {
       id: crypto.randomUUID(),
       titre: '',
-      // Propriétés typées correctement pour Document type
+      nom: '',
       date_creation: new Date().toISOString(),
-      date_modification: new Date().toISOString()
+      date_modification: new Date().toISOString(),
+      responsabilites: { r: [], a: [], c: [], i: [] },
+      atteinte: null,
+      exclusion: false
     };
     setEditingDocument(newDocument);
     setDialogOpen(true);
@@ -149,26 +156,27 @@ export const useDocuments = () => {
       console.error("Error synchronizing after document save:", error);
     }
   }, [documents, documentMutations, handleSyncWithServer]);
+
+  const handleResetLoadAttempts = useCallback(() => {
+    setLoadError(null);
+    // Recharger les documents
+    const loadDocuments = async () => {
+      try {
+        const result = await loadFromServer(userId);
+        if (Array.isArray(result)) {
+          setDocuments(result);
+        }
+      } catch (error) {
+        setLoadError(error instanceof Error ? error.message : "Erreur lors du chargement des documents");
+      }
+    };
+    loadDocuments();
+  }, [loadFromServer, userId]);
   
-  // Définir les fonctions manquantes pour corriger les erreurs
-  const handleAddGroup = useCallback(() => {
+  // Définir les fonctions manquantes
+  const handleReorderDocuments = useCallback((startIndex: number, endIndex: number, targetGroupId?: string) => {
     // Implémenter selon besoin
-    groupOperations.handleSaveGroup({
-      id: crypto.randomUUID(),
-      name: 'Nouveau groupe',
-      expanded: false,
-      items: []
-    }, false);
-  }, [groupOperations]);
-  
-  const handleEditGroup = useCallback((group: DocumentGroup) => {
-    setEditingGroup(group);
-    setGroupDialogOpen(true);
-  }, []);
-  
-  const handleReorderDocuments = useCallback((startIndex: number, endIndex: number) => {
-    // Implémenter selon besoin
-    console.log('Reorder documents:', startIndex, endIndex);
+    console.log('Reorder documents:', startIndex, endIndex, targetGroupId);
   }, []);
   
   const handleReorderGroups = useCallback((startIndex: number, endIndex: number) => {
@@ -186,6 +194,8 @@ export const useDocuments = () => {
     groupDialogOpen,
     isSyncing,
     syncFailed,
+    lastSynced,
+    loadError,
     setDialogOpen,
     setGroupDialogOpen,
     handleEdit,
@@ -193,17 +203,29 @@ export const useDocuments = () => {
     handleReorder: handleReorderDocuments,
     handleAddDocument,
     handleSaveDocument,
-    handleAddGroup,
-    handleEditGroup,
+    handleAddGroup: groupOperations.handleSaveGroup ? 
+      () => groupOperations.handleSaveGroup({
+        id: crypto.randomUUID(),
+        name: 'Nouveau groupe',
+        expanded: false,
+        items: []
+      }, false) : 
+      () => console.log('handleAddGroup not implemented'),
+    handleEditGroup: (group: DocumentGroup) => {
+      setEditingGroup(group);
+      setGroupDialogOpen(true);
+    },
     handleDeleteGroup: groupOperations.handleDeleteGroup,
     handleSaveGroup: groupOperations.handleSaveGroup,
     handleGroupReorder: handleReorderGroups,
     handleToggleGroup: groupOperations.handleToggleGroup,
     syncWithServer: handleSyncWithServer,
-    // Ajout des fonctions supplémentaires
+    handleResetLoadAttempts,
+    // Fonctions supplémentaires
     handleEditDocument: documentMutations.handleEditDocument,
     handleDeleteDocument: documentMutations.handleDelete,
     handleReorderDocuments,
+    isOnline: true, // Valeur par défaut
     ...documentMutations
   };
 };
