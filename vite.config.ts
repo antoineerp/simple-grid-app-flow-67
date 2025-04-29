@@ -46,6 +46,8 @@ export default defineConfig(({ mode }) => {
         },
         output: {
           assetFileNames: (assetInfo) => {
+            if (!assetInfo.name) return 'assets/[name].[ext]';
+            
             const info = assetInfo.name.split('.');
             const ext = info[info.length - 1];
             if (/\.(css)$/i.test(assetInfo.name)) {
