@@ -2,6 +2,7 @@
 import { getApiUrl } from '@/config/apiConfig';
 import { useToast } from '@/hooks/use-toast';
 import { getAuthHeaders } from '../auth/authService';
+import { getDatabaseConnectionCurrentUser } from '../core/databaseConnectionService';
 
 // URL de l'API
 const API_URL = getApiUrl();
@@ -37,17 +38,21 @@ class UserService {
   // Get users from the database
   async getUtilisateurs(): Promise<Utilisateur[]> {
     try {
-      const token = localStorage.getItem('authToken');
+      const token = localStorage.getItem('authToken') || sessionStorage.getItem('authToken');
       if (!token) {
         throw new Error("Not authenticated");
       }
       
-      // Utiliser le nouveau point d'entrée "users"
+      // Récupérer l'utilisateur de connexion à la base de données
+      const currentDatabaseUser = getDatabaseConnectionCurrentUser();
+      console.log(`Récupération des utilisateurs avec l'utilisateur: ${currentDatabaseUser}`);
+      
+      // Utiliser le nouveau point d'entrée "users" avec des paramètres de diagnostic
       const currentApiUrl = getApiUrl();
-      console.log(`Récupération des utilisateurs depuis: ${currentApiUrl}/users`);
+      console.log(`Récupération des utilisateurs depuis: ${currentApiUrl}/users?debug=true&source=${currentDatabaseUser}`);
       
       // Essayer d'abord le endpoint principal
-      const response = await fetch(`${currentApiUrl}/users`, {
+      const response = await fetch(`${currentApiUrl}/users?debug=true&source=${currentDatabaseUser}`, {
         method: 'GET',
         headers: {
           ...getAuthHeaders(),
@@ -61,7 +66,7 @@ class UserService {
       if (!response.ok) {
         console.log(`Réponse non-OK: ${response.status} ${response.statusText}`);
         // Si le premier essai échoue, essayer avec le endpoint de diagnostic
-        return await this.getUtilisateursFromDiagnostic();
+        return await this.getUtilisateursFromDiagnostic(currentDatabaseUser);
       }
       
       // Traiter la réponse du endpoint principal
@@ -69,14 +74,14 @@ class UserService {
       
       if (!responseText || !responseText.trim()) {
         console.error("Empty response from server");
-        return await this.getUtilisateursFromDiagnostic();
+        return await this.getUtilisateursFromDiagnostic(currentDatabaseUser);
       }
       
       // Vérifier si la réponse ressemble à du PHP ou HTML (erreur)
       if (responseText.includes('<?php') || responseText.includes('<br />') || responseText.includes('<!DOCTYPE')) {
         console.error("La réponse contient du PHP/HTML au lieu de JSON:", responseText.substring(0, 200));
         // Si nous avons reçu du PHP/HTML, utiliser le endpoint de diagnostic
-        return await this.getUtilisateursFromDiagnostic();
+        return await this.getUtilisateursFromDiagnostic(currentDatabaseUser);
       }
       
       // Essayer de parser le JSON
@@ -86,7 +91,7 @@ class UserService {
       } catch (parseError) {
         console.error("Error parsing JSON:", parseError);
         console.error("Response text (first 500 chars):", responseText.substring(0, 500));
-        return await this.getUtilisateursFromDiagnostic();
+        return await this.getUtilisateursFromDiagnostic(currentDatabaseUser);
       }
       
       console.log("Données utilisateurs reçues:", data);
@@ -102,13 +107,14 @@ class UserService {
       
       // Pas de données valides trouvées
       console.warn("Aucun utilisateur trouvé dans la réponse:", data);
-      return await this.getUtilisateursFromDiagnostic();
+      return await this.getUtilisateursFromDiagnostic(currentDatabaseUser);
       
     } catch (error) {
       console.error("Error retrieving users:", error);
       // En cas d'erreur, essayer le endpoint de diagnostic
       try {
-        return await this.getUtilisateursFromDiagnostic();
+        const currentDatabaseUser = getDatabaseConnectionCurrentUser();
+        return await this.getUtilisateursFromDiagnostic(currentDatabaseUser);
       } catch (fallbackError) {
         console.error("Fallback retrieval also failed:", fallbackError);
         const { toast } = useToast();
@@ -136,11 +142,11 @@ class UserService {
   }
   
   // Méthode de secours pour récupérer les utilisateurs via le endpoint de diagnostic
-  private async getUtilisateursFromDiagnostic(): Promise<Utilisateur[]> {
+  private async getUtilisateursFromDiagnostic(currentUser: string | null): Promise<Utilisateur[]> {
     const currentApiUrl = getApiUrl();
-    console.log(`Récupération des utilisateurs depuis le diagnostic: ${currentApiUrl}/check-users`);
+    console.log(`Récupération des utilisateurs depuis le diagnostic: ${currentApiUrl}/check-users?source=${currentUser}`);
     
-    const response = await fetch(`${currentApiUrl}/check-users`, {
+    const response = await fetch(`${currentApiUrl}/check-users?source=${currentUser || 'default'}`, {
       method: 'GET',
       headers: {
         ...getAuthHeaders(),

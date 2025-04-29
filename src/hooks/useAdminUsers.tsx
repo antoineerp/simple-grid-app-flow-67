@@ -3,20 +3,34 @@ import { useState, useEffect, useCallback } from 'react';
 import { getUtilisateurs, connectAsUser, testDatabaseConnection, type Utilisateur } from '@/services';
 import { useToast } from "@/hooks/use-toast";
 import { hasPermission, UserRole } from '@/types/roles';
+import { getDatabaseConnectionCurrentUser } from '@/services/core/databaseConnectionService';
 
 export const useAdminUsers = () => {
   const { toast } = useToast();
   const [utilisateurs, setUtilisateurs] = useState<Utilisateur[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [retryCount, setRetryCount] = useState(0);
   
-  // Charger les utilisateurs au montage du composant
+  // Charger les utilisateurs au montage du composant avec retry
   useEffect(() => {
     loadUtilisateurs();
-  }, []);
+    
+    // Si erreur, réessayer après 2 secondes (max 3 tentatives)
+    if (error && retryCount < 3) {
+      const timer = setTimeout(() => {
+        console.log(`Tentative de reconnexion (${retryCount + 1}/3)...`);
+        setRetryCount(prev => prev + 1);
+        loadUtilisateurs();
+      }, 2000);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [error, retryCount]);
 
   const loadUtilisateurs = useCallback(async () => {
     const currentUserRole = localStorage.getItem('userRole') as UserRole;
+    const currentDatabaseUser = getDatabaseConnectionCurrentUser();
     
     // Vérifier les permissions avant de charger les utilisateurs
     if (!hasPermission(currentUserRole, 'accessAdminPanel')) {
@@ -33,6 +47,7 @@ export const useAdminUsers = () => {
     
     try {
       console.log("Début du chargement des utilisateurs...");
+      console.log("Utilisateur base de données actuel:", currentDatabaseUser);
       
       // Vérifier d'abord la connexion à la base de données
       const dbConnected = await testDatabaseConnection();
@@ -48,18 +63,24 @@ export const useAdminUsers = () => {
       // Corriger la vérification du type de data et l'accès aux propriétés
       if (Array.isArray(data)) {
         setUtilisateurs(data);
+        setError(null); // Réinitialiser l'erreur si réussite
+        setRetryCount(0); // Réinitialiser le compteur de tentatives
       } else if (data && typeof data === 'object') {
         // Vérification de sécurité pour l'accès à records avec TypeScript
         const responseData = data as any;
         if (responseData.records && Array.isArray(responseData.records)) {
           setUtilisateurs(responseData.records);
+          setError(null);
+          setRetryCount(0);
         } else {
           console.warn("Format de données inattendu:", data);
           setUtilisateurs([]);
+          setError("Format de données inattendu");
         }
       } else {
         console.warn("Format de données inattendu:", data);
         setUtilisateurs([]);
+        setError("Format de données inattendu");
       }
     } catch (error) {
       console.error("Erreur lors du chargement des utilisateurs", error);
@@ -95,6 +116,12 @@ export const useAdminUsers = () => {
       }
       
       const success = await connectAsUser(identifiantTechnique);
+      if (success) {
+        toast({
+          title: "Connexion réussie",
+          description: `Connecté en tant que ${identifiantTechnique}`,
+        });
+      }
       return success;
     } catch (error) {
       console.error("Erreur lors de la connexion en tant qu'utilisateur:", error);
@@ -112,6 +139,7 @@ export const useAdminUsers = () => {
     loading,
     error,
     loadUtilisateurs,
-    handleConnectAsUser
+    handleConnectAsUser,
+    retryCount
   };
 };
