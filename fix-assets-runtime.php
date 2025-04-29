@@ -94,22 +94,32 @@ header('Content-Type: text/html; charset=utf-8');
                         $updated = true;
                     }
                     
-                    // Remplacer src="./src/ par des références vers assets
-                    if (strpos($content, 'src="./src/') !== false) {
-                        $js_files = glob('./assets/*.js');
-                        if (!empty($js_files)) {
-                            $main_js = '/assets/' . basename($js_files[0]);
-                            $content = preg_replace('/<script[^>]*src="\.\/src\/[^"]*"[^>]*>/i', '<script type="module" src="' . $main_js . '">', $content);
+                    // Vérifier spécifiquement pour les fichiers CSS
+                    $css_files = glob('./assets/*.css');
+                    if (!empty($css_files)) {
+                        $main_css = '/assets/' . basename($css_files[0]);
+                        // Si pas de référence CSS, en ajouter une
+                        if (strpos($content, '.css') === false) {
+                            $head_end = strpos($content, '</head>');
+                            if ($head_end !== false) {
+                                $css_link = '<link rel="stylesheet" href="' . $main_css . '">';
+                                $content = substr($content, 0, $head_end) . $css_link . "\n  " . substr($content, $head_end);
+                                $updated = true;
+                            }
+                        } 
+                        // Remplacer src="./src/ par des références vers assets
+                        elseif (strpos($content, 'href="./src/index.css"') !== false) {
+                            $content = str_replace('href="./src/index.css"', 'href="' . $main_css . '"', $content);
                             $updated = true;
                         }
                     }
                     
-                    // Remplacer href="./src/ par des références vers assets
-                    if (strpos($content, 'href="./src/') !== false) {
-                        $css_files = glob('./assets/*.css');
-                        if (!empty($css_files)) {
-                            $main_css = '/assets/' . basename($css_files[0]);
-                            $content = preg_replace('/<link[^>]*href="\.\/src\/[^"]*"[^>]*>/i', '<link rel="stylesheet" href="' . $main_css . '">', $content);
+                    // Remplacer les références JS
+                    $js_files = glob('./assets/*.js');
+                    if (!empty($js_files)) {
+                        $main_js = '/assets/' . basename($js_files[0]);
+                        if (strpos($content, 'src="./src/main') !== false) {
+                            $content = preg_replace('/<script[^>]*src="\.\/src\/main[^"]*"[^>]*>/i', '<script type="module" src="' . $main_js . '">', $content);
                             $updated = true;
                         }
                     }
@@ -147,6 +157,10 @@ header('Content-Type: text/html; charset=utf-8');
             echo "<p>Référence à dist/assets: " . ($has_dist_refs ? "<span class='error'>PRÉSENTE</span>" : "<span class='success'>ABSENTE</span>") . "</p>";
             echo "<p>Référence à ./src/: " . ($has_src_refs ? "<span class='error'>PRÉSENTE</span>" : "<span class='success'>ABSENTE</span>") . "</p>";
             echo "<p>Référence à /assets/: " . ($has_assets_refs ? "<span class='success'>PRÉSENTE</span>" : "<span class='error'>ABSENTE</span>") . "</p>";
+            
+            // Vérification spécifique pour les fichiers CSS
+            $has_css_refs = strpos($content, '.css') !== false;
+            echo "<p>Référence à un fichier CSS: " . ($has_css_refs ? "<span class='success'>PRÉSENTE</span>" : "<span class='error'>ABSENTE</span>") . "</p>";
         } else {
             echo "<p><span class='error'>Le fichier index.html n'existe pas</span></p>";
         }

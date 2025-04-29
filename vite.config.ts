@@ -45,9 +45,16 @@ export default defineConfig(({ mode }) => {
           main: path.resolve(__dirname, 'index.html'),
         },
         output: {
-          assetFileNames: 'assets/[name].[ext]',
+          assetFileNames: (assetInfo) => {
+            const info = assetInfo.name.split('.');
+            const ext = info[info.length - 1];
+            if (/\.(css)$/i.test(assetInfo.name)) {
+              return `assets/index.css`;
+            }
+            return `assets/[name].[ext]`;
+          },
           chunkFileNames: 'assets/[name].js',
-          entryFileNames: 'assets/[name].js',
+          entryFileNames: 'assets/main.js',
         },
         external: []
       },
@@ -61,5 +68,9 @@ export default defineConfig(({ mode }) => {
       include: ['jspdf', 'jspdf-autotable']
     },
     envPrefix: 'VITE_',
+    css: {
+      // S'assurer que le CSS est correctement extrait
+      devSourcemap: true,
+    }
   };
 });
