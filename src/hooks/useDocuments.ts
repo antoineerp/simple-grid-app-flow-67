@@ -73,7 +73,8 @@ export const useDocuments = () => {
     setGroups(prevGroups => prevGroups.filter(g => g.id !== id));
   };
 
-  const handleSaveGroup = (group: DocumentGroup, isEditing = false) => {
+  const handleSaveGroup = (group: DocumentGroup) => {
+    const isEditing = groups.some(g => g.id === group.id);
     if (isEditing) {
       setGroups(prevGroups => 
         prevGroups.map(g => g.id === group.id ? group : g)
@@ -92,7 +93,7 @@ export const useDocuments = () => {
       expanded: false,
       items: []
     };
-    handleSaveGroup(newGroup, false);
+    handleSaveGroup(newGroup);
   };
   
   const handleReorderDocuments = useCallback((startIndex: number, endIndex: number, targetGroupId?: string) => {

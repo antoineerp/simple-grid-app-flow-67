@@ -85,7 +85,7 @@ const GestionDocumentaireContent = () => {
       <div className="flex justify-end mt-4 space-x-2">
         <Button 
           variant="outline"
-          onClick={() => handleAddGroup()}
+          onClick={() => handleAddGroup()} // Correction : pas besoin d'arguments
           className="hover:bg-gray-100 transition-colors mr-2"
           title="Nouveau groupe"
         >

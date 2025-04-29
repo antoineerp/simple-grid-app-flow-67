@@ -93,7 +93,7 @@ export const useExigences = () => {
       expanded: false,
       items: []
     };
-    // Correction: appel avec le bon nombre d'arguments
+    // Correction: appel sans argument, puisque la méthode a été modifiée
     groupOperations.handleSaveGroup(newGroup);
   }, [groupOperations]);
 
@@ -121,8 +121,8 @@ export const useExigences = () => {
     handleSaveExigence,
     handleAddGroup,
     handleEditGroup,
-    // Correction: fonction wrapper avec les bons arguments
-    handleSaveGroup: (group: ExigenceGroup) => groupOperations.handleSaveGroup(group, !!editingGroup),
+    // Correction: fonction avec signature compatible avec le groupOperations.handleSaveGroup
+    handleSaveGroup: (group: ExigenceGroup) => groupOperations.handleSaveGroup(group),
     handleDeleteGroup: groupOperations.handleDeleteGroup,
     handleToggleGroup: groupOperations.handleToggleGroup,
     handleReorder,
