@@ -1,55 +1,59 @@
 
-# Activer le moteur de réécriture
+# Main .htaccess - Forces PHP execution and handles routing
+
+# Enable rewrite engine
 RewriteEngine On
 
-# Ne pas appliquer les règles aux fichiers et répertoires existants
-RewriteCond %{REQUEST_FILENAME} !-f
-RewriteCond %{REQUEST_FILENAME} !-d
+# Enable PHP (multiple methods for different server configurations)
+AddHandler application/x-httpd-php .php
+AddType application/x-httpd-php .php
 
-# Configuration spécifique pour les fichiers PHP
+# PHP specific options
 <FilesMatch "\.php$">
     SetHandler application/x-httpd-php
 </FilesMatch>
 
-# Autoriser PHP en tant que module FastCGI
+# FastCGI configuration if available
 <IfModule mod_fastcgi.c>
     <FilesMatch "\.php$">
         SetHandler php-fcgi
     </FilesMatch>
 </IfModule>
 
-# Activer le moteur PHP s'il est disponible
+# Enable PHP engine explicitly
 <IfModule mod_php.c>
     php_flag engine on
 </IfModule>
 
-# En-têtes de sécurité
+# Security headers
 <IfModule mod_headers.c>
     Header always set X-Content-Type-Options "nosniff"
-    
-    # Autoriser le chargement de modules ES
-    <FilesMatch "\.(js|mjs|es\.js)$">
-        Header set Content-Type "application/javascript"
-    </FilesMatch>
+    Header set Access-Control-Allow-Origin "*"
+    Header set Access-Control-Allow-Methods "GET, POST, OPTIONS"
+    Header set Access-Control-Allow-Headers "Content-Type, Authorization"
 </IfModule>
 
-# Configuration des types MIME pour JavaScript
+# Set correct MIME types
 AddType application/javascript .js
 AddType application/javascript .mjs
-AddType application/javascript .cjs
 AddType text/css .css
 AddType application/json .json
 AddType image/svg+xml .svg
 
-# Pour les requêtes vers l'API, ne pas rediriger
+# API requests should not be redirected
 RewriteRule ^api/ - [L]
 
-# Configuration des Service Workers
+# PHP files should be processed directly
+RewriteCond %{REQUEST_FILENAME} -f
+RewriteRule \.(php)$ - [L]
+
+# For service workers
 <Files "sync-service-worker.js">
     Header set Content-Type "application/javascript"
     Header set Service-Worker-Allowed "/"
-    Header set X-Content-Type-Options "nosniff"
 </Files>
 
-# Rediriger les requêtes non-fichier vers index.html (pour le routage côté client)
-RewriteRule ^(.*)$ index.html [L]
+# Redirect all other requests to index.html for client-side routing
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^(.*)$ index.html [QSA,L]

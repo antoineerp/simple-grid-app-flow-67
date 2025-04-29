@@ -1,56 +1,57 @@
 
-# Activer la réécriture d'URL
+# API .htaccess - Ensures PHP execution in the API directory
+
+# Enable URL rewriting
 RewriteEngine On
 
-# Force PHP pour tous les fichiers .php
+# Force PHP for all .php files
 <FilesMatch "\.php$">
     SetHandler application/x-httpd-php
 </FilesMatch>
 
-# Assurer que PHP est activé
+# Ensure PHP is activated
 <IfModule mod_php.c>
     php_flag engine on
     php_value display_errors on
     php_value error_reporting E_ALL
 </IfModule>
 
-# Support pour FastCGI
+# Support for FastCGI
 <IfModule mod_fcgid.c>
     <FilesMatch "\.php$">
         SetHandler fcgid-script
     </FilesMatch>
 </IfModule>
 
-# Support pour FPM
+# Support for FPM
 <IfModule mod_proxy_fcgi.c>
     <FilesMatch "\.php$">
         SetHandler "proxy:unix:/var/run/php-fpm.sock|fcgi://localhost"
     </FilesMatch>
 </IfModule>
 
-# Définir les types MIME corrects
+# Set correct MIME types
 AddType application/javascript .js
-AddType application/javascript .mjs
 AddType text/css .css
 AddType application/json .json
 
-# Configurations CORS
+# CORS headers
 <IfModule mod_headers.c>
     Header set Access-Control-Allow-Origin "*"
     Header set Access-Control-Allow-Methods "GET, POST, OPTIONS, PUT, DELETE"
     Header set Access-Control-Allow-Headers "Content-Type, Authorization, X-Requested-With"
     
-    # Eviter la mise en cache
+    # Prevent caching
     Header set Cache-Control "no-cache, no-store, must-revalidate"
     Header set Pragma "no-cache"
     Header set Expires 0
 </IfModule>
 
-# Permettre l'accès direct aux fichiers PHP
+# Allow direct access to PHP files
 RewriteCond %{REQUEST_FILENAME} -f
 RewriteRule \.(php)$ - [L]
 
-# Rediriger toutes les requêtes vers l'index.php sauf pour les fichiers existants
+# Route all other requests to index.php
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^(.*)$ index.php [QSA,L]

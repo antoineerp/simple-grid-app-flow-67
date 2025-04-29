@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       reason:
-        description: 'Reason for running'
+        description: 'Reason for manual deployment'
         required: false
         default: 'Manual deployment'
 
@@ -35,71 +35,70 @@ jobs:
         NODE_ENV: production
         VITE_HOSTING: 'infomaniak'
       
-    - name: Debug build output
+    - name: Create deployment directory structure
       run: |
-        echo "============== Debugging build output =============="
-        echo "Liste des fichiers dans dist:"
-        ls -la dist/
-        echo "Liste des fichiers assets:"
-        ls -la dist/assets/ || echo "Dossier assets non trouvé"
-        echo "Liste des fichiers PHP à la racine:"
-        find . -maxdepth 1 -name "*.php" | sort
-
-    - name: Prepare deployment directory
-      run: |
-        # Création des dossiers nécessaires
         mkdir -p deploy/assets
         mkdir -p deploy/api
         mkdir -p deploy/public/lovable-uploads
         
-        # Copie du fichier index.html
+        # Copy the index.html file
         cp dist/index.html deploy/
         
-        # Copie des fichiers compilés
+        # Copy all asset files
         cp -r dist/assets/* deploy/assets/
         
-        # Copie des autres fichiers nécessaires
-        cp .htaccess deploy/ || echo "Fichier .htaccess non trouvé"
-        cp .user.ini deploy/ || echo "Fichier .user.ini non trouvé"
+        # Copy PHP bridge file
+        echo "<?php /* PHP bridge file */ ?>" > deploy/assets/index.php
         
-        # Copie des fichiers PHP à la racine
-        echo "Copie des fichiers PHP à la racine..."
+        # Copy htaccess files
+        cp .htaccess deploy/ || echo "Root .htaccess not found"
+        cp api/.htaccess deploy/api/ || echo "API .htaccess not found"
+        
+        # Copy user.ini files for PHP configuration
+        cp .user.ini deploy/ || echo "Root .user.ini not found"
+        cp api/.user.ini deploy/api/ || echo "API .user.ini not found"
+        
+        # Copy all PHP files from root
         find . -maxdepth 1 -name "*.php" -exec cp {} deploy/ \;
         
-        # S'assurer que tous les sous-répertoires existent dans api/
-        echo "Création de la structure complète des répertoires API"
-        find api -type d | while read dir; do
-          mkdir -p "deploy/${dir}"
+        # Copy API folder recursively (excluding unnecessary files)
+        find api -type f \( -name "*.php" -o -name "*.json" -o -name "*.ini" -o -name "*.htaccess" \) | while read file; do
+          mkdir -p "deploy/$(dirname "$file")"
+          cp "$file" "deploy/$file"
         done
         
-        # Copie complète et récursive du dossier API et tous ses sous-dossiers
-        echo "Copie complète et récursive du dossier API..."
-        find api -type f -exec cp --parents {} deploy/ \;
-        
-        # Vérification des fichiers PHP cruciaux sont bien copiés
-        echo "Vérification des fichiers PHP cruciaux :"
-        [ -f "deploy/api/index.php" ] && echo "- api/index.php: OK" || echo "- api/index.php: MANQUANT"
-        [ -f "deploy/api/phpinfo.php" ] && echo "- api/phpinfo.php: OK" || echo "- api/phpinfo.php: MANQUANT" 
-        [ -f "deploy/api/test.php" ] && echo "- api/test.php: OK" || echo "- api/test.php: MANQUANT"
-        [ -f "deploy/api/env.php" ] && echo "- api/env.php: OK" || echo "- api/env.php: MANQUANT"
-        
-        # Copie des uploads si existants
+        # Copy uploads if they exist
         if [ -d "public/lovable-uploads" ]; then
-          echo "Copie des uploads..."
-          cp -r public/lovable-uploads/* deploy/public/lovable-uploads/
-        else
-          echo "Dossier uploads non trouvé"
+          cp -r public/lovable-uploads/* deploy/public/lovable-uploads/ || echo "No uploads to copy"
         fi
         
-        # Créer un pont entre le point d'entrée principal et les assets générés
-        echo "/* Fichier pont pour la compatibilité avec les scripts de diagnostic */
-import './main.js';" > deploy/assets/index.js
+        # Create compatibility script for assets
+        echo "/* Assets bridge for Infomaniak compatibility */
+        import './main.js';" > deploy/assets/index.js
         
-        echo "Structure du dossier de déploiement:"
-        find deploy -type f | sort | head -n 20
-        echo "... et plus de fichiers"
+        # Ensure correct permissions
+        chmod -R 755 deploy/
+        find deploy/ -type f -name "*.php" -exec chmod 644 {} \;
 
-    - name: Sync to Infomaniak server
+    - name: Debug deployment files
+      run: |
+        echo "=== DEPLOYMENT FILES STRUCTURE ==="
+        find deploy -type f | sort | head -n 30
+        echo "..."
+        
+        echo "=== PHP FILE COUNT ==="
+        find deploy -name "*.php" | wc -l
+        
+        echo "=== ASSETS FILE COUNT ==="
+        find deploy/assets -type f | wc -l
+        
+        echo "=== CRITICAL FILES CHECK ==="
+        ls -la deploy/index.html && echo "✓ index.html" || echo "✗ index.html MISSING"
+        ls -la deploy/.htaccess && echo "✓ .htaccess" || echo "✗ .htaccess MISSING"
+        ls -la deploy/api/.htaccess && echo "✓ api/.htaccess" || echo "✗ api/.htaccess MISSING"
+        ls -la deploy/api/test.php && echo "✓ api/test.php" || echo "✗ api/test.php MISSING"
+
+    - name: Upload to Infomaniak
       uses: SamKirkland/FTP-Deploy-Action@v4.3.4
       with:
         server: ${{ secrets.FTP_SERVER }}
@@ -119,6 +118,5 @@ import './main.js';" > deploy/assets/index.js
         timeout: 120000
 
     - name: Clean up
-      run: |
-        rm -rf deploy
-        rm -rf dist
+      if: always()
+      run: rm -rf deploy dist
