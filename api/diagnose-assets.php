@@ -1,113 +1,113 @@
 
 <?php
-header('Content-Type: text/html; charset=utf-8');
+// Script pour diagnostiquer les assets (fichiers JS et CSS)
+// Ce script vérifie la présence de fichiers JS et CSS et les références dans index.html
+
+// En-têtes pour éviter la mise en cache et permettre les accès CORS
+header("Content-Type: application/json; charset=UTF-8");
+header("Access-Control-Allow-Origin: *");
+header("Access-Control-Allow-Methods: GET, OPTIONS");
+header("Access-Control-Allow-Headers: Content-Type");
+header("Cache-Control: no-cache, no-store, must-revalidate");
+
+// Vérifier l'existence du dossier assets
+$assetsDir = __DIR__ . '/../assets';
+$assets = [
+    'status' => 'success',
+    'message' => 'Tous les assets sont correctement configurés',
+    'js_files' => [],
+    'css_files' => [],
+    'html_references' => [
+        'js' => false,
+        'css' => false
+    ]
+];
+
+// Vérifier le répertoire assets
+if (!is_dir($assetsDir)) {
+    $assets['status'] = 'error';
+    $assets['message'] = "Le répertoire assets n'existe pas";
+    echo json_encode($assets, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
+// Liste des fichiers JS
+$js_files = glob($assetsDir . '/*.js');
+if (!empty($js_files)) {
+    foreach ($js_files as $file) {
+        $assets['js_files'][] = basename($file);
+    }
+} else {
+    $assets['status'] = 'error';
+    $assets['message'] = "Aucun fichier JavaScript trouvé dans le dossier assets";
+}
+
+// Liste des fichiers CSS
+$css_files = glob($assetsDir . '/*.css');
+if (!empty($css_files)) {
+    foreach ($css_files as $file) {
+        $assets['css_files'][] = basename($file);
+    }
+} else {
+    $assets['status'] = 'error';
+    $assets['message'] = "Aucun fichier CSS trouvé dans le dossier assets";
+}
+
+// Vérifier les références dans index.html
+$indexHtmlPath = __DIR__ . '/../index.html';
+if (file_exists($indexHtmlPath)) {
+    $indexContent = file_get_contents($indexHtmlPath);
+    
+    // Vérifier les références JS
+    $jsReferenced = preg_match('/<script[^>]*src="[^"]*\.(js|mjs)"[^>]*>/i', $indexContent);
+    $assets['html_references']['js'] = (bool)$jsReferenced;
+    
+    // Vérifier les références CSS
+    $cssReferenced = preg_match('/<link[^>]*href="[^"]*\.css"[^>]*>/i', $indexContent);
+    $assets['html_references']['css'] = (bool)$cssReferenced;
+    
+    // Si des références sont manquantes
+    if (!$jsReferenced || !$cssReferenced) {
+        $assets['status'] = 'error';
+        $assets['message'] = "Des références aux assets sont manquantes dans index.html";
+    }
+} else {
+    $assets['status'] = 'error';
+    $assets['message'] = "Le fichier index.html est introuvable";
+}
+
+// Si les vérifications précédentes n'ont pas trouvé d'erreur mais qu'il n'y a pas de fichiers
+if ($assets['status'] === 'success' && (empty($assets['js_files']) || empty($assets['css_files']))) {
+    $assets['status'] = 'error';
+    $assets['message'] = "Des fichiers JS ou CSS sont manquants";
+}
+
+// Générer des recommandations
+if ($assets['status'] === 'error') {
+    $recommendations = [];
+    
+    if (!is_dir($assetsDir)) {
+        $recommendations[] = "Créer le répertoire assets à la racine de l'application";
+    }
+    
+    if (empty($assets['js_files'])) {
+        $recommendations[] = "Exécuter 'npm run build' pour générer les fichiers JavaScript";
+    }
+    
+    if (empty($assets['css_files'])) {
+        $recommendations[] = "Exécuter 'npm run build' pour générer les fichiers CSS";
+    }
+    
+    if (!$assets['html_references']['js'] || !$assets['html_references']['css']) {
+        $recommendations[] = "Utiliser le script fix-index-references.php pour corriger les références dans index.html";
+    }
+    
+    $assets['recommendations'] = $recommendations;
+}
+
+// Ajouter un timestamp
+$assets['timestamp'] = date('Y-m-d H:i:s');
+
+// Retourner les résultats au format JSON
+echo json_encode($assets, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
 ?>
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Diagnostic de Déploiement</title>
-    <style>
-        body { font-family: sans-serif; padding: 20px; max-width: 800px; margin: 0 auto; }
-        .success { color: green; font-weight: bold; }
-        .error { color: red; font-weight: bold; }
-        .info { color: blue; }
-        .section { margin-bottom: 30px; border: 1px solid #ddd; padding: 15px; border-radius: 5px; }
-        h2 { margin-top: 0; }
-    </style>
-</head>
-<body>
-    <h1>Diagnostic de Déploiement FormaCert</h1>
-    
-    <div class="section">
-        <h2>Informations Serveur</h2>
-        <p>Serveur: <?php echo $_SERVER['SERVER_SOFTWARE']; ?></p>
-        <p>PHP Version: <?php echo phpversion(); ?></p>
-        <p>Document Root: <?php echo $_SERVER['DOCUMENT_ROOT']; ?></p>
-        <p>Répertoire Courant: <?php echo getcwd(); ?></p>
-    </div>
-    
-    <div class="section">
-        <h2>Structure des Fichiers</h2>
-        <?php
-        $directories = [
-            '../assets' => 'Dossier des assets JS/CSS',
-            '../public' => 'Dossier des fichiers publics',
-            '../public/lovable-uploads' => 'Dossier des uploads',
-            '../api' => 'Dossier API'
-        ];
-        
-        foreach ($directories as $dir => $description) {
-            echo "<p>$description ($dir): ";
-            if (file_exists($dir)) {
-                echo "<span class='success'>Existe</span>";
-                $files = scandir($dir);
-                $fileCount = count($files) - 2; // Moins . et ..
-                echo " ($fileCount fichiers)";
-            } else {
-                echo "<span class='error'>N'existe pas</span>";
-            }
-            echo "</p>";
-        }
-        ?>
-    </div>
-    
-    <div class="section">
-        <h2>Fichiers Clés</h2>
-        <?php
-        $key_files = [
-            '../index.html' => 'Page d\'accueil',
-            '../.htaccess' => 'Configuration Apache',
-        ];
-        
-        // Vérification du fichier JavaScript principal (index.js ou main-*.js)
-        $js_file_exists = false;
-        $js_file_name = "";
-        
-        if (file_exists('../assets/index.js')) {
-            $js_file_exists = true;
-            $js_file_name = '../assets/index.js';
-        } else {
-            // Chercher un fichier main-*.js s'il n'y a pas d'index.js
-            $main_js_files = glob('../assets/main-*.js');
-            if (!empty($main_js_files)) {
-                $js_file_exists = true;
-                $js_file_name = $main_js_files[0];
-            }
-        }
-        
-        $key_files[$js_file_name] = 'JavaScript principal';
-        
-        foreach ($key_files as $file => $description) {
-            echo "<p>$description ($file): ";
-            if (file_exists($file)) {
-                echo "<span class='success'>Existe</span>";
-                echo " (" . filesize($file) . " octets)";
-            } else {
-                echo "<span class='error'>N'existe pas</span>";
-            }
-            echo "</p>";
-        }
-        ?>
-    </div>
-    
-    <div class="section">
-        <h2>Test d'Inclusion JavaScript</h2>
-        <div id="js-test">Test JavaScript...</div>
-        
-        <script>
-            document.getElementById('js-test').textContent = 'JavaScript fonctionne correctement!';
-            document.getElementById('js-test').style.color = 'green';
-        </script>
-    </div>
-    
-    <div class="section">
-        <h2>Instructions de Déploiement</h2>
-        <ol>
-            <li>Assurez-vous que le contenu du répertoire <code>dist</code> est copié à la racine du site</li>
-            <li>Vérifiez que le fichier <code>index.html</code> pointe vers le bon fichier JavaScript (soit <code>/assets/index.js</code> soit <code>/assets/main-*.js</code>)</li>
-            <li>Assurez-vous que le fichier <code>.htaccess</code> est présent à la racine</li>
-            <li>Vérifiez que le répertoire <code>assets</code> contient les fichiers JS compilés</li>
-        </ol>
-    </div>
-</body>
-</html>

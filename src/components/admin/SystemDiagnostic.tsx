@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { getApiUrl } from '@/config/apiConfig';
-import { AlertCircle, CheckCircle, RefreshCw, FilePlus } from 'lucide-react';
+import { AlertCircle, CheckCircle, RefreshCw, FilePlus, FileJson } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 interface DiagnosticTest {
@@ -44,9 +44,22 @@ interface DiagnosticResult {
   };
 }
 
+interface AssetsDiagnosticResult {
+  status: string;
+  js_files?: string[];
+  css_files?: string[];
+  html_references?: {
+    js: boolean;
+    css: boolean;
+  };
+  message: string;
+}
+
 const SystemDiagnostic: React.FC = () => {
   const [results, setResults] = useState<DiagnosticResult | null>(null);
+  const [assetsResults, setAssetsResults] = useState<AssetsDiagnosticResult | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
+  const [assetsLoading, setAssetsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [fixLoading, setFixLoading] = useState<boolean>(false);
   const [fixResults, setFixResults] = useState<any>(null);
@@ -95,6 +108,50 @@ const SystemDiagnostic: React.FC = () => {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const checkAssets = async () => {
+    setAssetsLoading(true);
+    
+    try {
+      const response = await fetch(`${getApiUrl()}/diagnose-assets.php`, {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+          'Cache-Control': 'no-cache'
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Erreur HTTP: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      setAssetsResults(data);
+      
+      if (data.status === 'error') {
+        toast({
+          title: "Problèmes avec les assets",
+          description: data.message,
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Assets OK",
+          description: data.message,
+          variant: "default",
+        });
+      }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : "Une erreur s'est produite";
+      toast({
+        title: "Erreur de vérification des assets",
+        description: errorMessage,
+        variant: "destructive",
+      });
+    } finally {
+      setAssetsLoading(false);
     }
   };
 
@@ -150,8 +207,46 @@ const SystemDiagnostic: React.FC = () => {
     }
   };
 
+  const fixAssets = async () => {
+    setAssetsLoading(true);
+    
+    try {
+      const response = await fetch(`${getApiUrl()}/fix-index-references.php`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'Cache-Control': 'no-cache'
+        },
+        body: 'fix_index=1'
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Erreur HTTP: ${response.status}`);
+      }
+      
+      toast({
+        title: "Correction des assets",
+        description: "Les références aux assets ont été mises à jour dans index.html",
+        variant: "default",
+      });
+      
+      // Relancer la vérification des assets
+      setTimeout(() => checkAssets(), 1000);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : "Une erreur s'est produite";
+      toast({
+        title: "Erreur de correction",
+        description: errorMessage,
+        variant: "destructive",
+      });
+    } finally {
+      setAssetsLoading(false);
+    }
+  };
+
   useEffect(() => {
     runDiagnostic();
+    checkAssets();
   }, []);
 
   const renderTests = (tests: {[key: string]: DiagnosticTest}) => {
@@ -243,6 +338,101 @@ const SystemDiagnostic: React.FC = () => {
               {results.summary.message}
             </AlertDescription>
           </Alert>
+
+          {/* Ajout d'une nouvelle section pour les assets */}
+          <div className="border rounded-lg p-4">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="font-medium">Diagnostic des assets (CSS/JS)</h3>
+              <div className="space-x-2">
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={checkAssets} 
+                  disabled={assetsLoading}
+                >
+                  <RefreshCw className={`h-4 w-4 mr-2 ${assetsLoading ? 'animate-spin' : ''}`} />
+                  Vérifier les assets
+                </Button>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={fixAssets} 
+                  disabled={assetsLoading || !assetsResults || assetsResults.status === 'success'}
+                >
+                  <FileJson className="h-4 w-4 mr-2" />
+                  Corriger index.html
+                </Button>
+              </div>
+            </div>
+            
+            {assetsResults ? (
+              <div>
+                <Alert 
+                  variant={assetsResults.status === 'success' ? 'default' : 'destructive'} 
+                  className={assetsResults.status === 'success' ? 'bg-green-50' : ''}
+                >
+                  {assetsResults.status === 'success' ? (
+                    <CheckCircle className="h-4 w-4 text-green-500" />
+                  ) : (
+                    <AlertCircle className="h-4 w-4" />
+                  )}
+                  <AlertTitle>
+                    {assetsResults.status === 'success' ? 'Assets OK' : 'Problème avec les assets'}
+                  </AlertTitle>
+                  <AlertDescription>
+                    {assetsResults.message}
+                  </AlertDescription>
+                </Alert>
+                
+                {assetsResults.js_files && (
+                  <div className="mt-3">
+                    <h4 className="text-sm font-medium">Fichiers JavaScript trouvés:</h4>
+                    <ul className="text-xs mt-1">
+                      {assetsResults.js_files.map((file, index) => (
+                        <li key={index} className="mb-1">{file}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                
+                {assetsResults.css_files && (
+                  <div className="mt-2">
+                    <h4 className="text-sm font-medium">Fichiers CSS trouvés:</h4>
+                    <ul className="text-xs mt-1">
+                      {assetsResults.css_files.map((file, index) => (
+                        <li key={index} className="mb-1">{file}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                
+                {assetsResults.html_references && (
+                  <div className="mt-3">
+                    <h4 className="text-sm font-medium">Références dans index.html:</h4>
+                    <div className="text-xs mt-1">
+                      <p className={`${assetsResults.html_references.js ? 'text-green-600' : 'text-red-600'}`}>
+                        {assetsResults.html_references.js ? '✅ Référence JS trouvée' : '❌ Référence JS manquante'}
+                      </p>
+                      <p className={`${assetsResults.html_references.css ? 'text-green-600' : 'text-red-600'}`}>
+                        {assetsResults.html_references.css ? '✅ Référence CSS trouvée' : '❌ Référence CSS manquante'}
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="text-center py-4">
+                {assetsLoading ? (
+                  <div className="flex justify-center items-center">
+                    <RefreshCw className="h-5 w-5 animate-spin text-blue-500" />
+                    <span className="ml-2 text-sm">Vérification des assets...</span>
+                  </div>
+                ) : (
+                  <span className="text-sm text-gray-500">Cliquez sur "Vérifier les assets" pour analyser les fichiers CSS et JS</span>
+                )}
+              </div>
+            )}
+          </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="border rounded-lg p-4">
