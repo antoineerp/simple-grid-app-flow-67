@@ -1,6 +1,6 @@
 
 import React, { useEffect } from 'react';
-import { FileText, UserPlus, CloudSun, AlertTriangle } from 'lucide-react';
+import { FileText, UserPlus } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import {
   Dialog,
@@ -16,7 +16,7 @@ import MemberList from '@/components/ressources-humaines/MemberList';
 import MemberForm from '@/components/ressources-humaines/MemberForm';
 import { Membre } from '@/types/membres';
 import { exportAllCollaborateursToPdf } from '@/services/collaborateurExport';
-import SyncStatusIndicator from '@/components/common/SyncStatusIndicator';
+import SyncIndicator from '@/components/common/SyncIndicator';
 
 const RessourcesHumaines = () => {
   const { toast } = useToast();
@@ -163,11 +163,16 @@ const RessourcesHumaines = () => {
     }
   };
 
-  // Modified to return Promise<void>
-  const handleResetSync = async (): Promise<void> => {
+  // Fonction asynchrone pour la synchronisation
+  const handleSync = async (): Promise<void> => {
     resetSyncFailed();
-    // Return the promise from syncWithServer
-    return syncWithServer();
+    try {
+      await syncWithServer();
+      return Promise.resolve();
+    } catch (error) {
+      console.error("Erreur lors de la synchronisation:", error);
+      return Promise.reject(error);
+    }
   };
 
   return (
@@ -177,14 +182,6 @@ const RessourcesHumaines = () => {
           <h1 className="text-3xl font-bold text-app-blue">Ressources Humaines</h1>
         </div>
         <div className="flex space-x-2">
-          <button 
-            onClick={() => syncWithServer()}
-            className="text-blue-600 p-2 rounded-md hover:bg-blue-50 transition-colors flex items-center"
-            title="Synchroniser avec le serveur"
-            disabled={isSyncing || !isOnline || syncFailed}
-          >
-            <CloudSun className={`h-6 w-6 stroke-[1.5] ${isSyncing ? 'animate-spin' : ''} ${syncFailed ? 'text-gray-400' : ''}`} />
-          </button>
           <button 
             onClick={handleExportAllToPdf}
             className="text-red-600 p-2 rounded-md hover:bg-red-50 transition-colors"
@@ -196,11 +193,12 @@ const RessourcesHumaines = () => {
       </div>
 
       <div className="mb-4">
-        <SyncStatusIndicator 
-          syncFailed={syncFailed} 
-          onReset={handleResetSync} 
+        <SyncIndicator
           isSyncing={isSyncing}
+          isOnline={isOnline}
+          syncFailed={syncFailed}
           lastSynced={lastSynced}
+          onSync={handleSync}
         />
       </div>
 

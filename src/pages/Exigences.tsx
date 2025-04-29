@@ -11,7 +11,7 @@ import { exportExigencesToPdf } from '@/services/pdfExport';
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import SyncStatusIndicator from '@/components/common/SyncStatusIndicator';
+import SyncIndicator from '@/components/common/SyncIndicator';
 
 const ExigencesContent = () => {
   const {
@@ -85,9 +85,18 @@ const ExigencesContent = () => {
     });
   };
 
-  // Create a wrapper around handleResetLoadAttempts to return a Promise
-  const handleResetLoadAttemptsAsync = async (): Promise<void> => {
-    return Promise.resolve(handleResetLoadAttempts());
+  // Fonction pour la synchronisation avec retour de Promise
+  const handleSync = async (): Promise<void> => {
+    try {
+      await syncWithServer();
+      if (loadError) {
+        await handleResetLoadAttempts();
+      }
+      return Promise.resolve();
+    } catch (error) {
+      console.error("Erreur lors de la synchronisation:", error);
+      return Promise.reject(error);
+    }
   };
 
   return (
@@ -97,14 +106,6 @@ const ExigencesContent = () => {
           <h1 className="text-3xl font-bold text-app-blue">Exigences</h1>
         </div>
         <div className="flex space-x-2">
-          <button 
-            onClick={handleSyncWithServer}
-            className="text-blue-600 p-2 rounded-md hover:bg-blue-50 transition-colors flex items-center"
-            title="Synchroniser avec le serveur"
-            disabled={isSyncing}
-          >
-            <CloudSun className={`h-6 w-6 stroke-[1.5] ${isSyncing ? 'animate-spin' : ''}`} />
-          </button>
           <button 
             onClick={handleExportPdf}
             className="text-red-600 p-2 rounded-md hover:bg-red-50 transition-colors"
@@ -116,11 +117,12 @@ const ExigencesContent = () => {
       </div>
 
       <div className="mb-4">
-        <SyncStatusIndicator 
-          syncFailed={syncFailed || !!loadError} 
-          onReset={handleResetLoadAttemptsAsync} 
+        <SyncIndicator 
           isSyncing={isSyncing}
+          isOnline={isOnline}
+          syncFailed={syncFailed || !!loadError}
           lastSynced={lastSynced}
+          onSync={handleSync}
         />
       </div>
 
@@ -132,7 +134,7 @@ const ExigencesContent = () => {
             <Button 
               variant="outline" 
               size="sm" 
-              onClick={handleResetLoadAttemptsAsync}
+              onClick={() => handleSync()}
               className="ml-4"
             >
               <RefreshCw className="h-4 w-4 mr-2" />

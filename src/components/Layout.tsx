@@ -7,6 +7,8 @@ import Sidebar from './Sidebar';
 import { MembresProvider } from '@/contexts/MembresContext';
 import { getIsLoggedIn, getAuthToken, getCurrentUser } from '@/services/auth/authService';
 import { initializeCurrentUser } from '@/services/core/databaseConnectionService';
+import { triggerSync } from '@/services/sync/triggerSync';
+import SyncIndicator from './common/SyncIndicator';
 
 interface LayoutProps {
   children?: React.ReactNode;
@@ -17,6 +19,27 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   const location = useLocation();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [syncStatus, setSyncStatus] = useState({
+    isSyncing: false,
+    isOnline: navigator.onLine,
+    syncFailed: false,
+    lastSynced: null as Date | null
+  });
+  
+  // Gestionnaire d'événements pour l'état de la connexion
+  useEffect(() => {
+    const handleOnlineStatus = () => {
+      setSyncStatus(prev => ({ ...prev, isOnline: navigator.onLine }));
+    };
+
+    window.addEventListener('online', handleOnlineStatus);
+    window.addEventListener('offline', handleOnlineStatus);
+
+    return () => {
+      window.removeEventListener('online', handleOnlineStatus);
+      window.removeEventListener('offline', handleOnlineStatus);
+    };
+  }, []);
   
   useEffect(() => {
     // Initialiser l'utilisateur courant pour la base de données
@@ -45,8 +68,26 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     };
     
     checkAuth();
-    // Supprimer location.pathname de la dépendance pour éviter de vérifier à chaque changement de route
   }, [navigate]);
+
+  // Synchronisation globale des données en attente
+  const handleSyncAll = async (): Promise<void> => {
+    try {
+      setSyncStatus(prev => ({ ...prev, isSyncing: true }));
+      const results = await triggerSync.synchronizeAllPending();
+      setSyncStatus({
+        isSyncing: false,
+        isOnline: navigator.onLine,
+        syncFailed: Object.values(results).includes(false),
+        lastSynced: new Date()
+      });
+      return Promise.resolve();
+    } catch (error) {
+      setSyncStatus(prev => ({ ...prev, isSyncing: false, syncFailed: true }));
+      console.error("Erreur lors de la synchronisation globale:", error);
+      return Promise.reject(error);
+    }
+  };
 
   // Si le composant est en cours de chargement, afficher un loader
   if (isLoading) {
@@ -74,6 +115,21 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             {children || <Outlet />}
           </main>
         </div>
+        {isAuthenticated && (
+          <div className="fixed bottom-4 right-4">
+            <div className="bg-white shadow-lg rounded-lg p-2 border border-gray-200">
+              <SyncIndicator
+                isSyncing={syncStatus.isSyncing}
+                isOnline={syncStatus.isOnline}
+                syncFailed={syncStatus.syncFailed}
+                lastSynced={syncStatus.lastSynced}
+                onSync={handleSyncAll}
+                compact={true}
+                className="min-w-[80px]"
+              />
+            </div>
+          </div>
+        )}
         <Footer />
       </div>
     </MembresProvider>

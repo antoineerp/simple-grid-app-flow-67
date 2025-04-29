@@ -22,7 +22,7 @@ export const useExigences = () => {
       return user;
     }
     
-    // Si c'est un objet, extraire un identifiant
+    // Si c'est un objet, essayer d'extraire un identifiant
     if (typeof user === 'object') {
       // Vérifier si l'objet n'est pas null
       if (user === null) {
@@ -121,7 +121,7 @@ export const useExigences = () => {
     });
   };
 
-  // Updated to return Promise<void>
+  // Asynchrone et retourne une Promise<void>
   const handleResetLoadAttempts = async (): Promise<void> => {
     setLoadError(null);
     setLoadAttempts(0);
