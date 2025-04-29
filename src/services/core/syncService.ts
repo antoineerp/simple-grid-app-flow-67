@@ -1,4 +1,3 @@
-
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { getApiUrl, fetchWithErrorHandling } from '@/config/apiConfig';
@@ -208,7 +207,7 @@ export const useSyncService = () => {
         toast({
           title: "Chargement annulé",
           description: message,
-          variant: "warning"
+          variant: "default"
         });
       } else {
         console.error(`[SyncService] Erreur de chargement depuis ${options.loadEndpoint}:`, error);

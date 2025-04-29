@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState, useRef } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { getCurrentUser } from '@/services/auth/authService';
@@ -38,7 +37,7 @@ const BootLoader: React.FC<BootLoaderProps> = ({ children }) => {
         toast({
           title: "Chargement partiel",
           description: "L'application a été chargée partiellement, certaines données pourraient être manquantes.",
-          variant: "warning"
+          variant: "default"
         });
       }
     }, 10000); // 10 secondes de timeout
