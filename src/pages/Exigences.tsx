@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { FileText, FolderPlus } from 'lucide-react';
+import { FileText, FolderPlus, RefreshCw } from 'lucide-react';
 import { MembresProvider } from '@/contexts/MembresContext';
 import ExigenceForm from '@/components/exigences/ExigenceForm';
 import ExigenceStats from '@/components/exigences/ExigenceStats';
@@ -20,6 +20,8 @@ const ExigencesContent = () => {
     editingGroup,
     dialogOpen,
     groupDialogOpen,
+    isSyncing,
+    lastSynced,
     setDialogOpen,
     setGroupDialogOpen,
     handleResponsabiliteChange,
@@ -35,7 +37,8 @@ const ExigencesContent = () => {
     handleSaveGroup,
     handleDeleteGroup,
     handleGroupReorder,
-    handleToggleGroup
+    handleToggleGroup,
+    syncWithServer
   } = useExigences();
   
   const { toast } = useToast();
@@ -47,6 +50,10 @@ const ExigencesContent = () => {
       description: "Le document a été généré et téléchargé",
     });
   };
+  
+  const formattedLastSynced = lastSynced 
+    ? new Date(lastSynced).toLocaleString() 
+    : "Jamais";
 
   return (
     <div className="p-8">
@@ -54,7 +61,20 @@ const ExigencesContent = () => {
         <div>
           <h1 className="text-3xl font-bold text-app-blue">Exigences</h1>
         </div>
-        <div className="flex space-x-2">
+        <div className="flex space-x-2 items-center">
+          <div className="text-sm text-gray-500 mr-2">
+            Dernière synchronisation: {formattedLastSynced}
+          </div>
+          <Button 
+            variant="outline"
+            onClick={syncWithServer}
+            disabled={isSyncing}
+            className="mr-2"
+            title="Synchroniser avec le serveur"
+          >
+            <RefreshCw className={`h-4 w-4 mr-2 ${isSyncing ? 'animate-spin' : ''}`} />
+            {isSyncing ? 'Synchronisation...' : 'Synchroniser'}
+          </Button>
           <button 
             onClick={handleExportPdf}
             className="text-red-600 p-2 rounded-md hover:bg-red-50 transition-colors"
@@ -100,7 +120,7 @@ const ExigencesContent = () => {
         </Button>
         <Button 
           variant="default"
-          onClick={handleAddExigence}
+          onClick={() => handleAddExigence()}
         >
           Ajouter une exigence
         </Button>

@@ -1,9 +1,11 @@
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { Exigence, ExigenceGroup, ExigenceStats } from '@/types/exigences';
 import { useExigenceMutations } from '@/hooks/useExigenceMutations';
 import { useExigenceGroups } from '@/hooks/useExigenceGroups';
 import { useToast } from '@/hooks/use-toast';
+import { getCurrentUser } from '@/services/auth/authService';
+import { loadExigencesFromServer, syncExigencesWithServer } from '@/services/exigences/exigenceSyncService';
 
 export const useExigences = () => {
   const [exigences, setExigences] = useState<Exigence[]>([]);
@@ -13,10 +15,96 @@ export const useExigences = () => {
   const [editingGroup, setEditingGroup] = useState<ExigenceGroup | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [groupDialogOpen, setGroupDialogOpen] = useState(false);
+  const [lastSynced, setLastSynced] = useState<Date | null>(null);
+  const [isSyncing, setIsSyncing] = useState<boolean>(false);
   const { toast } = useToast();
 
   const exigenceMutations = useExigenceMutations(exigences, setExigences);
   const groupOperations = useExigenceGroups(groups, setGroups, setExigences);
+
+  // Load exigences from server when component mounts
+  useEffect(() => {
+    const loadData = async () => {
+      const currentUser = getCurrentUser();
+      if (currentUser) {
+        const userId = typeof currentUser === 'object' ? 
+          (currentUser.identifiant_technique || '') : currentUser;
+        
+        if (userId) {
+          try {
+            const loadedData = await loadExigencesFromServer(userId);
+            if (loadedData && loadedData.exigences && loadedData.exigences.length > 0) {
+              setExigences(loadedData.exigences);
+              if (loadedData.groups && loadedData.groups.length > 0) {
+                setGroups(loadedData.groups);
+              }
+              toast({
+                title: "Exigences chargées",
+                description: `${loadedData.exigences.length} exigences chargées depuis le serveur`,
+              });
+              setLastSynced(new Date());
+            }
+          } catch (error) {
+            console.error("Erreur lors du chargement des exigences:", error);
+            toast({
+              title: "Erreur de chargement",
+              description: "Impossible de charger vos exigences depuis le serveur",
+              variant: "destructive"
+            });
+          }
+        }
+      }
+    };
+    
+    loadData();
+  }, [toast]);
+
+  // Sync exigences with server
+  const syncWithServer = useCallback(async () => {
+    const currentUser = getCurrentUser();
+    if (!currentUser) {
+      toast({
+        title: "Erreur de synchronisation",
+        description: "Vous devez être connecté pour synchroniser vos exigences",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    const userId = typeof currentUser === 'object' ? 
+      (currentUser.identifiant_technique || '') : currentUser;
+    
+    if (!userId) {
+      toast({
+        title: "Erreur de synchronisation",
+        description: "Identifiant utilisateur invalide",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setIsSyncing(true);
+    try {
+      const success = await syncExigencesWithServer(exigences, userId, groups);
+      if (success) {
+        setLastSynced(new Date());
+        toast({
+          title: "Synchronisation réussie",
+          description: "Vos exigences ont été enregistrées sur le serveur",
+        });
+      } else {
+        throw new Error("La synchronisation a échoué");
+      }
+    } catch (error) {
+      toast({
+        title: "Erreur de synchronisation",
+        description: error instanceof Error ? error.message : "Impossible de synchroniser vos exigences",
+        variant: "destructive"
+      });
+    } finally {
+      setIsSyncing(false);
+    }
+  }, [exigences, groups, toast]);
 
   // Calculate exigence statistics
   const stats: ExigenceStats = {
@@ -72,7 +160,10 @@ export const useExigences = () => {
     }
 
     setDialogOpen(false);
-  }, [exigences, exigenceMutations]);
+    
+    // Sync with server after saving
+    syncWithServer();
+  }, [exigences, exigenceMutations, syncWithServer]);
 
   // Définir des fonctions pour la réorganisation
   const handleReorder = useCallback((startIndex: number, endIndex: number, targetGroupId?: string) => {
@@ -94,7 +185,10 @@ export const useExigences = () => {
       items: []
     };
     groupOperations.handleSaveGroup(newGroup);
-  }, [groupOperations]);
+    
+    // Sync with server after adding a group
+    syncWithServer();
+  }, [groupOperations, syncWithServer]);
 
   // Fonction pour éditer un groupe
   const handleEditGroup = useCallback((group: ExigenceGroup) => {
@@ -111,6 +205,8 @@ export const useExigences = () => {
     editingGroup,
     dialogOpen,
     groupDialogOpen,
+    isSyncing,
+    lastSynced,
     setSelectedNiveau,
     setDialogOpen,
     setGroupDialogOpen,
@@ -125,6 +221,7 @@ export const useExigences = () => {
     handleToggleGroup: groupOperations.handleToggleGroup,
     handleReorder,
     handleGroupReorder,
+    syncWithServer,
     ...exigenceMutations
   };
 };
