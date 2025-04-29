@@ -121,10 +121,12 @@ export const useExigences = () => {
     });
   };
 
-  const handleResetLoadAttempts = () => {
+  // Updated to return Promise<void>
+  const handleResetLoadAttempts = async (): Promise<void> => {
     setLoadError(null);
     setLoadAttempts(0);
     resetSyncStatus();
+    return Promise.resolve();
   };
 
   const syncWithServer = async () => {

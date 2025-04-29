@@ -109,7 +109,7 @@ const GlobalSyncManager: React.FC = () => {
         toast({
           title: "Synchronisation partielle",
           description: `${failedTables.length} table(s) n'ont pas pu être synchronisée(s).`,
-          variant: "destructive" // Changed from "warning" to "destructive"
+          variant: "destructive" 
         });
       } else if (Object.keys(results).length > 0) {
         console.log("GlobalSyncManager: Toutes les données en attente ont été synchronisées avec succès");

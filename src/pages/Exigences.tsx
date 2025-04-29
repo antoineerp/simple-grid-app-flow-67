@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { FileText, FolderPlus, CloudSun, RefreshCw } from 'lucide-react';
 import { MembresProvider } from '@/contexts/MembresContext';
@@ -84,8 +85,8 @@ const ExigencesContent = () => {
     });
   };
 
-  // Modified to return Promise<void>
-  const handleResetLoadAttempts = async (): Promise<void> => {
+  // Create a wrapper around handleResetLoadAttempts to return a Promise
+  const handleResetLoadAttemptsAsync = async (): Promise<void> => {
     return Promise.resolve(handleResetLoadAttempts());
   };
 
@@ -117,7 +118,7 @@ const ExigencesContent = () => {
       <div className="mb-4">
         <SyncStatusIndicator 
           syncFailed={syncFailed || !!loadError} 
-          onReset={handleResetLoadAttempts} 
+          onReset={handleResetLoadAttemptsAsync} 
           isSyncing={isSyncing}
           lastSynced={lastSynced}
         />
@@ -131,7 +132,7 @@ const ExigencesContent = () => {
             <Button 
               variant="outline" 
               size="sm" 
-              onClick={handleResetLoadAttempts}
+              onClick={handleResetLoadAttemptsAsync}
               className="ml-4"
             >
               <RefreshCw className="h-4 w-4 mr-2" />
