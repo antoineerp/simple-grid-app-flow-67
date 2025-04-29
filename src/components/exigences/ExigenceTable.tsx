@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Pencil, Trash, GripVertical, ChevronDown } from 'lucide-react';
 import ResponsableSelector from '@/components/ResponsableSelector';
@@ -43,12 +42,6 @@ const ExigenceTable: React.FC<ExigenceTableProps> = ({
 }) => {
   const ungroupedExigences = exigences.filter(e => !e.groupId);
   const [draggedItem, setDraggedItem] = useState<{ id: string, groupId?: string } | null>(null);
-
-  // Added function to get exigence objects from group.items
-  const getExigencesForGroup = (group: ExigenceGroup): Exigence[] => {
-    // Find all exigences that belong to this group
-    return exigences.filter(exigence => exigence.groupId === group.id);
-  };
 
   const prepareItems = () => {
     let allItems: { id: string; groupId?: string; index: number }[] = 
@@ -296,7 +289,7 @@ const ExigenceTable: React.FC<ExigenceTableProps> = ({
                 </TableCell>
               </TableRow>
               {group.expanded && (
-                getExigencesForGroup(group).map((exigence, index) => (
+                group.items.map((exigence, index) => (
                   <TableRow 
                     key={exigence.id} 
                     className="border-b hover:bg-gray-50 bg-gray-50"

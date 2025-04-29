@@ -19,20 +19,8 @@ export const loadBibliothequeFromStorage = (currentUser: string): { documents: D
       documents = JSON.parse(defaultDocuments);
     } else {
       documents = [
-        { 
-          id: "1", 
-          titre: 'Organigramme', 
-          description: 'Document organisationnel',
-          url: '/documents/organigramme.pdf',
-          date_creation: new Date().toISOString()
-        },
-        { 
-          id: "2", 
-          titre: 'Administration', 
-          description: 'Document administratif',
-          url: '/documents/administration.pdf',
-          date_creation: new Date().toISOString()
-        },
+        { id: "1", name: 'Organigramme', link: 'Voir le document' },
+        { id: "2", name: 'Administration', link: 'Voir le document' },
       ];
     }
   }

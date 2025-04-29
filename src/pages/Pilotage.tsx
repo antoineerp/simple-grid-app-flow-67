@@ -2,7 +2,7 @@
 import React from 'react';
 import { useToast } from "@/hooks/use-toast";
 import { MembresProvider } from '@/contexts/MembresContext';
-import { exportPilotageDocsToPdf } from "@/services/pdfExport";
+import { exportPilotageToOdf } from "@/services/pdfExport";
 import { usePilotageDocuments } from '@/hooks/usePilotageDocuments';
 import PilotageHeader from '@/components/pilotage/PilotageHeader';
 import PilotageActions from '@/components/pilotage/PilotageActions';
@@ -29,7 +29,7 @@ const Pilotage = () => {
   } = usePilotageDocuments();
 
   const handleExportPdf = () => {
-    exportPilotageDocsToPdf(documents);
+    exportPilotageToOdf(documents);
     toast({
       title: "Export PDF",
       description: "Les documents ont été exportés au format PDF",

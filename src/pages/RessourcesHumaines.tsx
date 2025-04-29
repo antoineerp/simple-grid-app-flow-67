@@ -1,6 +1,6 @@
 
-import React from 'react';
-import { FileText, UserPlus } from 'lucide-react';
+import React, { useEffect } from 'react';
+import { FileText, UserPlus, CloudSun, AlertTriangle } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import {
   Dialog,
@@ -10,19 +10,27 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { useMembres } from '@/contexts/MembresContext';
 import MemberList from '@/components/ressources-humaines/MemberList';
 import MemberForm from '@/components/ressources-humaines/MemberForm';
 import { Membre } from '@/types/membres';
 import { exportAllCollaborateursToPdf } from '@/services/collaborateurExport';
+import SyncStatusIndicator from '@/components/common/SyncStatusIndicator';
 
 const RessourcesHumaines = () => {
   const { toast } = useToast();
   const { 
     membres, 
     setMembres, 
+    isSyncing, 
+    isOnline, 
+    lastSynced, 
+    syncWithServer, 
     isLoading, 
-    error 
+    error,
+    syncFailed,
+    resetSyncFailed
   } = useMembres();
   
   const [isDialogOpen, setIsDialogOpen] = React.useState(false);
@@ -36,6 +44,16 @@ const RessourcesHumaines = () => {
     mot_de_passe: '' 
   });
   const [isEditing, setIsEditing] = React.useState(false);
+
+  // Effectuer une seule synchronisation au chargement de la page, si nécessaire
+  useEffect(() => {
+    // Ne synchroniser que lorsque le chargement initial est terminé
+    // et uniquement si on est en ligne et qu'il n'y a pas d'échec précédent
+    if (!isLoading && isOnline && !syncFailed && !isSyncing) {
+      console.log("Synchronisation initiale des membres");
+      syncWithServer().catch(console.error);
+    }
+  }, [isLoading]);
 
   const handleEdit = (id: string) => {
     const membre = membres.find(m => m.id === id);
@@ -52,6 +70,11 @@ const RessourcesHumaines = () => {
       title: "Suppression",
       description: `Le membre ${id} a été supprimé`,
     });
+    
+    // Synchroniser manuellement après une suppression
+    if (isOnline && !syncFailed && !isSyncing) {
+      syncWithServer().catch(console.error);
+    }
   };
 
   const handleAddMember = () => {
@@ -116,6 +139,11 @@ const RessourcesHumaines = () => {
     }
     
     setIsDialogOpen(false);
+    
+    // Synchroniser manuellement après un ajout/modification
+    if (isOnline && !syncFailed && !isSyncing) {
+      syncWithServer().catch(console.error);
+    }
   };
 
   const handleExportAllToPdf = () => {
@@ -135,6 +163,12 @@ const RessourcesHumaines = () => {
     }
   };
 
+  const handleResetSync = () => {
+    resetSyncFailed();
+    // Tenter une nouvelle synchronisation après réinitialisation
+    syncWithServer().catch(console.error);
+  };
+
   return (
     <div className="p-8">
       <div className="flex items-center justify-between mb-2">
@@ -143,6 +177,14 @@ const RessourcesHumaines = () => {
         </div>
         <div className="flex space-x-2">
           <button 
+            onClick={() => syncWithServer()}
+            className="text-blue-600 p-2 rounded-md hover:bg-blue-50 transition-colors flex items-center"
+            title="Synchroniser avec le serveur"
+            disabled={isSyncing || !isOnline || syncFailed}
+          >
+            <CloudSun className={`h-6 w-6 stroke-[1.5] ${isSyncing ? 'animate-spin' : ''} ${syncFailed ? 'text-gray-400' : ''}`} />
+          </button>
+          <button 
             onClick={handleExportAllToPdf}
             className="text-red-600 p-2 rounded-md hover:bg-red-50 transition-colors"
             title="Exporter en PDF"
@@ -150,6 +192,16 @@ const RessourcesHumaines = () => {
             <FileText className="h-6 w-6 stroke-[1.5]" />
           </button>
         </div>
+      </div>
+
+      <div className="mb-4">
+        <SyncStatusIndicator 
+          syncFailed={syncFailed} 
+          onReset={handleResetSync} 
+          isSyncing={isSyncing} 
+          isOnline={isOnline}
+          lastSynced={lastSynced}
+        />
       </div>
 
       {isLoading ? (

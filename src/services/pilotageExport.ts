@@ -8,7 +8,7 @@ import {
 /**
  * Exports pilotage documents to PDF format
  */
-export const exportPilotageDocsToPdf = (documents: any[], title: string = 'Documents de pilotage') => {
+export const exportPilotageToOdf = (documents: any[], title: string = 'Documents de pilotage') => {
   createAndDownloadPdf((doc, startY) => {
     // Define columns for the table
     const headers = [['Ordre', 'Nom du document', 'Lien']];
@@ -38,4 +38,3 @@ export const exportPilotageDocsToPdf = (documents: any[], title: string = 'Docum
     console.log(`Tableau de pilotage généré avec ${data.length} documents`);
   }, title);
 };
-

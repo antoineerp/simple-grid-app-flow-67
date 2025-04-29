@@ -63,13 +63,26 @@ export const useExigenceMutations = (
     });
   }, [setExigences, toast]);
 
-  const handleAddExigence = useCallback((exigence: Exigence) => {
-    setExigences(prev => [...prev, exigence]);
+  const handleAddExigence = useCallback(() => {
+    const maxId = Math.max(...exigences.map(e => parseInt(e.id)), 0);
+    const newId = (maxId + 1).toString();
+    
+    const newExigence: Exigence = {
+      id: newId,
+      nom: `Nouvelle exigence ${newId}`,
+      responsabilites: { r: [], a: [], c: [], i: [] },
+      exclusion: false,
+      atteinte: null,
+      date_creation: new Date(),
+      date_modification: new Date()
+    };
+    
+    setExigences(prev => [...prev, newExigence]);
     toast({
       title: "Nouvelle exigence",
-      description: `L'exigence ${exigence.id} a été ajoutée`,
+      description: `L'exigence ${newId} a été ajoutée`,
     });
-  }, [setExigences, toast]);
+  }, [exigences, setExigences, toast]);
 
   return {
     handleResponsabiliteChange,

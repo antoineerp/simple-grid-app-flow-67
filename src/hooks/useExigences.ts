@@ -1,84 +1,220 @@
 
-import { useState, useCallback, useEffect } from 'react';
-import { Exigence, ExigenceGroup } from '@/types/exigences';
-import { useExigenceMutations } from '@/hooks/useExigenceMutations';
-import { useExigenceGroups } from '@/hooks/useExigenceGroups';
-import { useExigenceStats } from '@/hooks/exigences/useExigenceStats';
-import { useExigenceSync } from '@/hooks/exigences/useExigenceSync';
-import { useExigenceEditing } from '@/hooks/exigences/useExigenceEditing';
-import { useExigenceDragDrop } from '@/hooks/exigences/useExigenceDragDrop';
-import { useToast } from '@/hooks/use-toast';
+import { useState, useEffect } from 'react';
+import { Exigence, ExigenceStats, ExigenceGroup } from '@/types/exigences';
+import { useExigenceSync } from './useExigenceSync';
+import { useExigenceMutations } from './useExigenceMutations';
+import { useExigenceGroups } from './useExigenceGroups';
 import { getCurrentUser } from '@/services/auth/authService';
+import { useToast } from '@/hooks/use-toast';
 
 export const useExigences = () => {
-  const [exigences, setExigences] = useState<Exigence[]>([]);
-  const [groups, setGroups] = useState<ExigenceGroup[]>([]);
   const { toast } = useToast();
   
-  // Import functionality from smaller hooks
-  const stats = useExigenceStats(exigences);
-  const exigenceMutations = useExigenceMutations(exigences, setExigences);
-  const groupOperations = useExigenceGroups(groups, setGroups, setExigences);
-  const syncOperations = useExigenceSync();
-  const editingOperations = useExigenceEditing();
-  const dragDropOperations = useExigenceDragDrop();
-
-  // Load exigences from server when component mounts
-  useEffect(() => {
-    const loadData = async () => {
-      const currentUser = getCurrentUser();
-      if (currentUser) {
-        try {
-          const loadedData = await syncOperations.loadFromServer();
-          if (loadedData && loadedData.exigences && loadedData.exigences.length > 0) {
-            setExigences(loadedData.exigences);
-            if (loadedData.groups && loadedData.groups.length > 0) {
-              setGroups(loadedData.groups);
-            }
-          }
-        } catch (error) {
-          console.error("Erreur lors du chargement des exigences:", error);
+  // Extraire un identifiant utilisateur valide
+  const extractValidUserId = (user: any): string => {
+    if (!user) {
+      console.warn("Aucun utilisateur fourni, utilisation de l'ID système");
+      return 'p71x6d_system';
+    }
+    
+    // Si c'est déjà une chaîne, la retourner directement
+    if (typeof user === 'string') {
+      return user;
+    }
+    
+    // Si c'est un objet, extraire un identifiant
+    if (typeof user === 'object') {
+      // Vérifier si l'objet n'est pas null
+      if (user === null) {
+        console.warn("Objet utilisateur null, utilisation de l'ID système");
+        return 'p71x6d_system';
+      }
+      
+      // Identifiants potentiels par ordre de priorité
+      const possibleIds = ['identifiant_technique', 'email', 'id'];
+      
+      for (const idField of possibleIds) {
+        if (user[idField] && typeof user[idField] === 'string') {
+          console.log(`ID utilisateur extrait: ${idField} = ${user[idField]}`);
+          return user[idField];
         }
       }
-    };
-    
-    loadData();
-  }, [toast]);
-
-  // Handle exigence save
-  const handleSaveExigence = useCallback((exigence: Exigence) => {
-    const isNew = !exigences.some(e => e.id === exigence.id);
-
-    if (isNew) {
-      exigenceMutations.handleAddExigence(exigence);
-    } else {
-      exigenceMutations.handleSaveExigence(exigence);
+      
+      console.warn("Aucun identifiant valide trouvé dans l'objet utilisateur:", user);
     }
-
-    editingOperations.setDialogOpen(false);
     
-    // Sync with server after saving
-    syncOperations.syncWithServer(exigences, groups);
-  }, [exigences, groups, exigenceMutations, syncOperations, editingOperations]);
+    console.warn("Type d'utilisateur non pris en charge, utilisation de l'ID système");
+    return 'p71x6d_system';
+  };
 
-  // Sync with server
-  const syncWithServer = useCallback(async () => {
-    return await syncOperations.syncWithServer(exigences, groups);
-  }, [exigences, groups, syncOperations]);
+  // Récupérer l'utilisateur et extraire un ID valide
+  const user = getCurrentUser();
+  const currentUser = extractValidUserId(user);
+  console.log("ID utilisateur extrait pour les exigences:", currentUser);
+  
+  const [exigences, setExigences] = useState<Exigence[]>([]);
+  const [groups, setGroups] = useState<ExigenceGroup[]>([]);
+  const [editingExigence, setEditingExigence] = useState<Exigence | null>(null);
+  const [editingGroup, setEditingGroup] = useState<ExigenceGroup | null>(null);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [groupDialogOpen, setGroupDialogOpen] = useState(false);
+  const [stats, setStats] = useState<ExigenceStats>({
+    exclusion: 0,
+    nonConforme: 0,
+    partiellementConforme: 0,
+    conforme: 0,
+    total: 0
+  });
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [loadAttempts, setLoadAttempts] = useState(0);
 
-  // Combine operations from all hooks for export
+  const { syncWithServer, loadFromServer, isSyncing, isOnline, lastSynced } = useExigenceSync();
+  const mutations = useExigenceMutations(exigences, setExigences);
+  const groupOperations = useExigenceGroups(groups, setGroups, setExigences);
+
+  // Initial load from server
+  useEffect(() => {
+    const loadExigences = async () => {
+      if (loadAttempts > 3) {
+        console.warn("Trop de tentatives de chargement échouées, abandon");
+        setLoadError("Trop de tentatives de chargement échouées");
+        return;
+      }
+      
+      try {
+        console.log(`Chargement des exigences pour l'utilisateur ${currentUser}`);
+        if (typeof currentUser !== 'string') {
+          throw new Error(`ID utilisateur invalide: ${typeof currentUser}`);
+        }
+        
+        const serverData = await loadFromServer(currentUser);
+        if (serverData) {
+          console.log(`Données chargées: exigences=${serverData.exigences?.length || 0}, groupes=${serverData.groups?.length || 0}`);
+          // Fix: Set each state separately with the correct types
+          setExigences(serverData.exigences || []);
+          setGroups(serverData.groups || []);
+          setLoadError(null);
+        }
+      } catch (error) {
+        console.error("Erreur lors du chargement des exigences:", error);
+        setLoadError(error instanceof Error ? error.message : "Erreur de chargement");
+        setLoadAttempts(prev => prev + 1);
+        
+        toast({
+          title: "Erreur de chargement",
+          description: error instanceof Error ? 
+            `${error.message}. Vérifiez la console pour plus de détails.` : 
+            "Une erreur s'est produite lors du chargement des exigences",
+          variant: "destructive"
+        });
+        
+        // Initialiser avec des tableaux vides pour éviter les erreurs
+        setExigences([]);
+        setGroups([]);
+      }
+    };
+
+    if (currentUser) {
+      loadExigences();
+    }
+  }, [currentUser, loadFromServer, loadAttempts, toast]);
+
+  // Stats calculation
+  useEffect(() => {
+    const exclusionCount = exigences.filter(e => e.exclusion).length;
+    const nonExcludedExigences = exigences.filter(e => !e.exclusion);
+    
+    const newStats = {
+      exclusion: exclusionCount,
+      nonConforme: nonExcludedExigences.filter(e => e.atteinte === 'NC').length,
+      partiellementConforme: nonExcludedExigences.filter(e => e.atteinte === 'PC').length,
+      conforme: nonExcludedExigences.filter(e => e.atteinte === 'C').length,
+      total: nonExcludedExigences.length
+    };
+    setStats(newStats);
+  }, [exigences]);
+
+  const handleEdit = (id: string) => {
+    const exigenceToEdit = exigences.find(exigence => exigence.id === id);
+    if (exigenceToEdit) {
+      setEditingExigence(exigenceToEdit);
+      setDialogOpen(true);
+    }
+  };
+
+  const handleAddGroup = () => {
+    setEditingGroup(null);
+    setGroupDialogOpen(true);
+  };
+
+  const handleEditGroup = (group: ExigenceGroup) => {
+    setEditingGroup(group);
+    setGroupDialogOpen(true);
+  };
+
+  const handleReorder = (startIndex: number, endIndex: number, targetGroupId?: string) => {
+    setExigences(prev => {
+      const result = Array.from(prev);
+      const [removed] = result.splice(startIndex, 1);
+      
+      if (targetGroupId !== undefined) {
+        removed.groupId = targetGroupId === 'null' ? undefined : targetGroupId;
+      }
+      
+      result.splice(endIndex, 0, removed);
+      return result;
+    });
+  };
+
+  const handleResetLoadAttempts = () => {
+    setLoadError(null);
+    setLoadAttempts(0);
+    // Retenter le chargement
+    if (currentUser) {
+      loadFromServer(currentUser).then(serverData => {
+        if (serverData) {
+          setExigences(serverData.exigences || []);
+          setGroups(serverData.groups || []);
+          
+          toast({
+            title: "Chargement réussi",
+            description: `${serverData.exigences?.length || 0} exigences chargées`,
+          });
+        }
+      }).catch(err => {
+        console.error("Nouvelle tentative échouée:", err);
+        setLoadError(err instanceof Error ? err.message : "Erreur de chargement");
+        
+        toast({
+          title: "Erreur de chargement",
+          description: err instanceof Error ? err.message : "Une erreur s'est produite",
+          variant: "destructive"
+        });
+      });
+    }
+  };
+
   return {
     exigences,
     groups,
     stats,
-    isSyncing: syncOperations.isSyncing,
-    lastSynced: syncOperations.lastSynced,
-    handleSaveExigence,
-    handleDelete: exigenceMutations.handleDelete,
-    syncWithServer,
-    ...editingOperations,
-    ...exigenceMutations,
-    ...dragDropOperations,
-    ...groupOperations
+    editingExigence,
+    editingGroup,
+    dialogOpen,
+    groupDialogOpen,
+    isSyncing,
+    isOnline,
+    lastSynced,
+    loadError,
+    setDialogOpen,
+    setGroupDialogOpen,
+    handleEdit,
+    handleReorder,
+    handleAddGroup,
+    handleEditGroup,
+    handleResetLoadAttempts,
+    ...mutations,
+    ...groupOperations,
+    syncWithServer: () => syncWithServer(exigences, currentUser, groups)
   };
 };

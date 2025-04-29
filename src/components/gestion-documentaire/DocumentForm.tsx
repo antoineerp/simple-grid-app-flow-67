@@ -17,27 +17,25 @@ interface DocumentFormProps {
 const DocumentForm: React.FC<DocumentFormProps> = ({ document, open, onOpenChange, onSave }) => {
   const { toast } = useToast();
   const [formData, setFormData] = useState<Document>({
-    id: '',
-    nom: '',
-    fichier_path: null,
-    responsabilites: { r: [], a: [], c: [], i: [] },
-    etat: null,
-    date_creation: new Date().toISOString(),
-    date_modification: new Date().toISOString(),
-    exclusion: false
+    id: document?.id || '',
+    nom: document?.nom || '',
+    fichier_path: document?.fichier_path || null,
+    responsabilites: document?.responsabilites || { r: [], a: [], c: [], i: [] },
+    etat: document?.etat || null,
+    date_creation: document?.date_creation || new Date(),
+    date_modification: document?.date_modification || new Date()
   });
 
-  useEffect(() => {
+  React.useEffect(() => {
     if (document) {
       setFormData({
-        id: document.id || crypto.randomUUID(),
-        nom: document.nom || '',
-        fichier_path: document.fichier_path || null,
-        responsabilites: document.responsabilites || { r: [], a: [], c: [], i: [] },
-        etat: document.etat || null,
-        date_creation: document.date_creation || new Date().toISOString(),
-        date_modification: document.date_modification || new Date().toISOString(),
-        exclusion: document.exclusion || false
+        id: document.id,
+        nom: document.nom,
+        fichier_path: document.fichier_path,
+        responsabilites: document.responsabilites,
+        etat: document.etat,
+        date_creation: document.date_creation,
+        date_modification: document.date_modification
       });
     }
   }, [document]);
@@ -52,19 +50,19 @@ const DocumentForm: React.FC<DocumentFormProps> = ({ document, open, onOpenChang
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const updatedDocument = {
-      ...formData,
-      date_modification: new Date().toISOString() // Always update modification date on save
-    };
-    
-    onSave(updatedDocument);
+    onSave(formData);
+    toast({
+      title: "Document sauvegardé",
+      description: `Les modifications du document ${formData.id} ont été enregistrées`
+    });
+    onOpenChange(false);
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>{document?.id ? "Modifier le document" : "Nouveau document"}</DialogTitle>
+          <DialogTitle>Modifier le document</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit}>
           <div className="grid gap-4 py-4">
@@ -78,7 +76,6 @@ const DocumentForm: React.FC<DocumentFormProps> = ({ document, open, onOpenChang
                 value={formData.nom}
                 onChange={handleInputChange}
                 className="col-span-3"
-                required
               />
             </div>
             <div className="grid grid-cols-4 items-center gap-4">

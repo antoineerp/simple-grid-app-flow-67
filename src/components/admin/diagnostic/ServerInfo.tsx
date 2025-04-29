@@ -1,7 +1,5 @@
 
 import React from 'react';
-import { Card, CardContent, CardTitle } from "@/components/ui/card";
-import { ServerCog } from 'lucide-react';
 
 interface ServerInfoProps {
   serverInfo: {
@@ -12,35 +10,16 @@ interface ServerInfoProps {
   };
 }
 
-export const ServerInfo: React.FC<ServerInfoProps> = ({ serverInfo }) => (
-  <Card className="mt-4">
-    <CardContent className="pt-6">
-      <div className="flex items-center gap-2 mb-4">
-        <ServerCog className="h-5 w-5 text-muted-foreground" />
-        <CardTitle className="text-lg">Informations du serveur</CardTitle>
+export const ServerInfo: React.FC<ServerInfoProps> = ({ serverInfo }) => {
+  return (
+    <div className="border-t pt-4">
+      <h3 className="text-md font-medium mb-3">Informations serveur</h3>
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2 text-sm">
+        <div><strong>Version PHP:</strong> {serverInfo.php_version}</div>
+        <div><strong>Serveur:</strong> {serverInfo.server_name}</div>
+        <div><strong>Script:</strong> {serverInfo.script}</div>
+        <div><strong>Adresse IP:</strong> {serverInfo.remote_addr}</div>
       </div>
-      
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div>
-          <div className="text-sm font-medium text-muted-foreground">Version PHP</div>
-          <div className="font-mono">{serverInfo.php_version}</div>
-        </div>
-        
-        <div>
-          <div className="text-sm font-medium text-muted-foreground">Serveur</div>
-          <div className="font-mono">{serverInfo.server_name}</div>
-        </div>
-        
-        <div>
-          <div className="text-sm font-medium text-muted-foreground">Script</div>
-          <div className="font-mono truncate">{serverInfo.script}</div>
-        </div>
-        
-        <div>
-          <div className="text-sm font-medium text-muted-foreground">IP du client</div>
-          <div className="font-mono">{serverInfo.remote_addr}</div>
-        </div>
-      </div>
-    </CardContent>
-  </Card>
-);
+    </div>
+  );
+};

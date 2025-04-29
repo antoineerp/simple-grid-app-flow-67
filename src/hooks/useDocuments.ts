@@ -1,199 +1,194 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Document, DocumentStats, DocumentGroup } from '@/types/documents';
-import { useDocumentMutations } from './useDocumentMutations';
 import { useToast } from '@/hooks/use-toast';
-import { getCurrentUser } from '@/services/auth/authService';
-import { syncDocumentsWithServer, loadDocumentsFromServer } from '@/services/documents/documentSyncService';
+import { calculateDocumentStats } from '@/services/documents/documentStatsService';
+import { loadDocumentsFromServer, syncDocumentsWithServer } from '@/services/documents/documentSyncService';
+import { useDocumentMutations } from '@/features/documents/hooks/useDocumentMutations';
+import { useDocumentGroups } from '@/features/documents/hooks/useDocumentGroups';
+import { getCurrentUser } from '@/services/core/databaseConnectionService';
 
 export const useDocuments = () => {
+  const { toast } = useToast();
+  const currentUser = getCurrentUser() || 'p71x6d_system';
+  
+  console.log("Current user dans useDocuments:", currentUser);
+  
   const [documents, setDocuments] = useState<Document[]>([]);
   const [groups, setGroups] = useState<DocumentGroup[]>([]);
   const [editingDocument, setEditingDocument] = useState<Document | null>(null);
   const [editingGroup, setEditingGroup] = useState<DocumentGroup | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [groupDialogOpen, setGroupDialogOpen] = useState(false);
+  const [stats, setStats] = useState<DocumentStats>(() => calculateDocumentStats(documents));
+  const [isInitialized, setIsInitialized] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [syncFailed, setSyncFailed] = useState(false);
   const [lastSynced, setLastSynced] = useState<Date | null>(null);
-  const [isSyncing, setIsSyncing] = useState<boolean>(false);
-  const { toast } = useToast();
 
-  const documentMutations = useDocumentMutations(documents, setDocuments);
-
-  // Load documents from server when component mounts
   useEffect(() => {
-    const loadData = async () => {
-      const currentUser = getCurrentUser();
-      if (currentUser) {
-        const userId = typeof currentUser === 'object' ? 
-          (currentUser.identifiant_technique || '') : currentUser;
-        
-        if (userId) {
-          try {
-            const loadedDocuments = await loadDocumentsFromServer(userId);
-            if (loadedDocuments && loadedDocuments.length > 0) {
-              setDocuments(loadedDocuments);
-              toast({
-                title: "Documents chargés",
-                description: `${loadedDocuments.length} documents chargés depuis le serveur`,
-              });
-              setLastSynced(new Date());
-            }
-          } catch (error) {
-            console.error("Erreur lors du chargement des documents:", error);
-            toast({
-              title: "Erreur de chargement",
-              description: "Impossible de charger vos documents depuis le serveur",
-              variant: "destructive"
-            });
-          }
+    if (isInitialized) return;
+    
+    const initializeDocuments = async () => {
+      try {
+        setIsSyncing(true);
+        const serverDocuments = await loadDocumentsFromServer(currentUser);
+        if (serverDocuments) {
+          console.log(`Loaded ${serverDocuments.length} documents from server for user ${currentUser}`);
+          setDocuments(serverDocuments);
+          setLastSynced(new Date());
+          setSyncFailed(false);
         }
+      } catch (error) {
+        console.error(`Error during document initialization for user ${currentUser}:`, error);
+        setSyncFailed(true);
+        toast({
+          title: "Erreur de chargement",
+          description: error instanceof Error ? error.message : "Erreur lors du chargement des documents",
+          variant: "destructive"
+        });
+      } finally {
+        setIsSyncing(false);
+        setIsInitialized(true);
       }
     };
-    
-    loadData();
-  }, [toast]);
 
-  // Sync documents with server
-  const syncWithServer = useCallback(async () => {
-    const currentUser = getCurrentUser();
-    if (!currentUser) {
-      toast({
-        title: "Erreur de synchronisation",
-        description: "Vous devez être connecté pour synchroniser vos documents",
-        variant: "destructive"
-      });
-      return;
+    if (currentUser) {
+      initializeDocuments();
+    } else {
+      console.error("Impossible d'initialiser les documents: utilisateur non défini");
+      setSyncFailed(true);
     }
+  }, [currentUser, toast, isInitialized]);
 
-    const userId = typeof currentUser === 'object' ? 
-      (currentUser.identifiant_technique || '') : currentUser;
-    
-    if (!userId) {
-      toast({
-        title: "Erreur de synchronisation",
-        description: "Identifiant utilisateur invalide",
-        variant: "destructive"
-      });
-      return;
+  useEffect(() => {
+    setStats(calculateDocumentStats(documents));
+  }, [documents]);
+
+  const syncWithServer = async (): Promise<boolean> => {
+    if (isSyncing) {
+      console.log("Une synchronisation est déjà en cours");
+      return false;
     }
 
     setIsSyncing(true);
     try {
-      const success = await syncDocumentsWithServer(documents, userId);
+      const success = await syncDocumentsWithServer(documents, currentUser);
+      setSyncFailed(!success);
       if (success) {
         setLastSynced(new Date());
         toast({
           title: "Synchronisation réussie",
-          description: "Vos documents ont été enregistrés sur le serveur",
+          description: "Les documents ont été synchronisés avec le serveur"
         });
-      } else {
-        throw new Error("La synchronisation a échoué");
       }
+      return success;
     } catch (error) {
+      setSyncFailed(true);
       toast({
         title: "Erreur de synchronisation",
-        description: error instanceof Error ? error.message : "Impossible de synchroniser vos documents",
+        description: error instanceof Error ? error.message : "Erreur lors de la synchronisation",
         variant: "destructive"
       });
+      return false;
     } finally {
       setIsSyncing(false);
     }
-  }, [documents, toast]);
-
-  // Calculate document statistics safely handling undefined values
-  const stats: DocumentStats = {
-    total: documents.length,
-    conforme: documents.filter(d => d.etat === 'C' || d.atteinte === 'C').length,
-    partiellementConforme: documents.filter(d => d.etat === 'PC' || d.atteinte === 'PC').length,
-    nonConforme: documents.filter(d => d.etat === 'NC' || d.atteinte === 'NC').length,
-    exclusion: documents.filter(d => d.exclusion || d.etat === 'EX').length
   };
 
-  // Handle document editing
-  const handleEdit = useCallback((id: string) => {
-    const doc = documents.find(d => d.id === id);
-    if (doc) {
-      setEditingDocument(doc);
-      setDialogOpen(true);
-    }
-  }, [documents]);
+  const documentMutations = useDocumentMutations(documents, setDocuments);
+  const groupOperations = useDocumentGroups(groups, setGroups);
 
-  // Handle document adding - fonction sans argument
+  const handleEdit = useCallback((id: string) => {
+    const documentToEdit = documents.find(doc => doc.id === id);
+    if (documentToEdit) {
+      setEditingDocument(documentToEdit);
+      setDialogOpen(true);
+    } else {
+      toast({
+        title: "Erreur",
+        description: `Le document ${id} n'a pas été trouvé`,
+        variant: "destructive"
+      });
+    }
+  }, [documents, toast]);
+
+  const handleSaveDocument = useCallback(
+    (updatedDocument: Document) => {
+      const newDoc = {
+        ...updatedDocument,
+        date_modification: new Date(),
+      };
+
+      setDocuments((prev) => prev.map((doc) => (doc.id === newDoc.id ? newDoc : doc)));
+
+      syncWithServer().catch(error => {
+        console.error("Erreur lors de la synchronisation après mise à jour:", error);
+      });
+
+      toast({
+        title: "Document mis à jour",
+        description: `Le document ${newDoc.id} a été mis à jour avec succès`,
+      });
+    },
+    [toast]
+  );
+
   const handleAddDocument = useCallback(() => {
+    const maxId = documents.length > 0 
+      ? Math.max(...documents.map(d => parseInt(d.id)))
+      : 0;
+    
+    const newId = (maxId + 1).toString();
     const newDocument: Document = {
-      id: crypto.randomUUID(),
-      nom: '',
+      id: newId,
+      nom: `Document ${newId}`,
       fichier_path: null,
-      date_creation: new Date().toISOString(),
-      date_modification: new Date().toISOString(),
       responsabilites: { r: [], a: [], c: [], i: [] },
       etat: null,
-      exclusion: false
+      date_creation: new Date(),
+      date_modification: new Date()
     };
-    setEditingDocument(newDocument);
-    setDialogOpen(true);
-  }, []);
-
-  // Handle document save
-  const handleSaveDocument = useCallback((document: Document) => {
-    const isNew = !documents.some(d => d.id === document.id);
     
-    if (isNew) {
-      documentMutations.handleAddDocument(document);
-    } else {
-      documentMutations.handleEditDocument(document);
-    }
+    const newDocuments = [...documents, newDocument];
+    setDocuments(newDocuments);
     
-    setDialogOpen(false);
+    syncWithServer().catch(error => {
+      console.error("Erreur lors de la synchronisation après ajout:", error);
+    });
     
-    // Sync with server after saving
-    syncWithServer();
-  }, [documents, documentMutations, syncWithServer]);
+    toast({
+      title: "Nouveau document",
+      description: `Le document ${newId} a été ajouté`,
+    });
+  }, [documents, toast]);
 
-  // Group functions
-  const handleToggleGroup = useCallback((id: string) => {
-    setGroups(prevGroups => 
-      prevGroups.map(g => g.id === id ? { ...g, expanded: !g.expanded } : g)
-    );
+  const handleReorder = useCallback((startIndex: number, endIndex: number, targetGroupId?: string) => {
+    setDocuments(prev => {
+      const result = Array.from(prev);
+      const [removed] = result.splice(startIndex, 1);
+      
+      if (targetGroupId !== undefined) {
+        removed.groupId = targetGroupId;
+      }
+      
+      result.splice(endIndex, 0, removed);
+      
+      syncWithServer().catch(error => {
+        console.error("Erreur lors de la synchronisation après réorganisation:", error);
+      });
+      
+      return result;
+    });
   }, []);
-
-  const handleDeleteGroup = useCallback((id: string) => {
-    setGroups(prevGroups => prevGroups.filter(g => g.id !== id));
-  }, []);
-
-  const handleSaveGroup = useCallback((group: DocumentGroup) => {
-    const isEditing = groups.some(g => g.id === group.id);
-    if (isEditing) {
-      setGroups(prevGroups => 
-        prevGroups.map(g => g.id === group.id ? group : g)
-      );
-    } else {
-      setGroups(prevGroups => [...prevGroups, group]);
-    }
-    setGroupDialogOpen(false);
-    setEditingGroup(null);
-  }, [groups]);
 
   const handleAddGroup = useCallback(() => {
-    const newGroup: DocumentGroup = {
-      id: crypto.randomUUID(),
-      name: 'Nouveau groupe',
-      expanded: false,
-      items: []
-    };
-    handleSaveGroup(newGroup);
-  }, [handleSaveGroup]);
-  
+    setEditingGroup(null);
+    setGroupDialogOpen(true);
+  }, []);
+
   const handleEditGroup = useCallback((group: DocumentGroup) => {
     setEditingGroup(group);
     setGroupDialogOpen(true);
-  }, []);
-  
-  const handleReorderDocuments = useCallback((startIndex: number, endIndex: number, targetGroupId?: string) => {
-    console.log('Reorder documents:', startIndex, endIndex, targetGroupId);
-  }, []);
-  
-  const handleReorderGroups = useCallback((startIndex: number, endIndex: number) => {
-    console.log('Reorder groups:', startIndex, endIndex);
   }, []);
 
   return {
@@ -205,24 +200,18 @@ export const useDocuments = () => {
     dialogOpen,
     groupDialogOpen,
     isSyncing,
+    syncFailed,
     lastSynced,
     setDialogOpen,
     setGroupDialogOpen,
+    ...documentMutations,
     handleEdit,
-    handleDelete: documentMutations.handleDelete,
-    handleReorder: handleReorderDocuments,
-    handleAddDocument,
     handleSaveDocument,
+    handleAddDocument,
+    handleReorder,
     handleAddGroup,
     handleEditGroup,
-    handleDeleteGroup,
-    handleSaveGroup,
-    handleGroupReorder: handleReorderGroups,
-    handleToggleGroup,
-    handleResponsabiliteChange: documentMutations.handleResponsabiliteChange,
-    handleAtteinteChange: documentMutations.handleAtteinteChange,
-    handleExclusionChange: documentMutations.handleExclusionChange,
-    syncWithServer,
-    ...documentMutations
+    ...groupOperations,
+    syncWithServer
   };
 };

@@ -38,14 +38,12 @@ export async function testApiConnection(): Promise<{ success: boolean; message: 
     
     try {
       const data = JSON.parse(responseText);
-      console.log('Test de connectivité API réussi');
       return {
         success: true,
         message: data.message || 'API connectée',
         details: data
       };
     } catch (e) {
-      console.error('Erreur de parsing JSON:', e);
       return {
         success: false,
         message: 'Réponse non-JSON',

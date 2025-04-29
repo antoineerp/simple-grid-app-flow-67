@@ -42,20 +42,6 @@ const DocumentGroupComponent: React.FC<DocumentGroupProps> = ({
   onGroupDragStart,
   onGroupDrop
 }) => {
-  // Get actual Document objects from the group's items (which are document IDs)
-  const getDocumentsFromIds = () => {
-    // This is just a placeholder - in a real implementation, you would look up the documents
-    // using the IDs stored in group.items from a context or prop
-    return group.items.map(id => ({
-      id,
-      date_creation: new Date(),
-      date_modification: new Date()
-    } as Document));
-  };
-
-  // Get the documents for this group
-  const groupDocuments = getDocumentsFromIds();
-
   return (
     <React.Fragment>
       <TableRow 
@@ -120,7 +106,7 @@ const DocumentGroupComponent: React.FC<DocumentGroupProps> = ({
         </TableCell>
       </TableRow>
       
-      {group.expanded && groupDocuments.map((doc) => (
+      {group.expanded && group.items.map((doc) => (
         <DocumentRow
           key={doc.id}
           doc={doc}

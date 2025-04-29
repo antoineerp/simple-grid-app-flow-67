@@ -1,6 +1,5 @@
-
 import React from 'react';
-import { FileText, FolderPlus, RefreshCw } from 'lucide-react';
+import { FileText, FolderPlus, CloudSun, RefreshCw } from 'lucide-react';
 import { MembresProvider } from '@/contexts/MembresContext';
 import ExigenceForm from '@/components/exigences/ExigenceForm';
 import ExigenceStats from '@/components/exigences/ExigenceStats';
@@ -10,6 +9,8 @@ import { useExigences } from '@/hooks/useExigences';
 import { exportExigencesToPdf } from '@/services/pdfExport';
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import SyncStatusIndicator from '@/components/common/SyncStatusIndicator';
 
 const ExigencesContent = () => {
   const {
@@ -21,7 +22,9 @@ const ExigencesContent = () => {
     dialogOpen,
     groupDialogOpen,
     isSyncing,
+    isOnline,
     lastSynced,
+    loadError,
     setDialogOpen,
     setGroupDialogOpen,
     handleResponsabiliteChange,
@@ -38,6 +41,7 @@ const ExigencesContent = () => {
     handleDeleteGroup,
     handleGroupReorder,
     handleToggleGroup,
+    handleResetLoadAttempts,
     syncWithServer
   } = useExigences();
   
@@ -50,10 +54,34 @@ const ExigencesContent = () => {
       description: "Le document a été généré et téléchargé",
     });
   };
-  
-  const formattedLastSynced = lastSynced 
-    ? new Date(lastSynced).toLocaleString() 
-    : "Jamais";
+
+  const handleSyncWithServer = () => {
+    toast({
+      title: "Synchronisation en cours",
+      description: "Veuillez patienter pendant la synchronisation...",
+    });
+    
+    syncWithServer().then(success => {
+      if (success) {
+        toast({
+          title: "Synchronisation réussie",
+          description: "Vos exigences ont été synchronisées avec le serveur",
+        });
+      } else {
+        toast({
+          title: "Synchronisation échouée",
+          description: "Essayez de réinitialiser et réessayer.",
+          variant: "destructive"
+        });
+      }
+    }).catch(error => {
+      toast({
+        title: "Erreur de synchronisation",
+        description: error instanceof Error ? error.message : "Une erreur s'est produite",
+        variant: "destructive"
+      });
+    });
+  };
 
   return (
     <div className="p-8">
@@ -61,20 +89,15 @@ const ExigencesContent = () => {
         <div>
           <h1 className="text-3xl font-bold text-app-blue">Exigences</h1>
         </div>
-        <div className="flex space-x-2 items-center">
-          <div className="text-sm text-gray-500 mr-2">
-            Dernière synchronisation: {formattedLastSynced}
-          </div>
-          <Button 
-            variant="outline"
-            onClick={syncWithServer}
-            disabled={isSyncing}
-            className="mr-2"
+        <div className="flex space-x-2">
+          <button 
+            onClick={handleSyncWithServer}
+            className="text-blue-600 p-2 rounded-md hover:bg-blue-50 transition-colors flex items-center"
             title="Synchroniser avec le serveur"
+            disabled={isSyncing}
           >
-            <RefreshCw className={`h-4 w-4 mr-2 ${isSyncing ? 'animate-spin' : ''}`} />
-            {isSyncing ? 'Synchronisation...' : 'Synchroniser'}
-          </Button>
+            <CloudSun className={`h-6 w-6 stroke-[1.5] ${isSyncing ? 'animate-spin' : ''}`} />
+          </button>
           <button 
             onClick={handleExportPdf}
             className="text-red-600 p-2 rounded-md hover:bg-red-50 transition-colors"
@@ -84,6 +107,28 @@ const ExigencesContent = () => {
           </button>
         </div>
       </div>
+
+      <div className="mb-4">
+        <SyncStatusIndicator syncFailed={!!loadError} onReset={handleResetLoadAttempts} />
+      </div>
+
+      {loadError && (
+        <Alert variant="destructive" className="mb-4">
+          <AlertTitle>Erreur de chargement</AlertTitle>
+          <AlertDescription className="flex items-center justify-between">
+            <div>{loadError}</div>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={handleResetLoadAttempts}
+              className="ml-4"
+            >
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Réessayer
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
 
       <ExigenceStats stats={stats} />
 
@@ -102,6 +147,10 @@ const ExigencesContent = () => {
           onEditGroup={handleEditGroup}
           onDeleteGroup={handleDeleteGroup}
         />
+      ) : loadError ? (
+        <div className="text-center p-8 border border-dashed rounded-md mt-4 bg-gray-50">
+          <p className="text-gray-500">Impossible de charger les exigences.</p>
+        </div>
       ) : (
         <div className="text-center p-8 border border-dashed rounded-md mt-4 bg-gray-50">
           <p className="text-gray-500">Aucune exigence trouvée. Cliquez sur "Ajouter une exigence" pour commencer.</p>

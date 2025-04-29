@@ -42,17 +42,17 @@ export const BibliothequeTable: React.FC<BibliothequeTableProps> = ({
   onDragEnd,
   onGroupDrop
 }) => {
-  const renderDocumentLink = (url: string | undefined) => {
-    if (!url) return <span className="text-gray-500">-</span>;
+  const renderDocumentLink = (link: string | null) => {
+    if (!link || link === 'Voir le document') return <span className="text-gray-500">-</span>;
     
     return (
       <a 
-        href={url} 
+        href={link} 
         target="_blank" 
         rel="noopener noreferrer" 
         className="text-app-blue hover:underline inline-flex items-center gap-1"
       >
-        Voir le document
+        {link}
         <ExternalLink className="h-4 w-4" />
       </a>
     );
@@ -128,9 +128,9 @@ export const BibliothequeTable: React.FC<BibliothequeTableProps> = ({
                 <TableCell className="py-3 px-2 w-10">
                   <GripVertical className="h-5 w-5 text-gray-400" />
                 </TableCell>
-                <TableCell className="py-3 px-4 pl-8">{item.titre}</TableCell>
+                <TableCell className="py-3 px-4 pl-8">{item.name}</TableCell>
                 <TableCell className="py-3 px-4">
-                  {renderDocumentLink(item.url)}
+                  {renderDocumentLink(item.link)}
                 </TableCell>
                 <TableCell className="py-3 px-4 text-right">
                   <button 
@@ -166,9 +166,9 @@ export const BibliothequeTable: React.FC<BibliothequeTableProps> = ({
               <TableCell className="py-3 px-2 w-10">
                 <GripVertical className="h-5 w-5 text-gray-400" />
               </TableCell>
-              <TableCell className="py-3 px-4">{doc.titre}</TableCell>
+              <TableCell className="py-3 px-4">{doc.name}</TableCell>
               <TableCell className="py-3 px-4">
-                {renderDocumentLink(doc.url)}
+                {renderDocumentLink(doc.link)}
               </TableCell>
               <TableCell className="py-3 px-4 text-right">
                 <button 

@@ -12,7 +12,6 @@ header("Access-Control-Allow-Methods: GET");
 echo json_encode([
     'status' => 200,
     'message' => 'API test endpoint fonctionnel',
-    'timestamp' => date('Y-m-d H:i:s'),
-    'php_version' => phpversion()
+    'timestamp' => date('Y-m-d H:i:s')
 ]);
 ?>

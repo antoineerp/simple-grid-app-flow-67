@@ -1,19 +1,14 @@
 
 export interface Document {
   id: string;
-  titre: string;
-  description?: string;
-  url?: string;
-  type?: string;
-  tags?: string[] | string;
-  date_creation: Date | string;
-  date_modification?: Date | string;
-  [key: string]: any;
+  name: string;
+  link: string | null;
+  groupId?: string;
 }
 
 export interface DocumentGroup {
   id: string;
   name: string;
+  expanded: boolean;
   items: Document[];
-  [key: string]: any;
 }

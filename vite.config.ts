@@ -2,7 +2,6 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
-import { componentTagger } from "lovable-tagger";
 
 // Configuration pour Vite (compatible avec v5 et v6)
 export default defineConfig(({ mode }) => {
@@ -11,10 +10,7 @@ export default defineConfig(({ mode }) => {
   const basePath = isInfomaniak ? '/' : '/';
   
   // Liste des plugins avec vérification conditionnelle
-  const plugins = [
-    react(),
-    mode === 'development' && componentTagger(),
-  ].filter(Boolean);
+  const plugins = [react()];
   
   return {
     server: {

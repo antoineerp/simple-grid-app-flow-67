@@ -10,9 +10,7 @@ export const useExigenceGroups = (
 ) => {
   const { toast } = useToast();
 
-  const handleSaveGroup = useCallback((group: ExigenceGroup) => {
-    const isEditing = groups.some(g => g.id === group.id);
-    
+  const handleSaveGroup = useCallback((group: ExigenceGroup, isEditing: boolean) => {
     if (isEditing) {
       setGroups(prev => prev.map(g => g.id === group.id ? group : g));
       toast({
@@ -26,7 +24,7 @@ export const useExigenceGroups = (
         description: `Le groupe ${group.name} a été créé`,
       });
     }
-  }, [setGroups, toast, groups]);
+  }, [setGroups, toast]);
 
   const handleDeleteGroup = useCallback((groupId: string) => {
     setExigences(prev => prev.map(exigence => 
