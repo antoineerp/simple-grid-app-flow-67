@@ -11,6 +11,7 @@ import { exportDocumentsToPdf } from '@/services/pdfExport';
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import SyncIndicator from '@/components/common/SyncIndicator';
+import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 
 const GestionDocumentaireContent = () => {
   const {
@@ -40,10 +41,11 @@ const GestionDocumentaireContent = () => {
     syncWithServer,
     isSyncing,
     syncFailed,
-    lastSynced,
-    isOnline
+    lastSynced
   } = useDocuments();
   
+  // Use the network status hook to get isOnline state
+  const { isOnline } = useNetworkStatus();
   const { toast } = useToast();
 
   const handleSync = async (): Promise<void> => {
@@ -84,7 +86,7 @@ const GestionDocumentaireContent = () => {
       <div className="mb-4">
         <SyncIndicator 
           isSyncing={isSyncing}
-          isOnline={isOnline || navigator.onLine}
+          isOnline={isOnline}
           syncFailed={syncFailed}
           lastSynced={lastSynced}
           onSync={handleSync}
