@@ -109,7 +109,7 @@ export const useAppSync = () => {
         toast({
           title: "Synchronisation partielle",
           description: "Certaines données n'ont pas pu être synchronisées",
-          variant: "warning"
+          variant: "destructive"
         });
       }
 

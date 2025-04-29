@@ -1,4 +1,3 @@
-
 import { getApiUrl } from '@/config/apiConfig';
 import { getAuthHeaders } from '@/services/auth/authService';
 import { useState } from 'react';
@@ -161,7 +160,7 @@ export const useSyncService = () => {
    * Fonction générique pour charger des données depuis le serveur
    */
   const loadFromServer = async <T>(options: Omit<SyncOptions<T>, 'data' | 'dataName'>): Promise<T[] | null> => {
-    const { loadEndpoint, userId } = options;
+    const { loadEndpoint, userId, endpoint } = options;
     const safeUserId = extractValidUserId(userId);
     
     setIsSyncing(true);

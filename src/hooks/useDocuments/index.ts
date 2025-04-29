@@ -50,13 +50,14 @@ export const useDocuments = () => {
         
         // Charger discrètement les données après une synchronisation réussie
         try {
-          const result = await syncService.loadFromServer({
+          const result = await syncService.loadFromServer<Document>({
+            endpoint: 'documents-sync.php',
             loadEndpoint: 'documents-load.php',
             userId: userId
           });
           
           if (Array.isArray(result)) {
-            setDocuments(result);
+            setDocuments(result as Document[]);
           }
         } catch (loadError) {
           console.error("Erreur lors du rechargement après synchronisation:", loadError);
@@ -102,12 +103,13 @@ export const useDocuments = () => {
       try {
         console.log(`Chargement des documents pour l'utilisateur: ${userId}`);
         const result = await syncService.loadFromServer<Document>({
+          endpoint: 'documents-sync.php',
           loadEndpoint: 'documents-load.php',
           userId: userId
         });
         
         if (Array.isArray(result)) {
-          setDocuments(result);
+          setDocuments(result as Document[]);
         } else {
           console.error("Format de résultat inattendu:", result);
           setDocuments([]);
