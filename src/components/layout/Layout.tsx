@@ -2,8 +2,8 @@
 import React from 'react';
 import { Outlet } from 'react-router-dom';
 import { Toaster } from "@/components/ui/toaster";
-import Sidebar from './Sidebar';
-import Header from './Header';
+import Sidebar from '../Sidebar';
+import Header from '../Header';
 import { GlobalDataProvider } from '@/contexts/GlobalDataContext';
 import GlobalSyncManager from '@/components/common/GlobalSyncManager';
 

@@ -56,7 +56,7 @@ export const useBibliotheque = () => {
   }, [globalDocuments, globalGroups, setGlobalDocuments, setGlobalGroups]);
 
   // Fonctions de mutations
-  const { handleEditDocument, handleDeleteDocument, handleAddDocument } = useBibliothequeMutations(
+  const { handleEditDocument: editDocument, handleDeleteDocument, handleAddDocument: addDocument } = useBibliothequeMutations(
     globalDocuments, 
     setGlobalDocuments
   );
@@ -92,9 +92,9 @@ export const useBibliotheque = () => {
     if (!currentDocument) return;
     
     if (isEditing) {
-      handleEditDocument(currentDocument);
+      editDocument(currentDocument);
     } else {
-      handleAddDocument(currentDocument);
+      addDocument(currentDocument);
     }
     
     setIsDialogOpen(false);
@@ -141,15 +141,15 @@ export const useBibliotheque = () => {
       
       if (result) {
         setGlobalLastSynced(new Date());
-        setSyncFailed(false);
+        setGlobalSyncFailed(false);
       } else {
-        setSyncFailed(true);
+        setGlobalSyncFailed(true);
       }
       
       return result;
     } catch (error) {
       console.error("Erreur lors de la synchronisation:", error);
-      setSyncFailed(true);
+      setGlobalSyncFailed(true);
       return false;
     } finally {
       setGlobalIsSyncing(false);
@@ -322,7 +322,7 @@ export const useBibliotheque = () => {
     handleGroupDrop,
     handleEditDocument,
     handleDeleteDocument,
-    handleAddDocument,
+    handleAddDocument: addDocument,
     handleDocumentInputChange,
     handleSaveDocument,
     handleEditGroup,
