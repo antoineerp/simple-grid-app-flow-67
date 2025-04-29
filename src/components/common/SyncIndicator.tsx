@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { CloudOff, RotateCw, AlertTriangle, CheckCircle2, CloudSync } from 'lucide-react';
+import { CloudOff, RotateCw, AlertTriangle, CheckCircle2, CloudSun } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
 import { format } from 'date-fns';
@@ -128,7 +128,7 @@ const SyncIndicator: React.FC<SyncIndicatorProps> = ({
                 className={`${compact ? 'h-5 w-5 p-0' : 'h-7 p-1'} ml-1`}
                 title="Synchroniser"
               >
-                <CloudSync className={`${compact ? 'h-3 w-3' : 'h-4 w-4'}`} />
+                <CloudSun className={`${compact ? 'h-3 w-3' : 'h-4 w-4'}`} />
               </Button>
             </div>
           </TooltipTrigger>
@@ -147,7 +147,7 @@ const SyncIndicator: React.FC<SyncIndicatorProps> = ({
       <Tooltip>
         <TooltipTrigger asChild>
           <div className={`flex items-center gap-2 ${compact ? 'text-xs p-1' : 'text-sm p-2'} bg-gray-50 rounded-md ${className}`}>
-            <CloudSync className={`${compact ? 'h-3 w-3' : 'h-4 w-4'} text-gray-500`} />
+            <CloudSun className={`${compact ? 'h-3 w-3' : 'h-4 w-4'} text-gray-500`} />
             {!compact && <span className="text-gray-500">Jamais synchronisé</span>}
             <Button 
               variant="ghost" 

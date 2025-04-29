@@ -10,7 +10,7 @@ import { useDocuments } from '@/hooks/useDocuments';
 import { exportDocumentsToPdf } from '@/services/pdfExport';
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
-import SyncStatusIndicator from '@/components/common/SyncStatusIndicator';
+import SyncIndicator from '@/components/common/SyncIndicator';
 
 const GestionDocumentaireContent = () => {
   const {
@@ -39,16 +39,20 @@ const GestionDocumentaireContent = () => {
     handleToggleGroup,
     syncWithServer,
     isSyncing,
-    syncFailed
+    syncFailed,
+    lastSynced,
+    isOnline
   } = useDocuments();
   
   const { toast } = useToast();
 
-  const handleSync = async () => {
+  const handleSync = async (): Promise<void> => {
     try {
       await syncWithServer();
+      return Promise.resolve();
     } catch (error) {
       console.error("Sync failed:", error);
+      return Promise.reject(error);
     }
   };
 
@@ -77,7 +81,15 @@ const GestionDocumentaireContent = () => {
         </div>
       </div>
 
-      <SyncStatusIndicator syncFailed={syncFailed} onReset={handleSync} isSyncing={isSyncing} />
+      <div className="mb-4">
+        <SyncIndicator 
+          isSyncing={isSyncing}
+          isOnline={isOnline || navigator.onLine}
+          syncFailed={syncFailed}
+          lastSynced={lastSynced}
+          onSync={handleSync}
+        />
+      </div>
 
       <DocumentStatusDisplay stats={stats} />
 

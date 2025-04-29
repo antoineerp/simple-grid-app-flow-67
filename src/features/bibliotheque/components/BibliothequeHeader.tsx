@@ -1,56 +1,40 @@
 
 import React from 'react';
-import { FileText } from 'lucide-react';
-import { exportBibliothecaireDocsToPdf } from '@/services/pdfExport';
-import { useToast } from '@/hooks/use-toast';
-import SyncStatusIndicator from '@/components/common/SyncStatusIndicator';
+import { CloudSun, RefreshCw, ArrowPathIcon } from 'lucide-react';
+import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import SyncIndicator from '@/components/common/SyncIndicator';
 
 interface BibliothequeHeaderProps {
-  onSync?: () => Promise<void>;
+  onSync: () => Promise<void>;
   syncFailed?: boolean;
   isSyncing?: boolean;
+  isOnline?: boolean;
+  lastSynced?: Date | null;
 }
 
 export const BibliothequeHeader: React.FC<BibliothequeHeaderProps> = ({
   onSync,
-  syncFailed,
-  isSyncing = false
+  syncFailed = false,
+  isSyncing = false,
+  isOnline = navigator.onLine,
+  lastSynced = null
 }) => {
-  const { toast } = useToast();
-
-  const handleExportPdf = () => {
-    exportBibliothecaireDocsToPdf([], []);
-    toast({
-      title: "Export PDF réussi",
-      description: "Le document a été généré et téléchargé",
-    });
-  };
-
   return (
-    <>
-      <div className="flex items-center justify-between mb-2">
-        <div>
-          <h1 className="text-3xl font-bold text-app-blue">Collaboration</h1>
-          <p className="text-gray-600">Gestion des documents partagés</p>
-        </div>
-        <div className="flex space-x-2">
-          <button 
-            onClick={handleExportPdf}
-            className="text-red-600 p-2 rounded-md hover:bg-red-50 transition-colors"
-            title="Exporter en PDF"
-          >
-            <FileText className="h-6 w-6 stroke-[1.5]" />
-          </button>
-        </div>
+    <div className="mb-6">
+      <div className="flex justify-between items-center mb-2">
+        <h1 className="text-3xl font-bold text-app-blue">Bibliothèque de documents</h1>
       </div>
       
-      {(syncFailed || isSyncing) && <div className="mb-4">
-        <SyncStatusIndicator 
-          syncFailed={syncFailed || false} 
-          onReset={onSync || (() => Promise.resolve())} 
-          isSyncing={isSyncing || false}
+      <div className="mb-4">
+        <SyncIndicator
+          isSyncing={isSyncing}
+          isOnline={isOnline}
+          syncFailed={syncFailed}
+          lastSynced={lastSynced}
+          onSync={onSync}
         />
-      </div>}
-    </>
+      </div>
+    </div>
   );
 };

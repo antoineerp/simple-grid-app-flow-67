@@ -5,8 +5,9 @@ import { Card, CardContent } from '@/components/ui/card';
 import { useDataSync } from '@/hooks/useDataSync';
 import { triggerSync } from '@/services/sync/triggerSync';
 import { useToast } from '@/hooks/use-toast';
-import { AlertCircle, Plus } from 'lucide-react';
+import { AlertCircle, Plus, FolderPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import SyncIndicator from '@/components/common/SyncIndicator';
 
 interface Document {
   id: string;
@@ -28,8 +29,12 @@ const Collaboration = () => {
     status,
     lastError,
     pendingChanges,
-    isOnline
+    isOnline,
+    lastSynced
   } = useDataSync<Document>('bibliotheque');
+  
+  const syncFailed = status === 'error';
+  const isSyncing = isLoading || status === 'syncing';
 
   useEffect(() => {
     const initialize = async () => {
@@ -57,9 +62,9 @@ const Collaboration = () => {
         console.warn("Erreur lors de la synchronisation initiale:", err);
       });
     }
-  }, [loadData, syncData, isOnline, toast]);
+  }, [loadData, syncData, isOnline, toast, documents.length]);
 
-  const handleSync = async () => {
+  const handleSync = async (): Promise<void> => {
     try {
       setIsLoading(true);
       await syncData();
@@ -67,6 +72,7 @@ const Collaboration = () => {
         title: "Synchronisation réussie",
         description: "Les documents ont été synchronisés avec succès.",
       });
+      return Promise.resolve();
     } catch (error) {
       console.error("Erreur lors de la synchronisation:", error);
       toast({
@@ -74,6 +80,7 @@ const Collaboration = () => {
         description: "La synchronisation a échoué.",
         variant: "destructive"
       });
+      return Promise.reject(error);
     } finally {
       setIsLoading(false);
     }
@@ -100,16 +107,44 @@ const Collaboration = () => {
     });
   };
 
+  const handleAddGroup = () => {
+    toast({
+      title: "Ajouter un groupe",
+      description: "Fonctionnalité d'ajout de groupe activée",
+    });
+    // Implémentation à ajouter dans une prochaine étape
+  };
+
   return (
     <div className="container mx-auto py-6">
-      <BibliothequeHeader 
-        onSync={handleSync} 
-        syncFailed={status === 'error'} 
-        isSyncing={isLoading || status === 'syncing'}
-      />
+      <div className="mb-6">
+        <div className="flex justify-between items-center mb-2">
+          <h1 className="text-3xl font-bold text-app-blue">Espace de collaboration</h1>
+        </div>
+        
+        <div className="mb-4">
+          <SyncIndicator
+            isSyncing={isSyncing}
+            isOnline={isOnline}
+            syncFailed={syncFailed}
+            lastSynced={lastSynced}
+            onSync={handleSync}
+          />
+        </div>
+      </div>
       
-      <div className="flex justify-end mb-4">
-        <Button onClick={handleAddDocument} className="flex items-center gap-1">
+      <div className="flex justify-end mb-4 space-x-2">
+        <Button 
+          variant="outline" 
+          onClick={handleAddGroup} 
+          className="flex items-center gap-1"
+        >
+          <FolderPlus className="h-4 w-4" /> Ajouter un groupe
+        </Button>
+        <Button 
+          onClick={handleAddDocument} 
+          className="flex items-center gap-1"
+        >
           <Plus className="h-4 w-4" /> Ajouter un document
         </Button>
       </div>
@@ -143,23 +178,6 @@ const Collaboration = () => {
               </Card>
             ))
           )}
-        </div>
-      )}
-      
-      {pendingChanges && isOnline && (
-        <div className="fixed bottom-4 right-4 bg-amber-100 text-amber-800 p-3 rounded-md shadow-md">
-          <p className="text-sm flex items-center">
-            <AlertCircle className="h-4 w-4 mr-2" />
-            Des modifications sont en attente de synchronisation
-          </p>
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            onClick={handleSync} 
-            className="mt-1 text-xs p-1"
-          >
-            Synchroniser maintenant
-          </Button>
         </div>
       )}
     </div>

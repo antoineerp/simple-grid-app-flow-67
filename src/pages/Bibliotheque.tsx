@@ -1,12 +1,13 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useBibliotheque } from '@/hooks/useBibliotheque';
-import { BibliothequeHeader } from '@/features/bibliotheque/components/BibliothequeHeader';
 import { BibliothequeTable } from '@/features/bibliotheque/components/BibliothequeTable';
 import { BibliothequeActions } from '@/features/bibliotheque/components/BibliothequeActions';
 import { DocumentDialog } from '@/features/bibliotheque/components/DocumentDialog';
 import { DocumentGroupDialog } from '@/components/gestion-documentaire/DocumentGroupDialog';
 import { Document, DocumentGroup } from '@/types/bibliotheque';
+import SyncIndicator from '@/components/common/SyncIndicator';
+import { useToast } from "@/hooks/use-toast";
 
 const Bibliotheque = () => {
   const {
@@ -35,10 +36,14 @@ const Bibliotheque = () => {
     syncWithServer,
     setDraggedItem,
     setCurrentDocument,
-    setIsEditing
+    setIsEditing,
+    isSyncing,
+    isOnline,
+    lastSynced
   } = useBibliotheque();
   
   const [syncFailed, setSyncFailed] = useState(false);
+  const { toast } = useToast();
 
   const handleDragStart = (e: React.DragEvent<HTMLTableRowElement>, id: string, groupId?: string) => {
     setDraggedItem({ id, groupId });
@@ -74,13 +79,24 @@ const Bibliotheque = () => {
     setDraggedItem(null);
   };
 
-  const handleSync = async () => {
+  const handleSync = async (): Promise<void> => {
     try {
       await syncWithServer();
       setSyncFailed(false);
+      toast({
+        title: "Synchronisation réussie",
+        description: "Les documents ont été synchronisés avec succès."
+      });
+      return Promise.resolve();
     } catch (error) {
       console.error("Sync failed:", error);
       setSyncFailed(true);
+      toast({
+        title: "Synchronisation échouée",
+        description: "Une erreur s'est produite lors de la synchronisation.",
+        variant: "destructive"
+      });
+      return Promise.reject(error);
     }
   };
 
@@ -103,10 +119,21 @@ const Bibliotheque = () => {
 
   return (
     <div className="p-8">
-      <BibliothequeHeader
-        onSync={handleSync}
-        syncFailed={syncFailed}
-      />
+      <div className="mb-6">
+        <div className="flex justify-between items-center mb-2">
+          <h1 className="text-3xl font-bold text-app-blue">Bibliothèque de documents</h1>
+        </div>
+        
+        <div className="mb-4">
+          <SyncIndicator
+            isSyncing={isSyncing}
+            isOnline={isOnline}
+            syncFailed={syncFailed}
+            lastSynced={lastSynced}
+            onSync={handleSync}
+          />
+        </div>
+      </div>
       
       <BibliothequeTable
         documents={documents}
