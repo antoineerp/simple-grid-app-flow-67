@@ -2,11 +2,10 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from '@/components/ui/toaster';
-import GlobalSyncManager from '@/components/common/GlobalSyncManager';
 import DbAdmin from '@/pages/DbAdmin';
 import DbTest from '@/pages/DbTest';
 import Index from '@/pages/Index';
-import Layout from '@/components/Layout';
+import Layout from '@/components/layout/Layout';
 import Pilotage from '@/pages/Pilotage';
 import Exigences from '@/pages/Exigences';
 import GestionDocumentaire from '@/pages/GestionDocumentaire';
@@ -81,8 +80,6 @@ function App() {
         {/* Redirection pour les routes inconnues */}
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>
-      <Toaster />
-      <GlobalSyncManager />
     </Router>
   );
 }
