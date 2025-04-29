@@ -50,7 +50,7 @@ jobs:
         # Copie du fichier index.html
         cp dist/index.html deploy/
         
-        # Copie des fichiers compilés directement dans assets (sans sous-dossier)
+        # Copie des fichiers compilés directement dans assets
         cp -r dist/assets/* deploy/assets/
         
         # Copie des autres fichiers nécessaires
