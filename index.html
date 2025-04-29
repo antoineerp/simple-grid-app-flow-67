@@ -18,15 +18,15 @@
     <meta name="twitter:site" content="@lovable_dev" />
     <meta name="twitter:image" content="https://lovable.dev/opengraph-image-p98pqg.png" />
     
-    <!-- CSS reference with absolute path to compiled assets -->
-    <link rel="stylesheet" href="/assets/main.css" />
+    <!-- Use a relative reference that Vite can handle -->
+    <link rel="stylesheet" href="./src/index.css" />
   </head>
 
   <body>
     <div id="root"></div>
     
-    <!-- Main JS reference with absolute path to compiled assets -->
-    <script type="module" src="/assets/main.js"></script>
+    <!-- Use a reference that Vite can process and build -->
+    <script type="module" src="./src/main.tsx"></script>
     
     <!-- External reference with https protocol -->
     <script src="https://cdn.gpteng.co/gptengineer.js" type="module"></script>
