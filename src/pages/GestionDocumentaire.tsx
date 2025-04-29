@@ -145,7 +145,7 @@ const GestionDocumentaireContent = () => {
         </Button>
         <Button 
           variant="default"
-          onClick={handleAddDocument}
+          onClick={() => handleAddDocument()}
         >
           Nouveau document
         </Button>
