@@ -29,7 +29,7 @@ export const DiagnosticSections: React.FC<DiagnosticSectionsProps> = ({ diagnost
       />
     </div>
     
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
       <ConfigSection
         title="Fichier de configuration"
         status={diagnosticResult.config_file.status}
