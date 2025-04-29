@@ -5,12 +5,14 @@ import { Toaster } from '@/components/ui/toaster';
 import GlobalSyncManager from '@/components/common/GlobalSyncManager';
 import DbAdmin from '@/pages/DbAdmin';
 import DbTest from '@/pages/DbTest';
+import Index from '@/pages/Index';
 
 function App() {
   return (
     <Router>
       <Routes>
-        <Route path="/" element={<DbTest />} />
+        <Route path="/" element={<Index />} />
+        <Route path="/db-test" element={<DbTest />} />
         <Route path="/db-admin" element={<DbAdmin />} />
       </Routes>
       <Toaster />
