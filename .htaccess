@@ -1,14 +1,14 @@
 
-# Main .htaccess - Forces PHP execution and handles routing
+# Main .htaccess - Forces PHP execution and handles routing for Infomaniak production
 
 # Enable rewrite engine
 RewriteEngine On
 
-# Set PHP handler explicitly - THIS IS CRITICAL!
+# Set PHP handler explicitly for Infomaniak
 AddHandler application/x-httpd-php .php
 AddType application/x-httpd-php .php
 
-# Force PHP for all .php files - Multiple methods for different server configurations
+# Force PHP for all .php files
 <FilesMatch "\.php$">
     SetHandler application/x-httpd-php
 </FilesMatch>
@@ -19,13 +19,6 @@ AddType application/x-httpd-php .php
         ForceType application/x-httpd-php
     </IfModule>
 </FilesMatch>
-
-# FastCGI configuration if available
-<IfModule mod_fastcgi.c>
-    <FilesMatch "\.php$">
-        SetHandler php-fcgi
-    </FilesMatch>
-</IfModule>
 
 # Enable PHP engine explicitly
 <IfModule mod_php.c>
@@ -53,24 +46,6 @@ RewriteRule ^api/ - [L]
 # PHP files should be processed directly
 RewriteCond %{REQUEST_FILENAME} -f
 RewriteRule \.(php)$ - [L]
-
-# For service workers
-<Files "sync-service-worker.js">
-    Header set Content-Type "application/javascript"
-    Header set Service-Worker-Allowed "/"
-</Files>
-
-# Important for PHP parsing
-<IfModule mod_fcgid.c>
-    FcgidMaxRequestLen 15728640
-    AddHandler fcgid-script .php
-</IfModule>
-
-# Critical Infomaniak-specific configuration
-<IfModule mod_suexec.c>
-    # Force PHP execution even on misconfigured servers
-    SuexecUserGroup "#1000" "#1000"
-</IfModule>
 
 # Redirect all other requests to index.html for client-side routing
 RewriteCond %{REQUEST_FILENAME} !-f

@@ -4,7 +4,7 @@ import react from '@vitejs/plugin-react-swc'
 import { resolve } from 'path'
 import fs from 'fs'
 
-// Configuration Vite adaptée pour un déploiement PHP
+// Configuration Vite optimisée pour le déploiement sur Infomaniak
 export default defineConfig({
   plugins: [react()],
   resolve: {
@@ -31,19 +31,6 @@ export default defineConfig({
           return 'assets/[name][extname]';
         }
       },
-    }
-  },
-  server: {
-    // Configuration de développement
-    port: 3000,
-    open: true,
-    // Proxy pour rediriger les requêtes API vers le serveur PHP local
-    proxy: {
-      '/api': {
-        target: 'http://localhost',
-        changeOrigin: true,
-        rewrite: (path) => path
-      }
     }
   },
   // Script de post-build pour copier les fichiers PHP dans le répertoire de sortie
