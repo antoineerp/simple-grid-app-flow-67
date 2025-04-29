@@ -1,4 +1,3 @@
-
 import { useState, useCallback } from 'react';
 import { Document as BibliothequeDocument, DocumentGroup } from '@/types/bibliotheque';
 import { Document as SystemDocument } from '@/types/documents';
@@ -96,11 +95,8 @@ export const useBibliothequeSync = () => {
       localStorage.setItem(`bibliotheque_groups_${userId || 'default'}`, JSON.stringify(groups));
       
       // Utiliser le service central pour la synchronisation
-      const result = await syncAndProcess({
-        tableName: 'bibliotheque',
-        data: systemDocs,
-        groups: groups
-      }, trigger);
+      // Pass tableName and data separately, not as a single object
+      const result = await syncAndProcess('bibliotheque', systemDocs, trigger);
       
       if (result.success) {
         setLastSynced(syncService.getLastSynced('bibliotheque') || new Date());

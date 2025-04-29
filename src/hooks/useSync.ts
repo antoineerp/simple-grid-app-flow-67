@@ -8,7 +8,7 @@ export interface SyncState {
   isSyncing: boolean;
   lastSynced: Date | null;
   syncFailed: boolean;
-  syncAndProcess: <T>(table: string, data: T[], trigger?: "auto" | "manual" | "initial") => Promise<SyncResult>;
+  syncAndProcess: <T>(tableName: string, data: T[], trigger?: "auto" | "manual" | "initial") => Promise<SyncResult>;
   resetSyncStatus: () => void;
   isOnline: boolean;
 }
@@ -58,7 +58,7 @@ export const useSync = (tableName: string): SyncState => {
   
   // Fonction pour synchroniser les données et gérer les erreurs
   const syncAndProcess = useCallback(async <T>(
-    table: string, 
+    tableName: string, 
     data: T[],
     trigger: "auto" | "manual" | "initial" = "auto"
   ): Promise<SyncResult> => {
@@ -92,11 +92,11 @@ export const useSync = (tableName: string): SyncState => {
       
       // Create a DataTable object to pass to syncTable
       const dataTable: DataTable<T> = {
-        tableName: table,
+        tableName: tableName,
         data: data
       };
       
-      const result = await syncService.syncTable(dataTable, null, trigger);
+      const result = await syncService.syncTable(tableName, data, null, trigger);
       
       if (result.success) {
         setLastSynced(new Date());

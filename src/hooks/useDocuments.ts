@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from 'react';
 import { Document, DocumentStats, DocumentGroup } from '@/types/documents';
 import { useToast } from '@/hooks/use-toast';
@@ -44,10 +43,7 @@ export const useDocuments = () => {
   const syncWithServer = async (): Promise<boolean> => {
     try {
       setIsSyncing(true);
-      const result = await syncAndProcess({
-        tableName: 'documents',
-        data: documents
-      });
+      const result = await syncAndProcess('documents', documents);
       
       if (result.success) {
         setLastSynced(new Date());
