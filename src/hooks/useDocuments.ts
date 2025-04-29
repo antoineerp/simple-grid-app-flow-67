@@ -63,17 +63,17 @@ export const useDocuments = () => {
   }, [documents, documentMutations]);
 
   // Group functions
-  const handleToggleGroup = (id: string) => {
+  const handleToggleGroup = useCallback((id: string) => {
     setGroups(prevGroups => 
       prevGroups.map(g => g.id === id ? { ...g, expanded: !g.expanded } : g)
     );
-  };
+  }, []);
 
-  const handleDeleteGroup = (id: string) => {
+  const handleDeleteGroup = useCallback((id: string) => {
     setGroups(prevGroups => prevGroups.filter(g => g.id !== id));
-  };
+  }, []);
 
-  const handleSaveGroup = (group: DocumentGroup) => {
+  const handleSaveGroup = useCallback((group: DocumentGroup) => {
     const isEditing = groups.some(g => g.id === group.id);
     if (isEditing) {
       setGroups(prevGroups => 
@@ -84,9 +84,9 @@ export const useDocuments = () => {
     }
     setGroupDialogOpen(false);
     setEditingGroup(null);
-  };
+  }, [groups]);
 
-  const handleAddGroup = () => {
+  const handleAddGroup = useCallback(() => {
     const newGroup: DocumentGroup = {
       id: crypto.randomUUID(),
       name: 'Nouveau groupe',
@@ -94,7 +94,12 @@ export const useDocuments = () => {
       items: []
     };
     handleSaveGroup(newGroup);
-  };
+  }, [handleSaveGroup]);
+  
+  const handleEditGroup = useCallback((group: DocumentGroup) => {
+    setEditingGroup(group);
+    setGroupDialogOpen(true);
+  }, []);
   
   const handleReorderDocuments = useCallback((startIndex: number, endIndex: number, targetGroupId?: string) => {
     console.log('Reorder documents:', startIndex, endIndex, targetGroupId);
@@ -120,10 +125,7 @@ export const useDocuments = () => {
     handleAddDocument,
     handleSaveDocument,
     handleAddGroup,
-    handleEditGroup: (group: DocumentGroup) => {
-      setEditingGroup(group);
-      setGroupDialogOpen(true);
-    },
+    handleEditGroup,
     handleDeleteGroup,
     handleSaveGroup,
     handleGroupReorder: handleReorderGroups,
