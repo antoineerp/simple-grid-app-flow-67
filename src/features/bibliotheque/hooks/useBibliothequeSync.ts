@@ -1,3 +1,4 @@
+
 import { useState, useCallback } from 'react';
 import { Document as BibliothequeDocument, DocumentGroup } from '@/types/bibliotheque';
 import { Document as SystemDocument } from '@/types/documents';
@@ -28,13 +29,19 @@ const convertBibliothequeToSystemDoc = (doc: BibliothequeDocument): SystemDocume
 export const useBibliothequeSync = () => {
   const [lastSynced, setLastSynced] = useState<Date | null>(null);
   const { isOnline } = useNetworkStatus();
-  const { isSyncing, syncFailed, syncAndProcess } = useSync('bibliotheque');
+  // Mise à jour pour utiliser "collaboration" au lieu de "bibliotheque"
+  const { isSyncing, syncFailed, syncAndProcess } = useSync('collaboration');
   
   const loadFromServer = useCallback(async (userId?: string): Promise<BibliothequeDocument[]> => {
     if (!isOnline) {
       console.log('Mode hors ligne - chargement des documents locaux');
       try {
-        const localData = localStorage.getItem(`bibliotheque_${userId || 'default'}`);
+        // Vérifier d'abord sous le nouveau nom puis sous l'ancien
+        let localData = localStorage.getItem(`collaboration_${userId || 'default'}`);
+        if (!localData) {
+          localData = localStorage.getItem(`bibliotheque_${userId || 'default'}`);
+        }
+        
         if (localData) {
           const localDocs = JSON.parse(localData);
           return localDocs.map(convertSystemToBibliothequeDoc);
@@ -47,8 +54,9 @@ export const useBibliothequeSync = () => {
     
     try {
       // Utiliser le service central pour charger les données
-      const documents = await syncService.loadDataFromServer<SystemDocument>('bibliotheque', userId);
-      setLastSynced(syncService.getLastSynced('bibliotheque') || new Date());
+      // Mise à jour pour utiliser "collaboration" au lieu de "bibliotheque"
+      const documents = await syncService.loadDataFromServer<SystemDocument>('collaboration', userId);
+      setLastSynced(syncService.getLastSynced('collaboration') || new Date());
       return documents.map(convertSystemToBibliothequeDoc);
     } catch (error) {
       console.error('Erreur lors du chargement des documents:', error);
@@ -60,7 +68,12 @@ export const useBibliothequeSync = () => {
       
       // En cas d'erreur, chargement des documents locaux comme solution de secours
       try {
-        const localData = localStorage.getItem(`bibliotheque_${userId || 'default'}`);
+        // Vérifier d'abord sous le nouveau nom puis sous l'ancien
+        let localData = localStorage.getItem(`collaboration_${userId || 'default'}`);
+        if (!localData) {
+          localData = localStorage.getItem(`bibliotheque_${userId || 'default'}`);
+        }
+        
         if (localData) {
           const localDocs = JSON.parse(localData);
           return localDocs.map(convertSystemToBibliothequeDoc);
@@ -76,8 +89,9 @@ export const useBibliothequeSync = () => {
     if (!isOnline) {
       // Mode hors ligne - enregistrement local uniquement
       const systemDocs = documents.map(convertBibliothequeToSystemDoc);
-      localStorage.setItem(`bibliotheque_${userId || 'default'}`, JSON.stringify(systemDocs));
-      localStorage.setItem(`bibliotheque_groups_${userId || 'default'}`, JSON.stringify(groups));
+      // Mise à jour pour utiliser le nouveau nom de stockage
+      localStorage.setItem(`collaboration_${userId || 'default'}`, JSON.stringify(systemDocs));
+      localStorage.setItem(`collaboration_groups_${userId || 'default'}`, JSON.stringify(groups));
       
       toast({
         variant: "destructive",
@@ -91,15 +105,15 @@ export const useBibliothequeSync = () => {
     try {
       // Toujours enregistrer localement d'abord pour éviter la perte de données
       const systemDocs = documents.map(convertBibliothequeToSystemDoc);
-      localStorage.setItem(`bibliotheque_${userId || 'default'}`, JSON.stringify(systemDocs));
-      localStorage.setItem(`bibliotheque_groups_${userId || 'default'}`, JSON.stringify(groups));
+      // Mise à jour pour utiliser le nouveau nom de stockage
+      localStorage.setItem(`collaboration_${userId || 'default'}`, JSON.stringify(systemDocs));
+      localStorage.setItem(`collaboration_groups_${userId || 'default'}`, JSON.stringify(groups));
       
-      // Utiliser le service central pour la synchronisation
-      // Pass tableName and data separately, not as a single object
-      const result = await syncAndProcess('bibliotheque', systemDocs, trigger);
+      // Utiliser le service central pour la synchronisation avec la table "collaboration"
+      const result = await syncAndProcess('collaboration', systemDocs, trigger);
       
       if (result.success) {
-        setLastSynced(syncService.getLastSynced('bibliotheque') || new Date());
+        setLastSynced(syncService.getLastSynced('collaboration') || new Date());
         return true;
       }
       

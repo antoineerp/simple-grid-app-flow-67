@@ -26,6 +26,7 @@ export const useBibliotheque = () => {
   const { toast } = useToast();
   
   // Utiliser le hook useSyncContext pour la synchronisation
+  // Mise à jour du nom de la table de "bibliotheque" à "collaboration"
   const { 
     syncWithServer, 
     isSyncing, 
@@ -33,14 +34,30 @@ export const useBibliotheque = () => {
     lastSynced, 
     syncFailed, 
     notifyChanges 
-  } = useSyncContext('bibliotheque', documents, { autoSync: true });
+  } = useSyncContext('collaboration', documents, { autoSync: true });
   
   // Charger les données locales au démarrage
   useEffect(() => {
     const loadLocalData = () => {
       try {
-        const docsData = localStorage.getItem('bibliotheque');
-        const groupsData = localStorage.getItem('bibliotheque_groups');
+        // Mise à jour pour vérifier aussi les données sous l'ancien nom
+        let docsData = localStorage.getItem('collaboration');
+        if (!docsData) {
+          docsData = localStorage.getItem('bibliotheque');
+          // Si trouvé sous l'ancien nom, migrer vers le nouveau
+          if (docsData) {
+            localStorage.setItem('collaboration', docsData);
+          }
+        }
+        
+        let groupsData = localStorage.getItem('collaboration_groups');
+        if (!groupsData) {
+          groupsData = localStorage.getItem('bibliotheque_groups');
+          // Si trouvé sous l'ancien nom, migrer vers le nouveau
+          if (groupsData) {
+            localStorage.setItem('collaboration_groups', groupsData);
+          }
+        }
         
         if (docsData) {
           setDocuments(JSON.parse(docsData));
@@ -60,7 +77,8 @@ export const useBibliotheque = () => {
   // Sauvegarder les documents localement quand ils changent
   useEffect(() => {
     if (documents.length > 0) {
-      localStorage.setItem('bibliotheque', JSON.stringify(documents));
+      // Mise à jour pour utiliser le nouveau nom de stockage
+      localStorage.setItem('collaboration', JSON.stringify(documents));
       notifyChanges();
     }
   }, [documents, notifyChanges]);
@@ -68,7 +86,8 @@ export const useBibliotheque = () => {
   // Sauvegarder les groupes localement quand ils changent
   useEffect(() => {
     if (groups.length > 0) {
-      localStorage.setItem('bibliotheque_groups', JSON.stringify(groups));
+      // Mise à jour pour utiliser le nouveau nom de stockage
+      localStorage.setItem('collaboration_groups', JSON.stringify(groups));
       notifyChanges();
     }
   }, [groups, notifyChanges]);
@@ -135,13 +154,13 @@ export const useBibliotheque = () => {
   const handleSyncDocuments = async (): Promise<void> => {
     try {
       // Ajouter des logs pour déboguer la synchronisation
-      console.log("Début de la synchronisation des documents");
+      console.log("Début de la synchronisation des documents de collaboration");
       console.log("Documents à synchroniser:", documents);
       console.log("Groupes à synchroniser:", groups);
       
       await syncWithServer();
       
-      console.log("Fin de la synchronisation des documents");
+      console.log("Fin de la synchronisation des documents de collaboration");
       return Promise.resolve();
     } catch (error) {
       console.error("Erreur lors de la synchronisation des documents:", error);

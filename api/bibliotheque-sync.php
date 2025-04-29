@@ -1,4 +1,3 @@
-
 <?php
 // Force output buffering to prevent output before headers
 ob_start();
@@ -42,7 +41,7 @@ try {
         throw new Exception("Aucune donnée reçue ou format JSON invalide");
     }
     
-    error_log("Données décodées pour synchronisation de la bibliothèque");
+    error_log("Données décodées pour synchronisation de la bibliothèque/collaboration");
     
     // Vérifier si les données nécessaires sont présentes
     if (!isset($data['userId'])) {
@@ -55,28 +54,36 @@ try {
     // Récupérer les données à synchroniser
     // Pour plus de flexibilité, vérifier plusieurs noms possibles
     $ressources = null;
-    if (isset($data['bibliotheque']) && is_array($data['bibliotheque'])) {
+    if (isset($data['collaboration']) && is_array($data['collaboration'])) {
+        $ressources = $data['collaboration'];
+        error_log("Données trouvées sous 'collaboration'");
+        $tablePrefix = "collaboration";
+    } elseif (isset($data['bibliotheque']) && is_array($data['bibliotheque'])) {
         $ressources = $data['bibliotheque'];
         error_log("Données trouvées sous 'bibliotheque'");
+        $tablePrefix = "bibliotheque";
     } elseif (isset($data['documents']) && is_array($data['documents'])) {
         $ressources = $data['documents'];
         error_log("Données trouvées sous 'documents'");
+        $tablePrefix = "bibliotheque";
     } elseif (isset($data['ressources']) && is_array($data['ressources'])) {
         $ressources = $data['ressources'];
         error_log("Données trouvées sous 'ressources'");
+        $tablePrefix = "bibliotheque";
     } else {
         // Parcourir toutes les clés pour trouver un tableau potentiel
         foreach ($data as $key => $value) {
             if (is_array($value) && $key !== 'userId' && $key !== 'groups') {
                 $ressources = $value;
                 error_log("Données trouvées sous '{$key}'");
+                $tablePrefix = ($key === "collaboration") ? "collaboration" : "bibliotheque";
                 break;
             }
         }
     }
     
     if (!$ressources) {
-        throw new Exception("Aucune donnée de bibliothèque trouvée dans la requête");
+        throw new Exception("Aucune donnée de bibliothèque/collaboration trouvée dans la requête");
     }
     
     error_log("Nombre de ressources: " . count($ressources));
@@ -95,8 +102,8 @@ try {
     
     // Nom de la table spécifique à l'utilisateur
     $safeUserId = preg_replace('/[^a-zA-Z0-9_]/', '_', $userId);
-    $tableName = "bibliotheque_" . $safeUserId;
-    $groupsTableName = "bibliotheque_groups_" . $safeUserId;
+    $tableName = $tablePrefix . "_" . $safeUserId;
+    $groupsTableName = $tablePrefix . "_groups_" . $safeUserId;
     error_log("Tables à utiliser: {$tableName}, {$groupsTableName}");
     
     // Créer la table des ressources si elle n'existe pas
