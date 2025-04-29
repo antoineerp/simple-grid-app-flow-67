@@ -11,6 +11,7 @@ import Exigences from '@/pages/Exigences';
 import GestionDocumentaire from '@/pages/GestionDocumentaire';
 import RessourcesHumaines from '@/pages/RessourcesHumaines';
 import Administration from '@/pages/Administration';
+import DashboardLayout from '@/components/layouts/DashboardLayout';
 import { getIsLoggedIn } from '@/services/auth/authService';
 import Collaboration from '@/pages/Collaboration';
 

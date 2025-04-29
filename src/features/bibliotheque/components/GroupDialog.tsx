@@ -1,5 +1,5 @@
 
-import React, { useEffect } from 'react';
+import React from 'react';
 import {
   Dialog,
   DialogContent,
@@ -10,31 +10,31 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Document } from '@/types/bibliotheque';
+import { DocumentGroup } from '@/types/bibliotheque';
 
-interface DocumentDialogProps {
+interface GroupDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  document: Document | null;
+  group: DocumentGroup | null;
   onSave: () => void;
   onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   isEditing: boolean;
 }
 
-export const DocumentDialog = ({
+export const GroupDialog = ({
   isOpen,
   onClose,
-  document,
+  group,
   onSave,
   onChange,
   isEditing,
-}: DocumentDialogProps) => {
+}: GroupDialogProps) => {
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>
-            {isEditing ? 'Modifier le document' : 'Ajouter un document'}
+            {isEditing ? 'Modifier le groupe' : 'Ajouter un groupe'}
           </DialogTitle>
         </DialogHeader>
         <div className="grid gap-4 py-4">
@@ -45,22 +45,9 @@ export const DocumentDialog = ({
             <Input
               id="name"
               name="name"
-              value={document?.name || ''}
+              value={group?.name || ''}
               onChange={onChange}
               className="col-span-3"
-            />
-          </div>
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="link" className="text-right">
-              Lien
-            </Label>
-            <Input
-              id="link"
-              name="link"
-              value={document?.link || ''}
-              onChange={onChange}
-              className="col-span-3"
-              placeholder="URL ou texte du lien"
             />
           </div>
         </div>
@@ -77,4 +64,4 @@ export const DocumentDialog = ({
   );
 };
 
-export default DocumentDialog;
+export default GroupDialog;
