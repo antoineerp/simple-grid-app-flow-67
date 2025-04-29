@@ -95,7 +95,11 @@ const Collaboration = () => {
   // Handle save group
   const handleSaveGroup = () => {
     if (currentGroup) {
-      // Logic for saving group
+      if (isEditing) {
+        handleEditGroup(currentGroup);
+      } else {
+        handleAddGroup(currentGroup);
+      }
       setIsGroupDialogOpen(false);
     }
   };
@@ -269,6 +273,7 @@ const Collaboration = () => {
       <DocumentDialog 
         isOpen={isDocumentDialogOpen} 
         onOpenChange={setIsDocumentDialogOpen}
+        onClose={() => setIsDocumentDialogOpen(false)}
         document={currentDocument}
         isEditing={isEditing}
         onChange={handleDocumentChange}
