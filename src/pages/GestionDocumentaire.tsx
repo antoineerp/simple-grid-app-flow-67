@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { FileText, FolderPlus, RefreshCw } from 'lucide-react';
 import { MembresProvider } from '@/contexts/MembresContext';
@@ -142,7 +141,7 @@ const GestionDocumentaireContent = () => {
         </Button>
         <Button 
           variant="default"
-          onClick={() => handleAddDocument()}
+          onClick={() => handleAddDocument(null)}
         >
           Nouveau document
         </Button>

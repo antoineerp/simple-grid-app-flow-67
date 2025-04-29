@@ -5,6 +5,8 @@ import { useDocumentMutations } from '@/features/documents/hooks/useDocumentMuta
 import { useDocumentGroups } from '@/features/documents/hooks/useDocumentGroups';
 import { useDocumentHandlers } from '@/features/documents/hooks/useDocumentHandlers';
 import { useDocumentReorder } from '@/features/documents/hooks/useDocumentReorder';
+import { useSyncService } from '@/services/core/syncService';
+import { Document } from '@/types/documents';
 
 export const useDocuments = () => {
   const core = useDocumentCore();
@@ -12,28 +14,47 @@ export const useDocuments = () => {
     documents, setDocuments, groups, setGroups,
     editingDocument, setEditingDocument, editingGroup,
     dialogOpen, setDialogOpen, groupDialogOpen, setGroupDialogOpen,
-    isSyncing, setIsSyncing, syncFailed, setSyncFailed,
-    loadError, setLoadError, lastSynced, setLastSynced,
-    stats, isOnline, userId, toast, loadFromServer
+    isSyncing: coreIsSyncing, setIsSyncing: setIsCoreSync, 
+    syncFailed: coreSyncFailed, setSyncFailed: setCoreSyncFailed,
+    loadError, setLoadError, lastSynced: coreLastSynced, setLastSynced: setCoreLastSynced,
+    stats, isOnline, userId, toast
   } = core;
+  
+  // Utilisation du service de synchronisation centralisé
+  const syncService = useSyncService();
+  
+  // Utiliser les états du service de synchronisation centralisé
+  const isSyncing = syncService.isSyncing;
+  const syncFailed = syncService.syncFailed;
+  const lastSynced = syncService.lastSynced || coreLastSynced;
   
   const documentMutations = useDocumentMutations(documents, setDocuments);
   const groupOperations = useDocumentGroups(groups, setGroups);
-
-  // Harmonisation avec RessourcesHumaines: synchroniser uniquement quand nécessaire
+  
+  // Fonction de synchronisation avec le serveur adaptée pour utiliser le service centralisé
   const handleSyncWithServer = useCallback(async () => {
     if (!isOnline || isSyncing) return false;
     
-    setIsSyncing(true);
     try {
-      const success = await core.syncWithServer(documents, userId);
+      const success = await syncService.syncWithServer<Document>({
+        endpoint: 'documents-sync.php',
+        loadEndpoint: 'documents-load.php',
+        data: documents,
+        userId: userId,
+        dataName: 'documents'
+      });
+      
       if (success) {
-        setSyncFailed(false);
-        setLastSynced(new Date());
+        setCoreSyncFailed(false);
+        setCoreLastSynced(new Date());
         
         // Charger discrètement les données après une synchronisation réussie
         try {
-          const result = await loadFromServer(userId);
+          const result = await syncService.loadFromServer({
+            loadEndpoint: 'documents-load.php',
+            userId: userId
+          });
+          
           if (Array.isArray(result)) {
             setDocuments(result);
           }
@@ -41,33 +62,16 @@ export const useDocuments = () => {
           console.error("Erreur lors du rechargement après synchronisation:", loadError);
         }
         
-        toast({
-          title: "Synchronisation réussie",
-          description: "Les données ont été synchronisées avec le serveur",
-        });
-        
         return true;
       } else {
-        setSyncFailed(true);
-        toast({
-          title: "Erreur de synchronisation",
-          description: "Une erreur s'est produite lors de la synchronisation",
-          variant: "destructive"
-        });
+        setCoreSyncFailed(true);
         return false;
       }
     } catch (error) {
-      setSyncFailed(true);
-      toast({
-        title: "Erreur de synchronisation",
-        description: error instanceof Error ? error.message : "Une erreur s'est produite",
-        variant: "destructive"
-      });
+      setCoreSyncFailed(true);
       return false;
-    } finally {
-      setIsSyncing(false);
     }
-  }, [documents, userId, core.syncWithServer, loadFromServer, isOnline, isSyncing, toast, setSyncFailed, setIsSyncing, setLastSynced, setDocuments]);
+  }, [documents, userId, isOnline, isSyncing, syncService, setCoreSyncFailed, setCoreLastSynced, setDocuments]);
   
   const documentHandlers = useDocumentHandlers({
     documents,
@@ -87,16 +91,21 @@ export const useDocuments = () => {
 
   const handleResetLoadAttempts = useCallback(() => {
     setLoadError(null);
-    setSyncFailed(false);
+    setCoreSyncFailed(false);
+    syncService.resetSyncStatus();
     handleSyncWithServer().catch(console.error);
-  }, [handleSyncWithServer, setLoadError, setSyncFailed]);
+  }, [handleSyncWithServer, setLoadError, setCoreSyncFailed, syncService]);
 
-  // Chargement initial des données (comme dans RessourcesHumaines)
+  // Chargement initial des données avec le service centralisé
   useEffect(() => {
     const loadDocuments = async () => {
       try {
         console.log(`Chargement des documents pour l'utilisateur: ${userId}`);
-        const result = await loadFromServer(userId);
+        const result = await syncService.loadFromServer<Document>({
+          loadEndpoint: 'documents-load.php',
+          userId: userId
+        });
+        
         if (Array.isArray(result)) {
           setDocuments(result);
         } else {
@@ -119,10 +128,10 @@ export const useDocuments = () => {
           console.error("Erreur lors de la synchronisation périodique:", error);
         });
       }
-    }, 60000); // Une minute au lieu de 10 secondes
+    }, 60000); // Une minute
 
     return () => clearInterval(syncInterval);
-  }, [loadFromServer, userId, isOnline, syncFailed, isSyncing, handleSyncWithServer, setDocuments, setLoadError]);
+  }, [userId, isOnline, syncFailed, isSyncing, handleSyncWithServer, setDocuments, setLoadError, syncService]);
 
   return {
     documents,
@@ -145,7 +154,7 @@ export const useDocuments = () => {
     handleAddDocument: documentHandlers.handleAddDocument,
     handleSaveDocument: documentHandlers.handleSaveDocument,
     handleAddGroup: groupOperations.handleAddGroup,
-    handleEditGroup: groupOperations.handleEditGroup,  // Utilisation correcte de la propriété
+    handleEditGroup: groupOperations.handleEditGroup,
     handleDeleteGroup: groupOperations.handleDeleteGroup,
     handleSaveGroup: groupOperations.handleSaveGroup,
     handleGroupReorder: reorderHandlers.handleGroupReorder,
