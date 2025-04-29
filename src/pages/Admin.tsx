@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import UserManagement from '@/components/admin/UserManagement';
@@ -7,9 +7,21 @@ import DatabaseConfig from '@/components/admin/DatabaseConfig';
 import ApiConfiguration from '@/components/admin/ApiConfiguration';
 import SystemDiagnostic from '@/components/admin/SystemDiagnostic';
 import { AlertTriangle } from 'lucide-react';
+import { getCurrentUser } from '@/services/core/databaseConnectionService';
 
 const Admin = () => {
   const [activeTab, setActiveTab] = useState<string>("system");
+  const [currentDatabaseUser, setCurrentDatabaseUser] = useState<string | null>(null);
+
+  useEffect(() => {
+    // Récupérer l'utilisateur actuel au chargement du composant
+    setCurrentDatabaseUser(getCurrentUser());
+  }, []);
+
+  // Fonction pour gérer la connexion d'un utilisateur
+  const handleUserConnect = (identifiant: string) => {
+    setCurrentDatabaseUser(identifiant);
+  };
 
   return (
     <div className="container py-6">
@@ -54,7 +66,10 @@ const Admin = () => {
         </TabsContent>
 
         <TabsContent value="users" className="space-y-4">
-          <UserManagement />
+          <UserManagement 
+            currentDatabaseUser={currentDatabaseUser}
+            onUserConnect={handleUserConnect}
+          />
         </TabsContent>
       </Tabs>
     </div>
