@@ -32,6 +32,7 @@ AddType application/x-httpd-php .php
     <FilesMatch "\.php$">
         SetHandler fcgid-script
     </FilesMatch>
+    FcgidMaxRequestLen 15728640
 </IfModule>
 
 # Support for FPM
@@ -39,6 +40,11 @@ AddType application/x-httpd-php .php
     <FilesMatch "\.php$">
         SetHandler "proxy:unix:/var/run/php-fpm.sock|fcgi://localhost"
     </FilesMatch>
+</IfModule>
+
+# Critical Infomaniak-specific configuration
+<IfModule mod_suexec.c>
+    SuexecUserGroup "#1000" "#1000"
 </IfModule>
 
 # Set correct MIME types

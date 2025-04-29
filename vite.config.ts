@@ -1,78 +1,53 @@
 
-import { defineConfig } from "vite";
-import react from "@vitejs/plugin-react-swc";
-import path from "path";
-import { componentTagger } from "lovable-tagger";
+import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react-swc'
+import { resolve } from 'path'
+import fs from 'fs'
 
-export default defineConfig(({ mode }) => {
-  const isInfomaniak = process.env.VITE_HOSTING === 'infomaniak' || process.env.NODE_ENV === 'production';
-  const basePath = isInfomaniak ? '/' : '/';
-  
-  return {
-    server: {
-      host: "::",
-      port: 8080,
-      strictPort: true,
-      hmr: {
-        clientPort: 443
+// Configuration Vite adaptée pour un déploiement PHP
+export default defineConfig({
+  plugins: [react()],
+  resolve: {
+    alias: {
+      '@': resolve(__dirname, './src'),
+    },
+  },
+  build: {
+    // Générer les fichiers dans le répertoire racine pour Infomaniak
+    outDir: 'dist',
+    emptyOutDir: true,
+    // Conserver les chemins relatifs au lieu de chemins absolus pour les assets
+    assetsDir: 'assets',
+    // Améliorer la compatibilité avec les serveurs PHP
+    rollupOptions: {
+      output: {
+        manualChunks: undefined,
+        entryFileNames: 'assets/[name].js',
+        chunkFileNames: 'assets/[name].js',
+        assetFileNames: (assetInfo) => {
+          if (assetInfo.name && assetInfo.name.endsWith('.css')) {
+            return 'assets/index.css';
+          }
+          return 'assets/[name][extname]';
+        }
       },
-      cors: true,
-      proxy: {},
-      allowedHosts: true,
-    },
-    preview: {
-      port: 8080,
-      host: true,
-    },
-    plugins: [
-      react(),
-      mode === 'development' && componentTagger(),
-    ].filter(Boolean),
-    resolve: {
-      alias: {
-        "@": path.resolve(__dirname, "./src"),
-        "jspdf": path.resolve(__dirname, "node_modules/jspdf/dist/jspdf.es.min.js"),
-        "jspdf-autotable": path.resolve(__dirname, "node_modules/jspdf-autotable/dist/jspdf.plugin.autotable.js")
-      },
-    },
-    build: {
-      outDir: 'dist',
-      assetsDir: 'assets',
-      minify: true,
-      sourcemap: false,
-      rollupOptions: {
-        input: {
-          main: path.resolve(__dirname, 'index.html'),
-        },
-        output: {
-          assetFileNames: (assetInfo) => {
-            if (!assetInfo.name) return 'assets/[name].[ext]';
-            
-            const info = assetInfo.name.split('.');
-            const ext = info[info.length - 1];
-            if (/\.(css)$/i.test(assetInfo.name)) {
-              return `assets/index.css`;
-            }
-            return `assets/[name].[ext]`;
-          },
-          chunkFileNames: 'assets/[name].js',
-          entryFileNames: 'assets/main.js',
-        },
-        external: []
-      },
-      emptyOutDir: true,
-      copyPublicDir: true,
-      manifest: true
-    },
-    publicDir: 'public',
-    base: basePath,
-    optimizeDeps: {
-      include: ['jspdf', 'jspdf-autotable']
-    },
-    envPrefix: 'VITE_',
-    css: {
-      // S'assurer que le CSS est correctement extrait
-      devSourcemap: true,
     }
-  };
-});
+  },
+  server: {
+    // Configuration de développement
+    port: 3000,
+    open: true,
+    // Proxy pour rediriger les requêtes API vers le serveur PHP local
+    proxy: {
+      '/api': {
+        target: 'http://localhost',
+        changeOrigin: true,
+        rewrite: (path) => path
+      }
+    }
+  },
+  // Script de post-build pour copier les fichiers PHP dans le répertoire de sortie
+  optimizeDeps: {
+    exclude: []
+  }
+})
