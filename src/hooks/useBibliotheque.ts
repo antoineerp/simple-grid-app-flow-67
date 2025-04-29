@@ -72,6 +72,8 @@ export const useBibliotheque = () => {
     setIsDialogOpen,
     setIsGroupDialogOpen,
     setDraggedItem,
+    setCurrentDocument,
+    setIsEditing,
     handleDrop,
     handleGroupDrop,
     handleEditDocument,
