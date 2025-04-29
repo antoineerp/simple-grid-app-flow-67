@@ -1,121 +1,187 @@
 
-import React, { useState, useEffect } from 'react';
-import { ChevronDown, LogOut, Settings, Database, Users } from 'lucide-react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useToast } from "@/hooks/use-toast";
-import LogoSelector from './LogoSelector';
-import {
+import { Bell, User, Menu, X } from 'lucide-react';
+import { Button } from "@/components/ui/button";
+import { 
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuGroup,
   DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import {
-  getCurrentUser as getDatabaseUser,
-} from '@/services/core/databaseConnectionService';
-import { logout, getCurrentUser } from '@/services/auth/authService';
+import { getCurrentUser, logout } from '@/services/auth/authService';
+import { useToast } from '@/hooks/use-toast';
+import { Sheet, SheetContent } from "@/components/ui/sheet";
 
 const Header = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const [logo, setLogo] = useState("/lovable-uploads/4c7adb52-3da0-4757-acbf-50a1eb1d4bf5.png");
-  const [currentDatabaseUser, setCurrentDatabaseUser] = useState<string | null>(getDatabaseUser());
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   
-  // Obtenir les informations utilisateur depuis le token JWT
   const user = getCurrentUser();
-  const userRole = user?.role || 'utilisateur';
-  const userDisplayName = user ? `${user.prenom || ''} ${user.nom || ''}`.trim() : 'Utilisateur';
-
-  useEffect(() => {
-    const checkDatabaseUser = () => {
-      const dbUser = getDatabaseUser();
-      if (dbUser !== currentDatabaseUser) {
-        setCurrentDatabaseUser(dbUser);
-      }
-    };
-    
-    const interval = setInterval(checkDatabaseUser, 2000);
-    
-    return () => clearInterval(interval);
-  }, [currentDatabaseUser]);
-
+  
   const handleLogout = () => {
-    // Appel à la fonction logout du service d'authentification
     logout();
-    
     toast({
       title: "Déconnexion réussie",
       description: "Vous avez été déconnecté avec succès",
     });
-    
-    // Force la navigation vers la page d'accueil
-    window.location.href = '/';
+    navigate('/');
+  };
+  
+  const toggleMobileMenu = () => {
+    setIsMobileMenuOpen(!isMobileMenuOpen);
+  };
+  
+  const navigateAndCloseMobile = (path: string) => {
+    navigate(path);
+    setIsMobileMenuOpen(false);
   };
 
-  const handleLogoChange = (newLogo: string) => {
-    setLogo(newLogo);
-  };
-
-  const isAdmin = userRole === 'administrateur' || userRole === 'admin';
-
+  // Vérifier si l'utilisateur est administrateur
+  const isAdmin = user && typeof user === 'object' && user.role === 'administrateur';
+  
+  // Vérifier si l'utilisateur est gestionnaire ou administrateur
+  const isManagerOrAdmin = user && typeof user === 'object' && 
+    (user.role === 'gestionnaire' || user.role === 'administrateur');
+  
   return (
-    <header className="border-b bg-white">
-      <div className="flex items-center justify-between h-14 px-4">
-        <div className="flex items-center w-full">
-          <LogoSelector currentLogo={logo} onLogoChange={handleLogoChange} />
-          <div className="text-app-blue text-xl font-semibold text-center w-full absolute left-0">
-            Qualite.cloud - Système de Management de la Qualité
-          </div>
-        </div>
-        <div className="flex items-center space-x-4">
-          {currentDatabaseUser && (
-            <div className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-md flex items-center">
-              <Database className="w-3 h-3 mr-1" />
-              <span>DB: {currentDatabaseUser}</span>
-            </div>
-          )}
+    <header className="bg-white shadow-sm h-16 flex items-center px-4 py-2 sticky top-0 z-50 border-b">
+      <div className="container mx-auto flex justify-between items-center">
+        {/* Logo et titre */}
+        <div className="flex items-center">
+          <div className="text-xl font-bold text-gray-800 mr-10">QualiOpi</div>
           
+          {/* Menu de navigation - Desktop */}
+          <nav className="hidden md:flex space-x-6">
+            <button 
+              onClick={() => navigate('/pilotage')}
+              className="text-gray-600 hover:text-gray-900 transition-colors"
+            >
+              Tableau de bord
+            </button>
+            <button 
+              onClick={() => navigate('/gestion-documentaire')}
+              className="text-gray-600 hover:text-gray-900 transition-colors"
+            >
+              Gestion documentaire
+            </button>
+            <button 
+              onClick={() => navigate('/exigences')}
+              className="text-gray-600 hover:text-gray-900 transition-colors"
+            >
+              Exigences
+            </button>
+            {isManagerOrAdmin && (
+              <button 
+                onClick={() => navigate('/ressources-humaines')}
+                className="text-gray-600 hover:text-gray-900 transition-colors"
+              >
+                Ressources humaines
+              </button>
+            )}
+            {isAdmin && (
+              <button 
+                onClick={() => navigate('/admin')}
+                className="text-gray-600 hover:text-gray-900 transition-colors"
+              >
+                Administration
+              </button>
+            )}
+          </nav>
+        </div>
+        
+        {/* Actions utilisateur */}
+        <div className="flex items-center space-x-4">
+          <Button variant="ghost" size="icon" className="relative">
+            <Bell className="h-5 w-5" />
+            <span className="absolute top-0 right-0 block h-2 w-2 rounded-full bg-red-500 transform -translate-y-1/2 translate-x-1/2"></span>
+          </Button>
+          
+          {/* Menu utilisateur */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <div className="flex items-center space-x-2 cursor-pointer rounded-md px-2 py-1 hover:bg-gray-100">
-                <Avatar className="h-8 w-8">
-                  <AvatarFallback className="bg-app-blue text-white">
-                    {isAdmin ? 'AD' : userRole === 'gestionnaire' ? 'GE' : 'UT'}
-                  </AvatarFallback>
-                </Avatar>
-                <div>
-                  <span className="text-sm font-medium block">{userDisplayName}</span>
-                  <span className="text-xs text-gray-500 block">{userRole}</span>
-                </div>
-                <ChevronDown className="w-4 h-4" />
-              </div>
+              <Button variant="ghost" size="icon">
+                <User className="h-5 w-5" />
+              </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent className="w-56" align="end">
-              <DropdownMenuLabel>Mon compte</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-
-              {isAdmin && (
-                <DropdownMenuGroup>
-                  <DropdownMenuItem onClick={() => navigate('/administration')}>
-                    <Users className="mr-2 h-4 w-4" />
-                    <span>Administration</span>
-                  </DropdownMenuItem>
-                </DropdownMenuGroup>
+            <DropdownMenuContent align="end" className="w-56">
+              {user && typeof user === 'object' && (
+                <div className="px-2 py-1.5">
+                  <p className="text-sm font-medium">{user.nom} {user.prenom}</p>
+                  <p className="text-xs text-gray-500">{user.email}</p>
+                </div>
               )}
-              {isAdmin && <DropdownMenuSeparator />}
-              
               <DropdownMenuItem onClick={handleLogout}>
-                <LogOut className="mr-2 h-4 w-4" />
-                <span>Déconnexion</span>
+                Se déconnecter
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
+          
+          {/* Bouton de menu mobile */}
+          <Button variant="ghost" size="icon" className="md:hidden" onClick={toggleMobileMenu}>
+            <Menu className="h-5 w-5" />
+          </Button>
         </div>
       </div>
+      
+      {/* Menu mobile */}
+      <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
+        <SheetContent side="left" className="w-[250px] sm:w-[300px]">
+          <div className="flex flex-col h-full">
+            <div className="flex justify-between items-center py-4 border-b">
+              <span className="font-bold text-lg">QualiOpi</span>
+              <Button variant="ghost" size="icon" onClick={() => setIsMobileMenuOpen(false)}>
+                <X className="h-5 w-5" />
+              </Button>
+            </div>
+            <nav className="flex flex-col space-y-4 pt-4">
+              <button 
+                onClick={() => navigateAndCloseMobile('/pilotage')}
+                className="text-left px-2 py-2 hover:bg-gray-100 rounded-md"
+              >
+                Tableau de bord
+              </button>
+              <button 
+                onClick={() => navigateAndCloseMobile('/gestion-documentaire')}
+                className="text-left px-2 py-2 hover:bg-gray-100 rounded-md"
+              >
+                Gestion documentaire
+              </button>
+              <button 
+                onClick={() => navigateAndCloseMobile('/exigences')}
+                className="text-left px-2 py-2 hover:bg-gray-100 rounded-md"
+              >
+                Exigences
+              </button>
+              {isManagerOrAdmin && (
+                <button 
+                  onClick={() => navigateAndCloseMobile('/ressources-humaines')}
+                  className="text-left px-2 py-2 hover:bg-gray-100 rounded-md"
+                >
+                  Ressources humaines
+                </button>
+              )}
+              {isAdmin && (
+                <button 
+                  onClick={() => navigateAndCloseMobile('/admin')}
+                  className="text-left px-2 py-2 hover:bg-gray-100 rounded-md"
+                >
+                  Administration
+                </button>
+              )}
+            </nav>
+            <div className="mt-auto border-t py-4">
+              <button 
+                onClick={handleLogout}
+                className="w-full text-left px-2 py-2 text-red-500 hover:bg-red-50 rounded-md"
+              >
+                Se déconnecter
+              </button>
+            </div>
+          </div>
+        </SheetContent>
+      </Sheet>
     </header>
   );
 };

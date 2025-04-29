@@ -121,13 +121,13 @@ class UserService {
         // Fallback pour le développement - garder uniquement en dernier recours
         return [
           {
-            id: 1,
+            id: "1", // Changé de number à string
             nom: "Cirier",
             prenom: "Antoine",
             email: "antcirier@gmail.com",
             mot_de_passe: "****",
             identifiant_technique: "p71x6d_system",
-            role: "admin",
+            role: "administrateur", // Changé de "admin" à "administrateur"
             date_creation: "2025-03-31 16:10:09"
           }
         ];

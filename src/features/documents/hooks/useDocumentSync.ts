@@ -13,6 +13,7 @@ export const useDocumentSync = () => {
   
   const syncWithServer = async (documents: Document[], userId: string): Promise<boolean> => {
     if (!isOnline) {
+      console.log("Tentative de synchronisation hors ligne, annulée.");
       toast({
         title: "Connexion hors ligne",
         description: "Impossible de synchroniser les documents. Veuillez vérifier votre connexion.",
@@ -26,12 +27,14 @@ export const useDocumentSync = () => {
       return false;
     }
     
+    console.log(`Début de la synchronisation de ${documents.length} documents pour l'utilisateur ${userId}`);
     setIsSyncing(true);
+    
     try {
-      console.log(`Synchronisation de ${documents.length} documents pour l'utilisateur ${userId}`);
       const success = await syncDocumentsWithServer(documents, userId);
       
       if (success) {
+        console.log("Synchronisation réussie");
         setLastSynced(new Date());
         toast({
           title: "Synchronisation réussie",
@@ -40,6 +43,7 @@ export const useDocumentSync = () => {
         return true;
       }
       
+      console.error("Le serveur a signalé un échec de synchronisation");
       throw new Error("Le serveur a signalé un échec de synchronisation");
     } catch (error) {
       console.error("Erreur pendant la synchronisation:", error);
@@ -55,11 +59,14 @@ export const useDocumentSync = () => {
   };
 
   const loadFromServer = async (userId: string): Promise<Document[] | null> => {
+    console.log(`Début du chargement des documents pour l'utilisateur ${userId}`);
     setIsSyncing(true);
+    
     try {
-      console.log(`Chargement des documents pour l'utilisateur ${userId}`);
       const docs = await loadDocumentsFromServer(userId);
-      if (docs) {
+      console.log(`${docs.length} documents chargés avec succès`);
+      
+      if (docs && docs.length > 0) {
         setLastSynced(new Date());
       }
       return docs;
