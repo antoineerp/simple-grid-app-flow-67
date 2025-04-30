@@ -6,7 +6,7 @@
 // Correctly type errorLogs in the global Window interface
 declare global {
   interface Window {
-    errorLogs: string[];
+    errorLogs?: string[]; // Make it optional with ? modifier
   }
 }
 
