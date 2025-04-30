@@ -29,6 +29,7 @@ export function useSyncContext<T>(tableName: string, data: T[], options: SyncHoo
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
   const pendingSyncRef = useRef<boolean>(false);
   const lastDataRef = useRef<T[]>(data);
+  const lastSyncAttemptRef = useRef<number>(0);
 
   // Obtenir l'état de synchronisation pour cette table
   const syncState = syncStates[tableName] || {
@@ -56,7 +57,7 @@ export function useSyncContext<T>(tableName: string, data: T[], options: SyncHoo
         
         // Créer un nouveau timeout
         timeoutRef.current = setTimeout(() => {
-          if (pendingSyncRef.current && isOnline) {
+          if (pendingSyncRef.current && isOnline && data.length > 0) {
             console.log(`Synchronisation différée de ${tableName} après ${debounceTime}ms`);
             syncTable(tableName, data)
               .then(() => {
@@ -89,6 +90,29 @@ export function useSyncContext<T>(tableName: string, data: T[], options: SyncHoo
         });
       }
       return false;
+    }
+
+    // Éviter les tentatives de synchronisation trop fréquentes (au moins 3 secondes entre les tentatives)
+    const now = Date.now();
+    if (now - lastSyncAttemptRef.current < 3000) {
+      console.log(`Tentative de synchronisation trop fréquente pour ${tableName}, ignorée`);
+      return false;
+    }
+    
+    lastSyncAttemptRef.current = now;
+
+    // Ne pas synchroniser si pas de données à envoyer
+    if (!data || data.length === 0) {
+      console.log(`Aucune donnée à synchroniser pour ${tableName}`);
+      
+      if (showToasts) {
+        toast({
+          title: "Aucune donnée à synchroniser",
+          description: `Pas de données à envoyer pour ${tableName}`
+        });
+      }
+      
+      return true;  // Succès car rien à faire
     }
 
     try {
@@ -144,6 +168,11 @@ export function useSyncContext<T>(tableName: string, data: T[], options: SyncHoo
   
   // Méthode pour notifier seulement les changements (sauvegarde locale)
   const notifyChanges = useCallback(() => {
+    // Ne pas continuer si pas de données
+    if (!data || data.length === 0) {
+      return;
+    }
+    
     // Sauvegarder dans localStorage
     const userId = getCurrentUser() || 'default';
     localStorage.setItem(`${tableName}_${userId}`, JSON.stringify(data));
@@ -161,7 +190,7 @@ export function useSyncContext<T>(tableName: string, data: T[], options: SyncHoo
       
       // Créer un nouveau timeout
       timeoutRef.current = setTimeout(() => {
-        if (pendingSyncRef.current && isOnline) {
+        if (pendingSyncRef.current && isOnline && data.length > 0) {
           console.log(`Synchronisation différée après notification de changements dans ${tableName}`);
           syncTable(tableName, data)
             .then(() => {

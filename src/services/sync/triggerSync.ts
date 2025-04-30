@@ -15,6 +15,12 @@ export const triggerSync = {
   triggerTableSync: async <T>(tableName: string, data: T[]): Promise<boolean> => {
     console.log(`TriggerSync: Déclenchement de la synchronisation pour ${tableName} (${data?.length || 0} éléments)`);
     
+    // Ne pas synchroniser s'il n'y a pas de données
+    if (!data || data.length === 0) {
+      console.log(`TriggerSync: Aucune donnée à synchroniser pour ${tableName}, opération annulée`);
+      return true; // On considère que c'est un succès car il n'y a rien à faire
+    }
+    
     try {
       // Sauvegarder les données localement d'abord pour éviter toute perte
       dataSyncManager.saveLocalData(tableName, data);
@@ -48,6 +54,12 @@ export const triggerSync = {
    */
   notifyDataChange: <T>(tableName: string, data: T[]): void => {
     console.log(`TriggerSync: Notification de changement de données pour ${tableName}`);
+    
+    // Ne pas continuer s'il n'y a pas de données
+    if (!data || data.length === 0) {
+      console.log(`TriggerSync: Aucune donnée à notifier pour ${tableName}, opération annulée`);
+      return;
+    }
     
     // Vérifier si la table doit être mappée (ancien nom vers nouveau nom)
     const tableMappings: Record<string, string> = {

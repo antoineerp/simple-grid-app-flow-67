@@ -15,6 +15,7 @@ const GlobalSyncManager: React.FC = () => {
   // Référence pour suivre les synchronisations déjà traitées
   const processedSyncs = useRef<Set<string>>(new Set());
   const syncTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const lastSyncAttemptRef = useRef<number>(0);
   
   // Vérifier les données en attente de synchronisation dans localStorage
   const checkPendingSyncs = () => {
@@ -26,6 +27,15 @@ const GlobalSyncManager: React.FC = () => {
   // Synchroniser les changements en attente
   const syncPendingChanges = () => {
     if (!isOnline) return;
+    
+    // Éviter les synchronisations trop fréquentes (minimum 5 secondes entre les tentatives)
+    const now = Date.now();
+    if (now - lastSyncAttemptRef.current < 5000) {
+      console.log("GlobalSyncManager: Tentative de synchronisation trop fréquente, ignorée");
+      return;
+    }
+    
+    lastSyncAttemptRef.current = now;
     
     // Vérifier s'il y a des syncs en attente
     if (checkPendingSyncs()) {
