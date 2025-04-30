@@ -44,6 +44,7 @@ export const useLoginForm = () => {
         
         // S'assurer que le token est bien enregistré avant la navigation
         sessionStorage.setItem('authToken', result.token);
+        localStorage.setItem('authToken', result.token); // Stocker également dans localStorage pour plus de persistance
         
         toast({
           title: "Connexion réussie",
@@ -52,22 +53,22 @@ export const useLoginForm = () => {
         
         console.log("Connexion réussie, préparation de la redirection vers /pilotage");
         
-        // Utiliser setTimeout avec un délai plus long pour s'assurer que le token est bien enregistré
-        setTimeout(() => {
-          console.log("Redirection vers /pilotage via navigate()");
+        // Simplifier la navigation pour éviter les erreurs
+        // Ne pas utiliser setTimeout pour la navigation
+        try {
+          console.log("Redirection vers /pilotage...");
+          navigate('/pilotage');
           
-          // Notification avant la navigation
-          toast({
-            title: "Redirection",
-            description: "Navigation vers le tableau de bord en cours...",
-          });
-          
-          // Navigation via react-router
-          navigate('/pilotage', { replace: true });
-          
-          // Log supplémentaire après la demande de navigation
-          console.log("Navigation demandée vers /pilotage, vérification de l'URL actuelle:", window.location.href);
-        }, 500);
+          // Re-charger la page après un court délai si nécessaire
+          // pour s'assurer que le token est bien pris en compte
+          setTimeout(() => {
+            window.location.href = '/pilotage';
+          }, 2000);
+        } catch (navError) {
+          console.error("Erreur lors de la navigation:", navError);
+          // Fallback en cas d'échec de la navigation React Router
+          window.location.href = '/pilotage';
+        }
       } else {
         console.error("Échec de connexion:", result.message);
         setError(result.message || 'Échec de la connexion');

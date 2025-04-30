@@ -9,6 +9,18 @@ const GlobalSyncManager: React.FC = () => {
   const syncAttempts = useRef<number>(0);
   const lastSyncRef = useRef<number>(Date.now());
   const syncLockRef = useRef<Record<string, boolean>>({});
+  const mountedRef = useRef<boolean>(false);
+  
+  // Assurer que le composant est bien monté avant d'exécuter des effets
+  useEffect(() => {
+    console.log("GlobalSyncManager - Composant monté");
+    mountedRef.current = true;
+    
+    return () => {
+      console.log("GlobalSyncManager - Composant démonté");
+      mountedRef.current = false;
+    };
+  }, []);
   
   // Utiliser un effet pour démarrer la synchronisation en arrière-plan
   useEffect(() => {
@@ -17,13 +29,15 @@ const GlobalSyncManager: React.FC = () => {
       
       // Déclencher la première synchronisation après 2 secondes
       const timeoutId = setTimeout(() => {
-        if (!syncingInProgress) {
+        if (!syncingInProgress && mountedRef.current) {
           console.log("GlobalSyncManager - Démarrage de la synchronisation initiale");
           setSyncingInProgress(true);
           syncAttempts.current = 1;
           
           syncAll()
             .then(results => {
+              if (!mountedRef.current) return;
+              
               console.log("GlobalSyncManager - Résultats de la synchronisation initiale:", results);
               setSyncingInProgress(false);
               lastSyncRef.current = Date.now();
@@ -36,6 +50,8 @@ const GlobalSyncManager: React.FC = () => {
               });
             })
             .catch(error => {
+              if (!mountedRef.current) return;
+              
               console.error("GlobalSyncManager - Erreur lors de la synchronisation initiale:", error);
               setSyncingInProgress(false);
             });
@@ -44,13 +60,15 @@ const GlobalSyncManager: React.FC = () => {
       
       // Planifier des synchronisations périodiques (toutes les 5 minutes - augmenté pour réduire les conflits)
       const intervalId = setInterval(() => {
-        if (isOnline && !syncingInProgress && Date.now() - lastSyncRef.current > 300000) {
+        if (isOnline && !syncingInProgress && mountedRef.current && Date.now() - lastSyncRef.current > 300000) {
           console.log("GlobalSyncManager - Exécution de la synchronisation périodique");
           
           // Utiliser un verrou pour éviter les synchronisations simultanées
           if (!Object.values(syncLockRef.current).some(lock => lock)) {
             syncAll().then(() => {
-              lastSyncRef.current = Date.now();
+              if (mountedRef.current) {
+                lastSyncRef.current = Date.now();
+              }
             }).catch(error => {
               console.error("GlobalSyncManager - Erreur lors de la synchronisation périodique:", error);
             });
@@ -58,7 +76,7 @@ const GlobalSyncManager: React.FC = () => {
             console.log("GlobalSyncManager - Synchronisation déjà en cours, requête ignorée");
           }
         }
-      }, 300000); // 5 minutes (augmenté de 3 à 5 minutes)
+      }, 300000); // 5 minutes
       
       syncTimer.current = intervalId;
       
@@ -69,7 +87,7 @@ const GlobalSyncManager: React.FC = () => {
     } catch (error) {
       console.error("GlobalSyncManager - Erreur lors de l'initialisation de la synchronisation:", error);
     }
-  }, [syncAll, isOnline]);
+  }, [syncAll, isOnline, syncingInProgress]);
   
   // Écouter les changements de route pour re-synchroniser les données avec délai
   useEffect(() => {
@@ -78,6 +96,8 @@ const GlobalSyncManager: React.FC = () => {
     const navigationDebounceRef = useRef<NodeJS.Timeout | null>(null);
     
     const handleRouteChange = () => {
+      if (!mountedRef.current) return;
+      
       // Ajouter un délai minimum entre les synchronisations (5 secondes)
       const now = Date.now();
       if (isOnline && now - lastNavigationTimeRef.current > 5000 && now - lastSyncRef.current > 30000) {
@@ -90,17 +110,19 @@ const GlobalSyncManager: React.FC = () => {
         
         // Attendre un peu plus longtemps que la page soit complètement chargée et stabilisée
         navigationDebounceRef.current = setTimeout(() => {
-          if (!syncingInProgress && !Object.values(syncLockRef.current).some(lock => lock)) {
+          if (!syncingInProgress && !Object.values(syncLockRef.current).some(lock => lock) && mountedRef.current) {
             syncAll().then(() => {
-              lastSyncRef.current = Date.now();
-              lastNavigationTimeRef.current = Date.now();
+              if (mountedRef.current) {
+                lastSyncRef.current = Date.now();
+                lastNavigationTimeRef.current = Date.now();
+              }
             }).catch(error => {
               console.error("GlobalSyncManager - Erreur lors de la synchronisation après changement de route:", error);
             });
           } else {
             console.log("GlobalSyncManager - Synchronisation déjà en cours après navigation, requête ignorée");
           }
-        }, 1500); // Augmenté à 1.5 secondes pour éviter les conflits
+        }, 1500); // 1.5 secondes pour éviter les conflits
       }
     };
     
@@ -121,8 +143,10 @@ const GlobalSyncManager: React.FC = () => {
     
     if (syncingInProgress) {
       timeoutId = setTimeout(() => {
-        console.log("GlobalSyncManager - Timeout de synchronisation atteint, réinitialisation");
-        setSyncingInProgress(false);
+        if (mountedRef.current) {
+          console.log("GlobalSyncManager - Timeout de synchronisation atteint, réinitialisation");
+          setSyncingInProgress(false);
+        }
       }, 30000); // 30 secondes maximum
     }
     

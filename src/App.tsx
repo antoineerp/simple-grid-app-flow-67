@@ -1,5 +1,5 @@
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
@@ -15,18 +15,42 @@ import Collaboration from '@/pages/Collaboration';
 import { getIsLoggedIn, getCurrentUser } from '@/services/auth/authService';
 import { MembresProvider } from '@/contexts/MembresContext';
 import { initializeSyncStorageCleaner } from './utils/syncStorageCleaner';
+import { Loader2 } from 'lucide-react';
 
-// Composant de route protégée qui vérifie l'authentification
+// Composant de route protégée avec gestion des erreurs améliorée
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const location = useLocation();
-  const isLoggedIn = getIsLoggedIn();
-  const currentUser = getCurrentUser();
+  const [isChecking, setIsChecking] = useState(true);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   
-  console.log('ProtectedRoute - Vérification de connexion:', isLoggedIn);
-  console.log('ProtectedRoute - Chemin demandé:', location.pathname);
-  console.log('ProtectedRoute - Détails utilisateur:', currentUser?.email || 'inconnu');
+  useEffect(() => {
+    try {
+      const isLoggedIn = getIsLoggedIn();
+      const currentUser = getCurrentUser();
+      
+      console.log('ProtectedRoute - Vérification de connexion:', isLoggedIn);
+      console.log('ProtectedRoute - Chemin demandé:', location.pathname);
+      console.log('ProtectedRoute - Détails utilisateur:', currentUser?.email || 'inconnu');
+      
+      setIsAuthenticated(isLoggedIn);
+    } catch (error) {
+      console.error('ProtectedRoute - Erreur lors de la vérification:', error);
+      setIsAuthenticated(false);
+    } finally {
+      setIsChecking(false);
+    }
+  }, [location.pathname]);
   
-  if (!isLoggedIn) {
+  // Afficher un indicateur de chargement pendant la vérification
+  if (isChecking) {
+    return (
+      <div className="h-screen w-full flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+  
+  if (!isAuthenticated) {
     console.log('ProtectedRoute - Accès non autorisé, redirection vers la page de connexion');
     return <Navigate to="/" />;
   }
@@ -46,23 +70,67 @@ const RouteTracker = () => {
   return null;
 };
 
+function ErrorBoundaryComponent() {
+  return (
+    <div className="h-screen flex flex-col items-center justify-center p-4">
+      <h1 className="text-2xl font-bold text-red-600 mb-4">
+        Une erreur s'est produite
+      </h1>
+      <p className="mb-6 text-center">
+        L'application a rencontré un problème inattendu.
+      </p>
+      <button 
+        className="px-4 py-2 bg-blue-500 text-white rounded"
+        onClick={() => window.location.href = '/'}
+      >
+        Retourner à l'accueil
+      </button>
+    </div>
+  );
+}
+
 function App() {
+  const [hasError, setHasError] = useState(false);
+  
   useEffect(() => {
+    // Gestionnaire d'erreurs global
+    const handleGlobalError = (event: ErrorEvent) => {
+      console.error("Erreur globale détectée:", event.error);
+      setHasError(true);
+    };
+    
+    window.addEventListener('error', handleGlobalError);
+    
     // Exécuter le nettoyage des données de synchronisation au démarrage
-    initializeSyncStorageCleaner();
-    console.log("App - Nettoyage des données de synchronisation initialisé");
+    try {
+      initializeSyncStorageCleaner();
+      console.log("App - Nettoyage des données de synchronisation initialisé");
+    } catch (error) {
+      console.error("App - Erreur lors de l'initialisation du nettoyage:", error);
+    }
     
     // Planifier une vérification de la synchronisation au démarrage
     const timeoutId = setTimeout(() => {
-      // Déclencher un événement pour vérifier l'état de la synchronisation
-      window.dispatchEvent(new CustomEvent("checkSyncStatus"));
-      console.log("App - Événement de vérification de synchronisation déclenché");
+      try {
+        // Déclencher un événement pour vérifier l'état de la synchronisation
+        window.dispatchEvent(new CustomEvent("checkSyncStatus"));
+        console.log("App - Événement de vérification de synchronisation déclenché");
+      } catch (error) {
+        console.error("App - Erreur lors de la vérification de synchronisation:", error);
+      }
     }, 5000); // Attendre 5 secondes après le chargement
     
-    return () => clearTimeout(timeoutId);
+    return () => {
+      window.removeEventListener('error', handleGlobalError);
+      clearTimeout(timeoutId);
+    };
   }, []);
   
   console.log('App - Rendu initial de l\'application');
+  
+  if (hasError) {
+    return <ErrorBoundaryComponent />;
+  }
   
   return (
     <Router>

@@ -1,5 +1,5 @@
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { Toaster } from "@/components/ui/toaster";
 import Sidebar from '../Sidebar';
@@ -9,45 +9,69 @@ import { GlobalSyncProvider } from '@/contexts/GlobalSyncContext';
 import GlobalSyncManager from '@/components/common/GlobalSyncManager';
 import { getIsLoggedIn, getCurrentUser } from '@/services/auth/authService';
 import { TooltipProvider } from '@/components/ui/tooltip';
+import { Loader2 } from 'lucide-react';
 
 const Layout = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const [isLoading, setIsLoading] = useState(true);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   
   useEffect(() => {
-    // Journalisation détaillée pour le débogage (mais sans notification visuelle)
-    console.log("Layout - Rendu initial, chemin actuel:", location.pathname);
-    
-    // Vérifier si l'utilisateur est connecté
-    const isLoggedIn = getIsLoggedIn();
-    const currentUser = getCurrentUser();
-    
-    console.log("Layout - État de connexion:", isLoggedIn);
-    console.log("Layout - Utilisateur actuel:", currentUser);
-    
-    if (!isLoggedIn) {
-      console.log("Layout - Utilisateur non connecté, redirection vers la page de connexion");
-      navigate('/');
-      return;
-    }
-    
-    console.log("Layout - Initialisation du composant Layout pour un utilisateur connecté");
-    console.log("Layout - Nom d'utilisateur:", currentUser?.email);
-    console.log("Layout - Rôle utilisateur:", currentUser?.role);
-    console.log("Layout - Identifiant technique:", currentUser?.identifiant_technique);
-    
-    // Vérifier que tous les contextes sont disponibles
-    try {
-      if (document.querySelector('[data-testid="global-sync-initialized"]')) {
-        console.log("Layout - Contexte GlobalSync initialisé correctement");
-      } else {
-        console.warn("Layout - Élément GlobalSync non trouvé dans le DOM");
+    const checkAuth = () => {
+      // Journalisation détaillée pour le débogage
+      console.log("Layout - Vérification de l'authentification, chemin actuel:", location.pathname);
+      
+      try {
+        // Vérifier si l'utilisateur est connecté
+        const isLoggedIn = getIsLoggedIn();
+        const currentUser = getCurrentUser();
+        
+        console.log("Layout - État de connexion:", isLoggedIn);
+        console.log("Layout - Utilisateur actuel:", currentUser);
+        
+        if (!isLoggedIn) {
+          console.log("Layout - Utilisateur non connecté, redirection vers la page de connexion");
+          navigate('/', { replace: true });
+          return;
+        }
+        
+        console.log("Layout - Utilisateur authentifié");
+        setIsAuthenticated(true);
+        
+        console.log("Layout - Initialisation du composant Layout pour un utilisateur connecté");
+        console.log("Layout - Nom d'utilisateur:", currentUser?.email);
+        console.log("Layout - Rôle utilisateur:", currentUser?.role);
+        console.log("Layout - Identifiant technique:", currentUser?.identifiant_technique);
+      } catch (error) {
+        console.error("Layout - Erreur lors de la vérification de l'authentification:", error);
+        navigate('/', { replace: true });
+      } finally {
+        setIsLoading(false);
       }
-    } catch (error) {
-      console.error("Layout - Erreur lors de la vérification des contextes:", error);
-    }
+    };
     
+    // Exécuter la vérification après un court délai pour s'assurer que tout est chargé
+    const timeoutId = setTimeout(checkAuth, 100);
+    return () => clearTimeout(timeoutId);
   }, [navigate, location.pathname]);
+  
+  // Afficher un indicateur de chargement pendant la vérification
+  if (isLoading) {
+    return (
+      <div className="h-screen w-full flex items-center justify-center bg-background">
+        <div className="flex flex-col items-center">
+          <Loader2 className="h-12 w-12 animate-spin text-primary" />
+          <p className="mt-4 text-lg text-muted-foreground">Chargement de l'application...</p>
+        </div>
+      </div>
+    );
+  }
+  
+  // Si l'utilisateur n'est pas authentifié, le useEffect se chargera de rediriger
+  if (!isAuthenticated) {
+    return null;
+  }
 
   return (
     <GlobalDataProvider>
