@@ -415,5 +415,3 @@ export const SyncDiagnosticPanel: React.FC<SyncDiagnosticPanelProps> = ({ onClos
     </div>
   );
 };
-
-export { SyncDiagnosticPanel };
