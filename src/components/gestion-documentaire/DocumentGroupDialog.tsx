@@ -12,6 +12,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { DocumentGroup } from '@/types/documents';
+import { triggerSync } from '@/services/sync/triggerSync';
+import { getCurrentUser } from '@/services/core/databaseConnectionService';
 
 interface DocumentGroupDialogProps {
   group: DocumentGroup | null;
@@ -63,11 +65,17 @@ export const DocumentGroupDialog = ({
 
     onSave(updatedGroup, isEditing);
     
+    // Récupérer l'ID de l'utilisateur courant
+    const currentUser = getCurrentUser();
+    
     // Émettre un événement pour notifier que les données ont changé
     if (typeof window !== 'undefined') {
       window.dispatchEvent(new CustomEvent('sync-data-changed', { 
         detail: { tableName: 'documents_groups', timestamp: new Date().toISOString() }
       }));
+      
+      // Notifier également le service de synchronisation
+      triggerSync.notifyDataChange('documents_groups', [updatedGroup], currentUser);
     }
     
     onOpenChange(false);
