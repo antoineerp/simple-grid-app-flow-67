@@ -40,10 +40,11 @@ const SyncHealthIndicator: React.FC<SyncHealthIndicatorProps> = ({
       setHealth(currentStatus.health);
       setActiveCount(currentStatus.activeCount);
       
-      // S'assurer que toutes les tentatives ont une propriété operation définie
+      // Garantir que toutes les tentatives ont une propriété operation définie
       const typedAttempts: SyncAttempt[] = currentStatus.recentAttempts.map(attempt => ({
         ...attempt,
-        operation: attempt.operation || 'unknown' // Garantir que operation est toujours défini
+        // Assurer que 'operation' est toujours défini, si absent utiliser une valeur par défaut
+        operation: attempt.operation || 'unknown'
       }));
 
       setStatus({
