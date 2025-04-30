@@ -4,7 +4,7 @@ import DocumentTable from '@/components/documents/DocumentTable';
 import { useDocuments } from '@/hooks/useDocuments';
 import { getDatabaseConnectionCurrentUser } from '@/services/core/databaseConnectionService';
 import { Button } from '@/components/ui/button';
-import { Plus, FileText, RefreshCw } from 'lucide-react';
+import { Plus, FileText, RefreshCw, FolderPlus } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 const GestionDocumentaire = () => {
@@ -88,18 +88,19 @@ const GestionDocumentaire = () => {
       
       <div className="mt-4 flex justify-end space-x-2">
         <Button
+          onClick={handleAddGroup}
+          variant="outline"
+          className="flex items-center hover:bg-gray-100 transition-colors"
+        >
+          <FolderPlus className="h-4 w-4 mr-2" />
+          Nouveau groupe
+        </Button>
+        <Button
           onClick={handleAddDocument}
           className="flex items-center bg-app-blue hover:bg-app-blue/90"
         >
           <Plus className="h-4 w-4 mr-1" />
           Ajouter un document
-        </Button>
-        <Button
-          onClick={handleAddGroup}
-          className="flex items-center bg-green-600 hover:bg-green-700"
-        >
-          <FileText className="h-4 w-4 mr-1" />
-          Ajouter un groupe
         </Button>
       </div>
     </div>
