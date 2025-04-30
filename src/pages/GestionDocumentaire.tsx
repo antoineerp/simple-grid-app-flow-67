@@ -36,7 +36,6 @@ const GestionDocumentaireContent = () => {
     handleDeleteGroup,
     handleGroupReorder,
     handleToggleGroup,
-    syncWithServer
   } = useDocuments();
   
   const { toast } = useToast();

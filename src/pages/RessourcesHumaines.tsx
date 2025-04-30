@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { FileText, UserPlus, RefreshCw } from 'lucide-react';
+import { FileText, UserPlus } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import {
   Dialog,
@@ -172,14 +172,6 @@ const RessourcesHumaines = () => {
           <h1 className="text-3xl font-bold text-app-blue">Ressources Humaines</h1>
         </div>
         <div className="flex space-x-2">
-          <button 
-            onClick={handleRefresh}
-            className="text-blue-600 p-2 rounded-md hover:bg-blue-50 transition-colors flex items-center"
-            title="Rafraîchir la liste"
-            disabled={refreshing}
-          >
-            <RefreshCw className={`h-6 w-6 stroke-[1.5] ${refreshing ? 'animate-spin' : ''}`} />
-          </button>
           <button 
             onClick={handleExportAllToPdf}
             className="text-red-600 p-2 rounded-md hover:bg-red-50 transition-colors"
