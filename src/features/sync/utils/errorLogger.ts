@@ -3,7 +3,7 @@
  * Utility for error logging and management
  */
 
-// Assurez-vous que window.errorLogs est correctement typé
+// Correctly type errorLogs in the global Window interface
 declare global {
   interface Window {
     errorLogs: string[];
@@ -37,17 +37,19 @@ export const initializeErrorLogging = (): void => {
 
 // Check if there's an authentication error in recent logs
 export const hasAuthenticationError = (): boolean => {
-  return window.errorLogs && 
-    window.errorLogs.some(log => 
-      typeof log === 'string' && 
-      (log.includes('authentifi') || 
-       log.includes('auth') || 
-       log.includes('token') || 
-       log.includes('permission'))
-    );
+  if (typeof window === 'undefined' || !window.errorLogs) return false;
+  
+  return window.errorLogs.some(log => 
+    typeof log === 'string' && 
+    (log.includes('authentifi') || 
+     log.includes('auth') || 
+     log.includes('token') || 
+     log.includes('permission'))
+  );
 };
 
 // Get all recent errors
 export const getRecentErrors = (): string[] => {
+  if (typeof window === 'undefined') return [];
   return window.errorLogs || [];
 };
