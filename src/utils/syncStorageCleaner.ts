@@ -59,7 +59,7 @@ export const markDataChanged = (dataKey: string) => {
 /**
  * Nettoyer les données de synchronisation anciennes
  */
-const cleanSyncStorage = () => {
+export const cleanSyncStorage = () => {
   try {
     console.log("Nettoyage du stockage de synchronisation en cours...");
     let cleanedCount = 0;
@@ -85,5 +85,31 @@ const cleanSyncStorage = () => {
     console.log(`Nettoyage terminé: ${cleanedCount} éléments supprimés`);
   } catch (error) {
     console.error("Erreur lors du nettoyage du stockage:", error);
+  }
+};
+
+/**
+ * Fonction utilitaire sécurisée pour définir des valeurs dans le localStorage
+ */
+export const safeLocalStorageSet = <T>(key: string, value: T): void => {
+  try {
+    const jsonValue = JSON.stringify(value);
+    localStorage.setItem(key, jsonValue);
+  } catch (error) {
+    console.error(`Erreur lors de la sauvegarde dans localStorage pour la clé ${key}:`, error);
+  }
+};
+
+/**
+ * Fonction utilitaire sécurisée pour récupérer des valeurs du localStorage
+ */
+export const safeLocalStorageGet = <T>(key: string, defaultValue: T): T => {
+  try {
+    const value = localStorage.getItem(key);
+    if (value === null) return defaultValue;
+    return JSON.parse(value) as T;
+  } catch (error) {
+    console.error(`Erreur lors de la lecture depuis localStorage pour la clé ${key}:`, error);
+    return defaultValue;
   }
 };

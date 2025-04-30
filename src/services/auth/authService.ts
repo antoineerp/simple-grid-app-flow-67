@@ -16,7 +16,14 @@ export const getCurrentUser = (): any => {
   }
 };
 
-export const login = async (email: string, password: string): Promise<boolean> => {
+interface AuthResult {
+  success: boolean;
+  token?: string;
+  user?: any;
+  message?: string;
+}
+
+export const login = async (email: string, password: string): Promise<AuthResult> => {
   try {
     // Cette fonction simule une authentification pour les besoins de débogage
     console.log(`Tentative de connexion avec ${email}`);
@@ -36,10 +43,17 @@ export const login = async (email: string, password: string): Promise<boolean> =
     localStorage.setItem('currentUser', JSON.stringify(user));
     localStorage.setItem('authToken', 'fake-token-for-debug-purposes');
     
-    return true;
+    return {
+      success: true,
+      token: 'fake-token-for-debug-purposes',
+      user: user
+    };
   } catch (error) {
     console.error('Erreur lors de la connexion:', error);
-    return false;
+    return {
+      success: false,
+      message: error instanceof Error ? error.message : 'Erreur inconnue lors de la connexion'
+    };
   }
 };
 
