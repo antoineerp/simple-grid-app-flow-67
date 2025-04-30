@@ -37,7 +37,7 @@ export const useBibliotheque = () => {
   );
   
   // Use the GlobalSync context
-  const { syncTable, syncAll, isOnline, updateSyncState } = useGlobalSync();
+  const { syncTable, syncAll, isOnline } = useGlobalSync();
   const { syncStates } = useGlobalSync();
   
   // Récupérer l'état de synchronisation spécifique pour 'collaboration'
@@ -280,9 +280,6 @@ export const useBibliotheque = () => {
       console.log(`Documents à synchroniser pour l'utilisateur ${currentUser}:`, documents);
       console.log(`Groupes à synchroniser pour l'utilisateur ${currentUser}:`, groups);
       
-      // Mettre à jour l'état de synchronisation
-      updateSyncState('collaboration', { isSyncing: true });
-      
       // Synchroniser les documents
       await syncTable('collaboration', documents.map(doc => ({
         ...doc,
@@ -304,24 +301,10 @@ export const useBibliotheque = () => {
       });
       window.dispatchEvent(syncEvent);
       
-      // Mettre à jour l'état après synchronisation
-      updateSyncState('collaboration', { 
-        isSyncing: false,
-        lastSynced: new Date(),
-        syncFailed: false
-      });
-      
       console.log("Fin de la synchronisation des documents de collaboration");
       return Promise.resolve();
     } catch (error) {
       console.error("Erreur lors de la synchronisation des documents:", error);
-      
-      // Mettre à jour l'état en cas d'erreur
-      updateSyncState('collaboration', { 
-        isSyncing: false,
-        syncFailed: true
-      });
-      
       return Promise.reject(error);
     }
   };

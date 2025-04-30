@@ -153,7 +153,9 @@ function App() {
             } />
             <Route path="gestion-documentaire" element={
               <ProtectedRoute>
-                <GestionDocumentaire />
+                <MembresProvider>
+                  <GestionDocumentaire />
+                </MembresProvider>
               </ProtectedRoute>
             } />
             <Route path="ressources-humaines" element={
