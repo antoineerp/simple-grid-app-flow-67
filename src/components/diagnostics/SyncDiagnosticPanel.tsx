@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -364,7 +363,7 @@ export const SyncDiagnosticPanel: React.FC<SyncDiagnosticPanelProps> = ({ onClos
                 <Badge 
                   variant={
                     info.status === 'ok' ? 'default' : 
-                    info.status === 'warning' ? 'warning' : 
+                    info.status === 'warning' ? 'secondary' : 
                     info.status === 'error' ? 'destructive' : 
                     'outline'
                   }
@@ -416,3 +415,5 @@ export const SyncDiagnosticPanel: React.FC<SyncDiagnosticPanelProps> = ({ onClos
     </div>
   );
 };
+
+export { SyncDiagnosticPanel };
