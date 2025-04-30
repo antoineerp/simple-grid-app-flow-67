@@ -62,8 +62,12 @@ export const useSync = (tableName: string): SyncState & {
 
       // Utiliser le service central pour la synchronisation
       // Passer seulement les arguments nécessaires
-      // Correction: Ne passons que les arguments attendus par syncTable
-      const result = await syncTable(tableName, data, options?.userId);
+      // Correction: S'assurer que trigger est bien du type attendu
+      const validTrigger = (trigger === "auto" || trigger === "manual" || trigger === "initial") 
+        ? trigger 
+        : "auto";
+        
+      const result = await syncTable(tableName, data, validTrigger);
       
       if (result.success) {
         // Stocker de manière sécurisée la date de dernière synchronisation
