@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useToast } from '@/hooks/use-toast';
 
 interface NetworkStatus {
@@ -11,6 +11,7 @@ export const useNetworkStatus = (): NetworkStatus => {
   const [isOnline, setIsOnline] = useState<boolean>(navigator.onLine);
   const [wasOffline, setWasOffline] = useState<boolean>(false);
   const { toast } = useToast();
+  const initialCheckDone = useRef<boolean>(false);
   
   useEffect(() => {
     const handleOnline = () => {
@@ -48,9 +49,11 @@ export const useNetworkStatus = (): NetworkStatus => {
         });
         setIsOnline(true);
         console.log("Test de connectivité API réussi");
+        initialCheckDone.current = true;
       } catch (error) {
         console.error("Erreur de test de connectivité API:", error);
         setIsOnline(navigator.onLine);
+        initialCheckDone.current = true;
       }
     };
     

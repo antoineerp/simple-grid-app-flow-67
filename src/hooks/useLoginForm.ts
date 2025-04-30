@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
 import { login } from '@/services/auth/authService';
@@ -26,7 +26,7 @@ export const useLoginForm = () => {
     }
   });
   
-  const onSubmit = async (values: LoginFormValues) => {
+  const handleSubmit = useCallback(async (values: LoginFormValues) => {
     setIsLoading(true);
     setError(null);
     setHasDbError(false);
@@ -112,7 +112,9 @@ export const useLoginForm = () => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [navigate, toast]);
+  
+  const onSubmit = form.handleSubmit(handleSubmit);
   
   return {
     form,
@@ -121,6 +123,6 @@ export const useLoginForm = () => {
     hasDbError,
     hasServerError,
     hasAuthError,
-    onSubmit: form.handleSubmit(onSubmit)
+    onSubmit
   };
 };

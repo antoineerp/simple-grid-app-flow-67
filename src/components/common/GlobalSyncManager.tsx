@@ -11,6 +11,8 @@ const GlobalSyncManager: React.FC = () => {
   const syncLockRef = useRef<Record<string, boolean>>({});
   const mountedRef = useRef<boolean>(false);
   const initRef = useRef<boolean>(false);
+  const lastNavigationTimeRef = useRef<number>(Date.now());
+  const navigationDebounceRef = useRef<NodeJS.Timeout | null>(null);
   
   // Assurer que le composant est bien monté avant d'exécuter des effets
   useEffect(() => {
@@ -55,7 +57,7 @@ const GlobalSyncManager: React.FC = () => {
       
       // Déclencher la première synchronisation après 2 secondes
       const timeoutId = setTimeout(() => {
-        if (!syncingInProgress && mountedRef.current) {
+        if (mountedRef.current) {
           console.log("GlobalSyncManager - Démarrage de la synchronisation initiale");
           setSyncingInProgress(true);
           syncAttempts.current = 1;
@@ -76,10 +78,10 @@ const GlobalSyncManager: React.FC = () => {
               });
             })
             .catch(error => {
-              if (!mountedRef.current) return;
-              
-              console.error("GlobalSyncManager - Erreur lors de la synchronisation initiale:", error);
-              setSyncingInProgress(false);
+              if (mountedRef.current) {
+                console.error("GlobalSyncManager - Erreur lors de la synchronisation initiale:", error);
+                setSyncingInProgress(false);
+              }
             });
         }
       }, 2000);
@@ -92,7 +94,8 @@ const GlobalSyncManager: React.FC = () => {
           console.log("GlobalSyncManager - Exécution de la synchronisation périodique");
           
           // Utiliser un verrou pour éviter les synchronisations simultanées
-          if (!Object.values(syncLockRef.current).some(lock => lock)) {
+          const hasActiveLock = Object.values(syncLockRef.current).some(lock => lock);
+          if (!hasActiveLock) {
             syncAll().then(() => {
               if (mountedRef.current) {
                 lastSyncRef.current = Date.now();
@@ -119,9 +122,6 @@ const GlobalSyncManager: React.FC = () => {
   
   // Écouter les changements de route pour re-synchroniser les données
   useEffect(() => {
-    const lastNavigationTimeRef = useRef<number>(Date.now());
-    const navigationDebounceRef = useRef<NodeJS.Timeout | null>(null);
-    
     const handleRouteChange = () => {
       if (!mountedRef.current) return;
       
@@ -137,7 +137,8 @@ const GlobalSyncManager: React.FC = () => {
         
         // Attendre que la page soit complètement chargée
         navigationDebounceRef.current = setTimeout(() => {
-          if (!syncingInProgress && !Object.values(syncLockRef.current).some(lock => lock) && mountedRef.current) {
+          const hasActiveLock = Object.values(syncLockRef.current).some(lock => lock);
+          if (!syncingInProgress && !hasActiveLock && mountedRef.current) {
             syncAll().then(() => {
               if (mountedRef.current) {
                 lastSyncRef.current = Date.now();

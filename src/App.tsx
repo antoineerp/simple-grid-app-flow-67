@@ -24,24 +24,28 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   
   useEffect(() => {
-    try {
-      const isLoggedIn = getIsLoggedIn();
-      const currentUser = getCurrentUser();
-      
-      console.log('ProtectedRoute - Vérification de connexion:', isLoggedIn);
-      console.log('ProtectedRoute - Chemin demandé:', location.pathname);
-      
-      if (currentUser) {
-        console.log('ProtectedRoute - Détails utilisateur:', currentUser.email || 'inconnu');
+    const checkAuth = () => {
+      try {
+        const isLoggedIn = getIsLoggedIn();
+        const currentUser = getCurrentUser();
+        
+        console.log('ProtectedRoute - Vérification de connexion:', isLoggedIn);
+        console.log('ProtectedRoute - Chemin demandé:', location.pathname);
+        
+        if (currentUser) {
+          console.log('ProtectedRoute - Détails utilisateur:', currentUser.email || 'inconnu');
+        }
+        
+        setIsAuthenticated(isLoggedIn);
+      } catch (error) {
+        console.error('ProtectedRoute - Erreur lors de la vérification:', error);
+        setIsAuthenticated(false);
+      } finally {
+        setIsChecking(false);
       }
-      
-      setIsAuthenticated(isLoggedIn);
-    } catch (error) {
-      console.error('ProtectedRoute - Erreur lors de la vérification:', error);
-      setIsAuthenticated(false);
-    } finally {
-      setIsChecking(false);
-    }
+    };
+    
+    checkAuth();
   }, [location.pathname]);
   
   // Afficher un indicateur de chargement pendant la vérification
@@ -124,7 +128,6 @@ function App() {
   return (
     <Router>
       <TooltipProvider>
-        <RouteTracker />
         <Routes>
           {/* Route publique */}
           <Route path="/" element={<Index />} />
@@ -176,6 +179,7 @@ function App() {
           <Route path="*" element={<Navigate to="/" />} />
         </Routes>
         <Toaster />
+        <RouteTracker />
       </TooltipProvider>
     </Router>
   );
