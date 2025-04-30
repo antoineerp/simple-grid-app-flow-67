@@ -4,6 +4,7 @@ export interface Document {
   name: string;
   link?: string;
   groupId?: string;
+  userId?: string;
 }
 
 export interface DocumentGroup {
@@ -11,6 +12,7 @@ export interface DocumentGroup {
   name: string;
   expanded: boolean;
   items: string[];
+  userId?: string;
 }
 
 export interface BibliothequeItem {
@@ -18,4 +20,5 @@ export interface BibliothequeItem {
   name: string;
   link?: string;
   groupId?: string;
+  userId?: string;
 }
