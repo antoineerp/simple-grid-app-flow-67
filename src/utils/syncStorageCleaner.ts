@@ -1,146 +1,89 @@
 
 /**
- * Utilitaire pour nettoyer le localStorage des données de synchronisation
+ * Utilitaire pour nettoyer le stockage de synchronisation
  */
 
-const SYNC_PREFIX = 'sync_';
-const MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000; // 7 jours
+// Clé pour le dernier nettoyage
+const LAST_CLEANUP_KEY = 'last_sync_storage_cleanup';
+
+// Intervalle de nettoyage en millisecondes (12 heures)
+const CLEANUP_INTERVAL = 12 * 60 * 60 * 1000;
+
+// Préfixe pour les données modifiées
+const CHANGED_DATA_PREFIX = 'sync_changed_';
 
 /**
- * Nettoyer les données de synchronisation périmées du localStorage
+ * Initialiser le nettoyage périodique du stockage
  */
-export const cleanSyncStorage = (): void => {
-  if (typeof window === 'undefined') return;
-  
+export const initializeSyncStorageCleaner = () => {
   try {
-    console.log("SyncStorageCleaner: Nettoyage du localStorage...");
-    
     const now = Date.now();
+    const lastCleanup = parseInt(localStorage.getItem(LAST_CLEANUP_KEY) || '0');
+    
+    // Si le dernier nettoyage était il y a plus que l'intervalle, nettoyer maintenant
+    if (now - lastCleanup > CLEANUP_INTERVAL) {
+      cleanSyncStorage();
+      localStorage.setItem(LAST_CLEANUP_KEY, now.toString());
+    }
+    
+    // Planifier le nettoyage périodique
+    window.addEventListener('beforeunload', () => {
+      const currentTime = Date.now();
+      const lastCleanupTime = parseInt(localStorage.getItem(LAST_CLEANUP_KEY) || '0');
+      
+      if (currentTime - lastCleanupTime > CLEANUP_INTERVAL) {
+        cleanSyncStorage();
+        localStorage.setItem(LAST_CLEANUP_KEY, currentTime.toString());
+      }
+    });
+    
+    console.log("Nettoyage du stockage de synchronisation initialisé");
+  } catch (error) {
+    console.error("Erreur lors de l'initialisation du nettoyage du stockage:", error);
+  }
+};
+
+/**
+ * Marquer un ensemble de données comme modifié
+ */
+export const markDataChanged = (dataKey: string) => {
+  try {
+    const changedKey = `${CHANGED_DATA_PREFIX}${dataKey}`;
+    localStorage.setItem(changedKey, Date.now().toString());
+    console.log(`Données marquées comme modifiées: ${dataKey}`);
+  } catch (error) {
+    console.error("Erreur lors du marquage des données comme modifiées:", error);
+  }
+};
+
+/**
+ * Nettoyer les données de synchronisation anciennes
+ */
+const cleanSyncStorage = () => {
+  try {
+    console.log("Nettoyage du stockage de synchronisation en cours...");
     let cleanedCount = 0;
     
-    // Parcourir toutes les clés dans localStorage
+    // Parcourir toutes les clés du localStorage
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i);
-      
       if (!key) continue;
       
-      // Vérifier si c'est une clé de synchronisation
-      if (key.startsWith(SYNC_PREFIX)) {
-        try {
-          const value = localStorage.getItem(key);
-          if (!value) continue;
-          
-          // Essayer de parser JSON pour les métadonnées de la synchronisation
-          if (key.includes('_meta_')) {
-            const metadata = JSON.parse(value);
-            
-            // Vérifier la date de dernière modification
-            if (metadata && metadata.lastModified) {
-              const lastModified = new Date(metadata.lastModified).getTime();
-              
-              // Supprimer si trop ancien
-              if (now - lastModified > MAX_AGE_MS) {
-                localStorage.removeItem(key);
-                cleanedCount++;
-              }
-            }
-          }
-        } catch (err) {
-          console.error(`Erreur lors du nettoyage de ${key}:`, err);
+      // Nettoyer les marqueurs de données modifiées plus vieux que 30 jours
+      if (key.startsWith(CHANGED_DATA_PREFIX)) {
+        const timestamp = parseInt(localStorage.getItem(key) || '0');
+        const now = Date.now();
+        
+        // Si plus vieux que 30 jours
+        if (now - timestamp > 30 * 24 * 60 * 60 * 1000) {
+          localStorage.removeItem(key);
+          cleanedCount++;
         }
       }
     }
     
-    console.log(`SyncStorageCleaner: ${cleanedCount} entrées nettoyées`);
+    console.log(`Nettoyage terminé: ${cleanedCount} éléments supprimés`);
   } catch (error) {
-    console.error("SyncStorageCleaner: Erreur lors du nettoyage:", error);
+    console.error("Erreur lors du nettoyage du stockage:", error);
   }
 };
-
-/**
- * Initialiser le nettoyage périodique du localStorage
- */
-export const initializeSyncStorageCleaner = (): void => {
-  if (typeof window === 'undefined') return;
-  
-  console.log("SyncStorageCleaner: Initialisation du nettoyage périodique");
-  
-  // Nettoyer au démarrage
-  setTimeout(cleanSyncStorage, 5000);
-  
-  // Configurer le nettoyage périodique (toutes les 4 heures)
-  setInterval(cleanSyncStorage, 4 * 60 * 60 * 1000);
-};
-
-/**
- * Sauvegarder en toute sécurité dans le localStorage
- */
-export function safeLocalStorageSet<T>(key: string, value: T): void {
-  if (typeof window === 'undefined') return;
-  
-  try {
-    const serializedValue = typeof value === 'string' ? value : JSON.stringify(value);
-    localStorage.setItem(key, serializedValue);
-  } catch (error) {
-    console.error(`Erreur lors de la sauvegarde dans le localStorage (${key}):`, error);
-  }
-}
-
-/**
- * Récupérer en toute sécurité depuis le localStorage
- */
-export function safeLocalStorageGet<T>(key: string, defaultValue: T): T {
-  if (typeof window === 'undefined') return defaultValue;
-  
-  try {
-    const value = localStorage.getItem(key);
-    if (value === null) return defaultValue;
-    
-    // Si defaultValue est un string, on retourne directement la valeur
-    if (typeof defaultValue === 'string') return value as unknown as T;
-    
-    try {
-      // Sinon on essaie de parser en JSON
-      return JSON.parse(value);
-    } catch {
-      return value as unknown as T;
-    }
-  } catch (error) {
-    console.error(`Erreur lors de la récupération depuis le localStorage (${key}):`, error);
-    return defaultValue;
-  }
-}
-
-/**
- * Supprimer en toute sécurité depuis le localStorage
- */
-export function safeLocalStorageRemove(key: string): void {
-  if (typeof window === 'undefined') return;
-  
-  try {
-    localStorage.removeItem(key);
-  } catch (error) {
-    console.error(`Erreur lors de la suppression depuis le localStorage (${key}):`, error);
-  }
-}
-
-/**
- * Marquer qu'une table a été modifiée et nécessite une synchronisation
- */
-export function markDataChanged(tableName: string): void {
-  if (typeof window === 'undefined') return;
-  
-  try {
-    const key = `sync_changed_${tableName}`;
-    localStorage.setItem(key, new Date().toISOString());
-    
-    // Émettre un événement pour notifier les autres parties de l'application
-    window.dispatchEvent(new CustomEvent('data-changed', { 
-      detail: { tableName, timestamp: new Date().toISOString() }
-    }));
-    
-    console.log(`SyncStorageCleaner: Données marquées comme modifiées pour ${tableName}`);
-  } catch (error) {
-    console.error(`Erreur lors du marquage des données modifiées pour ${tableName}:`, error);
-  }
-}

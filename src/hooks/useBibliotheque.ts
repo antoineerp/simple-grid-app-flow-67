@@ -1,7 +1,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
-import { loadBibliothequeFromStorage, saveBibliothequeToStorage } from '@/services/bibliotheque/bibliothequeService';
-import { Document, DocumentGroup } from '@/types/bibliotheque';
+import { loadBibliothequeFromStorage, saveBibliothequeToStorage, getBibliothequeItems } from '@/services/bibliotheque/bibliothequeService';
+import { Document, DocumentGroup, BibliothequeItem } from '@/types/bibliotheque';
 import { useGlobalSync } from '@/contexts/GlobalSyncContext';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 
@@ -22,6 +22,9 @@ export const useBibliotheque = () => {
   const [syncFailed, setSyncFailed] = useState(false);
   const [lastSynced, setLastSynced] = useState<Date | null>(null);
   
+  // Pour la compatibilité avec l'ancien code
+  const [items, setItems] = useState<BibliothequeItem[]>([]);
+  
   const fetchItems = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -34,15 +37,13 @@ export const useBibliotheque = () => {
       const { documents: docs, groups: grps } = loadBibliothequeFromStorage(currentUser);
       setDocuments(docs);
       setGroups(grps);
+      setItems(docs); // Pour la compatibilité avec l'ancien code
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erreur lors du chargement des données');
     } finally {
       setLoading(false);
     }
   }, []);
-  
-  // For backwards compatibility we also provide "items" property
-  const items = documents;
   
   useEffect(() => {
     fetchItems();
@@ -81,6 +82,7 @@ export const useBibliotheque = () => {
     const currentUser = localStorage.getItem('currentUser') || 'default';
     
     setDocuments(newDocuments);
+    setItems(newDocuments);
     saveBibliothequeToStorage(newDocuments, groups, currentUser);
     setIsDialogOpen(false);
     
@@ -97,6 +99,7 @@ export const useBibliotheque = () => {
     const currentUser = localStorage.getItem('currentUser') || 'default';
     
     setDocuments(newDocuments);
+    setItems(newDocuments);
     saveBibliothequeToStorage(newDocuments, groups, currentUser);
     setIsDialogOpen(false);
     
@@ -111,6 +114,7 @@ export const useBibliotheque = () => {
     const currentUser = localStorage.getItem('currentUser') || 'default';
     
     setDocuments(newDocuments);
+    setItems(newDocuments);
     saveBibliothequeToStorage(newDocuments, groups, currentUser);
     setIsDialogOpen(false);
     
@@ -164,6 +168,7 @@ export const useBibliotheque = () => {
     
     setGroups(newGroups);
     setDocuments(newDocuments);
+    setItems(newDocuments);
     saveBibliothequeToStorage(newDocuments, newGroups, currentUser);
     setIsGroupDialogOpen(false);
     
@@ -173,13 +178,16 @@ export const useBibliotheque = () => {
     }
   };
   
+  // Pour assurer la compatibilité avec l'ancien code
+  const refreshItems = fetchItems;
+  
   return { 
     documents, 
     groups, 
     items,
     loading, 
     error, 
-    refreshItems: fetchItems,
+    refreshItems,
     isDialogOpen,
     isGroupDialogOpen,
     isEditing,

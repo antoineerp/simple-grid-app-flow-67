@@ -41,44 +41,58 @@ function App() {
               <Route path="/" element={<Dashboard />}>
                 <Route path="pilotage" element={
                   <PrivateRoute>
-                    <Pilotage />
+                    <ErrorBoundary>
+                      <Pilotage />
+                    </ErrorBoundary>
                   </PrivateRoute>
                 } />
                 
                 <Route path="db-admin" element={
                   <PrivateRoute>
-                    <DbAdmin />
+                    <ErrorBoundary>
+                      <DbAdmin />
+                    </ErrorBoundary>
                   </PrivateRoute>
                 } />
                 
                 {/* Routes vers les pages réelles */}
                 <Route path="exigences" element={
                   <PrivateRoute>
-                    <Exigences />
+                    <ErrorBoundary>
+                      <Exigences />
+                    </ErrorBoundary>
                   </PrivateRoute>
                 } />
                 
                 <Route path="gestion-documentaire" element={
                   <PrivateRoute>
-                    <GestionDocumentaire />
+                    <ErrorBoundary>
+                      <GestionDocumentaire />
+                    </ErrorBoundary>
                   </PrivateRoute>
                 } />
                 
                 <Route path="ressources-humaines" element={
                   <PrivateRoute>
-                    <RessourcesHumaines />
+                    <ErrorBoundary>
+                      <RessourcesHumaines />
+                    </ErrorBoundary>
                   </PrivateRoute>
                 } />
                 
                 <Route path="collaboration" element={
                   <PrivateRoute>
-                    <Collaboration />
+                    <ErrorBoundary>
+                      <Collaboration />
+                    </ErrorBoundary>
                   </PrivateRoute>
                 } />
                 
                 <Route path="administration" element={
                   <PrivateRoute>
-                    <Administration />
+                    <ErrorBoundary>
+                      <Administration />
+                    </ErrorBoundary>
                   </PrivateRoute>
                 } />
               </Route>

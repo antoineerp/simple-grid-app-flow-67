@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { Toaster } from "@/components/ui/toaster";
@@ -42,7 +43,6 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
         console.log("Layout - Initialisation du composant Layout pour un utilisateur connecté");
         console.log("Layout - Nom d'utilisateur:", currentUser?.email);
         console.log("Layout - Rôle utilisateur:", currentUser?.role);
-        console.log("Layout - Identifiant technique:", currentUser?.identifiant_technique);
       } catch (error) {
         console.error("Layout - Erreur lors de la vérification de l'authentification:", error);
         // Augmenter le nombre d'essais
@@ -97,7 +97,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
               <Sidebar />
               <main className="flex-1 overflow-auto bg-slate-50 w-full">
                 <div data-testid="layout-content">
-                  <Outlet />
+                  {children}
                 </div>
               </main>
             </div>
