@@ -1,5 +1,4 @@
-
-import React, { useEffect } from 'react';
+import React, { useEffect, useCallback } from 'react';
 import { FileText, UserPlus, RefreshCw } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -28,14 +27,29 @@ const RessourcesHumaines = () => {
   
   // Configurer la synchronisation avec des paramètres optimisés
   const { 
-    syncWithServer,
-    notifyChanges,
+    syncTable,
     isOnline
-  } = useSyncContext('membres', membres, { 
-    autoSync: true,
-    debounceTime: 1000, // Synchroniser plus rapidement
-    showToasts: false // Ne pas afficher de toasts pour éviter l'encombrement
-  });
+  } = useSyncContext();
+  
+  // Create local implementation for missing functions
+  const syncWithServer = useCallback(async (data: any, additionalData?: any, userId?: string) => {
+    try {
+      console.log(`RessourcesHumaines: Manually syncing data`);
+      return await syncTable('ressourceshumaines', data);
+    } catch (error) {
+      console.error('RessourcesHumaines: Sync error:', error);
+      return false;
+    }
+  }, [syncTable]);
+  
+  const notifyChanges = useCallback(() => {
+    console.log('RessourcesHumaines: Notifying data changes');
+    
+    // Dispatch an event that can be caught by other components
+    window.dispatchEvent(new CustomEvent('ressourceshumaines-data-changed', {
+      detail: { timestamp: Date.now() }
+    }));
+  }, []);
   
   const [isDialogOpen, setIsDialogOpen] = React.useState(false);
   const [currentMembre, setCurrentMembre] = React.useState<Membre>({

@@ -1,4 +1,3 @@
-
 import { useState, useCallback, useRef } from 'react';
 import { Document as BibliothequeDocument, DocumentGroup } from '@/types/bibliotheque';
 import { Document as SystemDocument } from '@/types/documents';
@@ -150,7 +149,7 @@ export const useBibliothequeSync = () => {
       localStorage.setItem(`collaboration_groups_${userId || 'default'}`, JSON.stringify(groups));
       
       // Utiliser le service central pour la synchronisation avec la table "collaboration"
-      const result = await syncAndProcess('collaboration', systemDocs, trigger);
+      const result = await syncAndProcess(systemDocs, trigger);
       
       if (result.success) {
         const lastSyncTime = syncService.getLastSynced('collaboration');

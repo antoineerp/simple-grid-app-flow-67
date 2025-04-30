@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from 'react';
 import { Document, DocumentGroup } from '@/types/bibliotheque';
 import { useToast } from '@/hooks/use-toast';
@@ -54,11 +55,25 @@ export const useBibliotheque = () => {
   // Déstructurer l'état de synchronisation pour faciliter l'accès
   const { isSyncing, lastSynced, syncFailed } = collaborationSyncState;
   
-  // Utiliser le hook useSyncContext pour la synchronisation
-  const { 
-    syncWithServer, 
-    notifyChanges 
-  } = useSyncContext('collaboration', documents, { autoSync: true });
+  // Create local implementation for missing functions
+  const syncWithServer = useCallback(async (documents: Document[], groups: DocumentGroup[], userId?: string) => {
+    try {
+      console.log(`useBibliotheque: Manually syncing ${documents.length} documents`);
+      return await syncTable('collaboration', documents);
+    } catch (error) {
+      console.error('useBibliotheque: Sync error:', error);
+      return false;
+    }
+  }, [syncTable]);
+  
+  const notifyChanges = useCallback(() => {
+    console.log('useBibliotheque: Notifying data changes');
+    
+    // Dispatch an event that can be caught by other components
+    window.dispatchEvent(new CustomEvent('collaboration-data-changed', {
+      detail: { timestamp: Date.now() }
+    }));
+  }, []);
   
   // Écouter les changements d'utilisateur de base de données
   useEffect(() => {

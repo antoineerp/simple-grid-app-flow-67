@@ -5,6 +5,7 @@
  */
 
 import { getRecentErrors } from './errorLogger';
+import { SyncMonitorStatus } from '../types/syncTypes';
 
 // Types pour le monitoring
 export type SyncAttempt = {
@@ -13,7 +14,7 @@ export type SyncAttempt = {
   operation: string;
   startTime: number;
   endTime?: number;
-  success?: boolean;
+  success: boolean; // Changed from optional to required
   error?: string;
   duration?: number;
 };
@@ -91,7 +92,8 @@ class SyncMonitor {
       id,
       tableName,
       operation,
-      startTime: timestamp
+      startTime: timestamp,
+      success: false // Initialize with a default value to make it non-optional
     };
     
     // Stocker l'opération active
@@ -148,13 +150,7 @@ class SyncMonitor {
   /**
    * Récupérer l'état actuel de toutes les synchronisations
    */
-  public getStatus(): {
-    activeCount: number;
-    recentAttempts: SyncAttempt[];
-    stats: { success: number; failure: number; };
-    health: 'good' | 'warning' | 'critical';
-    lastSync: { time: number | null; success: boolean; };
-  } {
+  public getStatus(): SyncMonitorStatus {
     const activeCount = this.state.activeOperations.size;
     const recentErrors = getRecentErrors();
     
@@ -210,4 +206,3 @@ class SyncMonitor {
 
 // Exporter l'instance singleton
 export const syncMonitor = SyncMonitor.getInstance();
-

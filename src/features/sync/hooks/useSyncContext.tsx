@@ -18,6 +18,8 @@ interface SyncContextType {
   isOnline: boolean;
   monitorStatus: SyncMonitorStatus;
   forceProcessQueue: () => void;
+  syncWithServer?: <T>(tableName: string, data: T[]) => Promise<boolean>;
+  notifyChanges?: () => void;
 }
 
 // Default context value
@@ -33,7 +35,9 @@ const defaultContext: SyncContextType = {
     health: 'good',
     lastSync: { time: null, success: false }
   },
-  forceProcessQueue: () => {}
+  forceProcessQueue: () => {},
+  syncWithServer: async () => false,
+  notifyChanges: () => {}
 };
 
 const SyncContext = createContext<SyncContextType>(defaultContext);
@@ -316,6 +320,30 @@ export const SyncProvider: React.FC<{
     return results;
   }, [isOnline, syncTable]);
   
+  // Implementing the missing methods that other components use
+  const syncWithServer = useCallback(async <T,>(tableName: string, data: T[]): Promise<boolean> => {
+    try {
+      const result = await syncTable(tableName, data, "manual");
+      return result.success;
+    } catch (error) {
+      console.error(`useSyncContext: Error in syncWithServer for ${tableName}:`, error);
+      return false;
+    }
+  }, [syncTable]);
+
+  // Notify about changes to sync data
+  const notifyChanges = useCallback(() => {
+    // Implement a basic change notification mechanism
+    console.log("useSyncContext: Data changes detected");
+    
+    // Dispatch event for other parts of the app to react to
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('sync-data-changed', {
+        detail: { timestamp: Date.now() }
+      }));
+    }
+  }, []);
+  
   // Watch for online status changes to trigger sync
   useEffect(() => {
     if (isOnline && pendingSyncsRef.current.size > 0) {
@@ -384,7 +412,9 @@ export const SyncProvider: React.FC<{
       syncStates,
       isOnline,
       monitorStatus,
-      forceProcessQueue
+      forceProcessQueue,
+      syncWithServer,
+      notifyChanges
     }}>
       {children}
     </SyncContext.Provider>

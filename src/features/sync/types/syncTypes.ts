@@ -35,9 +35,10 @@ export interface SyncMonitorStatus {
     tableName: string; 
     startTime: number;
     endTime?: number;
-    success: boolean;
+    success: boolean; // Changed from optional to required to match expected type
     error?: string;
     duration?: number;
+    operation?: string; // Added to match SyncAttempt structure
   }>;
   stats: {
     success: number;

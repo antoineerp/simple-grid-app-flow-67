@@ -12,6 +12,7 @@ import { SyncState } from '@/features/sync/types/syncTypes';
 export const useSync = (tableName: string): SyncState & {
   syncAndProcess: <T>(data: T[], trigger?: "auto" | "manual" | "initial") => Promise<SyncResult>;
   resetSyncStatus: () => void;
+  isOnline: boolean; // Add isOnline to the return type
 } => {
   const [lastSynced, setLastSynced] = useState<Date | null>(null);
   const { isOnline } = useNetworkStatus();
@@ -82,6 +83,6 @@ export const useSync = (tableName: string): SyncState & {
     dataChanged: syncState.dataChanged || false,
     syncAndProcess,
     resetSyncStatus,
-    isOnline
+    isOnline  // Include isOnline in the return object
   };
 };
