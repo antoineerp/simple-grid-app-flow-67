@@ -1,140 +1,57 @@
 
-import React, { useState, useEffect } from 'react';
-import { FileText, FolderPlus } from 'lucide-react';
-import { MembresProvider } from '@/contexts/MembresContext';
-import DocumentForm from '@/components/gestion-documentaire/DocumentForm';
-import DocumentStatusDisplay from '@/components/gestion-documentaire/DocumentStats';
-import DocumentTable from '@/components/gestion-documentaire/DocumentTable';
-import { DocumentGroupDialog } from '@/components/gestion-documentaire/DocumentGroupDialog';
-import { useDocuments } from '@/hooks/useDocuments';
-import { exportDocumentsToPdf } from '@/services/pdfExport';
-import { useToast } from "@/hooks/use-toast";
-import { Button } from "@/components/ui/button";
+import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import DocumentTable from '@/components/documents/DocumentTable';
+import SyncStatusIndicator from '@/components/sync/SyncStatusIndicator';
+import { getDatabaseConnectionCurrentUser } from '@/services/core/databaseConnectionService';
 import { useGlobalSync } from '@/contexts/GlobalSyncContext';
 
-const GestionDocumentaireContent = () => {
-  const {
-    documents,
-    groups,
-    stats,
-    editingDocument,
-    editingGroup,
-    dialogOpen,
-    groupDialogOpen,
-    setDialogOpen,
-    setGroupDialogOpen,
-    handleResponsabiliteChange,
-    handleAtteinteChange,
-    handleExclusionChange,
-    handleEdit,
-    handleSaveDocument,
-    handleDelete,
-    handleAddDocument,
-    handleReorder,
-    handleAddGroup,
-    handleEditGroup,
-    handleSaveGroup,
-    handleDeleteGroup,
-    handleGroupReorder,
-    handleToggleGroup,
-  } = useDocuments();
+const GestionDocumentaire = () => {
+  const navigate = useNavigate();
+  const { syncStates, isOnline } = useGlobalSync();
+  const [currentUser, setCurrentUser] = useState<string>(getDatabaseConnectionCurrentUser() || 'default');
   
-  const { toast } = useToast();
-  const { isSyncing, isOnline, lastSynced } = useGlobalSync();
-
-  // Synchronization status indicator
-  const syncStatus = isSyncing 
-    ? "Synchronisation en cours..." 
-    : isOnline 
-      ? `Synchronisé${lastSynced ? ` (${new Date(lastSynced).toLocaleTimeString()})` : ''}`
-      : "Mode hors ligne";
-
-  const handleExportPdf = () => {
-    exportDocumentsToPdf(documents, groups);
-    toast({
-      title: "Export PDF réussi",
-      description: "Le document a été généré et téléchargé",
-    });
+  // Récupérer l'état de synchronisation spécifique pour 'documents'
+  const documentsSyncState = syncStates['documents'] || { 
+    isSyncing: false, 
+    lastSynced: null,
+    syncFailed: false 
   };
+  
+  // Écouter les changements d'utilisateur
+  useEffect(() => {
+    const handleUserChange = (event: Event) => {
+      const customEvent = event as CustomEvent;
+      if (customEvent.detail?.user) {
+        setCurrentUser(customEvent.detail.user);
+        console.log(`GestionDocumentaire: Changement d'utilisateur - ${customEvent.detail.user}`);
+      }
+    };
+    
+    window.addEventListener('database-user-changed', handleUserChange);
+    
+    return () => {
+      window.removeEventListener('database-user-changed', handleUserChange);
+    };
+  }, []);
 
   return (
-    <div className="w-full px-6 py-6">
-      <div className="flex items-center justify-between mb-2">
-        <div>
-          <h1 className="text-3xl font-bold text-app-blue">Gestion Documentaire</h1>
-          <div className="text-xs text-gray-500 mt-1">
-            <span className={`inline-block mr-2 ${isSyncing ? 'animate-pulse text-amber-500' : isOnline ? 'text-green-600' : 'text-red-600'}`}>●</span>
-            {syncStatus}
-          </div>
-        </div>
-        <div className="flex space-x-2">
-          <button 
-            onClick={handleExportPdf}
-            className="text-red-600 p-2 rounded-md hover:bg-red-50 transition-colors"
-            title="Exporter en PDF"
-          >
-            <FileText className="h-6 w-6 stroke-[1.5]" />
-          </button>
+    <div className="container mx-auto py-6 px-4">
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-bold">Gestion Documentaire</h1>
+        <div className="flex items-center space-x-2">
+          <SyncStatusIndicator 
+            isSyncing={documentsSyncState.isSyncing}
+            lastSynced={documentsSyncState.lastSynced}
+            isOnline={isOnline}
+            syncFailed={documentsSyncState.syncFailed}
+          />
         </div>
       </div>
-
-      <DocumentStatusDisplay stats={stats} />
-
-      <DocumentTable 
-        documents={documents}
-        groups={groups}
-        onResponsabiliteChange={handleResponsabiliteChange}
-        onAtteinteChange={handleAtteinteChange}
-        onExclusionChange={handleExclusionChange}
-        onEdit={handleEdit}
-        onDelete={handleDelete}
-        onReorder={handleReorder}
-        onGroupReorder={handleGroupReorder}
-        onToggleGroup={handleToggleGroup}
-        onEditGroup={handleEditGroup}
-        onDeleteGroup={handleDeleteGroup}
-      />
-
-      <div className="flex justify-end mt-4 space-x-2">
-        <Button 
-          variant="outline"
-          onClick={handleAddGroup}
-          className="hover:bg-gray-100 transition-colors mr-2"
-          title="Nouveau groupe"
-        >
-          <FolderPlus className="h-5 w-5 mr-2" />
-          Nouveau groupe
-        </Button>
-        <Button 
-          variant="default"
-          onClick={handleAddDocument}
-        >
-          Nouveau document
-        </Button>
-      </div>
-
-      <DocumentForm 
-        document={editingDocument}
-        open={dialogOpen}
-        onOpenChange={setDialogOpen}
-        onSave={handleSaveDocument}
-      />
-
-      <DocumentGroupDialog
-        group={editingGroup}
-        open={groupDialogOpen}
-        onOpenChange={setGroupDialogOpen}
-        onSave={handleSaveGroup}
-        isEditing={!!editingGroup}
-      />
+      
+      <DocumentTable currentUser={currentUser} />
     </div>
   );
 };
-
-const GestionDocumentaire = () => (
-  <MembresProvider>
-    <GestionDocumentaireContent />
-  </MembresProvider>
-);
 
 export default GestionDocumentaire;

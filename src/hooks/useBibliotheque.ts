@@ -1,10 +1,10 @@
-
 import { useState, useEffect, useCallback } from 'react';
 import { Document, DocumentGroup } from '@/types/bibliotheque';
 import { useToast } from '@/hooks/use-toast';
 import { useSyncContext } from '@/hooks/useSyncContext';
 import { getCurrentUser } from '@/services/auth/authService';
 import { useGlobalSync } from '@/contexts/GlobalSyncContext';
+import { getDatabaseConnectionCurrentUser } from '@/services/core/databaseConnectionService';
 
 export const useBibliotheque = () => {
   const [documents, setDocuments] = useState<Document[]>([]);
@@ -26,10 +26,23 @@ export const useBibliotheque = () => {
   });
   
   const { toast } = useToast();
-  const currentUser = getCurrentUser() || 'default';
+  
+  // Utiliser l'ID de l'utilisateur connecté à la base de données pour séparer les données
+  const [currentUser, setCurrentUser] = useState<string>(getDatabaseConnectionCurrentUser() || getCurrentUser() || 'default');
   
   // Use the GlobalSync context
-  const { syncTable, syncAll, isSyncing, isOnline, lastSynced, syncFailed } = useGlobalSync();
+  const { syncTable, syncAll, isOnline, updateSyncState } = useGlobalSync();
+  const { syncStates } = useGlobalSync();
+  
+  // Récupérer l'état de synchronisation spécifique pour 'collaboration'
+  const collaborationSyncState = syncStates['collaboration'] || { 
+    isSyncing: false, 
+    lastSynced: null,
+    syncFailed: false 
+  };
+  
+  // Déstructurer l'état de synchronisation pour faciliter l'accès
+  const { isSyncing, lastSynced, syncFailed } = collaborationSyncState;
   
   // Utiliser le hook useSyncContext pour la synchronisation
   // Mise à jour du nom de la table de "bibliotheque" à "collaboration"
@@ -38,70 +51,98 @@ export const useBibliotheque = () => {
     notifyChanges 
   } = useSyncContext('collaboration', documents, { autoSync: true });
   
-  // Charger les données locales au démarrage
+  // Écouter les changements d'utilisateur de base de données
   useEffect(() => {
-    const loadLocalData = () => {
-      try {
-        // Mise à jour pour vérifier aussi les données sous l'ancien nom
-        let docsData = localStorage.getItem(`collaboration_${currentUser}`);
-        if (!docsData) {
-          docsData = localStorage.getItem('collaboration');
-          if (!docsData) {
-            docsData = localStorage.getItem(`bibliotheque_${currentUser}`);
-            if (!docsData) {
-              docsData = localStorage.getItem('bibliotheque');
-            }
-          }
-          
-          // Si trouvé sous l'ancien nom, migrer vers le nouveau
-          if (docsData) {
-            localStorage.setItem(`collaboration_${currentUser}`, docsData);
-          }
-        }
+    const handleUserChange = (event: Event) => {
+      const customEvent = event as CustomEvent;
+      if (customEvent.detail?.user) {
+        const newUser = customEvent.detail.user;
+        console.log(`useBibliotheque: Changement d'utilisateur détecté - ${newUser}`);
+        setCurrentUser(newUser);
         
-        let groupsData = localStorage.getItem(`collaboration_groups_${currentUser}`);
-        if (!groupsData) {
-          groupsData = localStorage.getItem('collaboration_groups');
-          if (!groupsData) {
-            groupsData = localStorage.getItem(`bibliotheque_groups_${currentUser}`);
-            if (!groupsData) {
-              groupsData = localStorage.getItem('bibliotheque_groups');
-            }
-          }
-          
-          // Si trouvé sous l'ancien nom, migrer vers le nouveau
-          if (groupsData) {
-            localStorage.setItem(`collaboration_groups_${currentUser}`, groupsData);
-          }
-        }
+        // Vider les données actuelles
+        setDocuments([]);
+        setGroups([]);
         
-        if (docsData) {
-          const parsedDocs = JSON.parse(docsData);
-          // Ensure all documents have userId
-          const docsWithUser = parsedDocs.map((doc: Document) => ({
-            ...doc,
-            userId: doc.userId || currentUser
-          }));
-          setDocuments(docsWithUser);
-          console.log(`Chargé ${docsWithUser.length} documents pour l'utilisateur ${currentUser}`);
-        }
-        
-        if (groupsData) {
-          const parsedGroups = JSON.parse(groupsData);
-          // Ensure all groups have userId
-          const groupsWithUser = parsedGroups.map((group: DocumentGroup) => ({
-            ...group,
-            userId: group.userId || currentUser
-          }));
-          setGroups(groupsWithUser);
-          console.log(`Chargé ${groupsWithUser.length} groupes pour l'utilisateur ${currentUser}`);
-        }
-      } catch (error) {
-        console.error("Erreur lors du chargement des données locales:", error);
+        // Charger les données du nouvel utilisateur
+        loadLocalData(newUser);
       }
     };
     
-    loadLocalData();
+    window.addEventListener('database-user-changed', handleUserChange);
+    
+    return () => {
+      window.removeEventListener('database-user-changed', handleUserChange);
+    };
+  }, []);
+  
+  // Fonction pour charger les données locales
+  const loadLocalData = useCallback((userId: string) => {
+    try {
+      console.log(`useBibliotheque: Chargement des données pour l'utilisateur ${userId}`);
+      
+      // Mise à jour pour vérifier aussi les données sous l'ancien nom
+      let docsData = localStorage.getItem(`collaboration_${userId}`);
+      if (!docsData) {
+        docsData = localStorage.getItem('collaboration');
+        if (!docsData) {
+          docsData = localStorage.getItem(`bibliotheque_${userId}`);
+          if (!docsData) {
+            docsData = localStorage.getItem('bibliotheque');
+          }
+        }
+        
+        // Si trouvé sous l'ancien nom, migrer vers le nouveau
+        if (docsData) {
+          localStorage.setItem(`collaboration_${userId}`, docsData);
+        }
+      }
+      
+      let groupsData = localStorage.getItem(`collaboration_groups_${userId}`);
+      if (!groupsData) {
+        groupsData = localStorage.getItem('collaboration_groups');
+        if (!groupsData) {
+          groupsData = localStorage.getItem(`bibliotheque_groups_${userId}`);
+          if (!groupsData) {
+            groupsData = localStorage.getItem('bibliotheque_groups');
+          }
+        }
+        
+        // Si trouvé sous l'ancien nom, migrer vers le nouveau
+        if (groupsData) {
+          localStorage.setItem(`collaboration_groups_${userId}`, groupsData);
+        }
+      }
+      
+      if (docsData) {
+        const parsedDocs = JSON.parse(docsData);
+        // Ensure all documents have userId
+        const docsWithUser = parsedDocs.map((doc: Document) => ({
+          ...doc,
+          userId: doc.userId || userId
+        }));
+        setDocuments(docsWithUser);
+        console.log(`Chargé ${docsWithUser.length} documents pour l'utilisateur ${userId}`);
+      }
+      
+      if (groupsData) {
+        const parsedGroups = JSON.parse(groupsData);
+        // Ensure all groups have userId
+        const groupsWithUser = parsedGroups.map((group: DocumentGroup) => ({
+          ...group,
+          userId: group.userId || userId
+        }));
+        setGroups(groupsWithUser);
+        console.log(`Chargé ${groupsWithUser.length} groupes pour l'utilisateur ${userId}`);
+      }
+    } catch (error) {
+      console.error("Erreur lors du chargement des données locales:", error);
+    }
+  }, []);
+  
+  // Charger les données locales au démarrage
+  useEffect(() => {
+    loadLocalData(currentUser);
     
     // Initial sync when component mounts
     if (isOnline) {
@@ -109,7 +150,7 @@ export const useBibliotheque = () => {
         handleSyncDocuments().catch(console.error);
       }, 1000);
     }
-  }, [currentUser, isOnline]);
+  }, [currentUser, isOnline, loadLocalData]);
   
   // Sauvegarder les documents localement quand ils changent
   useEffect(() => {
@@ -233,11 +274,20 @@ export const useBibliotheque = () => {
       console.log(`Documents à synchroniser pour l'utilisateur ${currentUser}:`, documents);
       console.log(`Groupes à synchroniser pour l'utilisateur ${currentUser}:`, groups);
       
+      // Mettre à jour l'état de synchronisation
+      updateSyncState('collaboration', { isSyncing: true });
+      
       // Synchroniser les documents
-      await syncTable('collaboration', documents);
+      await syncTable('collaboration', documents.map(doc => ({
+        ...doc,
+        userId: doc.userId || currentUser
+      })));
       
       // Synchroniser les groupes
-      await syncTable('collaboration_groups', groups);
+      await syncTable('collaboration_groups', groups.map(group => ({
+        ...group,
+        userId: group.userId || currentUser
+      })));
       
       // Forcer la synchronisation des groupes également
       const syncEvent = new CustomEvent('force-sync-required', {
@@ -248,10 +298,24 @@ export const useBibliotheque = () => {
       });
       window.dispatchEvent(syncEvent);
       
+      // Mettre à jour l'état après synchronisation
+      updateSyncState('collaboration', { 
+        isSyncing: false,
+        lastSynced: new Date(),
+        syncFailed: false
+      });
+      
       console.log("Fin de la synchronisation des documents de collaboration");
       return Promise.resolve();
     } catch (error) {
       console.error("Erreur lors de la synchronisation des documents:", error);
+      
+      // Mettre à jour l'état en cas d'erreur
+      updateSyncState('collaboration', { 
+        isSyncing: false,
+        syncFailed: true
+      });
+      
       return Promise.reject(error);
     }
   };
@@ -284,6 +348,7 @@ export const useBibliotheque = () => {
     isSyncing,
     isOnline,
     lastSynced,
-    syncFailed
+    syncFailed,
+    currentUser
   };
 };

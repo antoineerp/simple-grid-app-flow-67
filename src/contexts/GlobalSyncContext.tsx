@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { triggerSync } from '@/services/sync/triggerSync';
@@ -26,6 +25,11 @@ interface GlobalSyncContextType {
   
   // État de connexion
   isOnline: boolean;
+  
+  // Propriétés additionnelles nécessaires
+  isSyncing: boolean;
+  lastSynced: Date | null;
+  syncFailed: boolean;
 }
 
 // Création du contexte avec des valeurs par défaut
@@ -52,6 +56,17 @@ export const GlobalSyncProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const syncOperationsRef = useRef<Record<string, string>>({});
   const syncOperationBatch = useRef(Date.now()); // Batch identifier pour regrouper les opérations
   
+  // État global de synchronisation
+  const [globalSyncState, setGlobalSyncState] = useState<{
+    isSyncing: boolean;
+    lastSynced: Date | null;
+    syncFailed: boolean;
+  }>({
+    isSyncing: false,
+    lastSynced: null,
+    syncFailed: false
+  });
+  
   // Log le mode de synchronisation au démarrage
   useEffect(() => {
     console.log("GlobalSyncContext: Mode de synchronisation - PRIORITÉ SERVEUR");
@@ -70,6 +85,25 @@ export const GlobalSyncProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       }, 2000);
     }
   }, [isOnline]);
+  
+  // Mettre à jour l'état global de synchronisation quand les états individuels changent
+  useEffect(() => {
+    const anyIsSyncing = Object.values(syncStates).some(state => state.isSyncing);
+    const anySyncFailed = Object.values(syncStates).some(state => state.syncFailed);
+    const lastSyncDates = Object.values(syncStates)
+      .map(state => state.lastSynced)
+      .filter(date => date !== null) as Date[];
+    
+    const lastSynced = lastSyncDates.length > 0
+      ? new Date(Math.max(...lastSyncDates.map(d => d.getTime())))
+      : null;
+    
+    setGlobalSyncState({
+      isSyncing: anyIsSyncing,
+      syncFailed: anySyncFailed,
+      lastSynced
+    });
+  }, [syncStates]);
   
   // Écouter les événements de synchronisation forcée
   useEffect(() => {
@@ -424,7 +458,19 @@ export const GlobalSyncProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   }, [syncAll]);
   
   return (
-    <GlobalSyncContext.Provider value={{ syncStates, syncTable, syncAll, updateSyncState, isOnline }}>
+    <GlobalSyncContext.Provider 
+      value={{ 
+        syncStates, 
+        syncTable, 
+        syncAll, 
+        updateSyncState, 
+        isOnline,
+        // Exposer l'état global
+        isSyncing: globalSyncState.isSyncing,
+        lastSynced: globalSyncState.lastSynced,
+        syncFailed: globalSyncState.syncFailed
+      }}
+    >
       {children}
     </GlobalSyncContext.Provider>
   );
