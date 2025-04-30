@@ -42,15 +42,24 @@ export const useLoginForm = () => {
         console.log("Connexion réussie, token reçu:", result.token.substring(0, 20) + "...");
         console.log("Données utilisateur:", result.user);
         
+        // S'assurer que le token est bien enregistré avant la navigation
+        sessionStorage.setItem('authToken', result.token);
+        
         toast({
           title: "Connexion réussie",
-          description: "Vous êtes maintenant connecté",
+          description: `Bienvenue ${result.user?.prenom || ''} ${result.user?.nom || ''}`,
         });
         
         console.log("Redirection vers le tableau de bord après connexion réussie");
         
-        // Utiliser React Router pour la navigation au lieu de forcer un rechargement complet
-        navigate('/pilotage');
+        // Utiliser setTimeout pour s'assurer que le token est bien enregistré
+        setTimeout(() => {
+          // Naviger vers /pilotage via React Router
+          navigate('/pilotage');
+          
+          // Log supplémentaire pour vérifier la navigation
+          console.log("Navigation demandée vers /pilotage");
+        }, 100);
       } else {
         console.error("Échec de connexion:", result.message);
         setError(result.message || 'Échec de la connexion');
