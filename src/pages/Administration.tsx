@@ -17,6 +17,7 @@ import { UserManager } from '@/services/users/userManager';
 import { SyncDiagnosticPanel } from '@/components/diagnostics/SyncDiagnosticPanel';
 import DbConnectionTest from "@/components/DbConnectionTest";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
+import { getCurrentUser } from '@/services/auth/authService';
 
 const Administration = () => {
   const navigate = useNavigate();
@@ -25,9 +26,28 @@ const Administration = () => {
   const [hasManager, setHasManager] = useState(false);
 
   useEffect(() => {
-    const userRole = localStorage.getItem('userRole') as UserRole;
+    console.log("Administration: vérification des permissions...");
+    
+    // Obtenez le rôle directement de localStorage et utilisez getCurrentUser comme fallback
+    let userRole = localStorage.getItem('userRole') as UserRole;
+    
+    if (!userRole) {
+      const currentUser = getCurrentUser();
+      userRole = (currentUser?.role || 'utilisateur') as UserRole;
+      console.log("Rôle récupéré depuis getCurrentUser:", userRole);
+      
+      // Stocker le rôle pour les futures vérifications
+      if (userRole) {
+        localStorage.setItem('userRole', userRole);
+      }
+    } else {
+      console.log("Rôle récupéré depuis localStorage:", userRole);
+    }
+    
+    console.log("Vérification d'accès avec le rôle:", userRole);
     
     if (!hasPermission(userRole, 'accessAdminPanel')) {
+      console.log("Accès refusé à l'administration pour le rôle:", userRole);
       toast({
         title: "Accès refusé",
         description: "Vous n'avez pas les droits pour accéder à cette page.",
@@ -35,6 +55,8 @@ const Administration = () => {
       });
       navigate('/pilotage');
       return;
+    } else {
+      console.log("Accès autorisé à l'administration pour le rôle:", userRole);
     }
 
     setCurrentDatabaseUser(getDatabaseConnectionCurrentUser());

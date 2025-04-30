@@ -46,9 +46,13 @@ export const useLoginForm = () => {
         sessionStorage.setItem('authToken', result.token);
         localStorage.setItem('authToken', result.token);
         
-        // Stocker les données utilisateur
+        // Stocker les données utilisateur et le rôle explicitement
         if (result.user) {
           localStorage.setItem('currentUser', JSON.stringify(result.user));
+          // S'assurer que le rôle est correctement enregistré pour les vérifications de permissions
+          if (result.user.role) {
+            localStorage.setItem('userRole', result.user.role);
+          }
         }
         
         toast({
@@ -68,7 +72,7 @@ export const useLoginForm = () => {
               console.log("Fallback: redirection par window.location");
               window.location.href = '/pilotage';
             }
-          }, 1000);
+          }, 500);
         } catch (navError) {
           console.error("Erreur lors de la navigation:", navError);
           window.location.href = '/pilotage';

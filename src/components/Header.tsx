@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { ChevronDown, LogOut, Settings, Database, Users } from 'lucide-react';
+import { ChevronDown, LogOut, Settings, Database } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from "@/hooks/use-toast";
 import LogoSelector from './LogoSelector';
@@ -28,7 +28,10 @@ const Header = () => {
   
   // Obtenir les informations utilisateur depuis le token JWT
   const user = getCurrentUser();
-  const userRole = (user?.role || 'utilisateur') as UserRole;
+  // Utiliser le rôle stocké dans localStorage ou celui de l'utilisateur courant
+  const userRole = (localStorage.getItem('userRole') || user?.role || 'utilisateur') as UserRole;
+  console.log("Header: rôle utilisateur détecté:", userRole);
+  
   const userDisplayName = user ? `${user.prenom || ''} ${user.nom || ''}`.trim() : 'Utilisateur';
 
   useEffect(() => {
@@ -57,11 +60,23 @@ const Header = () => {
     window.location.href = '/';
   };
 
+  const handleAdminNavigation = () => {
+    console.log("Navigation vers l'administration demandée");
+    try {
+      navigate('/administration');
+    } catch (error) {
+      console.error("Erreur lors de la navigation vers l'administration:", error);
+      // Fallback en cas d'échec de la navigation
+      window.location.href = '/administration';
+    }
+  };
+
   const handleLogoChange = (newLogo: string) => {
     setLogo(newLogo);
   };
 
   const canAccessAdminPanel = hasPermission(userRole, 'accessAdminPanel');
+  console.log("Header: permission d'accès à l'administration:", canAccessAdminPanel);
 
   return (
     <header className="w-full border-b bg-white">
@@ -101,7 +116,7 @@ const Header = () => {
 
               {canAccessAdminPanel && (
                 <DropdownMenuGroup>
-                  <DropdownMenuItem onClick={() => navigate('/administration')}>
+                  <DropdownMenuItem onClick={handleAdminNavigation}>
                     <Settings className="mr-2 h-4 w-4" />
                     <span>Administration</span>
                   </DropdownMenuItem>
