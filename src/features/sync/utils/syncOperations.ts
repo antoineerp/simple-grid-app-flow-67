@@ -7,6 +7,7 @@ import { acquireLock, releaseLock } from './syncLockManager';
 import { saveLocalData } from './syncStorageManager';
 import { SyncOperationResult } from '../types/syncTypes';
 import { syncQueue } from './syncQueue';
+import { syncMonitor } from './syncMonitor';
 
 // Execute a sync operation with proper locking
 export const executeSyncOperation = async <T>(
@@ -35,6 +36,16 @@ export const executeSyncOperation = async <T>(
       const operationId = `${tableName}_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
       console.log(`SyncOperations: Starting synchronization ${tableName} (operation ${operationId})`);
       
+      // Enregistrer le début de l'opération dans le moniteur
+      syncMonitor.recordSyncStart(operationId, `${trigger}-sync`);
+      
+      // Émettre un événement pour informer l'application du début de la synchronisation
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('syncStarted', { 
+          detail: { tableName, operationId, trigger } 
+        }));
+      }
+      
       try {
         // Always save locally first to prevent data loss
         saveLocalData(tableName, data, syncKey);
@@ -54,13 +65,50 @@ export const executeSyncOperation = async <T>(
 
         if (success) {
           console.log(`SyncOperations: Synchronization successful for ${tableName} (operation ${operationId})`);
+          
+          // Enregistrer le succès dans le moniteur
+          syncMonitor.recordSyncEnd(operationId, true);
+          
+          // Émettre un événement de succès
+          if (typeof window !== 'undefined') {
+            window.dispatchEvent(new CustomEvent('syncCompleted', { 
+              detail: { tableName, operationId, trigger } 
+            }));
+          }
+          
           return { success: true, message: "Synchronization successful" };
         } else {
           console.error(`SyncOperations: Synchronization failed for ${tableName} (operation ${operationId})`);
+          
+          // Enregistrer l'échec dans le moniteur
+          syncMonitor.recordSyncEnd(operationId, false, "Synchronization failed");
+          
+          // Émettre un événement d'échec
+          if (typeof window !== 'undefined') {
+            window.dispatchEvent(new CustomEvent('syncFailed', { 
+              detail: { tableName, operationId, error: "Synchronization failed" } 
+            }));
+          }
+          
           return { success: false, message: "Synchronization failed" };
         }
       } catch (error) {
         console.error(`SyncOperations: Error during synchronization of ${tableName}:`, error);
+        
+        // Enregistrer l'erreur dans le moniteur
+        syncMonitor.recordSyncEnd(operationId, false, error instanceof Error ? error.message : String(error));
+        
+        // Émettre un événement d'erreur
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('syncFailed', { 
+            detail: { 
+              tableName, 
+              operationId, 
+              error: error instanceof Error ? error.message : String(error) 
+            } 
+          }));
+        }
+        
         return { 
           success: false, 
           message: error instanceof Error ? error.message : String(error) 
@@ -81,10 +129,11 @@ export const executeSyncOperation = async <T>(
 
 // Check if a synchronization is in progress for a table
 export const isSynchronizing = (tableName: string): boolean => {
-  return syncQueue.hasPendingTasks(tableName);
+  return syncQueue.hasPendingTasks(tableName) || syncMonitor.hasActiveSync(tableName);
 };
 
 // Cancel pending synchronizations for a table
 export const cancelPendingSynchronizations = (tableName: string): number => {
   return syncQueue.cancelPendingTasks(tableName);
 };
+

@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { Toaster } from '@/components/ui/toaster';
@@ -16,6 +15,7 @@ import { getIsLoggedIn, getCurrentUser } from '@/services/auth/authService';
 import { MembresProvider } from '@/contexts/MembresContext';
 import { initializeSyncStorageCleaner } from './utils/syncStorageCleaner';
 import { Loader2 } from 'lucide-react';
+import SyncHealthIndicator from './components/common/SyncHealthIndicator';
 
 // Composant de route protégée avec gestion des erreurs améliorée
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
@@ -126,67 +126,72 @@ function App() {
   }
   
   return (
-    <Router>
-      <TooltipProvider>
-        <MembresProvider>
-          <Routes>
-            {/* Route publique */}
-            <Route path="/" element={<Index />} />
-            
-            {/* Routes protégées dans le Layout */}
-            <Route path="/" element={<Layout />}>
-              <Route path="pilotage" element={
-                <ProtectedRoute>
-                  <Pilotage />
-                </ProtectedRoute>
-              } />
+    <div className="app">
+      <Router>
+        <TooltipProvider>
+          <MembresProvider>
+            <Routes>
+              {/* Route publique */}
+              <Route path="/" element={<Index />} />
               
-              <Route path="db-admin" element={
-                <ProtectedRoute>
-                  <DbAdmin />
-                </ProtectedRoute>
-              } />
+              {/* Routes protégées dans le Layout */}
+              <Route path="/" element={<Layout />}>
+                <Route path="pilotage" element={
+                  <ProtectedRoute>
+                    <Pilotage />
+                  </ProtectedRoute>
+                } />
+                
+                <Route path="db-admin" element={
+                  <ProtectedRoute>
+                    <DbAdmin />
+                  </ProtectedRoute>
+                } />
+                
+                {/* Routes vers les pages réelles */}
+                <Route path="exigences" element={
+                  <ProtectedRoute>
+                    <Exigences />
+                  </ProtectedRoute>
+                } />
+                
+                <Route path="gestion-documentaire" element={
+                  <ProtectedRoute>
+                    <GestionDocumentaire />
+                  </ProtectedRoute>
+                } />
+                
+                <Route path="ressources-humaines" element={
+                  <ProtectedRoute>
+                    <RessourcesHumaines />
+                  </ProtectedRoute>
+                } />
+                
+                <Route path="collaboration" element={
+                  <ProtectedRoute>
+                    <Collaboration />
+                  </ProtectedRoute>
+                } />
+                
+                <Route path="administration" element={
+                  <ProtectedRoute>
+                    <Administration />
+                  </ProtectedRoute>
+                } />
+              </Route>
               
-              {/* Routes vers les pages réelles */}
-              <Route path="exigences" element={
-                <ProtectedRoute>
-                  <Exigences />
-                </ProtectedRoute>
-              } />
-              
-              <Route path="gestion-documentaire" element={
-                <ProtectedRoute>
-                  <GestionDocumentaire />
-                </ProtectedRoute>
-              } />
-              
-              <Route path="ressources-humaines" element={
-                <ProtectedRoute>
-                  <RessourcesHumaines />
-                </ProtectedRoute>
-              } />
-              
-              <Route path="collaboration" element={
-                <ProtectedRoute>
-                  <Collaboration />
-                </ProtectedRoute>
-              } />
-              
-              <Route path="administration" element={
-                <ProtectedRoute>
-                  <Administration />
-                </ProtectedRoute>
-              } />
-            </Route>
-            
-            {/* Redirection pour les routes inconnues */}
-            <Route path="*" element={<Navigate to="/" />} />
-          </Routes>
-          <Toaster />
-          <RouteTracker />
-        </MembresProvider>
-      </TooltipProvider>
-    </Router>
+              {/* Redirection pour les routes inconnues */}
+              <Route path="*" element={<Navigate to="/" />} />
+            </Routes>
+            <Toaster />
+            <RouteTracker />
+          </MembresProvider>
+        </TooltipProvider>
+      </Router>
+      
+      {/* Ajouter l'indicateur de santé des synchronisations */}
+      <SyncHealthIndicator position="bottom-right" />
+    </div>
   );
 }
 

@@ -2,6 +2,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useGlobalSync } from '@/contexts/GlobalSyncContext';
 import { syncQueue } from '@/features/sync/utils/syncQueue';
+import { syncMonitor } from '@/features/sync/utils/syncMonitor';
 
 const GlobalSyncManager: React.FC = () => {
   const { syncAll, isOnline, syncStates } = useGlobalSync();
@@ -78,16 +79,26 @@ const GlobalSyncManager: React.FC = () => {
           if (mountedRef.current) {
             setSyncingInProgress(true);
             
+            // Enregistrer cette synchronisation dans le moniteur global
+            const syncId = syncMonitor.recordSyncStart("all", "force");
+            
             syncAll()
               .then(results => {
                 console.log("GlobalSyncManager - Résultats de la synchronisation forcée:", results);
                 lastSyncRef.current = Date.now();
                 forceSyncRequiredRef.current = false;
                 setSyncingInProgress(false);
+                
+                // Enregistrer le résultat dans le moniteur
+                const success = Object.values(results).every(result => result === true);
+                syncMonitor.recordSyncEnd(syncId, success, !success ? "Certaines synchronisations ont échoué" : undefined);
               })
               .catch(error => {
                 console.error("GlobalSyncManager - Erreur lors de la synchronisation forcée:", error);
                 setSyncingInProgress(false);
+                
+                // Enregistrer l'erreur dans le moniteur
+                syncMonitor.recordSyncEnd(syncId, false, error instanceof Error ? error.message : String(error));
               });
           }
         }, 1000);
@@ -123,6 +134,9 @@ const GlobalSyncManager: React.FC = () => {
           console.log("GlobalSyncManager - Démarrage de la synchronisation initiale");
           setSyncingInProgress(true);
           
+          // Enregistrer cette synchronisation dans le moniteur global
+          const syncId = syncMonitor.recordSyncStart("all", "initial");
+          
           syncAll()
             .then(results => {
               if (!mountedRef.current) return;
@@ -131,6 +145,10 @@ const GlobalSyncManager: React.FC = () => {
               setInitialSyncDone(true);
               lastSyncRef.current = Date.now();
               setSyncingInProgress(false);
+              
+              // Enregistrer le résultat dans le moniteur
+              const success = Object.values(results).every(result => result === true);
+              syncMonitor.recordSyncEnd(syncId, success, !success ? "Certaines synchronisations ont échoué" : undefined);
             })
             .catch(error => {
               if (mountedRef.current) {
@@ -138,6 +156,9 @@ const GlobalSyncManager: React.FC = () => {
                 setSyncingInProgress(false);
                 // Même en cas d'erreur, marquer comme initialisé
                 setInitialSyncDone(true);
+                
+                // Enregistrer l'erreur dans le moniteur
+                syncMonitor.recordSyncEnd(syncId, false, error instanceof Error ? error.message : String(error));
               }
             });
         }
@@ -154,17 +175,27 @@ const GlobalSyncManager: React.FC = () => {
           console.log("GlobalSyncManager - Démarrage de la synchronisation périodique");
           setSyncingInProgress(true);
           
+          // Enregistrer cette synchronisation dans le moniteur global
+          const syncId = syncMonitor.recordSyncStart("all", "periodic");
+          
           syncAll()
-            .then(() => {
+            .then(results => {
               if (mountedRef.current) {
                 lastSyncRef.current = Date.now();
                 setSyncingInProgress(false);
+                
+                // Enregistrer le résultat dans le moniteur
+                const success = Object.values(results).every(result => result === true);
+                syncMonitor.recordSyncEnd(syncId, success, !success ? "Certaines synchronisations ont échoué" : undefined);
               }
             })
             .catch(error => {
               if (mountedRef.current) {
                 console.error("GlobalSyncManager - Erreur lors de la synchronisation périodique:", error);
                 setSyncingInProgress(false);
+                
+                // Enregistrer l'erreur dans le moniteur
+                syncMonitor.recordSyncEnd(syncId, false, error instanceof Error ? error.message : String(error));
               }
             });
         }
