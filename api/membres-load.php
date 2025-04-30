@@ -26,10 +26,13 @@ try {
     if (ob_get_level()) ob_clean();
     
     // Récupérer l'ID utilisateur depuis les paramètres GET
-    $userId = isset($_GET['userId']) ? $_GET['userId'] : 'p71x6d_system';
+    $userId = isset($_GET['userId']) ? $_GET['userId'] : null;
+    if (!$userId) {
+        throw new Exception("ID utilisateur manquant");
+    }
     error_log("UserId reçu: " . $userId);
     
-    // Configuration de la connexion à la base de données (factice pour le moment)
+    // Configuration de la connexion à la base de données
     $host = "p71x6d.myd.infomaniak.com";
     $dbname = "p71x6d_system";
     $username = "p71x6d_system";
@@ -45,6 +48,7 @@ try {
             'initiales' => 'JD',
             'email' => 'jean.dupont@example.com',
             'telephone' => '+33 6 12 34 56 78',
+            'userId' => $userId,
             'date_creation' => date('Y-m-d H:i:s')
         ],
         [
@@ -55,6 +59,7 @@ try {
             'initiales' => 'SM',
             'email' => 'sophie.martin@example.com',
             'telephone' => '+33 6 23 45 67 89',
+            'userId' => $userId,
             'date_creation' => date('Y-m-d H:i:s', strtotime('-2 days'))
         ]
     ];
@@ -91,6 +96,12 @@ try {
                     $membres = $mockData;
                 } else {
                     error_log("Nombre de membres récupérés: " . count($membres));
+                    // S'assurer que chaque membre a un userId
+                    foreach ($membres as &$membre) {
+                        if (!isset($membre['userId'])) {
+                            $membre['userId'] = $userId;
+                        }
+                    }
                 }
             } else {
                 error_log("Table {$tableName} n'existe pas, utilisation des données de test");
@@ -108,13 +119,14 @@ try {
                     `organisation` VARCHAR(255) NULL,
                     `notes` TEXT NULL,
                     `initiales` VARCHAR(10) NULL,
+                    `userId` VARCHAR(50) NOT NULL,
                     `date_creation` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
                     `date_modification` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
                 )");
                 
                 // Insérer les données de test
-                $stmt = $pdo->prepare("INSERT INTO `{$tableName}` (id, nom, prenom, fonction, initiales, email, telephone, date_creation) 
-                                      VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
+                $stmt = $pdo->prepare("INSERT INTO `{$tableName}` (id, nom, prenom, fonction, initiales, email, telephone, userId, date_creation) 
+                                      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
                 
                 foreach ($mockData as $membre) {
                     $stmt->execute([
@@ -125,6 +137,7 @@ try {
                         $membre['initiales'],
                         $membre['email'],
                         $membre['telephone'],
+                        $userId,
                         $membre['date_creation']
                     ]);
                 }

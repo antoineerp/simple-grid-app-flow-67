@@ -46,6 +46,7 @@ try {
             "description" => "TEXT NULL",
             "link" => "VARCHAR(255) NULL",
             "groupId" => "VARCHAR(36) NULL",
+            "userId" => "VARCHAR(50) NOT NULL",
             "date_creation" => "DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP",
             "date_modification" => "DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP"
         ],
@@ -56,6 +57,7 @@ try {
             "exclusion" => "TINYINT(1) DEFAULT 0",
             "atteinte" => "ENUM('NC', 'PC', 'C') NULL",
             "groupId" => "VARCHAR(36) NULL",
+            "userId" => "VARCHAR(50) NOT NULL",
             "date_creation" => "DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP",
             "date_modification" => "DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP"
         ],
@@ -68,6 +70,7 @@ try {
             "fonction" => "VARCHAR(100) NULL",
             "organisation" => "VARCHAR(255) NULL",
             "notes" => "TEXT NULL",
+            "userId" => "VARCHAR(50) NOT NULL",
             "date_creation" => "DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP",
             "date_modification" => "DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP"
         ],
@@ -78,6 +81,7 @@ try {
             "responsabilites" => "TEXT NULL",
             "etat" => "VARCHAR(50) NULL",
             "groupId" => "VARCHAR(36) NULL",
+            "userId" => "VARCHAR(50) NOT NULL",
             "date_creation" => "DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP",
             "date_modification" => "DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP"
         ],
@@ -90,6 +94,7 @@ try {
             "date_debut" => "DATE NULL",
             "date_fin" => "DATE NULL",
             "responsabilites" => "TEXT NULL",
+            "userId" => "VARCHAR(50) NOT NULL",
             "date_creation" => "DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP",
             "date_modification" => "DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP"
         ]
@@ -125,6 +130,15 @@ try {
                     error_log("Ajout de la colonne {$columnName} à la table {$tableName}");
                     $pdo->exec("ALTER TABLE `{$tableName}` ADD COLUMN `{$columnName}` {$columnDefinition}");
                 }
+            }
+            
+            // Vérifier spécifiquement si la colonne userId existe
+            if (!isset($existingColumns['userId'])) {
+                error_log("Ajout de la colonne userId à la table {$tableName}");
+                $pdo->exec("ALTER TABLE `{$tableName}` ADD COLUMN `userId` VARCHAR(50) NOT NULL");
+                
+                // Mettre à jour tous les enregistrements existants avec l'userId actuel
+                $pdo->exec("UPDATE `{$tableName}` SET userId = '{$userId}' WHERE userId IS NULL OR userId = ''");
             }
             
             $tablesUpdated[] = $tableName;

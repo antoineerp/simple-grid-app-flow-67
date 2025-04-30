@@ -76,6 +76,7 @@ try {
         `exclusion` TINYINT(1) DEFAULT 0,
         `atteinte` VARCHAR(5),
         `groupId` VARCHAR(36),
+        `userId` VARCHAR(50) NOT NULL,
         `date_creation` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
         `date_modification` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
@@ -88,6 +89,7 @@ try {
         `id` VARCHAR(36) PRIMARY KEY,
         `name` VARCHAR(255) NOT NULL,
         `expanded` TINYINT(1) DEFAULT 1,
+        `userId` VARCHAR(50) NOT NULL,
         `date_creation` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
         `date_modification` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
@@ -101,23 +103,24 @@ try {
     $transaction_active = true;
     
     try {
-        // Vider les tables avant d'insérer les nouvelles données
-        $pdo->exec("TRUNCATE TABLE `{$exigencesTableName}`");
-        error_log("Table des exigences vidée");
+        // Supprimer les enregistrements existants pour cet userId
+        $pdo->prepare("DELETE FROM `{$exigencesTableName}` WHERE userId = ?")->execute([$userId]);
+        error_log("Suppression des exigences existantes pour {$userId}");
         
-        $pdo->exec("TRUNCATE TABLE `{$groupsTableName}`");
-        error_log("Table des groupes vidée");
+        $pdo->prepare("DELETE FROM `{$groupsTableName}` WHERE userId = ?")->execute([$userId]);
+        error_log("Suppression des groupes existants pour {$userId}");
         
         // Insérer les groupes
         if (count($groups) > 0) {
-            $insertGroupQuery = "INSERT INTO `{$groupsTableName}` (id, name, expanded) VALUES (:id, :name, :expanded)";
+            $insertGroupQuery = "INSERT INTO `{$groupsTableName}` (id, name, expanded, userId) VALUES (:id, :name, :expanded, :userId)";
             $stmtGroup = $pdo->prepare($insertGroupQuery);
             
             foreach ($groups as $group) {
                 $stmtGroup->execute([
                     'id' => $group['id'],
                     'name' => $group['name'],
-                    'expanded' => $group['expanded'] ? 1 : 0
+                    'expanded' => $group['expanded'] ? 1 : 0,
+                    'userId' => $userId
                 ]);
             }
             error_log("Groupes insérés: " . count($groups));
@@ -126,8 +129,8 @@ try {
         // Insérer les exigences
         if (count($exigences) > 0) {
             $insertExigenceQuery = "INSERT INTO `{$exigencesTableName}` 
-                (id, nom, responsabilites, exclusion, atteinte, groupId, date_creation) 
-                VALUES (:id, :nom, :responsabilites, :exclusion, :atteinte, :groupId, :date_creation)";
+                (id, nom, responsabilites, exclusion, atteinte, groupId, userId, date_creation) 
+                VALUES (:id, :nom, :responsabilites, :exclusion, :atteinte, :groupId, :userId, :date_creation)";
             $stmtExigence = $pdo->prepare($insertExigenceQuery);
             
             foreach ($exigences as $exigence) {
@@ -150,6 +153,7 @@ try {
                     'exclusion' => $exigence['exclusion'] ? 1 : 0,
                     'atteinte' => $exigence['atteinte'],
                     'groupId' => $exigence['groupId'] ?? null,
+                    'userId' => $userId,
                     'date_creation' => $dateCreation
                 ]);
             }

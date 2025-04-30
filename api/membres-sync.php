@@ -39,7 +39,7 @@ try {
         throw new Exception("Impossible de se connecter à la base de données");
     }
     
-    // Schéma de la table membres - Mise à jour pour inclure tous les champs nécessaires
+    // Schéma de la table membres - Mise à jour pour inclure userId
     $schema = "CREATE TABLE IF NOT EXISTS `membres_{$userId}` (
         `id` VARCHAR(36) PRIMARY KEY,
         `nom` VARCHAR(100) NOT NULL,
@@ -50,6 +50,7 @@ try {
         `organisation` VARCHAR(255) NULL,
         `notes` TEXT NULL,
         `initiales` VARCHAR(10) NULL,
+        `userId` VARCHAR(50) NOT NULL,
         `date_creation` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
         `date_modification` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
@@ -64,6 +65,11 @@ try {
         // S'assurer que tous les champs nécessaires sont présents
         if (!isset($membre['id']) || empty($membre['id'])) {
             $membre['id'] = 'mem-' . bin2hex(random_bytes(8));
+        }
+        
+        // Ajouter l'userId à chaque membre
+        if (!isset($membre['userId']) || empty($membre['userId'])) {
+            $membre['userId'] = $userId;
         }
         
         // Convertir les dates si nécessaires

@@ -39,13 +39,11 @@ try {
         // Vérifier si c'est un objet JSON sérialisé
         if (strpos($userId, '[object Object]') !== false || $userId === '[object Object]') {
             error_log("UserId invalide (object détecté): {$userId}");
-            $userId = 'p71x6d_system';  // Utiliser une valeur par défaut
-            error_log("Utilisation de l'ID par défaut: {$userId}");
+            throw new Exception("UserId invalide");
         }
     } else {
         error_log("UserId manquant dans la requête");
-        $userId = 'p71x6d_system';  // Utiliser une valeur par défaut
-        error_log("Utilisation de l'ID par défaut: {$userId}");
+        throw new Exception("UserId manquant");
     }
     
     error_log("Chargement des exigences pour l'utilisateur: {$userId}");
@@ -76,7 +74,7 @@ try {
     $exigencesTableExists = false;
     $groupsTableExists = false;
     
-    // CORRECTION: Utiliser information_schema pour vérifier l'existence des tables, plutôt que SHOW TABLES LIKE
+    // Utiliser information_schema pour vérifier l'existence des tables
     $tableExistsQuery = "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = ? AND table_name = ?";
     $stmt = $pdo->prepare($tableExistsQuery);
     
@@ -94,9 +92,10 @@ try {
     
     // Récupérer les exigences si la table existe
     if ($exigencesTableExists) {
-        $query = "SELECT * FROM `{$exigencesTableName}` ORDER BY id";
+        $query = "SELECT * FROM `{$exigencesTableName}` WHERE userId = ? ORDER BY id";
         error_log("Exécution de la requête: {$query}");
-        $stmt = $pdo->query($query);
+        $stmt = $pdo->prepare($query);
+        $stmt->execute([$userId]);
         $exigences = $stmt->fetchAll();
         
         // Formater les données pour le client
@@ -125,6 +124,11 @@ try {
             if (isset($exigence['exclusion'])) {
                 $exigence['exclusion'] = (bool)$exigence['exclusion'];
             }
+            
+            // S'assurer que chaque exigence a un userId
+            if (!isset($exigence['userId'])) {
+                $exigence['userId'] = $userId;
+            }
         }
     } else {
         // Créer la table si elle n'existe pas
@@ -136,7 +140,8 @@ try {
             `atteinte` ENUM('NC', 'PC', 'C') NULL,
             `date_creation` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
             `date_modification` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-            `groupId` VARCHAR(36) NULL
+            `groupId` VARCHAR(36) NULL,
+            `userId` VARCHAR(50) NOT NULL
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci";
         
         $pdo->exec($createExigencesTable);
@@ -145,9 +150,10 @@ try {
     
     // Récupérer les groupes si la table existe
     if ($groupsTableExists) {
-        $query = "SELECT * FROM `{$groupsTableName}` ORDER BY id";
+        $query = "SELECT * FROM `{$groupsTableName}` WHERE userId = ? ORDER BY id";
         error_log("Exécution de la requête: {$query}");
-        $stmt = $pdo->query($query);
+        $stmt = $pdo->prepare($query);
+        $stmt->execute([$userId]);
         $groups = $stmt->fetchAll();
         
         // Formater les données pour le client
@@ -156,13 +162,19 @@ try {
             if (isset($group['expanded'])) {
                 $group['expanded'] = (bool)$group['expanded'];
             }
+            
+            // S'assurer que chaque groupe a un userId
+            if (!isset($group['userId'])) {
+                $group['userId'] = $userId;
+            }
         }
     } else {
         // Créer la table si elle n'existe pas
         $createGroupsTable = "CREATE TABLE IF NOT EXISTS `{$groupsTableName}` (
             `id` VARCHAR(36) NOT NULL PRIMARY KEY,
             `name` VARCHAR(255) NOT NULL,
-            `expanded` TINYINT(1) DEFAULT 1
+            `expanded` TINYINT(1) DEFAULT 1,
+            `userId` VARCHAR(50) NOT NULL
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci";
         
         $pdo->exec($createGroupsTable);

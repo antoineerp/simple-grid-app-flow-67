@@ -85,6 +85,11 @@ try {
             if (isset($document['date_modification']) && $document['date_modification']) {
                 $document['date_modification'] = date('Y-m-d\TH:i:s', strtotime($document['date_modification']));
             }
+            
+            // S'assurer que chaque document a un userId
+            if (!isset($document['userId'])) {
+                $document['userId'] = $userId;
+            }
         }
     } else {
         // Créer la table si elle n'existe pas
@@ -95,6 +100,7 @@ try {
             `url_fichier` VARCHAR(255) NULL,
             `type` VARCHAR(50) NULL,
             `tags` TEXT NULL,
+            `userId` VARCHAR(50) NOT NULL,
             `date_creation` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
             `date_modification` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
         )";

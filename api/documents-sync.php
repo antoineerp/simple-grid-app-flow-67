@@ -73,6 +73,7 @@ try {
                 `responsabilites` TEXT NULL,
                 `etat` VARCHAR(50) NULL,
                 `groupId` VARCHAR(36) NULL,
+                `userId` VARCHAR(50) NOT NULL,
                 `date_creation` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 `date_modification` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
             )");
@@ -83,8 +84,8 @@ try {
             
             // Préparer l'insertion des documents
             if (!empty($documents)) {
-                $stmt = $pdo->prepare("INSERT INTO `{$tableName}` (id, nom, fichier_path, responsabilites, etat, groupId) 
-                                      VALUES (?, ?, ?, ?, ?, ?)");
+                $stmt = $pdo->prepare("INSERT INTO `{$tableName}` (id, nom, fichier_path, responsabilites, etat, groupId, userId) 
+                                      VALUES (?, ?, ?, ?, ?, ?, ?)");
                 
                 foreach ($documents as $doc) {
                     $stmt->execute([
@@ -93,7 +94,8 @@ try {
                         $doc['fichier_path'] ?? null,
                         isset($doc['responsabilites']) ? json_encode($doc['responsabilites']) : null,
                         $doc['etat'] ?? null,
-                        $doc['groupId'] ?? null
+                        $doc['groupId'] ?? null,
+                        $userId // Toujours utiliser l'userId fourni
                     ]);
                 }
             }
