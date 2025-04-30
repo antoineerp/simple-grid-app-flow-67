@@ -4,7 +4,8 @@ import DocumentTable from '@/components/documents/DocumentTable';
 import { useDocuments } from '@/hooks/useDocuments';
 import { getDatabaseConnectionCurrentUser } from '@/services/core/databaseConnectionService';
 import { Button } from '@/components/ui/button';
-import { Plus, FileText } from 'lucide-react';
+import { Plus, FileText, RefreshCw } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 
 const GestionDocumentaire = () => {
   const { 
@@ -21,10 +22,13 @@ const GestionDocumentaire = () => {
     handleExclusionChange, 
     handleAddDocument, 
     handleAddGroup,
-    handleGroupReorder 
+    handleGroupReorder,
+    refreshDocuments,
+    isLoading
   } = useDocuments();
   
   const [currentUser, setCurrentUser] = useState<string>(getDatabaseConnectionCurrentUser() || 'default');
+  const { toast } = useToast();
   
   // Écouter les changements d'utilisateur
   useEffect(() => {
@@ -43,10 +47,28 @@ const GestionDocumentaire = () => {
     };
   }, []);
 
+  const handleRefresh = () => {
+    toast({
+      title: "Actualisation",
+      description: "Chargement des données les plus récentes..."
+    });
+    refreshDocuments();
+  };
+
   return (
     <div className="container mx-auto py-6 px-4">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold">Gestion Documentaire</h1>
+        <Button
+          onClick={handleRefresh}
+          variant="outline"
+          size="sm"
+          className="ml-2"
+          disabled={isLoading}
+        >
+          <RefreshCw className={`h-4 w-4 mr-1 ${isLoading ? 'animate-spin' : ''}`} />
+          Actualiser
+        </Button>
       </div>
       
       <DocumentTable 

@@ -9,6 +9,7 @@ interface SyncHookOptions {
   autoSync?: boolean; 
   debounceTime?: number;
   syncKey?: string;
+  maxRetries?: number;
 }
 
 /**
@@ -22,10 +23,12 @@ export function useSyncContext<T>(tableName: string, data: T[], options: SyncHoo
     showToasts = false, 
     autoSync = true,
     debounceTime = 2000,
-    syncKey = ''
+    syncKey = '',
+    maxRetries = 3
   } = options;
   
   const [dataChanged, setDataChanged] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
   
   // Références pour la synchronisation différée
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -34,9 +37,10 @@ export function useSyncContext<T>(tableName: string, data: T[], options: SyncHoo
   const lastSyncAttemptRef = useRef<number>(0);
   const syncInProgressRef = useRef<boolean>(false);
   const syncRetryCountRef = useRef<number>(0);
-  const maxRetries = 3;
   const mountedRef = useRef<boolean>(false);
   const unmountingRef = useRef<boolean>(false);
+  const authErrorShownRef = useRef<boolean>(false);
+  const lockTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Mettre à jour la référence des données au montage et marquer le composant comme monté
   useEffect(() => {
@@ -56,6 +60,19 @@ export function useSyncContext<T>(tableName: string, data: T[], options: SyncHoo
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current);
         timeoutRef.current = null;
+      }
+      
+      if (lockTimeoutRef.current) {
+        clearTimeout(lockTimeoutRef.current);
+        lockTimeoutRef.current = null;
+      }
+      
+      // Libérer les verrous au démontage
+      try {
+        localStorage.removeItem(`sync_in_progress_${tableName}`);
+        localStorage.removeItem(`sync_lock_time_${tableName}`);
+      } catch (e) {
+        console.error(`useSyncContext: Erreur lors du nettoyage des verrous pour ${tableName}:`, e);
       }
       
       // Si une synchronisation est en attente, sauvegarder les données localement
@@ -118,6 +135,51 @@ export function useSyncContext<T>(tableName: string, data: T[], options: SyncHoo
     }
   }, [tableName]);
   
+  // Acquérir un verrou pour la synchronisation
+  const acquireLock = useCallback(() => {
+    if (checkSyncInProgress()) {
+      return false;
+    }
+    
+    try {
+      localStorage.setItem(`sync_in_progress_${tableName}`, 'true');
+      localStorage.setItem(`sync_lock_time_${tableName}`, Date.now().toString());
+      
+      // Auto-expiration du verrou après 30 secondes pour éviter les blocages
+      if (lockTimeoutRef.current) {
+        clearTimeout(lockTimeoutRef.current);
+      }
+      
+      lockTimeoutRef.current = setTimeout(() => {
+        releaseLock();
+      }, 30000);
+      
+      syncInProgressRef.current = true;
+      setIsSyncing(true);
+      return true;
+    } catch (error) {
+      console.error(`useSyncContext: Erreur lors de l'acquisition du verrou pour ${tableName}:`, error);
+      return false;
+    }
+  }, [tableName, checkSyncInProgress]);
+  
+  // Libérer un verrou de synchronisation
+  const releaseLock = useCallback(() => {
+    try {
+      localStorage.removeItem(`sync_in_progress_${tableName}`);
+      localStorage.removeItem(`sync_lock_time_${tableName}`);
+      syncInProgressRef.current = false;
+      setIsSyncing(false);
+      
+      if (lockTimeoutRef.current) {
+        clearTimeout(lockTimeoutRef.current);
+        lockTimeoutRef.current = null;
+      }
+    } catch (error) {
+      console.error(`useSyncContext: Erreur lors de la libération du verrou pour ${tableName}:`, error);
+    }
+  }, [tableName]);
+  
   // Fonction pour synchroniser les données
   const syncWithServer = useCallback(async () => {
     if (!mountedRef.current || unmountingRef.current) {
@@ -130,7 +192,8 @@ export function useSyncContext<T>(tableName: string, data: T[], options: SyncHoo
       return false;
     }
 
-    if (syncInProgressRef.current || checkSyncInProgress()) {
+    // Vérifier puis acquérir le verrou
+    if (!acquireLock()) {
       console.log(`useSyncContext: Synchronisation déjà en cours pour ${tableName}, requête ignorée`);
       pendingSyncRef.current = true;
       return false;
@@ -143,10 +206,6 @@ export function useSyncContext<T>(tableName: string, data: T[], options: SyncHoo
     console.log(`useSyncContext: Début synchronisation ${tableName} (opération ${operationId})`);
     
     try {
-      syncInProgressRef.current = true;
-      localStorage.setItem(`sync_in_progress_${tableName}`, 'true');
-      localStorage.setItem(`sync_lock_time_${tableName}`, Date.now().toString());
-      
       lastSyncAttemptRef.current = Date.now();
       
       // Sauvegarder localement avant même de tenter la synchronisation
@@ -161,6 +220,7 @@ export function useSyncContext<T>(tableName: string, data: T[], options: SyncHoo
       
       if (!mountedRef.current || unmountingRef.current) {
         console.log(`useSyncContext: Synchronisation terminée pour ${tableName} mais composant démonté - résultat ignoré`);
+        releaseLock();
         return false;
       }
       
@@ -168,6 +228,7 @@ export function useSyncContext<T>(tableName: string, data: T[], options: SyncHoo
         console.log(`useSyncContext: Synchronisation réussie pour ${tableName} (opération ${operationId})`);
         syncRetryCountRef.current = 0;
         pendingSyncRef.current = false;
+        authErrorShownRef.current = false;
         
         if (showToasts) {
           toast({
@@ -183,13 +244,33 @@ export function useSyncContext<T>(tableName: string, data: T[], options: SyncHoo
         
         pendingSyncRef.current = true;
         
-        if (showToasts && syncRetryCountRef.current > 1) {
-          toast({
-            title: "Erreur de synchronisation",
-            description: `Les données "${tableName}" n'ont pas pu être synchronisées`,
-            variant: "destructive",
-            duration: 5000
-          });
+        // Afficher un toast d'erreur seulement après plusieurs échecs
+        if (showToasts && syncRetryCountRef.current > 1 && !authErrorShownRef.current) {
+          // Vérifier si c'est une erreur d'authentification dans les logs récents
+          const isAuthError = window.errorLogs && 
+                             window.errorLogs.some(log => 
+                               typeof log === 'string' && 
+                               (log.includes('authentifi') || 
+                                log.includes('auth') || 
+                                log.includes('token') || 
+                                log.includes('permission')));
+          
+          if (isAuthError) {
+            authErrorShownRef.current = true;
+            toast({
+              title: "Erreur d'authentification",
+              description: "Vous devez vous reconnecter pour accéder à cette fonctionnalité",
+              variant: "destructive",
+              duration: 5000
+            });
+          } else {
+            toast({
+              title: "Erreur de synchronisation",
+              description: `Les données "${tableName}" n'ont pas pu être synchronisées`,
+              variant: "destructive",
+              duration: 5000
+            });
+          }
         }
         
         // Planifier un nouvel essai automatique après délai croissant mais uniquement si
@@ -216,15 +297,33 @@ export function useSyncContext<T>(tableName: string, data: T[], options: SyncHoo
       
       return success;
     } catch (error) {
-      if (!mountedRef.current || unmountingRef.current) return false;
+      if (!mountedRef.current || unmountingRef.current) {
+        releaseLock();
+        return false;
+      }
       
       console.error(`useSyncContext: Erreur lors de la synchronisation de ${tableName}:`, error);
       pendingSyncRef.current = true;
       
-      if (showToasts) {
+      // Vérifier si c'est une erreur d'authentification
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const isAuthError = errorMessage.includes('authentifi') || 
+                          errorMessage.includes('auth') || 
+                          errorMessage.includes('token') || 
+                          errorMessage.includes('permission');
+      
+      if (isAuthError && !authErrorShownRef.current) {
+        authErrorShownRef.current = true;
+        toast({
+          title: "Erreur d'authentification",
+          description: "Vous devez vous reconnecter pour accéder à cette fonctionnalité",
+          variant: "destructive",
+          duration: 5000
+        });
+      } else if (showToasts && !isAuthError) {
         toast({
           title: "Erreur de synchronisation",
-          description: `Erreur lors de la synchronisation: ${error instanceof Error ? error.message : 'Erreur inconnue'}`,
+          description: `Erreur lors de la synchronisation: ${errorMessage}`,
           variant: "destructive",
           duration: 5000
         });
@@ -232,15 +331,9 @@ export function useSyncContext<T>(tableName: string, data: T[], options: SyncHoo
       
       return false;
     } finally {
-      if (mountedRef.current) {
-        syncInProgressRef.current = false;
-      }
-      
-      // Toujours nettoyer le verrou, même en cas d'erreur
-      localStorage.removeItem(`sync_in_progress_${tableName}`);
-      localStorage.removeItem(`sync_lock_time_${tableName}`);
+      releaseLock();
     }
-  }, [tableName, data, isOnline, syncTable, getStorageKey, checkSyncInProgress, showToasts, toast]);
+  }, [tableName, data, isOnline, syncTable, getStorageKey, checkSyncInProgress, showToasts, toast, maxRetries, acquireLock, releaseLock]);
   
   // Fonction pour notifier des changements de données
   const notifyChanges = useCallback(() => {
@@ -293,16 +386,17 @@ export function useSyncContext<T>(tableName: string, data: T[], options: SyncHoo
       try {
         // Sauvegarder une copie pour comparaison
         const lastData = lastDataRef.current || [];
-        const lastJson = JSON.stringify(lastData);
-        const currentJson = JSON.stringify(data);
+        
+        // Shallow comparison of arrays is insufficient, need deep compare
+        const lastDataJson = JSON.stringify(lastData);
+        const currentDataJson = JSON.stringify(data);
         
         // Si les données ont vraiment changé, mettre à jour la référence
-        if (lastJson !== currentJson) {
-          lastDataRef.current = JSON.parse(currentJson);
+        if (lastDataJson !== currentDataJson) {
+          lastDataRef.current = JSON.parse(currentDataJson);
           
-          // Si le composant est monté depuis au moins 500ms (éviter les syncs initiales inutiles)
-          // et que l'autoSync est activé, notifier des changements
-          if (autoSync) {
+          // Si le composant est monté et que l'autoSync est activé, notifier des changements
+          if (mountedRef.current && autoSync) {
             console.log(`useSyncContext: Données ${tableName} modifiées, planification synchronisation`);
             notifyChanges();
           }
@@ -319,6 +413,29 @@ export function useSyncContext<T>(tableName: string, data: T[], options: SyncHoo
     syncState,
     isOnline,
     dataChanged,
-    pendingSync: pendingSyncRef.current
+    pendingSync: pendingSyncRef.current,
+    isSyncing: syncState.isSyncing || isSyncing,
+    lastSynced: syncState.lastSynced,
+    syncFailed: syncState.syncFailed,
+    acquireLock,
+    releaseLock
+  };
+}
+
+// Add this to global window for debugging
+if (typeof window !== 'undefined') {
+  window.errorLogs = window.errorLogs || [];
+  
+  // Override console.error to capture authentication errors
+  const originalError = console.error;
+  console.error = function() {
+    // Store the error in our log
+    window.errorLogs.unshift(Array.from(arguments).join(' '));
+    // Trim the log to prevent memory issues
+    if (window.errorLogs.length > 100) {
+      window.errorLogs = window.errorLogs.slice(0, 100);
+    }
+    // Call the original console.error
+    return originalError.apply(console, arguments);
   };
 }

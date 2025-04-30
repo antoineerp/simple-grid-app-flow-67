@@ -53,7 +53,7 @@ const defaultMembres: Membre[] = [
 export const MembresProvider: React.FC<MembresProviderProps> = ({ children }) => {
   const [membres, setMembres] = useState<Membre[]>(defaultMembres);
   const [lastSynced, setLastSynced] = useState<Date | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isLoading, setIsLoading] = useState<boolean>(false); // Start as false to avoid immediate loading state
   const [error, setError] = useState<Error | null>(null);
   const [syncFailed, setSyncFailed] = useState<boolean>(false);
   const { isOnline } = useNetworkStatus();
@@ -62,6 +62,7 @@ export const MembresProvider: React.FC<MembresProviderProps> = ({ children }) =>
   const loadingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const consecutiveErrorsRef = useRef<number>(0);
   const { toast } = useToast();
+  const authErrorShownRef = useRef<boolean>(false);
 
   // Nettoyer les timeouts au démontage
   useEffect(() => {
@@ -80,6 +81,12 @@ export const MembresProvider: React.FC<MembresProviderProps> = ({ children }) =>
   // Utiliser un useCallback pour rendre la fonction réutilisable et stable
   const loadMembres = useCallback(async (forceRefresh = false) => {
     if (!mountedRef.current) return;
+    
+    // Si déjà en chargement, ne pas lancer un nouveau chargement
+    if (isLoading) {
+      console.log("MembresProvider: Déjà en cours de chargement, requête ignorée");
+      return;
+    }
     
     // Limiter la durée de chargement à 15 secondes maximum
     if (loadingTimeoutRef.current) {
@@ -114,6 +121,7 @@ export const MembresProvider: React.FC<MembresProviderProps> = ({ children }) =>
             initialized.current = true;
             consecutiveErrorsRef.current = 0;
             setSyncFailed(false);
+            authErrorShownRef.current = false;
           } else {
             // Conserver les membres actuels si aucun nouveau membre n'est chargé
             console.log("MembresProvider: Aucun membre chargé depuis le service");
@@ -126,22 +134,43 @@ export const MembresProvider: React.FC<MembresProviderProps> = ({ children }) =>
           
           setLastSynced(new Date());
           setSyncFailed(false);
+          setError(null);
         } catch (serviceError) {
           if (!mountedRef.current) return;
           
           console.error("MembresProvider: Erreur du service de membres:", serviceError);
           
-          // Incrémenter le compteur d'erreurs consécutives
-          consecutiveErrorsRef.current++;
+          // Check for authentication error
+          const isAuthError = serviceError instanceof Error && 
+                              (serviceError.message.includes("authentifi") || 
+                               serviceError.message.includes("auth") || 
+                               serviceError.message.includes("token") ||
+                               serviceError.message.includes("permission"));
           
-          // Afficher un toast d'erreur uniquement après plusieurs échecs
-          if (consecutiveErrorsRef.current >= 2) {
+          // Display authentication error only once
+          if (isAuthError && !authErrorShownRef.current) {
             toast({
-              title: "Problème de synchronisation",
-              description: "Les données des membres n'ont pas pu être synchronisées",
+              title: "Problème d'authentification",
+              description: "Vous n'êtes pas authentifié ou votre session a expiré",
               variant: "destructive",
               duration: 5000
             });
+            authErrorShownRef.current = true;
+          } 
+          // For other errors, track consecutive failures
+          else if (!isAuthError) {
+            // Incrémenter le compteur d'erreurs consécutives
+            consecutiveErrorsRef.current++;
+            
+            // Afficher un toast d'erreur uniquement après plusieurs échecs
+            if (consecutiveErrorsRef.current >= 2) {
+              toast({
+                title: "Problème de synchronisation",
+                description: "Les données des membres n'ont pas pu être synchronisées",
+                variant: "destructive",
+                duration: 5000
+              });
+            }
           }
           
           setError(serviceError instanceof Error ? serviceError : new Error(String(serviceError)));
@@ -171,19 +200,19 @@ export const MembresProvider: React.FC<MembresProviderProps> = ({ children }) =>
     }
   }, [isOnline, isLoading, membres.length, toast]);
 
-  // Charger les membres au démarrage
+  // Charger les membres au démarrage avec un délai pour éviter les conflits d'initialisation
   useEffect(() => {
-    if (!mountedRef.current) return;
+    const initTimeout = setTimeout(() => {
+      if (!mountedRef.current) return;
+      
+      // Fonction asynchrone auto-exécutée
+      loadMembres()
+        .catch(error => {
+          console.error("MembresProvider: Erreur lors du chargement initial des membres:", error);
+        });
+    }, 500); // petit délai pour laisser les autres composants s'initialiser
     
-    // Fonction asynchrone auto-exécutée
-    (async () => {
-      try {
-        await loadMembres();
-      } catch (error) {
-        console.error("MembresProvider: Erreur lors du chargement initial des membres:", error);
-      }
-    })();
-    
+    return () => clearTimeout(initTimeout);
   }, [loadMembres]);
 
   // Effet supplémentaire pour surveiller les changements de connectivité
@@ -207,6 +236,7 @@ export const MembresProvider: React.FC<MembresProviderProps> = ({ children }) =>
   const resetSyncFailed = useCallback(() => {
     setSyncFailed(false);
     consecutiveErrorsRef.current = 0;
+    authErrorShownRef.current = false;
   }, []);
 
   const refreshMembres = useCallback(async () => {
