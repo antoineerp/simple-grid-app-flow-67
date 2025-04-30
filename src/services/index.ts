@@ -28,7 +28,7 @@ export { connectAsUser, getLastConnectionError, disconnectUser };
 export { testDatabaseConnection, getDatabaseInfo };
 
 // Export de types depuis d'autres modules si nécessaire
-export type { Utilisateur } from './users/types';
+export { type Utilisateur } from './users/types';
 
 // Exportation de fonctions utilitaires
 export const clearUsersCache = (): void => {

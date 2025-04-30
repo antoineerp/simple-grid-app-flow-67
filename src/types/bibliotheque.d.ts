@@ -17,3 +17,6 @@ export interface DocumentGroup {
   items: Document[];
   userId?: string; // Added userId property for user identification
 }
+
+// Adding BibliothequeItem type for backwards compatibility
+export type BibliothequeItem = Document;

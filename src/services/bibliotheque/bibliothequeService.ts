@@ -1,6 +1,25 @@
 
 import { Document, DocumentGroup } from '@/types/bibliotheque';
 
+export interface BibliothequeItem extends Document {}
+
+/**
+ * Fetches bibliotheque items from storage or API
+ */
+export const getBibliothequeItems = async (): Promise<BibliothequeItem[]> => {
+  try {
+    // Get current user
+    const currentUser = localStorage.getItem('currentUser') || 'default';
+    
+    // Load from storage
+    const { documents } = loadBibliothequeFromStorage(currentUser);
+    return documents;
+  } catch (error) {
+    console.error('Error fetching bibliotheque items:', error);
+    throw new Error('Failed to fetch bibliotheque items');
+  }
+};
+
 /**
  * Loads collaboration documents from localStorage for a specific user
  */

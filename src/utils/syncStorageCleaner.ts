@@ -123,3 +123,24 @@ export function safeLocalStorageRemove(key: string): void {
     console.error(`Erreur lors de la suppression depuis le localStorage (${key}):`, error);
   }
 }
+
+/**
+ * Marquer qu'une table a été modifiée et nécessite une synchronisation
+ */
+export function markDataChanged(tableName: string): void {
+  if (typeof window === 'undefined') return;
+  
+  try {
+    const key = `sync_changed_${tableName}`;
+    localStorage.setItem(key, new Date().toISOString());
+    
+    // Émettre un événement pour notifier les autres parties de l'application
+    window.dispatchEvent(new CustomEvent('data-changed', { 
+      detail: { tableName, timestamp: new Date().toISOString() }
+    }));
+    
+    console.log(`SyncStorageCleaner: Données marquées comme modifiées pour ${tableName}`);
+  } catch (error) {
+    console.error(`Erreur lors du marquage des données modifiées pour ${tableName}:`, error);
+  }
+}
