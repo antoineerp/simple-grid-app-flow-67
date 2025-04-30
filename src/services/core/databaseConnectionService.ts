@@ -1,4 +1,3 @@
-
 /**
  * Service de gestion de la connexion à la base de données
  */
@@ -23,6 +22,19 @@ export const getCurrentUser = (): string | null => {
  */
 export const getDatabaseConnectionCurrentUser = (): string | null => {
   return getCurrentUser();
+};
+
+/**
+ * Initialize the current user from localStorage if available
+ */
+export const initializeCurrentUser = (): void => {
+  const savedUser = localStorage.getItem('currentUser');
+  if (savedUser) {
+    currentUser = savedUser;
+    console.log("Current user initialized from localStorage:", currentUser);
+  } else {
+    console.log("No saved user found in localStorage");
+  }
 };
 
 /**
@@ -182,8 +194,5 @@ export const importDatabaseData = async (data: any, options?: {tableName?: strin
 
 // Initialize user from localStorage on module load
 (() => {
-  const savedUser = localStorage.getItem('currentUser');
-  if (savedUser) {
-    currentUser = savedUser;
-  }
+  initializeCurrentUser();
 })();

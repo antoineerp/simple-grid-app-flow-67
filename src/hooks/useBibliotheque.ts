@@ -1,37 +1,205 @@
 
 import { useState, useEffect, useCallback } from 'react';
-import { getBibliothequeItems } from '@/services/bibliotheque/bibliothequeService';
-import { BibliothequeItem } from '@/types/bibliotheque';
+import { loadBibliothequeFromStorage, saveBibliothequeToStorage } from '@/services/bibliotheque/bibliothequeService';
+import { Document, DocumentGroup } from '@/types/bibliotheque';
 import { useGlobalSync } from '@/contexts/GlobalSyncContext';
+import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 
 export const useBibliotheque = () => {
-  const [items, setItems] = useState<BibliothequeItem[]>([]);
+  const [documents, setDocuments] = useState<Document[]>([]);
+  const [groups, setGroups] = useState<DocumentGroup[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isGroupDialogOpen, setIsGroupDialogOpen] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [currentDocument, setCurrentDocument] = useState<Document | null>(null);
+  const [currentGroup, setCurrentGroup] = useState<DocumentGroup | null>(null);
+  
   const { syncWithServer } = useGlobalSync();
+  const { isOnline } = useNetworkStatus();
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [syncFailed, setSyncFailed] = useState(false);
+  const [lastSynced, setLastSynced] = useState<Date | null>(null);
   
   const fetchItems = useCallback(async () => {
     setLoading(true);
     setError(null);
     
     try {
-      const data = await getBibliothequeItems();
-      setItems(data);
+      // Get current user
+      const currentUser = localStorage.getItem('currentUser') || 'default';
       
-      // Sync with server if available
-      if (syncWithServer) {
-        await syncWithServer(data, { tableName: 'bibliotheque' });
-      }
+      // Load from storage
+      const { documents: docs, groups: grps } = loadBibliothequeFromStorage(currentUser);
+      setDocuments(docs);
+      setGroups(grps);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erreur lors du chargement des données');
     } finally {
       setLoading(false);
     }
-  }, [syncWithServer]);
+  }, []);
+  
+  // For backwards compatibility we also provide "items" property
+  const items = documents;
   
   useEffect(() => {
     fetchItems();
   }, [fetchItems]);
   
-  return { items, loading, error, refreshItems: fetchItems };
+  const handleSyncDocuments = async () => {
+    if (!syncWithServer) return;
+    
+    setIsSyncing(true);
+    setSyncFailed(false);
+    
+    try {
+      const allDocs = [...documents];
+      const currentUser = localStorage.getItem('currentUser') || 'default';
+      
+      const success = await syncWithServer(allDocs, { 
+        tableName: 'bibliotheque',
+        groups
+      }, currentUser);
+      
+      if (success) {
+        setLastSynced(new Date());
+      } else {
+        setSyncFailed(true);
+      }
+    } catch (err) {
+      console.error('Error syncing documents:', err);
+      setSyncFailed(true);
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+  
+  const handleAddDocument = (document: Document) => {
+    const newDocuments = [...documents, document];
+    const currentUser = localStorage.getItem('currentUser') || 'default';
+    
+    setDocuments(newDocuments);
+    saveBibliothequeToStorage(newDocuments, groups, currentUser);
+    setIsDialogOpen(false);
+    
+    // Auto-sync if online
+    if (isOnline && syncWithServer) {
+      handleSyncDocuments();
+    }
+  };
+  
+  const handleUpdateDocument = (document: Document) => {
+    const newDocuments = documents.map(doc => 
+      doc.id === document.id ? document : doc
+    );
+    const currentUser = localStorage.getItem('currentUser') || 'default';
+    
+    setDocuments(newDocuments);
+    saveBibliothequeToStorage(newDocuments, groups, currentUser);
+    setIsDialogOpen(false);
+    
+    // Auto-sync if online
+    if (isOnline && syncWithServer) {
+      handleSyncDocuments();
+    }
+  };
+  
+  const handleDeleteDocument = (id: string) => {
+    const newDocuments = documents.filter(doc => doc.id !== id);
+    const currentUser = localStorage.getItem('currentUser') || 'default';
+    
+    setDocuments(newDocuments);
+    saveBibliothequeToStorage(newDocuments, groups, currentUser);
+    setIsDialogOpen(false);
+    
+    // Auto-sync if online
+    if (isOnline && syncWithServer) {
+      handleSyncDocuments();
+    }
+  };
+  
+  const handleAddGroup = (group: DocumentGroup) => {
+    const newGroups = [...groups, group];
+    const currentUser = localStorage.getItem('currentUser') || 'default';
+    
+    setGroups(newGroups);
+    saveBibliothequeToStorage(documents, newGroups, currentUser);
+    setIsGroupDialogOpen(false);
+    
+    // Auto-sync if online
+    if (isOnline && syncWithServer) {
+      handleSyncDocuments();
+    }
+  };
+  
+  const handleUpdateGroup = (group: DocumentGroup) => {
+    const newGroups = groups.map(g => 
+      g.id === group.id ? group : g
+    );
+    const currentUser = localStorage.getItem('currentUser') || 'default';
+    
+    setGroups(newGroups);
+    saveBibliothequeToStorage(documents, newGroups, currentUser);
+    setIsGroupDialogOpen(false);
+    
+    // Auto-sync if online
+    if (isOnline && syncWithServer) {
+      handleSyncDocuments();
+    }
+  };
+  
+  const handleDeleteGroup = (id: string) => {
+    // Remove the group and update documents that belong to it
+    const newGroups = groups.filter(g => g.id !== id);
+    const newDocuments = documents.map(doc => {
+      if (doc.groupId === id) {
+        return { ...doc, groupId: undefined };
+      }
+      return doc;
+    });
+    
+    const currentUser = localStorage.getItem('currentUser') || 'default';
+    
+    setGroups(newGroups);
+    setDocuments(newDocuments);
+    saveBibliothequeToStorage(newDocuments, newGroups, currentUser);
+    setIsGroupDialogOpen(false);
+    
+    // Auto-sync if online
+    if (isOnline && syncWithServer) {
+      handleSyncDocuments();
+    }
+  };
+  
+  return { 
+    documents, 
+    groups, 
+    items,
+    loading, 
+    error, 
+    refreshItems: fetchItems,
+    isDialogOpen,
+    isGroupDialogOpen,
+    isEditing,
+    currentDocument,
+    currentGroup,
+    setIsDialogOpen,
+    setIsGroupDialogOpen,
+    setIsEditing,
+    setCurrentDocument,
+    setCurrentGroup,
+    handleAddDocument,
+    handleUpdateDocument,
+    handleDeleteDocument,
+    handleAddGroup,
+    handleUpdateGroup,
+    handleDeleteGroup,
+    handleSyncDocuments,
+    isSyncing,
+    isOnline,
+    lastSynced,
+    syncFailed
+  };
 };

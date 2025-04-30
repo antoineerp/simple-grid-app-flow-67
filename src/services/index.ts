@@ -17,11 +17,17 @@ import {
   getLastConnectionError,
   disconnectUser,
   testDatabaseConnection,
-  getDatabaseInfo
+  getDatabaseInfo,
+  initializeCurrentUser
 } from './core/databaseConnectionService';
 
 // Réexportations
-export { getCurrentDbUser, getDatabaseConnectionCurrentUser, setCurrentUser };
+export { 
+  getCurrentDbUser, 
+  getDatabaseConnectionCurrentUser, 
+  setCurrentUser,
+  initializeCurrentUser 
+};
 export { getApiBaseUrl, getUserApiUrl, getApiAuthHeaders };
 export { initializeDatabaseConnection };
 export { connectAsUser, getLastConnectionError, disconnectUser };
