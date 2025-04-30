@@ -25,7 +25,10 @@ export const getMembres = async (forceRefresh: boolean = false): Promise<Membre[
     }
 
     const API_URL = getApiUrl();
-    const response = await fetch(`${API_URL}/membres-load.php`, {
+    const userId = localStorage.getItem('userId') || sessionStorage.getItem('userId') || 'p71x6d_system';
+    console.log(`Chargement des membres pour l'utilisateur: ${userId}`);
+
+    const response = await fetch(`${API_URL}/membres-load.php?userId=${userId}`, {
       method: 'GET',
       headers: {
         ...getAuthHeaders(),
@@ -38,23 +41,60 @@ export const getMembres = async (forceRefresh: boolean = false): Promise<Membre[
     });
 
     if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`Erreur HTTP ${response.status}: ${errorText}`);
       throw new Error(`Erreur HTTP: ${response.status} - ${response.statusText}`);
     }
 
     const data = await response.json();
+    console.log("Réponse brute de membres-load.php:", data);
     
     // Si les données sont vides, retourner un tableau vide
-    if (!data || !data.records) {
+    if (!data) {
       return [];
+    }
+    
+    // Déterminer où se trouvent les données dans la réponse
+    let records: Membre[] = [];
+    
+    if (Array.isArray(data)) {
+      records = data;
+    } else if (data.records && Array.isArray(data.records)) {
+      records = data.records;
+    } else if (data.membres && Array.isArray(data.membres)) {
+      records = data.membres;
+    } else if (data.data && Array.isArray(data.data)) {
+      records = data.data;
+    } else {
+      console.warn("Format de réponse non reconnu pour les membres");
+      records = [];
     }
 
     // Mettre à jour le cache
-    membresCache = data.records;
+    membresCache = records;
     lastFetchTimestamp = Date.now();
     
-    return data.records;
+    // Sauvegarder en local également
+    localStorage.setItem(`membres_${userId}`, JSON.stringify(records));
+    
+    return records;
   } catch (error) {
     console.error("Erreur lors de la récupération des membres:", error);
+    
+    // Essayer de récupérer depuis le stockage local
+    try {
+      const userId = localStorage.getItem('userId') || sessionStorage.getItem('userId') || 'p71x6d_system';
+      const localData = localStorage.getItem(`membres_${userId}`);
+      
+      if (localData) {
+        const parsedData = JSON.parse(localData);
+        console.log("Utilisation des données locales pour les membres");
+        return parsedData;
+      }
+    } catch (localError) {
+      console.error("Erreur lors de la lecture des données locales des membres:", localError);
+    }
+    
     // En cas d'erreur, retourner un tableau vide pour éviter de bloquer l'UI
     return [];
   }

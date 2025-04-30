@@ -236,11 +236,7 @@ export class SyncService {
   private async performSync<T>(tableName: string, data: T[], userId: string): Promise<SyncResult> {
     const API_URL = getApiUrl();
     
-    // Construire l'URL de l'endpoint de synchronisation
-    const endpoint = `${API_URL}/${tableName}-sync.php`;
-    
-    console.log(`Synchronisation de ${tableName} vers ${endpoint}`);
-    console.log(`Utilisateur: ${userId}`);
+    console.log(`Synchronisation de ${tableName} pour l'utilisateur ${userId}`);
     
     try {
       // Récupérer les groupes à synchroniser si disponibles
@@ -256,9 +252,11 @@ export class SyncService {
         };
       }
       
-      // Effectuer la requête de synchronisation
-      console.log(`Envoi de ${data.length} éléments pour synchronisation de ${tableName}`);
+      // S'assurer que l'URL se termine par .php
+      const endpoint = `${API_URL}/${tableName}-sync.php`;
+      console.log(`Envoi vers: ${endpoint}`);
       
+      // Construire les données à envoyer
       const requestData: any = {
         userId: userId
       };
@@ -273,24 +271,10 @@ export class SyncService {
       
       console.log("Données de requête:", JSON.stringify(requestData).substring(0, 200) + "...");
       
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        headers: {
-          ...getAuthHeaders(),
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(requestData)
-      });
-      
-      // Log pour déboguer la réponse HTTP
-      console.log(`Réponse HTTP: ${response.status} ${response.statusText}`);
-      
-      if (!response.ok) {
-        // En cas d'erreur, essayer une URL alternative (infomaniak)
-        const alternativeEndpoint = `/sites/qualiopi.ch/api/${tableName}-sync.php`;
-        console.log(`Tentative avec URL alternative: ${alternativeEndpoint}`);
-        
-        const alternativeResponse = await fetch(alternativeEndpoint, {
+      // Première tentative
+      let response;
+      try {
+        response = await fetch(endpoint, {
           method: 'POST',
           headers: {
             ...getAuthHeaders(),
@@ -299,45 +283,62 @@ export class SyncService {
           body: JSON.stringify(requestData)
         });
         
-        // Log pour déboguer la réponse HTTP alternative
-        console.log(`Réponse HTTP alternative: ${alternativeResponse.status} ${alternativeResponse.statusText}`);
+        console.log(`Réponse HTTP: ${response.status} ${response.statusText}`);
         
-        if (!alternativeResponse.ok) {
-          const errorText = await alternativeResponse.text();
-          console.error(`Erreur de synchronisation alternative: ${errorText}`);
-          throw new Error(`Erreur ${alternativeResponse.status}: ${errorText}`);
+        // Si la réponse n'est pas OK, essayer l'URL alternative
+        if (!response.ok) {
+          throw new Error(`Réponse HTTP non OK: ${response.status}`);
         }
+      } catch (primaryError) {
+        console.warn(`Erreur lors de la première tentative: ${primaryError.message}`);
         
-        const alternativeResult = await alternativeResponse.json();
-        console.log(`Résultat de la synchronisation alternative: ${JSON.stringify(alternativeResult)}`);
-        
-        if (!alternativeResult.success) {
-          throw new Error(alternativeResult.message || "Échec de la synchronisation");
+        // Tentative avec l'URL alternative
+        try {
+          const alternativeEndpoint = `/sites/qualiopi.ch/api/${tableName}-sync.php`;
+          console.log(`Tentative avec URL alternative: ${alternativeEndpoint}`);
+          
+          response = await fetch(alternativeEndpoint, {
+            method: 'POST',
+            headers: {
+              ...getAuthHeaders(),
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(requestData)
+          });
+          
+          console.log(`Réponse HTTP alternative: ${response.status} ${response.statusText}`);
+          
+          if (!response.ok) {
+            throw new Error(`Réponse HTTP alternative non OK: ${response.status}`);
+          }
+        } catch (secondaryError) {
+          console.error(`Échec de toutes les tentatives de synchronisation: ${secondaryError.message}`);
+          // Stocker en local et retourner un échec
+          this.storeLastSyncResult(tableName, {
+            success: false,
+            timestamp: new Date().toISOString(),
+            error: secondaryError.message
+          });
+          
+          throw new Error(`Échec de la synchronisation après plusieurs tentatives: ${secondaryError.message}`);
         }
-        
-        return {
-          success: true,
-          message: alternativeResult.message || "Synchronisation réussie (URL alternative)",
-          count: alternativeResult.count || data.length
-        };
       }
       
-      // Obtenir le résultat de la requête principale
+      // Obtenir le texte de la réponse pour analyse
       const responseText = await response.text();
-      console.log(`Réponse brute: ${responseText}`);
       
+      // Tenter de parser la réponse comme JSON
       let result;
       try {
         result = JSON.parse(responseText);
-      } catch (e) {
-        console.error("Erreur lors de l'analyse de la réponse JSON:", e);
-        throw new Error(`Réponse invalide du serveur: ${responseText}`);
+        console.log(`Résultat de la synchronisation: ${JSON.stringify(result)}`);
+      } catch (parseError) {
+        console.error(`Erreur de parsing JSON: ${parseError.message}. Réponse brute: ${responseText}`);
+        throw new Error(`La réponse du serveur n'est pas un JSON valide: ${responseText.substring(0, 100)}...`);
       }
       
-      console.log(`Résultat de la synchronisation: ${JSON.stringify(result)}`);
-      
-      if (!result.success) {
-        throw new Error(result.message || "Échec de la synchronisation");
+      if (!result || result.success !== true) {
+        throw new Error(result?.message || "Réponse du serveur invalide");
       }
       
       // Enregistrer le résultat de la synchronisation dans localStorage
@@ -346,6 +347,9 @@ export class SyncService {
         timestamp: new Date().toISOString(),
         count: result.count || data.length
       });
+      
+      // Nettoyer l'indicateur de synchronisation en attente
+      localStorage.removeItem(`sync_pending_${tableName}`);
       
       return {
         success: true,
@@ -470,118 +474,133 @@ export class SyncService {
     
     console.log(`Chargement des données de ${actualTableName} (original: ${tableName}) pour l'utilisateur ${currentUser}`);
     
-    // Essayer de charger depuis l'URL principale
-    let response;
+    // S'assurer que l'URL se termine par .php
+    const endpoint = `${API_URL}/${actualTableName}-load.php`;
     
     try {
-      response = await fetch(`${API_URL}/${actualTableName}-load.php?userId=${currentUser}`, {
+      // Essayer l'URL principale
+      const response = await fetch(`${endpoint}?userId=${currentUser}`, {
         method: 'GET',
         headers: getAuthHeaders(),
         cache: 'no-store'
       });
-    } catch (err) {
-      // En cas d'erreur, essayer l'URL alternative
-      console.warn(`Erreur lors du chargement depuis l'URL principale: ${err}`);
       
+      // Si la réponse n'est pas OK, essayer l'URL alternative
+      if (!response.ok) {
+        throw new Error(`Réponse HTTP non OK: ${response.status}`);
+      }
+      
+      const result = await response.json();
+      console.log(`Données chargées pour ${actualTableName}:`, result);
+      
+      // Déterminer où se trouvent les données dans la réponse
+      let data: T[] = [];
+      
+      if (Array.isArray(result)) {
+        // Cas où la réponse est directement un tableau
+        data = result;
+      } else if (result.records && Array.isArray(result.records)) {
+        // Cas où les données sont dans la propriété records
+        data = result.records;
+      } else if (result[actualTableName] && Array.isArray(result[actualTableName])) {
+        // Cas où les données sont dans une propriété du nom de la table
+        data = result[actualTableName];
+      } else if (result.data && Array.isArray(result.data)) {
+        // Cas où les données sont dans la propriété data
+        data = result.data;
+      } else {
+        console.warn(`Format de réponse non reconnu pour ${actualTableName}`);
+        data = [];
+      }
+      
+      // Stocker localement pour accès hors ligne
+      localStorage.setItem(`${actualTableName}_${currentUser}`, JSON.stringify(data));
+      
+      // Mettre à jour la dernière date de synchronisation
+      this.lastSynced[actualTableName] = new Date();
+      
+      return data;
+      
+    } catch (primaryError) {
+      console.warn(`Erreur lors du chargement depuis l'URL principale: ${primaryError.message}`);
+      
+      // Tentative avec l'URL alternative
       try {
-        const alternativeUrl = `/sites/qualiopi.ch/api/${actualTableName}-load.php`;
-        console.log(`Tentative avec URL alternative: ${alternativeUrl}`);
+        const alternativeEndpoint = `/sites/qualiopi.ch/api/${actualTableName}-load.php`;
+        console.log(`Tentative avec URL alternative: ${alternativeEndpoint}`);
         
-        response = await fetch(`${alternativeUrl}?userId=${currentUser}`, {
+        const alternativeResponse = await fetch(`${alternativeEndpoint}?userId=${currentUser}`, {
           method: 'GET',
           headers: getAuthHeaders(),
           cache: 'no-store'
         });
-      } catch (err2) {
-        console.error(`Échec également avec l'URL alternative: ${err2}`);
         
-        // Retourner les données locales si disponibles
-        const localData = localStorage.getItem(`${actualTableName}_${currentUser}`);
-        if (localData) {
-          try {
-            return JSON.parse(localData);
-          } catch (e) {
-            console.error(`Erreur lors de la lecture des données locales: ${e}`);
-          }
+        if (!alternativeResponse.ok) {
+          throw new Error(`Réponse HTTP alternative non OK: ${alternativeResponse.status}`);
         }
         
-        // Vérifier l'ancien nom de table aussi
-        Object.entries(this.tableMapping).forEach(([oldName, newName]) => {
-          if (newName === actualTableName) {
-            const oldLocalData = localStorage.getItem(`${oldName}_${currentUser}`);
-            if (oldLocalData) {
-              try {
-                const data = JSON.parse(oldLocalData);
+        const result = await alternativeResponse.json();
+        console.log(`Données chargées pour ${actualTableName} (URL alternative):`, result);
+        
+        // Même logique que précédemment pour extraire les données
+        let data: T[] = [];
+        
+        if (Array.isArray(result)) {
+          data = result;
+        } else if (result.records && Array.isArray(result.records)) {
+          data = result.records;
+        } else if (result[actualTableName] && Array.isArray(result[actualTableName])) {
+          data = result[actualTableName];
+        } else if (result.data && Array.isArray(result.data)) {
+          data = result.data;
+        } else {
+          console.warn(`Format de réponse alternative non reconnu pour ${actualTableName}`);
+          data = [];
+        }
+        
+        // Stocker localement pour accès hors ligne
+        localStorage.setItem(`${actualTableName}_${currentUser}`, JSON.stringify(data));
+        
+        // Mettre à jour la dernière date de synchronisation
+        this.lastSynced[actualTableName] = new Date();
+        
+        return data;
+        
+      } catch (secondaryError) {
+        console.error(`Échec de toutes les tentatives de chargement: ${secondaryError.message}`);
+        
+        // Essayer de charger depuis le stockage local
+        try {
+          const localData = localStorage.getItem(`${actualTableName}_${currentUser}`);
+          if (localData) {
+            const parsedData = JSON.parse(localData);
+            console.log(`Utilisation des données locales pour ${actualTableName}`);
+            return parsedData;
+          }
+          
+          // Vérifier aussi l'ancien nom si c'est une table mappée
+          Object.entries(this.tableMapping).forEach(([oldName, newName]) => {
+            if (newName === actualTableName) {
+              const oldLocalData = localStorage.getItem(`${oldName}_${currentUser}`);
+              if (oldLocalData) {
+                const parsedData = JSON.parse(oldLocalData);
+                console.log(`Utilisation des anciennes données locales pour ${oldName}`);
                 // Migrer vers le nouveau nom
                 localStorage.setItem(`${actualTableName}_${currentUser}`, oldLocalData);
-                localStorage.removeItem(`${oldName}_${currentUser}`);
-                return data;
-              } catch (e) {
-                console.error(`Erreur lors de la lecture des anciennes données locales: ${e}`);
+                return parsedData;
               }
             }
-          }
-        });
+          });
+        } catch (localError) {
+          console.error(`Erreur lors de la lecture des données locales: ${localError}`);
+        }
         
-        throw new Error(`Impossible de charger les données: ${err}`);
+        // En dernier recours, retourner un tableau vide
+        return [];
       }
     }
-    
-    if (!response.ok) {
-      // Si la réponse n'est pas ok, essayer de retourner les données locales
-      const localData = localStorage.getItem(`${actualTableName}_${currentUser}`);
-      if (localData) {
-        try {
-          return JSON.parse(localData);
-        } catch (e) {
-          console.error(`Erreur lors de la lecture des données locales: ${e}`);
-        }
-      }
-      
-      // Vérifier l'ancien nom de table aussi
-      Object.entries(this.tableMapping).forEach(([oldName, newName]) => {
-        if (newName === actualTableName) {
-          const oldLocalData = localStorage.getItem(`${oldName}_${currentUser}`);
-          if (oldLocalData) {
-            try {
-              const data = JSON.parse(oldLocalData);
-              // Migrer vers le nouveau nom
-              localStorage.setItem(`${actualTableName}_${currentUser}`, oldLocalData);
-              localStorage.removeItem(`${oldName}_${currentUser}`);
-              return data;
-            } catch (e) {
-              console.error(`Erreur lors de la lecture des anciennes données locales: ${e}`);
-            }
-          }
-        }
-      });
-      
-      throw new Error(`Erreur ${response.status}: ${response.statusText}`);
-    }
-    
-    const data = await response.json();
-    
-    // Mettre à jour la date de dernière synchronisation
-    this.lastSynced[actualTableName] = new Date();
-    
-    // Traiter les différents formats de réponse possibles
-    if (data && data.data && data.data.records && Array.isArray(data.data.records)) {
-      return data.data.records;
-    } else if (data && data.records && Array.isArray(data.records)) {
-      return data.records;
-    } else if (data && data.documents && Array.isArray(data.documents)) {
-      return data.documents;
-    } else if (data && data.success && Array.isArray(data.data)) {
-      return data.data;
-    } else if (Array.isArray(data)) {
-      return data;
-    }
-    
-    // Si on ne peut pas déterminer le format, retourner un tableau vide
-    console.warn(`Format de données inattendu reçu du serveur:`, data);
-    return [];
   }
 }
 
-// Export d'une instance singleton
+// Créer et exporter une instance du service
 export const syncService = SyncService.getInstance();

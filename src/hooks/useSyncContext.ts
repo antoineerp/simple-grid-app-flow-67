@@ -9,6 +9,7 @@ interface SyncHookOptions {
   showToasts?: boolean;
   autoSync?: boolean; // Option pour synchroniser automatiquement au chargement
   debounceTime?: number; // Temps d'attente avant synchronisation (ms)
+  syncKey?: string; // Clé unique pour éviter les conflits
 }
 
 /**
@@ -21,7 +22,8 @@ export function useSyncContext<T>(tableName: string, data: T[], options: SyncHoo
   const { 
     showToasts = true, 
     autoSync = false, 
-    debounceTime = 10000 // 10 secondes par défaut
+    debounceTime = 10000, // 10 secondes par défaut
+    syncKey = ''
   } = options;
   const [dataChanged, setDataChanged] = useState(false);
   
@@ -38,37 +40,61 @@ export function useSyncContext<T>(tableName: string, data: T[], options: SyncHoo
     syncFailed: false
   };
   
+  // Générer une clé unique pour le stockage local
+  const getStorageKey = useCallback(() => {
+    const userId = getCurrentUser() || 'default';
+    // Si une syncKey est fournie, l'utiliser pour éviter les conflits
+    return syncKey ? 
+      `${tableName}_${syncKey}_${userId}` : 
+      `${tableName}_${userId}`;
+  }, [tableName, syncKey]);
+  
   // Stocker les données dans localStorage et déclencher la synchronisation différée
   useEffect(() => {
-    if (data.length > 0 && JSON.stringify(data) !== JSON.stringify(lastDataRef.current)) {
-      // Sauvegarder avec l'ID utilisateur pour éviter les conflits
-      const userId = getCurrentUser() || 'default';
-      localStorage.setItem(`${tableName}_${userId}`, JSON.stringify(data));
-      setDataChanged(true);
-      pendingSyncRef.current = true;
-      lastDataRef.current = [...data];
+    // Ne déclencher que s'il y a des données et qu'elles ont changé
+    if (data.length > 0) {
+      const currentDataStr = JSON.stringify(data);
+      const lastDataStr = JSON.stringify(lastDataRef.current);
       
-      // Si autoSync est activé, planifier une synchronisation différée
-      if (autoSync && isOnline) {
-        // Annuler tout timeout existant
-        if (timeoutRef.current) {
-          clearTimeout(timeoutRef.current);
-        }
+      if (currentDataStr !== lastDataStr) {
+        const storageKey = getStorageKey();
+        console.log(`Données modifiées pour ${tableName}, sauvegarde locale avec clé ${storageKey}`);
         
-        // Créer un nouveau timeout
-        timeoutRef.current = setTimeout(() => {
-          if (pendingSyncRef.current && isOnline && data.length > 0) {
-            console.log(`Synchronisation différée de ${tableName} après ${debounceTime}ms`);
-            syncTable(tableName, data)
-              .then(() => {
-                pendingSyncRef.current = false;
-                setDataChanged(false);
-              })
-              .catch(error => {
-                console.error(`Erreur lors de la synchronisation différée de ${tableName}:`, error);
-              });
+        // Sauvegarder les données localement
+        localStorage.setItem(storageKey, currentDataStr);
+        setDataChanged(true);
+        pendingSyncRef.current = true;
+        lastDataRef.current = [...data];
+        
+        // Si autoSync est activé, planifier une synchronisation différée
+        if (autoSync && isOnline) {
+          // Annuler tout timeout existant
+          if (timeoutRef.current) {
+            clearTimeout(timeoutRef.current);
           }
-        }, debounceTime);
+          
+          console.log(`Programmation de synchronisation différée pour ${tableName} dans ${debounceTime}ms`);
+          
+          // Créer un nouveau timeout
+          timeoutRef.current = setTimeout(() => {
+            if (pendingSyncRef.current && isOnline && data.length > 0) {
+              console.log(`Exécution de synchronisation différée pour ${tableName}`);
+              syncTable(tableName, data)
+                .then(result => {
+                  if (result) {
+                    pendingSyncRef.current = false;
+                    setDataChanged(false);
+                    console.log(`Synchronisation différée de ${tableName} réussie`);
+                  } else {
+                    console.warn(`Échec de la synchronisation différée de ${tableName}`);
+                  }
+                })
+                .catch(error => {
+                  console.error(`Erreur lors de la synchronisation différée de ${tableName}:`, error);
+                });
+            }
+          }, debounceTime);
+        }
       }
     }
     
@@ -78,7 +104,23 @@ export function useSyncContext<T>(tableName: string, data: T[], options: SyncHoo
         clearTimeout(timeoutRef.current);
       }
     };
-  }, [data, tableName, autoSync, isOnline, debounceTime, syncTable]);
+  }, [data, tableName, autoSync, isOnline, debounceTime, syncTable, getStorageKey]);
+
+  // Récupérer les données locales
+  const loadLocalData = useCallback((): T[] => {
+    try {
+      const storageKey = getStorageKey();
+      const storedData = localStorage.getItem(storageKey);
+      
+      if (storedData) {
+        return JSON.parse(storedData);
+      }
+    } catch (e) {
+      console.error(`Erreur lors de la lecture des données locales pour ${tableName}:`, e);
+    }
+    
+    return [];
+  }, [tableName, getStorageKey]);
 
   // Méthode de synchronisation adaptée pour cette table spécifique
   const syncWithServer = useCallback(async (): Promise<boolean> => {
@@ -124,7 +166,7 @@ export function useSyncContext<T>(tableName: string, data: T[], options: SyncHoo
         timeoutRef.current = null;
       }
       
-      // Use only two parameters: tableName and data
+      // Utiliser uniquement les paramètres nécessaires: tableName et data
       const result = await syncTable(tableName, data);
       
       if (result) {
@@ -138,6 +180,11 @@ export function useSyncContext<T>(tableName: string, data: T[], options: SyncHoo
             description: `Les données de ${tableName} ont été synchronisées`
           });
         }
+        
+        // Sauvegarder les données localement avec la date de synchronisation
+        const storageKey = getStorageKey();
+        localStorage.setItem(storageKey, JSON.stringify(data));
+        localStorage.setItem(`${storageKey}_last_sync`, new Date().toISOString());
       } else {
         console.error(`Échec de la synchronisation de ${tableName}`);
         
@@ -164,7 +211,7 @@ export function useSyncContext<T>(tableName: string, data: T[], options: SyncHoo
       
       return false;
     }
-  }, [isOnline, syncTable, tableName, data, showToasts, toast]);
+  }, [isOnline, syncTable, tableName, data, showToasts, toast, getStorageKey]);
   
   // Méthode pour notifier seulement les changements (sauvegarde locale)
   const notifyChanges = useCallback(() => {
@@ -174,8 +221,8 @@ export function useSyncContext<T>(tableName: string, data: T[], options: SyncHoo
     }
     
     // Sauvegarder dans localStorage
-    const userId = getCurrentUser() || 'default';
-    localStorage.setItem(`${tableName}_${userId}`, JSON.stringify(data));
+    const storageKey = getStorageKey();
+    localStorage.setItem(storageKey, JSON.stringify(data));
     
     // Indiquer que des changements sont en attente
     pendingSyncRef.current = true;
@@ -203,7 +250,7 @@ export function useSyncContext<T>(tableName: string, data: T[], options: SyncHoo
         }
       }, debounceTime);
     }
-  }, [tableName, data, autoSync, isOnline, debounceTime, syncTable]);
+  }, [tableName, data, autoSync, isOnline, debounceTime, syncTable, getStorageKey]);
 
   return {
     isSyncing: syncState.isSyncing,
@@ -212,6 +259,7 @@ export function useSyncContext<T>(tableName: string, data: T[], options: SyncHoo
     isOnline,
     syncWithServer,
     notifyChanges,
-    dataChanged
+    dataChanged,
+    loadLocalData
   };
 }

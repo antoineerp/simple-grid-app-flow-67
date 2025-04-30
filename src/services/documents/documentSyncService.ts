@@ -14,58 +14,92 @@ export const loadDocumentsFromServer = async (userId: string | null = null): Pro
     const currentUser = userId || getCurrentUser() || 'p71x6d_system';
     console.log(`Chargement des documents pour l'utilisateur ${currentUser}`);
     
-    // Mécanisme de retry avec deux URL alternatives (avec et sans sous-répertoire)
-    let response;
-    let error1;
+    // Construire l'URL
+    const API_URL = getApiUrl();
+    const endpoint = `${API_URL}/documents-load.php`;
     
     try {
       // Première tentative - URL standard
-      response = await fetch(`${getApiUrl()}/documents-load.php?userId=${currentUser}`, {
+      const response = await fetch(`${endpoint}?userId=${currentUser}`, {
         method: 'GET',
         headers: getAuthHeaders(),
         cache: 'no-store'
       });
+      
+      if (!response.ok) {
+        throw new Error(`Erreur HTTP ${response.status}: ${response.statusText}`);
+      }
+      
+      const result = await response.json();
+      console.log("Documents chargés depuis le serveur:", result);
+      
+      let documents: Document[] = [];
+      
+      if (result.success && Array.isArray(result.documents)) {
+        documents = result.documents;
+      } else if (Array.isArray(result)) {
+        documents = result;
+      } else if (result.records && Array.isArray(result.records)) {
+        documents = result.records;
+      } else {
+        console.warn("Format de réponse non reconnu pour les documents");
+        documents = [];
+      }
+      
+      // Sauvegarder localement pour accès hors ligne
+      localStorage.setItem(`documents_${currentUser}`, JSON.stringify(documents));
+      
+      return documents;
     } catch (err) {
-      error1 = err;
       console.warn("Première tentative de chargement échouée:", err);
       
+      // Deuxième tentative - URL alternative
       try {
-        // Deuxième tentative - URL alternative pour environnement Infomaniak
         const apiAltUrl = `/sites/qualiopi.ch/api`;
         console.log("Tentative avec URL alternative:", apiAltUrl);
         
-        response = await fetch(`${apiAltUrl}/documents-load.php?userId=${currentUser}`, {
+        const response = await fetch(`${apiAltUrl}/documents-load.php?userId=${currentUser}`, {
           method: 'GET',
           headers: getAuthHeaders(),
           cache: 'no-store'
         });
+        
+        if (!response.ok) {
+          throw new Error(`Erreur HTTP alternative ${response.status}: ${response.statusText}`);
+        }
+        
+        const result = await response.json();
+        console.log("Documents chargés depuis le serveur (URL alternative):", result);
+        
+        let documents: Document[] = [];
+        
+        if (result.success && Array.isArray(result.documents)) {
+          documents = result.documents;
+        } else if (Array.isArray(result)) {
+          documents = result;
+        } else if (result.records && Array.isArray(result.records)) {
+          documents = result.records;
+        } else {
+          console.warn("Format de réponse alternative non reconnu pour les documents");
+          documents = [];
+        }
+        
+        // Sauvegarder localement pour accès hors ligne
+        localStorage.setItem(`documents_${currentUser}`, JSON.stringify(documents));
+        
+        return documents;
       } catch (err2) {
         console.error("Deuxième tentative de chargement également échouée:", err2);
-        throw new Error(`Impossible de charger les documents: ${err} / ${err2}`);
+        
+        // Essayer de charger depuis le stockage local
+        const localDocuments = getLocalDocuments(currentUser);
+        if (localDocuments.length > 0) {
+          return localDocuments;
+        }
+        
+        throw new Error(`Impossible de charger les documents: ${err}`);
       }
     }
-    
-    if (!response.ok) {
-      throw new Error(`Erreur ${response.status}: ${response.statusText}`);
-    }
-    
-    const result = await response.json();
-    console.log("Documents chargés depuis le serveur:", result);
-    
-    if (result.success && Array.isArray(result.documents)) {
-      return result.documents;
-    } else if (Array.isArray(result)) {
-      return result;
-    }
-    
-    // Si le serveur ne retourne pas la structure attendue, afficher un toast d'avertissement
-    toast({
-      variant: "destructive",
-      title: "Format de données inattendu",
-      description: "Le serveur a répondu mais le format des données n'est pas celui attendu. Mode hors-ligne activé."
-    });
-    
-    return [];
   } catch (error) {
     console.error('Erreur lors du chargement des documents:', error);
     
@@ -76,8 +110,8 @@ export const loadDocumentsFromServer = async (userId: string | null = null): Pro
       description: "Impossible de charger les documents depuis le serveur. Mode hors-ligne activé.",
     });
     
-    // En cas d'erreur, renvoyer un tableau vide
-    return [];
+    // Retourner les documents locaux s'ils existent
+    return getLocalDocuments(userId);
   }
 };
 
@@ -90,13 +124,19 @@ export const syncDocumentsWithServer = async (documents: Document[], userId: str
     const currentUser = userId || getCurrentUser() || 'p71x6d_system';
     console.log(`Synchronisation des documents pour l'utilisateur ${currentUser}`);
     
-    // Essayer de synchroniser avec le serveur
-    let response;
-    let error1;
+    // Construire l'URL
+    const API_URL = getApiUrl();
+    const endpoint = `${API_URL}/documents-sync.php`;
+    
+    // Assurer que les documents ont un ID valide
+    const validDocuments = documents.map(doc => ({
+      ...doc,
+      id: doc.id || crypto.randomUUID()
+    }));
     
     try {
       // Première tentative - URL standard
-      response = await fetch(`${getApiUrl()}/documents-sync.php`, {
+      const response = await fetch(endpoint, {
         method: 'POST',
         headers: {
           ...getAuthHeaders(),
@@ -104,19 +144,38 @@ export const syncDocumentsWithServer = async (documents: Document[], userId: str
         },
         body: JSON.stringify({
           userId: currentUser,
-          documents: documents
+          documents: validDocuments
         })
       });
+      
+      if (!response.ok) {
+        throw new Error(`Erreur HTTP ${response.status}: ${response.statusText}`);
+      }
+      
+      const result = await response.json();
+      console.log("Résultat de la synchronisation des documents:", result);
+      
+      if (result.success === true) {
+        // Sauvegarder localement également
+        localStorage.setItem(`documents_${currentUser}`, JSON.stringify(validDocuments));
+        
+        toast({
+          title: "Synchronisation réussie",
+          description: "Les documents ont été synchronisés avec le serveur.",
+        });
+        return true;
+      } else {
+        throw new Error("La synchronisation a échoué: " + (result.message || "Raison inconnue"));
+      }
     } catch (err) {
-      error1 = err;
       console.warn("Première tentative de synchronisation échouée:", err);
       
+      // Deuxième tentative - URL alternative
       try {
-        // Deuxième tentative - URL alternative pour environnement Infomaniak
         const apiAltUrl = `/sites/qualiopi.ch/api`;
         console.log("Tentative avec URL alternative:", apiAltUrl);
         
-        response = await fetch(`${apiAltUrl}/documents-sync.php`, {
+        const response = await fetch(`${apiAltUrl}/documents-sync.php`, {
           method: 'POST',
           headers: {
             ...getAuthHeaders(),
@@ -124,41 +183,47 @@ export const syncDocumentsWithServer = async (documents: Document[], userId: str
           },
           body: JSON.stringify({
             userId: currentUser,
-            documents: documents
+            documents: validDocuments
           })
         });
+        
+        if (!response.ok) {
+          throw new Error(`Erreur HTTP alternative ${response.status}: ${response.statusText}`);
+        }
+        
+        const result = await response.json();
+        console.log("Résultat de la synchronisation des documents (URL alternative):", result);
+        
+        if (result.success === true) {
+          // Sauvegarder localement également
+          localStorage.setItem(`documents_${currentUser}`, JSON.stringify(validDocuments));
+          
+          toast({
+            title: "Synchronisation réussie",
+            description: "Les documents ont été synchronisés avec le serveur.",
+          });
+          return true;
+        } else {
+          throw new Error("La synchronisation a échoué: " + (result.message || "Raison inconnue"));
+        }
       } catch (err2) {
         console.error("Deuxième tentative de synchronisation également échouée:", err2);
         
-        // Enregistrer localement comme solution de secours et informer l'utilisateur
-        localStorage.setItem(`documents_${currentUser}`, JSON.stringify(documents));
+        // Enregistrer localement comme solution de secours
+        localStorage.setItem(`documents_${currentUser}`, JSON.stringify(validDocuments));
         
         toast({
-          variant: "destructive",
+          variant: "warning",
           title: "Synchronisation en mode hors-ligne",
           description: "Les documents ont été sauvegardés localement. La synchronisation avec le serveur sera tentée ultérieurement.",
         });
         
+        // Indiquer qu'une synchronisation est en attente
+        localStorage.setItem(`sync_pending_documents`, new Date().toISOString());
+        
         // Retourner true car les données sont au moins sauvegardées localement
         return true;
       }
-    }
-    
-    if (!response.ok) {
-      throw new Error(`Erreur ${response.status}: ${response.statusText}`);
-    }
-    
-    const result = await response.json();
-    console.log("Résultat de la synchronisation des documents:", result);
-    
-    if (result.success === true) {
-      toast({
-        title: "Synchronisation réussie",
-        description: "Les documents ont été synchronisés avec le serveur.",
-      });
-      return true;
-    } else {
-      throw new Error("La synchronisation a échoué: " + (result.message || "Raison inconnue"));
     }
   } catch (error) {
     console.error('Erreur lors de la synchronisation des documents:', error);
@@ -166,6 +231,9 @@ export const syncDocumentsWithServer = async (documents: Document[], userId: str
     // Sauvegarde locale comme solution de secours
     const currentUser = userId || getCurrentUser() || 'p71x6d_system';
     localStorage.setItem(`documents_${currentUser}`, JSON.stringify(documents));
+    
+    // Indiquer qu'une synchronisation est en attente
+    localStorage.setItem(`sync_pending_documents`, new Date().toISOString());
     
     toast({
       variant: "destructive",
