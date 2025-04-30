@@ -14,7 +14,7 @@ export const Header: React.FC = () => {
       <div className="container flex justify-between items-center py-2">
         <div className="flex items-center space-x-4">
           <LogoSelector currentLogo={logo} onLogoChange={handleLogoChange} />
-          <h1 className="text-xl font-bold">Gestion Qualité</h1>
+          <h1 className="text-xl font-bold">Qualité.flow - Système de Management de la Qualité</h1>
         </div>
       </div>
     </header>
