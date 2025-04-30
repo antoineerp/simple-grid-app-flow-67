@@ -100,7 +100,7 @@ class SyncMonitor {
       tableName: id.includes('_') ? id.split('_')[0] : id,
       operation,
       startTime: timestamp,
-      success: false // Initialize with a default value
+      success: false
     };
     
     // Stocker l'opération active

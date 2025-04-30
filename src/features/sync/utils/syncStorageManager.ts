@@ -55,6 +55,44 @@ export const saveLocalData = <T>(tableName: string, data: T[], syncKey?: string)
       localStorage.setItem(`${storageKey}_last_saved`, timestamp);
       sessionStorage.setItem(`${storageKey}_last_saved`, timestamp);
       
+      // NOUVEAU: Vérifier que les données ont bien été sauvegardées
+      const verifyLocalStorage = localStorage.getItem(storageKey);
+      const verifySessionStorage = sessionStorage.getItem(storageKey);
+      
+      if (!verifyLocalStorage || !verifySessionStorage) {
+        console.warn(`SyncStorageManager: Vérification de sauvegarde échouée pour ${tableName}. Nouvel essai...`);
+        
+        // Nouvelle tentative avec une taille réduite si les données sont trop volumineuses
+        if (jsonData.length > 1000000) { // ~1MB
+          console.warn(`SyncStorageManager: Les données pour ${tableName} sont très volumineuses (${jsonData.length} caractères). Tentative de compression...`);
+          
+          // Essayer de stocker sans les propriétés non essentielles si possible
+          try {
+            const simplifiedData = data.map((item: any) => {
+              // Créer une copie simplifiée de chaque élément
+              const copy: any = { ...item };
+              
+              // Supprimer les propriétés volumineuses non essentielles si elles existent
+              const nonEssentialProps = ['description', 'details', 'comments', 'history', 'fullContent'];
+              nonEssentialProps.forEach(prop => {
+                if (prop in copy && typeof copy[prop] === 'string' && copy[prop].length > 1000) {
+                  copy[prop] = `${copy[prop].substring(0, 500)}... [tronqué]`;
+                }
+              });
+              
+              return copy;
+            });
+            
+            const simplifiedJson = JSON.stringify(simplifiedData);
+            localStorage.setItem(`${storageKey}_simplified`, simplifiedJson);
+            sessionStorage.setItem(`${storageKey}_simplified`, simplifiedJson);
+            console.warn(`SyncStorageManager: Données simplifiées sauvegardées pour ${tableName}`);
+          } catch (simplifyError) {
+            console.error(`SyncStorageManager: Échec de simplification pour ${tableName}:`, simplifyError);
+          }
+        }
+      }
+      
       console.log(`SyncStorageManager: ${data.length} éléments sauvegardés pour ${tableName} (${timestamp})`);
     } catch (jsonError) {
       console.error(`SyncStorageManager: Erreur de conversion JSON pour ${tableName}:`, jsonError);
@@ -89,6 +127,17 @@ export const loadLocalData = <T>(tableName: string, syncKey?: string): T[] => {
     if (!localData) {
       localData = localStorage.getItem(storageKey);
       source = "localStorage";
+      
+      // Si toujours rien, essayer la version simplifiée
+      if (!localData) {
+        localData = sessionStorage.getItem(`${storageKey}_simplified`);
+        if (localData) source = "sessionStorage (simplified)";
+        
+        if (!localData) {
+          localData = localStorage.getItem(`${storageKey}_simplified`);
+          if (localData) source = "localStorage (simplified)";
+        }
+      }
     }
     
     if (localData) {
@@ -96,6 +145,17 @@ export const loadLocalData = <T>(tableName: string, syncKey?: string): T[] => {
         const parsedData = JSON.parse(localData);
         if (Array.isArray(parsedData)) {
           console.log(`SyncStorageManager: ${parsedData.length} éléments chargés depuis ${source} pour ${tableName}`);
+          
+          // NOUVEAU: Si les données viennent de localStorage, les sauvegarder dans sessionStorage
+          if (source.startsWith("localStorage")) {
+            try {
+              sessionStorage.setItem(storageKey, localData);
+              console.log(`SyncStorageManager: Données copiées dans sessionStorage pour ${tableName}`);
+            } catch (sessionError) {
+              console.warn(`SyncStorageManager: Impossible de copier dans sessionStorage pour ${tableName}:`, sessionError);
+            }
+          }
+          
           return parsedData;
         } else {
           console.warn(`SyncStorageManager: Les données pour ${tableName} ne sont pas un tableau`);
@@ -284,12 +344,79 @@ export const syncBetweenStorages = (): void => {
   }
 };
 
+// NOUVEAU: Fonction plus agressive pour se prémunir contre la perte de données
+export const forceSessionPersistence = (tableName: string, syncKey?: string): void => {
+  try {
+    const storageKey = getStorageKey(tableName, syncKey);
+    const localData = localStorage.getItem(storageKey);
+    const sessionData = sessionStorage.getItem(storageKey);
+    
+    // Déterminer quelles sont les données les plus récentes
+    const localTimestamp = localStorage.getItem(`${storageKey}_last_saved`);
+    const sessionTimestamp = sessionStorage.getItem(`${storageKey}_last_saved`);
+    
+    let mostRecentData: string | null = null;
+    let source = "";
+    
+    if (localTimestamp && sessionTimestamp) {
+      // Les deux existent, prendre le plus récent
+      if (new Date(localTimestamp) > new Date(sessionTimestamp)) {
+        mostRecentData = localData;
+        source = "localStorage";
+      } else {
+        mostRecentData = sessionData;
+        source = "sessionStorage";
+      }
+    } else if (localData) {
+      // Seulement dans localStorage
+      mostRecentData = localData;
+      source = "localStorage";
+    } else if (sessionData) {
+      // Seulement dans sessionStorage
+      mostRecentData = sessionData;
+      source = "sessionStorage";
+    }
+    
+    // Si des données ont été trouvées, les enregistrer dans les deux stockages
+    if (mostRecentData) {
+      const timestamp = new Date().toISOString();
+      
+      localStorage.setItem(storageKey, mostRecentData);
+      localStorage.setItem(`${storageKey}_last_saved`, timestamp);
+      
+      sessionStorage.setItem(storageKey, mostRecentData);
+      sessionStorage.setItem(`${storageKey}_last_saved`, timestamp);
+      
+      console.log(`SyncStorageManager: Force persistence - données de ${source} copiées dans les deux stockages pour ${tableName}`);
+      return;
+    }
+    
+    console.log(`SyncStorageManager: Aucune donnée trouvée pour ${tableName}`);
+  } catch (error) {
+    console.error(`SyncStorageManager: Erreur lors de forceSessionPersistence pour ${tableName}:`, error);
+  }
+};
+
 // Exécuter le nettoyage et la synchronisation au chargement
 cleanupMalformedData();
 syncBetweenStorages();
 
-// NOUVEAU: Ajouter un événement pour synchroniser les storages lors du focus sur la fenêtre
-// Cela permet de synchroniser les données après être revenu sur l'onglet
+// NOUVEAU: Ajouter un événement pour synchroniser les storages lors du focus sur la fenêtre et avant de quitter
 if (typeof window !== 'undefined') {
+  // Synchroniser lorsque l'utilisateur revient sur l'onglet
   window.addEventListener('focus', syncBetweenStorages);
+  
+  // Synchroniser avant que l'utilisateur ne quitte la page
+  window.addEventListener('beforeunload', () => {
+    syncBetweenStorages();
+    console.log("SyncStorageManager: Synchronisation finalisée avant départ de la page");
+  });
+  
+  // Synchroniser lorsque l'utilisateur change de page dans l'application (routing)
+  window.addEventListener('popstate', () => {
+    syncBetweenStorages();
+    console.log("SyncStorageManager: Synchronisation lors du changement de page");
+  });
 }
+
+export { markPendingSync, clearPendingSync, hasPendingSync, hasLocalData, getLastSavedTimestamp };
