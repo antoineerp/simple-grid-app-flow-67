@@ -97,29 +97,20 @@ export const BibliothequeGroup: React.FC<BibliothequeGroupProps> = ({
         </TableCell>
       </TableRow>
       
-      {group.expanded && group.items && group.items.map((docId) => {
-        // Construire un objet Document à partir de l'identifiant
-        const docItem: Document = {
-          id: docId,
-          name: `Document ${docId}`, // Nom par défaut
-          groupId: group.id
-        };
-        
-        return (
-          <BibliothequeDocumentRow
-            key={docId}
-            document={docItem}
-            onEdit={onEdit}
-            onDelete={onDelete}
-            onDragStart={onDragStart}
-            onDragOver={onDragOver}
-            onDragLeave={onDragLeave}
-            onDrop={onDrop}
-            onDragEnd={onDragEnd}
-            groupId={group.id}
-          />
-        );
-      })}
+      {group.expanded && group.items.map((doc) => (
+        <BibliothequeDocumentRow
+          key={doc.id}
+          document={doc}
+          onEdit={onEdit}
+          onDelete={onDelete}
+          onDragStart={onDragStart}
+          onDragOver={onDragOver}
+          onDragLeave={onDragLeave}
+          onDrop={onDrop}
+          onDragEnd={onDragEnd}
+          groupId={group.id}
+        />
+      ))}
     </React.Fragment>
   );
 };

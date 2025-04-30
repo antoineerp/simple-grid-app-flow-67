@@ -1,395 +1,425 @@
-
 /**
  * Service pour déclencher la synchronisation des données
- * Ce service permet d'assurer que les modifications sont bien synchronisées avec le serveur
- * même si l'utilisateur quitte la page ou change d'appareil
+ * Service unifié pour toute l'application
  */
+import { dataSyncManager } from './DataSyncManager';
+import { getCurrentUser } from '@/services/core/databaseConnectionService';
+import { toast } from '@/components/ui/use-toast';
+import { getApiUrl } from '@/config/apiConfig';
+import { getAuthHeaders } from '@/services/auth/authService';
 
-import { useNetworkStatus } from '@/hooks/useNetworkStatus';
-import { safeLocalStorageSet, safeLocalStorageGet } from '@/utils/syncStorageCleaner';
-import { getCurrentUser, getDatabaseConnectionCurrentUser } from '@/services/core/databaseConnectionService';
-
-// Structure pour stocker les données en attente de synchronisation
-interface PendingSyncData {
-  tableName: string;
-  data: any[];
-  timestamp: string;
-  userId?: string;
+interface SyncStats {
+  attemptCount: number;
+  lastAttempt: number;
+  successCount: number;
+  failureCount: number;
 }
 
-// Résultat d'une opération de synchronisation
-interface SyncResult {
-  success: boolean;
-  message: string;
-  timestamp?: string;
-}
-
-// Interface de la classe TriggerSyncService pour TypeScript
-interface ITriggerSyncService {
-  notifyDataChange: <T>(tableName: string, data: T[], userId?: string) => void;
-  triggerTableSync: <T>(tableName: string, data: T[], trigger?: string) => Promise<SyncResult>;
-  hasPendingSyncs: () => boolean;
-  getPendingSyncsCount: () => number;
-  initialize: () => void;
-  cleanup: () => void;
-}
-
-// Clé utilisée pour stocker les données en attente dans le localStorage
-const PENDING_SYNC_KEY = 'sync_pending_changes';
-
-/**
- * Singleton pour gérer les déclenchements de synchronisation
- */
-class TriggerSyncService implements ITriggerSyncService {
-  private pendingSyncs: Map<string, PendingSyncData> = new Map();
-  private initialized: boolean = false;
+export const triggerSync = {
+  // Statistiques pour éviter les boucles de synchronisation
+  _syncStats: {} as Record<string, SyncStats>,
   
-  constructor() {
-    this.initialize();
-  }
+  // Mécanisme de verrouillage pour éviter les synchronisations simultanées
+  _syncLocks: {} as Record<string, { locked: boolean, timestamp: number }>,
   
   /**
-   * Initialiser le service et charger les synchronisations en attente
+   * Réinitialise les statistiques de synchronisation
    */
-  initialize() {
-    if (this.initialized || typeof window === 'undefined') return;
-    
-    try {
-      // Obtenir l'utilisateur actuel pour garantir l'isolation des données
-      const currentUser = getDatabaseConnectionCurrentUser() || 'default';
-      console.log(`TriggerSync: Initialisation pour l'utilisateur ${currentUser}`);
-      
-      // Charger les synchronisations en attente depuis le localStorage spécifique à l'utilisateur
-      const pendingSyncsString = safeLocalStorageGet<string>(`${PENDING_SYNC_KEY}_${currentUser}`, '{}');
-      if (pendingSyncsString) {
-        const pendingSyncsData = JSON.parse(pendingSyncsString);
-        
-        // Reconstruire la Map avec les données chargées
-        Object.entries(pendingSyncsData).forEach(([key, value]) => {
-          this.pendingSyncs.set(key, value as PendingSyncData);
-        });
-        
-        console.log(`TriggerSync: ${this.pendingSyncs.size} synchronisations en attente chargées pour l'utilisateur ${currentUser}`);
-      }
-      
-      // Configurer l'écouteur d'événement pour la connexion réseau
-      window.addEventListener('online', this.handleOnline);
-      
-      // Configurer l'écouteur d'événement pour la synchronisation
-      window.addEventListener('force-sync-required', this.processAllPendingSyncs);
-      
-      // Configurer l'écouteur pour la fermeture de la page
-      window.addEventListener('beforeunload', this.savePendingSyncs);
-      
-      // Écouter les changements d'utilisateur pour recharger les données spécifiques
-      window.addEventListener('user-changed', this.handleUserChanged);
-      
-      this.initialized = true;
-      console.log('TriggerSync: Service initialisé');
-      
-      // Traiter les synchronisations en attente si en ligne
-      if (navigator.onLine) {
-        setTimeout(() => this.processAllPendingSyncs(), 5000);
-      }
-    } catch (error) {
-      console.error('TriggerSync: Erreur lors de l\'initialisation', error);
-    }
-  }
+  resetStats: () => {
+    console.log("Réinitialisation des statistiques de synchronisation");
+    triggerSync._syncStats = {};
+  },
   
   /**
-   * Nettoyer les écouteurs d'événements
+   * Vérifie si une synchronisation est en cours
    */
-  cleanup() {
-    if (typeof window === 'undefined') return;
+  isSyncing: (tableName: string): boolean => {
+    // Vérifier d'abord dans le stockage local
+    const key = `sync_in_progress_${tableName}`;
+    const storageLock = localStorage.getItem(key) === 'true';
     
-    window.removeEventListener('online', this.handleOnline);
-    window.removeEventListener('force-sync-required', this.processAllPendingSyncs);
-    window.removeEventListener('beforeunload', this.savePendingSyncs);
-    window.removeEventListener('user-changed', this.handleUserChanged);
-  }
+    // Vérifier ensuite dans le mécanisme de verrouillage en mémoire
+    const memoryLock = triggerSync._syncLocks[tableName]?.locked === true;
+    
+    // Si l'un des deux est vrai, considérer que la synchronisation est en cours
+    return storageLock || memoryLock;
+  },
   
   /**
-   * Gérer l'événement de changement d'utilisateur
+   * Acquiert un verrou pour la synchronisation
+   * Retourne true si le verrou a été acquis, false sinon
    */
-  private handleUserChanged = (event: CustomEvent) => {
-    // Sauvegarder d'abord les modifications en attente de l'utilisateur précédent
-    this.savePendingSyncs();
-    
-    // Vider la map actuelle
-    this.pendingSyncs.clear();
-    
-    // Charger les synchronisations en attente du nouvel utilisateur
-    try {
-      const newUserId = event.detail?.userId || 'default';
-      console.log(`TriggerSync: Changement d'utilisateur détecté - ${newUserId}`);
+  acquireLock: (tableName: string, timeout: number = 30000): boolean => {
+    // Vérifier si un verrou existe déjà
+    if (triggerSync.isSyncing(tableName)) {
+      // Si le verrou existe depuis trop longtemps, le forcer
+      const lock = triggerSync._syncLocks[tableName];
+      const now = Date.now();
       
-      // Charger les synchronisations en attente du nouvel utilisateur
-      const pendingSyncsString = safeLocalStorageGet<string>(`${PENDING_SYNC_KEY}_${newUserId}`, '{}');
-      if (pendingSyncsString) {
-        const pendingSyncsData = JSON.parse(pendingSyncsString);
-        
-        // Reconstruire la Map avec les données chargées
-        Object.entries(pendingSyncsData).forEach(([key, value]) => {
-          this.pendingSyncs.set(key, value as PendingSyncData);
-        });
-        
-        console.log(`TriggerSync: ${this.pendingSyncs.size} synchronisations en attente chargées pour l'utilisateur ${newUserId}`);
-      }
-      
-      // Traiter les synchronisations en attente si en ligne
-      if (navigator.onLine && this.pendingSyncs.size > 0) {
-        setTimeout(() => this.processAllPendingSyncs(), 2000);
-      }
-    } catch (error) {
-      console.error('TriggerSync: Erreur lors du changement d\'utilisateur', error);
-    }
-  };
-  
-  /**
-   * Gérer l'événement de retour en ligne
-   */
-  private handleOnline = () => {
-    console.log('TriggerSync: Connexion rétablie, traitement des synchronisations en attente');
-    this.processAllPendingSyncs();
-  };
-  
-  /**
-   * Sauvegarder les synchronisations en attente dans le localStorage
-   */
-  private savePendingSyncs = () => {
-    if (this.pendingSyncs.size > 0) {
-      try {
-        // Obtenir l'utilisateur actuel pour l'isolation des données
-        const currentUser = getDatabaseConnectionCurrentUser() || 'default';
-        const pendingSyncsData: Record<string, PendingSyncData> = {};
-        
-        this.pendingSyncs.forEach((value, key) => {
-          pendingSyncsData[key] = value;
-        });
-        
-        // Utiliser une clé spécifique à l'utilisateur
-        safeLocalStorageSet(`${PENDING_SYNC_KEY}_${currentUser}`, JSON.stringify(pendingSyncsData));
-        console.log(`TriggerSync: ${this.pendingSyncs.size} synchronisations sauvegardées pour l'utilisateur ${currentUser}`);
-        
-        // Déclencher un événement pour informer l'application
-        window.dispatchEvent(new CustomEvent('sync-pending-saved', {
-          detail: { count: this.pendingSyncs.size, userId: currentUser }
-        }));
-      } catch (error) {
-        console.error('TriggerSync: Erreur lors de la sauvegarde des synchronisations en attente', error);
-      }
-    }
-  };
-  
-  /**
-   * Notifier qu'une table a été modifiée et doit être synchronisée
-   */
-  notifyDataChange = <T>(tableName: string, data: T[], userId?: string) => {
-    if (!tableName || !data) {
-      console.warn(`TriggerSync: Impossible de notifier un changement sans nom de table ou données`);
-      return;
-    }
-    
-    // Utiliser l'ID de l'utilisateur actuel si non spécifié
-    const currentUser = userId || getDatabaseConnectionCurrentUser() || 'default';
-    const syncKey = `${tableName}_${currentUser}`;
-    
-    // Enregistrer les données à synchroniser
-    this.pendingSyncs.set(syncKey, {
-      tableName,
-      data,
-      timestamp: new Date().toISOString(),
-      userId: currentUser
-    });
-    
-    console.log(`TriggerSync: Changement enregistré pour ${tableName} (utilisateur: ${currentUser})`);
-    
-    // Sauvegarder immédiatement dans localStorage avec une clé spécifique à l'utilisateur
-    this.savePendingSyncs();
-    
-    // Déclencher un événement pour informer l'application
-    window.dispatchEvent(new CustomEvent('sync-data-changed', {
-      detail: { tableName, timestamp: new Date().toISOString(), userId: currentUser }
-    }));
-    
-    // Si en ligne, programmer une synchronisation
-    if (navigator.onLine) {
-      setTimeout(() => this.processPendingSync(syncKey), 5000);
-    }
-  };
-  
-  /**
-   * Déclencher la synchronisation d'une table spécifique avec le serveur
-   * Méthode utilisée par GlobalSyncContext
-   */
-  triggerTableSync = async <T>(
-    tableName: string,
-    data: T[],
-    trigger: string = "auto"
-  ): Promise<SyncResult> => {
-    try {
-      if (!tableName || !Array.isArray(data)) {
-        console.error(`TriggerSync: Paramètres invalides pour triggerTableSync`);
-        return {
-          success: false,
-          message: `Paramètres invalides pour la synchronisation`
-        };
-      }
-      
-      // Obtenir l'ID utilisateur actuel pour l'isolation des données
-      const currentUser = getDatabaseConnectionCurrentUser() || 'default';
-      console.log(`TriggerSync: Synchronisation de la table ${tableName} déclenchée pour l'utilisateur ${currentUser} (${data.length} éléments)`);
-      
-      // Si hors ligne, stocker dans la file d'attente et retourner un succès partiel
-      if (!navigator.onLine) {
-        console.log(`TriggerSync: Mode hors ligne, données stockées pour synchronisation ultérieure`);
-        
-        // Stocker les données pour synchronisation ultérieure
-        const syncKey = `${tableName}_${currentUser}`;
-        
-        this.pendingSyncs.set(syncKey, {
-          tableName,
-          data,
-          timestamp: new Date().toISOString(),
-          userId: currentUser
-        });
-        
-        this.savePendingSyncs();
-        
-        return {
-          success: true,
-          message: `Données sauvegardées localement pour synchronisation ultérieure`,
-          timestamp: new Date().toISOString()
-        };
-      }
-      
-      // En ligne, déclencher la synchronisation via un événement
-      window.dispatchEvent(new CustomEvent('force-sync-required', {
-        detail: {
-          tables: [tableName],
-          data: data,
-          trigger: trigger,
-          userId: currentUser,
-          timestamp: new Date().toISOString()
-        }
-      }));
-      
-      return {
-        success: true,
-        message: `Synchronisation déclenchée pour ${tableName}`,
-        timestamp: new Date().toISOString()
-      };
-      
-    } catch (error) {
-      console.error(`TriggerSync: Erreur lors de triggerTableSync pour ${tableName}:`, error);
-      return {
-        success: false,
-        message: error instanceof Error ? error.message : String(error)
-      };
-    }
-  };
-  
-  /**
-   * Traiter une synchronisation en attente spécifique
-   */
-  private processPendingSync = async (syncKey: string): Promise<boolean> => {
-    if (!navigator.onLine) {
-      console.log(`TriggerSync: Hors ligne, impossible de synchroniser ${syncKey}`);
-      return false;
-    }
-    
-    const pendingSync = this.pendingSyncs.get(syncKey);
-    if (!pendingSync) {
-      console.log(`TriggerSync: Aucune synchronisation en attente pour ${syncKey}`);
-      return true;
-    }
-    
-    try {
-      console.log(`TriggerSync: Traitement de la synchronisation pour ${syncKey}`);
-      
-      // Émettre un événement pour demander la synchronisation avec l'utilisateur spécifique
-      window.dispatchEvent(new CustomEvent('force-sync-required', {
-        detail: {
-          tableName: pendingSync.tableName,
-          data: pendingSync.data,
-          userId: pendingSync.userId
-        }
-      }));
-      
-      // Supprimer la synchronisation en attente
-      this.pendingSyncs.delete(syncKey);
-      
-      // Mettre à jour le stockage
-      this.savePendingSyncs();
-      
-      return true;
-    } catch (error) {
-      console.error(`TriggerSync: Erreur lors de la synchronisation de ${syncKey}`, error);
-      return false;
-    }
-  };
-  
-  /**
-   * Traiter toutes les synchronisations en attente
-   */
-  processAllPendingSyncs = async () => {
-    if (!navigator.onLine || this.pendingSyncs.size === 0) {
-      return;
-    }
-    
-    // Obtenir l'utilisateur actuel pour l'isolation des données
-    const currentUser = getDatabaseConnectionCurrentUser() || 'default';
-    console.log(`TriggerSync: Traitement de ${this.pendingSyncs.size} synchronisations en attente pour l'utilisateur ${currentUser}`);
-    
-    // Préparer un tableau de toutes les clés pour éviter les problèmes de modification pendant l'itération
-    const syncKeys = Array.from(this.pendingSyncs.keys());
-    
-    // Traiter séquentiellement pour éviter les problèmes
-    for (const syncKey of syncKeys) {
-      // Vérifier que la clé correspond bien à l'utilisateur actuel
-      if (syncKey.includes(currentUser)) {
-        await this.processPendingSync(syncKey);
-        
-        // Petite pause entre les synchronisations
-        await new Promise(resolve => setTimeout(resolve, 1000));
+      if (lock && now - lock.timestamp > timeout) {
+        console.log(`TriggerSync: Forçage du verrou expiré pour ${tableName} (${now - lock.timestamp}ms)`);
+        triggerSync.releaseLock(tableName);
       } else {
-        console.log(`TriggerSync: Ignorer ${syncKey} car il appartient à un autre utilisateur`);
+        console.log(`TriggerSync: Impossible d'acquérir le verrou pour ${tableName}, déjà verrouillé`);
+        return false;
       }
     }
     
-    console.log('TriggerSync: Toutes les synchronisations en attente ont été traitées');
-  };
+    // Acquérir le verrou
+    triggerSync._syncLocks[tableName] = { locked: true, timestamp: Date.now() };
+    localStorage.setItem(`sync_in_progress_${tableName}`, 'true');
+    console.log(`TriggerSync: Verrou acquis pour ${tableName}`);
+    return true;
+  },
   
   /**
-   * Vérifier s'il y a des synchronisations en attente
+   * Libère un verrou de synchronisation
    */
-  hasPendingSyncs(): boolean {
-    return this.pendingSyncs.size > 0;
-  }
-  
-  /**
-   * Obtenir le nombre de synchronisations en attente
-   */
-  getPendingSyncsCount(): number {
-    return this.pendingSyncs.size;
-  }
-}
-
-// Exporter l'instance unique
-export const triggerSync = new TriggerSyncService();
-
-// Initialiser automatiquement
-if (typeof window !== 'undefined') {
-  setTimeout(() => {
-    if (!triggerSync.hasPendingSyncs()) {
-      triggerSync.initialize();
+  releaseLock: (tableName: string): void => {
+    if (triggerSync._syncLocks[tableName]) {
+      triggerSync._syncLocks[tableName] = { locked: false, timestamp: Date.now() };
     }
-  }, 1000);
-}
-
-// Exposer pour les tests
-export const resetForTests = () => {
-  if (process.env.NODE_ENV === 'test') {
-    triggerSync.cleanup();
+    localStorage.removeItem(`sync_in_progress_${tableName}`);
+    console.log(`TriggerSync: Verrou libéré pour ${tableName}`);
+  },
+  
+  /**
+   * Marque une synchronisation comme en cours ou terminée (déprécié, utilisez acquireLock/releaseLock)
+   */
+  markSyncStatus: (tableName: string, inProgress: boolean): void => {
+    if (inProgress) {
+      triggerSync.acquireLock(tableName);
+    } else {
+      triggerSync.releaseLock(tableName);
+    }
+  },
+  
+  /**
+   * Obtient les statistiques de synchronisation pour une table
+   */
+  getStats: (tableName: string): SyncStats => {
+    if (!triggerSync._syncStats[tableName]) {
+      triggerSync._syncStats[tableName] = {
+        attemptCount: 0,
+        lastAttempt: 0,
+        successCount: 0,
+        failureCount: 0
+      };
+    }
+    return triggerSync._syncStats[tableName];
+  },
+  
+  /**
+   * Déclenche une synchronisation immédiate pour une table spécifique
+   * @param tableName Nom de la table à synchroniser
+   * @param data Données à synchroniser
+   * @returns Promise<boolean> indiquant le succès de l'opération
+   */
+  triggerTableSync: async <T>(tableName: string, data: T[]): Promise<boolean> => {
+    console.log(`TriggerSync: Déclenchement de la synchronisation pour ${tableName} (${data?.length || 0} éléments)`);
+    
+    // Éviter la synchronisation si déjà en cours
+    if (triggerSync.isSyncing(tableName)) {
+      console.log(`TriggerSync: Synchronisation déjà en cours pour ${tableName}, opération ignorée`);
+      return false;
+    }
+    
+    // Ne pas synchroniser s'il n'y a pas de données
+    if (!data || data.length === 0) {
+      console.log(`TriggerSync: Aucune donnée à synchroniser pour ${tableName}, opération annulée`);
+      return true; // On considère que c'est un succès car il n'y a rien à faire
+    }
+    
+    // Mettre à jour les statistiques
+    const stats = triggerSync.getStats(tableName);
+    const now = Date.now();
+    
+    // Vérifier si les tentatives sont trop fréquentes (moins de 10 secondes - augmenté pour plus de sécurité)
+    if (now - stats.lastAttempt < 10000 && stats.attemptCount > 0) {
+      stats.attemptCount++;
+      triggerSync._syncStats[tableName] = stats;
+      console.log(`TriggerSync: Tentative trop fréquente pour ${tableName}, limitée à 1 toutes les 10 secondes`);
+      return false;
+    }
+    
+    stats.lastAttempt = now;
+    stats.attemptCount++;
+    triggerSync._syncStats[tableName] = stats;
+    
+    // Acquérir un verrou pour la synchronisation
+    if (!triggerSync.acquireLock(tableName)) {
+      console.log(`TriggerSync: Impossible d'acquérir un verrou pour ${tableName}, opération annulée`);
+      return false;
+    }
+    
+    try {
+      console.log(`TriggerSync: Début de la synchronisation pour ${tableName}`);
+      
+      const currentUser = getCurrentUser() || 'p71x6d_system';
+      console.log(`TriggerSync: Utilisateur courant: ${currentUser}`);
+      
+      // Génération d'un identifiant unique pour cette tentative de synchronisation
+      const syncId = `sync_${tableName}_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+      localStorage.setItem(`last_sync_id_${tableName}`, syncId);
+      
+      // Synchroniser TOUJOURS avec le serveur en priorité
+      const success = await triggerSync.syncWithServer(tableName, data);
+      
+      // Vérifier que c'est toujours notre synchronisation qui est en cours
+      // (éviter les conflits si une autre synchronisation a démarré entre temps)
+      const currentSyncId = localStorage.getItem(`last_sync_id_${tableName}`);
+      if (currentSyncId !== syncId) {
+        console.log(`TriggerSync: Une autre synchronisation a démarré pour ${tableName}, annulation du traitement`);
+        return false;
+      }
+      
+      if (success) {
+        // Si la synchronisation serveur a réussi, mettre à jour les statistiques
+        stats.successCount++;
+        console.log(`TriggerSync: Synchronisation réussie pour ${tableName}`);
+        
+        // APRÈS la synchronisation serveur réussie, sauvegarder dans localStorage pour le mode hors ligne
+        localStorage.setItem(`${tableName}_${currentUser}`, JSON.stringify(data));
+        localStorage.removeItem(`sync_pending_${tableName}`);
+        
+        // Enregistrer la date de la dernière synchronisation réussie
+        const syncTime = new Date().toISOString();
+        localStorage.setItem(`last_synced_${tableName}`, syncTime);
+        
+        // Diffuser un événement indiquant que la synchronisation est terminée
+        window.dispatchEvent(new CustomEvent("syncComplete", { 
+          detail: { tableName, success: true, timestamp: syncTime }
+        }));
+      } else {
+        // Si la synchronisation a échoué, incrémenter le compteur d'échecs
+        stats.failureCount++;
+        console.log(`TriggerSync: Échec de la synchronisation pour ${tableName}`);
+        
+        // Marquer comme en attente de synchronisation
+        localStorage.setItem(`sync_pending_${tableName}`, new Date().toISOString());
+        
+        // Sauvegarder quand même dans localStorage pour éviter la perte de données
+        localStorage.setItem(`${tableName}_${currentUser}`, JSON.stringify(data));
+        
+        // Diffuser un événement indiquant que la synchronisation a échoué
+        window.dispatchEvent(new CustomEvent("syncError", { 
+          detail: { tableName, timestamp: new Date().toISOString() }
+        }));
+      }
+      
+      triggerSync._syncStats[tableName] = stats;
+      
+      return success;
+    } catch (error) {
+      console.error(`TriggerSync: Erreur lors de la synchronisation de ${tableName}:`, error);
+      
+      // Mettre à jour les statistiques en cas d'erreur
+      stats.failureCount++;
+      triggerSync._syncStats[tableName] = stats;
+      
+      // Marquer comme en attente de synchronisation
+      localStorage.setItem(`sync_pending_${tableName}`, new Date().toISOString());
+      
+      // Sauvegarder quand même dans localStorage pour éviter la perte de données
+      const currentUser = getCurrentUser() || 'p71x6d_system';
+      localStorage.setItem(`${tableName}_${currentUser}`, JSON.stringify(data));
+      
+      // Diffuser un événement indiquant que la synchronisation a échoué
+      window.dispatchEvent(new CustomEvent("syncError", { 
+        detail: { tableName, error: error instanceof Error ? error.message : String(error) }
+      }));
+      
+      return false;
+    } finally {
+      // Libérer le verrou de synchronisation
+      triggerSync.releaseLock(tableName);
+    }
+  },
+  
+  /**
+   * Synchronisation directe avec le serveur
+   */
+  syncWithServer: async <T>(tableName: string, data: T[]): Promise<boolean> => {
+    try {
+      const currentUser = getCurrentUser() || 'p71x6d_system';
+      const API_URL = getApiUrl();
+      const endpoint = `${API_URL}/${tableName}-sync.php`;
+      
+      console.log(`TriggerSync: Envoi des données à ${endpoint}`);
+      
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          ...getAuthHeaders(),
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          userId: currentUser,
+          [tableName]: data
+        })
+      });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`TriggerSync: Erreur HTTP ${response.status}: ${errorText}`);
+        throw new Error(`Erreur HTTP ${response.status}: ${response.statusText}`);
+      }
+      
+      const result = await response.json();
+      
+      console.log(`TriggerSync: Réponse du serveur:`, result);
+      
+      if (result.success === true) {
+        return true;
+      } else {
+        throw new Error(result.message || "Échec de la synchronisation");
+      }
+    } catch (error) {
+      console.error(`TriggerSync: Erreur lors de la synchronisation avec le serveur pour ${tableName}:`, error);
+      
+      // Essayer l'URL alternative si la première échoue
+      try {
+        const currentUser = getCurrentUser() || 'p71x6d_system';
+        const apiAltUrl = `/sites/qualiopi.ch/api`;
+        const endpoint = `${apiAltUrl}/${tableName}-sync.php`;
+        
+        console.log(`TriggerSync: Tentative avec URL alternative: ${endpoint}`);
+        
+        const response = await fetch(endpoint, {
+          method: 'POST',
+          headers: {
+            ...getAuthHeaders(),
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            userId: currentUser,
+            [tableName]: data
+          })
+        });
+        
+        if (!response.ok) {
+          throw new Error(`Erreur HTTP alternative ${response.status}: ${response.statusText}`);
+        }
+        
+        const result = await response.json();
+        
+        if (result.success === true) {
+          console.log(`TriggerSync: Synchronisation alternative réussie pour ${tableName}`);
+          return true;
+        } else {
+          throw new Error(result.message || "Échec de la synchronisation alternative");
+        }
+      } catch (err) {
+        console.error(`TriggerSync: Échec de la synchronisation alternative pour ${tableName}:`, err);
+        throw error; // Rethrow l'erreur originale
+      }
+    }
+  },
+  
+  /**
+   * Vérifie s'il y a des synchronisations en attente
+   */
+  hasPendingChanges: (): boolean => {
+    const keys = Object.keys(localStorage);
+    return keys.some(key => key.startsWith('sync_pending_'));
+  },
+  
+  /**
+   * Notifie qu'une table a été modifiée et déclenche une synchronisation immédiate si possible
+   */
+  notifyDataChange: <T>(tableName: string, data: T[]) => {
+    const currentUser = getCurrentUser() || 'p71x6d_system';
+    
+    // Identifiant unique pour cette notification
+    const notificationId = `${tableName}_${Date.now()}`;
+    const lastNotificationId = localStorage.getItem(`last_notification_${tableName}`);
+    
+    // Vérifier si une notification identique a été déclenchée récemment (moins de 5 secondes)
+    if (lastNotificationId) {
+      const lastNotificationTime = parseInt(lastNotificationId.split('_')[1], 10);
+      if (Date.now() - lastNotificationTime < 5000) {
+        console.log(`TriggerSync: Notification similaire récente pour ${tableName}, opération ignorée`);
+        return;
+      }
+    }
+    
+    // Enregistrer cette notification
+    localStorage.setItem(`last_notification_${tableName}`, notificationId);
+    
+    // IMPORTANT: Sauvegarder d'abord localement pour éviter la perte de données
+    localStorage.setItem(`${tableName}_${currentUser}`, JSON.stringify(data));
+    
+    // Marquer comme en attente de synchronisation
+    localStorage.setItem(`sync_pending_${tableName}`, new Date().toISOString());
+    
+    // TENTER UNE SYNCHRONISATION IMMÉDIATE avec le serveur si en ligne
+    if (window.navigator.onLine && !triggerSync.isSyncing(tableName)) {
+      console.log(`TriggerSync: Tentative de synchronisation immédiate après modification pour ${tableName}`);
+      
+      // Déclencher la synchronisation après un court délai pour éviter les appels trop fréquents
+      // Et permettre à plusieurs modifications d'être regroupées
+      setTimeout(() => {
+        // Vérifier qu'aucune synchronisation n'est en cours avant de démarrer
+        if (!triggerSync.isSyncing(tableName)) {
+          triggerSync.triggerTableSync(tableName, data).catch(error => {
+            console.error(`TriggerSync: Erreur lors de la synchronisation après notification:`, error);
+          });
+        } else {
+          console.log(`TriggerSync: Synchronisation déjà en cours pour ${tableName}, notification ignorée`);
+        }
+      }, 2000); // Attendre 2 secondes (augmenté pour regrouper les modifications)
+    } else {
+      console.log(`TriggerSync: Mode hors ligne ou synchronisation en cours, synchronisation différée pour ${tableName}`);
+    }
+  },
+  
+  /**
+   * Tente de synchroniser toutes les données en attente
+   */
+  synchronizeAllPending: async (): Promise<Record<string, boolean>> => {
+    console.log("TriggerSync: Tentative de synchronisation de toutes les données en attente");
+    
+    const results: Record<string, boolean> = {};
+    const pendingKeys = Object.keys(localStorage).filter(key => key.startsWith('sync_pending_'));
+    
+    if (pendingKeys.length === 0) {
+      console.log("TriggerSync: Aucune synchronisation en attente");
+      return results;
+    }
+    
+    console.log(`TriggerSync: ${pendingKeys.length} synchronisations en attente`);
+    
+    for (const key of pendingKeys) {
+      const tableName = key.replace('sync_pending_', '');
+      const currentUser = getCurrentUser() || 'p71x6d_system';
+      const dataKey = `${tableName}_${currentUser}`;
+      
+      const storedData = localStorage.getItem(dataKey);
+      if (!storedData) {
+        console.log(`TriggerSync: Aucune donnée à synchroniser pour ${tableName}`);
+        results[tableName] = true; // Rien à faire, considéré comme un succès
+        localStorage.removeItem(key); // Supprimer le marqueur de synchronisation en attente
+        continue;
+      }
+      
+      try {
+        const data = JSON.parse(storedData);
+        
+        console.log(`TriggerSync: Synchronisation en cours pour ${tableName}`);
+        const success = await triggerSync.triggerTableSync(tableName, data);
+        
+        results[tableName] = success;
+        
+        if (success) {
+          console.log(`TriggerSync: Synchronisation réussie pour ${tableName}`);
+          localStorage.removeItem(key);
+        }
+      } catch (error) {
+        console.error(`TriggerSync: Erreur lors de la synchronisation de ${tableName}:`, error);
+        results[tableName] = false;
+      }
+    }
+    
+    return results;
   }
 };

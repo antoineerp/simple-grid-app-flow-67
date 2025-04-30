@@ -11,7 +11,7 @@ import { SyncMonitorStatus } from '../types/syncTypes';
 export type SyncAttempt = {
   id: string;
   tableName: string;
-  operation: string; // Maintenant REQUIS, pas optionnel
+  operation: string; // Required for compatibility with SyncMonitorStatus
   startTime: number;
   endTime?: number;
   success: boolean;
@@ -100,7 +100,7 @@ class SyncMonitor {
       tableName: id.includes('_') ? id.split('_')[0] : id,
       operation,
       startTime: timestamp,
-      success: false
+      success: false // Initialize with a default value
     };
     
     // Stocker l'opération active
@@ -139,12 +139,12 @@ class SyncMonitor {
     if (!operation) {
       console.warn(`SyncMonitor: Opération inconnue ${id} (ignorée silencieusement)`);
       
-      // Créer une nouvelle entrée pour cette opération inconnue
+      // AMÉLIORATION: Créer une nouvelle entrée pour cette opération inconnue
       // pour éviter les erreurs dans l'historique
       const newOperation: SyncAttempt = {
         id: opId,
         tableName: isOperationId ? id.split('_')[0] : id,
-        operation: 'unknown', // Ajouté une valeur par défaut
+        operation: 'unknown',
         startTime: Date.now() - 1000, // Simuler un début 1 seconde avant
         success: success,
         endTime: Date.now(),

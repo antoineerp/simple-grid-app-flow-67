@@ -35,10 +35,10 @@ export interface SyncMonitorStatus {
     tableName: string; 
     startTime: number;
     endTime?: number;
-    success: boolean;
+    success: boolean; // Changed from optional to required to match expected type
     error?: string;
     duration?: number;
-    operation: string; // Changed from optional to required to match SyncAttempt
+    operation?: string; // Added to match SyncAttempt structure
   }>;
   stats: {
     success: number;
@@ -73,16 +73,4 @@ export interface SyncHealthStatus {
     pendingCount: number;
     lastSuccessfulSync: Date | null;
   }
-}
-
-// Définir le type SyncAttempt pour garantir la présence de la propriété operation
-export interface SyncAttempt {
-  id: string;
-  tableName: string;
-  startTime: number;
-  endTime?: number;
-  success: boolean;
-  error?: string;
-  duration?: number;
-  operation: string; // Propriété obligatoire (non optionnelle)
 }

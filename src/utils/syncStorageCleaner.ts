@@ -1,115 +1,81 @@
 
 /**
- * Utilitaire pour nettoyer le stockage de synchronisation
- */
-
-// Clé pour le dernier nettoyage
-const LAST_CLEANUP_KEY = 'last_sync_storage_cleanup';
-
-// Intervalle de nettoyage en millisecondes (12 heures)
-const CLEANUP_INTERVAL = 12 * 60 * 60 * 1000;
-
-// Préfixe pour les données modifiées
-const CHANGED_DATA_PREFIX = 'sync_changed_';
-
-/**
- * Initialiser le nettoyage périodique du stockage
- */
-export const initializeSyncStorageCleaner = () => {
-  try {
-    const now = Date.now();
-    const lastCleanup = parseInt(localStorage.getItem(LAST_CLEANUP_KEY) || '0');
-    
-    // Si le dernier nettoyage était il y a plus que l'intervalle, nettoyer maintenant
-    if (now - lastCleanup > CLEANUP_INTERVAL) {
-      cleanSyncStorage();
-      localStorage.setItem(LAST_CLEANUP_KEY, now.toString());
-    }
-    
-    // Planifier le nettoyage périodique
-    window.addEventListener('beforeunload', () => {
-      const currentTime = Date.now();
-      const lastCleanupTime = parseInt(localStorage.getItem(LAST_CLEANUP_KEY) || '0');
-      
-      if (currentTime - lastCleanupTime > CLEANUP_INTERVAL) {
-        cleanSyncStorage();
-        localStorage.setItem(LAST_CLEANUP_KEY, currentTime.toString());
-      }
-    });
-    
-    console.log("Nettoyage du stockage de synchronisation initialisé");
-  } catch (error) {
-    console.error("Erreur lors de l'initialisation du nettoyage du stockage:", error);
-  }
-};
-
-/**
- * Marquer un ensemble de données comme modifié
- */
-export const markDataChanged = (dataKey: string) => {
-  try {
-    const changedKey = `${CHANGED_DATA_PREFIX}${dataKey}`;
-    localStorage.setItem(changedKey, Date.now().toString());
-    console.log(`Données marquées comme modifiées: ${dataKey}`);
-  } catch (error) {
-    console.error("Erreur lors du marquage des données comme modifiées:", error);
-  }
-};
-
-/**
- * Nettoyer les données de synchronisation anciennes
+ * Utilitaire pour nettoyer les entrées de synchronisation malformées dans le localStorage
  */
 export const cleanSyncStorage = () => {
-  try {
-    console.log("Nettoyage du stockage de synchronisation en cours...");
-    let cleanedCount = 0;
-    
-    // Parcourir toutes les clés du localStorage
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i);
-      if (!key) continue;
-      
-      // Nettoyer les marqueurs de données modifiées plus vieux que 30 jours
-      if (key.startsWith(CHANGED_DATA_PREFIX)) {
-        const timestamp = parseInt(localStorage.getItem(key) || '0');
-        const now = Date.now();
-        
-        // Si plus vieux que 30 jours
-        if (now - timestamp > 30 * 24 * 60 * 60 * 1000) {
-          localStorage.removeItem(key);
-          cleanedCount++;
-        }
+  console.log("Nettoyage des données de synchronisation...");
+  
+  // Chercher toutes les clés de localStorage liées à la synchronisation
+  const syncKeys = Object.keys(localStorage).filter(key => 
+    key.includes('_last_sync') || 
+    key.includes('sync_states_') ||
+    key.includes('sync_pending_') ||
+    key.includes('sync_failed_') ||
+    key.includes('sync_in_progress_')
+  );
+  
+  let cleanedCount = 0;
+  
+  // Vérifier et nettoyer les entrées malformées
+  syncKeys.forEach(key => {
+    try {
+      const value = localStorage.getItem(key);
+      if (value) {
+        // Tenter de parser le JSON pour vérifier qu'il est valide
+        JSON.parse(value);
       }
+    } catch (e) {
+      console.warn(`Suppression de l'entrée malformée dans localStorage: ${key}`);
+      localStorage.removeItem(key);
+      cleanedCount++;
     }
-    
-    console.log(`Nettoyage terminé: ${cleanedCount} éléments supprimés`);
-  } catch (error) {
-    console.error("Erreur lors du nettoyage du stockage:", error);
-  }
+  });
+  
+  // Vérifier et nettoyer les entrées spécifiques qui pourraient causer des problèmes
+  const specificKeys = [
+    'membres_p71x6d_system_last_sync',
+    'documents_p71x6d_system_last_sync',
+    'collaboration_p71x6d_system_last_sync',
+    'exigences_p71x6d_system_last_sync'
+  ];
+  
+  specificKeys.forEach(key => {
+    try {
+      const value = localStorage.getItem(key);
+      if (value) {
+        JSON.parse(value);
+      }
+    } catch (e) {
+      console.warn(`Suppression de l'entrée spécifique malformée: ${key}`);
+      localStorage.removeItem(key);
+      cleanedCount++;
+    }
+  });
+  
+  // Nettoyer les états de synchronisation "bloqués"
+  const inProgressKeys = Object.keys(localStorage).filter(key => key.includes('sync_in_progress_'));
+  inProgressKeys.forEach(key => {
+    console.warn(`Suppression de l'état de synchronisation bloqué: ${key}`);
+    localStorage.removeItem(key);
+    cleanedCount++;
+  });
+  
+  console.log(`Nettoyage terminé: ${cleanedCount} entrées malformées supprimées.`);
+  return cleanedCount;
 };
 
 /**
- * Fonction utilitaire sécurisée pour définir des valeurs dans le localStorage
+ * Nettoie les données de synchronisation au démarrage de l'application
+ * et programme un nettoyage périodique
  */
-export const safeLocalStorageSet = <T>(key: string, value: T): void => {
-  try {
-    const jsonValue = JSON.stringify(value);
-    localStorage.setItem(key, jsonValue);
-  } catch (error) {
-    console.error(`Erreur lors de la sauvegarde dans localStorage pour la clé ${key}:`, error);
-  }
+export const initializeSyncStorageCleaner = () => {
+  // Exécuter au démarrage de l'application
+  cleanSyncStorage();
+  
+  // Nettoyer périodiquement (une fois par heure)
+  setInterval(() => {
+    cleanSyncStorage();
+  }, 3600000); // 1 heure
 };
 
-/**
- * Fonction utilitaire sécurisée pour récupérer des valeurs du localStorage
- */
-export const safeLocalStorageGet = <T>(key: string, defaultValue: T): T => {
-  try {
-    const value = localStorage.getItem(key);
-    if (value === null) return defaultValue;
-    return JSON.parse(value) as T;
-  } catch (error) {
-    console.error(`Erreur lors de la lecture depuis localStorage pour la clé ${key}:`, error);
-    return defaultValue;
-  }
-};
+export default cleanSyncStorage;

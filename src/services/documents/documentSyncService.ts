@@ -1,3 +1,4 @@
+
 import { Document } from '@/types/documents';
 import { getApiUrl } from '@/config/apiConfig';
 import { getAuthHeaders } from '@/services/auth/authService';
@@ -19,11 +20,6 @@ export const loadDocumentsFromServer = async (userId: string | null = null): Pro
   const currentUser = userId || getCurrentUser() || 'p71x6d_system';
   console.log(`Chargement des documents pour l'utilisateur ${currentUser} (priorité serveur)`);
   
-  // Dispatch un événement pour le monitoring
-  window.dispatchEvent(new CustomEvent('syncStarted', { 
-    detail: { tableName: 'documents', operation: 'load' }
-  }));
-  
   let documents: Document[] = [];
   
   // Essayer d'abord de récupérer depuis le stockage local (pour éviter les pertes de données)
@@ -44,12 +40,7 @@ export const loadDocumentsFromServer = async (userId: string | null = null): Pro
     // Première tentative - URL standard
     const response = await fetch(`${endpoint}?userId=${currentUser}`, {
       method: 'GET',
-      headers: {
-        ...getAuthHeaders(),
-        'Cache-Control': 'no-cache, no-store, must-revalidate',
-        'Pragma': 'no-cache',
-        'Expires': '0'
-      },
+      headers: getAuthHeaders(),
       cache: 'no-store'
     });
     
@@ -76,26 +67,18 @@ export const loadDocumentsFromServer = async (userId: string | null = null): Pro
     // Fusionner les documents locaux et ceux du serveur si nécessaire
     if (serverDocuments.length > 0) {
       documents = mergeDocuments(localDocuments, serverDocuments);
-      
-      // Dispatch un événement pour le monitoring
-      window.dispatchEvent(new CustomEvent('syncCompleted', { 
-        detail: { tableName: 'documents', count: documents.length }
-      }));
-    } else {
-      console.warn("Aucun document reçu du serveur");
-      
-      // Si le serveur ne renvoie aucun document mais que nous en avons en local,
-      // nous allons envoyer nos documents locaux au serveur
-      if (localDocuments.length > 0) {
-        console.log(`Envoi des ${localDocuments.length} documents locaux au serveur`);
-        await syncDocumentsWithServer(localDocuments);
-      }
     }
     
     // AMÉLIORATION: Sauvegarder dans les deux systèmes de stockage pour accès hors ligne
     saveLocalData('documents', documents, currentUser);
     
     console.log(`${documents.length} documents sauvegardés localement pour accès hors ligne`);
+    
+    // Informer l'utilisateur que les données ont été chargées depuis le serveur
+    toast({
+      title: "Données synchronisées",
+      description: `${documents.length} documents chargés depuis le serveur Infomaniak`,
+    });
     
     return documents;
   } catch (firstError) {
@@ -108,12 +91,7 @@ export const loadDocumentsFromServer = async (userId: string | null = null): Pro
       
       const response = await fetch(`${apiAltUrl}/documents-load.php?userId=${currentUser}`, {
         method: 'GET',
-        headers: {
-          ...getAuthHeaders(),
-          'Cache-Control': 'no-cache, no-store, must-revalidate',
-          'Pragma': 'no-cache',
-          'Expires': '0'
-        },
+        headers: getAuthHeaders(),
         cache: 'no-store'
       });
       
@@ -140,18 +118,6 @@ export const loadDocumentsFromServer = async (userId: string | null = null): Pro
       // Fusionner les documents locaux et ceux du serveur si nécessaire
       if (serverDocuments.length > 0) {
         documents = mergeDocuments(localDocuments, serverDocuments);
-        
-        // Dispatch un événement pour le monitoring
-        window.dispatchEvent(new CustomEvent('syncCompleted', { 
-          detail: { tableName: 'documents', count: documents.length }
-        }));
-      } else {
-        // Si le serveur ne renvoie aucun document mais que nous en avons en local,
-        // nous allons envoyer nos documents locaux au serveur
-        if (localDocuments.length > 0) {
-          console.log(`Envoi des ${localDocuments.length} documents locaux au serveur (alternative)`);
-          await syncDocumentsWithServer(localDocuments);
-        }
       }
       
       // AMÉLIORATION: Sauvegarder dans les deux systèmes de stockage pour accès hors ligne
@@ -159,43 +125,24 @@ export const loadDocumentsFromServer = async (userId: string | null = null): Pro
       
       console.log(`${documents.length} documents sauvegardés localement pour accès hors ligne (source: URL alternative)`);
       
+      toast({
+        title: "Données synchronisées",
+        description: `${documents.length} documents chargés depuis le serveur Infomaniak (URL alternative)`,
+      });
+      
       return documents;
     } catch (secondError) {
       console.error("Toutes les tentatives de chargement depuis le serveur ont échoué:", secondError);
       
-      // Dispatch un événement pour le monitoring
-      window.dispatchEvent(new CustomEvent('syncFailed', { 
-        detail: { 
-          tableName: 'documents', 
-          operation: 'load',
-          error: secondError instanceof Error ? secondError.message : 'Erreur inconnue'
-        }
-      }));
-      
       // En dernier recours, retourner les documents locaux
+      toast({
+        variant: "destructive",
+        title: "Erreur de chargement",
+        description: "Impossible de charger les documents depuis le serveur. Mode hors-ligne activé.",
+      });
+      
       return localDocuments;
     }
-  }
-};
-
-/**
- * Met à jour correctement la date de dernière synchronisation
- */
-const updateLastSynced = (tableName: string): void => {
-  try {
-    // Créer un timestamp au format ISO
-    const timestamp = new Date().toISOString();
-    
-    // Toujours stocker comme une chaîne JSON valide
-    const jsonTimestamp = JSON.stringify(timestamp);
-    
-    // Stocker dans localStorage et sessionStorage pour redondance
-    localStorage.setItem(`last_synced_${tableName}`, jsonTimestamp);
-    sessionStorage.setItem(`last_synced_${tableName}`, jsonTimestamp);
-    
-    console.log(`Date de dernière synchronisation mise à jour pour ${tableName}: ${timestamp}`);
-  } catch (error) {
-    console.error(`Erreur lors de la mise à jour de la date de synchronisation pour ${tableName}:`, error);
   }
 };
 
@@ -206,18 +153,6 @@ const updateLastSynced = (tableName: string): void => {
 export const syncDocumentsWithServer = async (documents: Document[], userId: string | null = null): Promise<boolean> => {
   const currentUser = userId || getCurrentUser() || 'p71x6d_system';
   console.log(`Synchronisation des documents pour l'utilisateur ${currentUser} (priorité serveur)`);
-  
-  // Générer un ID d'opération unique pour le monitoring
-  const operationId = `documents_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
-  
-  // Dispatch un événement pour le monitoring
-  window.dispatchEvent(new CustomEvent('syncStarted', { 
-    detail: { 
-      tableName: 'documents', 
-      operation: 'save',
-      operationId
-    }
-  }));
   
   // Assurer que les documents ont un ID valide
   const validDocuments = documents.map(doc => ({
@@ -244,10 +179,7 @@ export const syncDocumentsWithServer = async (documents: Document[], userId: str
       method: 'POST',
       headers: {
         ...getAuthHeaders(),
-        'Content-Type': 'application/json',
-        'Cache-Control': 'no-cache, no-store, must-revalidate',
-        'Pragma': 'no-cache',
-        'Expires': '0'
+        'Content-Type': 'application/json'
       },
       body: JSON.stringify({
         userId: currentUser,
@@ -265,21 +197,18 @@ export const syncDocumentsWithServer = async (documents: Document[], userId: str
     console.log("Résultat de la synchronisation des documents:", result);
     
     if (result.success === true) {
-      // Utiliser la fonction sécurisée pour mettre à jour la date
-      updateLastSynced('documents');
+      // Enregistrer la date de la dernière synchronisation réussie
+      const timestamp = new Date().toISOString();
+      localStorage.setItem(`last_synced_documents`, timestamp);
+      sessionStorage.setItem(`last_synced_documents`, timestamp);
       
       // Supprimer tout marqueur de synchronisation en attente
       clearPendingSync('documents');
       
-      // Dispatch un événement pour le monitoring
-      window.dispatchEvent(new CustomEvent('syncCompleted', { 
-        detail: { 
-          operationId,
-          tableName: 'documents', 
-          count: validDocuments.length
-        }
-      }));
-      
+      toast({
+        title: "Synchronisation réussie",
+        description: "Les documents ont été synchronisés avec la base de données Infomaniak.",
+      });
       return true;
     } else {
       throw new Error("La synchronisation a échoué: " + (result.message || "Raison inconnue"));
@@ -296,10 +225,7 @@ export const syncDocumentsWithServer = async (documents: Document[], userId: str
         method: 'POST',
         headers: {
           ...getAuthHeaders(),
-          'Content-Type': 'application/json',
-          'Cache-Control': 'no-cache, no-store, must-revalidate',
-          'Pragma': 'no-cache',
-          'Expires': '0'
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({
           userId: currentUser,
@@ -315,18 +241,18 @@ export const syncDocumentsWithServer = async (documents: Document[], userId: str
       console.log("Résultat de la synchronisation des documents (URL alternative):", result);
       
       if (result.success === true) {
-        // Utiliser la fonction sécurisée pour mettre à jour la date
-        updateLastSynced('documents');
+        // Enregistrer la date de la dernière synchronisation réussie
+        const timestamp = new Date().toISOString();
+        localStorage.setItem(`last_synced_documents`, timestamp);
+        sessionStorage.setItem(`last_synced_documents`, timestamp);
         
-        // Dispatch un événement pour le monitoring
-        window.dispatchEvent(new CustomEvent('syncCompleted', { 
-          detail: { 
-            operationId,
-            tableName: 'documents', 
-            count: validDocuments.length
-          }
-        }));
+        // Supprimer tout marqueur de synchronisation en attente
+        clearPendingSync('documents');
         
+        toast({
+          title: "Synchronisation réussie",
+          description: "Les documents ont été synchronisés avec la base de données Infomaniak (URL alternative).",
+        });
         return true;
       } else {
         throw new Error("La synchronisation a échoué: " + (result.message || "Raison inconnue"));
@@ -334,18 +260,14 @@ export const syncDocumentsWithServer = async (documents: Document[], userId: str
     } catch (secondError) {
       console.error("Toutes les tentatives de synchronisation vers le serveur ont échoué:", secondError);
       
-      // Dispatch un événement pour le monitoring
-      window.dispatchEvent(new CustomEvent('syncFailed', { 
-        detail: { 
-          operationId,
-          tableName: 'documents', 
-          operation: 'save',
-          error: secondError instanceof Error ? secondError.message : 'Erreur inconnue'
-        }
-      }));
-      
       // Marquer comme en attente de synchronisation pour une tentative ultérieure
       markPendingSync('documents');
+      
+      toast({
+        variant: "destructive",
+        title: "Erreur de synchronisation",
+        description: "Les documents ont été sauvegardés localement, mais la synchronisation avec le serveur a échoué.",
+      });
       
       return false;
     }
@@ -359,36 +281,14 @@ export const getLocalDocuments = (userId: string | null = null): Document[] => {
   const currentUser = userId || getCurrentUser() || 'p71x6d_system';
   
   // AMÉLIORATION: Utiliser le système de stockage centralisé
-  // 1. D'abord vérifier dans sessionStorage (pour la persistance entre pages)
-  const sessionData = sessionStorage.getItem(`documents_page_state_${currentUser}`);
-  if (sessionData) {
-    try {
-      const parsedData = JSON.parse(sessionData);
-      if (parsedData.documents && parsedData.documents.length > 0) {
-        console.log(`${parsedData.documents.length} documents chargés depuis sessionStorage`);
-        return parsedData.documents;
-      }
-    } catch (e) {
-      console.error('Erreur lors du parsing des données de session:', e);
-    }
-  }
-  
-  // 2. Ensuite, vérifier dans le système de stockage centralisé
   const localDocs = loadLocalData<Document>('documents', currentUser);
   
   if (localDocs.length > 0) {
     console.log(`${localDocs.length} documents chargés depuis le stockage local`);
-    
-    // Sauvegarder également dans sessionStorage pour persistance entre pages
-    sessionStorage.setItem(`documents_page_state_${currentUser}`, JSON.stringify({
-      documents: localDocs,
-      timestamp: new Date().toISOString()
-    }));
-    
     return localDocs;
   }
   
-  // 3. Rétrocompatibilité : vérifier aussi l'ancien emplacement de stockage
+  // Rétrocompatibilité : vérifier aussi l'ancien emplacement de stockage
   const storedData = localStorage.getItem(`documents_${currentUser}`);
   
   if (storedData) {
@@ -399,21 +299,16 @@ export const getLocalDocuments = (userId: string | null = null): Document[] => {
       // Migrer les données vers le nouveau système
       if (docs.length > 0) {
         saveLocalData('documents', docs, currentUser);
-        
-        // Sauvegarder également dans sessionStorage pour persistance entre pages
-        sessionStorage.setItem(`documents_page_state_${currentUser}`, JSON.stringify({
-          documents: docs,
-          timestamp: new Date().toISOString()
-        }));
       }
       
       return docs;
     } catch (e) {
       console.error('Erreur lors de la lecture des documents locaux:', e);
     }
+  } else {
+    console.log('Aucun document trouvé dans le stockage local');
   }
   
-  console.log('Aucun document trouvé dans le stockage local');
   return [];
 };
 

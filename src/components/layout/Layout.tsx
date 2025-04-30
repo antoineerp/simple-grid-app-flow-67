@@ -5,13 +5,13 @@ import { Toaster } from "@/components/ui/toaster";
 import Sidebar from '../Sidebar';
 import { Header } from './Header';
 import { GlobalDataProvider } from '@/contexts/GlobalDataContext';
-import { SyncProvider } from '@/contexts/GlobalSyncContext';
+import { GlobalSyncProvider } from '@/contexts/GlobalSyncContext';
 import GlobalSyncManager from '@/components/common/GlobalSyncManager';
 import { getIsLoggedIn, getCurrentUser } from '@/services/auth/authService';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { Loader2 } from 'lucide-react';
 
-const Layout = ({ children }: { children: React.ReactNode }) => {
+const Layout = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [isLoading, setIsLoading] = useState(true);
@@ -43,6 +43,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
         console.log("Layout - Initialisation du composant Layout pour un utilisateur connecté");
         console.log("Layout - Nom d'utilisateur:", currentUser?.email);
         console.log("Layout - Rôle utilisateur:", currentUser?.role);
+        console.log("Layout - Identifiant technique:", currentUser?.identifiant_technique);
       } catch (error) {
         console.error("Layout - Erreur lors de la vérification de l'authentification:", error);
         // Augmenter le nombre d'essais
@@ -89,7 +90,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
 
   return (
     <GlobalDataProvider>
-      <SyncProvider>
+      <GlobalSyncProvider>
         <TooltipProvider>
           <div className="flex flex-col h-screen bg-background">
             <Header />
@@ -97,7 +98,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
               <Sidebar />
               <main className="flex-1 overflow-auto bg-slate-50 w-full">
                 <div data-testid="layout-content">
-                  {children}
+                  <Outlet />
                 </div>
               </main>
             </div>
@@ -106,7 +107,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
             <div data-testid="global-sync-initialized" className="hidden" />
           </div>
         </TooltipProvider>
-      </SyncProvider>
+      </GlobalSyncProvider>
     </GlobalDataProvider>
   );
 };

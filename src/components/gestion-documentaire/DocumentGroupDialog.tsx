@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import {
   Dialog,
   DialogContent,
@@ -12,8 +12,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { DocumentGroup } from '@/types/documents';
-import { triggerSync } from '@/services/sync/triggerSync';
-import { getCurrentUser } from '@/services/core/databaseConnectionService';
 
 interface DocumentGroupDialogProps {
   group: DocumentGroup | null;
@@ -30,60 +28,30 @@ export const DocumentGroupDialog = ({
   onSave,
   isEditing
 }: DocumentGroupDialogProps) => {
-  const [name, setName] = useState(group?.name || '');
-  const [formError, setFormError] = useState<string | null>(null);
+  const [name, setName] = React.useState(group?.name || '');
 
-  // Réinitialiser le formulaire quand le groupe change ou quand le dialogue s'ouvre/se ferme
-  useEffect(() => {
+  React.useEffect(() => {
     if (group) {
       setName(group.name);
-      setFormError(null);
     } else {
       setName('');
-      setFormError(null);
     }
-  }, [group, open]);
+  }, [group]);
 
   const handleSave = () => {
-    // Validation
-    if (!name || name.trim() === '') {
-      setFormError("Le nom du groupe est obligatoire");
-      return;
-    }
-
-    setFormError(null);
-
-    // Créer un nouvel identifiant si c'est un nouveau groupe
-    const groupId = group?.id || `group_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
-    
     const updatedGroup: DocumentGroup = {
-      id: groupId,
-      name: name.trim(),
-      expanded: group?.expanded || true,
+      id: group?.id || Math.random().toString(36).substr(2, 9),
+      name,
+      expanded: group?.expanded || false,
       items: group?.items || []
     };
-
     onSave(updatedGroup, isEditing);
-    
-    // Récupérer l'ID de l'utilisateur courant
-    const currentUser = getCurrentUser();
-    
-    // Émettre un événement pour notifier que les données ont changé
-    if (typeof window !== 'undefined') {
-      window.dispatchEvent(new CustomEvent('sync-data-changed', { 
-        detail: { tableName: 'documents_groups', timestamp: new Date().toISOString() }
-      }));
-      
-      // Notifier également le service de synchronisation
-      triggerSync.notifyDataChange('documents_groups', [updatedGroup], currentUser);
-    }
-    
     onOpenChange(false);
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent>
         <DialogHeader>
           <DialogTitle>
             {isEditing ? "Modifier le groupe" : "Ajouter un groupe"}
@@ -105,20 +73,15 @@ export const DocumentGroupDialog = ({
               value={name}
               onChange={(e) => setName(e.target.value)}
               className="col-span-3"
-              aria-invalid={formError ? "true" : "false"}
             />
           </div>
-          
-          {formError && (
-            <div className="text-red-500 text-sm mt-1 col-span-4 text-right">{formError}</div>
-          )}
         </div>
         
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Annuler
           </Button>
-          <Button onClick={handleSave} disabled={!name.trim()}>
+          <Button onClick={handleSave}>
             {isEditing ? "Mettre à jour" : "Ajouter"}
           </Button>
         </DialogFooter>
@@ -126,5 +89,3 @@ export const DocumentGroupDialog = ({
     </Dialog>
   );
 };
-
-export default DocumentGroupDialog;
