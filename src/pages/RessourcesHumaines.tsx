@@ -1,4 +1,3 @@
-
 import React, { useEffect } from 'react';
 import { FileText, UserPlus, RefreshCw } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
@@ -15,8 +14,6 @@ import MemberList from '@/components/ressources-humaines/MemberList';
 import MemberForm from '@/components/ressources-humaines/MemberForm';
 import { Membre } from '@/types/membres';
 import { exportAllCollaborateursToPdf } from '@/services/collaborateurExport';
-import SyncIndicator from '@/components/common/SyncIndicator';
-import { useGlobalSync } from '@/contexts/GlobalSyncContext';
 import { useSyncContext } from '@/hooks/useSyncContext';
 
 const RessourcesHumaines = () => {
@@ -24,19 +21,12 @@ const RessourcesHumaines = () => {
   const { 
     membres, 
     setMembres, 
-    lastSynced, 
-    isLoading, 
-    error,
-    syncFailed,
-    resetSyncFailed,
+    isLoading,
     refreshMembres
   } = useMembres();
   
-  // Utiliser le hook useSyncContext pour une synchronisation standardisée
+  // Keep the sync context for background functionality but don't display it
   const { 
-    syncWithServer,
-    isSyncing,
-    isOnline,
     notifyChanges
   } = useSyncContext('membres', membres, { autoSync: true });
   
@@ -153,18 +143,6 @@ const RessourcesHumaines = () => {
       });
     }
   };
-
-  // Fonction asynchrone pour la synchronisation manuelle
-  const handleSync = async (): Promise<void> => {
-    resetSyncFailed();
-    try {
-      await syncWithServer();
-      return Promise.resolve();
-    } catch (error) {
-      console.error("Erreur lors de la synchronisation:", error);
-      return Promise.reject(error);
-    }
-  };
   
   // Fonction pour rafraîchir manuellement la liste des membres
   const handleRefresh = async () => {
@@ -210,16 +188,6 @@ const RessourcesHumaines = () => {
             <FileText className="h-6 w-6 stroke-[1.5]" />
           </button>
         </div>
-      </div>
-
-      <div className="mb-4">
-        <SyncIndicator
-          isSyncing={isSyncing || refreshing}
-          isOnline={isOnline}
-          syncFailed={syncFailed}
-          lastSynced={lastSynced}
-          onSync={handleSync}
-        />
       </div>
 
       {isLoading || refreshing ? (

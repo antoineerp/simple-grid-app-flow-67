@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { FileText, FolderPlus } from 'lucide-react';
 import { MembresProvider } from '@/contexts/MembresContext';
@@ -9,8 +10,6 @@ import { useDocuments } from '@/hooks/useDocuments';
 import { exportDocumentsToPdf } from '@/services/pdfExport';
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
-import SyncIndicator from '@/components/common/SyncIndicator';
-import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 
 const GestionDocumentaireContent = () => {
   const {
@@ -37,25 +36,10 @@ const GestionDocumentaireContent = () => {
     handleDeleteGroup,
     handleGroupReorder,
     handleToggleGroup,
-    syncWithServer,
-    isSyncing,
-    syncFailed,
-    lastSynced
+    syncWithServer
   } = useDocuments();
   
-  // Use the network status hook to get isOnline state
-  const { isOnline } = useNetworkStatus();
   const { toast } = useToast();
-
-  const handleSync = async (): Promise<void> => {
-    try {
-      await syncWithServer();
-      return Promise.resolve();
-    } catch (error) {
-      console.error("Sync failed:", error);
-      return Promise.reject(error);
-    }
-  };
 
   const handleExportPdf = () => {
     exportDocumentsToPdf(documents, groups);
@@ -80,16 +64,6 @@ const GestionDocumentaireContent = () => {
             <FileText className="h-6 w-6 stroke-[1.5]" />
           </button>
         </div>
-      </div>
-
-      <div className="mb-4">
-        <SyncIndicator 
-          isSyncing={isSyncing}
-          isOnline={isOnline}
-          syncFailed={syncFailed}
-          lastSynced={lastSynced}
-          onSync={handleSync}
-        />
       </div>
 
       <DocumentStatusDisplay stats={stats} />
