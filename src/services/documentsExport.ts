@@ -32,7 +32,8 @@ export const exportDocumentsToPdf = (documents: Document[], groups: any[] = [], 
             doc.nom,
             doc.fichier_path || '-',
             formatResponsabilities(doc.responsabilites),
-            doc.exclusion ? 'Exclusion' : formatState(doc.etat)
+            // Vérifier si la propriété 'exclusion' existe avant de l'utiliser
+            doc.hasOwnProperty('exclusion') && (doc as any).exclusion ? 'Exclusion' : formatState(doc.etat)
           ]),
           theme: 'grid',
           styles: { fontSize: 10, cellPadding: 5 },
@@ -71,7 +72,8 @@ export const exportDocumentsToPdf = (documents: Document[], groups: any[] = [], 
           doc.nom,
           doc.fichier_path || '-',
           formatResponsabilities(doc.responsabilites),
-          doc.exclusion ? 'Exclusion' : formatState(doc.etat)
+          // Vérifier si la propriété 'exclusion' existe avant de l'utiliser
+          doc.hasOwnProperty('exclusion') && (doc as any).exclusion ? 'Exclusion' : formatState(doc.etat)
         ]),
         theme: 'grid',
         styles: { fontSize: 10, cellPadding: 5 },
