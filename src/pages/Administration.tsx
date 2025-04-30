@@ -8,7 +8,7 @@ import DatabaseDiagnostic from '@/components/admin/DatabaseDiagnostic';
 import ApiConfiguration from '@/components/admin/ApiConfiguration';
 import ServerTest from '@/components/ServerTest';
 import ImageConfiguration from '@/components/admin/ImageConfiguration';
-import { getDatabaseConnectionCurrentUser } from '@/services';
+import { getDatabaseConnectionCurrentUser, initializeCurrentUser } from '@/services';
 import { useToast } from "@/hooks/use-toast";
 import { hasPermission, UserRole } from '@/types/roles';
 import UserDiagnostic from '@/components/admin/UserDiagnostic';
@@ -27,6 +27,9 @@ const Administration = () => {
 
   useEffect(() => {
     console.log("Administration: vérification des permissions...");
+    
+    // Initialiser l'utilisateur de la base de données
+    initializeCurrentUser();
     
     // Obtenez le rôle directement de localStorage et utilisez getCurrentUser comme fallback
     let userRole = localStorage.getItem('userRole') as UserRole;
@@ -72,6 +75,21 @@ const Administration = () => {
     };
     
     checkForManager();
+    
+    // Ajouter un écouteur d'événements pour les changements d'utilisateur
+    const handleUserChange = (event: Event) => {
+      const customEvent = event as CustomEvent;
+      if (customEvent.detail?.user) {
+        setCurrentDatabaseUser(customEvent.detail.user);
+      }
+    };
+    
+    window.addEventListener('database-user-changed', handleUserChange);
+    
+    // Nettoyage
+    return () => {
+      window.removeEventListener('database-user-changed', handleUserChange);
+    };
   }, [navigate, toast]);
 
   const handleUserConnect = (identifiant: string) => {

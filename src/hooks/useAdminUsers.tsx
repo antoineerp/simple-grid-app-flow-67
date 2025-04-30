@@ -78,7 +78,7 @@ export const useAdminUsers = () => {
     }
   }, [toast]);
 
-  const handleConnectAsUser = async (identifiantTechnique: string) => {
+  const handleConnectAsUser = async (identifiantTechnique: string): Promise<boolean> => {
     const currentUserRole = localStorage.getItem('userRole') as UserRole;
     
     // Vérifier les permissions de connexion
@@ -90,6 +90,8 @@ export const useAdminUsers = () => {
       });
       return false;
     }
+    
+    console.log(`Tentative de connexion en tant que: ${identifiantTechnique}`);
 
     try {
       // Vérifier d'abord la connexion à la base de données
@@ -100,10 +102,16 @@ export const useAdminUsers = () => {
       
       const success = await connectAsUser(identifiantTechnique);
       if (success) {
+        console.log(`Connexion réussie en tant que: ${identifiantTechnique}`);
         toast({
           title: "Connexion réussie",
           description: `Connecté en tant que ${identifiantTechnique}`,
         });
+        
+        // Mettre à jour explicitement localStorage
+        localStorage.setItem('currentDatabaseUser', identifiantTechnique);
+      } else {
+        console.error(`Échec de connexion en tant que: ${identifiantTechnique}`);
       }
       return success;
     } catch (error) {

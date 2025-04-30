@@ -1,4 +1,3 @@
-
 import { getApiUrl } from '@/config/apiConfig';
 import { getAuthHeaders } from '@/services/auth/authService';
 
@@ -12,7 +11,7 @@ export const getCurrentUser = (): string | null => {
   
   // Essayer de récupérer depuis l'authentification
   try {
-    const authToken = sessionStorage.getItem('authToken');
+    const authToken = sessionStorage.getItem('authToken') || localStorage.getItem('authToken');
     if (authToken) {
       // Vérifier que le token a le bon format avant de le traiter
       const parts = authToken.split('.');
@@ -55,11 +54,23 @@ export const setCurrentUser = (userId: string): void => {
   
   currentDatabaseUser = userId;
   console.log(`Utilisateur défini: ${userId}`);
+  
+  // Stocker aussi dans le localStorage pour la persistance entre les rechargements
+  try {
+    localStorage.setItem('currentDatabaseUser', userId);
+  } catch (error) {
+    console.error("Erreur lors de la sauvegarde de l'utilisateur dans localStorage:", error);
+  }
 };
 
 // Fonction pour supprimer l'utilisateur actuel
 export const removeCurrentUser = (): void => {
   currentDatabaseUser = null;
+  try {
+    localStorage.removeItem('currentDatabaseUser');
+  } catch (error) {
+    console.error("Erreur lors de la suppression de l'utilisateur du localStorage:", error);
+  }
 };
 
 // Variable pour stocker la dernière erreur de connexion
@@ -88,6 +99,12 @@ export const connectAsUser = async (userId: string): Promise<boolean> => {
     }
     
     setCurrentUser(userId);
+    
+    // Mettre à jour l'interface utilisateur immédiatement
+    window.dispatchEvent(new CustomEvent('database-user-changed', {
+      detail: { user: userId }
+    }));
+    
     return true;
   } catch (error) {
     console.error("Erreur lors de la connexion en tant qu'utilisateur:", error);
@@ -105,7 +122,24 @@ export const disconnectUser = (): void => {
 
 // Fonction pour obtenir l'utilisateur actuel de la connexion à la base de données
 export const getDatabaseConnectionCurrentUser = (): string | null => {
-  return currentDatabaseUser || 'p71x6d_system';
+  // Vérifier d'abord la variable en mémoire
+  if (currentDatabaseUser) {
+    return currentDatabaseUser;
+  }
+  
+  // Sinon, essayer de récupérer depuis localStorage
+  try {
+    const savedUser = localStorage.getItem('currentDatabaseUser');
+    if (savedUser) {
+      currentDatabaseUser = savedUser;
+      return savedUser;
+    }
+  } catch (error) {
+    console.error("Erreur lors de la récupération de l'utilisateur depuis localStorage:", error);
+  }
+  
+  // Si rien n'est trouvé, utiliser l'utilisateur par défaut
+  return 'p71x6d_system';
 };
 
 // Interface pour les informations de base de données
@@ -216,9 +250,21 @@ export const getDatabaseInfo = async (): Promise<DatabaseInfo> => {
 
 // Fonction pour initialiser l'utilisateur actuel
 export const initializeCurrentUser = (): void => {
-  // Essayer de récupérer l'utilisateur depuis le token d'authentification
+  // D'abord, essayer de récupérer depuis localStorage
   try {
-    const authToken = sessionStorage.getItem('authToken');
+    const savedUser = localStorage.getItem('currentDatabaseUser');
+    if (savedUser && savedUser.startsWith('p71x6d_')) {
+      currentDatabaseUser = savedUser;
+      console.log(`Utilisateur récupéré depuis localStorage: ${savedUser}`);
+      return;
+    }
+  } catch (error) {
+    console.error("Erreur lors de la récupération de l'utilisateur depuis localStorage:", error);
+  }
+  
+  // Sinon, essayer depuis le token d'authentification
+  try {
+    const authToken = sessionStorage.getItem('authToken') || localStorage.getItem('authToken');
     if (authToken) {
       // Vérifier que le token est correctement formaté (format JWT)
       const parts = authToken.split('.');
@@ -249,7 +295,7 @@ export const initializeCurrentUser = (): void => {
     console.error("Erreur lors de l'initialisation de l'utilisateur depuis le token:", error);
   }
   
-  // Si aucun utilisateur n'est trouvé dans le token, utiliser la valeur par défaut
+  // Si aucun utilisateur n'est trouvé, utiliser la valeur par défaut
   setCurrentUser('p71x6d_system');
   console.log(`Utilisateur initialisé avec la valeur par défaut: p71x6d_system`);
 };
