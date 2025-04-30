@@ -6,6 +6,7 @@ import { getDatabaseConnectionCurrentUser } from '@/services/core/databaseConnec
 import { Button } from '@/components/ui/button';
 import { Plus, FileText, RefreshCw, FolderPlus, Save, Check, AlertTriangle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import SyncHealthIndicator from '@/components/common/SyncHealthIndicator';
 
 const GestionDocumentaire = () => {
   const { 
@@ -31,7 +32,6 @@ const GestionDocumentaire = () => {
   
   const [currentUser, setCurrentUser] = useState<string>(getDatabaseConnectionCurrentUser() || 'default');
   const [saveSuccess, setSaveSuccess] = useState<boolean | null>(null);
-  const [showSaveNotification, setShowSaveNotification] = useState<boolean>(false);
   const { toast } = useToast();
   
   // Écouter les changements d'utilisateur
@@ -51,25 +51,22 @@ const GestionDocumentaire = () => {
     };
   }, []);
 
-  // Sauvegarder régulièrement les modifications et afficher une notification
+  // Synchronisation automatique périodique
   useEffect(() => {
+    // Synchroniser automatiquement toutes les 2 minutes si des documents existent
     if (documents.length > 0) {
-      // Afficher une notification pour encourager l'utilisateur à sauvegarder
-      // seulement après que des données ont été chargées et si la notification n'est pas déjà affichée
-      if (!showSaveNotification && !isSyncing) {
-        const timer = setTimeout(() => {
-          setShowSaveNotification(true);
-          toast({
-            title: "N'oubliez pas de sauvegarder",
-            description: "Cliquez sur le bouton 'Sauvegarder' pour envoyer vos changements au serveur Infomaniak.",
-            variant: "default"
+      const autoSyncTimer = setInterval(() => {
+        if (!isSyncing) {
+          console.log("Synchronisation automatique programmée");
+          syncWithServer().catch(err => {
+            console.error("Erreur lors de la synchronisation automatique:", err);
           });
-        }, 30000); // 30 secondes après le chargement
-        
-        return () => clearTimeout(timer);
-      }
+        }
+      }, 120000); // Toutes les 2 minutes
+      
+      return () => clearInterval(autoSyncTimer);
     }
-  }, [documents, isSyncing, showSaveNotification, toast]);
+  }, [documents, isSyncing, syncWithServer]);
 
   // Effet pour sauvegarder avant de quitter la page
   useEffect(() => {
@@ -90,6 +87,23 @@ const GestionDocumentaire = () => {
     };
   }, [documents, lastSynced]);
 
+  // Sauvegarde automatique lors des modifications
+  useEffect(() => {
+    if (documents.length > 0) {
+      // Initialiser la synchronisation après le chargement initial
+      const timer = setTimeout(() => {
+        if (!isSyncing) {
+          console.log("Synchronisation automatique initiale");
+          syncWithServer().catch(err => {
+            console.error("Erreur lors de la synchronisation automatique initiale:", err);
+          });
+        }
+      }, 5000); // 5 secondes après le chargement
+      
+      return () => clearTimeout(timer);
+    }
+  }, [documents, isSyncing, syncWithServer]);
+
   const handleRefresh = () => {
     forceReload();
   };
@@ -104,9 +118,6 @@ const GestionDocumentaire = () => {
       
       // Montrer le résultat
       setSaveSuccess(result);
-      
-      // Masquer la notification d'encouragement à sauvegarder
-      setShowSaveNotification(false);
       
       // Afficher un toast avec le résultat
       if (result) {
@@ -143,17 +154,11 @@ const GestionDocumentaire = () => {
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold">Gestion Documentaire</h1>
         <div className="flex items-center space-x-2">
-          {showSaveNotification && (
-            <div className="flex items-center text-amber-500 mr-2">
-              <AlertTriangle className="h-4 w-4 mr-1" />
-              <span className="text-sm">Changements non sauvegardés</span>
-            </div>
-          )}
           <Button
             onClick={handleSaveManually}
             variant="outline"
             size="sm"
-            className={`flex items-center ${showSaveNotification ? 'border-amber-500 text-amber-600' : ''}`}
+            className="flex items-center"
             disabled={isSyncing}
           >
             {saveSuccess === null ? (
@@ -189,6 +194,7 @@ const GestionDocumentaire = () => {
       {lastSynced && (
         <div className="text-sm text-gray-500 mb-4">
           Dernière synchronisation: {new Date(lastSynced).toLocaleString()}
+          <span className="ml-2 text-green-600">(Sauvegarde automatique activée)</span>
         </div>
       )}
       
@@ -224,6 +230,9 @@ const GestionDocumentaire = () => {
           Ajouter un document
         </Button>
       </div>
+      
+      {/* Ajout de l'indicateur de santé de synchronisation */}
+      <SyncHealthIndicator />
     </div>
   );
 };

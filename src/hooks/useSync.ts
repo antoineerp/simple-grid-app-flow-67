@@ -1,3 +1,4 @@
+
 import { useState, useCallback, useEffect } from 'react';
 import { SyncResult } from '@/services/sync/SyncService';
 import { useToast } from '@/components/ui/use-toast';
@@ -9,7 +10,7 @@ import { SyncState } from '@/features/sync/types/syncTypes';
  * Hook pour gérer la synchronisation de données avec le serveur
  */
 export const useSync = (tableName: string): SyncState & {
-  syncAndProcess: <T>(data: T[], trigger?: "auto" | "manual" | "initial") => Promise<SyncResult>;
+  syncAndProcess: <T>(data: T[], trigger?: "auto" | "manual" | "initial", options?: { userId?: string }) => Promise<SyncResult>;
   resetSyncStatus: () => void;
   isOnline: boolean; // Add isOnline to the return type
 } => {
@@ -42,11 +43,12 @@ export const useSync = (tableName: string): SyncState & {
   // Fonction pour synchroniser les données et gérer les erreurs
   const syncAndProcess = useCallback(async <T>(
     data: T[],
-    trigger: "auto" | "manual" | "initial" = "auto"
+    trigger: "auto" | "manual" | "initial" = "auto",
+    options?: { userId?: string }
   ): Promise<SyncResult> => {
     // Utiliser le service central pour la synchronisation
     try {
-      const result = await syncTable(tableName, data, trigger);
+      const result = await syncTable(tableName, data, trigger, options);
       
       if (result.success) {
         return {

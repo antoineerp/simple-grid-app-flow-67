@@ -74,3 +74,15 @@ export interface SyncHealthStatus {
     lastSuccessfulSync: Date | null;
   }
 }
+
+// Définir le type SyncAttempt pour garantir la présence de la propriété operation
+export interface SyncAttempt {
+  id: string;
+  tableName: string;
+  startTime: number;
+  endTime?: number;
+  success: boolean;
+  error?: string;
+  duration?: number;
+  operation: string; // Propriété obligatoire (non optionnelle)
+}

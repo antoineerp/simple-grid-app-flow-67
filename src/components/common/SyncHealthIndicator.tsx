@@ -40,10 +40,10 @@ const SyncHealthIndicator: React.FC<SyncHealthIndicatorProps> = ({
       setHealth(currentStatus.health);
       setActiveCount(currentStatus.activeCount);
       
-      // Ensure all required properties are present in the recentAttempts
+      // S'assurer que toutes les tentatives ont une propriété operation définie
       const typedAttempts: SyncAttempt[] = currentStatus.recentAttempts.map(attempt => ({
         ...attempt,
-        operation: attempt.operation || 'unknown' // Ensure operation is always defined
+        operation: attempt.operation || 'unknown' // Garantir que operation est toujours défini
       }));
 
       setStatus({
@@ -121,7 +121,7 @@ const SyncHealthIndicator: React.FC<SyncHealthIndicatorProps> = ({
             {getStatusIcon()}
           </div>
           <div className="text-xs font-medium">
-            Syncs: {activeCount > 0 ? `${activeCount} en cours` : 'OK'}
+            {activeCount > 0 ? `Sauvegarde en cours` : 'Sauvegarde automatique activée'}
           </div>
         </div>
       </div>

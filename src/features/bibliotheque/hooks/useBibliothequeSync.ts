@@ -1,5 +1,5 @@
 
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { Document as BibliothequeDocument, DocumentGroup } from '@/types/bibliotheque';
 import { Document as SystemDocument } from '@/types/documents';
 import { syncService } from '@/services/sync/SyncService';
@@ -33,6 +33,9 @@ export const useBibliothequeSync = () => {
   const { isSyncing, syncFailed, syncAndProcess } = useSync('collaboration');
   const syncTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const pendingSyncRef = useRef<boolean>(false);
+  const documentsRef = useRef<BibliothequeDocument[]>([]);
+  const groupsRef = useRef<DocumentGroup[]>([]);
+  const lastChangedRef = useRef<Date | null>(null);
   
   // Fonction pour charger les documents depuis le serveur
   const loadFromServer = useCallback(async (userId?: string): Promise<BibliothequeDocument[]> => {
@@ -88,6 +91,30 @@ export const useBibliothequeSync = () => {
       return [];
     }
   }, [isOnline]);
+
+  // Effet pour déclencher la synchronisation automatique
+  useEffect(() => {
+    // Intervalle de vérification de synchronisation automatique toutes les 30 secondes
+    const autoSyncInterval = setInterval(() => {
+      if (lastChangedRef.current && documentsRef.current.length > 0 && groupsRef.current.length > 0) {
+        const now = new Date();
+        const timeSinceLastChange = now.getTime() - lastChangedRef.current.getTime();
+        
+        // Si des modifications ont été faites il y a plus de 10 secondes, synchroniser
+        if (timeSinceLastChange > 10000 && !isSyncing) {
+          console.log('Synchronisation automatique déclenchée');
+          
+          // Utiliser l'utilisateur courant
+          const currentUser = getDatabaseConnectionCurrentUser() || 'default';
+          
+          syncWithServer(documentsRef.current, groupsRef.current, currentUser, "auto")
+            .catch(err => console.error("Erreur lors de la synchronisation automatique:", err));
+        }
+      }
+    }, 30000); // Vérifier toutes les 30 secondes
+    
+    return () => clearInterval(autoSyncInterval);
+  }, [isSyncing]);
   
   // Fonction pour synchroniser avec délai (debounce)
   const debounceSyncWithServer = useCallback((
@@ -97,6 +124,11 @@ export const useBibliothequeSync = () => {
   ) => {
     // Toujours utiliser l'utilisateur courant si non spécifié
     const currentUser = userId || getDatabaseConnectionCurrentUser() || 'default';
+    
+    // Mettre à jour les références pour la synchronisation automatique
+    documentsRef.current = documents;
+    groupsRef.current = groups;
+    lastChangedRef.current = new Date();
     
     // Toujours sauvegarder localement immédiatement
     const systemDocs = documents.map(convertBibliothequeToSystemDoc);
@@ -162,7 +194,8 @@ export const useBibliothequeSync = () => {
       localStorage.setItem(`collaboration_groups_${currentUser}`, JSON.stringify(groups));
       
       // Utiliser le service central pour la synchronisation avec la table "collaboration"
-      const result = await syncAndProcess(systemDocs, trigger, { userId: currentUser });
+      // Corriger l'appel de syncAndProcess en passant seulement 2 arguments au lieu de 3
+      const result = await syncAndProcess(systemDocs, trigger);
       
       if (result.success) {
         const lastSyncTime = syncService.getLastSynced('collaboration');
