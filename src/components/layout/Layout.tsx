@@ -7,7 +7,6 @@ import { Header } from './Header';
 import { GlobalDataProvider } from '@/contexts/GlobalDataContext';
 import { GlobalSyncProvider } from '@/contexts/GlobalSyncContext';
 import GlobalSyncManager from '@/components/common/GlobalSyncManager';
-import ShowSyncDiagnostic from '@/components/layouts/ShowSyncDiagnostic';
 import { getIsLoggedIn, getCurrentUser } from '@/services/auth/authService';
 import { toast } from '@/components/ui/use-toast';
 import { TooltipProvider } from '@/components/ui/tooltip';
@@ -73,7 +72,6 @@ const Layout = () => {
             </div>
             <Toaster />
             <GlobalSyncManager />
-            <ShowSyncDiagnostic />
             <div data-testid="global-sync-initialized" className="hidden" />
           </div>
         </TooltipProvider>

@@ -10,7 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { toast } from '@/components/ui/use-toast';
 
 interface SyncDiagnosticPanelProps {
-  onClose: () => void;
+  onClose?: () => void;
 }
 
 interface SyncInfo {
@@ -23,7 +23,7 @@ interface SyncInfo {
   message: string;
 }
 
-export const SyncDiagnosticPanel: React.FC<SyncDiagnosticPanelProps> = ({ onClose }) => {
+export const SyncDiagnosticPanel: React.FC<SyncDiagnosticPanelProps> = ({ onClose = () => {} }) => {
   const { syncStates, isOnline, syncAll, syncTable } = useGlobalSync();
   const [syncInfos, setSyncInfos] = useState<SyncInfo[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -299,7 +299,7 @@ export const SyncDiagnosticPanel: React.FC<SyncDiagnosticPanelProps> = ({ onClos
   }, []);
   
   return (
-    <div className="space-y-4 py-4">
+    <div className="space-y-4">
       {/* État de la connexion */}
       <Alert variant={isOnline ? "default" : "destructive"}>
         <Database className="h-4 w-4" />
@@ -408,10 +408,58 @@ export const SyncDiagnosticPanel: React.FC<SyncDiagnosticPanelProps> = ({ onClos
         </div>
       )}
       
-      {/* Bouton de fermeture */}
-      <div className="flex justify-end mt-4">
-        <Button onClick={onClose}>Fermer</Button>
-      </div>
+      {/* Bouton de fermeture - seulement si onClose est fourni comme une fonction personnalisée */}
+      {onClose !== undefined && (
+        <div className="flex justify-end mt-4">
+          <Button onClick={onClose}>Fermer</Button>
+        </div>
+      )}
     </div>
   );
+};
+
+export const scanSyncData = async () => {
+  try {
+    const tables = [
+      'documents', 'exigences', 'membres', 'collaboration',
+      'configuration', 'formations', 'ressourcesHumaines'
+    ];
+    
+    const infos = [];
+    
+    // Analyser chaque table connue
+    for (const tableName of tables) {
+      // Vérifier si des données locales existent
+      const localStorageKeys = Object.keys(localStorage).filter(key => 
+        key.startsWith(`${tableName}_`) && 
+        !key.includes('last_synced') &&
+        !key.includes('sync_states') &&
+        !key.includes('sync_pending') &&
+        !key.includes('sync_in_progress')
+      );
+      
+      // Compter les entrées locales
+      let localCount = 0;
+      for (const key of localStorageKeys) {
+        try {
+          const data = JSON.parse(localStorage.getItem(key) || '[]');
+          if (Array.isArray(data)) {
+            localCount += data.length;
+          }
+        } catch (e) {
+          console.error(`Erreur lors de la lecture de ${key}:`, e);
+        }
+      }
+      
+      infos.push({
+        tableName,
+        localCount
+      });
+    }
+    
+    return infos;
+  } catch (error) {
+    console.error("Erreur lors de l'analyse des données de synchronisation:", error);
+    return [];
+  }
 };

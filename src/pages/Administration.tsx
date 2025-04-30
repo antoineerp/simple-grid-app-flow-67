@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -13,6 +14,9 @@ import { hasPermission, UserRole } from '@/types/roles';
 import UserDiagnostic from '@/components/admin/UserDiagnostic';
 import ManagerDataImport from '@/components/admin/ManagerDataImport';
 import { UserManager } from '@/services/users/userManager';
+import { SyncDiagnosticPanel } from '@/components/diagnostics/SyncDiagnosticPanel';
+import DbConnectionTest from "@/components/DbConnectionTest";
+import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 
 const Administration = () => {
   const navigate = useNavigate();
@@ -126,6 +130,26 @@ const Administration = () => {
         
         <TabsContent value="sync">
           <div className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Test de connexion à la base de données</CardTitle>
+                <CardDescription>Vérifier la connexion au serveur Infomaniak</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <DbConnectionTest />
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardHeader>
+                <CardTitle>Diagnostic de synchronisation</CardTitle>
+                <CardDescription>Vérifier l'état de synchronisation et forcer la synchronisation des données</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <SyncDiagnosticPanel onClose={() => {}} />
+              </CardContent>
+            </Card>
+            
             <ManagerDataImport hasManager={hasManager} />
           </div>
         </TabsContent>

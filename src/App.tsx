@@ -4,7 +4,6 @@ import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'r
 import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import DbAdmin from '@/pages/DbAdmin';
-import DbTest from '@/pages/DbTest';
 import Index from '@/pages/Index';
 import Layout from '@/components/layout/Layout';
 import Pilotage from '@/pages/Pilotage';
@@ -37,9 +36,9 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
       });
     } else {
       toast({
+        variant: "destructive",
         title: "Accès refusé",
         description: `Redirection vers la page de connexion depuis ${location.pathname}`,
-        variant: "destructive",
       });
     }
   }, [isLoggedIn, location.pathname, currentUser?.email]);
@@ -95,11 +94,6 @@ function App() {
             <Route path="pilotage" element={
               <ProtectedRoute>
                 <Pilotage />
-              </ProtectedRoute>
-            } />
-            <Route path="db-test" element={
-              <ProtectedRoute>
-                <DbTest />
               </ProtectedRoute>
             } />
             <Route path="db-admin" element={
