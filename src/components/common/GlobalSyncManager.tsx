@@ -25,26 +25,54 @@ const GlobalSyncManager: React.FC = () => {
             setSyncingInProgress(false);
             
             const successCount = Object.values(results).filter(Boolean).length;
+            const totalCount = Object.keys(results).length;
+            
             if (successCount > 0) {
               toast({
                 title: "Synchronisation initiale terminée",
-                description: `${successCount} tables ont été synchronisées avec Infomaniak`,
+                description: `${successCount}/${totalCount} tables ont été synchronisées avec Infomaniak`,
               });
+            } else if (totalCount > 0) {
+              toast({
+                variant: "destructive",
+                title: "Échec de synchronisation",
+                description: "Aucune table n'a pu être synchronisée avec Infomaniak. Vérifiez votre connexion."
+              });
+              setShowError(true);
             }
           })
           .catch(error => {
             console.error("GlobalSyncManager - Erreur lors de la synchronisation initiale:", error);
             setSyncingInProgress(false);
             setShowError(true);
+            
+            toast({
+              variant: "destructive",
+              title: "Erreur de synchronisation",
+              description: "Une erreur s'est produite lors de la synchronisation avec Infomaniak."
+            });
           });
       }, 2000);
       
-      return () => clearTimeout(timeoutId);
+      // Planifier des synchronisations périodiques (toutes les 5 minutes)
+      const intervalId = setInterval(() => {
+        if (isOnline) {
+          console.log("GlobalSyncManager - Exécution de la synchronisation périodique");
+          syncAll().catch(error => {
+            console.error("GlobalSyncManager - Erreur lors de la synchronisation périodique:", error);
+          });
+        }
+      }, 300000); // 5 minutes
+      
+      return () => {
+        clearTimeout(timeoutId);
+        clearInterval(intervalId);
+      };
     } catch (error) {
       console.error("GlobalSyncManager - Erreur lors de l'initialisation de la synchronisation:", error);
       setShowError(true);
     }
-  }, [syncAll]);
+  }, [syncAll, isOnline]);
   
   // Vérifier si une synchronisation a échoué
   const hasSyncFailed = Object.values(syncStates).some(state => state.syncFailed);
@@ -65,6 +93,7 @@ const GlobalSyncManager: React.FC = () => {
           lastSynced={null}
           onSync={async () => {
             // Transformer en fonction async
+            await syncAll();
             return Promise.resolve();
           }}
         />

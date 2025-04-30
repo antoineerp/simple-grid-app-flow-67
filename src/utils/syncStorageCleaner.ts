@@ -30,21 +30,43 @@ export const cleanSyncStorage = () => {
     }
   });
   
+  // Vérifier et nettoyer les entrées spécifiques qui pourraient causer des problèmes
+  const specificKeys = [
+    'membres_p71x6d_system_last_sync',
+    'documents_p71x6d_system_last_sync',
+    'collaboration_p71x6d_system_last_sync',
+    'exigences_p71x6d_system_last_sync'
+  ];
+  
+  specificKeys.forEach(key => {
+    try {
+      const value = localStorage.getItem(key);
+      if (value) {
+        JSON.parse(value);
+      }
+    } catch (e) {
+      console.warn(`Suppression de l'entrée spécifique malformée: ${key}`);
+      localStorage.removeItem(key);
+      cleanedCount++;
+    }
+  });
+  
   console.log(`Nettoyage terminé: ${cleanedCount} entrées malformées supprimées.`);
   return cleanedCount;
 };
 
 /**
  * Nettoie les données de synchronisation au démarrage de l'application
+ * et programme un nettoyage périodique
  */
 export const initializeSyncStorageCleaner = () => {
   // Exécuter au démarrage de l'application
   cleanSyncStorage();
   
-  // Nettoyer périodiquement (une fois toutes les 24h)
+  // Nettoyer périodiquement (une fois par heure)
   setInterval(() => {
     cleanSyncStorage();
-  }, 86400000);
+  }, 3600000); // 1 heure
 };
 
 export default cleanSyncStorage;

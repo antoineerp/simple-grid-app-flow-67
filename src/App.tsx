@@ -1,3 +1,4 @@
+
 import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { Toaster } from '@/components/ui/toaster';
@@ -65,8 +66,18 @@ const RouteTracker = () => {
 
 function App() {
   useEffect(() => {
-    // Initialiser le nettoyage des données de synchronisation
+    // Exécuter le nettoyage des données de synchronisation au démarrage
     initializeSyncStorageCleaner();
+    console.log("App - Nettoyage des données de synchronisation initialisé");
+    
+    // Planifier une vérification de la synchronisation au démarrage
+    const timeoutId = setTimeout(() => {
+      // Déclencher un événement pour vérifier l'état de la synchronisation
+      window.dispatchEvent(new CustomEvent("checkSyncStatus"));
+      console.log("App - Événement de vérification de synchronisation déclenché");
+    }, 5000); // Attendre 5 secondes après le chargement
+    
+    return () => clearTimeout(timeoutId);
   }, []);
   
   console.log('App - Rendu initial de l\'application');
