@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { FileText, FolderPlus } from 'lucide-react';
 import { MembresProvider } from '@/contexts/MembresContext';
 import DocumentForm from '@/components/gestion-documentaire/DocumentForm';
@@ -10,6 +10,7 @@ import { useDocuments } from '@/hooks/useDocuments';
 import { exportDocumentsToPdf } from '@/services/pdfExport';
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
+import { useGlobalSync } from '@/contexts/GlobalSyncContext';
 
 const GestionDocumentaireContent = () => {
   const {
@@ -39,6 +40,14 @@ const GestionDocumentaireContent = () => {
   } = useDocuments();
   
   const { toast } = useToast();
+  const { isSyncing, isOnline, lastSynced } = useGlobalSync();
+
+  // Synchronization status indicator
+  const syncStatus = isSyncing 
+    ? "Synchronisation en cours..." 
+    : isOnline 
+      ? `Synchronisé${lastSynced ? ` (${new Date(lastSynced).toLocaleTimeString()})` : ''}`
+      : "Mode hors ligne";
 
   const handleExportPdf = () => {
     exportDocumentsToPdf(documents, groups);
@@ -53,6 +62,10 @@ const GestionDocumentaireContent = () => {
       <div className="flex items-center justify-between mb-2">
         <div>
           <h1 className="text-3xl font-bold text-app-blue">Gestion Documentaire</h1>
+          <div className="text-xs text-gray-500 mt-1">
+            <span className={`inline-block mr-2 ${isSyncing ? 'animate-pulse text-amber-500' : isOnline ? 'text-green-600' : 'text-red-600'}`}>●</span>
+            {syncStatus}
+          </div>
         </div>
         <div className="flex space-x-2">
           <button 

@@ -39,6 +39,8 @@ export const BibliothequeDocumentRow: React.FC<BibliothequeDocumentRowProps> = (
       data-sync-id={document.id}
       data-sync-type="document"
       data-group-id={groupId || ""}
+      data-sync-table="collaboration" // Added to ensure consistent identification
+      data-sync-owner={document.userId || "default"}
     >
       <TableCell className="py-3 px-2 w-10">
         <GripVertical className="h-5 w-5 text-gray-400" />

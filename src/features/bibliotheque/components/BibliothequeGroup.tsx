@@ -61,6 +61,8 @@ export const BibliothequeGroup: React.FC<BibliothequeGroupProps> = ({
         }}
         data-sync-id={group.id}
         data-sync-type="group"
+        data-sync-table="collaboration"
+        data-sync-owner={group.userId || "default"}
       >
         <TableCell className="py-3 px-2 w-10">
           <GripVertical className="h-5 w-5 text-gray-400" />
