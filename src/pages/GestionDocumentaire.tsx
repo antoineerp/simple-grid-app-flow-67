@@ -23,8 +23,8 @@ const GestionDocumentaire = () => {
     handleAddDocument, 
     handleAddGroup,
     handleGroupReorder,
-    refreshDocuments,
-    isLoading
+    forceReload,
+    isSyncing
   } = useDocuments();
   
   const [currentUser, setCurrentUser] = useState<string>(getDatabaseConnectionCurrentUser() || 'default');
@@ -52,7 +52,7 @@ const GestionDocumentaire = () => {
       title: "Actualisation",
       description: "Chargement des données les plus récentes..."
     });
-    refreshDocuments();
+    forceReload();
   };
 
   return (
@@ -64,9 +64,9 @@ const GestionDocumentaire = () => {
           variant="outline"
           size="sm"
           className="ml-2"
-          disabled={isLoading}
+          disabled={isSyncing}
         >
-          <RefreshCw className={`h-4 w-4 mr-1 ${isLoading ? 'animate-spin' : ''}`} />
+          <RefreshCw className={`h-4 w-4 mr-1 ${isSyncing ? 'animate-spin' : ''}`} />
           Actualiser
         </Button>
       </div>

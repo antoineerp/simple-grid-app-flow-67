@@ -41,6 +41,7 @@ export function useSyncContext<T>(tableName: string, data: T[], options: SyncHoo
   const unmountingRef = useRef<boolean>(false);
   const authErrorShownRef = useRef<boolean>(false);
   const lockTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const errorLogsRef = useRef<string[]>([]);
 
   // Mettre à jour la référence des données au montage et marquer le composant comme monté
   useEffect(() => {
@@ -424,16 +425,21 @@ export function useSyncContext<T>(tableName: string, data: T[], options: SyncHoo
 
 // Add this to global window for debugging
 if (typeof window !== 'undefined') {
-  window.errorLogs = window.errorLogs || [];
+  // Créer un tableau pour les logs d'erreur s'il n'existe pas déjà
+  if (!window.errorLogs) {
+    window.errorLogs = [];
+  }
   
   // Override console.error to capture authentication errors
   const originalError = console.error;
   console.error = function() {
     // Store the error in our log
-    window.errorLogs.unshift(Array.from(arguments).join(' '));
-    // Trim the log to prevent memory issues
-    if (window.errorLogs.length > 100) {
-      window.errorLogs = window.errorLogs.slice(0, 100);
+    if (window.errorLogs) {
+      window.errorLogs.unshift(Array.from(arguments).join(' '));
+      // Trim the log to prevent memory issues
+      if (window.errorLogs.length > 100) {
+        window.errorLogs = window.errorLogs.slice(0, 100);
+      }
     }
     // Call the original console.error
     return originalError.apply(console, arguments);

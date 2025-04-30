@@ -234,7 +234,7 @@ export const useDocuments = () => {
     editingGroup,
     dialogOpen,
     groupDialogOpen,
-    isSyncing,
+    isSyncing, // Exposer cette propriété pour le bouton d'actualisation
     syncFailed,
     lastSynced,
     isOnline,
@@ -249,6 +249,6 @@ export const useDocuments = () => {
     handleEditGroup,
     ...groupOperations,
     syncWithServer,
-    forceReload
+    forceReload // Exposer cette méthode pour remplacer refreshDocuments
   };
 };
