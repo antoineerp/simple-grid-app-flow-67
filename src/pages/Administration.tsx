@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -8,7 +7,7 @@ import DatabaseDiagnostic from '@/components/admin/DatabaseDiagnostic';
 import ApiConfiguration from '@/components/admin/ApiConfiguration';
 import ServerTest from '@/components/ServerTest';
 import ImageConfiguration from '@/components/admin/ImageConfiguration';
-import { getDatabaseConnectionCurrentUser, initializeCurrentUser } from '@/services';
+import { getDatabaseConnectionCurrentUser } from '@/services';
 import { useToast } from "@/hooks/use-toast";
 import { hasPermission, UserRole } from '@/types/roles';
 import UserDiagnostic from '@/components/admin/UserDiagnostic';
