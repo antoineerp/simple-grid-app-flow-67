@@ -183,4 +183,3 @@ export function initializeSyncStorageCleaner(): void {
   // Nettoyer les données anciennes (plus de 30 jours)
   cleanupOldSyncData();
 }
-

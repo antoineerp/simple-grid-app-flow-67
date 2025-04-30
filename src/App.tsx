@@ -1,5 +1,6 @@
-import React, { useEffect, useState } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+
+import React, { useEffect } from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { SyncProvider } from './contexts/GlobalSyncContext';
 import { AuthProvider } from './contexts/AuthContext';
 import { Toaster } from './components/ui/toaster';
@@ -10,6 +11,15 @@ import ErrorBoundary from './components/ErrorBoundary';
 import GlobalErrorAlert from './components/GlobalErrorAlert';
 import GlobalSyncManager from './components/common/GlobalSyncManager';
 import { initializeSyncStorageCleaner } from './utils/syncStorageCleaner';
+
+// Pages
+import Pilotage from './pages/Pilotage';
+import DbAdmin from './pages/DbAdmin';
+import Exigences from './pages/Exigences';
+import GestionDocumentaire from './pages/GestionDocumentaire';
+import RessourcesHumaines from './pages/RessourcesHumaines';
+import Collaboration from './pages/Collaboration';
+import Administration from './pages/Administration';
 
 // App component
 function App() {

@@ -4,11 +4,14 @@
  * Ce service gère la connexion à la base de données et les utilisateurs
  */
 
-import { safeLocalStorageGet, safeLocalStorageSet } from '@/utils/syncStorageCleaner';
+import { safeLocalStorageGet, safeLocalStorageSet, safeLocalStorageRemove } from '@/utils/syncStorageCleaner';
 
 // Clé pour stocker l'utilisateur actuel dans le localStorage
 const CURRENT_USER_KEY = 'current_database_user';
 const CONNECTION_ERROR_KEY = 'database_connection_error';
+
+// Préfixe pour les bases de données Infomaniak
+const DB_PREFIX = 'p71x6d_';
 
 // Fonction pour obtenir l'utilisateur actuel
 export const getCurrentUser = (): string | null => {
@@ -23,12 +26,14 @@ export const getCurrentUser = (): string | null => {
 // Fonction pour définir l'utilisateur actuel
 export const setCurrentUser = (userId: string): boolean => {
   try {
-    safeLocalStorageSet(CURRENT_USER_KEY, userId);
-    console.log(`Utilisateur défini: ${userId}`);
+    // S'assurer que l'ID utilisateur a le bon préfixe
+    const formattedUserId = userId.startsWith(DB_PREFIX) ? userId : `${DB_PREFIX}${userId}`;
+    safeLocalStorageSet(CURRENT_USER_KEY, formattedUserId);
+    console.log(`Utilisateur défini: ${formattedUserId}`);
     
     // Déclencher un événement pour informer l'application du changement d'utilisateur
     window.dispatchEvent(new CustomEvent('user-changed', {
-      detail: { userId }
+      detail: { userId: formattedUserId }
     }));
     
     return true;
@@ -44,7 +49,7 @@ export const getDatabaseConnectionCurrentUser = (): string | null => {
   
   if (!currentUser) {
     console.warn('Aucun utilisateur défini, utilisation du compte système par défaut');
-    return 'p71x6d_system';
+    return `${DB_PREFIX}system`;
   }
   
   return currentUser;
@@ -59,7 +64,12 @@ export const getApiBaseUrl = (): string => {
 // Fonction pour obtenir l'URL complète de l'API pour un utilisateur spécifique
 export const getUserApiUrl = (endpoint: string, userId?: string): string => {
   const baseUrl = getApiBaseUrl();
-  const user = userId || getDatabaseConnectionCurrentUser() || 'p71x6d_system';
+  let user = userId || getDatabaseConnectionCurrentUser() || `${DB_PREFIX}system`;
+  
+  // S'assurer que l'ID utilisateur a le bon préfixe
+  if (!user.startsWith(DB_PREFIX)) {
+    user = `${DB_PREFIX}${user}`;
+  }
   
   // Construit l'URL avec l'utilisateur intégré
   return `${baseUrl}/users/${user}/${endpoint}`;
@@ -67,7 +77,12 @@ export const getUserApiUrl = (endpoint: string, userId?: string): string => {
 
 // Fonction pour obtenir les en-têtes d'authentification pour une requête API
 export const getApiAuthHeaders = (userId?: string): Record<string, string> => {
-  const user = userId || getDatabaseConnectionCurrentUser() || 'p71x6d_system';
+  let user = userId || getDatabaseConnectionCurrentUser() || `${DB_PREFIX}system`;
+  
+  // S'assurer que l'ID utilisateur a le bon préfixe
+  if (!user.startsWith(DB_PREFIX)) {
+    user = `${DB_PREFIX}${user}`;
+  }
   
   // Simule un token d'authentification basé sur l'ID utilisateur
   // Dans une application réelle, vous utiliseriez un véritable système d'authentification
@@ -83,16 +98,19 @@ export const getApiAuthHeaders = (userId?: string): Record<string, string> => {
 export const initializeDatabaseConnection = (userId: string): Promise<boolean> => {
   return new Promise((resolve, reject) => {
     try {
+      // S'assurer que l'ID utilisateur a le bon préfixe
+      const formattedUserId = userId.startsWith(DB_PREFIX) ? userId : `${DB_PREFIX}${userId}`;
+      
       // Définir l'utilisateur actuel
-      setCurrentUser(userId);
+      setCurrentUser(formattedUserId);
       
       // Simuler une initialisation de connexion
       setTimeout(() => {
-        console.log(`Connexion à la base de données initialisée pour l'utilisateur ${userId}`);
+        console.log(`Connexion à la base de données initialisée pour l'utilisateur ${formattedUserId}`);
         
         // Déclencher un événement pour informer l'application
         window.dispatchEvent(new CustomEvent('database-initialized', {
-          detail: { userId, success: true }
+          detail: { userId: formattedUserId, success: true }
         }));
         
         resolve(true);
@@ -103,8 +121,6 @@ export const initializeDatabaseConnection = (userId: string): Promise<boolean> =
     }
   });
 };
-
-// NOUVELLES FONCTIONS POUR CORRIGER LES ERREURS
 
 // Fonction pour stocker une erreur de connexion
 export const setConnectionError = (error: string): void => {
@@ -121,7 +137,7 @@ export const initializeCurrentUser = (): string | null => {
   const currentUser = getCurrentUser();
   if (!currentUser) {
     console.warn("Pas d'utilisateur actuel défini, utilisation de l'utilisateur système");
-    return 'p71x6d_system';
+    return `${DB_PREFIX}system`;
   }
   
   // Déclencher un événement pour informer que l'utilisateur est initialisé
@@ -135,15 +151,18 @@ export const initializeCurrentUser = (): string | null => {
 // Fonction pour connecter en tant qu'utilisateur spécifique
 export const connectAsUser = async (userId: string): Promise<boolean> => {
   try {
+    // S'assurer que l'ID utilisateur a le bon préfixe
+    const formattedUserId = userId.startsWith(DB_PREFIX) ? userId : `${DB_PREFIX}${userId}`;
+    
     // Effacer les erreurs précédentes
     setConnectionError('');
     
     // Initialiser la connexion
-    await initializeDatabaseConnection(userId);
+    await initializeDatabaseConnection(formattedUserId);
     
     // Déclencher un événement pour informer du changement d'utilisateur
     window.dispatchEvent(new CustomEvent('database-user-changed', {
-      detail: { user: userId }
+      detail: { user: formattedUserId }
     }));
     
     return true;
@@ -173,7 +192,12 @@ export const testDatabaseConnection = async (userId?: string): Promise<{
   message: string;
   details?: any;
 }> => {
-  const user = userId || getDatabaseConnectionCurrentUser() || 'p71x6d_system';
+  let user = userId || getDatabaseConnectionCurrentUser() || `${DB_PREFIX}system`;
+  
+  // S'assurer que l'ID utilisateur a le bon préfixe
+  if (!user.startsWith(DB_PREFIX)) {
+    user = `${DB_PREFIX}${user}`;
+  }
   
   try {
     // Simuler un test de connexion
@@ -215,7 +239,12 @@ export const getDatabaseInfo = async (userId?: string): Promise<{
   collation?: string;
   tableList?: string[];
 }> => {
-  const user = userId || getDatabaseConnectionCurrentUser() || 'p71x6d_system';
+  let user = userId || getDatabaseConnectionCurrentUser() || `${DB_PREFIX}system`;
+  
+  // S'assurer que l'ID utilisateur a le bon préfixe
+  if (!user.startsWith(DB_PREFIX)) {
+    user = `${DB_PREFIX}${user}`;
+  }
   
   try {
     // Simuler un appel API pour obtenir les informations
@@ -255,4 +284,3 @@ export const getDatabaseInfo = async (userId?: string): Promise<{
     };
   }
 };
-

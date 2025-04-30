@@ -35,4 +35,3 @@ export const clearUsersCache = (): void => {
   localStorage.removeItem('users_cache');
   console.log('Cache utilisateurs nettoyé');
 };
-
