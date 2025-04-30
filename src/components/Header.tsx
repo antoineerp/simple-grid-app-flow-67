@@ -19,12 +19,14 @@ import {
 } from '@/services/core/databaseConnectionService';
 import { logout, getCurrentUser } from '@/services/auth/authService';
 import { hasPermission, UserRole } from '@/types/roles';
+import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 
 const Header = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [logo, setLogo] = useState("/lovable-uploads/4c7adb52-3da0-4757-acbf-50a1eb1d4bf5.png");
   const [currentDatabaseUser, setCurrentDatabaseUser] = useState<string | null>(getDatabaseUser());
+  const { isOnline } = useNetworkStatus();
   
   // Obtenir les informations utilisateur depuis le token JWT
   const user = getCurrentUser();
@@ -88,6 +90,11 @@ const Header = () => {
           </div>
         </div>
         <div className="flex items-center space-x-4">
+          {/* Indicateur de statut de connexion */}
+          <div className={`px-2 py-1 rounded-full text-xs ${isOnline ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+            {isOnline ? 'En ligne' : 'Hors ligne'}
+          </div>
+          
           {currentDatabaseUser && (
             <div className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-md flex items-center">
               <Database className="w-3 h-3 mr-1" />
