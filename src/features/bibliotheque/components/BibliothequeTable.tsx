@@ -1,190 +1,209 @@
 
-import React from 'react';
-import { GripVertical, Pencil, Trash, ChevronDown, ExternalLink } from 'lucide-react';
+import React, { useState } from 'react';
+import { Document, DocumentGroup } from '@/types/bibliotheque';
 import {
   Table,
   TableBody,
-  TableCell,
   TableHead,
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Document, DocumentGroup } from '@/types/bibliotheque';
+import { BibliothequeGroup } from './BibliothequeGroup';
+import { BibliothequeDocumentRow } from './BibliothequeDocumentRow';
 
 interface BibliothequeTableProps {
   documents: Document[];
   groups: DocumentGroup[];
-  onEditDocument: (doc: Document) => void;
-  onDeleteDocument: (id: string) => void;
-  onEditGroup: (group: DocumentGroup) => void;
-  onDeleteGroup: (id: string) => void;
+  onEdit: (document: Document | null, group?: DocumentGroup) => void;
+  onDelete: (id: string, isGroup?: boolean) => void;
+  onReorder: (startIndex: number, endIndex: number, targetGroupId?: string) => void;
+  onGroupReorder: (startIndex: number, endIndex: number) => void;
   onToggleGroup: (id: string) => void;
-  onDragStart: (e: React.DragEvent<HTMLTableRowElement>, id: string, groupId?: string) => void;
-  onDragOver: (e: React.DragEvent<HTMLTableRowElement>) => void;
-  onDragLeave: (e: React.DragEvent<HTMLTableRowElement>) => void;
-  onDrop: (e: React.DragEvent<HTMLTableRowElement>, targetId: string, targetGroupId?: string) => void;
-  onDragEnd: (e: React.DragEvent<HTMLTableRowElement>) => void;
-  onGroupDrop: (e: React.DragEvent<HTMLTableRowElement>, targetGroupId: string) => void;
 }
 
 export const BibliothequeTable: React.FC<BibliothequeTableProps> = ({
   documents,
   groups,
-  onEditDocument,
-  onDeleteDocument,
-  onEditGroup,
-  onDeleteGroup,
-  onToggleGroup,
-  onDragStart,
-  onDragOver,
-  onDragLeave,
-  onDrop,
-  onDragEnd,
-  onGroupDrop
+  onEdit,
+  onDelete,
+  onReorder,
+  onGroupReorder,
+  onToggleGroup
 }) => {
-  const renderDocumentLink = (link: string | null) => {
-    if (!link || link === 'Voir le document') return <span className="text-gray-500">-</span>;
+  const [draggedItem, setDraggedItem] = useState<{ id: string, groupId?: string } | null>(null);
+  const ungroupedDocuments = documents.filter(doc => !doc.groupId);
+
+  const handleDragStart = (e: React.DragEvent<HTMLTableRowElement>, id: string, groupId?: string) => {
+    setDraggedItem({ id, groupId });
+    e.dataTransfer.setData('text/plain', JSON.stringify({ id, groupId }));
+    e.currentTarget.classList.add('opacity-50');
+  };
+
+  const handleDragOver = (e: React.DragEvent<HTMLTableRowElement>) => {
+    e.preventDefault();
+    e.currentTarget.classList.add('border-dashed', 'border-2', 'border-primary');
+  };
+
+  const handleDragLeave = (e: React.DragEvent<HTMLTableRowElement>) => {
+    e.currentTarget.classList.remove('border-dashed', 'border-2', 'border-primary');
+  };
+
+  const handleDrop = (e: React.DragEvent<HTMLTableRowElement>, targetId: string, targetGroupId?: string) => {
+    e.preventDefault();
+    e.currentTarget.classList.remove('border-dashed', 'border-2', 'border-primary');
     
-    return (
-      <a 
-        href={link} 
-        target="_blank" 
-        rel="noopener noreferrer" 
-        className="text-app-blue hover:underline inline-flex items-center gap-1"
-      >
-        {link}
-        <ExternalLink className="h-4 w-4" />
-      </a>
-    );
+    if (!draggedItem) return;
+    
+    const { id: sourceId, groupId: sourceGroupId } = draggedItem;
+    if (sourceId === targetId) return;
+    
+    // Calculate indices
+    let sourceIndex = -1;
+    let targetIndex = -1;
+    
+    if (!sourceGroupId) {
+      sourceIndex = ungroupedDocuments.findIndex(d => d.id === sourceId);
+    } else {
+      const group = groups.find(g => g.id === sourceGroupId);
+      if (group) {
+        const groupDocs = documents.filter(d => d.groupId === sourceGroupId);
+        sourceIndex = ungroupedDocuments.length + 
+                      groups.slice(0, groups.findIndex(g => g.id === sourceGroupId))
+                        .reduce((acc, g) => acc + documents.filter(d => d.groupId === g.id).length, 0) + 
+                      groupDocs.findIndex(d => d.id === sourceId);
+      }
+    }
+    
+    if (!targetGroupId) {
+      targetIndex = ungroupedDocuments.findIndex(d => d.id === targetId);
+    } else {
+      const group = groups.find(g => g.id === targetGroupId);
+      if (group) {
+        const groupDocs = documents.filter(d => d.groupId === targetGroupId);
+        targetIndex = ungroupedDocuments.length + 
+                      groups.slice(0, groups.findIndex(g => g.id === targetGroupId))
+                        .reduce((acc, g) => acc + documents.filter(d => d.groupId === g.id).length, 0) + 
+                      groupDocs.findIndex(d => d.id === targetId);
+      }
+    }
+    
+    if (sourceIndex !== -1 && targetIndex !== -1) {
+      onReorder(sourceIndex, targetIndex, targetGroupId);
+    }
+    
+    setDraggedItem(null);
+  };
+
+  const handleGroupDrop = (e: React.DragEvent<HTMLTableRowElement>, groupId: string) => {
+    e.preventDefault();
+    e.currentTarget.classList.remove('border-dashed', 'border-2', 'border-primary');
+    
+    if (!draggedItem) return;
+    
+    const data = JSON.parse(e.dataTransfer.getData('text/plain'));
+    
+    // Handle dropping items into groups
+    if (data.id && !data.isGroup) {
+      const sourceId = data.id;
+      const sourceGroupId = data.groupId;
+      
+      if (sourceGroupId === groupId) return;
+      
+      let sourceIndex = -1;
+      
+      if (!sourceGroupId) {
+        sourceIndex = ungroupedDocuments.findIndex(d => d.id === sourceId);
+        if (sourceIndex !== -1) {
+          sourceIndex = sourceIndex;
+        }
+      } else {
+        const group = groups.find(g => g.id === sourceGroupId);
+        if (group) {
+          const groupDocs = documents.filter(d => d.groupId === sourceGroupId);
+          sourceIndex = ungroupedDocuments.length + 
+                        groups.slice(0, groups.findIndex(g => g.id === sourceGroupId))
+                          .reduce((acc, g) => acc + documents.filter(d => d.groupId === g.id).length, 0) + 
+                        groupDocs.findIndex(d => d.id === sourceId);
+        }
+      }
+      
+      const targetGroupDocs = documents.filter(d => d.groupId === groupId);
+      const targetIndex = ungroupedDocuments.length + 
+                        groups.slice(0, groups.findIndex(g => g.id === groupId))
+                          .reduce((acc, g) => acc + documents.filter(d => d.groupId === g.id).length, 0) + 
+                        targetGroupDocs.length;
+      
+      if (sourceIndex !== -1) {
+        onReorder(sourceIndex, targetIndex, groupId);
+      }
+    }
+    // Handle group reordering
+    else if (data.groupId) {
+      const sourceGroupId = data.groupId;
+      if (sourceGroupId === groupId) return;
+      
+      const sourceIndex = groups.findIndex(g => g.id === sourceGroupId);
+      const targetIndex = groups.findIndex(g => g.id === groupId);
+      
+      if (sourceIndex !== -1 && targetIndex !== -1) {
+        onGroupReorder(sourceIndex, targetIndex);
+      }
+    }
+    
+    setDraggedItem(null);
+  };
+
+  const handleDragEnd = (e: React.DragEvent<HTMLTableRowElement>) => {
+    e.currentTarget.classList.remove('opacity-50');
+    setDraggedItem(null);
+  };
+
+  const handleGroupDragStart = (e: React.DragEvent<HTMLTableRowElement>, groupId: string) => {
+    e.dataTransfer.setData('text/plain', JSON.stringify({ groupId, isGroup: true }));
+    e.currentTarget.classList.add('opacity-50');
   };
 
   return (
-    <div className="bg-white rounded-md shadow overflow-hidden mt-6">
+    <div className="bg-white rounded-md shadow overflow-hidden">
       <Table>
         <TableHeader>
-          <TableRow>
+          <TableRow className="bg-app-light-blue">
             <TableHead className="w-10"></TableHead>
             <TableHead className="py-3 px-4 text-app-blue font-semibold">Nom du document</TableHead>
             <TableHead className="py-3 px-4 text-app-blue font-semibold">Lien</TableHead>
             <TableHead className="py-3 px-4 text-app-blue font-semibold text-right">Actions</TableHead>
           </TableRow>
         </TableHeader>
-        
-        {groups.map((group) => (
-          <TableBody key={group.id}>
-            <TableRow 
-              className="border-b hover:bg-gray-50 cursor-pointer" 
-              onClick={() => onToggleGroup(group.id)}
-              draggable
-              onDragStart={(e) => onDragStart(e, group.id)}
-              onDragOver={(e) => onDragOver(e)}
-              onDragLeave={(e) => onDragLeave(e)}
-              onDrop={(e) => onGroupDrop(e, group.id)}
-              onDragEnd={onDragEnd}
-            >
-              <TableCell className="py-3 px-2 w-10">
-                <GripVertical className="h-5 w-5 text-gray-400" />
-              </TableCell>
-              <TableCell className="py-3 px-4">
-                <div className="flex items-center">
-                  <ChevronDown className={`h-4 w-4 mr-2 inline-block transition-transform ${group.expanded ? 'rotate-180' : ''}`} />
-                  <span className="font-medium text-app-blue">{group.name}</span>
-                </div>
-              </TableCell>
-              <TableCell className="py-3 px-4"></TableCell>
-              <TableCell className="py-3 px-4 text-right">
-                <button 
-                  className="text-gray-600 hover:text-app-blue mr-3"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onEditGroup(group);
-                  }}
-                >
-                  <Pencil className="h-5 w-5 inline-block" />
-                </button>
-                <button 
-                  className="text-gray-600 hover:text-red-500"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onDeleteGroup(group.id);
-                  }}
-                >
-                  <Trash className="h-5 w-5 inline-block" />
-                </button>
-              </TableCell>
-            </TableRow>
-            
-            {group.expanded && group.items.map((item) => (
-              <TableRow 
-                key={item.id} 
-                className="border-b hover:bg-gray-50 bg-gray-50"
-                draggable
-                onDragStart={(e) => onDragStart(e, item.id, group.id)}
-                onDragOver={(e) => onDragOver(e)}
-                onDragLeave={(e) => onDragLeave(e)}
-                onDrop={(e) => onDrop(e, item.id, group.id)}
-                onDragEnd={onDragEnd}
-              >
-                <TableCell className="py-3 px-2 w-10">
-                  <GripVertical className="h-5 w-5 text-gray-400" />
-                </TableCell>
-                <TableCell className="py-3 px-4 pl-8">{item.name}</TableCell>
-                <TableCell className="py-3 px-4">
-                  {renderDocumentLink(item.link)}
-                </TableCell>
-                <TableCell className="py-3 px-4 text-right">
-                  <button 
-                    className="text-gray-600 hover:text-app-blue mr-3"
-                    onClick={() => onEditDocument(item)}
-                  >
-                    <Pencil className="h-5 w-5 inline-block" />
-                  </button>
-                  <button 
-                    className="text-gray-600 hover:text-red-500"
-                    onClick={() => onDeleteDocument(item.id)}
-                  >
-                    <Trash className="h-5 w-5 inline-block" />
-                  </button>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        ))}
-        
         <TableBody>
-          {documents.map((doc) => (
-            <TableRow 
-              key={doc.id} 
-              className="border-b hover:bg-gray-50"
-              draggable
-              onDragStart={(e) => onDragStart(e, doc.id)}
-              onDragOver={(e) => onDragOver(e)}
-              onDragLeave={(e) => onDragLeave(e)}
-              onDrop={(e) => onDrop(e, doc.id)}
-              onDragEnd={onDragEnd}
-            >
-              <TableCell className="py-3 px-2 w-10">
-                <GripVertical className="h-5 w-5 text-gray-400" />
-              </TableCell>
-              <TableCell className="py-3 px-4">{doc.name}</TableCell>
-              <TableCell className="py-3 px-4">
-                {renderDocumentLink(doc.link)}
-              </TableCell>
-              <TableCell className="py-3 px-4 text-right">
-                <button 
-                  className="text-gray-600 hover:text-app-blue mr-3"
-                  onClick={() => onEditDocument(doc)}
-                >
-                  <Pencil className="h-5 w-5 inline-block" />
-                </button>
-                <button 
-                  className="text-gray-600 hover:text-red-500"
-                  onClick={() => onDeleteDocument(doc.id)}
-                >
-                  <Trash className="h-5 w-5 inline-block" />
-                </button>
-              </TableCell>
-            </TableRow>
+          {groups.map(group => (
+            <BibliothequeGroup
+              key={group.id}
+              group={group}
+              onEdit={onEdit}
+              onDelete={onDelete}
+              onToggleGroup={onToggleGroup}
+              onDragStart={handleDragStart}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+              onDragEnd={handleDragEnd}
+              onGroupDragStart={handleGroupDragStart}
+              onGroupDrop={handleGroupDrop}
+            />
+          ))}
+          
+          {ungroupedDocuments.map(doc => (
+            <BibliothequeDocumentRow
+              key={doc.id}
+              document={doc}
+              onEdit={onEdit}
+              onDelete={onDelete}
+              onDragStart={handleDragStart}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+              onDragEnd={handleDragEnd}
+            />
           ))}
         </TableBody>
       </Table>
