@@ -10,6 +10,7 @@ import GlobalSyncManager from '@/components/common/GlobalSyncManager';
 import ShowSyncDiagnostic from '@/components/layouts/ShowSyncDiagnostic';
 import { getIsLoggedIn, getCurrentUser } from '@/services/auth/authService';
 import { toast } from '@/components/ui/use-toast';
+import { TooltipProvider } from '@/components/ui/tooltip';
 
 const Layout = () => {
   const navigate = useNavigate();
@@ -59,21 +60,23 @@ const Layout = () => {
   return (
     <GlobalDataProvider>
       <GlobalSyncProvider>
-        <div className="flex flex-col h-screen bg-background">
-          <Header />
-          <div className="flex flex-1 overflow-hidden">
-            <Sidebar />
-            <main className="flex-1 overflow-auto bg-slate-50 w-full">
-              <div data-testid="layout-content">
-                <Outlet />
-              </div>
-            </main>
+        <TooltipProvider>
+          <div className="flex flex-col h-screen bg-background">
+            <Header />
+            <div className="flex flex-1 overflow-hidden">
+              <Sidebar />
+              <main className="flex-1 overflow-auto bg-slate-50 w-full">
+                <div data-testid="layout-content">
+                  <Outlet />
+                </div>
+              </main>
+            </div>
+            <Toaster />
+            <GlobalSyncManager />
+            <ShowSyncDiagnostic />
+            <div data-testid="global-sync-initialized" className="hidden" />
           </div>
-          <Toaster />
-          <GlobalSyncManager />
-          <ShowSyncDiagnostic />
-          <div data-testid="global-sync-initialized" className="hidden" />
-        </div>
+        </TooltipProvider>
       </GlobalSyncProvider>
     </GlobalDataProvider>
   );
