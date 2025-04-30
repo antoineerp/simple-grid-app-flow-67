@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from 'react';
 import { Document, DocumentGroup } from '@/types/bibliotheque';
 import { useToast } from '@/hooks/use-toast';
@@ -27,8 +28,11 @@ export const useBibliotheque = () => {
   
   const { toast } = useToast();
   
-  // Utiliser l'ID de l'utilisateur connecté à la base de données pour séparer les données
-  const [currentUser, setCurrentUser] = useState<string>(getDatabaseConnectionCurrentUser() || getCurrentUser() || 'default');
+  // Fix: Convert the result of getCurrentUser() to a string
+  const [currentUser, setCurrentUser] = useState<string>(
+    getDatabaseConnectionCurrentUser() || 
+    (getCurrentUser() ? String(getCurrentUser()?.identifiant_technique || '') : 'default')
+  );
   
   // Use the GlobalSync context
   const { syncTable, syncAll, isOnline, updateSyncState } = useGlobalSync();
