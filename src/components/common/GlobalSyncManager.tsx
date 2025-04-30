@@ -5,6 +5,7 @@ import { useGlobalSync } from '@/contexts/GlobalSyncContext';
 const GlobalSyncManager: React.FC = () => {
   const { syncAll, isOnline, syncStates } = useGlobalSync();
   const [syncingInProgress, setSyncingInProgress] = useState(false);
+  const [initialSyncDone, setInitialSyncDone] = useState(false);
   const syncTimer = useRef<NodeJS.Timeout | null>(null);
   const syncAttempts = useRef<number>(0);
   const lastSyncRef = useRef<number>(Date.now());
@@ -57,7 +58,7 @@ const GlobalSyncManager: React.FC = () => {
       
       // Déclencher la première synchronisation après 2 secondes
       const timeoutId = setTimeout(() => {
-        if (mountedRef.current) {
+        if (mountedRef.current && !initialSyncDone) {
           console.log("GlobalSyncManager - Démarrage de la synchronisation initiale");
           setSyncingInProgress(true);
           syncAttempts.current = 1;
@@ -68,6 +69,7 @@ const GlobalSyncManager: React.FC = () => {
               
               console.log("GlobalSyncManager - Résultats de la synchronisation initiale:", results);
               setSyncingInProgress(false);
+              setInitialSyncDone(true);
               lastSyncRef.current = Date.now();
               
               // Vérifier les résultats pour les tables importantes
@@ -81,6 +83,8 @@ const GlobalSyncManager: React.FC = () => {
               if (mountedRef.current) {
                 console.error("GlobalSyncManager - Erreur lors de la synchronisation initiale:", error);
                 setSyncingInProgress(false);
+                // Même en cas d'erreur, marquer comme initialisé pour éviter les boucles infinies
+                setInitialSyncDone(true);
               }
             });
         }
@@ -118,7 +122,7 @@ const GlobalSyncManager: React.FC = () => {
     } catch (error) {
       console.error("GlobalSyncManager - Erreur lors de l'initialisation de la synchronisation:", error);
     }
-  }, [syncAll, isOnline, syncingInProgress]);
+  }, [syncAll, isOnline, syncingInProgress, initialSyncDone]);
   
   // Écouter les changements de route pour re-synchroniser les données
   useEffect(() => {
