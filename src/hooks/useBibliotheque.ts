@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { Document, DocumentGroup } from '@/types/bibliotheque';
 import { useToast } from '@/hooks/use-toast';
 import { useSyncContext } from '@/hooks/useSyncContext';
+import { getCurrentUser } from '@/services/auth/authService';
 
 export const useBibliotheque = () => {
   const [documents, setDocuments] = useState<Document[]>([]);
@@ -24,6 +25,8 @@ export const useBibliotheque = () => {
   });
   
   const { toast } = useToast();
+  const currentUser = getCurrentUser();
+  const userId = currentUser || 'default';
   
   // Utiliser le hook useSyncContext pour la synchronisation
   // Mise à jour du nom de la table de "bibliotheque" à "collaboration"
@@ -41,30 +44,46 @@ export const useBibliotheque = () => {
     const loadLocalData = () => {
       try {
         // Mise à jour pour vérifier aussi les données sous l'ancien nom
-        let docsData = localStorage.getItem('collaboration');
+        let docsData = localStorage.getItem(`collaboration_${userId}`);
         if (!docsData) {
-          docsData = localStorage.getItem('bibliotheque');
+          docsData = localStorage.getItem('collaboration');
+          if (!docsData) {
+            docsData = localStorage.getItem(`bibliotheque_${userId}`);
+            if (!docsData) {
+              docsData = localStorage.getItem('bibliotheque');
+            }
+          }
+          
           // Si trouvé sous l'ancien nom, migrer vers le nouveau
           if (docsData) {
-            localStorage.setItem('collaboration', docsData);
+            localStorage.setItem(`collaboration_${userId}`, docsData);
           }
         }
         
-        let groupsData = localStorage.getItem('collaboration_groups');
+        let groupsData = localStorage.getItem(`collaboration_groups_${userId}`);
         if (!groupsData) {
-          groupsData = localStorage.getItem('bibliotheque_groups');
+          groupsData = localStorage.getItem('collaboration_groups');
+          if (!groupsData) {
+            groupsData = localStorage.getItem(`bibliotheque_groups_${userId}`);
+            if (!groupsData) {
+              groupsData = localStorage.getItem('bibliotheque_groups');
+            }
+          }
+          
           // Si trouvé sous l'ancien nom, migrer vers le nouveau
           if (groupsData) {
-            localStorage.setItem('collaboration_groups', groupsData);
+            localStorage.setItem(`collaboration_groups_${userId}`, groupsData);
           }
         }
         
         if (docsData) {
           setDocuments(JSON.parse(docsData));
+          console.log(`Chargé ${JSON.parse(docsData).length} documents pour l'utilisateur ${userId}`);
         }
         
         if (groupsData) {
           setGroups(JSON.parse(groupsData));
+          console.log(`Chargé ${JSON.parse(groupsData).length} groupes pour l'utilisateur ${userId}`);
         }
       } catch (error) {
         console.error("Erreur lors du chargement des données locales:", error);
@@ -72,25 +91,27 @@ export const useBibliotheque = () => {
     };
     
     loadLocalData();
-  }, []);
+  }, [userId]);
   
   // Sauvegarder les documents localement quand ils changent
   useEffect(() => {
     if (documents.length > 0) {
-      // Mise à jour pour utiliser le nouveau nom de stockage
-      localStorage.setItem('collaboration', JSON.stringify(documents));
+      // Mise à jour pour utiliser le nouveau nom de stockage avec l'ID utilisateur
+      localStorage.setItem(`collaboration_${userId}`, JSON.stringify(documents));
       notifyChanges();
+      console.log(`Sauvegardé ${documents.length} documents pour l'utilisateur ${userId}`);
     }
-  }, [documents, notifyChanges]);
+  }, [documents, notifyChanges, userId]);
   
   // Sauvegarder les groupes localement quand ils changent
   useEffect(() => {
     if (groups.length > 0) {
-      // Mise à jour pour utiliser le nouveau nom de stockage
-      localStorage.setItem('collaboration_groups', JSON.stringify(groups));
+      // Mise à jour pour utiliser le nouveau nom de stockage avec l'ID utilisateur
+      localStorage.setItem(`collaboration_groups_${userId}`, JSON.stringify(groups));
       notifyChanges();
+      console.log(`Sauvegardé ${groups.length} groupes pour l'utilisateur ${userId}`);
     }
-  }, [groups, notifyChanges]);
+  }, [groups, notifyChanges, userId]);
   
   // Fonctions pour gérer les documents
   const handleAddDocument = useCallback((doc: Document) => {
@@ -155,10 +176,20 @@ export const useBibliotheque = () => {
     try {
       // Ajouter des logs pour déboguer la synchronisation
       console.log("Début de la synchronisation des documents de collaboration");
-      console.log("Documents à synchroniser:", documents);
-      console.log("Groupes à synchroniser:", groups);
+      console.log(`Documents à synchroniser pour l'utilisateur ${userId}:`, documents);
+      console.log(`Groupes à synchroniser pour l'utilisateur ${userId}:`, groups);
       
+      // Synchroniser les documents
       await syncWithServer();
+      
+      // Forcer la synchronisation des groupes également
+      const syncEvent = new CustomEvent('force-sync-required', {
+        detail: {
+          timestamp: Date.now(),
+          tables: ['collaboration', 'collaboration_groups']
+        }
+      });
+      window.dispatchEvent(syncEvent);
       
       console.log("Fin de la synchronisation des documents de collaboration");
       return Promise.resolve();

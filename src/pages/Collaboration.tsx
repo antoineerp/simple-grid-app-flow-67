@@ -233,18 +233,35 @@ const Collaboration = () => {
   // Create a wrapper function that converts Promise<boolean> to Promise<void>
   const handleSync = async (): Promise<void> => {
     try {
+      console.log("Initiating manual sync from Collaboration page");
       await syncWithServer();
+      console.log("Manual sync completed");
     } catch (error) {
       console.error('Sync error:', error);
     }
   };
 
+  // Synchronize on component mount and when network status changes
   useEffect(() => {
+    console.log("Collaboration component mounted, checking for data");
     // Initialize synchronization if necessary
-    if (!documents.length && isOnline) {
-      syncWithServer();
+    if (isOnline) {
+      console.log("Network is online, initiating sync");
+      handleSync();
     }
-  }, [documents.length, isOnline, syncWithServer]);
+  }, [isOnline]);
+
+  // Add periodic sync (every 30 seconds) when the component is active
+  useEffect(() => {
+    const syncInterval = setInterval(() => {
+      if (isOnline && !isSyncing) {
+        console.log("Periodic sync triggered");
+        handleSync();
+      }
+    }, 30000); // 30 seconds
+    
+    return () => clearInterval(syncInterval);
+  }, [isOnline, isSyncing]);
 
   return (
     <div className="w-full px-6 py-6">
@@ -252,19 +269,17 @@ const Collaboration = () => {
         <h1 className="text-3xl font-bold text-blue-600">Collaboration</h1>
       </div>
 
-      {/* Only show sync indicator if there's an error */}
-      {syncFailed && (
-        <div className="mb-4">
-          <SyncIndicator
-            isSyncing={isSyncing}
-            isOnline={isOnline}
-            syncFailed={syncFailed}
-            lastSynced={lastSynced}
-            onSync={handleSync}
-            showOnlyErrors={true}
-          />
-        </div>
-      )}
+      {/* Show sync indicator always to give feedback about sync status */}
+      <div className="mb-4">
+        <SyncIndicator
+          isSyncing={isSyncing}
+          isOnline={isOnline}
+          syncFailed={syncFailed}
+          lastSynced={lastSynced}
+          onSync={handleSync}
+          showOnlyErrors={false} // Changed to always show status
+        />
+      </div>
 
       <div className="bg-white rounded-md shadow overflow-hidden">
         <div className="overflow-x-auto">

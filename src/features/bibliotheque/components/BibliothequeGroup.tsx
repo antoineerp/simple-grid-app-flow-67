@@ -59,6 +59,8 @@ export const BibliothequeGroup: React.FC<BibliothequeGroupProps> = ({
           e.stopPropagation();
           onDragEnd(e);
         }}
+        data-sync-id={group.id}
+        data-sync-type="group"
       >
         <TableCell className="py-3 px-2 w-10">
           <GripVertical className="h-5 w-5 text-gray-400" />

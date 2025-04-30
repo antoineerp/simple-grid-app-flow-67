@@ -36,6 +36,9 @@ export const BibliothequeDocumentRow: React.FC<BibliothequeDocumentRowProps> = (
       onDragLeave={onDragLeave}
       onDrop={(e) => onDrop(e, document.id, groupId)}
       onDragEnd={onDragEnd}
+      data-sync-id={document.id}
+      data-sync-type="document"
+      data-group-id={groupId || ""}
     >
       <TableCell className="py-3 px-2 w-10">
         <GripVertical className="h-5 w-5 text-gray-400" />
