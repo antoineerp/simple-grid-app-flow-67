@@ -63,7 +63,10 @@ const GlobalSyncManager: React.FC = () => {
           isOnline={isOnline}
           syncFailed={false}
           lastSynced={null}
-          onSync={() => {}}
+          onSync={async () => {
+            // Transformer en fonction async
+            return Promise.resolve();
+          }}
         />
       </div>
     );
@@ -78,11 +81,14 @@ const GlobalSyncManager: React.FC = () => {
           isOnline={isOnline}
           syncFailed={true}
           lastSynced={null}
-          onSync={() => {
+          onSync={async () => {
+            // Transformer en fonction async qui retourne une promesse
             setSyncingInProgress(true);
-            syncAll()
-              .then(() => setSyncingInProgress(false))
-              .catch(() => setSyncingInProgress(false));
+            try {
+              await syncAll();
+            } finally {
+              setSyncingInProgress(false);
+            }
           }}
         />
       </div>

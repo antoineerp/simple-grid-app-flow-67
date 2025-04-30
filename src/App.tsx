@@ -1,4 +1,3 @@
-
 import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { Toaster } from '@/components/ui/toaster';
@@ -16,6 +15,7 @@ import Collaboration from '@/pages/Collaboration';
 import { getIsLoggedIn, getCurrentUser } from '@/services/auth/authService';
 import { MembresProvider } from '@/contexts/MembresContext';
 import { toast } from '@/components/ui/use-toast';
+import { initializeSyncStorageCleaner } from './utils/syncStorageCleaner';
 
 // Composant de route protégée qui vérifie l'authentification
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
@@ -64,6 +64,11 @@ const RouteTracker = () => {
 };
 
 function App() {
+  useEffect(() => {
+    // Initialiser le nettoyage des données de synchronisation
+    initializeSyncStorageCleaner();
+  }, []);
+  
   console.log('App - Rendu initial de l\'application');
   
   return (

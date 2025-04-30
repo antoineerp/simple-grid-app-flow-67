@@ -79,7 +79,7 @@ export const GlobalSyncProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     }));
   }, []);
   
-  // Méthode pour synchroniser une table spécifique
+  // Méthode pour synchroniser une table spécifique - corrigée pour le typage
   const syncTable = useCallback(async <T,>(tableName: string, data: T[]): Promise<boolean> => {
     if (!isOnline) {
       console.log(`GlobalSyncContext: Tentative de synchronisation de ${tableName} en mode hors ligne`);
@@ -105,6 +105,7 @@ export const GlobalSyncProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     console.log(`GlobalSyncContext: Début de la synchronisation de ${tableName} avec Infomaniak`);
     
     try {
+      // Corriger l'appel en passant tableName comme premier argument
       const result = await triggerSync.triggerTableSync(tableName, data);
       
       // Mettre à jour l'état avec le résultat
@@ -130,7 +131,7 @@ export const GlobalSyncProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         
         syncRetryTimeoutRef.current = setTimeout(() => {
           console.log(`GlobalSyncContext: Nouvelle tentative de synchronisation pour ${tableName}`);
-          syncTable(data, tableName).catch(console.error);
+          syncTable(tableName, data).catch(console.error);
         }, 60000);
       } else {
         console.log(`GlobalSyncContext: Synchronisation réussie de ${tableName} avec Infomaniak`);
@@ -164,7 +165,7 @@ export const GlobalSyncProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       
       syncRetryTimeoutRef.current = setTimeout(() => {
         console.log(`GlobalSyncContext: Nouvelle tentative de synchronisation pour ${tableName} après erreur`);
-        syncTable(data, tableName).catch(console.error);
+        syncTable(tableName, data).catch(console.error);
       }, 60000);
       
       return false;
@@ -260,18 +261,35 @@ export const GlobalSyncProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         const storedStates = localStorage.getItem(`sync_states_${userId}`);
         
         if (storedStates) {
-          const parsedStates = JSON.parse(storedStates);
+          try {
+            const parsedStates = JSON.parse(storedStates);
           
-          // Convertir les dates de type string en objets Date
-          Object.keys(parsedStates).forEach(tableName => {
-            if (parsedStates[tableName].lastSynced) {
-              parsedStates[tableName].lastSynced = new Date(parsedStates[tableName].lastSynced);
-            }
-          });
+            // Convertir les dates de type string en objets Date
+            Object.keys(parsedStates).forEach(tableName => {
+              if (parsedStates[tableName].lastSynced) {
+                parsedStates[tableName].lastSynced = new Date(parsedStates[tableName].lastSynced);
+              }
+            });
           
-          setSyncStates(parsedStates);
-          console.log("GlobalSyncContext: États de synchronisation chargés depuis localStorage");
+            setSyncStates(parsedStates);
+            console.log("GlobalSyncContext: États de synchronisation chargés depuis localStorage");
+          } catch (parseError) {
+            console.error("GlobalSyncContext: Erreur de parsing JSON:", parseError);
+            // En cas d'erreur de parsing, ne pas planter, continuer avec un état vide
+          }
         }
+        
+        // Nettoyer les entrées mal formatées
+        Object.keys(localStorage).forEach(key => {
+          if (key.includes('_last_sync')) {
+            try {
+              JSON.parse(localStorage.getItem(key) || '{}');
+            } catch (e) {
+              console.log(`Suppression de l'entrée malformée: ${key}`);
+              localStorage.removeItem(key);
+            }
+          }
+        });
         
         // Tenter une synchronisation initiale si en ligne
         if (isOnline) {
