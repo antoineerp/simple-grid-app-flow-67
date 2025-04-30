@@ -1,5 +1,6 @@
+
 import React, { useEffect } from 'react';
-import { FileText, UserPlus } from 'lucide-react';
+import { FileText, UserPlus, RefreshCw } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import {
   Dialog,
@@ -25,10 +26,16 @@ const RessourcesHumaines = () => {
     refreshMembres
   } = useMembres();
   
-  // Keep the sync context for background functionality but don't display it
+  // Configurer la synchronisation avec des paramètres optimisés
   const { 
-    notifyChanges
-  } = useSyncContext('membres', membres, { autoSync: true });
+    syncWithServer,
+    notifyChanges,
+    isOnline
+  } = useSyncContext('membres', membres, { 
+    autoSync: true,
+    debounceTime: 1000, // Synchroniser plus rapidement
+    showToasts: false // Ne pas afficher de toasts pour éviter l'encombrement
+  });
   
   const [isDialogOpen, setIsDialogOpen] = React.useState(false);
   const [currentMembre, setCurrentMembre] = React.useState<Membre>({
@@ -42,6 +49,26 @@ const RessourcesHumaines = () => {
   });
   const [isEditing, setIsEditing] = React.useState(false);
   const [refreshing, setRefreshing] = React.useState(false);
+
+  // Synchroniser immédiatement à chaque changement de membres
+  useEffect(() => {
+    if (membres.length > 0 && !isLoading) {
+      console.log("RessourcesHumaines: Synchronisation automatique des membres après changement", membres.length);
+      notifyChanges();
+    }
+  }, [membres, notifyChanges, isLoading]);
+  
+  // Forcer une synchronisation au chargement de la page
+  useEffect(() => {
+    const syncOnLoad = async () => {
+      if (membres.length > 0 && isOnline) {
+        console.log("RessourcesHumaines: Forcer la synchronisation au chargement de la page");
+        await syncWithServer();
+      }
+    };
+    
+    syncOnLoad().catch(err => console.error("Erreur de synchronisation initiale:", err));
+  }, []);
 
   const handleEdit = (id: string) => {
     const membre = membres.find(m => m.id === id);
@@ -61,14 +88,15 @@ const RessourcesHumaines = () => {
       description: `Le membre ${id} a été supprimé`,
     });
     
-    // Utiliser notifyChanges pour signaler le changement
+    // Force une notification de changement immédiat
     notifyChanges();
   };
 
   const handleAddMember = () => {
-    const newId = membres.length > 0 
-      ? String(Math.max(...membres.map(membre => parseInt(membre.id))) + 1)
-      : '1';
+    // Générer un ID plus unique avec un préfixe pour éviter les collisions
+    const timestamp = new Date().getTime();
+    const randomSuffix = Math.floor(Math.random() * 1000);
+    const newId = `mem-${timestamp}-${randomSuffix}`;
     
     setCurrentMembre({
       id: newId,
@@ -118,13 +146,16 @@ const RessourcesHumaines = () => {
     
     toast({
       title: isEditing ? "Modification" : "Ajout",
-      description: `Le membre ${currentMembre.id} a été ${isEditing ? 'modifié' : 'ajouté'}`,
+      description: `Le membre ${currentMembre.nom} ${currentMembre.prenom} a été ${isEditing ? 'modifié' : 'ajouté'}`,
     });
     
     setIsDialogOpen(false);
     
-    // Utiliser notifyChanges pour signaler le changement
-    notifyChanges();
+    // Synchroniser immédiatement après la sauvegarde
+    setTimeout(() => {
+      notifyChanges();
+      syncWithServer().catch(err => console.error("Erreur de synchronisation après sauvegarde:", err));
+    }, 100);
   };
 
   const handleExportAllToPdf = () => {
@@ -172,6 +203,15 @@ const RessourcesHumaines = () => {
           <h1 className="text-3xl font-bold text-app-blue">Ressources Humaines</h1>
         </div>
         <div className="flex space-x-2">
+          <Button
+            onClick={handleRefresh}
+            variant="outline"
+            size="icon"
+            disabled={refreshing}
+            title="Rafraîchir la liste"
+          >
+            <RefreshCw className={`h-5 w-5 ${refreshing ? 'animate-spin' : ''}`} />
+          </Button>
           <button 
             onClick={handleExportAllToPdf}
             className="text-red-600 p-2 rounded-md hover:bg-red-50 transition-colors"

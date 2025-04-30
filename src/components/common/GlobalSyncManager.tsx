@@ -1,13 +1,13 @@
 
 import React, { useEffect, useState, useRef } from 'react';
 import { useGlobalSync } from '@/contexts/GlobalSyncContext';
-import SyncIndicator from './SyncIndicator';
 
 const GlobalSyncManager: React.FC = () => {
   const { syncAll, isOnline, syncStates } = useGlobalSync();
-  const [showError, setShowError] = useState(false);
   const [syncingInProgress, setSyncingInProgress] = useState(false);
   const syncTimer = useRef<NodeJS.Timeout | null>(null);
+  const syncAttempts = useRef<number>(0);
+  const lastSyncRef = useRef<number>(Date.now());
   
   // Utiliser un effet pour démarrer la synchronisation en arrière-plan
   useEffect(() => {
@@ -18,37 +18,40 @@ const GlobalSyncManager: React.FC = () => {
       const timeoutId = setTimeout(() => {
         console.log("GlobalSyncManager - Démarrage de la synchronisation initiale");
         setSyncingInProgress(true);
+        syncAttempts.current = 1;
         
         syncAll()
           .then(results => {
             console.log("GlobalSyncManager - Résultats de la synchronisation initiale:", results);
             setSyncingInProgress(false);
+            lastSyncRef.current = Date.now();
             
-            const successCount = Object.values(results).filter(Boolean).length;
-            const totalCount = Object.keys(results).length;
-            
-            if (successCount === 0 && totalCount > 0) {
-              console.error("GlobalSyncManager - Échec de synchronisation pour toutes les tables");
-              setShowError(true);
-            }
+            // Vérifier les résultats pour les tables importantes
+            Object.entries(results).forEach(([tableName, success]) => {
+              if (!success && (tableName === 'membres' || tableName === 'bibliotheque' || tableName === 'collaboration')) {
+                console.warn(`GlobalSyncManager - Échec de synchronisation pour ${tableName}`);
+                // Ne pas afficher de notification visuelle mais logger pour debug
+              }
+            });
           })
           .catch(error => {
             console.error("GlobalSyncManager - Erreur lors de la synchronisation initiale:", error);
             setSyncingInProgress(false);
-            setShowError(true);
           });
       }, 2000);
       
-      // Planifier des synchronisations périodiques (toutes les 5 minutes)
+      // Planifier des synchronisations périodiques (toutes les 3 minutes)
       const intervalId = setInterval(() => {
-        if (isOnline && !syncingInProgress) {
+        if (isOnline && !syncingInProgress && Date.now() - lastSyncRef.current > 180000) {
           console.log("GlobalSyncManager - Exécution de la synchronisation périodique");
-          // Ne pas mettre à jour syncingInProgress ici pour éviter d'afficher l'indicateur
-          syncAll().catch(error => {
+          
+          syncAll().then(() => {
+            lastSyncRef.current = Date.now();
+          }).catch(error => {
             console.error("GlobalSyncManager - Erreur lors de la synchronisation périodique:", error);
           });
         }
-      }, 300000); // 5 minutes
+      }, 180000); // 3 minutes
       
       syncTimer.current = intervalId;
       
@@ -58,9 +61,33 @@ const GlobalSyncManager: React.FC = () => {
       };
     } catch (error) {
       console.error("GlobalSyncManager - Erreur lors de l'initialisation de la synchronisation:", error);
-      setShowError(true);
     }
   }, [syncAll, isOnline]);
+  
+  // Écouter les changements de route pour re-synchroniser les données
+  useEffect(() => {
+    const handleRouteChange = () => {
+      if (isOnline && Date.now() - lastSyncRef.current > 30000) { // Au moins 30s entre les syncs
+        console.log("GlobalSyncManager - Changement de route détecté, synchronisation");
+        
+        // Attendre un peu que la nouvelle page soit chargée
+        setTimeout(() => {
+          syncAll().then(() => {
+            lastSyncRef.current = Date.now();
+          }).catch(error => {
+            console.error("GlobalSyncManager - Erreur lors de la synchronisation après changement de route:", error);
+          });
+        }, 500);
+      }
+    };
+    
+    // Écouter les événements de changement d'URL
+    window.addEventListener('popstate', handleRouteChange);
+    
+    return () => {
+      window.removeEventListener('popstate', handleRouteChange);
+    };
+  }, [isOnline, syncAll]);
   
   // S'assurer que l'indicateur de synchronisation disparaît après 30 secondes maximum
   useEffect(() => {
@@ -68,7 +95,7 @@ const GlobalSyncManager: React.FC = () => {
     
     if (syncingInProgress) {
       timeoutId = setTimeout(() => {
-        console.log("GlobalSyncManager - Timeout de synchronisation atteint, réinitialisation de l'état");
+        console.log("GlobalSyncManager - Timeout de synchronisation atteint, réinitialisation");
         setSyncingInProgress(false);
       }, 30000); // 30 secondes maximum
     }
@@ -78,41 +105,7 @@ const GlobalSyncManager: React.FC = () => {
     };
   }, [syncingInProgress]);
   
-  // Vérifier si une synchronisation a échoué
-  const hasSyncFailed = Object.values(syncStates).some(state => state.syncFailed);
-  
-  // Seules les erreurs critiques seront affichées
-  if (!showError && !hasSyncFailed) {
-    return null;
-  }
-  
-  // N'afficher que pour les erreurs critiques qui nécessitent une action utilisateur
-  if (hasSyncFailed && isOnline) {
-    return (
-      <div className="fixed bottom-4 right-4 z-50 max-w-md hidden">
-        <SyncIndicator 
-          isSyncing={false}
-          isOnline={isOnline}
-          syncFailed={true}
-          lastSynced={null}
-          onSync={async () => {
-            setSyncingInProgress(true);
-            try {
-              await syncAll();
-              setSyncingInProgress(false);
-              return Promise.resolve();
-            } catch (error) {
-              console.error("Erreur lors de la synchronisation manuelle:", error);
-              setSyncingInProgress(false);
-              return Promise.reject(error);
-            }
-          }}
-          showOnlyErrors={true}
-        />
-      </div>
-    );
-  }
-  
+  // Script caché - pas d'affichage d'interface
   return null;
 };
 
