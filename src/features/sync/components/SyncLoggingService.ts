@@ -53,6 +53,13 @@ export const SyncLoggingService = {
           details: details || 'Erreur inconnue',
           action
         });
+      } else {
+        // En cas de succès, effacer les erreurs précédentes si elles existent
+        try {
+          localStorage.removeItem(`sync_error_${tableName}`);
+        } catch (e) {
+          // Ignorer les erreurs, simplement pour nettoyer
+        }
       }
       
       console.log(`[SyncLog] ${userId} - ${action} - ${tableName} - ${success ? 'Succès' : 'Échec'}`);
@@ -148,6 +155,25 @@ export const SyncLoggingService = {
       console.error('Erreur lors de la vérification des erreurs récentes:', error);
       return false;
     }
+  },
+  
+  /**
+   * Vérifie si un groupe a été correctement configuré
+   */
+  validateGroupStructure: (groupData: any): boolean => {
+    try {
+      // Vérifier si le groupe a les propriétés minimales requises
+      if (!groupData || typeof groupData !== 'object') return false;
+      if (!groupData.id || typeof groupData.id !== 'string') return false;
+      if (!groupData.name || typeof groupData.name !== 'string') return false;
+      if (typeof groupData.expanded !== 'boolean') return false;
+      if (!Array.isArray(groupData.items)) return false;
+      
+      return true;
+    } catch (error) {
+      console.error('Erreur lors de la validation du groupe:', error);
+      return false;
+    }
   }
 };
 
@@ -191,6 +217,17 @@ if (typeof window !== 'undefined') {
     if (detail && detail.user) {
       SyncLoggingService.logSyncAction('user-changed', 'global', true, {
         user: detail.user
+      });
+    }
+  });
+  
+  // Ajouter un écouteur pour les groupes modifiés
+  window.addEventListener('group-toggle', (event) => {
+    const detail = (event as CustomEvent).detail;
+    if (detail && detail.groupId) {
+      SyncLoggingService.logSyncAction('group-toggle', detail.tableName || 'unknown', true, {
+        groupId: detail.groupId,
+        expanded: detail.expanded
       });
     }
   });

@@ -42,11 +42,28 @@ const DocumentGroupComponent: React.FC<DocumentGroupProps> = ({
   onGroupDragStart,
   onGroupDrop
 }) => {
+  // Gestionnaire pour le toggle du groupe
+  const handleToggleGroup = (event: React.MouseEvent) => {
+    event.stopPropagation();
+    onToggleGroup(group.id);
+    
+    // Déclencher un événement pour informer l'application
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('group-toggle', { 
+        detail: { 
+          groupId: group.id, 
+          expanded: !group.expanded,
+          tableName: 'documents' 
+        }
+      }));
+    }
+  };
+
   return (
     <React.Fragment>
       <TableRow 
         className="border-b hover:bg-gray-50 cursor-pointer" 
-        onClick={() => onToggleGroup(group.id)}
+        onClick={handleToggleGroup}
         draggable
         onDragStart={(e) => {
           e.stopPropagation();
@@ -69,6 +86,7 @@ const DocumentGroupComponent: React.FC<DocumentGroupProps> = ({
           e.stopPropagation();
           onDragEnd(e);
         }}
+        data-group-id={group.id}
       >
         <TableCell className="py-3 px-2 w-10">
           <GripVertical className="h-5 w-5 text-gray-400" />
@@ -91,6 +109,7 @@ const DocumentGroupComponent: React.FC<DocumentGroupProps> = ({
               e.stopPropagation();
               onEditGroup(group);
             }}
+            aria-label={`Modifier le groupe ${group.name}`}
           >
             <Pencil className="h-5 w-5 inline-block" />
           </button>
@@ -100,13 +119,14 @@ const DocumentGroupComponent: React.FC<DocumentGroupProps> = ({
               e.stopPropagation();
               onDeleteGroup(group.id);
             }}
+            aria-label={`Supprimer le groupe ${group.name}`}
           >
             <Trash className="h-5 w-5 inline-block" />
           </button>
         </TableCell>
       </TableRow>
       
-      {group.expanded && group.items.map((doc) => (
+      {group.expanded && group.items && group.items.map((doc) => (
         <DocumentRow
           key={doc.id}
           doc={doc}
