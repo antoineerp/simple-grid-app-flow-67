@@ -1,7 +1,7 @@
 
 /**
  * Gestionnaire de file d'attente pour les opérations de synchronisation
- * Assure que les opérations se déroulent de manière séquentielle
+ * Assure que les opérations se déroulent de manière strictement séquentielle
  */
 
 type SyncTask = {
@@ -19,6 +19,7 @@ class SyncQueueManager {
   private currentTask: SyncTask | null = null;
   private taskTimeout: number = 30000; // 30 secondes maximum par tâche
   private abortControllers: Map<string, AbortController> = new Map();
+  private globalLock: boolean = false;
 
   /**
    * Ajouter une tâche à la file d'attente
@@ -53,7 +54,7 @@ class SyncQueueManager {
   }
 
   /**
-   * Traiter la file d'attente de manière séquentielle
+   * Traiter la file d'attente de manière strictement séquentielle
    */
   private async processQueue() {
     if (this.processing) {
@@ -64,6 +65,9 @@ class SyncQueueManager {
     this.processing = true;
 
     try {
+      // Utiliser un verrou global pour garantir une exécution strictement séquentielle
+      this.globalLock = true;
+      
       while (this.queue.length > 0) {
         // Récupérer la prochaine tâche
         this.currentTask = this.queue.shift()!;
@@ -71,6 +75,9 @@ class SyncQueueManager {
         
         console.log(`SyncQueue: Exécution de la tâche ${id} pour ${tableName}`);
 
+        // Attendre un court délai entre les tâches pour garantir la séparation
+        await new Promise(r => setTimeout(r, 300));
+        
         // Vérifier si la tâche est trop ancienne (plus de 5 minutes)
         if (Date.now() - createdAt > 300000) { // 300000 ms = 5 minutes
           console.warn(`SyncQueue: La tâche ${id} est trop ancienne, annulation`);
@@ -112,12 +119,17 @@ class SyncQueueManager {
             }
           }
         } finally {
+          // Attendre un court délai avant la tâche suivante pour éviter les conflits
+          await new Promise(r => setTimeout(r, 300));
+          
           // Nettoyer les ressources
           this.abortControllers.delete(id);
           this.currentTask = null;
         }
       }
     } finally {
+      // Libérer le verrou global et marquer le traitement comme terminé
+      this.globalLock = false;
       this.processing = false;
       console.log(`SyncQueue: Traitement terminé, file d'attente vide`);
     }
@@ -167,6 +179,20 @@ class SyncQueueManager {
     }
     
     return canceledCount;
+  }
+  
+  /**
+   * Vérifier si la file d'attente est verrouillée
+   */
+  public isLocked(): boolean {
+    return this.globalLock;
+  }
+  
+  /**
+   * Obtenir le nombre de tâches en attente
+   */
+  public getQueueLength(): number {
+    return this.queue.length;
   }
 }
 

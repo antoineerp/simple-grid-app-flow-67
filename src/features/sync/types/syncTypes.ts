@@ -1,3 +1,4 @@
+
 // Defines common types for the sync functionality
 
 export interface SyncHookOptions {
@@ -6,6 +7,7 @@ export interface SyncHookOptions {
   debounceTime?: number;
   syncKey?: string;
   maxRetries?: number;
+  hideIndicators?: boolean; // Nouvelle option pour masquer les indicateurs visuels
 }
 
 export interface SyncState {

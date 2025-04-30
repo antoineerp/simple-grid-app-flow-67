@@ -1,4 +1,3 @@
-
 import { useCallback, useEffect, useState, useRef } from 'react';
 import { useGlobalSync } from '@/contexts/GlobalSyncContext';
 import { useToast } from "@/hooks/use-toast";
@@ -21,7 +20,8 @@ export function useSyncContext<T>(tableName: string, data: T[], options: SyncHoo
     autoSync = true,
     debounceTime = 2000,
     syncKey = '',
-    maxRetries = 3
+    maxRetries = 3,
+    hideIndicators = true  // Par défaut, on cache les indicateurs
   } = options;
   
   const [dataChanged, setDataChanged] = useState(false);
@@ -172,7 +172,8 @@ export function useSyncContext<T>(tableName: string, data: T[], options: SyncHoo
         pendingSyncRef.current = false;
         authErrorShownRef.current = false;
         
-        if (showToasts) {
+        // N'afficher les toasts que si explicitement demandé et que hideIndicators est false
+        if (showToasts && !hideIndicators) {
           toast({
             title: "Synchronisation réussie",
             description: `Les données "${tableName}" ont été synchronisées`,
@@ -188,8 +189,8 @@ export function useSyncContext<T>(tableName: string, data: T[], options: SyncHoo
         
         pendingSyncRef.current = true;
         
-        // Afficher un toast d'erreur seulement après plusieurs échecs
-        if (showToasts && syncRetryCountRef.current > 1 && !authErrorShownRef.current) {
+        // Afficher un toast d'erreur seulement si les indicateurs ne sont pas cachés
+        if (showToasts && !hideIndicators && syncRetryCountRef.current > 1 && !authErrorShownRef.current) {
           // Vérifier si c'est une erreur d'authentification dans les logs récents
           const isAuthError = hasAuthenticationError();
           
@@ -253,7 +254,8 @@ export function useSyncContext<T>(tableName: string, data: T[], options: SyncHoo
                         errorMessage.includes('token') || 
                         errorMessage.includes('permission');
       
-      if (isAuthError && !authErrorShownRef.current) {
+      // N'afficher les toasts que si les indicateurs ne sont pas cachés
+      if (isAuthError && !authErrorShownRef.current && !hideIndicators) {
         authErrorShownRef.current = true;
         toast({
           title: "Erreur d'authentification",
@@ -261,7 +263,7 @@ export function useSyncContext<T>(tableName: string, data: T[], options: SyncHoo
           variant: "destructive",
           duration: 5000
         });
-      } else if (showToasts && !isAuthError) {
+      } else if (showToasts && !isAuthError && !hideIndicators) {
         toast({
           title: "Erreur de synchronisation",
           description: `Erreur lors de la synchronisation: ${errorMessage}`,
@@ -275,7 +277,7 @@ export function useSyncContext<T>(tableName: string, data: T[], options: SyncHoo
       syncInProgressRef.current = false;
       setIsSyncing(false);
     }
-  }, [tableName, data, isOnline, syncTable, syncKey, showToasts, toast, maxRetries, resetSyncState]);
+  }, [tableName, data, isOnline, syncTable, syncKey, showToasts, toast, maxRetries, resetSyncState, hideIndicators]);
   
   // Fonction pour notifier des changements de données avec délai
   const notifyChanges = useCallback(() => {
