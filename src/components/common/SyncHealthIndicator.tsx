@@ -39,8 +39,15 @@ const SyncHealthIndicator: React.FC<SyncHealthIndicatorProps> = ({
       const currentStatus = syncMonitor.getStatus();
       setHealth(currentStatus.health);
       setActiveCount(currentStatus.activeCount);
+      
+      // Ensure all required properties are present in the recentAttempts
+      const typedAttempts: SyncAttempt[] = currentStatus.recentAttempts.map(attempt => ({
+        ...attempt,
+        operation: attempt.operation || 'unknown' // Ensure operation is always defined
+      }));
+
       setStatus({
-        recentAttempts: currentStatus.recentAttempts,
+        recentAttempts: typedAttempts,
         stats: currentStatus.stats,
         lastSync: currentStatus.lastSync
       });
