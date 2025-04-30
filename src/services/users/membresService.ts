@@ -25,7 +25,7 @@ export const getMembres = async (forceRefresh: boolean = false): Promise<Membre[
     }
 
     const API_URL = getApiUrl();
-    const response = await fetch(`${API_URL}/membres-load`, {
+    const response = await fetch(`${API_URL}/membres-load.php`, {
       method: 'GET',
       headers: {
         ...getAuthHeaders(),
