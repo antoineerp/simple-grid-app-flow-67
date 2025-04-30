@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { triggerSync } from '@/services/sync/triggerSync';
@@ -9,6 +8,13 @@ interface SyncState {
   isSyncing: boolean;
   lastSynced: Date | null;
   syncFailed: boolean;
+}
+
+// Define the interface for sync results to match what triggerSync returns
+interface SyncResult {
+  success: boolean;
+  message: string;
+  timestamp?: string;
 }
 
 interface GlobalSyncContextType {
@@ -298,6 +304,9 @@ export const GlobalSyncProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       // Utiliser le service triggerSync pour la synchronisation
       const result = await triggerSync.triggerTableSync(tableName, processedData);
       
+      // Extraire le succès du résultat
+      const success = result.success;
+      
       // Vérifier que c'est bien notre opération qui s'est terminée
       if (syncOperationsRef.current[tableName] !== syncOperationId) {
         console.log(`GlobalSyncContext: Une opération plus récente est en cours pour ${tableName}, ignorer le résultat de ${syncOperationId}`);
@@ -345,7 +354,7 @@ export const GlobalSyncProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       // Supprimer notre référence d'opération
       delete syncOperationsRef.current[tableName];
       
-      return result;
+      return success;
       
     } catch (error) {
       console.error(`GlobalSyncContext: Erreur synchronisation ${tableName} (${syncOperationId}):`, error);

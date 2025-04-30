@@ -1,4 +1,3 @@
-
 /**
  * Service pour déclencher la synchronisation des données
  * Ce service permet d'assurer que les modifications sont bien synchronisées avec le serveur
@@ -24,13 +23,23 @@ interface SyncResult {
   timestamp?: string;
 }
 
+// Interface de la classe TriggerSyncService pour TypeScript
+interface ITriggerSyncService {
+  notifyDataChange: <T>(tableName: string, data: T[], userId?: string) => void;
+  triggerTableSync: <T>(tableName: string, data: T[], trigger?: string) => Promise<SyncResult>;
+  hasPendingSyncs: () => boolean;
+  getPendingSyncsCount: () => number;
+  initialize: () => void;
+  cleanup: () => void;
+}
+
 // Clé utilisée pour stocker les données en attente dans le localStorage
 const PENDING_SYNC_KEY = 'sync_pending_changes';
 
 /**
  * Singleton pour gérer les déclenchements de synchronisation
  */
-class TriggerSyncService {
+class TriggerSyncService implements ITriggerSyncService {
   private pendingSyncs: Map<string, PendingSyncData> = new Map();
   private initialized: boolean = false;
   
