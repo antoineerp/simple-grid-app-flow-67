@@ -20,8 +20,11 @@ const GlobalSyncManager: React.FC = () => {
     console.log("GlobalSyncManager - Composant monté");
     mountedRef.current = true;
     
+    // Vérifier si l'élément existe déjà avant de le créer
+    const existingElement = document.getElementById('global-sync-manager-initialized');
+    
     // Une fois au montage, créer un élément dans le DOM pour indiquer que le GlobalSyncManager est initialisé
-    if (!initRef.current) {
+    if (!initRef.current && !existingElement) {
       initRef.current = true;
       try {
         const syncInitElement = document.createElement('div');
@@ -33,18 +36,44 @@ const GlobalSyncManager: React.FC = () => {
       }
     }
     
+    // Nettoyer tous les verrous de synchronisation au démarrage
+    try {
+      const keys = Object.keys(localStorage);
+      const syncLockKeys = keys.filter(key => key.startsWith('sync_in_progress_') || key.startsWith('sync_lock_time_'));
+      
+      if (syncLockKeys.length > 0) {
+        console.log("GlobalSyncManager - Nettoyage des verrous de synchronisation périmés:", syncLockKeys);
+        syncLockKeys.forEach(key => {
+          localStorage.removeItem(key);
+        });
+      }
+    } catch (error) {
+      console.error("GlobalSyncManager - Erreur lors du nettoyage des verrous:", error);
+    }
+    
     return () => {
       console.log("GlobalSyncManager - Composant démonté");
       mountedRef.current = false;
       
-      // Nettoyer le marqueur DOM lors du démontage
-      try {
-        const syncInitElement = document.getElementById('global-sync-manager-initialized');
-        if (syncInitElement) {
-          document.body.removeChild(syncInitElement);
+      // Nettoyer le marqueur DOM lors du démontage uniquement si nous l'avons créé
+      if (initRef.current) {
+        try {
+          const syncInitElement = document.getElementById('global-sync-manager-initialized');
+          if (syncInitElement) {
+            document.body.removeChild(syncInitElement);
+          }
+        } catch (error) {
+          console.error("GlobalSyncManager - Erreur lors du nettoyage du marqueur DOM:", error);
         }
-      } catch (error) {
-        console.error("GlobalSyncManager - Erreur lors du nettoyage du marqueur DOM:", error);
+      }
+      
+      // Nettoyer les timeouts
+      if (syncTimer.current) {
+        clearInterval(syncTimer.current);
+      }
+      
+      if (navigationDebounceRef.current) {
+        clearTimeout(navigationDebounceRef.current);
       }
     };
   }, []);
@@ -103,6 +132,21 @@ const GlobalSyncManager: React.FC = () => {
             syncAll().then(() => {
               if (mountedRef.current) {
                 lastSyncRef.current = Date.now();
+                
+                // Nettoyer les verrous de synchronisation après une synchronisation réussie
+                try {
+                  const keys = Object.keys(localStorage);
+                  const syncLockKeys = keys.filter(key => key.startsWith('sync_in_progress_') || key.startsWith('sync_lock_time_'));
+                  
+                  if (syncLockKeys.length > 0) {
+                    console.log("GlobalSyncManager - Nettoyage des verrous après synchronisation périodique:", syncLockKeys);
+                    syncLockKeys.forEach(key => {
+                      localStorage.removeItem(key);
+                    });
+                  }
+                } catch (error) {
+                  console.error("GlobalSyncManager - Erreur lors du nettoyage des verrous:", error);
+                }
               }
             }).catch(error => {
               console.error("GlobalSyncManager - Erreur lors de la synchronisation périodique:", error);
@@ -143,14 +187,42 @@ const GlobalSyncManager: React.FC = () => {
         navigationDebounceRef.current = setTimeout(() => {
           const hasActiveLock = Object.values(syncLockRef.current).some(lock => lock);
           if (!syncingInProgress && !hasActiveLock && mountedRef.current) {
-            syncAll().then(() => {
-              if (mountedRef.current) {
-                lastSyncRef.current = Date.now();
-                lastNavigationTimeRef.current = Date.now();
-              }
-            }).catch(error => {
-              console.error("GlobalSyncManager - Erreur lors de la synchronisation après changement de route:", error);
-            });
+            // Vérifier également les verrous dans localStorage
+            let hasStorageLock = false;
+            try {
+              const keys = Object.keys(localStorage);
+              hasStorageLock = keys.some(key => key.startsWith('sync_in_progress_') && localStorage.getItem(key) === 'true');
+            } catch (error) {
+              console.error("GlobalSyncManager - Erreur lors de la vérification des verrous localStorage:", error);
+            }
+            
+            if (!hasStorageLock) {
+              syncAll().then(() => {
+                if (mountedRef.current) {
+                  lastSyncRef.current = Date.now();
+                  lastNavigationTimeRef.current = Date.now();
+                  
+                  // Nettoyer les verrous après la synchronisation
+                  try {
+                    const keys = Object.keys(localStorage);
+                    const syncLockKeys = keys.filter(key => key.startsWith('sync_in_progress_') || key.startsWith('sync_lock_time_'));
+                    
+                    if (syncLockKeys.length > 0) {
+                      console.log("GlobalSyncManager - Nettoyage des verrous après navigation:", syncLockKeys);
+                      syncLockKeys.forEach(key => {
+                        localStorage.removeItem(key);
+                      });
+                    }
+                  } catch (error) {
+                    console.error("GlobalSyncManager - Erreur lors du nettoyage des verrous:", error);
+                  }
+                }
+              }).catch(error => {
+                console.error("GlobalSyncManager - Erreur lors de la synchronisation après changement de route:", error);
+              });
+            } else {
+              console.log("GlobalSyncManager - Synchronisation déjà en cours après navigation (verrou localStorage), requête ignorée");
+            }
           } else {
             console.log("GlobalSyncManager - Synchronisation déjà en cours après navigation, requête ignorée");
           }
@@ -161,8 +233,22 @@ const GlobalSyncManager: React.FC = () => {
     // Écouter les événements de changement d'URL
     window.addEventListener('popstate', handleRouteChange);
     
+    // Écouter également les clics sur les liens pour détecter les changements de route non gérés par popstate
+    const handleLinkClick = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      const link = target.closest('a');
+      
+      if (link && !link.getAttribute('download') && link.getAttribute('href')?.startsWith('/')) {
+        console.log("GlobalSyncManager - Clic sur lien détecté, préparation pour synchronisation");
+        lastNavigationTimeRef.current = Date.now() - 4000; // Réduire le délai pour permettre la synchronisation plus rapide
+      }
+    };
+    
+    document.body.addEventListener('click', handleLinkClick);
+    
     return () => {
       window.removeEventListener('popstate', handleRouteChange);
+      document.body.removeEventListener('click', handleLinkClick);
       if (navigationDebounceRef.current) {
         clearTimeout(navigationDebounceRef.current);
       }
@@ -178,6 +264,21 @@ const GlobalSyncManager: React.FC = () => {
         if (mountedRef.current) {
           console.log("GlobalSyncManager - Timeout de synchronisation atteint, réinitialisation");
           setSyncingInProgress(false);
+          
+          // Nettoyer également tous les verrous
+          try {
+            const keys = Object.keys(localStorage);
+            const syncLockKeys = keys.filter(key => key.startsWith('sync_in_progress_') || key.startsWith('sync_lock_time_'));
+            
+            if (syncLockKeys.length > 0) {
+              console.log("GlobalSyncManager - Nettoyage des verrous après timeout:", syncLockKeys);
+              syncLockKeys.forEach(key => {
+                localStorage.removeItem(key);
+              });
+            }
+          } catch (error) {
+            console.error("GlobalSyncManager - Erreur lors du nettoyage des verrous:", error);
+          }
         }
       }, 30000); // 30 secondes maximum
     }

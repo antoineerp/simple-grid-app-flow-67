@@ -12,6 +12,7 @@ export const useNetworkStatus = (): NetworkStatus => {
   const [wasOffline, setWasOffline] = useState<boolean>(false);
   const { toast } = useToast();
   const initialCheckDone = useRef<boolean>(false);
+  const checkInProgressRef = useRef<boolean>(false);
   
   useEffect(() => {
     const handleOnline = () => {
@@ -25,6 +26,21 @@ export const useNetworkStatus = (): NetworkStatus => {
           description: "La connexion Internet est de nouveau disponible. Synchronisation en cours...",
           duration: 3000,
         });
+      }
+      
+      // Nettoyer les verrous de synchronisation périmés lorsque la connexion est rétablie
+      try {
+        const keys = Object.keys(localStorage);
+        const syncLockKeys = keys.filter(key => key.startsWith('sync_in_progress_') || key.startsWith('sync_lock_time_'));
+        
+        if (syncLockKeys.length > 0) {
+          console.log("useNetworkStatus - Nettoyage des verrous après reconnexion:", syncLockKeys);
+          syncLockKeys.forEach(key => {
+            localStorage.removeItem(key);
+          });
+        }
+      } catch (error) {
+        console.error("useNetworkStatus - Erreur lors du nettoyage des verrous:", error);
       }
     };
     
@@ -42,18 +58,35 @@ export const useNetworkStatus = (): NetworkStatus => {
     
     // Test actif de la connectivité au démarrage
     const checkConnectivity = async () => {
+      // Éviter les vérifications simultanées
+      if (checkInProgressRef.current) return;
+      
+      checkInProgressRef.current = true;
+      
       try {
         const response = await fetch('/api/info.php', { 
           method: 'HEAD',
-          cache: 'no-store'
+          cache: 'no-store',
+          // Ajouter un paramètre pour éviter la mise en cache
+          headers: { 'Cache-Control': 'no-cache' }
         });
-        setIsOnline(true);
-        console.log("Test de connectivité API réussi");
+        
+        if (response.ok) {
+          setIsOnline(true);
+          console.log("Test de connectivité API réussi");
+        } else {
+          // Si le serveur répond mais avec une erreur, considérer comme en ligne quand même
+          setIsOnline(true);
+          console.warn(`Test de connectivité API: réponse avec statut ${response.status}`);
+        }
+        
         initialCheckDone.current = true;
       } catch (error) {
         console.error("Erreur de test de connectivité API:", error);
         setIsOnline(navigator.onLine);
         initialCheckDone.current = true;
+      } finally {
+        checkInProgressRef.current = false;
       }
     };
     
@@ -67,7 +100,7 @@ export const useNetworkStatus = (): NetworkStatus => {
     setIsOnline(navigator.onLine);
     
     // Configurer une vérification périodique
-    const intervalId = setInterval(checkConnectivity, 30000); // Vérifier toutes les 30 secondes
+    const intervalId = setInterval(checkConnectivity, 60000); // Vérifier toutes les 60 secondes (augmenté pour réduire la charge)
     
     return () => {
       window.removeEventListener('online', handleOnline);

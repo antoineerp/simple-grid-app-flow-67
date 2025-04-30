@@ -34,12 +34,35 @@ export function useSyncContext<T>(tableName: string, data: T[], options: SyncHoo
   const syncInProgressRef = useRef<boolean>(false);
   const syncRetryCountRef = useRef<number>(0);
   const maxRetries = 3;
+  const mountedRef = useRef<boolean>(false);
 
-  // Mettre à jour la référence des données au montage
+  // Mettre à jour la référence des données au montage et marquer le composant comme monté
   useEffect(() => {
+    mountedRef.current = true;
+    
     if (data && data.length > 0) {
       lastDataRef.current = JSON.parse(JSON.stringify(data));
     }
+    
+    return () => {
+      mountedRef.current = false;
+      
+      // Nettoyer les timeouts au démontage
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+      
+      // Si une synchronisation est en attente, sauvegarder les données localement
+      if (pendingSyncRef.current && data && data.length > 0) {
+        try {
+          const storageKey = getStorageKey();
+          localStorage.setItem(storageKey, JSON.stringify(data));
+          console.log(`useSyncContext: Sauvegarde des données en attente pour ${tableName} avant démontage`);
+        } catch (e) {
+          console.error(`useSyncContext: Erreur de sauvegarde avant démontage pour ${tableName}:`, e);
+        }
+      }
+    };
   }, []);
 
   // Identifiants uniques pour les opérations de synchronisation
@@ -96,6 +119,11 @@ export function useSyncContext<T>(tableName: string, data: T[], options: SyncHoo
       return;
     }
     
+    // Ne pas exécuter si le composant est démonté
+    if (!mountedRef.current) {
+      return;
+    }
+    
     // Ne déclencher que s'il y a des données et qu'elles ont changé
     if (data && data.length > 0) {
       try {
@@ -136,6 +164,11 @@ export function useSyncContext<T>(tableName: string, data: T[], options: SyncHoo
             operationIdRef.current = `${tableName}_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
             
             timeoutRef.current = setTimeout(() => {
+              // Vérifier si le composant est toujours monté
+              if (!mountedRef.current) {
+                return;
+              }
+              
               if (pendingSyncRef.current && isOnline && !checkSyncInProgress()) {
                 const operationId = operationIdRef.current;
                 
@@ -155,6 +188,18 @@ export function useSyncContext<T>(tableName: string, data: T[], options: SyncHoo
                 
                 syncTable(tableName, data)
                   .then(result => {
+                    // Vérifier que le composant est toujours monté
+                    if (!mountedRef.current) {
+                      // Libérer le verrou si le composant est démonté
+                      try {
+                        localStorage.removeItem(`sync_in_progress_${tableName}`);
+                        localStorage.removeItem(`sync_lock_time_${tableName}`);
+                      } catch (e) {
+                        console.error(`useSyncContext: Erreur de nettoyage après démontage pour ${tableName}:`, e);
+                      }
+                      return;
+                    }
+                    
                     // Vérifier que c'est toujours notre synchronisation qui est en cours
                     if (operationIdRef.current === operationId) {
                       if (result) {
@@ -184,6 +229,8 @@ export function useSyncContext<T>(tableName: string, data: T[], options: SyncHoo
                     }
                   })
                   .catch(error => {
+                    if (!mountedRef.current) return;
+                    
                     console.error(`useSyncContext: Erreur synchronisation de ${tableName}:`, error);
                     syncRetryCountRef.current++;
                   })
@@ -237,6 +284,11 @@ export function useSyncContext<T>(tableName: string, data: T[], options: SyncHoo
 
   // Synchroniser avec le serveur
   const syncWithServer = useCallback(async (): Promise<boolean> => {
+    if (!mountedRef.current) {
+      console.log(`useSyncContext: Composant démonté, synchronisation annulée pour ${tableName}`);
+      return false;
+    }
+    
     if (!isOnline) {
       console.log(`useSyncContext: Mode hors ligne pour ${tableName}, synchronisation impossible`);
       if (showToasts) {
@@ -299,6 +351,19 @@ export function useSyncContext<T>(tableName: string, data: T[], options: SyncHoo
       // Synchroniser DIRECTEMENT avec le serveur
       const result = await syncTable(tableName, data);
       
+      // Vérifier si le composant est toujours monté
+      if (!mountedRef.current) {
+        console.log(`useSyncContext: Composant démonté pendant la synchronisation de ${tableName}, nettoyage des verrous`);
+        // Nettoyer les verrous même si le composant est démonté
+        try {
+          localStorage.removeItem(`sync_in_progress_${tableName}`);
+          localStorage.removeItem(`sync_lock_time_${tableName}`);
+        } catch (e) {
+          console.error(`useSyncContext: Erreur de nettoyage après démontage pour ${tableName}:`, e);
+        }
+        return false;
+      }
+      
       // Vérifier que c'est toujours notre synchronisation qui est en cours
       if (operationIdRef.current === operationId) {
         if (result) {
@@ -347,6 +412,19 @@ export function useSyncContext<T>(tableName: string, data: T[], options: SyncHoo
       
       return result;
     } catch (error) {
+      // Vérifier si le composant est toujours monté
+      if (!mountedRef.current) {
+        console.log(`useSyncContext: Composant démonté pendant la gestion d'erreur pour ${tableName}`);
+        // Nettoyer les verrous même en cas d'erreur
+        try {
+          localStorage.removeItem(`sync_in_progress_${tableName}`);
+          localStorage.removeItem(`sync_lock_time_${tableName}`);
+        } catch (e) {
+          console.error(`useSyncContext: Erreur de nettoyage après erreur et démontage pour ${tableName}:`, e);
+        }
+        return false;
+      }
+      
       console.error(`useSyncContext: Erreur synchronisation de ${tableName}:`, error);
       syncRetryCountRef.current++;
       
