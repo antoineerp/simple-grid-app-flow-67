@@ -50,16 +50,24 @@ export const useLoginForm = () => {
           description: `Bienvenue ${result.user?.prenom || ''} ${result.user?.nom || ''}`,
         });
         
-        console.log("Redirection vers le tableau de bord après connexion réussie");
+        console.log("Connexion réussie, préparation de la redirection vers /pilotage");
         
-        // Utiliser setTimeout pour s'assurer que le token est bien enregistré
+        // Utiliser setTimeout avec un délai plus long pour s'assurer que le token est bien enregistré
         setTimeout(() => {
-          // Naviger vers /pilotage via React Router
-          navigate('/pilotage');
+          console.log("Redirection vers /pilotage via navigate()");
           
-          // Log supplémentaire pour vérifier la navigation
-          console.log("Navigation demandée vers /pilotage");
-        }, 100);
+          // Notification avant la navigation
+          toast({
+            title: "Redirection",
+            description: "Navigation vers le tableau de bord en cours...",
+          });
+          
+          // Navigation via react-router
+          navigate('/pilotage', { replace: true });
+          
+          // Log supplémentaire après la demande de navigation
+          console.log("Navigation demandée vers /pilotage, vérification de l'URL actuelle:", window.location.href);
+        }, 500);
       } else {
         console.error("Échec de connexion:", result.message);
         setError(result.message || 'Échec de la connexion');

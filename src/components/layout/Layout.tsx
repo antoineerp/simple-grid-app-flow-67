@@ -19,6 +19,12 @@ const Layout = () => {
     // Journalisation détaillée pour le débogage
     console.log("Layout - Rendu initial, chemin actuel:", location.pathname);
     
+    // Notification pour aider à déboguer
+    toast({
+      title: "Chargement layout",
+      description: `Chemin actuel: ${location.pathname}`,
+    });
+    
     // Vérifier si l'utilisateur est connecté
     const isLoggedIn = getIsLoggedIn();
     const currentUser = getCurrentUser();
@@ -33,36 +39,20 @@ const Layout = () => {
     }
     
     console.log("Layout - Initialisation du composant Layout pour un utilisateur connecté");
+    console.log("Layout - Nom d'utilisateur:", currentUser?.email);
+    console.log("Layout - Rôle utilisateur:", currentUser?.role);
+    console.log("Layout - Identifiant technique:", currentUser?.identifiant_technique);
     
-    // Notification pour aider à déboguer
-    toast({
-      title: "Application chargée",
-      description: "Le composant Layout a été initialisé correctement pour " + (currentUser?.email || "l'utilisateur"),
-    });
-    
-    // Vérifier l'état des contextes
-    console.log("Layout - Vérification de l'environnement:");
-    console.log("- window.location:", window.location.href);
-    console.log("- React Router path:", location.pathname);
-    
-    // Pour le débogage des contextes
-    setTimeout(() => {
-      console.log("Layout - Vérification des contextes après rendu complet");
-      
-      try {
-        const globalSyncElement = document.querySelector('[data-testid="global-sync-initialized"]');
-        console.log("- Élément GlobalSync trouvé:", !!globalSyncElement);
-        
-        const mainContentElement = document.querySelector('main');
-        console.log("- Contenu principal chargé:", !!mainContentElement);
-        
-        if (mainContentElement) {
-          console.log("- Nombre d'enfants dans le contenu principal:", mainContentElement.childNodes.length);
-        }
-      } catch (error) {
-        console.error("Erreur lors de la vérification du DOM:", error);
+    // Vérifier que tous les contextes sont disponibles
+    try {
+      if (document.querySelector('[data-testid="global-sync-initialized"]')) {
+        console.log("Layout - Contexte GlobalSync initialisé correctement");
+      } else {
+        console.warn("Layout - Élément GlobalSync non trouvé dans le DOM");
       }
-    }, 500);
+    } catch (error) {
+      console.error("Layout - Erreur lors de la vérification des contextes:", error);
+    }
     
   }, [navigate, location.pathname]);
 
