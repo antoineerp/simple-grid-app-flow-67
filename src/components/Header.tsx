@@ -18,7 +18,7 @@ import {
   getCurrentUser as getDatabaseUser,
 } from '@/services/core/databaseConnectionService';
 import { logout, getCurrentUser } from '@/services/auth/authService';
-import { hasPermission } from '@/types/roles';
+import { hasPermission, UserRole } from '@/types/roles';
 
 const Header = () => {
   const navigate = useNavigate();
@@ -28,7 +28,7 @@ const Header = () => {
   
   // Obtenir les informations utilisateur depuis le token JWT
   const user = getCurrentUser();
-  const userRole = user?.role || 'utilisateur';
+  const userRole = (user?.role || 'utilisateur') as UserRole;
   const userDisplayName = user ? `${user.prenom || ''} ${user.nom || ''}`.trim() : 'Utilisateur';
 
   useEffect(() => {
