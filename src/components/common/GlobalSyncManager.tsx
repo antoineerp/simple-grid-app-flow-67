@@ -16,38 +16,32 @@ const GlobalSyncManager: React.FC = () => {
       if (globalSyncContext) {
         console.log("GlobalSyncManager - Méthodes disponibles dans le contexte:", Object.keys(globalSyncContext));
         
-        // Si startSync existe, l'utiliser
-        if (typeof globalSyncContext.startSync === 'function') {
-          console.log("GlobalSyncManager - Démarrage de la synchronisation en arrière-plan");
-          globalSyncContext.startSync();
+        // Démarrer la synchronisation globale si elle existe
+        if (typeof globalSyncContext.syncAll === 'function') {
+          console.log("GlobalSyncManager - Démarrage de la synchronisation en arrière-plan avec syncAll");
+          
+          // Pour éviter les boucles d'exécution, on utilise setTimeout
+          setTimeout(() => {
+            globalSyncContext.syncAll().then(results => {
+              console.log("GlobalSyncManager - Résultats de la synchronisation:", results);
+            }).catch(error => {
+              console.error("GlobalSyncManager - Erreur lors de la synchronisation:", error);
+            });
+          }, 2000);
           
           toast({
             title: "Synchronisation",
             description: "La synchronisation en arrière-plan a été démarrée",
           });
         } else {
-          console.log("GlobalSyncManager - Synchronisation non disponible ou déjà démarrée");
+          console.log("GlobalSyncManager - La méthode syncAll n'est pas disponible");
           
-          // Vérifier si d'autres méthodes de synchronisation sont disponibles
-          if (typeof globalSyncContext.sync === 'function') {
-            console.log("GlobalSyncManager - Utilisation de la méthode sync alternative");
-            globalSyncContext.sync();
-            
-            toast({
-              title: "Synchronisation",
-              description: "La synchronisation alternative a été démarrée",
-            });
-          } else if (typeof globalSyncContext.initialize === 'function') {
-            console.log("GlobalSyncManager - Utilisation de la méthode initialize");
-            globalSyncContext.initialize();
-            
-            toast({
-              title: "Synchronisation",
-              description: "L'initialisation de la synchronisation a été démarrée",
-            });
-          } else {
-            console.log("GlobalSyncManager - Aucune méthode de synchronisation disponible");
-          }
+          // Notification en cas d'échec de synchronisation
+          toast({
+            title: "Synchronisation",
+            description: "La synchronisation en arrière-plan n'a pas pu être démarrée",
+            variant: "destructive"
+          });
         }
       } else {
         console.error("GlobalSyncManager - Le contexte GlobalSync est undefined");
