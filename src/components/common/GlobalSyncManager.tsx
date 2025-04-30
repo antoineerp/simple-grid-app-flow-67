@@ -8,6 +8,7 @@ const GlobalSyncManager: React.FC = () => {
   const syncTimer = useRef<NodeJS.Timeout | null>(null);
   const syncAttempts = useRef<number>(0);
   const lastSyncRef = useRef<number>(Date.now());
+  const syncLockRef = useRef<Record<string, boolean>>({});
   
   // Utiliser un effet pour démarrer la synchronisation en arrière-plan
   useEffect(() => {
@@ -16,42 +17,48 @@ const GlobalSyncManager: React.FC = () => {
       
       // Déclencher la première synchronisation après 2 secondes
       const timeoutId = setTimeout(() => {
-        console.log("GlobalSyncManager - Démarrage de la synchronisation initiale");
-        setSyncingInProgress(true);
-        syncAttempts.current = 1;
-        
-        syncAll()
-          .then(results => {
-            console.log("GlobalSyncManager - Résultats de la synchronisation initiale:", results);
-            setSyncingInProgress(false);
-            lastSyncRef.current = Date.now();
-            
-            // Vérifier les résultats pour les tables importantes
-            Object.entries(results).forEach(([tableName, success]) => {
-              if (!success && (tableName === 'membres' || tableName === 'bibliotheque' || tableName === 'collaboration')) {
-                console.warn(`GlobalSyncManager - Échec de synchronisation pour ${tableName}`);
-                // Ne pas afficher de notification visuelle mais logger pour debug
-              }
+        if (!syncingInProgress) {
+          console.log("GlobalSyncManager - Démarrage de la synchronisation initiale");
+          setSyncingInProgress(true);
+          syncAttempts.current = 1;
+          
+          syncAll()
+            .then(results => {
+              console.log("GlobalSyncManager - Résultats de la synchronisation initiale:", results);
+              setSyncingInProgress(false);
+              lastSyncRef.current = Date.now();
+              
+              // Vérifier les résultats pour les tables importantes
+              Object.entries(results).forEach(([tableName, success]) => {
+                if (!success && (tableName === 'membres' || tableName === 'bibliotheque' || tableName === 'collaboration')) {
+                  console.warn(`GlobalSyncManager - Échec de synchronisation pour ${tableName}`);
+                }
+              });
+            })
+            .catch(error => {
+              console.error("GlobalSyncManager - Erreur lors de la synchronisation initiale:", error);
+              setSyncingInProgress(false);
             });
-          })
-          .catch(error => {
-            console.error("GlobalSyncManager - Erreur lors de la synchronisation initiale:", error);
-            setSyncingInProgress(false);
-          });
+        }
       }, 2000);
       
-      // Planifier des synchronisations périodiques (toutes les 3 minutes)
+      // Planifier des synchronisations périodiques (toutes les 5 minutes - augmenté pour réduire les conflits)
       const intervalId = setInterval(() => {
-        if (isOnline && !syncingInProgress && Date.now() - lastSyncRef.current > 180000) {
+        if (isOnline && !syncingInProgress && Date.now() - lastSyncRef.current > 300000) {
           console.log("GlobalSyncManager - Exécution de la synchronisation périodique");
           
-          syncAll().then(() => {
-            lastSyncRef.current = Date.now();
-          }).catch(error => {
-            console.error("GlobalSyncManager - Erreur lors de la synchronisation périodique:", error);
-          });
+          // Utiliser un verrou pour éviter les synchronisations simultanées
+          if (!Object.values(syncLockRef.current).some(lock => lock)) {
+            syncAll().then(() => {
+              lastSyncRef.current = Date.now();
+            }).catch(error => {
+              console.error("GlobalSyncManager - Erreur lors de la synchronisation périodique:", error);
+            });
+          } else {
+            console.log("GlobalSyncManager - Synchronisation déjà en cours, requête ignorée");
+          }
         }
-      }, 180000); // 3 minutes
+      }, 300000); // 5 minutes (augmenté de 3 à 5 minutes)
       
       syncTimer.current = intervalId;
       
@@ -64,20 +71,36 @@ const GlobalSyncManager: React.FC = () => {
     }
   }, [syncAll, isOnline]);
   
-  // Écouter les changements de route pour re-synchroniser les données
+  // Écouter les changements de route pour re-synchroniser les données avec délai
   useEffect(() => {
+    // Utiliser une référence pour suivre la dernière navigation
+    const lastNavigationTimeRef = useRef<number>(Date.now());
+    const navigationDebounceRef = useRef<NodeJS.Timeout | null>(null);
+    
     const handleRouteChange = () => {
-      if (isOnline && Date.now() - lastSyncRef.current > 30000) { // Au moins 30s entre les syncs
-        console.log("GlobalSyncManager - Changement de route détecté, synchronisation");
+      // Ajouter un délai minimum entre les synchronisations (5 secondes)
+      const now = Date.now();
+      if (isOnline && now - lastNavigationTimeRef.current > 5000 && now - lastSyncRef.current > 30000) {
+        console.log("GlobalSyncManager - Changement de route détecté, programmation de synchronisation");
         
-        // Attendre un peu que la nouvelle page soit chargée
-        setTimeout(() => {
-          syncAll().then(() => {
-            lastSyncRef.current = Date.now();
-          }).catch(error => {
-            console.error("GlobalSyncManager - Erreur lors de la synchronisation après changement de route:", error);
-          });
-        }, 500);
+        // Annuler tout délai précédent
+        if (navigationDebounceRef.current) {
+          clearTimeout(navigationDebounceRef.current);
+        }
+        
+        // Attendre un peu plus longtemps que la page soit complètement chargée et stabilisée
+        navigationDebounceRef.current = setTimeout(() => {
+          if (!syncingInProgress && !Object.values(syncLockRef.current).some(lock => lock)) {
+            syncAll().then(() => {
+              lastSyncRef.current = Date.now();
+              lastNavigationTimeRef.current = Date.now();
+            }).catch(error => {
+              console.error("GlobalSyncManager - Erreur lors de la synchronisation après changement de route:", error);
+            });
+          } else {
+            console.log("GlobalSyncManager - Synchronisation déjà en cours après navigation, requête ignorée");
+          }
+        }, 1500); // Augmenté à 1.5 secondes pour éviter les conflits
       }
     };
     
@@ -86,8 +109,11 @@ const GlobalSyncManager: React.FC = () => {
     
     return () => {
       window.removeEventListener('popstate', handleRouteChange);
+      if (navigationDebounceRef.current) {
+        clearTimeout(navigationDebounceRef.current);
+      }
     };
-  }, [isOnline, syncAll]);
+  }, [isOnline, syncAll, syncingInProgress]);
   
   // S'assurer que l'indicateur de synchronisation disparaît après 30 secondes maximum
   useEffect(() => {

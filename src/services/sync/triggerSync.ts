@@ -1,4 +1,3 @@
-
 /**
  * Service pour déclencher la synchronisation des données
  * Service unifié pour toute l'application
@@ -20,6 +19,9 @@ export const triggerSync = {
   // Statistiques pour éviter les boucles de synchronisation
   _syncStats: {} as Record<string, SyncStats>,
   
+  // Mécanisme de verrouillage pour éviter les synchronisations simultanées
+  _syncLocks: {} as Record<string, { locked: boolean, timestamp: number }>,
+  
   /**
    * Réinitialise les statistiques de synchronisation
    */
@@ -32,19 +34,63 @@ export const triggerSync = {
    * Vérifie si une synchronisation est en cours
    */
   isSyncing: (tableName: string): boolean => {
+    // Vérifier d'abord dans le stockage local
     const key = `sync_in_progress_${tableName}`;
-    return localStorage.getItem(key) === 'true';
+    const storageLock = localStorage.getItem(key) === 'true';
+    
+    // Vérifier ensuite dans le mécanisme de verrouillage en mémoire
+    const memoryLock = triggerSync._syncLocks[tableName]?.locked === true;
+    
+    // Si l'un des deux est vrai, considérer que la synchronisation est en cours
+    return storageLock || memoryLock;
   },
   
   /**
-   * Marque une synchronisation comme en cours ou terminée
+   * Acquiert un verrou pour la synchronisation
+   * Retourne true si le verrou a été acquis, false sinon
+   */
+  acquireLock: (tableName: string, timeout: number = 30000): boolean => {
+    // Vérifier si un verrou existe déjà
+    if (triggerSync.isSyncing(tableName)) {
+      // Si le verrou existe depuis trop longtemps, le forcer
+      const lock = triggerSync._syncLocks[tableName];
+      const now = Date.now();
+      
+      if (lock && now - lock.timestamp > timeout) {
+        console.log(`TriggerSync: Forçage du verrou expiré pour ${tableName} (${now - lock.timestamp}ms)`);
+        triggerSync.releaseLock(tableName);
+      } else {
+        console.log(`TriggerSync: Impossible d'acquérir le verrou pour ${tableName}, déjà verrouillé`);
+        return false;
+      }
+    }
+    
+    // Acquérir le verrou
+    triggerSync._syncLocks[tableName] = { locked: true, timestamp: Date.now() };
+    localStorage.setItem(`sync_in_progress_${tableName}`, 'true');
+    console.log(`TriggerSync: Verrou acquis pour ${tableName}`);
+    return true;
+  },
+  
+  /**
+   * Libère un verrou de synchronisation
+   */
+  releaseLock: (tableName: string): void => {
+    if (triggerSync._syncLocks[tableName]) {
+      triggerSync._syncLocks[tableName] = { locked: false, timestamp: Date.now() };
+    }
+    localStorage.removeItem(`sync_in_progress_${tableName}`);
+    console.log(`TriggerSync: Verrou libéré pour ${tableName}`);
+  },
+  
+  /**
+   * Marque une synchronisation comme en cours ou terminée (déprécié, utilisez acquireLock/releaseLock)
    */
   markSyncStatus: (tableName: string, inProgress: boolean): void => {
-    const key = `sync_in_progress_${tableName}`;
     if (inProgress) {
-      localStorage.setItem(key, 'true');
+      triggerSync.acquireLock(tableName);
     } else {
-      localStorage.removeItem(key);
+      triggerSync.releaseLock(tableName);
     }
   },
   
@@ -88,11 +134,11 @@ export const triggerSync = {
     const stats = triggerSync.getStats(tableName);
     const now = Date.now();
     
-    // Vérifier si les tentatives sont trop fréquentes (moins de 5 secondes)
-    if (now - stats.lastAttempt < 5000 && stats.attemptCount > 0) {
+    // Vérifier si les tentatives sont trop fréquentes (moins de 10 secondes - augmenté pour plus de sécurité)
+    if (now - stats.lastAttempt < 10000 && stats.attemptCount > 0) {
       stats.attemptCount++;
       triggerSync._syncStats[tableName] = stats;
-      console.log(`TriggerSync: Tentative trop fréquente pour ${tableName}, limitée à 1 toutes les 5 secondes`);
+      console.log(`TriggerSync: Tentative trop fréquente pour ${tableName}, limitée à 1 toutes les 10 secondes`);
       return false;
     }
     
@@ -100,8 +146,11 @@ export const triggerSync = {
     stats.attemptCount++;
     triggerSync._syncStats[tableName] = stats;
     
-    // Marquer la synchronisation comme en cours
-    triggerSync.markSyncStatus(tableName, true);
+    // Acquérir un verrou pour la synchronisation
+    if (!triggerSync.acquireLock(tableName)) {
+      console.log(`TriggerSync: Impossible d'acquérir un verrou pour ${tableName}, opération annulée`);
+      return false;
+    }
     
     try {
       console.log(`TriggerSync: Début de la synchronisation pour ${tableName}`);
@@ -109,8 +158,20 @@ export const triggerSync = {
       const currentUser = getCurrentUser() || 'p71x6d_system';
       console.log(`TriggerSync: Utilisateur courant: ${currentUser}`);
       
+      // Génération d'un identifiant unique pour cette tentative de synchronisation
+      const syncId = `sync_${tableName}_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+      localStorage.setItem(`last_sync_id_${tableName}`, syncId);
+      
       // Synchroniser TOUJOURS avec le serveur en priorité
       const success = await triggerSync.syncWithServer(tableName, data);
+      
+      // Vérifier que c'est toujours notre synchronisation qui est en cours
+      // (éviter les conflits si une autre synchronisation a démarré entre temps)
+      const currentSyncId = localStorage.getItem(`last_sync_id_${tableName}`);
+      if (currentSyncId !== syncId) {
+        console.log(`TriggerSync: Une autre synchronisation a démarré pour ${tableName}, annulation du traitement`);
+        return false;
+      }
       
       if (success) {
         // Si la synchronisation serveur a réussi, mettre à jour les statistiques
@@ -170,8 +231,8 @@ export const triggerSync = {
       
       return false;
     } finally {
-      // Marquer la synchronisation comme terminée
-      triggerSync.markSyncStatus(tableName, false);
+      // Libérer le verrou de synchronisation
+      triggerSync.releaseLock(tableName);
     }
   },
   
@@ -269,6 +330,22 @@ export const triggerSync = {
   notifyDataChange: <T>(tableName: string, data: T[]) => {
     const currentUser = getCurrentUser() || 'p71x6d_system';
     
+    // Identifiant unique pour cette notification
+    const notificationId = `${tableName}_${Date.now()}`;
+    const lastNotificationId = localStorage.getItem(`last_notification_${tableName}`);
+    
+    // Vérifier si une notification identique a été déclenchée récemment (moins de 5 secondes)
+    if (lastNotificationId) {
+      const lastNotificationTime = parseInt(lastNotificationId.split('_')[1], 10);
+      if (Date.now() - lastNotificationTime < 5000) {
+        console.log(`TriggerSync: Notification similaire récente pour ${tableName}, opération ignorée`);
+        return;
+      }
+    }
+    
+    // Enregistrer cette notification
+    localStorage.setItem(`last_notification_${tableName}`, notificationId);
+    
     // IMPORTANT: Sauvegarder d'abord localement pour éviter la perte de données
     localStorage.setItem(`${tableName}_${currentUser}`, JSON.stringify(data));
     
@@ -276,17 +353,23 @@ export const triggerSync = {
     localStorage.setItem(`sync_pending_${tableName}`, new Date().toISOString());
     
     // TENTER UNE SYNCHRONISATION IMMÉDIATE avec le serveur si en ligne
-    if (window.navigator.onLine) {
+    if (window.navigator.onLine && !triggerSync.isSyncing(tableName)) {
       console.log(`TriggerSync: Tentative de synchronisation immédiate après modification pour ${tableName}`);
       
       // Déclencher la synchronisation après un court délai pour éviter les appels trop fréquents
+      // Et permettre à plusieurs modifications d'être regroupées
       setTimeout(() => {
-        triggerSync.triggerTableSync(tableName, data).catch(error => {
-          console.error(`TriggerSync: Erreur lors de la synchronisation après notification:`, error);
-        });
-      }, 1000); // Attendre 1 seconde
+        // Vérifier qu'aucune synchronisation n'est en cours avant de démarrer
+        if (!triggerSync.isSyncing(tableName)) {
+          triggerSync.triggerTableSync(tableName, data).catch(error => {
+            console.error(`TriggerSync: Erreur lors de la synchronisation après notification:`, error);
+          });
+        } else {
+          console.log(`TriggerSync: Synchronisation déjà en cours pour ${tableName}, notification ignorée`);
+        }
+      }, 2000); // Attendre 2 secondes (augmenté pour regrouper les modifications)
     } else {
-      console.log(`TriggerSync: Mode hors ligne, synchronisation différée pour ${tableName}`);
+      console.log(`TriggerSync: Mode hors ligne ou synchronisation en cours, synchronisation différée pour ${tableName}`);
     }
   },
   
