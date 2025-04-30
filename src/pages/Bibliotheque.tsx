@@ -1,289 +1,175 @@
+import React, { useState, useEffect } from 'react';
+import { useToast } from '@/hooks/use-toast';
+import BibliothequeHeader from '@/components/bibliotheque/BibliothequeHeader';
+import BibliothequeList from '@/components/bibliotheque/BibliothequeList';
+import BibliothequeGroup from '@/components/bibliotheque/BibliothequeGroup';
+import { Document, DocumentGroup } from '@/types/bibliotheque';
+import { v4 as uuidv4 } from 'uuid';
+import { bibliothequeService } from '@/services/bibliotheque/bibliothequeService';
+import { getDatabaseConnectionCurrentUser } from '@/services/core/databaseConnectionService';
 
-import React from 'react';
-import { 
-  Plus, 
-  FolderPlus, 
-  FileText, 
-  Folder, 
-  Search,
-  FolderOpen
-} from 'lucide-react';
-import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { 
-  Dialog, 
-  DialogContent, 
-  DialogHeader, 
-  DialogTitle 
-} from "@/components/ui/dialog";
-import { useBibliotheque } from "@/hooks/useBibliotheque";
-import { Document, DocumentGroup } from "@/types/bibliotheque";
-import DocumentForm from "@/components/bibliotheque/DocumentForm";
-import GroupForm from "@/components/bibliotheque/GroupForm";
-import SyncIndicator from "@/components/common/SyncIndicator";
+const Bibliotheque = () => {
+  const [documents, setDocuments] = useState<Document[]>([]);
+  const [filteredDocuments, setFilteredDocuments] = useState<Document[]>([]);
+  const [searchTerm, setSearchTerm] = useState<string>('');
+  const [groups, setGroups] = useState<DocumentGroup[]>([]);
+  const [currentUser, setCurrentUser] = useState<string>(getDatabaseConnectionCurrentUser() || 'default');
+  const { toast } = useToast();
 
-const Bibliotheque: React.FC = () => {
-  const { 
-    documents, 
-    groups, 
-    isDialogOpen, 
-    isGroupDialogOpen, 
-    isEditing,
-    currentDocument, 
-    currentGroup,
-    setIsDialogOpen, 
-    setIsGroupDialogOpen,
-    setIsEditing,
-    setCurrentDocument,
-    setCurrentGroup,
-    handleAddDocument,
-    handleUpdateDocument,
-    handleDeleteDocument,
-    handleAddGroup,
-    handleUpdateGroup,
-    handleDeleteGroup,
-    handleSyncDocuments,
-    isSyncing,
-    isOnline,
-    lastSynced,
-    syncFailed
-  } = useBibliotheque();
-  
-  const [searchTerm, setSearchTerm] = React.useState("");
-  const [openGroups, setOpenGroups] = React.useState<Record<string, boolean>>({});
-  
-  // Filtrer les documents en fonction du terme de recherche
-  const filteredDocuments = React.useMemo(() => {
-    if (!searchTerm.trim()) return documents;
-    
-    const term = searchTerm.toLowerCase();
-    return documents.filter(doc => 
-      doc.name.toLowerCase().includes(term) ||
-      groups.find(g => g.id === doc.groupId)?.name.toLowerCase().includes(term)
-    );
-  }, [documents, groups, searchTerm]);
-  
-  // Fonction pour ouvrir/fermer un groupe
-  const toggleGroup = (groupId: string) => {
-    setOpenGroups(prev => ({
-      ...prev,
-      [groupId]: !prev[groupId]
-    }));
+  useEffect(() => {
+    // Charger les données initiales
+    const loadedDocs = bibliothequeService.loadDocuments();
+    if (loadedDocs && loadedDocs.length > 0) {
+      // Assurer que tous les documents ont un userId
+      const docsWithUser = loadedDocs.map(doc => ({
+        ...doc,
+        userId: doc.userId || currentUser
+      }));
+      setDocuments(docsWithUser);
+    } else {
+      const initialDocs = bibliothequeService.getInitialDocuments();
+      setDocuments(initialDocs);
+    }
+
+    const loadedGroups = bibliothequeService.loadGroups();
+    if (loadedGroups && loadedGroups.length > 0) {
+      // Assurer que tous les groupes ont un userId
+      const groupsWithUser = loadedGroups.map(group => ({
+        ...group,
+        userId: group.userId || currentUser
+      }));
+      setGroups(groupsWithUser);
+    } else {
+      const initialGroups = bibliothequeService.getInitialGroups();
+      setGroups(initialGroups);
+    }
+  }, [currentUser]);
+
+  useEffect(() => {
+    // Filtrer les documents selon le terme de recherche
+    if (!searchTerm) {
+      setFilteredDocuments(documents);
+    } else {
+      const filtered = documents.filter(doc =>
+        doc.name.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+      setFilteredDocuments(filtered);
+    }
+  }, [documents, searchTerm]);
+
+  // Sauvegarder les documents quand ils changent
+  useEffect(() => {
+    bibliothequeService.saveDocuments(documents);
+  }, [documents]);
+
+  // Sauvegarder les groupes quand ils changent
+  useEffect(() => {
+    bibliothequeService.saveGroups(groups);
+  }, [groups]);
+
+  const handleSearch = (term: string) => {
+    setSearchTerm(term);
   };
-  
-  // Fonction pour créer un nouveau document
-  const handleNewDocument = () => {
-    setCurrentDocument({
-      id: `doc-${Date.now()}`,
-      name: "",
+
+  const handleAddDocument = () => {
+    const newDocument: Document = {
+      id: uuidv4(),
+      name: "Nouveau document",
       link: "",
-      groupId: undefined
+      groupId: undefined,
+      userId: currentUser
+    };
+    setDocuments([...documents, newDocument]);
+    toast({
+      title: "Document ajouté",
+      description: "Le nouveau document a été ajouté à la bibliothèque",
     });
-    setIsEditing(false);
-    setIsDialogOpen(true);
   };
-  
-  // Fonction pour créer un nouveau groupe
-  const handleNewGroup = () => {
-    setCurrentGroup({
-      id: `group-${Date.now()}`,
-      name: "",
+
+  const handleAddGroup = () => {
+    const newGroup: DocumentGroup = {
+      id: uuidv4(),
+      name: "Nouveau groupe",
       expanded: false,
-      items: []
+      items: [],
+      userId: currentUser
+    };
+    setGroups([...groups, newGroup]);
+    toast({
+      title: "Groupe ajouté",
+      description: "Le nouveau groupe a été ajouté à la bibliothèque",
     });
-    setIsEditing(false);
-    setIsGroupDialogOpen(true);
   };
-  
-  // Fonction pour éditer un document existant
-  const handleEditDocument = (doc: Document) => {
-    setCurrentDocument({ ...doc });
-    setIsEditing(true);
-    setIsDialogOpen(true);
+
+  const handleEditDocument = (document: Document) => {
+    const updatedDocuments = documents.map(doc =>
+      doc.id === document.id ? document : doc
+    );
+    setDocuments(updatedDocuments);
+    toast({
+      title: "Document modifié",
+      description: "Le document a été modifié avec succès",
+    });
   };
-  
-  // Fonction pour éditer un groupe existant
+
   const handleEditGroup = (group: DocumentGroup) => {
-    setCurrentGroup({ ...group });
-    setIsEditing(true);
-    setIsGroupDialogOpen(true);
+    const updatedGroups = groups.map(g =>
+      g.id === group.id ? group : g
+    );
+    setGroups(updatedGroups);
+    toast({
+      title: "Groupe modifié",
+      description: "Le groupe a été modifié avec succès",
+    });
   };
-  
-  // Fonction pour gérer le drag and drop
-  const handleDragEnd = (result: any) => {
-    // À implémenter si nécessaire
+
+  const handleDeleteDocument = (id: string) => {
+    const updatedDocuments = documents.filter(doc => doc.id !== id);
+    setDocuments(updatedDocuments);
+    toast({
+      title: "Document supprimé",
+      description: "Le document a été supprimé de la bibliothèque",
+    });
   };
-  
+
+  const handleDeleteGroup = (id: string) => {
+    const updatedGroups = groups.filter(group => group.id !== id);
+    setGroups(updatedGroups);
+    toast({
+      title: "Groupe supprimé",
+      description: "Le groupe a été supprimé de la bibliothèque",
+    });
+  };
+
   return (
-    <div className="p-8 w-full">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold text-app-blue">Bibliothèque de documents</h1>
-        <div className="flex space-x-2">
-          <Button variant="outline" onClick={handleNewGroup}>
-            <FolderPlus className="mr-2 h-4 w-4" />
-            Nouveau groupe
-          </Button>
-          <Button onClick={handleNewDocument}>
-            <Plus className="mr-2 h-4 w-4" />
-            Nouveau document
-          </Button>
-        </div>
-      </div>
+    <div className="container mx-auto p-4">
+      <BibliothequeHeader 
+        onSearch={handleSearch} 
+        onAddDocument={handleAddDocument} 
+        onAddGroup={handleAddGroup}
+      />
       
-      <div className="mb-4">
-        <SyncIndicator
-          isSyncing={isSyncing}
-          isOnline={isOnline}
-          syncFailed={syncFailed}
-          lastSynced={lastSynced}
-          onSync={handleSyncDocuments}
+      <div className="mt-6 space-y-4">
+        {/* Afficher les groupes */}
+        {groups.map(group => (
+          <BibliothequeGroup
+            key={group.id}
+            group={group}
+            onEditGroup={handleEditGroup}
+            onDeleteGroup={handleDeleteGroup}
+            documents={documents.filter(doc => doc.groupId === group.id)}
+            onEditDocument={handleEditDocument}
+            onDeleteDocument={handleDeleteDocument}
+          />
+        ))}
+        
+        {/* Afficher les documents qui ne sont pas dans un groupe */}
+        <BibliothequeList 
+          documents={filteredDocuments.filter(doc => !doc.groupId)}
+          onEditDocument={handleEditDocument}
+          onDeleteDocument={handleDeleteDocument}
         />
       </div>
-      
-      <div className="mb-4">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-          <Input
-            className="pl-10"
-            placeholder="Rechercher un document..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-        </div>
-      </div>
-      
-      <DragDropContext onDragEnd={handleDragEnd}>
-        <div className="bg-white rounded-lg shadow">
-          <Droppable droppableId="documents">
-            {(provided) => (
-              <div {...provided.droppableProps} ref={provided.innerRef}>
-                {/* Documents sans groupe */}
-                <div className="p-4 border-b">
-                  <h2 className="font-medium mb-2">Documents non classés</h2>
-                  <div className="space-y-2">
-                    {filteredDocuments
-                      .filter(doc => !doc.groupId)
-                      .map((doc, index) => (
-                        <Draggable key={doc.id} draggableId={doc.id} index={index}>
-                          {(provided) => (
-                            <div
-                              ref={provided.innerRef}
-                              {...provided.draggableProps}
-                              {...provided.dragHandleProps}
-                              className="flex items-center p-2 hover:bg-gray-50 rounded-md cursor-pointer"
-                              onClick={() => handleEditDocument(doc)}
-                            >
-                              <FileText className="mr-2 h-4 w-4 text-gray-500" />
-                              <span>{doc.name}</span>
-                            </div>
-                          )}
-                        </Draggable>
-                      ))}
-                  </div>
-                </div>
-                
-                {/* Groupes et leurs documents */}
-                {groups.map(group => {
-                  const groupDocs = filteredDocuments.filter(doc => doc.groupId === group.id);
-                  const isOpen = openGroups[group.id] || false;
-                  
-                  return (
-                    <div key={group.id} className="p-4 border-b">
-                      <div 
-                        className="flex items-center justify-between mb-2 cursor-pointer"
-                        onClick={() => toggleGroup(group.id)}
-                      >
-                        <div className="flex items-center">
-                          {isOpen ? 
-                            <FolderOpen className="mr-2 h-4 w-4 text-app-blue" /> : 
-                            <Folder className="mr-2 h-4 w-4 text-app-blue" />
-                          }
-                          <h2 className="font-medium">{group.name}</h2>
-                          <span className="ml-2 text-xs text-gray-500">
-                            ({groupDocs.length})
-                          </span>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <Button 
-                            variant="ghost" 
-                            size="sm" 
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleEditGroup(group);
-                            }}
-                          >
-                            Éditer
-                          </Button>
-                        </div>
-                      </div>
-                      
-                      {isOpen && (
-                        <div className="space-y-2 ml-6 mt-2">
-                          {groupDocs.map((doc, index) => (
-                            <Draggable key={doc.id} draggableId={doc.id} index={index}>
-                              {(provided) => (
-                                <div
-                                  ref={provided.innerRef}
-                                  {...provided.draggableProps}
-                                  {...provided.dragHandleProps}
-                                  className="flex items-center p-2 hover:bg-gray-50 rounded-md cursor-pointer"
-                                  onClick={() => handleEditDocument(doc)}
-                                >
-                                  <FileText className="mr-2 h-4 w-4 text-gray-500" />
-                                  <span>{doc.name}</span>
-                                </div>
-                              )}
-                            </Draggable>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-                {provided.placeholder}
-              </div>
-            )}
-          </Droppable>
-        </div>
-      </DragDropContext>
-      
-      {/* Dialog for document form */}
-      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>
-              {isEditing ? "Modifier le document" : "Ajouter un document"}
-            </DialogTitle>
-          </DialogHeader>
-          <DocumentForm 
-            document={currentDocument}
-            isEditing={isEditing}
-            groups={groups}
-            onSave={isEditing ? handleUpdateDocument : handleAddDocument}
-            onCancel={() => setIsDialogOpen(false)}
-            onDelete={isEditing ? handleDeleteDocument : undefined}
-          />
-        </DialogContent>
-      </Dialog>
-      
-      {/* Dialog for group form */}
-      <Dialog open={isGroupDialogOpen} onOpenChange={setIsGroupDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>
-              {isEditing ? "Modifier le groupe" : "Ajouter un groupe"}
-            </DialogTitle>
-          </DialogHeader>
-          <GroupForm 
-            group={currentGroup}
-            isEditing={isEditing}
-            onSave={isEditing ? handleUpdateGroup : handleAddGroup}
-            onCancel={() => setIsGroupDialogOpen(false)}
-            onDelete={isEditing ? handleDeleteGroup : undefined}
-          />
-        </DialogContent>
-      </Dialog>
     </div>
   );
 };

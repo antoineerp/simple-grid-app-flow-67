@@ -2,12 +2,14 @@
 import { useCallback } from 'react';
 import { DocumentGroup } from '@/types/documents';
 import { useToast } from '@/hooks/use-toast';
+import { getDatabaseConnectionCurrentUser } from '@/services/core/databaseConnectionService';
 
 export const useDocumentGroups = (
   groups: DocumentGroup[],
   setGroups: React.Dispatch<React.SetStateAction<DocumentGroup[]>>
 ) => {
   const { toast } = useToast();
+  const currentUserId = getDatabaseConnectionCurrentUser() || 'default';
 
   const handleGroupReorder = useCallback((startIndex: number, endIndex: number) => {
     setGroups(prev => {
@@ -27,20 +29,26 @@ export const useDocumentGroups = (
   }, [setGroups]);
 
   const handleSaveGroup = useCallback((group: DocumentGroup, isEditing: boolean) => {
+    // S'assurer que l'userId est préservé ou ajouté
+    const updatedGroup = {
+      ...group,
+      userId: group.userId || currentUserId
+    };
+    
     if (isEditing) {
-      setGroups(prev => prev.map(g => g.id === group.id ? group : g));
+      setGroups(prev => prev.map(g => g.id === updatedGroup.id ? updatedGroup : g));
       toast({
         title: "Groupe mis à jour",
-        description: `Le groupe ${group.name} a été mis à jour avec succès`,
+        description: `Le groupe ${updatedGroup.name} a été mis à jour avec succès`,
       });
     } else {
-      setGroups(prev => [...prev, group]);
+      setGroups(prev => [...prev, updatedGroup]);
       toast({
         title: "Nouveau groupe",
-        description: `Le groupe ${group.name} a été créé`,
+        description: `Le groupe ${updatedGroup.name} a été créé`,
       });
     }
-  }, [setGroups, toast]);
+  }, [setGroups, toast, currentUserId]);
 
   const handleDeleteGroup = useCallback((groupId: string) => {
     setGroups(prev => prev.filter(g => g.id !== groupId));

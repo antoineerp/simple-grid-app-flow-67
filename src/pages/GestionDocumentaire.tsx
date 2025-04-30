@@ -6,6 +6,8 @@ import { getDatabaseConnectionCurrentUser } from '@/services/core/databaseConnec
 import { Button } from '@/components/ui/button';
 import { Plus, FileText, RefreshCw, FolderPlus } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { DocumentGroupDialog } from '@/components/gestion-documentaire/DocumentGroupDialog';
+import { DocumentGroup } from '@/types/documents';
 
 const GestionDocumentaire = () => {
   const { 
@@ -30,6 +32,11 @@ const GestionDocumentaire = () => {
   const [currentUser, setCurrentUser] = useState<string>(getDatabaseConnectionCurrentUser() || 'default');
   const { toast } = useToast();
   
+  // État pour la gestion de la boîte de dialogue des groupes
+  const [isGroupDialogOpen, setIsGroupDialogOpen] = useState(false);
+  const [currentGroup, setCurrentGroup] = useState<DocumentGroup | null>(null);
+  const [isEditing, setIsEditing] = useState(false);
+  
   // Écouter les changements d'utilisateur
   useEffect(() => {
     const handleUserChange = (event: Event) => {
@@ -50,12 +57,41 @@ const GestionDocumentaire = () => {
   const handleRefresh = () => {
     forceReload();
   };
+  
+  // Gérer l'ouverture du dialogue d'ajout de groupe
+  const openAddGroupDialog = () => {
+    setCurrentGroup({
+      id: crypto.randomUUID(),
+      name: '',
+      expanded: false,
+      items: [],
+      userId: currentUser
+    });
+    setIsEditing(false);
+    setIsGroupDialogOpen(true);
+  };
+  
+  // Gérer l'édition d'un groupe
+  const openEditGroupDialog = (group: DocumentGroup) => {
+    setCurrentGroup(group);
+    setIsEditing(true);
+    setIsGroupDialogOpen(true);
+  };
+  
+  // Gérer la sauvegarde d'un groupe
+  const handleSaveGroup = (group: DocumentGroup, isEditing: boolean) => {
+    if (isEditing) {
+      handleEditGroup(group);
+    } else {
+      handleAddGroup(group);
+    }
+    setIsGroupDialogOpen(false);
+  };
 
   return (
     <div className="container mx-auto py-6 px-4">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold">Gestion Documentaire</h1>
-        {/* Bouton de synchronisation masqué mais fonctionnel */}
         <Button
           onClick={handleRefresh}
           variant="outline"
@@ -78,13 +114,13 @@ const GestionDocumentaire = () => {
         onReorder={handleReorder}
         onGroupReorder={handleGroupReorder}
         onToggleGroup={handleToggleGroup}
-        onEditGroup={handleEditGroup}
+        onEditGroup={openEditGroupDialog}
         onDeleteGroup={handleDeleteGroup}
       />
       
       <div className="mt-4 flex justify-end space-x-2">
         <Button
-          onClick={handleAddGroup}
+          onClick={openAddGroupDialog}
           variant="outline"
           className="flex items-center hover:bg-gray-100 transition-colors"
         >
@@ -99,6 +135,15 @@ const GestionDocumentaire = () => {
           Ajouter un document
         </Button>
       </div>
+      
+      {/* Dialog pour ajouter/éditer un groupe */}
+      <DocumentGroupDialog
+        group={currentGroup}
+        open={isGroupDialogOpen}
+        onOpenChange={setIsGroupDialogOpen}
+        onSave={handleSaveGroup}
+        isEditing={isEditing}
+      />
     </div>
   );
 };

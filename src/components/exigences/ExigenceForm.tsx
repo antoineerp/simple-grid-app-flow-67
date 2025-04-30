@@ -1,90 +1,102 @@
 
 import React, { useState, useEffect } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import { useToast } from "@/hooks/use-toast";
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Exigence } from '@/types/exigences';
+import { getDatabaseConnectionCurrentUser } from '@/services/core/databaseConnectionService';
 
 interface ExigenceFormProps {
-  exigence: Exigence | null;
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
+  exigence: Exigence;
   onSave: (exigence: Exigence) => void;
+  onCancel: () => void;
 }
 
-const ExigenceForm: React.FC<ExigenceFormProps> = ({ exigence, open, onOpenChange, onSave }) => {
-  const { toast } = useToast();
+export const ExigenceForm: React.FC<ExigenceFormProps> = ({ exigence, onSave, onCancel }) => {
+  const currentUserId = getDatabaseConnectionCurrentUser() || 'default';
   const [formData, setFormData] = useState<Exigence>({
-    id: exigence?.id || '',
-    nom: exigence?.nom || '',
-    responsabilites: exigence?.responsabilites || { r: [], a: [], c: [], i: [] },
-    exclusion: exigence?.exclusion || false,
-    atteinte: exigence?.atteinte || null,
-    date_creation: exigence?.date_creation || new Date(),
-    date_modification: exigence?.date_modification || new Date()
+    ...exigence,
+    // Assurez-vous que l'userId est défini
+    userId: exigence.userId || currentUserId
   });
 
   useEffect(() => {
-    if (exigence) {
-      setFormData({
-        id: exigence.id,
-        nom: exigence.nom,
-        responsabilites: exigence.responsabilites,
-        exclusion: exigence.exclusion,
-        atteinte: exigence.atteinte,
-        date_creation: exigence.date_creation,
-        date_modification: exigence.date_modification
-      });
-    }
-  }, [exigence]);
+    setFormData({
+      ...exigence,
+      userId: exigence.userId || currentUserId
+    });
+  }, [exigence, currentUserId]);
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleExclusionChange = (checked: boolean) => {
+    setFormData(prev => ({ ...prev, exclusion: checked }));
+  };
+
+  const handleAtteinteChange = (value: 'NC' | 'PC' | 'C' | null) => {
+    setFormData(prev => ({ ...prev, atteinte: value }));
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     onSave(formData);
-    toast({
-      title: "Exigence sauvegardée",
-      description: `Les modifications de l'exigence ${formData.id} ont été enregistrées`
-    });
-    onOpenChange(false);
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px]">
-        <DialogHeader>
-          <DialogTitle>Modifier l'exigence</DialogTitle>
-        </DialogHeader>
-        <form onSubmit={handleSubmit}>
-          <div className="grid gap-4 py-4">
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="nom" className="text-right">
-                Nom
-              </Label>
-              <Input
-                id="nom"
-                name="nom"
-                value={formData.nom}
-                onChange={handleInputChange}
-                className="col-span-3"
-              />
-            </div>
+    <form onSubmit={handleSubmit} className="space-y-6">
+      <div>
+        <Label htmlFor="nom">Nom de l'exigence</Label>
+        <Input id="nom" name="nom" value={formData.nom} onChange={handleChange} required />
+      </div>
+
+      <div>
+        <div className="flex items-center space-x-2">
+          <Checkbox 
+            id="exclusion" 
+            checked={formData.exclusion} 
+            onCheckedChange={handleExclusionChange} 
+          />
+          <Label htmlFor="exclusion">Exclure cette exigence</Label>
+        </div>
+      </div>
+
+      <div>
+        <Label>Niveau d'atteinte</Label>
+        <RadioGroup 
+          value={formData.atteinte || ''} 
+          onValueChange={v => handleAtteinteChange(v as 'NC' | 'PC' | 'C' | null)}
+          className="flex flex-col space-y-1"
+        >
+          <div className="flex items-center space-x-2">
+            <RadioGroupItem value="NC" id="NC" />
+            <Label htmlFor="NC">Non Conforme</Label>
           </div>
-          <DialogFooter>
-            <Button type="submit">Enregistrer</Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+          <div className="flex items-center space-x-2">
+            <RadioGroupItem value="PC" id="PC" />
+            <Label htmlFor="PC">Partiellement Conforme</Label>
+          </div>
+          <div className="flex items-center space-x-2">
+            <RadioGroupItem value="C" id="C" />
+            <Label htmlFor="C">Conforme</Label>
+          </div>
+        </RadioGroup>
+      </div>
+
+      <div className="flex justify-end space-x-2">
+        <Button type="button" variant="outline" onClick={onCancel}>
+          Annuler
+        </Button>
+        <Button type="submit">
+          Sauvegarder
+        </Button>
+      </div>
+    </form>
   );
 };
 
