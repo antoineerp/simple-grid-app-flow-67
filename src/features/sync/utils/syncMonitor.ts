@@ -11,7 +11,7 @@ import { SyncMonitorStatus } from '../types/syncTypes';
 export type SyncAttempt = {
   id: string;
   tableName: string;
-  operation?: string; // Change from required to optional to match SyncMonitorStatus
+  operation?: string; // Optional pour être compatible avec SyncMonitorStatus
   startTime: number;
   endTime?: number;
   success: boolean;
@@ -73,11 +73,11 @@ class SyncMonitor {
     }) as EventListener);
     
     window.addEventListener('syncCompleted', ((event: CustomEvent) => {
-      this.recordSyncEnd(event.detail.tableName, true);
+      this.recordSyncEnd(event.detail.operationId || event.detail.tableName, true);
     }) as EventListener);
     
     window.addEventListener('syncFailed', ((event: CustomEvent) => {
-      this.recordSyncEnd(event.detail.tableName, false, event.detail.error);
+      this.recordSyncEnd(event.detail.operationId || event.detail.tableName, false, event.detail.error);
     }) as EventListener);
   }
   
@@ -93,7 +93,7 @@ class SyncMonitor {
       tableName,
       operation,
       startTime: timestamp,
-      success: false // Initialize with a default value to make it non-optional
+      success: false // Initialize with a default value
     };
     
     // Stocker l'opération active
@@ -109,11 +109,27 @@ class SyncMonitor {
    * Enregistrer la fin d'une synchronisation
    */
   public recordSyncEnd(id: string, success: boolean, error?: string): void {
+    // Vérifier si c'est un ID d'opération (contenant _) ou juste un nom de table
+    const isOperationId = id.includes('_');
+    
     // Récupérer l'opération
-    const operation = this.state.activeOperations.get(id);
+    let operation;
+    
+    if (isOperationId) {
+      operation = this.state.activeOperations.get(id);
+    } else {
+      // Rechercher parmi toutes les opérations actives pour trouver celle qui correspond au nom de table
+      for (const [opId, op] of this.state.activeOperations.entries()) {
+        if (op.tableName === id) {
+          operation = op;
+          id = opId;
+          break;
+        }
+      }
+    }
     
     if (!operation) {
-      console.warn(`SyncMonitor: Opération inconnue ${id}`);
+      console.warn(`SyncMonitor: Opération inconnue ${id} (ignorée silencieusement)`);
       return;
     }
     

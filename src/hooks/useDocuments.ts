@@ -11,8 +11,12 @@ import { useGlobalData } from '@/contexts/GlobalDataContext';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { 
   loadDocumentsFromServer, 
-  syncDocumentsWithServer 
+  syncDocumentsWithServer,
+  getLocalDocuments
 } from '@/services/documents/documentSyncService';
+
+// Clé pour stocker l'état global dans sessionStorage (persistance entre les pages)
+const SESSION_STORAGE_KEY = 'documents_page_state';
 
 export const useDocuments = () => {
   const { toast } = useToast();
@@ -42,9 +46,26 @@ export const useDocuments = () => {
   // Utiliser le hook de synchronisation central
   const { syncAndProcess } = useSync('documents');
 
+  // Calculer les statistiques lorsque les documents changent
   useEffect(() => {
     setStats(calculateDocumentStats(documents));
-  }, [documents]);
+    
+    // Sauvegarder dans sessionStorage pour persistance entre les pages
+    try {
+      if (documents.length > 0) {
+        const pageState = {
+          documents,
+          groups,
+          lastSynced: lastSynced ? lastSynced.toISOString() : null,
+          timestamp: Date.now()
+        };
+        sessionStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(pageState));
+        console.log(`${documents.length} documents sauvegardés dans sessionStorage`);
+      }
+    } catch (e) {
+      console.error("Erreur lors de la sauvegarde dans sessionStorage:", e);
+    }
+  }, [documents, groups, lastSynced]);
 
   // Charger les documents au démarrage
   useEffect(() => {
@@ -52,6 +73,42 @@ export const useDocuments = () => {
       const loadInitialData = async () => {
         setIsSyncing(true);
         try {
+          // Vérifier d'abord si nous avons des données en sessionStorage
+          const sessionData = sessionStorage.getItem(SESSION_STORAGE_KEY);
+          
+          if (sessionData) {
+            try {
+              const parsedData = JSON.parse(sessionData);
+              console.log("Données trouvées dans sessionStorage:", parsedData.documents.length, "documents");
+              
+              // Vérifier si les données sont récentes (moins de 10 minutes)
+              const dataAge = Date.now() - parsedData.timestamp;
+              if (dataAge < 10 * 60 * 1000) {
+                setDocuments(parsedData.documents);
+                setGroups(parsedData.groups || []);
+                if (parsedData.lastSynced) {
+                  setLastSynced(new Date(parsedData.lastSynced));
+                }
+                console.log("Utilisation des données de sessionStorage (âge:", Math.round(dataAge/1000), "secondes)");
+                setIsSyncing(false);
+                setInitialLoadDone(true);
+                return; // Sortir tôt, on a déjà des données récentes
+              } else {
+                console.log("Données de session trop anciennes, rechargement complet");
+              }
+            } catch (e) {
+              console.error("Erreur lors de la lecture des données de session:", e);
+            }
+          }
+          
+          // Charger d'abord les documents locaux pour affichage immédiat
+          const localDocs = getLocalDocuments();
+          if (localDocs.length > 0) {
+            console.log(`${localDocs.length} documents chargés depuis le stockage local`);
+            setDocuments(localDocs);
+          }
+          
+          // Ensuite, essayer de charger depuis le serveur
           console.log("Chargement initial des documents");
           const loadedDocs = await loadDocumentsFromServer();
           if (loadedDocs && loadedDocs.length > 0) {
@@ -65,6 +122,13 @@ export const useDocuments = () => {
         } catch (error) {
           console.error("Erreur lors du chargement initial des documents:", error);
           setSyncFailed(true);
+          
+          // En cas d'erreur, essayer d'utiliser les documents locaux comme solution de secours
+          const localDocs = getLocalDocuments();
+          if (localDocs.length > 0) {
+            console.log(`Solution de secours: ${localDocs.length} documents chargés depuis le stockage local`);
+            setDocuments(localDocs);
+          }
         } finally {
           setIsSyncing(false);
           setInitialLoadDone(true);
@@ -73,7 +137,7 @@ export const useDocuments = () => {
       
       loadInitialData();
     }
-  }, [initialLoadDone]);
+  }, [initialLoadDone, setDocuments, setGroups, setIsSyncing, setLastSynced, setSyncFailed]);
 
   const syncWithServer = async (): Promise<boolean> => {
     try {
@@ -137,7 +201,7 @@ export const useDocuments = () => {
 
   const handleAddDocument = useCallback(() => {
     const maxId = documents.length > 0 
-      ? Math.max(...documents.map(d => parseInt(d.id)))
+      ? Math.max(...documents.map(d => parseInt(d.id.toString())))
       : 0;
     
     const newId = (maxId + 1).toString();
@@ -153,6 +217,24 @@ export const useDocuments = () => {
     
     setDocuments(prev => [...prev, newDocument]);
     
+    // Sauvegarde locale immédiate
+    const currentUser = getCurrentUser() || 'p71x6d_system';
+    const allDocs = [...documents, newDocument];
+    localStorage.setItem(`documents_${currentUser}`, JSON.stringify(allDocs));
+    
+    // Sauvegarde dans sessionStorage pour persistance entre les pages
+    try {
+      const pageState = {
+        documents: allDocs,
+        groups,
+        lastSynced: new Date().toISOString(),
+        timestamp: Date.now()
+      };
+      sessionStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(pageState));
+    } catch (e) {
+      console.error("Erreur lors de la sauvegarde dans sessionStorage:", e);
+    }
+    
     syncWithServer().catch(error => {
       console.error("Erreur lors de la synchronisation après ajout:", error);
     });
@@ -161,7 +243,7 @@ export const useDocuments = () => {
       title: "Nouveau document",
       description: `Le document ${newId} a été ajouté`,
     });
-  }, [documents, toast, setDocuments]);
+  }, [documents, groups, toast, setDocuments]);
 
   const handleReorder = useCallback((startIndex: number, endIndex: number, targetGroupId?: string) => {
     setDocuments(prev => {
@@ -180,6 +262,10 @@ export const useDocuments = () => {
       
       // Log pour le débogage
       console.log(`Document ${removed.id} déplacé: groupId=${removed.groupId || 'aucun'}`);
+      
+      // Sauvegarde locale immédiate
+      const currentUser = getCurrentUser() || 'p71x6d_system';
+      localStorage.setItem(`documents_${currentUser}`, JSON.stringify(result));
       
       // Synchroniser les changements
       syncWithServer().catch(error => {
@@ -203,6 +289,9 @@ export const useDocuments = () => {
   const forceReload = useCallback(async () => {
     setIsSyncing(true);
     try {
+      // Nettoyer sessionStorage pour forcer un rechargement complet
+      sessionStorage.removeItem(SESSION_STORAGE_KEY);
+      
       const loadedDocs = await loadDocumentsFromServer();
       if (loadedDocs && loadedDocs.length > 0) {
         setDocuments(loadedDocs);
@@ -234,7 +323,7 @@ export const useDocuments = () => {
     editingGroup,
     dialogOpen,
     groupDialogOpen,
-    isSyncing, // Exposer cette propriété pour le bouton d'actualisation
+    isSyncing,
     syncFailed,
     lastSynced,
     isOnline,
@@ -249,6 +338,6 @@ export const useDocuments = () => {
     handleEditGroup,
     ...groupOperations,
     syncWithServer,
-    forceReload // Exposer cette méthode pour remplacer refreshDocuments
+    forceReload
   };
 };
