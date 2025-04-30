@@ -9,6 +9,7 @@ interface SyncIndicatorProps {
   syncFailed: boolean;
   lastSynced: Date | null;
   onSync: () => void;
+  showOnlyErrors?: boolean; // Ajout de cette prop optionnelle
 }
 
 const SyncIndicator: React.FC<SyncIndicatorProps> = ({
@@ -16,7 +17,8 @@ const SyncIndicator: React.FC<SyncIndicatorProps> = ({
   isOnline,
   syncFailed,
   lastSynced,
-  onSync
+  onSync,
+  showOnlyErrors = false // Valeur par défaut
 }) => {
   const formatLastSynced = () => {
     if (!lastSynced) return "Jamais";
@@ -30,6 +32,11 @@ const SyncIndicator: React.FC<SyncIndicatorProps> = ({
       minute: '2-digit'
     }).format(lastSynced);
   };
+
+  // Si showOnlyErrors est true et qu'il n'y a pas d'erreur, ne rien afficher
+  if (showOnlyErrors && !syncFailed) {
+    return null;
+  }
 
   return (
     <div className="flex items-center justify-between p-2 bg-slate-50 border rounded-md">
