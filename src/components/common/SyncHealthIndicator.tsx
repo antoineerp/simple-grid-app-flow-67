@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { AlertCircle, CheckCircle, RefreshCw, Clock, Activity } from 'lucide-react';
+import { AlertCircle, CheckCircle, RefreshCw, Clock, Activity, Database } from 'lucide-react';
 import { syncMonitor, SyncAttempt } from '@/features/sync/utils/syncMonitor';
 import {
   Dialog,
@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { getDatabaseConnectionCurrentUser } from '@/services/core/databaseConnectionService';
 
 interface SyncHealthIndicatorProps {
   position?: 'top-right' | 'bottom-right';
@@ -32,9 +33,13 @@ const SyncHealthIndicator: React.FC<SyncHealthIndicatorProps> = ({
     stats: { success: 0, failure: 0 },
     lastSync: { time: null as number | null, success: false }
   });
+  const [currentUser, setCurrentUser] = useState<string | null>(null);
 
   // Mettre à jour l'état périodiquement
   useEffect(() => {
+    // Récupérer l'utilisateur actuel
+    setCurrentUser(getDatabaseConnectionCurrentUser());
+    
     const updateStatus = () => {
       const currentStatus = syncMonitor.getStatus();
       setHealth(currentStatus.health);
@@ -135,6 +140,15 @@ const SyncHealthIndicator: React.FC<SyncHealthIndicatorProps> = ({
             </DialogHeader>
 
             <div className="space-y-4">
+              <div className="bg-blue-50 p-2 rounded-lg">
+                <div className="flex items-center">
+                  <Database className="h-4 w-4 mr-2 text-blue-600" />
+                  <span className="text-sm font-medium">
+                    Utilisateur connecté: {currentUser || 'Non identifié'}
+                  </span>
+                </div>
+              </div>
+              
               <div className="flex justify-between items-center">
                 <span className="text-sm">Dernière synchronisation:</span>
                 <div className="flex items-center">
