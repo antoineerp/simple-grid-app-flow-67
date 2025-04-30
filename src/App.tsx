@@ -14,7 +14,6 @@ import Administration from '@/pages/Administration';
 import Collaboration from '@/pages/Collaboration';
 import { getIsLoggedIn, getCurrentUser } from '@/services/auth/authService';
 import { MembresProvider } from '@/contexts/MembresContext';
-import { toast } from '@/components/ui/use-toast';
 import { initializeSyncStorageCleaner } from './utils/syncStorageCleaner';
 
 // Composant de route protégée qui vérifie l'authentification
@@ -26,22 +25,6 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   console.log('ProtectedRoute - Vérification de connexion:', isLoggedIn);
   console.log('ProtectedRoute - Chemin demandé:', location.pathname);
   console.log('ProtectedRoute - Détails utilisateur:', currentUser?.email || 'inconnu');
-  
-  useEffect(() => {
-    // Afficher une notification pour le débogage
-    if (isLoggedIn) {
-      toast({
-        title: "Accès autorisé",
-        description: `Accès à ${location.pathname} autorisé pour ${currentUser?.email || "l'utilisateur"}`,
-      });
-    } else {
-      toast({
-        variant: "destructive",
-        title: "Accès refusé",
-        description: `Redirection vers la page de connexion depuis ${location.pathname}`,
-      });
-    }
-  }, [isLoggedIn, location.pathname, currentUser?.email]);
   
   if (!isLoggedIn) {
     console.log('ProtectedRoute - Accès non autorisé, redirection vers la page de connexion');

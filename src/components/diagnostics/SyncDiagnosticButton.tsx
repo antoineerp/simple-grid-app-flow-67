@@ -2,7 +2,6 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { FileSearch } from 'lucide-react';
-import { toast } from '@/components/ui/use-toast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { SyncDiagnosticPanel } from './SyncDiagnosticPanel';
 import { TooltipProvider, Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
@@ -34,11 +33,6 @@ export const SyncDiagnosticButton: React.FC = () => {
     console.log("Clic sur le bouton de diagnostic, ouverture du panneau");
     setIsOpen(true);
     
-    toast({
-      title: "Diagnostic de synchronisation",
-      description: "Ouverture du diagnostic de synchronisation avec Infomaniak..."
-    });
-    
     // Tenter de synchroniser les données avant d'ouvrir le diagnostic
     syncAll().catch(error => {
       console.error("Erreur lors de la synchronisation avant diagnostic:", error);
@@ -47,6 +41,10 @@ export const SyncDiagnosticButton: React.FC = () => {
     console.log("Après setIsOpen(true):", { isOpen });
   };
 
+  // Retourner null pour ne pas afficher le bouton - masqué comme demandé
+  return null;
+
+  /* Code du composant d'origine - masqué pour éliminer l'affichage des fenêtres contextuelles
   return (
     <TooltipProvider>
       <Tooltip>
@@ -89,4 +87,5 @@ export const SyncDiagnosticButton: React.FC = () => {
       </Dialog>
     </TooltipProvider>
   );
+  */
 };

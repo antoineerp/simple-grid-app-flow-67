@@ -8,7 +8,6 @@ import { GlobalDataProvider } from '@/contexts/GlobalDataContext';
 import { GlobalSyncProvider } from '@/contexts/GlobalSyncContext';
 import GlobalSyncManager from '@/components/common/GlobalSyncManager';
 import { getIsLoggedIn, getCurrentUser } from '@/services/auth/authService';
-import { toast } from '@/components/ui/use-toast';
 import { TooltipProvider } from '@/components/ui/tooltip';
 
 const Layout = () => {
@@ -16,14 +15,8 @@ const Layout = () => {
   const location = useLocation();
   
   useEffect(() => {
-    // Journalisation détaillée pour le débogage
+    // Journalisation détaillée pour le débogage (mais sans notification visuelle)
     console.log("Layout - Rendu initial, chemin actuel:", location.pathname);
-    
-    // Notification pour aider à déboguer
-    toast({
-      title: "Chargement layout",
-      description: `Chemin actuel: ${location.pathname}`,
-    });
     
     // Vérifier si l'utilisateur est connecté
     const isLoggedIn = getIsLoggedIn();
