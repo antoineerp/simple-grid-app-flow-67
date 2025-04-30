@@ -78,12 +78,15 @@ const DocumentForm: React.FC<DocumentFormProps> = ({
         
         <div className="space-y-2">
           <Label htmlFor="group">Groupe (optionnel)</Label>
-          <Select value={groupId} onValueChange={setGroupId}>
-            <SelectTrigger id="group">
-              <SelectValue placeholder="Sélectionner un groupe" />
+          <Select
+            value={groupId}
+            onValueChange={(value) => setGroupId(value !== "none" ? value : undefined)}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Sélectionnez un groupe" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">Aucun groupe</SelectItem>
+              <SelectItem value="none">Aucun groupe</SelectItem>
               {groups.map((group) => (
                 <SelectItem key={group.id} value={group.id}>
                   {group.name}

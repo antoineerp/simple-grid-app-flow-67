@@ -98,12 +98,17 @@ export const BibliothequeGroup: React.FC<BibliothequeGroupProps> = ({
       </TableRow>
       
       {group.expanded && group.items && group.items.map((docId) => {
-        // Find the document by id
-        const doc = { id: docId } as Document;
+        // Construire un objet Document à partir de l'identifiant
+        const docItem: Document = {
+          id: docId,
+          name: `Document ${docId}`, // Nom par défaut
+          groupId: group.id
+        };
+        
         return (
           <BibliothequeDocumentRow
             key={docId}
-            document={doc}
+            document={docItem}
             onEdit={onEdit}
             onDelete={onDelete}
             onDragStart={onDragStart}
