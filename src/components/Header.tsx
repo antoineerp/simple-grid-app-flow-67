@@ -18,6 +18,7 @@ import {
   getCurrentUser as getDatabaseUser,
 } from '@/services/core/databaseConnectionService';
 import { logout, getCurrentUser } from '@/services/auth/authService';
+import { hasPermission } from '@/types/roles';
 
 const Header = () => {
   const navigate = useNavigate();
@@ -60,7 +61,7 @@ const Header = () => {
     setLogo(newLogo);
   };
 
-  const isAdmin = userRole === 'administrateur' || userRole === 'admin';
+  const canAccessAdminPanel = hasPermission(userRole, 'accessAdminPanel');
 
   return (
     <header className="w-full border-b bg-white">
@@ -84,7 +85,7 @@ const Header = () => {
               <div className="flex items-center space-x-2 cursor-pointer rounded-md px-2 py-1 hover:bg-gray-100">
                 <Avatar className="h-8 w-8">
                   <AvatarFallback className="bg-app-blue text-white">
-                    {isAdmin ? 'AD' : userRole === 'gestionnaire' ? 'GE' : 'UT'}
+                    {userRole === 'administrateur' ? 'AD' : userRole === 'gestionnaire' ? 'GE' : 'UT'}
                   </AvatarFallback>
                 </Avatar>
                 <div>
@@ -98,15 +99,15 @@ const Header = () => {
               <DropdownMenuLabel>Mon compte</DropdownMenuLabel>
               <DropdownMenuSeparator />
 
-              {isAdmin && (
+              {canAccessAdminPanel && (
                 <DropdownMenuGroup>
                   <DropdownMenuItem onClick={() => navigate('/administration')}>
-                    <Users className="mr-2 h-4 w-4" />
+                    <Settings className="mr-2 h-4 w-4" />
                     <span>Administration</span>
                   </DropdownMenuItem>
                 </DropdownMenuGroup>
               )}
-              {isAdmin && <DropdownMenuSeparator />}
+              {canAccessAdminPanel && <DropdownMenuSeparator />}
               
               <DropdownMenuItem onClick={handleLogout}>
                 <LogOut className="mr-2 h-4 w-4" />
