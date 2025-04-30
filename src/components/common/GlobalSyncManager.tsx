@@ -8,6 +8,7 @@ const GlobalSyncManager: React.FC = () => {
   const { syncAll, isOnline, syncStates } = useGlobalSync();
   const [showError, setShowError] = useState(false);
   const [syncingInProgress, setSyncingInProgress] = useState(false);
+  const [syncTimer, setSyncTimer] = useState<NodeJS.Timeout | null>(null);
   
   // Utiliser un effet pour démarrer la synchronisation en arrière-plan
   useEffect(() => {
@@ -56,23 +57,43 @@ const GlobalSyncManager: React.FC = () => {
       
       // Planifier des synchronisations périodiques (toutes les 5 minutes)
       const intervalId = setInterval(() => {
-        if (isOnline) {
+        if (isOnline && !syncingInProgress) {
           console.log("GlobalSyncManager - Exécution de la synchronisation périodique");
+          // Ne pas mettre à jour syncingInProgress ici pour éviter d'afficher l'indicateur
           syncAll().catch(error => {
             console.error("GlobalSyncManager - Erreur lors de la synchronisation périodique:", error);
           });
         }
       }, 300000); // 5 minutes
       
+      setSyncTimer(intervalId);
+      
       return () => {
         clearTimeout(timeoutId);
-        clearInterval(intervalId);
+        if (syncTimer) clearInterval(syncTimer);
       };
     } catch (error) {
       console.error("GlobalSyncManager - Erreur lors de l'initialisation de la synchronisation:", error);
       setShowError(true);
     }
   }, [syncAll, isOnline]);
+  
+  // S'assurer que l'indicateur de synchronisation disparaît après 30 secondes maximum
+  // Cela évite qu'il reste bloqué indéfiniment
+  useEffect(() => {
+    let timeoutId: NodeJS.Timeout | null = null;
+    
+    if (syncingInProgress) {
+      timeoutId = setTimeout(() => {
+        console.log("GlobalSyncManager - Timeout de synchronisation atteint, réinitialisation de l'état");
+        setSyncingInProgress(false);
+      }, 30000); // 30 secondes maximum
+    }
+    
+    return () => {
+      if (timeoutId) clearTimeout(timeoutId);
+    };
+  }, [syncingInProgress]);
   
   // Vérifier si une synchronisation a échoué
   const hasSyncFailed = Object.values(syncStates).some(state => state.syncFailed);
@@ -92,9 +113,15 @@ const GlobalSyncManager: React.FC = () => {
           syncFailed={false}
           lastSynced={null}
           onSync={async () => {
-            // Transformer en fonction async
-            await syncAll();
-            return Promise.resolve();
+            try {
+              await syncAll();
+              setSyncingInProgress(false);
+              return Promise.resolve();
+            } catch (error) {
+              console.error("Erreur lors de la synchronisation manuelle:", error);
+              setSyncingInProgress(false);
+              return Promise.reject(error);
+            }
           }}
         />
       </div>
@@ -111,12 +138,15 @@ const GlobalSyncManager: React.FC = () => {
           syncFailed={true}
           lastSynced={null}
           onSync={async () => {
-            // Transformer en fonction async qui retourne une promesse
             setSyncingInProgress(true);
             try {
               await syncAll();
-            } finally {
               setSyncingInProgress(false);
+              return Promise.resolve();
+            } catch (error) {
+              console.error("Erreur lors de la synchronisation manuelle:", error);
+              setSyncingInProgress(false);
+              return Promise.reject(error);
             }
           }}
         />

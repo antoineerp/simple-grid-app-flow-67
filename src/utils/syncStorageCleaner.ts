@@ -10,7 +10,8 @@ export const cleanSyncStorage = () => {
     key.includes('_last_sync') || 
     key.includes('sync_states_') ||
     key.includes('sync_pending_') ||
-    key.includes('sync_failed_')
+    key.includes('sync_failed_') ||
+    key.includes('sync_in_progress_')
   );
   
   let cleanedCount = 0;
@@ -49,6 +50,14 @@ export const cleanSyncStorage = () => {
       localStorage.removeItem(key);
       cleanedCount++;
     }
+  });
+  
+  // Nettoyer les états de synchronisation "bloqués"
+  const inProgressKeys = Object.keys(localStorage).filter(key => key.includes('sync_in_progress_'));
+  inProgressKeys.forEach(key => {
+    console.warn(`Suppression de l'état de synchronisation bloqué: ${key}`);
+    localStorage.removeItem(key);
+    cleanedCount++;
   });
   
   console.log(`Nettoyage terminé: ${cleanedCount} entrées malformées supprimées.`);

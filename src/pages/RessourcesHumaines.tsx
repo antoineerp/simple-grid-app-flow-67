@@ -1,6 +1,6 @@
 
 import React, { useEffect } from 'react';
-import { FileText, UserPlus } from 'lucide-react';
+import { FileText, UserPlus, RefreshCw } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import {
   Dialog,
@@ -28,7 +28,8 @@ const RessourcesHumaines = () => {
     isLoading, 
     error,
     syncFailed,
-    resetSyncFailed
+    resetSyncFailed,
+    refreshMembres
   } = useMembres();
   
   // Utiliser le hook useSyncContext pour une synchronisation standardisée
@@ -50,6 +51,7 @@ const RessourcesHumaines = () => {
     mot_de_passe: '' 
   });
   const [isEditing, setIsEditing] = React.useState(false);
+  const [refreshing, setRefreshing] = React.useState(false);
 
   const handleEdit = (id: string) => {
     const membre = membres.find(m => m.id === id);
@@ -163,6 +165,27 @@ const RessourcesHumaines = () => {
       return Promise.reject(error);
     }
   };
+  
+  // Fonction pour rafraîchir manuellement la liste des membres
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    try {
+      await refreshMembres();
+      toast({
+        title: "Rafraîchissement",
+        description: "La liste des membres a été mise à jour",
+      });
+    } catch (error) {
+      console.error("Erreur lors du rafraîchissement:", error);
+      toast({
+        title: "Erreur",
+        description: "Impossible de rafraîchir la liste des membres",
+        variant: "destructive",
+      });
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   return (
     <div className="p-8 w-full">
@@ -171,6 +194,14 @@ const RessourcesHumaines = () => {
           <h1 className="text-3xl font-bold text-app-blue">Ressources Humaines</h1>
         </div>
         <div className="flex space-x-2">
+          <button 
+            onClick={handleRefresh}
+            className="text-blue-600 p-2 rounded-md hover:bg-blue-50 transition-colors flex items-center"
+            title="Rafraîchir la liste"
+            disabled={refreshing}
+          >
+            <RefreshCw className={`h-6 w-6 stroke-[1.5] ${refreshing ? 'animate-spin' : ''}`} />
+          </button>
           <button 
             onClick={handleExportAllToPdf}
             className="text-red-600 p-2 rounded-md hover:bg-red-50 transition-colors"
@@ -183,7 +214,7 @@ const RessourcesHumaines = () => {
 
       <div className="mb-4">
         <SyncIndicator
-          isSyncing={isSyncing}
+          isSyncing={isSyncing || refreshing}
           isOnline={isOnline}
           syncFailed={syncFailed}
           lastSynced={lastSynced}
@@ -191,7 +222,7 @@ const RessourcesHumaines = () => {
         />
       </div>
 
-      {isLoading ? (
+      {isLoading || refreshing ? (
         <div className="bg-white rounded-md shadow p-8 text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-app-blue mx-auto"></div>
           <p className="mt-4 text-gray-600">Chargement des données...</p>
