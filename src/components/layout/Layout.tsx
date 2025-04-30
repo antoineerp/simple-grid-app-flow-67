@@ -1,17 +1,16 @@
-
 import React, { useEffect, useState } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { Toaster } from "@/components/ui/toaster";
 import Sidebar from '../Sidebar';
 import { Header } from './Header';
 import { GlobalDataProvider } from '@/contexts/GlobalDataContext';
-import { GlobalSyncProvider } from '@/contexts/GlobalSyncContext';
+import { SyncProvider } from '@/contexts/GlobalSyncContext';
 import GlobalSyncManager from '@/components/common/GlobalSyncManager';
 import { getIsLoggedIn, getCurrentUser } from '@/services/auth/authService';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { Loader2 } from 'lucide-react';
 
-const Layout = () => {
+const Layout = ({ children }: { children: React.ReactNode }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const [isLoading, setIsLoading] = useState(true);
@@ -90,7 +89,7 @@ const Layout = () => {
 
   return (
     <GlobalDataProvider>
-      <GlobalSyncProvider>
+      <SyncProvider>
         <TooltipProvider>
           <div className="flex flex-col h-screen bg-background">
             <Header />
@@ -107,7 +106,7 @@ const Layout = () => {
             <div data-testid="global-sync-initialized" className="hidden" />
           </div>
         </TooltipProvider>
-      </GlobalSyncProvider>
+      </SyncProvider>
     </GlobalDataProvider>
   );
 };

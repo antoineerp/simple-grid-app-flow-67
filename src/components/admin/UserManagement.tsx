@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -29,7 +28,7 @@ const UserManagement = ({ currentDatabaseUser, onUserConnect }: UserManagementPr
   const [connectionError, setConnectionError] = useState<string | null>(null);
   const [showPasswords, setShowPasswords] = useState<{[key: string]: boolean}>({});
   const [importingData, setImportingData] = useState(false);
-  const [deletingUserId, setDeletingUserId] = useState<number | null>(null);
+  const [deletingUserId, setDeletingUserId] = useState<string | null>(null);
   const [connectingUser, setConnectingUser] = useState<string | null>(null);
 
   useEffect(() => {
@@ -69,7 +68,7 @@ const UserManagement = ({ currentDatabaseUser, onUserConnect }: UserManagementPr
     return `${prenom.charAt(0)}${nom.charAt(0)}`.toUpperCase();
   };
 
-  const togglePasswordVisibility = (userId: number) => {
+  const togglePasswordVisibility = (userId: string) => {
     setShowPasswords(prev => ({
       ...prev,
       [userId]: !prev[userId]
@@ -137,7 +136,7 @@ const UserManagement = ({ currentDatabaseUser, onUserConnect }: UserManagementPr
     }
   };
   
-  const handleDeleteUser = async (userId: number) => {
+  const handleDeleteUser = async (userId: string) => {
     if (!window.confirm("Êtes-vous sûr de vouloir supprimer cet utilisateur ?")) {
       return;
     }
@@ -292,7 +291,7 @@ const UserManagement = ({ currentDatabaseUser, onUserConnect }: UserManagementPr
                   <TableRow key={user.id} className={currentDatabaseUser === user.identifiant_technique ? "bg-blue-50" : ""}>
                     <TableCell className="flex items-center space-x-3">
                       <Avatar>
-                        <AvatarFallback>{getInitials(user.nom, user.prenom)}</AvatarFallback>
+                        <AvatarFallback>{getInitials(user.nom || '', user.prenom || '')}</AvatarFallback>
                       </Avatar>
                       <div>
                         <div className="font-medium">{user.prenom} {user.nom}</div>

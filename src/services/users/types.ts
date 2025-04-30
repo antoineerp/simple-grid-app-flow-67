@@ -9,6 +9,7 @@ export interface Utilisateur {
   actif?: boolean;
   derniere_connexion?: string;
   date_creation?: string;
+  mot_de_passe?: string; // Added this field
 }
 
 export interface CreateUserParams {
