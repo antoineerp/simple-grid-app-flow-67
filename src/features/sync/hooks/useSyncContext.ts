@@ -7,7 +7,7 @@ import { SyncHookOptions, SyncOperationResult } from '../types/syncTypes';
 import { checkSyncInProgress, acquireLock, releaseLock } from '../utils/syncLockManager';
 import { hasAuthenticationError } from '../utils/errorLogger';
 import { getStorageKey, saveLocalData } from '../utils/syncStorageManager';
-import { executeSyncOperation, isSynchronizing } from '../utils/syncOperations';
+import { executeSyncOperation, isSynchronizing, cancelPendingSynchronizations } from '../utils/syncOperations';
 
 /**
  * Hook réutilisable pour la synchronisation dans n'importe quelle page
@@ -72,6 +72,15 @@ export function useSyncContext<T>(tableName: string, data: T[], options: SyncHoo
         lockTimeoutRef.current = null;
       }
       
+      // Annuler les synchronisations en cours pour éviter les fuites
+      if (syncInProgressRef.current) {
+        try {
+          cancelPendingSynchronizations(tableName);
+        } catch (e) {
+          console.error(`useSyncContext: Erreur lors de l'annulation des synchronisations pour ${tableName}:`, e);
+        }
+      }
+      
       // Libérer les verrous au démontage
       try {
         releaseLock(tableName);
@@ -90,6 +99,20 @@ export function useSyncContext<T>(tableName: string, data: T[], options: SyncHoo
       }
     };
   }, []);
+  
+  // Nouvelle fonction pour récupérer les erreurs et réinitialiser l'état
+  const resetSyncState = useCallback(() => {
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
+    
+    syncInProgressRef.current = false;
+    setIsSyncing(false);
+    
+    // Libérer les verrous potentiellement bloqués
+    releaseLock(tableName);
+  }, [tableName]);
   
   // Fonction pour synchroniser les données - utilise maintenant la file d'attente
   const syncWithServer = useCallback(async (): Promise<boolean> => {
@@ -122,6 +145,9 @@ export function useSyncContext<T>(tableName: string, data: T[], options: SyncHoo
     
     try {
       lastSyncAttemptRef.current = Date.now();
+      
+      // Sauvegarder localement avant tout pour éviter la perte de données
+      saveLocalData(tableName, data, syncKey);
       
       // Exécuter l'opération de synchronisation via la file d'attente
       const result = await executeSyncOperation(
@@ -201,9 +227,14 @@ export function useSyncContext<T>(tableName: string, data: T[], options: SyncHoo
               console.log(`useSyncContext: Tentative de re-synchronisation pour ${tableName}`);
               syncWithServer().catch(error => {
                 console.error(`useSyncContext: Erreur lors de la re-synchronisation pour ${tableName}:`, error);
+                resetSyncState();
               });
             }
           }, retryDelay);
+        } else {
+          // Réinitialiser l'état de synchronisation
+          syncInProgressRef.current = false;
+          setIsSyncing(false);
         }
         
         return false;
@@ -211,6 +242,9 @@ export function useSyncContext<T>(tableName: string, data: T[], options: SyncHoo
     } catch (error) {
       console.error(`useSyncContext: Erreur lors de la synchronisation de ${tableName}:`, error);
       pendingSyncRef.current = true;
+      
+      // Réinitialiser l'état de synchronisation
+      resetSyncState();
       
       // Vérifier si c'est une erreur d'authentification
       const errorMessage = error instanceof Error ? error.message : String(error);
@@ -241,7 +275,7 @@ export function useSyncContext<T>(tableName: string, data: T[], options: SyncHoo
       syncInProgressRef.current = false;
       setIsSyncing(false);
     }
-  }, [tableName, data, isOnline, syncTable, syncKey, showToasts, toast, maxRetries]);
+  }, [tableName, data, isOnline, syncTable, syncKey, showToasts, toast, maxRetries, resetSyncState]);
   
   // Fonction pour notifier des changements de données avec délai
   const notifyChanges = useCallback(() => {
@@ -272,13 +306,14 @@ export function useSyncContext<T>(tableName: string, data: T[], options: SyncHoo
         if (mountedRef.current && !unmountingRef.current) {
           syncWithServer().catch(error => {
             console.error(`useSyncContext: Erreur lors de la synchronisation automatique pour ${tableName}:`, error);
+            resetSyncState();
           });
         }
       }, debounceTime);
     } else {
       console.log(`useSyncContext: Synchronisation automatique désactivée pour ${tableName} ou hors ligne`);
     }
-  }, [data, isOnline, autoSync, debounceTime, syncWithServer, syncKey, tableName]);
+  }, [data, isOnline, autoSync, debounceTime, syncWithServer, syncKey, tableName, resetSyncState]);
 
   // Mettre à jour les données actuelles si elles ont changé
   useEffect(() => {
@@ -318,6 +353,7 @@ export function useSyncContext<T>(tableName: string, data: T[], options: SyncHoo
     lastSynced: syncState.lastSynced,
     syncFailed: syncState.syncFailed,
     acquireLock,
-    releaseLock
+    releaseLock,
+    resetSyncState
   };
 }

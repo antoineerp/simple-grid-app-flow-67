@@ -18,6 +18,7 @@ class SyncQueueManager {
   private processing: boolean = false;
   private currentTask: SyncTask | null = null;
   private taskTimeout: number = 30000; // 30 secondes maximum par tâche
+  private abortControllers: Map<string, AbortController> = new Map();
 
   /**
    * Ajouter une tâche à la file d'attente
@@ -44,7 +45,9 @@ class SyncQueueManager {
       
       // Démarrer le traitement si ce n'est pas déjà en cours
       if (!this.processing) {
-        this.processQueue();
+        this.processQueue().catch(error => {
+          console.error(`SyncQueue: Erreur lors du traitement de la file d'attente:`, error);
+        });
       }
     });
   }
@@ -69,32 +72,48 @@ class SyncQueueManager {
         console.log(`SyncQueue: Exécution de la tâche ${id} pour ${tableName}`);
 
         // Vérifier si la tâche est trop ancienne (plus de 5 minutes)
-        if (Date.now() - createdAt > 300000) {
+        if (Date.now() - createdAt > 300000) { // 300000 ms = 5 minutes
           console.warn(`SyncQueue: La tâche ${id} est trop ancienne, annulation`);
           reject(new Error("La tâche a expiré"));
+          this.currentTask = null;
           continue;
         }
 
-        // Créer un timeout pour éviter les tâches bloquantes
-        const timeoutPromise = new Promise((_, timeoutReject) => {
-          setTimeout(() => {
-            timeoutReject(new Error(`SyncQueue: Timeout lors de l'exécution de la tâche ${id}`));
-          }, this.taskTimeout);
-        });
+        // Créer un AbortController pour cette tâche
+        const abortController = new AbortController();
+        this.abortControllers.set(id, abortController);
 
         try {
-          // Exécuter la tâche avec un timeout
-          const result = await Promise.race([
-            execute(),
-            timeoutPromise
-          ]);
-          
-          console.log(`SyncQueue: Tâche ${id} terminée avec succès`);
-          resolve(result);
-        } catch (error) {
-          console.error(`SyncQueue: Erreur lors de l'exécution de la tâche ${id}:`, error);
-          reject(error);
+          // Configurer un timeout pour cette tâche
+          const timeoutId = setTimeout(() => {
+            abortController.abort();
+            console.warn(`SyncQueue: Timeout de la tâche ${id} après ${this.taskTimeout}ms`);
+          }, this.taskTimeout);
+
+          try {
+            // Exécuter la tâche
+            const result = await execute();
+            
+            // Nettoyage du timeout
+            clearTimeout(timeoutId);
+            
+            console.log(`SyncQueue: Tâche ${id} terminée avec succès`);
+            resolve(result);
+          } catch (error) {
+            // Nettoyage du timeout
+            clearTimeout(timeoutId);
+            
+            if (error instanceof DOMException && error.name === 'AbortError') {
+              console.error(`SyncQueue: Tâche ${id} interrompue par timeout`);
+              reject(new Error(`Timeout lors de l'exécution de la tâche ${id}`));
+            } else {
+              console.error(`SyncQueue: Erreur lors de l'exécution de la tâche ${id}:`, error);
+              reject(error);
+            }
+          }
         } finally {
+          // Nettoyer les ressources
+          this.abortControllers.delete(id);
           this.currentTask = null;
         }
       }
@@ -132,6 +151,16 @@ class SyncQueueManager {
       return true;
     });
     
+    // Annuler la tâche en cours si elle correspond à la table
+    if (this.currentTask && this.currentTask.tableName === tableName) {
+      const controller = this.abortControllers.get(this.currentTask.id);
+      if (controller) {
+        controller.abort();
+        this.abortControllers.delete(this.currentTask.id);
+      }
+      // La tâche sera automatiquement rejetée via le signal d'annulation
+    }
+    
     const canceledCount = initialLength - this.queue.length;
     if (canceledCount > 0) {
       console.log(`SyncQueue: ${canceledCount} tâches annulées pour ${tableName}`);
@@ -143,4 +172,3 @@ class SyncQueueManager {
 
 // Instance singleton du gestionnaire de file d'attente
 export const syncQueue = new SyncQueueManager();
-
