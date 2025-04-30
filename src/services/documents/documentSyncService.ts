@@ -4,6 +4,13 @@ import { getApiUrl } from '@/config/apiConfig';
 import { getAuthHeaders } from '@/services/auth/authService';
 import { getCurrentUser } from '@/services/core/databaseConnectionService';
 import { toast } from '@/components/ui/use-toast';
+import { 
+  saveLocalData, 
+  loadLocalData, 
+  markPendingSync, 
+  clearPendingSync, 
+  hasLocalData 
+} from '@/features/sync/utils/syncStorageManager';
 
 /**
  * Chargement des documents depuis le serveur pour un utilisateur spécifique
@@ -15,7 +22,7 @@ export const loadDocumentsFromServer = async (userId: string | null = null): Pro
   
   let documents: Document[] = [];
   
-  // Essayer d'abord de récupérer depuis le localStorage (pour éviter les pertes de données)
+  // Essayer d'abord de récupérer depuis le stockage local (pour éviter les pertes de données)
   const localDocuments = getLocalDocuments(userId);
   if (localDocuments.length > 0) {
     console.log(`${localDocuments.length} documents trouvés dans le stockage local`);
@@ -62,8 +69,9 @@ export const loadDocumentsFromServer = async (userId: string | null = null): Pro
       documents = mergeDocuments(localDocuments, serverDocuments);
     }
     
-    // Sauvegarder localement pour accès hors ligne
-    localStorage.setItem(`documents_${currentUser}`, JSON.stringify(documents));
+    // AMÉLIORATION: Sauvegarder dans les deux systèmes de stockage pour accès hors ligne
+    saveLocalData('documents', documents, currentUser);
+    
     console.log(`${documents.length} documents sauvegardés localement pour accès hors ligne`);
     
     // Informer l'utilisateur que les données ont été chargées depuis le serveur
@@ -112,8 +120,9 @@ export const loadDocumentsFromServer = async (userId: string | null = null): Pro
         documents = mergeDocuments(localDocuments, serverDocuments);
       }
       
-      // Sauvegarder localement pour accès hors ligne
-      localStorage.setItem(`documents_${currentUser}`, JSON.stringify(documents));
+      // AMÉLIORATION: Sauvegarder dans les deux systèmes de stockage pour accès hors ligne
+      saveLocalData('documents', documents, currentUser);
+      
       console.log(`${documents.length} documents sauvegardés localement pour accès hors ligne (source: URL alternative)`);
       
       toast({
@@ -151,9 +160,12 @@ export const syncDocumentsWithServer = async (documents: Document[], userId: str
     id: doc.id || crypto.randomUUID()
   }));
   
-  // IMPORTANT: Sauvegarder localement IMMÉDIATEMENT pour éviter les pertes de données
-  localStorage.setItem(`documents_${currentUser}`, JSON.stringify(validDocuments));
+  // AMÉLIORATION: Sauvegarder localement IMMÉDIATEMENT pour éviter les pertes de données
+  saveLocalData('documents', validDocuments, currentUser);
   console.log(`Documents sauvegardés localement en priorité pour éviter les pertes`);
+  
+  // Marquer comme en attente de synchronisation
+  markPendingSync('documents');
   
   try {
     // Construire l'URL
@@ -186,10 +198,12 @@ export const syncDocumentsWithServer = async (documents: Document[], userId: str
     
     if (result.success === true) {
       // Enregistrer la date de la dernière synchronisation réussie
-      localStorage.setItem(`last_synced_documents`, new Date().toISOString());
+      const timestamp = new Date().toISOString();
+      localStorage.setItem(`last_synced_documents`, timestamp);
+      sessionStorage.setItem(`last_synced_documents`, timestamp);
       
       // Supprimer tout marqueur de synchronisation en attente
-      localStorage.removeItem(`sync_pending_documents`);
+      clearPendingSync('documents');
       
       toast({
         title: "Synchronisation réussie",
@@ -228,10 +242,12 @@ export const syncDocumentsWithServer = async (documents: Document[], userId: str
       
       if (result.success === true) {
         // Enregistrer la date de la dernière synchronisation réussie
-        localStorage.setItem(`last_synced_documents`, new Date().toISOString());
+        const timestamp = new Date().toISOString();
+        localStorage.setItem(`last_synced_documents`, timestamp);
+        sessionStorage.setItem(`last_synced_documents`, timestamp);
         
         // Supprimer tout marqueur de synchronisation en attente
-        localStorage.removeItem(`sync_pending_documents`);
+        clearPendingSync('documents');
         
         toast({
           title: "Synchronisation réussie",
@@ -245,7 +261,7 @@ export const syncDocumentsWithServer = async (documents: Document[], userId: str
       console.error("Toutes les tentatives de synchronisation vers le serveur ont échoué:", secondError);
       
       // Marquer comme en attente de synchronisation pour une tentative ultérieure
-      localStorage.setItem(`sync_pending_documents`, new Date().toISOString());
+      markPendingSync('documents');
       
       toast({
         variant: "destructive",
@@ -263,12 +279,28 @@ export const syncDocumentsWithServer = async (documents: Document[], userId: str
  */
 export const getLocalDocuments = (userId: string | null = null): Document[] => {
   const currentUser = userId || getCurrentUser() || 'p71x6d_system';
+  
+  // AMÉLIORATION: Utiliser le système de stockage centralisé
+  const localDocs = loadLocalData<Document>('documents', currentUser);
+  
+  if (localDocs.length > 0) {
+    console.log(`${localDocs.length} documents chargés depuis le stockage local`);
+    return localDocs;
+  }
+  
+  // Rétrocompatibilité : vérifier aussi l'ancien emplacement de stockage
   const storedData = localStorage.getItem(`documents_${currentUser}`);
   
   if (storedData) {
     try {
       const docs = JSON.parse(storedData);
-      console.log(`${docs.length} documents chargés depuis le stockage local (mode hors ligne)`);
+      console.log(`${docs.length} documents chargés depuis l'ancien emplacement de stockage local`);
+      
+      // Migrer les données vers le nouveau système
+      if (docs.length > 0) {
+        saveLocalData('documents', docs, currentUser);
+      }
+      
       return docs;
     } catch (e) {
       console.error('Erreur lors de la lecture des documents locaux:', e);
@@ -292,13 +324,15 @@ export const forceFullSync = async (userId: string | null = null): Promise<boole
     
     // Ensuite, s'assurer qu'elles sont bien enregistrées localement
     const currentUser = userId || getCurrentUser() || 'p71x6d_system';
-    localStorage.setItem(`documents_${currentUser}`, JSON.stringify(documents));
+    saveLocalData('documents', documents, currentUser);
     
     // Supprimer tout marqueur de synchronisation en attente
-    localStorage.removeItem(`sync_pending_documents`);
+    clearPendingSync('documents');
     
     // Enregistrer la date de la dernière synchronisation réussie
-    localStorage.setItem(`last_synced_documents`, new Date().toISOString());
+    const timestamp = new Date().toISOString();
+    localStorage.setItem(`last_synced_documents`, timestamp);
+    sessionStorage.setItem(`last_synced_documents`, timestamp);
     
     toast({
       title: "Synchronisation forcée réussie",
