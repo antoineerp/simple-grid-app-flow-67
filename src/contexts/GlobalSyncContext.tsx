@@ -43,12 +43,14 @@ export const useGlobalSync = () => {
 // Provider du contexte
 export const GlobalSyncProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [syncStates, setSyncStates] = useState<Record<string, SyncState>>({});
-  const { isOnline } = useNetworkStatus();
+  const { isOnline, lastCheckTime } = useNetworkStatus();
   const { toast } = useToast();
   const currentUser = getCurrentUser();
   const initialSyncDoneRef = useRef<boolean>(false);
   const syncRetryTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const pendingSyncTablesRef = useRef<Set<string>>(new Set());
+  const syncOperationsRef = useRef<Record<string, string>>({});
+  const syncOperationBatch = useRef(Date.now()); // Batch identifier pour regrouper les opérations
   
   // Log le mode de synchronisation au démarrage
   useEffect(() => {
@@ -69,6 +71,45 @@ export const GlobalSyncProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     }
   }, [isOnline]);
   
+  // Écouter les événements de synchronisation forcée
+  useEffect(() => {
+    const handleForceSyncRequired = (event: CustomEvent) => {
+      console.log("GlobalSyncContext: Événement de synchronisation forcée reçu:", event.detail);
+      
+      if (isOnline && event.detail && event.detail.tables && Array.isArray(event.detail.tables)) {
+        // Synchroniser uniquement les tables spécifiées
+        event.detail.tables.forEach((tableName: string) => {
+          pendingSyncTablesRef.current.add(tableName);
+        });
+        
+        // Créer un nouveau batch d'opérations
+        syncOperationBatch.current = Date.now();
+        
+        // Planifier une synchronisation
+        if (syncRetryTimeoutRef.current) {
+          clearTimeout(syncRetryTimeoutRef.current);
+        }
+        
+        syncRetryTimeoutRef.current = setTimeout(() => {
+          if (isOnline) {
+            console.log("GlobalSyncContext: Déclenchement de la synchronisation forcée");
+            syncAll().catch(error => {
+              console.error("GlobalSyncContext: Erreur lors de la synchronisation forcée:", error);
+            });
+          }
+        }, 1000);
+      }
+    };
+    
+    window.addEventListener('force-sync-required', handleForceSyncRequired as EventListener);
+    window.addEventListener('connectivity-restored', handleForceSyncRequired as EventListener);
+    
+    return () => {
+      window.removeEventListener('force-sync-required', handleForceSyncRequired as EventListener);
+      window.removeEventListener('connectivity-restored', handleForceSyncRequired as EventListener);
+    };
+  }, [isOnline]);
+  
   // Écouter les changements de route pour re-synchroniser les données si nécessaire
   useEffect(() => {
     const handleRouteChange = () => {
@@ -76,6 +117,9 @@ export const GlobalSyncProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       
       if (isOnline && pendingSyncTablesRef.current.size > 0) {
         console.log("GlobalSyncContext: Tables en attente de synchronisation:", Array.from(pendingSyncTablesRef.current));
+        
+        // Créer un nouveau batch d'opérations
+        syncOperationBatch.current = Date.now();
         
         // Tenter de synchroniser les données en attente après un changement de route
         setTimeout(() => {
@@ -90,16 +134,28 @@ export const GlobalSyncProvider: React.FC<{ children: React.ReactNode }> = ({ ch
               if (storedData) {
                 const data = JSON.parse(storedData);
                 if (data && data.length > 0) {
-                  console.log(`GlobalSyncContext: Données trouvées pour ${tableName}, synchronisation`);
+                  console.log(`GlobalSyncContext: Données trouvées pour ${tableName}, synchronisation de ${data.length} éléments`);
                   
-                  syncTable(tableName, data)
+                  // Générer un identifiant d'opération unique pour cette synchronisation
+                  const operationId = `${tableName}_${syncOperationBatch.current}_${Math.random().toString(36).substring(2, 8)}`;
+                  syncOperationsRef.current[tableName] = operationId;
+                  
+                  syncTable(tableName, data, operationId)
                     .then(success => {
-                      if (success) {
-                        console.log(`GlobalSyncContext: Re-synchronisation réussie pour ${tableName}`);
-                        pendingSyncTablesRef.current.delete(tableName);
+                      // Vérifier que c'est bien notre opération qui s'est terminée
+                      if (syncOperationsRef.current[tableName] === operationId) {
+                        if (success) {
+                          console.log(`GlobalSyncContext: Re-synchronisation réussie pour ${tableName} (${operationId})`);
+                          pendingSyncTablesRef.current.delete(tableName);
+                          delete syncOperationsRef.current[tableName];
+                        } else {
+                          console.warn(`GlobalSyncContext: Re-synchronisation échouée pour ${tableName} (${operationId})`);
+                        }
+                      } else {
+                        console.log(`GlobalSyncContext: Ignorer le résultat de ${operationId} car une opération plus récente est en cours`);
                       }
                     })
-                    .catch(err => console.error(`GlobalSyncContext: Erreur re-synchronisation ${tableName}:`, err));
+                    .catch(err => console.error(`GlobalSyncContext: Erreur re-synchronisation ${tableName} (${operationId}):`, err));
                 }
               }
             } catch (error) {
@@ -129,22 +185,33 @@ export const GlobalSyncProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     }));
   }, []);
   
-  // Méthode pour synchroniser une table spécifique - corrigée pour le typage
-  const syncTable = useCallback(async <T,>(tableName: string, data: T[]): Promise<boolean> => {
+  // Méthode pour synchroniser une table spécifique avec un ID d'opération
+  const syncTable = useCallback(async <T,>(
+    tableName: string, 
+    data: T[], 
+    operationId?: string
+  ): Promise<boolean> => {
     if (!tableName || !data) {
       console.error("GlobalSyncContext: Tentative de synchronisation avec données/table invalides");
       return false;
     }
     
+    // Générer un ID d'opération s'il n'est pas fourni
+    const syncOperationId = operationId || `${tableName}_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+    console.log(`GlobalSyncContext: Opération ${syncOperationId} - Synchronisation de ${tableName} avec ${data.length} éléments`);
+    
+    // Enregistrer l'opération en cours
+    syncOperationsRef.current[tableName] = syncOperationId;
+    
     if (!isOnline) {
-      console.log(`GlobalSyncContext: Mode hors ligne, données ${tableName} sauvegardées localement`);
+      console.log(`GlobalSyncContext: Mode hors ligne, données ${tableName} sauvegardées localement (${syncOperationId})`);
       
       // Sauvegarder dans localStorage
       try {
         const userId = currentUser || 'default';
         localStorage.setItem(`${tableName}_${userId}`, JSON.stringify(data));
       } catch (error) {
-        console.error(`GlobalSyncContext: Erreur sauvegarde locale ${tableName}:`, error);
+        console.error(`GlobalSyncContext: Erreur sauvegarde locale ${tableName} (${syncOperationId}):`, error);
       }
       
       // Marquer comme en attente de synchronisation
@@ -153,14 +220,59 @@ export const GlobalSyncProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       return false;
     }
     
-    // Mettre à jour l'état pour indiquer que la synchronisation est en cours
-    updateSyncState(tableName, { isSyncing: true });
+    // Utiliser un verrou pour cette synchronisation spécifique
+    const lockKey = `sync_in_progress_${tableName}`;
+    const lockTimeKey = `sync_lock_time_${tableName}`;
     
     try {
-      console.log(`GlobalSyncContext: Synchronisation ${tableName} initiée, ${data.length} éléments`);
+      // Vérifier si une synchronisation est déjà en cours pour cette table
+      const existingLock = localStorage.getItem(lockKey);
+      const lockTime = localStorage.getItem(lockTimeKey);
+      
+      if (existingLock === 'true') {
+        // Vérifier si le verrou est ancien (plus de 30 secondes)
+        if (lockTime && (Date.now() - parseInt(lockTime)) > 30000) {
+          console.log(`GlobalSyncContext: Verrou périmé pour ${tableName}, forçage de la synchronisation (${syncOperationId})`);
+          // Supprimer le verrou périmé
+          localStorage.removeItem(lockKey);
+          localStorage.removeItem(lockTimeKey);
+        } else {
+          console.log(`GlobalSyncContext: Synchronisation déjà en cours pour ${tableName}, requête mise en attente (${syncOperationId})`);
+          pendingSyncTablesRef.current.add(tableName);
+          return false;
+        }
+      }
+      
+      // Poser un verrou
+      localStorage.setItem(lockKey, 'true');
+      localStorage.setItem(lockTimeKey, Date.now().toString());
+      
+      // Mettre à jour l'état pour indiquer que la synchronisation est en cours
+      updateSyncState(tableName, { isSyncing: true });
+      
+      console.log(`GlobalSyncContext: Synchronisation ${tableName} initiée (${syncOperationId}), ${data.length} éléments`);
+      
+      // Assurer que toutes les entrées ont un ID unique
+      const processedData = data.map((item: any) => {
+        if (!item.id) {
+          return { ...item, id: crypto.randomUUID() };
+        }
+        return item;
+      });
       
       // Utiliser le service triggerSync pour la synchronisation
-      const result = await triggerSync.triggerTableSync(tableName, data);
+      const result = await triggerSync.triggerTableSync(tableName, processedData);
+      
+      // Vérifier que c'est bien notre opération qui s'est terminée
+      if (syncOperationsRef.current[tableName] !== syncOperationId) {
+        console.log(`GlobalSyncContext: Une opération plus récente est en cours pour ${tableName}, ignorer le résultat de ${syncOperationId}`);
+        
+        // Supprimer le verrou uniquement si notre opération l'avait posé
+        localStorage.removeItem(lockKey);
+        localStorage.removeItem(lockTimeKey);
+        
+        return false;
+      }
       
       // Mettre à jour l'état après la synchronisation
       updateSyncState(tableName, { 
@@ -169,17 +281,43 @@ export const GlobalSyncProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         syncFailed: !result
       });
       
+      // Supprimer le verrou
+      localStorage.removeItem(lockKey);
+      localStorage.removeItem(lockTimeKey);
+      
       if (result) {
-        console.log(`GlobalSyncContext: Synchronisation ${tableName} réussie`);
+        console.log(`GlobalSyncContext: Synchronisation ${tableName} réussie (${syncOperationId})`);
         pendingSyncTablesRef.current.delete(tableName); // Retirer de la liste d'attente
+        
+        // Sauvegarder la dernière synchronisation réussie
+        localStorage.setItem(`last_sync_${tableName}`, JSON.stringify({
+          timestamp: new Date().toISOString(),
+          count: data.length,
+          success: true,
+          operationId: syncOperationId
+        }));
       } else {
-        console.log(`GlobalSyncContext: Synchronisation ${tableName} échouée, marquée pour réessai`);
+        console.log(`GlobalSyncContext: Synchronisation ${tableName} échouée (${syncOperationId}), marquée pour réessai`);
         pendingSyncTablesRef.current.add(tableName); // Ajouter à la liste d'attente
+        
+        // Enregistrer l'échec
+        localStorage.setItem(`sync_failed_${tableName}`, JSON.stringify({
+          timestamp: new Date().toISOString(),
+          operationId: syncOperationId
+        }));
       }
       
+      // Supprimer notre référence d'opération
+      delete syncOperationsRef.current[tableName];
+      
       return result;
+      
     } catch (error) {
-      console.error(`GlobalSyncContext: Erreur synchronisation ${tableName}:`, error);
+      console.error(`GlobalSyncContext: Erreur synchronisation ${tableName} (${syncOperationId}):`, error);
+      
+      // Supprimer le verrou en cas d'erreur
+      localStorage.removeItem(lockKey);
+      localStorage.removeItem(lockTimeKey);
       
       updateSyncState(tableName, {
         isSyncing: false,
@@ -189,6 +327,16 @@ export const GlobalSyncProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       // Ajouter à la liste d'attente pour réessai
       pendingSyncTablesRef.current.add(tableName);
       
+      // Enregistrer l'erreur
+      localStorage.setItem(`sync_error_${tableName}`, JSON.stringify({
+        timestamp: new Date().toISOString(),
+        error: error instanceof Error ? error.message : "Erreur inconnue",
+        operationId: syncOperationId
+      }));
+      
+      // Supprimer notre référence d'opération
+      delete syncOperationsRef.current[tableName];
+      
       return false;
     }
   }, [isOnline, currentUser, updateSyncState]);
@@ -197,9 +345,13 @@ export const GlobalSyncProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const syncAll = useCallback(async (): Promise<Record<string, boolean>> => {
     const results: Record<string, boolean> = {};
     
+    // Générer un ID de batch pour regrouper les opérations
+    const batchId = Date.now();
+    console.log(`GlobalSyncContext: Début de synchronisation batch ${batchId}`);
+    
     // Vérifier s'il y a des tables en attente de synchronisation
     if (pendingSyncTablesRef.current.size > 0) {
-      console.log("GlobalSyncContext: Synchronisation de toutes les tables en attente");
+      console.log(`GlobalSyncContext: Synchronisation de ${pendingSyncTablesRef.current.size} tables en attente (batch ${batchId})`);
       
       const tablesArray = Array.from(pendingSyncTablesRef.current);
       
@@ -212,9 +364,12 @@ export const GlobalSyncProvider: React.FC<{ children: React.ReactNode }> = ({ ch
           if (storedData) {
             const data = JSON.parse(storedData);
             if (data && data.length > 0) {
-              console.log(`GlobalSyncContext: Synchronisation ${tableName} avec ${data.length} éléments`);
+              console.log(`GlobalSyncContext: Synchronisation ${tableName} avec ${data.length} éléments (batch ${batchId})`);
               
-              const success = await syncTable(tableName, data);
+              // Générer un ID d'opération unique pour cette synchronisation
+              const operationId = `${tableName}_${batchId}_${Math.random().toString(36).substring(2, 8)}`;
+              
+              const success = await syncTable(tableName, data, operationId);
               results[tableName] = success;
               
               if (success) {
@@ -229,12 +384,14 @@ export const GlobalSyncProvider: React.FC<{ children: React.ReactNode }> = ({ ch
             pendingSyncTablesRef.current.delete(tableName);
           }
         } catch (error) {
-          console.error(`GlobalSyncContext: Erreur lors de la synchronisation de ${tableName}:`, error);
+          console.error(`GlobalSyncContext: Erreur lors de la synchronisation de ${tableName} (batch ${batchId}):`, error);
           results[tableName] = false;
         }
       }
+      
+      console.log(`GlobalSyncContext: Fin de synchronisation batch ${batchId}, résultats:`, results);
     } else {
-      console.log("GlobalSyncContext: Aucune table en attente de synchronisation");
+      console.log(`GlobalSyncContext: Aucune table en attente de synchronisation (batch ${batchId})`);
     }
     
     return results;

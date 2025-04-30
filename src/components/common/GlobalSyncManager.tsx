@@ -14,6 +14,7 @@ const GlobalSyncManager: React.FC = () => {
   const initRef = useRef<boolean>(false);
   const lastNavigationTimeRef = useRef<number>(Date.now());
   const navigationDebounceRef = useRef<NodeJS.Timeout | null>(null);
+  const forceSyncRequiredRef = useRef<boolean>(false);
   
   // Assurer que le composant est bien monté avant d'exécuter des effets
   useEffect(() => {
@@ -78,6 +79,45 @@ const GlobalSyncManager: React.FC = () => {
     };
   }, []);
   
+  // Écouter les événements de synchronisation forcée
+  useEffect(() => {
+    const handleForceSyncRequired = (event: CustomEvent) => {
+      if (!mountedRef.current) return;
+      
+      console.log("GlobalSyncManager - Événement de synchronisation forcée reçu:", event.detail);
+      forceSyncRequiredRef.current = true;
+      
+      // Déclencher une synchronisation immédiate si nous sommes en ligne
+      if (isOnline && !syncingInProgress) {
+        console.log("GlobalSyncManager - Déclenchement immédiat de la synchronisation forcée");
+        
+        // Utiliser un petit délai pour éviter les synchronisations simultanées
+        setTimeout(() => {
+          if (mountedRef.current) {
+            syncAll()
+              .then(results => {
+                console.log("GlobalSyncManager - Résultats de la synchronisation forcée:", results);
+                lastSyncRef.current = Date.now();
+                forceSyncRequiredRef.current = false;
+              })
+              .catch(error => {
+                console.error("GlobalSyncManager - Erreur lors de la synchronisation forcée:", error);
+              });
+          }
+        }, 500);
+      }
+    };
+    
+    // Écouter les événements personnalisés
+    window.addEventListener('force-sync-required', handleForceSyncRequired as EventListener);
+    window.addEventListener('connectivity-restored', handleForceSyncRequired as EventListener);
+    
+    return () => {
+      window.removeEventListener('force-sync-required', handleForceSyncRequired as EventListener);
+      window.removeEventListener('connectivity-restored', handleForceSyncRequired as EventListener);
+    };
+  }, [isOnline, syncAll, syncingInProgress]);
+  
   // Utiliser un effet pour démarrer la synchronisation en arrière-plan
   useEffect(() => {
     if (!mountedRef.current) return; // Ne pas exécuter si le composant n'est pas monté
@@ -105,6 +145,39 @@ const GlobalSyncManager: React.FC = () => {
               Object.entries(results).forEach(([tableName, success]) => {
                 if (!success && (tableName === 'membres' || tableName === 'bibliotheque' || tableName === 'collaboration')) {
                   console.warn(`GlobalSyncManager - Échec de synchronisation pour ${tableName}`);
+                  
+                  // Planifier une nouvelle tentative après 30 secondes
+                  setTimeout(() => {
+                    if (mountedRef.current && isOnline) {
+                      console.log(`GlobalSyncManager - Nouvelle tentative pour ${tableName}`);
+                      
+                      // Récupérer les données depuis localStorage
+                      try {
+                        const userId = localStorage.getItem('currentUser') 
+                          ? JSON.parse(localStorage.getItem('currentUser') || '{}').identifiant_technique 
+                          : 'p71x6d_system';
+                        
+                        const storageKey = `${tableName}_${userId}`;
+                        const storedData = localStorage.getItem(storageKey);
+                        
+                        if (storedData) {
+                          const data = JSON.parse(storedData);
+                          console.log(`GlobalSyncManager - Re-tentative pour ${tableName} avec ${data.length} éléments`);
+                          
+                          // Déclencher un événement de synchronisation forcée
+                          const syncEvent = new CustomEvent('force-sync-required', {
+                            detail: {
+                              timestamp: Date.now(),
+                              tables: [tableName]
+                            }
+                          });
+                          window.dispatchEvent(syncEvent);
+                        }
+                      } catch (error) {
+                        console.error(`GlobalSyncManager - Erreur lors de la récupération des données pour ${tableName}:`, error);
+                      }
+                    }
+                  }, 30000);
                 }
               });
             })
@@ -175,7 +248,7 @@ const GlobalSyncManager: React.FC = () => {
       
       // Ajouter un délai minimum entre les synchronisations (5 secondes)
       const now = Date.now();
-      if (isOnline && now - lastNavigationTimeRef.current > 5000 && now - lastSyncRef.current > 30000) {
+      if (isOnline && now - lastNavigationTimeRef.current > 5000 && (now - lastSyncRef.current > 30000 || forceSyncRequiredRef.current)) {
         console.log("GlobalSyncManager - Changement de route détecté, programmation de synchronisation");
         
         // Annuler tout délai précédent
@@ -201,6 +274,7 @@ const GlobalSyncManager: React.FC = () => {
                 if (mountedRef.current) {
                   lastSyncRef.current = Date.now();
                   lastNavigationTimeRef.current = Date.now();
+                  forceSyncRequiredRef.current = false;
                   
                   // Nettoyer les verrous après la synchronisation
                   try {
@@ -226,7 +300,7 @@ const GlobalSyncManager: React.FC = () => {
           } else {
             console.log("GlobalSyncManager - Synchronisation déjà en cours après navigation, requête ignorée");
           }
-        }, 1500);
+        }, 1000); // Réduit à 1000ms pour une synchronisation plus rapide
       }
     };
     
@@ -240,7 +314,7 @@ const GlobalSyncManager: React.FC = () => {
       
       if (link && !link.getAttribute('download') && link.getAttribute('href')?.startsWith('/')) {
         console.log("GlobalSyncManager - Clic sur lien détecté, préparation pour synchronisation");
-        lastNavigationTimeRef.current = Date.now() - 4000; // Réduire le délai pour permettre la synchronisation plus rapide
+        lastNavigationTimeRef.current = Date.now() - 4500; // Réduire le délai pour permettre la synchronisation plus rapide
       }
     };
     
