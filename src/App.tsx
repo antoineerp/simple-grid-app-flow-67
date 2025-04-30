@@ -20,6 +20,7 @@ import GestionDocumentaire from './pages/GestionDocumentaire';
 import RessourcesHumaines from './pages/RessourcesHumaines';
 import Collaboration from './pages/Collaboration';
 import Administration from './pages/Administration';
+import Bibliotheque from './pages/Bibliotheque';
 
 // App component
 function App() {
@@ -87,6 +88,9 @@ function App() {
                     </ErrorBoundary>
                   </PrivateRoute>
                 } />
+                
+                {/* Redirection de l'ancienne route bibliotheque vers collaboration */}
+                <Route path="bibliotheque" element={<Navigate to="/collaboration" replace />} />
                 
                 <Route path="administration" element={
                   <PrivateRoute>
