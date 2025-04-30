@@ -18,7 +18,7 @@ interface SyncContextType {
   isOnline: boolean;
   monitorStatus: SyncMonitorStatus;
   forceProcessQueue: () => void;
-  syncWithServer?: <T>(tableName: string, data: T[]) => Promise<boolean>;
+  syncWithServer?: <T>(data: T[], additionalData?: any, userId?: string) => Promise<boolean>;
   notifyChanges?: () => void;
 }
 
@@ -321,12 +321,14 @@ export const SyncProvider: React.FC<{
   }, [isOnline, syncTable]);
   
   // Implementing the missing methods that other components use
-  const syncWithServer = useCallback(async <T,>(tableName: string, data: T[]): Promise<boolean> => {
+  const syncWithServer = useCallback(async <T,>(data: T[], additionalData?: any, userId?: string): Promise<boolean> => {
     try {
+      // Determine tableName based on context or default to a sensible value
+      const tableName = additionalData?.tableName || 'default';
       const result = await syncTable(tableName, data, "manual");
       return result.success;
     } catch (error) {
-      console.error(`useSyncContext: Error in syncWithServer for ${tableName}:`, error);
+      console.error(`useSyncContext: Error in syncWithServer:`, error);
       return false;
     }
   }, [syncTable]);

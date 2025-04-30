@@ -77,7 +77,8 @@ const RessourcesHumaines = () => {
     const syncOnLoad = async () => {
       if (membres.length > 0 && isOnline) {
         console.log("RessourcesHumaines: Forcer la synchronisation au chargement de la page");
-        await syncWithServer();
+        // Pass the membres data to syncWithServer
+        await syncWithServer(membres);
       }
     };
     
@@ -168,7 +169,8 @@ const RessourcesHumaines = () => {
     // Synchroniser immédiatement après la sauvegarde
     setTimeout(() => {
       notifyChanges();
-      syncWithServer().catch(err => console.error("Erreur de synchronisation après sauvegarde:", err));
+      // Pass the updated membres data to syncWithServer
+      syncWithServer(updatedMembres).catch(err => console.error("Erreur de synchronisation après sauvegarde:", err));
     }, 100);
   };
 

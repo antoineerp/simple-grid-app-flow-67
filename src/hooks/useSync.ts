@@ -1,4 +1,3 @@
-
 import { useState, useCallback, useEffect } from 'react';
 import { SyncResult } from '@/services/sync/SyncService';
 import { useToast } from '@/components/ui/use-toast';

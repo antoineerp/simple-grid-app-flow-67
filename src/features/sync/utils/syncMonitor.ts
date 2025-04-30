@@ -11,10 +11,10 @@ import { SyncMonitorStatus } from '../types/syncTypes';
 export type SyncAttempt = {
   id: string;
   tableName: string;
-  operation: string;
+  operation?: string; // Change from required to optional to match SyncMonitorStatus
   startTime: number;
   endTime?: number;
-  success: boolean; // Changed from optional to required
+  success: boolean;
   error?: string;
   duration?: number;
 };

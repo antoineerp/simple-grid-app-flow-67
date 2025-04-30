@@ -234,7 +234,8 @@ const Collaboration = () => {
   const handleSync = async (): Promise<void> => {
     try {
       console.log("Initiating manual sync from Collaboration page");
-      await syncWithServer();
+      // Pass the required parameters to syncWithServer - documents and groups
+      await syncWithServer(documents, groups);
       console.log("Manual sync completed");
     } catch (error) {
       console.error('Sync error:', error);
