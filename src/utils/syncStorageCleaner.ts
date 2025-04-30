@@ -32,6 +32,35 @@ export const cleanSyncStorage = () => {
     }
   });
   
+  // Vérifier et nettoyer spécifiquement les entrées de timestamp qui ne sont pas au format ISO
+  const timestampKeys = Object.keys(localStorage).filter(key => 
+    key.includes('last_synced_') || 
+    key.endsWith('_last_saved')
+  );
+  
+  timestampKeys.forEach(key => {
+    try {
+      const value = localStorage.getItem(key);
+      if (value) {
+        // Pour les dates, vérifier qu'elle est au format ISO valide
+        if (!value.match(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/) && !value.startsWith('"')) {
+          console.warn(`Date invalide détectée dans localStorage: ${key} = ${value}`);
+          localStorage.removeItem(key);
+          cleanedCount++;
+          
+          // Réinitialiser avec une valeur valide
+          const now = new Date().toISOString();
+          localStorage.setItem(key, JSON.stringify(now));
+          console.log(`Réinitialisé ${key} avec une date valide: ${now}`);
+        }
+      }
+    } catch (e) {
+      console.warn(`Suppression de l'entrée de timestamp malformée: ${key}`, e);
+      localStorage.removeItem(key);
+      cleanedCount++;
+    }
+  });
+  
   // Vérifier et nettoyer les entrées spécifiques qui pourraient causer des problèmes
   const specificKeys = [
     'membres_p71x6d_system_last_sync',
@@ -48,12 +77,20 @@ export const cleanSyncStorage = () => {
     try {
       const value = localStorage.getItem(key);
       if (value) {
+        // Essayer de parser
         JSON.parse(value);
       }
     } catch (e) {
       console.warn(`Suppression de l'entrée spécifique malformée: ${key}`, e);
       localStorage.removeItem(key);
       cleanedCount++;
+      
+      // Si c'est une clé de timestamp, la réinitialiser avec une valeur valide
+      if (key.startsWith('last_synced_')) {
+        const now = new Date().toISOString();
+        localStorage.setItem(key, JSON.stringify(now));
+        console.log(`Réinitialisé ${key} avec une date valide: ${now}`);
+      }
     }
   });
   
@@ -77,15 +114,26 @@ export const initializeSyncStorageCleaner = () => {
   // Exécuter au démarrage de l'application
   cleanSyncStorage();
   
-  // Nettoyer périodiquement (une fois par heure)
+  // Nettoyer périodiquement (toutes les 15 minutes)
   setInterval(() => {
     cleanSyncStorage();
-  }, 3600000); // 1 heure
+  }, 900000); // 15 minutes
   
   // Ajouter un nettoyage à chaque chargement de page
   if (typeof window !== 'undefined') {
     window.addEventListener('load', () => {
-      setTimeout(() => cleanSyncStorage(), 2000);
+      setTimeout(() => cleanSyncStorage(), 1000);
+    });
+    
+    // Ajouter un nettoyage lors de la restauration de la connectivité
+    window.addEventListener('online', () => {
+      console.log("Connexion rétablie, nettoyage du stockage...");
+      setTimeout(() => cleanSyncStorage(), 500);
+    });
+    
+    // Nettoyer avant de quitter la page
+    window.addEventListener('beforeunload', () => {
+      cleanSyncStorage();
     });
   }
 };
@@ -93,6 +141,7 @@ export const initializeSyncStorageCleaner = () => {
 // Fonction utilitaire pour sauvegarder de manière sécurisée dans le localStorage
 export const safeLocalStorageSet = (key: string, value: any) => {
   try {
+    // S'assurer que la valeur est toujours au format JSON valide
     const jsonValue = JSON.stringify(value);
     localStorage.setItem(key, jsonValue);
     return true;
@@ -114,5 +163,11 @@ export const safeLocalStorageGet = <T>(key: string, defaultValue: T): T => {
     return defaultValue;
   }
 };
+
+// S'assurer que le nettoyage est effectué dès l'importation du module
+if (typeof window !== 'undefined') {
+  initializeSyncStorageCleaner();
+  console.log("Nettoyage du stockage initialisé");
+}
 
 export default cleanSyncStorage;

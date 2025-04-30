@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from 'react';
 import { Document, DocumentStats, DocumentGroup } from '@/types/documents';
 import { useToast } from '@/hooks/use-toast';
@@ -18,6 +17,7 @@ import {
   saveLocalData,
   loadLocalData
 } from '@/features/sync/utils/syncStorageManager';
+import { safeLocalStorageSet, safeLocalStorageGet } from '@/utils/syncStorageCleaner';
 
 // Clé pour stocker l'état global dans sessionStorage (persistance entre les pages)
 const SESSION_STORAGE_KEY = 'documents_page_state';
@@ -182,6 +182,7 @@ export const useDocuments = () => {
     }
   }, [initialLoadDone, isOnline, setDocuments, setGroups, setIsSyncing, setLastSynced, setSyncFailed, toast]);
 
+  // Synchronisation avec le serveur
   const syncWithServer = async (): Promise<boolean> => {
     try {
       setIsSyncing(true);
@@ -198,6 +199,9 @@ export const useDocuments = () => {
           groups,
           timestamp: new Date().toISOString()
         }));
+        
+        // Stocker également de manière sécurisée la date de dernière synchronisation
+        safeLocalStorageSet('last_synced_documents', new Date().toISOString());
       } else {
         setSyncFailed(true);
       }

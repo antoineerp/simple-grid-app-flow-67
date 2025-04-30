@@ -1,10 +1,10 @@
-
 import { useState, useCallback, useEffect } from 'react';
 import { SyncResult } from '@/services/sync/SyncService';
 import { useToast } from '@/components/ui/use-toast';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { useSyncContext } from '@/features/sync/hooks/useSyncContext';
 import { SyncState } from '@/features/sync/types/syncTypes';
+import { safeLocalStorageSet } from '@/utils/syncStorageCleaner';
 
 /**
  * Hook pour gérer la synchronisation de données avec le serveur
@@ -52,9 +52,17 @@ export const useSync = (tableName: string): SyncState & {
       const result = await syncTable(tableName, data, trigger);
       
       if (result.success) {
+        // Stocker de manière sécurisée la date de dernière synchronisation
+        if (result.lastSynced) {
+          safeLocalStorageSet(`last_synced_${tableName}`, result.lastSynced);
+        } else {
+          safeLocalStorageSet(`last_synced_${tableName}`, new Date().toISOString());
+        }
+        
         return {
           success: true,
-          message: `${tableName} synchronisé avec succès`
+          message: `${tableName} synchronisé avec succès`,
+          lastSynced: result.lastSynced || new Date().toISOString()
         };
       } else {
         return {

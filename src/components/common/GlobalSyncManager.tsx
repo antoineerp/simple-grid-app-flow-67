@@ -1,7 +1,7 @@
-
 import React, { useEffect, useState, useRef } from 'react';
 import { useSyncContext } from '@/features/sync/hooks/useSyncContext';
 import SyncDebugger from '@/features/sync/components/SyncDebugger';
+import { cleanSyncStorage } from '@/utils/syncStorageCleaner';
 
 // Activer le débogage uniquement en développement
 const enableDebugging = import.meta.env.DEV;
@@ -51,6 +51,17 @@ const GlobalSyncManager: React.FC = () => {
         }
       }
     };
+  }, []);
+  
+  // Nettoyer le localStorage dès le chargement du composant
+  useEffect(() => {
+    if (mountedRef.current) {
+      // Nettoyer les données corrompues dans localStorage
+      setTimeout(() => {
+        console.log("GlobalSyncManager - Nettoyage initial du localStorage");
+        cleanSyncStorage();
+      }, 500);
+    }
   }, []);
   
   // Écouter les événements de synchronisation forcée
@@ -152,9 +163,18 @@ const GlobalSyncManager: React.FC = () => {
         }
       }, 1800000); // 30 minutes
       
+      // Nettoyer localStorage périodiquement
+      const cleanupInterval = setInterval(() => {
+        if (mountedRef.current) {
+          console.log("GlobalSyncManager - Nettoyage périodique du localStorage");
+          cleanSyncStorage();
+        }
+      }, 300000); // Toutes les 5 minutes
+      
       return () => {
         clearTimeout(initialSyncTimeout);
         clearInterval(periodicSyncInterval);
+        clearInterval(cleanupInterval);
       };
     } catch (error) {
       console.error("GlobalSyncManager - Erreur lors de l'initialisation de la synchronisation:", error);

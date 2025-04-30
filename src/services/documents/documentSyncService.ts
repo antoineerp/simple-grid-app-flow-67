@@ -1,4 +1,3 @@
-
 import { Document } from '@/types/documents';
 import { getApiUrl } from '@/config/apiConfig';
 import { getAuthHeaders } from '@/services/auth/authService';
@@ -180,6 +179,27 @@ export const loadDocumentsFromServer = async (userId: string | null = null): Pro
 };
 
 /**
+ * Met à jour correctement la date de dernière synchronisation
+ */
+const updateLastSynced = (tableName: string): void => {
+  try {
+    // Créer un timestamp au format ISO
+    const timestamp = new Date().toISOString();
+    
+    // Toujours stocker comme une chaîne JSON valide
+    const jsonTimestamp = JSON.stringify(timestamp);
+    
+    // Stocker dans localStorage et sessionStorage pour redondance
+    localStorage.setItem(`last_synced_${tableName}`, jsonTimestamp);
+    sessionStorage.setItem(`last_synced_${tableName}`, jsonTimestamp);
+    
+    console.log(`Date de dernière synchronisation mise à jour pour ${tableName}: ${timestamp}`);
+  } catch (error) {
+    console.error(`Erreur lors de la mise à jour de la date de synchronisation pour ${tableName}:`, error);
+  }
+};
+
+/**
  * Synchronisation des documents avec le serveur
  * Priorise toujours la base de données Infomaniak
  */
@@ -245,10 +265,8 @@ export const syncDocumentsWithServer = async (documents: Document[], userId: str
     console.log("Résultat de la synchronisation des documents:", result);
     
     if (result.success === true) {
-      // Enregistrer la date de la dernière synchronisation réussie
-      const timestamp = new Date().toISOString();
-      localStorage.setItem(`last_synced_documents`, timestamp);
-      sessionStorage.setItem(`last_synced_documents`, timestamp);
+      // Utiliser la fonction sécurisée pour mettre à jour la date
+      updateLastSynced('documents');
       
       // Supprimer tout marqueur de synchronisation en attente
       clearPendingSync('documents');
@@ -297,13 +315,8 @@ export const syncDocumentsWithServer = async (documents: Document[], userId: str
       console.log("Résultat de la synchronisation des documents (URL alternative):", result);
       
       if (result.success === true) {
-        // Enregistrer la date de la dernière synchronisation réussie
-        const timestamp = new Date().toISOString();
-        localStorage.setItem(`last_synced_documents`, timestamp);
-        sessionStorage.setItem(`last_synced_documents`, timestamp);
-        
-        // Supprimer tout marqueur de synchronisation en attente
-        clearPendingSync('documents');
+        // Utiliser la fonction sécurisée pour mettre à jour la date
+        updateLastSynced('documents');
         
         // Dispatch un événement pour le monitoring
         window.dispatchEvent(new CustomEvent('syncCompleted', { 

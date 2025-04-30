@@ -1,9 +1,9 @@
-
 /**
  * Utility for managing data storage during synchronization
  */
 
 import { getCurrentUser } from '@/services/core/databaseConnectionService';
+import { safeLocalStorageSet, safeLocalStorageGet } from '@/utils/syncStorageCleaner';
 
 // Generate a unique storage key for a table
 export const getStorageKey = (tableName: string, syncKey?: string): string => {
@@ -45,15 +45,15 @@ export const saveLocalData = <T>(tableName: string, data: T[], syncKey?: string)
       const jsonData = JSON.stringify(data);
       
       // Sauvegarder dans localStorage pour persistance entre sessions
-      localStorage.setItem(storageKey, jsonData);
+      safeLocalStorageSet(storageKey, data);
       
       // Sauvegarder également dans sessionStorage pour persistance entre pages
       sessionStorage.setItem(storageKey, jsonData);
       
-      // Enregistrer l'horodatage de la dernière sauvegarde
+      // Enregistrer l'horodatage de la dernière sauvegarde au format ISO
       const timestamp = new Date().toISOString();
-      localStorage.setItem(`${storageKey}_last_saved`, timestamp);
-      sessionStorage.setItem(`${storageKey}_last_saved`, timestamp);
+      safeLocalStorageSet(`${storageKey}_last_saved`, timestamp);
+      sessionStorage.setItem(`${storageKey}_last_saved`, JSON.stringify(timestamp));
       
       // Vérifier que les données ont bien été sauvegardées
       const verifyLocalStorage = localStorage.getItem(storageKey);
@@ -167,7 +167,7 @@ export const loadLocalData = <T>(tableName: string, syncKey?: string): T[] => {
 // Marquer une table comme en attente de synchronisation
 export const markPendingSync = (tableName: string): void => {
   try {
-    localStorage.setItem(`sync_pending_${tableName}`, new Date().toISOString());
+    safeLocalStorageSet(`sync_pending_${tableName}`, new Date().toISOString());
     
     // Émettre un événement pour notifier les autres parties de l'application
     if (typeof window !== 'undefined') {
@@ -325,7 +325,11 @@ export const initializeStorageManager = (): void => {
   }
 };
 
-// Appeler l'initialisation immédiatement
+// Assurer que le nettoyage du stockage est effectué au démarrage
+import { initializeSyncStorageCleaner } from '@/utils/syncStorageCleaner';
+
+// Initialiser immédiatement si dans un environnement de navigateur
 if (typeof window !== 'undefined') {
-  initializeStorageManager();
+  initializeSyncStorageCleaner();
+  console.log("SyncStorageManager: Nettoyage du stockage initialisé");
 }
