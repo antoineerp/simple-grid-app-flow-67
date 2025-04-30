@@ -6,11 +6,20 @@ class DatabaseConfig {
     private $db_name;
     private $username;
     private $password;
+    private $userId;
 
-    public function __construct() {
+    public function __construct($userId = null) {
         $this->configFile = __DIR__ . '/db_config.json';
+        $this->userId = $userId ? preg_replace('/[^a-zA-Z0-9_]/', '_', $userId) : null;
+        
         $this->loadDefaultConfig();
         $this->loadConfigFile();
+        
+        // Si un ID utilisateur est spécifié, adapter le nom de la base de données
+        if ($this->userId) {
+            $this->db_name = "p71x6d_" . $this->userId;
+            error_log("DatabaseConfig: Utilisation de la base de données spécifique à l'utilisateur: {$this->db_name}");
+        }
     }
 
     private function loadDefaultConfig() {
@@ -35,7 +44,11 @@ class DatabaseConfig {
                         $this->host = $config['host'];
                     }
                     
-                    if (isset($config['db_name'])) $this->db_name = $config['db_name'];
+                    // Si pas d'ID utilisateur spécifique, utiliser la configuration de base
+                    if (!$this->userId) {
+                        if (isset($config['db_name'])) $this->db_name = $config['db_name'];
+                    }
+                    
                     if (isset($config['username'])) $this->username = $config['username'];
                     if (isset($config['password'])) $this->password = $config['password'];
                 }
@@ -61,7 +74,8 @@ class DatabaseConfig {
             'host' => $this->host,
             'db_name' => $this->db_name,
             'username' => $this->username,
-            'password' => '********'
+            'password' => '********',
+            'userId' => $this->userId
         ];
     }
 
@@ -88,7 +102,11 @@ class DatabaseConfig {
             $this->host = "p71x6d.myd.infomaniak.com";
         }
         
-        $this->db_name = $db_name;
+        // Si un ID utilisateur est spécifié, ignorer le nom de la base de données fourni
+        if (!$this->userId) {
+            $this->db_name = $db_name;
+        }
+        
         $this->username = $username;
         $this->password = $password;
         return $this->saveConfig();

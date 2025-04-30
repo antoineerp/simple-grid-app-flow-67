@@ -1,226 +1,213 @@
 
 <?php
-require_once 'RequestHandler.php';
-require_once 'TableManager.php';
-require_once 'TransactionManager.php';
+require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/../utils/logging.php';
 
 class DataSyncService {
-    protected $connection = null;
-    public $tableName = '';  // Changed from protected to public
-    protected $userId = '';
-    protected $tableManager;
-    protected $transactionManager;
-
-    public function __construct($type) {
-        $this->tableName = $type;
+    private $db;
+    private $tableName;
+    private $logger;
+    
+    public function __construct(string $tableName) {
+        $this->tableName = $tableName;
+        $this->logger = new Logger($tableName . '_sync');
+        $this->logger->info("Service DataSync initialisé pour " . $tableName);
     }
-
-    public function setStandardHeaders($methods = "GET, POST, OPTIONS") {
-        RequestHandler::setStandardHeaders($methods);
+    
+    /**
+     * Définir les en-têtes standard pour les requêtes
+     */
+    public function setStandardHeaders(string $allowedMethods = "GET, POST, OPTIONS") {
+        header("Content-Type: application/json; charset=UTF-8");
+        header("Access-Control-Allow-Origin: *");
+        header("Access-Control-Allow-Methods: " . $allowedMethods);
+        header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With, X-User-ID");
+        header("Cache-Control: no-cache, no-store, must-revalidate");
     }
-
+    
+    /**
+     * Gérer les requêtes OPTIONS (preflight)
+     */
     public function handleOptionsRequest() {
-        RequestHandler::handleOptionsRequest();
+        if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
+            http_response_code(200);
+            echo json_encode(['status' => 'success', 'message' => 'Preflight OK']);
+            exit;
+        }
     }
-
-    public function connectToDatabase() {
-        require_once 'config/database.php';
+    
+    /**
+     * Sanitize l'ID utilisateur pour l'utiliser dans les noms de tables
+     */
+    public function sanitizeUserId(string $userId): string {
+        return preg_replace('/[^a-zA-Z0-9_]/', '_', $userId);
+    }
+    
+    /**
+     * Extraire l'ID utilisateur de la requête
+     */
+    public function extractUserId(): string {
+        // Vérifier les en-têtes pour l'ID utilisateur
+        $userId = $_SERVER['HTTP_X_USER_ID'] ?? null;
         
+        if (!$userId) {
+            // Essayer de l'extraire des données JSON
+            $json = file_get_contents('php://input');
+            $data = json_decode($json, true);
+            $userId = $data['userId'] ?? 'p71x6d_system';
+        }
+        
+        return $this->sanitizeUserId($userId);
+    }
+    
+    /**
+     * Se connecter à la base de données spécifique à l'utilisateur
+     */
+    public function connectToDatabase(): bool {
         try {
-            $database = new Database();
-            $this->connection = $database->getConnection();
+            // Obtenir l'ID utilisateur
+            $userId = $this->extractUserId();
+            $this->logger->info("Connexion à la base de données pour l'utilisateur: " . $userId);
             
-            if (!$database->testConnection()) {
-                error_log("Erreur de connexion à la base de données");
+            // Créer une instance de la base de données spécifique à l'utilisateur
+            $this->db = new Database($userId);
+            return $this->db->testConnection();
+        } catch (Exception $e) {
+            $this->logger->error("Erreur de connexion à la base de données: " . $e->getMessage());
+            return false;
+        }
+    }
+    
+    /**
+     * S'assurer que la table existe
+     */
+    public function ensureTableExists(string $schema): bool {
+        try {
+            if (!$this->db || !$this->db->getConnection()) {
+                $this->logger->error("Pas de connexion à la base de données");
                 return false;
             }
             
-            // Initialiser les gestionnaires après la connexion
-            $this->tableManager = new TableManager($this->connection, $this->tableName, $this->userId);
-            $this->transactionManager = new TransactionManager($this->connection);
-            
+            // Exécuter le schéma pour créer la table si elle n'existe pas
+            $this->db->getConnection()->exec($schema);
+            $this->logger->info("Table vérifiée/créée avec succès");
             return true;
-        } catch (Exception $e) {
-            error_log("Exception lors de la connexion à la base: " . $e->getMessage());
-            return false;
-        }
-    }
-
-    public function ensureTableExists($schema) {
-        if (!$this->tableManager) {
-            $this->tableManager = new TableManager($this->connection, $this->tableName, $this->userId);
-        }
-        return $this->tableManager->ensureTableExists($schema);
-    }
-
-    public function getTableColumns() {
-        if (!$this->tableManager) {
-            $this->tableManager = new TableManager($this->connection, $this->tableName, $this->userId);
-        }
-        return $this->tableManager->getTableColumns();
-    }
-
-    public function sanitizeUserId($userId) {
-        $this->userId = RequestHandler::sanitizeUserId($userId);
-        
-        // Met à jour le TableManager avec le nouvel userId
-        if ($this->tableManager) {
-            $this->tableManager = new TableManager($this->connection, $this->tableName, $this->userId);
-        }
-        
-        return $this->userId;
-    }
-
-    public function beginTransaction() {
-        if (!$this->transactionManager) {
-            $this->transactionManager = new TransactionManager($this->connection);
-        }
-        return $this->transactionManager->beginTransaction();
-    }
-
-    public function commitTransaction() {
-        if (!$this->transactionManager) {
-            return false;
-        }
-        return $this->transactionManager->commitTransaction();
-    }
-
-    public function rollbackTransaction() {
-        if (!$this->transactionManager) {
-            return false;
-        }
-        return $this->transactionManager->rollbackTransaction();
-    }
-
-    public function syncData($records) {
-        if (!$this->connection) {
-            throw new Exception("Pas de connexion à la base de données");
-        }
-        
-        if (!$this->transactionManager || !$this->transactionManager->isTransactionActive()) {
-            throw new Exception("Aucune transaction active. Appelez beginTransaction() d'abord.");
-        }
-        
-        if (empty($records)) {
-            return true; // Rien à synchroniser
-        }
-        
-        // Récupérer tous les IDs pour optimiser les opérations
-        $existingIds = $this->getAllIds();
-        
-        foreach ($records as $record) {
-            if (isset($record['id'])) {
-                $id = $record['id'];
-                
-                if (in_array($id, $existingIds)) {
-                    $this->updateRecord($record);
-                } else {
-                    $this->insertRecord($record);
-                }
-            } else {
-                error_log("Enregistrement sans ID ignoré: " . json_encode($record));
-            }
-        }
-        
-        return true;
-    }
-
-    protected function getAllIds() {
-        try {
-            $tableName = $this->tableManager->getFullTableName();
-            $query = "SELECT id FROM `{$tableName}`";
-            $stmt = $this->connection->prepare($query);
-            $stmt->execute();
-            
-            $ids = [];
-            while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
-                $ids[] = $row['id'];
-            }
-            
-            return $ids;
         } catch (PDOException $e) {
-            error_log("Erreur lors de la récupération des IDs: " . $e->getMessage());
-            return [];
-        }
-    }
-
-    protected function insertRecord($record) {
-        try {
-            $fields = [];
-            $placeholders = [];
-            $values = [];
-            
-            foreach ($record as $key => $value) {
-                $fields[] = "`$key`";
-                $placeholders[] = "?";
-                $values[] = $value;
-            }
-            
-            $fieldsStr = implode(", ", $fields);
-            $placeholdersStr = implode(", ", $placeholders);
-            
-            $tableName = $this->tableManager->getFullTableName();
-            $query = "INSERT INTO `{$tableName}` ($fieldsStr) VALUES ($placeholdersStr)";
-            $stmt = $this->connection->prepare($query);
-            
-            return $stmt->execute($values);
-        } catch (PDOException $e) {
-            error_log("Erreur lors de l'insertion: " . $e->getMessage());
+            $this->logger->error("Erreur lors de la création de la table: " . $e->getMessage());
             return false;
         }
-    }
-
-    protected function updateRecord($record) {
-        try {
-            $updates = [];
-            $values = [];
-            
-            foreach ($record as $key => $value) {
-                if ($key !== 'id') {
-                    $updates[] = "`$key` = ?";
-                    $values[] = $value;
-                }
-            }
-            
-            $values[] = $record['id']; // Pour la condition WHERE
-            $updatesStr = implode(", ", $updates);
-            
-            $tableName = $this->tableManager->getFullTableName();
-            $query = "UPDATE `{$tableName}` SET $updatesStr WHERE id = ?";
-            $stmt = $this->connection->prepare($query);
-            
-            return $stmt->execute($values);
-        } catch (PDOException $e) {
-            error_log("Erreur lors de la mise à jour: " . $e->getMessage());
-            return false;
-        }
-    }
-
-    public function loadData() {
-        if (!$this->tableManager) {
-            $this->tableManager = new TableManager($this->connection, $this->tableName, $this->userId);
-        }
-        return $this->tableManager->loadData();
     }
     
-    public function insertMultipleData($records) {
-        if (!$this->tableManager) {
-            $this->tableManager = new TableManager($this->connection, $this->tableName, $this->userId);
+    /**
+     * Démarrer une transaction
+     */
+    public function beginTransaction(): bool {
+        try {
+            if (!$this->db || !$this->db->getConnection()) {
+                return false;
+            }
+            
+            return $this->db->getConnection()->beginTransaction();
+        } catch (PDOException $e) {
+            $this->logger->error("Erreur lors du démarrage de la transaction: " . $e->getMessage());
+            return false;
         }
-        return $this->tableManager->insertMultipleData($records);
     }
-
-    public function getPdo() {
-        return $this->connection;
+    
+    /**
+     * Valider une transaction
+     */
+    public function commitTransaction(): bool {
+        try {
+            if (!$this->db || !$this->db->getConnection()) {
+                return false;
+            }
+            
+            return $this->db->getConnection()->commit();
+        } catch (PDOException $e) {
+            $this->logger->error("Erreur lors de la validation de la transaction: " . $e->getMessage());
+            return false;
+        }
     }
-
+    
+    /**
+     * Annuler une transaction
+     */
+    public function rollbackTransaction(): bool {
+        try {
+            if (!$this->db || !$this->db->getConnection()) {
+                return false;
+            }
+            
+            return $this->db->getConnection()->rollBack();
+        } catch (PDOException $e) {
+            $this->logger->error("Erreur lors de l'annulation de la transaction: " . $e->getMessage());
+            return false;
+        }
+    }
+    
+    /**
+     * Synchroniser les données
+     */
+    public function syncData(array $data): bool {
+        try {
+            if (!$this->db || !$this->db->getConnection()) {
+                $this->logger->error("Pas de connexion à la base de données pour la synchronisation");
+                return false;
+            }
+            
+            $userId = $this->extractUserId();
+            $this->logger->info("Synchronisation pour l'utilisateur " . $userId . " avec " . count($data) . " éléments");
+            
+            // Obtenir une référence à la connexion
+            $conn = $this->db->getConnection();
+            
+            // Vider la table pour une synchronisation complète
+            $conn->exec("DELETE FROM `" . $this->tableName . "_{$userId}`");
+            
+            if (empty($data)) {
+                $this->logger->info("Pas de données à synchroniser");
+                return true;
+            }
+            
+            // Construire la requête d'insertion dynamique basée sur les clés de la première entrée
+            $firstItem = $data[0];
+            $columns = array_keys($firstItem);
+            
+            $placeholders = array_map(function($col) {
+                return ':' . $col;
+            }, $columns);
+            
+            $sql = "INSERT INTO `" . $this->tableName . "_{$userId}` (" . 
+                   implode(', ', $columns) . 
+                   ") VALUES (" . 
+                   implode(', ', $placeholders) . 
+                   ")";
+            
+            $stmt = $conn->prepare($sql);
+            
+            // Insérer chaque élément
+            foreach ($data as $item) {
+                $bindParams = [];
+                foreach ($columns as $col) {
+                    $bindParams[':' . $col] = isset($item[$col]) ? $item[$col] : null;
+                }
+                
+                $stmt->execute($bindParams);
+            }
+            
+            $this->logger->info("Synchronisation réussie");
+            return true;
+        } catch (PDOException $e) {
+            $this->logger->error("Erreur lors de la synchronisation des données: " . $e->getMessage());
+            return false;
+        }
+    }
+    
+    /**
+     * Finaliser et libérer les ressources
+     */
     public function finalize() {
-        if ($this->transactionManager) {
-            $this->transactionManager->finalize();
-        }
-        
-        // Fermer la connexion
-        $this->connection = null;
+        $this->db = null;
     }
 }
-?>

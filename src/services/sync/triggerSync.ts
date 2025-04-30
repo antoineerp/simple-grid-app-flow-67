@@ -1,3 +1,4 @@
+
 /**
  * Service pour déclencher la synchronisation des données
  * Ce service permet d'assurer que les modifications sont bien synchronisées avec le serveur
@@ -6,7 +7,7 @@
 
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { safeLocalStorageSet, safeLocalStorageGet } from '@/utils/syncStorageCleaner';
-import { getCurrentUser } from '@/services/core/databaseConnectionService';
+import { getCurrentUser, getDatabaseConnectionCurrentUser } from '@/services/core/databaseConnectionService';
 
 // Structure pour stocker les données en attente de synchronisation
 interface PendingSyncData {
@@ -54,8 +55,12 @@ class TriggerSyncService implements ITriggerSyncService {
     if (this.initialized || typeof window === 'undefined') return;
     
     try {
-      // Charger les synchronisations en attente depuis le localStorage
-      const pendingSyncsString = safeLocalStorageGet<string>(PENDING_SYNC_KEY, '{}');
+      // Obtenir l'utilisateur actuel pour garantir l'isolation des données
+      const currentUser = getDatabaseConnectionCurrentUser() || 'default';
+      console.log(`TriggerSync: Initialisation pour l'utilisateur ${currentUser}`);
+      
+      // Charger les synchronisations en attente depuis le localStorage spécifique à l'utilisateur
+      const pendingSyncsString = safeLocalStorageGet<string>(`${PENDING_SYNC_KEY}_${currentUser}`, '{}');
       if (pendingSyncsString) {
         const pendingSyncsData = JSON.parse(pendingSyncsString);
         
@@ -64,7 +69,7 @@ class TriggerSyncService implements ITriggerSyncService {
           this.pendingSyncs.set(key, value as PendingSyncData);
         });
         
-        console.log(`TriggerSync: ${this.pendingSyncs.size} synchronisations en attente chargées`);
+        console.log(`TriggerSync: ${this.pendingSyncs.size} synchronisations en attente chargées pour l'utilisateur ${currentUser}`);
       }
       
       // Configurer l'écouteur d'événement pour la connexion réseau
@@ -75,6 +80,9 @@ class TriggerSyncService implements ITriggerSyncService {
       
       // Configurer l'écouteur pour la fermeture de la page
       window.addEventListener('beforeunload', this.savePendingSyncs);
+      
+      // Écouter les changements d'utilisateur pour recharger les données spécifiques
+      window.addEventListener('user-changed', this.handleUserChanged);
       
       this.initialized = true;
       console.log('TriggerSync: Service initialisé');
@@ -97,7 +105,45 @@ class TriggerSyncService implements ITriggerSyncService {
     window.removeEventListener('online', this.handleOnline);
     window.removeEventListener('force-sync-required', this.processAllPendingSyncs);
     window.removeEventListener('beforeunload', this.savePendingSyncs);
+    window.removeEventListener('user-changed', this.handleUserChanged);
   }
+  
+  /**
+   * Gérer l'événement de changement d'utilisateur
+   */
+  private handleUserChanged = (event: CustomEvent) => {
+    // Sauvegarder d'abord les modifications en attente de l'utilisateur précédent
+    this.savePendingSyncs();
+    
+    // Vider la map actuelle
+    this.pendingSyncs.clear();
+    
+    // Charger les synchronisations en attente du nouvel utilisateur
+    try {
+      const newUserId = event.detail?.userId || 'default';
+      console.log(`TriggerSync: Changement d'utilisateur détecté - ${newUserId}`);
+      
+      // Charger les synchronisations en attente du nouvel utilisateur
+      const pendingSyncsString = safeLocalStorageGet<string>(`${PENDING_SYNC_KEY}_${newUserId}`, '{}');
+      if (pendingSyncsString) {
+        const pendingSyncsData = JSON.parse(pendingSyncsString);
+        
+        // Reconstruire la Map avec les données chargées
+        Object.entries(pendingSyncsData).forEach(([key, value]) => {
+          this.pendingSyncs.set(key, value as PendingSyncData);
+        });
+        
+        console.log(`TriggerSync: ${this.pendingSyncs.size} synchronisations en attente chargées pour l'utilisateur ${newUserId}`);
+      }
+      
+      // Traiter les synchronisations en attente si en ligne
+      if (navigator.onLine && this.pendingSyncs.size > 0) {
+        setTimeout(() => this.processAllPendingSyncs(), 2000);
+      }
+    } catch (error) {
+      console.error('TriggerSync: Erreur lors du changement d\'utilisateur', error);
+    }
+  };
   
   /**
    * Gérer l'événement de retour en ligne
@@ -113,18 +159,21 @@ class TriggerSyncService implements ITriggerSyncService {
   private savePendingSyncs = () => {
     if (this.pendingSyncs.size > 0) {
       try {
+        // Obtenir l'utilisateur actuel pour l'isolation des données
+        const currentUser = getDatabaseConnectionCurrentUser() || 'default';
         const pendingSyncsData: Record<string, PendingSyncData> = {};
         
         this.pendingSyncs.forEach((value, key) => {
           pendingSyncsData[key] = value;
         });
         
-        safeLocalStorageSet(PENDING_SYNC_KEY, JSON.stringify(pendingSyncsData));
-        console.log(`TriggerSync: ${this.pendingSyncs.size} synchronisations sauvegardées`);
+        // Utiliser une clé spécifique à l'utilisateur
+        safeLocalStorageSet(`${PENDING_SYNC_KEY}_${currentUser}`, JSON.stringify(pendingSyncsData));
+        console.log(`TriggerSync: ${this.pendingSyncs.size} synchronisations sauvegardées pour l'utilisateur ${currentUser}`);
         
         // Déclencher un événement pour informer l'application
         window.dispatchEvent(new CustomEvent('sync-pending-saved', {
-          detail: { count: this.pendingSyncs.size }
+          detail: { count: this.pendingSyncs.size, userId: currentUser }
         }));
       } catch (error) {
         console.error('TriggerSync: Erreur lors de la sauvegarde des synchronisations en attente', error);
@@ -142,7 +191,7 @@ class TriggerSyncService implements ITriggerSyncService {
     }
     
     // Utiliser l'ID de l'utilisateur actuel si non spécifié
-    const currentUser = userId || getCurrentUser() || 'default';
+    const currentUser = userId || getDatabaseConnectionCurrentUser() || 'default';
     const syncKey = `${tableName}_${currentUser}`;
     
     // Enregistrer les données à synchroniser
@@ -155,12 +204,12 @@ class TriggerSyncService implements ITriggerSyncService {
     
     console.log(`TriggerSync: Changement enregistré pour ${tableName} (utilisateur: ${currentUser})`);
     
-    // Sauvegarder immédiatement dans localStorage
+    // Sauvegarder immédiatement dans localStorage avec une clé spécifique à l'utilisateur
     this.savePendingSyncs();
     
     // Déclencher un événement pour informer l'application
     window.dispatchEvent(new CustomEvent('sync-data-changed', {
-      detail: { tableName, timestamp: new Date().toISOString() }
+      detail: { tableName, timestamp: new Date().toISOString(), userId: currentUser }
     }));
     
     // Si en ligne, programmer une synchronisation
@@ -187,21 +236,22 @@ class TriggerSyncService implements ITriggerSyncService {
         };
       }
       
-      console.log(`TriggerSync: Synchronisation de la table ${tableName} déclenchée (${data.length} éléments)`);
+      // Obtenir l'ID utilisateur actuel pour l'isolation des données
+      const currentUser = getDatabaseConnectionCurrentUser() || 'default';
+      console.log(`TriggerSync: Synchronisation de la table ${tableName} déclenchée pour l'utilisateur ${currentUser} (${data.length} éléments)`);
       
       // Si hors ligne, stocker dans la file d'attente et retourner un succès partiel
       if (!navigator.onLine) {
         console.log(`TriggerSync: Mode hors ligne, données stockées pour synchronisation ultérieure`);
         
         // Stocker les données pour synchronisation ultérieure
-        const userId = getCurrentUser() || 'default';
-        const syncKey = `${tableName}_${userId}`;
+        const syncKey = `${tableName}_${currentUser}`;
         
         this.pendingSyncs.set(syncKey, {
           tableName,
           data,
           timestamp: new Date().toISOString(),
-          userId
+          userId: currentUser
         });
         
         this.savePendingSyncs();
@@ -219,6 +269,7 @@ class TriggerSyncService implements ITriggerSyncService {
           tables: [tableName],
           data: data,
           trigger: trigger,
+          userId: currentUser,
           timestamp: new Date().toISOString()
         }
       }));
@@ -256,7 +307,7 @@ class TriggerSyncService implements ITriggerSyncService {
     try {
       console.log(`TriggerSync: Traitement de la synchronisation pour ${syncKey}`);
       
-      // Émettre un événement pour demander la synchronisation
+      // Émettre un événement pour demander la synchronisation avec l'utilisateur spécifique
       window.dispatchEvent(new CustomEvent('force-sync-required', {
         detail: {
           tableName: pendingSync.tableName,
@@ -286,17 +337,24 @@ class TriggerSyncService implements ITriggerSyncService {
       return;
     }
     
-    console.log(`TriggerSync: Traitement de ${this.pendingSyncs.size} synchronisations en attente`);
+    // Obtenir l'utilisateur actuel pour l'isolation des données
+    const currentUser = getDatabaseConnectionCurrentUser() || 'default';
+    console.log(`TriggerSync: Traitement de ${this.pendingSyncs.size} synchronisations en attente pour l'utilisateur ${currentUser}`);
     
     // Préparer un tableau de toutes les clés pour éviter les problèmes de modification pendant l'itération
     const syncKeys = Array.from(this.pendingSyncs.keys());
     
     // Traiter séquentiellement pour éviter les problèmes
     for (const syncKey of syncKeys) {
-      await this.processPendingSync(syncKey);
-      
-      // Petite pause entre les synchronisations
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Vérifier que la clé correspond bien à l'utilisateur actuel
+      if (syncKey.includes(currentUser)) {
+        await this.processPendingSync(syncKey);
+        
+        // Petite pause entre les synchronisations
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      } else {
+        console.log(`TriggerSync: Ignorer ${syncKey} car il appartient à un autre utilisateur`);
+      }
     }
     
     console.log('TriggerSync: Toutes les synchronisations en attente ont été traitées');

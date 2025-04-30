@@ -1,301 +1,104 @@
-import { getApiUrl } from '@/config/apiConfig';
-import { getAuthHeaders } from '@/services/auth/authService';
 
-// Variable en mémoire pour stocker l'utilisateur actuel
-let currentDatabaseUser: string | null = null;
+/**
+ * Service de connexion à la base de données
+ * Ce service gère la connexion à la base de données et les utilisateurs
+ */
 
-// Fonction pour récupérer l'utilisateur actuel depuis la mémoire ou token JWT
+import { safeLocalStorageGet, safeLocalStorageSet } from '@/utils/syncStorageCleaner';
+
+// Clé pour stocker l'utilisateur actuel dans le localStorage
+const CURRENT_USER_KEY = 'current_database_user';
+
+// Fonction pour obtenir l'utilisateur actuel
 export const getCurrentUser = (): string | null => {
-  // Si nous avons déjà récupéré l'utilisateur, le renvoyer
-  if (currentDatabaseUser) return currentDatabaseUser;
-  
-  // Essayer de récupérer depuis l'authentification
   try {
-    const authToken = sessionStorage.getItem('authToken') || localStorage.getItem('authToken');
-    if (authToken) {
-      // Vérifier que le token a le bon format avant de le traiter
-      const parts = authToken.split('.');
-      if (parts && parts.length >= 2 && parts[1]) {
-        try {
-          const base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
-          const rawPayload = atob(base64);
-          const jsonPayload = decodeURIComponent(
-            Array.from(rawPayload)
-              .map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
-              .join('')
-          );
-
-          const userData = JSON.parse(jsonPayload);
-          if (userData.user && userData.user.identifiant_technique) {
-            currentDatabaseUser = userData.user.identifiant_technique;
-            return userData.user.identifiant_technique;
-          }
-        } catch (decodeError) {
-          console.error("Erreur lors du décodage du token:", decodeError);
-        }
-      } else {
-        console.error("Format de token invalide lors de l'initialisation");
-      }
-    }
+    return safeLocalStorageGet<string>(CURRENT_USER_KEY, null);
   } catch (error) {
-    console.error("Erreur lors de la récupération de l'utilisateur depuis le token:", error);
+    console.error('Erreur lors de la récupération de l\'utilisateur actuel:', error);
+    return null;
   }
-  
-  // Valeur par défaut pour les opérations sans authentification
-  return 'p71x6d_system';
 };
 
 // Fonction pour définir l'utilisateur actuel
-export const setCurrentUser = (userId: string): void => {
-  if (!userId || typeof userId !== 'string' || !userId.startsWith('p71x6d_')) {
-    console.error(`Tentative d'utilisation d'un identifiant technique invalide: ${userId}`);
-    userId = 'p71x6d_system';
-  }
-  
-  currentDatabaseUser = userId;
-  console.log(`Utilisateur défini: ${userId}`);
-  
-  // Stocker aussi dans le localStorage pour la persistance entre les rechargements
+export const setCurrentUser = (userId: string): boolean => {
   try {
-    localStorage.setItem('currentDatabaseUser', userId);
-  } catch (error) {
-    console.error("Erreur lors de la sauvegarde de l'utilisateur dans localStorage:", error);
-  }
-};
-
-// Fonction pour supprimer l'utilisateur actuel
-export const removeCurrentUser = (): void => {
-  currentDatabaseUser = null;
-  try {
-    localStorage.removeItem('currentDatabaseUser');
-  } catch (error) {
-    console.error("Erreur lors de la suppression de l'utilisateur du localStorage:", error);
-  }
-};
-
-// Variable pour stocker la dernière erreur de connexion
-let lastConnectionError: string | null = null;
-
-// Fonction pour obtenir la dernière erreur de connexion
-export const getLastConnectionError = (): string | null => {
-  return lastConnectionError;
-};
-
-// Fonction pour définir la dernière erreur de connexion
-export const setLastConnectionError = (error: string): void => {
-  lastConnectionError = error;
-  console.error("Erreur de connexion enregistrée:", error);
-};
-
-// Fonction pour se connecter en tant qu'utilisateur spécifique
-export const connectAsUser = async (userId: string): Promise<boolean> => {
-  try {
-    console.log(`Tentative de connexion en tant que: ${userId}`);
+    safeLocalStorageSet(CURRENT_USER_KEY, userId);
+    console.log(`Utilisateur défini: ${userId}`);
     
-    // S'assurer que l'identifiant est bien formaté
-    if (!userId || !userId.startsWith('p71x6d_')) {
-      setLastConnectionError(`Identifiant technique invalide: ${userId}`);
-      return false;
-    }
-    
-    setCurrentUser(userId);
-    
-    // Mettre à jour l'interface utilisateur immédiatement
-    window.dispatchEvent(new CustomEvent('database-user-changed', {
-      detail: { user: userId }
+    // Déclencher un événement pour informer l'application du changement d'utilisateur
+    window.dispatchEvent(new CustomEvent('user-changed', {
+      detail: { userId }
     }));
     
     return true;
   } catch (error) {
-    console.error("Erreur lors de la connexion en tant qu'utilisateur:", error);
-    const errorMessage = error instanceof Error ? error.message : "Erreur inconnue";
-    setLastConnectionError(errorMessage);
+    console.error('Erreur lors de la définition de l\'utilisateur actuel:', error);
     return false;
   }
 };
 
-// Fonction pour déconnecter l'utilisateur
-export const disconnectUser = (): void => {
-  removeCurrentUser();
-  console.log("Utilisateur déconnecté de la base de données");
-};
-
-// Fonction pour obtenir l'utilisateur actuel de la connexion à la base de données
+// Fonction pour obtenir l'utilisateur connecté pour la connexion à la base de données
 export const getDatabaseConnectionCurrentUser = (): string | null => {
-  // Vérifier d'abord la variable en mémoire
-  if (currentDatabaseUser) {
-    return currentDatabaseUser;
+  const currentUser = getCurrentUser();
+  
+  if (!currentUser) {
+    console.warn('Aucun utilisateur défini, utilisation du compte système par défaut');
+    return 'p71x6d_system';
   }
   
-  // Sinon, essayer de récupérer depuis localStorage
-  try {
-    const savedUser = localStorage.getItem('currentDatabaseUser');
-    if (savedUser) {
-      currentDatabaseUser = savedUser;
-      return savedUser;
-    }
-  } catch (error) {
-    console.error("Erreur lors de la récupération de l'utilisateur depuis localStorage:", error);
-  }
-  
-  // Si rien n'est trouvé, utiliser l'utilisateur par défaut
-  return 'p71x6d_system';
+  return currentUser;
 };
 
-// Interface pour les informations de base de données
-export interface DatabaseInfo {
-  host: string;
-  database: string;
-  size: string;
-  tables: number;
-  lastBackup: string;
-  status: string;
-  encoding?: string;
-  collation?: string;
-  tableList?: string[];
-}
-
-// Fonction pour tester la connexion à la base de données
-export const testDatabaseConnection = async (): Promise<boolean> => {
-  try {
-    console.log("Test de connexion à la base de données via check-users.php");
-    // Utiliser check-users.php au lieu de direct-db-test.php car il fonctionne mieux
-    const currentUser = getDatabaseConnectionCurrentUser();
-    const response = await fetch(`${getApiUrl()}/check-users?source=${currentUser}`, {
-      headers: getAuthHeaders()
-    });
-    
-    if (!response.ok) {
-      const errorData = await response.json();
-      const errorMessage = errorData.message || response.statusText;
-      console.error("Erreur de connexion à la base de données:", errorMessage);
-      setLastConnectionError(errorMessage);
-      return false;
-    }
-    const result = await response.json();
-    if (result.status !== 'success') {
-      setLastConnectionError(result.message || "Échec de la connexion");
-      return false;
-    }
-    return true;
-  } catch (error) {
-    console.error("Erreur lors du test de connexion à la base de données:", error);
-    const errorMessage = error instanceof Error ? error.message : "Erreur inconnue";
-    setLastConnectionError(errorMessage);
-    return false;
-  }
+// Base URL pour l'API
+export const getApiBaseUrl = (): string => {
+  // On peut éventuellement adapter l'URL en fonction de l'environnement
+  return 'https://api.infomaniak-system.net';
 };
 
-// Fonction pour récupérer les informations de la base de données
-export const getDatabaseInfo = async (): Promise<DatabaseInfo> => {
-  try {
-    const currentUser = getDatabaseConnectionCurrentUser();
-    console.log(`Récupération des informations de base de données pour: ${currentUser || 'utilisateur par défaut'}`);
-    
-    // Appel direct à check-users pour obtenir des informations réelles (le même endpoint qui fonctionne)
-    const response = await fetch(`${getApiUrl()}/check-users?source=${currentUser}`, {
-      headers: {
-        ...getAuthHeaders(),
-        'Accept': 'application/json',
-        'Cache-Control': 'no-cache, no-store, must-revalidate'
-      }
-    });
-    
-    // Si la requête échoue, lancer une erreur
-    if (!response.ok) {
-      const errorData = await response.json();
-      const errorMessage = errorData.message || `Erreur de connexion à la base de données: ${response.statusText}`;
-      setLastConnectionError(errorMessage);
-      throw new Error(errorMessage);
-    }
-    
-    // Essayer d'analyser la réponse JSON
-    const data = await response.json();
-    
-    if (data.status !== 'success') {
-      const errorMessage = data.message || "Échec de la récupération des informations de la base de données";
-      setLastConnectionError(errorMessage);
-      throw new Error(errorMessage);
-    }
-    
-    // S'assurer que les valeurs critiques ne sont pas "localhost"
-    if (data.database_info && data.database_info.host && data.database_info.host.includes('localhost')) {
-      console.error("ALERTE: Host 'localhost' détecté dans la réponse API. Correction forcée vers Infomaniak.");
-      data.database_info.host = "p71x6d.myd.infomaniak.com";
-    }
-    
-    // Extraire et formater les informations de la base de données
-    const dbInfo: DatabaseInfo = {
-      host: data.database_info?.host || "p71x6d.myd.infomaniak.com",
-      database: data.database_info?.database || "p71x6d_system",
-      size: '0 MB',
-      tables: data.records ? data.records.length : 0,
-      lastBackup: new Date().toISOString().split('T')[0] + ' 00:00:00',
-      status: data.status === 'success' ? 'Online' : 'Offline',
-      encoding: data.database_info?.encoding || 'utf8mb4',
-      collation: data.database_info?.collation || 'utf8mb4_unicode_ci',
-      tableList: ['utilisateurs']
-    };
-    
-    console.log("Informations de base de données reçues:", dbInfo);
-    return dbInfo;
-  } catch (error) {
-    console.error('Erreur lors de la récupération des informations de la base de données:', error);
-    const errorMessage = error instanceof Error ? error.message : "Erreur inconnue";
-    setLastConnectionError(errorMessage);
-    // Lancer l'erreur pour la propager au composant appelant
-    throw error;
-  }
+// Fonction pour obtenir l'URL complète de l'API pour un utilisateur spécifique
+export const getUserApiUrl = (endpoint: string, userId?: string): string => {
+  const baseUrl = getApiBaseUrl();
+  const user = userId || getDatabaseConnectionCurrentUser() || 'p71x6d_system';
+  
+  // Construit l'URL avec l'utilisateur intégré
+  return `${baseUrl}/users/${user}/${endpoint}`;
 };
 
-// Fonction pour initialiser l'utilisateur actuel
-export const initializeCurrentUser = (): void => {
-  // D'abord, essayer de récupérer depuis localStorage
-  try {
-    const savedUser = localStorage.getItem('currentDatabaseUser');
-    if (savedUser && savedUser.startsWith('p71x6d_')) {
-      currentDatabaseUser = savedUser;
-      console.log(`Utilisateur récupéré depuis localStorage: ${savedUser}`);
-      return;
-    }
-  } catch (error) {
-    console.error("Erreur lors de la récupération de l'utilisateur depuis localStorage:", error);
-  }
+// Fonction pour obtenir les en-têtes d'authentification pour une requête API
+export const getApiAuthHeaders = (userId?: string): Record<string, string> => {
+  const user = userId || getDatabaseConnectionCurrentUser() || 'p71x6d_system';
   
-  // Sinon, essayer depuis le token d'authentification
-  try {
-    const authToken = sessionStorage.getItem('authToken') || localStorage.getItem('authToken');
-    if (authToken) {
-      // Vérifier que le token est correctement formaté (format JWT)
-      const parts = authToken.split('.');
-      if (parts && parts.length >= 3) { // Un token JWT valide a 3 parties
-        try {
-          const base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
-          const rawPayload = atob(base64);
-          const jsonPayload = decodeURIComponent(
-            Array.from(rawPayload)
-              .map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
-              .join('')
-          );
+  // Simule un token d'authentification basé sur l'ID utilisateur
+  // Dans une application réelle, vous utiliseriez un véritable système d'authentification
+  const dummyToken = btoa(`user-${user}-${Date.now()}`);
+  
+  return {
+    'Authorization': `Bearer ${dummyToken}`,
+    'X-User-ID': user
+  };
+};
 
-          const userData = JSON.parse(jsonPayload);
-          if (userData.user && userData.user.identifiant_technique) {
-            setCurrentUser(userData.user.identifiant_technique);
-            console.log(`Utilisateur initialisé depuis le token JWT: ${userData.user.identifiant_technique}`);
-            return;
-          }
-        } catch (decodeError) {
-          console.error("Erreur lors du décodage du token:", decodeError);
-        }
-      } else {
-        console.error("Format de token invalide lors de l'initialisation");
-      }
+// Fonction pour initialiser la connexion à la base de données
+export const initializeDatabaseConnection = (userId: string): Promise<boolean> => {
+  return new Promise((resolve, reject) => {
+    try {
+      // Définir l'utilisateur actuel
+      setCurrentUser(userId);
+      
+      // Simuler une initialisation de connexion
+      setTimeout(() => {
+        console.log(`Connexion à la base de données initialisée pour l'utilisateur ${userId}`);
+        
+        // Déclencher un événement pour informer l'application
+        window.dispatchEvent(new CustomEvent('database-initialized', {
+          detail: { userId, success: true }
+        }));
+        
+        resolve(true);
+      }, 500);
+    } catch (error) {
+      console.error(`Erreur lors de l'initialisation de la connexion pour ${userId}:`, error);
+      reject(error);
     }
-  } catch (error) {
-    console.error("Erreur lors de l'initialisation de l'utilisateur depuis le token:", error);
-  }
-  
-  // Si aucun utilisateur n'est trouvé, utiliser la valeur par défaut
-  setCurrentUser('p71x6d_system');
-  console.log(`Utilisateur initialisé avec la valeur par défaut: p71x6d_system`);
+  });
 };

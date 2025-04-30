@@ -8,13 +8,18 @@ class Database {
     private $config;
     private $connection;
     private $diagnostics;
+    private $userId;
     
     public function __construct($source = 'default') {
-        $this->config = new DatabaseConfig();
+        // Si source n'est pas 'default', c'est probablement un ID utilisateur
+        $this->userId = ($source !== 'default') ? $source : null;
+        
+        // Créer la configuration avec l'ID utilisateur si disponible
+        $this->config = new DatabaseConfig($this->userId);
         $this->connection = new DatabaseConnection($this->config, $source);
         $this->diagnostics = new DatabaseDiagnostics($this->connection, $this->config);
         
-        error_log("Database class initialized from source '{$source}'");
+        error_log("Database class initialized from source '{$source}'" . ($this->userId ? " (userId: {$this->userId})" : ""));
     }
 
     public function getConnection($require_connection = false) {
@@ -36,7 +41,8 @@ class Database {
         return array_merge($config, [
             'is_connected' => $this->connection->isConnected(),
             'error' => $this->connection->getError(),
-            'source' => $this->connection->connection_source
+            'source' => $this->connection->connection_source,
+            'userId' => $this->userId
         ]);
     }
 
@@ -48,6 +54,50 @@ class Database {
 
     public function diagnoseConnection() {
         return $this->diagnostics->diagnose();
+    }
+    
+    /**
+     * Récupérer l'ID utilisateur associé à cette instance de base de données
+     */
+    public function getUserId() {
+        return $this->userId;
+    }
+    
+    /**
+     * Vérifier si une table existe pour cet utilisateur
+     */
+    public function tableExists($tableName) {
+        try {
+            if (!$this->getConnection(true)) {
+                return false;
+            }
+            
+            $sql = "SHOW TABLES LIKE ?";
+            $stmt = $this->connection->getConnection()->prepare($sql);
+            $stmt->execute([$tableName]);
+            
+            return $stmt->rowCount() > 0;
+        } catch (Exception $e) {
+            error_log("Error checking if table exists: " . $e->getMessage());
+            return false;
+        }
+    }
+    
+    /**
+     * Créer une table si elle n'existe pas
+     */
+    public function createTableIfNotExists($tableName, $schema) {
+        try {
+            if (!$this->getConnection(true)) {
+                return false;
+            }
+            
+            $this->connection->getConnection()->exec($schema);
+            return true;
+        } catch (Exception $e) {
+            error_log("Error creating table: " . $e->getMessage());
+            return false;
+        }
     }
 }
 ?>
