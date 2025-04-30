@@ -3,7 +3,7 @@ import React from 'react';
 import { RefreshCw, CloudOff, AlertCircle, CheckCircle } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { TooltipProvider } from '@/components/ui/tooltip';
+import { TooltipProvider, Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface SyncIndicatorProps {
   isSyncing: boolean;
@@ -62,25 +62,34 @@ const SyncIndicator: React.FC<SyncIndicatorProps> = ({
         <AlertCircle className="h-4 w-4" />
         <AlertDescription className="flex items-center justify-between">
           <div>Échec de la dernière synchronisation.</div>
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={onSync}
-            disabled={isSyncing}
-            className="ml-4"
-          >
-            {isSyncing ? (
-              <>
-                <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                Synchronisation...
-              </>
-            ) : (
-              <>
-                <RefreshCw className="h-4 w-4 mr-2" />
-                Réessayer
-              </>
-            )}
-          </Button>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={onSync}
+                  disabled={isSyncing}
+                  className="ml-4"
+                >
+                  {isSyncing ? (
+                    <>
+                      <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                      Synchronisation...
+                    </>
+                  ) : (
+                    <>
+                      <RefreshCw className="h-4 w-4 mr-2" />
+                      Réessayer
+                    </>
+                  )}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Tenter une nouvelle synchronisation</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         </AlertDescription>
       </Alert>
     );
@@ -104,16 +113,25 @@ const SyncIndicator: React.FC<SyncIndicatorProps> = ({
       <CheckCircle className="h-4 w-4 text-green-500" />
       <AlertDescription className="flex items-center justify-between">
         <div>Dernière synchronisation: {formatLastSynced()}</div>
-        <Button 
-          variant="ghost" 
-          size="sm" 
-          onClick={onSync}
-          disabled={isSyncing}
-          className="ml-4"
-        >
-          <RefreshCw className="h-4 w-4 mr-2" />
-          Synchroniser
-        </Button>
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={onSync}
+                disabled={isSyncing}
+                className="ml-4"
+              >
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Synchroniser
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Forcer une synchronisation maintenant</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
       </AlertDescription>
     </Alert>
   );
