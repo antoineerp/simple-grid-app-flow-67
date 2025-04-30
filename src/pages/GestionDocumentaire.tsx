@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import DocumentTable from '@/components/documents/DocumentTable';
 import { useDocuments } from '@/hooks/useDocuments';
 import { getDatabaseConnectionCurrentUser } from '@/services/core/databaseConnectionService';
+import { MembresProvider } from '@/contexts/MembresContext';
 
 const GestionDocumentaire = () => {
   const navigate = useNavigate();
@@ -31,20 +32,6 @@ const GestionDocumentaire = () => {
     <div className="container mx-auto py-6 px-4">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold">Gestion Documentaire</h1>
-        <div className="flex items-center space-x-2">
-          <button
-            onClick={handleAddDocument}
-            className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded"
-          >
-            Ajouter un document
-          </button>
-          <button
-            onClick={handleAddGroup}
-            className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded"
-          >
-            Ajouter un groupe
-          </button>
-        </div>
       </div>
       
       <DocumentTable 
@@ -61,6 +48,21 @@ const GestionDocumentaire = () => {
         onEditGroup={handleEditGroup}
         onDeleteGroup={handleDeleteGroup}
       />
+      
+      <div className="mt-4 flex justify-end space-x-2">
+        <button
+          onClick={handleAddDocument}
+          className="bg-app-blue hover:bg-blue-600 text-white px-4 py-2 rounded"
+        >
+          Ajouter un document
+        </button>
+        <button
+          onClick={handleAddGroup}
+          className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded"
+        >
+          Ajouter un groupe
+        </button>
+      </div>
     </div>
   );
 };

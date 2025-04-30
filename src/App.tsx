@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { Toaster } from '@/components/ui/toaster';
@@ -128,60 +127,58 @@ function App() {
   return (
     <Router>
       <TooltipProvider>
-        <Routes>
-          {/* Route publique */}
-          <Route path="/" element={<Index />} />
-          
-          {/* Routes protégées dans le Layout */}
-          <Route path="/" element={<Layout />}>
-            <Route path="pilotage" element={
-              <ProtectedRoute>
-                <Pilotage />
-              </ProtectedRoute>
-            } />
-            <Route path="db-admin" element={
-              <ProtectedRoute>
-                <DbAdmin />
-              </ProtectedRoute>
-            } />
+        <MembresProvider>
+          <Routes>
+            {/* Route publique */}
+            <Route path="/" element={<Index />} />
             
-            {/* Routes vers les pages réelles au lieu des placeholders */}
-            <Route path="exigences" element={
-              <ProtectedRoute>
-                <Exigences />
-              </ProtectedRoute>
-            } />
-            <Route path="gestion-documentaire" element={
-              <ProtectedRoute>
-                <MembresProvider>
+            {/* Routes protégées dans le Layout */}
+            <Route path="/" element={<Layout />}>
+              <Route path="pilotage" element={
+                <ProtectedRoute>
+                  <Pilotage />
+                </ProtectedRoute>
+              } />
+              <Route path="db-admin" element={
+                <ProtectedRoute>
+                  <DbAdmin />
+                </ProtectedRoute>
+              } />
+              
+              {/* Routes vers les pages réelles au lieu des placeholders */}
+              <Route path="exigences" element={
+                <ProtectedRoute>
+                  <Exigences />
+                </ProtectedRoute>
+              } />
+              <Route path="gestion-documentaire" element={
+                <ProtectedRoute>
                   <GestionDocumentaire />
-                </MembresProvider>
-              </ProtectedRoute>
-            } />
-            <Route path="ressources-humaines" element={
-              <ProtectedRoute>
-                <MembresProvider>
+                </ProtectedRoute>
+              } />
+              <Route path="ressources-humaines" element={
+                <ProtectedRoute>
                   <RessourcesHumaines />
-                </MembresProvider>
-              </ProtectedRoute>
-            } />
-            <Route path="collaboration" element={
-              <ProtectedRoute>
-                <Collaboration />
-              </ProtectedRoute>
-            } />
-            <Route path="administration" element={
-              <ProtectedRoute>
-                <Administration />
-              </ProtectedRoute>
-            } />
-          </Route>
-          
-          {/* Redirection pour les routes inconnues */}
-          <Route path="*" element={<Navigate to="/" />} />
-        </Routes>
-        <Toaster />
-        <RouteTracker />
+                </ProtectedRoute>
+              } />
+              <Route path="collaboration" element={
+                <ProtectedRoute>
+                  <Collaboration />
+                </ProtectedRoute>
+              } />
+              <Route path="administration" element={
+                <ProtectedRoute>
+                  <Administration />
+                </ProtectedRoute>
+              } />
+            </Route>
+            
+            {/* Redirection pour les routes inconnues */}
+            <Route path="*" element={<Navigate to="/" />} />
+          </Routes>
+          <Toaster />
+          <RouteTracker />
+        </MembresProvider>
       </TooltipProvider>
     </Router>
   );

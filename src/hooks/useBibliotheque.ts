@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from 'react';
 import { Document, DocumentGroup } from '@/types/bibliotheque';
 import { useToast } from '@/hooks/use-toast';
@@ -28,13 +27,18 @@ export const useBibliotheque = () => {
   
   const { toast } = useToast();
   
-  // Correction de l'erreur TypeScript - s'assurer que currentUser est toujours une chaîne
-  const [currentUser, setCurrentUser] = useState<string>(
-    getDatabaseConnectionCurrentUser() || 
-    (getCurrentUser() && typeof getCurrentUser().identifiant_technique === 'string' 
-      ? getCurrentUser().identifiant_technique 
-      : 'default')
-  );
+  // S'assurer que currentUser est toujours une chaîne
+  const [currentUser, setCurrentUser] = useState<string>(() => {
+    const dbUser = getDatabaseConnectionCurrentUser();
+    if (dbUser) return dbUser;
+    
+    const authUser = getCurrentUser();
+    if (authUser && typeof authUser === 'object' && 'identifiant_technique' in authUser) {
+      return String(authUser.identifiant_technique);
+    }
+    
+    return 'default';
+  });
   
   // Use the GlobalSync context
   const { syncTable, syncAll, isOnline } = useGlobalSync();
@@ -51,7 +55,6 @@ export const useBibliotheque = () => {
   const { isSyncing, lastSynced, syncFailed } = collaborationSyncState;
   
   // Utiliser le hook useSyncContext pour la synchronisation
-  // Mise à jour du nom de la table de "bibliotheque" à "collaboration"
   const { 
     syncWithServer, 
     notifyChanges 
