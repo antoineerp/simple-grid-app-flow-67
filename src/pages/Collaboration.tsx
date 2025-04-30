@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -307,7 +306,7 @@ const Collaboration = () => {
                         ) : (
                           <ChevronUp className="h-4 w-4 mr-2" />
                         )}
-                        <span className="font-semibold">{group.name}</span>
+                        <span className="font-semibold text-app-blue">{group.name}</span>
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">

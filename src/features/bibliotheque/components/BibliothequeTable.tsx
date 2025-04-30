@@ -88,7 +88,7 @@ export const BibliothequeTable: React.FC<BibliothequeTableProps> = ({
               <TableCell className="py-3 px-4">
                 <div className="flex items-center">
                   <ChevronDown className={`h-4 w-4 mr-2 inline-block transition-transform ${group.expanded ? 'rotate-180' : ''}`} />
-                  <span className="font-medium">{group.name}</span>
+                  <span className="font-medium text-app-blue">{group.name}</span>
                 </div>
               </TableCell>
               <TableCell className="py-3 px-4"></TableCell>
