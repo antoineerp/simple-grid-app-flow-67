@@ -17,7 +17,7 @@ const GlobalSyncManager: React.FC = () => {
   const syncTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const lastSyncAttemptRef = useRef<number>(0);
   
-  // Vérifier les données en attente de synchronisation dans localStorage
+  // Vérifier les données en attente de synchronisation
   const checkPendingSyncs = () => {
     const hasPending = triggerSync.hasPendingChanges();
     setIsSyncPending(hasPending);
@@ -53,7 +53,7 @@ const GlobalSyncManager: React.FC = () => {
           console.error("Erreur lors de la synchronisation des modifications en attente:", error);
         });
         syncTimeoutRef.current = null;
-      }, 10000); // 10 secondes de délai
+      }, 5000); // Réduire à 5 secondes pour une réactivité améliorée
     }
   };
   
@@ -75,17 +75,43 @@ const GlobalSyncManager: React.FC = () => {
       }
     };
     
+    // Callback pour les événements de synchronisation terminée
+    const handleSyncComplete = (e: CustomEvent) => {
+      if (e.detail?.tableName) {
+        console.log(`GlobalSyncManager: Synchronisation terminée pour ${e.detail.tableName}`);
+      }
+    };
+    
+    // Callback pour les événements d'erreur de synchronisation
+    const handleSyncError = (e: CustomEvent) => {
+      if (e.detail?.tableName) {
+        console.error(`GlobalSyncManager: Erreur de synchronisation pour ${e.detail.tableName}`, e.detail.error);
+      }
+    };
+    
     // Vérification initiale
     checkPendingSyncs();
     
     // Ajouter les écouteurs d'événements
     window.addEventListener('dataUpdate', handleDataUpdate as EventListener);
     window.addEventListener('storage', handleStorageChange);
+    window.addEventListener('syncComplete', handleSyncComplete as EventListener);
+    window.addEventListener('syncError', handleSyncError as EventListener);
+    
+    // Tentative de synchronisation initiale pour les données en attente
+    if (isOnline) {
+      // Retarder légèrement pour laisser le temps à l'application de se charger
+      setTimeout(() => {
+        syncPendingChanges();
+      }, 3000);
+    }
     
     // Retirer les écouteurs lors du démontage du composant
     return () => {
       window.removeEventListener('dataUpdate', handleDataUpdate as EventListener);
       window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('syncComplete', handleSyncComplete as EventListener);
+      window.removeEventListener('syncError', handleSyncError as EventListener);
       
       // Nettoyer le timeout s'il existe
       if (syncTimeoutRef.current) {
@@ -98,7 +124,6 @@ const GlobalSyncManager: React.FC = () => {
   useEffect(() => {
     if (isSyncPending && isOnline) {
       // Ne pas déclencher la synchronisation trop souvent
-      // Utiliser un délai pour regrouper plusieurs modifications
       syncPendingChanges();
     }
   }, [isSyncPending, isOnline]);
@@ -121,6 +146,21 @@ const GlobalSyncManager: React.FC = () => {
       }
     }
   }, [location.pathname, isOnline]);
+
+  // Vérifier et tenter une synchronisation toutes les minutes si en ligne
+  useEffect(() => {
+    if (!isOnline) return;
+    
+    const intervalId = setInterval(() => {
+      const hasPending = checkPendingSyncs();
+      if (hasPending) {
+        console.log("GlobalSyncManager: Tentative de synchronisation périodique");
+        syncPendingChanges();
+      }
+    }, 60000); // Vérifier toutes les 60 secondes
+    
+    return () => clearInterval(intervalId);
+  }, [isOnline]);
   
   return null; // Ce composant n'affiche rien, il gère uniquement la logique en arrière-plan
 };

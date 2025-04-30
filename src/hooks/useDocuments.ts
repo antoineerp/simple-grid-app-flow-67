@@ -9,6 +9,10 @@ import { getCurrentUser } from '@/services/core/databaseConnectionService';
 import { useSync } from './useSync';
 import { useGlobalData } from '@/contexts/GlobalDataContext';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
+import { 
+  loadDocumentsFromServer, 
+  syncDocumentsWithServer 
+} from '@/services/documents/documentSyncService';
 
 export const useDocuments = () => {
   const { toast } = useToast();
@@ -33,6 +37,7 @@ export const useDocuments = () => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [groupDialogOpen, setGroupDialogOpen] = useState(false);
   const [stats, setStats] = useState<DocumentStats>(() => calculateDocumentStats(documents));
+  const [initialLoadDone, setInitialLoadDone] = useState(false);
 
   // Utiliser le hook de synchronisation central
   const { syncAndProcess } = useSync('documents');
@@ -41,12 +46,41 @@ export const useDocuments = () => {
     setStats(calculateDocumentStats(documents));
   }, [documents]);
 
+  // Charger les documents au démarrage
+  useEffect(() => {
+    if (!initialLoadDone) {
+      const loadInitialData = async () => {
+        setIsSyncing(true);
+        try {
+          console.log("Chargement initial des documents");
+          const loadedDocs = await loadDocumentsFromServer();
+          if (loadedDocs && loadedDocs.length > 0) {
+            console.log(`${loadedDocs.length} documents chargés depuis le serveur`);
+            setDocuments(loadedDocs);
+          } else {
+            console.log("Aucun document chargé depuis le serveur");
+          }
+          setLastSynced(new Date());
+          setSyncFailed(false);
+        } catch (error) {
+          console.error("Erreur lors du chargement initial des documents:", error);
+          setSyncFailed(true);
+        } finally {
+          setIsSyncing(false);
+          setInitialLoadDone(true);
+        }
+      };
+      
+      loadInitialData();
+    }
+  }, [initialLoadDone]);
+
   const syncWithServer = async (): Promise<boolean> => {
     try {
       setIsSyncing(true);
-      const result = await syncAndProcess('documents', documents);
+      const result = await syncDocumentsWithServer(documents);
       
-      if (result.success) {
+      if (result) {
         setLastSynced(new Date());
         setSyncFailed(false);
       } else {
@@ -54,7 +88,7 @@ export const useDocuments = () => {
       }
       
       setIsSyncing(false);
-      return result.success;
+      return result;
     } catch (error) {
       console.error("Erreur lors de la synchronisation des documents:", error);
       setSyncFailed(true);
@@ -136,8 +170,8 @@ export const useDocuments = () => {
       
       // Mettre à jour le groupId du document
       if (targetGroupId !== undefined) {
-        removed.groupId = targetGroupId;
-      } else {
+        removed.groupId = targetGroupId === 'null' ? undefined : targetGroupId;
+      } else if (removed.groupId) {
         // Si le document est déplacé hors d'un groupe, supprimer la propriété groupId
         delete removed.groupId;
       }
@@ -166,6 +200,32 @@ export const useDocuments = () => {
     setGroupDialogOpen(true);
   }, []);
 
+  const forceReload = useCallback(async () => {
+    setIsSyncing(true);
+    try {
+      const loadedDocs = await loadDocumentsFromServer();
+      if (loadedDocs && loadedDocs.length > 0) {
+        setDocuments(loadedDocs);
+        setLastSynced(new Date());
+        setSyncFailed(false);
+        toast({
+          title: "Rechargement réussi",
+          description: `${loadedDocs.length} documents chargés depuis le serveur Infomaniak`,
+        });
+      }
+    } catch (error) {
+      console.error("Erreur lors du rechargement forcé:", error);
+      setSyncFailed(true);
+      toast({
+        variant: "destructive",
+        title: "Erreur de rechargement",
+        description: "Impossible de recharger les documents depuis le serveur.",
+      });
+    } finally {
+      setIsSyncing(false);
+    }
+  }, []);
+
   return {
     documents,
     groups,
@@ -188,6 +248,7 @@ export const useDocuments = () => {
     handleAddGroup,
     handleEditGroup,
     ...groupOperations,
-    syncWithServer
+    syncWithServer,
+    forceReload
   };
 };
