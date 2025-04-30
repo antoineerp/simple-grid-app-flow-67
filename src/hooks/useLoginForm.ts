@@ -39,6 +39,9 @@ export const useLoginForm = () => {
       const result = await login(values.username, values.password);
       
       if (result.success && result.token) {
+        console.log("Connexion réussie, token reçu:", result.token.substring(0, 20) + "...");
+        console.log("Données utilisateur:", result.user);
+        
         toast({
           title: "Connexion réussie",
           description: "Vous êtes maintenant connecté",
@@ -46,9 +49,10 @@ export const useLoginForm = () => {
         
         console.log("Redirection vers le tableau de bord après connexion réussie");
         
-        // Force la navigation en utilisant window.location pour un rechargement complet
-        window.location.href = '/pilotage';
+        // Utiliser React Router pour la navigation au lieu de forcer un rechargement complet
+        navigate('/pilotage');
       } else {
+        console.error("Échec de connexion:", result.message);
         setError(result.message || 'Échec de la connexion');
         
         // Déterminer le type d'erreur
@@ -67,6 +71,7 @@ export const useLoginForm = () => {
         });
       }
     } catch (err) {
+      console.error("Exception lors de la connexion:", err);
       const errorMessage = err instanceof Error ? err.message : "Erreur lors de la connexion";
       setError(errorMessage);
       

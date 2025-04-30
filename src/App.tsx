@@ -18,14 +18,21 @@ import { MembresProvider } from '@/contexts/MembresContext';
 // Composant de route protégée qui vérifie l'authentification
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const isLoggedIn = getIsLoggedIn();
+  
+  console.log('ProtectedRoute - Vérification de connexion:', isLoggedIn);
+  
   if (!isLoggedIn) {
-    console.log('Unauthorized access attempt, redirecting to login');
+    console.log('ProtectedRoute - Accès non autorisé, redirection vers la page de connexion');
     return <Navigate to="/" />;
   }
+  
+  console.log('ProtectedRoute - Accès autorisé');
   return <>{children}</>;
 };
 
 function App() {
+  console.log('App - Rendu initial de l\'application');
+  
   return (
     <Router>
       <Routes>
