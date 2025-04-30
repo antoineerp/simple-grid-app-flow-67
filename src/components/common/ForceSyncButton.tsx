@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
 import { Loader2, RefreshCw, CheckCircle, AlertTriangle } from 'lucide-react';
 import { toast } from '@/components/ui/use-toast';
 import { forceFullSync as forceDocumentsSync } from '@/services/documents/documentSyncService';
@@ -92,24 +92,26 @@ export const ForceSyncButton: React.FC<ForceSyncButtonProps> = ({
   };
 
   return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <Button 
-          variant={variant} 
-          size={size}
-          onClick={handleForceSync}
-          disabled={isSyncing}
-          className="gap-2"
-        >
-          {renderIcon()}
-          {showLabel && (
-            <span>{isSyncing ? "Synchronisation..." : "Forcer la synchronisation"}</span>
-          )}
-        </Button>
-      </TooltipTrigger>
-      <TooltipContent>
-        <p>Forcer une synchronisation complète avec la base de données Infomaniak</p>
-      </TooltipContent>
-    </Tooltip>
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button 
+            variant={variant} 
+            size={size}
+            onClick={handleForceSync}
+            disabled={isSyncing}
+            className="gap-2"
+          >
+            {renderIcon()}
+            {showLabel && (
+              <span>{isSyncing ? "Synchronisation..." : "Forcer la synchronisation"}</span>
+            )}
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent>
+          <p>Forcer une synchronisation complète avec la base de données Infomaniak</p>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
   );
 };

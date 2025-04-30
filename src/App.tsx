@@ -1,6 +1,8 @@
+
 import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { Toaster } from '@/components/ui/toaster';
+import { TooltipProvider } from '@/components/ui/tooltip';
 import DbAdmin from '@/pages/DbAdmin';
 import DbTest from '@/pages/DbTest';
 import Index from '@/pages/Index';
@@ -14,7 +16,6 @@ import Collaboration from '@/pages/Collaboration';
 import { getIsLoggedIn, getCurrentUser } from '@/services/auth/authService';
 import { MembresProvider } from '@/contexts/MembresContext';
 import { toast } from '@/components/ui/use-toast';
-import { TooltipProvider } from '@/components/ui/tooltip';
 
 // Composant de route protégée qui vérifie l'authentification
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {

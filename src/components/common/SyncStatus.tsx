@@ -3,7 +3,7 @@ import React from 'react';
 import { useGlobalSync } from '@/contexts/GlobalSyncContext';
 import { Button } from '@/components/ui/button';
 import { RefreshCw, Wifi, WifiOff, Clock } from 'lucide-react';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
 import { ForceSyncButton } from './ForceSyncButton';
 
 export const SyncStatus: React.FC = () => {
@@ -69,35 +69,39 @@ export const SyncStatus: React.FC = () => {
   
   return (
     <div className="flex items-center gap-2">
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <div className={`flex items-center gap-1 px-2 py-1 text-xs ${getStatusColor()}`}>
-            {isOnline ? (
-              <Wifi className="h-3 w-3" />
-            ) : (
-              <WifiOff className="h-3 w-3" />
-            )}
-            <span>{isOnline ? "En ligne" : "Hors ligne"}</span>
-          </div>
-        </TooltipTrigger>
-        <TooltipContent>
-          {isOnline 
-            ? "Connecté à Internet - Synchronisation base de données Infomaniak activée" 
-            : "Déconnecté - Mode hors ligne (données stockées localement)"}
-        </TooltipContent>
-      </Tooltip>
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <div className={`flex items-center gap-1 px-2 py-1 text-xs ${getStatusColor()}`}>
+              {isOnline ? (
+                <Wifi className="h-3 w-3" />
+              ) : (
+                <WifiOff className="h-3 w-3" />
+              )}
+              <span>{isOnline ? "En ligne" : "Hors ligne"}</span>
+            </div>
+          </TooltipTrigger>
+          <TooltipContent>
+            {isOnline 
+              ? "Connecté à Internet - Synchronisation base de données Infomaniak activée" 
+              : "Déconnecté - Mode hors ligne (données stockées localement)"}
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
       
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <div className="flex items-center gap-1 px-2 py-1 text-xs">
-            <Clock className="h-3 w-3" />
-            <span>{formatLastSynced(lastSynced)}</span>
-          </div>
-        </TooltipTrigger>
-        <TooltipContent>
-          Dernière synchronisation avec Infomaniak: {lastSynced ? lastSynced.toLocaleString() : "Jamais"}
-        </TooltipContent>
-      </Tooltip>
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <div className="flex items-center gap-1 px-2 py-1 text-xs">
+              <Clock className="h-3 w-3" />
+              <span>{formatLastSynced(lastSynced)}</span>
+            </div>
+          </TooltipTrigger>
+          <TooltipContent>
+            Dernière synchronisation avec Infomaniak: {lastSynced ? lastSynced.toLocaleString() : "Jamais"}
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
       
       <ForceSyncButton showLabel={true} />
     </div>

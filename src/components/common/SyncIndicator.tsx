@@ -3,6 +3,7 @@ import React from 'react';
 import { RefreshCw, CloudOff, AlertCircle, CheckCircle } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { TooltipProvider } from '@/components/ui/tooltip';
 
 interface SyncIndicatorProps {
   isSyncing: boolean;

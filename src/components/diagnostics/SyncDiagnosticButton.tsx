@@ -5,6 +5,7 @@ import { Activity } from 'lucide-react';
 import { toast } from '@/components/ui/use-toast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { SyncDiagnosticPanel } from './SyncDiagnosticPanel';
+import { TooltipProvider } from '@/components/ui/tooltip';
 
 export const SyncDiagnosticButton: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -18,7 +19,7 @@ export const SyncDiagnosticButton: React.FC = () => {
   };
 
   return (
-    <>
+    <TooltipProvider>
       <Button 
         variant="outline" 
         size="sm" 
@@ -41,6 +42,6 @@ export const SyncDiagnosticButton: React.FC = () => {
           <SyncDiagnosticPanel onClose={() => setIsOpen(false)} />
         </DialogContent>
       </Dialog>
-    </>
+    </TooltipProvider>
   );
 };
