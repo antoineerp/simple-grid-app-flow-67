@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState, useRef } from 'react';
 import { useSyncContext } from '@/features/sync/hooks/useSyncContext';
 import SyncDebugger from '@/features/sync/components/SyncDebugger';

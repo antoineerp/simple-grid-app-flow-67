@@ -126,3 +126,61 @@ export function clearAllUserData(userId: string): boolean {
     return false;
   }
 }
+
+// Nouvelle fonction pour nettoyer le stockage de synchronisation
+export function cleanSyncStorage(): void {
+  try {
+    console.log('Nettoyage du stockage de synchronisation...');
+    const keysToClean: string[] = [];
+    
+    // Identifier les clés à nettoyer
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (!key) continue;
+      
+      // Vérifier si la clé contient [object Object] (clés mal formées)
+      if (key.includes('[object Object]')) {
+        keysToClean.push(key);
+        continue;
+      }
+      
+      // Nettoyer les entrées corrompues
+      if (key.includes('_changed_') || key.includes('sync_') || key.includes('_lastSync')) {
+        try {
+          const value = localStorage.getItem(key);
+          if (value) {
+            JSON.parse(value); // Tester si c'est un JSON valide
+          }
+        } catch (e) {
+          keysToClean.push(key);
+        }
+      }
+    }
+    
+    // Supprimer les clés corrompues
+    keysToClean.forEach(key => {
+      localStorage.removeItem(key);
+      console.log(`Suppression de la clé corrompue: ${key}`);
+    });
+    
+    console.log(`${keysToClean.length} entrées corrompues supprimées`);
+  } catch (error) {
+    console.error('Erreur lors du nettoyage du stockage de synchronisation:', error);
+  }
+}
+
+// Fonction d'initialisation pour le nettoyage du stockage
+export function initializeSyncStorageCleaner(): void {
+  // Nettoyer immédiatement au démarrage
+  cleanSyncStorage();
+  
+  // Configurer le nettoyage périodique (toutes les 30 minutes)
+  if (typeof window !== 'undefined') {
+    setInterval(cleanSyncStorage, 30 * 60 * 1000);
+    console.log('Nettoyage périodique du stockage initialisé');
+  }
+  
+  // Nettoyer les données anciennes (plus de 30 jours)
+  cleanupOldSyncData();
+}
+

@@ -1,36 +1,38 @@
 
-// Re-export functions from other service files
-export * from './core/userInitializationService';
-export * from './documents';
-export * from './users/createUserService';
-export * from './users/userManager';
+/**
+ * Services exports centralisés
+ * Ce fichier regroupe toutes les exportations des services pour faciliter leur importation
+ */
 
-// Export du type Utilisateur
-export interface Utilisateur {
-  id: number;
-  nom: string;
-  prenom: string;
-  email: string;
-  mot_de_passe: string;
-  identifiant_technique: string;
-  role: string;
-  date_creation: string;
-}
-
-// Explicitement renommer les exports de getCurrentUser pour éviter l'ambiguïté
-export { 
-  getCurrentUser as getDatabaseConnectionCurrentUser 
-} from './core/databaseConnectionService';
-
-export { 
-  getCurrentUser as getAuthCurrentUser 
-} from './auth/authService';
-
-// Re-export other functions from databaseConnectionService
-export {
+// Imports pour les réexportations
+import { 
+  getCurrentUser as getCurrentDbUser,
+  getDatabaseConnectionCurrentUser,
+  setCurrentUser,
+  getApiBaseUrl,
+  getUserApiUrl,
+  getApiAuthHeaders,
+  initializeDatabaseConnection,
   connectAsUser,
   getLastConnectionError,
   disconnectUser,
   testDatabaseConnection,
   getDatabaseInfo
 } from './core/databaseConnectionService';
+
+// Réexportations
+export { getCurrentDbUser, getDatabaseConnectionCurrentUser, setCurrentUser };
+export { getApiBaseUrl, getUserApiUrl, getApiAuthHeaders };
+export { initializeDatabaseConnection };
+export { connectAsUser, getLastConnectionError, disconnectUser };
+export { testDatabaseConnection, getDatabaseInfo };
+
+// Export de types depuis d'autres modules si nécessaire
+export type { Utilisateur } from './users/types';
+
+// Exportation de fonctions utilitaires
+export const clearUsersCache = (): void => {
+  localStorage.removeItem('users_cache');
+  console.log('Cache utilisateurs nettoyé');
+};
+

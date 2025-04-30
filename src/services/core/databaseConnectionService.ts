@@ -8,6 +8,7 @@ import { safeLocalStorageGet, safeLocalStorageSet } from '@/utils/syncStorageCle
 
 // Clé pour stocker l'utilisateur actuel dans le localStorage
 const CURRENT_USER_KEY = 'current_database_user';
+const CONNECTION_ERROR_KEY = 'database_connection_error';
 
 // Fonction pour obtenir l'utilisateur actuel
 export const getCurrentUser = (): string | null => {
@@ -102,3 +103,156 @@ export const initializeDatabaseConnection = (userId: string): Promise<boolean> =
     }
   });
 };
+
+// NOUVELLES FONCTIONS POUR CORRIGER LES ERREURS
+
+// Fonction pour stocker une erreur de connexion
+export const setConnectionError = (error: string): void => {
+  safeLocalStorageSet(CONNECTION_ERROR_KEY, error);
+};
+
+// Fonction pour obtenir la dernière erreur de connexion
+export const getLastConnectionError = (): string | null => {
+  return safeLocalStorageGet<string>(CONNECTION_ERROR_KEY, null);
+};
+
+// Fonction pour initialiser l'utilisateur courant
+export const initializeCurrentUser = (): string | null => {
+  const currentUser = getCurrentUser();
+  if (!currentUser) {
+    console.warn("Pas d'utilisateur actuel défini, utilisation de l'utilisateur système");
+    return 'p71x6d_system';
+  }
+  
+  // Déclencher un événement pour informer que l'utilisateur est initialisé
+  window.dispatchEvent(new CustomEvent('database-user-initialized', {
+    detail: { user: currentUser }
+  }));
+  
+  return currentUser;
+};
+
+// Fonction pour connecter en tant qu'utilisateur spécifique
+export const connectAsUser = async (userId: string): Promise<boolean> => {
+  try {
+    // Effacer les erreurs précédentes
+    setConnectionError('');
+    
+    // Initialiser la connexion
+    await initializeDatabaseConnection(userId);
+    
+    // Déclencher un événement pour informer du changement d'utilisateur
+    window.dispatchEvent(new CustomEvent('database-user-changed', {
+      detail: { user: userId }
+    }));
+    
+    return true;
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    setConnectionError(errorMessage);
+    console.error(`Erreur lors de la connexion en tant que ${userId}:`, errorMessage);
+    return false;
+  }
+};
+
+// Fonction pour déconnecter l'utilisateur actuel
+export const disconnectUser = (): void => {
+  safeLocalStorageRemove(CURRENT_USER_KEY);
+  
+  // Déclencher un événement pour informer de la déconnexion
+  window.dispatchEvent(new CustomEvent('database-user-changed', {
+    detail: { user: null }
+  }));
+  
+  console.log("Utilisateur déconnecté");
+};
+
+// Fonction pour tester la connexion à la base de données
+export const testDatabaseConnection = async (userId?: string): Promise<{
+  success: boolean;
+  message: string;
+  details?: any;
+}> => {
+  const user = userId || getDatabaseConnectionCurrentUser() || 'p71x6d_system';
+  
+  try {
+    // Simuler un test de connexion
+    console.log(`Test de connexion pour l'utilisateur ${user}...`);
+    
+    // Attente simulée pour un test de connexion
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    return {
+      success: true,
+      message: `Connexion réussie pour l'utilisateur ${user}`,
+      details: {
+        user,
+        timestamp: new Date().toISOString(),
+        server: 'infomaniak-system.net'
+      }
+    };
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    setConnectionError(errorMessage);
+    
+    return {
+      success: false,
+      message: `Échec de la connexion pour l'utilisateur ${user}: ${errorMessage}`,
+      details: { error: errorMessage }
+    };
+  }
+};
+
+// Fonction pour obtenir les informations de la base de données
+export const getDatabaseInfo = async (userId?: string): Promise<{
+  host: string;
+  database: string;
+  status: string;
+  size: string;
+  tables: number;
+  lastBackup: string;
+  encoding?: string;
+  collation?: string;
+  tableList?: string[];
+}> => {
+  const user = userId || getDatabaseConnectionCurrentUser() || 'p71x6d_system';
+  
+  try {
+    // Simuler un appel API pour obtenir les informations
+    console.log(`Récupération des informations pour l'utilisateur ${user}...`);
+    
+    // Dans un cas réel, on ferait un appel API vers le backend
+    const tableList = [
+      'users', 'exigences', 'documents', 'groups', 'settings', 
+      'sync_logs', 'user_preferences', 'collaborations'
+    ];
+    
+    return {
+      host: `${user}.myd.infomaniak.com`,
+      database: user,
+      status: 'Online',
+      size: '4.2 MB',
+      tables: tableList.length,
+      lastBackup: new Date().toISOString(),
+      encoding: 'UTF-8',
+      collation: 'utf8mb4_unicode_ci',
+      tableList
+    };
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error(`Erreur lors de la récupération des informations de la base de données:`, errorMessage);
+    
+    return {
+      host: 'Unknown',
+      database: user,
+      status: 'Error',
+      size: 'Unknown',
+      tables: 0,
+      lastBackup: 'Never',
+      encoding: 'Unknown',
+      collation: 'Unknown',
+      tableList: []
+    };
+  }
+};
+

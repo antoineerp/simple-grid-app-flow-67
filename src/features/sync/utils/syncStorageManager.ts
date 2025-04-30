@@ -3,7 +3,7 @@
  */
 
 import { getCurrentUser } from '@/services/core/databaseConnectionService';
-import { safeLocalStorageSet, safeLocalStorageGet } from '@/utils/syncStorageCleaner';
+import { safeLocalStorageSet, safeLocalStorageGet, cleanSyncStorage } from '@/utils/syncStorageCleaner';
 
 // Generate a unique storage key for a table
 export const getStorageKey = (tableName: string, syncKey?: string): string => {
@@ -330,6 +330,7 @@ import { initializeSyncStorageCleaner } from '@/utils/syncStorageCleaner';
 
 // Initialiser immédiatement si dans un environnement de navigateur
 if (typeof window !== 'undefined') {
-  initializeSyncStorageCleaner();
+  // Utilisation directe de la fonction importée plutôt que la réimportation
+  cleanSyncStorage();
   console.log("SyncStorageManager: Nettoyage du stockage initialisé");
 }
