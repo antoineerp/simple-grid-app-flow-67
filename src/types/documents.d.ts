@@ -21,6 +21,13 @@ export interface Document {
   atteinte?: 'NC' | 'PC' | 'C' | null;
   ordre?: number;
   userId?: string;
+  // Assurer la compatibilité avec d'autres champs potentiels
+  nom?: string;
+  fichier_path?: string;
+  etat?: string;
+  responsabilites?: { r: string[], a: string[], c: string[], i: string[] };
+  date_creation?: Date;
+  date_modification?: Date;
 }
 
 export interface DocumentGroup {

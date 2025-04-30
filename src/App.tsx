@@ -137,53 +137,44 @@ function App() {
             <Route path="/" element={<Layout />}>
               <Route path="pilotage" element={
                 <ProtectedRoute>
-                  <MembresProvider>
-                    <Pilotage />
-                  </MembresProvider>
-                </ProtectedRoute>
-              } />
-              <Route path="db-admin" element={
-                <ProtectedRoute>
-                  <MembresProvider>
-                    <DbAdmin />
-                  </ProtectedRoute>
+                  <Pilotage />
                 </ProtectedRoute>
               } />
               
-              {/* Routes vers les pages réelles au lieu des placeholders */}
+              <Route path="db-admin" element={
+                <ProtectedRoute>
+                  <DbAdmin />
+                </ProtectedRoute>
+              } />
+              
+              {/* Routes vers les pages réelles */}
               <Route path="exigences" element={
                 <ProtectedRoute>
-                  <MembresProvider>
-                    <Exigences />
-                  </MembresProvider>
+                  <Exigences />
                 </ProtectedRoute>
               } />
+              
               <Route path="gestion-documentaire" element={
                 <ProtectedRoute>
-                  <MembresProvider>
-                    <GestionDocumentaire />
-                  </MembresProvider>
+                  <GestionDocumentaire />
                 </ProtectedRoute>
               } />
+              
               <Route path="ressources-humaines" element={
                 <ProtectedRoute>
-                  <MembresProvider>
-                    <RessourcesHumaines />
-                  </MembresProvider>
+                  <RessourcesHumaines />
                 </ProtectedRoute>
               } />
+              
               <Route path="collaboration" element={
                 <ProtectedRoute>
-                  <MembresProvider>
-                    <Collaboration />
-                  </MembresProvider>
+                  <Collaboration />
                 </ProtectedRoute>
               } />
+              
               <Route path="administration" element={
                 <ProtectedRoute>
-                  <MembresProvider>
-                    <Administration />
-                  </MembresProvider>
+                  <Administration />
                 </ProtectedRoute>
               } />
             </Route>

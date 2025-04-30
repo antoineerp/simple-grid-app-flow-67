@@ -29,17 +29,40 @@ interface MembresProviderProps {
   children: ReactNode;
 }
 
+// Membres par défaut pour éviter une page vide
+const defaultMembres: Membre[] = [
+  {
+    id: '1',
+    nom: 'Dupont',
+    prenom: 'Jean',
+    fonction: 'Directeur',
+    initiales: 'JD',
+    date_creation: new Date()
+  },
+  {
+    id: '2',
+    nom: 'Martin',
+    prenom: 'Sophie',
+    fonction: 'Responsable RH',
+    initiales: 'SM',
+    date_creation: new Date()
+  }
+];
+
 export const MembresProvider: React.FC<MembresProviderProps> = ({ children }) => {
-  const [membres, setMembres] = useState<Membre[]>([]);
+  const [membres, setMembres] = useState<Membre[]>(defaultMembres);
   const [lastSynced, setLastSynced] = useState<Date | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<Error | null>(null);
   const [syncFailed, setSyncFailed] = useState<boolean>(false);
   const { isOnline } = useNetworkStatus();
   const initialized = useRef<boolean>(false);
+  const mountedRef = useRef<boolean>(true);
 
   // Fonction pour charger/recharger les membres
   const loadMembres = async () => {
+    if (!mountedRef.current) return;
+    
     if (initialized.current) {
       console.log("MembresProvider: Rechargement des membres déjà initialisés");
     } else {
@@ -48,83 +71,49 @@ export const MembresProvider: React.FC<MembresProviderProps> = ({ children }) =>
     
     try {
       setIsLoading(true);
-      // Ajouter des membres en dur par défaut pour éviter une page vide
-      const defaultMembres: Membre[] = [
-        {
-          id: '1',
-          nom: 'Dupont',
-          prenom: 'Jean',
-          fonction: 'Directeur',
-          initiales: 'JD',
-          date_creation: new Date()
-        },
-        {
-          id: '2',
-          nom: 'Martin',
-          prenom: 'Sophie',
-          fonction: 'Responsable RH',
-          initiales: 'SM',
-          date_creation: new Date()
-        }
-      ];
       
       if (isOnline) {
         try {
           const loadedMembres = await getMembresService();
-          if (loadedMembres && loadedMembres.length > 0) {
+          if (loadedMembres && loadedMembres.length > 0 && mountedRef.current) {
             console.log(`MembresProvider: ${loadedMembres.length} membres chargés depuis le service`);
             setMembres(loadedMembres);
             initialized.current = true;
-          } else {
-            // Utiliser les membres par défaut si aucun membre n'est chargé
-            console.log("MembresProvider: Aucun membre chargé depuis le service, utilisation des valeurs par défaut");
-            setMembres(defaultMembres);
+          } else if (mountedRef.current) {
+            // Conserver les membres par défaut si aucun membre n'est chargé
+            console.log("MembresProvider: Aucun membre chargé depuis le service, conservation des valeurs par défaut");
           }
         } catch (serviceError) {
           console.error("MembresProvider: Erreur du service de membres:", serviceError);
-          // Utiliser les membres par défaut en cas d'erreur du service
-          setMembres(defaultMembres);
-          throw serviceError;
+          // Conserver les membres actuels en cas d'erreur
+          if (mountedRef.current) {
+            setError(serviceError instanceof Error ? serviceError : new Error(String(serviceError)));
+            setSyncFailed(true);
+          }
         }
-      } else {
-        // Utiliser les membres par défaut si hors ligne
-        console.log("MembresProvider: Mode hors ligne, utilisation des valeurs par défaut");
-        setMembres(defaultMembres);
       }
       
-      setLastSynced(new Date());
-      setSyncFailed(false);
+      if (mountedRef.current) {
+        setLastSynced(new Date());
+        setSyncFailed(false);
+      }
     } catch (err) {
       console.error('MembresProvider: Erreur lors du chargement des membres:', err);
-      setError(err instanceof Error ? err : new Error(String(err)));
-      setSyncFailed(true);
-      // Utiliser les membres par défaut en cas d'erreur générale
-      setMembres([
-        {
-          id: '1',
-          nom: 'Dupont',
-          prenom: 'Jean',
-          fonction: 'Directeur',
-          initiales: 'JD',
-          date_creation: new Date()
-        },
-        {
-          id: '2',
-          nom: 'Martin',
-          prenom: 'Sophie',
-          fonction: 'Responsable RH',
-          initiales: 'SM',
-          date_creation: new Date()
-        }
-      ]);
+      if (mountedRef.current) {
+        setError(err instanceof Error ? err : new Error(String(err)));
+        setSyncFailed(true);
+      }
     } finally {
-      setIsLoading(false);
+      if (mountedRef.current) {
+        setIsLoading(false);
+      }
     }
   };
 
-  // Charger les membres au démarrage
+  // Charger les membres au démarrage et nettoyer au démontage
   useEffect(() => {
-    let isMounted = true;
+    mountedRef.current = true;
+    
     const loadMembresIfMounted = async () => {
       try {
         await loadMembres();
@@ -133,13 +122,11 @@ export const MembresProvider: React.FC<MembresProviderProps> = ({ children }) =>
       }
     };
     
-    // Charger les membres uniquement si le composant est monté
-    if (isMounted) {
-      loadMembresIfMounted();
-    }
+    loadMembresIfMounted();
     
+    // Nettoyer lors du démontage du composant
     return () => {
-      isMounted = false;
+      mountedRef.current = false;
     };
   }, [isOnline]);
 

@@ -1,13 +1,10 @@
 
 import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import DocumentTable from '@/components/documents/DocumentTable';
 import { useDocuments } from '@/hooks/useDocuments';
 import { getDatabaseConnectionCurrentUser } from '@/services/core/databaseConnectionService';
-import { MembresProvider } from '@/contexts/MembresContext';
 
 const GestionDocumentaire = () => {
-  const navigate = useNavigate();
   const { documents, groups, handleEdit, handleDelete, handleReorder, handleToggleGroup, handleEditGroup, handleDeleteGroup, handleResponsabiliteChange, handleAtteinteChange, handleExclusionChange, handleAddDocument, handleAddGroup, handleGroupReorder } = useDocuments();
   const [currentUser, setCurrentUser] = useState<string>(getDatabaseConnectionCurrentUser() || 'default');
   
@@ -52,13 +49,13 @@ const GestionDocumentaire = () => {
       <div className="mt-4 flex justify-end space-x-2">
         <button
           onClick={handleAddDocument}
-          className="bg-app-blue hover:bg-blue-600 text-white px-4 py-2 rounded"
+          className="bg-app-blue hover:bg-blue-700 text-white px-4 py-2 rounded"
         >
           Ajouter un document
         </button>
         <button
           onClick={handleAddGroup}
-          className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded"
+          className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded"
         >
           Ajouter un groupe
         </button>
