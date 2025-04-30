@@ -37,7 +37,20 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
   onEditGroup,
   onDeleteGroup
 }) => {
+  // Filtrer les documents qui n'appartiennent à aucun groupe
   const ungroupedDocuments = documents.filter(d => !d.groupId);
+  
+  // Pour chaque groupe, ajouter les documents correspondants
+  const groupsWithItems = groups.map(group => {
+    // Trouver tous les documents appartenant à ce groupe
+    const groupItems = documents.filter(doc => doc.groupId === group.id);
+    // Retourner le groupe avec ses documents
+    return {
+      ...group,
+      items: groupItems
+    };
+  });
+  
   const {
     draggedItem,
     handleDragStart,
@@ -59,7 +72,7 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
         <DocumentTableHeader />
         
         <TableBody>
-          {groups.map((group) => (
+          {groupsWithItems.map((group) => (
             <DocumentGroupComponent
               key={group.id}
               group={group}
