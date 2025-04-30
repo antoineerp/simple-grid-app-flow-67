@@ -19,7 +19,7 @@ const Layout = () => {
   const [authCheckAttempts, setAuthCheckAttempts] = useState(0);
   
   useEffect(() => {
-    const checkAuth = () => {
+    const checkAuth = async () => {
       // Journalisation détaillée pour le débogage
       console.log("Layout - Vérification de l'authentification, chemin actuel:", location.pathname);
       
@@ -55,18 +55,13 @@ const Layout = () => {
           navigate('/', { replace: true });
           return;
         }
-        
-        // Sinon, réessayer dans 500ms
-        setTimeout(checkAuth, 500);
-        return;
       } finally {
         setIsLoading(false);
       }
     };
     
-    // Exécuter la vérification après un court délai pour s'assurer que tout est chargé
-    const timeoutId = setTimeout(checkAuth, 100);
-    return () => clearTimeout(timeoutId);
+    // Exécuter la vérification immédiatement
+    checkAuth();
   }, [navigate, location.pathname, authCheckAttempts]);
   
   // Afficher un indicateur de chargement pendant la vérification

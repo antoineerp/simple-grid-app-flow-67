@@ -42,11 +42,11 @@ export const useLoginForm = () => {
         console.log("Connexion réussie, token reçu:", result.token.substring(0, 20) + "...");
         console.log("Données utilisateur:", result.user);
         
-        // S'assurer que le token est bien enregistré avant la navigation
+        // Enregistrer le token avant la navigation
         sessionStorage.setItem('authToken', result.token);
         localStorage.setItem('authToken', result.token);
         
-        // Stocker les données utilisateur pour éviter d'avoir à redécoder le token
+        // Stocker les données utilisateur
         if (result.user) {
           localStorage.setItem('currentUser', JSON.stringify(result.user));
         }
@@ -56,36 +56,27 @@ export const useLoginForm = () => {
           description: `Bienvenue ${result.user?.prenom || ''} ${result.user?.nom || ''}`,
         });
         
-        console.log("Connexion réussie, préparation de la redirection vers /pilotage");
+        console.log("Connexion réussie, redirection vers /pilotage");
         
-        // Attendre un court moment pour s'assurer que le token est bien enregistré
-        setTimeout(() => {
-          try {
-            // Utiliser navigate avec replace pour éviter les problèmes de retour en arrière
-            navigate('/pilotage', { replace: true });
-            
-            // N'utiliser le fallback que si nécessaire après un délai plus long
-            const fallbackTimeout = setTimeout(() => {
-              // Vérifier si nous sommes toujours sur la page d'accueil
-              if (window.location.pathname === '/') {
-                console.log("Fallback: redirection vers /pilotage via window.location");
-                window.location.href = '/pilotage';
-              }
-            }, 1500);
-            
-            // Nettoyer le timeout si le composant est démonté
-            return () => clearTimeout(fallbackTimeout);
-          } catch (navError) {
-            console.error("Erreur lors de la navigation:", navError);
-            // Fallback immédiat en cas d'échec de React Router
-            window.location.href = '/pilotage';
-          }
-        }, 200);
+        try {
+          // Navigation simplifiée, plus robuste
+          navigate('/pilotage', { replace: true });
+          
+          // Fallback si la navigation ne fonctionne pas
+          setTimeout(() => {
+            if (window.location.pathname === '/') {
+              console.log("Fallback: redirection par window.location");
+              window.location.href = '/pilotage';
+            }
+          }, 1000);
+        } catch (navError) {
+          console.error("Erreur lors de la navigation:", navError);
+          window.location.href = '/pilotage';
+        }
       } else {
         console.error("Échec de connexion:", result.message);
         setError(result.message || 'Échec de la connexion');
         
-        // Déterminer le type d'erreur
         if (result.message?.includes('base de données') || result.message?.includes('database')) {
           setHasDbError(true);
         } else if (result.message?.includes('serveur') || result.message?.includes('server') || result.message?.includes('env.php')) {
@@ -105,7 +96,6 @@ export const useLoginForm = () => {
       const errorMessage = err instanceof Error ? err.message : "Erreur lors de la connexion";
       setError(errorMessage);
       
-      // Déterminer le type d'erreur
       if (errorMessage.includes('base de données') || errorMessage.includes('database')) {
         setHasDbError(true);
       } else if (errorMessage.includes('serveur') || errorMessage.includes('server') || errorMessage.includes('env.php')) {

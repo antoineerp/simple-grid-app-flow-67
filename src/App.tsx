@@ -30,7 +30,10 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
       
       console.log('ProtectedRoute - Vérification de connexion:', isLoggedIn);
       console.log('ProtectedRoute - Chemin demandé:', location.pathname);
-      console.log('ProtectedRoute - Détails utilisateur:', currentUser?.email || 'inconnu');
+      
+      if (currentUser) {
+        console.log('ProtectedRoute - Détails utilisateur:', currentUser.email || 'inconnu');
+      }
       
       setIsAuthenticated(isLoggedIn);
     } catch (error) {
@@ -59,7 +62,7 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   return <>{children}</>;
 };
 
-// Composant de debug pour tracer le chemin actuel
+// Composant pour tracer le chemin actuel
 const RouteTracker = () => {
   const location = useLocation();
   
@@ -109,24 +112,10 @@ function App() {
       console.error("App - Erreur lors de l'initialisation du nettoyage:", error);
     }
     
-    // Planifier une vérification de la synchronisation au démarrage
-    const timeoutId = setTimeout(() => {
-      try {
-        // Déclencher un événement pour vérifier l'état de la synchronisation
-        window.dispatchEvent(new CustomEvent("checkSyncStatus"));
-        console.log("App - Événement de vérification de synchronisation déclenché");
-      } catch (error) {
-        console.error("App - Erreur lors de la vérification de synchronisation:", error);
-      }
-    }, 5000); // Attendre 5 secondes après le chargement
-    
     return () => {
       window.removeEventListener('error', handleGlobalError);
-      clearTimeout(timeoutId);
     };
   }, []);
-  
-  console.log('App - Rendu initial de l\'application');
   
   if (hasError) {
     return <ErrorBoundaryComponent />;

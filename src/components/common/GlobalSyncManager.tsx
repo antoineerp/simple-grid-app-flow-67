@@ -18,7 +18,6 @@ const GlobalSyncManager: React.FC = () => {
     mountedRef.current = true;
     
     // Une fois au montage, créer un élément dans le DOM pour indiquer que le GlobalSyncManager est initialisé
-    // Ceci permet de vérifier dans d'autres composants que la synchronisation est prête
     if (!initRef.current) {
       initRef.current = true;
       try {
@@ -85,7 +84,7 @@ const GlobalSyncManager: React.FC = () => {
         }
       }, 2000);
       
-      // Planifier des synchronisations périodiques (toutes les 5 minutes - augmenté pour réduire les conflits)
+      // Planifier des synchronisations périodiques (toutes les 5 minutes)
       const intervalId = setInterval(() => {
         if (!mountedRef.current) return; // Ne pas exécuter si le composant n'est pas monté
         
@@ -118,9 +117,8 @@ const GlobalSyncManager: React.FC = () => {
     }
   }, [syncAll, isOnline, syncingInProgress]);
   
-  // Écouter les changements de route pour re-synchroniser les données avec délai
+  // Écouter les changements de route pour re-synchroniser les données
   useEffect(() => {
-    // Utiliser une référence pour suivre la dernière navigation
     const lastNavigationTimeRef = useRef<number>(Date.now());
     const navigationDebounceRef = useRef<NodeJS.Timeout | null>(null);
     
@@ -137,7 +135,7 @@ const GlobalSyncManager: React.FC = () => {
           clearTimeout(navigationDebounceRef.current);
         }
         
-        // Attendre un peu plus longtemps que la page soit complètement chargée et stabilisée
+        // Attendre que la page soit complètement chargée
         navigationDebounceRef.current = setTimeout(() => {
           if (!syncingInProgress && !Object.values(syncLockRef.current).some(lock => lock) && mountedRef.current) {
             syncAll().then(() => {
@@ -151,7 +149,7 @@ const GlobalSyncManager: React.FC = () => {
           } else {
             console.log("GlobalSyncManager - Synchronisation déjà en cours après navigation, requête ignorée");
           }
-        }, 1500); // 1.5 secondes pour éviter les conflits
+        }, 1500);
       }
     };
     
