@@ -3,6 +3,10 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
 import './index.css';
+import { initializeSyncStorageCleaner } from './utils/syncStorageCleaner';
+
+// Initialize storage cleaning
+initializeSyncStorageCleaner();
 
 console.log("Application starting...");
 console.log("React version:", React.version);
