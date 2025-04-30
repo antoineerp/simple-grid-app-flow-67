@@ -194,7 +194,7 @@ export const useBibliothequeSync = () => {
       localStorage.setItem(`collaboration_groups_${currentUser}`, JSON.stringify(groups));
       
       // Utiliser le service central pour la synchronisation avec la table "collaboration"
-      // Fix: Passer seulement les arguments requis à syncAndProcess
+      // Correction: Passer uniquement les arguments requis à syncAndProcess
       const result = await syncAndProcess(systemDocs, trigger);
       
       if (result.success) {

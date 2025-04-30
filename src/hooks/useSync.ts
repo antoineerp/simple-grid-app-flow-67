@@ -1,3 +1,4 @@
+
 import { useState, useCallback, useEffect } from 'react';
 import { SyncResult } from '@/services/sync/SyncService';
 import { useToast } from '@/components/ui/use-toast';
@@ -53,16 +54,22 @@ export const useSync = (tableName: string): SyncState & {
       
       if (result.success) {
         // Stocker de manière sécurisée la date de dernière synchronisation
-        if (result.lastSynced) {
-          safeLocalStorageSet(`last_synced_${tableName}`, result.lastSynced);
-        } else {
-          safeLocalStorageSet(`last_synced_${tableName}`, new Date().toISOString());
+        const syncTimestamp = new Date().toISOString();
+        safeLocalStorageSet(`last_synced_${tableName}`, syncTimestamp);
+        
+        // Si la synchronisation a réussi, mettre à jour l'état local
+        setLastSynced(new Date());
+        
+        // Diffuser un événement pour informer d'autres parties de l'application
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('sync-completed', { 
+            detail: { tableName, timestamp: syncTimestamp }
+          }));
         }
         
         return {
           success: true,
-          message: `${tableName} synchronisé avec succès`,
-          lastSynced: result.lastSynced || new Date().toISOString()
+          message: `${tableName} synchronisé avec succès`
         };
       } else {
         return {

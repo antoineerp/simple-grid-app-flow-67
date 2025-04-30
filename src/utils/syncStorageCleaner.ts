@@ -29,6 +29,13 @@ export const cleanSyncStorage = () => {
       console.warn(`Suppression de l'entrée malformée dans localStorage: ${key}`, e);
       localStorage.removeItem(key);
       cleanedCount++;
+      
+      // Réinitialiser avec une valeur JSON valide pour les clés lastSynced
+      if (key.includes('last_synced_')) {
+        const now = JSON.stringify(new Date().toISOString());
+        localStorage.setItem(key, now);
+        console.log(`Réinitialisé ${key} avec une date valide JSON: ${now}`);
+      }
     }
   });
   
@@ -42,16 +49,46 @@ export const cleanSyncStorage = () => {
     try {
       const value = localStorage.getItem(key);
       if (value) {
-        // Pour les dates, vérifier qu'elle est au format ISO valide
-        if (!value.match(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/) && !value.startsWith('"')) {
-          console.warn(`Date invalide détectée dans localStorage: ${key} = ${value}`);
-          localStorage.removeItem(key);
-          cleanedCount++;
+        // Vérifier si la valeur n'est pas déjà une chaîne JSON
+        if (!value.startsWith('"') || !value.endsWith('"')) {
+          console.warn(`Timestamp non-JSON détecté dans localStorage: ${key} = ${value}`);
           
-          // Réinitialiser avec une valeur valide
-          const now = new Date().toISOString();
-          localStorage.setItem(key, JSON.stringify(now));
-          console.log(`Réinitialisé ${key} avec une date valide: ${now}`);
+          try {
+            // Essayer de parser la date
+            const date = new Date(value);
+            if (isNaN(date.getTime())) {
+              throw new Error("Date invalide");
+            }
+            
+            // Convertir en JSON valide
+            const jsonDate = JSON.stringify(date.toISOString());
+            localStorage.setItem(key, jsonDate);
+            console.log(`Corrigé ${key} en format JSON: ${jsonDate}`);
+          } catch (e) {
+            // Si le parsing échoue, réinitialiser avec la date actuelle
+            console.warn(`Impossible de parser la date: ${value}, réinitialisation`);
+            localStorage.removeItem(key);
+            const now = JSON.stringify(new Date().toISOString());
+            localStorage.setItem(key, now);
+            console.log(`Réinitialisé ${key} avec une date valide: ${now}`);
+            cleanedCount++;
+          }
+        } else {
+          // Si c'est déjà une chaîne JSON, vérifier qu'elle contient une date valide
+          try {
+            const dateStr = JSON.parse(value);
+            const date = new Date(dateStr);
+            if (isNaN(date.getTime())) {
+              throw new Error("Date JSON invalide");
+            }
+          } catch (e) {
+            console.warn(`Date JSON invalide détectée dans ${key}: ${value}`);
+            localStorage.removeItem(key);
+            const now = JSON.stringify(new Date().toISOString());
+            localStorage.setItem(key, now);
+            console.log(`Réinitialisé ${key} avec une date JSON valide: ${now}`);
+            cleanedCount++;
+          }
         }
       }
     } catch (e) {
@@ -87,8 +124,8 @@ export const cleanSyncStorage = () => {
       
       // Si c'est une clé de timestamp, la réinitialiser avec une valeur valide
       if (key.startsWith('last_synced_')) {
-        const now = new Date().toISOString();
-        localStorage.setItem(key, JSON.stringify(now));
+        const now = JSON.stringify(new Date().toISOString());
+        localStorage.setItem(key, now);
         console.log(`Réinitialisé ${key} avec une date valide: ${now}`);
       }
     }
@@ -142,7 +179,11 @@ export const initializeSyncStorageCleaner = () => {
 export const safeLocalStorageSet = (key: string, value: any) => {
   try {
     // S'assurer que la valeur est toujours au format JSON valide
-    const jsonValue = JSON.stringify(value);
+    // Si c'est déjà une chaîne, on l'enveloppe dans des guillemets JSON
+    const jsonValue = typeof value === 'string' && !value.startsWith('"') ? 
+      JSON.stringify(value) : 
+      JSON.stringify(value);
+    
     localStorage.setItem(key, jsonValue);
     return true;
   } catch (error) {

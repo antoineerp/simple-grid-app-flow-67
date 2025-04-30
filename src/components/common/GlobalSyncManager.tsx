@@ -1,7 +1,10 @@
+
 import React, { useEffect, useState, useRef } from 'react';
 import { useSyncContext } from '@/features/sync/hooks/useSyncContext';
 import SyncDebugger from '@/features/sync/components/SyncDebugger';
 import { cleanSyncStorage } from '@/utils/syncStorageCleaner';
+import { getCurrentUser } from '@/services/core/databaseConnectionService';
+import { SyncLoggingService } from '@/features/sync/components/SyncLoggingService';
 
 // Activer le débogage uniquement en développement
 const enableDebugging = import.meta.env.DEV;
@@ -9,6 +12,7 @@ const enableDebugging = import.meta.env.DEV;
 const GlobalSyncManager: React.FC = () => {
   const { syncAll, isOnline, forceProcessQueue } = useSyncContext();
   const [initialSyncDone, setInitialSyncDone] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState<string>('non connecté');
   const mountedRef = useRef<boolean>(false);
   const initRef = useRef<boolean>(false);
   const lastSyncRef = useRef<number>(Date.now());
@@ -16,6 +20,40 @@ const GlobalSyncManager: React.FC = () => {
   
   // Séquence minimum entre deux synchronisations complètes (10 minutes)
   const MIN_SYNC_INTERVAL = 600000;
+  
+  // Mettre à jour l'ID utilisateur courant
+  useEffect(() => {
+    const updateCurrentUser = () => {
+      const userId = getCurrentUser() || 'non connecté';
+      setCurrentUserId(userId);
+      
+      // Journaliser l'utilisateur courant pour le débogage
+      SyncLoggingService.logSyncAction('user-update', 'global', true, { userId });
+    };
+    
+    // Initialiser et configurer l'écouteur de changement d'utilisateur
+    updateCurrentUser();
+    
+    const userChangeListener = () => {
+      updateCurrentUser();
+      
+      // Déclencher une synchronisation forcée lors du changement d'utilisateur
+      forceSyncRequiredRef.current = true;
+      setTimeout(() => {
+        if (mountedRef.current) {
+          forceProcessQueue();
+          syncAll().catch(error => {
+            console.error("GlobalSyncManager - Erreur lors de la synchronisation après changement d'utilisateur:", error);
+          });
+        }
+      }, 1000);
+    };
+    
+    window.addEventListener('database-user-changed', userChangeListener);
+    return () => {
+      window.removeEventListener('database-user-changed', userChangeListener);
+    };
+  }, [forceProcessQueue, syncAll]);
   
   // Assurer que le composant est bien monté avant d'exécuter des effets
   useEffect(() => {
@@ -29,6 +67,7 @@ const GlobalSyncManager: React.FC = () => {
         const syncInitElement = document.createElement('div');
         syncInitElement.id = 'global-sync-manager-initialized';
         syncInitElement.style.display = 'none';
+        syncInitElement.setAttribute('data-user', currentUserId);
         document.body.appendChild(syncInitElement);
       } catch (error) {
         console.error("GlobalSyncManager - Erreur lors de l'initialisation du marqueur DOM:", error);
@@ -51,7 +90,7 @@ const GlobalSyncManager: React.FC = () => {
         }
       }
     };
-  }, []);
+  }, [currentUserId]);
   
   // Nettoyer le localStorage dès le chargement du composant
   useEffect(() => {
@@ -89,9 +128,15 @@ const GlobalSyncManager: React.FC = () => {
                 console.log("GlobalSyncManager - Résultats de la synchronisation forcée:", results);
                 lastSyncRef.current = Date.now();
                 forceSyncRequiredRef.current = false;
+                
+                // Journaliser pour débogage
+                SyncLoggingService.logSyncAction('force-sync', 'all', true, { results });
               })
               .catch(error => {
                 console.error("GlobalSyncManager - Erreur lors de la synchronisation forcée:", error);
+                
+                // Journaliser l'erreur
+                SyncLoggingService.logSyncAction('force-sync', 'all', false, { error: String(error) });
               });
           }
         }, 1000);
@@ -122,11 +167,14 @@ const GlobalSyncManager: React.FC = () => {
           console.log("GlobalSyncManager - Démarrage de la synchronisation initiale");
           
           syncAll()
-            .then(() => {
+            .then((results) => {
               if (mountedRef.current) {
-                console.log("GlobalSyncManager - Synchronisation initiale terminée");
+                console.log("GlobalSyncManager - Synchronisation initiale terminée", results);
                 setInitialSyncDone(true);
                 lastSyncRef.current = Date.now();
+                
+                // Journaliser pour débogage
+                SyncLoggingService.logSyncAction('initial-sync', 'all', true, { results });
               }
             })
             .catch(error => {
@@ -134,34 +182,43 @@ const GlobalSyncManager: React.FC = () => {
                 console.error("GlobalSyncManager - Erreur lors de la synchronisation initiale:", error);
                 // Même en cas d'erreur, marquer comme initialisé
                 setInitialSyncDone(true);
+                
+                // Journaliser l'erreur
+                SyncLoggingService.logSyncAction('initial-sync', 'all', false, { error: String(error) });
               }
             });
         }
       }, 5000);
       
-      // Synchronisations périodiques (toutes les 30 minutes)
+      // Synchronisations périodiques (toutes les 5 minutes)
       const periodicSyncInterval = setInterval(() => {
         if (!mountedRef.current) return;
         
         const now = Date.now();
         
-        // N'exécuter que si en ligne et dernier sync > 30 min
-        if (isOnline && now - lastSyncRef.current > 1800000) {
+        // N'exécuter que si en ligne et dernier sync > 5 min
+        if (isOnline && now - lastSyncRef.current > 300000) {
           console.log("GlobalSyncManager - Démarrage de la synchronisation périodique");
           
           syncAll()
-            .then(() => {
+            .then((results) => {
               if (mountedRef.current) {
                 lastSyncRef.current = Date.now();
+                
+                // Journaliser pour débogage
+                SyncLoggingService.logSyncAction('periodic-sync', 'all', true, { results });
               }
             })
             .catch(error => {
               if (mountedRef.current) {
                 console.error("GlobalSyncManager - Erreur lors de la synchronisation périodique:", error);
+                
+                // Journaliser l'erreur
+                SyncLoggingService.logSyncAction('periodic-sync', 'all', false, { error: String(error) });
               }
             });
         }
-      }, 1800000); // 30 minutes
+      }, 300000); // 5 minutes
       
       // Nettoyer localStorage périodiquement
       const cleanupInterval = setInterval(() => {
@@ -182,7 +239,12 @@ const GlobalSyncManager: React.FC = () => {
   }, [syncAll, isOnline, initialSyncDone, forceProcessQueue]);
   
   // Afficher le débogueur uniquement en développement
-  return <SyncDebugger enabled={enableDebugging} />;
+  return (
+    <>
+      <div id="sync-debug-info" style={{ display: 'none' }} data-user={currentUserId} data-online={isOnline.toString()} />
+      <SyncDebugger enabled={enableDebugging} />
+    </>
+  );
 };
 
 export default GlobalSyncManager;
