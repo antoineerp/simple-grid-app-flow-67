@@ -1,85 +1,118 @@
 
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useBibliotheque } from '@/hooks/useBibliotheque';
-import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
-import { PlusCircle } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Table, TableBody } from "@/components/ui/table";
+import { Document } from '@/types/documents';
+import type { DocumentGroup as DocumentGroupType } from '@/types/documents';
+import DocumentTableHeader from '@/components/gestion-documentaire/table/TableHeader';
+import DocumentRow from '@/components/gestion-documentaire/table/DocumentRow';
+import DocumentGroupComponent from '@/components/gestion-documentaire/table/DocumentGroup';
+import { useDragAndDrop } from '@/components/gestion-documentaire/table/useDragAndDrop';
 
 interface DocumentTableProps {
-  currentUser: string;
+  documents: Document[];
+  groups: DocumentGroupType[];
+  onResponsabiliteChange: (id: string, type: 'r' | 'a' | 'c' | 'i', values: string[]) => void;
+  onAtteinteChange: (id: string, atteinte: 'NC' | 'PC' | 'C' | null) => void;
+  onExclusionChange: (id: string) => void;
+  onEdit: (id: string) => void;
+  onDelete: (id: string) => void;
+  onReorder: (startIndex: number, endIndex: number, targetGroupId?: string) => void;
+  onGroupReorder: (startIndex: number, endIndex: number) => void;
+  onToggleGroup: (id: string) => void;
+  onEditGroup: (group: DocumentGroupType) => void;
+  onDeleteGroup: (id: string) => void;
 }
 
-const DocumentTable: React.FC<DocumentTableProps> = ({ currentUser }) => {
-  const navigate = useNavigate();
-  const { 
-    documents, 
-    groups,
-    handleSyncDocuments,
-    isSyncing,
-    isOnline,
-    lastSynced,
-    syncFailed
-  } = useBibliotheque();
+const DocumentTable: React.FC<DocumentTableProps> = ({
+  documents,
+  groups,
+  onResponsabiliteChange,
+  onAtteinteChange,
+  onExclusionChange,
+  onEdit,
+  onDelete,
+  onReorder,
+  onGroupReorder,
+  onToggleGroup,
+  onEditGroup,
+  onDeleteGroup
+}) => {
+  // Filtrer les documents qui n'appartiennent à aucun groupe
+  const ungroupedDocuments = documents.filter(d => !d.groupId);
   
+  // Pour chaque groupe, ajouter les documents correspondants
+  const groupsWithItems = groups.map(group => {
+    // Trouver tous les documents appartenant à ce groupe
+    const groupItems = documents.filter(doc => doc.groupId === group.id);
+    
+    // Retourner le groupe avec ses documents
+    return {
+      ...group,
+      items: groupItems
+    };
+  });
+  
+  const {
+    draggedItem,
+    handleDragStart,
+    handleDragOver,
+    handleDragLeave,
+    handleDrop,
+    handleDragEnd,
+    handleGroupDrop
+  } = useDragAndDrop(documents, onReorder);
+
+  const handleGroupDragStart = (e: React.DragEvent<HTMLTableRowElement>, groupId: string) => {
+    e.dataTransfer.setData('text/plain', JSON.stringify({ groupId }));
+    e.currentTarget.classList.add('opacity-50');
+  };
+
   return (
     <div className="bg-white rounded-md shadow overflow-hidden">
-      <div className="p-4 flex justify-between items-center">
-        <h2 className="text-xl font-semibold">Documents</h2>
-        <div className="flex space-x-2">
-          <Button variant="outline" onClick={() => navigate('/collaboration')}>
-            <PlusCircle className="mr-2 h-4 w-4" />
-            Gérer les documents
-          </Button>
-        </div>
-      </div>
-      
       <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Nom</TableHead>
-            <TableHead>Lien</TableHead>
-            <TableHead>Groupe</TableHead>
-          </TableRow>
-        </TableHeader>
+        <DocumentTableHeader />
+        
         <TableBody>
-          {documents.length === 0 ? (
-            <TableRow>
-              <TableCell colSpan={3} className="text-center py-8 text-gray-500">
-                Aucun document disponible. Veuillez ajouter des documents depuis la page Collaboration.
-              </TableCell>
-            </TableRow>
-          ) : (
-            documents
-              .filter(doc => doc.userId === currentUser || !doc.userId)
-              .map(doc => {
-                // Find group name if the document belongs to a group
-                const groupName = doc.groupId ? 
-                  groups.find(g => g.id === doc.groupId)?.name || 'Groupe inconnu' 
-                  : '-';
-                
-                return (
-                  <TableRow key={doc.id}>
-                    <TableCell>{doc.name}</TableCell>
-                    <TableCell>
-                      {doc.link ? (
-                        <a
-                          href={doc.link}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-blue-500 hover:underline"
-                        >
-                          {doc.link}
-                        </a>
-                      ) : (
-                        '-'
-                      )}
-                    </TableCell>
-                    <TableCell>{groupName}</TableCell>
-                  </TableRow>
-                );
-              })
-          )}
+          {groupsWithItems.map((group) => (
+            <DocumentGroupComponent
+              key={group.id}
+              group={group}
+              onResponsabiliteChange={onResponsabiliteChange}
+              onAtteinteChange={onAtteinteChange}
+              onExclusionChange={onExclusionChange}
+              onEdit={onEdit}
+              onDelete={onDelete}
+              onToggleGroup={onToggleGroup}
+              onEditGroup={onEditGroup}
+              onDeleteGroup={onDeleteGroup}
+              onDragStart={handleDragStart}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+              onDragEnd={handleDragEnd}
+              onGroupDragStart={handleGroupDragStart}
+              onGroupDrop={handleGroupDrop}
+            />
+          ))}
+        </TableBody>
+        
+        <TableBody>
+          {ungroupedDocuments.map((doc) => (
+            <DocumentRow
+              key={doc.id}
+              doc={doc}
+              onResponsabiliteChange={onResponsabiliteChange}
+              onAtteinteChange={onAtteinteChange}
+              onExclusionChange={onExclusionChange}
+              onEdit={onEdit}
+              onDelete={onDelete}
+              onDragStart={handleDragStart}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+              onDragEnd={handleDragEnd}
+            />
+          ))}
         </TableBody>
       </Table>
     </div>

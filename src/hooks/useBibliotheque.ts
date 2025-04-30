@@ -28,10 +28,12 @@ export const useBibliotheque = () => {
   
   const { toast } = useToast();
   
-  // Fix: Convert the result of getCurrentUser() to a string
+  // Correction de l'erreur TypeScript - s'assurer que currentUser est toujours une chaîne
   const [currentUser, setCurrentUser] = useState<string>(
     getDatabaseConnectionCurrentUser() || 
-    (getCurrentUser() ? String(getCurrentUser()?.identifiant_technique || '') : 'default')
+    (getCurrentUser() && typeof getCurrentUser().identifiant_technique === 'string' 
+      ? getCurrentUser().identifiant_technique 
+      : 'default')
   );
   
   // Use the GlobalSync context
