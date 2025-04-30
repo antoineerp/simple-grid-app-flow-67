@@ -1,14 +1,14 @@
 
 import React, { useEffect, useState, useRef } from 'react';
-import { useGlobalSync } from '@/contexts/GlobalSyncContext';
-import { syncQueue } from '@/features/sync/utils/syncQueue';
-import { syncMonitor } from '@/features/sync/utils/syncMonitor';
+import { useSyncContext } from '@/features/sync/hooks/useSyncContext';
+import SyncDebugger from '@/features/sync/components/SyncDebugger';
+
+// Activer le débogage uniquement en développement
+const enableDebugging = import.meta.env.DEV;
 
 const GlobalSyncManager: React.FC = () => {
-  const { syncAll, isOnline, syncStates } = useGlobalSync();
-  const [syncingInProgress, setSyncingInProgress] = useState(false);
+  const { syncAll, isOnline, forceProcessQueue } = useSyncContext();
   const [initialSyncDone, setInitialSyncDone] = useState(false);
-  const syncTimer = useRef<NodeJS.Timeout | null>(null);
   const mountedRef = useRef<boolean>(false);
   const initRef = useRef<boolean>(false);
   const lastSyncRef = useRef<number>(Date.now());
@@ -22,11 +22,8 @@ const GlobalSyncManager: React.FC = () => {
     console.log("GlobalSyncManager - Composant monté");
     mountedRef.current = true;
     
-    // Vérifier si l'élément existe déjà avant de le créer
-    const existingElement = document.getElementById('global-sync-manager-initialized');
-    
-    // Une fois au montage, créer un élément dans le DOM pour indiquer que le GlobalSyncManager est initialisé
-    if (!initRef.current && !existingElement) {
+    // Une fois au montage, créer un élément dans le DOM
+    if (!initRef.current) {
       initRef.current = true;
       try {
         const syncInitElement = document.createElement('div');
@@ -42,7 +39,7 @@ const GlobalSyncManager: React.FC = () => {
       console.log("GlobalSyncManager - Composant démonté");
       mountedRef.current = false;
       
-      // Nettoyer le marqueur DOM lors du démontage uniquement si nous l'avons créé
+      // Nettoyer le marqueur DOM lors du démontage
       if (initRef.current) {
         try {
           const syncInitElement = document.getElementById('global-sync-manager-initialized');
@@ -53,73 +50,52 @@ const GlobalSyncManager: React.FC = () => {
           console.error("GlobalSyncManager - Erreur lors du nettoyage du marqueur DOM:", error);
         }
       }
-      
-      // Nettoyer les timeouts
-      if (syncTimer.current) {
-        clearInterval(syncTimer.current);
-      }
     };
   }, []);
   
   // Écouter les événements de synchronisation forcée
   useEffect(() => {
-    const handleForceSyncRequired = (event: CustomEvent) => {
+    const handleForceSyncRequired = () => {
       if (!mountedRef.current) return;
       
-      console.log("GlobalSyncManager - Événement de synchronisation forcée reçu:", event.detail);
+      console.log("GlobalSyncManager - Événement de synchronisation forcée reçu");
       forceSyncRequiredRef.current = true;
       
-      // Déclencher une synchronisation uniquement si assez de temps s'est écoulé depuis la dernière
+      // Tenter une synchronisation
       const now = Date.now();
-      if (isOnline && !syncingInProgress && now - lastSyncRef.current > MIN_SYNC_INTERVAL) {
+      if (isOnline && now - lastSyncRef.current > MIN_SYNC_INTERVAL) {
         console.log("GlobalSyncManager - Déclenchement de la synchronisation forcée");
         
-        // Ajouter un petit délai pour éviter les synchronisations simultanées
+        // Ajouter un délai pour éviter les synchronisations simultanées
         setTimeout(() => {
           if (mountedRef.current) {
-            setSyncingInProgress(true);
+            // Force le traitement de la file d'attente d'abord
+            forceProcessQueue();
             
-            // Enregistrer cette synchronisation dans le moniteur global
-            const syncId = syncMonitor.recordSyncStart("all", "force");
-            
+            // Puis lancer la synchronisation
             syncAll()
               .then(results => {
                 console.log("GlobalSyncManager - Résultats de la synchronisation forcée:", results);
                 lastSyncRef.current = Date.now();
                 forceSyncRequiredRef.current = false;
-                setSyncingInProgress(false);
-                
-                // Enregistrer le résultat dans le moniteur
-                const success = Object.values(results).every(result => result === true);
-                syncMonitor.recordSyncEnd(syncId, success, !success ? "Certaines synchronisations ont échoué" : undefined);
               })
               .catch(error => {
                 console.error("GlobalSyncManager - Erreur lors de la synchronisation forcée:", error);
-                setSyncingInProgress(false);
-                
-                // Enregistrer l'erreur dans le moniteur
-                syncMonitor.recordSyncEnd(syncId, false, error instanceof Error ? error.message : String(error));
               });
           }
         }, 1000);
-      } else {
-        console.log(`GlobalSyncManager - Synchronisation ignorée: ${
-          !isOnline ? 'hors ligne' : 
-          syncingInProgress ? 'synchronisation déjà en cours' : 
-          'synchronisation récente'
-        }`);
       }
     };
     
     // Écouter les événements personnalisés
-    window.addEventListener('force-sync-required', handleForceSyncRequired as EventListener);
-    window.addEventListener('connectivity-restored', handleForceSyncRequired as EventListener);
+    window.addEventListener('force-sync-required', handleForceSyncRequired);
+    window.addEventListener('connectivity-restored', handleForceSyncRequired);
     
     return () => {
-      window.removeEventListener('force-sync-required', handleForceSyncRequired as EventListener);
-      window.removeEventListener('connectivity-restored', handleForceSyncRequired as EventListener);
+      window.removeEventListener('force-sync-required', handleForceSyncRequired);
+      window.removeEventListener('connectivity-restored', handleForceSyncRequired);
     };
-  }, [isOnline, syncAll, syncingInProgress]);
+  }, [isOnline, syncAll, forceProcessQueue]);
   
   // Synchronisation initiale et périodique
   useEffect(() => {
@@ -128,37 +104,25 @@ const GlobalSyncManager: React.FC = () => {
     try {
       console.log("GlobalSyncManager - Initialisation de la synchronisation");
       
-      // Déclencher la première synchronisation après 5 secondes
+      // Déclencher la première synchronisation après un délai
+      // pour laisser le temps à l'application de se stabiliser
       const initialSyncTimeout = setTimeout(() => {
         if (mountedRef.current && !initialSyncDone && isOnline) {
           console.log("GlobalSyncManager - Démarrage de la synchronisation initiale");
-          setSyncingInProgress(true);
-          
-          // Enregistrer cette synchronisation dans le moniteur global
-          const syncId = syncMonitor.recordSyncStart("all", "initial");
           
           syncAll()
-            .then(results => {
-              if (!mountedRef.current) return;
-              
-              console.log("GlobalSyncManager - Résultats de la synchronisation initiale:", results);
-              setInitialSyncDone(true);
-              lastSyncRef.current = Date.now();
-              setSyncingInProgress(false);
-              
-              // Enregistrer le résultat dans le moniteur
-              const success = Object.values(results).every(result => result === true);
-              syncMonitor.recordSyncEnd(syncId, success, !success ? "Certaines synchronisations ont échoué" : undefined);
+            .then(() => {
+              if (mountedRef.current) {
+                console.log("GlobalSyncManager - Synchronisation initiale terminée");
+                setInitialSyncDone(true);
+                lastSyncRef.current = Date.now();
+              }
             })
             .catch(error => {
               if (mountedRef.current) {
                 console.error("GlobalSyncManager - Erreur lors de la synchronisation initiale:", error);
-                setSyncingInProgress(false);
                 // Même en cas d'erreur, marquer comme initialisé
                 setInitialSyncDone(true);
-                
-                // Enregistrer l'erreur dans le moniteur
-                syncMonitor.recordSyncEnd(syncId, false, error instanceof Error ? error.message : String(error));
               }
             });
         }
@@ -170,38 +134,23 @@ const GlobalSyncManager: React.FC = () => {
         
         const now = Date.now();
         
-        // N'exécuter que si en ligne, pas de sync en cours, et dernier sync > 30 min
-        if (isOnline && !syncingInProgress && now - lastSyncRef.current > 1800000) {
+        // N'exécuter que si en ligne et dernier sync > 30 min
+        if (isOnline && now - lastSyncRef.current > 1800000) {
           console.log("GlobalSyncManager - Démarrage de la synchronisation périodique");
-          setSyncingInProgress(true);
-          
-          // Enregistrer cette synchronisation dans le moniteur global
-          const syncId = syncMonitor.recordSyncStart("all", "periodic");
           
           syncAll()
-            .then(results => {
+            .then(() => {
               if (mountedRef.current) {
                 lastSyncRef.current = Date.now();
-                setSyncingInProgress(false);
-                
-                // Enregistrer le résultat dans le moniteur
-                const success = Object.values(results).every(result => result === true);
-                syncMonitor.recordSyncEnd(syncId, success, !success ? "Certaines synchronisations ont échoué" : undefined);
               }
             })
             .catch(error => {
               if (mountedRef.current) {
                 console.error("GlobalSyncManager - Erreur lors de la synchronisation périodique:", error);
-                setSyncingInProgress(false);
-                
-                // Enregistrer l'erreur dans le moniteur
-                syncMonitor.recordSyncEnd(syncId, false, error instanceof Error ? error.message : String(error));
               }
             });
         }
       }, 1800000); // 30 minutes
-      
-      syncTimer.current = periodicSyncInterval;
       
       return () => {
         clearTimeout(initialSyncTimeout);
@@ -210,26 +159,10 @@ const GlobalSyncManager: React.FC = () => {
     } catch (error) {
       console.error("GlobalSyncManager - Erreur lors de l'initialisation de la synchronisation:", error);
     }
-  }, [syncAll, isOnline, initialSyncDone]);
+  }, [syncAll, isOnline, initialSyncDone, forceProcessQueue]);
   
-  // S'assurer que l'indicateur de synchronisation disparaît après 1 minute maximum
-  useEffect(() => {
-    if (syncingInProgress) {
-      const timeoutId = setTimeout(() => {
-        if (mountedRef.current) {
-          console.log("GlobalSyncManager - Timeout de synchronisation atteint, réinitialisation");
-          setSyncingInProgress(false);
-        }
-      }, 60000); // 1 minute maximum
-      
-      return () => {
-        clearTimeout(timeoutId);
-      };
-    }
-  }, [syncingInProgress]);
-  
-  // Script caché - pas d'affichage d'interface
-  return null;
+  // Afficher le débogueur uniquement en développement
+  return <SyncDebugger enabled={enableDebugging} />;
 };
 
 export default GlobalSyncManager;

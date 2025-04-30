@@ -7,7 +7,9 @@ export interface SyncHookOptions {
   debounceTime?: number;
   syncKey?: string;
   maxRetries?: number;
-  hideIndicators?: boolean; // Nouvelle option pour masquer les indicateurs visuels
+  hideIndicators?: boolean; // Option pour masquer les indicateurs visuels
+  batchSync?: boolean;     // Option pour regrouper plusieurs synchronisations
+  priority?: number;       // Priorité de synchronisation (1: haute, 10: basse)
 }
 
 export interface SyncState {
@@ -28,7 +30,15 @@ export interface SyncOperationResult {
  */
 export interface SyncMonitorStatus {
   activeCount: number;
-  recentAttempts: any[];
+  recentAttempts: Array<{
+    id: string;
+    tableName: string; 
+    startTime: number;
+    endTime?: number;
+    success: boolean;
+    error?: string;
+    duration?: number;
+  }>;
   stats: {
     success: number;
     failure: number;
@@ -38,4 +48,28 @@ export interface SyncMonitorStatus {
     time: number | null;
     success: boolean;
   };
+}
+
+/**
+ * Interface pour un résultat de synchronisation détaillé
+ */
+export interface DetailedSyncResult extends SyncOperationResult {
+  tableName: string;
+  timestamp: number;
+  recordCount?: number;
+  retryCount?: number;
+}
+
+/**
+ * Statut de santé de la synchronisation
+ */
+export interface SyncHealthStatus {
+  status: 'good' | 'warning' | 'critical';
+  message: string;
+  details: {
+    successRate: number;
+    failedCount: number;
+    pendingCount: number;
+    lastSuccessfulSync: Date | null;
+  }
 }

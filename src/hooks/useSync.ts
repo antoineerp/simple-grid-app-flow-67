@@ -1,146 +1,85 @@
 
 import { useState, useCallback, useEffect } from 'react';
-import { syncService, DataTable, SyncResult } from '@/services/sync/SyncService';
+import { SyncResult } from '@/services/sync/SyncService';
 import { useToast } from '@/components/ui/use-toast';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
-import { useGlobalSync } from '@/contexts/GlobalSyncContext';
-
-export interface SyncState {
-  isSyncing: boolean;
-  lastSynced: Date | null;
-  syncFailed: boolean;
-  syncAndProcess: <T>(tableName: string, data: T[], trigger?: "auto" | "manual" | "initial") => Promise<SyncResult>;
-  resetSyncStatus: () => void;
-  isOnline: boolean;
-}
+import { useSyncContext } from '@/features/sync/hooks/useSyncContext';
+import { SyncState } from '@/features/sync/types/syncTypes';
 
 /**
- * Hook pour gérer la synchronisation de données avec le serveur Infomaniak
+ * Hook pour gérer la synchronisation de données avec le serveur
  */
-export const useSync = (tableName: string): SyncState => {
-  const { syncTable, syncStates, isOnline } = useGlobalSync();
-  const [lastSynced, setLastSynced] = useState<Date | null>(syncService.getLastSynced(tableName));
+export const useSync = (tableName: string): SyncState & {
+  syncAndProcess: <T>(data: T[], trigger?: "auto" | "manual" | "initial") => Promise<SyncResult>;
+  resetSyncStatus: () => void;
+} => {
+  const [lastSynced, setLastSynced] = useState<Date | null>(null);
+  const { isOnline } = useNetworkStatus();
+  const { syncTable, syncStates } = useSyncContext();
   const { toast } = useToast();
   
   // Obtenir l'état de synchronisation à partir du contexte global
   const syncState = syncStates[tableName] || { 
     isSyncing: false, 
     lastSynced: null, 
-    syncFailed: false 
+    syncFailed: false,
+    pendingSync: false,
+    dataChanged: false
   };
+  
+  // Extraire les états
   const isSyncing = syncState.isSyncing;
   const syncFailed = syncState.syncFailed;
+  const pendingSync = syncState.pendingSync;
   
   // Mise à jour de l'état de synchronisation local à partir du contexte global
   useEffect(() => {
-    if (syncState.lastSynced && (!lastSynced || syncState.lastSynced > lastSynced)) {
-      setLastSynced(syncState.lastSynced);
+    if (syncState.lastSynced && (!lastSynced || new Date(syncState.lastSynced) > lastSynced)) {
+      setLastSynced(new Date(syncState.lastSynced));
     }
   }, [syncState, lastSynced]);
   
   // Fonction pour synchroniser les données et gérer les erreurs
   const syncAndProcess = useCallback(async <T>(
-    tableName: string, 
     data: T[],
     trigger: "auto" | "manual" | "initial" = "auto"
   ): Promise<SyncResult> => {
-    if (!isOnline) {
-      console.log(`useSync: Tentative de synchronisation de ${tableName} en mode hors ligne`);
-      const result: SyncResult = {
-        success: false,
-        message: "Mode hors ligne - Données sauvegardées localement"
-      };
-      
-      if (trigger !== "auto") {
-        toast({
-          title: "Mode hors ligne",
-          description: "La synchronisation avec Infomaniak n'est pas disponible en mode hors ligne. Les données sont sauvegardées localement.",
-          variant: "destructive"
-        });
-      }
-      
-      return result;
-    }
-    
-    console.log(`useSync: Synchronisation de ${tableName} (déclencheur: ${trigger})`);
-    
-    // Si déjà en cours de synchronisation, éviter les appels redondants
-    if (isSyncing) {
-      return {
-        success: false,
-        message: "Synchronisation déjà en cours"
-      };
-    }
-    
+    // Utiliser le service central pour la synchronisation
     try {
-      // Si ce n'est pas une synchronisation automatique, afficher un toast
-      if (trigger !== "auto") {
-        toast({
-          title: "Synchronisation en cours",
-          description: "Veuillez patienter pendant la synchronisation avec Infomaniak..."
-        });
-      }
+      const result = await syncTable(tableName, data, trigger);
       
-      // Appeler directement le service de synchronisation global
-      const result = await syncTable(tableName, data);
-      
-      if (result) {
-        setLastSynced(new Date());
-        
-        // Pour les synchronisations manuelles et initiales, afficher un toast de succès
-        if (trigger !== "auto") {
-          toast({
-            title: "Synchronisation réussie",
-            description: `${tableName} synchronisé avec succès avec Infomaniak`,
-          });
-        }
-        
+      if (result.success) {
         return {
           success: true,
-          message: `${tableName} synchronisé avec succès avec Infomaniak`
+          message: `${tableName} synchronisé avec succès`
         };
       } else {
-        if (trigger !== "auto") {
-          toast({
-            title: "Échec de la synchronisation",
-            description: "Une erreur est survenue lors de la synchronisation avec Infomaniak. Les données sont sauvegardées localement.",
-            variant: "destructive"
-          });
-        }
-        
         return {
           success: false,
-          message: "Échec de la synchronisation avec Infomaniak. Données sauvegardées localement."
+          message: result.message
         };
       }
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "Erreur inconnue";
-      
-      if (trigger !== "auto") {
-        toast({
-          title: "Erreur de synchronisation",
-          description: `${errorMessage}. Les données sont sauvegardées localement.`,
-          variant: "destructive"
-        });
-      }
-      
+      console.error(`useSync: Erreur lors de la synchronisation de ${tableName}:`, error);
       return {
         success: false,
-        message: errorMessage
+        message: error instanceof Error ? error.message : String(error)
       };
     }
-  }, [isOnline, tableName, toast, syncTable, isSyncing]);
+  }, [tableName, syncTable]);
   
-  // Réinitialiser l'état de synchronisation
+  // Réinitialiser l'état de synchronisation (compatibilité)
   const resetSyncStatus = useCallback(() => {
-    // Cette fonction n'est plus nécessaire avec le contexte global,
-    // mais est conservée pour la compatibilité avec le code existant
-  }, []);
+    // Cette fonction est conservée pour la compatibilité
+    console.log(`useSync: resetSyncStatus appelé pour ${tableName} (no-op)`);
+  }, [tableName]);
   
   return {
     isSyncing,
     lastSynced,
     syncFailed,
+    pendingSync,
+    dataChanged: syncState.dataChanged || false,
     syncAndProcess,
     resetSyncStatus,
     isOnline
