@@ -10,20 +10,47 @@ const GlobalSyncManager: React.FC = () => {
   const lastSyncRef = useRef<number>(Date.now());
   const syncLockRef = useRef<Record<string, boolean>>({});
   const mountedRef = useRef<boolean>(false);
+  const initRef = useRef<boolean>(false);
   
   // Assurer que le composant est bien monté avant d'exécuter des effets
   useEffect(() => {
     console.log("GlobalSyncManager - Composant monté");
     mountedRef.current = true;
     
+    // Une fois au montage, créer un élément dans le DOM pour indiquer que le GlobalSyncManager est initialisé
+    // Ceci permet de vérifier dans d'autres composants que la synchronisation est prête
+    if (!initRef.current) {
+      initRef.current = true;
+      try {
+        const syncInitElement = document.createElement('div');
+        syncInitElement.id = 'global-sync-manager-initialized';
+        syncInitElement.style.display = 'none';
+        document.body.appendChild(syncInitElement);
+      } catch (error) {
+        console.error("GlobalSyncManager - Erreur lors de l'initialisation du marqueur DOM:", error);
+      }
+    }
+    
     return () => {
       console.log("GlobalSyncManager - Composant démonté");
       mountedRef.current = false;
+      
+      // Nettoyer le marqueur DOM lors du démontage
+      try {
+        const syncInitElement = document.getElementById('global-sync-manager-initialized');
+        if (syncInitElement) {
+          document.body.removeChild(syncInitElement);
+        }
+      } catch (error) {
+        console.error("GlobalSyncManager - Erreur lors du nettoyage du marqueur DOM:", error);
+      }
     };
   }, []);
   
   // Utiliser un effet pour démarrer la synchronisation en arrière-plan
   useEffect(() => {
+    if (!mountedRef.current) return; // Ne pas exécuter si le composant n'est pas monté
+    
     try {
       console.log("GlobalSyncManager - Initialisation de la synchronisation");
       
@@ -60,6 +87,8 @@ const GlobalSyncManager: React.FC = () => {
       
       // Planifier des synchronisations périodiques (toutes les 5 minutes - augmenté pour réduire les conflits)
       const intervalId = setInterval(() => {
+        if (!mountedRef.current) return; // Ne pas exécuter si le composant n'est pas monté
+        
         if (isOnline && !syncingInProgress && mountedRef.current && Date.now() - lastSyncRef.current > 300000) {
           console.log("GlobalSyncManager - Exécution de la synchronisation périodique");
           

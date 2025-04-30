@@ -16,6 +16,7 @@ const Layout = () => {
   const location = useLocation();
   const [isLoading, setIsLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [authCheckAttempts, setAuthCheckAttempts] = useState(0);
   
   useEffect(() => {
     const checkAuth = () => {
@@ -45,7 +46,19 @@ const Layout = () => {
         console.log("Layout - Identifiant technique:", currentUser?.identifiant_technique);
       } catch (error) {
         console.error("Layout - Erreur lors de la vérification de l'authentification:", error);
-        navigate('/', { replace: true });
+        // Augmenter le nombre d'essais
+        setAuthCheckAttempts(prev => prev + 1);
+        
+        // Si nous avons essayé plus de 3 fois sans succès, rediriger vers la page de connexion
+        if (authCheckAttempts >= 3) {
+          console.log("Layout - Trop d'essais échoués, redirection vers la page de connexion");
+          navigate('/', { replace: true });
+          return;
+        }
+        
+        // Sinon, réessayer dans 500ms
+        setTimeout(checkAuth, 500);
+        return;
       } finally {
         setIsLoading(false);
       }
@@ -54,7 +67,7 @@ const Layout = () => {
     // Exécuter la vérification après un court délai pour s'assurer que tout est chargé
     const timeoutId = setTimeout(checkAuth, 100);
     return () => clearTimeout(timeoutId);
-  }, [navigate, location.pathname]);
+  }, [navigate, location.pathname, authCheckAttempts]);
   
   // Afficher un indicateur de chargement pendant la vérification
   if (isLoading) {
@@ -70,7 +83,14 @@ const Layout = () => {
   
   // Si l'utilisateur n'est pas authentifié, le useEffect se chargera de rediriger
   if (!isAuthenticated) {
-    return null;
+    return (
+      <div className="h-screen w-full flex items-center justify-center bg-background">
+        <div className="flex flex-col items-center">
+          <Loader2 className="h-12 w-12 animate-spin text-primary" />
+          <p className="mt-4 text-lg text-muted-foreground">Vérification des identifiants...</p>
+        </div>
+      </div>
+    );
   }
 
   return (
