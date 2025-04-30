@@ -237,7 +237,8 @@ export const triggerSync = {
         
         if (failedCount > 0) {
           toast({
-            variant: "warning",
+            // Modification ici: changer "warning" à "default" 
+            variant: "default",
             title: "Synchronisation partielle",
             description: `${failedCount} table(s) n'ont pas pu être synchronisées.`
           });

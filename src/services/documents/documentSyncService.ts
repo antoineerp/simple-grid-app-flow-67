@@ -213,7 +213,8 @@ export const syncDocumentsWithServer = async (documents: Document[], userId: str
         localStorage.setItem(`documents_${currentUser}`, JSON.stringify(validDocuments));
         
         toast({
-          variant: "warning",
+          // Modification ici: changer "warning" à "default"
+          variant: "default",
           title: "Synchronisation en mode hors-ligne",
           description: "Les documents ont été sauvegardés localement. La synchronisation avec le serveur sera tentée ultérieurement.",
         });
