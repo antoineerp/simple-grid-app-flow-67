@@ -3,10 +3,11 @@ import React from 'react';
 import { Outlet } from 'react-router-dom';
 import { Toaster } from "@/components/ui/toaster";
 import Sidebar from '../Sidebar';
-import Header from '../Header';
+import { Header } from './Header';
 import { GlobalDataProvider } from '@/contexts/GlobalDataContext';
 import { GlobalSyncProvider } from '@/contexts/GlobalSyncContext';
 import GlobalSyncManager from '@/components/common/GlobalSyncManager';
+import ShowSyncDiagnostic from '@/components/layouts/ShowSyncDiagnostic';
 
 const Layout = () => {
   return (
@@ -22,6 +23,7 @@ const Layout = () => {
           </div>
           <Toaster />
           <GlobalSyncManager />
+          <ShowSyncDiagnostic />
         </div>
       </GlobalSyncProvider>
     </GlobalDataProvider>
