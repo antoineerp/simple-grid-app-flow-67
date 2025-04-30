@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { Toaster } from '@/components/ui/toaster';
@@ -136,39 +137,53 @@ function App() {
             <Route path="/" element={<Layout />}>
               <Route path="pilotage" element={
                 <ProtectedRoute>
-                  <Pilotage />
+                  <MembresProvider>
+                    <Pilotage />
+                  </MembresProvider>
                 </ProtectedRoute>
               } />
               <Route path="db-admin" element={
                 <ProtectedRoute>
-                  <DbAdmin />
+                  <MembresProvider>
+                    <DbAdmin />
+                  </ProtectedRoute>
                 </ProtectedRoute>
               } />
               
               {/* Routes vers les pages réelles au lieu des placeholders */}
               <Route path="exigences" element={
                 <ProtectedRoute>
-                  <Exigences />
+                  <MembresProvider>
+                    <Exigences />
+                  </MembresProvider>
                 </ProtectedRoute>
               } />
               <Route path="gestion-documentaire" element={
                 <ProtectedRoute>
-                  <GestionDocumentaire />
+                  <MembresProvider>
+                    <GestionDocumentaire />
+                  </MembresProvider>
                 </ProtectedRoute>
               } />
               <Route path="ressources-humaines" element={
                 <ProtectedRoute>
-                  <RessourcesHumaines />
+                  <MembresProvider>
+                    <RessourcesHumaines />
+                  </MembresProvider>
                 </ProtectedRoute>
               } />
               <Route path="collaboration" element={
                 <ProtectedRoute>
-                  <Collaboration />
+                  <MembresProvider>
+                    <Collaboration />
+                  </MembresProvider>
                 </ProtectedRoute>
               } />
               <Route path="administration" element={
                 <ProtectedRoute>
-                  <Administration />
+                  <MembresProvider>
+                    <Administration />
+                  </MembresProvider>
                 </ProtectedRoute>
               } />
             </Route>

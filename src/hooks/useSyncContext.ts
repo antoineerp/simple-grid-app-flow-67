@@ -1,7 +1,7 @@
 
 import { useCallback, useEffect, useState, useRef } from 'react';
 import { useGlobalSync } from '@/contexts/GlobalSyncContext';
-import { useToast } from '@/hooks/use-toast';
+import { useToast } from "@/hooks/use-toast";
 import { getCurrentUser } from '@/services/core/databaseConnectionService';
 
 interface SyncHookOptions {
@@ -35,21 +35,26 @@ export function useSyncContext<T>(tableName: string, data: T[], options: SyncHoo
   const syncRetryCountRef = useRef<number>(0);
   const maxRetries = 3;
   const mountedRef = useRef<boolean>(false);
+  const unmountingRef = useRef<boolean>(false);
 
   // Mettre à jour la référence des données au montage et marquer le composant comme monté
   useEffect(() => {
     mountedRef.current = true;
+    unmountingRef.current = false;
     
     if (data && data.length > 0) {
       lastDataRef.current = JSON.parse(JSON.stringify(data));
     }
     
     return () => {
+      // Marquer le démontage avant de nettoyer
+      unmountingRef.current = true;
       mountedRef.current = false;
       
       // Nettoyer les timeouts au démontage
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
       }
       
       // Si une synchronisation est en attente, sauvegarder les données localement
@@ -119,8 +124,8 @@ export function useSyncContext<T>(tableName: string, data: T[], options: SyncHoo
       return;
     }
     
-    // Ne pas exécuter si le composant est démonté
-    if (!mountedRef.current) {
+    // Ne pas exécuter si le composant est démonté ou en cours de démontage
+    if (!mountedRef.current || unmountingRef.current) {
       return;
     }
     
@@ -154,18 +159,19 @@ export function useSyncContext<T>(tableName: string, data: T[], options: SyncHoo
           pendingSyncRef.current = true;
           lastDataRef.current = JSON.parse(JSON.stringify(data)); // Copie profonde
           
-          // Synchronisation avec Infomaniak si en ligne et pas déjà en cours de synchronisation
+          // Synchronisation avec le serveur si en ligne et pas déjà en cours de synchronisation
           if (autoSync && isOnline && !checkSyncInProgress()) {
             if (timeoutRef.current) {
               clearTimeout(timeoutRef.current);
+              timeoutRef.current = null;
             }
             
             // Générer un nouvel ID d'opération pour cette synchronisation
             operationIdRef.current = `${tableName}_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
             
             timeoutRef.current = setTimeout(() => {
-              // Vérifier si le composant est toujours monté
-              if (!mountedRef.current) {
+              // Double vérification pour s'assurer que le composant est toujours monté
+              if (!mountedRef.current || unmountingRef.current) {
                 return;
               }
               
@@ -188,9 +194,9 @@ export function useSyncContext<T>(tableName: string, data: T[], options: SyncHoo
                 
                 syncTable(tableName, data)
                   .then(result => {
-                    // Vérifier que le composant est toujours monté
-                    if (!mountedRef.current) {
-                      // Libérer le verrou si le composant est démonté
+                    // Vérifier que le composant est toujours monté et n'est pas en cours de démontage
+                    if (!mountedRef.current || unmountingRef.current) {
+                      // Libérer le verrou si le composant est démonté ou en cours de démontage
                       try {
                         localStorage.removeItem(`sync_in_progress_${tableName}`);
                         localStorage.removeItem(`sync_lock_time_${tableName}`);
@@ -229,19 +235,22 @@ export function useSyncContext<T>(tableName: string, data: T[], options: SyncHoo
                     }
                   })
                   .catch(error => {
-                    if (!mountedRef.current) return;
+                    // Vérifier que le composant est toujours monté et n'est pas en cours de démontage
+                    if (!mountedRef.current || unmountingRef.current) return;
                     
                     console.error(`useSyncContext: Erreur synchronisation de ${tableName}:`, error);
                     syncRetryCountRef.current++;
                   })
                   .finally(() => {
                     syncInProgressRef.current = false;
-                    // Nettoyer les marqueurs de synchronisation
-                    try {
-                      localStorage.removeItem(`sync_in_progress_${tableName}`);
-                      localStorage.removeItem(`sync_lock_time_${tableName}`);
-                    } catch (cleanupError) {
-                      console.error(`useSyncContext: Erreur lors du nettoyage du verrou pour ${tableName}:`, cleanupError);
+                    // Nettoyer les marqueurs de synchronisation uniquement si nous sommes toujours montés
+                    if (mountedRef.current && !unmountingRef.current) {
+                      try {
+                        localStorage.removeItem(`sync_in_progress_${tableName}`);
+                        localStorage.removeItem(`sync_lock_time_${tableName}`);
+                      } catch (cleanupError) {
+                        console.error(`useSyncContext: Erreur lors du nettoyage du verrou pour ${tableName}:`, cleanupError);
+                      }
                     }
                   });
               }
@@ -256,6 +265,7 @@ export function useSyncContext<T>(tableName: string, data: T[], options: SyncHoo
     return () => {
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
       }
     };
   }, [data, tableName, autoSync, isOnline, debounceTime, syncTable, getStorageKey, checkSyncInProgress]);
@@ -284,8 +294,8 @@ export function useSyncContext<T>(tableName: string, data: T[], options: SyncHoo
 
   // Synchroniser avec le serveur
   const syncWithServer = useCallback(async (): Promise<boolean> => {
-    if (!mountedRef.current) {
-      console.log(`useSyncContext: Composant démonté, synchronisation annulée pour ${tableName}`);
+    if (!mountedRef.current || unmountingRef.current) {
+      console.log(`useSyncContext: Composant démonté ou en cours de démontage, synchronisation annulée pour ${tableName}`);
       return false;
     }
     
@@ -348,11 +358,14 @@ export function useSyncContext<T>(tableName: string, data: T[], options: SyncHoo
         console.error(`useSyncContext: Erreur lors de la pose du verrou pour ${tableName}:`, lockError);
       }
       
-      // Synchroniser DIRECTEMENT avec le serveur
-      const result = await syncTable(tableName, data);
+      // Copie profonde des données pour éviter les modifications pendant la synchronisation
+      const safeData = JSON.parse(JSON.stringify(data));
       
-      // Vérifier si le composant est toujours monté
-      if (!mountedRef.current) {
+      // Synchroniser DIRECTEMENT avec le serveur
+      const result = await syncTable(tableName, safeData, operationId);
+      
+      // Vérifier si le composant est toujours monté et n'est pas en cours de démontage
+      if (!mountedRef.current || unmountingRef.current) {
         console.log(`useSyncContext: Composant démonté pendant la synchronisation de ${tableName}, nettoyage des verrous`);
         // Nettoyer les verrous même si le composant est démonté
         try {
@@ -407,196 +420,73 @@ export function useSyncContext<T>(tableName: string, data: T[], options: SyncHoo
           }
         }
       } else {
-        console.log(`useSyncContext: Opération de synchronisation ${operationId} annulée, remplacée par ${operationIdRef.current}`);
+        console.log(`useSyncContext: Résultat ignoré pour l'opération ${operationId}, une opération plus récente est en cours (${operationIdRef.current})`);
       }
       
-      return result;
-    } catch (error) {
-      // Vérifier si le composant est toujours monté
-      if (!mountedRef.current) {
-        console.log(`useSyncContext: Composant démonté pendant la gestion d'erreur pour ${tableName}`);
-        // Nettoyer les verrous même en cas d'erreur
-        try {
-          localStorage.removeItem(`sync_in_progress_${tableName}`);
-          localStorage.removeItem(`sync_lock_time_${tableName}`);
-        } catch (e) {
-          console.error(`useSyncContext: Erreur de nettoyage après erreur et démontage pour ${tableName}:`, e);
-        }
-        return false;
-      }
-      
-      console.error(`useSyncContext: Erreur synchronisation de ${tableName}:`, error);
-      syncRetryCountRef.current++;
-      
-      if (showToasts) {
-        toast({
-          variant: "destructive",
-          title: "Erreur de synchronisation",
-          description: `Une erreur s'est produite lors de la synchronisation. Les données sont sauvegardées localement.`
-        });
-      }
-      
-      // Sauvegarder localement en cas d'erreur
-      try {
-        const storageKey = getStorageKey();
-        localStorage.setItem(storageKey, JSON.stringify(data));
-      } catch (storageError) {
-        console.error(`useSyncContext: Erreur de stockage après erreur de synchronisation pour ${tableName}:`, storageError);
-      }
-      
-      return false;
-    } finally {
-      // Nettoyer les marqueurs de synchronisation
+      // Nettoyer les verrous après la fin de la synchronisation
       try {
         localStorage.removeItem(`sync_in_progress_${tableName}`);
         localStorage.removeItem(`sync_lock_time_${tableName}`);
       } catch (cleanupError) {
         console.error(`useSyncContext: Erreur lors du nettoyage du verrou pour ${tableName}:`, cleanupError);
       }
+      
       syncInProgressRef.current = false;
-    }
-  }, [isOnline, syncTable, tableName, data, showToasts, toast, getStorageKey, checkSyncInProgress]);
-  
-  // Notifier les changements avec mécanisme anti-rebond optimisé
-  const notifyChanges = useCallback(() => {
-    if (!data || !Array.isArray(data) || data.length === 0) {
-      console.log(`useSyncContext: Données invalides pour notifyChanges (${tableName}), ignoré`);
-      return;
-    }
-    
-    try {
-      // Générer un ID pour cette notification
-      const notificationId = `${tableName}_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
-      
-      // Sauvegarder dans localStorage IMMÉDIATEMENT
-      const storageKey = getStorageKey();
-      let dataString;
-      
-      try {
-        dataString = JSON.stringify(data);
-        localStorage.setItem(storageKey, dataString);
-      } catch (storageError) {
-        console.error(`useSyncContext: Erreur de stockage pour notifyChanges (${tableName}):`, storageError);
-        return;
-      }
-      
-      console.log(`useSyncContext: Changements notifiés pour ${tableName}, données sauvegardées localement (notification ${notificationId})`);
-      
-      // Enregistrer cette notification pour éviter les doublons
-      let lastNotificationTime;
-      try {
-        lastNotificationTime = localStorage.getItem(`last_notification_time_${tableName}`);
-      } catch (storageError) {
-        console.error(`useSyncContext: Erreur de lecture de la dernière notification pour ${tableName}:`, storageError);
-      }
-      
-      const now = Date.now();
-      
-      // Vérifier si une notification similaire a été déclenchée récemment (moins de 2 secondes)
-      if (lastNotificationTime && now - parseInt(lastNotificationTime, 10) < 2000) {
-        console.log(`useSyncContext: Notification similaire récente pour ${tableName}, regroupement des modifications`);
-        
-        // Mettre à jour l'heure de la dernière notification
-        try {
-          localStorage.setItem(`last_notification_time_${tableName}`, now.toString());
-        } catch (storageError) {
-          console.error(`useSyncContext: Erreur de mise à jour du temps de notification pour ${tableName}:`, storageError);
-        }
-        
-        // Indiquer changements en attente mais ne pas lancer de nouvelle synchronisation
-        pendingSyncRef.current = true;
-        setDataChanged(true);
-        return;
-      }
-      
-      // Enregistrer cette notification
-      try {
-        localStorage.setItem(`last_notification_time_${tableName}`, now.toString());
-      } catch (storageError) {
-        console.error(`useSyncContext: Erreur d'enregistrement du temps de notification pour ${tableName}:`, storageError);
-      }
-      
-      // Indiquer changements en attente
-      pendingSyncRef.current = true;
-      setDataChanged(true);
-      
-      // Synchroniser après un délai si en ligne et pas déjà en cours de synchronisation
-      if (isOnline && !checkSyncInProgress()) {
-        if (timeoutRef.current) {
-          clearTimeout(timeoutRef.current);
-        }
-        
-        // Générer un nouvel ID d'opération
-        operationIdRef.current = `${tableName}_${now}_${Math.random().toString(36).substring(2, 9)}`;
-        const operationId = operationIdRef.current;
-        
-        timeoutRef.current = setTimeout(() => {
-          if (pendingSyncRef.current && isOnline && !checkSyncInProgress()) {
-            console.log(`useSyncContext: Synchronisation après notification pour ${tableName} (opération ${operationId})`);
-            syncInProgressRef.current = true;
-            syncRetryCountRef.current = 0;
-            
-            // Marquer le début de la synchronisation dans le stockage local
-            try {
-              localStorage.setItem(`sync_in_progress_${tableName}`, 'true');
-              localStorage.setItem(`sync_lock_time_${tableName}`, Date.now().toString());
-            } catch (lockError) {
-              console.error(`useSyncContext: Erreur lors de la pose du verrou pour ${tableName}:`, lockError);
-            }
-            
-            syncTable(tableName, data)
-              .then(result => {
-                // Vérifier que c'est toujours notre synchronisation qui est en cours
-                if (operationIdRef.current === operationId) {
-                  if (result) {
-                    pendingSyncRef.current = false;
-                    setDataChanged(false);
-                    console.log(`useSyncContext: Synchronisation après notification réussie pour ${tableName} (opération ${operationId})`);
-                    
-                    // Resauvegarder après synchronisation réussie
-                    try {
-                      localStorage.setItem(storageKey, dataString);
-                    } catch (storageError) {
-                      console.error(`useSyncContext: Erreur de sauvegarde après synchronisation pour ${tableName}:`, storageError);
-                    }
-                  } else {
-                    console.warn(`useSyncContext: Échec de la synchronisation après notification pour ${tableName} (opération ${operationId})`);
-                    syncRetryCountRef.current++;
-                  }
-                } else {
-                  console.log(`useSyncContext: Opération de synchronisation ${operationId} annulée, remplacée par ${operationIdRef.current}`);
-                }
-              })
-              .catch(error => {
-                console.error(`useSyncContext: Erreur synchronisation après notification pour ${tableName}:`, error);
-                syncRetryCountRef.current++;
-              })
-              .finally(() => {
-                syncInProgressRef.current = false;
-                // Nettoyer les marqueurs de synchronisation
-                try {
-                  localStorage.removeItem(`sync_in_progress_${tableName}`);
-                  localStorage.removeItem(`sync_lock_time_${tableName}`);
-                } catch (cleanupError) {
-                  console.error(`useSyncContext: Erreur lors du nettoyage du verrou pour ${tableName}:`, cleanupError);
-                }
-              });
-          }
-        }, debounceTime);
-      }
+      return result;
     } catch (error) {
-      console.error(`useSyncContext: Erreur traitement des changements pour ${tableName}:`, error);
+      console.error(`useSyncContext: Erreur lors de la synchronisation de ${tableName} (opération ${operationId}):`, error);
+      
+      // Vérifier si le composant est toujours monté et n'est pas en cours de démontage
+      if (mountedRef.current && !unmountingRef.current) {
+        // Nettoyer les verrous en cas d'erreur
+        try {
+          localStorage.removeItem(`sync_in_progress_${tableName}`);
+          localStorage.removeItem(`sync_lock_time_${tableName}`);
+        } catch (cleanupError) {
+          console.error(`useSyncContext: Erreur lors du nettoyage du verrou pour ${tableName}:`, cleanupError);
+        }
+      }
+      
+      syncInProgressRef.current = false;
+      return false;
     }
-  }, [tableName, data, isOnline, debounceTime, syncTable, getStorageKey, checkSyncInProgress]);
+  }, [tableName, isOnline, data, syncTable, showToasts, toast, getStorageKey, checkSyncInProgress]);
+
+  // Notifier des changements
+  const notifyChanges = useCallback(() => {
+    setDataChanged(true);
+    pendingSyncRef.current = true;
+    
+    // Vérifier si nous devons déclencher une synchronisation
+    if (autoSync && isOnline && !checkSyncInProgress() && mountedRef.current && !unmountingRef.current) {
+      console.log(`useSyncContext: Notification de changements pour ${tableName}, planification de synchronisation`);
+      
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+      }
+      
+      // Planifier une synchronisation
+      timeoutRef.current = setTimeout(() => {
+        if (mountedRef.current && !unmountingRef.current && pendingSyncRef.current && isOnline && !checkSyncInProgress()) {
+          syncWithServer().catch(error => {
+            console.error(`useSyncContext: Erreur lors de la synchronisation après notification pour ${tableName}:`, error);
+          });
+        }
+      }, debounceTime);
+    } else {
+      console.log(`useSyncContext: Notification de changements pour ${tableName}, synchronisation différée`);
+    }
+  }, [tableName, autoSync, isOnline, debounceTime, checkSyncInProgress, syncWithServer]);
 
   return {
-    isSyncing: syncState.isSyncing || syncInProgressRef.current,
+    isSyncing: syncState.isSyncing,
     lastSynced: syncState.lastSynced,
     syncFailed: syncState.syncFailed,
-    isOnline,
+    dataChanged,
     syncWithServer,
     notifyChanges,
-    dataChanged,
-    loadLocalData
+    loadLocalData,
+    isOnline
   };
 }
