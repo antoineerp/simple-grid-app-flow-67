@@ -1,5 +1,5 @@
 
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { triggerSync } from '@/services/sync/triggerSync';
 import { useToast } from '@/hooks/use-toast';
@@ -46,11 +46,26 @@ export const GlobalSyncProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const { isOnline } = useNetworkStatus();
   const { toast } = useToast();
   const currentUser = getCurrentUser();
+  const initialSyncDoneRef = useRef<boolean>(false);
+  const syncRetryTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   
   // Log le mode de synchronisation au démarrage
   useEffect(() => {
     console.log("GlobalSyncContext: Mode de synchronisation - PRIORITÉ SERVEUR (Base de données Infomaniak)");
     console.log(`GlobalSyncContext: Statut de la connexion - ${isOnline ? "En ligne" : "Hors ligne"}`);
+    
+    // Si la connexion change, vérifier et synchroniser
+    if (isOnline && !initialSyncDoneRef.current) {
+      console.log("GlobalSyncContext: Connexion établie, déclenchement de synchronisation initiale");
+      initialSyncDoneRef.current = true;
+      
+      // Laisser un peu de temps pour initialiser
+      setTimeout(() => {
+        syncAll().catch(error => {
+          console.error("GlobalSyncContext: Erreur lors de la synchronisation initiale:", error);
+        });
+      }, 2000);
+    }
   }, [isOnline]);
   
   // Méthode pour mettre à jour l'état de synchronisation d'une table
@@ -104,9 +119,19 @@ export const GlobalSyncProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         
         toast({
           title: "Échec de la synchronisation",
-          description: `La synchronisation de ${tableName} avec Infomaniak a échoué. Les données sont sauvegardées localement.`,
+          description: `La synchronisation de ${tableName} avec Infomaniak a échoué. Nouvelle tentative sera effectuée automatiquement.`,
           variant: "destructive"
         });
+        
+        // Planifier une nouvelle tentative dans 60 secondes
+        if (syncRetryTimeoutRef.current) {
+          clearTimeout(syncRetryTimeoutRef.current);
+        }
+        
+        syncRetryTimeoutRef.current = setTimeout(() => {
+          console.log(`GlobalSyncContext: Nouvelle tentative de synchronisation pour ${tableName}`);
+          syncTable(data, tableName).catch(console.error);
+        }, 60000);
       } else {
         console.log(`GlobalSyncContext: Synchronisation réussie de ${tableName} avec Infomaniak`);
       }
@@ -128,9 +153,19 @@ export const GlobalSyncProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       
       toast({
         title: "Erreur de synchronisation",
-        description: `Une erreur est survenue lors de la synchronisation de ${tableName} avec Infomaniak. Les données sont sauvegardées localement.`,
+        description: `Une erreur est survenue lors de la synchronisation de ${tableName} avec Infomaniak. Nouvelle tentative sera effectuée automatiquement.`,
         variant: "destructive"
       });
+      
+      // Planifier une nouvelle tentative dans 60 secondes
+      if (syncRetryTimeoutRef.current) {
+        clearTimeout(syncRetryTimeoutRef.current);
+      }
+      
+      syncRetryTimeoutRef.current = setTimeout(() => {
+        console.log(`GlobalSyncContext: Nouvelle tentative de synchronisation pour ${tableName} après erreur`);
+        syncTable(data, tableName).catch(console.error);
+      }, 60000);
       
       return false;
     }
@@ -169,9 +204,19 @@ export const GlobalSyncProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         
         toast({
           title: "Synchronisation partielle",
-          description: `${failedCount}/${totalCount} tables n'ont pas pu être synchronisées avec Infomaniak. Les données sont sauvegardées localement.`,
+          description: `${failedCount}/${totalCount} tables n'ont pas pu être synchronisées avec Infomaniak. Nouvelle tentative automatique dans 1 minute.`,
           variant: "destructive"
         });
+        
+        // Planifier une nouvelle tentative dans 60 secondes
+        if (syncRetryTimeoutRef.current) {
+          clearTimeout(syncRetryTimeoutRef.current);
+        }
+        
+        syncRetryTimeoutRef.current = setTimeout(() => {
+          console.log(`GlobalSyncContext: Nouvelle tentative de synchronisation globale`);
+          syncAll().catch(console.error);
+        }, 60000);
       } else if (totalCount > 0) {
         console.log(`GlobalSyncContext: ${totalCount} tables synchronisées avec succès avec Infomaniak`);
         
@@ -189,9 +234,19 @@ export const GlobalSyncProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       
       toast({
         title: "Erreur de synchronisation",
-        description: "Une erreur est survenue lors de la synchronisation globale avec Infomaniak. Les données sont sauvegardées localement.",
+        description: "Une erreur est survenue lors de la synchronisation globale avec Infomaniak. Nouvelle tentative automatique dans 1 minute.",
         variant: "destructive"
       });
+      
+      // Planifier une nouvelle tentative dans 60 secondes
+      if (syncRetryTimeoutRef.current) {
+        clearTimeout(syncRetryTimeoutRef.current);
+      }
+      
+      syncRetryTimeoutRef.current = setTimeout(() => {
+        console.log(`GlobalSyncContext: Nouvelle tentative de synchronisation globale après erreur`);
+        syncAll().catch(console.error);
+      }, 60000);
       
       return {};
     }
@@ -221,11 +276,13 @@ export const GlobalSyncProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         // Tenter une synchronisation initiale si en ligne
         if (isOnline) {
           console.log("GlobalSyncContext: Tentative de synchronisation initiale avec Infomaniak");
+          initialSyncDoneRef.current = true;
+          
           setTimeout(() => {
             syncAll().catch(error => {
               console.error("GlobalSyncContext: Erreur lors de la synchronisation initiale:", error);
             });
-          }, 3000);
+          }, 2000);
         }
       } catch (error) {
         console.error("GlobalSyncContext: Erreur lors du chargement des états de synchronisation:", error);
@@ -233,6 +290,24 @@ export const GlobalSyncProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     };
     
     loadSyncStates();
+    
+    // Mettre en place un intervalle pour la synchronisation périodique (toutes les 5 minutes)
+    const intervalId = setInterval(() => {
+      if (isOnline) {
+        console.log("GlobalSyncContext: Synchronisation périodique déclenchée");
+        syncAll().catch(error => {
+          console.error("GlobalSyncContext: Erreur lors de la synchronisation périodique:", error);
+        });
+      }
+    }, 300000); // 5 minutes
+    
+    // Nettoyage lors du démontage du composant
+    return () => {
+      clearInterval(intervalId);
+      if (syncRetryTimeoutRef.current) {
+        clearTimeout(syncRetryTimeoutRef.current);
+      }
+    };
   }, [currentUser, isOnline, syncAll]);
   
   // Sauvegarder l'état de synchronisation dans localStorage lorsqu'il change

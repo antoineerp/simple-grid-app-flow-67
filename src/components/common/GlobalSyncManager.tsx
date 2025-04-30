@@ -1,57 +1,94 @@
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useGlobalSync } from '@/contexts/GlobalSyncContext';
 import { toast } from '@/components/ui/use-toast';
+import SyncIndicator from './SyncIndicator';
 
 const GlobalSyncManager: React.FC = () => {
-  const globalSyncContext = useGlobalSync();
+  const { syncAll, isOnline, syncStates } = useGlobalSync();
+  const [showError, setShowError] = useState(false);
+  const [syncingInProgress, setSyncingInProgress] = useState(false);
   
   // Utiliser un effet pour démarrer la synchronisation en arrière-plan
   useEffect(() => {
     try {
       console.log("GlobalSyncManager - Initialisation de la synchronisation");
-      console.log("GlobalSyncManager - État du contexte:", globalSyncContext);
       
-      // Vérification que le contexte existe et contient les méthodes nécessaires
-      if (globalSyncContext) {
-        console.log("GlobalSyncManager - Méthodes disponibles dans le contexte:", Object.keys(globalSyncContext));
+      // Déclencher la première synchronisation après 2 secondes
+      const timeoutId = setTimeout(() => {
+        console.log("GlobalSyncManager - Démarrage de la synchronisation initiale");
+        setSyncingInProgress(true);
         
-        // Démarrer la synchronisation globale si elle existe
-        if (typeof globalSyncContext.syncAll === 'function') {
-          console.log("GlobalSyncManager - Démarrage de la synchronisation en arrière-plan avec syncAll");
-          
-          // Pour éviter les boucles d'exécution, on utilise setTimeout
-          setTimeout(() => {
-            globalSyncContext.syncAll().then(results => {
-              console.log("GlobalSyncManager - Résultats de la synchronisation:", results);
-            }).catch(error => {
-              console.error("GlobalSyncManager - Erreur lors de la synchronisation:", error);
-            });
-          }, 2000);
-          
-          toast({
-            title: "Synchronisation",
-            description: "La synchronisation en arrière-plan a été démarrée",
+        syncAll()
+          .then(results => {
+            console.log("GlobalSyncManager - Résultats de la synchronisation initiale:", results);
+            setSyncingInProgress(false);
+            
+            const successCount = Object.values(results).filter(Boolean).length;
+            if (successCount > 0) {
+              toast({
+                title: "Synchronisation initiale terminée",
+                description: `${successCount} tables ont été synchronisées avec Infomaniak`,
+              });
+            }
+          })
+          .catch(error => {
+            console.error("GlobalSyncManager - Erreur lors de la synchronisation initiale:", error);
+            setSyncingInProgress(false);
+            setShowError(true);
           });
-        } else {
-          console.log("GlobalSyncManager - La méthode syncAll n'est pas disponible");
-          
-          // Notification en cas d'échec de synchronisation
-          toast({
-            title: "Synchronisation",
-            description: "La synchronisation en arrière-plan n'a pas pu être démarrée",
-            variant: "destructive"
-          });
-        }
-      } else {
-        console.error("GlobalSyncManager - Le contexte GlobalSync est undefined");
-      }
+      }, 2000);
+      
+      return () => clearTimeout(timeoutId);
     } catch (error) {
       console.error("GlobalSyncManager - Erreur lors de l'initialisation de la synchronisation:", error);
+      setShowError(true);
     }
-  }, [globalSyncContext]);
+  }, [syncAll]);
   
-  // Ce composant n'a pas de rendu visible
+  // Vérifier si une synchronisation a échoué
+  const hasSyncFailed = Object.values(syncStates).some(state => state.syncFailed);
+  
+  // Ne pas rendre le composant s'il n'y a pas d'erreur à afficher
+  if (!showError && !hasSyncFailed && !syncingInProgress) {
+    return null;
+  }
+  
+  // Si une synchronisation est en cours, afficher l'indicateur de synchronisation
+  if (syncingInProgress) {
+    return (
+      <div className="fixed bottom-4 right-4 z-50 max-w-md">
+        <SyncIndicator 
+          isSyncing={true}
+          isOnline={isOnline}
+          syncFailed={false}
+          lastSynced={null}
+          onSync={() => {}}
+        />
+      </div>
+    );
+  }
+  
+  // Si une synchronisation a échoué, afficher l'indicateur d'erreur
+  if (hasSyncFailed) {
+    return (
+      <div className="fixed bottom-4 right-4 z-50 max-w-md">
+        <SyncIndicator 
+          isSyncing={false}
+          isOnline={isOnline}
+          syncFailed={true}
+          lastSynced={null}
+          onSync={() => {
+            setSyncingInProgress(true);
+            syncAll()
+              .then(() => setSyncingInProgress(false))
+              .catch(() => setSyncingInProgress(false));
+          }}
+        />
+      </div>
+    );
+  }
+  
   return null;
 };
 
