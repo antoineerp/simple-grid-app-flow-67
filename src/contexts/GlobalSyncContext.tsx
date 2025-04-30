@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { triggerSync } from '@/services/sync/triggerSync';
@@ -15,7 +16,7 @@ interface GlobalSyncContextType {
   syncStates: Record<string, SyncState>;
   
   // Méthode pour synchroniser une table spécifique
-  syncTable: <T>(tableName: string, data: T[]) => Promise<boolean>;
+  syncTable: <T>(tableName: string, data: T[], operationId?: string) => Promise<boolean>;
   
   // Méthode pour synchroniser toutes les tables
   syncAll: () => Promise<Record<string, boolean>>;

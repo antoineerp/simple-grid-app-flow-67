@@ -8,7 +8,7 @@ import { useGlobalSync } from '@/contexts/GlobalSyncContext';
 
 const GestionDocumentaire = () => {
   const navigate = useNavigate();
-  const { syncStates, isOnline } = useGlobalSync();
+  const { syncStates, isOnline, syncTable } = useGlobalSync();
   const [currentUser, setCurrentUser] = useState<string>(getDatabaseConnectionCurrentUser() || 'default');
   
   // Récupérer l'état de synchronisation spécifique pour 'documents'
@@ -35,6 +35,16 @@ const GestionDocumentaire = () => {
     };
   }, []);
 
+  // Fonction pour déclencher une synchronisation manuelle
+  const handleSync = async () => {
+    try {
+      await syncTable('documents', []);
+      console.log("Synchronisation des documents terminée");
+    } catch (error) {
+      console.error("Erreur lors de la synchronisation des documents:", error);
+    }
+  };
+
   return (
     <div className="container mx-auto py-6 px-4">
       <div className="flex justify-between items-center mb-6">
@@ -45,6 +55,7 @@ const GestionDocumentaire = () => {
             lastSynced={documentsSyncState.lastSynced}
             isOnline={isOnline}
             syncFailed={documentsSyncState.syncFailed}
+            onSyncClick={handleSync}
           />
         </div>
       </div>
