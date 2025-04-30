@@ -2,7 +2,6 @@
 import { useCallback, useEffect, useState, useRef } from 'react';
 import { useGlobalSync } from '@/contexts/GlobalSyncContext';
 import { useToast } from '@/hooks/use-toast';
-import { triggerSync } from '@/services/sync/triggerSync';
 import { getCurrentUser } from '@/services/core/databaseConnectionService';
 
 interface SyncHookOptions {
@@ -17,12 +16,12 @@ interface SyncHookOptions {
  * qui fournit une interface cohérente pour toutes les tables
  */
 export function useSyncContext<T>(tableName: string, data: T[], options: SyncHookOptions = {}) {
-  const { syncStates, syncTable, isOnline } = useGlobalSync();
+  const { syncTable, syncStates, isOnline } = useGlobalSync();
   const { toast } = useToast();
   const { 
     showToasts = true, 
-    autoSync = false, 
-    debounceTime = 10000, // 10 secondes par défaut
+    autoSync = true, // Synchroniser automatiquement par défaut
+    debounceTime = 5000, // 5 secondes par défaut - plus réactif
     syncKey = ''
   } = options;
   const [dataChanged, setDataChanged] = useState(false);
@@ -49,7 +48,7 @@ export function useSyncContext<T>(tableName: string, data: T[], options: SyncHoo
       `${tableName}_${userId}`;
   }, [tableName, syncKey]);
   
-  // Stocker les données dans localStorage et déclencher la synchronisation différée
+  // Stocker les données dans localStorage et déclencher la synchronisation immédiatement si en ligne
   useEffect(() => {
     // Ne déclencher que s'il y a des données et qu'elles ont changé
     if (data.length > 0) {
@@ -58,42 +57,40 @@ export function useSyncContext<T>(tableName: string, data: T[], options: SyncHoo
       
       if (currentDataStr !== lastDataStr) {
         const storageKey = getStorageKey();
-        console.log(`Données modifiées pour ${tableName}, sauvegarde locale avec clé ${storageKey}`);
+        console.log(`useSyncContext: Données modifiées pour ${tableName}, sauvegarde et synchronisation`);
         
-        // Sauvegarder les données localement
+        // Sauvegarder les données localement (TOUJOURS comme sauvegarde)
         localStorage.setItem(storageKey, currentDataStr);
         setDataChanged(true);
         pendingSyncRef.current = true;
         lastDataRef.current = [...data];
         
-        // Si autoSync est activé, planifier une synchronisation différée
+        // Synchronisation IMMÉDIATE avec Infomaniak si en ligne
         if (autoSync && isOnline) {
           // Annuler tout timeout existant
           if (timeoutRef.current) {
             clearTimeout(timeoutRef.current);
           }
           
-          console.log(`Programmation de synchronisation différée pour ${tableName} dans ${debounceTime}ms`);
-          
-          // Créer un nouveau timeout
+          // Créer un nouveau timeout avec un délai court
           timeoutRef.current = setTimeout(() => {
             if (pendingSyncRef.current && isOnline && data.length > 0) {
-              console.log(`Exécution de synchronisation différée pour ${tableName}`);
+              console.log(`useSyncContext: Synchronisation de ${tableName} avec Infomaniak`);
               syncTable(tableName, data)
                 .then(result => {
                   if (result) {
                     pendingSyncRef.current = false;
                     setDataChanged(false);
-                    console.log(`Synchronisation différée de ${tableName} réussie`);
+                    console.log(`useSyncContext: Synchronisation de ${tableName} avec Infomaniak réussie`);
                   } else {
-                    console.warn(`Échec de la synchronisation différée de ${tableName}`);
+                    console.warn(`useSyncContext: Échec de la synchronisation de ${tableName} avec Infomaniak`);
                   }
                 })
                 .catch(error => {
-                  console.error(`Erreur lors de la synchronisation différée de ${tableName}:`, error);
+                  console.error(`useSyncContext: Erreur lors de la synchronisation de ${tableName} avec Infomaniak:`, error);
                 });
             }
-          }, debounceTime);
+          }, debounceTime); // Délai réduit à 5 secondes par défaut pour plus de réactivité
         }
       }
     }
@@ -116,7 +113,7 @@ export function useSyncContext<T>(tableName: string, data: T[], options: SyncHoo
         return JSON.parse(storedData);
       }
     } catch (e) {
-      console.error(`Erreur lors de la lecture des données locales pour ${tableName}:`, e);
+      console.error(`useSyncContext: Erreur lors de la lecture des données locales pour ${tableName}:`, e);
     }
     
     return [];
@@ -128,16 +125,16 @@ export function useSyncContext<T>(tableName: string, data: T[], options: SyncHoo
       if (showToasts) {
         toast({
           title: "Mode hors ligne",
-          description: "La synchronisation n'est pas disponible en mode hors ligne"
+          description: "La synchronisation avec Infomaniak n'est pas disponible en mode hors ligne. Les données sont sauvegardées localement."
         });
       }
       return false;
     }
 
-    // Éviter les tentatives de synchronisation trop fréquentes (au moins 3 secondes entre les tentatives)
+    // Éviter les tentatives de synchronisation trop fréquentes
     const now = Date.now();
     if (now - lastSyncAttemptRef.current < 3000) {
-      console.log(`Tentative de synchronisation trop fréquente pour ${tableName}, ignorée`);
+      console.log(`useSyncContext: Tentative de synchronisation trop fréquente pour ${tableName}, ignorée`);
       return false;
     }
     
@@ -145,7 +142,7 @@ export function useSyncContext<T>(tableName: string, data: T[], options: SyncHoo
 
     // Ne pas synchroniser si pas de données à envoyer
     if (!data || data.length === 0) {
-      console.log(`Aucune donnée à synchroniser pour ${tableName}`);
+      console.log(`useSyncContext: Aucune donnée à synchroniser pour ${tableName}`);
       
       if (showToasts) {
         toast({
@@ -158,7 +155,7 @@ export function useSyncContext<T>(tableName: string, data: T[], options: SyncHoo
     }
 
     try {
-      console.log(`Synchronisation de ${tableName} initiée avec ${data.length} éléments`);
+      console.log(`useSyncContext: Synchronisation de ${tableName} avec Infomaniak initiée`);
       
       // Annuler toute synchronisation différée en attente
       if (timeoutRef.current) {
@@ -166,54 +163,61 @@ export function useSyncContext<T>(tableName: string, data: T[], options: SyncHoo
         timeoutRef.current = null;
       }
       
-      // Utiliser uniquement les paramètres nécessaires: tableName et data
+      // Synchroniser DIRECTEMENT avec Infomaniak
       const result = await syncTable(tableName, data);
       
       if (result) {
         setDataChanged(false);
         pendingSyncRef.current = false;
-        console.log(`Synchronisation de ${tableName} réussie`);
+        console.log(`useSyncContext: Synchronisation de ${tableName} avec Infomaniak réussie`);
         
         if (showToasts) {
           toast({
             title: "Synchronisation réussie",
-            description: `Les données de ${tableName} ont été synchronisées`
+            description: `Les données de ${tableName} ont été synchronisées avec Infomaniak`
           });
         }
         
-        // Sauvegarder les données localement avec la date de synchronisation
+        // Sauvegarder les données localement (après synchronisation réussie)
         const storageKey = getStorageKey();
         localStorage.setItem(storageKey, JSON.stringify(data));
-        localStorage.setItem(`${storageKey}_last_sync`, new Date().toISOString());
       } else {
-        console.error(`Échec de la synchronisation de ${tableName}`);
+        console.error(`useSyncContext: Échec de la synchronisation de ${tableName} avec Infomaniak`);
         
         if (showToasts) {
           toast({
             variant: "destructive",
             title: "Échec de la synchronisation",
-            description: `La synchronisation de ${tableName} a échoué`
+            description: `La synchronisation de ${tableName} avec Infomaniak a échoué. Les données sont sauvegardées localement.`
           });
         }
+        
+        // Toujours sauvegarder localement en cas d'échec
+        const storageKey = getStorageKey();
+        localStorage.setItem(storageKey, JSON.stringify(data));
       }
       
       return result;
     } catch (error) {
-      console.error(`Erreur lors de la synchronisation de ${tableName}:`, error);
+      console.error(`useSyncContext: Erreur lors de la synchronisation de ${tableName} avec Infomaniak:`, error);
       
       if (showToasts) {
         toast({
           variant: "destructive",
           title: "Erreur de synchronisation",
-          description: `Une erreur s'est produite lors de la synchronisation de ${tableName}`
+          description: `Une erreur s'est produite lors de la synchronisation de ${tableName} avec Infomaniak. Les données sont sauvegardées localement.`
         });
       }
+      
+      // Toujours sauvegarder localement en cas d'erreur
+      const storageKey = getStorageKey();
+      localStorage.setItem(storageKey, JSON.stringify(data));
       
       return false;
     }
   }, [isOnline, syncTable, tableName, data, showToasts, toast, getStorageKey]);
   
-  // Méthode pour notifier seulement les changements (sauvegarde locale)
+  // Méthode pour notifier seulement les changements
   const notifyChanges = useCallback(() => {
     // Ne pas continuer si pas de données
     if (!data || data.length === 0) {
@@ -228,29 +232,34 @@ export function useSyncContext<T>(tableName: string, data: T[], options: SyncHoo
     pendingSyncRef.current = true;
     setDataChanged(true);
     
-    // Si autoSync est activé, planifier une synchronisation différée
-    if (autoSync && isOnline) {
+    // Synchroniser IMMÉDIATEMENT avec Infomaniak si en ligne
+    if (isOnline) {
       // Annuler tout timeout existant
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current);
       }
       
-      // Créer un nouveau timeout
+      // Créer un nouveau timeout avec un délai court
       timeoutRef.current = setTimeout(() => {
         if (pendingSyncRef.current && isOnline && data.length > 0) {
-          console.log(`Synchronisation différée après notification de changements dans ${tableName}`);
+          console.log(`useSyncContext: Synchronisation de ${tableName} avec Infomaniak après notification`);
           syncTable(tableName, data)
-            .then(() => {
-              pendingSyncRef.current = false;
-              setDataChanged(false);
+            .then(result => {
+              if (result) {
+                pendingSyncRef.current = false;
+                setDataChanged(false);
+                console.log(`useSyncContext: Synchronisation de ${tableName} avec Infomaniak réussie après notification`);
+              } else {
+                console.warn(`useSyncContext: Échec de la synchronisation de ${tableName} avec Infomaniak après notification`);
+              }
             })
             .catch(error => {
-              console.error(`Erreur lors de la synchronisation différée de ${tableName}:`, error);
+              console.error(`useSyncContext: Erreur lors de la synchronisation de ${tableName} avec Infomaniak après notification:`, error);
             });
         }
       }, debounceTime);
     }
-  }, [tableName, data, autoSync, isOnline, debounceTime, syncTable, getStorageKey]);
+  }, [tableName, data, isOnline, debounceTime, syncTable, getStorageKey]);
 
   return {
     isSyncing: syncState.isSyncing,

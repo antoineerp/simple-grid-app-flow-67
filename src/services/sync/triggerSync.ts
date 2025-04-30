@@ -109,7 +109,7 @@ export const triggerSync = {
       const currentUser = getCurrentUser() || 'p71x6d_system';
       console.log(`TriggerSync: Utilisateur courant: ${currentUser}`);
       
-      // Synchroniser avec le serveur
+      // Synchroniser TOUJOURS avec le serveur en priorité
       const success = await triggerSync.syncWithServer(tableName, data);
       
       if (success) {
@@ -117,7 +117,7 @@ export const triggerSync = {
         stats.successCount++;
         console.log(`TriggerSync: Synchronisation réussie pour ${tableName}`);
         
-        // Sauvegarder aussi dans le localStorage pour le mode hors ligne
+        // APRÈS la synchronisation serveur réussie, sauvegarder dans localStorage pour le mode hors ligne
         localStorage.setItem(`${tableName}_${currentUser}`, JSON.stringify(data));
         localStorage.removeItem(`sync_pending_${tableName}`);
         
@@ -137,6 +137,9 @@ export const triggerSync = {
         // Marquer comme en attente de synchronisation
         localStorage.setItem(`sync_pending_${tableName}`, new Date().toISOString());
         
+        // Sauvegarder quand même dans localStorage pour éviter la perte de données
+        localStorage.setItem(`${tableName}_${currentUser}`, JSON.stringify(data));
+        
         // Diffuser un événement indiquant que la synchronisation a échoué
         window.dispatchEvent(new CustomEvent("syncError", { 
           detail: { tableName, timestamp: new Date().toISOString() }
@@ -155,6 +158,10 @@ export const triggerSync = {
       
       // Marquer comme en attente de synchronisation
       localStorage.setItem(`sync_pending_${tableName}`, new Date().toISOString());
+      
+      // Sauvegarder quand même dans localStorage pour éviter la perte de données
+      const currentUser = getCurrentUser() || 'p71x6d_system';
+      localStorage.setItem(`${tableName}_${currentUser}`, JSON.stringify(data));
       
       // Diffuser un événement indiquant que la synchronisation a échoué
       window.dispatchEvent(new CustomEvent("syncError", { 
@@ -257,62 +264,72 @@ export const triggerSync = {
   },
   
   /**
-   * Notifie qu'une table a été modifiée
+   * Notifie qu'une table a été modifiée et déclenche une synchronisation immédiate si possible
    */
   notifyDataChange: <T>(tableName: string, data: T[]) => {
     const currentUser = getCurrentUser() || 'p71x6d_system';
     
-    // Sauvegarder localement
+    // IMPORTANT: Sauvegarder d'abord localement pour éviter la perte de données
     localStorage.setItem(`${tableName}_${currentUser}`, JSON.stringify(data));
     
     // Marquer comme en attente de synchronisation
     localStorage.setItem(`sync_pending_${tableName}`, new Date().toISOString());
     
-    // Diffuser un événement
-    window.dispatchEvent(new CustomEvent("dataChange", { 
-      detail: { tableName, dataCount: data.length }
-    }));
+    // TENTER UNE SYNCHRONISATION IMMÉDIATE avec le serveur si en ligne
+    if (window.navigator.onLine) {
+      console.log(`TriggerSync: Tentative de synchronisation immédiate après modification pour ${tableName}`);
+      
+      // Déclencher la synchronisation après un court délai pour éviter les appels trop fréquents
+      setTimeout(() => {
+        triggerSync.triggerTableSync(tableName, data).catch(error => {
+          console.error(`TriggerSync: Erreur lors de la synchronisation après notification:`, error);
+        });
+      }, 1000); // Attendre 1 seconde
+    } else {
+      console.log(`TriggerSync: Mode hors ligne, synchronisation différée pour ${tableName}`);
+    }
   },
   
   /**
-   * Synchronise toutes les tables ayant des modifications en attente
+   * Tente de synchroniser toutes les données en attente
    */
   synchronizeAllPending: async (): Promise<Record<string, boolean>> => {
-    console.log("TriggerSync: Synchronisation de toutes les tables avec des modifications en attente");
+    console.log("TriggerSync: Tentative de synchronisation de toutes les données en attente");
     
     const results: Record<string, boolean> = {};
-    const pendingKeys = Object.keys(localStorage)
-      .filter(key => key.startsWith('sync_pending_'))
-      .map(key => key.replace('sync_pending_', ''));
+    const pendingKeys = Object.keys(localStorage).filter(key => key.startsWith('sync_pending_'));
     
     if (pendingKeys.length === 0) {
       console.log("TriggerSync: Aucune synchronisation en attente");
       return results;
     }
     
-    console.log(`TriggerSync: ${pendingKeys.length} synchronisations en attente: ${pendingKeys.join(', ')}`);
+    console.log(`TriggerSync: ${pendingKeys.length} synchronisations en attente`);
     
-    const currentUser = getCurrentUser() || 'p71x6d_system';
-    
-    for (const tableName of pendingKeys) {
+    for (const key of pendingKeys) {
+      const tableName = key.replace('sync_pending_', '');
+      const currentUser = getCurrentUser() || 'p71x6d_system';
+      const dataKey = `${tableName}_${currentUser}`;
+      
+      const storedData = localStorage.getItem(dataKey);
+      if (!storedData) {
+        console.log(`TriggerSync: Aucune donnée à synchroniser pour ${tableName}`);
+        results[tableName] = true; // Rien à faire, considéré comme un succès
+        localStorage.removeItem(key); // Supprimer le marqueur de synchronisation en attente
+        continue;
+      }
+      
       try {
-        const storedData = localStorage.getItem(`${tableName}_${currentUser}`);
+        const data = JSON.parse(storedData);
         
-        if (storedData) {
-          const data = JSON.parse(storedData);
-          
-          if (Array.isArray(data) && data.length > 0) {
-            console.log(`TriggerSync: Synchronisation de ${tableName} (${data.length} éléments)`);
-            results[tableName] = await triggerSync.triggerTableSync(tableName, data);
-          } else {
-            console.log(`TriggerSync: Pas de données valides pour ${tableName}, suppression de la marque en attente`);
-            localStorage.removeItem(`sync_pending_${tableName}`);
-            results[tableName] = true;
-          }
-        } else {
-          console.log(`TriggerSync: Aucune donnée pour ${tableName}, suppression de la marque en attente`);
-          localStorage.removeItem(`sync_pending_${tableName}`);
-          results[tableName] = true;
+        console.log(`TriggerSync: Synchronisation en cours pour ${tableName}`);
+        const success = await triggerSync.triggerTableSync(tableName, data);
+        
+        results[tableName] = success;
+        
+        if (success) {
+          console.log(`TriggerSync: Synchronisation réussie pour ${tableName}`);
+          localStorage.removeItem(key);
         }
       } catch (error) {
         console.error(`TriggerSync: Erreur lors de la synchronisation de ${tableName}:`, error);

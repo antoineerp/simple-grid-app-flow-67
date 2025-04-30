@@ -3,6 +3,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { syncService, DataTable, SyncResult } from '@/services/sync/SyncService';
 import { useToast } from '@/components/ui/use-toast';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
+import { useGlobalSync } from '@/contexts/GlobalSyncContext';
 
 export interface SyncState {
   isSyncing: boolean;
@@ -14,47 +15,28 @@ export interface SyncState {
 }
 
 /**
- * Hook pour gérer la synchronisation de données avec le serveur
+ * Hook pour gérer la synchronisation de données avec le serveur Infomaniak
  */
 export const useSync = (tableName: string): SyncState => {
-  const [isSyncing, setIsSyncing] = useState<boolean>(false);
+  const { syncTable, syncStates, isOnline } = useGlobalSync();
   const [lastSynced, setLastSynced] = useState<Date | null>(syncService.getLastSynced(tableName));
-  const [syncFailed, setSyncFailed] = useState<boolean>(false);
   const { toast } = useToast();
-  const { isOnline } = useNetworkStatus();
   
-  // Mise à jour de l'état de synchronisation
+  // Obtenir l'état de synchronisation à partir du contexte global
+  const syncState = syncStates[tableName] || { 
+    isSyncing: false, 
+    lastSynced: null, 
+    syncFailed: false 
+  };
+  const isSyncing = syncState.isSyncing;
+  const syncFailed = syncState.syncFailed;
+  
+  // Mise à jour de l'état de synchronisation local à partir du contexte global
   useEffect(() => {
-    const syncingState = syncService.isSyncingTable(tableName);
-    setIsSyncing(syncingState);
-    
-    // Mettre à jour la dernière date de synchronisation
-    const lastSyncDate = syncService.getLastSynced(tableName);
-    if (lastSyncDate && (!lastSynced || lastSyncDate > lastSynced)) {
-      setLastSynced(lastSyncDate);
+    if (syncState.lastSynced && (!lastSynced || syncState.lastSynced > lastSynced)) {
+      setLastSynced(syncState.lastSynced);
     }
-    
-    // Vérifier dans le localStorage s'il y a eu un échec de synchronisation
-    const lastFailedSync = localStorage.getItem(`sync_failed_${tableName}`);
-    if (lastFailedSync) {
-      try {
-        const failedSync = JSON.parse(lastFailedSync);
-        // Considérer comme échoué seulement si la dernière tentative a échoué il y a moins de 24h
-        const failedTime = new Date(failedSync.timestamp).getTime();
-        const now = new Date().getTime();
-        const oneDay = 24 * 60 * 60 * 1000; // 24 heures en millisecondes
-        
-        if (now - failedTime < oneDay) {
-          setSyncFailed(true);
-        } else {
-          // Supprimer l'entrée si elle est trop ancienne
-          localStorage.removeItem(`sync_failed_${tableName}`);
-        }
-      } catch (e) {
-        console.error(`Erreur lors de la lecture de l'état de synchronisation: ${e}`);
-      }
-    }
-  }, [tableName, lastSynced]);
+  }, [syncState, lastSynced]);
   
   // Fonction pour synchroniser les données et gérer les erreurs
   const syncAndProcess = useCallback(async <T>(
@@ -63,15 +45,16 @@ export const useSync = (tableName: string): SyncState => {
     trigger: "auto" | "manual" | "initial" = "auto"
   ): Promise<SyncResult> => {
     if (!isOnline) {
+      console.log(`useSync: Tentative de synchronisation de ${tableName} en mode hors ligne`);
       const result: SyncResult = {
         success: false,
-        message: "Mode hors ligne"
+        message: "Mode hors ligne - Données sauvegardées localement"
       };
       
       if (trigger !== "auto") {
         toast({
           title: "Mode hors ligne",
-          description: "La synchronisation n'est pas disponible en mode hors ligne",
+          description: "La synchronisation avec Infomaniak n'est pas disponible en mode hors ligne. Les données sont sauvegardées localement.",
           variant: "destructive"
         });
       }
@@ -79,69 +62,64 @@ export const useSync = (tableName: string): SyncState => {
       return result;
     }
     
+    console.log(`useSync: Synchronisation de ${tableName} (déclencheur: ${trigger})`);
+    
     // Si déjà en cours de synchronisation, éviter les appels redondants
-    if (syncService.isSyncingTable(tableName)) {
+    if (isSyncing) {
       return {
         success: false,
         message: "Synchronisation déjà en cours"
       };
     }
     
-    setIsSyncing(true);
-    
     try {
       // Si ce n'est pas une synchronisation automatique, afficher un toast
       if (trigger !== "auto") {
         toast({
           title: "Synchronisation en cours",
-          description: "Veuillez patienter pendant la synchronisation..."
+          description: "Veuillez patienter pendant la synchronisation avec Infomaniak..."
         });
       }
       
-      // Appeler directement le service de synchronisation
-      const result = await syncService.syncTable(tableName, data, null, trigger);
+      // Appeler directement le service de synchronisation global
+      const result = await syncTable(tableName, data);
       
-      if (result.success) {
+      if (result) {
         setLastSynced(new Date());
-        setSyncFailed(false);
-        
-        // Supprimer toute trace d'échec précédent
-        localStorage.removeItem(`sync_failed_${tableName}`);
         
         // Pour les synchronisations manuelles et initiales, afficher un toast de succès
         if (trigger !== "auto") {
           toast({
             title: "Synchronisation réussie",
-            description: result.message || `${tableName} synchronisé avec succès`,
+            description: `${tableName} synchronisé avec succès avec Infomaniak`,
           });
         }
-      } else {
-        setSyncFailed(true);
         
+        return {
+          success: true,
+          message: `${tableName} synchronisé avec succès avec Infomaniak`
+        };
+      } else {
         if (trigger !== "auto") {
           toast({
             title: "Échec de la synchronisation",
-            description: result.message || "Une erreur est survenue lors de la synchronisation",
+            description: "Une erreur est survenue lors de la synchronisation avec Infomaniak. Les données sont sauvegardées localement.",
             variant: "destructive"
           });
         }
+        
+        return {
+          success: false,
+          message: "Échec de la synchronisation avec Infomaniak. Données sauvegardées localement."
+        };
       }
-      
-      return result;
     } catch (error) {
-      setSyncFailed(true);
       const errorMessage = error instanceof Error ? error.message : "Erreur inconnue";
-      
-      // Sauvegarder l'échec dans le localStorage
-      localStorage.setItem(`sync_failed_${tableName}`, JSON.stringify({
-        timestamp: new Date().toISOString(),
-        error: errorMessage
-      }));
       
       if (trigger !== "auto") {
         toast({
           title: "Erreur de synchronisation",
-          description: errorMessage,
+          description: `${errorMessage}. Les données sont sauvegardées localement.`,
           variant: "destructive"
         });
       }
@@ -150,16 +128,14 @@ export const useSync = (tableName: string): SyncState => {
         success: false,
         message: errorMessage
       };
-    } finally {
-      setIsSyncing(false);
     }
-  }, [isOnline, tableName, toast]);
+  }, [isOnline, tableName, toast, syncTable, isSyncing]);
   
   // Réinitialiser l'état de synchronisation
   const resetSyncStatus = useCallback(() => {
-    setSyncFailed(false);
-    localStorage.removeItem(`sync_failed_${tableName}`);
-  }, [tableName]);
+    // Cette fonction n'est plus nécessaire avec le contexte global,
+    // mais est conservée pour la compatibilité avec le code existant
+  }, []);
   
   return {
     isSyncing,

@@ -1,5 +1,5 @@
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { triggerSync } from '@/services/sync/triggerSync';
 import { useToast } from '@/hooks/use-toast';
@@ -47,8 +47,14 @@ export const GlobalSyncProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const { toast } = useToast();
   const currentUser = getCurrentUser();
   
+  // Log le mode de synchronisation au démarrage
+  useEffect(() => {
+    console.log("GlobalSyncContext: Mode de synchronisation - PRIORITÉ SERVEUR (Base de données Infomaniak)");
+    console.log(`GlobalSyncContext: Statut de la connexion - ${isOnline ? "En ligne" : "Hors ligne"}`);
+  }, [isOnline]);
+  
   // Méthode pour mettre à jour l'état de synchronisation d'une table
-  const updateSyncState = (tableName: string, state: Partial<SyncState>) => {
+  const updateSyncState = useCallback((tableName: string, state: Partial<SyncState>) => {
     setSyncStates(prev => ({
       ...prev,
       [tableName]: {
@@ -56,29 +62,32 @@ export const GlobalSyncProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         ...state
       }
     }));
-  };
+  }, []);
   
   // Méthode pour synchroniser une table spécifique
-  const syncTable = async <T,>(tableName: string, data: T[]): Promise<boolean> => {
+  const syncTable = useCallback(async <T,>(tableName: string, data: T[]): Promise<boolean> => {
     if (!isOnline) {
+      console.log(`GlobalSyncContext: Tentative de synchronisation de ${tableName} en mode hors ligne`);
+      // Sauvegarder quand même dans localStorage pour éviter la perte de données
+      const userId = currentUser || 'p71x6d_system';
+      localStorage.setItem(`${tableName}_${userId}`, JSON.stringify(data));
+      
       toast({ 
         title: "Mode hors ligne", 
-        description: "La synchronisation n'est pas disponible en mode hors ligne" 
+        description: `Les données de ${tableName} sont sauvegardées localement et seront synchronisées automatiquement lorsque la connexion sera rétablie.` 
       });
       return false;
     }
     
     // Vérifier si la synchronisation est déjà en cours pour cette table
     if (syncStates[tableName]?.isSyncing) {
-      toast({ 
-        title: "Synchronisation en cours", 
-        description: "Une synchronisation est déjà en cours pour cette table" 
-      });
+      console.log(`GlobalSyncContext: Synchronisation déjà en cours pour ${tableName}`);
       return false;
     }
     
     // Mettre à jour l'état pour indiquer que la synchronisation est en cours
     updateSyncState(tableName, { isSyncing: true });
+    console.log(`GlobalSyncContext: Début de la synchronisation de ${tableName} avec Infomaniak`);
     
     try {
       const result = await triggerSync.triggerTableSync(tableName, data);
@@ -86,21 +95,25 @@ export const GlobalSyncProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       // Mettre à jour l'état avec le résultat
       updateSyncState(tableName, {
         isSyncing: false,
-        lastSynced: new Date(),
+        lastSynced: result ? new Date() : syncStates[tableName]?.lastSynced || null,
         syncFailed: !result
       });
       
       if (!result) {
+        console.error(`GlobalSyncContext: Échec de la synchronisation de ${tableName} avec Infomaniak`);
+        
         toast({
           title: "Échec de la synchronisation",
-          description: `La synchronisation de ${tableName} a échoué`,
+          description: `La synchronisation de ${tableName} avec Infomaniak a échoué. Les données sont sauvegardées localement.`,
           variant: "destructive"
         });
+      } else {
+        console.log(`GlobalSyncContext: Synchronisation réussie de ${tableName} avec Infomaniak`);
       }
       
       return result;
     } catch (error) {
-      console.error(`Erreur lors de la synchronisation de ${tableName}:`, error);
+      console.error(`GlobalSyncContext: Erreur lors de la synchronisation de ${tableName}:`, error);
       
       // Mettre à jour l'état en cas d'erreur
       updateSyncState(tableName, {
@@ -108,25 +121,33 @@ export const GlobalSyncProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         syncFailed: true
       });
       
+      // Sauvegarder dans localStorage comme solution de secours
+      const userId = currentUser || 'p71x6d_system';
+      localStorage.setItem(`${tableName}_${userId}`, JSON.stringify(data));
+      localStorage.setItem(`sync_pending_${tableName}`, new Date().toISOString());
+      
       toast({
         title: "Erreur de synchronisation",
-        description: error instanceof Error ? error.message : "Erreur inconnue",
+        description: `Une erreur est survenue lors de la synchronisation de ${tableName} avec Infomaniak. Les données sont sauvegardées localement.`,
         variant: "destructive"
       });
       
       return false;
     }
-  };
+  }, [isOnline, syncStates, updateSyncState, currentUser, toast]);
   
   // Méthode pour synchroniser toutes les tables
-  const syncAll = async (): Promise<Record<string, boolean>> => {
+  const syncAll = useCallback(async (): Promise<Record<string, boolean>> => {
     if (!isOnline) {
+      console.log("GlobalSyncContext: Tentative de synchronisation globale en mode hors ligne");
       toast({ 
         title: "Mode hors ligne", 
-        description: "La synchronisation n'est pas disponible en mode hors ligne" 
+        description: "La synchronisation avec Infomaniak n'est pas disponible en mode hors ligne. Les données sont sauvegardées localement." 
       });
       return {};
     }
+    
+    console.log("GlobalSyncContext: Début de synchronisation globale avec Infomaniak");
     
     try {
       const results = await triggerSync.synchronizeAllPending();
@@ -135,41 +156,48 @@ export const GlobalSyncProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       Object.entries(results).forEach(([tableName, result]) => {
         updateSyncState(tableName, {
           isSyncing: false,
-          lastSynced: new Date(),
+          lastSynced: result ? new Date() : syncStates[tableName]?.lastSynced || null,
           syncFailed: !result
         });
       });
       
       const failedCount = Object.values(results).filter(r => !r).length;
+      const totalCount = Object.keys(results).length;
       
       if (failedCount > 0) {
+        console.warn(`GlobalSyncContext: ${failedCount}/${totalCount} tables n'ont pas pu être synchronisées avec Infomaniak`);
+        
         toast({
           title: "Synchronisation partielle",
-          description: `${failedCount} table(s) n'ont pas pu être synchronisées`,
+          description: `${failedCount}/${totalCount} tables n'ont pas pu être synchronisées avec Infomaniak. Les données sont sauvegardées localement.`,
           variant: "destructive"
         });
-      } else if (Object.keys(results).length > 0) {
+      } else if (totalCount > 0) {
+        console.log(`GlobalSyncContext: ${totalCount} tables synchronisées avec succès avec Infomaniak`);
+        
         toast({
           title: "Synchronisation réussie",
-          description: "Toutes les tables ont été synchronisées"
+          description: `${totalCount} tables ont été synchronisées avec Infomaniak`
         });
+      } else {
+        console.log("GlobalSyncContext: Aucune table à synchroniser");
       }
       
       return results;
     } catch (error) {
-      console.error("Erreur lors de la synchronisation globale:", error);
+      console.error("GlobalSyncContext: Erreur lors de la synchronisation globale avec Infomaniak:", error);
       
       toast({
         title: "Erreur de synchronisation",
-        description: error instanceof Error ? error.message : "Erreur inconnue",
+        description: "Une erreur est survenue lors de la synchronisation globale avec Infomaniak. Les données sont sauvegardées localement.",
         variant: "destructive"
       });
       
       return {};
     }
-  };
+  }, [isOnline, updateSyncState, syncStates, toast]);
   
-  // Charger l'état de synchronisation initial depuis localStorage
+  // Charger l'état de synchronisation initial depuis localStorage et tenter une première synchronisation
   useEffect(() => {
     const loadSyncStates = () => {
       try {
@@ -187,14 +215,25 @@ export const GlobalSyncProvider: React.FC<{ children: React.ReactNode }> = ({ ch
           });
           
           setSyncStates(parsedStates);
+          console.log("GlobalSyncContext: États de synchronisation chargés depuis localStorage");
+        }
+        
+        // Tenter une synchronisation initiale si en ligne
+        if (isOnline) {
+          console.log("GlobalSyncContext: Tentative de synchronisation initiale avec Infomaniak");
+          setTimeout(() => {
+            syncAll().catch(error => {
+              console.error("GlobalSyncContext: Erreur lors de la synchronisation initiale:", error);
+            });
+          }, 3000);
         }
       } catch (error) {
-        console.error("Erreur lors du chargement des états de synchronisation:", error);
+        console.error("GlobalSyncContext: Erreur lors du chargement des états de synchronisation:", error);
       }
     };
     
     loadSyncStates();
-  }, [currentUser]);
+  }, [currentUser, isOnline, syncAll]);
   
   // Sauvegarder l'état de synchronisation dans localStorage lorsqu'il change
   useEffect(() => {
@@ -203,7 +242,7 @@ export const GlobalSyncProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         const userId = currentUser || 'p71x6d_system';
         localStorage.setItem(`sync_states_${userId}`, JSON.stringify(syncStates));
       } catch (error) {
-        console.error("Erreur lors de la sauvegarde des états de synchronisation:", error);
+        console.error("GlobalSyncContext: Erreur lors de la sauvegarde des états de synchronisation:", error);
       }
     };
     

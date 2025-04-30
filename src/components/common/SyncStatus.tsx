@@ -82,8 +82,8 @@ export const SyncStatus: React.FC = () => {
         </TooltipTrigger>
         <TooltipContent>
           {isOnline 
-            ? "Connecté à Internet - Synchronisation activée" 
-            : "Déconnecté - Mode hors ligne"}
+            ? "Connecté à Internet - Synchronisation base de données Infomaniak activée" 
+            : "Déconnecté - Mode hors ligne (données stockées localement)"}
         </TooltipContent>
       </Tooltip>
       
@@ -95,11 +95,11 @@ export const SyncStatus: React.FC = () => {
           </div>
         </TooltipTrigger>
         <TooltipContent>
-          Dernière synchronisation: {lastSynced ? lastSynced.toLocaleString() : "Jamais"}
+          Dernière synchronisation avec Infomaniak: {lastSynced ? lastSynced.toLocaleString() : "Jamais"}
         </TooltipContent>
       </Tooltip>
       
-      <ForceSyncButton />
+      <ForceSyncButton showLabel={true} />
     </div>
   );
 };

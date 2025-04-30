@@ -47,15 +47,15 @@ export const ForceSyncButton: React.FC<ForceSyncButtonProps> = ({
         toast({
           title: "Synchronisation réussie",
           description: tableName 
-            ? `La table ${tableName} a été synchronisée avec la base de données.` 
-            : "Toutes les tables ont été synchronisées avec la base de données."
+            ? `La table ${tableName} a été synchronisée avec Infomaniak.` 
+            : "Toutes les tables ont été synchronisées avec Infomaniak."
         });
       } else {
         setSyncStatus('error');
         toast({
           variant: "destructive",
           title: "Synchronisation partielle",
-          description: "Certaines données n'ont pas pu être synchronisées."
+          description: "Certaines données n'ont pas pu être synchronisées avec Infomaniak."
         });
       }
     } catch (error) {
@@ -64,7 +64,7 @@ export const ForceSyncButton: React.FC<ForceSyncButtonProps> = ({
       toast({
         variant: "destructive",
         title: "Échec de la synchronisation",
-        description: error instanceof Error ? error.message : "Une erreur est survenue."
+        description: error instanceof Error ? error.message : "Une erreur est survenue lors de la synchronisation avec Infomaniak."
       });
     } finally {
       setIsSyncing(false);

@@ -17,6 +17,26 @@ const GlobalSyncManager: React.FC = () => {
   const syncTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const lastSyncAttemptRef = useRef<number>(0);
   
+  // Initialiser le mode de synchronisation au démarrage (priorité serveur)
+  useEffect(() => {
+    console.log("GlobalSyncManager: Initialisation du gestionnaire de synchronisation globale");
+    console.log("Mode de synchronisation: PRIORITÉ SERVEUR - Base de données Infomaniak");
+    
+    const interval = setInterval(() => {
+      // Vérifier et synchroniser périodiquement les modifications en attente
+      if (isOnline && triggerSync.hasPendingChanges()) {
+        console.log("GlobalSyncManager: Vérification périodique des synchronisations en attente");
+        syncAll().catch(error => {
+          console.error("Erreur lors de la synchronisation périodique:", error);
+        });
+      }
+    }, 60000); // Vérifier toutes les minutes
+    
+    return () => {
+      clearInterval(interval);
+    };
+  }, []);
+  
   // Vérifier les données en attente de synchronisation
   const checkPendingSyncs = () => {
     const hasPending = triggerSync.hasPendingChanges();
@@ -26,7 +46,10 @@ const GlobalSyncManager: React.FC = () => {
   
   // Synchroniser les changements en attente
   const syncPendingChanges = () => {
-    if (!isOnline) return;
+    if (!isOnline) {
+      console.log("GlobalSyncManager: Mode hors ligne, synchronisation impossible");
+      return;
+    }
     
     // Éviter les synchronisations trop fréquentes (minimum 5 secondes entre les tentatives)
     const now = Date.now();
@@ -48,23 +71,26 @@ const GlobalSyncManager: React.FC = () => {
       
       // Créer un nouveau timer pour ne pas synchroniser trop souvent
       syncTimeoutRef.current = setTimeout(() => {
-        // Synchroniser toutes les modifications en attente
+        // Synchroniser toutes les modifications en attente avec la base de données Infomaniak
         syncAll().catch(error => {
           console.error("Erreur lors de la synchronisation des modifications en attente:", error);
         });
         syncTimeoutRef.current = null;
-      }, 5000); // Réduire à 5 secondes pour une réactivité améliorée
+      }, 5000); // 5 secondes de délai
     }
   };
   
   // Écouter les événements de changement de données
   useEffect(() => {
-    console.log("GlobalSyncManager: Initialisation du gestionnaire de synchronisation globale");
-    
     // Callback pour les événements dataUpdate
     const handleDataUpdate = (e: CustomEvent) => {
       console.log("GlobalSyncManager: Événement de mise à jour des données reçu", e.detail);
       checkPendingSyncs();
+      
+      // Tenter une synchronisation immédiate
+      if (isOnline) {
+        syncPendingChanges();
+      }
     };
     
     // Callback pour les changements de localStorage (communication entre onglets)
@@ -72,6 +98,11 @@ const GlobalSyncManager: React.FC = () => {
       if (e.key && (e.key.startsWith('sync_pending_') || e.key.startsWith('pending_sync_'))) {
         console.log("GlobalSyncManager: Changement de stockage détecté", e.key);
         checkPendingSyncs();
+        
+        // Tenter une synchronisation immédiate
+        if (isOnline) {
+          syncPendingChanges();
+        }
       }
     };
     
@@ -86,7 +117,41 @@ const GlobalSyncManager: React.FC = () => {
     const handleSyncError = (e: CustomEvent) => {
       if (e.detail?.tableName) {
         console.error(`GlobalSyncManager: Erreur de synchronisation pour ${e.detail.tableName}`, e.detail.error);
+        
+        // Afficher une notification pour informer l'utilisateur
+        toast({
+          variant: "destructive",
+          title: "Erreur de synchronisation",
+          description: `La synchronisation de ${e.detail.tableName} avec Infomaniak a échoué. Les données sont sauvegardées localement.`
+        });
       }
+    };
+    
+    // Callback pour les changements d'état de connexion
+    const handleOnline = () => {
+      console.log("GlobalSyncManager: Connexion Internet détectée");
+      
+      // Tenter de synchroniser les données en attente
+      setTimeout(() => {
+        syncAll().catch(error => {
+          console.error("Erreur lors de la synchronisation après retour en ligne:", error);
+        });
+      }, 2000); // Attendre 2 secondes pour que la connexion se stabilise
+      
+      toast({
+        title: "Connexion rétablie",
+        description: "Synchronisation avec la base de données Infomaniak activée"
+      });
+    };
+    
+    const handleOffline = () => {
+      console.log("GlobalSyncManager: Connexion Internet perdue");
+      
+      toast({
+        variant: "destructive",
+        title: "Connexion perdue",
+        description: "Mode hors ligne activé. Les modifications seront synchronisées automatiquement lors du retour de la connexion."
+      });
     };
     
     // Vérification initiale
@@ -97,12 +162,16 @@ const GlobalSyncManager: React.FC = () => {
     window.addEventListener('storage', handleStorageChange);
     window.addEventListener('syncComplete', handleSyncComplete as EventListener);
     window.addEventListener('syncError', handleSyncError as EventListener);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
     
     // Tentative de synchronisation initiale pour les données en attente
     if (isOnline) {
       // Retarder légèrement pour laisser le temps à l'application de se charger
       setTimeout(() => {
-        syncPendingChanges();
+        syncAll().catch(error => {
+          console.error("Erreur lors de la synchronisation initiale:", error);
+        });
       }, 3000);
     }
     
@@ -112,18 +181,19 @@ const GlobalSyncManager: React.FC = () => {
       window.removeEventListener('storage', handleStorageChange);
       window.removeEventListener('syncComplete', handleSyncComplete as EventListener);
       window.removeEventListener('syncError', handleSyncError as EventListener);
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
       
       // Nettoyer le timeout s'il existe
       if (syncTimeoutRef.current) {
         clearTimeout(syncTimeoutRef.current);
       }
     };
-  }, []);
+  }, [isOnline, toast, syncAll]);
   
   // Effectuer une synchronisation lorsque isSyncPending change
   useEffect(() => {
     if (isSyncPending && isOnline) {
-      // Ne pas déclencher la synchronisation trop souvent
       syncPendingChanges();
     }
   }, [isSyncPending, isOnline]);
@@ -146,21 +216,6 @@ const GlobalSyncManager: React.FC = () => {
       }
     }
   }, [location.pathname, isOnline]);
-
-  // Vérifier et tenter une synchronisation toutes les minutes si en ligne
-  useEffect(() => {
-    if (!isOnline) return;
-    
-    const intervalId = setInterval(() => {
-      const hasPending = checkPendingSyncs();
-      if (hasPending) {
-        console.log("GlobalSyncManager: Tentative de synchronisation périodique");
-        syncPendingChanges();
-      }
-    }, 60000); // Vérifier toutes les 60 secondes
-    
-    return () => clearInterval(intervalId);
-  }, [isOnline]);
   
   return null; // Ce composant n'affiche rien, il gère uniquement la logique en arrière-plan
 };
