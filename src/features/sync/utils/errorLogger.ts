@@ -3,6 +3,13 @@
  * Utility for error logging and management
  */
 
+// Assurez-vous que window.errorLogs est correctement typé
+declare global {
+  interface Window {
+    errorLogs: string[];
+  }
+}
+
 // Initialize error logs on the window object
 export const initializeErrorLogging = (): void => {
   if (typeof window !== 'undefined') {

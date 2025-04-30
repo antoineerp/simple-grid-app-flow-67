@@ -7,7 +7,7 @@ import { SyncHookOptions, SyncOperationResult } from '../types/syncTypes';
 import { checkSyncInProgress, acquireLock, releaseLock } from '../utils/syncLockManager';
 import { hasAuthenticationError } from '../utils/errorLogger';
 import { getStorageKey, saveLocalData } from '../utils/syncStorageManager';
-import { executeSyncOperation } from '../utils/syncOperations';
+import { executeSyncOperation, isSynchronizing } from '../utils/syncOperations';
 
 /**
  * Hook réutilisable pour la synchronisation dans n'importe quelle page
@@ -74,8 +74,7 @@ export function useSyncContext<T>(tableName: string, data: T[], options: SyncHoo
       
       // Libérer les verrous au démontage
       try {
-        localStorage.removeItem(`sync_in_progress_${tableName}`);
-        localStorage.removeItem(`sync_lock_time_${tableName}`);
+        releaseLock(tableName);
       } catch (e) {
         console.error(`useSyncContext: Erreur lors du nettoyage des verrous pour ${tableName}:`, e);
       }
@@ -83,8 +82,7 @@ export function useSyncContext<T>(tableName: string, data: T[], options: SyncHoo
       // Si une synchronisation est en attente, sauvegarder les données localement
       if (pendingSyncRef.current && data && data.length > 0) {
         try {
-          const storageKey = getStorageKey(tableName, syncKey);
-          localStorage.setItem(storageKey, JSON.stringify(data));
+          saveLocalData(tableName, data, syncKey);
           console.log(`useSyncContext: Sauvegarde des données en attente pour ${tableName} avant démontage`);
         } catch (e) {
           console.error(`useSyncContext: Erreur de sauvegarde avant démontage pour ${tableName}:`, e);
@@ -93,7 +91,7 @@ export function useSyncContext<T>(tableName: string, data: T[], options: SyncHoo
     };
   }, []);
   
-  // Fonction pour synchroniser les données
+  // Fonction pour synchroniser les données - utilise maintenant la file d'attente
   const syncWithServer = useCallback(async (): Promise<boolean> => {
     if (!mountedRef.current || unmountingRef.current) {
       console.log(`useSyncContext: Synchronisation annulée pour ${tableName} - composant démonté`);
@@ -105,9 +103,9 @@ export function useSyncContext<T>(tableName: string, data: T[], options: SyncHoo
       return false;
     }
 
-    // Vérifier puis acquérir le verrou
-    if (!acquireLock(tableName)) {
-      console.log(`useSyncContext: Synchronisation déjà en cours pour ${tableName}, requête ignorée`);
+    // Si une synchronisation est déjà en cours pour cette table, ne pas en lancer une autre
+    if (isSynchronizing(tableName)) {
+      console.log(`useSyncContext: Synchronisation déjà en file d'attente pour ${tableName}, requête ignorée`);
       pendingSyncRef.current = true;
       return false;
     }
@@ -115,17 +113,6 @@ export function useSyncContext<T>(tableName: string, data: T[], options: SyncHoo
     // Set local syncing state
     syncInProgressRef.current = true;
     setIsSyncing(true);
-
-    // Auto-expiration du verrou après 30 secondes pour éviter les blocages
-    if (lockTimeoutRef.current) {
-      clearTimeout(lockTimeoutRef.current);
-    }
-    
-    lockTimeoutRef.current = setTimeout(() => {
-      releaseLock(tableName);
-      syncInProgressRef.current = false;
-      setIsSyncing(false);
-    }, 30000);
 
     // Générer un nouvel identifiant d'opération
     operationIdRef.current = `${tableName}_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
@@ -136,26 +123,24 @@ export function useSyncContext<T>(tableName: string, data: T[], options: SyncHoo
     try {
       lastSyncAttemptRef.current = Date.now();
       
-      // Sauvegarder localement avant même de tenter la synchronisation
-      saveLocalData(tableName, data, syncKey);
-      
-      const success = await syncTable(tableName, data, operationId);
+      // Exécuter l'opération de synchronisation via la file d'attente
+      const result = await executeSyncOperation(
+        tableName,
+        data,
+        syncTable,
+        syncKey,
+        "manual"
+      );
       
       if (!mountedRef.current || unmountingRef.current) {
         console.log(`useSyncContext: Synchronisation terminée pour ${tableName} mais composant démonté - résultat ignoré`);
-        releaseLock(tableName);
         syncInProgressRef.current = false;
         setIsSyncing(false);
-        
-        if (lockTimeoutRef.current) {
-          clearTimeout(lockTimeoutRef.current);
-          lockTimeoutRef.current = null;
-        }
         
         return false;
       }
       
-      if (success) {
+      if (result.success) {
         console.log(`useSyncContext: Synchronisation réussie pour ${tableName} (opération ${operationId})`);
         syncRetryCountRef.current = 0;
         pendingSyncRef.current = false;
@@ -168,6 +153,8 @@ export function useSyncContext<T>(tableName: string, data: T[], options: SyncHoo
             duration: 3000
           });
         }
+        
+        return true;
       } else {
         // Échec de la synchronisation
         syncRetryCountRef.current++;
@@ -198,8 +185,8 @@ export function useSyncContext<T>(tableName: string, data: T[], options: SyncHoo
           }
         }
         
-        // Planifier un nouvel essai automatique après délai croissant mais uniquement si
-        // nous sommes toujours le composant actif et en ligne
+        // Planifier un nouvel essai automatique avec délai croissant
+        // mais uniquement si nous sommes toujours le composant actif et en ligne
         if (syncRetryCountRef.current < maxRetries && isOnline && mountedRef.current && !unmountingRef.current) {
           const retryDelay = Math.min(2000 * Math.pow(2, syncRetryCountRef.current - 1), 30000);
           
@@ -218,23 +205,10 @@ export function useSyncContext<T>(tableName: string, data: T[], options: SyncHoo
             }
           }, retryDelay);
         }
-      }
-      
-      return success;
-    } catch (error) {
-      if (!mountedRef.current || unmountingRef.current) {
-        releaseLock(tableName);
-        syncInProgressRef.current = false;
-        setIsSyncing(false);
-        
-        if (lockTimeoutRef.current) {
-          clearTimeout(lockTimeoutRef.current);
-          lockTimeoutRef.current = null;
-        }
         
         return false;
       }
-      
+    } catch (error) {
       console.error(`useSyncContext: Erreur lors de la synchronisation de ${tableName}:`, error);
       pendingSyncRef.current = true;
       
@@ -264,18 +238,12 @@ export function useSyncContext<T>(tableName: string, data: T[], options: SyncHoo
       
       return false;
     } finally {
-      releaseLock(tableName);
       syncInProgressRef.current = false;
       setIsSyncing(false);
-      
-      if (lockTimeoutRef.current) {
-        clearTimeout(lockTimeoutRef.current);
-        lockTimeoutRef.current = null;
-      }
     }
   }, [tableName, data, isOnline, syncTable, syncKey, showToasts, toast, maxRetries]);
   
-  // Fonction pour notifier des changements de données
+  // Fonction pour notifier des changements de données avec délai
   const notifyChanges = useCallback(() => {
     if (!mountedRef.current || unmountingRef.current) return;
     
