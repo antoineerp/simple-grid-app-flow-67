@@ -88,7 +88,7 @@ export const SyncProvider: React.FC<{
   }, []);
 
   // Sync a specific table
-  const syncTable = useCallback(async <T>(
+  const syncTable = useCallback(async <T,>(
     tableName: string, 
     data: T[],
     trigger: "auto" | "manual" | "initial" = "auto"
