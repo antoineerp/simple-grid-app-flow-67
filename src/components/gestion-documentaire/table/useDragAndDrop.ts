@@ -43,16 +43,14 @@ export const useDragAndDrop = (
     
     if (sourceId === targetId && sourceGroupId === targetGroupId) return;
     
-    // Find indexes for reordering
-    const allDocs = [
-      ...documents.filter(d => !d.groupId),
-      ...documents.filter(d => d.groupId)
-    ];
+    // Trouver les index pour la réorganisation
+    const allDocs = [...documents];
     
     const sourceIndex = allDocs.findIndex(d => d.id === sourceId);
     const targetIndex = allDocs.findIndex(d => d.id === targetId);
     
     if (sourceIndex !== -1 && targetIndex !== -1) {
+      console.log(`Déplacement du document ${sourceId} vers ${targetId} (groupe: ${targetGroupId || 'aucun'})`);
       onReorder(sourceIndex, targetIndex, targetGroupId);
     }
     
@@ -74,23 +72,19 @@ export const useDragAndDrop = (
     
     if (sourceGroupId === groupId) return;
     
-    // Find the document being dragged
-    let sourceDocument: Document | undefined;
-    
-    if (sourceGroupId) {
-      sourceDocument = documents.find(d => d.id === sourceId && d.groupId === sourceGroupId);
-    } else {
-      sourceDocument = documents.find(d => d.id === sourceId && !d.groupId);
-    }
+    // Trouver le document qui est en train d'être déplacé
+    const sourceDocument = documents.find(d => d.id === sourceId);
     
     if (sourceDocument) {
       const sourceIndex = documents.findIndex(d => d.id === sourceId);
-      // Get the last position in the target group
+      
+      // Obtenir la dernière position dans le groupe cible
       const targetGroupDocs = documents.filter(d => d.groupId === groupId);
       const targetIndex = targetGroupDocs.length > 0 ? 
         documents.indexOf(targetGroupDocs[targetGroupDocs.length - 1]) + 1 : 
         documents.length;
       
+      console.log(`Déplacement du document ${sourceId} vers le groupe ${groupId} (index: ${targetIndex})`);
       onReorder(sourceIndex, targetIndex, groupId);
     }
     

@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from 'react';
 import { Document, DocumentStats, DocumentGroup } from '@/types/documents';
 import { useToast } from '@/hooks/use-toast';
@@ -33,7 +34,7 @@ export const useDocuments = () => {
   const [groupDialogOpen, setGroupDialogOpen] = useState(false);
   const [stats, setStats] = useState<DocumentStats>(() => calculateDocumentStats(documents));
 
-  // Utiliser le hook de synchronisation central, mais avec les états du contexte global
+  // Utiliser le hook de synchronisation central
   const { syncAndProcess } = useSync('documents');
 
   useEffect(() => {
@@ -133,12 +134,20 @@ export const useDocuments = () => {
       const result = Array.from(prev);
       const [removed] = result.splice(startIndex, 1);
       
+      // Mettre à jour le groupId du document
       if (targetGroupId !== undefined) {
         removed.groupId = targetGroupId;
+      } else {
+        // Si le document est déplacé hors d'un groupe, supprimer la propriété groupId
+        delete removed.groupId;
       }
       
       result.splice(endIndex, 0, removed);
       
+      // Log pour le débogage
+      console.log(`Document ${removed.id} déplacé: groupId=${removed.groupId || 'aucun'}`);
+      
+      // Synchroniser les changements
       syncWithServer().catch(error => {
         console.error("Erreur lors de la synchronisation après réorganisation:", error);
       });

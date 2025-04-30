@@ -44,6 +44,7 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
   const groupsWithItems = groups.map(group => {
     // Trouver tous les documents appartenant à ce groupe
     const groupItems = documents.filter(doc => doc.groupId === group.id);
+    
     // Retourner le groupe avec ses documents
     return {
       ...group,

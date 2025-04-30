@@ -20,6 +20,9 @@ export const useBibliothequeDragAndDrop = (
     
     if (sourceId === targetId && sourceGroupId === targetGroupId) return;
     
+    // Debug log
+    console.log(`Déplacement de ${sourceId} (groupe: ${sourceGroupId || 'aucun'}) vers ${targetId} (groupe: ${targetGroupId || 'aucun'})`);
+    
     if (targetGroupId !== undefined) {
       // Move document to a group
       let docToMove: Document | undefined;
@@ -48,15 +51,18 @@ export const useBibliothequeDragAndDrop = (
       if (docToMove) {
         // Ensure we update the groupId on the document
         const docWithGroupId = { ...docToMove, groupId: targetGroupId };
+        console.log(`Document à déplacer:`, docWithGroupId);
         
         setGroups(groups => {
           return groups.map(group => {
             if (group.id === targetGroupId) {
               // Add the document to the target group
-              return { 
+              const updatedGroup = { 
                 ...group, 
                 items: [...group.items, docWithGroupId] 
               };
+              console.log(`Groupe mis à jour:`, updatedGroup);
+              return updatedGroup;
             }
             return group;
           });
@@ -86,6 +92,7 @@ export const useBibliothequeDragAndDrop = (
           // Remove the groupId
           const docWithoutGroupId = { ...docToMove };
           delete docWithoutGroupId.groupId;
+          console.log(`Document sorti du groupe:`, docWithoutGroupId);
           
           setDocuments(docs => [...docs, docWithoutGroupId]);
         }
@@ -101,6 +108,8 @@ export const useBibliothequeDragAndDrop = (
     const { id: sourceId, groupId: sourceGroupId } = draggedItem;
     
     if (sourceGroupId === targetGroupId) return;
+    
+    console.log(`Déplacement du document ${sourceId} vers le groupe ${targetGroupId}`);
     
     let docToMove: Document | undefined;
     
@@ -128,15 +137,18 @@ export const useBibliothequeDragAndDrop = (
     if (docToMove) {
       // Ensure we update the groupId on the document
       const docWithGroupId = { ...docToMove, groupId: targetGroupId };
+      console.log(`Document à déplacer dans le groupe:`, docWithGroupId);
       
       setGroups(groups => {
         return groups.map(group => {
           if (group.id === targetGroupId) {
             // Add the document to the target group
-            return { 
+            const updatedGroup = {
               ...group, 
               items: [...group.items, docWithGroupId] 
             };
+            console.log(`Groupe mis à jour:`, updatedGroup);
+            return updatedGroup;
           }
           return group;
         });
