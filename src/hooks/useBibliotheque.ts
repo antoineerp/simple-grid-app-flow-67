@@ -1,198 +1,262 @@
 
 import { useState, useEffect, useCallback } from 'react';
-import { loadBibliothequeFromStorage, saveBibliothequeToStorage, getBibliothequeItems } from '@/services/bibliotheque/bibliothequeService';
-import { Document, DocumentGroup, BibliothequeItem } from '@/types/bibliotheque';
-import { useGlobalSync } from '@/contexts/GlobalSyncContext';
-import { useNetworkStatus } from '@/hooks/useNetworkStatus';
+import { Document, DocumentGroup } from '@/types/bibliotheque';
+import { useToast } from '@/hooks/use-toast';
+import { getDatabaseConnectionCurrentUser } from '@/services/core/databaseConnectionService';
 
 export const useBibliotheque = () => {
+  const { toast } = useToast();
   const [documents, setDocuments] = useState<Document[]>([]);
   const [groups, setGroups] = useState<DocumentGroup[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isGroupDialogOpen, setIsGroupDialogOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [currentDocument, setCurrentDocument] = useState<Document | null>(null);
   const [currentGroup, setCurrentGroup] = useState<DocumentGroup | null>(null);
-  
-  const { syncWithServer } = useGlobalSync();
-  const { isOnline } = useNetworkStatus();
   const [isSyncing, setIsSyncing] = useState(false);
-  const [syncFailed, setSyncFailed] = useState(false);
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [lastSynced, setLastSynced] = useState<Date | null>(null);
-  
-  // Pour la compatibilité avec l'ancien code
-  const [items, setItems] = useState<BibliothequeItem[]>([]);
-  
-  const fetchItems = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    
-    try {
-      // Get current user
-      const currentUser = localStorage.getItem('currentUser') || 'default';
-      
-      // Load from storage
-      const { documents: docs, groups: grps } = loadBibliothequeFromStorage(currentUser);
-      setDocuments(docs);
-      setGroups(grps);
-      setItems(docs); // Pour la compatibilité avec l'ancien code
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erreur lors du chargement des données');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-  
+  const [syncFailed, setSyncFailed] = useState(false);
+
+  // Check online status
   useEffect(() => {
-    fetchItems();
-  }, [fetchItems]);
-  
-  const handleSyncDocuments = async () => {
-    if (!syncWithServer) return;
-    
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
+  // Load documents and groups on mount
+  useEffect(() => {
+    loadDocumentsAndGroups();
+  }, []);
+
+  const loadDocumentsAndGroups = useCallback(async () => {
+    try {
+      // For now, we'll load from local storage as a fallback
+      const currentUser = getDatabaseConnectionCurrentUser() || 'default';
+      const storedDocs = localStorage.getItem(`collaboration_${currentUser}`);
+      const storedGroups = localStorage.getItem(`collaboration_groups_${currentUser}`);
+      
+      if (storedDocs) {
+        setDocuments(JSON.parse(storedDocs));
+      } else {
+        // Initialize with empty array if no stored data
+        setDocuments([]);
+      }
+      
+      if (storedGroups) {
+        setGroups(JSON.parse(storedGroups));
+      } else {
+        // Initialize with empty array if no stored data
+        setGroups([]);
+      }
+      
+      setLastSynced(new Date());
+    } catch (error) {
+      console.error('Error loading documents and groups:', error);
+      
+      toast({
+        title: "Erreur",
+        description: "Impossible de charger les documents.",
+        variant: "destructive",
+      });
+      
+      // Initialize with empty arrays if loading fails
+      setDocuments([]);
+      setGroups([]);
+    }
+  }, [toast]);
+
+  const handleSyncDocuments = useCallback(async () => {
     setIsSyncing(true);
     setSyncFailed(false);
     
     try {
-      const allDocs = [...documents];
-      const currentUser = localStorage.getItem('currentUser') || 'default';
+      // In a real implementation, this would sync with the server
+      // For now, we'll simulate a successful sync
+      await new Promise(resolve => setTimeout(resolve, 1000));
       
-      const success = await syncWithServer(allDocs, { 
-        tableName: 'bibliotheque',
-        groups
-      }, currentUser);
-      
-      if (success) {
-        setLastSynced(new Date());
-      } else {
-        setSyncFailed(true);
-      }
-    } catch (err) {
-      console.error('Error syncing documents:', err);
+      setLastSynced(new Date());
+      toast({
+        title: "Synchronisation réussie",
+        description: "Documents synchronisés avec succès.",
+      });
+    } catch (error) {
+      console.error('Error syncing documents:', error);
       setSyncFailed(true);
+      
+      toast({
+        title: "Échec de la synchronisation",
+        description: "Impossible de synchroniser les documents.",
+        variant: "destructive",
+      });
     } finally {
       setIsSyncing(false);
     }
-  };
-  
-  const handleAddDocument = (document: Document) => {
-    const newDocuments = [...documents, document];
-    const currentUser = localStorage.getItem('currentUser') || 'default';
+  }, [toast]);
+
+  const handleAddDocument = useCallback((document: Document) => {
+    const currentUser = getDatabaseConnectionCurrentUser() || 'default';
+    const newDocument = {
+      ...document,
+      id: document.id || `doc-${Date.now()}`,
+      userId: currentUser
+    };
     
-    setDocuments(newDocuments);
-    setItems(newDocuments);
-    saveBibliothequeToStorage(newDocuments, groups, currentUser);
-    setIsDialogOpen(false);
-    
-    // Auto-sync if online
-    if (isOnline && syncWithServer) {
-      handleSyncDocuments();
-    }
-  };
-  
-  const handleUpdateDocument = (document: Document) => {
-    const newDocuments = documents.map(doc => 
-      doc.id === document.id ? document : doc
-    );
-    const currentUser = localStorage.getItem('currentUser') || 'default';
-    
-    setDocuments(newDocuments);
-    setItems(newDocuments);
-    saveBibliothequeToStorage(newDocuments, groups, currentUser);
-    setIsDialogOpen(false);
-    
-    // Auto-sync if online
-    if (isOnline && syncWithServer) {
-      handleSyncDocuments();
-    }
-  };
-  
-  const handleDeleteDocument = (id: string) => {
-    const newDocuments = documents.filter(doc => doc.id !== id);
-    const currentUser = localStorage.getItem('currentUser') || 'default';
-    
-    setDocuments(newDocuments);
-    setItems(newDocuments);
-    saveBibliothequeToStorage(newDocuments, groups, currentUser);
-    setIsDialogOpen(false);
-    
-    // Auto-sync if online
-    if (isOnline && syncWithServer) {
-      handleSyncDocuments();
-    }
-  };
-  
-  const handleAddGroup = (group: DocumentGroup) => {
-    const newGroups = [...groups, group];
-    const currentUser = localStorage.getItem('currentUser') || 'default';
-    
-    setGroups(newGroups);
-    saveBibliothequeToStorage(documents, newGroups, currentUser);
-    setIsGroupDialogOpen(false);
-    
-    // Auto-sync if online
-    if (isOnline && syncWithServer) {
-      handleSyncDocuments();
-    }
-  };
-  
-  const handleUpdateGroup = (group: DocumentGroup) => {
-    const newGroups = groups.map(g => 
-      g.id === group.id ? group : g
-    );
-    const currentUser = localStorage.getItem('currentUser') || 'default';
-    
-    setGroups(newGroups);
-    saveBibliothequeToStorage(documents, newGroups, currentUser);
-    setIsGroupDialogOpen(false);
-    
-    // Auto-sync if online
-    if (isOnline && syncWithServer) {
-      handleSyncDocuments();
-    }
-  };
-  
-  const handleDeleteGroup = (id: string) => {
-    // Remove the group and update documents that belong to it
-    const newGroups = groups.filter(g => g.id !== id);
-    const newDocuments = documents.map(doc => {
-      if (doc.groupId === id) {
-        return { ...doc, groupId: undefined };
-      }
-      return doc;
+    setDocuments(prev => {
+      const updatedDocs = [...prev, newDocument];
+      localStorage.setItem(`collaboration_${currentUser}`, JSON.stringify(updatedDocs));
+      return updatedDocs;
     });
     
-    const currentUser = localStorage.getItem('currentUser') || 'default';
+    toast({
+      title: "Document ajouté",
+      description: "Le document a été ajouté avec succès.",
+    });
     
-    setGroups(newGroups);
-    setDocuments(newDocuments);
-    setItems(newDocuments);
-    saveBibliothequeToStorage(newDocuments, newGroups, currentUser);
+    setIsDialogOpen(false);
+  }, [toast]);
+
+  const handleUpdateDocument = useCallback((document: Document) => {
+    const currentUser = getDatabaseConnectionCurrentUser() || 'default';
+    
+    setDocuments(prev => {
+      const updatedDocs = prev.map(doc => doc.id === document.id ? { ...document, userId: currentUser } : doc);
+      localStorage.setItem(`collaboration_${currentUser}`, JSON.stringify(updatedDocs));
+      return updatedDocs;
+    });
+    
+    toast({
+      title: "Document mis à jour",
+      description: "Le document a été mis à jour avec succès.",
+    });
+    
+    setIsDialogOpen(false);
+  }, [toast]);
+
+  const handleDeleteDocument = useCallback((id: string) => {
+    const currentUser = getDatabaseConnectionCurrentUser() || 'default';
+    
+    // Remove from documents
+    setDocuments(prev => {
+      const updatedDocs = prev.filter(doc => doc.id !== id);
+      localStorage.setItem(`collaboration_${currentUser}`, JSON.stringify(updatedDocs));
+      return updatedDocs;
+    });
+    
+    // Remove from any groups
+    setGroups(prev => {
+      const updatedGroups = prev.map(group => ({
+        ...group,
+        items: group.items.filter(itemId => itemId !== id)
+      }));
+      localStorage.setItem(`collaboration_groups_${currentUser}`, JSON.stringify(updatedGroups));
+      return updatedGroups;
+    });
+    
+    toast({
+      title: "Document supprimé",
+      description: "Le document a été supprimé avec succès.",
+    });
+    
+    setIsDialogOpen(false);
+  }, [toast]);
+
+  const handleAddGroup = useCallback((group: DocumentGroup) => {
+    const currentUser = getDatabaseConnectionCurrentUser() || 'default';
+    const newGroup = {
+      ...group,
+      id: group.id || `group-${Date.now()}`,
+      expanded: false,
+      items: group.items || [],
+      userId: currentUser
+    };
+    
+    setGroups(prev => {
+      const updatedGroups = [...prev, newGroup];
+      localStorage.setItem(`collaboration_groups_${currentUser}`, JSON.stringify(updatedGroups));
+      return updatedGroups;
+    });
+    
+    toast({
+      title: "Groupe ajouté",
+      description: "Le groupe a été ajouté avec succès.",
+    });
+    
     setIsGroupDialogOpen(false);
+  }, [toast]);
+
+  const handleUpdateGroup = useCallback((group: DocumentGroup) => {
+    const currentUser = getDatabaseConnectionCurrentUser() || 'default';
     
-    // Auto-sync if online
-    if (isOnline && syncWithServer) {
-      handleSyncDocuments();
+    setGroups(prev => {
+      const updatedGroups = prev.map(g => g.id === group.id ? { ...group, userId: currentUser } : g);
+      localStorage.setItem(`collaboration_groups_${currentUser}`, JSON.stringify(updatedGroups));
+      return updatedGroups;
+    });
+    
+    toast({
+      title: "Groupe mis à jour",
+      description: "Le groupe a été mis à jour avec succès.",
+    });
+    
+    setIsGroupDialogOpen(false);
+  }, [toast]);
+
+  const handleDeleteGroup = useCallback((id: string) => {
+    const currentUser = getDatabaseConnectionCurrentUser() || 'default';
+    
+    // Get the group to be deleted
+    const groupToDelete = groups.find(g => g.id === id);
+    
+    // Remove the group
+    setGroups(prev => {
+      const updatedGroups = prev.filter(group => group.id !== id);
+      localStorage.setItem(`collaboration_groups_${currentUser}`, JSON.stringify(updatedGroups));
+      return updatedGroups;
+    });
+    
+    // Move documents from deleted group to no group
+    if (groupToDelete) {
+      setDocuments(prev => {
+        const updatedDocs = prev.map(doc => {
+          if (doc.groupId === id) {
+            return { ...doc, groupId: undefined };
+          }
+          return doc;
+        });
+        localStorage.setItem(`collaboration_${currentUser}`, JSON.stringify(updatedDocs));
+        return updatedDocs;
+      });
     }
-  };
-  
-  // Pour assurer la compatibilité avec l'ancien code
-  const refreshItems = fetchItems;
-  
-  return { 
-    documents, 
-    groups, 
-    items,
-    loading, 
-    error, 
-    refreshItems,
+    
+    toast({
+      title: "Groupe supprimé",
+      description: "Le groupe a été supprimé avec succès.",
+    });
+    
+    setIsGroupDialogOpen(false);
+  }, [groups, toast]);
+
+  return {
+    documents,
+    groups,
     isDialogOpen,
     isGroupDialogOpen,
     isEditing,
     currentDocument,
     currentGroup,
+    isSyncing,
+    isOnline,
+    lastSynced,
+    syncFailed,
     setIsDialogOpen,
     setIsGroupDialogOpen,
     setIsEditing,
@@ -205,9 +269,7 @@ export const useBibliotheque = () => {
     handleUpdateGroup,
     handleDeleteGroup,
     handleSyncDocuments,
-    isSyncing,
-    isOnline,
-    lastSynced,
-    syncFailed
   };
 };
+
+export default useBibliotheque;

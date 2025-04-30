@@ -1,13 +1,14 @@
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Document, DocumentGroup } from '@/types/bibliotheque';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 
 interface DocumentFormProps {
-  document: Document;
+  document: Document | null;
   isEditing: boolean;
   groups: DocumentGroup[];
   onSave: (document: Document) => void;
@@ -23,68 +24,66 @@ const DocumentForm: React.FC<DocumentFormProps> = ({
   onCancel,
   onDelete
 }) => {
-  const [formData, setFormData] = React.useState<Document>(document);
+  const [name, setName] = useState('');
+  const [link, setLink] = useState('');
+  const [groupId, setGroupId] = useState<string | undefined>(undefined);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
-  React.useEffect(() => {
-    setFormData(document);
+  useEffect(() => {
+    if (document) {
+      setName(document.name || '');
+      setLink(document.link || '');
+      setGroupId(document.groupId);
+    } else {
+      setName('');
+      setLink('');
+      setGroupId(undefined);
+    }
   }, [document]);
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value
-    }));
-  };
-
-  const handleGroupChange = (value: string) => {
-    setFormData((prev) => ({
-      ...prev,
-      groupId: value === "none" ? undefined : value
-    }));
-  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSave(formData);
+    
+    onSave({
+      id: document?.id || `doc-${Date.now()}`,
+      name,
+      link: link || undefined,
+      groupId: groupId || undefined
+    });
   };
 
   return (
-    <form onSubmit={handleSubmit}>
-      <div className="space-y-4">
+    <>
+      <form onSubmit={handleSubmit} className="space-y-4">
         <div className="space-y-2">
           <Label htmlFor="name">Nom du document</Label>
           <Input
             id="name"
-            name="name"
-            value={formData.name}
-            onChange={handleChange}
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Nom du document"
             required
           />
         </div>
-
+        
         <div className="space-y-2">
-          <Label htmlFor="link">Lien du document</Label>
+          <Label htmlFor="link">Lien (optionnel)</Label>
           <Input
             id="link"
-            name="link"
-            value={formData.link || ""}
-            onChange={handleChange}
+            value={link}
+            onChange={(e) => setLink(e.target.value)}
             placeholder="https://..."
           />
         </div>
-
+        
         <div className="space-y-2">
-          <Label htmlFor="group">Groupe</Label>
-          <Select 
-            value={formData.groupId || "none"}
-            onValueChange={handleGroupChange}
-          >
-            <SelectTrigger>
+          <Label htmlFor="group">Groupe (optionnel)</Label>
+          <Select value={groupId} onValueChange={setGroupId}>
+            <SelectTrigger id="group">
               <SelectValue placeholder="Sélectionner un groupe" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="none">Aucun groupe</SelectItem>
+              <SelectItem value="">Aucun groupe</SelectItem>
               {groups.map((group) => (
                 <SelectItem key={group.id} value={group.id}>
                   {group.name}
@@ -93,30 +92,53 @@ const DocumentForm: React.FC<DocumentFormProps> = ({
             </SelectContent>
           </Select>
         </div>
-
-        <div className="flex justify-between pt-4">
+        
+        <div className="flex justify-between pt-2">
           <div>
             {isEditing && onDelete && (
-              <Button
-                type="button"
-                variant="destructive"
-                onClick={() => onDelete(formData.id)}
+              <Button 
+                type="button" 
+                variant="destructive" 
+                onClick={() => setShowDeleteConfirm(true)}
               >
                 Supprimer
               </Button>
             )}
           </div>
-          <div className="flex space-x-2">
+          <div className="flex gap-2">
             <Button type="button" variant="outline" onClick={onCancel}>
               Annuler
             </Button>
             <Button type="submit">
-              {isEditing ? "Modifier" : "Ajouter"}
+              {isEditing ? "Mettre à jour" : "Ajouter"}
             </Button>
           </div>
         </div>
-      </div>
-    </form>
+      </form>
+      
+      <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Êtes-vous sûr ?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Cette action ne peut pas être annulée. Le document sera définitivement supprimé.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={() => {
+                if (document && onDelete) onDelete(document.id);
+                setShowDeleteConfirm(false);
+              }}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              Supprimer
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 };
 
