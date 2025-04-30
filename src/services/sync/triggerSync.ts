@@ -17,6 +17,13 @@ interface PendingSyncData {
   userId?: string;
 }
 
+// Résultat d'une opération de synchronisation
+interface SyncResult {
+  success: boolean;
+  message: string;
+  timestamp?: string;
+}
+
 // Clé utilisée pour stocker les données en attente dans le localStorage
 const PENDING_SYNC_KEY = 'sync_pending_changes';
 
@@ -150,6 +157,75 @@ class TriggerSyncService {
     // Si en ligne, programmer une synchronisation
     if (navigator.onLine) {
       setTimeout(() => this.processPendingSync(syncKey), 5000);
+    }
+  };
+  
+  /**
+   * Déclencher la synchronisation d'une table spécifique avec le serveur
+   * Méthode utilisée par GlobalSyncContext
+   */
+  triggerTableSync = async <T>(
+    tableName: string,
+    data: T[],
+    trigger: string = "auto"
+  ): Promise<SyncResult> => {
+    try {
+      if (!tableName || !Array.isArray(data)) {
+        console.error(`TriggerSync: Paramètres invalides pour triggerTableSync`);
+        return {
+          success: false,
+          message: `Paramètres invalides pour la synchronisation`
+        };
+      }
+      
+      console.log(`TriggerSync: Synchronisation de la table ${tableName} déclenchée (${data.length} éléments)`);
+      
+      // Si hors ligne, stocker dans la file d'attente et retourner un succès partiel
+      if (!navigator.onLine) {
+        console.log(`TriggerSync: Mode hors ligne, données stockées pour synchronisation ultérieure`);
+        
+        // Stocker les données pour synchronisation ultérieure
+        const userId = getCurrentUser() || 'default';
+        const syncKey = `${tableName}_${userId}`;
+        
+        this.pendingSyncs.set(syncKey, {
+          tableName,
+          data,
+          timestamp: new Date().toISOString(),
+          userId
+        });
+        
+        this.savePendingSyncs();
+        
+        return {
+          success: true,
+          message: `Données sauvegardées localement pour synchronisation ultérieure`,
+          timestamp: new Date().toISOString()
+        };
+      }
+      
+      // En ligne, déclencher la synchronisation via un événement
+      window.dispatchEvent(new CustomEvent('force-sync-required', {
+        detail: {
+          tables: [tableName],
+          data: data,
+          trigger: trigger,
+          timestamp: new Date().toISOString()
+        }
+      }));
+      
+      return {
+        success: true,
+        message: `Synchronisation déclenchée pour ${tableName}`,
+        timestamp: new Date().toISOString()
+      };
+      
+    } catch (error) {
+      console.error(`TriggerSync: Erreur lors de triggerTableSync pour ${tableName}:`, error);
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : String(error)
+      };
     }
   };
   
