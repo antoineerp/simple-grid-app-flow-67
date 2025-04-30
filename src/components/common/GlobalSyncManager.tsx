@@ -18,8 +18,8 @@ const GlobalSyncManager: React.FC = () => {
   const lastSyncRef = useRef<number>(Date.now());
   const forceSyncRequiredRef = useRef<boolean>(false);
   
-  // Séquence minimum entre deux synchronisations complètes (10 minutes)
-  const MIN_SYNC_INTERVAL = 600000;
+  // Séquence minimum entre deux synchronisations complètes (5 minutes)
+  const MIN_SYNC_INTERVAL = 300000;
   
   // Mettre à jour l'ID utilisateur courant
   useEffect(() => {
@@ -29,18 +29,25 @@ const GlobalSyncManager: React.FC = () => {
       
       // Journaliser l'utilisateur courant pour le débogage
       SyncLoggingService.logSyncAction('user-update', 'global', true, { userId });
+      
+      // Afficher des informations sur l'utilisateur actuel dans la console
+      console.log(`GlobalSyncManager: Utilisateur actuel - ${userId}`);
     };
     
     // Initialiser et configurer l'écouteur de changement d'utilisateur
     updateCurrentUser();
     
-    const userChangeListener = () => {
+    const userChangeListener = (event: Event) => {
+      const customEvent = event as CustomEvent;
+      console.log(`GlobalSyncManager: Changement d'utilisateur détecté`, customEvent.detail);
+      
       updateCurrentUser();
       
       // Déclencher une synchronisation forcée lors du changement d'utilisateur
       forceSyncRequiredRef.current = true;
       setTimeout(() => {
         if (mountedRef.current) {
+          console.log(`GlobalSyncManager: Forcer la synchronisation après changement d'utilisateur`);
           forceProcessQueue();
           syncAll().catch(error => {
             console.error("GlobalSyncManager - Erreur lors de la synchronisation après changement d'utilisateur:", error);
@@ -68,7 +75,9 @@ const GlobalSyncManager: React.FC = () => {
         syncInitElement.id = 'global-sync-manager-initialized';
         syncInitElement.style.display = 'none';
         syncInitElement.setAttribute('data-user', currentUserId);
+        syncInitElement.setAttribute('data-sync-enabled', 'true');
         document.body.appendChild(syncInitElement);
+        console.log(`GlobalSyncManager: Élément de synchronisation initialisé pour l'utilisateur ${currentUserId}`);
       } catch (error) {
         console.error("GlobalSyncManager - Erreur lors de l'initialisation du marqueur DOM:", error);
       }
@@ -146,10 +155,12 @@ const GlobalSyncManager: React.FC = () => {
     // Écouter les événements personnalisés
     window.addEventListener('force-sync-required', handleForceSyncRequired);
     window.addEventListener('connectivity-restored', handleForceSyncRequired);
+    window.addEventListener('sync-data-changed', handleForceSyncRequired);
     
     return () => {
       window.removeEventListener('force-sync-required', handleForceSyncRequired);
       window.removeEventListener('connectivity-restored', handleForceSyncRequired);
+      window.removeEventListener('sync-data-changed', handleForceSyncRequired);
     };
   }, [isOnline, syncAll, forceProcessQueue]);
   
@@ -160,11 +171,13 @@ const GlobalSyncManager: React.FC = () => {
     try {
       console.log("GlobalSyncManager - Initialisation de la synchronisation");
       
-      // Déclencher la première synchronisation après un délai
-      // pour laisser le temps à l'application de se stabiliser
+      // Déclencher la première synchronisation après un délai réduit
       const initialSyncTimeout = setTimeout(() => {
         if (mountedRef.current && !initialSyncDone && isOnline) {
           console.log("GlobalSyncManager - Démarrage de la synchronisation initiale");
+          
+          // Journaliser le début de la synchronisation initiale
+          SyncLoggingService.logSyncAction('initial-sync-start', 'all', true, { userId: currentUserId });
           
           syncAll()
             .then((results) => {
@@ -188,16 +201,16 @@ const GlobalSyncManager: React.FC = () => {
               }
             });
         }
-      }, 5000);
+      }, 3000); // Réduit à 3 secondes pour une meilleure réactivité
       
-      // Synchronisations périodiques (toutes les 5 minutes)
+      // Synchronisations périodiques (toutes les 3 minutes)
       const periodicSyncInterval = setInterval(() => {
         if (!mountedRef.current) return;
         
         const now = Date.now();
         
-        // N'exécuter que si en ligne et dernier sync > 5 min
-        if (isOnline && now - lastSyncRef.current > 300000) {
+        // Fréquence réduite à 3 minutes pour plus de réactivité
+        if (isOnline && now - lastSyncRef.current > 180000) {
           console.log("GlobalSyncManager - Démarrage de la synchronisation périodique");
           
           syncAll()
@@ -218,7 +231,7 @@ const GlobalSyncManager: React.FC = () => {
               }
             });
         }
-      }, 300000); // 5 minutes
+      }, 180000); // 3 minutes
       
       // Nettoyer localStorage périodiquement
       const cleanupInterval = setInterval(() => {
@@ -236,7 +249,7 @@ const GlobalSyncManager: React.FC = () => {
     } catch (error) {
       console.error("GlobalSyncManager - Erreur lors de l'initialisation de la synchronisation:", error);
     }
-  }, [syncAll, isOnline, initialSyncDone, forceProcessQueue]);
+  }, [syncAll, isOnline, initialSyncDone, forceProcessQueue, currentUserId]);
   
   // Afficher le débogueur uniquement en développement
   return (

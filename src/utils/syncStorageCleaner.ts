@@ -179,7 +179,6 @@ export const initializeSyncStorageCleaner = () => {
 export const safeLocalStorageSet = (key: string, value: any) => {
   try {
     // S'assurer que la valeur est toujours au format JSON valide
-    // Si c'est déjà une chaîne, on l'enveloppe dans des guillemets JSON
     const jsonValue = typeof value === 'string' && !value.startsWith('"') ? 
       JSON.stringify(value) : 
       JSON.stringify(value);
@@ -202,6 +201,38 @@ export const safeLocalStorageGet = <T>(key: string, defaultValue: T): T => {
     console.error(`Erreur lors de la récupération depuis localStorage pour ${key}:`, error);
     localStorage.removeItem(key); // Supprimer l'entrée corrompue
     return defaultValue;
+  }
+};
+
+// Fonction pour marquer qu'une modification a été effectuée et doit être synchronisée
+export const markDataChanged = (tableName: string): void => {
+  try {
+    safeLocalStorageSet(`${tableName}_data_changed`, {
+      timestamp: new Date().toISOString(),
+      changed: true
+    });
+    
+    // Déclencher un événement pour informer l'application
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('sync-data-changed', { 
+        detail: { tableName, timestamp: new Date().toISOString() }
+      }));
+    }
+    
+    console.log(`Données marquées comme modifiées pour la table ${tableName}`);
+  } catch (error) {
+    console.error(`Erreur lors du marquage des données modifiées pour ${tableName}:`, error);
+  }
+};
+
+// Fonction pour vérifier si des données ont été modifiées
+export const hasDataChanged = (tableName: string): boolean => {
+  try {
+    const changeData = safeLocalStorageGet<{ changed: boolean, timestamp: string } | null>(`${tableName}_data_changed`, null);
+    return changeData ? changeData.changed : false;
+  } catch (error) {
+    console.error(`Erreur lors de la vérification des modifications pour ${tableName}:`, error);
+    return false;
   }
 };
 

@@ -46,6 +46,15 @@ export const SyncLoggingService = {
       // Enregistrer également la dernière action de synchronisation pour cette table
       safeLocalStorageSet(`last_sync_action_${tableName}`, entry);
       
+      // Si la synchronisation échoue, le signaler spécifiquement
+      if (!success) {
+        safeLocalStorageSet(`sync_error_${tableName}`, {
+          timestamp: new Date().toISOString(),
+          details: details || 'Erreur inconnue',
+          action
+        });
+      }
+      
       console.log(`[SyncLog] ${userId} - ${action} - ${tableName} - ${success ? 'Succès' : 'Échec'}`);
     } catch (error) {
       console.error('Erreur lors de la journalisation de synchronisation:', error);
@@ -66,15 +75,38 @@ export const SyncLoggingService = {
     const result: Record<string, SyncLogEntry> = {};
     
     // Rechercher toutes les clés de dernière action
-    const keys = Object.keys(localStorage).filter(key => key.startsWith('last_sync_action_'));
+    if (typeof localStorage !== 'undefined') {
+      const keys = Object.keys(localStorage).filter(key => key.startsWith('last_sync_action_'));
+      
+      keys.forEach(key => {
+        const tableName = key.replace('last_sync_action_', '');
+        const entry = safeLocalStorageGet<SyncLogEntry>(key, null);
+        if (entry) {
+          result[tableName] = entry;
+        }
+      });
+    }
     
-    keys.forEach(key => {
-      const tableName = key.replace('last_sync_action_', '');
-      const entry = safeLocalStorageGet<SyncLogEntry>(key, null);
-      if (entry) {
-        result[tableName] = entry;
-      }
-    });
+    return result;
+  },
+
+  /**
+   * Récupère toutes les erreurs de synchronisation récentes
+   */
+  getSyncErrors: (): Record<string, any> => {
+    const result: Record<string, any> = {};
+    
+    if (typeof localStorage !== 'undefined') {
+      const keys = Object.keys(localStorage).filter(key => key.startsWith('sync_error_'));
+      
+      keys.forEach(key => {
+        const tableName = key.replace('sync_error_', '');
+        const entry = safeLocalStorageGet<any>(key, null);
+        if (entry) {
+          result[tableName] = entry;
+        }
+      });
+    }
     
     return result;
   },
@@ -86,10 +118,36 @@ export const SyncLoggingService = {
     safeLocalStorageSet('sync_debug_log', []);
     
     // Supprimer également les dernières actions
-    const keys = Object.keys(localStorage).filter(key => key.startsWith('last_sync_action_'));
-    keys.forEach(key => localStorage.removeItem(key));
+    if (typeof localStorage !== 'undefined') {
+      const keys = Object.keys(localStorage).filter(key => 
+        key.startsWith('last_sync_action_') || 
+        key.startsWith('sync_error_')
+      );
+      
+      keys.forEach(key => localStorage.removeItem(key));
+    }
     
     console.log('[SyncLog] Journal de synchronisation effacé');
+  },
+  
+  /**
+   * Vérifie si une table a des erreurs de synchronisation récentes
+   */
+  hasRecentErrors: (tableName: string): boolean => {
+    try {
+      const errorData = safeLocalStorageGet(`sync_error_${tableName}`, null);
+      if (!errorData) return false;
+      
+      // Vérifier si l'erreur date de moins de 10 minutes
+      const errorTime = new Date(errorData.timestamp).getTime();
+      const now = new Date().getTime();
+      const minutesSinceError = (now - errorTime) / (1000 * 60);
+      
+      return minutesSinceError < 10;
+    } catch (error) {
+      console.error('Erreur lors de la vérification des erreurs récentes:', error);
+      return false;
+    }
   }
 };
 
@@ -107,7 +165,8 @@ if (typeof window !== 'undefined') {
     const detail = (event as CustomEvent).detail;
     SyncLoggingService.logSyncAction('complete', detail.tableName, true, {
       operationId: detail.operationId,
-      trigger: detail.trigger
+      trigger: detail.trigger,
+      dataSize: detail.dataSize || 'inconnu'
     });
   });
 
@@ -115,14 +174,24 @@ if (typeof window !== 'undefined') {
     const detail = (event as CustomEvent).detail;
     SyncLoggingService.logSyncAction('failed', detail.tableName, false, {
       operationId: detail.operationId,
-      error: detail.error
+      error: detail.error || detail.message || 'Erreur inconnue'
     });
   });
   
   window.addEventListener('sync-data-changed', (event) => {
     const detail = (event as CustomEvent).detail;
-    SyncLoggingService.logSyncAction('data-changed', 'global', true, {
+    SyncLoggingService.logSyncAction('data-changed', detail.tableName || 'global', true, {
       timestamp: detail.timestamp
     });
+  });
+  
+  // Ajouter un écouteur pour les événements de changement d'utilisateur
+  window.addEventListener('database-user-changed', (event) => {
+    const detail = (event as CustomEvent).detail;
+    if (detail && detail.user) {
+      SyncLoggingService.logSyncAction('user-changed', 'global', true, {
+        user: detail.user
+      });
+    }
   });
 }
