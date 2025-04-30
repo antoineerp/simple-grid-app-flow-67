@@ -3,9 +3,27 @@ import React, { useEffect, useState } from 'react';
 import DocumentTable from '@/components/documents/DocumentTable';
 import { useDocuments } from '@/hooks/useDocuments';
 import { getDatabaseConnectionCurrentUser } from '@/services/core/databaseConnectionService';
+import { Button } from '@/components/ui/button';
+import { Plus, FileText } from 'lucide-react';
 
 const GestionDocumentaire = () => {
-  const { documents, groups, handleEdit, handleDelete, handleReorder, handleToggleGroup, handleEditGroup, handleDeleteGroup, handleResponsabiliteChange, handleAtteinteChange, handleExclusionChange, handleAddDocument, handleAddGroup, handleGroupReorder } = useDocuments();
+  const { 
+    documents, 
+    groups, 
+    handleEdit, 
+    handleDelete, 
+    handleReorder, 
+    handleToggleGroup, 
+    handleEditGroup, 
+    handleDeleteGroup, 
+    handleResponsabiliteChange, 
+    handleAtteinteChange, 
+    handleExclusionChange, 
+    handleAddDocument, 
+    handleAddGroup,
+    handleGroupReorder 
+  } = useDocuments();
+  
   const [currentUser, setCurrentUser] = useState<string>(getDatabaseConnectionCurrentUser() || 'default');
   
   // Écouter les changements d'utilisateur
@@ -47,18 +65,20 @@ const GestionDocumentaire = () => {
       />
       
       <div className="mt-4 flex justify-end space-x-2">
-        <button
+        <Button
           onClick={handleAddDocument}
-          className="bg-app-blue hover:bg-blue-700 text-white px-4 py-2 rounded"
+          className="flex items-center bg-app-blue hover:bg-app-blue/90"
         >
+          <Plus className="h-4 w-4 mr-1" />
           Ajouter un document
-        </button>
-        <button
+        </Button>
+        <Button
           onClick={handleAddGroup}
-          className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded"
+          className="flex items-center bg-green-600 hover:bg-green-700"
         >
+          <FileText className="h-4 w-4 mr-1" />
           Ajouter un groupe
-        </button>
+        </Button>
       </div>
     </div>
   );
