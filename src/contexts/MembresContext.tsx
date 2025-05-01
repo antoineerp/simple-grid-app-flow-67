@@ -30,7 +30,7 @@ interface MembresProviderProps {
   children: ReactNode;
 }
 
-// Membres par défaut pour éviter une page vide (remplacé par tableau vide)
+// Membres par défaut - tableau vide
 const defaultMembres: Membre[] = [];
 
 export const MembresProvider: React.FC<MembresProviderProps> = ({ children }) => {
@@ -83,74 +83,21 @@ export const MembresProvider: React.FC<MembresProviderProps> = ({ children }) =>
       }
     }, 15000);
     
-    if (initialized.current && !forceRefresh) {
-      console.log("MembresProvider: Les membres sont déjà initialisés et aucun rechargement forcé n'est demandé");
-      return;
-    }
-    
     try {
       console.log(`MembresProvider: ${initialized.current ? "Rechargement" : "Première initialisation"} des membres`);
       setIsLoading(true);
       
-      if (isOnline) {
-        try {
-          // Au lieu de charger les membres depuis le service, nous initialisons avec un tableau vide
-          console.log("MembresProvider: Initialisation avec un tableau vide");
-          setMembres([]);
-          initialized.current = true;
-          consecutiveErrorsRef.current = 0;
-          setSyncFailed(false);
-          authErrorShownRef.current = false;
-          
-          setLastSynced(new Date());
-          setSyncFailed(false);
-          setError(null);
-        } catch (serviceError) {
-          if (!mountedRef.current) return;
-          
-          console.error("MembresProvider: Erreur du service de membres:", serviceError);
-          
-          // Check for authentication error
-          const isAuthError = serviceError instanceof Error && 
-                              (serviceError.message.includes("authentifi") || 
-                               serviceError.message.includes("auth") || 
-                               serviceError.message.includes("token") ||
-                               serviceError.message.includes("permission"));
-          
-          // Display authentication error only once
-          if (isAuthError && !authErrorShownRef.current) {
-            toast({
-              title: "Problème d'authentification",
-              description: "Vous n'êtes pas authentifié ou votre session a expiré",
-              variant: "destructive",
-              duration: 5000
-            });
-            authErrorShownRef.current = true;
-          } 
-          // For other errors, track consecutive failures
-          else if (!isAuthError) {
-            // Incrémenter le compteur d'erreurs consécutives
-            consecutiveErrorsRef.current++;
-            
-            // Afficher un toast d'erreur uniquement après plusieurs échecs
-            if (consecutiveErrorsRef.current >= 2) {
-              toast({
-                title: "Problème de synchronisation",
-                description: "Les données des membres n'ont pas pu être synchronisées",
-                variant: "destructive",
-                duration: 5000
-              });
-            }
-          }
-          
-          setError(serviceError instanceof Error ? serviceError : new Error(String(serviceError)));
-          setSyncFailed(true);
-          
-          // Ne pas modifier les membres existants en cas d'erreur
-        }
-      } else {
-        console.log("MembresProvider: Mode hors ligne, utilisation des données existantes");
-      }
+      // Initialiser avec un tableau vide
+      console.log("MembresProvider: Initialisation avec un tableau vide");
+      setMembres([]);
+      initialized.current = true;
+      consecutiveErrorsRef.current = 0;
+      setSyncFailed(false);
+      authErrorShownRef.current = false;
+      
+      setLastSynced(new Date());
+      setSyncFailed(false);
+      setError(null);
     } catch (err) {
       if (!mountedRef.current) return;
       
@@ -168,7 +115,7 @@ export const MembresProvider: React.FC<MembresProviderProps> = ({ children }) =>
         }
       }
     }
-  }, [isOnline, isLoading, toast]);
+  }, [isLoading, toast]);
 
   // Charger les membres au démarrage avec un délai pour éviter les conflits d'initialisation
   useEffect(() => {
@@ -184,24 +131,6 @@ export const MembresProvider: React.FC<MembresProviderProps> = ({ children }) =>
     
     return () => clearTimeout(initTimeout);
   }, [loadMembres]);
-
-  // Effet supplémentaire pour surveiller les changements de connectivité
-  useEffect(() => {
-    if (isOnline && lastSynced === null && !isLoading) {
-      console.log("MembresProvider: Connexion rétablie, tentative de rechargement des membres");
-      
-      // Délai avant de recharger pour laisser le temps à la connexion de se stabiliser
-      const reconnectTimeout = setTimeout(() => {
-        if (mountedRef.current) {
-          loadMembres(true).catch(error => {
-            console.error("MembresProvider: Erreur lors du rechargement après reconnexion:", error);
-          });
-        }
-      }, 2000);
-      
-      return () => clearTimeout(reconnectTimeout);
-    }
-  }, [isOnline, lastSynced, isLoading, loadMembres]);
 
   const resetSyncFailed = useCallback(() => {
     setSyncFailed(false);

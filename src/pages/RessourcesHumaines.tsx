@@ -15,7 +15,6 @@ import MemberList from '@/components/ressources-humaines/MemberList';
 import MemberForm from '@/components/ressources-humaines/MemberForm';
 import { Membre } from '@/types/membres';
 import { exportAllCollaborateursToPdf } from '@/services/collaborateurExport';
-import { useSyncContext } from '@/hooks/useSyncContext';
 
 const RessourcesHumaines = () => {
   const { toast } = useToast();
@@ -25,32 +24,6 @@ const RessourcesHumaines = () => {
     isLoading,
     refreshMembres
   } = useMembres();
-  
-  // Configurer la synchronisation avec des paramètres optimisés
-  const { 
-    syncTable,
-    isOnline
-  } = useSyncContext();
-  
-  // Create local implementation for missing functions
-  const syncWithServer = useCallback(async (data: any) => {
-    try {
-      console.log(`RessourcesHumaines: Manually syncing data`);
-      return await syncTable('ressourceshumaines', data);
-    } catch (error) {
-      console.error('RessourcesHumaines: Sync error:', error);
-      return false;
-    }
-  }, [syncTable]);
-  
-  const notifyChanges = useCallback(() => {
-    console.log('RessourcesHumaines: Notifying data changes');
-    
-    // Dispatch an event that can be caught by other components
-    window.dispatchEvent(new CustomEvent('ressourceshumaines-data-changed', {
-      detail: { timestamp: Date.now() }
-    }));
-  }, []);
   
   const [isDialogOpen, setIsDialogOpen] = React.useState(false);
   const [currentMembre, setCurrentMembre] = React.useState<Membre>({
@@ -76,10 +49,6 @@ const RessourcesHumaines = () => {
       setMembres([]);
       console.log("Toutes les données des collaborateurs ont été supprimées");
       
-      // Synchroniser le changement
-      syncWithServer([]).catch(err => console.error("Erreur synchronisation après suppression:", err));
-      notifyChanges();
-      
       // Notification à l'utilisateur
       toast({
         title: "Données réinitialisées",
@@ -89,27 +58,6 @@ const RessourcesHumaines = () => {
     
     // Exécuter une seule fois au montage du composant
     clearAllCollaborators();
-  }, []);
-
-  // Synchroniser immédiatement à chaque changement de membres
-  useEffect(() => {
-    if (membres.length > 0 && !isLoading) {
-      console.log("RessourcesHumaines: Synchronisation automatique des membres après changement", membres.length);
-      notifyChanges();
-    }
-  }, [membres, notifyChanges, isLoading]);
-  
-  // Forcer une synchronisation au chargement de la page
-  useEffect(() => {
-    const syncOnLoad = async () => {
-      if (membres.length > 0 && isOnline) {
-        console.log("RessourcesHumaines: Forcer la synchronisation au chargement de la page");
-        // Pass the membres data to syncWithServer
-        await syncWithServer(membres);
-      }
-    };
-    
-    syncOnLoad().catch(err => console.error("Erreur de synchronisation initiale:", err));
   }, []);
 
   const handleEdit = (id: string) => {
@@ -129,9 +77,6 @@ const RessourcesHumaines = () => {
       title: "Suppression",
       description: `Le membre ${id} a été supprimé`,
     });
-    
-    // Force une notification de changement immédiat
-    notifyChanges();
   };
 
   const handleAddMember = () => {
@@ -192,13 +137,6 @@ const RessourcesHumaines = () => {
     });
     
     setIsDialogOpen(false);
-    
-    // Synchroniser immédiatement après la sauvegarde
-    setTimeout(() => {
-      notifyChanges();
-      // Pass the updated membres data to syncWithServer
-      syncWithServer(updatedMembres).catch(err => console.error("Erreur de synchronisation après sauvegarde:", err));
-    }, 100);
   };
 
   const handleExportAllToPdf = () => {
