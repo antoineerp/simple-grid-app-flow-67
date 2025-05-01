@@ -248,7 +248,7 @@ export const useExigences = () => {
   // Corriger l'appel à handleDeleteGroup en ajoutant les paramètres manquants
   const handleDeleteGroup = useCallback((id: string) => {
     exigenceMutations.handleDeleteGroup(id, groups, setGroups, exigences, setExigences);
-  }, [groups, exigences, setGroups, setExigences, exigenceMutations]);
+  }, [groups, exigences, setGroups, setExigences, mutations]);
 
   return {
     exigences,
@@ -273,6 +273,7 @@ export const useExigences = () => {
     ...mutations,
     ...groupOperations,
     syncWithServer,
-    handleSync
+    handleSync,
+    handleDeleteGroup
   };
 };

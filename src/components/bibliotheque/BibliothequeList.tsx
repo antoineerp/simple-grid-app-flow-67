@@ -7,15 +7,23 @@ import { Edit2, Trash2 } from 'lucide-react';
 
 interface BibliothequeListProps {
   documents: Document[];
-  onEditDocument: (document: Document) => void;
-  onDeleteDocument: (id: string) => void;
+  onEditDocument?: (document: Document) => void;
+  onDeleteDocument?: (id: string) => void;
+  onEdit?: (document: Document) => void;  // Garder pour rétrocompatibilité
+  onDelete?: (id: string) => void;  // Garder pour rétrocompatibilité
 }
 
 const BibliothequeList: React.FC<BibliothequeListProps> = ({
   documents,
   onEditDocument,
-  onDeleteDocument
+  onDeleteDocument,
+  onEdit,  // Garder pour rétrocompatibilité
+  onDelete  // Garder pour rétrocompatibilité
 }) => {
+  // Utiliser les nouvelles props si disponibles, sinon utiliser les anciennes
+  const handleEdit = onEditDocument || onEdit;
+  const handleDelete = onDeleteDocument || onDelete;
+
   if (documents.length === 0) {
     return (
       <div className="text-center p-6 border border-dashed rounded-md">
@@ -31,19 +39,25 @@ const BibliothequeList: React.FC<BibliothequeListProps> = ({
           <CardContent className="p-4">
             <div className="flex justify-between items-start">
               <h3 className="font-medium truncate">{document.name}</h3>
-              <div className="flex space-x-1">
-                <Button variant="ghost" size="sm" onClick={() => onEditDocument(document)}>
-                  <Edit2 className="h-4 w-4" />
-                </Button>
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  className="text-red-500" 
-                  onClick={() => onDeleteDocument(document.id)}
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </div>
+              {(handleEdit || handleDelete) && (
+                <div className="flex space-x-1">
+                  {handleEdit && (
+                    <Button variant="ghost" size="sm" onClick={() => handleEdit(document)}>
+                      <Edit2 className="h-4 w-4" />
+                    </Button>
+                  )}
+                  {handleDelete && (
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="text-red-500" 
+                      onClick={() => handleDelete(document.id)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
+              )}
             </div>
             
             {document.link && (

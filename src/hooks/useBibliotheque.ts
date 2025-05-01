@@ -17,13 +17,15 @@ export const useBibliotheque = () => {
     id: "",
     name: "",
     link: "",
+    userId: "",
     groupId: undefined
   });
   const [currentGroup, setCurrentGroup] = useState<DocumentGroup>({
     id: "",
     name: "",
     expanded: false,
-    items: []
+    items: [],
+    userId: ""
   });
   
   const { toast } = useToast();
