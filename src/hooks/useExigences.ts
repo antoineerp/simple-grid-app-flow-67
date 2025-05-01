@@ -1,5 +1,4 @@
-
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Exigence, ExigenceStats, ExigenceGroup } from '@/types/exigences';
 import { useExigenceMutations } from './useExigenceMutations';
 import { useExigenceGroups } from './useExigenceGroups';
@@ -245,6 +244,11 @@ export const useExigences = () => {
       return Promise.reject(error);
     }
   };
+
+  // Corriger l'appel à handleDeleteGroup en ajoutant les paramètres manquants
+  const handleDeleteGroup = useCallback((id: string) => {
+    exigenceMutations.handleDeleteGroup(id, groups, setGroups, exigences, setExigences);
+  }, [groups, exigences, setGroups, setExigences, exigenceMutations]);
 
   return {
     exigences,

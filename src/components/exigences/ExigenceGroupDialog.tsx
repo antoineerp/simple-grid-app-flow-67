@@ -11,7 +11,7 @@ interface ExigenceGroupDialogProps {
   isOpen: boolean;
   onClose: () => void;
   group: ExigenceGroup | null;
-  onSave: (group: ExigenceGroup) => void;
+  onSave: (group: ExigenceGroup, isEditing: boolean) => void; // Mettre à jour la signature pour accepter isEditing
 }
 
 export const ExigenceGroupDialog = ({ isOpen, onClose, group, onSave }: ExigenceGroupDialogProps) => {
@@ -34,7 +34,7 @@ export const ExigenceGroupDialog = ({ isOpen, onClose, group, onSave }: Exigence
       items: group?.items || [],
       userId: group?.userId || currentUserId
     };
-    onSave(updatedGroup);
+    onSave(updatedGroup, !!group); // Passer isEditing = true si group existe
     onClose();
   };
 

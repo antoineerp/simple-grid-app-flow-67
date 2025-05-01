@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import DocumentTable from '@/components/documents/DocumentTable';
 import { useDocuments } from '@/hooks/useDocuments';
@@ -66,7 +65,7 @@ const GestionDocumentaire = () => {
       expanded: false,
       items: [],
       userId: currentUser
-    });
+    } as DocumentGroup);
     setIsEditing(false);
     setIsGroupDialogOpen(true);
   };

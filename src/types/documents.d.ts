@@ -23,7 +23,7 @@ export interface Document {
   excluded?: boolean;
   atteinte?: 'NC' | 'PC' | 'C' | null;
   ordre?: number;
-  userId: string; // Changed from optional to required
+  userId: string; // Rendre cette propriété requise
   responsabilites?: { r: string[], a: string[], c: string[], i: string[] };
   date_creation?: Date;
   date_modification?: Date;
@@ -35,5 +35,5 @@ export interface DocumentGroup {
   expanded: boolean;
   items: Document[];
   ordre?: number;
-  userId: string; // Changed from optional to required
+  userId: string; // Rendre cette propriété requise
 }
