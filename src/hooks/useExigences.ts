@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from 'react';
 import { Exigence, ExigenceStats, ExigenceGroup } from '@/types/exigences';
 import { useExigenceMutations } from './useExigenceMutations';
@@ -83,7 +82,7 @@ export const useExigences = () => {
   const lastSynced = syncState.lastSynced;
   const syncFailed = syncState.syncFailed;
   
-  const mutations = useExigenceMutations(exigences, setExigences);
+  const mutations = useExigenceMutations();
   const groupOperations = useExigenceGroups(groups, setGroups, setExigences);
 
   // Load data from local storage on initial render
@@ -249,14 +248,14 @@ export const useExigences = () => {
   // Adapter handleSaveExigence pour fonctionner avec un seul paramètre
   const handleSaveExigence = (exigence: Exigence) => {
     if (mutations && mutations.handleSaveExigence) {
-      return mutations.handleSaveExigence(exigence, exigences, setExigences);
+      return mutations.handleSaveExigence(exigence);
     }
   };
 
   // Adapter handleSaveGroup pour fonctionner avec deux paramètres
   const handleSaveGroup = (group: ExigenceGroup, isEditing: boolean) => {
     if (groupOperations && groupOperations.handleSaveGroup) {
-      return groupOperations.handleSaveGroup(group, groups, setGroups);
+      return groupOperations.handleSaveGroup(group, isEditing);
     }
   };
 
@@ -264,9 +263,70 @@ export const useExigences = () => {
   const handleDeleteGroup = useCallback((id: string) => {
     // Use mutations to delete the group and update state
     if (groupOperations && groupOperations.handleDeleteGroup) {
-      groupOperations.handleDeleteGroup(id, groups, setGroups);
+      groupOperations.handleDeleteGroup(id);
     }
-  }, [groupOperations, groups]);
+  }, [groupOperations]);
+
+  // Exporter les méthodes pour les changements d'exigences
+  const handleDelete = useCallback((id: string) => {
+    if (mutations && mutations.handleDeleteExigence) {
+      mutations.handleDeleteExigence(id, exigences, setExigences);
+    }
+  }, [mutations, exigences]);
+
+  const handleAddExigence = useCallback(() => {
+    if (mutations && mutations.handleAddExigence) {
+      mutations.handleAddExigence();
+    }
+  }, [mutations]);
+
+  // Ajout des fonctions manquantes pour la gestion des responsabilités, atteintes et exclusions
+  const handleResponsabiliteChange = useCallback((id: string, type: string, membres: string[]) => {
+    setExigences(prev => 
+      prev.map(e => {
+        if (e.id === id) {
+          return {
+            ...e,
+            responsabilites: {
+              ...e.responsabilites,
+              [type]: membres
+            }
+          };
+        }
+        return e;
+      })
+    );
+  }, []);
+
+  const handleAtteinteChange = useCallback((id: string, atteinte: 'NC' | 'PC' | 'C' | null) => {
+    setExigences(prev => 
+      prev.map(e => {
+        if (e.id === id) {
+          return {
+            ...e,
+            atteinte,
+            date_modification: new Date()
+          };
+        }
+        return e;
+      })
+    );
+  }, []);
+
+  const handleExclusionChange = useCallback((id: string, exclusion: boolean) => {
+    setExigences(prev => 
+      prev.map(e => {
+        if (e.id === id) {
+          return {
+            ...e,
+            exclusion,
+            date_modification: new Date()
+          };
+        }
+        return e;
+      })
+    );
+  }, []);
 
   // Expose toutes les fonctions nécessaires des mutations et groupOperations
   return {
@@ -291,10 +351,13 @@ export const useExigences = () => {
     handleResetLoadAttempts,
     handleSaveExigence,
     handleSaveGroup,
-    ...mutations,
-    ...groupOperations,
+    handleDelete,
+    handleAddExigence,
+    handleDeleteGroup,
     syncWithServer,
     handleSync,
-    handleDeleteGroup
+    handleResponsabiliteChange,
+    handleAtteinteChange,
+    handleExclusionChange
   };
 };

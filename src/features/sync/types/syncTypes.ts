@@ -8,7 +8,8 @@ export interface SyncAttempt {
   success: boolean;
   error?: string;
   duration?: number;
-  operation: string; // Changé de optionnel à obligatoire pour correspondre à syncMonitor.ts
+  operation: string;
+  userId?: string;
 }
 
 export interface SyncStatus {

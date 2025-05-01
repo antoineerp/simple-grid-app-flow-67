@@ -63,7 +63,7 @@ export const useExigenceMutations = () => {
   }, [setCurrentExigence]);
   
   // Fonction pour gérer la sauvegarde d'une exigence (ajout ou mise à jour)
-  const handleSaveExigence = useCallback((exigence: Exigence, exigences: Exigence[], setExigences: React.Dispatch<React.SetStateAction<Exigence[]>>) => {
+  const handleSaveExigence = useCallback((exigence: Exigence) => {
     const now = new Date();
     const updatedExigence = {
       ...exigence,
@@ -73,10 +73,8 @@ export const useExigenceMutations = () => {
     
     // Si l'exigence existe déjà, la mettre à jour
     if (exigence.id) {
-      setExigences(prev => 
-        prev.map(e => e.id === exigence.id ? updatedExigence : e)
-      );
-      
+      // Cette fonction nécessite l'état exigences et setExigences qui proviennent du hook parent
+      // On délègue donc l'exécution réelle au hook parent en passant l'exigence à mettre à jour
       toast({
         title: "Exigence mise à jour",
         description: `L'exigence "${exigence.nom}" a été mise à jour avec succès`,
@@ -90,15 +88,15 @@ export const useExigenceMutations = () => {
         date_creation: now,
       };
       
-      setExigences(prev => [...prev, newExigence]);
-      
       toast({
         title: "Exigence ajoutée",
         description: `L'exigence "${newExigence.nom}" a été ajoutée avec succès`,
       });
+      
+      return newExigence;
     }
     
-    setDialogOpen(false);
+    return updatedExigence;
   }, [toast, currentUserId]);
   
   // Fonction pour gérer la suppression d'une exigence
@@ -108,76 +106,6 @@ export const useExigenceMutations = () => {
     toast({
       title: "Exigence supprimée",
       description: "L'exigence a été supprimée avec succès",
-    });
-  }, [toast]);
-  
-  // Fonction pour gérer le début de l'édition d'un groupe
-  const handleEditGroup = useCallback((group: ExigenceGroup) => {
-    setEditingGroup({
-      ...group,
-      userId: group.userId || currentUserId // S'assurer que userId est défini
-    });
-    setGroupDialogOpen(true);
-  }, [currentUserId]);
-  
-  // Fonction pour gérer le début de l'ajout d'un groupe
-  const handleAddGroup = useCallback(() => {
-    setEditingGroup({
-      id: uuidv4(),
-      name: '',
-      expanded: true,
-      items: [],
-      userId: currentUserId // S'assurer que userId est défini
-    });
-    setGroupDialogOpen(true);
-  }, [currentUserId]);
-  
-  // Fonction pour gérer la sauvegarde d'un groupe (ajout ou mise à jour)
-  const handleSaveGroup = useCallback((group: ExigenceGroup, groups: ExigenceGroup[], setGroups: React.Dispatch<React.SetStateAction<ExigenceGroup[]>>) => {
-    const updatedGroup = {
-      ...group,
-      userId: group.userId || currentUserId // S'assurer que userId est défini
-    };
-    
-    // Vérifier si le groupe existe déjà
-    const existingGroupIndex = groups.findIndex(g => g.id === group.id);
-    
-    if (existingGroupIndex >= 0) {
-      // Mettre à jour le groupe existant
-      const updatedGroups = [...groups];
-      updatedGroups[existingGroupIndex] = updatedGroup;
-      setGroups(updatedGroups);
-      
-      toast({
-        title: "Groupe mis à jour",
-        description: `Le groupe "${group.name}" a été mis à jour avec succès`,
-      });
-    } else {
-      // Ajouter un nouveau groupe
-      setGroups([...groups, updatedGroup]);
-      
-      toast({
-        title: "Groupe ajouté",
-        description: `Le groupe "${group.name}" a été ajouté avec succès`,
-      });
-    }
-    
-    setGroupDialogOpen(false);
-  }, [toast, currentUserId]);
-  
-  // Fonction pour gérer la suppression d'un groupe
-  const handleDeleteGroup = useCallback((id: string, groups: ExigenceGroup[], setGroups: React.Dispatch<React.SetStateAction<ExigenceGroup[]>>, exigences: Exigence[], setExigences: React.Dispatch<React.SetStateAction<Exigence[]>>) => {
-    // Mettre à jour les exigences qui étaient dans ce groupe
-    setExigences(prev => 
-      prev.map(e => e.groupId === id ? { ...e, groupId: undefined } : e)
-    );
-    
-    // Supprimer le groupe
-    setGroups(prev => prev.filter(g => g.id !== id));
-    
-    toast({
-      title: "Groupe supprimé",
-      description: "Le groupe a été supprimé avec succès",
     });
   }, [toast]);
   
@@ -197,19 +125,12 @@ export const useExigenceMutations = () => {
   
   return {
     editingExigence,
-    editingGroup,
     dialogOpen,
-    groupDialogOpen,
     setDialogOpen,
-    setGroupDialogOpen,
     handleEditExigence,
     handleAddExigence,
     handleSaveExigence,
     handleDeleteExigence,
-    handleEditGroup,
-    handleAddGroup,
-    handleSaveGroup,
-    handleDeleteGroup,
     createNewExigence
   };
 };
