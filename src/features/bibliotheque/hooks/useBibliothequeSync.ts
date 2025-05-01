@@ -1,4 +1,3 @@
-
 import { useState, useCallback, useRef } from 'react';
 import { Document as BibliothequeDocument, DocumentGroup } from '@/types/bibliotheque';
 import { Document as SystemDocument } from '@/types/documents';
@@ -14,7 +13,9 @@ const convertSystemToBibliothequeDoc = (doc: SystemDocument): BibliothequeDocume
   name: doc.nom || '',
   link: doc.fichier_path,
   groupId: doc.groupId,
-  userId: doc.userId // Préserver l'userId
+  userId: doc.userId, // Préserver l'userId
+  date_creation: doc.date_creation,
+  date_modification: doc.date_modification
 });
 
 const convertBibliothequeToSystemDoc = (doc: BibliothequeDocument): SystemDocument => ({
@@ -24,8 +25,8 @@ const convertBibliothequeToSystemDoc = (doc: BibliothequeDocument): SystemDocume
   groupId: doc.groupId,
   responsabilites: { r: [], a: [], c: [], i: [] },
   etat: null,
-  date_creation: new Date(),
-  date_modification: new Date(),
+  date_creation: doc.date_creation || new Date(),
+  date_modification: doc.date_modification || new Date(),
   userId: doc.userId // Préserver l'userId
 });
 

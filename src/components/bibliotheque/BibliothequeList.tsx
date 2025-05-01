@@ -7,18 +7,18 @@ import { Edit2, Trash2 } from 'lucide-react';
 
 interface BibliothequeListProps {
   documents: Document[];
+  onEdit?: (document: Document) => void;
+  onDelete?: (id: string) => void;
   onEditDocument?: (document: Document) => void;
   onDeleteDocument?: (id: string) => void;
-  onEdit?: (document: Document) => void;  // Garder pour rétrocompatibilité
-  onDelete?: (id: string) => void;  // Garder pour rétrocompatibilité
 }
 
 const BibliothequeList: React.FC<BibliothequeListProps> = ({
   documents,
+  onEdit,
+  onDelete,
   onEditDocument,
-  onDeleteDocument,
-  onEdit,  // Garder pour rétrocompatibilité
-  onDelete  // Garder pour rétrocompatibilité
+  onDeleteDocument
 }) => {
   // Utiliser les nouvelles props si disponibles, sinon utiliser les anciennes
   const handleEdit = onEditDocument || onEdit;

@@ -156,6 +156,7 @@ const Collaboration = () => {
         <DialogContent className="sm:max-w-[425px]">
           <DocumentForm
             document={currentDocument}
+            groups={groups} // Ajout de la propriété groups manquante
             onSave={(doc) => {
               if (isEditing) {
                 handleUpdateDocument(doc);

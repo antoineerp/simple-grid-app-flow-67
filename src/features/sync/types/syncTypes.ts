@@ -30,10 +30,30 @@ export interface SyncOptions {
   priority?: 'high' | 'normal' | 'low';
 }
 
+export interface SyncHookOptions {
+  showToasts?: boolean;
+  hideIndicators?: boolean;
+}
+
+export interface SyncOperationResult {
+  success: boolean;
+  message: string;
+}
+
+export interface SyncMonitorStatus {
+  activeCount: number;
+  recentAttempts: SyncAttempt[];
+  stats: { success: number; failure: number; };
+  health: 'good' | 'warning' | 'critical';
+  lastSync: { time: number | null; success: boolean; };
+}
+
 export interface SyncState {
   isSyncing: boolean;
   lastSynced: Date | null;
   syncFailed: boolean;
+  pendingSync?: boolean; // Ajout des propriétés manquantes
+  dataChanged?: boolean; // Ajout des propriétés manquantes
 }
 
 export interface SyncStateRecord {

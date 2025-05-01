@@ -1,3 +1,4 @@
+
 import { useState, useCallback, useEffect } from 'react';
 import { SyncResult } from '@/services/sync/SyncService';
 import { useToast } from '@/components/ui/use-toast';
@@ -30,7 +31,8 @@ export const useSync = (tableName: string): SyncState & {
   // Extraire les états
   const isSyncing = syncState.isSyncing;
   const syncFailed = syncState.syncFailed;
-  const pendingSync = syncState.pendingSync;
+  const pendingSync = syncState.pendingSync || false;
+  const dataChanged = syncState.dataChanged || false;
   
   // Mise à jour de l'état de synchronisation local à partir du contexte global
   useEffect(() => {
@@ -79,9 +81,9 @@ export const useSync = (tableName: string): SyncState & {
     lastSynced,
     syncFailed,
     pendingSync,
-    dataChanged: syncState.dataChanged || false,
+    dataChanged,
     syncAndProcess,
     resetSyncStatus,
-    isOnline  // Include isOnline in the return object
+    isOnline
   };
 };

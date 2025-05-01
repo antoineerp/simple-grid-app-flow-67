@@ -29,9 +29,6 @@ const ExigencesContent = () => {
     loadError,
     setDialogOpen,
     setGroupDialogOpen,
-    handleResponsabiliteChange,
-    handleAtteinteChange,
-    handleExclusionChange,
     handleEdit,
     handleSaveExigence,
     handleDelete,
@@ -44,7 +41,10 @@ const ExigencesContent = () => {
     handleGroupReorder,
     handleToggleGroup,
     handleResetLoadAttempts,
-    handleSync
+    handleSync,
+    handleResponsabiliteChange,
+    handleAtteinteChange,
+    handleExclusionChange
   } = useExigences();
   
   const { toast } = useToast();
@@ -155,11 +155,10 @@ const ExigencesContent = () => {
       />
 
       <ExigenceGroupDialog
+        isOpen={groupDialogOpen}
+        onClose={() => setGroupDialogOpen(false)}
         group={editingGroup}
-        open={groupDialogOpen}
-        onOpenChange={setGroupDialogOpen}
         onSave={handleSaveGroup}
-        isEditing={!!editingGroup}
       />
     </div>
   );
