@@ -33,16 +33,27 @@ export const useExigenceState = (tableName = 'exigences') => {
           const parsedExigences = JSON.parse(storedExigences);
           setExigences(parsedExigences);
           console.log(`Loaded ${parsedExigences.length} exigences from local storage`);
+        } else {
+          console.log(`No exigences found in local storage for ${currentUser}`);
+          // Initialize with empty array if none found
+          setExigences([]);
         }
         
         if (storedGroups) {
           const parsedGroups = JSON.parse(storedGroups);
           setGroups(parsedGroups);
           console.log(`Loaded ${parsedGroups.length} groups from local storage`);
+        } else {
+          console.log(`No groups found in local storage for ${currentUser}`);
+          // Initialize with empty array if none found
+          setGroups([]);
         }
       } catch (error) {
         console.error("Error loading data from local storage:", error);
         setLoadError("Erreur lors du chargement des données locales");
+        // Initialize with empty arrays on error
+        setExigences([]);
+        setGroups([]);
       }
     };
     

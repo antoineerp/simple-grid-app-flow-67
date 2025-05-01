@@ -1,3 +1,4 @@
+
 import React, { useEffect, useCallback } from 'react';
 import { FileText, UserPlus, RefreshCw } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
@@ -32,7 +33,7 @@ const RessourcesHumaines = () => {
   } = useSyncContext();
   
   // Create local implementation for missing functions
-  const syncWithServer = useCallback(async (data: any, additionalData?: any, userId?: string) => {
+  const syncWithServer = useCallback(async (data: any) => {
     try {
       console.log(`RessourcesHumaines: Manually syncing data`);
       return await syncTable('ressourceshumaines', data);
@@ -63,6 +64,32 @@ const RessourcesHumaines = () => {
   });
   const [isEditing, setIsEditing] = React.useState(false);
   const [refreshing, setRefreshing] = React.useState(false);
+
+  // Nettoyer toutes les données des collaborateurs au chargement initial
+  useEffect(() => {
+    const clearAllCollaborators = () => {
+      // Vider le localStorage et l'état des membres
+      const currentUser = localStorage.getItem('userId') || sessionStorage.getItem('userId') || 'p71x6d_system';
+      localStorage.removeItem(`membres_${currentUser}`);
+      
+      // Réinitialiser l'état avec un tableau vide
+      setMembres([]);
+      console.log("Toutes les données des collaborateurs ont été supprimées");
+      
+      // Synchroniser le changement
+      syncWithServer([]).catch(err => console.error("Erreur synchronisation après suppression:", err));
+      notifyChanges();
+      
+      // Notification à l'utilisateur
+      toast({
+        title: "Données réinitialisées",
+        description: "Toutes les données des collaborateurs ont été supprimées",
+      });
+    };
+    
+    // Exécuter une seule fois au montage du composant
+    clearAllCollaborators();
+  }, []);
 
   // Synchroniser immédiatement à chaque changement de membres
   useEffect(() => {

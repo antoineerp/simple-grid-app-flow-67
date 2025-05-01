@@ -30,30 +30,13 @@ interface MembresProviderProps {
   children: ReactNode;
 }
 
-// Membres par défaut pour éviter une page vide
-const defaultMembres: Membre[] = [
-  {
-    id: '1',
-    nom: 'Dupont',
-    prenom: 'Jean',
-    fonction: 'Directeur',
-    initiales: 'JD',
-    date_creation: new Date()
-  },
-  {
-    id: '2',
-    nom: 'Martin',
-    prenom: 'Sophie',
-    fonction: 'Responsable RH',
-    initiales: 'SM',
-    date_creation: new Date()
-  }
-];
+// Membres par défaut pour éviter une page vide (remplacé par tableau vide)
+const defaultMembres: Membre[] = [];
 
 export const MembresProvider: React.FC<MembresProviderProps> = ({ children }) => {
   const [membres, setMembres] = useState<Membre[]>(defaultMembres);
   const [lastSynced, setLastSynced] = useState<Date | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(false); // Start as false to avoid immediate loading state
+  const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<Error | null>(null);
   const [syncFailed, setSyncFailed] = useState<boolean>(false);
   const { isOnline } = useNetworkStatus();
@@ -111,26 +94,13 @@ export const MembresProvider: React.FC<MembresProviderProps> = ({ children }) =>
       
       if (isOnline) {
         try {
-          const loadedMembres = await getMembresService(forceRefresh);
-          
-          if (!mountedRef.current) return;
-          
-          if (loadedMembres && loadedMembres.length > 0) {
-            console.log(`MembresProvider: ${loadedMembres.length} membres chargés depuis le service`);
-            setMembres(loadedMembres);
-            initialized.current = true;
-            consecutiveErrorsRef.current = 0;
-            setSyncFailed(false);
-            authErrorShownRef.current = false;
-          } else {
-            // Conserver les membres actuels si aucun nouveau membre n'est chargé
-            console.log("MembresProvider: Aucun membre chargé depuis le service");
-            
-            // Si ce n'est pas la première initialisation et qu'on n'a pas de membres, ne pas écraser avec les valeurs par défaut
-            if (!initialized.current && membres.length === 0) {
-              console.log("MembresProvider: Utilisation des valeurs par défaut pour la première initialisation");
-            }
-          }
+          // Au lieu de charger les membres depuis le service, nous initialisons avec un tableau vide
+          console.log("MembresProvider: Initialisation avec un tableau vide");
+          setMembres([]);
+          initialized.current = true;
+          consecutiveErrorsRef.current = 0;
+          setSyncFailed(false);
+          authErrorShownRef.current = false;
           
           setLastSynced(new Date());
           setSyncFailed(false);
@@ -198,7 +168,7 @@ export const MembresProvider: React.FC<MembresProviderProps> = ({ children }) =>
         }
       }
     }
-  }, [isOnline, isLoading, membres.length, toast]);
+  }, [isOnline, isLoading, toast]);
 
   // Charger les membres au démarrage avec un délai pour éviter les conflits d'initialisation
   useEffect(() => {
@@ -241,6 +211,8 @@ export const MembresProvider: React.FC<MembresProviderProps> = ({ children }) =>
 
   const refreshMembres = useCallback(async () => {
     console.log("MembresProvider: Rechargement forcé des membres");
+    // Lors du rechargement forcé, on vide le tableau de membres
+    setMembres([]);
     await loadMembres(true);
   }, [loadMembres]);
 
