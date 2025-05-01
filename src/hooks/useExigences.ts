@@ -328,6 +328,19 @@ export const useExigences = () => {
     );
   }, []);
 
+  // Ajout des fonctions manquantes pour les groupes
+  const handleGroupReorder = useCallback((startIndex: number, endIndex: number) => {
+    if (groupOperations && groupOperations.handleGroupReorder) {
+      groupOperations.handleGroupReorder(startIndex, endIndex);
+    }
+  }, [groupOperations]);
+
+  const handleToggleGroup = useCallback((groupId: string) => {
+    if (groupOperations && groupOperations.handleToggleGroup) {
+      groupOperations.handleToggleGroup(groupId);
+    }
+  }, [groupOperations]);
+
   // Expose toutes les fonctions nécessaires des mutations et groupOperations
   return {
     exigences,
@@ -358,6 +371,8 @@ export const useExigences = () => {
     handleSync,
     handleResponsabiliteChange,
     handleAtteinteChange,
-    handleExclusionChange
+    handleExclusionChange,
+    handleGroupReorder,
+    handleToggleGroup
   };
 };
