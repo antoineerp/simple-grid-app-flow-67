@@ -8,7 +8,7 @@ export interface SyncAttempt {
   success: boolean;
   error?: string;
   duration?: number;
-  operation?: string; // Rendre cette propriété optionnelle pour éviter les erreurs
+  operation: string; // Changé de optionnel à obligatoire pour correspondre à syncMonitor.ts
 }
 
 export interface SyncStatus {
@@ -52,8 +52,8 @@ export interface SyncState {
   isSyncing: boolean;
   lastSynced: Date | null;
   syncFailed: boolean;
-  pendingSync?: boolean; // Ajout des propriétés manquantes
-  dataChanged?: boolean; // Ajout des propriétés manquantes
+  pendingSync?: boolean;
+  dataChanged?: boolean;
 }
 
 export interface SyncStateRecord {

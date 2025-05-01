@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import BibliothequeHeader from '@/components/bibliotheque/BibliothequeHeader';
@@ -15,6 +16,7 @@ const Bibliotheque = () => {
   const [groups, setGroups] = useState<DocumentGroup[]>([]);
   const [currentUser, setCurrentUser] = useState<string>(getDatabaseConnectionCurrentUser() || 'default');
   const { toast } = useToast();
+  const [isSyncing, setIsSyncing] = useState(false);
 
   useEffect(() => {
     // Charger les données initiales
@@ -140,6 +142,19 @@ const Bibliotheque = () => {
       description: "Le groupe a été supprimé de la bibliothèque",
     });
   };
+  
+  const handleSync = async (): Promise<void> => {
+    setIsSyncing(true);
+    // Simulation d'une synchronisation
+    setTimeout(() => {
+      setIsSyncing(false);
+      toast({
+        title: "Synchronisation terminée",
+        description: "Les données ont été synchronisées avec succès"
+      });
+    }, 2000);
+    return Promise.resolve();
+  };
 
   return (
     <div className="container mx-auto p-4">
@@ -147,6 +162,8 @@ const Bibliotheque = () => {
         onSearch={handleSearch} 
         onAddDocument={handleAddDocument} 
         onAddGroup={handleAddGroup}
+        onSync={handleSync}
+        isSyncing={isSyncing}
       />
       
       <div className="mt-6 space-y-4">

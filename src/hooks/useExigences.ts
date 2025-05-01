@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from 'react';
 import { Exigence, ExigenceStats, ExigenceGroup } from '@/types/exigences';
 import { useExigenceMutations } from './useExigenceMutations';
@@ -245,14 +246,29 @@ export const useExigences = () => {
     }
   };
 
+  // Adapter handleSaveExigence pour fonctionner avec un seul paramètre
+  const handleSaveExigence = (exigence: Exigence) => {
+    if (mutations && mutations.handleSaveExigence) {
+      return mutations.handleSaveExigence(exigence, exigences, setExigences);
+    }
+  };
+
+  // Adapter handleSaveGroup pour fonctionner avec deux paramètres
+  const handleSaveGroup = (group: ExigenceGroup, isEditing: boolean) => {
+    if (groupOperations && groupOperations.handleSaveGroup) {
+      return groupOperations.handleSaveGroup(group, groups, setGroups);
+    }
+  };
+
   // Correctly implement handleDeleteGroup with mutations
   const handleDeleteGroup = useCallback((id: string) => {
     // Use mutations to delete the group and update state
-    if (mutations && mutations.handleDeleteGroup) {
-      mutations.handleDeleteGroup(id);
+    if (groupOperations && groupOperations.handleDeleteGroup) {
+      groupOperations.handleDeleteGroup(id, groups, setGroups);
     }
-  }, [mutations]);
+  }, [groupOperations, groups]);
 
+  // Expose toutes les fonctions nécessaires des mutations et groupOperations
   return {
     exigences,
     groups,
@@ -273,7 +289,10 @@ export const useExigences = () => {
     handleAddGroup,
     handleEditGroup,
     handleResetLoadAttempts,
+    handleSaveExigence,
+    handleSaveGroup,
     ...mutations,
+    ...groupOperations,
     syncWithServer,
     handleSync,
     handleDeleteGroup
