@@ -315,7 +315,7 @@ export class SyncService {
    * @param tableName Nom de la table
    * @param userId ID de l'utilisateur (optionnel)
    */
-  async forceFullSync<T>(tableName: string, userId?: string | null): Promise<boolean> {
+  async forceFullSync<T extends object>(tableName: string, userId?: string | null): Promise<boolean> {
     try {
       // Normaliser le nom de la table
       const normalizedTableName = syncRegistry.normalizeTableName(tableName);
