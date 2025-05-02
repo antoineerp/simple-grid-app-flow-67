@@ -10,7 +10,7 @@ AddType text/css .css
 
 # Force le bon type MIME pour les JavaScript
 <FilesMatch "\.(js|mjs|es\.js)$">
-    Header set Content-Type "application/javascript; charset=UTF-8"
+    Header always set Content-Type "application/javascript; charset=UTF-8"
     Header set X-Content-Type-Options "nosniff"
 </FilesMatch>
 

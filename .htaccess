@@ -18,10 +18,12 @@ AddType application/json .json
 AddType image/svg+xml .svg
 
 # Configuration spécifique pour les modules ES
-<FilesMatch "\.(js|mjs|es\.js)$">
-    Header set Content-Type "application/javascript; charset=UTF-8"
-    Header set X-Content-Type-Options "nosniff"
-</FilesMatch>
+<IfModule mod_headers.c>
+    <FilesMatch "\.(js|mjs|es\.js)$">
+        Header always set Content-Type "application/javascript; charset=UTF-8"
+        Header set X-Content-Type-Options "nosniff"
+    </FilesMatch>
+</IfModule>
 
 # Permettre l'accès aux assets
 <FilesMatch "\.(js|mjs|es\.js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot|map|tsx?)$">
@@ -66,7 +68,7 @@ RewriteRule ^(.*)$ index.html [QSA,L]
     # Headers pour les assets statiques
     <FilesMatch "\.(js|mjs|es\.js|css|json)$">
         Header set Cache-Control "max-age=31536000, public"
-        Header set Content-Type "application/javascript; charset=UTF-8" env=IS_JS
+        Header always set Content-Type "application/javascript; charset=UTF-8" env=IS_JS
         Header set Access-Control-Allow-Origin "*"
         Header set Access-Control-Allow-Methods "GET, OPTIONS"
         Header set Access-Control-Allow-Headers "Content-Type"
