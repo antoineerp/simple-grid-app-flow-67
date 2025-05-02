@@ -1,91 +1,89 @@
 
 <?php
-// Configuration des headers
+// Force output buffering to prevent output before headers
+ob_start();
+
+// Headers pour CORS et Content-Type
 header("Content-Type: application/json; charset=UTF-8");
 header("Access-Control-Allow-Origin: *");
 header("Access-Control-Allow-Methods: GET, OPTIONS");
-header("Access-Control-Allow-Headers: Content-Type, Authorization");
+header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With");
+header("Cache-Control: no-cache, no-store, must-revalidate");
 
-// Si c'est une requête OPTIONS (preflight), nous la terminons ici
-if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
-    http_response_code(200);
-    echo json_encode(['status' => 200, 'message' => 'Preflight OK']);
-    exit;
-}
-
-// Activer la journalisation d'erreurs
-error_reporting(E_ALL);
-ini_set('display_errors', 0); // Désactiver l'affichage HTML des erreurs
-ini_set('log_errors', 1);
-ini_set('error_log', __DIR__ . '/user_diagnostic_errors.log');
-
-// Fonction pour nettoyer la sortie
-function clean_output() {
-    if (ob_get_level()) ob_clean();
-}
-
-// Démarrer un buffer de sortie
-ob_start();
+// Journalisation
+error_log("=== DEBUT DE L'EXÉCUTION DE user-diagnostic.php ===");
+error_log("Méthode: " . $_SERVER['REQUEST_METHOD'] . " - URI: " . $_SERVER['REQUEST_URI']);
 
 try {
-    // Créer le dossier operations s'il n'existe pas
-    if (!is_dir(__DIR__ . '/operations')) {
-        mkdir(__DIR__ . '/operations', 0755, true);
-        error_log("Dossier operations créé");
-    }
+    // Configuration de la base de données
+    $host = "p71x6d.myd.infomaniak.com";
+    $dbname = "p71x6d_system";
+    $username = "p71x6d_system";
+    $password = "Trottinette43!";
     
-    $result = [
-        'status' => 'success',
-        'message' => 'Diagnostic utilisateur exécuté avec succès',
-        'timestamp' => date('Y-m-d H:i:s')
-    ];
+    // Connexion à la base de données
+    $pdo = new PDO("mysql:host={$host};dbname={$dbname};charset=utf8mb4", $username, $password, [
+        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+        PDO::ATTR_EMULATE_PREPARES => false,
+    ]);
     
-    // 1. Vérifier la structure du répertoire
-    $result['directory_structure'] = [];
-    $directories = ['config', 'controllers', 'middleware', 'models', 'utils', 'operations'];
+    // Vérifier la table des utilisateurs
+    $stmt = $pdo->query("SELECT * FROM utilisateurs");
+    $users = $stmt->fetchAll();
     
-    foreach ($directories as $dir) {
-        $path = __DIR__ . '/' . $dir;
-        $result['directory_structure'][$dir] = [
-            'exists' => is_dir($path),
-            'readable' => is_dir($path) && is_readable($path),
-            'writable' => is_dir($path) && is_writable($path)
-        ];
-        
-        if (is_dir($path)) {
-            $result['directory_structure'][$dir]['files'] = scandir($path);
+    // Récupérer la liste des tables
+    $stmt = $pdo->query("SHOW TABLES");
+    $tables = $stmt->fetchAll(PDO::FETCH_COLUMN);
+    
+    // Analyser les tables par préfixe
+    $tablesByPrefix = [];
+    foreach ($tables as $table) {
+        $parts = explode('_', $table);
+        if (count($parts) > 1) {
+            $prefix = $parts[0];
+            if (!isset($tablesByPrefix[$prefix])) {
+                $tablesByPrefix[$prefix] = [];
+            }
+            $tablesByPrefix[$prefix][] = $table;
         }
     }
     
-    // 2. Test simple pour vérifier que l'API fonctionne
-    $result['api_check'] = [
+    // Résultat à retourner
+    $result = [
         'status' => 'success',
-        'message' => 'API accessible'
+        'message' => 'Diagnostic des utilisateurs et tables',
+        'users' => $users,
+        'tables' => $tables,
+        'tables_by_prefix' => $tablesByPrefix,
+        'user_tables' => []
     ];
     
-    // Nettoyer toute sortie précédente
-    clean_output();
+    // Vérifier les tables pour chaque utilisateur
+    foreach ($users as $user) {
+        $userId = $user['identifiant_technique'];
+        $userTables = [];
+        
+        foreach ($tables as $table) {
+            if (strpos($table, '_' . $userId) !== false) {
+                $userTables[] = $table;
+            }
+        }
+        
+        $result['user_tables'][$userId] = $userTables;
+    }
     
-    // Renvoyer les résultats
-    http_response_code(200);
+    // Envoyer le rapport
     echo json_encode($result, JSON_PRETTY_PRINT);
+    error_log("=== FIN DE L'EXÉCUTION DE user-diagnostic.php ===");
     
 } catch (Exception $e) {
-    // Nettoyer toute sortie précédente
-    clean_output();
+    $error_message = "Erreur: " . $e->getMessage();
+    error_log($error_message);
     
-    // Log et renvoie l'erreur
-    error_log("Erreur dans le diagnostic utilisateur: " . $e->getMessage());
-    http_response_code(500);
     echo json_encode([
         'status' => 'error',
-        'message' => "Erreur lors du diagnostic: " . $e->getMessage(),
-        'file' => $e->getFile(),
-        'line' => $e->getLine(),
-        'trace' => $e->getTraceAsString()
+        'message' => $error_message
     ]);
 }
-
-// Fin du script : vidage du buffer
-ob_end_flush();
 ?>

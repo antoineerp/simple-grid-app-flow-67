@@ -47,17 +47,13 @@ jobs:
         mkdir -p deploy/api/operations
         mkdir -p deploy/api/utils
         mkdir -p deploy/public/lovable-uploads
+        
+        # Copier le dossier dist complet
         mkdir -p deploy/dist
-        
-        # Copie des fichiers compilés directement dans assets
-        cp -r dist/assets/* deploy/assets/
-        
-        # Copie du dossier dist complet pour référence
         cp -r dist/* deploy/dist/
         
-        # Copie des autres fichiers nécessaires
-        cp dist/index.html deploy/
-        cp .htaccess deploy/ || echo "Fichier .htaccess non trouvé"
+        # Copie des fichiers compilés directement dans la racine
+        cp -r dist/* deploy/
         
         # Copie des fichiers de configuration
         echo "Copie des fichiers de configuration..."
@@ -106,6 +102,26 @@ jobs:
         else
           echo "Dossier uploads non trouvé"
         fi
+        
+        # Créer ou copier le fichier .htaccess
+        echo "Options -Indexes
+RewriteEngine On
+RewriteBase /
+
+# Si la requête commence par /api/, la rediriger vers le fichier PHP correspondant
+RewriteCond %{REQUEST_URI} ^/api/(.*)$
+RewriteRule ^api/(.*)$ api/$1 [QSA,L]
+
+# Pour toutes les autres requêtes qui ne correspondent pas à des fichiers existants
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule . index.html [L]
+
+# Définir les types MIME corrects
+AddType application/javascript .js
+AddType text/javascript .js
+AddType application/json .json
+AddType text/css .css" > deploy/.htaccess
         
         echo "Structure du dossier de déploiement:"
         find deploy -type f | sort

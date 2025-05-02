@@ -40,12 +40,19 @@ try {
     $pdo->exec($tableUtilisateurs);
     echo "Table utilisateurs créée ou existante.<br>";
     
-    // Vérifier si l'utilisateur système existe déjà
-    $stmt = $pdo->prepare("SELECT COUNT(*) FROM utilisateurs WHERE identifiant_technique = ?");
-    $stmt->execute(['p71x6d_system']);
-    $userExists = (int)$stmt->fetchColumn() > 0;
+    // Vérifier les utilisateurs existants
+    $stmt = $pdo->query("SELECT * FROM utilisateurs");
+    $existingUsers = $stmt->fetchAll();
     
-    if (!$userExists) {
+    $userIds = [];
+    foreach ($existingUsers as $user) {
+        $userIds[] = $user['identifiant_technique'];
+    }
+    
+    echo "Utilisateurs existants: " . implode(', ', $userIds) . "<br>";
+    
+    // Si aucun utilisateur n'existe, créer l'utilisateur système
+    if (empty($existingUsers)) {
         // Créer l'utilisateur système
         $insertSystem = $pdo->prepare("INSERT INTO utilisateurs 
             (nom, prenom, email, mot_de_passe, identifiant_technique, role) 
@@ -59,102 +66,100 @@ try {
             'admin'
         ]);
         echo "Utilisateur système créé.<br>";
+        
+        $userIds[] = 'p71x6d_system';
     }
     
-    // Vérifier si l'utilisateur Antoine Cirier existe déjà
-    $stmt = $pdo->prepare("SELECT COUNT(*) FROM utilisateurs WHERE email = ?");
-    $stmt->execute(['antcirier@gmail.com']);
-    $antExists = (int)$stmt->fetchColumn() > 0;
-    
-    if (!$antExists) {
-        // Créer l'utilisateur Antoine Cirier
-        $insertAnt = $pdo->prepare("INSERT INTO utilisateurs 
-            (nom, prenom, email, mot_de_passe, identifiant_technique, role) 
-            VALUES (?, ?, ?, ?, ?, ?)");
-        $insertAnt->execute([
-            'Cirier', 
-            'Antoine', 
-            'antcirier@gmail.com', 
-            password_hash('Trottinette43!', PASSWORD_DEFAULT),
-            'p71x6d_cirier',
-            'admin'
-        ]);
-        echo "Utilisateur Antoine Cirier créé.<br>";
+    // Initialiser les tables pour chaque utilisateur existant
+    foreach ($userIds as $userId) {
+        echo "Initialisation des tables pour l'utilisateur: {$userId}<br>";
+        
+        // Table membres - Définition complète avec toutes les colonnes nécessaires
+        $tableMembres = "CREATE TABLE IF NOT EXISTS `membres_{$userId}` (
+            `id` VARCHAR(36) PRIMARY KEY,
+            `nom` VARCHAR(100) NOT NULL,
+            `prenom` VARCHAR(100) NOT NULL,
+            `email` VARCHAR(255) NULL,
+            `telephone` VARCHAR(20) NULL,
+            `fonction` VARCHAR(100) NULL,
+            `organisation` VARCHAR(255) NULL,
+            `notes` TEXT NULL,
+            `date_creation` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            `date_modification` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
+        
+        $pdo->exec($tableMembres);
+        echo "Table membres_{$userId} créée ou existante.<br>";
+        
+        // Table exigences - Mise à jour de la structure pour correspondre aux fichiers de synchronisation
+        $tableExigences = "CREATE TABLE IF NOT EXISTS `exigences_{$userId}` (
+            `id` VARCHAR(36) PRIMARY KEY,
+            `nom` VARCHAR(255) NOT NULL,
+            `responsabilites` TEXT,
+            `exclusion` TINYINT(1) DEFAULT 0,
+            `atteinte` ENUM('NC', 'PC', 'C') NULL,
+            `groupId` VARCHAR(36) NULL,
+            `date_creation` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            `date_modification` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
+        
+        $pdo->exec($tableExigences);
+        echo "Table exigences_{$userId} créée ou existante.<br>";
+        
+        // Table documents
+        $tableDocuments = "CREATE TABLE IF NOT EXISTS `documents_{$userId}` (
+            `id` VARCHAR(36) PRIMARY KEY,
+            `nom` VARCHAR(255) NOT NULL,
+            `fichier_path` VARCHAR(255) NULL,
+            `responsabilites` TEXT NULL,
+            `etat` VARCHAR(50) NULL,
+            `groupId` VARCHAR(36) NULL,
+            `userId` VARCHAR(50) NOT NULL,
+            `date_creation` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            `date_modification` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
+        
+        $pdo->exec($tableDocuments);
+        echo "Table documents_{$userId} créée ou existante.<br>";
+        
+        // Table collaboration (remplace bibliotheque)
+        $tableCollaboration = "CREATE TABLE IF NOT EXISTS `collaboration_{$userId}` (
+            `id` VARCHAR(36) PRIMARY KEY,
+            `nom` VARCHAR(255) NOT NULL,
+            `description` TEXT NULL,
+            `link` VARCHAR(255) NULL,
+            `groupId` VARCHAR(36) NULL,
+            `userId` VARCHAR(50) NOT NULL,
+            `date_creation` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            `date_modification` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
+        
+        $pdo->exec($tableCollaboration);
+        echo "Table collaboration_{$userId} créée ou existante.<br>";
+        
+        // Table pilotage
+        $tablePilotage = "CREATE TABLE IF NOT EXISTS `pilotage_{$userId}` (
+            `id` VARCHAR(36) PRIMARY KEY,
+            `titre` VARCHAR(255) NOT NULL,
+            `description` TEXT NULL,
+            `statut` VARCHAR(50) NULL,
+            `priorite` VARCHAR(50) NULL,
+            `date_debut` DATE NULL,
+            `date_fin` DATE NULL,
+            `responsabilites` TEXT NULL,
+            `userId` VARCHAR(50) NOT NULL,
+            `date_creation` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            `date_modification` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
+        
+        $pdo->exec($tablePilotage);
+        echo "Table pilotage_{$userId} créée ou existante.<br>";
     }
-    
-    // Initialiser les tables pour les utilisateurs
-    $userId = 'p71x6d_system';
-    
-    // Table membres - Définition complète avec toutes les colonnes nécessaires
-    $tableMembres = "CREATE TABLE IF NOT EXISTS `membres_{$userId}` (
-        `id` VARCHAR(36) PRIMARY KEY,
-        `nom` VARCHAR(100) NOT NULL,
-        `prenom` VARCHAR(100) NOT NULL,
-        `email` VARCHAR(255) NULL,
-        `telephone` VARCHAR(20) NULL,
-        `fonction` VARCHAR(100) NULL,
-        `organisation` VARCHAR(255) NULL,
-        `notes` TEXT NULL,
-        `date_creation` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        `date_modification` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
-    
-    $pdo->exec($tableMembres);
-    echo "Table membres_{$userId} créée ou existante.<br>";
-    
-    // Table exigences - Mise à jour de la structure pour correspondre aux fichiers de synchronisation
-    $tableExigences = "CREATE TABLE IF NOT EXISTS `exigences_{$userId}` (
-        `id` VARCHAR(36) PRIMARY KEY,
-        `nom` VARCHAR(255) NOT NULL,
-        `responsabilites` TEXT,
-        `exclusion` TINYINT(1) DEFAULT 0,
-        `atteinte` ENUM('NC', 'PC', 'C') NULL,
-        `groupId` VARCHAR(36) NULL,
-        `date_creation` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        `date_modification` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
-    
-    $pdo->exec($tableExigences);
-    echo "Table exigences_{$userId} créée ou existante.<br>";
-    
-    // Même chose pour les tables de l'utilisateur Antoine Cirier
-    $userId = 'p71x6d_cirier';
-    
-    // Table membres
-    $tableMembres = "CREATE TABLE IF NOT EXISTS `membres_{$userId}` (
-        `id` VARCHAR(36) PRIMARY KEY,
-        `nom` VARCHAR(100) NOT NULL,
-        `prenom` VARCHAR(100) NOT NULL,
-        `email` VARCHAR(255) NULL,
-        `telephone` VARCHAR(20) NULL,
-        `fonction` VARCHAR(100) NULL,
-        `organisation` VARCHAR(255) NULL,
-        `notes` TEXT NULL,
-        `date_creation` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        `date_modification` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
-    
-    $pdo->exec($tableMembres);
-    echo "Table membres_{$userId} créée ou existante.<br>";
-    
-    // Table exigences - Mise à jour de la structure pour correspondre aux fichiers de synchronisation
-    $tableExigences = "CREATE TABLE IF NOT EXISTS `exigences_{$userId}` (
-        `id` VARCHAR(36) PRIMARY KEY,
-        `nom` VARCHAR(255) NOT NULL,
-        `responsabilites` TEXT,
-        `exclusion` TINYINT(1) DEFAULT 0,
-        `atteinte` ENUM('NC', 'PC', 'C') NULL,
-        `groupId` VARCHAR(36) NULL,
-        `date_creation` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        `date_modification` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
-    
-    $pdo->exec($tableExigences);
-    echo "Table exigences_{$userId} créée ou existante.<br>";
     
     echo json_encode([
         'success' => true,
         'message' => 'Base de données initialisée avec succès',
+        'users' => $userIds,
         'timestamp' => date('Y-m-d H:i:s')
     ]);
     
