@@ -19,6 +19,7 @@ RewriteRule ^(.*)$ $1 [R=200,L]
     <FilesMatch "\.(m?js|es\.js)$">
         Header always set Content-Type "application/javascript"
         Header set X-Content-Type-Options "nosniff"
+        ForceType application/javascript
     </FilesMatch>
     
     Header set Access-Control-Allow-Origin "*"

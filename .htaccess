@@ -22,6 +22,7 @@ AddType image/svg+xml .svg
     <FilesMatch "\.(js|mjs|es\.js)$">
         Header always set Content-Type "application/javascript; charset=UTF-8"
         Header set X-Content-Type-Options "nosniff"
+        ForceType application/javascript
     </FilesMatch>
 </IfModule>
 

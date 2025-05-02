@@ -12,6 +12,7 @@ AddType text/css .css
 <FilesMatch "\.(js|mjs|es\.js)$">
     Header always set Content-Type "application/javascript; charset=UTF-8"
     Header set X-Content-Type-Options "nosniff"
+    ForceType application/javascript
 </FilesMatch>
 
 # En-têtes de cache pour les assets
