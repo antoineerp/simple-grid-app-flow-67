@@ -1,62 +1,37 @@
 
-import React from "react";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { ThemeProvider } from "@/components/providers/theme-provider";
-import { Toaster } from "@/components/ui/toaster";
-import { AuthProvider } from "@/contexts/AuthContext";
-import { SyncProvider } from "@/hooks/useSyncContext";
+// Ajouter un composant de détection réseau à l'application
 
-// Layouts
-import MainLayout from "@/components/layouts/MainLayout";
+import React from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { AuthProvider } from '@/contexts/AuthContext';
+import { Toaster } from '@/components/ui/toaster';
+import ProtectedRoute from '@/components/auth/ProtectedRoute';
+import Index from '@/pages/Index';
+import Dashboard from '@/pages/Dashboard';
 
-// Pages
-import Dashboard from "@/pages/Dashboard";
-import Login from "@/pages/Login";
-import Index from "@/pages/Index";
-import Register from "@/pages/Register";
-import Profile from "@/pages/Profile";
-import NotFound from "@/pages/NotFound";
-import MembresPage from "@/pages/Membres";
-import Bibliotheque from "@/pages/Bibliotheque";
-import SettingsPage from "@/pages/Settings";
-import ExigencesPage from "@/pages/Exigences";
-import Pilotage from '@/pages/Pilotage';
-import Database from '@/pages/admin/Database';
-import SyncManagement from '@/pages/admin/SyncManagement';
-import GlobalSyncManager from "@/components/common/GlobalSyncManager";
+// Importation du nouveau composant de détection réseau
+import NetworkStatusMonitor from '@/components/sync/NetworkStatusMonitor';
 
 function App() {
   return (
-    <ThemeProvider defaultTheme="light" storageKey="qualite-theme">
-      <BrowserRouter>
-        <AuthProvider>
-          <SyncProvider options={{ showToasts: true }}>
-            <GlobalSyncManager />
-            <Routes>
-              <Route path="/" element={<Index />} />
-              <Route path="/login" element={<Login />} />
-              <Route path="/register" element={<Register />} />
-              <Route path="/dashboard" element={<MainLayout />}>
-                <Route index element={<Dashboard />} />
-                <Route path="profile" element={<Profile />} />
-                <Route path="membres" element={<MembresPage />} />
-                <Route path="exigences" element={<ExigencesPage />} />
-                <Route path="bibliotheque" element={<Bibliotheque />} />
-                <Route path="pilotage" element={<Pilotage />} />
-                <Route path="settings" element={<SettingsPage />} />
-                <Route path="admin">
-                  <Route index element={<Navigate to="/admin/dashboard" replace />} />
-                  <Route path="database" element={<Database />} />
-                  <Route path="sync" element={<SyncManagement />} />
-                </Route>
-              </Route>
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-            <Toaster />
-          </SyncProvider>
-        </AuthProvider>
-      </BrowserRouter>
-    </ThemeProvider>
+    <AuthProvider>
+      <Router>
+        {/* Moniteur de connexion réseau pour le système de synchronisation unifié */}
+        <NetworkStatusMonitor />
+        
+        <Routes>
+          <Route path="/" element={<Index />} />
+          <Route path="/dashboard" element={
+            <ProtectedRoute>
+              <Dashboard />
+            </ProtectedRoute>
+          } />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+        
+        <Toaster />
+      </Router>
+    </AuthProvider>
   );
 }
 

@@ -30,7 +30,7 @@ const Index = () => {
       </div>
       
       <div className="mt-4 text-sm text-gray-500">
-        © {new Date().getFullYear()} Qualite.cloud - v1.0.9
+        © {new Date().getFullYear()} Qualite.cloud - v1.1.0
       </div>
     </div>
   );

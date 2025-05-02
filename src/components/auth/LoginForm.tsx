@@ -1,10 +1,13 @@
 
+// Mettre à jour le composant LoginForm pour utiliser notre nouveau système de synchronisation
+
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/components/ui/use-toast';
+import { unifiedSync } from '@/services/sync/UnifiedSyncService';
 
 const LoginForm = () => {
   const [email, setEmail] = useState('');
@@ -38,10 +41,22 @@ const LoginForm = () => {
       };
       
       login(mockUser);
+      
+      // Initialiser la synchronisation après connexion
+      try {
+        // Précharger quelques données essentielles
+        await unifiedSync.loadData('exigences', mockUser.id);
+        await unifiedSync.loadData('membres', mockUser.id);
+      } catch (error) {
+        console.warn("Erreur lors du préchargement initial:", error);
+        // On ne bloque pas la connexion pour ça
+      }
+      
       toast({
         title: "Connexion réussie",
         description: "Bienvenue sur Qualite.cloud",
       });
+      
       navigate('/dashboard');
     } catch (error) {
       toast({
