@@ -39,5 +39,4 @@
   };
 })();
 
-// Export vide pour compatibilité ES module
-export {};
+// No export statement - removed for compatibility with direct script loading

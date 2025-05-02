@@ -3,7 +3,7 @@
 // This file provides a fallback for browsers that might have issues with direct ES imports
 import React from 'react';
 import { createRoot } from 'react-dom/client';
-import App from './App.tsx';
+import App from './App';
 import './index.css';
 
 // Fonction auto-exécutante pour éviter la pollution du scope global
@@ -54,5 +54,5 @@ import './index.css';
   });
 })();
 
-// Export par défaut pour permettre l'utilisation comme module
+// Export vide pour compatibilité module
 export default {};
