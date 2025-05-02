@@ -1,11 +1,28 @@
 
-// Fichier pont pour assurer les types MIME corrects
-console.log('Types MIME testés avec succès');
-document.addEventListener('DOMContentLoaded', function() {
-  console.log('Le fichier JavaScript est correctement chargé avec le bon type MIME');
-});
+// Fichier JavaScript principal pour Infomaniak - format compatible
+"use strict";
 
-// Fonction globale pour vérification
-window.indexJsLoaded = function() {
-  return true;
-};
+// Éviter les exports qui peuvent causer des problèmes sur certains serveurs
+(function() {
+  // Log simple pour confirmer le chargement
+  console.log('Scripts chargés avec succès');
+  
+  // Fonction globale pour vérification 
+  window.indexJsLoaded = function() {
+    return {
+      success: true,
+      timestamp: new Date().toISOString(),
+      message: 'JavaScript chargé correctement'
+    };
+  };
+  
+  // Initialisation au chargement du document
+  document.addEventListener('DOMContentLoaded', function() {
+    console.log('Document entièrement chargé et prêt');
+    
+    // Vérifier si l'élément root existe pour React
+    if (document.getElementById('root')) {
+      console.log('Élément racine React trouvé');
+    }
+  });
+})();

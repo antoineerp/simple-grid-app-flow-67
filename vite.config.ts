@@ -40,9 +40,9 @@ export default defineConfig(({ mode }) => {
           main: path.resolve(__dirname, 'index.html'),
         },
         output: {
-          // Désactiver complètement le hachage des noms de fichiers
-          entryFileNames: 'assets/[name].js',
-          chunkFileNames: 'assets/[name]-chunk.js',
+          // Désactiver le hachage pour Infomaniak - noms simples et prévisibles
+          entryFileNames: isInfomaniak ? 'assets/[name].js' : 'assets/[name].[hash].js',
+          chunkFileNames: isInfomaniak ? 'assets/[name]-chunk.js' : 'assets/[name].[hash].js',
           assetFileNames: (assetInfo) => {
             if (!assetInfo.name) return 'assets/[name].[ext]';
             
@@ -51,13 +51,13 @@ export default defineConfig(({ mode }) => {
             const name = info.join('.');
             
             if (ext === 'css') {
-              return `assets/${name}.css`;
+              return isInfomaniak ? `assets/${name}.css` : `assets/${name}.[hash].css`;
             }
             
-            return `assets/${name}.${ext}`;
+            return isInfomaniak ? `assets/${name}.${ext}` : `assets/${name}.[hash].${ext}`;
           },
-          // Forcer les scripts à être des modules ES
-          format: 'es'
+          // Utiliser un format compatible avec plus de navigateurs pour Infomaniak
+          format: isInfomaniak ? 'es' : 'es'
         },
         external: []
       }
