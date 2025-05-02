@@ -21,38 +21,61 @@ if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
     exit;
 }
 
-// Capturer les données brutes pour le débogage
-$rawInput = file_get_contents("php://input");
-error_log("Données brutes reçues par collaboration-sync.php: " . $rawInput);
-
 try {
     // Nettoyer le buffer
     if (ob_get_level()) ob_clean();
     
-    // Récupérer les données POST JSON
-    $data = json_decode($rawInput, true);
+    error_log("Synchronisation des données de collaboration");
     
-    if (!$rawInput || !$data) {
-        throw new Exception("Aucune donnée reçue ou format JSON invalide");
+    // Récupérer les données du corps de la requête
+    $inputJSON = file_get_contents('php://input');
+    error_log("Données reçues: " . $inputJSON);
+    
+    $input = json_decode($inputJSON, true);
+    
+    // Vérifier si les données sont valides
+    if ($input === null) {
+        throw new Exception("Données JSON invalides");
     }
     
-    error_log("Données JSON décodées pour collaboration-sync.php");
-    
-    // Vérifier si les données nécessaires sont présentes
-    if (!isset($data['userId'])) {
-        throw new Exception("Données incomplètes. 'userId' est requis");
+    // Vérifier si l'userId est présent
+    if (!isset($input['userId'])) {
+        throw new Exception("ID utilisateur manquant");
     }
     
-    $userId = $data['userId'];
-    error_log("Synchronisation pour l'utilisateur: {$userId}");
+    $userId = $input['userId'];
+    error_log("UserId reçu: " . $userId);
     
-    // Simuler une réponse réussie pour les tests
-    // Dans votre système de production, vous implémenteriez ici l'enregistrement des données
+    // Vérifier si les données de collaboration sont présentes
+    if (!isset($input['collaboration']) && !isset($input['documents']) && count($input) < 3) {
+        throw new Exception("Données de collaboration manquantes");
+    }
+    
+    // Déterminer quelles données utiliser (soit 'collaboration', soit 'documents', soit autre clé)
+    $documents = $input['collaboration'] ?? $input['documents'] ?? null;
+    
+    if ($documents === null) {
+        // Chercher la première clé qui ressemble à un tableau
+        foreach ($input as $key => $value) {
+            if ($key !== 'userId' && is_array($value)) {
+                $documents = $value;
+                error_log("Utilisation de la clé '$key' pour les documents");
+                break;
+            }
+        }
+    }
+    
+    if ($documents === null || !is_array($documents)) {
+        throw new Exception("Format de données invalide");
+    }
+    
+    // À ce stade, nous simulons simplement une réponse réussie pour les tests
+    // Dans un système en production, vous enregistreriez ces données en base de données
     $responseData = [
         'success' => true,
         'message' => 'Données de collaboration synchronisées avec succès',
         'timestamp' => date('c'),
-        'count' => isset($data['collaboration']) ? count($data['collaboration']) : 0
+        'count' => count($documents)
     ];
     
     http_response_code(200);
