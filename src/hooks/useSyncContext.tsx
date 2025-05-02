@@ -17,6 +17,8 @@ export interface SyncContextType {
   refreshStatus: (tableName: string) => void;
   markSynced: (tableName: string) => void;
   markFailed: (tableName: string, errorMessage: string) => void;
+  // Add the missing syncAll method
+  syncAll: () => Promise<Record<string, boolean>>;
 }
 
 export const SyncContext = createContext<SyncContextType>({
@@ -27,6 +29,8 @@ export const SyncContext = createContext<SyncContextType>({
   refreshStatus: () => {},
   markSynced: () => {},
   markFailed: () => {},
+  // Add empty implementation
+  syncAll: async () => ({}),
 });
 
 export const useSyncContext = () => useContext(SyncContext);

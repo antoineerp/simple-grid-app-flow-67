@@ -1,9 +1,10 @@
 
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { getIsLoggedIn, getCurrentUser } from "@/services/auth/authService";
+import { User as AuthUser } from "@/types/auth"; // Import User from types/auth
 
 export type User = {
-  id: string;
+  id: string; // Make it required here to match your internal type
   email: string;
   username?: string;
   role: string;
@@ -14,7 +15,7 @@ interface AuthContextType {
   currentUser: User | null;
   isAuthenticated: boolean;
   loading: boolean;
-  login: (userData: User) => void;
+  login: (userData: AuthUser) => void;
   logout: () => void;
   refreshUser: () => void;
 }
@@ -40,7 +41,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         const user = getCurrentUser();
 
         if (isLoggedIn && user) {
-          setCurrentUser(user);
+          // Convert AuthUser to User (ensure id is not undefined)
+          const validUser: User = {
+            id: user.id || '',
+            email: user.email || '',
+            username: user.username,
+            role: user.role || 'user',
+            identifiant_technique: user.identifiant_technique
+          };
+          setCurrentUser(validUser);
           setIsAuthenticated(true);
         } else {
           setCurrentUser(null);
@@ -58,8 +67,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     initAuth();
   }, []);
 
-  const login = (userData: User) => {
-    setCurrentUser(userData);
+  const login = (userData: AuthUser) => {
+    // Convert AuthUser to User (ensure id is not undefined)
+    const validUser: User = {
+      id: userData.id || '',
+      email: userData.email || '',
+      username: userData.username,
+      role: userData.role || 'user',
+      identifiant_technique: userData.identifiant_technique
+    };
+    setCurrentUser(validUser);
     setIsAuthenticated(true);
     localStorage.setItem("currentUser", JSON.stringify(userData));
     localStorage.setItem("isLoggedIn", "true");
@@ -76,7 +93,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     try {
       const user = getCurrentUser();
       if (user) {
-        setCurrentUser(user);
+        // Convert AuthUser to User (ensure id is not undefined)
+        const validUser: User = {
+          id: user.id || '',
+          email: user.email || '',
+          username: user.username,
+          role: user.role || 'user',
+          identifiant_technique: user.identifiant_technique
+        };
+        setCurrentUser(validUser);
       }
     } catch (error) {
       console.error("Error refreshing user:", error);

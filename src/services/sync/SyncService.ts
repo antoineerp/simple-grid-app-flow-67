@@ -1,4 +1,3 @@
-
 /**
  * Service central de synchronisation
  * Ce service gère la synchronisation des données entre le client et le serveur
@@ -16,7 +15,7 @@ export class SyncService {
    * @param tableName Nom de la table à charger
    * @param userId ID de l'utilisateur (optionnel)
    */
-  async loadDataFromServer<T>(
+  async loadDataFromServer<T extends object>(
     tableName: string, 
     userId?: string | null
   ): Promise<T[]> {
@@ -103,7 +102,7 @@ export class SyncService {
    * @param data Données à synchroniser
    * @param userId ID de l'utilisateur (optionnel)
    */
-  async syncDataWithServer<T>(
+  async syncDataWithServer<T extends object>(
     tableName: string, 
     data: T[], 
     userId?: string | null
@@ -190,7 +189,7 @@ export class SyncService {
    * @param tableName Nom de la table
    * @param userId ID de l'utilisateur (optionnel)
    */
-  getLocalData<T>(tableName: string, userId?: string | null): T[] {
+  getLocalData<T extends object>(tableName: string, userId?: string | null): T[] {
     // Normaliser le nom de la table
     const normalizedTableName = syncRegistry.normalizeTableName(tableName);
     
@@ -231,17 +230,8 @@ export class SyncService {
    * @param tableName Nom de la table
    */
   getLastSynced(tableName: string): Date | null {
-    // Normaliser le nom de la table
-    const normalizedTableName = syncRegistry.normalizeTableName(tableName);
-    
-    // Récupérer la date
-    const timestamp = localStorage.getItem(`last_synced_${normalizedTableName}`);
-    
-    if (timestamp) {
-      return new Date(timestamp);
-    }
-    
-    return null;
+    const lastSyncStr = localStorage.getItem(`last_synced_${tableName}`);
+    return lastSyncStr ? new Date(lastSyncStr) : null;
   }
 
   /**
@@ -249,7 +239,7 @@ export class SyncService {
    * @param localData Données locales
    * @param serverData Données serveur
    */
-  private mergeData<T>(localData: T[], serverData: T[]): T[] {
+  private mergeData<T extends object>(localData: T[], serverData: T[]): T[] {
     if (!localData || localData.length === 0) return serverData;
     if (!serverData || serverData.length === 0) return localData;
     
