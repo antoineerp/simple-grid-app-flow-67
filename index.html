@@ -14,7 +14,7 @@
     <!-- Scripts non-module chargés en premier -->
     <script src="assets/check-mime.js"></script>
     <script src="assets/index.js"></script>
-    <!-- Chargement du script principal comme module -->
-    <script type="module" src="src/main.tsx"></script>
+    <!-- Utiliser le script compilé main.js au lieu de main.tsx pour éviter les problèmes de MIME type -->
+    <script type="module" src="assets/main.js"></script>
   </body>
 </html>

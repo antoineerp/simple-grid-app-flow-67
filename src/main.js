@@ -8,15 +8,22 @@ import './index.css';
 
 // Fonction auto-exécutante pour éviter la pollution du scope global
 (function() {
+  console.log("Application initialization started from main.js");
+  
+  // Attendre que le DOM soit entièrement chargé
   window.addEventListener('DOMContentLoaded', () => {
     try {
-      console.log("Application initialization started");
+      console.log("DOM content loaded, starting React application");
       const rootElement = document.getElementById("root");
       
       if (rootElement) {
         console.log("Root element found, starting React rendering");
         const root = createRoot(rootElement);
-        root.render(React.createElement(App));
+        root.render(
+          React.createElement(React.StrictMode, null, 
+            React.createElement(App)
+          )
+        );
         
         console.log("Application rendering successfully started");
       } else {
@@ -54,5 +61,4 @@ import './index.css';
   });
 })();
 
-// Export vide pour compatibilité module
-export default {};
+// Aucun export pour éviter les problèmes de compatibilité

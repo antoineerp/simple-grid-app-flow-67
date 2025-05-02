@@ -12,6 +12,7 @@ import MainLayout from "@/components/layouts/MainLayout";
 // Pages
 import Dashboard from "@/pages/Dashboard";
 import Login from "@/pages/Login";
+import Index from "@/pages/Index";
 import Register from "@/pages/Register";
 import Profile from "@/pages/Profile";
 import NotFound from "@/pages/NotFound";
@@ -32,9 +33,10 @@ function App() {
           <SyncProvider options={{ showToasts: true }}>
             <GlobalSyncManager />
             <Routes>
+              <Route path="/" element={<Index />} />
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
-              <Route path="/" element={<MainLayout />}>
+              <Route path="/dashboard" element={<MainLayout />}>
                 <Route index element={<Dashboard />} />
                 <Route path="profile" element={<Profile />} />
                 <Route path="membres" element={<MembresPage />} />
