@@ -11,6 +11,7 @@ import {
   clearPendingSync, 
   hasLocalData 
 } from '@/features/sync/utils/syncStorageManager';
+import { getServerConfig } from '@/services/config/serverConfigService';
 
 /**
  * Chargement des documents depuis le serveur pour un utilisateur spécifique
@@ -82,67 +83,18 @@ export const loadDocumentsFromServer = async (userId: string | null = null): Pro
     
     return documents;
   } catch (firstError) {
-    console.warn("Première tentative de chargement échouée:", firstError);
+    console.warn("Erreur lors du chargement des documents:", firstError);
     
-    // Deuxième tentative - URL alternative
-    try {
-      const apiAltUrl = `/sites/qualiopi.ch/api`;
-      console.log("Tentative avec URL alternative:", apiAltUrl);
-      
-      const response = await fetch(`${apiAltUrl}/documents-load.php?userId=${currentUser}`, {
-        method: 'GET',
-        headers: getAuthHeaders(),
-        cache: 'no-store'
-      });
-      
-      if (!response.ok) {
-        throw new Error(`Erreur HTTP alternative ${response.status}: ${response.statusText}`);
-      }
-      
-      const result = await response.json();
-      console.log("Documents chargés depuis le serveur (URL alternative):", result);
-      
-      let serverDocuments: Document[] = [];
-      
-      if (result.success && Array.isArray(result.documents)) {
-        serverDocuments = result.documents;
-      } else if (Array.isArray(result)) {
-        serverDocuments = result;
-      } else if (result.records && Array.isArray(result.records)) {
-        serverDocuments = result.records;
-      } else {
-        console.warn("Format de réponse alternative non reconnu pour les documents");
-        throw new Error("Format de réponse alternative non reconnu");
-      }
-      
-      // Fusionner les documents locaux et ceux du serveur si nécessaire
-      if (serverDocuments.length > 0) {
-        documents = mergeDocuments(localDocuments, serverDocuments);
-      }
-      
-      // AMÉLIORATION: Sauvegarder dans les deux systèmes de stockage pour accès hors ligne
-      saveLocalData('documents', documents, currentUser);
-      
-      console.log(`${documents.length} documents sauvegardés localement pour accès hors ligne (source: URL alternative)`);
-      
-      toast({
-        title: "Données synchronisées",
-        description: `${documents.length} documents chargés depuis le serveur Infomaniak (URL alternative)`,
-      });
-      
-      return documents;
-    } catch (secondError) {
-      console.error("Toutes les tentatives de chargement depuis le serveur ont échoué:", secondError);
-      
-      // En dernier recours, retourner les documents locaux
-      toast({
-        variant: "destructive",
-        title: "Erreur de chargement",
-        description: "Impossible de charger les documents depuis le serveur. Mode hors-ligne activé.",
-      });
-      
-      return localDocuments;
-    }
+    // Utiliser les données locales en cas d'erreur
+    console.log("Utilisation des données locales uniquement");
+    
+    toast({
+      variant: "destructive",
+      title: "Erreur de chargement",
+      description: "Impossible de charger les documents depuis le serveur. Mode hors-ligne activé.",
+    });
+    
+    return documents;
   }
 };
 
@@ -174,7 +126,7 @@ export const syncDocumentsWithServer = async (documents: Document[], userId: str
     
     console.log(`Tentative de synchronisation vers: ${endpoint}`);
     
-    // Première tentative - URL standard
+    // Tentative de synchronisation
     const response = await fetch(endpoint, {
       method: 'POST',
       headers: {
@@ -213,64 +165,19 @@ export const syncDocumentsWithServer = async (documents: Document[], userId: str
     } else {
       throw new Error("La synchronisation a échoué: " + (result.message || "Raison inconnue"));
     }
-  } catch (firstError) {
-    console.warn("Première tentative de synchronisation échouée:", firstError);
+  } catch (error) {
+    console.error("Erreur lors de la synchronisation:", error);
     
-    // Deuxième tentative - URL alternative
-    try {
-      const apiAltUrl = `/sites/qualiopi.ch/api`;
-      console.log("Tentative avec URL alternative:", apiAltUrl);
-      
-      const response = await fetch(`${apiAltUrl}/documents-sync.php`, {
-        method: 'POST',
-        headers: {
-          ...getAuthHeaders(),
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          userId: currentUser,
-          documents: validDocuments
-        })
-      });
-      
-      if (!response.ok) {
-        throw new Error(`Erreur HTTP alternative ${response.status}: ${response.statusText}`);
-      }
-      
-      const result = await response.json();
-      console.log("Résultat de la synchronisation des documents (URL alternative):", result);
-      
-      if (result.success === true) {
-        // Enregistrer la date de la dernière synchronisation réussie
-        const timestamp = new Date().toISOString();
-        localStorage.setItem(`last_synced_documents`, timestamp);
-        sessionStorage.setItem(`last_synced_documents`, timestamp);
-        
-        // Supprimer tout marqueur de synchronisation en attente
-        clearPendingSync('documents');
-        
-        toast({
-          title: "Synchronisation réussie",
-          description: "Les documents ont été synchronisés avec la base de données Infomaniak (URL alternative).",
-        });
-        return true;
-      } else {
-        throw new Error("La synchronisation a échoué: " + (result.message || "Raison inconnue"));
-      }
-    } catch (secondError) {
-      console.error("Toutes les tentatives de synchronisation vers le serveur ont échoué:", secondError);
-      
-      // Marquer comme en attente de synchronisation pour une tentative ultérieure
-      markPendingSync('documents');
-      
-      toast({
-        variant: "destructive",
-        title: "Erreur de synchronisation",
-        description: "Les documents ont été sauvegardés localement, mais la synchronisation avec le serveur a échoué.",
-      });
-      
-      return false;
-    }
+    // Marquer comme en attente de synchronisation pour une tentative ultérieure
+    markPendingSync('documents');
+    
+    toast({
+      variant: "destructive",
+      title: "Erreur de synchronisation",
+      description: "Les documents ont été sauvegardés localement, mais la synchronisation avec le serveur a échoué.",
+    });
+    
+    return false;
   }
 };
 
@@ -386,23 +293,22 @@ function mergeDocuments(localDocs: Document[], serverDocs: Document[]): Document
         console.log(`Document ${localDoc.id} : version locale plus récente conservée`);
       } else {
         mergedDocs.push(serverDoc);
-        console.log(`Document ${serverDoc.id} : version serveur conservée`);
+        console.log(`Document ${serverDoc.id} : version serveur plus récente conservée`);
       }
       
-      // Supprimer de la map locale pour ne pas le traiter à nouveau
+      // Retirer de la map pour traiter les documents uniquement locaux ensuite
       localDocsMap.delete(serverDoc.id);
     } else {
-      // Document existe seulement sur le serveur
+      // Document uniquement sur le serveur
       mergedDocs.push(serverDoc);
     }
   });
   
-  // Ajouter les documents qui existent uniquement en local
-  localDocsMap.forEach(localOnlyDoc => {
-    mergedDocs.push(localOnlyDoc);
-    console.log(`Document ${localOnlyDoc.id} : existe uniquement en local, ajouté à la fusion`);
+  // Ajouter les documents uniquement locaux
+  localDocsMap.forEach(doc => {
+    mergedDocs.push(doc);
+    console.log(`Document ${doc.id} : uniquement local, ajouté à la fusion`);
   });
   
-  console.log(`Fusion des documents : ${localDocs.length} locaux + ${serverDocs.length} serveur = ${mergedDocs.length} fusionnés`);
   return mergedDocs;
 }

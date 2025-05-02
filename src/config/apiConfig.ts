@@ -2,9 +2,19 @@
 // Configuration de l'API
 const apiUrl = getApiBaseUrl();
 
-// Fonction pour déterminer l'URL de base de l'API en fonction de l'environnement
+// Fonction pour déterminer l'URL de base de l'API en fonction de l'environnement et du serveur
 function getApiBaseUrl(): string {
-  // Toujours utiliser le chemin relatif pour la production
+  // Toujours utiliser le chemin relatif pour la production sur Infomaniak
+  if (window.location.hostname.includes('qualiopi.ch') || 
+      window.location.hostname.includes('myd.infomaniak.com')) {
+    // Sur Infomaniak, l'API est dans /api
+    console.log('Mode Infomaniak détecté - utilisation du chemin API Infomaniak');
+    return '/api';
+  }
+  
+  // Pour le développement local, toujours utiliser le chemin relatif /api
+  // qui sera servi par le proxy de développement
+  console.log('Mode développement détecté - utilisation du chemin API local');
   return '/api';
 }
 
@@ -21,7 +31,8 @@ export function getFullApiUrl(): string {
 // Diagnostic de l'API simple
 export async function testApiConnection(): Promise<{ success: boolean; message: string; details?: any }> {
   try {
-    console.log(`Test de connexion à l'API: ${getFullApiUrl()}`);
+    const fullApiUrl = getFullApiUrl();
+    console.log(`Test de connexion à l'API: ${fullApiUrl}`);
     
     // Pour le test direct, utiliser diagnose-connection.php qui est optimisé
     const response = await fetch(`${getApiUrl()}/diagnose-connection.php`, {
