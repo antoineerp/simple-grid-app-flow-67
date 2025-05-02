@@ -25,3 +25,14 @@ AddType text/css .css
     Order Allow,Deny
     Allow from all
 </Files>
+
+# Ajout pour forcer la détection correcte du type MIME
+<IfModule mod_mime.c>
+    RemoveType .js
+    AddType application/javascript .js
+    AddEncoding gzip .gz
+    AddEncoding br .br
+</IfModule>
+
+# Ajout pour désactiver la négociation de contenu qui pourrait interférer
+Options -MultiViews

@@ -11,7 +11,7 @@ header('Content-Type: text/html; charset=utf-8');
         .success { color: green; font-weight: bold; }
         .error { color: red; font-weight: bold; }
         .warning { color: orange; font-weight: bold; }
-        pre { background: #f5f5f5; padding: 10px; border-radius: 5px; overflow-x: auto; }
+        pre { background: #f5f5f9; padding: 10px; border-radius: 5px; overflow-x: auto; }
         .section { margin-bottom: 30px; padding: 15px; border: 1px solid #ddd; border-radius: 4px; }
     </style>
 </head>

@@ -1,8 +1,20 @@
 
-// Script de vérification des types MIME
+// Script de vérification des types MIME strictement compatible
+"use strict";
+
+// Log simple pour confirmer le chargement
 console.log('MIME type check passed successfully!');
 
-// Ajouter une fonction pour vérifier si le script est bien chargé
+// Fonction de vérification accessible globalement
+window.checkMimeTypeStatus = function() {
+  return {
+    success: true,
+    timestamp: new Date().toISOString(),
+    message: 'JavaScript MIME type verification successful'
+  };
+};
+
+// Version exportable pour modules
 function checkMimeTypeLoading() {
   console.log('JavaScript MIME type verification successful');
   return true;
