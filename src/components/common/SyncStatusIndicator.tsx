@@ -1,7 +1,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { Badge } from "@/components/ui/badge";
-import { Cloud, CloudOff, CloudSync, CheckCircle, AlertCircle } from "lucide-react";
+import { Cloud, CloudOff, RefreshCw, CheckCircle, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { useSyncContext } from '@/hooks/useSyncContext';
@@ -85,7 +85,7 @@ const SyncStatusIndicator: React.FC<SyncStatusIndicatorProps> = ({
   return (
     <Badge variant={badgeVariant} className={badgeClass}>
       {status === 'offline' && <CloudOff className={iconSize} />}
-      {status === 'syncing' && <CloudSync className={`${iconSize} animate-spin`} />}
+      {status === 'syncing' && <RefreshCw className={`${iconSize} animate-spin`} />}
       {status === 'error' && <AlertCircle className={iconSize} />}
       {status === 'success' && <CheckCircle className={iconSize} />}
       {status === 'online' && <Cloud className={iconSize} />}

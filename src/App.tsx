@@ -4,7 +4,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { ThemeProvider } from "@/components/providers/theme-provider";
 import { Toaster } from "@/components/ui/toaster";
 import { AuthProvider } from "@/contexts/AuthContext";
-import { SyncProvider } from "@/features/sync/hooks/useSyncContext";
+import { SyncProvider } from "@/hooks/useSyncContext";
 
 // Layouts
 import MainLayout from "@/components/layouts/MainLayout";

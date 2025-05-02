@@ -93,7 +93,7 @@ const SyncManagementPage = () => {
                   <button 
                     className="px-4 py-2 bg-blue-50 text-blue-700 rounded-md hover:bg-blue-100 border border-blue-200"
                     onClick={() => {
-                      const syncDiag = syncDiagnostic;
+                      const syncDiag = SyncDiagnostic;
                       syncDiag.migrateOldTables();
                     }}
                   >
@@ -111,7 +111,7 @@ const SyncManagementPage = () => {
                     className="px-4 py-2 bg-yellow-100 text-yellow-800 rounded-md hover:bg-yellow-200 border border-yellow-300"
                     onClick={() => {
                       if (confirm("Êtes-vous sûr de vouloir uniformiser les noms de tables ? Cette opération est irréversible.")) {
-                        const syncDiag = syncDiagnostic;
+                        const syncDiag = SyncDiagnostic;
                         syncDiag.trackAllTables();
                         syncDiag.migrateOldTables().then(() => {
                           alert("Uniformisation terminée.");
