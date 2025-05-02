@@ -1,4 +1,3 @@
-
 import { useState, useCallback, useRef } from 'react';
 import { Document as BibliothequeDocument, DocumentGroup } from '@/types/bibliotheque';
 import { Document as SystemDocument } from '@/types/documents';
@@ -6,15 +5,13 @@ import { syncService } from '@/services/sync/SyncService';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { useSync } from '@/hooks/useSync';
 import { toast } from '@/components/ui/use-toast';
-import { getDatabaseConnectionCurrentUser } from '@/services/core/databaseConnectionService';
 
 // Helper function to convert between document types
 const convertSystemToBibliothequeDoc = (doc: SystemDocument): BibliothequeDocument => ({
   id: doc.id,
   name: doc.nom || '',
   link: doc.fichier_path,
-  groupId: doc.groupId,
-  userId: doc.userId // Préserver l'userId
+  groupId: doc.groupId
 });
 
 const convertBibliothequeToSystemDoc = (doc: BibliothequeDocument): SystemDocument => ({
@@ -25,8 +22,7 @@ const convertBibliothequeToSystemDoc = (doc: BibliothequeDocument): SystemDocume
   responsabilites: { r: [], a: [], c: [], i: [] },
   etat: null,
   date_creation: new Date(),
-  date_modification: new Date(),
-  userId: doc.userId // Préserver l'userId
+  date_modification: new Date()
 });
 
 export const useBibliothequeSync = () => {
@@ -35,17 +31,14 @@ export const useBibliothequeSync = () => {
   const { isSyncing, syncFailed, syncAndProcess } = useSync('collaboration');
   const syncTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const pendingSyncRef = useRef<boolean>(false);
-  const currentUserId = getDatabaseConnectionCurrentUser() || 'default';
   
   // Fonction pour charger les documents depuis le serveur
   const loadFromServer = useCallback(async (userId?: string): Promise<BibliothequeDocument[]> => {
-    const actualUserId = userId || currentUserId;
-    
     if (!isOnline) {
       console.log('Mode hors ligne - chargement des documents locaux');
       try {
         // UNIQUEMENT chercher sous le nouveau nom (collaboration)
-        const localData = localStorage.getItem(`collaboration_${actualUserId}`);
+        const localData = localStorage.getItem(`collaboration_${userId || 'default'}`);
         
         if (localData) {
           const localDocs = JSON.parse(localData);
@@ -59,7 +52,7 @@ export const useBibliothequeSync = () => {
     
     try {
       // Utiliser le service central pour charger les données
-      const documents = await syncService.loadDataFromServer<SystemDocument>('collaboration', actualUserId);
+      const documents = await syncService.loadDataFromServer<SystemDocument>('collaboration', userId);
       const lastSyncTime = syncService.getLastSynced('collaboration');
       if (lastSyncTime) {
         setLastSynced(lastSyncTime);
@@ -78,7 +71,7 @@ export const useBibliothequeSync = () => {
       // En cas d'erreur, chargement des documents locaux comme solution de secours
       try {
         // UNIQUEMENT chercher sous le nouveau nom (collaboration)
-        const localData = localStorage.getItem(`collaboration_${actualUserId}`);
+        const localData = localStorage.getItem(`collaboration_${userId || 'default'}`);
         
         if (localData) {
           const localDocs = JSON.parse(localData);
@@ -89,7 +82,7 @@ export const useBibliothequeSync = () => {
       }
       return [];
     }
-  }, [isOnline, currentUserId]);
+  }, [isOnline]);
   
   // Fonction pour synchroniser avec délai (debounce)
   const debounceSyncWithServer = useCallback((
@@ -97,12 +90,10 @@ export const useBibliothequeSync = () => {
     groups: DocumentGroup[], 
     userId?: string
   ) => {
-    const actualUserId = userId || currentUserId;
-    
     // Toujours sauvegarder localement immédiatement
     const systemDocs = documents.map(convertBibliothequeToSystemDoc);
-    localStorage.setItem(`collaboration_${actualUserId}`, JSON.stringify(systemDocs));
-    localStorage.setItem(`collaboration_groups_${actualUserId}`, JSON.stringify(groups));
+    localStorage.setItem(`collaboration_${userId || 'default'}`, JSON.stringify(systemDocs));
+    localStorage.setItem(`collaboration_groups_${userId || 'default'}`, JSON.stringify(groups));
     
     // Marquer qu'une synchronisation est en attente
     pendingSyncRef.current = true;
@@ -116,7 +107,7 @@ export const useBibliothequeSync = () => {
     syncTimeoutRef.current = setTimeout(() => {
       if (pendingSyncRef.current && isOnline) {
         // Exécuter la synchronisation
-        syncWithServer(documents, groups, actualUserId, "auto").catch(err => {
+        syncWithServer(documents, groups, userId, "auto").catch(err => {
           console.error("Erreur lors de la synchronisation différée:", err);
         });
         pendingSyncRef.current = false;
@@ -125,7 +116,7 @@ export const useBibliothequeSync = () => {
     }, 10000); // 10 secondes de délai
     
     return true;
-  }, [isOnline, currentUserId]);
+  }, [isOnline]);
   
   // Fonction principale de synchronisation
   const syncWithServer = useCallback(async (
@@ -134,13 +125,11 @@ export const useBibliothequeSync = () => {
     userId?: string, 
     trigger: "auto" | "manual" | "initial" = "manual"
   ): Promise<boolean> => {
-    const actualUserId = userId || currentUserId;
-    
     if (!isOnline) {
       // Mode hors ligne - enregistrement local uniquement
       const systemDocs = documents.map(convertBibliothequeToSystemDoc);
-      localStorage.setItem(`collaboration_${actualUserId}`, JSON.stringify(systemDocs));
-      localStorage.setItem(`collaboration_groups_${actualUserId}`, JSON.stringify(groups));
+      localStorage.setItem(`collaboration_${userId || 'default'}`, JSON.stringify(systemDocs));
+      localStorage.setItem(`collaboration_groups_${userId || 'default'}`, JSON.stringify(groups));
       
       if (trigger !== "auto") {
         toast({
@@ -156,8 +145,8 @@ export const useBibliothequeSync = () => {
     try {
       // Toujours enregistrer localement d'abord pour éviter la perte de données
       const systemDocs = documents.map(convertBibliothequeToSystemDoc);
-      localStorage.setItem(`collaboration_${actualUserId}`, JSON.stringify(systemDocs));
-      localStorage.setItem(`collaboration_groups_${actualUserId}`, JSON.stringify(groups));
+      localStorage.setItem(`collaboration_${userId || 'default'}`, JSON.stringify(systemDocs));
+      localStorage.setItem(`collaboration_groups_${userId || 'default'}`, JSON.stringify(groups));
       
       // Utiliser le service central pour la synchronisation avec la table "collaboration"
       const result = await syncAndProcess(systemDocs, trigger);
@@ -182,11 +171,11 @@ export const useBibliothequeSync = () => {
       // L'erreur est déjà gérée dans le hook useSync
       return false;
     }
-  }, [isOnline, syncAndProcess, currentUserId]);
+  }, [isOnline, syncAndProcess]);
   
   return {
     syncWithServer,
-    debounceSyncWithServer,
+    debounceSyncWithServer, // Nouvelle fonction pour la synchronisation différée
     loadFromServer,
     isSyncing,
     isOnline,

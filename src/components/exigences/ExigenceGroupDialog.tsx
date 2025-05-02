@@ -1,22 +1,34 @@
 
 import React from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
 import { ExigenceGroup } from '@/types/exigences';
-import { getDatabaseConnectionCurrentUser } from '@/services/core/databaseConnectionService';
 
 interface ExigenceGroupDialogProps {
-  isOpen: boolean;
-  onClose: () => void;
   group: ExigenceGroup | null;
-  onSave: (group: ExigenceGroup) => void;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onSave: (group: ExigenceGroup, isEditing: boolean) => void;
+  isEditing: boolean;
 }
 
-export const ExigenceGroupDialog = ({ isOpen, onClose, group, onSave }: ExigenceGroupDialogProps) => {
+export const ExigenceGroupDialog = ({
+  group,
+  open,
+  onOpenChange,
+  onSave,
+  isEditing
+}: ExigenceGroupDialogProps) => {
   const [name, setName] = React.useState(group?.name || '');
-  const currentUserId = getDatabaseConnectionCurrentUser() || 'default';
 
   React.useEffect(() => {
     if (group) {
@@ -28,25 +40,34 @@ export const ExigenceGroupDialog = ({ isOpen, onClose, group, onSave }: Exigence
 
   const handleSave = () => {
     const updatedGroup: ExigenceGroup = {
-      id: group?.id || crypto.randomUUID(),
+      id: group?.id || Math.random().toString(36).substr(2, 9),
       name,
       expanded: group?.expanded || false,
-      items: group?.items || [],
-      userId: group?.userId || currentUserId
+      items: group?.items || []
     };
-    onSave(updatedGroup);
-    onClose();
+    onSave(updatedGroup, isEditing);
+    onOpenChange(false);
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{group ? 'Modifier le groupe' : 'Ajouter un groupe'}</DialogTitle>
+          <DialogTitle>
+            {isEditing ? "Modifier le groupe" : "Ajouter un groupe"}
+          </DialogTitle>
+          <DialogDescription>
+            {isEditing 
+              ? "Modifiez les informations du groupe ci-dessous."
+              : "Remplissez les informations pour ajouter un nouveau groupe."}
+          </DialogDescription>
         </DialogHeader>
+        
         <div className="grid gap-4 py-4">
           <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="name" className="text-right">Nom</Label>
+            <Label htmlFor="name" className="text-right">
+              Nom
+            </Label>
             <Input
               id="name"
               value={name}
@@ -55,17 +76,16 @@ export const ExigenceGroupDialog = ({ isOpen, onClose, group, onSave }: Exigence
             />
           </div>
         </div>
+        
         <DialogFooter>
-          <Button variant="outline" onClick={onClose}>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
             Annuler
           </Button>
           <Button onClick={handleSave}>
-            {group ? 'Mettre à jour' : 'Ajouter'}
+            {isEditing ? "Mettre à jour" : "Ajouter"}
           </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
   );
 };
-
-export default ExigenceGroupDialog;

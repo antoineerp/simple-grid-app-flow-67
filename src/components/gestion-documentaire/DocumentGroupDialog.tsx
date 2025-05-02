@@ -12,7 +12,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { DocumentGroup } from '@/types/documents';
-import { getDatabaseConnectionCurrentUser } from '@/services/core/databaseConnectionService';
 
 interface DocumentGroupDialogProps {
   group: DocumentGroup | null;
@@ -30,7 +29,6 @@ export const DocumentGroupDialog = ({
   isEditing
 }: DocumentGroupDialogProps) => {
   const [name, setName] = React.useState(group?.name || '');
-  const currentUserId = getDatabaseConnectionCurrentUser() || 'default';
 
   React.useEffect(() => {
     if (group) {
@@ -45,8 +43,7 @@ export const DocumentGroupDialog = ({
       id: group?.id || Math.random().toString(36).substr(2, 9),
       name,
       expanded: group?.expanded || false,
-      items: group?.items || [],
-      userId: group?.userId || currentUserId
+      items: group?.items || []
     };
     onSave(updatedGroup, isEditing);
     onOpenChange(false);

@@ -1,140 +1,13 @@
-import { useState, useCallback } from 'react';
-import { v4 as uuidv4 } from 'uuid';
-import { Exigence, ExigenceGroup } from '@/types/exigences';
+
+import { useCallback } from 'react';
+import { Exigence } from '@/types/exigences';
 import { useToast } from '@/hooks/use-toast';
-import { getDatabaseConnectionCurrentUser } from '@/services/core/databaseConnectionService';
 
 export const useExigenceMutations = (
   exigences: Exigence[],
-  setExigences: React.Dispatch<React.SetStateAction<Exigence[]>>,
-  groups: ExigenceGroup[],
-  setGroups: React.Dispatch<React.SetStateAction<ExigenceGroup[]>>
+  setExigences: React.Dispatch<React.SetStateAction<Exigence[]>>
 ) => {
   const { toast } = useToast();
-  const [isLoading, setIsLoading] = useState(false);
-  const currentUserId = getDatabaseConnectionCurrentUser() || 'default';
-
-  // Fonction pour créer une nouvelle exigence
-  const createExigence = useCallback(
-    (exigence: Omit<Exigence, 'id' | 'date_creation' | 'date_modification'>) => {
-      setIsLoading(true);
-      try {
-        const now = new Date();
-        const newExigence: Exigence = {
-          id: uuidv4(),
-          ...exigence,
-          date_creation: now,
-          date_modification: now,
-          userId: currentUserId // Ajouter l'userId
-        };
-
-        setExigences((prev) => [...prev, newExigence]);
-
-        toast({
-          title: 'Exigence créée',
-          description: `L'exigence ${exigence.nom} a été créée avec succès.`,
-        });
-
-        return newExigence;
-      } catch (error) {
-        console.error('Erreur lors de la création de l\'exigence:', error);
-        toast({
-          variant: 'destructive',
-          title: 'Erreur',
-          description: 'Une erreur est survenue lors de la création de l\'exigence.',
-        });
-        return null;
-      } finally {
-        setIsLoading(false);
-      }
-    },
-    [setExigences, toast, currentUserId]
-  );
-
-  // Fonction pour mettre à jour une exigence
-  const updateExigence = useCallback(
-    (id: string, exigenceData: Partial<Exigence>) => {
-      setIsLoading(true);
-      try {
-        setExigences((prev) =>
-          prev.map((exigence) =>
-            exigence.id === id
-              ? {
-                  ...exigence,
-                  ...exigenceData,
-                  date_modification: new Date(),
-                  userId: exigence.userId || currentUserId // Conserver ou ajouter l'userId
-                }
-              : exigence
-          )
-        );
-
-        toast({
-          title: 'Exigence mise à jour',
-          description: 'L\'exigence a été mise à jour avec succès.',
-        });
-        return true;
-      } catch (error) {
-        console.error('Erreur lors de la mise à jour de l\'exigence:', error);
-        toast({
-          variant: 'destructive',
-          title: 'Erreur',
-          description: 'Une erreur est survenue lors de la mise à jour de l\'exigence.',
-        });
-        return false;
-      } finally {
-        setIsLoading(false);
-      }
-    },
-    [setExigences, toast, currentUserId]
-  );
-
-  // Fonction pour supprimer une exigence
-  const deleteExigence = useCallback(
-    (id: string) => {
-      setIsLoading(true);
-      try {
-        setExigences((prev) => prev.filter((exigence) => exigence.id !== id));
-        toast({
-          title: 'Exigence supprimée',
-          description: 'L\'exigence a été supprimée avec succès.',
-        });
-        return true;
-      } catch (error) {
-        console.error('Erreur lors de la suppression de l\'exigence:', error);
-        toast({
-          variant: 'destructive',
-          title: 'Erreur',
-          description: 'Une erreur est survenue lors de la suppression de l\'exigence.',
-        });
-        return false;
-      } finally {
-        setIsLoading(false);
-      }
-    },
-    [setExigences, toast]
-  );
-
-  // Fonction pour créer un nouveau groupe d'exigences
-  const createGroup = useCallback(
-    (name: string) => {
-      const newGroup: ExigenceGroup = {
-        id: uuidv4(),
-        name,
-        expanded: true,
-        items: [],
-        userId: currentUserId // Ajouter l'userId
-      };
-
-      setGroups((prev) => [...prev, newGroup]);
-      toast({
-        title: 'Groupe créé',
-        description: `Le groupe ${name} a été créé avec succès.`,
-      });
-      return newGroup;
-    },
-    [setGroups, toast, currentUserId]
-  );
 
   const handleResponsabiliteChange = useCallback((id: string, type: 'r' | 'a' | 'c' | 'i', values: string[]) => {
     setExigences(prev => 
@@ -212,18 +85,11 @@ export const useExigenceMutations = (
   }, [exigences, setExigences, toast]);
 
   return {
-    createExigence,
-    updateExigence,
-    deleteExigence,
-    createGroup,
     handleResponsabiliteChange,
     handleAtteinteChange,
     handleExclusionChange,
     handleSaveExigence,
     handleDelete,
-    handleAddExigence,
-    isLoading
+    handleAddExigence
   };
 };
-
-export default useExigenceMutations;
