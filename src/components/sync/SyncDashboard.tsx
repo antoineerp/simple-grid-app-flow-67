@@ -1,4 +1,3 @@
-
 /**
  * Tableau de bord pour la gestion des synchronisations
  */
@@ -181,7 +180,7 @@ export default function SyncDashboard() {
       });
     } else {
       toast({
-        variant: "warning",
+        variant: "destructive",
         title: "Synchronisation partielle",
         description: `${successCount} tables synchronisées, ${errorCount} échecs.`
       });

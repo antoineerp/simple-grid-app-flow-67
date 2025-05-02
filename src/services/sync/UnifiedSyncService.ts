@@ -1,4 +1,3 @@
-
 /**
  * Service de synchronisation unifié
  * Ce service centralise toute la logique de synchronisation de l'application
@@ -147,7 +146,7 @@ export class UnifiedSyncService {
       
       if (options.showToast) {
         toast({
-          variant: "warning",
+          variant: "destructive",
           title: "Mode hors ligne",
           description: "Les modifications ont été sauvegardées localement uniquement",
         });

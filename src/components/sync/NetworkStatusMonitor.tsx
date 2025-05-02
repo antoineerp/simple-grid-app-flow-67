@@ -39,7 +39,7 @@ const NetworkStatusMonitor: React.FC = () => {
         toast({
           title: "Connexion perdue",
           description: "L'application fonctionne maintenant en mode hors ligne.",
-          variant: "warning"
+          variant: "destructive" 
         });
         
         // Déclencher un événement pour informer l'application
