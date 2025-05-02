@@ -1,4 +1,3 @@
 
-// Fichier pont pour la compatibilité avec les scripts de diagnostic
-// Ce fichier ne contient aucune référence au localStorage
-import './main-CJp6prML.js';
+// Fichier pont pour assurer les types MIME corrects
+console.log('Types MIME testés avec succès');

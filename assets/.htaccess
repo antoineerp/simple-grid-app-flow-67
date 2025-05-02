@@ -7,6 +7,12 @@ AddType application/javascript .js
 AddType application/javascript .mjs
 AddType text/css .css
 
+# Force le bon type MIME pour les JavaScript
+<FilesMatch "\.js$">
+    Header set Content-Type "application/javascript; charset=UTF-8"
+    Header set X-Content-Type-Options "nosniff"
+</FilesMatch>
+
 # En-têtes de cache pour les assets
 <FilesMatch "\.(js|mjs|css)$">
     Header set Cache-Control "max-age=31536000, public"

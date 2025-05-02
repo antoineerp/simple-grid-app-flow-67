@@ -9,7 +9,7 @@ Options +FollowSymLinks
 # Définir le point d'entrée principal
 DirectoryIndex index.html index.php
 
-# Définir les types MIME corrects
+# Définir les types MIME corrects de manière explicite
 AddType application/javascript .js
 AddType application/javascript .mjs
 AddType application/javascript .es.js
@@ -65,12 +65,12 @@ RewriteRule ^(.*)$ index.html [QSA,L]
 <IfModule mod_headers.c>
     # Headers pour les assets statiques
     <FilesMatch "\.(js|mjs|es\.js|css|json)$">
-        Header set Cache-Control "no-cache, no-store, must-revalidate"
-        Header set Pragma "no-cache"
-        Header set Expires "0"
+        Header set Cache-Control "max-age=31536000, public"
+        Header set Content-Type "application/javascript; charset=UTF-8" env=IS_JS
         Header set Access-Control-Allow-Origin "*"
         Header set Access-Control-Allow-Methods "GET, OPTIONS"
         Header set Access-Control-Allow-Headers "Content-Type"
+        SetEnvIf Request_URI "\.js$" IS_JS=1
     </FilesMatch>
 </IfModule>
 

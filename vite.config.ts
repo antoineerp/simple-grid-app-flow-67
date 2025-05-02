@@ -40,27 +40,25 @@ export default defineConfig(({ mode }) => {
           main: path.resolve(__dirname, 'index.html'),
         },
         output: {
-          // Configuration spécifique pour Infomaniak
+          // Configuration spécifique pour Infomaniak - éviter les hachages dans les noms de fichiers
           assetFileNames: (assetInfo) => {
             if (!assetInfo.name) {
-              return 'assets/[name].[hash].[ext]';
+              return 'assets/[name].[ext]';
             }
             const info = assetInfo.name.split('.');
             const ext = info.pop();
             const name = info.join('.');
             return `assets/${name}.${ext}`;
           },
-          chunkFileNames: 'assets/[name].[hash].js',
-          entryFileNames: 'assets/[name].[hash].js',
+          chunkFileNames: 'assets/[name].js',
+          entryFileNames: 'assets/[name].js',
         },
-        // Configuration explicite des dépendances externes pour éviter les erreurs de compilation
         external: []
       }
     },
     publicDir: 'public',
     base: basePath,
     optimizeDeps: {
-      // Inclure jspdf et jspdf-autotable pour s'assurer qu'ils sont correctement traités
       include: ['jspdf', 'jspdf-autotable']
     }
   };
