@@ -9,7 +9,7 @@ Options +FollowSymLinks
 # Définir le point d'entrée principal
 DirectoryIndex index.html index.php
 
-# Définir les types MIME corrects de manière explicite
+# Définir les types MIME corrects de manière explicite et stricte
 AddType application/javascript .js
 AddType application/javascript .mjs
 AddType application/javascript .es.js
@@ -18,8 +18,8 @@ AddType application/json .json
 AddType image/svg+xml .svg
 
 # Configuration spécifique pour les modules ES
-<FilesMatch "\.(m?js|es\.js)$">
-    Header set Content-Type "application/javascript"
+<FilesMatch "\.(js|mjs|es\.js)$">
+    Header set Content-Type "application/javascript; charset=UTF-8"
     Header set X-Content-Type-Options "nosniff"
 </FilesMatch>
 

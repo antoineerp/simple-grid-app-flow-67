@@ -5,16 +5,17 @@ RewriteEngine On
 # Configuration des types MIME
 AddType application/javascript .js
 AddType application/javascript .mjs
+AddType application/javascript .es.js
 AddType text/css .css
 
 # Force le bon type MIME pour les JavaScript
-<FilesMatch "\.js$">
+<FilesMatch "\.(js|mjs|es\.js)$">
     Header set Content-Type "application/javascript; charset=UTF-8"
     Header set X-Content-Type-Options "nosniff"
 </FilesMatch>
 
 # En-têtes de cache pour les assets
-<FilesMatch "\.(js|mjs|css)$">
+<FilesMatch "\.(js|mjs|es\.js|css)$">
     Header set Cache-Control "max-age=31536000, public"
 </FilesMatch>
 

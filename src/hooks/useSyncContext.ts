@@ -38,6 +38,6 @@ export interface SyncProviderOptions {
 }
 
 // Dummy SyncProvider for import resolution
-export const SyncProvider = ({ children }: { children: React.ReactNode, options?: SyncProviderOptions }) => {
+export const SyncProvider = ({ children }: { children: React.ReactNode; options?: SyncProviderOptions }) => {
   return <>{children}</>;
 };

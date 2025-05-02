@@ -40,18 +40,22 @@ export default defineConfig(({ mode }) => {
           main: path.resolve(__dirname, 'index.html'),
         },
         output: {
-          // Configuration spécifique pour Infomaniak - éviter les hachages dans les noms de fichiers
+          // Désactiver complètement le hachage des noms de fichiers pour éviter les problèmes MIME
+          entryFileNames: 'assets/[name].js',
+          chunkFileNames: 'assets/[name].js',
           assetFileNames: (assetInfo) => {
-            if (!assetInfo.name) {
-              return 'assets/[name].[ext]';
-            }
+            if (!assetInfo.name) return 'assets/[name].[ext]';
+            
             const info = assetInfo.name.split('.');
             const ext = info.pop();
             const name = info.join('.');
+            
+            if (ext === 'css') {
+              return `assets/${name}.css`;
+            }
+            
             return `assets/${name}.${ext}`;
-          },
-          chunkFileNames: 'assets/[name].js',
-          entryFileNames: 'assets/[name].js',
+          }
         },
         external: []
       }
