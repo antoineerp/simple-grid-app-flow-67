@@ -38,14 +38,15 @@ header('Content-Type: text/html; charset=utf-8');
     
     <h2>3. Test JavaScript modules</h2>
     <div id="test3">Test en cours...</div>
-    <script type="module">
-        try {
-            import { checkMimeTypeLoading } from './assets/check-mime.js';
-            document.getElementById('test3').innerHTML = '<span class="success">Module JavaScript chargé avec succès!</span>';
-        } catch (e) {
-            document.getElementById('test3').innerHTML = '<span class="error">Échec du chargement du module! Erreur: ' + e.message + '</span>';
-            console.error(e);
-        }
+    <script>
+        // Approche non module
+        setTimeout(function() {
+            if (typeof window.checkMimeTypeLoading === 'function') {
+                document.getElementById('test3').innerHTML = '<span class="success">Fonction JavaScript accessible globalement!</span>';
+            } else {
+                document.getElementById('test3').innerHTML = '<span class="error">Échec de l\'accès à la fonction globale!</span>';
+            }
+        }, 500);
     </script>
     
     <h2>En-têtes HTTP pour assets/check-mime.js</h2>

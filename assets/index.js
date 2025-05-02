@@ -4,3 +4,8 @@ console.log('Types MIME testés avec succès');
 document.addEventListener('DOMContentLoaded', function() {
   console.log('Le fichier JavaScript est correctement chargé avec le bon type MIME');
 });
+
+// Fonction globale pour vérification
+window.indexJsLoaded = function() {
+  return true;
+};
