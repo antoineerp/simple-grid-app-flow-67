@@ -17,5 +17,23 @@
     
     <!-- Script principal comme module -->
     <script type="module" src="/src/main.tsx"></script>
+    
+    <!-- Script principal comme fallback non-module -->
+    <script>
+      // Vérification du chargement des scripts
+      window.addEventListener('load', function() {
+        console.log("Vérification du chargement des scripts...");
+        
+        // Si après 2 secondes, l'application n'est pas chargée, essayer le fallback
+        setTimeout(function() {
+          if (!window.appLoaded && document.getElementById('root').children.length === 0) {
+            console.log("Application non chargée, essai du fallback...");
+            var script = document.createElement('script');
+            script.src = '/src/main.js';
+            document.body.appendChild(script);
+          }
+        }, 2000);
+      });
+    </script>
   </body>
 </html>

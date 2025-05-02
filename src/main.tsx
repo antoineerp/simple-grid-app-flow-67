@@ -25,6 +25,8 @@ try {
     </React.StrictMode>
   );
   
+  // Indiquer que l'application est chargée
+  window.appLoaded = true;
   console.log("App component mounted successfully");
 } catch (error) {
   console.error("Failed to render React application:", error);
@@ -63,3 +65,11 @@ window.addEventListener('error', (event) => {
     colno: event.colno
   });
 });
+
+// Déclarer le type global pour TypeScript
+declare global {
+  interface Window {
+    appLoaded?: boolean;
+    checkMimeTypeStatus?: () => any;
+  }
+}

@@ -38,5 +38,3 @@
     document.head.appendChild(script);
   };
 })();
-
-// No export statement - removed for compatibility with direct script loading
