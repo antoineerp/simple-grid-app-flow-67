@@ -1,8 +1,8 @@
 
-// Fichier JavaScript principal pour Infomaniak - format compatible
+// Fichier JavaScript principal pour Infomaniak - format compatible module
 "use strict";
 
-// Éviter les exports qui peuvent causer des problèmes sur certains serveurs
+// Utiliser une fonction auto-exécutante compatible module
 (function() {
   // Log simple pour confirmer le chargement
   console.log('Scripts chargés avec succès - Infomaniak compatible');
@@ -42,3 +42,6 @@
     }
   });
 })();
+
+// Export vide pour compatibilité ES module
+export {};

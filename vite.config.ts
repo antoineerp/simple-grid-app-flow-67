@@ -61,7 +61,12 @@ export default defineConfig(({ mode }) => {
           // Utiliser un format compatible avec plus de navigateurs pour Infomaniak
           format: 'es'
         },
-        external: []
+        // Définir les fichiers externes qui ne doivent pas être bundlés par Vite
+        external: [
+          'assets/check-mime.js',
+          'assets/index.js',
+          'assets/main.js'
+        ]
       }
     },
     publicDir: 'public',

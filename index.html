@@ -9,14 +9,13 @@
     <link rel="icon" type="image/svg+xml" href="favicon.ico" />
     <!-- Ensure the GPTEngineer script is loaded as a module -->
     <script src="https://cdn.gpteng.co/gptengineer.js" type="module"></script>
-    <!-- Charger le script de vérification des MIME pour Infomaniak -->
-    <script src="assets/check-mime.js"></script>
   </head>
   <body>
     <div id="root"></div>
-    <!-- Charger le script de compatibilité Infomaniak -->
-    <script src="assets/index.js"></script>
+    <!-- Chargement des scripts avec type="module" -->
+    <script src="assets/check-mime.js" type="module"></script>
+    <script src="assets/index.js" type="module"></script>
     <!-- Ensure the main script is loaded as a module -->
-    <script type="module" src="assets/main.js"></script>
+    <script type="module" src="src/main.tsx"></script>
   </body>
 </html>
