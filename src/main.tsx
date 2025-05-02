@@ -66,7 +66,7 @@ window.addEventListener('error', (event) => {
   });
 });
 
-// Déclarer le type global pour TypeScript
+// Déclarer le type global pour TypeScript - Maintenir comme optionnel
 declare global {
   interface Window {
     appLoaded?: boolean;

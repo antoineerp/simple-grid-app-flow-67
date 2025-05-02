@@ -117,10 +117,11 @@ const ConnectionDiagnostic = () => {
   );
 };
 
-// Ajout à window pour TypeScript
+// Modifié pour être cohérent avec la déclaration dans main.tsx
+// en utilisant un modificateur optionnel (?)
 declare global {
   interface Window { 
-    checkMimeTypeStatus: () => any;
+    checkMimeTypeStatus?: () => any;
   }
 }
 
