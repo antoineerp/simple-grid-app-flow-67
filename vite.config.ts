@@ -65,7 +65,7 @@ export default defineConfig(({ mode }) => {
         external: [
           'assets/check-mime.js',
           'assets/index.js',
-          'assets/main.js'
+          'https://cdn.gpteng.co/gptengineer.js'
         ]
       }
     },

@@ -7,7 +7,7 @@
   // Log simple pour confirmer le chargement
   console.log('Scripts chargés avec succès - Infomaniak compatible');
   
-  // Fonction globale pour vérification 
+  // Fonction globale pour vérification - définie explicitement sur l'objet window
   window.indexJsLoaded = function() {
     return {
       success: true,
