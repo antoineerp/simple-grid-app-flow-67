@@ -2,6 +2,7 @@
 import React from 'react';
 import LoginForm from '@/components/auth/LoginForm';
 import { getApiUrl } from '@/config/apiConfig';
+import ConnectionDiagnostic from '@/components/diagnostics/ConnectionDiagnostic';
 
 const Index = () => {
   React.useEffect(() => {
@@ -27,6 +28,10 @@ const Index = () => {
             <span>API: {getApiUrl()}</span>
           </div>
         </div>
+      </div>
+      
+      <div className="w-full max-w-md mt-4">
+        <ConnectionDiagnostic />
       </div>
       
       <div className="mt-4 text-sm text-gray-500">
