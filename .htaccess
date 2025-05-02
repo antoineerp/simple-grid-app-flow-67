@@ -1,3 +1,4 @@
+
 # Activer le moteur de réécriture
 RewriteEngine On
 
@@ -9,19 +10,30 @@ Options +FollowSymLinks
 DirectoryIndex index.html index.php
 
 # Définir les types MIME corrects de manière explicite et stricte
-AddType application/javascript .js
-AddType application/javascript .mjs
-AddType application/javascript .es.js
-AddType text/css .css
-AddType application/json .json
-AddType image/svg+xml .svg
+<IfModule mod_mime.c>
+    RemoveType .js .mjs .es.js
+    AddType application/javascript .js
+    AddType application/javascript .mjs
+    AddType application/javascript .es.js
+    AddType text/css .css
+    AddType application/json .json
+    AddType image/svg+xml .svg
+    
+    # Définir la priorité pour JavaScript
+    <IfModule mod_mime_magic.c>
+        MIMEMagicFile conf/magic
+    </IfModule>
+</IfModule>
 
-# Configuration spécifique pour les modules ES
+# Configuration plus stricte pour les modules ES
 <IfModule mod_headers.c>
-    <FilesMatch "\.(js|mjs|es\.js)$">
-        Header always set Content-Type "application/javascript; charset=UTF-8"
+    <FilesMatch "\.js$">
+        Header set Content-Type "application/javascript; charset=UTF-8"
         Header set X-Content-Type-Options "nosniff"
-        ForceType application/javascript
+    </FilesMatch>
+    <FilesMatch "\.(mjs|es\.js)$">
+        Header set Content-Type "application/javascript; charset=UTF-8"
+        Header set X-Content-Type-Options "nosniff"
     </FilesMatch>
 </IfModule>
 
@@ -68,11 +80,9 @@ RewriteRule ^(.*)$ index.html [QSA,L]
     # Headers pour les assets statiques
     <FilesMatch "\.(js|mjs|es\.js|css|json)$">
         Header set Cache-Control "max-age=31536000, public"
-        Header always set Content-Type "application/javascript; charset=UTF-8" env=IS_JS
         Header set Access-Control-Allow-Origin "*"
         Header set Access-Control-Allow-Methods "GET, OPTIONS"
         Header set Access-Control-Allow-Headers "Content-Type"
-        SetEnvIf Request_URI "\.js$" IS_JS=1
     </FilesMatch>
 </IfModule>
 

@@ -3,21 +3,28 @@
 RewriteEngine On
 
 # Configuration des types MIME
-AddType application/javascript .js
-AddType application/javascript .mjs
-AddType application/javascript .es.js
-AddType text/css .css
+<IfModule mod_mime.c>
+    RemoveType .js .mjs .es.js
+    AddType application/javascript .js
+    AddType application/javascript .mjs
+    AddType application/javascript .es.js
+    AddType text/css .css
+</IfModule>
 
 # Force le bon type MIME pour les JavaScript
 <FilesMatch "\.(js|mjs|es\.js)$">
-    Header always set Content-Type "application/javascript; charset=UTF-8"
-    Header set X-Content-Type-Options "nosniff"
-    ForceType application/javascript
+    <IfModule mod_headers.c>
+        Header always set Content-Type "application/javascript; charset=UTF-8"
+        Header set X-Content-Type-Options "nosniff"
+        ForceType application/javascript
+    </IfModule>
 </FilesMatch>
 
 # En-têtes de cache pour les assets
 <FilesMatch "\.(js|mjs|es\.js|css)$">
-    Header set Cache-Control "max-age=31536000, public"
+    <IfModule mod_headers.c>
+        Header set Cache-Control "max-age=31536000, public"
+    </IfModule>
 </FilesMatch>
 
 # Autoriser l'accès aux fichiers
@@ -25,14 +32,6 @@ AddType text/css .css
     Order Allow,Deny
     Allow from all
 </Files>
-
-# Ajout pour forcer la détection correcte du type MIME
-<IfModule mod_mime.c>
-    RemoveType .js
-    AddType application/javascript .js
-    AddEncoding gzip .gz
-    AddEncoding br .br
-</IfModule>
 
 # Ajout pour désactiver la négociation de contenu qui pourrait interférer
 Options -MultiViews

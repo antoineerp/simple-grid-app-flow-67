@@ -40,9 +40,9 @@ export default defineConfig(({ mode }) => {
           main: path.resolve(__dirname, 'index.html'),
         },
         output: {
-          // Désactiver complètement le hachage des noms de fichiers pour éviter les problèmes MIME
+          // Désactiver complètement le hachage des noms de fichiers
           entryFileNames: 'assets/[name].js',
-          chunkFileNames: 'assets/[name].js',
+          chunkFileNames: 'assets/[name]-chunk.js',
           assetFileNames: (assetInfo) => {
             if (!assetInfo.name) return 'assets/[name].[ext]';
             
@@ -55,7 +55,9 @@ export default defineConfig(({ mode }) => {
             }
             
             return `assets/${name}.${ext}`;
-          }
+          },
+          // Forcer les scripts à être des modules ES
+          format: 'es'
         },
         external: []
       }
