@@ -47,9 +47,9 @@ jobs:
         mkdir -p deploy/api/operations
         mkdir -p deploy/api/utils
         mkdir -p deploy/public/lovable-uploads
+        mkdir -p deploy/dist
         
         # Copier le dossier dist complet
-        mkdir -p deploy/dist
         cp -r dist/* deploy/dist/
         
         # Copie des fichiers compilés directement dans la racine

@@ -65,6 +65,28 @@ try {
         throw new Exception("Erreur de connexion à la base de données: " . $pdoError->getMessage());
     }
     
+    // Vérifier si l'utilisateur existe réellement dans la table utilisateurs
+    $checkUserQuery = "SELECT identifiant_technique FROM utilisateurs WHERE identifiant_technique = ?";
+    $stmt = $pdo->prepare($checkUserQuery);
+    $stmt->execute([$userId]);
+    
+    if (!$stmt->fetch()) {
+        error_log("L'utilisateur {$userId} n'existe pas dans la table utilisateurs");
+        // Récupérer le premier utilisateur disponible comme fallback
+        $fallbackQuery = "SELECT identifiant_technique FROM utilisateurs LIMIT 1";
+        $stmt = $pdo->prepare($fallbackQuery);
+        $stmt->execute();
+        $fallbackUser = $stmt->fetch();
+        
+        if ($fallbackUser) {
+            $userId = $fallbackUser['identifiant_technique'];
+            $safeUserId = preg_replace('/[^a-zA-Z0-9_]/', '_', $userId);
+            error_log("Utilisation de l'utilisateur par défaut: {$userId}");
+        } else {
+            throw new Exception("Aucun utilisateur trouvé dans la base de données");
+        }
+    }
+    
     // Nom des tables spécifiques à l'utilisateur
     $exigencesTableName = "exigences_" . $safeUserId;
     $groupsTableName = "exigence_groups_" . $safeUserId;
@@ -86,17 +108,35 @@ try {
     $stmt->execute([$dbname, $groupsTableName]);
     $groupsTableExists = (int)$stmt->fetchColumn() > 0;
     
+    error_log("Table exigences existe: " . ($exigencesTableExists ? "Oui" : "Non"));
+    error_log("Table groupes existe: " . ($groupsTableExists ? "Oui" : "Non"));
+    
     // Initialiser les résultats
     $exigences = [];
     $groups = [];
     
     // Récupérer les exigences si la table existe
     if ($exigencesTableExists) {
-        $query = "SELECT * FROM `{$exigencesTableName}` WHERE userId = ? ORDER BY id";
-        error_log("Exécution de la requête: {$query}");
-        $stmt = $pdo->prepare($query);
-        $stmt->execute([$userId]);
+        // Vérifier si la table a un champ userId
+        $columnsQuery = "SHOW COLUMNS FROM `{$exigencesTableName}` LIKE 'userId'";
+        $stmt = $pdo->prepare($columnsQuery);
+        $stmt->execute();
+        $hasUserIdField = $stmt->fetch() !== false;
+        
+        if ($hasUserIdField) {
+            $query = "SELECT * FROM `{$exigencesTableName}` WHERE userId = ? OR userId IS NULL ORDER BY id";
+            error_log("Exécution de la requête avec userId: {$query}");
+            $stmt = $pdo->prepare($query);
+            $stmt->execute([$userId]);
+        } else {
+            $query = "SELECT * FROM `{$exigencesTableName}` ORDER BY id";
+            error_log("Exécution de la requête sans userId (champ non trouvé): {$query}");
+            $stmt = $pdo->prepare($query);
+            $stmt->execute();
+        }
+        
         $exigences = $stmt->fetchAll();
+        error_log("Nombre d'exigences récupérées: " . count($exigences));
         
         // Formater les données pour le client
         foreach ($exigences as &$exigence) {
@@ -126,7 +166,7 @@ try {
             }
             
             // S'assurer que chaque exigence a un userId
-            if (!isset($exigence['userId'])) {
+            if (!isset($exigence['userId']) || empty($exigence['userId'])) {
                 $exigence['userId'] = $userId;
             }
         }
@@ -150,11 +190,26 @@ try {
     
     // Récupérer les groupes si la table existe
     if ($groupsTableExists) {
-        $query = "SELECT * FROM `{$groupsTableName}` WHERE userId = ? ORDER BY id";
-        error_log("Exécution de la requête: {$query}");
-        $stmt = $pdo->prepare($query);
-        $stmt->execute([$userId]);
+        // Vérifier si la table des groupes a un champ userId
+        $columnsQuery = "SHOW COLUMNS FROM `{$groupsTableName}` LIKE 'userId'";
+        $stmt = $pdo->prepare($columnsQuery);
+        $stmt->execute();
+        $hasUserIdField = $stmt->fetch() !== false;
+        
+        if ($hasUserIdField) {
+            $query = "SELECT * FROM `{$groupsTableName}` WHERE userId = ? OR userId IS NULL ORDER BY id";
+            error_log("Exécution de la requête pour les groupes avec userId: {$query}");
+            $stmt = $pdo->prepare($query);
+            $stmt->execute([$userId]);
+        } else {
+            $query = "SELECT * FROM `{$groupsTableName}` ORDER BY id";
+            error_log("Exécution de la requête pour les groupes sans userId (champ non trouvé): {$query}");
+            $stmt = $pdo->prepare($query);
+            $stmt->execute();
+        }
+        
         $groups = $stmt->fetchAll();
+        error_log("Nombre de groupes récupérés: " . count($groups));
         
         // Formater les données pour le client
         foreach ($groups as &$group) {
@@ -164,7 +219,7 @@ try {
             }
             
             // S'assurer que chaque groupe a un userId
-            if (!isset($group['userId'])) {
+            if (!isset($group['userId']) || empty($group['userId'])) {
                 $group['userId'] = $userId;
             }
         }

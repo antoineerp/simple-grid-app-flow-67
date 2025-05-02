@@ -26,39 +26,49 @@ export const useExigenceState = (tableName = 'exigences') => {
   useEffect(() => {
     const loadLocalData = () => {
       try {
-        console.log(`Chargement des données pour l'utilisateur ${currentUser}`);
+        console.log(`[useExigenceState] Chargement des données pour l'utilisateur ${currentUser}`);
         const storedExigences = localStorage.getItem(`${tableName}_${currentUser}`);
         const storedGroups = localStorage.getItem(`${tableName}_groups_${currentUser}`);
         
         if (storedExigences) {
           try {
             const parsedExigences = JSON.parse(storedExigences);
-            setExigences(parsedExigences);
-            console.log(`Chargé ${parsedExigences.length} exigences depuis le localStorage`);
+            if (Array.isArray(parsedExigences)) {
+              console.log(`[useExigenceState] ${parsedExigences.length} exigences chargées depuis localStorage`);
+              setExigences(parsedExigences);
+            } else {
+              console.error("[useExigenceState] Format incorrect des exigences dans localStorage");
+              setExigences([]);
+            }
           } catch (parseError) {
-            console.error("Erreur d'analyse des exigences depuis localStorage:", parseError);
+            console.error("[useExigenceState] Erreur d'analyse des exigences depuis localStorage:", parseError);
             setExigences([]);
           }
         } else {
-          console.log(`Aucune exigence trouvée dans le localStorage pour ${currentUser}`);
+          console.log(`[useExigenceState] Aucune exigence trouvée dans localStorage pour ${currentUser}`);
           setExigences([]);
         }
         
         if (storedGroups) {
           try {
             const parsedGroups = JSON.parse(storedGroups);
-            setGroups(parsedGroups);
-            console.log(`Chargé ${parsedGroups.length} groupes depuis le localStorage`);
+            if (Array.isArray(parsedGroups)) {
+              console.log(`[useExigenceState] ${parsedGroups.length} groupes chargés depuis localStorage`);
+              setGroups(parsedGroups);
+            } else {
+              console.error("[useExigenceState] Format incorrect des groupes dans localStorage");
+              setGroups([]);
+            }
           } catch (parseError) {
-            console.error("Erreur d'analyse des groupes depuis localStorage:", parseError);
+            console.error("[useExigenceState] Erreur d'analyse des groupes depuis localStorage:", parseError);
             setGroups([]);
           }
         } else {
-          console.log(`Aucun groupe trouvé dans le localStorage pour ${currentUser}`);
+          console.log(`[useExigenceState] Aucun groupe trouvé dans localStorage pour ${currentUser}`);
           setGroups([]);
         }
       } catch (error) {
-        console.error("Erreur lors du chargement des données depuis localStorage:", error);
+        console.error("[useExigenceState] Erreur lors du chargement des données depuis localStorage:", error);
         setLoadError("Erreur lors du chargement des données locales");
         setExigences([]);
         setGroups([]);
@@ -71,16 +81,26 @@ export const useExigenceState = (tableName = 'exigences') => {
   // Save exigences to local storage when they change
   useEffect(() => {
     if (exigences.length > 0) {
-      localStorage.setItem(`${tableName}_${currentUser}`, JSON.stringify(exigences));
-      setDataChanged(true);
+      try {
+        localStorage.setItem(`${tableName}_${currentUser}`, JSON.stringify(exigences));
+        setDataChanged(true);
+        console.log(`[useExigenceState] ${exigences.length} exigences sauvegardées dans localStorage`);
+      } catch (error) {
+        console.error("[useExigenceState] Erreur lors de la sauvegarde des exigences:", error);
+      }
     }
   }, [exigences, currentUser, tableName]);
   
   // Save groups to local storage when they change
   useEffect(() => {
     if (groups.length > 0) {
-      localStorage.setItem(`${tableName}_groups_${currentUser}`, JSON.stringify(groups));
-      setDataChanged(true);
+      try {
+        localStorage.setItem(`${tableName}_groups_${currentUser}`, JSON.stringify(groups));
+        setDataChanged(true);
+        console.log(`[useExigenceState] ${groups.length} groupes sauvegardés dans localStorage`);
+      } catch (error) {
+        console.error("[useExigenceState] Erreur lors de la sauvegarde des groupes:", error);
+      }
     }
   }, [groups, currentUser, tableName]);
 

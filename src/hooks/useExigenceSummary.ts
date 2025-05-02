@@ -1,66 +1,82 @@
 
 import { useState, useEffect } from 'react';
-import { ExigenceStats } from '@/types/exigences';
+import { getCurrentUserId } from '@/utils/userUtils';
+import { Exigence } from '@/types/exigences';
 
 export const useExigenceSummary = () => {
-  const [stats, setStats] = useState<ExigenceStats>({
-    exclusion: 0,
-    nonConforme: 0,
-    partiellementConforme: 0,
-    conforme: 0,
-    total: 0
-  });
-  
-  const currentUser = localStorage.getItem('currentUser') || 'default';
+  const currentUser = getCurrentUserId();
+  const [nonConforme, setNonConforme] = useState(0);
+  const [partiellementConforme, setPartiellementConforme] = useState(0);
+  const [conforme, setConforme] = useState(0);
+  const [exclusion, setExclusion] = useState(0);
+  const [total, setTotal] = useState(0);
+  const [conformityRate, setConformityRate] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    // Function to load exigences and calculate stats
-    const loadExigences = () => {
-      // Retrieve exigences from local storage for the current user
-      const storedExigences = localStorage.getItem(`exigences_${currentUser}`);
+    const loadData = async () => {
+      setIsLoading(true);
+      setError(null);
       
-      if (storedExigences) {
-        const exigences = JSON.parse(storedExigences);
+      try {
+        console.log("[useExigenceSummary] Chargement des données d'exigences");
+        const tableName = 'exigences';
         
-        // Calculate stats
-        const exclusionCount = exigences.filter((e: any) => e.exclusion).length;
-        const nonExcludedExigences = exigences.filter((e: any) => !e.exclusion);
+        // Essayer de charger depuis localStorage d'abord
+        const storedExigences = localStorage.getItem(`${tableName}_${currentUser}`);
         
-        const newStats = {
-          exclusion: exclusionCount,
-          nonConforme: nonExcludedExigences.filter((e: any) => e.atteinte === 'NC').length,
-          partiellementConforme: nonExcludedExigences.filter((e: any) => e.atteinte === 'PC').length,
-          conforme: nonExcludedExigences.filter((e: any) => e.atteinte === 'C').length,
-          total: nonExcludedExigences.length
-        };
+        if (!storedExigences) {
+          console.log("[useExigenceSummary] Aucune donnée trouvée dans localStorage");
+          setIsLoading(false);
+          return;
+        }
         
-        setStats(newStats);
+        const exigences: Exigence[] = JSON.parse(storedExigences);
+        if (!Array.isArray(exigences)) {
+          throw new Error("Format de données invalide");
+        }
+        
+        console.log(`[useExigenceSummary] ${exigences.length} exigences chargées`);
+        
+        // Filtrer et compter les exigences par statut
+        const excludedCount = exigences.filter(e => e.exclusion).length;
+        const validExigences = exigences.filter(e => !e.exclusion);
+        const ncCount = validExigences.filter(e => e.atteinte === 'NC').length;
+        const pcCount = validExigences.filter(e => e.atteinte === 'PC').length;
+        const cCount = validExigences.filter(e => e.atteinte === 'C').length;
+        const totalCount = validExigences.length;
+        
+        // Calculer le taux de conformité
+        const conformRate = totalCount > 0 ? Math.round((cCount / totalCount) * 100) : 0;
+        
+        // Mettre à jour les états
+        setNonConforme(ncCount);
+        setPartiellementConforme(pcCount);
+        setConforme(cCount);
+        setExclusion(excludedCount);
+        setTotal(totalCount);
+        setConformityRate(conformRate);
+        
+      } catch (err) {
+        console.error("[useExigenceSummary] Erreur lors du chargement des données:", err);
+        setError(err instanceof Error ? err.message : "Erreur inconnue");
+      } finally {
+        setIsLoading(false);
       }
     };
 
-    // Load exigences initially
-    loadExigences();
-
-    // Set up event listener for storage changes
-    window.addEventListener('storage', loadExigences);
-    // Add custom event listener for exigence updates
-    window.addEventListener('exigenceUpdate', loadExigences);
-
-    // Clean up event listeners
-    return () => {
-      window.removeEventListener('storage', loadExigences);
-      window.removeEventListener('exigenceUpdate', loadExigences);
-    };
+    loadData();
   }, [currentUser]);
 
-  // Calculate conformity rate (percentage of conforme out of total non-excluded)
-  const getConformityRate = () => {
-    if (stats.total === 0) return 0;
-    return Math.round((stats.conforme / stats.total) * 100);
-  };
-
   return {
-    ...stats,
-    conformityRate: getConformityRate()
+    nonConforme,
+    partiellementConforme,
+    conforme,
+    exclusion,
+    total,
+    conformityRate,
+    isLoading,
+    error
   };
 };
