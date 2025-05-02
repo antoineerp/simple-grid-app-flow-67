@@ -51,6 +51,7 @@ $dirsToCheck = [
     'api/config' => $apiPath . '/config',
     'api/controllers' => $apiPath . '/controllers',
     'dist' => $rootPath . '/dist',
+    'assets' => $rootPath . '/assets',
     'sites' => '/sites'
 ];
 
@@ -63,19 +64,19 @@ foreach ($dirsToCheck as $name => $path) {
         'writable' => $exists ? is_writable($path) : false
     ];
     
-    // Si c'est le dossier dist, lister son contenu
-    if ($exists && $name === 'dist') {
+    // Si c'est le dossier assets, lister son contenu
+    if ($exists && ($name === 'assets' || $name === 'dist')) {
         $pathInfo['directory_structure'][$name]['contents'] = scandir($path);
     }
 }
 
-// Vérifier l'existence des fichiers principaux de l'API
+// Vérifier l'existence des fichiers principaux
 $filesToCheck = [
-    'index.php' => $apiPath . '/index.php',
-    'config/env.php' => $apiPath . '/config/env.php',
-    'config/database.php' => $apiPath . '/config/database.php',
-    'controllers/AuthController.php' => $apiPath . '/controllers/AuthController.php',
-    'dist/index.html' => $rootPath . '/dist/index.html'
+    'index.html' => $rootPath . '/index.html',
+    '.htaccess' => $rootPath . '/.htaccess',
+    'assets/.htaccess' => $rootPath . '/assets/.htaccess',
+    'assets/index.js' => $rootPath . '/assets/index.js',
+    'vite.config.ts' => $rootPath . '/vite.config.ts'
 ];
 
 foreach ($filesToCheck as $name => $path) {
@@ -86,55 +87,61 @@ foreach ($filesToCheck as $name => $path) {
         'readable' => $exists ? is_readable($path) : false,
         'size' => $exists ? filesize($path) : 0
     ];
-}
-
-// Vérification de l'existence de sites/qualiopi.ch/api si on est chez Infomaniak
-if ($isInfomaniak) {
-    $infomaniakApiPath = '/sites/qualiopi.ch/api';
-    $pathInfo['infomaniak_paths'] = [
-        'sites_exists' => is_dir('/sites'),
-        'sites_qualiopi_ch_exists' => is_dir('/sites/qualiopi.ch'),
-        'sites_qualiopi_ch_api_exists' => is_dir($infomaniakApiPath)
-    ];
     
-    // Si le dossier existe, vérifier quelques fichiers clés
-    if (is_dir($infomaniakApiPath)) {
-        $infomaniakFilesToCheck = [
-            'index.php' => $infomaniakApiPath . '/index.php', 
-            'config/database.php' => $infomaniakApiPath . '/config/database.php'
-        ];
+    // Si c'est index.html, vérifier son contenu
+    if ($exists && $name === 'index.html') {
+        $content = file_get_contents($path);
+        $pathInfo['files'][$name]['script_references'] = [];
         
-        foreach ($infomaniakFilesToCheck as $name => $path) {
-            $exists = file_exists($path);
-            $pathInfo['infomaniak_paths']['files'][$name] = [
-                'exists' => $exists,
-                'readable' => $exists ? is_readable($path) : false,
-                'size' => $exists ? filesize($path) : 0
-            ];
+        // Extraire les balises script
+        preg_match_all('/<script[^>]*src="([^"]*)"[^>]*><\/script>/', $content, $matches);
+        if (!empty($matches[1])) {
+            foreach ($matches[1] as $scriptSrc) {
+                $pathInfo['files'][$name]['script_references'][] = $scriptSrc;
+            }
+        }
+        
+        // Vérifier si les chemins sont relatifs
+        $pathInfo['files'][$name]['has_absolute_paths'] = false;
+        foreach ($pathInfo['files'][$name]['script_references'] as $src) {
+            if (strpos($src, '/') === 0) {
+                $pathInfo['files'][$name]['has_absolute_paths'] = true;
+                break;
+            }
         }
     }
 }
 
-// Ajouter des informations sur la base de données si possible
-try {
-    if (file_exists($apiPath . '/config/database.php')) {
-        require_once $apiPath . '/config/database.php';
-        $database = new Database();
-        $dbConfig = $database->getConfig();
-        
-        // Ne pas exposer le mot de passe
-        if (isset($dbConfig['password'])) {
-            $dbConfig['password'] = '********';
-        }
-        
-        $pathInfo['database'] = [
-            'config' => $dbConfig,
-            'connection_test' => $database->testConnection()
-        ];
-    }
-} catch (Exception $e) {
-    $pathInfo['database'] = [
-        'error' => $e->getMessage()
+// Vérifier si l'application pourrait avoir des problèmes connus
+$pathInfo['potential_issues'] = [];
+
+// Vérifier les chemins absolus dans index.html
+if (isset($pathInfo['files']['index.html']) && $pathInfo['files']['index.html']['exists'] && $pathInfo['files']['index.html']['has_absolute_paths']) {
+    $pathInfo['potential_issues'][] = [
+        'type' => 'path',
+        'severity' => 'high',
+        'message' => 'Le fichier index.html contient des chemins absolus pour les scripts, ce qui peut poser problème sur Infomaniak',
+        'fix' => 'Remplacer les chemins absolus (commençant par /) par des chemins relatifs'
+    ];
+}
+
+// Vérifier si index.js existe
+if (!isset($pathInfo['files']['assets/index.js']) || !$pathInfo['files']['assets/index.js']['exists']) {
+    $pathInfo['potential_issues'][] = [
+        'type' => 'missing_file',
+        'severity' => 'high',
+        'message' => 'Le fichier assets/index.js est manquant',
+        'fix' => 'Créer le fichier assets/index.js avec le contenu compatible Infomaniak'
+    ];
+}
+
+// Vérifier si le .htaccess principal existe
+if (!isset($pathInfo['files']['.htaccess']) || !$pathInfo['files']['.htaccess']['exists']) {
+    $pathInfo['potential_issues'][] = [
+        'type' => 'missing_file',
+        'severity' => 'critical',
+        'message' => 'Le fichier .htaccess principal est manquant',
+        'fix' => 'Créer le fichier .htaccess avec les configurations nécessaires'
     ];
 }
 

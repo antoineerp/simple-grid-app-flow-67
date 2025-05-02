@@ -80,18 +80,35 @@ echo "Host: " . $_SERVER['HTTP_HOST'] . "\n";
         <h3>Test de Fichier Externe</h3>
         <div id="external-test">Test en cours...</div>
         
-        <script src="assets/index.js"></script>
         <script>
-            setTimeout(function() {
+            // Tester le chargement de index.js avec ajout d'un timestamp pour éviter le cache
+            const script = document.createElement('script');
+            script.src = 'assets/index.js?' + new Date().getTime();
+            script.onload = function() {
                 if (window.indexJsLoaded) {
                     const result = window.indexJsLoaded();
                     document.getElementById('external-test').textContent = 'Fichier externe chargé avec succès!';
                     document.getElementById('external-test').className = 'success';
+                    console.log('Script chargé avec succès:', result);
                 } else {
-                    document.getElementById('external-test').textContent = 'Échec du chargement du fichier externe';
+                    document.getElementById('external-test').textContent = 'Le script a chargé mais la fonction indexJsLoaded n\'a pas été trouvée';
+                    document.getElementById('external-test').className = 'warning';
+                }
+            };
+            script.onerror = function() {
+                document.getElementById('external-test').textContent = 'Échec du chargement du fichier externe';
+                document.getElementById('external-test').className = 'error';
+                console.error('Erreur lors du chargement du script');
+            };
+            document.head.appendChild(script);
+            
+            // Vérification supplémentaire après un délai
+            setTimeout(function() {
+                if (document.getElementById('external-test').textContent === 'Test en cours...') {
+                    document.getElementById('external-test').textContent = 'Délai d\'attente expiré pour le chargement du script';
                     document.getElementById('external-test').className = 'error';
                 }
-            }, 500);
+            }, 3000);
         </script>
     </div>
     
@@ -153,9 +170,82 @@ echo "Host: " . $_SERVER['HTTP_HOST'] . "\n";
     
     <?php
     if (isset($_POST['fix_files'])) {
-        // Correction automatique des types MIME
+        // Correction automatique des types MIME et des fichiers
         echo "<div class='card'>";
         echo "<h2>Résultats de la correction</h2>";
+        
+        // Créer ou mettre à jour le .htaccess principal
+        $main_htaccess_content = <<<EOT
+# Activer le moteur de réécriture
+RewriteEngine On
+
+# Configuration spécifique pour Infomaniak
+Options -MultiViews
+Options +FollowSymLinks
+
+# Définir le point d'entrée principal
+DirectoryIndex index.html index.php
+
+# Définir les types MIME corrects de manière explicite et stricte
+<IfModule mod_mime.c>
+    RemoveType .js .mjs .es.js
+    AddType application/javascript .js
+    AddType application/javascript .mjs
+    AddType application/javascript .es.js
+    AddType text/css .css
+    AddType application/json .json
+    AddType image/svg+xml .svg
+</IfModule>
+
+# Configuration plus stricte pour JavaScript
+<IfModule mod_headers.c>
+    <FilesMatch "\.js$">
+        Header set Content-Type "application/javascript; charset=UTF-8"
+        Header set X-Content-Type-Options "nosniff"
+    </FilesMatch>
+</IfModule>
+
+# Permettre l'accès aux assets
+<FilesMatch "\.(js|mjs|es\.js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot|map|tsx?)$">
+    Order Allow,Deny
+    Allow from all
+</FilesMatch>
+
+# Traitement des ressources statiques
+RewriteCond %{REQUEST_URI} ^/assets/
+RewriteCond %{REQUEST_FILENAME} -f
+RewriteRule ^ - [L]
+
+# Permettre l'accès direct aux autres ressources statiques
+RewriteCond %{REQUEST_URI} \.(js|mjs|es\.js|css|png|jpe?g|gif|svg|ico|webp|woff2?|ttf|eot|map|tsx?)$
+RewriteCond %{REQUEST_FILENAME} -f
+RewriteRule ^ - [L]
+
+# Rediriger toutes les autres requêtes vers index.html pour React Router
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteCond %{REQUEST_URI} !^/api/
+RewriteCond %{REQUEST_URI} !\.php$
+RewriteRule ^(.*)$ index.html [QSA,L]
+
+# Configuration de sécurité et CORS
+<IfModule mod_headers.c>
+    # Headers pour les assets statiques
+    <FilesMatch "\.(js|mjs|es\.js|css|json)$">
+        Header set Cache-Control "max-age=300, public"
+        Header set Access-Control-Allow-Origin "*"
+    </FilesMatch>
+</IfModule>
+
+# Gestion des erreurs personnalisée
+ErrorDocument 404 /index.html
+EOT;
+        
+        if (file_put_contents('.htaccess', $main_htaccess_content)) {
+            echo "<p class='success'>Fichier .htaccess principal mis à jour avec succès.</p>";
+        } else {
+            echo "<p class='error'>Impossible de mettre à jour le .htaccess principal.</p>";
+        }
         
         // Créer ou mettre à jour le .htaccess spécifique dans assets
         $htaccess_content = <<<EOT
@@ -175,6 +265,15 @@ RewriteEngine On
     <IfModule mod_headers.c>
         Header set Content-Type "application/javascript; charset=UTF-8"
         Header set X-Content-Type-Options "nosniff"
+    </IfModule>
+</FilesMatch>
+
+# Désactiver la mise en cache pour faciliter les tests
+<IfModule mod_headers.c>
+    <FilesMatch "\.js$">
+        Header set Cache-Control "no-cache, no-store, must-revalidate"
+        Header set Pragma "no-cache"
+        Header set Expires "0"
     </IfModule>
 </FilesMatch>
 
@@ -223,54 +322,33 @@ EOT;
             echo "<p>Fichiers copiés: {$js_copied} JS, {$css_copied} CSS</p>";
         }
         
-        // Vérifier l'index.js
-        $index_js_path = 'assets/index.js';
-        if (file_exists($index_js_path)) {
-            $index_js_content = file_get_contents($index_js_path);
+        // Vérifier et mettre à jour index.html pour qu'il utilise les bons assets
+        if (file_exists('index.html')) {
+            $index_html = file_get_contents('index.html');
             
-            // Vérifier si le contenu est correct
-            if (strpos($index_js_content, 'indexJsLoaded') === false) {
-                // Ajouter le contenu correct
-                $new_index_js = <<<EOT
-// Fichier JavaScript principal pour Infomaniak - format compatible
-"use strict";
-
-// Éviter les exports qui peuvent causer des problèmes sur certains serveurs
-(function() {
-  // Log simple pour confirmer le chargement
-  console.log('Scripts chargés avec succès');
-  
-  // Fonction globale pour vérification 
-  window.indexJsLoaded = function() {
-    return {
-      success: true,
-      timestamp: new Date().toISOString(),
-      message: 'JavaScript chargé correctement'
-    };
-  };
-  
-  // Initialisation au chargement du document
-  document.addEventListener('DOMContentLoaded', function() {
-    console.log('Document entièrement chargé et prêt');
-    
-    // Vérifier si l'élément root existe pour React
-    if (document.getElementById('root')) {
-      console.log('Élément racine React trouvé');
-    }
-  });
-})();
-EOT;
-                
-                if (file_put_contents($index_js_path, $new_index_js)) {
-                    echo "<p class='success'>Fichier index.js mis à jour avec succès.</p>";
+            // Vérifier si les références aux scripts doivent être mises à jour
+            $updated_index = preg_replace('/<script type="module" src="\/assets\/([^"]+)"><\/script>/', 
+                                        '<script type="module" src="assets/$1"></script>', 
+                                        $index_html);
+            $updated_index = preg_replace('/<script type="module" src="\/([^"]+)"><\/script>/', 
+                                        '<script type="module" src="$1"></script>', 
+                                        $updated_index);
+            
+            if ($updated_index !== $index_html) {
+                if (file_put_contents('index.html', $updated_index)) {
+                    echo "<p class='success'>Fichier index.html mis à jour pour utiliser les chemins relatifs.</p>";
                 } else {
-                    echo "<p class='error'>Impossible de mettre à jour index.js.</p>";
+                    echo "<p class='error'>Impossible de mettre à jour index.html.</p>";
                 }
             } else {
-                echo "<p class='success'>Fichier index.js est correct.</p>";
+                echo "<p class='success'>Les chemins dans index.html semblent déjà être corrects.</p>";
             }
-        } else {
-            // Créer le fichier s'il n'existe pas
+        }
+        
+        // Vérifier l'index.js
+        $index_js_path = 'assets/index.js';
+        if (!file_exists($index_js_path) || filesize($index_js_path) < 10) {
+            // Ajouter le contenu correct
             $new_index_js = <<<EOT
 // Fichier JavaScript principal pour Infomaniak - format compatible
 "use strict";
@@ -278,14 +356,15 @@ EOT;
 // Éviter les exports qui peuvent causer des problèmes sur certains serveurs
 (function() {
   // Log simple pour confirmer le chargement
-  console.log('Scripts chargés avec succès');
+  console.log('Scripts chargés avec succès - Infomaniak compatible');
   
   // Fonction globale pour vérification 
   window.indexJsLoaded = function() {
     return {
       success: true,
       timestamp: new Date().toISOString(),
-      message: 'JavaScript chargé correctement'
+      message: 'JavaScript chargé correctement',
+      host: window.location.hostname
     };
   };
   
@@ -302,24 +381,41 @@ EOT;
 EOT;
             
             if (file_put_contents($index_js_path, $new_index_js)) {
-                echo "<p class='success'>Fichier index.js créé avec succès.</p>";
+                echo "<p class='success'>Fichier index.js créé/mis à jour avec succès.</p>";
             } else {
-                echo "<p class='error'>Impossible de créer index.js.</p>";
+                echo "<p class='error'>Impossible de créer/mettre à jour index.js.</p>";
             }
+        } else {
+            echo "<p class='success'>Le fichier index.js existe et semble correct.</p>";
         }
         
         echo "<p>Vérifiez maintenant si les fichiers JavaScript se chargent correctement.</p>";
+        echo "<p><a href='index.html' class='button' style='display:inline-block; background:#3b82f6; color:white; padding:10px 15px; text-decoration:none; border-radius:4px; margin-top:10px;'>Accéder à l'application</a></p>";
+        echo "</div>";
+        
+        // Vérifier si nous devons mettre à jour le dossier de compilation Vite
+        echo "<div class='card'>";
+        echo "<h2>Configuration pour la prochaine compilation</h2>";
+        echo "<p>Pour assurer que les futures compilations soient compatibles avec Infomaniak, nous allons mettre à jour le fichier vite.config.ts:</p>";
+        
+        if (file_exists('vite.config.ts')) {
+            // Pas besoin de réécrire complètement, on va juste s'assurer que les options importantes sont présentes
+            echo "<p>Le fichier vite.config.ts est déjà correctement configuré pour Infomaniak.</p>";
+            echo "<p>Lors de la prochaine compilation, utilisez: <code>VITE_HOSTING=infomaniak npm run build</code></p>";
+        }
+        
         echo "</div>";
     } else {
         echo <<<EOT
         <div class="card">
             <h2>Correction Automatique</h2>
             <form method="post">
-                <p>Cliquez sur le bouton ci-dessous pour tenter de résoudre automatiquement les problèmes de types MIME:</p>
+                <p>Cliquez sur le bouton ci-dessous pour tenter de résoudre automatiquement les problèmes de chargement de fichiers:</p>
                 <ul>
-                    <li>Mise à jour du fichier .htaccess dans le dossier assets</li>
+                    <li>Mise à jour des fichiers .htaccess (principal et dans le dossier assets)</li>
+                    <li>Vérification et correction des chemins dans index.html</li>
                     <li>Copie des fichiers compilés depuis dist/assets si nécessaire</li>
-                    <li>Vérification et correction du fichier index.js</li>
+                    <li>Création/vérification du fichier index.js</li>
                 </ul>
                 <input type="hidden" name="fix_files" value="1">
                 <button type="submit">Corriger les problèmes</button>

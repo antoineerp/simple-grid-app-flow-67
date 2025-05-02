@@ -8,7 +8,9 @@ import { componentTagger } from "lovable-tagger";
 export default defineConfig(({ mode }) => {
   // Configuration spécifique pour Infomaniak
   const isInfomaniak = process.env.VITE_HOSTING === 'infomaniak' || process.env.NODE_ENV === 'production';
-  const basePath = isInfomaniak ? '/' : '/';
+  const basePath = isInfomaniak ? './' : '/'; // Utiliser des chemins relatifs sur Infomaniak
+  
+  console.log(`Mode: ${mode}, Infomaniak: ${isInfomaniak}, BasePath: ${basePath}`);
   
   return {
     server: {
@@ -57,7 +59,7 @@ export default defineConfig(({ mode }) => {
             return isInfomaniak ? `assets/${name}.${ext}` : `assets/${name}.[hash].${ext}`;
           },
           // Utiliser un format compatible avec plus de navigateurs pour Infomaniak
-          format: isInfomaniak ? 'es' : 'es'
+          format: 'es'
         },
         external: []
       }

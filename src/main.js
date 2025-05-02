@@ -50,19 +50,3 @@ window.addEventListener('DOMContentLoaded', () => {
     }
   }
 });
-
-// Global error handler
-window.addEventListener('error', (event) => {
-  console.error('Global error caught:', event.error);
-  console.error('Error details:', {
-    message: event.error?.message,
-    stack: event.error?.stack,
-    filename: event.filename,
-    lineno: event.lineno,
-    colno: event.colno
-  });
-});
-
-// Check if the application was loaded from the correct domain
-console.log("Application running on domain:", window.location.hostname);
-console.log("Asset path test:", "/assets/index.css exists:", document.querySelector('link[href*="index.css"]') !== null);
