@@ -4,6 +4,11 @@ import LoginForm from '@/components/auth/LoginForm';
 import { getApiUrl } from '@/config/apiConfig';
 
 const Index = () => {
+  React.useEffect(() => {
+    console.log("Index page mounted");
+    document.title = "Qualite.cloud - Connexion";
+  }, []);
+
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 p-6">
       <div className="w-full max-w-md bg-white rounded-lg shadow-lg p-8">
@@ -22,7 +27,7 @@ const Index = () => {
       </div>
       
       <div className="mt-4 text-sm text-gray-500">
-        © {new Date().getFullYear()} Qualite.cloud - v1.0.7
+        © {new Date().getFullYear()} Qualite.cloud - v1.0.8
       </div>
     </div>
   );

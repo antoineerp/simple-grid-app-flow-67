@@ -18,29 +18,21 @@ DirectoryIndex index.html index.php
     AddType text/css .css
     AddType application/json .json
     AddType image/svg+xml .svg
-    
-    # Définir la priorité pour JavaScript
-    <IfModule mod_mime_magic.c>
-        MIMEMagicFile conf/magic
-    </IfModule>
 </IfModule>
 
-# Configuration plus stricte pour les modules ES
+# Configuration plus stricte pour les modules ES et scripts JavaScript
 <IfModule mod_headers.c>
     <FilesMatch "\.js$">
         Header always set Content-Type "application/javascript; charset=UTF-8"
         Header set X-Content-Type-Options "nosniff"
-        ForceType application/javascript
     </FilesMatch>
     <FilesMatch "\.(mjs|es\.js)$">
         Header always set Content-Type "application/javascript; charset=UTF-8"
         Header set X-Content-Type-Options "nosniff"
-        ForceType application/javascript
     </FilesMatch>
     <FilesMatch "\.tsx?$">
         Header always set Content-Type "application/javascript; charset=UTF-8"
         Header set X-Content-Type-Options "nosniff"
-        ForceType application/javascript
     </FilesMatch>
 </IfModule>
 
@@ -54,16 +46,10 @@ DirectoryIndex index.html index.php
 RewriteCond %{REQUEST_URI} ^/lovable-uploads/
 RewriteRule ^lovable-uploads/(.*)$ public/lovable-uploads/$1 [L]
 
-# Règle spécifique pour rediriger /api vers le dossier api/index.php
+# Règles pour l'API
 RewriteRule ^api$ api/index.php [L]
-
-# Règle pour traiter les requêtes d'API avec des sous-chemins directs
 RewriteRule ^api/([^/]+)\.php$ api/$1.php [QSA,L]
-
-# Règle pour traiter les requêtes d'API avec des sous-chemins
 RewriteRule ^api/([^/]+)$ api/$1.php [QSA,L]
-
-# Règle pour autres requêtes API
 RewriteRule ^api/(.*)$ api/$1 [QSA,L]
 
 # Permettre l'accès direct aux assets dans leur dossier

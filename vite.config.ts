@@ -64,8 +64,7 @@ export default defineConfig(({ mode }) => {
         // Définir les fichiers externes qui ne doivent pas être bundlés par Vite
         external: [
           'assets/check-mime.js',
-          'assets/index.js',
-          'https://cdn.gpteng.co/gptengineer.js'
+          'assets/index.js'
         ]
       }
     },

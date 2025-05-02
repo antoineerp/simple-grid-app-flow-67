@@ -1,8 +1,5 @@
 
-# Activer le moteur de réécriture
-RewriteEngine On
-
-# Configuration des types MIME
+# Configuration des types MIME pour les assets
 <IfModule mod_mime.c>
     RemoveType .js .mjs .es.js
     AddType application/javascript .js
@@ -16,11 +13,10 @@ RewriteEngine On
     <IfModule mod_headers.c>
         Header always set Content-Type "application/javascript; charset=UTF-8"
         Header set X-Content-Type-Options "nosniff"
-        ForceType application/javascript
     </IfModule>
 </FilesMatch>
 
-# En-têtes de cache pour les assets - désactiver le cache
+# En-têtes de cache pour les assets
 <FilesMatch "\.(js|mjs|es\.js|css)$">
     <IfModule mod_headers.c>
         Header set Cache-Control "no-cache, no-store, must-revalidate"
@@ -33,5 +29,5 @@ RewriteEngine On
     Allow from all
 </Files>
 
-# Ajout pour désactiver la négociation de contenu qui pourrait interférer
+# Désactiver la négociation de contenu qui pourrait interférer
 Options -MultiViews
