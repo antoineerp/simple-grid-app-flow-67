@@ -72,7 +72,7 @@ export default defineConfig(({ mode }) => {
     publicDir: 'public',
     base: basePath,
     optimizeDeps: {
-      include: ['jspdf', 'jspdf-autotable']
+      exclude: ['assets/check-mime.js', 'assets/index.js']
     }
   };
 });

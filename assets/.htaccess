@@ -20,10 +20,10 @@ RewriteEngine On
     </IfModule>
 </FilesMatch>
 
-# En-têtes de cache pour les assets
+# En-têtes de cache pour les assets - désactiver le cache
 <FilesMatch "\.(js|mjs|es\.js|css)$">
     <IfModule mod_headers.c>
-        Header set Cache-Control "public, max-age=0, must-revalidate"
+        Header set Cache-Control "no-cache, no-store, must-revalidate"
     </IfModule>
 </FilesMatch>
 

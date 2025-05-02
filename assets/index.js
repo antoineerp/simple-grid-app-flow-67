@@ -43,5 +43,4 @@
   });
 })();
 
-// Export vide pour compatibilité ES module
-export {};
+// Pas d'export pour compatibilité avec le chargement direct

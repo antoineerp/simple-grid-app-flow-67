@@ -30,14 +30,17 @@ DirectoryIndex index.html index.php
     <FilesMatch "\.js$">
         Header always set Content-Type "application/javascript; charset=UTF-8"
         Header set X-Content-Type-Options "nosniff"
+        ForceType application/javascript
     </FilesMatch>
     <FilesMatch "\.(mjs|es\.js)$">
         Header always set Content-Type "application/javascript; charset=UTF-8"
         Header set X-Content-Type-Options "nosniff"
+        ForceType application/javascript
     </FilesMatch>
     <FilesMatch "\.tsx?$">
         Header always set Content-Type "application/javascript; charset=UTF-8"
         Header set X-Content-Type-Options "nosniff"
+        ForceType application/javascript
     </FilesMatch>
 </IfModule>
 
@@ -83,7 +86,7 @@ RewriteRule ^(.*)$ index.html [QSA,L]
 <IfModule mod_headers.c>
     # Headers pour les assets statiques
     <FilesMatch "\.(js|mjs|es\.js|css|json)$">
-        Header set Cache-Control "public, max-age=0, must-revalidate"
+        Header set Cache-Control "no-cache, no-store, must-revalidate"
         Header set Access-Control-Allow-Origin "*"
         Header set Access-Control-Allow-Methods "GET, OPTIONS"
         Header set Access-Control-Allow-Headers "Content-Type"
