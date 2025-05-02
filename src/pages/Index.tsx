@@ -7,6 +7,9 @@ const Index = () => {
   React.useEffect(() => {
     console.log("Index page mounted");
     document.title = "Qualite.cloud - Connexion";
+    
+    // Vérifier que l'application est bien chargée
+    console.log("Application React chargée correctement");
   }, []);
 
   return (
@@ -27,7 +30,7 @@ const Index = () => {
       </div>
       
       <div className="mt-4 text-sm text-gray-500">
-        © {new Date().getFullYear()} Qualite.cloud - v1.0.8
+        © {new Date().getFullYear()} Qualite.cloud - v1.0.9
       </div>
     </div>
   );
