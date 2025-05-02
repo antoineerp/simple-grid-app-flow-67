@@ -17,7 +17,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
 error_log("=== EXÉCUTION DE db-connection-test.php ===");
 
 try {
-    // Tester la connexion PDO directement
+    // Tester la connexion PDO directement avec les paramètres de production
     $host = "p71x6d.myd.infomaniak.com";
     $dbname = "p71x6d_system";
     $username = "p71x6d_system";
@@ -30,39 +30,31 @@ try {
         PDO::ATTR_EMULATE_PREPARES => false,
     ];
     
-    error_log("Tentative de connexion PDO directe à la base de données");
+    error_log("Tentative de connexion PDO à la base de données de production");
     $pdo = new PDO($dsn, $username, $password, $options);
     error_log("Connexion PDO réussie");
     
-    // Vérifier que la connexion fonctionne en exécutant une requête
+    // Vérifier la connexion
     $stmt = $pdo->query("SELECT DATABASE() as db");
     $result = $stmt->fetch();
     $current_db = $result['db'];
     
-    // Tester l'existence de la table utilisateurs
-    $stmt = $pdo->query("SHOW TABLES LIKE 'utilisateurs'");
-    $tableExists = $stmt->rowCount() > 0;
-    
-    // Compter le nombre d'utilisateurs si la table existe
-    $userCount = 0;
-    if ($tableExists) {
-        $stmt = $pdo->query("SELECT COUNT(*) as count FROM utilisateurs");
-        $result = $stmt->fetch();
-        $userCount = $result['count'];
-    }
+    // Vérifier l'existence des tables
+    $stmt = $pdo->query("SHOW TABLES");
+    $tables = $stmt->fetchAll(PDO::FETCH_COLUMN);
     
     // Préparer la réponse
     http_response_code(200);
     echo json_encode([
         'status' => 'success',
-        'message' => 'Connexion PDO directe réussie',
+        'message' => 'Connexion à la base de données réussie',
         'connection_info' => [
             'host' => $host,
             'database' => $dbname,
             'user' => $username,
             'current_database' => $current_db,
-            'table_users_exists' => $tableExists,
-            'user_count' => $userCount
+            'tables' => $tables,
+            'tables_count' => count($tables)
         ],
     ]);
     exit;
@@ -72,7 +64,7 @@ try {
     http_response_code(500);
     echo json_encode([
         'status' => 'error',
-        'message' => 'Échec de la connexion PDO directe',
+        'message' => 'Échec de la connexion à la base de données',
         'error' => $e->getMessage()
     ]);
     exit;

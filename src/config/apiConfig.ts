@@ -4,7 +4,7 @@ const apiUrl = getApiBaseUrl();
 
 // Fonction pour déterminer l'URL de base de l'API en fonction de l'environnement
 function getApiBaseUrl(): string {
-  // Toujours utiliser le chemin relatif pour la production et le développement
+  // Toujours utiliser le chemin relatif pour la production
   return '/api';
 }
 
@@ -23,8 +23,8 @@ export async function testApiConnection(): Promise<{ success: boolean; message: 
   try {
     console.log(`Test de connexion à l'API: ${getFullApiUrl()}`);
     
-    // Pour le test direct, utiliser info.php qui renvoie l'état du serveur
-    const response = await fetch(`${getApiUrl()}/info.php`, {
+    // Pour le test direct, utiliser diagnose-connection.php qui est optimisé
+    const response = await fetch(`${getApiUrl()}/diagnose-connection.php`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -39,7 +39,7 @@ export async function testApiConnection(): Promise<{ success: boolean; message: 
     try {
       const data = JSON.parse(responseText);
       return {
-        success: true,
+        success: data.status === 'success',
         message: data.message || 'API connectée',
         details: data
       };

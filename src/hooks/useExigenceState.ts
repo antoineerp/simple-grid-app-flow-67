@@ -26,7 +26,7 @@ export const useExigenceState = (tableName = 'exigences') => {
   useEffect(() => {
     const loadLocalData = () => {
       try {
-        console.log(`Attempting to load data for user ${currentUser}`);
+        console.log(`Chargement des données pour l'utilisateur ${currentUser}`);
         const storedExigences = localStorage.getItem(`${tableName}_${currentUser}`);
         const storedGroups = localStorage.getItem(`${tableName}_groups_${currentUser}`);
         
@@ -34,14 +34,13 @@ export const useExigenceState = (tableName = 'exigences') => {
           try {
             const parsedExigences = JSON.parse(storedExigences);
             setExigences(parsedExigences);
-            console.log(`Loaded ${parsedExigences.length} exigences from local storage`);
+            console.log(`Chargé ${parsedExigences.length} exigences depuis le localStorage`);
           } catch (parseError) {
-            console.error("Error parsing exigences from localStorage:", parseError);
+            console.error("Erreur d'analyse des exigences depuis localStorage:", parseError);
             setExigences([]);
           }
         } else {
-          console.log(`No exigences found in local storage for ${currentUser}`);
-          // Initialize with empty array if none found
+          console.log(`Aucune exigence trouvée dans le localStorage pour ${currentUser}`);
           setExigences([]);
         }
         
@@ -49,20 +48,18 @@ export const useExigenceState = (tableName = 'exigences') => {
           try {
             const parsedGroups = JSON.parse(storedGroups);
             setGroups(parsedGroups);
-            console.log(`Loaded ${parsedGroups.length} groups from local storage`);
+            console.log(`Chargé ${parsedGroups.length} groupes depuis le localStorage`);
           } catch (parseError) {
-            console.error("Error parsing groups from localStorage:", parseError);
+            console.error("Erreur d'analyse des groupes depuis localStorage:", parseError);
             setGroups([]);
           }
         } else {
-          console.log(`No groups found in local storage for ${currentUser}`);
-          // Initialize with empty array if none found
+          console.log(`Aucun groupe trouvé dans le localStorage pour ${currentUser}`);
           setGroups([]);
         }
       } catch (error) {
-        console.error("Error loading data from local storage:", error);
+        console.error("Erreur lors du chargement des données depuis localStorage:", error);
         setLoadError("Erreur lors du chargement des données locales");
-        // Initialize with empty arrays on error
         setExigences([]);
         setGroups([]);
       }

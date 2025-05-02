@@ -1,8 +1,6 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useRef, useCallback } from 'react';
 import { Membre } from '@/types/membres';
-import { useNetworkStatus } from '@/hooks/useNetworkStatus';
-import { useToast } from '@/hooks/use-toast';
 
 interface MembresContextProps {
   membres: Membre[];
@@ -38,31 +36,19 @@ export const MembresProvider: React.FC<MembresProviderProps> = ({ children }) =>
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<Error | null>(null);
   const [syncFailed, setSyncFailed] = useState<boolean>(false);
-  const { isOnline } = useNetworkStatus();
-  const initialized = useRef<boolean>(false);
   const mountedRef = useRef<boolean>(true);
-  const loadingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const consecutiveErrorsRef = useRef<number>(0);
-  const { toast } = useToast();
-  const authErrorShownRef = useRef<boolean>(false);
-
+  
   // Nettoyer les timeouts au démontage
   useEffect(() => {
     mountedRef.current = true;
     
     return () => {
       mountedRef.current = false;
-      
-      if (loadingTimeoutRef.current) {
-        clearTimeout(loadingTimeoutRef.current);
-        loadingTimeoutRef.current = null;
-      }
     };
   }, []);
 
-  // Ne plus charger les membres du serveur, juste utiliser le tableau vide
+  // Utiliser uniquement le tableau vide
   useEffect(() => {
-    initialized.current = true;
     setMembres([]);
     setLastSynced(new Date());
     setSyncFailed(false);
@@ -83,8 +69,6 @@ export const MembresProvider: React.FC<MembresProviderProps> = ({ children }) =>
 
   const resetSyncFailed = useCallback(() => {
     setSyncFailed(false);
-    consecutiveErrorsRef.current = 0;
-    authErrorShownRef.current = false;
   }, []);
 
   const refreshMembres = useCallback(async () => {
