@@ -8,9 +8,7 @@ import { componentTagger } from "lovable-tagger";
 export default defineConfig(({ mode }) => {
   // Configuration spécifique pour Infomaniak
   const isInfomaniak = process.env.VITE_HOSTING === 'infomaniak' || process.env.NODE_ENV === 'production';
-  const basePath = isInfomaniak ? './' : '/'; // Utiliser des chemins relatifs sur Infomaniak
-  
-  console.log(`Mode: ${mode}, Infomaniak: ${isInfomaniak}, BasePath: ${basePath}`);
+  const basePath = isInfomaniak ? '/' : '/';
   
   return {
     server: {
@@ -42,36 +40,28 @@ export default defineConfig(({ mode }) => {
           main: path.resolve(__dirname, 'index.html'),
         },
         output: {
-          // Désactiver le hachage pour Infomaniak - noms simples et prévisibles
-          entryFileNames: isInfomaniak ? 'assets/[name].js' : 'assets/[name].[hash].js',
-          chunkFileNames: isInfomaniak ? 'assets/[name]-chunk.js' : 'assets/[name].[hash].js',
+          // Configuration spécifique pour Infomaniak
           assetFileNames: (assetInfo) => {
-            if (!assetInfo.name) return 'assets/[name].[ext]';
-            
+            if (!assetInfo.name) {
+              return 'assets/[name].[hash].[ext]';
+            }
             const info = assetInfo.name.split('.');
             const ext = info.pop();
             const name = info.join('.');
-            
-            if (ext === 'css') {
-              return isInfomaniak ? `assets/${name}.css` : `assets/${name}.[hash].css`;
-            }
-            
-            return isInfomaniak ? `assets/${name}.${ext}` : `assets/${name}.[hash].${ext}`;
+            return `assets/${name}.${ext}`;
           },
-          // Utiliser un format compatible avec plus de navigateurs pour Infomaniak
-          format: 'es'
+          chunkFileNames: 'assets/[name].[hash].js',
+          entryFileNames: 'assets/[name].[hash].js',
         },
-        // Définir les fichiers externes qui ne doivent pas être bundlés par Vite
-        external: [
-          'assets/check-mime.js',
-          'assets/index.js'
-        ]
+        // Configuration explicite des dépendances externes pour éviter les erreurs de compilation
+        external: []
       }
     },
     publicDir: 'public',
     base: basePath,
     optimizeDeps: {
-      exclude: ['assets/check-mime.js', 'assets/index.js']
+      // Inclure jspdf et jspdf-autotable pour s'assurer qu'ils sont correctement traités
+      include: ['jspdf', 'jspdf-autotable']
     }
   };
 });

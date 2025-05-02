@@ -1,64 +1,87 @@
-import { useState, useCallback } from 'react';
-import { useNetworkStatus } from './useNetworkStatus';
+import { useState, useCallback, useEffect } from 'react';
+import { SyncResult } from '@/services/sync/SyncService';
+import { useToast } from '@/components/ui/use-toast';
+import { useNetworkStatus } from '@/hooks/useNetworkStatus';
+import { useSyncContext } from '@/features/sync/hooks/useSyncContext';
+import { SyncState } from '@/features/sync/types/syncTypes';
 
-export interface SyncOptions {
-  autoSave?: boolean;
-  showToasts?: boolean;
-}
-
-export const useSync = (tableName: string, options: SyncOptions = {}) => {
-  const [data, setData] = useState<unknown[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [isSyncing, setIsSyncing] = useState(false);
-  const [syncFailed, setSyncFailed] = useState(false);
+/**
+ * Hook pour gérer la synchronisation de données avec le serveur
+ */
+export const useSync = (tableName: string): SyncState & {
+  syncAndProcess: <T>(data: T[], trigger?: "auto" | "manual" | "initial") => Promise<SyncResult>;
+  resetSyncStatus: () => void;
+  isOnline: boolean; // Add isOnline to the return type
+} => {
   const [lastSynced, setLastSynced] = useState<Date | null>(null);
-  const [error, setError] = useState<string>('');
   const { isOnline } = useNetworkStatus();
+  const { syncTable, syncStates } = useSyncContext();
+  const { toast } = useToast();
   
-  const syncData = useCallback(async () => {
-    // Implementation omitted for brevity
-    return true;
-  }, [tableName, isOnline]);
+  // Obtenir l'état de synchronisation à partir du contexte global
+  const syncState = syncStates[tableName] || { 
+    isSyncing: false, 
+    lastSynced: null, 
+    syncFailed: false,
+    pendingSync: false,
+    dataChanged: false
+  };
   
-  const forceSyncData = useCallback(async () => {
-    // Implementation omitted for brevity
-    return true;
-  }, [tableName, isOnline]);
+  // Extraire les états
+  const isSyncing = syncState.isSyncing;
+  const syncFailed = syncState.syncFailed;
+  const pendingSync = syncState.pendingSync;
   
-  // Add the syncAndProcess method that's missing
-  const syncAndProcess = useCallback(async (newData: unknown, trigger: "auto" | "manual" | "initial" = "manual") => {
-    setIsSyncing(true);
-    try {
-      // Simulate sync process
-      console.log(`Syncing ${tableName} with trigger ${trigger}`);
-      
-      // Wait a bit to simulate network
-      await new Promise(resolve => setTimeout(resolve, 300));
-      
-      setLastSynced(new Date());
-      setSyncFailed(false);
-      
-      return { success: true };
-    } catch (err) {
-      console.error(`Failed to sync ${tableName}:`, err);
-      setSyncFailed(true);
-      return { success: false, error: err };
-    } finally {
-      setIsSyncing(false);
+  // Mise à jour de l'état de synchronisation local à partir du contexte global
+  useEffect(() => {
+    if (syncState.lastSynced && (!lastSynced || new Date(syncState.lastSynced) > lastSynced)) {
+      setLastSynced(new Date(syncState.lastSynced));
     }
+  }, [syncState, lastSynced]);
+  
+  // Fonction pour synchroniser les données et gérer les erreurs
+  const syncAndProcess = useCallback(async <T>(
+    data: T[],
+    trigger: "auto" | "manual" | "initial" = "auto"
+  ): Promise<SyncResult> => {
+    // Utiliser le service central pour la synchronisation
+    try {
+      const result = await syncTable(tableName, data, trigger);
+      
+      if (result.success) {
+        return {
+          success: true,
+          message: `${tableName} synchronisé avec succès`
+        };
+      } else {
+        return {
+          success: false,
+          message: result.message
+        };
+      }
+    } catch (error) {
+      console.error(`useSync: Erreur lors de la synchronisation de ${tableName}:`, error);
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : String(error)
+      };
+    }
+  }, [tableName, syncTable]);
+  
+  // Réinitialiser l'état de synchronisation (compatibilité)
+  const resetSyncStatus = useCallback(() => {
+    // Cette fonction est conservée pour la compatibilité
+    console.log(`useSync: resetSyncStatus appelé pour ${tableName} (no-op)`);
   }, [tableName]);
   
   return {
-    data,
-    setData,
-    isLoading,
     isSyncing,
-    syncFailed,
     lastSynced,
-    error,
-    syncData,
-    forceSyncData,
+    syncFailed,
+    pendingSync,
+    dataChanged: syncState.dataChanged || false,
     syncAndProcess,
-    isOnline
+    resetSyncStatus,
+    isOnline  // Include isOnline in the return object
   };
 };

@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Pencil, Trash, GripVertical, ChevronDown } from 'lucide-react';
 import ResponsableSelector from '@/components/ResponsableSelector';
@@ -18,7 +19,7 @@ interface ExigenceTableProps {
   groups: ExigenceGroup[];
   onResponsabiliteChange: (id: string, type: 'r' | 'a' | 'c' | 'i', values: string[]) => void;
   onAtteinteChange: (id: string, atteinte: 'NC' | 'PC' | 'C' | null) => void;
-  onExclusionChange: (id: string, exclusion: boolean) => void;
+  onExclusionChange: (id: string) => void;
   onEdit: (id: string) => void;
   onDelete: (id: string) => void;
   onReorder: (startIndex: number, endIndex: number, targetGroupId?: string) => void;
@@ -356,7 +357,7 @@ const ExigenceTable: React.FC<ExigenceTableProps> = ({
                     <TableCell className="py-3 px-4 text-center">
                       <Checkbox 
                         checked={exigence.exclusion}
-                        onCheckedChange={() => onExclusionChange(exigence.id, !exigence.exclusion)}
+                        onCheckedChange={() => onExclusionChange(exigence.id)}
                         className="form-checkbox h-4 w-4 text-app-blue rounded"
                       />
                     </TableCell>
@@ -471,7 +472,7 @@ const ExigenceTable: React.FC<ExigenceTableProps> = ({
               <TableCell className="py-3 px-4 text-center">
                 <Checkbox 
                   checked={exigence.exclusion}
-                  onCheckedChange={() => onExclusionChange(exigence.id, !exigence.exclusion)}
+                  onCheckedChange={() => onExclusionChange(exigence.id)}
                   className="form-checkbox h-4 w-4 text-app-blue rounded"
                 />
               </TableCell>

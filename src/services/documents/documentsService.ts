@@ -9,9 +9,34 @@ export const loadDocumentsFromStorage = (currentUser: string): Document[] => {
   
   if (storedDocuments) {
     return JSON.parse(storedDocuments);
+  } else {
+    const defaultDocuments = localStorage.getItem('documents_template') || localStorage.getItem('documents');
+    
+    if (defaultDocuments) {
+      return JSON.parse(defaultDocuments);
+    }
+    
+    return [
+      { 
+        id: '1', 
+        nom: 'Manuel qualité', 
+        fichier_path: null,
+        responsabilites: { r: [], a: [], c: [], i: [] },
+        etat: null,
+        date_creation: new Date(),
+        date_modification: new Date()
+      },
+      { 
+        id: '2', 
+        nom: 'Processus opérationnel', 
+        fichier_path: null,
+        responsabilites: { r: [], a: [], c: [], i: [] },
+        etat: null,
+        date_creation: new Date(),
+        date_modification: new Date()
+      },
+    ];
   }
-  
-  return [];
 };
 
 /**

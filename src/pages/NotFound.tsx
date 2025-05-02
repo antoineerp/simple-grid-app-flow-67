@@ -1,25 +1,25 @@
 
-import React from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
+import { useLocation, Link } from "react-router-dom";
+import { useEffect } from "react";
 
 const NotFound = () => {
-  const navigate = useNavigate();
+  const location = useLocation();
+
+  useEffect(() => {
+    console.error(
+      "404 Error: Page non trouvée:",
+      location.pathname
+    );
+  }, [location.pathname]);
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-slate-50 px-4">
-      <div className="text-6xl font-bold text-gray-300">404</div>
-      <h1 className="text-3xl font-bold mt-6 mb-2">Page introuvable</h1>
-      <p className="text-muted-foreground mb-8 text-center">
-        La page que vous recherchez n'existe pas ou a été déplacée.
-      </p>
-      <div className="flex gap-4">
-        <Button onClick={() => navigate(-1)}>
-          Retour en arrière
-        </Button>
-        <Button variant="outline" onClick={() => navigate('/')}>
-          Accueil
-        </Button>
+    <div className="min-h-screen flex items-center justify-center bg-gray-100">
+      <div className="text-center">
+        <h1 className="text-4xl font-bold mb-4 text-app-blue">404</h1>
+        <p className="text-xl text-gray-600 mb-4">Page non trouvée</p>
+        <Link to="/" className="text-app-blue hover:underline">
+          Retour à l'accueil
+        </Link>
       </div>
     </div>
   );

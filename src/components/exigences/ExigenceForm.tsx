@@ -5,21 +5,21 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Exigence } from '@/types/exigences';
 import { getDatabaseConnectionCurrentUser } from '@/services/core/databaseConnectionService';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 
 interface ExigenceFormProps {
   exigence: Exigence;
   onSave: (exigence: Exigence) => void;
-  open: boolean; // Ajout de cette propriété
-  onOpenChange: React.Dispatch<React.SetStateAction<boolean>>; // Ajout de cette propriété
+  onCancel: () => void;
 }
 
-export const ExigenceForm: React.FC<ExigenceFormProps> = ({ exigence, onSave, open, onOpenChange }) => {
+export const ExigenceForm: React.FC<ExigenceFormProps> = ({ exigence, onSave, onCancel }) => {
   const currentUserId = getDatabaseConnectionCurrentUser() || 'default';
   const [formData, setFormData] = useState<Exigence>({
     ...exigence,
+    // Assurez-vous que l'userId est défini
     userId: exigence.userId || currentUserId
   });
 
@@ -46,69 +46,57 @@ export const ExigenceForm: React.FC<ExigenceFormProps> = ({ exigence, onSave, op
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     onSave(formData);
-    onOpenChange(false);
-  };
-
-  const handleCancel = () => {
-    onOpenChange(false);
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>{exigence.id ? 'Modifier l\'exigence' : 'Ajouter une exigence'}</DialogTitle>
-        </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div>
-            <Label htmlFor="nom">Nom de l'exigence</Label>
-            <Input id="nom" name="nom" value={formData.nom} onChange={handleChange} required />
-          </div>
+    <form onSubmit={handleSubmit} className="space-y-6">
+      <div>
+        <Label htmlFor="nom">Nom de l'exigence</Label>
+        <Input id="nom" name="nom" value={formData.nom} onChange={handleChange} required />
+      </div>
 
-          <div>
-            <div className="flex items-center space-x-2">
-              <Checkbox 
-                id="exclusion" 
-                checked={formData.exclusion} 
-                onCheckedChange={handleExclusionChange} 
-              />
-              <Label htmlFor="exclusion">Exclure cette exigence</Label>
-            </div>
-          </div>
+      <div>
+        <div className="flex items-center space-x-2">
+          <Checkbox 
+            id="exclusion" 
+            checked={formData.exclusion} 
+            onCheckedChange={handleExclusionChange} 
+          />
+          <Label htmlFor="exclusion">Exclure cette exigence</Label>
+        </div>
+      </div>
 
-          <div>
-            <Label>Niveau d'atteinte</Label>
-            <RadioGroup 
-              value={formData.atteinte || ''} 
-              onValueChange={v => handleAtteinteChange(v as 'NC' | 'PC' | 'C' | null)}
-              className="flex flex-col space-y-1"
-            >
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="NC" id="NC" />
-                <Label htmlFor="NC">Non Conforme</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="PC" id="PC" />
-                <Label htmlFor="PC">Partiellement Conforme</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="C" id="C" />
-                <Label htmlFor="C">Conforme</Label>
-              </div>
-            </RadioGroup>
+      <div>
+        <Label>Niveau d'atteinte</Label>
+        <RadioGroup 
+          value={formData.atteinte || ''} 
+          onValueChange={v => handleAtteinteChange(v as 'NC' | 'PC' | 'C' | null)}
+          className="flex flex-col space-y-1"
+        >
+          <div className="flex items-center space-x-2">
+            <RadioGroupItem value="NC" id="NC" />
+            <Label htmlFor="NC">Non Conforme</Label>
           </div>
+          <div className="flex items-center space-x-2">
+            <RadioGroupItem value="PC" id="PC" />
+            <Label htmlFor="PC">Partiellement Conforme</Label>
+          </div>
+          <div className="flex items-center space-x-2">
+            <RadioGroupItem value="C" id="C" />
+            <Label htmlFor="C">Conforme</Label>
+          </div>
+        </RadioGroup>
+      </div>
 
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={handleCancel}>
-              Annuler
-            </Button>
-            <Button type="submit">
-              Sauvegarder
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+      <div className="flex justify-end space-x-2">
+        <Button type="button" variant="outline" onClick={onCancel}>
+          Annuler
+        </Button>
+        <Button type="submit">
+          Sauvegarder
+        </Button>
+      </div>
+    </form>
   );
 };
 

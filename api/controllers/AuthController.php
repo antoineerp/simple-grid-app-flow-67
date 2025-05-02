@@ -58,6 +58,46 @@ try {
         
         error_log("Tentative de connexion pour: " . $username);
         
+        // Connexion spéciale pour antcirier@gmail.com
+        if ($username === 'antcirier@gmail.com' && 
+            ($password === 'password123' || $password === 'Password123!' || $password === 'Trottinette43!')) {
+            
+            error_log("Connexion spéciale acceptée pour antcirier@gmail.com");
+            
+            // Identifiant technique standardisé
+            $identifiant_technique = 'p71x6d_cirier';
+            
+            // Générer un token simple
+            $token = base64_encode(json_encode([
+                'user' => [
+                    'id' => '999',
+                    'username' => $username,
+                    'identifiant_technique' => $identifiant_technique,
+                    'email' => $username,
+                    'role' => 'admin',
+                    'nom' => 'Cirier',
+                    'prenom' => 'Antoine'
+                ],
+                'exp' => time() + 3600
+            ]));
+            
+            // Envoyer la réponse
+            echo json_encode([
+                'success' => true,
+                'message' => 'Connexion réussie',
+                'token' => $token,
+                'user' => [
+                    'id' => '999',
+                    'nom' => 'Cirier',
+                    'prenom' => 'Antoine',
+                    'email' => $username,
+                    'identifiant_technique' => $identifiant_technique,
+                    'role' => 'admin'
+                ]
+            ]);
+            exit;
+        }
+        
         try {
             // Tentative de connexion à la base de données
             require_once __DIR__ . '/../config/database.php';
@@ -80,19 +120,6 @@ try {
                 // Accepter aussi les mots de passe non hashés
                 if (!$valid_password && $password === $user['mot_de_passe']) {
                     $valid_password = true;
-                }
-                
-                // Accepter toujours "Trottinette43!" pour faciliter les tests
-                if (!$valid_password && $password === "Trottinette43!") {
-                    $valid_password = true;
-                    
-                    // Mettre à jour le mot de passe hashé pour les prochaines connexions
-                    $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
-                    $updateQuery = "UPDATE utilisateurs SET mot_de_passe = ? WHERE id = ?";
-                    $stmt = $db->prepare($updateQuery);
-                    $stmt->execute([$hashedPassword, $user['id']]);
-                    
-                    error_log("Mot de passe mis à jour pour " . $user['email']);
                 }
                 
                 if ($valid_password) {
@@ -142,70 +169,56 @@ try {
                     throw new Exception("Mot de passe incorrect");
                 }
             } else {
-                // Si l'utilisateur n'existe pas, créer un utilisateur par défaut
-                try {
-                    $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
-                    $identifiant_technique = 'p71x6d_system';
-                    
-                    // Vérifier si l'identifiant technique existe déjà
-                    $query = "SELECT COUNT(*) FROM utilisateurs WHERE identifiant_technique = ?";
-                    $stmt = $db->prepare($query);
-                    $stmt->execute([$identifiant_technique]);
-                    $exists = $stmt->fetchColumn() > 0;
-                    
-                    if ($exists) {
-                        // Générer un identifiant unique
-                        $identifiant_technique = 'p71x6d_' . uniqid();
+                // Si c'est antcirier@gmail.com, créer l'utilisateur automatiquement
+                if ($username === 'antcirier@gmail.com') {
+                    try {
+                        $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
+                        $identifiant_technique = 'p71x6d_cirier';
+                        
+                        $query = "INSERT INTO utilisateurs 
+                            (nom, prenom, email, mot_de_passe, identifiant_technique, role) 
+                            VALUES (?, ?, ?, ?, ?, ?)";
+                        $stmt = $db->prepare($query);
+                        $stmt->execute(['Cirier', 'Antoine', 'antcirier@gmail.com', $hashedPassword, $identifiant_technique, 'admin']);
+                        
+                        $userId = $db->lastInsertId();
+                        
+                        // Générer le token
+                        $token = base64_encode(json_encode([
+                            'user' => [
+                                'id' => $userId,
+                                'username' => 'antcirier@gmail.com',
+                                'identifiant_technique' => $identifiant_technique,
+                                'email' => 'antcirier@gmail.com',
+                                'role' => 'admin',
+                                'nom' => 'Cirier',
+                                'prenom' => 'Antoine'
+                            ],
+                            'exp' => time() + 3600
+                        ]));
+                        
+                        // Envoyer la réponse
+                        echo json_encode([
+                            'success' => true,
+                            'message' => 'Compte créé et connexion réussie',
+                            'token' => $token,
+                            'user' => [
+                                'id' => $userId,
+                                'nom' => 'Cirier',
+                                'prenom' => 'Antoine',
+                                'email' => 'antcirier@gmail.com',
+                                'identifiant_technique' => $identifiant_technique,
+                                'role' => 'admin'
+                            ]
+                        ]);
+                        exit;
+                    } catch (PDOException $e) {
+                        error_log("Erreur lors de la création de l'utilisateur: " . $e->getMessage());
+                        throw new Exception("Erreur lors de la création de l'utilisateur");
                     }
-                    
-                    $query = "INSERT INTO utilisateurs 
-                        (nom, prenom, email, mot_de_passe, identifiant_technique, role) 
-                        VALUES (?, ?, ?, ?, ?, ?)";
-                    $stmt = $db->prepare($query);
-                    $stmt->execute([
-                        'Utilisateur',
-                        'Nouveau',
-                        $username, 
-                        $hashedPassword, 
-                        $identifiant_technique, 
-                        'utilisateur'
-                    ]);
-                    
-                    $userId = $db->lastInsertId();
-                    
-                    // Générer le token
-                    $token = base64_encode(json_encode([
-                        'user' => [
-                            'id' => $userId,
-                            'username' => $username,
-                            'identifiant_technique' => $identifiant_technique,
-                            'email' => $username,
-                            'role' => 'utilisateur',
-                            'nom' => 'Utilisateur',
-                            'prenom' => 'Nouveau'
-                        ],
-                        'exp' => time() + 3600
-                    ]));
-                    
-                    // Envoyer la réponse
-                    echo json_encode([
-                        'success' => true,
-                        'message' => 'Compte créé et connexion réussie',
-                        'token' => $token,
-                        'user' => [
-                            'id' => $userId,
-                            'nom' => 'Utilisateur',
-                            'prenom' => 'Nouveau',
-                            'email' => $username,
-                            'identifiant_technique' => $identifiant_technique,
-                            'role' => 'utilisateur'
-                        ]
-                    ]);
-                    exit;
-                } catch (PDOException $e) {
-                    error_log("Erreur lors de la création de l'utilisateur: " . $e->getMessage());
-                    throw new Exception("Erreur lors de la création de l'utilisateur");
                 }
+                
+                throw new Exception("Utilisateur non trouvé");
             }
         } catch (Exception $e) {
             error_log("Erreur d'authentification: " . $e->getMessage());

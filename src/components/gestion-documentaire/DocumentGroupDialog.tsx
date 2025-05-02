@@ -46,8 +46,7 @@ export const DocumentGroupDialog = ({
       name,
       expanded: group?.expanded || false,
       items: group?.items || [],
-      userId: group?.userId || currentUserId,
-      ordre: group?.ordre
+      userId: group?.userId || currentUserId
     };
     onSave(updatedGroup, isEditing);
     onOpenChange(false);

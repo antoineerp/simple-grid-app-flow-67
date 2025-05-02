@@ -9,35 +9,19 @@ Options +FollowSymLinks
 # Définir le point d'entrée principal
 DirectoryIndex index.html index.php
 
-# Définir les types MIME corrects de manière explicite et stricte
-<IfModule mod_mime.c>
-    RemoveType .js .mjs .es.js
-    AddType application/javascript .js
-    AddType application/javascript .mjs
-    AddType application/javascript .es.js
-    AddType text/css .css
-    AddType application/json .json
-    AddType image/svg+xml .svg
-</IfModule>
+# Définir les types MIME corrects
+AddType application/javascript .js
+AddType application/javascript .mjs
+AddType application/javascript .es.js
+AddType text/css .css
+AddType application/json .json
+AddType image/svg+xml .svg
 
-# Configuration plus stricte pour les modules ES et scripts JavaScript
-<IfModule mod_headers.c>
-    <FilesMatch "\.js$">
-        Header always set Content-Type "application/javascript; charset=UTF-8"
-        Header set X-Content-Type-Options "nosniff"
-        ForceType application/javascript
-    </FilesMatch>
-    <FilesMatch "\.(mjs|es\.js)$">
-        Header always set Content-Type "application/javascript; charset=UTF-8"
-        Header set X-Content-Type-Options "nosniff"
-        ForceType application/javascript
-    </FilesMatch>
-    <FilesMatch "\.tsx?$">
-        Header always set Content-Type "application/javascript; charset=UTF-8"
-        Header set X-Content-Type-Options "nosniff"
-        ForceType application/javascript
-    </FilesMatch>
-</IfModule>
+# Configuration spécifique pour les modules ES
+<FilesMatch "\.(m?js|es\.js)$">
+    Header set Content-Type "application/javascript"
+    Header set X-Content-Type-Options "nosniff"
+</FilesMatch>
 
 # Permettre l'accès aux assets
 <FilesMatch "\.(js|mjs|es\.js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot|map|tsx?)$">
@@ -49,10 +33,16 @@ DirectoryIndex index.html index.php
 RewriteCond %{REQUEST_URI} ^/lovable-uploads/
 RewriteRule ^lovable-uploads/(.*)$ public/lovable-uploads/$1 [L]
 
-# Règles pour l'API
+# Règle spécifique pour rediriger /api vers le dossier api/index.php
 RewriteRule ^api$ api/index.php [L]
+
+# Règle pour traiter les requêtes d'API avec des sous-chemins directs
 RewriteRule ^api/([^/]+)\.php$ api/$1.php [QSA,L]
+
+# Règle pour traiter les requêtes d'API avec des sous-chemins
 RewriteRule ^api/([^/]+)$ api/$1.php [QSA,L]
+
+# Règle pour autres requêtes API
 RewriteRule ^api/(.*)$ api/$1 [QSA,L]
 
 # Permettre l'accès direct aux assets dans leur dossier
@@ -73,10 +63,14 @@ RewriteRule ^(.*)$ index.html [QSA,L]
 
 # Configuration de sécurité et CORS
 <IfModule mod_headers.c>
-    # Headers pour les assets statiques - désactiver la mise en cache pendant le débogage
+    # Headers pour les assets statiques
     <FilesMatch "\.(js|mjs|es\.js|css|json)$">
         Header set Cache-Control "no-cache, no-store, must-revalidate"
+        Header set Pragma "no-cache"
+        Header set Expires "0"
         Header set Access-Control-Allow-Origin "*"
+        Header set Access-Control-Allow-Methods "GET, OPTIONS"
+        Header set Access-Control-Allow-Headers "Content-Type"
     </FilesMatch>
 </IfModule>
 

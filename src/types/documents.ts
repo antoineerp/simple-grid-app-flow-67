@@ -4,8 +4,6 @@ export interface DocumentGroup {
   name: string;
   expanded: boolean;
   items: Document[];
-  userId: string; // Ajout de userId comme requis
-  ordre?: number;
 }
 
 export interface Document {
@@ -22,8 +20,6 @@ export interface Document {
   date_creation: Date;
   date_modification: Date;
   groupId?: string;
-  userId: string; // Ajout de userId comme requis
-  excluded?: boolean; // Ajout de la propriété excluded
 }
 
 export interface DocumentStats {

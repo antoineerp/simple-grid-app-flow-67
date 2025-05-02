@@ -31,28 +31,9 @@ try {
         PDO::ATTR_EMULATE_PREPARES => false,
     ]);
     
-    // Récupération de l'utilisateur demandé ou utilisation de l'utilisateur par défaut
+    // Récupération de l'utilisateur demandé
     $userId = isset($_GET['userId']) ? $_GET['userId'] : 'p71x6d_system';
     error_log("Mise à jour des tables pour l'utilisateur: {$userId}");
-    
-    // Vérifier si l'utilisateur existe
-    $stmt = $pdo->prepare("SELECT COUNT(*) FROM utilisateurs WHERE identifiant_technique = ?");
-    $stmt->execute([$userId]);
-    $userExists = $stmt->fetchColumn() > 0;
-    
-    if (!$userExists) {
-        error_log("L'utilisateur {$userId} n'existe pas, utilisation de l'utilisateur par défaut");
-        // Récupérer le premier utilisateur disponible
-        $stmt = $pdo->query("SELECT identifiant_technique FROM utilisateurs LIMIT 1");
-        $defaultUser = $stmt->fetchColumn();
-        
-        if ($defaultUser) {
-            $userId = $defaultUser;
-            error_log("Utilisateur par défaut sélectionné: {$userId}");
-        } else {
-            throw new Exception("Aucun utilisateur disponible dans la base de données");
-        }
-    }
     
     // Sécurisation de l'ID utilisateur pour éviter les injections SQL
     $safeUserId = preg_replace('/[^a-zA-Z0-9_]/', '_', $userId);
@@ -60,16 +41,6 @@ try {
     // Liste des tables à mettre à jour avec leur structure
     $tables = [
         "bibliotheque" => [
-            "id" => "VARCHAR(36) PRIMARY KEY",
-            "nom" => "VARCHAR(255) NOT NULL",
-            "description" => "TEXT NULL",
-            "link" => "VARCHAR(255) NULL",
-            "groupId" => "VARCHAR(36) NULL",
-            "userId" => "VARCHAR(50) NOT NULL",
-            "date_creation" => "DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP",
-            "date_modification" => "DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP"
-        ],
-        "collaboration" => [
             "id" => "VARCHAR(36) PRIMARY KEY",
             "nom" => "VARCHAR(255) NOT NULL",
             "description" => "TEXT NULL",
@@ -191,7 +162,6 @@ try {
     echo json_encode([
         'success' => true,
         'message' => 'Mise à jour des tables terminée avec succès',
-        'userId' => $userId,
         'tables_created' => $tablesCreated,
         'tables_updated' => $tablesUpdated,
         'timestamp' => date('Y-m-d H:i:s')

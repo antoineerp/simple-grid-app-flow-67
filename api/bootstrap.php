@@ -1,4 +1,3 @@
-
 <?php
 // Script d'initialisation de la base de données
 header("Content-Type: application/json; charset=UTF-8");
@@ -40,19 +39,12 @@ try {
     $pdo->exec($tableUtilisateurs);
     echo "Table utilisateurs créée ou existante.<br>";
     
-    // Vérifier les utilisateurs existants
-    $stmt = $pdo->query("SELECT * FROM utilisateurs");
-    $existingUsers = $stmt->fetchAll();
+    // Vérifier si l'utilisateur système existe déjà
+    $stmt = $pdo->prepare("SELECT COUNT(*) FROM utilisateurs WHERE identifiant_technique = ?");
+    $stmt->execute(['p71x6d_system']);
+    $userExists = (int)$stmt->fetchColumn() > 0;
     
-    $userIds = [];
-    foreach ($existingUsers as $user) {
-        $userIds[] = $user['identifiant_technique'];
-    }
-    
-    echo "Utilisateurs existants: " . implode(', ', $userIds) . "<br>";
-    
-    // Si aucun utilisateur n'existe, créer l'utilisateur système
-    if (empty($existingUsers)) {
+    if (!$userExists) {
         // Créer l'utilisateur système
         $insertSystem = $pdo->prepare("INSERT INTO utilisateurs 
             (nom, prenom, email, mot_de_passe, identifiant_technique, role) 
@@ -66,100 +58,284 @@ try {
             'admin'
         ]);
         echo "Utilisateur système créé.<br>";
-        
-        $userIds[] = 'p71x6d_system';
     }
     
-    // Initialiser les tables pour chaque utilisateur existant
-    foreach ($userIds as $userId) {
-        echo "Initialisation des tables pour l'utilisateur: {$userId}<br>";
+    // Vérifier si l'utilisateur Antoine Cirier existe déjà
+    $stmt = $pdo->prepare("SELECT COUNT(*) FROM utilisateurs WHERE email = ?");
+    $stmt->execute(['antcirier@gmail.com']);
+    $antExists = (int)$stmt->fetchColumn() > 0;
+    
+    if (!$antExists) {
+        // Créer l'utilisateur Antoine Cirier
+        $insertAnt = $pdo->prepare("INSERT INTO utilisateurs 
+            (nom, prenom, email, mot_de_passe, identifiant_technique, role) 
+            VALUES (?, ?, ?, ?, ?, ?)");
+        $insertAnt->execute([
+            'Cirier', 
+            'Antoine', 
+            'antcirier@gmail.com', 
+            password_hash('Trottinette43!', PASSWORD_DEFAULT),
+            'p71x6d_cirier',
+            'admin'
+        ]);
+        echo "Utilisateur Antoine Cirier créé.<br>";
+    }
+    
+    // Initialiser les tables pour les utilisateurs
+    $userId = 'p71x6d_system';
+    
+    // Table membres - Définition complète avec toutes les colonnes nécessaires
+    $tableMembres = "CREATE TABLE IF NOT EXISTS `membres_{$userId}` (
+        `id` VARCHAR(36) PRIMARY KEY,
+        `nom` VARCHAR(100) NOT NULL,
+        `prenom` VARCHAR(100) NOT NULL,
+        `email` VARCHAR(255) NULL,
+        `telephone` VARCHAR(20) NULL,
+        `fonction` VARCHAR(100) NULL,
+        `organisation` VARCHAR(255) NULL,
+        `notes` TEXT NULL,
+        `date_creation` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        `date_modification` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
+    
+    $pdo->exec($tableMembres);
+    echo "Table membres_{$userId} créée ou existante.<br>";
+    
+    // Table exigences - Mise à jour de la structure pour correspondre aux fichiers de synchronisation
+    $tableExigences = "CREATE TABLE IF NOT EXISTS `exigences_{$userId}` (
+        `id` VARCHAR(36) PRIMARY KEY,
+        `nom` VARCHAR(255) NOT NULL,
+        `responsabilites` TEXT,
+        `exclusion` TINYINT(1) DEFAULT 0,
+        `atteinte` ENUM('NC', 'PC', 'C') NULL,
+        `groupId` VARCHAR(36) NULL,
+        `date_creation` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        `date_modification` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
+    
+    $pdo->exec($tableExigences);
+    echo "Table exigences_{$userId} créée ou existante.<br>";
+    
+    // Vérifier si des membres existent déjà
+    $stmt = $pdo->prepare("SELECT COUNT(*) FROM `membres_{$userId}`");
+    $stmt->execute();
+    $membresExistent = (int)$stmt->fetchColumn() > 0;
+    
+    if (!$membresExistent) {
+        // Vérifier structure de la table membres
+        $stmt = $pdo->prepare("SHOW COLUMNS FROM `membres_{$userId}`");
+        $stmt->execute();
+        $colonnes = $stmt->fetchAll(PDO::FETCH_COLUMN, 0);
         
-        // Table membres - Définition complète avec toutes les colonnes nécessaires
-        $tableMembres = "CREATE TABLE IF NOT EXISTS `membres_{$userId}` (
-            `id` VARCHAR(36) PRIMARY KEY,
-            `nom` VARCHAR(100) NOT NULL,
-            `prenom` VARCHAR(100) NOT NULL,
-            `email` VARCHAR(255) NULL,
-            `telephone` VARCHAR(20) NULL,
-            `fonction` VARCHAR(100) NULL,
-            `organisation` VARCHAR(255) NULL,
-            `notes` TEXT NULL,
-            `date_creation` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            `date_modification` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
+        error_log("Colonnes trouvées dans membres_{$userId}: " . implode(", ", $colonnes));
         
-        $pdo->exec($tableMembres);
-        echo "Table membres_{$userId} créée ou existante.<br>";
+        // Préparer la requête d'insertion avec les colonnes existantes
+        $colonnesDispo = ['id', 'nom', 'prenom', 'email', 'telephone', 'fonction', 'organisation', 'notes'];
+        $colonnesValides = array_intersect($colonnesDispo, $colonnes);
         
-        // Table exigences - Mise à jour de la structure pour correspondre aux fichiers de synchronisation
-        $tableExigences = "CREATE TABLE IF NOT EXISTS `exigences_{$userId}` (
-            `id` VARCHAR(36) PRIMARY KEY,
-            `nom` VARCHAR(255) NOT NULL,
-            `responsabilites` TEXT,
-            `exclusion` TINYINT(1) DEFAULT 0,
-            `atteinte` ENUM('NC', 'PC', 'C') NULL,
-            `groupId` VARCHAR(36) NULL,
-            `date_creation` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            `date_modification` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
+        if (count($colonnesValides) < 3) {
+            throw new Exception("Structure de table membres_{$userId} invalide. Colonnes disponibles: " . implode(", ", $colonnes));
+        }
         
-        $pdo->exec($tableExigences);
-        echo "Table exigences_{$userId} créée ou existante.<br>";
+        // Construire la requête dynamiquement
+        $champs = implode(", ", $colonnesValides);
+        $placeholders = implode(", ", array_fill(0, count($colonnesValides), "?"));
         
-        // Table documents
-        $tableDocuments = "CREATE TABLE IF NOT EXISTS `documents_{$userId}` (
-            `id` VARCHAR(36) PRIMARY KEY,
-            `nom` VARCHAR(255) NOT NULL,
-            `fichier_path` VARCHAR(255) NULL,
-            `responsabilites` TEXT NULL,
-            `etat` VARCHAR(50) NULL,
-            `groupId` VARCHAR(36) NULL,
-            `userId` VARCHAR(50) NOT NULL,
-            `date_creation` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            `date_modification` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
+        $insertMembre = $pdo->prepare("INSERT INTO `membres_{$userId}` ({$champs}) VALUES ({$placeholders})");
         
-        $pdo->exec($tableDocuments);
-        echo "Table documents_{$userId} créée ou existante.<br>";
+        // Premier membre test
+        $membre1 = [
+            'id' => 'mem-' . bin2hex(random_bytes(8)),
+            'nom' => 'Dupont',
+            'prenom' => 'Jean',
+            'email' => 'jean.dupont@example.com',
+            'telephone' => '0601020304',
+            'fonction' => 'Directeur',
+            'organisation' => 'Entreprise A',
+            'notes' => 'Contact principal'
+        ];
         
-        // Table collaboration (remplace bibliotheque)
-        $tableCollaboration = "CREATE TABLE IF NOT EXISTS `collaboration_{$userId}` (
-            `id` VARCHAR(36) PRIMARY KEY,
-            `nom` VARCHAR(255) NOT NULL,
-            `description` TEXT NULL,
-            `link` VARCHAR(255) NULL,
-            `groupId` VARCHAR(36) NULL,
-            `userId` VARCHAR(50) NOT NULL,
-            `date_creation` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            `date_modification` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
+        // Filtrer les valeurs en fonction des colonnes disponibles
+        $valeurs1 = array_intersect_key($membre1, array_flip($colonnesValides));
+        $insertMembre->execute(array_values($valeurs1));
         
-        $pdo->exec($tableCollaboration);
-        echo "Table collaboration_{$userId} créée ou existante.<br>";
+        // Deuxième membre test
+        $membre2 = [
+            'id' => 'mem-' . bin2hex(random_bytes(8)),
+            'nom' => 'Martin',
+            'prenom' => 'Sophie',
+            'email' => 'sophie.martin@example.com',
+            'telephone' => '0607080910',
+            'fonction' => 'Responsable RH',
+            'organisation' => 'Entreprise B',
+            'notes' => 'Partenaire stratégique'
+        ];
         
-        // Table pilotage
-        $tablePilotage = "CREATE TABLE IF NOT EXISTS `pilotage_{$userId}` (
-            `id` VARCHAR(36) PRIMARY KEY,
-            `titre` VARCHAR(255) NOT NULL,
-            `description` TEXT NULL,
-            `statut` VARCHAR(50) NULL,
-            `priorite` VARCHAR(50) NULL,
-            `date_debut` DATE NULL,
-            `date_fin` DATE NULL,
-            `responsabilites` TEXT NULL,
-            `userId` VARCHAR(50) NOT NULL,
-            `date_creation` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            `date_modification` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
+        // Filtrer les valeurs en fonction des colonnes disponibles
+        $valeurs2 = array_intersect_key($membre2, array_flip($colonnesValides));
+        $insertMembre->execute(array_values($valeurs2));
         
-        $pdo->exec($tablePilotage);
-        echo "Table pilotage_{$userId} créée ou existante.<br>";
+        echo "Membres de test ajoutés.<br>";
+    }
+    
+    // Vérifier si des exigences existent déjà
+    $stmt = $pdo->prepare("SELECT COUNT(*) FROM `exigences_{$userId}`");
+    $stmt->execute();
+    $exigencesExistent = (int)$stmt->fetchColumn() > 0;
+    
+    if (!$exigencesExistent) {
+        // Vérifier structure de la table exigences
+        $stmt = $pdo->prepare("SHOW COLUMNS FROM `exigences_{$userId}`");
+        $stmt->execute();
+        $colonnes = $stmt->fetchAll(PDO::FETCH_COLUMN, 0);
+        
+        error_log("Colonnes trouvées dans exigences_{$userId}: " . implode(", ", $colonnes));
+        
+        // Préparer la requête d'insertion avec les colonnes existantes
+        $colonnesDispo = ['id', 'nom', 'responsabilites', 'exclusion', 'atteinte', 'groupId'];
+        $colonnesValides = array_intersect($colonnesDispo, $colonnes);
+        
+        if (count($colonnesValides) < 3) {
+            throw new Exception("Structure de table exigences_{$userId} invalide. Colonnes disponibles: " . implode(", ", $colonnes));
+        }
+        
+        // Construire la requête dynamiquement
+        $champs = implode(", ", $colonnesValides);
+        $placeholders = implode(", ", array_fill(0, count($colonnesValides), "?"));
+        
+        $insertExigence = $pdo->prepare("INSERT INTO `exigences_{$userId}` ({$champs}) VALUES ({$placeholders})");
+        
+        // Première exigence test
+        $exigence1 = [
+            'id' => 'exig-' . bin2hex(random_bytes(8)),
+            'nom' => 'Mettre en place un système de gestion documentaire',
+            'responsabilites' => json_encode(['r' => [], 'a' => [], 'c' => [], 'i' => []]),
+            'exclusion' => 0,
+            'atteinte' => 'NC',
+            'groupId' => null
+        ];
+        
+        // Filtrer les valeurs
+        $valeurs1 = array_intersect_key($exigence1, array_flip($colonnesValides));
+        $insertExigence->execute(array_values($valeurs1));
+        
+        // Deuxième exigence test
+        $exigence2 = [
+            'id' => 'exig-' . bin2hex(random_bytes(8)),
+            'nom' => 'Former le personnel aux procédures qualité',
+            'responsabilites' => json_encode(['r' => [], 'a' => [], 'c' => [], 'i' => []]),
+            'exclusion' => 0,
+            'atteinte' => 'PC',
+            'groupId' => null
+        ];
+        
+        // Filtrer les valeurs
+        $valeurs2 = array_intersect_key($exigence2, array_flip($colonnesValides));
+        $insertExigence->execute(array_values($valeurs2));
+        
+        echo "Exigences de test ajoutées.<br>";
+    }
+    
+    // Même chose pour les tables de l'utilisateur Antoine Cirier
+    $userId = 'p71x6d_cirier';
+    
+    // Table membres
+    $tableMembres = "CREATE TABLE IF NOT EXISTS `membres_{$userId}` (
+        `id` VARCHAR(36) PRIMARY KEY,
+        `nom` VARCHAR(100) NOT NULL,
+        `prenom` VARCHAR(100) NOT NULL,
+        `email` VARCHAR(255) NULL,
+        `telephone` VARCHAR(20) NULL,
+        `fonction` VARCHAR(100) NULL,
+        `organisation` VARCHAR(255) NULL,
+        `notes` TEXT NULL,
+        `date_creation` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        `date_modification` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
+    
+    $pdo->exec($tableMembres);
+    echo "Table membres_{$userId} créée ou existante.<br>";
+    
+    // Table exigences - Mise à jour de la structure pour correspondre aux fichiers de synchronisation
+    $tableExigences = "CREATE TABLE IF NOT EXISTS `exigences_{$userId}` (
+        `id` VARCHAR(36) PRIMARY KEY,
+        `nom` VARCHAR(255) NOT NULL,
+        `responsabilites` TEXT,
+        `exclusion` TINYINT(1) DEFAULT 0,
+        `atteinte` ENUM('NC', 'PC', 'C') NULL,
+        `groupId` VARCHAR(36) NULL,
+        `date_creation` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        `date_modification` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
+    
+    $pdo->exec($tableExigences);
+    echo "Table exigences_{$userId} créée ou existante.<br>";
+    
+    // Vérifier si des membres existent déjà
+    $stmt = $pdo->prepare("SELECT COUNT(*) FROM `membres_{$userId}`");
+    $stmt->execute();
+    $membresExistent = (int)$stmt->fetchColumn() > 0;
+    
+    if (!$membresExistent) {
+        // Vérifier structure de la table membres
+        $stmt = $pdo->prepare("SHOW COLUMNS FROM `membres_{$userId}`");
+        $stmt->execute();
+        $colonnes = $stmt->fetchAll(PDO::FETCH_COLUMN, 0);
+        
+        error_log("Colonnes trouvées dans membres_{$userId}: " . implode(", ", $colonnes));
+        
+        // Préparer la requête d'insertion avec les colonnes existantes
+        $colonnesDispo = ['id', 'nom', 'prenom', 'email', 'telephone', 'fonction', 'organisation', 'notes'];
+        $colonnesValides = array_intersect($colonnesDispo, $colonnes);
+        
+        if (count($colonnesValides) < 3) {
+            throw new Exception("Structure de table membres_{$userId} invalide. Colonnes disponibles: " . implode(", ", $colonnes));
+        }
+        
+        // Construire la requête dynamiquement
+        $champs = implode(", ", $colonnesValides);
+        $placeholders = implode(", ", array_fill(0, count($colonnesValides), "?"));
+        
+        $insertMembre = $pdo->prepare("INSERT INTO `membres_{$userId}` ({$champs}) VALUES ({$placeholders})");
+        
+        // Premier membre test pour cet utilisateur
+        $membre1 = [
+            'id' => 'mem-' . bin2hex(random_bytes(8)),
+            'nom' => 'Dubois',
+            'prenom' => 'Philippe',
+            'email' => 'philippe.dubois@example.com',
+            'telephone' => '0612345678',
+            'fonction' => 'Directeur Qualité',
+            'organisation' => 'Entreprise C',
+            'notes' => 'Expert Qualiopi'
+        ];
+        
+        // Filtrer les valeurs
+        $valeurs1 = array_intersect_key($membre1, array_flip($colonnesValides));
+        $insertMembre->execute(array_values($valeurs1));
+        
+        // Deuxième membre test
+        $membre2 = [
+            'id' => 'mem-' . bin2hex(random_bytes(8)),
+            'nom' => 'Garcia',
+            'prenom' => 'Maria',
+            'email' => 'maria.garcia@example.com',
+            'telephone' => '0698765432',
+            'fonction' => 'Consultante',
+            'organisation' => 'Entreprise D',
+            'notes' => 'Spécialiste certification'
+        ];
+        
+        // Filtrer les valeurs
+        $valeurs2 = array_intersect_key($membre2, array_flip($colonnesValides));
+        $insertMembre->execute(array_values($valeurs2));
+        
+        echo "Membres de test ajoutés pour {$userId}.<br>";
     }
     
     echo json_encode([
         'success' => true,
         'message' => 'Base de données initialisée avec succès',
-        'users' => $userIds,
         'timestamp' => date('Y-m-d H:i:s')
     ]);
     

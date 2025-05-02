@@ -9,14 +9,16 @@ class DatabaseConfig {
 
     public function __construct() {
         $this->configFile = __DIR__ . '/db_config.json';
+        $this->loadDefaultConfig();
+        $this->loadConfigFile();
+    }
+
+    private function loadDefaultConfig() {
         // Utiliser uniquement les valeurs d'Infomaniak
         $this->host = "p71x6d.myd.infomaniak.com";
         $this->db_name = "p71x6d_system";
         $this->username = "p71x6d_system";
         $this->password = "Trottinette43!";
-        
-        // Ne charger la configuration personnalisée que si elle existe et est valide
-        $this->loadConfigFile();
     }
 
     private function loadConfigFile() {
@@ -26,7 +28,7 @@ class DatabaseConfig {
                 $config = json_decode($jsonContent, true);
                 
                 if (json_last_error() === JSON_ERROR_NONE) {
-                    // Vérification renforcée: rejeter localhost et n'accepter que infomaniak
+                    // Vérification renforcée: rejeter explicitement localhost et n'accepter que infomaniak
                     if (isset($config['host']) && 
                         strpos($config['host'], 'infomaniak') !== false && 
                         strpos($config['host'], 'localhost') === false) {
@@ -38,7 +40,7 @@ class DatabaseConfig {
                     if (isset($config['password'])) $this->password = $config['password'];
                 }
             } catch (Exception $e) {
-                error_log("Erreur lors du chargement de la configuration de la base de données: " . $e->getMessage());
+                error_log("Error loading database configuration: " . $e->getMessage());
             }
         }
     }
@@ -73,11 +75,12 @@ class DatabaseConfig {
     }
 
     public function updateConfig($host, $db_name, $username, $password) {
-        // Vérification pour rejeter localhost et utiliser uniquement Infomaniak
+        // Vérification renforcée pour rejeter explicitement localhost
         if (strpos($host, 'localhost') !== false) {
             // Forcer l'utilisation d'Infomaniak
             $this->host = "p71x6d.myd.infomaniak.com";
         }
+        // Vérifier que le nouvel hôte contient "infomaniak"
         else if (strpos($host, 'infomaniak') !== false) {
             $this->host = $host;
         } else {

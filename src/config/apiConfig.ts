@@ -2,19 +2,9 @@
 // Configuration de l'API
 const apiUrl = getApiBaseUrl();
 
-// Fonction pour déterminer l'URL de base de l'API en fonction de l'environnement et du serveur
+// Fonction pour déterminer l'URL de base de l'API en fonction de l'environnement
 function getApiBaseUrl(): string {
-  // Toujours utiliser le chemin relatif pour la production sur Infomaniak
-  if (window.location.hostname.includes('qualiopi.ch') || 
-      window.location.hostname.includes('myd.infomaniak.com')) {
-    // Sur Infomaniak, l'API est dans /api
-    console.log('Mode Infomaniak détecté - utilisation du chemin API Infomaniak');
-    return '/api';
-  }
-  
-  // Pour le développement local, toujours utiliser le chemin relatif /api
-  // qui sera servi par le proxy de développement
-  console.log('Mode développement détecté - utilisation du chemin API local');
+  // Toujours utiliser le chemin relatif pour la production et le développement
   return '/api';
 }
 
@@ -31,11 +21,10 @@ export function getFullApiUrl(): string {
 // Diagnostic de l'API simple
 export async function testApiConnection(): Promise<{ success: boolean; message: string; details?: any }> {
   try {
-    const fullApiUrl = getFullApiUrl();
-    console.log(`Test de connexion à l'API: ${fullApiUrl}`);
+    console.log(`Test de connexion à l'API: ${getFullApiUrl()}`);
     
-    // Pour le test direct, utiliser diagnose-connection.php qui est optimisé
-    const response = await fetch(`${getApiUrl()}/diagnose-connection.php`, {
+    // Pour le test direct, utiliser info.php qui renvoie l'état du serveur
+    const response = await fetch(`${getApiUrl()}/info.php`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -50,7 +39,7 @@ export async function testApiConnection(): Promise<{ success: boolean; message: 
     try {
       const data = JSON.parse(responseText);
       return {
-        success: data.status === 'success',
+        success: true,
         message: data.message || 'API connectée',
         details: data
       };

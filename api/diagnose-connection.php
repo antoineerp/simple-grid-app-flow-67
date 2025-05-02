@@ -1,6 +1,6 @@
 
 <?php
-// Fichier de diagnostic optimisé pour la connexion à la base de données de production
+// Fichier de diagnostic simplifié pour la connexion à la base de données
 header("Content-Type: application/json; charset=UTF-8");
 header("Access-Control-Allow-Origin: *");
 header("Access-Control-Allow-Methods: GET, OPTIONS");
@@ -13,7 +13,13 @@ if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
     exit;
 }
 
-// Configuration de production uniquement
+// Activer la journalisation des erreurs
+error_reporting(E_ALL);
+ini_set('display_errors', 0);
+ini_set('log_errors', 1);
+ini_set('error_log', __DIR__ . '/connection_diagnostic_errors.log');
+
+// Configuration standard utilisée partout dans l'application
 $db_config = [
     'host' => 'p71x6d.myd.infomaniak.com',
     'db_name' => 'p71x6d_system',
@@ -33,11 +39,11 @@ function testDatabaseConnection($config) {
         
         $pdo = new PDO($dsn, $config['username'], $config['password'], $options);
         
-        // Vérifier la connexion
-        $stmt = $pdo->query("SELECT VERSION() as version");
+        // Vérifier la connexion avec une requête simple
+        $stmt = $pdo->query("SELECT 1 as test, VERSION() as version");
         $result = $stmt->fetch(PDO::FETCH_ASSOC);
         
-        // Récupérer la liste des tables
+        // Récupérer des informations sur la base de données
         $tableQuery = $pdo->query("SHOW TABLES");
         $tables = $tableQuery->fetchAll(PDO::FETCH_COLUMN);
         
@@ -70,12 +76,15 @@ try {
         'timestamp' => date('Y-m-d H:i:s'),
         'server_info' => [
             'php_version' => phpversion(),
-            'server_software' => $_SERVER['SERVER_SOFTWARE'] ?? 'Inconnu'
+            'server_software' => $_SERVER['SERVER_SOFTWARE'] ?? 'Inconnu',
+            'php_sapi' => php_sapi_name(),
+            'pdo_drivers' => PDO::getAvailableDrivers()
         ],
-        'database_info' => [
+        'database_config' => [
             'host' => $db_config['host'],
-            'database' => $db_config['db_name'],
-            'username' => $db_config['username']
+            'db_name' => $db_config['db_name'],
+            'username' => $db_config['username'],
+            'password_set' => !empty($db_config['password'])
         ],
         'connection_test' => $connection_test
     ];
@@ -83,8 +92,8 @@ try {
     // Définir le statut global
     $response['status'] = $connection_test['success'] ? 'success' : 'error';
     $response['message'] = $connection_test['success'] 
-        ? 'Connexion à la base de données réussie' 
-        : 'Échec de la connexion à la base de données';
+        ? 'Diagnostic de connexion réussi' 
+        : 'Échec du diagnostic de connexion';
     
     // Envoyer la réponse
     http_response_code(200);
@@ -94,7 +103,9 @@ try {
     http_response_code(500);
     echo json_encode([
         'status' => 'error',
-        'message' => 'Erreur lors du diagnostic de connexion: ' . $e->getMessage()
+        'message' => 'Erreur lors du diagnostic de connexion: ' . $e->getMessage(),
+        'file' => $e->getFile(),
+        'line' => $e->getLine()
     ], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
 }
 ?>

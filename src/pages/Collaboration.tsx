@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import BibliothequeHeader from '@/components/bibliotheque/BibliothequeHeader';
@@ -10,11 +9,12 @@ import { Document, DocumentGroup } from '@/types/bibliotheque';
 import { v4 as uuidv4 } from 'uuid';
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { useBibliotheque } from '@/hooks/useBibliotheque';
+import { getDatabaseConnectionCurrentUser } from '@/services/core/databaseConnectionService';
 
 const Collaboration = () => {
   const { 
     documents, 
-    groups,
+    groups, 
     isDialogOpen,
     isGroupDialogOpen,
     isEditing,
@@ -32,6 +32,9 @@ const Collaboration = () => {
     handleUpdateGroup, 
     handleDeleteGroup,
     handleSyncDocuments,
+    isSyncing,
+    isOnline,
+    syncFailed,
     currentUser
   } = useBibliotheque();
   
@@ -122,6 +125,9 @@ const Collaboration = () => {
         onAddDocument={handleOpenAddDocument}
         onAddGroup={handleOpenAddGroup}
         onSync={handleSyncDocuments}
+        isSyncing={isSyncing}
+        isOnline={isOnline}
+        syncFailed={syncFailed}
         currentUser={currentUser}
         showOnlyErrors={false}
       />
@@ -150,7 +156,6 @@ const Collaboration = () => {
         <DialogContent className="sm:max-w-[425px]">
           <DocumentForm
             document={currentDocument}
-            groups={groups}
             onSave={(doc) => {
               if (isEditing) {
                 handleUpdateDocument(doc);

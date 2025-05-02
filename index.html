@@ -6,34 +6,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Qualite.cloud - Système de Management de la Qualité</title>
     <meta name="description" content="Application web pour la gestion de la qualité et la conformité ISO 27001" />
-    <link rel="icon" type="image/svg+xml" href="favicon.ico" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.ico" />
+    <script src="https://cdn.gpteng.co/gptengineer.js" type="module"></script>
   </head>
   <body>
     <div id="root"></div>
-    
-    <!-- Scripts chargés comme scripts réguliers (non-modules) -->
-    <script src="assets/check-mime.js"></script>
-    <script src="assets/index.js"></script>
-    
-    <!-- Script principal comme module -->
     <script type="module" src="/src/main.tsx"></script>
-    
-    <!-- Script principal comme fallback non-module -->
-    <script>
-      // Vérification du chargement des scripts
-      window.addEventListener('load', function() {
-        console.log("Vérification du chargement des scripts...");
-        
-        // Si après 2 secondes, l'application n'est pas chargée, essayer le fallback
-        setTimeout(function() {
-          if (!window.appLoaded && document.getElementById('root').children.length === 0) {
-            console.log("Application non chargée, essai du fallback...");
-            var script = document.createElement('script');
-            script.src = '/src/main.js';
-            document.body.appendChild(script);
-          }
-        }, 2000);
-      });
-    </script>
   </body>
 </html>

@@ -33,13 +33,86 @@ jobs:
         echo "Liste des fichiers assets:"
         ls -la dist/assets/ || echo "Dossier assets non trouvé"
 
-    - name: Deploy to Infomaniak
+    - name: Prepare deployment directory
+      run: |
+        # Création des dossiers nécessaires
+        mkdir -p deploy/assets
+        mkdir -p deploy/api
+        mkdir -p deploy/api/config
+        mkdir -p deploy/api/services
+        mkdir -p deploy/api/controllers
+        mkdir -p deploy/api/models
+        mkdir -p deploy/api/models/traits
+        mkdir -p deploy/api/middleware
+        mkdir -p deploy/api/operations
+        mkdir -p deploy/api/utils
+        mkdir -p deploy/public/lovable-uploads
+        
+        # Copie des fichiers compilés directement dans assets
+        cp -r dist/assets/* deploy/assets/
+        
+        # Copie des autres fichiers nécessaires
+        cp dist/index.html deploy/
+        cp .htaccess deploy/ || echo "Fichier .htaccess non trouvé"
+        
+        # Copie des fichiers de configuration
+        echo "Copie des fichiers de configuration..."
+        mkdir -p deploy/api/config
+        cp api/config/env.php deploy/api/config/ || echo "Fichier env.php non trouvé"
+        cp api/config/DatabaseConfig.php deploy/api/config/ || echo "Fichier DatabaseConfig.php non trouvé"
+        cp api/config/DatabaseConnection.php deploy/api/config/ || echo "Fichier DatabaseConnection.php non trouvé"
+        cp api/config/DatabaseDiagnostics.php deploy/api/config/ || echo "Fichier DatabaseDiagnostics.php non trouvé"
+        cp api/config/database.php deploy/api/config/ || echo "Fichier database.php non trouvé"
+        
+        # Vérifier et créer env.php s'il n'existe pas
+        if [ ! -f "deploy/api/config/env.php" ]; then
+          echo "<?php
+          // Configuration des variables d'environnement pour Infomaniak
+          define('DB_HOST', 'p71x6d.myd.infomaniak.com');
+          define('DB_NAME', 'p71x6d_system');
+          define('DB_USER', 'p71x6d_system');
+          define('DB_PASS', 'Trottinette43!');
+          define('API_BASE_URL', '/api');
+          define('APP_ENV', 'production');
+
+          // Fonction d'aide pour récupérer les variables d'environnement
+          function get_env(\$key, \$default = null) {
+              \$const_name = strtoupper(\$key);
+              if (defined(\$const_name)) {
+                  return constant(\$const_name);
+              }
+              return \$default;
+          }
+          ?>" > deploy/api/config/env.php
+          echo "Fichier env.php créé manuellement"
+        fi
+        
+        # Copie explicite des fichiers API
+        if [ -d "api" ]; then
+          echo "Copie des fichiers API..."
+          cp -r api/* deploy/api/
+        else
+          echo "Dossier API non trouvé"
+        fi
+        
+        # Copie des uploads si existants
+        if [ -d "public/lovable-uploads" ]; then
+          echo "Copie des uploads..."
+          cp -r public/lovable-uploads/* deploy/public/lovable-uploads/
+        else
+          echo "Dossier uploads non trouvé"
+        fi
+        
+        echo "Structure du dossier de déploiement:"
+        find deploy -type f | sort
+
+    - name: Sync to Infomaniak server
       uses: SamKirkland/FTP-Deploy-Action@v4.3.4
       with:
         server: ${{ secrets.FTP_SERVER }}
         username: ${{ secrets.FTP_USERNAME }}
         password: ${{ secrets.FTP_PASSWORD }}
-        local-dir: ./
+        local-dir: ./deploy/
         server-dir: /sites/qualiopi.ch/
         dangerous-clean-slate: false
         exclude: |
@@ -47,3 +120,13 @@ jobs:
           **/.git*/**
           **/node_modules/**
           README.md
+          dist/**
+          package.json
+          package-lock.json
+        log-level: verbose
+        timeout: 120000
+
+    - name: Clean up
+      run: |
+        rm -rf deploy
+        rm -rf dist

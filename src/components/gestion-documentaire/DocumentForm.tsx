@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { Document } from '@/types/documents';
-import { getDatabaseConnectionCurrentUser } from '@/services/core/databaseConnectionService';
 
 interface DocumentFormProps {
   document: Document | null;
@@ -17,8 +16,6 @@ interface DocumentFormProps {
 
 const DocumentForm: React.FC<DocumentFormProps> = ({ document, open, onOpenChange, onSave }) => {
   const { toast } = useToast();
-  const currentUserId = getDatabaseConnectionCurrentUser() || 'default';
-  
   const [formData, setFormData] = useState<Document>({
     id: document?.id || '',
     nom: document?.nom || '',
@@ -26,11 +23,10 @@ const DocumentForm: React.FC<DocumentFormProps> = ({ document, open, onOpenChang
     responsabilites: document?.responsabilites || { r: [], a: [], c: [], i: [] },
     etat: document?.etat || null,
     date_creation: document?.date_creation || new Date(),
-    date_modification: document?.date_modification || new Date(),
-    userId: document?.userId || currentUserId
+    date_modification: document?.date_modification || new Date()
   });
 
-  useEffect(() => {
+  React.useEffect(() => {
     if (document) {
       setFormData({
         id: document.id,
@@ -39,11 +35,10 @@ const DocumentForm: React.FC<DocumentFormProps> = ({ document, open, onOpenChang
         responsabilites: document.responsabilites,
         etat: document.etat,
         date_creation: document.date_creation,
-        date_modification: document.date_modification,
-        userId: document.userId || currentUserId
+        date_modification: document.date_modification
       });
     }
-  }, [document, currentUserId]);
+  }, [document]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;

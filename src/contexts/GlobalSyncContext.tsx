@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { triggerSync } from '@/services/sync/triggerSync';
@@ -47,7 +48,7 @@ export const useGlobalSync = () => {
 // Provider du contexte
 export const GlobalSyncProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [syncStates, setSyncStates] = useState<Record<string, SyncState>>({});
-  const { isOnline } = useNetworkStatus();
+  const { isOnline, lastCheckTime } = useNetworkStatus();
   const { toast } = useToast();
   const currentUser = getCurrentUser();
   const initialSyncDoneRef = useRef<boolean>(false);

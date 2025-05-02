@@ -11,7 +11,7 @@ header('Content-Type: text/html; charset=utf-8');
         .success { color: green; font-weight: bold; }
         .error { color: red; font-weight: bold; }
         .warning { color: orange; font-weight: bold; }
-        pre { background: #f5f5f9; padding: 10px; border-radius: 5px; overflow-x: auto; }
+        pre { background: #f5f5f5; padding: 10px; border-radius: 5px; overflow-x: auto; }
         .section { margin-bottom: 30px; padding: 15px; border: 1px solid #ddd; border-radius: 4px; }
     </style>
 </head>
@@ -21,13 +21,11 @@ header('Content-Type: text/html; charset=utf-8');
     <?php
     $htaccess_root = file_exists('.htaccess');
     $htaccess_api = file_exists('api/.htaccess');
-    $htaccess_assets = file_exists('assets/.htaccess');
     ?>
     
     <h2>Vérification des fichiers .htaccess</h2>
     <p>Fichier .htaccess racine: <?= $htaccess_root ? '<span class="success">EXISTE</span>' : '<span class="error">INTROUVABLE</span>' ?></p>
     <p>Fichier .htaccess API: <?= $htaccess_api ? '<span class="success">EXISTE</span>' : '<span class="error">INTROUVABLE</span>' ?></p>
-    <p>Fichier .htaccess Assets: <?= $htaccess_assets ? '<span class="success">EXISTE</span>' : '<span class="error">INTROUVABLE</span>' ?></p>
     
     <?php
     function checkMimeType($directory) {
@@ -103,9 +101,10 @@ header('Content-Type: text/html; charset=utf-8');
     
     <h2>Recommandations</h2>
     <ol>
-        <li>Assurez-vous que les fichiers .htaccess sont correctement déployés à la racine, dans le dossier API et dans le dossier assets</li>
+        <li>Assurez-vous que les fichiers .htaccess sont correctement déployés à la racine et dans le dossier API</li>
         <li>Vérifiez que les directives AddType et Header sont actives sur votre serveur</li>
         <li>Si vous utilisez un CDN ou un proxy, assurez-vous qu'il n'écrase pas les en-têtes HTTP</li>
+        <li>En cas de problème persistant, contactez votre hébergeur pour vérifier la configuration du serveur</li>
         <li>Assurez-vous que tous les scripts de module dans index.html ont l'attribut <code>type="module"</code></li>
     </ol>
     
