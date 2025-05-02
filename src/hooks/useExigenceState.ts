@@ -26,13 +26,19 @@ export const useExigenceState = (tableName = 'exigences') => {
   useEffect(() => {
     const loadLocalData = () => {
       try {
+        console.log(`Attempting to load data for user ${currentUser}`);
         const storedExigences = localStorage.getItem(`${tableName}_${currentUser}`);
         const storedGroups = localStorage.getItem(`${tableName}_groups_${currentUser}`);
         
         if (storedExigences) {
-          const parsedExigences = JSON.parse(storedExigences);
-          setExigences(parsedExigences);
-          console.log(`Loaded ${parsedExigences.length} exigences from local storage`);
+          try {
+            const parsedExigences = JSON.parse(storedExigences);
+            setExigences(parsedExigences);
+            console.log(`Loaded ${parsedExigences.length} exigences from local storage`);
+          } catch (parseError) {
+            console.error("Error parsing exigences from localStorage:", parseError);
+            setExigences([]);
+          }
         } else {
           console.log(`No exigences found in local storage for ${currentUser}`);
           // Initialize with empty array if none found
@@ -40,9 +46,14 @@ export const useExigenceState = (tableName = 'exigences') => {
         }
         
         if (storedGroups) {
-          const parsedGroups = JSON.parse(storedGroups);
-          setGroups(parsedGroups);
-          console.log(`Loaded ${parsedGroups.length} groups from local storage`);
+          try {
+            const parsedGroups = JSON.parse(storedGroups);
+            setGroups(parsedGroups);
+            console.log(`Loaded ${parsedGroups.length} groups from local storage`);
+          } catch (parseError) {
+            console.error("Error parsing groups from localStorage:", parseError);
+            setGroups([]);
+          }
         } else {
           console.log(`No groups found in local storage for ${currentUser}`);
           // Initialize with empty array if none found
