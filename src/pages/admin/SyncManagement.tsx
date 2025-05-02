@@ -2,16 +2,51 @@
 import React from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import AdminLayout from '@/components/layouts/AdminLayout';
 import SyncTablesManager from '@/components/admin/SyncTablesManager';
 import { SyncDiagnostic } from '@/utils/SyncDiagnostic';
-import { Gauge, Database, ArrowUpDown, List } from "lucide-react";
+import { Gauge, Database, ArrowUpDown, List, CheckSquare } from "lucide-react";
+import { toast } from '@/components/ui/use-toast';
 
 const SyncManagementPage = () => {
+  const handleTrackAllTables = () => {
+    try {
+      const count = SyncDiagnostic.trackAllTables();
+      toast({
+        title: "Suivi des tables",
+        description: `${count} tables ont été mises sous suivi.`,
+        variant: "default"
+      });
+      
+      // Rafraîchir la page après une courte pause
+      setTimeout(() => {
+        window.location.reload();
+      }, 1500);
+    } catch (error) {
+      console.error("Erreur lors de l'activation des tables:", error);
+      toast({
+        title: "Erreur",
+        description: "Impossible d'activer toutes les tables. Veuillez consulter la console pour plus de détails.",
+        variant: "destructive"
+      });
+    }
+  };
+  
   return (
     <AdminLayout>
       <div className="container py-6">
         <h1 className="text-3xl font-bold mb-6">Gestion de la Synchronisation</h1>
+        
+        <div className="flex justify-between items-center mb-4">
+          <div className="text-sm text-muted-foreground">
+            Gérez les tables et leurs synchronisations
+          </div>
+          <Button variant="outline" onClick={handleTrackAllTables} className="flex items-center gap-2">
+            <CheckSquare className="h-4 w-4" />
+            Activer toutes les tables
+          </Button>
+        </div>
         
         <Tabs defaultValue="tables">
           <TabsList className="mb-6">
@@ -72,6 +107,16 @@ const SyncManagementPage = () => {
                     Force la synchronisation de toutes les tables avec le serveur.
                   </p>
                 </button>
+                
+                <button 
+                  className="p-4 border rounded-lg hover:bg-slate-50 bg-blue-50"
+                  onClick={handleTrackAllTables}
+                >
+                  <h3 className="text-lg font-medium">Activer toutes les tables</h3>
+                  <p className="text-sm text-gray-600 mt-1">
+                    Active automatiquement le suivi pour toutes les tables détectées dans le système.
+                  </p>
+                </button>
               </div>
             </Card>
           </TabsContent>
@@ -115,6 +160,10 @@ const SyncManagementPage = () => {
                         syncDiag.trackAllTables();
                         syncDiag.migrateOldTables().then(() => {
                           alert("Uniformisation terminée.");
+                          // Rafraîchir la page après une courte pause
+                          setTimeout(() => {
+                            window.location.reload();
+                          }, 1000);
                         });
                       }
                     }}

@@ -10,6 +10,7 @@ import { getDatabaseConnectionCurrentUser } from '@/services/core/databaseConnec
 interface TableStatus {
   normalizedName: string;
   fullName: string;
+  rawName: string;  // Nom brut d'origine
   tracked: boolean;
   hasLocalData: boolean;
   recordCount: number;
@@ -54,36 +55,25 @@ class SyncDiagnosticService {
         return;
       }
       
-      // Extraire le nom de la table
-      let tableName = key;
-      
-      // Si c'est une table avec un suffixe utilisateur
-      if (key.includes('_')) {
-        const parts = key.split('_');
-        // Si le dernier segment pourrait être un ID utilisateur, le retirer
-        if (parts.length > 1 && parts[parts.length-1].length > 5) {
-          tableName = parts.slice(0, -1).join('_');
-        }
-      }
-      
-      uniqueTableNames.add(tableName);
+      // Ajouter la clé brute comme une table potentielle
+      uniqueTableNames.add(key);
     });
     
     // Analyser chaque table détectée
     uniqueTableNames.forEach(tableName => {
       const normalizedName = syncRegistry.normalizeTableName(tableName);
-      const fullName = syncRegistry.getFullTableName(normalizedName, currentUser);
+      const fullName = tableName; // Utiliser le nom complet tel quel
       const tableConfig = syncRegistry.getTable(normalizedName);
       
       // Vérifier si la table a des données
-      const hasData = localStorage.getItem(fullName) !== null;
+      const hasData = localStorage.getItem(tableName) !== null;
       let recordCount = 0;
       if (hasData) {
         try {
-          const data = JSON.parse(localStorage.getItem(fullName) || '[]');
+          const data = JSON.parse(localStorage.getItem(tableName) || '[]');
           recordCount = Array.isArray(data) ? data.length : 1;
         } catch (e) {
-          console.error(`Erreur lors du parsing des données de ${fullName}:`, e);
+          console.error(`Erreur lors du parsing des données de ${tableName}:`, e);
         }
       }
       
@@ -97,6 +87,7 @@ class SyncDiagnosticService {
       const status: TableStatus = {
         normalizedName,
         fullName,
+        rawName: tableName,
         tracked: tableConfig?.tracked || false,
         hasLocalData: hasData,
         recordCount,
@@ -122,6 +113,7 @@ class SyncDiagnosticService {
         report.tables.push({
           normalizedName,
           fullName,
+          rawName: fullName,
           tracked: tableConfig.tracked,
           hasLocalData: false,
           recordCount: 0,
@@ -150,8 +142,17 @@ class SyncDiagnosticService {
     
     report.tables.forEach(table => {
       if (!table.tracked) {
-        if (syncRegistry.trackTable(table.normalizedName)) {
-          trackedCount++;
+        try {
+          // Utiliser le nom brut d'origine pour le suivi
+          const success = syncRegistry.trackTable(table.rawName);
+          if (success) {
+            trackedCount++;
+            console.log(`Table activée avec succès: ${table.rawName}`);
+          } else {
+            console.error(`Échec de l'activation de la table: ${table.rawName}`);
+          }
+        } catch (error) {
+          console.error(`Erreur lors de l'activation de la table ${table.rawName}:`, error);
         }
       }
     });
@@ -226,6 +227,7 @@ class SyncDiagnosticService {
     console.log("Détails des tables:");
     report.tables.forEach(table => {
       console.log(`- ${table.normalizedName} (${table.fullName}):`);
+      console.log(`  Nom brut: ${table.rawName}`);
       console.log(`  Suivi: ${table.tracked ? 'Oui' : 'Non'}`);
       console.log(`  Données locales: ${table.hasLocalData ? `Oui (${table.recordCount} enregistrements)` : 'Non'}`);
       console.log(`  Dernière synchronisation: ${table.lastSync || 'Jamais'}`);
