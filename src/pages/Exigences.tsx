@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { FileText, FolderPlus } from 'lucide-react';
 import { MembresProvider } from '@/contexts/MembresContext';
@@ -57,9 +56,9 @@ const ExigencesContent = () => {
     });
   };
 
-  // Create wrapper function to handle different function signatures
+  // Corrected wrapper function to match expected signature
   const handleExclusionChangeWrapper = (id: string) => {
-    handleExclusionChange(id, true); // Pass a default value for the second parameter
+    return () => handleExclusionChange(id, true);
   };
 
   return (
