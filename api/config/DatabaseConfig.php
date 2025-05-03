@@ -14,10 +14,10 @@ class DatabaseConfig {
     }
 
     private function loadDefaultConfig() {
-        // Utiliser uniquement les valeurs d'Infomaniak
+        // Utiliser les valeurs de Qualiflow par défaut
         $this->host = "p71x6d.myd.infomaniak.com";
-        $this->db_name = "p71x6d_system";
-        $this->username = "p71x6d_system";
+        $this->db_name = "p71x6d_qualiflow";
+        $this->username = "p71x6d_qualiflow";
         $this->password = "Trottinette43!";
     }
 

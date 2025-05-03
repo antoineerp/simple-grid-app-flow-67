@@ -31,7 +31,7 @@ export const extractValidUserId = (user: any): string => {
   // Si aucun utilisateur n'est fourni, utiliser l'ID système par défaut
   if (!user) {
     console.warn("Aucun utilisateur fourni, utilisation de l'ID système");
-    return 'p71x6d_system';
+    return 'p71x6d_qualiflow';  // Mise à jour pour utiliser qualiflow
   }
   
   // Si c'est déjà une chaîne, la retourner directement
@@ -44,7 +44,7 @@ export const extractValidUserId = (user: any): string => {
     // Vérifier si l'objet n'est pas null
     if (user === null) {
       console.warn("Objet utilisateur null, utilisation de l'ID système");
-      return 'p71x6d_system';
+      return 'p71x6d_qualiflow';  // Mise à jour pour utiliser qualiflow
     }
     
     // Identifiants potentiels par ordre de priorité
@@ -61,7 +61,7 @@ export const extractValidUserId = (user: any): string => {
   }
   
   console.warn("Type d'utilisateur non pris en charge, utilisation de l'ID système");
-  return 'p71x6d_system';
+  return 'p71x6d_qualiflow';  // Mise à jour pour utiliser qualiflow
 };
 
 /**
