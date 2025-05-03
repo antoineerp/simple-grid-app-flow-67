@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from 'react';
 import { Exigence, ExigenceStats, ExigenceGroup } from '@/types/exigences';
 import { getCurrentUser } from '@/services/auth/authService';
@@ -423,20 +422,18 @@ export function createExigence(data: Partial<Exigence> = {}): Exigence {
   
   return {
     id: `exg_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
-    numero: data.numero || '',
-    description: data.description || '',
-    indicateur: data.indicateur || '',
-    niveau: data.niveau || 'standard',
-    statut: data.statut || 'à traiter',
-    proprietaire: data.proprietaire || '',
-    atteinte: data.atteinte || 'NC',
+    nom: data.nom || '',
+    responsabilites: data.responsabilites || { r: [], a: [], c: [], i: [] },
     exclusion: data.exclusion || false,
-    userId: currentUser,
-    groupId: data.groupId || '',
-    commentaires: data.commentaires || '',
+    atteinte: data.atteinte || 'NC',
     date_creation: new Date(),
     date_modification: new Date(),
-    ...data
+    userId: currentUser,
+    groupId: data.groupId || '',
+    // Propriétés supplémentaires si présentes dans data
+    ...(data.nom !== undefined && { nom: data.nom }),
+    ...(data.groupId !== undefined && { groupId: data.groupId }),
+    ...(data.userId !== undefined && { userId: data.userId })
   };
 }
 

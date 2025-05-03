@@ -1,4 +1,3 @@
-
 /**
  * Configuration de l'API centrale
  */
@@ -84,6 +83,29 @@ function initializeFullApiUrl(): string {
 function isValidUrl(url: string): boolean {
   // Accepter les URL absolues et les chemins relatifs commençant par '/'
   return url.startsWith('http') || url.startsWith('/');
+}
+
+// Fonction pour les requêtes HTTP avec gestion d'erreur
+export async function fetchWithErrorHandling(url: string, options?: RequestInit): Promise<any> {
+  try {
+    const response = await fetch(url, options);
+    
+    if (!response.ok) {
+      throw new Error(`Erreur HTTP: ${response.status} ${response.statusText}`);
+    }
+    
+    // Vérifier si la réponse est du JSON
+    const contentType = response.headers.get('content-type');
+    if (contentType && contentType.includes('application/json')) {
+      return await response.json();
+    }
+    
+    // Si ce n'est pas du JSON, retourner le texte
+    return await response.text();
+  } catch (error) {
+    console.error(`Erreur lors de la requête à ${url}:`, error);
+    throw error;
+  }
 }
 
 // Test de connexion à l'API

@@ -1,4 +1,3 @@
-
 import React, { useEffect } from 'react';
 import { FileText, FolderPlus } from 'lucide-react';
 import { MembresProvider } from '@/contexts/MembresContext';
@@ -79,6 +78,14 @@ const ExigencesContent = () => {
     handleExclusionChange(id, true);
   };
 
+  // Adapter for handleEdit to match the expected signature
+  const handleEditAdapter = (id: string) => {
+    const exigenceToEdit = exigences.find(e => e.id === id);
+    if (exigenceToEdit) {
+      handleEdit(exigenceToEdit);
+    }
+  };
+
   // Récupérer l'ID de l'appareil actuel
   const currentDeviceId = deviceId || getDeviceId();
 
@@ -151,7 +158,7 @@ const ExigencesContent = () => {
           onResponsabiliteChange={handleResponsabiliteChange}
           onAtteinteChange={handleAtteinteChange}
           onExclusionChange={handleExclusionChangeAdapter}
-          onEdit={handleEdit}
+          onEdit={handleEditAdapter}
           onDelete={handleDelete}
           onReorder={handleReorder}
           onGroupReorder={handleGroupReorder}
