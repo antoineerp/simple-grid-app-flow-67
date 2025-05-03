@@ -7,6 +7,7 @@ import { getCurrentUser } from '@/services/auth/authService';
 import { useToast } from '@/hooks/use-toast';
 import { getApiUrl } from '@/config/apiConfig';
 import { getDeviceId } from '@/services/core/userService';
+import { useSyncContext } from './useSyncContext';
 
 interface UseExigencesOptions {
   initialExigences?: Exigence[];
@@ -26,13 +27,23 @@ export function useExigences(options: UseExigencesOptions = {}) {
   const { addExigence, updateExigence, deleteExigence } = useExigenceMutations();
   const { groups } = useExigenceGroups();
   const { toast } = useToast();
+  const syncContext = useSyncContext();
   
   // Effet pour initialiser l'ID de l'appareil
   useEffect(() => {
     setDeviceId(getDeviceId());
   }, []);
   
-  // Chargement initial des exigences
+  // Vérification et initialisation du contexte de synchronisation
+  useEffect(() => {
+    if (!syncContext.isInitialized()) {
+      console.log("useExigences: Le contexte de synchronisation n'est pas initialisé");
+    } else {
+      console.log("useExigences: Le contexte de synchronisation est initialisé");
+    }
+  }, [syncContext]);
+  
+  // Chargement initial des exigences avec vérification de l'API URL
   const loadExigences = useCallback(async (forceRefresh = false) => {
     if (status === 'loading' && !forceRefresh && exigences.length > 0) return;
     
@@ -43,6 +54,11 @@ export function useExigences(options: UseExigencesOptions = {}) {
       const currentUser = getCurrentUser();
       const deviceId = getDeviceId();
       const API_URL = getApiUrl();
+      
+      // Vérifier que l'URL de l'API est configurée
+      if (!API_URL) {
+        throw new Error("URL de l'API non configurée");
+      }
       
       console.log(`Chargement des exigences pour l'utilisateur: ${currentUser}`);
       
@@ -75,22 +91,35 @@ export function useExigences(options: UseExigencesOptions = {}) {
           throw new Error(data.message || 'Erreur lors du chargement des exigences');
         }
         
-        if (data.records && Array.isArray(data.records)) {
-          console.log(`${data.records.length} exigences chargées depuis le serveur`);
+        // Vérifier le format des données reçues - priorité aux exigences dans la clé principale
+        if (data.exigences && Array.isArray(data.exigences)) {
+          console.log(`${data.exigences.length} exigences chargées depuis le serveur (format principal)`);
+          setExigences(data.exigences);
+          
+          // Mise à jour du stockage local pour utilisation hors ligne
+          const storageKey = `exigences_${currentUser || 'default'}`;
+          localStorage.setItem(storageKey, JSON.stringify({
+            timestamp: new Date().getTime(),
+            data: data.exigences
+          }));
+          
+        } else if (data.records && Array.isArray(data.records)) {
+          console.log(`${data.records.length} exigences chargées depuis le serveur (format alternatif)`);
           setExigences(data.records);
           
           // Mise à jour du stockage local pour utilisation hors ligne
-          localStorage.setItem('exigences_data', JSON.stringify({
+          const storageKey = `exigences_${currentUser || 'default'}`;
+          localStorage.setItem(storageKey, JSON.stringify({
             timestamp: new Date().getTime(),
             data: data.records
           }));
-          
         } else {
           console.log('Aucune exigence trouvée ou format de réponse incorrect');
           setExigences([]);
         }
         
         setStatus('loaded');
+        setLastSynced(new Date());
         
       } catch (parseError) {
         console.error('Erreur lors de l\'analyse de la réponse JSON:', parseError);
@@ -103,18 +132,26 @@ export function useExigences(options: UseExigencesOptions = {}) {
       setError(err instanceof Error ? err.message : 'Erreur inconnue');
       setStatus('error');
       
-      // Essayer de récupérer depuis le stockage local
-      try {
-        const cachedData = localStorage.getItem('exigences_data');
-        if (cachedData) {
-          const { data } = JSON.parse(cachedData);
-          if (Array.isArray(data)) {
-            console.log('Utilisation des données en cache pour les exigences');
-            setExigences(data as Exigence[]);
+      // Essayer de récupérer depuis le stockage local seulement si c'est une erreur réseau
+      // et non une erreur de configuration
+      if (err instanceof Error && !err.message.includes("API non configurée")) {
+        try {
+          const currentUser = getCurrentUser();
+          const storageKey = `exigences_${currentUser || 'default'}`;
+          const cachedData = localStorage.getItem(storageKey);
+          if (cachedData) {
+            const parsed = JSON.parse(cachedData);
+            if (parsed.data && Array.isArray(parsed.data)) {
+              console.log('Utilisation des données en cache pour les exigences');
+              setExigences(parsed.data as Exigence[]);
+            }
           }
+        } catch (cacheError) {
+          console.error('Erreur lors de la lecture du cache:', cacheError);
         }
-      } catch (cacheError) {
-        console.error('Erreur lors de la lecture du cache:', cacheError);
+      } else {
+        // En cas d'erreur de configuration, s'assurer que les données locales ne sont pas utilisées
+        console.log("Erreur de configuration - pas de récupération locale des données");
       }
       
       toast({
@@ -127,11 +164,19 @@ export function useExigences(options: UseExigencesOptions = {}) {
   
   // Synchronisation manuelle
   const handleSync = useCallback(async () => {
-    if (isSyncing) return;
+    if (isSyncing) return false;
+    
     setIsSyncing(true);
     setSyncFailed(false);
     
     try {
+      // Vérifier que le contexte de synchronisation est initialisé
+      if (!syncContext.isInitialized()) {
+        console.error("Sync context not initialized");
+        setSyncFailed(true);
+        return false;
+      }
+      
       await loadExigences(true);
       setLastSynced(new Date());
       return true;
@@ -142,32 +187,32 @@ export function useExigences(options: UseExigencesOptions = {}) {
     } finally {
       setIsSyncing(false);
     }
-  }, [isSyncing, loadExigences]);
+  }, [isSyncing, loadExigences, syncContext]);
 
   // Statistiques des exigences
   const getStats = useCallback((): ExigenceStats => {
-    const totalCount = exigences.length;
-    const statusCounts: Record<string, number> = {};
+    const stats: ExigenceStats = {
+      exclusion: 0,
+      nonConforme: 0,
+      partiellementConforme: 0,
+      conforme: 0,
+      total: exigences.length
+    };
     
+    // Calculer les statistiques
     exigences.forEach(exigence => {
-      const status = exigence.statut || 'non défini';
-      statusCounts[status] = (statusCounts[status] || 0) + 1;
+      if (exigence.exclusion) {
+        stats.exclusion++;
+      } else if (exigence.atteinte === 'NC') {
+        stats.nonConforme++;
+      } else if (exigence.atteinte === 'PC') {
+        stats.partiellementConforme++;
+      } else if (exigence.atteinte === 'C') {
+        stats.conforme++;
+      }
     });
     
-    // Calcul du pourcentage de traitement
-    const treatedCount = statusCounts['traité'] || 0;
-    const inProgressCount = statusCounts['en cours'] || 0;
-    const notTreatedCount = totalCount - treatedCount - inProgressCount;
-    
-    const completionPercentage = totalCount > 0 
-      ? Math.round((treatedCount / totalCount) * 100) 
-      : 0;
-    
-    return {
-      total: totalCount,
-      byStatus: statusCounts,
-      completionPercentage
-    };
+    return stats;
   }, [exigences]);
 
   // Effet de chargement initial
@@ -181,14 +226,19 @@ export function useExigences(options: UseExigencesOptions = {}) {
     let syncInterval: NodeJS.Timeout | null = null;
     if (options.autoSync !== false) {
       syncInterval = setInterval(() => {
-        handleSync();
+        // Vérifier le contexte de synchronisation avant de synchroniser
+        if (syncContext.isInitialized()) {
+          handleSync();
+        } else {
+          console.log("Synchronisation périodique ignorée - contexte non initialisé");
+        }
       }, 300000); // 5 minutes
     }
     
     return () => {
       if (syncInterval) clearInterval(syncInterval);
     };
-  }, [loadExigences, options.forceLoad, options.autoSync, handleSync]);
+  }, [loadExigences, options.forceLoad, options.autoSync, handleSync, syncContext]);
 
   // État pour les dialog d'édition
   const [dialogOpen, setDialogOpen] = useState(false);
