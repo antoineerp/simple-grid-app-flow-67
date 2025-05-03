@@ -1,6 +1,4 @@
-Here's the full code for src/hooks/index.ts:
 
-```typescript
 // Authentication hooks
 export * from './useAuth';
 export * from './useLogin';
@@ -653,7 +651,7 @@ export * from './usePageSinge';
 export * from './usePageScorch';
 export * from './usePageChar';
 export * from './usePageIncinerate';
-export * from './usePageCremateExigences';
+export * from './usePageCremate';
 
-export * from './useExigences';
-```
+// Add your SyncContext hook
+export * from './useSyncContext';
