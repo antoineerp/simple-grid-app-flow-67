@@ -15,7 +15,7 @@ import MemberForm from '@/components/ressources-humaines/MemberForm';
 import { Membre } from '@/types/membres';
 import { exportAllCollaborateursToPdf } from '@/services/collaborateurExport';
 import { useSyncContext } from '@/hooks/useSyncContext';
-import SyncIndicator from '@/components/ui/SyncIndicator';
+import SyncIndicator from '@/components/common/SyncIndicator';
 
 const RessourcesHumaines = () => {
   const { toast } = useToast();
