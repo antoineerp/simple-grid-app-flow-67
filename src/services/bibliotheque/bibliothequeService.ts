@@ -1,4 +1,3 @@
-
 import { Document, DocumentGroup } from '@/types/bibliotheque';
 
 /**
@@ -19,8 +18,8 @@ export const loadBibliothequeFromStorage = (currentUser: string): { documents: D
       documents = JSON.parse(defaultDocuments);
     } else {
       documents = [
-        { id: "1", name: 'Organigramme', link: 'Voir le document' },
-        { id: "2", name: 'Administration', link: 'Voir le document' },
+        { id: "1", name: 'Organigramme', link: 'Voir le document', userId: currentUser },
+        { id: "2", name: 'Administration', link: 'Voir le document', userId: currentUser },
       ];
     }
   }
@@ -33,8 +32,8 @@ export const loadBibliothequeFromStorage = (currentUser: string): { documents: D
       groups = JSON.parse(defaultGroups);
     } else {
       groups = [
-        { id: "1", name: 'Documents organisationnels', expanded: false, items: [] },
-        { id: "2", name: 'Documents administratifs', expanded: false, items: [] },
+        { id: "1", name: 'Documents organisationnels', expanded: false, items: [], userId: currentUser },
+        { id: "2", name: 'Documents administratifs', expanded: false, items: [], userId: currentUser },
       ];
     }
   }

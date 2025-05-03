@@ -1,29 +1,22 @@
-
-/**
- * Moniteur global de synchronisation
- * Fournit un point central pour surveiller et coordonner toutes les opérations de sync
- */
-
-import { getRecentErrors } from './errorLogger';
-import { SyncMonitorStatus } from '../types/syncTypes';
-
-// Types pour le monitoring
-export type SyncAttempt = {
+export interface SyncAttempt {
   id: string;
   tableName: string;
-  operation: string; // Required for compatibility with SyncMonitorStatus
   startTime: number;
   endTime?: number;
   success: boolean;
   error?: string;
   duration?: number;
-};
+  operation: string; // Make operation a required field
+}
 
-interface SyncMonitorState {
-  attempts: SyncAttempt[];
-  activeOperations: Map<string, SyncAttempt>;
-  successCount: number;
-  failureCount: number;
+export interface SyncStatus {
+  health: 'good' | 'warning' | 'critical';
+  activeCount: number;
+  recentAttempts: SyncAttempt[];
+  stats: {
+    success: number;
+    failure: number;
+  };
   lastSync: {
     time: number | null;
     success: boolean;
@@ -31,232 +24,134 @@ interface SyncMonitorState {
 }
 
 class SyncMonitor {
-  private state: SyncMonitorState;
-  private static instance: SyncMonitor;
-  private maxHistorySize = 50;
-  
-  private constructor() {
-    this.state = {
-      attempts: [],
-      activeOperations: new Map(),
-      successCount: 0,
-      failureCount: 0,
-      lastSync: {
-        time: null,
-        success: false
+  private attempts: SyncAttempt[] = [];
+  private readonly maxAttempts = 50;
+  private activeAttempts: Map<string, SyncAttempt> = new Map();
+
+  constructor() {
+    // Initialize event listeners
+    this.setupEventListeners();
+  }
+
+  private setupEventListeners() {
+    window.addEventListener('syncStarted', (event: Event) => {
+      const customEvent = event as CustomEvent;
+      if (customEvent.detail?.attemptId) {
+        this.recordSyncStart(customEvent.detail);
       }
-    };
-    
-    // Initialiser le système d'écoute d'événements
-    if (typeof window !== 'undefined') {
-      this.setupEventListeners();
-    }
+    });
+
+    window.addEventListener('syncCompleted', (event: Event) => {
+      const customEvent = event as CustomEvent;
+      if (customEvent.detail?.attemptId) {
+        this.recordSyncSuccess(customEvent.detail.attemptId);
+      }
+    });
+
+    window.addEventListener('syncFailed', (event: Event) => {
+      const customEvent = event as CustomEvent;
+      if (customEvent.detail?.attemptId) {
+        this.recordSyncFailure(
+          customEvent.detail.attemptId,
+          customEvent.detail.error || "Unknown error"
+        );
+      }
+    });
   }
-  
-  /**
-   * Obtenir l'instance singleton du moniteur
-   */
-  public static getInstance(): SyncMonitor {
-    if (!SyncMonitor.instance) {
-      SyncMonitor.instance = new SyncMonitor();
-    }
-    return SyncMonitor.instance;
-  }
-  
-  /**
-   * Mettre en place les écouteurs d'événements
-   */
-  private setupEventListeners(): void {
-    // Écouter les événements de synchronisation
-    window.addEventListener('syncStarted', ((event: CustomEvent) => {
-      this.recordSyncStart(
-        event.detail.operationId || event.detail.tableName, 
-        event.detail.operation || 'unknown'
-      );
-    }) as EventListener);
-    
-    window.addEventListener('syncCompleted', ((event: CustomEvent) => {
-      this.recordSyncEnd(event.detail.operationId || event.detail.tableName, true);
-    }) as EventListener);
-    
-    window.addEventListener('syncFailed', ((event: CustomEvent) => {
-      this.recordSyncEnd(
-        event.detail.operationId || event.detail.tableName, 
-        false, 
-        event.detail.error
-      );
-    }) as EventListener);
-  }
-  
-  /**
-   * Enregistrer le début d'une synchronisation
-   */
-  public recordSyncStart(id: string, operation: string): string {
-    const timestamp = Date.now();
-    const operationId = id.includes('_') ? id : `${id}_${timestamp}_${Math.random().toString(36).substring(2, 9)}`;
-    
+
+  public recordSyncStart({ attemptId, tableName, operation }: { attemptId: string; tableName: string; operation: string }) {
     const attempt: SyncAttempt = {
-      id: operationId,
-      tableName: id.includes('_') ? id.split('_')[0] : id,
-      operation,
-      startTime: timestamp,
-      success: false // Initialize with a default value
+      id: attemptId,
+      tableName,
+      startTime: Date.now(),
+      success: false,
+      operation
     };
-    
-    // Stocker l'opération active
-    this.state.activeOperations.set(operationId, attempt);
-    
-    // Émettre un événement pour le débogage
-    console.log(`SyncMonitor: Début synchronisation ${attempt.tableName} (${operation}) avec ID ${operationId}`);
-    
-    return operationId;
+    this.activeAttempts.set(attemptId, attempt);
   }
-  
-  /**
-   * Enregistrer la fin d'une synchronisation
-   */
-  public recordSyncEnd(id: string, success: boolean, error?: string): void {
-    // Vérifier si c'est un ID d'opération (contenant _) ou juste un nom de table
-    const isOperationId = id.includes('_');
-    
-    // Récupérer l'opération
-    let operation;
-    let opId = id;
-    
-    if (isOperationId) {
-      operation = this.state.activeOperations.get(id);
-    } else {
-      // Rechercher parmi toutes les opérations actives pour trouver celle qui correspond au nom de table
-      for (const [currentOpId, op] of this.state.activeOperations.entries()) {
-        if (op.tableName === id) {
-          operation = op;
-          opId = currentOpId;
-          break;
-        }
-      }
-    }
-    
-    if (!operation) {
-      console.warn(`SyncMonitor: Opération inconnue ${id} (ignorée silencieusement)`);
-      
-      // AMÉLIORATION: Créer une nouvelle entrée pour cette opération inconnue
-      // pour éviter les erreurs dans l'historique
-      const newOperation: SyncAttempt = {
-        id: opId,
-        tableName: isOperationId ? id.split('_')[0] : id,
-        operation: 'unknown',
-        startTime: Date.now() - 1000, // Simuler un début 1 seconde avant
-        success: success,
-        endTime: Date.now(),
-        error: error || (success ? undefined : "Opération inconnue")
-      };
-      
-      // Ajouter à l'historique
-      this.state.attempts.unshift(newOperation);
-      if (this.state.attempts.length > this.maxHistorySize) {
-        this.state.attempts = this.state.attempts.slice(0, this.maxHistorySize);
-      }
-      
-      // Mettre à jour les compteurs
-      if (success) {
-        this.state.successCount++;
-        this.state.lastSync = { time: newOperation.endTime, success: true };
-      } else {
-        this.state.failureCount++;
-        if (!this.state.lastSync.time) {
-          this.state.lastSync = { time: newOperation.endTime, success: false };
-        }
-      }
-      
-      return;
-    }
-    
-    // Mettre à jour l'opération
-    operation.endTime = Date.now();
-    operation.success = success;
-    operation.error = error;
-    operation.duration = operation.endTime - operation.startTime;
-    
-    // Mettre à jour les compteurs
-    if (success) {
-      this.state.successCount++;
-      this.state.lastSync = { time: operation.endTime, success: true };
-    } else {
-      this.state.failureCount++;
-      if (!this.state.lastSync.time) {
-        this.state.lastSync = { time: operation.endTime, success: false };
-      }
-    }
-    
-    // Ajouter à l'historique et respecter la taille maximale
-    this.state.attempts.unshift(operation);
-    if (this.state.attempts.length > this.maxHistorySize) {
-      this.state.attempts = this.state.attempts.slice(0, this.maxHistorySize);
-    }
-    
-    // Supprimer de la liste des opérations actives
-    this.state.activeOperations.delete(opId);
-    
-    // Log pour débogage
-    console.log(`SyncMonitor: Fin synchronisation ${operation.tableName} (${success ? 'succès' : 'échec'})`);
+
+  public recordSyncSuccess(attemptId: string) {
+    const attempt = this.activeAttempts.get(attemptId);
+    if (!attempt) return;
+
+    const endTime = Date.now();
+    const updatedAttempt: SyncAttempt = {
+      ...attempt,
+      endTime,
+      success: true,
+      duration: endTime - attempt.startTime
+    };
+
+    this.activeAttempts.delete(attemptId);
+    this.addAttempt(updatedAttempt);
   }
-  
-  /**
-   * Récupérer l'état actuel de toutes les synchronisations
-   */
-  public getStatus(): SyncMonitorStatus {
-    const activeCount = this.state.activeOperations.size;
-    const recentErrors = getRecentErrors();
+
+  public recordSyncFailure(attemptId: string, error: string) {
+    const attempt = this.activeAttempts.get(attemptId);
+    if (!attempt) return;
+
+    const endTime = Date.now();
+    const updatedAttempt: SyncAttempt = {
+      ...attempt,
+      endTime,
+      success: false,
+      error,
+      duration: endTime - attempt.startTime
+    };
+
+    this.activeAttempts.delete(attemptId);
+    this.addAttempt(updatedAttempt);
+  }
+
+  private addAttempt(attempt: SyncAttempt) {
+    this.attempts.unshift(attempt);
+    // Keep only the most recent attempts
+    if (this.attempts.length > this.maxAttempts) {
+      this.attempts.pop();
+    }
+  }
+
+  public getStatus(): SyncStatus {
+    const activeCount = this.activeAttempts.size;
+    const recentAttempts = [...this.attempts];
     
-    // Déterminer l'état de santé global
+    // Calculate statistics
+    const successCount = recentAttempts.filter(a => a.success).length;
+    const failureCount = recentAttempts.filter(a => !a.success).length;
+    
+    // Find the most recent sync
+    const sortedAttempts = [...recentAttempts].sort((a, b) => 
+      (b.endTime || 0) - (a.endTime || 0)
+    );
+    
+    const lastSync = sortedAttempts.length > 0 ? {
+      time: sortedAttempts[0].endTime || null,
+      success: sortedAttempts[0].success
+    } : { time: null, success: false };
+    
+    // Determine health
     let health: 'good' | 'warning' | 'critical' = 'good';
+    const recentFailures = recentAttempts
+      .filter(a => !a.success && a.endTime && a.endTime > Date.now() - 15 * 60 * 1000)
+      .length;
     
-    if (this.state.failureCount > this.state.successCount) {
+    if (recentFailures >= 5) {
       health = 'critical';
-    } else if (this.state.failureCount > 0) {
+    } else if (recentFailures >= 2) {
       health = 'warning';
     }
     
     return {
-      activeCount,
-      recentAttempts: this.state.attempts.slice(0, 10),
-      stats: {
-        success: this.state.successCount,
-        failure: this.state.failureCount
-      },
       health,
-      lastSync: this.state.lastSync
+      activeCount,
+      recentAttempts,
+      stats: {
+        success: successCount,
+        failure: failureCount
+      },
+      lastSync
     };
-  }
-  
-  /**
-   * Récupérer les opérations de synchronisation actives
-   */
-  public getActiveOperations(): SyncAttempt[] {
-    return Array.from(this.state.activeOperations.values());
-  }
-  
-  /**
-   * Vérifier si une table a une synchronisation en cours
-   */
-  public hasActiveSync(tableName: string): boolean {
-    for (const operation of this.state.activeOperations.values()) {
-      if (operation.tableName === tableName) {
-        return true;
-      }
-    }
-    return false;
-  }
-  
-  /**
-   * Réinitialiser les compteurs et l'état
-   */
-  public reset(): void {
-    this.state.successCount = 0;
-    this.state.failureCount = 0;
-    // Ne pas réinitialiser les opérations actives ni l'historique
   }
 }
 
-// Exporter l'instance singleton
-export const syncMonitor = SyncMonitor.getInstance();
+export const syncMonitor = new SyncMonitor();

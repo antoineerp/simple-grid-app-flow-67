@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { DocumentGroup } from '@/types/documents';
+import { getCurrentUser } from '@/services/auth/authService';
 
 interface DocumentGroupDialogProps {
   group: DocumentGroup | null;
@@ -29,6 +30,7 @@ export const DocumentGroupDialog = ({
   isEditing
 }: DocumentGroupDialogProps) => {
   const [name, setName] = React.useState(group?.name || '');
+  const currentUser = getCurrentUser()?.identifiant_technique || 'system';
 
   React.useEffect(() => {
     if (group) {
@@ -43,7 +45,8 @@ export const DocumentGroupDialog = ({
       id: group?.id || Math.random().toString(36).substr(2, 9),
       name,
       expanded: group?.expanded || false,
-      items: group?.items || []
+      items: group?.items || [],
+      userId: group?.userId || currentUser
     };
     onSave(updatedGroup, isEditing);
     onOpenChange(false);
