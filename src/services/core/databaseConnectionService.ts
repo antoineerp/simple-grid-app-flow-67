@@ -1,4 +1,3 @@
-
 import { getApiUrl } from '@/config/apiConfig';
 import { getAuthHeaders } from '@/services/auth/authService';
 
@@ -42,8 +41,8 @@ export const getCurrentUser = (): string | null => {
     console.error("Erreur lors de la récupération de l'utilisateur depuis le token:", error);
   }
   
-  // Valeur par défaut pour les opérations sans authentification
-  return 'p71x6d_system';
+  // Valeur par défaut pour les opérations sans authentification - utiliser p71x6d_qualiflow au lieu de p71x6d_system
+  return 'p71x6d_qualiflow';
 };
 
 // Fonction pour définir l'utilisateur actuel
@@ -139,8 +138,8 @@ export const getDatabaseConnectionCurrentUser = (): string | null => {
     console.error("Erreur lors de la récupération de l'utilisateur depuis localStorage:", error);
   }
   
-  // Si rien n'est trouvé, utiliser l'utilisateur par défaut
-  return 'p71x6d_system';
+  // Si rien n'est trouvé, utiliser l'utilisateur par défaut (p71x6d_qualiflow au lieu de p71x6d_system)
+  return 'p71x6d_qualiflow';
 };
 
 // Interface pour les informations de base de données
@@ -296,7 +295,7 @@ export const initializeCurrentUser = (): void => {
     console.error("Erreur lors de l'initialisation de l'utilisateur depuis le token:", error);
   }
   
-  // Si aucun utilisateur n'est trouvé, utiliser la valeur par défaut
-  setCurrentUser('p71x6d_system');
-  console.log(`Utilisateur initialisé avec la valeur par défaut: p71x6d_system`);
+  // Si aucun utilisateur n'est trouvé, utiliser la valeur par défaut (p71x6d_qualiflow)
+  setCurrentUser('p71x6d_qualiflow');
+  console.log(`Utilisateur initialisé avec la valeur par défaut: p71x6d_qualiflow`);
 };

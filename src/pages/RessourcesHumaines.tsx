@@ -7,7 +7,6 @@ import MembresToolbar from '@/components/ressources/MembresToolbar';
 import { PageHeader } from '@/components/ui/page-header';
 import { Users } from 'lucide-react';
 import { useSyncContext } from '@/hooks/useSyncContext';
-import { syncMembres } from '@/services/users/membresService';
 import { useToast } from '@/hooks/use-toast';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 
@@ -90,6 +89,9 @@ const RessourcesHumaines: React.FC = () => {
     }
   };
 
+  // Convertir l'erreur en string pour éviter l'erreur de type
+  const errorMessage = error ? (error instanceof Error ? error.message : String(error)) : null;
+
   return (
     <div className="container mx-auto py-6 space-y-6">
       <PageHeader
@@ -102,7 +104,7 @@ const RessourcesHumaines: React.FC = () => {
         onSync={handleSyncClick} 
         lastSynced={lastSynced} 
         isLoading={isLoading} 
-        error={error}
+        error={errorMessage}
       />
       
       <Card>
