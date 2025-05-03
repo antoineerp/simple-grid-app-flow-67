@@ -86,7 +86,8 @@ const ExigencesContent = () => {
           syncFailed={syncFailed || !!loadError}
           lastSynced={lastSynced}
           onSync={handleSync}
-          showOnlyErrors={true}
+          showOnlyErrors={false} // Changé à false pour toujours afficher l'indicateur
+          tableName="exigences"
         />
       </div>
 

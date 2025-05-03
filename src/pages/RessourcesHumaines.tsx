@@ -15,6 +15,7 @@ import MemberForm from '@/components/ressources-humaines/MemberForm';
 import { Membre } from '@/types/membres';
 import { exportAllCollaborateursToPdf } from '@/services/collaborateurExport';
 import { useSyncContext } from '@/hooks/useSyncContext';
+import SyncIndicator from '@/components/ui/SyncIndicator';
 
 const RessourcesHumaines = () => {
   const { toast } = useToast();
@@ -51,6 +52,9 @@ const RessourcesHumaines = () => {
     }));
   }, []);
   
+  const [isSyncing, setIsSyncing] = React.useState(false);
+  const [syncFailed, setSyncFailed] = React.useState(false);
+  const [lastSynced, setLastSynced] = React.useState<Date | null>(null);
   const [isDialogOpen, setIsDialogOpen] = React.useState(false);
   const [currentMembre, setCurrentMembre] = React.useState<Membre>({
     id: '',
@@ -76,14 +80,28 @@ const RessourcesHumaines = () => {
   useEffect(() => {
     const syncOnLoad = async () => {
       if (membres.length > 0 && isOnline) {
-        console.log("RessourcesHumaines: Forcer la synchronisation au chargement de la page");
-        // Pass the membres data to syncWithServer
-        await syncWithServer(membres);
+        setIsSyncing(true);
+        try {
+          console.log("RessourcesHumaines: Forcer la synchronisation au chargement de la page");
+          // Pass the membres data to syncWithServer
+          const success = await syncWithServer(membres);
+          if (success) {
+            setLastSynced(new Date());
+            setSyncFailed(false);
+          } else {
+            setSyncFailed(true);
+          }
+        } catch (err) {
+          console.error("Erreur de synchronisation initiale:", err);
+          setSyncFailed(true);
+        } finally {
+          setIsSyncing(false);
+        }
       }
     };
     
-    syncOnLoad().catch(err => console.error("Erreur de synchronisation initiale:", err));
-  }, []);
+    syncOnLoad();
+  }, [membres.length, isOnline, syncWithServer]);
 
   const handleEdit = (id: string) => {
     const membre = membres.find(m => m.id === id);
@@ -169,8 +187,24 @@ const RessourcesHumaines = () => {
     // Synchroniser immédiatement après la sauvegarde
     setTimeout(() => {
       notifyChanges();
-      // Pass the updated membres data to syncWithServer
-      syncWithServer(updatedMembres).catch(err => console.error("Erreur de synchronisation après sauvegarde:", err));
+      // Synchonisation forcée avec animation
+      setIsSyncing(true);
+      syncWithServer(updatedMembres)
+        .then(success => {
+          if (success) {
+            setLastSynced(new Date());
+            setSyncFailed(false);
+          } else {
+            setSyncFailed(true);
+          }
+        })
+        .catch(err => {
+          console.error("Erreur de synchronisation après sauvegarde:", err);
+          setSyncFailed(true);
+        })
+        .finally(() => {
+          setIsSyncing(false);
+        });
     }, 100);
   };
 
@@ -194,14 +228,21 @@ const RessourcesHumaines = () => {
   // Fonction pour rafraîchir manuellement la liste des membres
   const handleRefresh = async () => {
     setRefreshing(true);
+    setIsSyncing(true);
     try {
       await refreshMembres();
+      if (membres.length > 0) {
+        await syncWithServer(membres);
+      }
+      setLastSynced(new Date());
+      setSyncFailed(false);
       toast({
         title: "Rafraîchissement",
         description: "La liste des membres a été mise à jour",
       });
     } catch (error) {
       console.error("Erreur lors du rafraîchissement:", error);
+      setSyncFailed(true);
       toast({
         title: "Erreur",
         description: "Impossible de rafraîchir la liste des membres",
@@ -209,6 +250,42 @@ const RessourcesHumaines = () => {
       });
     } finally {
       setRefreshing(false);
+      setIsSyncing(false);
+    }
+  };
+
+  // Fonction spécifique pour forcer une synchronisation
+  const handleForceSync = async () => {
+    if (isSyncing || membres.length === 0) return;
+    
+    setIsSyncing(true);
+    try {
+      const success = await syncWithServer(membres);
+      if (success) {
+        setLastSynced(new Date());
+        setSyncFailed(false);
+        toast({
+          title: "Synchronisation réussie",
+          description: "Les membres ont été synchronisés avec le serveur",
+        });
+      } else {
+        setSyncFailed(true);
+        toast({
+          title: "Échec de la synchronisation",
+          description: "Impossible de synchroniser les membres",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error("Erreur lors de la synchronisation forcée:", error);
+      setSyncFailed(true);
+      toast({
+        title: "Erreur",
+        description: "Une erreur s'est produite lors de la synchronisation",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSyncing(false);
     }
   };
 
@@ -236,6 +313,18 @@ const RessourcesHumaines = () => {
             <FileText className="h-6 w-6 stroke-[1.5]" />
           </button>
         </div>
+      </div>
+
+      <div className="mb-4">
+        <SyncIndicator
+          isSyncing={isSyncing}
+          isOnline={isOnline}
+          syncFailed={syncFailed}
+          lastSynced={lastSynced}
+          onSync={handleForceSync}
+          showOnlyErrors={false}
+          tableName="ressourceshumaines"
+        />
       </div>
 
       {isLoading || refreshing ? (
