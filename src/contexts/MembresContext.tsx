@@ -31,7 +31,7 @@ interface MembresProviderProps {
 }
 
 export const MembresProvider: React.FC<MembresProviderProps> = ({ children }) => {
-  // Démarrer avec un tableau vide et non des valeurs par défaut
+  // Démarrer avec un tableau vide
   const [membres, setMembres] = useState<Membre[]>([]);
   const [lastSynced, setLastSynced] = useState<Date | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -92,6 +92,17 @@ export const MembresProvider: React.FC<MembresProviderProps> = ({ children }) =>
       
       if (isOnline) {
         try {
+          // Récupère le token d'authentification
+          const authToken = sessionStorage.getItem('authToken') || localStorage.getItem('authToken');
+          
+          if (!authToken) {
+            console.log("MembresProvider: Aucun token d'authentification trouvé, utilisation d'un tableau vide");
+            setMembres([]);
+            setLastSynced(new Date());
+            initialized.current = true;
+            return;
+          }
+          
           const loadedMembres = await getMembresService(forceRefresh);
           
           if (!mountedRef.current) return;

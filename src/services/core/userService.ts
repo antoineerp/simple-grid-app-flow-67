@@ -1,19 +1,16 @@
 
-import { getCurrentUser } from '@/services/auth/authService';
+// Ce fichier est conservé pour la compatibilité avec le code existant
+// mais délègue maintenant ses fonctionnalités au nouveau UserManager
+import { getUtilisateurs as getUsersFromManager } from './userManager';
+import { Utilisateur } from '@/services';
 
-/**
- * Extrait un identifiant utilisateur valide à partir des informations d'utilisateur
- * Standardise l'approche sur toute l'application
- */
-export const getCurrentUserId = (): string => {
-  const user = getCurrentUser();
-  return extractValidUserId(user);
+// Export des fonctions simplifiées qui utilisent le UserManager
+export const getUtilisateurs = (): Promise<Utilisateur[]> => {
+  console.log("userService.getUtilisateurs appelé - déléguant à UserManager");
+  return getUsersFromManager();
 };
 
-/**
- * Génère ou récupère un identifiant d'appareil unique
- * Cet ID est utilisé pour la synchronisation multi-appareils
- */
+// Fonction pour générer un identifiant d'appareil unique s'il n'existe pas
 export const getDeviceId = (): string => {
   let deviceId = localStorage.getItem('deviceId');
   if (!deviceId) {
@@ -24,86 +21,35 @@ export const getDeviceId = (): string => {
   return deviceId;
 };
 
-/**
- * Extrait un identifiant utilisateur valide à partir de différentes formes d'utilisateur
- */
-export const extractValidUserId = (user: any): string => {
-  // Si aucun utilisateur n'est fourni, utiliser l'ID système par défaut
-  if (!user) {
-    console.warn("Aucun utilisateur fourni, utilisation de l'ID système");
-    return 'p71x6d_system';
-  }
-  
-  // Si c'est déjà une chaîne, la retourner directement
-  if (typeof user === 'string') {
-    return user;
-  }
-  
-  // Si c'est un objet, essayer d'extraire un identifiant
-  if (typeof user === 'object') {
-    // Vérifier si l'objet n'est pas null
-    if (user === null) {
-      console.warn("Objet utilisateur null, utilisation de l'ID système");
-      return 'p71x6d_system';
-    }
-    
-    // Identifiants potentiels par ordre de priorité
-    const possibleIds = ['identifiant_technique', 'email', 'id'];
-    
-    for (const idField of possibleIds) {
-      if (user[idField] && typeof user[idField] === 'string') {
-        console.log(`ID utilisateur extrait: ${idField} = ${user[idField]}`);
-        return user[idField];
+// Fonction pour obtenir l'identifiant utilisateur courant
+export const getCurrentUserId = (): string => {
+  try {
+    const authToken = localStorage.getItem('authToken') || sessionStorage.getItem('authToken');
+    if (authToken) {
+      // Vérifier que le token a le bon format avant de le traiter
+      const parts = authToken.split('.');
+      if (parts && parts.length >= 2 && parts[1]) {
+        try {
+          const base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+          const rawPayload = atob(base64);
+          const jsonPayload = decodeURIComponent(
+            Array.from(rawPayload)
+              .map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+              .join('')
+          );
+
+          const userData = JSON.parse(jsonPayload);
+          if (userData.user && userData.user.id) {
+            return userData.user.id;
+          }
+        } catch (decodeError) {
+          console.error("Erreur lors du décodage du token:", decodeError);
+        }
       }
     }
-    
-    console.warn("Aucun identifiant valide trouvé dans l'objet utilisateur:", user);
+  } catch (error) {
+    console.error("Erreur lors de la récupération de l'ID utilisateur:", error);
   }
   
-  console.warn("Type d'utilisateur non pris en charge, utilisation de l'ID système");
-  return 'p71x6d_system';
+  return '';
 };
-
-/**
- * Vérifie si l'utilisateur est connecté
- */
-export const isUserLoggedIn = (): boolean => {
-  const token = localStorage.getItem('authToken') || sessionStorage.getItem('authToken');
-  const user = getCurrentUser();
-  return !!token && !!user;
-};
-
-/**
- * Génère une chaîne d'identifiant sécurisée pour l'utilisation dans les noms de table
- * Cette fonction est essentielle pour éviter les injections SQL
- */
-export const getSafeUserId = (userId?: string): string => {
-  const id = userId || getCurrentUserId();
-  return id.replace(/[^a-zA-Z0-9_]/g, '_');
-};
-
-/**
- * Initialise les informations d'appareil si nécessaire
- * Ces informations sont utilisées pour la synchronisation multi-appareils
- */
-export const initDeviceInfo = (): void => {
-  // Assurer qu'un ID d'appareil existe
-  const deviceId = getDeviceId();
-  
-  // Enregistrer les informations de l'appareil
-  const deviceInfo = {
-    id: deviceId,
-    userAgent: navigator.userAgent,
-    platform: navigator.platform,
-    lastActive: new Date().toISOString(),
-    userId: getCurrentUserId() // Associer l'ID utilisateur à l'appareil
-  };
-  
-  localStorage.setItem('deviceInfo', JSON.stringify(deviceInfo));
-  console.log("Informations d'appareil initialisées:", deviceInfo);
-};
-
-// Initialiser automatiquement
-if (typeof window !== 'undefined') {
-  initDeviceInfo();
-}

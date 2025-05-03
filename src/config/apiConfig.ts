@@ -1,93 +1,188 @@
 
-// Configuration de l'API
-const apiUrl = getApiBaseUrl();
+/**
+ * Configuration de l'API centrale
+ */
 
-// Fonction pour déterminer l'URL de base de l'API en fonction de l'environnement
-function getApiBaseUrl(): string {
-  // Toujours utiliser le chemin relatif pour la production et le développement
-  return '/api';
-}
+let API_URL = '';
+let FULL_API_URL = '';
 
-// Obtenir l'URL de l'API
 export function getApiUrl(): string {
-  return apiUrl;
+  if (!API_URL) {
+    API_URL = initializeApiUrl();
+  }
+  return API_URL;
 }
 
-// Obtenir l'URL complète de l'API (avec le hostname)
 export function getFullApiUrl(): string {
-  return `${window.location.protocol}//${window.location.host}${apiUrl}`;
+  if (!FULL_API_URL) {
+    FULL_API_URL = initializeFullApiUrl();
+  }
+  return FULL_API_URL;
 }
 
-// Diagnostic de l'API simple
-export async function testApiConnection(): Promise<{ success: boolean; message: string; details?: any }> {
+// Initialisation de l'URL de l'API en fonction de l'environnement
+function initializeApiUrl(): string {
+  const savedApiUrl = localStorage.getItem('apiUrl');
+  
+  // Si une URL est sauvegardée et elle est valide, l'utiliser
+  if (savedApiUrl && isValidUrl(savedApiUrl)) {
+    console.log("Utilisation de l'URL API sauvegardée:", savedApiUrl);
+    return savedApiUrl;
+  }
+
+  // Détection de l'environnement
+  const hostname = window.location.hostname;
+  const isLocalhost = hostname === 'localhost' || hostname === '127.0.0.1';
+  const port = window.location.port;
+
+  let baseApiUrl;
+  
+  // Forcer l'utilisation du chemin /api sur Infomaniak
+  if (hostname.includes('myd.infomaniak.com') || hostname.includes('qualiopi.ch')) {
+    console.log("Environnement Infomaniak détecté, utilisation du chemin /api");
+    baseApiUrl = '/api';
+  }
+  // Config pour développement local
+  else if (isLocalhost) {
+    console.log("Environnement local détecté");
+    baseApiUrl = port === '5173' || port === '5174' ? '/api' : '/api';
+  }
+  // Pour les déploiements sur d'autres plateformes
+  else {
+    console.log("Autre environnement détecté, utilisation du chemin relatif /api");
+    baseApiUrl = '/api';
+  }
+
+  // Sauvegarder l'URL pour les prochains chargements
+  localStorage.setItem('apiUrl', baseApiUrl);
+  console.log("URL API initialisée:", baseApiUrl);
+  
+  return baseApiUrl;
+}
+
+// Initialisation de l'URL complète de l'API
+function initializeFullApiUrl(): string {
+  const baseApiUrl = getApiUrl();
+  const protocol = window.location.protocol;
+  const hostname = window.location.hostname;
+  const port = window.location.port ? `:${window.location.port}` : '';
+  
+  // Si l'URL de base est déjà absolue, la retourner telle quelle
+  if (baseApiUrl.startsWith('http')) {
+    console.log("URL API complète (absolue):", baseApiUrl);
+    return baseApiUrl;
+  }
+
+  // Sinon, construire l'URL complète
+  const fullUrl = `${protocol}//${hostname}${port}${baseApiUrl.startsWith('/') ? baseApiUrl : `/${baseApiUrl}`}`;
+  console.log("URL API complète (construite):", fullUrl);
+  
+  return fullUrl;
+}
+
+// Validation d'URL
+function isValidUrl(url: string): boolean {
+  // Accepter les URL absolues et les chemins relatifs commençant par '/'
+  return url.startsWith('http') || url.startsWith('/');
+}
+
+// Test de connexion à l'API
+export async function testApiConnection(): Promise<{
+  success: boolean;
+  message: string;
+  details?: any;
+}> {
   try {
-    console.log(`Test de connexion à l'API: ${getFullApiUrl()}`);
+    const apiUrl = getApiUrl();
     
-    // Pour le test direct, utiliser info.php qui renvoie l'état du serveur
-    const response = await fetch(`${getApiUrl()}/info.php`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        'Cache-Control': 'no-cache, no-store, must-revalidate'
-      }
-    });
-    
-    console.log('Réponse du test API:', response.status, response.statusText);
-    
-    const responseText = await response.text();
-    
-    try {
-      const data = JSON.parse(responseText);
-      return {
-        success: true,
-        message: data.message || 'API connectée',
-        details: data
-      };
-    } catch (e) {
+    if (!apiUrl) {
       return {
         success: false,
-        message: 'Réponse non-JSON',
-        details: {
-          error: e instanceof Error ? e.message : String(e),
-          responseText: responseText.substring(0, 300)
-        }
+        message: "URL de l'API non configurée"
+      };
+    }
+    
+    console.log(`Test de connexion à l'API: ${apiUrl}/check.php`);
+    
+    const response = await fetch(`${apiUrl}/check.php`, {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json',
+        'Cache-Control': 'no-cache'
+      },
+      cache: 'no-store'
+    });
+    
+    // Traitement de la réponse
+    const contentType = response.headers.get('content-type');
+    let responseData;
+    
+    if (contentType && contentType.includes('application/json')) {
+      responseData = await response.json();
+    } else {
+      const text = await response.text();
+      
+      // Vérifier si la réponse contient du code PHP non exécuté
+      if (text.includes('<?php')) {
+        return {
+          success: false,
+          message: "Le serveur renvoie du code PHP non exécuté",
+          details: {
+            tip: "Vérifiez que PHP est correctement configuré sur votre serveur."
+          }
+        };
+      }
+      
+      // Essayer de parser le texte comme du JSON si possible
+      try {
+        responseData = JSON.parse(text);
+      } catch (e) {
+        return {
+          success: false,
+          message: `Réponse non-JSON reçue: ${text.substring(0, 100)}${text.length > 100 ? '...' : ''}`,
+          details: {
+            responseText: text.substring(0, 500),
+            contentType
+          }
+        };
+      }
+    }
+    
+    if (response.ok && responseData?.status === 'success') {
+      return {
+        success: true,
+        message: responseData.message || "API connectée avec succès",
+        details: responseData
+      };
+    } else {
+      return {
+        success: false,
+        message: responseData?.message || `Erreur HTTP: ${response.status}`,
+        details: responseData
       };
     }
   } catch (error) {
-    console.error('Erreur lors du test API:', error);
+    console.error("Erreur lors du test de l'API:", error);
+    
     return {
       success: false,
-      message: error instanceof Error ? error.message : 'Erreur inconnue',
-      details: { error }
+      message: error instanceof Error ? error.message : String(error),
+      details: {
+        error: String(error),
+        apiUrl: getApiUrl()
+      }
     };
   }
 }
 
-// Fonction utilitaire pour les requêtes fetch avec gestion d'erreur
-export async function fetchWithErrorHandling(url: string, options?: RequestInit): Promise<any> {
-  try {
-    console.log(`Requête vers: ${url}`, options);
-    const response = await fetch(url, options);
-    
-    console.log(`Réponse reçue: ${response.status} ${response.statusText}`);
-    
-    if (!response.ok) {
-      throw new Error(`Erreur HTTP: ${response.status}`);
-    }
-    
-    const text = await response.text();
-    if (!text) {
-      return {};
-    }
-    
-    try {
-      return JSON.parse(text);
-    } catch (e) {
-      console.error("Erreur de parsing JSON:", e);
-      throw new Error(`Réponse invalide: ${text.substring(0, 100)}...`);
-    }
-  } catch (error) {
-    console.error("Erreur lors de la requête:", error);
-    throw error;
+// Définir manuellement l'URL de l'API
+export function setApiUrl(url: string): void {
+  if (isValidUrl(url)) {
+    localStorage.setItem('apiUrl', url);
+    API_URL = url;
+    FULL_API_URL = ''; // Réinitialiser l'URL complète pour qu'elle soit recalculée
+    console.log("URL API définie manuellement:", url);
+  } else {
+    console.error("URL API invalide:", url);
   }
 }

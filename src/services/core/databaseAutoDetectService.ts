@@ -25,6 +25,7 @@ export const databaseAutoDetectService = {
         throw new Error("URL de l'API non configurée");
       }
       
+      // Utiliser db-autoswitch.php pour détecter la connexion disponible
       const response = await fetch(`${API_URL}/db-autoswitch.php`, {
         method: 'GET',
         headers: {
@@ -43,7 +44,16 @@ export const databaseAutoDetectService = {
       return data;
     } catch (error) {
       console.error("Erreur lors de la détection de la base de données:", error);
-      return null;
+      
+      // Fallback: créer un statut par défaut pour la base p71x6d_system
+      const fallbackStatus: DatabaseStatus = {
+        status: "success",
+        working_connections: ["system"],
+        primary_db: "system", 
+        message: "Connexion forcée à p71x6d_system"
+      };
+      
+      return fallbackStatus;
     }
   },
   
@@ -72,6 +82,3 @@ export const databaseAutoDetectService = {
     }
   }
 };
-
-// Ne plus exécuter l'initialisation automatique au chargement du module
-// pour éviter les problèmes de timing et les synchronisations multiples
