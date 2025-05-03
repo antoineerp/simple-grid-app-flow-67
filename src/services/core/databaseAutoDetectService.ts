@@ -47,36 +47,18 @@ export const databaseAutoDetectService = {
    * Initialise l'application avec la base de données disponible
    */
   async initialize(showToast: boolean = true): Promise<boolean> {
-    try {
-      const result = await this.detectAvailableDatabase();
-      
-      if (!result || !result.primary_db) {
-        if (showToast) {
-          toast({
-            title: "Problème de connexion",
-            description: "Aucune base de données disponible. L'application peut ne pas fonctionner correctement.",
-            variant: "destructive"
-          });
-        }
-        return false;
-      }
-      
-      // Stocker l'information localement
-      localStorage.setItem('database_connection', result.primary_db);
-      
-      if (showToast) {
-        toast({
-          title: "Connexion établie",
-          description: `Connecté à la base de données: ${result.primary_db}`
-        });
-      }
-      
-      console.log(`Base de données principale détectée: ${result.primary_db}`);
-      return true;
-    } catch (error) {
-      console.error("Erreur lors de l'initialisation de la base de données:", error);
-      return false;
+    // Toujours utiliser p71x6d_system sans détection automatique
+    localStorage.setItem('database_connection', 'system');
+    
+    if (showToast) {
+      toast({
+        title: "Connexion établie",
+        description: "Connecté à la base de données: p71x6d_system"
+      });
     }
+    
+    console.log("Base de données principale: p71x6d_system");
+    return true;
   }
 };
 

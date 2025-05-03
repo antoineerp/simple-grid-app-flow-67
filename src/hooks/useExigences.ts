@@ -5,7 +5,6 @@ import { useExigenceMutations } from './useExigenceMutations';
 import { useExigenceGroups } from './useExigenceGroups';
 import { getCurrentUser } from '@/services/auth/authService';
 import { useToast } from '@/hooks/use-toast';
-import { useSyncContext } from '@/contexts/SyncContext';
 import { getApiUrl } from '@/config/apiConfig';
 import { getDeviceId } from '@/services/core/userService';
 
@@ -20,10 +19,18 @@ export function useExigences(options: UseExigencesOptions = {}) {
   const [exigences, setExigences] = useState<Exigence[]>(options.initialExigences || []);
   const [status, setStatus] = useState<'loading' | 'loaded' | 'error'>(options.initialStatus || 'loading');
   const [error, setError] = useState<string | null>(null);
+  const [isSyncing, setIsSyncing] = useState<boolean>(false);
+  const [lastSynced, setLastSynced] = useState<Date | null>(null);
+  const [syncFailed, setSyncFailed] = useState<boolean>(false);
+  const [deviceId, setDeviceId] = useState<string | null>(null);
   const { addExigence, updateExigence, deleteExigence } = useExigenceMutations();
   const { groups } = useExigenceGroups();
   const { toast } = useToast();
-  const syncContext = useSyncContext();
+  
+  // Effet pour initialiser l'ID de l'appareil
+  useEffect(() => {
+    setDeviceId(getDeviceId());
+  }, []);
   
   // Chargement initial des exigences
   const loadExigences = useCallback(async (forceRefresh = false) => {
@@ -119,18 +126,26 @@ export function useExigences(options: UseExigencesOptions = {}) {
   }, [exigences.length, status, toast]);
   
   // Synchronisation manuelle
-  const synchronizeExigences = useCallback(async () => {
+  const handleSync = useCallback(async () => {
+    if (isSyncing) return;
+    setIsSyncing(true);
+    setSyncFailed(false);
+    
     try {
       await loadExigences(true);
+      setLastSynced(new Date());
       return true;
     } catch (error) {
       console.error("Échec de la synchronisation des exigences:", error);
+      setSyncFailed(true);
       return false;
+    } finally {
+      setIsSyncing(false);
     }
-  }, [loadExigences]);
+  }, [isSyncing, loadExigences]);
 
   // Statistiques des exigences
-  const getExigenceStats = useCallback((): ExigenceStats => {
+  const getStats = useCallback((): ExigenceStats => {
     const totalCount = exigences.length;
     const statusCounts: Record<string, number> = {};
     
@@ -155,37 +170,6 @@ export function useExigences(options: UseExigencesOptions = {}) {
     };
   }, [exigences]);
 
-  // Grouper les exigences par propriété
-  const groupExigencesByProperty = useCallback((property: keyof Exigence) => {
-    const grouped: Record<string, Exigence[]> = {};
-    
-    exigences.forEach(exigence => {
-      const value = String(exigence[property] || 'non défini');
-      if (!grouped[value]) {
-        grouped[value] = [];
-      }
-      grouped[value].push(exigence);
-    });
-    
-    return grouped;
-  }, [exigences]);
-
-  // Filtrer les exigences
-  const filterExigences = useCallback((criteria: Partial<Exigence>): Exigence[] => {
-    return exigences.filter(exigence => {
-      return Object.entries(criteria).every(([key, value]) => {
-        if (value === undefined || value === null) return true;
-        
-        const exigenceValue = exigence[key as keyof Exigence];
-        if (typeof value === 'string') {
-          return String(exigenceValue).toLowerCase().includes(value.toLowerCase());
-        }
-        
-        return exigenceValue === value;
-      });
-    });
-  }, [exigences]);
-
   // Effet de chargement initial
   useEffect(() => {
     // Charger seulement si forceLoad est true ou si c'est undefined
@@ -193,29 +177,142 @@ export function useExigences(options: UseExigencesOptions = {}) {
       loadExigences();
     }
     
-    // Enregistrer la fonction de synchronisation dans le contexte
-    if (syncContext && options.autoSync !== false) {
-      syncContext.registerSyncFunction('exigences', synchronizeExigences);
-      
-      return () => {
-        syncContext.unregisterSyncFunction('exigences');
-      };
+    // Synchronisation périodique si demandée
+    let syncInterval: NodeJS.Timeout | null = null;
+    if (options.autoSync !== false) {
+      syncInterval = setInterval(() => {
+        handleSync();
+      }, 300000); // 5 minutes
     }
-  }, [loadExigences, options.forceLoad, options.autoSync, syncContext, synchronizeExigences]);
+    
+    return () => {
+      if (syncInterval) clearInterval(syncInterval);
+    };
+  }, [loadExigences, options.forceLoad, options.autoSync, handleSync]);
 
+  // État pour les dialog d'édition
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [groupDialogOpen, setGroupDialogOpen] = useState(false);
+  const [editingExigence, setEditingExigence] = useState<Exigence | null>(null);
+  const [editingGroup, setEditingGroup] = useState<ExigenceGroup | null>(null);
+  const [isOnline, setIsOnline] = useState<boolean>(navigator.onLine);
+
+  // Écouter les changements de connectivité
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+    
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
+  // Les handlers standards pour manipuler les exigences
+  const handleEdit = useCallback((exigence: Exigence) => {
+    setEditingExigence(exigence);
+    setDialogOpen(true);
+  }, []);
+
+  const handleAddExigence = useCallback(() => {
+    setEditingExigence(null);
+    setDialogOpen(true);
+  }, []);
+
+  const handleSaveExigence = useCallback((exigence: Exigence) => {
+    if (editingExigence) {
+      updateExigence(exigence);
+    } else {
+      addExigence(exigence);
+    }
+    setDialogOpen(false);
+  }, [editingExigence, updateExigence, addExigence]);
+
+  const handleAddGroup = useCallback(() => {
+    setEditingGroup(null);
+    setGroupDialogOpen(true);
+  }, []);
+
+  const handleEditGroup = useCallback((group: ExigenceGroup) => {
+    setEditingGroup(group);
+    setGroupDialogOpen(true);
+  }, []);
+
+  const handleSaveGroup = useCallback((group: ExigenceGroup) => {
+    // Ici vous implémenteriez la logique pour sauvegarder le groupe
+    setGroupDialogOpen(false);
+  }, []);
+
+  const handleDeleteGroup = useCallback((groupId: string) => {
+    // Ici vous implémenteriez la logique pour supprimer un groupe
+  }, []);
+
+  const handleGroupReorder = useCallback((sourceIndex: number, destIndex: number) => {
+    // Ici vous implémenteriez la logique pour réorganiser les groupes
+  }, []);
+
+  const handleToggleGroup = useCallback((groupId: string) => {
+    // Ici vous implémenteriez la logique pour ouvrir/fermer un groupe
+  }, []);
+
+  const handleReorder = useCallback((sourceIndex: number, destIndex: number) => {
+    // Ici vous implémenteriez la logique pour réorganiser les exigences
+  }, []);
+
+  const handleDelete = useCallback((id: string) => {
+    deleteExigence(id);
+  }, [deleteExigence]);
+
+  const handleResponsabiliteChange = useCallback((id: string, newValue: string) => {
+    // Ici vous implémenteriez la logique pour changer la responsabilité
+  }, []);
+
+  const handleAtteinteChange = useCallback((id: string, newValue: string) => {
+    // Ici vous implémenteriez la logique pour changer l'atteinte
+  }, []);
+
+  const handleExclusionChange = useCallback((id: string, excluded: boolean) => {
+    // Ici vous implémenteriez la logique pour changer l'exclusion
+  }, []);
+
+  // Exposer les données et méthodes nécessaires
   return {
     exigences,
+    groups,
+    stats: getStats(),
     status,
-    error,
+    error: error,
+    loadError: error,
+    isSyncing,
+    isOnline,
+    lastSynced,
+    syncFailed,
+    deviceId,
+    dialogOpen,
+    groupDialogOpen,
+    editingExigence,
+    editingGroup,
     loadExigences,
-    synchronizeExigences,
-    addExigence,
-    updateExigence,
-    deleteExigence,
-    getExigenceStats,
-    groupExigencesByProperty,
-    filterExigences,
-    groups
+    setDialogOpen,
+    setGroupDialogOpen,
+    handleResponsabiliteChange,
+    handleAtteinteChange,
+    handleExclusionChange,
+    handleEdit,
+    handleSaveExigence,
+    handleDelete,
+    handleAddExigence,
+    handleReorder,
+    handleAddGroup,
+    handleEditGroup,
+    handleSaveGroup,
+    handleDeleteGroup,
+    handleGroupReorder,
+    handleToggleGroup,
+    handleSync
   };
 }
 

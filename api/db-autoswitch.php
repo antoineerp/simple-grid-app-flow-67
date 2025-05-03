@@ -48,12 +48,6 @@ $databases = [
         'db_name' => 'p71x6d_system',
         'username' => 'p71x6d_system',
         'password' => 'Trottinette43!'
-    ],
-    'qualiflow' => [
-        'host' => 'p71x6d.myd.infomaniak.com',
-        'db_name' => 'p71x6d_qualiflow',
-        'username' => 'p71x6d_qualiflow',
-        'password' => 'Trottinette43!'
     ]
 ];
 
