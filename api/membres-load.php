@@ -25,12 +25,14 @@ try {
     // Nettoyer le buffer
     if (ob_get_level()) ob_clean();
     
-    // Récupérer l'ID utilisateur depuis les paramètres GET
+    // Récupérer l'ID utilisateur et appareil depuis les paramètres GET
     $userId = isset($_GET['userId']) ? $_GET['userId'] : null;
+    $deviceId = isset($_GET['deviceId']) ? $_GET['deviceId'] : 'unknown';
+    
     if (!$userId) {
         throw new Exception("ID utilisateur manquant");
     }
-    error_log("UserId reçu: " . $userId);
+    error_log("UserId reçu: " . $userId . ", DeviceId: " . $deviceId);
     
     // Configuration de la connexion à la base de données
     $host = "p71x6d.myd.infomaniak.com";
@@ -83,9 +85,42 @@ try {
             $stmt->execute([$dbname, $tableName]);
             $tableExists = (int)$stmt->fetchColumn() > 0;
             
+            // Vérifier si des synchronisations récentes ont été faites par d'autres appareils
+            $hasRecentSyncs = false;
+            if ($tableExists) {
+                try {
+                    // Vérifier la table d'historique de synchronisation
+                    $syncCheckStmt = $pdo->prepare("SELECT COUNT(*) FROM sync_history 
+                                                  WHERE user_id = ? AND device_id != ? 
+                                                  AND table_name = 'membres'
+                                                  AND sync_timestamp > DATE_SUB(NOW(), INTERVAL 5 MINUTE)");
+                    $syncCheckStmt->execute([$userId, $deviceId]);
+                    $recentSyncs = (int)$syncCheckStmt->fetchColumn();
+                    
+                    if ($recentSyncs > 0) {
+                        error_log("Des synchronisations récentes détectées depuis d'autres appareils: {$recentSyncs}");
+                        $hasRecentSyncs = true;
+                    }
+                } catch (Exception $syncCheckErr) {
+                    error_log("Erreur lors de la vérification des synchronisations récentes: " . $syncCheckErr->getMessage());
+                    // Continuer malgré l'erreur
+                }
+            }
+            
             if ($tableExists) {
                 // La table existe, récupérer les données
                 error_log("Table {$tableName} existe, récupération des données");
+                
+                // Vérifier si la colonne last_sync_device existe
+                $columnsResult = $pdo->query("SHOW COLUMNS FROM `{$tableName}` LIKE 'last_sync_device'");
+                $hasLastSyncColumn = $columnsResult->rowCount() > 0;
+                
+                if (!$hasLastSyncColumn) {
+                    // Ajouter la colonne si elle n'existe pas
+                    $pdo->exec("ALTER TABLE `{$tableName}` ADD COLUMN `last_sync_device` VARCHAR(100) NULL");
+                    error_log("Colonne last_sync_device ajoutée à {$tableName}");
+                }
+                
                 $stmt = $pdo->prepare("SELECT * FROM `{$tableName}`");
                 $stmt->execute();
                 $membres = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -103,6 +138,32 @@ try {
                         }
                     }
                 }
+                
+                // Enregistrer ce chargement dans l'historique de synchronisation
+                try {
+                    // Créer la table si elle n'existe pas
+                    $pdo->exec("CREATE TABLE IF NOT EXISTS `sync_history` (
+                        `id` INT AUTO_INCREMENT PRIMARY KEY,
+                        `table_name` VARCHAR(100) NOT NULL,
+                        `user_id` VARCHAR(50) NOT NULL,
+                        `device_id` VARCHAR(100) NOT NULL,
+                        `record_count` INT NOT NULL,
+                        `sync_timestamp` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                        `operation` VARCHAR(20) NOT NULL DEFAULT 'load',
+                        INDEX `idx_user_device` (`user_id`, `device_id`)
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+                    
+                    // Insérer dans l'historique
+                    $historyStmt = $pdo->prepare("INSERT INTO `sync_history` 
+                                                (table_name, user_id, device_id, record_count, operation) 
+                                                VALUES ('membres', ?, ?, ?, 'load')");
+                    $historyStmt->execute([$userId, $deviceId, count($membres)]);
+                    
+                } catch (Exception $historyErr) {
+                    error_log("Erreur lors de l'enregistrement de l'historique de chargement: " . $historyErr->getMessage());
+                    // Continuer malgré l'erreur
+                }
+                
             } else {
                 error_log("Table {$tableName} n'existe pas, utilisation des données de test");
                 $membres = $mockData;
@@ -121,12 +182,14 @@ try {
                     `initiales` VARCHAR(10) NULL,
                     `userId` VARCHAR(50) NOT NULL,
                     `date_creation` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                    `date_modification` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+                    `date_modification` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                    `last_sync_device` VARCHAR(100) NULL
                 )");
                 
                 // Insérer les données de test
-                $stmt = $pdo->prepare("INSERT INTO `{$tableName}` (id, nom, prenom, fonction, initiales, email, telephone, userId, date_creation) 
-                                      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
+                $stmt = $pdo->prepare("INSERT INTO `{$tableName}` 
+                                      (id, nom, prenom, fonction, initiales, email, telephone, userId, date_creation, last_sync_device) 
+                                      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
                 
                 foreach ($mockData as $membre) {
                     $stmt->execute([
@@ -138,27 +201,40 @@ try {
                         $membre['email'],
                         $membre['telephone'],
                         $userId,
-                        $membre['date_creation']
+                        $membre['date_creation'],
+                        $deviceId
                     ]);
                 }
             }
+            
+            // Préparer la réponse
+            $response = [
+                'success' => true,
+                'records' => $membres,
+                'hasRecentSyncs' => $hasRecentSyncs,
+                'timestamp' => date('c')
+            ];
+            
         } catch (PDOException $e) {
             error_log("Erreur lors de la récupération des données: " . $e->getMessage());
             // En cas d'erreur, utiliser les données de test
-            $membres = $mockData;
+            $response = [
+                'success' => true,
+                'records' => $mockData,
+                'error' => "Error fetching from database: " . $e->getMessage(),
+                'timestamp' => date('c')
+            ];
         }
     } catch (PDOException $e) {
         error_log("Erreur de connexion à la base de données: " . $e->getMessage());
         // En cas d'échec de connexion, utiliser les données de test
-        $membres = $mockData;
+        $response = [
+            'success' => true,
+            'records' => $mockData,
+            'error' => "Database connection failed: " . $e->getMessage(),
+            'timestamp' => date('c')
+        ];
     }
-    
-    // Préparer la réponse
-    $response = [
-        'success' => true,
-        'records' => $membres,
-        'timestamp' => date('c')
-    ];
     
     http_response_code(200);
     echo json_encode($response);

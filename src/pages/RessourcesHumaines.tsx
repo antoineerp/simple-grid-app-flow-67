@@ -1,3 +1,4 @@
+
 import React, { useEffect, useCallback } from 'react';
 import { FileText, UserPlus, RefreshCw } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
@@ -16,6 +17,7 @@ import { Membre } from '@/types/membres';
 import { exportAllCollaborateursToPdf } from '@/services/collaborateurExport';
 import { useSyncContext } from '@/hooks/useSyncContext';
 import SyncIndicator from '@/components/common/SyncIndicator';
+import { clearMembresCache } from '@/services/users/membresService';
 
 const RessourcesHumaines = () => {
   const { toast } = useToast();
@@ -67,6 +69,7 @@ const RessourcesHumaines = () => {
   });
   const [isEditing, setIsEditing] = React.useState(false);
   const [refreshing, setRefreshing] = React.useState(false);
+  const initialLoadDoneRef = React.useRef(false);
 
   // Synchroniser immédiatement à chaque changement de membres
   useEffect(() => {
@@ -79,11 +82,16 @@ const RessourcesHumaines = () => {
   // Forcer une synchronisation au chargement de la page
   useEffect(() => {
     const syncOnLoad = async () => {
-      if (membres.length > 0 && isOnline) {
+      if (!initialLoadDoneRef.current && membres.length > 0 && isOnline) {
+        initialLoadDoneRef.current = true;
         setIsSyncing(true);
         try {
           console.log("RessourcesHumaines: Forcer la synchronisation au chargement de la page");
-          // Pass the membres data to syncWithServer
+          // Clear the cache first to ensure we get fresh data
+          clearMembresCache();
+          // Force refresh to get the latest data from server
+          await refreshMembres();
+          // Then sync our data to the server
           const success = await syncWithServer(membres);
           if (success) {
             setLastSynced(new Date());
@@ -101,7 +109,34 @@ const RessourcesHumaines = () => {
     };
     
     syncOnLoad();
-  }, [membres.length, isOnline, syncWithServer]);
+  }, [membres.length, isOnline, syncWithServer, refreshMembres]);
+
+  // Vérifier toutes les 30 secondes s'il y a de nouvelles données
+  useEffect(() => {
+    if (!isOnline) return;
+    
+    const checkInterval = setInterval(async () => {
+      // Ne pas refaire si déjà en cours de chargement ou de synchronisation
+      if (isLoading || isSyncing) return;
+      
+      console.log("RessourcesHumaines: Vérification périodique de nouvelles données");
+      try {
+        // Vérifier s'il y a eu des changements depuis plus de 10 minutes
+        const lastSyncTime = localStorage.getItem('lastServerSync_membres_p71x6d_system');
+        const now = Date.now();
+        
+        if (!lastSyncTime || (now - parseInt(lastSyncTime)) > 600000) {
+          console.log("RessourcesHumaines: Plus de 10 minutes depuis la dernière synchronisation, rafraîchissement des données");
+          clearMembresCache();
+          await refreshMembres();
+        }
+      } catch (error) {
+        console.error("Erreur lors de la vérification périodique:", error);
+      }
+    }, 30000); // Toutes les 30 secondes
+    
+    return () => clearInterval(checkInterval);
+  }, [isOnline, isLoading, isSyncing, refreshMembres]);
 
   const handleEdit = (id: string) => {
     const membre = membres.find(m => m.id === id);
@@ -184,16 +219,23 @@ const RessourcesHumaines = () => {
     
     setIsDialogOpen(false);
     
-    // Synchroniser immédiatement après la sauvegarde
+    // Synchroniser immédiatement après la sauvegarde avec force refresh
     setTimeout(() => {
       notifyChanges();
       // Synchonisation forcée avec animation
       setIsSyncing(true);
+      clearMembresCache(); // Forcer un rafraîchissement du cache
       syncWithServer(updatedMembres)
         .then(success => {
           if (success) {
             setLastSynced(new Date());
             setSyncFailed(false);
+            
+            // Après une synchrsonisation réussie, programmer un rafraîchissement
+            // pour obtenir les données potentiellement modifiées par d'autres appareils
+            setTimeout(() => {
+              refreshMembres();
+            }, 2000);
           } else {
             setSyncFailed(true);
           }
@@ -230,6 +272,8 @@ const RessourcesHumaines = () => {
     setRefreshing(true);
     setIsSyncing(true);
     try {
+      // Forcer un rafraîchissement complet des données
+      clearMembresCache();
       await refreshMembres();
       if (membres.length > 0) {
         await syncWithServer(membres);

@@ -30,6 +30,10 @@ try {
     
     $userId = $service->sanitizeUserId($data['userId']);
     $membres = $data['membres'];
+    $deviceId = isset($data['deviceId']) ? $data['deviceId'] : 'unknown';
+    
+    // Journaliser les informations de synchronisation
+    error_log("Synchronisation des membres - UserId: {$userId}, DeviceId: {$deviceId}, Nombre: " . count($membres));
     
     // Journaliser les données reçues pour le débogage
     error_log("Données de membres reçues: " . json_encode(array_slice($membres, 0, 2)));
@@ -37,6 +41,30 @@ try {
     // Connecter à la base de données
     if (!$service->connectToDatabase()) {
         throw new Exception("Impossible de se connecter à la base de données");
+    }
+    
+    // Enregistrer ce sync dans la table de synchronisation
+    try {
+        // Créer la table de synchronisation si elle n'existe pas
+        $service->exec("CREATE TABLE IF NOT EXISTS `sync_history` (
+            `id` INT AUTO_INCREMENT PRIMARY KEY,
+            `table_name` VARCHAR(100) NOT NULL,
+            `user_id` VARCHAR(50) NOT NULL,
+            `device_id` VARCHAR(100) NOT NULL,
+            `record_count` INT NOT NULL,
+            `sync_timestamp` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            INDEX `idx_user_device` (`user_id`, `device_id`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+        
+        // Insérer l'enregistrement de synchronisation
+        $stmt = $service->prepare("INSERT INTO `sync_history` 
+                                 (table_name, user_id, device_id, record_count, sync_timestamp) 
+                                 VALUES (?, ?, ?, ?, NOW())");
+        $stmt->execute(['membres', $userId, $deviceId, count($membres)]);
+        
+    } catch (Exception $e) {
+        // Continuer même si l'enregistrement de l'historique échoue
+        error_log("Erreur lors de l'enregistrement de l'historique de synchronisation: " . $e->getMessage());
     }
     
     // Schéma de la table membres - Mise à jour pour inclure userId
@@ -52,12 +80,25 @@ try {
         `initiales` VARCHAR(10) NULL,
         `userId` VARCHAR(50) NOT NULL,
         `date_creation` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        `date_modification` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+        `date_modification` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        `last_sync_device` VARCHAR(100) NULL
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
     
     // Créer la table si nécessaire
     if (!$service->ensureTableExists($schema)) {
         throw new Exception("Impossible de créer ou vérifier la table");
+    }
+    
+    // Avant la synchronisation, vérifier si la colonne last_sync_device existe
+    try {
+        $columnsResult = $service->query("SHOW COLUMNS FROM `membres_{$userId}` LIKE 'last_sync_device'");
+        if ($columnsResult->rowCount() === 0) {
+            // Ajouter la colonne
+            $service->exec("ALTER TABLE `membres_{$userId}` ADD COLUMN `last_sync_device` VARCHAR(100) NULL");
+        }
+    } catch (Exception $e) {
+        error_log("Erreur lors de la vérification/ajout de la colonne last_sync_device: " . $e->getMessage());
+        // Continuer malgré l'erreur
     }
     
     // Avant la synchronisation, vérifier et adapter les données si nécessaire
@@ -71,6 +112,9 @@ try {
         if (!isset($membre['userId']) || empty($membre['userId'])) {
             $membre['userId'] = $userId;
         }
+        
+        // Ajouter l'ID de l'appareil qui a synchronisé ce membre
+        $membre['last_sync_device'] = $deviceId;
         
         // Convertir les dates si nécessaires
         if (isset($membre['date_creation']) && $membre['date_creation'] instanceof \DateTime) {
@@ -97,7 +141,8 @@ try {
         echo json_encode([
             'success' => true,
             'message' => 'Synchronisation des membres réussie',
-            'count' => count($membres)
+            'count' => count($membres),
+            'deviceId' => $deviceId
         ]);
         
     } catch (Exception $innerEx) {

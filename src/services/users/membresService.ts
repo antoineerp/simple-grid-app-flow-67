@@ -1,3 +1,4 @@
+
 import { Membre } from '@/types/membres';
 import { getApiUrl } from '@/config/apiConfig';
 import { getAuthHeaders } from '../auth/authService';
@@ -11,8 +12,27 @@ const CACHE_DURATION = 60000; // 1 minute de cache
  * Service pour la gestion des membres (ressources humaines)
  */
 export const getMembres = async (forceRefresh: boolean = false): Promise<Membre[]> => {
+  const userId = localStorage.getItem('userId') || sessionStorage.getItem('userId') || 'p71x6d_system';
+  const deviceId = localStorage.getItem('deviceId');
+  
+  // Générer un identifiant unique pour cet appareil s'il n'existe pas
+  if (!deviceId) {
+    const newDeviceId = `device_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+    localStorage.setItem('deviceId', newDeviceId);
+  }
+  
+  // Vérifier si une synchronisation est nécessaire en se basant sur la dernière synchronisation distante
+  const lastServerSync = localStorage.getItem(`lastServerSync_membres_${userId}`);
+  const now = Date.now();
+  let shouldFetchFromServer = forceRefresh;
+  
+  if (!lastServerSync || (now - parseInt(lastServerSync, 10) > 120000)) { // 2 minutes entre les sync forcées
+    shouldFetchFromServer = true;
+  }
+  
   // Retourner les données du cache si disponibles et pas encore expirées
-  if (!forceRefresh && membresCache && lastFetchTimestamp && (Date.now() - lastFetchTimestamp < CACHE_DURATION)) {
+  if (!shouldFetchFromServer && !forceRefresh && membresCache && lastFetchTimestamp && 
+     (Date.now() - lastFetchTimestamp < CACHE_DURATION)) {
     console.log("Utilisation du cache pour les membres", membresCache.length);
     return membresCache;
   }
@@ -25,13 +45,12 @@ export const getMembres = async (forceRefresh: boolean = false): Promise<Membre[
     }
 
     const API_URL = getApiUrl();
-    const userId = localStorage.getItem('userId') || sessionStorage.getItem('userId') || 'p71x6d_system';
     console.log(`Chargement des membres pour l'utilisateur: ${userId}`);
 
     // Génération d'un timestamp pour éviter le cache du navigateur
     const timestamp = new Date().getTime();
     
-    const response = await fetch(`${API_URL}/membres-load.php?userId=${userId}&_t=${timestamp}`, {
+    const response = await fetch(`${API_URL}/membres-load.php?userId=${userId}&_t=${timestamp}&deviceId=${localStorage.getItem('deviceId') || 'unknown'}`, {
       method: 'GET',
       headers: {
         ...getAuthHeaders(),
@@ -86,6 +105,9 @@ export const getMembres = async (forceRefresh: boolean = false): Promise<Membre[
     // Sauvegarder en local également
     localStorage.setItem(`membres_${userId}`, JSON.stringify(records));
     
+    // Enregistrer l'horodatage de la dernière synchronisation serveur
+    localStorage.setItem(`lastServerSync_membres_${userId}`, Date.now().toString());
+    
     return records;
   } catch (error) {
     console.error("Erreur lors de la récupération des membres:", error);
@@ -127,6 +149,7 @@ export const syncMembres = async (membres: Membre[]): Promise<boolean> => {
 
     const API_URL = getApiUrl();
     const userId = localStorage.getItem('userId') || sessionStorage.getItem('userId') || 'p71x6d_system';
+    const deviceId = localStorage.getItem('deviceId') || 'unknown';
 
     // Assurer que chaque membre a un userId
     const membresWithUserId = membres.map(membre => ({
@@ -142,6 +165,7 @@ export const syncMembres = async (membres: Membre[]): Promise<boolean> => {
       },
       body: JSON.stringify({
         userId,
+        deviceId,
         membres: membresWithUserId
       })
     });
@@ -161,6 +185,9 @@ export const syncMembres = async (membres: Membre[]): Promise<boolean> => {
       
       // Sauvegarde locale
       localStorage.setItem(`membres_${userId}`, JSON.stringify(membresWithUserId));
+      
+      // Enregistrer l'horodatage de la dernière synchronisation
+      localStorage.setItem(`lastServerSync_membres_${userId}`, Date.now().toString());
       
       return true;
     } else {
