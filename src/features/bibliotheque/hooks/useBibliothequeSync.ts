@@ -11,7 +11,8 @@ const convertSystemToBibliothequeDoc = (doc: SystemDocument): BibliothequeDocume
   id: doc.id,
   name: doc.nom || '',
   link: doc.fichier_path,
-  groupId: doc.groupId
+  groupId: doc.groupId,
+  userId: doc.userId || 'system' // Ensure userId is set
 });
 
 const convertBibliothequeToSystemDoc = (doc: BibliothequeDocument): SystemDocument => ({

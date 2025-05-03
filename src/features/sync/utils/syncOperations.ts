@@ -1,4 +1,3 @@
-
 /**
  * Core synchronization operations
  */
@@ -60,10 +59,14 @@ export const executeSyncOperation = async <T>(
       const operationId = `${tableName}_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
       console.log(`SyncOperations: Starting synchronization ${tableName} (operation ${operationId}, trigger: ${trigger})`);
       
-      // Enregistrer le début de l'opération dans le moniteur
-      syncMonitor.recordSyncStart(operationId, `${trigger}-sync`);
+      // Record the start of the operation in the monitor
+      syncMonitor.recordSyncStart({
+        attemptId: operationId,
+        tableName,
+        operation: `${trigger}-sync`
+      });
       
-      // Émettre un événement pour informer l'application du début de la synchronisation
+      // Emit an event to inform the application about the sync start
       if (typeof window !== 'undefined') {
         window.dispatchEvent(new CustomEvent('syncStarted', { 
           detail: { tableName, operationId, trigger } 
@@ -77,11 +80,11 @@ export const executeSyncOperation = async <T>(
         // Perform the actual synchronization with timeout handling
         const syncPromise = syncFn(tableName, data, operationId);
         
-        // Create a timeout promise (réduit à 10 secondes)
+        // Create a timeout promise (reduced to 10 seconds)
         const timeoutPromise = new Promise<boolean>((_, reject) => {
           setTimeout(() => {
             reject(new Error(`Synchronization timeout for ${tableName} (operation ${operationId})`));
-          }, 10000); // 10 secondes timeout
+          }, 10000); // 10 seconds timeout
         });
         
         // Race between sync and timeout
@@ -90,10 +93,10 @@ export const executeSyncOperation = async <T>(
         if (success) {
           console.log(`SyncOperations: Synchronization successful for ${tableName} (operation ${operationId})`);
           
-          // Enregistrer le succès dans le moniteur
+          // Record the success in the monitor
           syncMonitor.recordSyncEnd(operationId, true);
           
-          // Émettre un événement de succès
+          // Emit a success event
           if (typeof window !== 'undefined') {
             window.dispatchEvent(new CustomEvent('syncCompleted', { 
               detail: { tableName, operationId, trigger } 
@@ -104,10 +107,10 @@ export const executeSyncOperation = async <T>(
         } else {
           console.error(`SyncOperations: Synchronization failed for ${tableName} (operation ${operationId})`);
           
-          // Enregistrer l'échec dans le moniteur
+          // Record the failure in the monitor
           syncMonitor.recordSyncEnd(operationId, false, "Synchronization failed");
           
-          // Émettre un événement d'échec
+          // Emit a failure event
           if (typeof window !== 'undefined') {
             window.dispatchEvent(new CustomEvent('syncFailed', { 
               detail: { tableName, operationId, error: "Synchronization failed" } 
@@ -119,10 +122,10 @@ export const executeSyncOperation = async <T>(
       } catch (error) {
         console.error(`SyncOperations: Error during synchronization of ${tableName}:`, error);
         
-        // Enregistrer l'erreur dans le moniteur
+        // Record the error in the monitor
         syncMonitor.recordSyncEnd(operationId, false, error instanceof Error ? error.message : String(error));
         
-        // Émettre un événement d'erreur
+        // Emit an error event
         if (typeof window !== 'undefined') {
           window.dispatchEvent(new CustomEvent('syncFailed', { 
             detail: { 

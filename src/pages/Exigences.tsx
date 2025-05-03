@@ -57,6 +57,11 @@ const ExigencesContent = () => {
     });
   };
 
+  // Create wrapper function to handle different function signatures
+  const handleExclusionChangeWrapper = (id: string) => {
+    handleExclusionChange(id, true); // Pass a default value for the second parameter
+  };
+
   return (
     <div className="p-8">
       <div className="flex items-center justify-between mb-2">

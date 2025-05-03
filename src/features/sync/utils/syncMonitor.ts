@@ -1,3 +1,4 @@
+
 export interface SyncAttempt {
   id: string;
   tableName: string;
@@ -37,7 +38,11 @@ class SyncMonitor {
     window.addEventListener('syncStarted', (event: Event) => {
       const customEvent = event as CustomEvent;
       if (customEvent.detail?.attemptId) {
-        this.recordSyncStart(customEvent.detail);
+        this.recordSyncStart({
+          attemptId: customEvent.detail.attemptId,
+          tableName: customEvent.detail.tableName,
+          operation: customEvent.detail.operation
+        });
       }
     });
 
@@ -101,6 +106,22 @@ class SyncMonitor {
 
     this.activeAttempts.delete(attemptId);
     this.addAttempt(updatedAttempt);
+  }
+
+  // Added this method to fix the missing recordSyncEnd
+  public recordSyncEnd(attemptId: string, success: boolean, error?: string) {
+    if (success) {
+      this.recordSyncSuccess(attemptId);
+    } else {
+      this.recordSyncFailure(attemptId, error || "Unknown error");
+    }
+  }
+
+  // Added to check if there's an active sync for a specific table
+  public hasActiveSync(tableName: string): boolean {
+    return Array.from(this.activeAttempts.values()).some(
+      attempt => attempt.tableName === tableName
+    );
   }
 
   private addAttempt(attempt: SyncAttempt) {

@@ -46,7 +46,8 @@ export const DocumentGroupDialog = ({
       name,
       expanded: group?.expanded || false,
       items: group?.items || [],
-      userId: group?.userId || currentUser
+      // Include userId only if it exists in the type
+      ...(group?.userId ? { userId: group.userId } : {})
     };
     onSave(updatedGroup, isEditing);
     onOpenChange(false);
