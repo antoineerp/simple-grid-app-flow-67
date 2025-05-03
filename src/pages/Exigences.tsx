@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { FileText, FolderPlus } from 'lucide-react';
 import { MembresProvider } from '@/contexts/MembresContext';
@@ -56,9 +57,9 @@ const ExigencesContent = () => {
     });
   };
 
-  // Corrected wrapper function to match expected signature
-  const handleExclusionChangeWrapper = (id: string) => {
-    return () => handleExclusionChange(id, true);
+  // Création d'une fonction adaptateur qui correspond à la signature attendue par ExigenceTable
+  const handleExclusionChangeAdapter = (id: string) => {
+    handleExclusionChange(id, true);
   };
 
   return (
@@ -114,7 +115,7 @@ const ExigencesContent = () => {
           groups={groups}
           onResponsabiliteChange={handleResponsabiliteChange}
           onAtteinteChange={handleAtteinteChange}
-          onExclusionChange={handleExclusionChange}
+          onExclusionChange={handleExclusionChangeAdapter}
           onEdit={handleEdit}
           onDelete={handleDelete}
           onReorder={handleReorder}
