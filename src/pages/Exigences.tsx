@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { FileText, FolderPlus } from 'lucide-react';
 import { MembresProvider } from '@/contexts/MembresContext';
 import ExigenceForm from '@/components/exigences/ExigenceForm';
@@ -26,6 +26,7 @@ const ExigencesContent = () => {
     isOnline,
     lastSynced,
     syncFailed,
+    deviceId,
     loadError,
     setDialogOpen,
     setGroupDialogOpen,
@@ -43,11 +44,26 @@ const ExigencesContent = () => {
     handleDeleteGroup,
     handleGroupReorder,
     handleToggleGroup,
-    handleResetLoadAttempts,
     handleSync
   } = useExigences();
   
   const { toast } = useToast();
+
+  // Synchronisation initiale et périodique
+  useEffect(() => {
+    // Synchronisation à l'ouverture de la page
+    handleSync();
+    
+    // Synchronisation périodique toutes les 5 minutes
+    const syncInterval = setInterval(() => {
+      if (isOnline && !isSyncing) {
+        console.log("Exigences: Synchronisation périodique");
+        handleSync();
+      }
+    }, 300000); // 5 minutes
+    
+    return () => clearInterval(syncInterval);
+  }, [isOnline, isSyncing]);
 
   const handleExportPdf = () => {
     exportExigencesToPdf(exigences, groups);
@@ -64,11 +80,24 @@ const ExigencesContent = () => {
 
   return (
     <div className="p-8">
-      <div className="flex items-center justify-between mb-2">
+      <div className="flex items-center justify-between mb-4">
         <div>
           <h1 className="text-3xl font-bold text-app-blue">Exigences</h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            Gérez vos exigences et leurs conformités
+          </p>
         </div>
-        <div className="flex space-x-2">
+        <div className="flex space-x-2 items-center">
+          <Button 
+            variant="outline"
+            size="sm"
+            title="Synchroniser maintenant"
+            onClick={() => handleSync()}
+            disabled={isSyncing || !isOnline}
+            className="mr-2"
+          >
+            <span className="mr-2">Synchroniser</span>
+          </Button>
           <button 
             onClick={handleExportPdf}
             className="text-red-600 p-2 rounded-md hover:bg-red-50 transition-colors"
@@ -85,9 +114,10 @@ const ExigencesContent = () => {
           isOnline={isOnline}
           syncFailed={syncFailed || !!loadError}
           lastSynced={lastSynced}
-          onSync={handleSync}
-          showOnlyErrors={false} // Changé à false pour toujours afficher l'indicateur
+          onSync={() => handleSync()}
+          showOnlyErrors={false}
           tableName="exigences"
+          deviceId={deviceId}
         />
       </div>
 

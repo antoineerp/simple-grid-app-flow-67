@@ -2,6 +2,8 @@
 import { Membre } from '@/types/membres';
 import { getApiUrl } from '@/config/apiConfig';
 import { getAuthHeaders } from '../auth/authService';
+import { saveLocalData, loadLocalData } from '@/features/sync/utils/syncStorageManager';
+import { getCurrentUserId } from '@/services/core/userService';
 
 // Cache pour les membres
 let membresCache: Membre[] | null = null;
@@ -10,15 +12,17 @@ const CACHE_DURATION = 60000; // 1 minute de cache
 
 /**
  * Service pour la gestion des membres (ressources humaines)
+ * Version optimisée avec gestion d'identifiant d'appareil et synchronisation améliorée
  */
 export const getMembres = async (forceRefresh: boolean = false): Promise<Membre[]> => {
-  const userId = localStorage.getItem('userId') || sessionStorage.getItem('userId') || 'p71x6d_system';
-  const deviceId = localStorage.getItem('deviceId');
+  const userId = getCurrentUserId();
   
   // Générer un identifiant unique pour cet appareil s'il n'existe pas
+  let deviceId = localStorage.getItem('deviceId');
   if (!deviceId) {
-    const newDeviceId = `device_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
-    localStorage.setItem('deviceId', newDeviceId);
+    deviceId = `device_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+    localStorage.setItem('deviceId', deviceId);
+    console.log("Nouvel identifiant d'appareil généré:", deviceId);
   }
   
   // Vérifier si une synchronisation est nécessaire en se basant sur la dernière synchronisation distante
@@ -50,7 +54,7 @@ export const getMembres = async (forceRefresh: boolean = false): Promise<Membre[
     // Génération d'un timestamp pour éviter le cache du navigateur
     const timestamp = new Date().getTime();
     
-    const response = await fetch(`${API_URL}/membres-load.php?userId=${userId}&_t=${timestamp}&deviceId=${localStorage.getItem('deviceId') || 'unknown'}`, {
+    const response = await fetch(`${API_URL}/membres-load.php?userId=${userId}&_t=${timestamp}&deviceId=${deviceId}`, {
       method: 'GET',
       headers: {
         ...getAuthHeaders(),
@@ -102,8 +106,8 @@ export const getMembres = async (forceRefresh: boolean = false): Promise<Membre[
     membresCache = records;
     lastFetchTimestamp = Date.now();
     
-    // Sauvegarder en local également
-    localStorage.setItem(`membres_${userId}`, JSON.stringify(records));
+    // Sauvegarder en local également avec le nouveau système unifié
+    saveLocalData('membres', records, userId);
     
     // Enregistrer l'horodatage de la dernière synchronisation serveur
     localStorage.setItem(`lastServerSync_membres_${userId}`, Date.now().toString());
@@ -112,22 +116,30 @@ export const getMembres = async (forceRefresh: boolean = false): Promise<Membre[
   } catch (error) {
     console.error("Erreur lors de la récupération des membres:", error);
     
-    // Essayer de récupérer depuis le stockage local
+    // Essayer de récupérer depuis le stockage local avec le nouveau système
+    const localMembres = loadLocalData<Membre>('membres', userId);
+    if (localMembres && localMembres.length > 0) {
+      console.log("Utilisation des membres du stockage local unifié:", localMembres.length);
+      return localMembres;
+    }
+    
+    // Si rien dans le système unifié, essayer l'ancien système
     return getLocalMembres() || [];
   }
 };
 
 /**
- * Récupère les membres depuis le stockage local
+ * Récupère les membres depuis le stockage local (ancien système)
+ * Conservé pour compatibilité
  */
 const getLocalMembres = (): Membre[] | null => {
   try {
-    const userId = localStorage.getItem('userId') || sessionStorage.getItem('userId') || 'p71x6d_system';
+    const userId = getCurrentUserId();
     const localData = localStorage.getItem(`membres_${userId}`);
     
     if (localData) {
       const parsedData = JSON.parse(localData);
-      console.log("Utilisation des données locales pour les membres");
+      console.log("Utilisation des données locales pour les membres (ancien système)");
       return parsedData;
     }
   } catch (localError) {
@@ -148,7 +160,7 @@ export const syncMembres = async (membres: Membre[]): Promise<boolean> => {
     }
 
     const API_URL = getApiUrl();
-    const userId = localStorage.getItem('userId') || sessionStorage.getItem('userId') || 'p71x6d_system';
+    const userId = getCurrentUserId();
     const deviceId = localStorage.getItem('deviceId') || 'unknown';
 
     // Assurer que chaque membre a un userId
@@ -183,11 +195,14 @@ export const syncMembres = async (membres: Membre[]): Promise<boolean> => {
       membresCache = membresWithUserId;
       lastFetchTimestamp = Date.now();
       
-      // Sauvegarde locale
-      localStorage.setItem(`membres_${userId}`, JSON.stringify(membresWithUserId));
+      // Sauvegarde locale avec le système unifié
+      saveLocalData('membres', membresWithUserId, userId);
       
       // Enregistrer l'horodatage de la dernière synchronisation
       localStorage.setItem(`lastServerSync_membres_${userId}`, Date.now().toString());
+      
+      // Notifier le succès de la synchronisation - important pour la cohérence cross-device
+      dispatchSyncEvent('membres', 'sync', true);
       
       return true;
     } else {
@@ -195,7 +210,25 @@ export const syncMembres = async (membres: Membre[]): Promise<boolean> => {
     }
   } catch (error) {
     console.error("Erreur lors de la synchronisation des membres:", error);
+    // Notifier l'échec de la synchronisation
+    dispatchSyncEvent('membres', 'sync', false, error instanceof Error ? error.message : String(error));
     return false;
+  }
+};
+
+// Déclencher un événement de synchronisation pour informer d'autres composants
+const dispatchSyncEvent = (tableName: string, operation: 'load' | 'sync', success: boolean, errorMessage?: string): void => {
+  const eventName = success ? 'syncCompleted' : 'syncFailed';
+  const detail = {
+    tableName,
+    operation,
+    success,
+    timestamp: new Date().toISOString(),
+    error: errorMessage
+  };
+  
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent(eventName, { detail }));
   }
 };
 

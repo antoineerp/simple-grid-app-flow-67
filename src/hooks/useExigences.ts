@@ -1,18 +1,22 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Exigence, ExigenceStats, ExigenceGroup } from '@/types/exigences';
 import { useExigenceMutations } from './useExigenceMutations';
 import { useExigenceGroups } from './useExigenceGroups';
 import { getCurrentUser } from '@/services/auth/authService';
 import { useToast } from '@/hooks/use-toast';
-import { useSync } from './useSync';
-import { useGlobalSync } from '@/contexts/GlobalSyncContext';
+import { useSync } from '@/hooks/useSync';
+import { useNetworkStatus } from '@/hooks/useNetworkStatus';
+import { useSyncContext } from '@/features/sync/hooks/useSyncContext';
+import { loadLocalData, saveLocalData } from '@/features/sync/utils/syncStorageManager';
 import { triggerSync } from '@/services/sync/triggerSync';
 
 export const useExigences = () => {
   const { toast } = useToast();
-  const { syncTable, syncStates, isOnline } = useGlobalSync();
-  
+  const { isOnline } = useNetworkStatus();
+  const { syncTable, syncStates } = useSyncContext();
+  const deviceId = localStorage.getItem('deviceId') || 'unknown';
+
   // Extraire un identifiant utilisateur valide
   const extractValidUserId = (user: any): string => {
     if (!user) {
@@ -43,7 +47,7 @@ export const useExigences = () => {
         }
       }
       
-      console.warn("Aucun identifiant valide trouvé dans l'objet utilisateur:", user);
+      console.warn("Aucun identifiant valide trouvé dans l'objet utilisateur");
     }
     
     console.warn("Type d'utilisateur non pris en charge, utilisation de l'ID système");
@@ -70,9 +74,9 @@ export const useExigences = () => {
   });
   const [loadError, setLoadError] = useState<string | null>(null);
   const [loadAttempts, setLoadAttempts] = useState(0);
-  const [dataChanged, setDataChanged] = useState(false);
+  const [initialLoadDone, setInitialLoadDone] = useState(false);
 
-  // Get synchronization state for exigences from the global sync context
+  // Récupérer l'état de synchronisation depuis le contexte global
   const tableName = 'exigences';
   const syncState = syncStates[tableName] || { 
     isSyncing: false, 
@@ -80,58 +84,154 @@ export const useExigences = () => {
     syncFailed: false 
   };
   const isSyncing = syncState.isSyncing;
-  const lastSynced = syncState.lastSynced;
+  const lastSynced = syncState.lastSynced ? new Date(syncState.lastSynced) : null;
   const syncFailed = syncState.syncFailed;
   
   const mutations = useExigenceMutations(exigences, setExigences);
   const groupOperations = useExigenceGroups(groups, setGroups, setExigences);
 
+  // Fonctions de synchronisation avec le serveur
+  const fetchFromServer = useCallback(async () => {
+    if (!isOnline) {
+      setLoadError("Mode hors ligne. Utilisation des données locales.");
+      return false;
+    }
+
+    try {
+      const API_URL = import.meta.env.VITE_API_URL || '';
+      if (!API_URL) {
+        throw new Error("URL de l'API non configurée");
+      }
+
+      const timestamp = new Date().getTime();
+      const url = `${API_URL}/exigences-load.php?userId=${currentUser}&_t=${timestamp}&deviceId=${deviceId}`;
+      
+      console.log(`Chargement des exigences depuis ${url}`);
+      
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`Erreur HTTP: ${response.status}`);
+      }
+
+      const data = await response.json();
+      
+      if (!data.success) {
+        throw new Error(data.message || "Échec du chargement des données");
+      }
+
+      if (data.exigences && Array.isArray(data.exigences)) {
+        // Formater les dates
+        const formattedExigences = data.exigences.map((exigence: any) => ({
+          ...exigence,
+          date_creation: exigence.date_creation ? new Date(exigence.date_creation) : new Date(),
+          date_modification: exigence.date_modification ? new Date(exigence.date_modification) : new Date()
+        }));
+        
+        setExigences(formattedExigences);
+        console.log(`${formattedExigences.length} exigences chargées depuis le serveur`);
+        
+        // Sauvegarder en local
+        saveLocalData(tableName, formattedExigences, currentUser);
+      }
+
+      if (data.groups && Array.isArray(data.groups)) {
+        setGroups(data.groups);
+        console.log(`${data.groups.length} groupes chargés depuis le serveur`);
+        
+        // Sauvegarder les groupes en local
+        saveLocalData(`${tableName}_groups`, data.groups, currentUser);
+      }
+
+      setLoadError(null);
+      return true;
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Erreur inconnue';
+      console.error("Erreur lors du chargement des exigences:", errorMessage);
+      setLoadError(`Erreur de chargement: ${errorMessage}`);
+      return false;
+    }
+  }, [currentUser, isOnline, deviceId]);
+
+  // Synchroniser avec le serveur (envoi des données)
+  const syncWithServer = useCallback(async () => {
+    if (!isOnline) {
+      return { success: false, message: "Mode hors ligne. Synchronisation impossible." };
+    }
+
+    try {
+      const result = await syncTable(tableName, {
+        exigences,
+        groups,
+        userId: currentUser,
+        deviceId
+      });
+      
+      if (result && result.success) {
+        // Mettre à jour les données locales avec confirmation
+        saveLocalData(tableName, exigences, currentUser);
+        saveLocalData(`${tableName}_groups`, groups, currentUser);
+        return { success: true, message: "Synchronisation réussie" };
+      } else {
+        const errorMsg = result?.message || "Échec de la synchronisation";
+        console.error(`Erreur lors de la synchronisation des exigences: ${errorMsg}`);
+        return { success: false, message: errorMsg };
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Erreur inconnue';
+      console.error("Exception lors de la synchronisation des exigences:", errorMessage);
+      return { success: false, message: errorMessage };
+    }
+  }, [currentUser, exigences, groups, isOnline, syncTable, tableName, deviceId]);
+
   // Load data from local storage on initial render
   useEffect(() => {
-    const loadLocalData = () => {
-      try {
-        const storedExigences = localStorage.getItem(`${tableName}_${currentUser}`);
-        const storedGroups = localStorage.getItem(`${tableName}_groups_${currentUser}`);
-        
-        if (storedExigences) {
-          const parsedExigences = JSON.parse(storedExigences);
-          setExigences(parsedExigences);
-          console.log(`Loaded ${parsedExigences.length} exigences from local storage`);
+    if (!initialLoadDone) {
+      const loadInitialData = async () => {
+        try {
+          // Charger d'abord depuis le stockage local
+          const localExigences = loadLocalData<Exigence>(tableName, currentUser);
+          const localGroups = loadLocalData<ExigenceGroup>(`${tableName}_groups`, currentUser);
+          
+          if (localExigences.length > 0) {
+            // Formater les dates
+            const formattedExigences = localExigences.map(exigence => ({
+              ...exigence,
+              date_creation: exigence.date_creation ? new Date(exigence.date_creation) : new Date(),
+              date_modification: exigence.date_modification ? new Date(exigence.date_modification) : new Date()
+            }));
+            
+            setExigences(formattedExigences);
+            console.log(`${formattedExigences.length} exigences chargées depuis le stockage local`);
+          }
+          
+          if (localGroups.length > 0) {
+            setGroups(localGroups);
+            console.log(`${localGroups.length} groupes chargés depuis le stockage local`);
+          }
+          
+          // Ensuite essayer de charger depuis le serveur si en ligne
+          if (isOnline) {
+            await fetchFromServer();
+          }
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : 'Erreur inconnue';
+          console.error("Erreur lors du chargement initial des exigences:", errorMessage);
+          setLoadError(`Erreur de chargement: ${errorMessage}`);
+        } finally {
+          setInitialLoadDone(true);
         }
-        
-        if (storedGroups) {
-          const parsedGroups = JSON.parse(storedGroups);
-          setGroups(parsedGroups);
-          console.log(`Loaded ${parsedGroups.length} groups from local storage`);
-        }
-      } catch (error) {
-        console.error("Error loading data from local storage:", error);
-        setLoadError("Erreur lors du chargement des données locales");
-      }
-    };
-    
-    loadLocalData();
-    
-    // Try to load from server after loading from local storage
-    syncWithServer().catch(error => {
-      console.error("Error during initial sync:", error);
-    });
-  }, [currentUser]);
-
-  // Save data to local storage whenever it changes
-  useEffect(() => {
-    if (exigences.length > 0) {
-      localStorage.setItem(`${tableName}_${currentUser}`, JSON.stringify(exigences));
-      setDataChanged(true);
+      };
+      
+      loadInitialData();
     }
-  }, [exigences, currentUser]);
-  
-  useEffect(() => {
-    if (groups.length > 0) {
-      localStorage.setItem(`${tableName}_groups_${currentUser}`, JSON.stringify(groups));
-      setDataChanged(true);
-    }
-  }, [groups, currentUser]);
+  }, [currentUser, fetchFromServer, initialLoadDone, isOnline]);
 
   // Stats calculation
   useEffect(() => {
@@ -151,10 +251,8 @@ export const useExigences = () => {
   // Listen for window beforeunload event to sync data if needed
   useEffect(() => {
     const handleBeforeUnload = () => {
-      if (dataChanged) {
-        // Store the data that needs to be synced
-        triggerSync.notifyDataChange(tableName, exigences);
-      }
+      // Store the data that needs to be synced for later
+      triggerSync.notifyDataChange(tableName, { exigences, groups, userId: currentUser });
     };
     
     window.addEventListener('beforeunload', handleBeforeUnload);
@@ -162,27 +260,28 @@ export const useExigences = () => {
     return () => {
       window.removeEventListener('beforeunload', handleBeforeUnload);
     };
-  }, [dataChanged, exigences]);
+  }, [currentUser, exigences, groups]);
 
-  const handleEdit = (id: string) => {
+  // Actions de base
+  const handleEdit = useCallback((id: string) => {
     const exigenceToEdit = exigences.find(exigence => exigence.id === id);
     if (exigenceToEdit) {
       setEditingExigence(exigenceToEdit);
       setDialogOpen(true);
     }
-  };
+  }, [exigences]);
 
-  const handleAddGroup = () => {
+  const handleAddGroup = useCallback(() => {
     setEditingGroup(null);
     setGroupDialogOpen(true);
-  };
+  }, []);
 
-  const handleEditGroup = (group: ExigenceGroup) => {
+  const handleEditGroup = useCallback((group: ExigenceGroup) => {
     setEditingGroup(group);
     setGroupDialogOpen(true);
-  };
+  }, []);
 
-  const handleReorder = (startIndex: number, endIndex: number, targetGroupId?: string) => {
+  const handleReorder = useCallback((startIndex: number, endIndex: number, targetGroupId?: string) => {
     setExigences(prev => {
       const result = Array.from(prev);
       const [removed] = result.splice(startIndex, 1);
@@ -192,57 +291,76 @@ export const useExigences = () => {
       }
       
       result.splice(endIndex, 0, removed);
+      
+      // Déclencher une synchronisation automatique après réordonnancement
+      setTimeout(() => {
+        syncWithServer().catch(error => {
+          console.error("Erreur lors de la synchronisation après réorganisation:", error);
+        });
+      }, 500);
+      
       return result;
     });
-  };
+  }, [syncWithServer]);
 
-  // Asynchrone et retourne une Promise<void>
+  const handleSaveExigence = useCallback((exigence: Exigence) => {
+    const updatedExigence = {
+      ...exigence,
+      userId: currentUser,
+      date_modification: new Date()
+    };
+    
+    // Mise à jour de l'exigence
+    const existingIndex = exigences.findIndex(e => e.id === exigence.id);
+    
+    if (existingIndex >= 0) {
+      // Modification d'une exigence existante
+      setExigences(prev => {
+        const updated = [...prev];
+        updated[existingIndex] = updatedExigence;
+        return updated;
+      });
+    } else {
+      // Nouvelle exigence
+      setExigences(prev => [...prev, updatedExigence]);
+    }
+    
+    // Déclencher une synchronisation automatique
+    setTimeout(() => {
+      syncWithServer().catch(error => {
+        console.error("Erreur lors de la synchronisation après sauvegarde:", error);
+      });
+    }, 500);
+    
+    setDialogOpen(false);
+  }, [currentUser, exigences, syncWithServer]);
+
   const handleResetLoadAttempts = async (): Promise<void> => {
     setLoadError(null);
     setLoadAttempts(0);
     return Promise.resolve();
   };
 
-  const syncWithServer = async () => {
-    if (!isOnline) {
-      return { success: false, message: "Vous êtes hors ligne" };
-    }
-    
-    // Only sync if there are actual changes
-    if (!dataChanged && !syncFailed) {
-      console.log("No changes to sync for exigences");
-      return { success: true, message: "Aucun changement à synchroniser" };
-    }
-
+  // Fonction pour la synchronisation forcée
+  const handleSync = async (): Promise<boolean> => {
     try {
-      const syncResult = await syncTable(tableName, exigences);
+      // Tenter d'abord le chargement à partir du serveur
+      const serverResult = await fetchFromServer();
       
-      if (syncResult) {
-        setDataChanged(false);
-        return { success: true, message: "Synchronisation réussie" };
+      if (serverResult) {
+        // Si le chargement réussit, réinitialiser les erreurs
+        if (loadError) {
+          await handleResetLoadAttempts();
+        }
+        return true;
       } else {
-        return { success: false, message: "Échec de la synchronisation" };
+        // Si le chargement échoue, tenter la synchronisation inverse
+        const syncResult = await syncWithServer();
+        return syncResult.success;
       }
     } catch (error) {
-      console.error('Erreur lors de la synchronisation:', error);
-      return { 
-        success: false, 
-        message: error instanceof Error ? error.message : 'Erreur inconnue'
-      };
-    }
-  };
-
-  // Fonction pour la synchronisation avec retour de Promise
-  const handleSync = async (): Promise<void> => {
-    try {
-      const result = await syncWithServer();
-      if (loadError && result.success) {
-        await handleResetLoadAttempts();
-      }
-      return Promise.resolve();
-    } catch (error) {
-      console.error("Erreur lors de la synchronisation:", error);
-      return Promise.reject(error);
+      console.error("Erreur lors de la synchronisation forcée:", error);
+      return false;
     }
   };
 
@@ -259,9 +377,11 @@ export const useExigences = () => {
     lastSynced,
     loadError,
     syncFailed,
+    deviceId,
     setDialogOpen,
     setGroupDialogOpen,
     handleEdit,
+    handleSaveExigence,
     handleReorder,
     handleAddGroup,
     handleEditGroup,
@@ -269,6 +389,7 @@ export const useExigences = () => {
     ...mutations,
     ...groupOperations,
     syncWithServer,
-    handleSync
+    handleSync,
+    fetchFromServer
   };
 };

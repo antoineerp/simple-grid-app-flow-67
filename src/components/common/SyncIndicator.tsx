@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { RefreshCw, Cloud, CloudOff, AlertTriangle } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Button } from '@/components/ui/button';
@@ -12,10 +12,12 @@ interface SyncIndicatorProps {
   onSync?: () => void;  // Fonction optionnelle pour déclencher une sync manuelle
   showOnlyErrors?: boolean; // Si true, n'affiche que les erreurs
   tableName?: string; // Nom de la table pour les stats
+  deviceId?: string; // Identifiant de l'appareil courant
 }
 
 /**
  * Composant qui affiche l'état de synchronisation avec animations
+ * Indicateur visuel amélioré pour afficher clairement les problèmes de synchronisation
  */
 const SyncIndicator: React.FC<SyncIndicatorProps> = ({
   isSyncing,
@@ -24,8 +26,18 @@ const SyncIndicator: React.FC<SyncIndicatorProps> = ({
   lastSynced,
   onSync,
   showOnlyErrors = false,
-  tableName = 'données'
+  tableName = 'données',
+  deviceId
 }) => {
+  // État local pour suivre si une tentative de sync est en cours
+  const [syncing, setSyncing] = useState(isSyncing);
+  const [retryCount, setRetryCount] = useState(0);
+  
+  // Se synchronise avec l'état parent
+  useEffect(() => {
+    setSyncing(isSyncing);
+  }, [isSyncing]);
+  
   // Affiche les détails de la dernière synchronisation
   const formatSyncTime = (date: Date) => {
     if (!date) return '';
@@ -52,10 +64,26 @@ const SyncIndicator: React.FC<SyncIndicatorProps> = ({
     }
   };
   
+  // Gérer le clic sur le bouton de synchronisation
+  const handleSyncClick = () => {
+    if (onSync && !syncing && isOnline) {
+      setSyncing(true);
+      setRetryCount(prev => prev + 1);
+      
+      // Appeler la fonction de synchronisation fournie
+      try {
+        onSync();
+      } catch (error) {
+        console.error(`Erreur lors de la synchronisation de ${tableName}:`, error);
+        setSyncing(false);
+      }
+    }
+  };
+  
   // Calculer le texte d'état
   const getSyncStatusText = () => {
     if (!isOnline) return 'Mode hors ligne';
-    if (isSyncing) return 'Synchronisation en cours...';
+    if (syncing) return 'Synchronisation en cours...';
     if (syncFailed) return 'Échec de la synchronisation';
     if (!lastSynced) return 'Jamais synchronisé';
     
@@ -66,7 +94,7 @@ const SyncIndicator: React.FC<SyncIndicatorProps> = ({
   const getStatusColor = () => {
     if (!isOnline) return 'text-yellow-500';
     if (syncFailed) return 'text-red-500';
-    if (isSyncing) return 'text-blue-500';
+    if (syncing) return 'text-blue-500';
     if (lastSynced) {
       const now = new Date();
       const diffMs = now.getTime() - lastSynced.getTime();
@@ -79,6 +107,19 @@ const SyncIndicator: React.FC<SyncIndicatorProps> = ({
     return 'text-gray-500';
   };
   
+  // Afficher l'ID de l'appareil si disponible
+  const getDeviceInfo = () => {
+    if (deviceId) {
+      // Formater l'ID de l'appareil pour qu'il soit plus lisible
+      const shortId = deviceId.includes('_') 
+        ? deviceId.split('_').pop()?.substring(0, 6) 
+        : deviceId.substring(0, 6);
+      
+      return `Appareil: ${shortId}`;
+    }
+    return null;
+  };
+  
   // S'il n'y a pas d'erreur et qu'on ne montre que les erreurs, on ne montre rien
   if (showOnlyErrors && !syncFailed && isOnline) {
     return null;
@@ -89,12 +130,15 @@ const SyncIndicator: React.FC<SyncIndicatorProps> = ({
       <TooltipProvider>
         <Tooltip>
           <TooltipTrigger asChild>
-            <div className={`flex items-center gap-2 ${getStatusColor()}`}>
+            <div 
+              className={`flex items-center gap-2 ${getStatusColor()} cursor-pointer`}
+              onClick={handleSyncClick}
+            >
               {!isOnline ? (
                 <CloudOff className="h-4 w-4" />
               ) : syncFailed ? (
                 <AlertTriangle className="h-4 w-4 animate-pulse" />
-              ) : isSyncing ? (
+              ) : syncing ? (
                 <RefreshCw className="h-4 w-4 animate-spin" />
               ) : (
                 <Cloud className="h-4 w-4" />
@@ -110,6 +154,9 @@ const SyncIndicator: React.FC<SyncIndicatorProps> = ({
               <p>Connecté: {isOnline ? 'Oui' : 'Non'}</p>
               {lastSynced && (
                 <p>Dernière sync: {lastSynced.toLocaleString()}</p>
+              )}
+              {getDeviceInfo() && (
+                <p className="text-xs text-gray-600">{getDeviceInfo()}</p>
               )}
               {syncFailed && (
                 <p className="text-red-500">
@@ -132,10 +179,10 @@ const SyncIndicator: React.FC<SyncIndicatorProps> = ({
           variant="ghost" 
           size="sm"
           className="h-6 w-6 p-0"
-          onClick={onSync}
-          disabled={isSyncing || !isOnline}
+          onClick={handleSyncClick}
+          disabled={syncing || !isOnline}
         >
-          <RefreshCw className={`h-3 w-3 ${isSyncing ? 'animate-spin' : ''}`} />
+          <RefreshCw className={`h-3 w-3 ${syncing ? 'animate-spin' : ''}`} />
           <span className="sr-only">Forcer la synchronisation</span>
         </Button>
       )}
