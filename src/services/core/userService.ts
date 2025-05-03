@@ -12,6 +12,7 @@ export const getCurrentUserId = (): string => {
 
 /**
  * Génère ou récupère un identifiant d'appareil unique
+ * Cet ID est utilisé pour la synchronisation multi-appareils
  */
 export const getDeviceId = (): string => {
   let deviceId = localStorage.getItem('deviceId');
@@ -74,6 +75,7 @@ export const isUserLoggedIn = (): boolean => {
 
 /**
  * Génère une chaîne d'identifiant sécurisée pour l'utilisation dans les noms de table
+ * Cette fonction est essentielle pour éviter les injections SQL
  */
 export const getSafeUserId = (userId?: string): string => {
   const id = userId || getCurrentUserId();
@@ -82,6 +84,7 @@ export const getSafeUserId = (userId?: string): string => {
 
 /**
  * Initialise les informations d'appareil si nécessaire
+ * Ces informations sont utilisées pour la synchronisation multi-appareils
  */
 export const initDeviceInfo = (): void => {
   // Assurer qu'un ID d'appareil existe
@@ -92,7 +95,8 @@ export const initDeviceInfo = (): void => {
     id: deviceId,
     userAgent: navigator.userAgent,
     platform: navigator.platform,
-    lastActive: new Date().toISOString()
+    lastActive: new Date().toISOString(),
+    userId: getCurrentUserId() // Associer l'ID utilisateur à l'appareil
   };
   
   localStorage.setItem('deviceInfo', JSON.stringify(deviceInfo));

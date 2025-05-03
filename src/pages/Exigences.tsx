@@ -12,6 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import SyncIndicator from '@/components/common/SyncIndicator';
+import { getDeviceId } from '@/services/core/userService';
 
 const ExigencesContent = () => {
   const {
@@ -78,6 +79,9 @@ const ExigencesContent = () => {
     handleExclusionChange(id, true);
   };
 
+  // Récupérer l'ID de l'appareil actuel
+  const currentDeviceId = deviceId || getDeviceId();
+
   return (
     <div className="p-8">
       <div className="flex items-center justify-between mb-4">
@@ -117,7 +121,7 @@ const ExigencesContent = () => {
           onSync={() => handleSync()}
           showOnlyErrors={false}
           tableName="exigences"
-          deviceId={deviceId}
+          deviceId={currentDeviceId}
         />
       </div>
 
