@@ -29,6 +29,9 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     exit;
 }
 
+// S'assurer que toutes les sorties précédentes sont effacées
+ob_clean();
+
 // Récupérer et valider les données
 $data = json_decode(file_get_contents("php://input"), true);
 error_log("Données reçues: " . json_encode($data));
@@ -121,7 +124,7 @@ try {
         
         if ($isUserTable) {
             try {
-                $dropQuery = "DROP TABLE `{$table}`";
+                $dropQuery = "DROP TABLE IF EXISTS `{$table}`";
                 $pdo->exec($dropQuery);
                 $deletedTables[] = $table;
                 error_log("Table supprimée: {$table}");
@@ -135,7 +138,7 @@ try {
     
     // 4. Vider la table des utilisateurs
     try {
-        $pdo->exec("TRUNCATE TABLE utilisateurs");
+        $pdo->exec("DELETE FROM utilisateurs");
         error_log("Table utilisateurs vidée");
     } catch (PDOException $e) {
         $errorMessage = "Erreur lors de la suppression des utilisateurs: " . $e->getMessage();
@@ -299,6 +302,9 @@ try {
         $errors[] = $errorMessage;
     }
     
+    // S'assurer qu'il n'y a pas d'autre sortie avant la réponse JSON
+    ob_clean();
+    
     // Préparer la réponse
     http_response_code(200);
     echo json_encode([
@@ -319,6 +325,9 @@ try {
 } catch (PDOException $e) {
     error_log("Erreur PDO lors de la réinitialisation: " . $e->getMessage());
     
+    // S'assurer qu'il n'y a pas d'autre sortie avant la réponse JSON
+    ob_clean();
+    
     http_response_code(500);
     echo json_encode([
         'status' => 'error',
@@ -327,6 +336,9 @@ try {
     exit;
 } catch (Exception $e) {
     error_log("Erreur générale lors de la réinitialisation: " . $e->getMessage());
+    
+    // S'assurer qu'il n'y a pas d'autre sortie avant la réponse JSON
+    ob_clean();
     
     http_response_code(500);
     echo json_encode([

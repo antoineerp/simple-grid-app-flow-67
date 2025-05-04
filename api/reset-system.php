@@ -23,6 +23,9 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     exit;
 }
 
+// S'assurer que toutes les sorties précédentes sont effacées
+ob_clean();
+
 // Inclure les fichiers nécessaires
 require_once __DIR__ . '/config/database.php';
 require_once __DIR__ . '/utils/ResponseHandler.php';
@@ -95,7 +98,7 @@ try {
                     $userPrefix = $prefix . $userId;
                     if (strpos($table, $userPrefix) === 0) {
                         try {
-                            $db->exec("DROP TABLE `{$table}`");
+                            $db->exec("DROP TABLE IF EXISTS `{$table}`");
                             $tablesDeleted[] = $table;
                             error_log("Table supprimée: {$table}");
                         } catch (PDOException $e) {
@@ -186,12 +189,19 @@ try {
         $response['warnings'] = $errors;
     }
     
+    // S'assurer qu'il n'y a pas d'autre sortie avant la réponse JSON
+    ob_clean();
+    
     // Renvoyer la réponse
     echo json_encode($response);
     error_log("=== FIN DE L'EXÉCUTION DE reset-system.php - SUCCÈS ===");
     
 } catch (Exception $e) {
     error_log("Erreur lors de la réinitialisation du système: " . $e->getMessage());
+    
+    // S'assurer qu'il n'y a pas d'autre sortie avant la réponse JSON
+    ob_clean();
+    
     http_response_code(500);
     echo json_encode([
         'success' => false,

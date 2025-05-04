@@ -253,12 +253,9 @@ const ExigencesContent = () => {
     setGroupDialogOpen(true);
   };
 
-  const handleEditGroup = (groupId: string) => {
-    const group = groups.find(g => g.id === groupId);
-    if (group) {
-      setEditingGroup(group);
-      setGroupDialogOpen(true);
-    }
+  const handleEditGroup = (group: ExigenceGroup) => {
+    setEditingGroup(group);
+    setGroupDialogOpen(true);
   };
 
   const handleSaveGroup = (group: ExigenceGroup) => {
@@ -475,3 +472,4 @@ const Exigences = () => (
 );
 
 export default Exigences;
+

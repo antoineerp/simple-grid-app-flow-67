@@ -4,14 +4,29 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Pencil, Trash, ExternalLink, ChevronDown, ChevronUp, FolderPlus, Plus, RefreshCw } from 'lucide-react';
 import { useSyncedData } from '@/hooks/useSyncedData';
-import { Document, DocumentGroup } from '@/types/bibliotheque';
-import { useDragAndDrop } from '@/components/gestion-documentaire/table/useDragAndDrop';
 import SyncIndicator from '@/components/common/SyncIndicator';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { getDeviceId } from '@/services/core/userService';
+
+// Définir une interface CollaborationDocument pour éviter les conflits de typage
+interface CollaborationDocument {
+  id: string;
+  name: string;
+  link: string | null;
+  groupId?: string;
+  userId?: string;
+}
+
+// Interface pour les groupes de collaboration
+interface CollaborationGroup {
+  id: string;
+  name: string;
+  expanded: boolean;
+  userId?: string;
+}
 
 // Simplified document dialog component
 const DocumentDialog = ({ 
@@ -26,7 +41,7 @@ const DocumentDialog = ({
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   onClose: () => void;
-  document: Document | null;
+  document: CollaborationDocument | null;
   isEditing: boolean;
   onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onSave: () => void;
@@ -82,7 +97,7 @@ const GroupDialog = ({
 }: { 
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
-  group: DocumentGroup | null;
+  group: CollaborationGroup | null;
   isEditing: boolean;
   onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onSave: () => void;
@@ -116,6 +131,64 @@ const GroupDialog = ({
   );
 };
 
+// Interface simple pour l'élément draggable
+interface DragItem {
+  id: string;
+  type: string;
+}
+
+// Hook simplifié pour drag-and-drop
+const useDragAndDrop = (documents: CollaborationDocument[], onReorder: (sourceIndex: number, targetIndex: number, targetGroupId?: string) => void) => {
+  const [draggedItem, setDraggedItem] = useState<DragItem | null>(null);
+
+  const handleDragStart = (e: React.DragEvent, item: DragItem) => {
+    setDraggedItem(item);
+    e.dataTransfer.setData('text/plain', JSON.stringify(item));
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+  };
+
+  const handleDrop = (e: React.DragEvent, targetIndex: number) => {
+    e.preventDefault();
+    if (!draggedItem) return;
+    
+    const sourceIndex = documents.findIndex(doc => doc.id === draggedItem.id);
+    if (sourceIndex !== -1) {
+      onReorder(sourceIndex, targetIndex);
+    }
+  };
+  
+  const handleGroupDrop = (e: React.DragEvent, groupId: string) => {
+    e.preventDefault();
+    if (!draggedItem) return;
+    
+    const sourceIndex = documents.findIndex(doc => doc.id === draggedItem.id);
+    if (sourceIndex !== -1) {
+      onReorder(sourceIndex, sourceIndex, groupId);
+    }
+  };
+
+  const handleDragEnd = () => {
+    setDraggedItem(null);
+  };
+
+  return { 
+    draggedItem,
+    handleDragStart,
+    handleDragOver,
+    handleDragLeave,
+    handleDrop,
+    handleDragEnd,
+    handleGroupDrop
+  };
+};
+
 const Collaboration = () => {
   // Utiliser le hook useSyncedData pour les documents
   const {
@@ -127,7 +200,7 @@ const Collaboration = () => {
     forceReload: forceReloadDocuments,
     repairSync: repairSyncDocuments,
     currentUser
-  } = useSyncedData<Document>(
+  } = useSyncedData<CollaborationDocument>(
     'collaboration',
     [],
     async (userId) => {
@@ -171,7 +244,7 @@ const Collaboration = () => {
     isSyncing: isSyncingGroups,
     forceReload: forceReloadGroups,
     repairSync: repairSyncGroups
-  } = useSyncedData<DocumentGroup>(
+  } = useSyncedData<CollaborationGroup>(
     'collaboration_groups',
     [],
     async (userId) => {
@@ -210,8 +283,8 @@ const Collaboration = () => {
 
   const [isDocumentDialogOpen, setIsDocumentDialogOpen] = useState(false);
   const [isGroupDialogOpen, setIsGroupDialogOpen] = useState(false);
-  const [currentDocument, setCurrentDocument] = useState<Document | null>(null);
-  const [currentGroup, setCurrentGroup] = useState<DocumentGroup | null>(null);
+  const [currentDocument, setCurrentDocument] = useState<CollaborationDocument | null>(null);
+  const [currentGroup, setCurrentGroup] = useState<CollaborationGroup | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   
@@ -278,7 +351,7 @@ const Collaboration = () => {
   };
 
   // Handle edit document button click
-  const handleEditDocumentClick = (doc: Document) => {
+  const handleEditDocumentClick = (doc: CollaborationDocument) => {
     setCurrentDocument(doc);
     setIsEditing(true);
     setIsDocumentDialogOpen(true);
@@ -313,7 +386,7 @@ const Collaboration = () => {
   };
 
   // Handle edit group button click
-  const handleEditGroupClick = (group: DocumentGroup) => {
+  const handleEditGroupClick = (group: CollaborationGroup) => {
     setCurrentGroup(group);
     setIsEditing(true);
     setIsGroupDialogOpen(true);
@@ -326,7 +399,6 @@ const Collaboration = () => {
       id: newId,
       name: '',
       expanded: true,
-      items: [],
       userId: currentUser
     });
     setIsEditing(false);
@@ -351,11 +423,9 @@ const Collaboration = () => {
   
   // Handle toggle group expansion
   const handleToggleGroup = (id: string) => {
-    setGroups(prevGroups => 
-      prevGroups.map(group => 
-        group.id === id ? { ...group, expanded: !group.expanded } : group
-      )
-    );
+    setGroups(groups.map(group => 
+      group.id === id ? { ...group, expanded: !group.expanded } : group
+    ));
   };
   
   // Handle delete document
@@ -439,178 +509,164 @@ const Collaboration = () => {
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-200">
-              {/* Afficher les groupes et leurs documents */}
-              {groups.map((group) => (
+            <tbody className="bg-white divide-y divide-gray-200">
+              {groups.map(group => (
                 <React.Fragment key={group.id}>
-                  <tr 
-                    className="bg-gray-50 cursor-pointer" 
-                    onClick={() => handleToggleGroup(group.id)}
-                    draggable
-                    onDragOver={(e) => {
-                      e.preventDefault();
-                      e.currentTarget.classList.add('border-dashed', 'border-2', 'border-primary');
-                    }}
-                    onDragLeave={(e) => {
-                      e.currentTarget.classList.remove('border-dashed', 'border-2', 'border-primary');
-                    }}
-                    onDrop={(e) => handleGroupDrop(e, group.id)}
-                  >
-                    <td className="px-6 py-4 whitespace-nowrap" colSpan={2}>
-                      <div className="flex items-center">
-                        {group.expanded ? (
-                          <ChevronDown className="h-4 w-4 mr-2" />
-                        ) : (
-                          <ChevronUp className="h-4 w-4 mr-2" />
-                        )}
-                        <span className="font-semibold text-app-blue">{group.name}</span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleEditGroupClick(group);
-                        }}
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDeleteGroup(group.id);
-                        }}
-                      >
-                        <Trash className="h-4 w-4" />
-                      </Button>
-                    </td>
-                  </tr>
-                  {group.expanded && documents
-                    .filter(doc => doc.groupId === group.id)
-                    .map((item) => (
-                    <tr 
-                      key={item.id} 
-                      className="bg-white"
-                      draggable
-                      onDragStart={(e) => handleDragStart(e, item.id, group.id)}
-                      onDragOver={(e) => handleDragOver(e)}
-                      onDragLeave={(e) => handleDragLeave(e)}
-                      onDrop={(e) => handleDrop(e, item.id, group.id)}
-                      onDragEnd={handleDragEnd}
-                    >
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="pl-8">{item.name}</div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        {item.link && (
-                          <a href={item.link} target="_blank" rel="noopener noreferrer" className="flex items-center text-blue-600 hover:underline">
-                            Voir le document <ExternalLink className="h-4 w-4 ml-1" />
-                          </a>
-                        )}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                  <tr className="bg-gray-100 cursor-pointer" onClick={() => handleToggleGroup(group.id)}>
+                    <td colSpan={3} className="px-6 py-3 flex items-center">
+                      {group.expanded ? (
+                        <ChevronDown className="h-4 w-4 mr-2" />
+                      ) : (
+                        <ChevronUp className="h-4 w-4 mr-2" />
+                      )}
+                      <span className="font-medium">{group.name}</span>
+                      <div className="ml-auto flex space-x-2">
                         <Button 
                           variant="ghost" 
-                          size="icon" 
+                          size="sm" 
                           onClick={(e) => {
-                            e.preventDefault();
-                            handleEditDocumentClick(item);
+                            e.stopPropagation();
+                            handleEditGroupClick(group);
                           }}
                         >
                           <Pencil className="h-4 w-4" />
                         </Button>
                         <Button 
                           variant="ghost" 
-                          size="icon" 
+                          size="sm"
                           onClick={(e) => {
-                            e.preventDefault();
-                            handleDeleteDocument(item.id);
+                            e.stopPropagation();
+                            handleDeleteGroup(group.id);
                           }}
                         >
-                          <Trash className="h-4 w-4" />
+                          <Trash className="h-4 w-4 text-red-500" />
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                  {group.expanded && documents.filter(doc => doc.groupId === group.id).map((doc, index) => (
+                    <tr 
+                      key={doc.id} 
+                      className="hover:bg-gray-50"
+                      draggable
+                      onDragStart={(e) => handleDragStart(e, { id: doc.id, type: 'document' })}
+                      onDragEnd={handleDragEnd}
+                    >
+                      <td className="px-6 py-4">{doc.name}</td>
+                      <td className="px-6 py-4">
+                        {doc.link ? (
+                          <a 
+                            href={doc.link} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="text-blue-600 hover:underline flex items-center"
+                          >
+                            {doc.link}
+                            <ExternalLink className="h-3 w-3 ml-1" />
+                          </a>
+                        ) : (
+                          <span className="text-gray-400">-</span>
+                        )}
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          onClick={() => handleEditDocumentClick(doc)}
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          onClick={() => handleDeleteDocument(doc.id)}
+                        >
+                          <Trash className="h-4 w-4 text-red-500" />
                         </Button>
                       </td>
                     </tr>
                   ))}
                 </React.Fragment>
               ))}
-
-              {/* Afficher les documents qui ne sont pas dans un groupe */}
-              {documents
-                .filter(doc => !doc.groupId)
-                .map((doc) => (
+              
+              {documents.filter(doc => !doc.groupId).map((doc, index) => (
                 <tr 
                   key={doc.id} 
-                  className="bg-white"
+                  className="hover:bg-gray-50"
                   draggable
-                  onDragStart={(e) => handleDragStart(e, doc.id)}
+                  onDragStart={(e) => handleDragStart(e, { id: doc.id, type: 'document' })}
                   onDragOver={(e) => handleDragOver(e)}
                   onDragLeave={(e) => handleDragLeave(e)}
-                  onDrop={(e) => handleDrop(e, doc.id)}
+                  onDrop={(e) => handleDrop(e, index)}
                   onDragEnd={handleDragEnd}
                 >
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    {doc.name}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    {doc.link && (
-                      <a href={doc.link} target="_blank" rel="noopener noreferrer" className="flex items-center text-blue-600 hover:underline">
-                        Voir le document <ExternalLink className="h-4 w-4 ml-1" />
+                  <td className="px-6 py-4">{doc.name}</td>
+                  <td className="px-6 py-4">
+                    {doc.link ? (
+                      <a 
+                        href={doc.link} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="text-blue-600 hover:underline flex items-center"
+                      >
+                        {doc.link}
+                        <ExternalLink className="h-3 w-3 ml-1" />
                       </a>
+                    ) : (
+                      <span className="text-gray-400">-</span>
                     )}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                  <td className="px-6 py-4 text-right">
                     <Button 
                       variant="ghost" 
-                      size="icon" 
-                      onClick={(e) => {
-                        e.preventDefault();
-                        handleEditDocumentClick(doc);
-                      }}
+                      size="sm"
+                      onClick={() => handleEditDocumentClick(doc)}
                     >
                       <Pencil className="h-4 w-4" />
                     </Button>
                     <Button 
                       variant="ghost" 
-                      size="icon" 
-                      onClick={(e) => {
-                        e.preventDefault();
-                        handleDeleteDocument(doc.id);
-                      }}
+                      size="sm"
+                      onClick={() => handleDeleteDocument(doc.id)}
                     >
-                      <Trash className="h-4 w-4" />
+                      <Trash className="h-4 w-4 text-red-500" />
                     </Button>
                   </td>
                 </tr>
               ))}
+              
+              {documents.length === 0 && groups.length === 0 && (
+                <tr>
+                  <td colSpan={3} className="px-6 py-12 text-center text-gray-500">
+                    Aucun document trouvé. Cliquez sur "Ajouter un document" pour commencer.
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
       </div>
-
-      <div className="mt-6 flex justify-end gap-2">
-        <Button 
-          variant="outline"
-          className="flex items-center gap-1"
+      
+      <div className="mt-4 flex justify-end space-x-2">
+        <Button
           onClick={handleAddGroupClick}
+          variant="outline"
+          className="flex items-center"
         >
-          <FolderPlus className="h-4 w-4" /> Nouveau groupe
+          <FolderPlus className="h-4 w-4 mr-2" />
+          Nouveau groupe
         </Button>
-        <Button 
-          className="flex items-center gap-1"
+        <Button
           onClick={handleAddDocumentClick}
+          className="flex items-center"
         >
-          <Plus className="h-4 w-4" /> Nouveau document
+          <Plus className="h-4 w-4 mr-2" />
+          Ajouter un document
         </Button>
       </div>
-
-      {/* Dialog components */}
-      <DocumentDialog 
-        isOpen={isDocumentDialogOpen} 
+      
+      <DocumentDialog
+        isOpen={isDocumentDialogOpen}
         onOpenChange={setIsDocumentDialogOpen}
         onClose={() => setIsDocumentDialogOpen(false)}
         document={currentDocument}
@@ -618,8 +674,8 @@ const Collaboration = () => {
         onChange={handleDocumentChange}
         onSave={handleSaveDocument}
       />
-
-      <GroupDialog 
+      
+      <GroupDialog
         isOpen={isGroupDialogOpen}
         onOpenChange={setIsGroupDialogOpen}
         group={currentGroup}
@@ -632,3 +688,4 @@ const Collaboration = () => {
 };
 
 export default Collaboration;
+

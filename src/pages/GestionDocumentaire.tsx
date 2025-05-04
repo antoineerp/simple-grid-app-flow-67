@@ -10,7 +10,7 @@ import { Document, DocumentGroup } from '@/types/documents';
 const GestionDocumentaire = () => {
   const { toast } = useToast();
   
-  // Utiliser notre nouveau hook pour gérer les documents
+  // Utiliser notre hook pour gérer les documents
   const {
     data: documents,
     updateData: setDocuments,
@@ -36,7 +36,7 @@ const GestionDocumentaire = () => {
     }
   );
   
-  // Utiliser notre nouveau hook pour gérer les groupes de documents
+  // Utiliser notre hook pour gérer les groupes de documents
   const {
     data: groups,
     updateData: setGroups,
@@ -244,3 +244,4 @@ const GestionDocumentaire = () => {
 };
 
 export default GestionDocumentaire;
+
