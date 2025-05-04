@@ -5,6 +5,7 @@ export interface Document {
   link: string | null;
   groupId?: string;
   userId?: string;
+  etat?: 'NC' | 'PC' | 'C' | 'EX' | null;
 }
 
 export interface DocumentGroup {
