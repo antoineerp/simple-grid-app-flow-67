@@ -6,7 +6,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Code } from "@/components/ui/code";
 import { Checkbox } from "@/components/ui/checkbox";
-import { DatabaseCheck, List, ChevronDown, ChevronUp, ClipboardCopy, CheckCircle } from "lucide-react";
+import { Database, List, ChevronDown, ChevronUp, ClipboardCopy, CheckCircle } from "lucide-react";
 import { generateTableCheckQueries, getDbChecklistItems, generateVerificationReport } from "@/utils/dbChecklistHelper";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
@@ -36,14 +36,14 @@ const DatabaseCheckPage: React.FC = () => {
   
   // Fonction pour marquer un élément comme vérifié
   const toggleChecked = (index: number) => {
-    setCheckedItems(prev => ({
-      ...prev,
-      [index]: !prev[index]
+    setCheckedItems(prevState => ({
+      ...prevState,
+      [index]: !prevState[index]
     }));
     
     // Afficher une notification
     toast({
-      title: prev[index] ? "Élément décoché" : "Élément vérifié",
+      title: checkedItems[index] ? "Élément décoché" : "Élément vérifié",
       description: checklistItems[index],
       variant: "default",
     });
@@ -85,7 +85,7 @@ const DatabaseCheckPage: React.FC = () => {
     <div className="container py-6">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold flex items-center gap-2">
-          <DatabaseCheck className="h-6 w-6" />
+          <Database className="h-6 w-6" />
           Vérification de la structure de base de données
         </h1>
         
