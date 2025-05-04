@@ -1,222 +1,128 @@
 
 <?php
-
 class DataSyncService {
-    private $pdo = null;
     private $tableName;
-    private $userId;
+    private $pdo = null;
     private $inTransaction = false;
-
+    private $error = null;
+    
     public function __construct($tableName) {
         $this->tableName = $tableName;
     }
-
+    
     public function connectToDatabase() {
         try {
-            // Paramètres de connexion
-            $host = "p71x6d.myd.infomaniak.com";
-            $dbname = "p71x6d_system";
-            $username = "p71x6d_system";
-            $password = "Trottinette43!";
-            
-            // Connexion PDO
-            $this->pdo = new PDO("mysql:host=$host;dbname=$dbname;charset=utf8mb4", $username, $password);
-            $this->pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-            
-            return true;
-        } catch (PDOException $e) {
+            require_once __DIR__ . '/../config/database.php';
+            $database = new Database();
+            $this->pdo = $database->getConnection();
+            return $this->pdo !== null;
+        } catch (Exception $e) {
+            $this->error = $e->getMessage();
             error_log("Erreur de connexion à la base de données: " . $e->getMessage());
             return false;
         }
     }
-
+    
     public function getPdo() {
         return $this->pdo;
     }
-
-    public function sanitizeUserId($userId) {
-        if (!$userId) {
-            throw new Exception("ID utilisateur invalide");
-        }
-        
-        // Si c'est un objet, tenter d'extraire l'ID
-        if (is_array($userId)) {
-            if (isset($userId['identifiant_technique'])) {
-                $userId = $userId['identifiant_technique'];
-            } else if (isset($userId['id'])) {
-                $userId = $userId['id'];
-            }
-        }
-        
-        // Convertir en string et nettoyer
-        $userId = (string)$userId;
-        return preg_replace('/[^a-zA-Z0-9_]/', '_', $userId);
-    }
-
-    /**
-     * Définit les en-têtes standard pour les endpoints API
-     * 
-     * @param string $allowedMethods Méthodes HTTP autorisées (ex: "GET, POST, OPTIONS")
-     * @param int $maxAge Durée maximale de mise en cache des préflight (en secondes)
-     */
-    public function setStandardHeaders($allowedMethods = "GET, POST, OPTIONS", $maxAge = 3600) {
-        // Entêtes CORS standard
-        header("Access-Control-Allow-Origin: *");
-        header("Access-Control-Allow-Methods: $allowedMethods");
-        header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Device-ID");
-        header("Access-Control-Max-Age: $maxAge");
-        
-        // Entêtes Content-Type standard
-        header("Content-Type: application/json; charset=UTF-8");
-        
-        // Désactiver le cache pour les API dynamiques
-        header("Cache-Control: no-store, no-cache, must-revalidate, max-age=0");
-        header("Pragma: no-cache");
-        header("Expires: 0");
-    }
     
-    /**
-     * Gère les requêtes OPTIONS pour le CORS preflight
-     */
-    public function handleOptionsRequest() {
-        if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-            http_response_code(200);
-            exit;
-        }
-    }
-
-    /**
-     * Génère un UUID v4 pour standardiser les IDs
-     * @return string UUID au format 8-4-4-4-12
-     */
-    public function generateUuid() {
-        // Générer 16 octets aléatoires
-        if (function_exists('random_bytes')) {
-            $data = random_bytes(16);
-        } elseif (function_exists('openssl_random_pseudo_bytes')) {
-            $data = openssl_random_pseudo_bytes(16);
-        } else {
-            // Fallback si les fonctions sécurisées ne sont pas disponibles
-            $data = '';
-            for ($i = 0; $i < 16; $i++) {
-                $data .= chr(mt_rand(0, 255));
-            }
-        }
-
-        // Définir la version (4) et la variante (RFC 4122)
-        $data[6] = chr(ord($data[6]) & 0x0f | 0x40);
-        $data[8] = chr(ord($data[8]) & 0x3f | 0x80);
-
-        // Formater en chaîne UUID
-        return vsprintf('%s%s-%s-%s-%s-%s%s%s', str_split(bin2hex($data), 4));
-    }
-
-    public function query($sql) {
-        if (!$this->pdo) {
-            throw new Exception("Base de données non connectée");
-        }
-        return $this->pdo->query($sql);
-    }
-
-    public function ensureTableExists($schema) {
-        try {
-            if (!$this->pdo) {
-                return false;
-            }
-            $this->pdo->exec($schema);
-            return true;
-        } catch (PDOException $e) {
-            error_log("Erreur lors de la création de la table: " . $e->getMessage());
-            return false;
-        }
-    }
-
     public function beginTransaction() {
         if ($this->pdo && !$this->inTransaction) {
-            $this->inTransaction = $this->pdo->beginTransaction();
-            return $this->inTransaction;
+            $this->pdo->beginTransaction();
+            $this->inTransaction = true;
+            return true;
         }
         return false;
     }
-
+    
     public function commitTransaction() {
         if ($this->pdo && $this->inTransaction) {
-            $result = $this->pdo->commit();
+            $this->pdo->commit();
             $this->inTransaction = false;
-            return $result;
+            return true;
         }
         return false;
     }
-
+    
     public function rollbackTransaction() {
         if ($this->pdo && $this->inTransaction) {
-            $result = $this->pdo->rollBack();
+            $this->pdo->rollBack();
             $this->inTransaction = false;
-            return $result;
+            return true;
         }
         return false;
     }
-
-    public function syncData($data) {
-        if (!$this->pdo || !is_array($data) || empty($data)) {
+    
+    public function getError() {
+        return $this->error;
+    }
+    
+    public function generateUuid() {
+        return sprintf(
+            '%04x%04x-%04x-%04x-%04x-%04x%04x%04x',
+            mt_rand(0, 0xffff), mt_rand(0, 0xffff),
+            mt_rand(0, 0xffff),
+            mt_rand(0, 0x0fff) | 0x4000,
+            mt_rand(0, 0x3fff) | 0x8000,
+            mt_rand(0, 0xffff), mt_rand(0, 0xffff), mt_rand(0, 0xffff)
+        );
+    }
+    
+    // Méthode centralisée pour enregistrer toutes les opérations de synchronisation
+    public function recordSyncOperation($userId, $deviceId, $operation = 'sync', $recordCount = 0) {
+        if (!$this->pdo) {
+            error_log("Impossible d'enregistrer l'opération, connexion non établie");
             return false;
         }
-
+        
         try {
-            // Récupérer les données de la première ligne pour définir les colonnes
-            $firstRecord = reset($data);
-            if (!$firstRecord || !is_array($firstRecord)) {
-                throw new Exception("Format de données invalide");
-            }
+            // Créer la table d'historique si elle n'existe pas
+            $this->pdo->exec("CREATE TABLE IF NOT EXISTS `sync_history` (
+                `id` INT AUTO_INCREMENT PRIMARY KEY,
+                `table_name` VARCHAR(100) NOT NULL,
+                `user_id` VARCHAR(50) NOT NULL,
+                `device_id` VARCHAR(100) NOT NULL,
+                `record_count` INT NOT NULL,
+                `operation` VARCHAR(50) DEFAULT 'sync',
+                `sync_timestamp` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                INDEX `idx_user_device` (`user_id`, `device_id`),
+                INDEX `idx_table_user` (`table_name`, `user_id`),
+                INDEX `idx_timestamp` (`sync_timestamp`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
             
-            // Récupérer l'ID utilisateur du premier enregistrement
-            $this->userId = isset($firstRecord['userId']) ? $this->sanitizeUserId($firstRecord['userId']) : null;
-            if (!$this->userId) {
-                throw new Exception("ID utilisateur non fourni dans les données");
-            }
-
-            // Préparer la requête d'insertion/mise à jour pour chaque ligne
-            $fullTableName = "{$this->tableName}_{$this->userId}";
-            
-            $upsertQuery = "INSERT INTO `{$fullTableName}` (";
-            $columns = [];
-            $placeholders = [];
-            $updates = [];
-            $keys = array_keys($firstRecord);
-            
-            foreach ($keys as $key) {
-                $columns[] = "`{$key}`";
-                $placeholders[] = "?";
+            // Vérifier les synchronisations récentes pour éviter les doublons
+            // (uniquement pour les opérations 'sync', pas pour 'load')
+            if ($operation === 'sync') {
+                $checkStmt = $this->pdo->prepare("SELECT COUNT(*) FROM `sync_history` 
+                                               WHERE table_name = ? AND user_id = ? 
+                                               AND device_id = ? AND operation = ?
+                                               AND sync_timestamp > DATE_SUB(NOW(), INTERVAL 3 SECOND)");
+                $checkStmt->execute([$this->tableName, $userId, $deviceId, $operation]);
+                $recentCount = (int)$checkStmt->fetchColumn();
                 
-                // Ne pas mettre à jour l'ID ou la date de création
-                if ($key !== 'id' && $key !== 'date_creation') {
-                    $updates[] = "`{$key}` = VALUES(`{$key}`)";
+                if ($recentCount > 0) {
+                    error_log("Opération {$operation} pour {$this->tableName} déjà enregistrée récemment, doublon évité");
+                    return false;
                 }
             }
             
-            $upsertQuery .= implode(", ", $columns) . ") VALUES (" . implode(", ", $placeholders) . ") 
-                             ON DUPLICATE KEY UPDATE " . implode(", ", $updates);
+            // Insérer l'enregistrement de synchronisation
+            $stmt = $this->pdo->prepare("INSERT INTO `sync_history` 
+                                       (table_name, user_id, device_id, record_count, operation, sync_timestamp) 
+                                       VALUES (?, ?, ?, ?, ?, NOW())");
+            $result = $stmt->execute([$this->tableName, $userId, $deviceId, $recordCount, $operation]);
             
-            $stmt = $this->pdo->prepare($upsertQuery);
-            
-            // Exécuter pour chaque enregistrement
-            foreach ($data as $record) {
-                $values = [];
-                foreach ($keys as $key) {
-                    $values[] = $record[$key] ?? null;
-                }
-                $stmt->execute($values);
-            }
-            
-            return true;
-        } catch (PDOException $e) {
-            error_log("Erreur lors de la synchronisation des données: " . $e->getMessage());
-            throw $e;
+            error_log("Opération {$operation} pour {$this->tableName} enregistrée avec succès: {$recordCount} enregistrements");
+            return $result;
+        } catch (Exception $e) {
+            error_log("Erreur lors de l'enregistrement de l'opération {$operation}: " . $e->getMessage());
+            return false;
         }
     }
-
+    
     public function finalize() {
-        // Annuler la transaction si elle est encore active
+        // Si une transaction est en cours, on la termine
         if ($this->inTransaction && $this->pdo) {
             $this->pdo->rollBack();
             $this->inTransaction = false;
@@ -226,4 +132,3 @@ class DataSyncService {
         $this->pdo = null;
     }
 }
-?>

@@ -19,9 +19,7 @@ RequestHandler::handleOptionsRequest();
 
 // Vérifier la méthode
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-    http_response_code(405);
-    echo json_encode(['success' => false, 'message' => 'Méthode non autorisée. Utilisez POST.']);
-    exit;
+    RequestHandler::handleError('Méthode non autorisée. Utilisez POST.', 405);
 }
 
 try {
@@ -37,7 +35,6 @@ try {
     }
     
     error_log("Données reçues pour synchronisation de collaboration");
-    error_log("Contenu: " . substr($json, 0, 500) . "...");
     
     // Vérifier si les données nécessaires sont présentes
     if (!isset($data['userId'])) {
@@ -46,7 +43,7 @@ try {
     
     // Récupérer les données
     $userId = RequestHandler::sanitizeUserId($data['userId']);
-    $deviceId = isset($data['deviceId']) ? $data['deviceId'] : 'unknown';
+    $deviceId = isset($data['deviceId']) ? $data['deviceId'] : RequestHandler::getDeviceId();
     $documents = isset($data['collaboration']) ? $data['collaboration'] : [];
     
     error_log("Synchronisation pour l'utilisateur: {$userId} depuis l'appareil: {$deviceId}");
@@ -58,34 +55,13 @@ try {
     }
     
     // Nom de la table spécifique à l'utilisateur
-    $userTableName = "{$tableName}_" . preg_replace('/[^a-zA-Z0-9_]/', '_', $userId);
+    $userTableName = "{$tableName}_" . RequestHandler::sanitizeUserId($userId);
     
     // Obtenir une référence PDO
     $pdo = $service->getPdo();
     
     // Enregistrer cette synchronisation dans l'historique
-    try {
-        // Créer la table d'historique si elle n'existe pas
-        $pdo->exec("CREATE TABLE IF NOT EXISTS `sync_history` (
-            `id` INT AUTO_INCREMENT PRIMARY KEY,
-            `table_name` VARCHAR(100) NOT NULL,
-            `user_id` VARCHAR(50) NOT NULL,
-            `device_id` VARCHAR(100) NOT NULL,
-            `record_count` INT NOT NULL,
-            `operation` VARCHAR(50) DEFAULT 'sync',
-            `sync_timestamp` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            INDEX `idx_user_device` (`user_id`, `device_id`)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
-        
-        // Insérer l'enregistrement de synchronisation
-        $stmt = $pdo->prepare("INSERT INTO `sync_history` 
-                              (table_name, user_id, device_id, record_count, operation, sync_timestamp) 
-                              VALUES (?, ?, ?, ?, 'sync', NOW())");
-        $stmt->execute([$tableName, $userId, $deviceId, count($documents)]);
-    } catch (Exception $e) {
-        // Continuer même si l'enregistrement échoue
-        error_log("Erreur lors de l'enregistrement de l'historique de synchronisation: " . $e->getMessage());
-    }
+    $service->recordSyncOperation($userId, $deviceId, 'sync', count($documents));
     
     // Créer la table si elle n'existe pas
     $pdo->exec("CREATE TABLE IF NOT EXISTS `{$userTableName}` (
@@ -128,28 +104,18 @@ try {
     error_log("Documents de collaboration synchronisés: " . count($documents));
     
     // Réponse réussie
-    echo json_encode([
-        'success' => true,
-        'message' => 'Données de collaboration synchronisées avec succès',
+    RequestHandler::sendJsonResponse(true, 'Données de collaboration synchronisées avec succès', [
         'count' => count($documents),
-        'timestamp' => date('c'),
-        'deviceId' => $deviceId
+        'deviceId' => $deviceId,
+        'tableName' => $tableName
     ]);
     
 } catch (PDOException $e) {
     error_log("Erreur PDO dans {$tableName}-sync.php: " . $e->getMessage());
-    http_response_code(500);
-    echo json_encode([
-        'success' => false,
-        'message' => 'Erreur de base de données: ' . $e->getMessage()
-    ]);
+    RequestHandler::handleError($e, 500);
 } catch (Exception $e) {
     error_log("Exception dans {$tableName}-sync.php: " . $e->getMessage());
-    http_response_code(400);
-    echo json_encode([
-        'success' => false,
-        'message' => $e->getMessage()
-    ]);
+    RequestHandler::handleError($e);
 } finally {
     if (isset($service)) {
         $service->finalize();
