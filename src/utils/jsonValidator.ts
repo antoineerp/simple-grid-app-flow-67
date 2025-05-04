@@ -9,6 +9,7 @@ interface JsonValidationResult<T = any> {
   isValid: boolean;
   data: T | null;
   error: string | null;
+  htmlDetected: boolean;
 }
 
 /**
@@ -22,16 +23,27 @@ export const validateJsonResponse = <T = any>(responseText: string): JsonValidat
     return {
       isValid: false,
       data: null,
-      error: 'La réponse du serveur est vide'
+      error: 'La réponse du serveur est vide',
+      htmlDetected: false
     };
   }
   
   // Vérifier si la réponse contient du HTML (probablement une page d'erreur)
-  if (responseText.includes('<html') || responseText.includes('<!DOCTYPE') || responseText.includes('<br') || responseText.includes('<body')) {
+  const containsHtml = responseText.includes('<html') || 
+                      responseText.includes('<!DOCTYPE') || 
+                      responseText.includes('<br') || 
+                      responseText.includes('<body') ||
+                      responseText.includes('<head');
+  
+  if (containsHtml) {
+    // Tenter d'extraire un message d'erreur PHP utile
+    const errorMessage = extractPhpErrorMessage(responseText);
+    
     return {
       isValid: false,
       data: null,
-      error: 'La réponse du serveur contient du HTML au lieu de JSON'
+      error: errorMessage || 'La réponse du serveur contient du HTML au lieu de JSON',
+      htmlDetected: true
     };
   }
   
@@ -41,13 +53,27 @@ export const validateJsonResponse = <T = any>(responseText: string): JsonValidat
     return {
       isValid: true,
       data,
-      error: null
+      error: null,
+      htmlDetected: false
     };
   } catch (error) {
+    // Si l'analyse JSON échoue, tenter d'extraire une partie JSON valide
+    const extracted = extractValidJson<T>(responseText);
+    
+    if (extracted.extracted) {
+      return {
+        isValid: true,
+        data: extracted.data,
+        error: 'Avertissement: JSON extrait d\'une réponse potentiellement corrompue',
+        htmlDetected: false
+      };
+    }
+    
     return {
       isValid: false,
       data: null,
-      error: `Impossible d'analyser la réponse JSON: ${error instanceof Error ? error.message : String(error)}`
+      error: `Impossible d'analyser la réponse JSON: ${error instanceof Error ? error.message : String(error)}`,
+      htmlDetected: false
     };
   }
 };
@@ -105,7 +131,8 @@ export const isPhpErrorResponse = (text: string): boolean => {
     'Deprecated:',
     '<b>PHP Error</b>',
     'Stack trace:',
-    'Exception'
+    'Exception',
+    'Call to undefined'
   ];
   
   return phpErrorPatterns.some(pattern => text.includes(pattern));
@@ -115,6 +142,14 @@ export const isPhpErrorResponse = (text: string): boolean => {
  * Extrait les messages d'erreur PHP utiles d'une réponse HTML
  */
 export const extractPhpErrorMessage = (text: string): string | null => {
+  // Recherche de "Call to undefined method" qui est l'erreur courante
+  if (text.includes('Call to undefined method')) {
+    const match = text.match(/Call to undefined method ([^(]+)\(\)/);
+    if (match) {
+      return `Erreur PHP: Méthode non définie ${match[1]}`;
+    }
+  }
+
   // Recherche des motifs d'erreur PHP courants
   const errorRegex = /(Fatal error|Parse error|Warning|Notice|Deprecated):\s*(.+?)\s+in\s+(.+?)\s+on\s+line\s+(\d+)/i;
   const match = text.match(errorRegex);
@@ -144,15 +179,38 @@ export const extractPhpErrorMessage = (text: string): string | null => {
 };
 
 /**
- * Vérifie si une table existe et a la structure attendue
- * Utile pour la vérification des points mentionnés concernant la structure des tables
+ * Fonction pour nettoyer une réponse HTML et extraire des informations utiles
  */
-export const verifyTableSchema = async (tableName: string, expectedColumns: string[]): Promise<boolean> => {
-  // Cette fonction est un exemple de ce qui pourrait être implémenté pour vérifier
-  // la structure des tables via une API côté serveur
-  console.log(`Vérification de la structure de la table ${tableName}`);
-  console.log(`Colonnes attendues: ${expectedColumns.join(', ')}`);
+export const getHelpfulErrorFromHtml = (htmlResponse: string): string => {
+  // Recherche des erreurs PHP spécifiques
+  if (isPhpErrorResponse(htmlResponse)) {
+    const errorMessage = extractPhpErrorMessage(htmlResponse);
+    if (errorMessage) {
+      return `Erreur PHP détectée: ${errorMessage}`;
+    }
+  }
   
-  // À implémenter selon les besoins spécifiques
-  return true;
+  // Vérifier si c'est une erreur d'accès refusé (403)
+  if (htmlResponse.includes('403 Forbidden') || 
+      htmlResponse.includes('Access forbidden') || 
+      htmlResponse.includes('accès refusé')) {
+    return "Erreur 403: Accès refusé. Vérifiez les permissions des fichiers PHP sur le serveur.";
+  }
+  
+  // Vérifier s'il s'agit d'une erreur 404
+  if (htmlResponse.includes('404 Not Found') || 
+      htmlResponse.includes('fichier inexistant') || 
+      htmlResponse.includes('not found')) {
+    return "Erreur 404: Le fichier PHP demandé n'existe pas ou n'est pas accessible.";
+  }
+  
+  // Vérifier s'il s'agit d'une erreur de configuration
+  if (htmlResponse.includes('configuration error') || 
+      htmlResponse.includes('erreur de configuration')) {
+    return "Erreur de configuration du serveur web détectée.";
+  }
+  
+  // Si aucune erreur spécifique n'est identifiée
+  return "Le serveur a renvoyé du HTML au lieu de JSON. Vérifiez la configuration du serveur PHP.";
 };
+

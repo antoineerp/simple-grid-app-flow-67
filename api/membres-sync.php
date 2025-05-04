@@ -2,16 +2,32 @@
 <?php
 require_once 'services/DataSyncService.php';
 
+// Définir les en-têtes pour éviter les problèmes CORS
+header('Content-Type: application/json; charset=UTF-8');
+header("Access-Control-Allow-Origin: *");
+header("Access-Control-Allow-Methods: POST, OPTIONS");
+header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With");
+header("Cache-Control: no-cache, no-store, must-revalidate");
+
+// Si c'est une requête OPTIONS (preflight), terminer
+if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
+    http_response_code(200);
+    exit;
+}
+
+// Activer la journalisation des erreurs
+error_reporting(E_ALL);
+ini_set('display_errors', 0); // Ne pas afficher les erreurs directement
+ini_set('log_errors', 1);
+ini_set('error_log', __DIR__ . '/error_log.txt');
+
 // Initialiser le service
 $service = new DataSyncService('membres');
-$service->setStandardHeaders("POST, OPTIONS");
-$service->handleOptionsRequest();
 
 // Vérifier la méthode
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     http_response_code(405);
     echo json_encode(['success' => false, 'message' => 'Méthode non autorisée. Utilisez POST.']);
-    $service->finalize();
     exit;
 }
 
@@ -28,6 +44,11 @@ try {
         throw new Exception("Données incomplètes. 'userId' et 'membres' sont requis");
     }
     
+    // Connecter à la base de données
+    if (!$service->connectToDatabase()) {
+        throw new Exception("Impossible de se connecter à la base de données");
+    }
+    
     $userId = $service->sanitizeUserId($data['userId']);
     $membres = $data['membres'];
     $deviceId = isset($data['deviceId']) ? $data['deviceId'] : 'unknown';
@@ -35,18 +56,10 @@ try {
     // Journaliser les informations de synchronisation
     error_log("Synchronisation des membres - UserId: {$userId}, DeviceId: {$deviceId}, Nombre: " . count($membres));
     
-    // Journaliser les données reçues pour le débogage
-    error_log("Données de membres reçues: " . json_encode(array_slice($membres, 0, 2)));
-    
-    // Connecter à la base de données
-    if (!$service->connectToDatabase()) {
-        throw new Exception("Impossible de se connecter à la base de données");
-    }
-    
-    // Enregistrer ce sync dans la table de synchronisation
+    // Créer la table de synchronisation si elle n'existe pas
     try {
-        // Créer la table de synchronisation si elle n'existe pas
-        $service->exec("CREATE TABLE IF NOT EXISTS `sync_history` (
+        $pdo = $service->getPdo();
+        $pdo->exec("CREATE TABLE IF NOT EXISTS `sync_history` (
             `id` INT AUTO_INCREMENT PRIMARY KEY,
             `table_name` VARCHAR(100) NOT NULL,
             `user_id` VARCHAR(50) NOT NULL,
@@ -57,17 +70,17 @@ try {
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
         
         // Insérer l'enregistrement de synchronisation
-        $stmt = $service->prepare("INSERT INTO `sync_history` 
-                                 (table_name, user_id, device_id, record_count, sync_timestamp) 
-                                 VALUES (?, ?, ?, ?, NOW())");
+        $stmt = $pdo->prepare("INSERT INTO `sync_history` 
+                         (table_name, user_id, device_id, record_count, sync_timestamp) 
+                         VALUES (?, ?, ?, ?, NOW())");
         $stmt->execute(['membres', $userId, $deviceId, count($membres)]);
         
     } catch (Exception $e) {
-        // Continuer même si l'enregistrement de l'historique échoue
-        error_log("Erreur lors de l'enregistrement de l'historique de synchronisation: " . $e->getMessage());
+        // Journaliser mais continuer
+        error_log("Erreur lors de l'enregistrement de l'historique: " . $e->getMessage());
     }
     
-    // Schéma de la table membres - Mise à jour pour inclure userId
+    // Schéma de la table membres
     $schema = "CREATE TABLE IF NOT EXISTS `membres_{$userId}` (
         `id` VARCHAR(36) PRIMARY KEY,
         `nom` VARCHAR(100) NOT NULL,
@@ -89,45 +102,19 @@ try {
         throw new Exception("Impossible de créer ou vérifier la table");
     }
     
-    // Avant la synchronisation, vérifier si la colonne last_sync_device existe
+    // Vérifier si la colonne last_sync_device existe
     try {
         $columnsResult = $service->query("SHOW COLUMNS FROM `membres_{$userId}` LIKE 'last_sync_device'");
         if ($columnsResult->rowCount() === 0) {
             // Ajouter la colonne
-            $service->exec("ALTER TABLE `membres_{$userId}` ADD COLUMN `last_sync_device` VARCHAR(100) NULL");
+            $pdo = $service->getPdo();
+            $pdo->exec("ALTER TABLE `membres_{$userId}` ADD COLUMN `last_sync_device` VARCHAR(100) NULL");
         }
     } catch (Exception $e) {
-        error_log("Erreur lors de la vérification/ajout de la colonne last_sync_device: " . $e->getMessage());
-        // Continuer malgré l'erreur
+        error_log("Erreur lors de la vérification/ajout de la colonne: " . $e->getMessage());
     }
     
-    // Avant la synchronisation, vérifier et adapter les données si nécessaire
-    foreach ($membres as &$membre) {
-        // S'assurer que tous les champs nécessaires sont présents
-        if (!isset($membre['id']) || empty($membre['id'])) {
-            $membre['id'] = 'mem-' . bin2hex(random_bytes(8));
-        }
-        
-        // Ajouter l'userId à chaque membre
-        if (!isset($membre['userId']) || empty($membre['userId'])) {
-            $membre['userId'] = $userId;
-        }
-        
-        // Ajouter l'ID de l'appareil qui a synchronisé ce membre
-        $membre['last_sync_device'] = $deviceId;
-        
-        // Convertir les dates si nécessaires
-        if (isset($membre['date_creation']) && $membre['date_creation'] instanceof \DateTime) {
-            $membre['date_creation'] = $membre['date_creation']->format('Y-m-d\TH:i:s');
-        }
-        
-        // Générer les initiales si elles ne sont pas définies
-        if ((!isset($membre['initiales']) || empty($membre['initiales'])) && isset($membre['prenom']) && isset($membre['nom'])) {
-            $membre['initiales'] = strtoupper(substr($membre['prenom'], 0, 1) . substr($membre['nom'], 0, 1));
-        }
-    }
-    
-    // Démarrer une transaction explicite
+    // Démarrer une transaction
     $service->beginTransaction();
     
     try {

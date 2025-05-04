@@ -1,6 +1,8 @@
+
 import { Membre } from '@/types/membres';
 import { getApiUrl } from '@/config/apiConfig';
 import { getAuthHeaders } from '@/services/auth/authService';
+import { validateJsonResponse, getHelpfulErrorFromHtml } from '@/utils/jsonValidator';
 
 /**
  * Extrait un identifiant utilisateur valide pour les requêtes
@@ -50,7 +52,7 @@ const extractValidUserId = (userId: any): string => {
 };
 
 /**
- * Charge les membres depuis le serveur Infomaniak uniquement
+ * Charge les membres depuis le serveur
  */
 export const loadMembresFromServer = async (currentUser: any): Promise<Membre[]> => {
   try {
@@ -91,47 +93,35 @@ export const loadMembresFromServer = async (currentUser: any): Promise<Membre[]>
       // Debug: Journaliser le statut et le texte de la réponse
       console.log(`Réponse membres statut: ${response.status}`);
       
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error(`Erreur serveur (${response.status}) lors du chargement des membres:`, errorText);
-        throw new Error(`Erreur serveur: ${response.status}`);
-      }
-      
       const responseText = await response.text();
       
-      // Debug: Journaliser les 200 premiers caractères de la réponse 
-      console.log(`Réponse membres début: ${responseText.substring(0, 200)}`);
+      // Utiliser notre validateur JSON amélioré
+      const validationResult = validateJsonResponse(responseText);
       
-      // Vérifier si la réponse est vide
-      if (!responseText || !responseText.trim()) {
-        console.warn("Réponse vide du serveur");
-        return [];
-      }
-      
-      // Vérifier si la réponse contient du HTML ou PHP (erreur)
-      if (responseText.includes('<?php') || responseText.includes('<html') || responseText.includes('<br')) {
-        console.error("La réponse contient du HTML/PHP au lieu de JSON:", responseText.substring(0, 200));
-        throw new Error("Le serveur a renvoyé une page HTML au lieu de données JSON");
-      }
-      
-      try {
-        const result = JSON.parse(responseText);
-        
-        if (!result.success) {
-          throw new Error(result.message || "Erreur inconnue lors du chargement des membres");
+      if (!validationResult.isValid) {
+        // Si HTML détecté, extraire une erreur plus informative
+        if (validationResult.htmlDetected) {
+          const helpfulError = getHelpfulErrorFromHtml(responseText);
+          console.error(`Erreur HTML détectée: ${helpfulError}`);
+          console.error(`Aperçu de la réponse HTML: ${responseText.substring(0, 300)}`);
+          throw new Error(helpfulError);
         }
         
-        // Transformer les dates string en objets Date
-        const membres = result.membres || [];
-        return membres.map((membre: any) => ({
-          ...membre,
-          date_creation: membre.date_creation ? new Date(membre.date_creation) : new Date()
-        }));
-      } catch (jsonError) {
-        console.error("Erreur lors du parsing JSON:", jsonError);
-        console.error("Réponse brute:", responseText.substring(0, 500));
-        throw new Error("Format de réponse invalide");
+        throw new Error(validationResult.error || "Format de réponse invalide");
       }
+      
+      const result = validationResult.data;
+      
+      if (!result.success) {
+        throw new Error(result.message || "Erreur inconnue lors du chargement des membres");
+      }
+      
+      // Transformer les dates string en objets Date
+      const membres = result.membres || [];
+      return membres.map((membre: any) => ({
+        ...membre,
+        date_creation: membre.date_creation ? new Date(membre.date_creation) : new Date()
+      }));
     } catch (error) {
       if (error.name === 'AbortError') {
         throw new Error("Délai d'attente dépassé lors du chargement des membres");
@@ -145,7 +135,7 @@ export const loadMembresFromServer = async (currentUser: any): Promise<Membre[]>
 };
 
 /**
- * Synchronise les membres avec le serveur Infomaniak uniquement
+ * Synchronise les membres avec le serveur
  */
 export const syncMembresWithServer = async (membres: Membre[], currentUser: any): Promise<boolean> => {
   try {
@@ -182,53 +172,31 @@ export const syncMembresWithServer = async (membres: Membre[], currentUser: any)
       
       clearTimeout(timeoutId);
       
-      if (!response.ok) {
-        console.error(`Erreur lors de la synchronisation des membres: ${response.status}`);
-        
-        // Essayer de récupérer les détails de l'erreur
-        const errorText = await response.text();
-        console.error("Détails de l'erreur:", errorText);
-        
-        if (errorText.trim().startsWith('{')) {
-          try {
-            const errorJson = JSON.parse(errorText);
-            throw new Error(errorJson.message || `Échec de la synchronisation: ${response.statusText}`);
-          } catch (e) {
-            console.error("Impossible de parser l'erreur JSON:", e);
-          }
-        }
-        
-        throw new Error(`Échec de la synchronisation: ${response.statusText}`);
-      }
-      
       const responseText = await response.text();
       
-      // Vérifier si la réponse est vide
-      if (!responseText || !responseText.trim()) {
-        console.warn("Réponse vide du serveur lors de la synchronisation");
-        return false;
-      }
+      // Utiliser notre validateur JSON amélioré
+      const validationResult = validateJsonResponse(responseText);
       
-      // Vérifier si la réponse contient du HTML ou PHP (erreur)
-      if (responseText.includes('<?php') || responseText.includes('<html') || responseText.includes('<br')) {
-        console.error("La réponse de synchronisation contient du HTML/PHP au lieu de JSON:", responseText.substring(0, 200));
-        throw new Error("Le serveur a renvoyé une page HTML au lieu de données JSON");
-      }
-      
-      try {
-        const result = JSON.parse(responseText);
-        console.log("Résultat de la synchronisation des membres:", result);
-        
-        if (!result.success) {
-          throw new Error(result.message || "Erreur de synchronisation inconnue");
+      if (!validationResult.isValid) {
+        // Si HTML détecté, extraire une erreur plus informative
+        if (validationResult.htmlDetected) {
+          const helpfulError = getHelpfulErrorFromHtml(responseText);
+          console.error(`Erreur HTML détectée: ${helpfulError}`);
+          console.error(`Aperçu de la réponse HTML: ${responseText.substring(0, 300)}`);
+          throw new Error(helpfulError);
         }
         
-        return true;
-      } catch (e) {
-        console.error("Erreur lors du parsing de la réponse:", e);
-        console.error("Réponse brute reçue:", responseText);
-        throw new Error("Impossible de traiter la réponse du serveur");
+        throw new Error(validationResult.error || "Format de réponse invalide");
       }
+      
+      const result = validationResult.data;
+      console.log("Résultat de la synchronisation des membres:", result);
+      
+      if (!result.success) {
+        throw new Error(result.message || "Erreur de synchronisation inconnue");
+      }
+      
+      return true;
     } catch (error) {
       if (error.name === 'AbortError') {
         throw new Error("Délai d'attente dépassé lors de la synchronisation");
@@ -240,3 +208,53 @@ export const syncMembresWithServer = async (membres: Membre[], currentUser: any)
     throw error;
   }
 };
+
+/**
+ * Charge les membres depuis le stockage local ou le serveur
+ */
+export const getMembres = async (): Promise<Membre[]> => {
+  try {
+    // D'abord essayer de charger depuis le serveur
+    const currentUser = localStorage.getItem('currentUser');
+    const user = currentUser ? JSON.parse(currentUser) : null;
+    
+    return await loadMembresFromServer(user);
+  } catch (error) {
+    console.error("Erreur lors du chargement des membres depuis le serveur:", error);
+    
+    // En cas d'échec, charger depuis le local storage
+    try {
+      const localMembres = localStorage.getItem('membres');
+      if (localMembres) {
+        const parsed = JSON.parse(localMembres);
+        console.log("Membres chargés depuis le stockage local:", parsed.length);
+        return parsed;
+      }
+    } catch (localError) {
+      console.error("Erreur lors du chargement des membres depuis le stockage local:", localError);
+    }
+    
+    // Si tout échoue, renvoyer un tableau vide
+    return [];
+  }
+};
+
+/**
+ * Synchronise les membres avec le serveur et met à jour le stockage local
+ */
+export const syncMembres = async (membres: Membre[]): Promise<boolean> => {
+  try {
+    // Sauvegarder localement d'abord
+    localStorage.setItem('membres', JSON.stringify(membres));
+    
+    // Ensuite synchroniser avec le serveur
+    const currentUser = localStorage.getItem('currentUser');
+    const user = currentUser ? JSON.parse(currentUser) : null;
+    
+    return await syncMembresWithServer(membres, user);
+  } catch (error) {
+    console.error("Erreur lors de la synchronisation des membres:", error);
+    return false;
+  }
+};
+
