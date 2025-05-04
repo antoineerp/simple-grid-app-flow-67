@@ -149,7 +149,7 @@ export default function ResetSystem() {
           ) : (
             <Button onClick={() => {
               if (result.success) {
-                window.location.href = '/login';
+                window.location.href = '/';
               } else {
                 setResult(null);
                 setConfirmText('');

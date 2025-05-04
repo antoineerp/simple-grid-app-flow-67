@@ -31,7 +31,7 @@ const Layout = () => {
         
         if (!isLoggedIn) {
           console.log("Layout - Utilisateur non connecté, redirection vers la page de connexion");
-          navigate('/', { replace: true });
+          navigate('/', { replace: true, state: { from: location.pathname } });
           return;
         }
         

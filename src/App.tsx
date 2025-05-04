@@ -61,7 +61,7 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   
   if (!isAuthenticated) {
     console.log('ProtectedRoute - Accès non autorisé, redirection vers la page de connexion');
-    return <Navigate to="/" />;
+    return <Navigate to="/" state={{ from: location }} replace />;
   }
   
   console.log('ProtectedRoute - Accès autorisé, affichage du contenu');

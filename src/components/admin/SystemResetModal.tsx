@@ -16,6 +16,9 @@ export const SystemResetModal: React.FC<SystemResetModalProps> = ({ open, onOpen
   const [confirmText, setConfirmText] = useState('');
   const [result, setResult] = useState<{ success?: boolean; message?: string; details?: any } | null>(null);
   const { toast } = useToast();
+  
+  // Identifiant unique pour la description du dialog
+  const dialogDescriptionId = "reset-system-dialog-description";
 
   const handleReset = async () => {
     if (confirmText !== 'RÉINITIALISER TOUT') {
@@ -43,7 +46,7 @@ export const SystemResetModal: React.FC<SystemResetModalProps> = ({ open, onOpen
         
         // Rediriger vers la page de connexion après 3 secondes
         setTimeout(() => {
-          window.location.href = '/login';
+          window.location.href = '/';
         }, 3000);
       } else {
         toast({
@@ -69,13 +72,13 @@ export const SystemResetModal: React.FC<SystemResetModalProps> = ({ open, onOpen
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="sm:max-w-[500px]" aria-describedby={dialogDescriptionId}>
         <DialogHeader>
           <DialogTitle className="flex items-center text-red-600">
             <AlertTriangle className="w-6 h-6 mr-2" />
             Réinitialisation complète du système
           </DialogTitle>
-          <DialogDescription className="text-red-500">
+          <DialogDescription id={dialogDescriptionId} className="text-red-500">
             ATTENTION: Cette opération va supprimer tous les utilisateurs et toutes les données.
             Cette action est irréversible.
           </DialogDescription>
@@ -155,7 +158,7 @@ export const SystemResetModal: React.FC<SystemResetModalProps> = ({ open, onOpen
           ) : (
             <Button onClick={() => {
               if (result.success) {
-                window.location.href = '/login';
+                window.location.href = '/';
               } else {
                 onOpenChange(false);
               }
