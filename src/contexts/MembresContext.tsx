@@ -43,7 +43,7 @@ export const MembresProvider: React.FC<{children: ReactNode}> = ({ children }) =
       // Synchroniser les données avec le serveur
       if (isOnline) {
         console.log("MembresContext: Synchronisation des membres depuis le serveur");
-        await syncMembres();
+        await syncMembres([...membres]); // Passer une copie des membres actuels pour éviter les problèmes de référence
         setLastSynced(new Date());
         setSyncFailed(false);
       } else {
@@ -61,7 +61,7 @@ export const MembresProvider: React.FC<{children: ReactNode}> = ({ children }) =
     } finally {
       setIsLoading(false);
     }
-  }, [isAuthenticated, isOnline]);
+  }, [isAuthenticated, isOnline, membres]);
 
   const addMembre = async (membre: Membre): Promise<void> => {
     // Implémentation à venir

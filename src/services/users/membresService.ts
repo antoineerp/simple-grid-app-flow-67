@@ -152,7 +152,7 @@ const getLocalMembres = (): Membre[] | null => {
 /**
  * Synchronise les membres avec le serveur
  */
-export const syncMembres = async (membres: Membre[]): Promise<boolean> => {
+export const syncMembres = async (membres?: Membre[]): Promise<boolean> => {
   try {
     const token = localStorage.getItem('authToken') || sessionStorage.getItem('authToken');
     if (!token) {
@@ -163,12 +163,23 @@ export const syncMembres = async (membres: Membre[]): Promise<boolean> => {
     const userId = getCurrentUserId();
     const deviceId = localStorage.getItem('deviceId') || 'unknown';
 
+    // Si aucune liste de membres n'est fournie, utiliser les données du cache ou le stockage local
+    const membresToSync = membres || membresCache || loadLocalData<Membre>('membres', userId) || [];
+    
+    // Vérifier que membresToSync est un tableau et non undefined
+    if (!Array.isArray(membresToSync)) {
+      console.error("syncMembres: La liste des membres n'est pas un tableau valide");
+      return false;
+    }
+
     // Assurer que chaque membre a un userId
-    const membresWithUserId = membres.map(membre => ({
+    const membresWithUserId = membresToSync.map(membre => ({
       ...membre,
       userId: membre.userId || userId
     }));
 
+    console.log(`Synchronisation de ${membresWithUserId.length} membres pour l'utilisateur ${userId}`);
+    
     const response = await fetch(`${API_URL}/membres-sync.php`, {
       method: 'POST',
       headers: {
