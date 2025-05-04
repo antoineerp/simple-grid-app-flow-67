@@ -34,7 +34,7 @@ try {
         throw new Exception("Aucune donnée reçue ou format JSON invalide");
     }
     
-    error_log("Données reçues pour synchronisation de collaboration");
+    error_log("Données reçues pour synchronisation de {$tableName}");
     
     // Vérifier si les données nécessaires sont présentes
     if (!isset($data['userId'])) {
@@ -44,10 +44,19 @@ try {
     // Récupérer les données
     $userId = RequestHandler::sanitizeUserId($data['userId']);
     $deviceId = isset($data['deviceId']) ? $data['deviceId'] : RequestHandler::getDeviceId();
-    $documents = isset($data['collaboration']) ? $data['collaboration'] : [];
+    
+    // Vérifier si on a des données dans le tableau records ou dans un tableau spécifique pour cette table
+    $records = [];
+    if (isset($data['records']) && is_array($data['records'])) {
+        $records = $data['records'];
+    } elseif (isset($data[$tableName]) && is_array($data[$tableName])) {
+        $records = $data[$tableName];
+    } else {
+        error_log("Attention: Aucune donnée trouvée pour la table {$tableName}");
+    }
     
     error_log("Synchronisation pour l'utilisateur: {$userId} depuis l'appareil: {$deviceId}");
-    error_log("Nombre de documents de collaboration: " . count($documents));
+    error_log("Nombre d'enregistrements pour {$tableName}: " . count($records));
     
     // Connexion à la base de données
     if (!$service->connectToDatabase()) {
@@ -61,10 +70,10 @@ try {
     $pdo = $service->getPdo();
     
     // Force l'enregistrement de cette opération pour déboguer
-    RequestHandler::forceSyncRecord($pdo, $tableName, $userId, $deviceId, 'sync-start', count($documents));
+    RequestHandler::forceSyncRecord($pdo, $tableName, $userId, $deviceId, 'sync-start', count($records));
     
     // Enregistrer cette synchronisation dans l'historique
-    $service->recordSyncOperation($userId, $deviceId, 'sync', count($documents));
+    $service->recordSyncOperation($userId, $deviceId, 'sync', count($records));
     
     // Créer la table si elle n'existe pas
     $pdo->exec("CREATE TABLE IF NOT EXISTS `{$userTableName}` (
@@ -85,33 +94,40 @@ try {
     $stmt->execute([$userId]);
     
     // Insérer les documents
-    if (!empty($documents)) {
+    if (!empty($records)) {
         $insertQuery = "INSERT INTO `{$userTableName}` 
             (id, nom, description, link, groupId, userId, last_sync_device) 
             VALUES (?, ?, ?, ?, ?, ?, ?)";
         $stmt = $pdo->prepare($insertQuery);
         
-        foreach ($documents as $doc) {
+        foreach ($records as $doc) {
+            // Vérifier que les propriétés existent et définir des valeurs par défaut si nécessaire
+            $id = isset($doc['id']) ? $doc['id'] : uniqid('doc_');
+            $nom = isset($doc['nom']) ? $doc['nom'] : (isset($doc['name']) ? $doc['name'] : 'Sans titre');
+            $description = isset($doc['description']) ? $doc['description'] : null;
+            $link = isset($doc['link']) ? $doc['link'] : null;
+            $groupId = isset($doc['groupId']) ? $doc['groupId'] : null;
+            
             $stmt->execute([
-                $doc['id'],
-                $doc['nom'],
-                $doc['description'] ?? null,
-                $doc['link'] ?? null,
-                $doc['groupId'] ?? null,
+                $id,
+                $nom,
+                $description,
+                $link,
+                $groupId,
                 $userId,
                 $deviceId
             ]);
         }
     }
     
-    error_log("Documents de collaboration synchronisés: " . count($documents));
+    error_log("Enregistrements de {$tableName} synchronisés: " . count($records));
     
     // Enregistrer la fin de la synchronisation
-    RequestHandler::forceSyncRecord($pdo, $tableName, $userId, $deviceId, 'sync-end', count($documents));
+    RequestHandler::forceSyncRecord($pdo, $tableName, $userId, $deviceId, 'sync-end', count($records));
     
     // Réponse réussie
-    RequestHandler::sendJsonResponse(true, 'Données de collaboration synchronisées avec succès', [
-        'count' => count($documents),
+    RequestHandler::sendJsonResponse(true, "Données de {$tableName} synchronisées avec succès", [
+        'count' => count($records),
         'deviceId' => $deviceId,
         'tableName' => $tableName
     ]);

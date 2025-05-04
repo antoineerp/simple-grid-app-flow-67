@@ -54,6 +54,10 @@ try {
             $result = initializeAllTables($pdo, $userId);
             break;
         
+        case 'force-verify-tables':
+            $result = forceVerifyTables($pdo, $userId);
+            break;
+            
         default:
             throw new Exception("Action non reconnue: {$action}");
     }
@@ -189,6 +193,75 @@ function rebuildSyncHistory($pdo, $userId) {
 }
 
 /**
+ * Force la vérification de toutes les tables et assure qu'elles sont correctement créées et indexées
+ */
+function forceVerifyTables($pdo, $userId) {
+    $deviceId = RequestHandler::getDeviceId();
+    $results = [];
+    
+    // Liste des tables standard de l'application
+    $standardTables = [
+        'documents', 
+        'exigences', 
+        'membres', 
+        'bibliotheque', 
+        'collaboration',
+        'collaboration_groups',
+        'test_table'
+    ];
+    
+    // Vérifier chaque table standard
+    foreach ($standardTables as $tableName) {
+        // Nom de la table spécifique à l'utilisateur
+        $userTableName = "{$tableName}_{$userId}";
+        
+        // Vérifier si la table existe
+        $tableExists = $pdo->query("SHOW TABLES LIKE '{$userTableName}'")->rowCount() > 0;
+        
+        if (!$tableExists) {
+            // La table n'existe pas, la créer
+            $created = createTableIfNotExists($pdo, $tableName, $userTableName);
+            $results[$tableName] = [
+                'status' => $created ? 'created' : 'error',
+                'message' => $created ? "Table créée avec succès" : "Erreur lors de la création de la table"
+            ];
+        } else {
+            $results[$tableName] = [
+                'status' => 'exists',
+                'message' => "La table existe déjà"
+            ];
+        }
+        
+        // S'assurer que la table est référencée dans l'historique de synchronisation
+        $historyStmt = $pdo->prepare("SELECT COUNT(*) FROM `sync_history` WHERE table_name = ? AND user_id = ?");
+        $historyStmt->execute([$tableName, $userId]);
+        $historyCount = $historyStmt->fetchColumn();
+        
+        if ($historyCount == 0) {
+            // Ajouter la table à l'historique
+            $insertStmt = $pdo->prepare("INSERT INTO `sync_history` 
+                (table_name, user_id, device_id, record_count, operation, sync_timestamp) 
+                VALUES (?, ?, ?, 0, ?, NOW())");
+            
+            // Opération load
+            $insertStmt->execute([$tableName, $userId, $deviceId, 'load']);
+            
+            // Opération sync
+            $insertStmt->execute([$tableName, $userId, $deviceId, 'sync']);
+            
+            $results[$tableName]['history'] = 'added';
+        } else {
+            $results[$tableName]['history'] = 'exists';
+        }
+    }
+    
+    return [
+        'tables_verified' => count($results),
+        'tables_status' => $results
+    ];
+}
+
+/**
  * Initialise l'historique de synchronisation pour toutes les tables standard
  */
 function initializeAllTables($pdo, $userId) {
@@ -219,6 +292,21 @@ function initializeAllTables($pdo, $userId) {
         INDEX `idx_timestamp` (`sync_timestamp`)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
     
+    // Récupérer tous les appareils connus pour cet utilisateur
+    $deviceStmt = $pdo->prepare("SELECT DISTINCT device_id FROM `sync_history` WHERE user_id = ?");
+    $deviceStmt->execute([$userId]);
+    $deviceIds = $deviceStmt->fetchAll(PDO::FETCH_COLUMN);
+    
+    // Ajouter l'appareil actuel s'il n'est pas déjà présent
+    if (!in_array($deviceId, $deviceIds)) {
+        $deviceIds[] = $deviceId;
+    }
+    
+    // S'assurer qu'il y a au moins un appareil
+    if (empty($deviceIds)) {
+        $deviceIds = [$deviceId];
+    }
+    
     // Préparer la requête d'insertion
     $insertStmt = $pdo->prepare("INSERT INTO `sync_history` 
                                (table_name, user_id, device_id, record_count, operation, sync_timestamp) 
@@ -236,11 +324,14 @@ function initializeAllTables($pdo, $userId) {
     foreach ($standardTables as $tableName) {
         // Si la table n'est pas déjà dans l'historique
         if (!in_array($tableName, $existingTables)) {
-            // Opération load
-            $insertStmt->execute([$tableName, $userId, $deviceId, 0, 'load']);
-            
-            // Opération sync
-            $insertStmt->execute([$tableName, $userId, $deviceId, 0, 'sync']);
+            // Pour chaque appareil connu, créer des entrées d'historique
+            foreach ($deviceIds as $devId) {
+                // Opération load
+                $insertStmt->execute([$tableName, $userId, $devId, 0, 'load']);
+                
+                // Opération sync
+                $insertStmt->execute([$tableName, $userId, $devId, 0, 'sync']);
+            }
             
             $initialized[] = $tableName;
             
@@ -248,14 +339,42 @@ function initializeAllTables($pdo, $userId) {
             $userTableName = "{$tableName}_{$userId}";
             createTableIfNotExists($pdo, $tableName, $userTableName);
         } else {
-            $alreadyExists[] = $tableName;
+            // Vérifier si des opérations sont manquantes pour cette table
+            $opsStmt = $pdo->prepare("SELECT DISTINCT operation FROM `sync_history` WHERE user_id = ? AND table_name = ?");
+            $opsStmt->execute([$userId, $tableName]);
+            $existingOps = $opsStmt->fetchAll(PDO::FETCH_COLUMN);
+            
+            $missingOps = array_diff(['load', 'sync'], $existingOps);
+            
+            // S'il manque des opérations, les ajouter pour tous les appareils
+            if (!empty($missingOps)) {
+                foreach ($deviceIds as $devId) {
+                    foreach ($missingOps as $op) {
+                        $insertStmt->execute([$tableName, $userId, $devId, 0, $op]);
+                    }
+                }
+                $initialized[] = $tableName . " (opérations ajoutées)";
+            } else {
+                $alreadyExists[] = $tableName;
+            }
+            
+            // Vérifier si la table physique existe
+            $userTableName = "{$tableName}_{$userId}";
+            $tableExists = $pdo->query("SHOW TABLES LIKE '{$userTableName}'")->rowCount() > 0;
+            
+            if (!$tableExists) {
+                createTableIfNotExists($pdo, $tableName, $userTableName);
+                $initialized[] = $tableName . " (table physique créée)";
+            }
         }
     }
     
     return [
         'tables_initialized' => count($initialized),
         'initialized_tables' => $initialized,
-        'already_in_history' => $alreadyExists
+        'already_in_history' => $alreadyExists,
+        'devices_registered' => count($deviceIds),
+        'device_list' => $deviceIds
     ];
 }
 
@@ -418,4 +537,3 @@ function getSyncHistory($pdo, $userId) {
     $stmt->execute([$userId]);
     return $stmt->fetchAll(PDO::FETCH_ASSOC);
 }
-
