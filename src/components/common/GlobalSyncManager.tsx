@@ -1,13 +1,10 @@
 
 import React from 'react';
-import SyncDebugger from '@/features/sync/components/SyncDebugger';
 
-// Composant simplifié - ne fait plus rien de réel
+// Composant complètement désactivé - ne fait plus rien
 const GlobalSyncManager: React.FC = () => {
-  console.log("GlobalSyncManager: Fonctionnalité de synchronisation désactivée");
-  
-  // Afficher le débogueur uniquement en développement (désactivé)
-  return <SyncDebugger enabled={false} />;
+  // Ne fait absolument rien, ne déclenche aucune synchronisation
+  return null;
 };
 
 export default GlobalSyncManager;

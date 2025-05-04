@@ -1,7 +1,7 @@
 
-import React, { createContext, useState, useContext, ReactNode } from 'react';
+import React, { createContext, useContext, ReactNode } from 'react';
 
-// Types pour le contexte de synchronisation
+// Types pour la compatibilité
 interface SyncContextType {
   isSyncing: boolean;
   lastSyncTime: Date | null;
@@ -10,13 +10,13 @@ interface SyncContextType {
   syncStatus: 'idle' | 'syncing' | 'success' | 'error';
 }
 
-// Valeurs par défaut pour le contexte
+// Valeurs par défaut pour le contexte - complètement désactivées
 const defaultSyncContext: SyncContextType = {
   isSyncing: false,
-  lastSyncTime: null,
+  lastSyncTime: new Date(),  // Date actuelle pour éviter les problèmes d'UI
   syncError: null,
-  startSync: async () => false,
-  syncStatus: 'idle'
+  startSync: async () => true, // Ne fait rien mais retourne un succès
+  syncStatus: 'success'  // Toujours succès pour éviter les erreurs d'UI
 };
 
 // Création du contexte
@@ -29,31 +29,10 @@ interface SyncProviderProps {
   children: ReactNode;
 }
 
-// Composant fournisseur pour le contexte de synchronisation
+// Composant fournisseur simplifié qui ne fait plus rien
 export const SyncProvider: React.FC<SyncProviderProps> = ({ children }) => {
-  const [isSyncing, setIsSyncing] = useState<boolean>(false);
-  const [lastSyncTime, setLastSyncTime] = useState<Date | null>(null);
-  const [syncError, setSyncError] = useState<string | null>(null);
-  const [syncStatus, setSyncStatus] = useState<'idle' | 'syncing' | 'success' | 'error'>('idle');
-
-  // Fonction simulée de synchronisation (désactivée pour cette application)
-  const startSync = async (): Promise<boolean> => {
-    console.log("Fonctionnalité de synchronisation désactivée");
-    // Simuler une synchronisation réussie
-    setLastSyncTime(new Date());
-    return true;
-  };
-
-  // Valeurs à fournir au contexte
-  const value: SyncContextType = {
-    isSyncing,
-    lastSyncTime,
-    syncError,
-    startSync,
-    syncStatus
-  };
-
-  return <SyncContext.Provider value={value}>{children}</SyncContext.Provider>;
+  // Utilise directement les valeurs par défaut
+  return <SyncContext.Provider value={defaultSyncContext}>{children}</SyncContext.Provider>;
 };
 
 export default SyncContext;

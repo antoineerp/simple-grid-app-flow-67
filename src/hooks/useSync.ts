@@ -1,33 +1,17 @@
 
-import { useState } from 'react';
-import { useToast } from '@/components/ui/use-toast';
+/**
+ * Hook complètement désactivé - ne fait plus aucune synchronisation
+ */
 
-// Version simplifiée qui ne fait plus de synchronisation réelle
+// Version entièrement neutralisée qui ne fait absolument rien
 export function useSync(tableName: string) {
-  const [isSyncing, setIsSyncing] = useState(false);
-  const [lastSynced, setLastSynced] = useState<Date | null>(new Date());
-  
-  // Fonction factice qui retourne toujours un succès
-  const syncAndProcess = async <T extends {}>(
-    data: T[],
-    trigger: "auto" | "manual" | "initial" = "manual"
-  ) => {
-    console.log(`Synchronisation désactivée pour ${tableName}`);
-    return { success: true, timestamp: new Date() };
-  };
-
-  // Fonction factice qui retourne les données sans modification
-  const loadData = async <T extends {}>(): Promise<T[]> => {
-    console.log(`Chargement désactivé pour ${tableName}`);
-    return [] as T[];
-  };
-
+  // Retourner une interface compatible mais qui ne fait rien
   return {
-    syncAndProcess,
-    loadData,
+    syncAndProcess: async () => ({ success: true, timestamp: new Date() }),
+    loadData: async () => [],
     isSyncing: false,
     isOnline: true,
-    lastSynced,
+    lastSynced: new Date(),
     syncFailed: false,
     syncError: null
   };
