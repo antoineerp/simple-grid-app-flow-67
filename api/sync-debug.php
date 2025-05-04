@@ -1,353 +1,317 @@
 
 <?php
-// Initialiser la gestion de synchronisation
-require_once 'services/DataSyncService.php';
-require_once 'services/RequestHandler.php';
-require_once 'services/TableManager.php';
+header('Content-Type: application/json; charset=UTF-8');
+header('Access-Control-Allow-Origin: *');
+header('Access-Control-Allow-Methods: GET, OPTIONS');
+header('Access-Control-Allow-Headers: Content-Type, Authorization');
 
-// Définir les en-têtes standard pour permettre l'accès depuis n'importe où
-header("Access-Control-Allow-Origin: *");
-header("Access-Control-Allow-Methods: GET, OPTIONS");
-header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With, X-Device-ID");
-header("Content-Type: application/json; charset=UTF-8");
-
-// Si c'est une requête OPTIONS préflight, arrêter ici
+// Traitement des requêtes OPTIONS (CORS)
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-    http_response_code(200);
-    exit;
+    exit(0);
 }
 
-// Vérifier la méthode
-if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
+// Inclure les configurations de base de données
+require_once 'config/database.php';
+
+// Vérifier les paramètres requis
+if (!isset($_GET['userId']) || !isset($_GET['action'])) {
     echo json_encode([
         'success' => false,
-        'message' => 'Méthode non autorisée. Utilisez GET.'
+        'message' => 'Paramètres manquants: userId et action sont requis',
+        'timestamp' => date('c')
     ]);
     exit;
 }
 
+$userId = $_GET['userId'];
+$action = $_GET['action'];
+
+// Connexion à la base de données
 try {
-    // Récupérer les paramètres de la requête
-    $userId = isset($_GET['userId']) ? RequestHandler::sanitizeUserId($_GET['userId']) : null;
-    $action = isset($_GET['action']) ? $_GET['action'] : null;
-    $deviceId = isset($_GET['deviceId']) ? $_GET['deviceId'] : RequestHandler::getDeviceId();
+    $database = new Database();
+    $pdo = $database->getConnection();
     
-    // Vérifier que l'action est spécifiée
-    if (!$action) {
-        throw new Exception("Paramètre 'action' requis");
-    }
-    
-    // Créer une connexion PDO
-    $pdo = null;
-    $dsn = 'mysql:host=' . getenv('DB_HOST') . ';dbname=' . getenv('DB_NAME') . ';charset=utf8mb4';
-    $pdo = new PDO($dsn, getenv('DB_USER'), getenv('DB_PASSWORD'), [
-        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-        PDO::ATTR_EMULATE_PREPARES => false
-    ]);
-    
-    // Traiter l'action demandée
+    // Répondre en fonction de l'action demandée
     switch ($action) {
         case 'repair_sync':
-            // Réparer l'historique de synchronisation en supprimant les duplications
+            // Réparer l'historique de synchronisation
             $result = repairSyncHistory($pdo, $userId);
             echo json_encode([
-                'success' => true,
-                'message' => 'Opération terminée avec succès',
-                'timestamp' => date('c'),
-                'repaired_count' => $result['count'],
-                'repaired_items' => $result['items']
+                'success' => $result,
+                'message' => $result ? 'Historique de synchronisation réparé' : 'Échec de la réparation de l\'historique',
+                'timestamp' => date('c')
             ]);
             break;
             
         case 'check_tables':
-            // Vérifier l'existence des tables pour un utilisateur
-            $result = checkUserTables($pdo, $userId);
+            // Vérifier et réparer les tables
+            $result = checkAndRepairTables($pdo, $userId);
             echo json_encode([
-                'success' => true,
-                'message' => 'Opération terminée avec succès',
-                'timestamp' => date('c'),
-                'tables_status' => $result
-            ]);
-            break;
-            
-        case 'clear_sync_history':
-            // Vider l'historique de synchronisation pour un utilisateur
-            $result = clearSyncHistory($pdo, $userId);
-            echo json_encode([
-                'success' => true,
-                'message' => 'Opération terminée avec succès',
-                'timestamp' => date('c'),
-                'cleared_count' => $result
-            ]);
-            break;
-            
-        case 'remove_duplicates':
-            // Supprimer les duplications dans l'historique
-            $result = removeDuplicateOperations($pdo, $userId);
-            echo json_encode([
-                'success' => true,
-                'message' => 'Opération terminée avec succès',
-                'timestamp' => date('c'),
-                'removed_count' => $result
+                'success' => $result,
+                'message' => $result ? 'Tables vérifiées et réparées' : 'Échec de la vérification des tables',
+                'timestamp' => date('c')
             ]);
             break;
             
         case 'reset_queue':
-            // Réinitialiser la file d'attente pour un utilisateur
-            $result = resetUserSyncQueue($pdo, $userId);
+            // Réinitialiser la file d'attente de synchronisation
+            $result = resetSyncQueue($pdo, $userId);
             echo json_encode([
-                'success' => true,
-                'message' => 'Opération terminée avec succès',
-                'timestamp' => date('c'),
-                'reset_count' => $result
+                'success' => $result,
+                'message' => $result ? 'File d\'attente réinitialisée' : 'Échec de la réinitialisation de la file d\'attente',
+                'timestamp' => date('c')
+            ]);
+            break;
+            
+        case 'remove_duplicates':
+            // Supprimer les entrées dupliquées
+            $result = removeDuplicates($pdo, $userId);
+            echo json_encode([
+                'success' => $result,
+                'message' => $result ? 'Duplications supprimées' : 'Échec de la suppression des duplications',
+                'timestamp' => date('c')
+            ]);
+            break;
+            
+        case 'fix_id':
+            // Réparer l'ID problématique
+            $problemId = isset($_GET['problem_id']) ? $_GET['problem_id'] : '002ecca6-dc39-468d-a6ce-a1aed0264383';
+            $result = fixProblemId($pdo, $userId, $problemId);
+            echo json_encode([
+                'success' => $result,
+                'message' => $result ? "ID problématique $problemId réparé" : "Échec de la réparation de l'ID $problemId",
+                'timestamp' => date('c')
             ]);
             break;
             
         default:
-            throw new Exception("Action non reconnue: {$action}");
+            echo json_encode([
+                'success' => false,
+                'message' => 'Action non reconnue',
+                'timestamp' => date('c')
+            ]);
+            break;
     }
-} catch (PDOException $e) {
-    error_log("Erreur PDO dans sync-debug.php: " . $e->getMessage());
-    echo json_encode([
-        'success' => false,
-        'message' => 'Erreur de base de données: ' . $e->getMessage(),
-        'timestamp' => date('c')
-    ]);
 } catch (Exception $e) {
-    error_log("Exception dans sync-debug.php: " . $e->getMessage());
     echo json_encode([
         'success' => false,
-        'message' => $e->getMessage(),
+        'message' => 'Erreur: ' . $e->getMessage(),
         'timestamp' => date('c')
     ]);
 }
 
 /**
- * Réparer l'historique de synchronisation
+ * Répare l'historique de synchronisation
  */
 function repairSyncHistory($pdo, $userId) {
-    if (!$userId) {
-        throw new Exception("UserID requis pour réparer l'historique");
-    }
-    
-    $repairedItems = [];
-    $totalRepaired = 0;
-    
-    // 1. Vérifier s'il y a des opérations simultanées excessives pour un même timestamp
-    $stmt = $pdo->prepare("
-        SELECT table_name, sync_timestamp, COUNT(*) as op_count
-        FROM sync_history 
-        WHERE user_id = ? 
-        GROUP BY table_name, sync_timestamp 
-        HAVING COUNT(*) > 1
-        ORDER BY sync_timestamp DESC
-    ");
-    $stmt->execute([$userId]);
-    $duplicateTimestamps = $stmt->fetchAll();
-    
-    foreach ($duplicateTimestamps as $duplicate) {
-        $tableName = $duplicate['table_name'];
-        $timestamp = $duplicate['sync_timestamp'];
-        $count = $duplicate['op_count'];
+    try {
+        // Supprimer les entrées d'historique obsolètes (plus anciennes que 7 jours)
+        $stmt = $pdo->prepare("DELETE FROM sync_history WHERE user_id = ? AND sync_timestamp < DATE_SUB(NOW(), INTERVAL 7 DAY)");
+        $stmt->execute([$userId]);
         
-        if ($count > 2) { // Si plus de 2 opérations exactement au même timestamp
-            // Garder seulement une opération de chaque type (load, sync)
-            $delete = $pdo->prepare("
-                DELETE FROM sync_history 
-                WHERE table_name = ? 
-                AND user_id = ? 
-                AND sync_timestamp = ? 
-                AND id NOT IN (
-                    SELECT id FROM (
-                        SELECT MIN(id) as id 
-                        FROM sync_history 
-                        WHERE table_name = ? 
-                        AND user_id = ? 
-                        AND sync_timestamp = ?
-                        GROUP BY operation
-                    ) as keep
-                )
-            ");
-            $delete->execute([$tableName, $userId, $timestamp, $tableName, $userId, $timestamp]);
-            
-            $affectedRows = $delete->rowCount();
-            $totalRepaired += $affectedRows;
-            
-            $repairedItems[] = [
-                'table' => $tableName,
-                'timestamp' => $timestamp,
-                'removed' => $affectedRows,
-                'kept' => $count - $affectedRows
-            ];
-        }
-    }
-    
-    // 2. Assurer qu'il y a au moins une entrée load et sync pour chaque table
-    $standardTables = ['documents', 'exigences', 'membres', 'bibliotheque', 'collaboration', 'collaboration_groups', 'test_table'];
-    
-    foreach ($standardTables as $tableName) {
-        // Vérifier si la table a des entrées load
-        $checkLoad = $pdo->prepare("
-            SELECT COUNT(*) FROM sync_history 
-            WHERE table_name = ? AND user_id = ? AND operation = 'load'
-        ");
-        $checkLoad->execute([$tableName, $userId]);
+        // Ajouter la colonne 'operation' si elle n'existe pas
+        $columnCheck = $pdo->prepare("SHOW COLUMNS FROM sync_history LIKE 'operation'");
+        $columnCheck->execute();
         
-        if ($checkLoad->fetchColumn() === 0) {
-            // Ajouter une entrée load
-            $insertLoad = $pdo->prepare("
-                INSERT INTO sync_history (table_name, user_id, device_id, operation, record_count, sync_timestamp)
-                VALUES (?, ?, 'system', 'load', 0, NOW())
-            ");
-            $insertLoad->execute([$tableName, $userId]);
-            
-            $totalRepaired++;
-            $repairedItems[] = [
-                'table' => $tableName,
-                'action' => 'added_load',
-                'timestamp' => date('Y-m-d H:i:s')
-            ];
+        if ($columnCheck->rowCount() == 0) {
+            $pdo->exec("ALTER TABLE sync_history ADD COLUMN operation VARCHAR(50) DEFAULT 'sync' AFTER item_count");
         }
         
-        // Vérifier si la table a des entrées sync
-        $checkSync = $pdo->prepare("
-            SELECT COUNT(*) FROM sync_history 
-            WHERE table_name = ? AND user_id = ? AND operation = 'sync'
-        ");
-        $checkSync->execute([$tableName, $userId]);
+        // S'assurer que toutes les entrées ont une valeur pour 'operation'
+        $pdo->exec("UPDATE sync_history SET operation = 'sync' WHERE operation IS NULL OR operation = ''");
         
-        if ($checkSync->fetchColumn() === 0) {
-            // Ajouter une entrée sync
-            $insertSync = $pdo->prepare("
-                INSERT INTO sync_history (table_name, user_id, device_id, operation, record_count, sync_timestamp)
-                VALUES (?, ?, 'system', 'sync', 0, NOW())
-            ");
-            $insertSync->execute([$tableName, $userId]);
-            
-            $totalRepaired++;
-            $repairedItems[] = [
-                'table' => $tableName,
-                'action' => 'added_sync',
-                'timestamp' => date('Y-m-d H:i:s')
-            ];
-        }
+        return true;
+    } catch (Exception $e) {
+        error_log("Erreur lors de la réparation de l'historique: " . $e->getMessage());
+        return false;
     }
-    
-    return [
-        'count' => $totalRepaired,
-        'items' => $repairedItems
-    ];
 }
 
 /**
- * Vérifier l'existence des tables pour un utilisateur
+ * Vérifie et répare les tables
  */
-function checkUserTables($pdo, $userId) {
-    if (!$userId) {
-        throw new Exception("UserID requis pour vérifier les tables");
+function checkAndRepairTables($pdo, $userId) {
+    try {
+        // Vérifier si la table des membres existe
+        $tableName = "membres_" . $userId;
+        $checkTable = $pdo->prepare("SHOW TABLES LIKE ?");
+        $checkTable->execute([$tableName]);
+        
+        if ($checkTable->rowCount() == 0) {
+            // Si la table n'existe pas, la créer
+            $createQuery = "CREATE TABLE IF NOT EXISTS `$tableName` (
+                `id` VARCHAR(36) PRIMARY KEY,
+                `nom` VARCHAR(100) NOT NULL,
+                `prenom` VARCHAR(100) NOT NULL,
+                `email` VARCHAR(255) NULL,
+                `telephone` VARCHAR(20) NULL,
+                `fonction` VARCHAR(100) NULL,
+                `organisation` VARCHAR(255) NULL,
+                `notes` TEXT NULL,
+                `initiales` VARCHAR(10) NULL,
+                `userId` VARCHAR(50) NOT NULL,
+                `mot_de_passe` VARCHAR(255) NULL,
+                `date_creation` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                `date_modification` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                `last_sync_device` VARCHAR(100) NULL
+            )";
+            $pdo->exec($createQuery);
+        } else {
+            // Si la table existe, la réparer
+            $pdo->exec("REPAIR TABLE `$tableName`");
+            $pdo->exec("OPTIMIZE TABLE `$tableName`");
+        }
+        
+        // Vérifier la table id_mapping
+        $pdo->exec("CREATE TABLE IF NOT EXISTS `id_mapping` (
+            `id` INT AUTO_INCREMENT PRIMARY KEY,
+            `original_id` VARCHAR(100) NOT NULL,
+            `uuid_id` VARCHAR(36) NOT NULL,
+            `table_name` VARCHAR(50) NOT NULL,
+            `user_id` VARCHAR(50) NOT NULL,
+            `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE KEY `uniq_mapping` (`original_id`, `table_name`, `user_id`)
+        )");
+        
+        return true;
+    } catch (Exception $e) {
+        error_log("Erreur lors de la vérification des tables: " . $e->getMessage());
+        return false;
     }
-    
-    $tables = ['documents', 'exigences', 'membres', 'bibliotheque', 'collaboration', 'collaboration_groups', 'test_table'];
-    $result = [];
-    
-    foreach ($tables as $tableName) {
-        $userTable = "{$tableName}_{$userId}";
+}
+
+/**
+ * Réinitialise la file d'attente de synchronisation
+ */
+function resetSyncQueue($pdo, $userId) {
+    try {
+        // Supprimer toutes les entrées en attente pour cet utilisateur
+        $stmt = $pdo->prepare("DELETE FROM sync_queue WHERE user_id = ?");
+        $stmt->execute([$userId]);
+        
+        // Mettre à jour le statut du dernier événement de synchronisation
+        $stmt = $pdo->prepare("UPDATE sync_history SET status = 'completed' WHERE user_id = ? AND status = 'pending'");
+        $stmt->execute([$userId]);
+        
+        return true;
+    } catch (Exception $e) {
+        error_log("Erreur lors de la réinitialisation de la file d'attente: " . $e->getMessage());
+        return false;
+    }
+}
+
+/**
+ * Supprime les entrées dupliquées
+ */
+function removeDuplicates($pdo, $userId) {
+    try {
+        // Supprimer les duplications dans l'historique de synchronisation
+        $pdo->exec("CREATE TEMPORARY TABLE temp_sync_history AS
+            SELECT MIN(id) as id
+            FROM sync_history
+            WHERE user_id = '$userId'
+            GROUP BY table_name, device_id, sync_timestamp
+            HAVING COUNT(*) > 1");
+            
+        $pdo->exec("DELETE FROM sync_history 
+            WHERE id IN (SELECT id FROM temp_sync_history)
+            AND user_id = '$userId'");
+            
+        $pdo->exec("DROP TEMPORARY TABLE IF EXISTS temp_sync_history");
+        
+        // Trouver et supprimer les doublons dans la table des membres
+        $tableName = "membres_" . $userId;
         
         // Vérifier si la table existe
-        $stmt = $pdo->query("SHOW TABLES LIKE '{$userTable}'");
-        $tableExists = $stmt->rowCount() > 0;
+        $checkTable = $pdo->prepare("SHOW TABLES LIKE ?");
+        $checkTable->execute([$tableName]);
         
-        // Vérifier si des entrées existent dans l'historique de synchronisation
-        $historyStmt = $pdo->prepare("
-            SELECT COUNT(*) FROM sync_history 
-            WHERE table_name = ? AND user_id = ?
-        ");
-        $historyStmt->execute([$tableName, $userId]);
-        $hasHistory = $historyStmt->fetchColumn() > 0;
-        
-        $result[$tableName] = [
-            'status' => $tableExists ? 'exists' : 'missing',
-            'message' => $tableExists ? 'La table existe déjà' : 'La table n\'existe pas',
-            'history' => $hasHistory ? 'exists' : 'missing'
-        ];
-        
-        // Si la table n'existe pas, créer la table
-        if (!$tableExists) {
-            try {
-                $created = TableManager::initializeTableForUser($pdo, $tableName, $userId);
-                if ($created) {
-                    $result[$tableName]['status'] = 'created';
-                    $result[$tableName]['message'] = 'Table créée avec succès';
-                }
-            } catch (Exception $e) {
-                $result[$tableName]['error'] = $e->getMessage();
-            }
+        if ($checkTable->rowCount() > 0) {
+            // Identifier les doublons potentiels par nom et prénom
+            $pdo->exec("CREATE TEMPORARY TABLE temp_duplicates AS
+                SELECT MIN(id) as keep_id, nom, prenom
+                FROM `$tableName`
+                GROUP BY nom, prenom
+                HAVING COUNT(*) > 1");
+                
+            // Supprimer les doublons en conservant un seul enregistrement
+            $pdo->exec("DELETE FROM `$tableName` 
+                WHERE id NOT IN (SELECT keep_id FROM temp_duplicates)
+                AND (nom, prenom) IN (SELECT nom, prenom FROM temp_duplicates)");
+                
+            $pdo->exec("DROP TEMPORARY TABLE IF EXISTS temp_duplicates");
         }
+        
+        return true;
+    } catch (Exception $e) {
+        error_log("Erreur lors de la suppression des duplications: " . $e->getMessage());
+        return false;
     }
-    
-    return $result;
 }
 
 /**
- * Vider l'historique de synchronisation pour un utilisateur
+ * Répare l'ID problématique spécifique
  */
-function clearSyncHistory($pdo, $userId) {
-    if (!$userId) {
-        throw new Exception("UserID requis pour vider l'historique");
+function fixProblemId($pdo, $userId, $problemId) {
+    try {
+        $tableName = "membres_" . $userId;
+        
+        // Vérifier si l'ID problématique existe dans la table
+        $stmt = $pdo->prepare("SELECT id FROM `$tableName` WHERE id = ?");
+        $stmt->execute([$problemId]);
+        
+        if ($stmt->rowCount() > 0) {
+            // L'ID existe, générer un nouvel ID
+            $newId = generateUuid();
+            
+            // Créer une sauvegarde de l'entrée avec le nouvel ID
+            $stmt = $pdo->prepare("INSERT INTO `$tableName` 
+                SELECT ?, nom, prenom, email, telephone, fonction, organisation, notes, initiales, userId, mot_de_passe, date_creation, date_modification, last_sync_device
+                FROM `$tableName` 
+                WHERE id = ?");
+            $stmt->execute([$newId, $problemId]);
+            
+            // Supprimer l'entrée problématique
+            $stmt = $pdo->prepare("DELETE FROM `$tableName` WHERE id = ?");
+            $stmt->execute([$problemId]);
+            
+            // Mettre à jour la table id_mapping si elle existe
+            try {
+                $mapStmt = $pdo->prepare("INSERT IGNORE INTO `id_mapping` (original_id, uuid_id, table_name, user_id) VALUES (?, ?, 'membres', ?)");
+                $mapStmt->execute([$problemId, $newId, $userId]);
+            } catch (Exception $mapError) {
+                error_log("Avertissement lors de la mise à jour de id_mapping: " . $mapError->getMessage());
+            }
+            
+            error_log("ID problématique $problemId remplacé par $newId");
+            return true;
+        } else {
+            // L'ID n'existe pas, donc il pourrait être un conflit avec une autre table
+            // ou un problème de synchronisation. Nettoyer les références.
+            
+            // Supprimer toutes les références à cet ID dans l'historique de synchronisation
+            $stmt = $pdo->prepare("DELETE FROM sync_history WHERE data LIKE ? AND user_id = ?");
+            $stmt->execute(['%' . $problemId . '%', $userId]);
+            
+            // Supprimer de la file d'attente
+            $stmt = $pdo->prepare("DELETE FROM sync_queue WHERE data LIKE ? AND user_id = ?");
+            $stmt->execute(['%' . $problemId . '%', $userId]);
+            
+            return true;
+        }
+    } catch (Exception $e) {
+        error_log("Erreur lors de la réparation de l'ID problématique: " . $e->getMessage());
+        return false;
     }
-    
-    $stmt = $pdo->prepare("DELETE FROM sync_history WHERE user_id = ?");
-    $stmt->execute([$userId]);
-    
-    return $stmt->rowCount();
 }
 
 /**
- * Supprimer les duplications dans l'historique
+ * Génère un UUID v4
  */
-function removeDuplicateOperations($pdo, $userId) {
-    if (!$userId) {
-        throw new Exception("UserID requis pour supprimer les duplications");
-    }
-    
-    // Supprimer les duplications exactes (même table, même opération, même timestamp)
-    $stmt = $pdo->prepare("
-        DELETE s1 FROM sync_history s1
-        INNER JOIN sync_history s2 
-        WHERE s1.id > s2.id 
-        AND s1.table_name = s2.table_name 
-        AND s1.user_id = s2.user_id 
-        AND s1.operation = s2.operation
-        AND s1.sync_timestamp = s2.sync_timestamp
-        AND s1.user_id = ?
-    ");
-    $stmt->execute([$userId]);
-    
-    return $stmt->rowCount();
+function generateUuid() {
+    $data = random_bytes(16);
+    $data[6] = chr(ord($data[6]) & 0x0f | 0x40);
+    $data[8] = chr(ord($data[8]) & 0x3f | 0x80);
+    return vsprintf('%s%s-%s-%s-%s-%s%s%s', str_split(bin2hex($data), 4));
 }
-
-/**
- * Réinitialiser la file d'attente pour un utilisateur
- */
-function resetUserSyncQueue($pdo, $userId) {
-    if (!$userId) {
-        throw new Exception("UserID requis pour réinitialiser la file d'attente");
-    }
-    
-    // Ajouter des entrées dans l'historique pour marquer la réinitialisation
-    $tables = ['documents', 'exigences', 'membres', 'bibliotheque', 'collaboration', 'collaboration_groups', 'test_table'];
-    $count = 0;
-    
-    foreach ($tables as $tableName) {
-        // Ajouter une entrée de réinitialisation
-        $stmt = $pdo->prepare("
-            INSERT INTO sync_history (table_name, user_id, device_id, operation, record_count, sync_timestamp)
-            VALUES (?, ?, 'system', 'reset', 0, NOW())
-        ");
-        $stmt->execute([$tableName, $userId]);
-        $count++;
-    }
-    
-    return $count;
-}
+?>
