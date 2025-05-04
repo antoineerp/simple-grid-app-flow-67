@@ -18,7 +18,7 @@ class SyncQueueManager {
   private queue: SyncTask[] = [];
   private processing: boolean = false;
   private currentTask: SyncTask | null = null;
-  private taskTimeout: number = 15000; // 15 secondes maximum par tâche
+  private taskTimeout: number = 30000; // 30 secondes maximum par tâche
   private abortControllers: Map<string, AbortController> = new Map();
   private globalLock: boolean = false;
   private lastProcessingTime: number = 0;
@@ -43,6 +43,22 @@ class SyncQueueManager {
         priority
       };
 
+      // Vérifier si une tâche similaire existe déjà dans la file d'attente
+      const existingTaskIndex = this.queue.findIndex(t => t.tableName === tableName);
+      
+      if (existingTaskIndex !== -1) {
+        // Si la nouvelle tâche a une priorité plus élevée, remplacer l'ancienne
+        if (priority < this.queue[existingTaskIndex].priority) {
+          console.log(`SyncQueue: Remplacement d'une tâche existante pour ${tableName} avec une priorité plus élevée`);
+          this.queue.splice(existingTaskIndex, 1);
+        } else {
+          // Sinon, ignorer cette nouvelle tâche
+          console.log(`SyncQueue: Tâche pour ${tableName} ignorée, une tâche similaire existe déjà`);
+          resolve({} as T); // Résoudre immédiatement pour ne pas bloquer le processus appelant
+          return;
+        }
+      }
+      
       // Ajouter la tâche à la file d'attente et trier par priorité
       this.queue.push(syncTask);
       this.queue.sort((a, b) => a.priority - b.priority);
@@ -75,8 +91,8 @@ class SyncQueueManager {
     try {
       // D'abord, attendre un court délai entre les traitements
       const timeSinceLastProcessing = Date.now() - this.lastProcessingTime;
-      if (timeSinceLastProcessing < 1000 && this.lastProcessingTime > 0) {
-        const waitTime = 1000 - timeSinceLastProcessing;
+      if (timeSinceLastProcessing < 2000 && this.lastProcessingTime > 0) {
+        const waitTime = 2000 - timeSinceLastProcessing;
         console.log(`SyncQueue: Attente de ${waitTime}ms avant le prochain traitement`);
         await new Promise(r => setTimeout(r, waitTime));
       }
@@ -91,7 +107,7 @@ class SyncQueueManager {
         console.log(`SyncQueue: Exécution de la tâche ${id} pour ${tableName}`);
 
         // Attendre un court délai entre les tâches pour garantir la séparation
-        await new Promise(r => setTimeout(r, 300));
+        await new Promise(r => setTimeout(r, 500));
         
         // Vérifier si la tâche est trop ancienne (plus de 2 minutes)
         if (Date.now() - createdAt > 120000) {
@@ -135,7 +151,7 @@ class SyncQueueManager {
           }
         } finally {
           // Attendre un délai OBLIGATOIRE entre deux tâches
-          await new Promise(r => setTimeout(r, 500));
+          await new Promise(r => setTimeout(r, 1000));
           
           // Nettoyer les ressources
           this.abortControllers.delete(id);
@@ -145,9 +161,11 @@ class SyncQueueManager {
       }
     } finally {
       // Libérer le verrou global et marquer le traitement comme terminé
-      this.globalLock = false;
-      this.processing = false;
-      console.log(`SyncQueue: Traitement terminé, file d'attente vide`);
+      setTimeout(() => {
+        this.globalLock = false;
+        this.processing = false;
+        console.log(`SyncQueue: Traitement terminé, file d'attente vide`);
+      }, 500);
     }
   }
   
@@ -157,8 +175,6 @@ class SyncQueueManager {
   public forceProcessQueue(): void {
     if (this.globalLock || this.processing) {
       console.log("SyncQueue: Forçage du traitement de la file d'attente");
-      this.globalLock = false;
-      this.processing = false;
       
       // Nettoyer toute tâche en cours
       if (this.currentTask) {
@@ -170,12 +186,17 @@ class SyncQueueManager {
         this.currentTask = null;
       }
       
-      // Si des tâches sont en attente, démarrer le traitement
-      if (this.queue.length > 0) {
-        this.processQueue().catch(error => {
-          console.error("SyncQueue: Erreur lors du forçage du traitement:", error);
-        });
-      }
+      setTimeout(() => {
+        this.globalLock = false;
+        this.processing = false;
+        
+        // Si des tâches sont en attente, démarrer le traitement
+        if (this.queue.length > 0) {
+          this.processQueue().catch(error => {
+            console.error("SyncQueue: Erreur lors du forçage du traitement:", error);
+          });
+        }
+      }, 1000);
     }
   }
 
@@ -226,6 +247,37 @@ class SyncQueueManager {
   }
   
   /**
+   * Nettoyer la file d'attente complète (en cas de problèmes)
+   */
+  public clearAllTasks(): void {
+    const taskCount = this.queue.length;
+    
+    // Rejeter toutes les tâches en attente
+    this.queue.forEach(task => {
+      task.reject(new Error("File d'attente vidée"));
+    });
+    
+    // Vider la file d'attente
+    this.queue = [];
+    
+    // Annuler la tâche en cours
+    if (this.currentTask) {
+      const controller = this.abortControllers.get(this.currentTask.id);
+      if (controller) {
+        controller.abort();
+        this.abortControllers.delete(this.currentTask.id);
+      }
+      this.currentTask = null;
+    }
+    
+    // Réinitialiser l'état
+    this.globalLock = false;
+    this.processing = false;
+    
+    console.log(`SyncQueue: ${taskCount} tâches supprimées, file d'attente vidée`);
+  }
+  
+  /**
    * Vérifier si la file d'attente est verrouillée
    */
   public isLocked(): boolean {
@@ -263,4 +315,9 @@ export const syncQueue = new SyncQueueManager();
 // Exposer une fonction pour forcer le traitement
 export const forceSyncQueueProcessing = (): void => {
   syncQueue.forceProcessQueue();
+};
+
+// Exposer une fonction pour vider complètement la file d'attente
+export const clearAllSyncTasks = (): void => {
+  syncQueue.clearAllTasks();
 };

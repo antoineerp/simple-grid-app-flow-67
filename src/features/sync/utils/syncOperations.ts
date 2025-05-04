@@ -13,15 +13,15 @@ import { syncMonitor } from './syncMonitor';
 const recentlySyncedTables = new Set<string>();
 // Stockage du dernier timestamp de synchronisation par table
 const lastSyncTimestamps: Record<string, number> = {};
-// Délai minimum entre deux synchronisations en millisecondes (3 secondes)
-const MIN_SYNC_INTERVAL = 3000;
+// Délai minimum entre deux synchronisations en millisecondes (5 secondes)
+const MIN_SYNC_INTERVAL = 5000;
 
 // Nettoie la liste des tables synchronisées récemment après un délai
 const cleanupRecentlySynced = (tableName: string) => {
   setTimeout(() => {
     recentlySyncedTables.delete(tableName);
     console.log(`SyncOperations: Table ${tableName} retirée de la liste des synchronisations récentes`);
-  }, 5000); // 5 secondes de "cooldown" entre les synchronisations
+  }, 10000); // 10 secondes de "cooldown" entre les synchronisations
 };
 
 // Execute a sync operation with proper locking
@@ -41,8 +41,10 @@ export const executeSyncOperation = async <T>(
   // Vérifier le délai minimum entre deux synchronisations de la même table
   const now = Date.now();
   const lastSync = lastSyncTimestamps[tableName] || 0;
-  if (now - lastSync < MIN_SYNC_INTERVAL && trigger === "auto") {
-    console.log(`SyncOperations: Synchronisation de ${tableName} trop fréquente, ignorée (dernière: ${new Date(lastSync).toISOString()})`);
+  const timeSinceLastSync = now - lastSync;
+  
+  if (timeSinceLastSync < MIN_SYNC_INTERVAL && trigger === "auto") {
+    console.log(`SyncOperations: Synchronisation de ${tableName} trop fréquente, ignorée (dernière: il y a ${Math.round(timeSinceLastSync/1000)}s)`);
     return { success: true, message: "Synchronization throttled" };
   }
   
@@ -57,7 +59,7 @@ export const executeSyncOperation = async <T>(
   cleanupRecentlySynced(tableName);
 
   // Déterminer la priorité en fonction du type de déclenchement
-  const priority = trigger === "manual" ? 1 : (trigger === "initial" ? 3 : 5);
+  const priority = trigger === "manual" ? 1 : (trigger === "initial" ? 2 : 5);
 
   // Enqueue the task with priority
   try {
@@ -96,11 +98,11 @@ export const executeSyncOperation = async <T>(
         // Perform the actual synchronization with timeout handling
         const syncPromise = syncFn(tableName, data, operationId);
         
-        // Create a timeout promise (reduced to 10 seconds)
+        // Create a timeout promise (extended to 20 seconds)
         const timeoutPromise = new Promise<boolean>((_, reject) => {
           setTimeout(() => {
             reject(new Error(`Synchronization timeout for ${tableName} (operation ${operationId})`));
-          }, 10000); // 10 seconds timeout
+          }, 20000); // 20 seconds timeout
         });
         
         // Race between sync and timeout

@@ -6,6 +6,7 @@ import { getDatabaseConnectionCurrentUser } from '@/services/core/databaseConnec
 import { Button } from '@/components/ui/button';
 import { Plus, FileText, RefreshCw, FolderPlus } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import SyncIndicator from '@/components/common/SyncIndicator';
 
 const GestionDocumentaire = () => {
   const { 
@@ -24,7 +25,10 @@ const GestionDocumentaire = () => {
     handleAddGroup,
     handleGroupReorder,
     forceReload,
-    isSyncing
+    isSyncing,
+    syncFailed,
+    lastSynced,
+    isOnline
   } = useDocuments();
   
   const [currentUser, setCurrentUser] = useState<string>(getDatabaseConnectionCurrentUser() || 'default');
@@ -55,32 +59,49 @@ const GestionDocumentaire = () => {
     <div className="container mx-auto py-6 px-4">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold">Gestion Documentaire</h1>
-        {/* Bouton de synchronisation masqué mais fonctionnel */}
         <Button
           onClick={handleRefresh}
           variant="outline"
           size="sm"
-          className="ml-2 hidden"
+          className="ml-2"
+          disabled={isSyncing}
         >
           <RefreshCw className={`h-4 w-4 mr-1 ${isSyncing ? 'animate-spin' : ''}`} />
-          Actualiser
+          {isSyncing ? 'Synchronisation...' : 'Actualiser'}
         </Button>
       </div>
       
-      <DocumentTable 
-        documents={documents}
-        groups={groups}
-        onResponsabiliteChange={handleResponsabiliteChange}
-        onAtteinteChange={handleAtteinteChange}
-        onExclusionChange={handleExclusionChange}
-        onEdit={handleEdit}
-        onDelete={handleDelete}
-        onReorder={handleReorder}
-        onGroupReorder={handleGroupReorder}
-        onToggleGroup={handleToggleGroup}
-        onEditGroup={handleEditGroup}
-        onDeleteGroup={handleDeleteGroup}
+      {/* Indicateur de synchronisation pour afficher l'état de la synchronisation */}
+      <SyncIndicator 
+        isSyncing={isSyncing}
+        isOnline={isOnline}
+        syncFailed={syncFailed}
+        lastSynced={lastSynced}
+        onSync={forceReload}
+        tableName="documents"
       />
+      
+      {documents.length > 0 ? (
+        <DocumentTable 
+          documents={documents}
+          groups={groups}
+          onResponsabiliteChange={handleResponsabiliteChange}
+          onAtteinteChange={handleAtteinteChange}
+          onExclusionChange={handleExclusionChange}
+          onEdit={handleEdit}
+          onDelete={handleDelete}
+          onReorder={handleReorder}
+          onGroupReorder={handleGroupReorder}
+          onToggleGroup={handleToggleGroup}
+          onEditGroup={handleEditGroup}
+          onDeleteGroup={handleDeleteGroup}
+        />
+      ) : (
+        <div className="bg-white rounded-md shadow p-8 text-center">
+          <p className="text-gray-500 mb-4">Aucun document trouvé.</p>
+          {isSyncing && <p className="text-blue-500">Chargement en cours...</p>}
+        </div>
+      )}
       
       <div className="mt-4 flex justify-end space-x-2">
         <Button

@@ -70,11 +70,20 @@ try {
     // Obtenir une référence PDO
     $pdo = $service->getPdo();
     
-    // Force l'enregistrement de cette opération pour déboguer
-    RequestHandler::forceSyncRecord($pdo, $tableName, $userId, $deviceId, 'sync-start', count($records));
+    // Vérifier s'il existe déjà des enregistrements pour cette table pour cet utilisateur
+    $checkStmt = $pdo->prepare("SELECT COUNT(*) FROM `sync_history` WHERE table_name = ? AND user_id = ?");
+    $checkStmt->execute([$tableName, $userId]);
+    $existingRecords = $checkStmt->fetchColumn();
     
-    // Enregistrer cette synchronisation dans l'historique
-    $service->recordSyncOperation($userId, $deviceId, 'sync', count($records));
+    // S'il n'y a pas d'enregistrements, forcez l'initialisation de l'historique
+    if ($existingRecords == 0) {
+        error_log("Aucun enregistrement d'historique pour {$tableName} et l'utilisateur {$userId}, initialisation de l'historique");
+        RequestHandler::forceSyncRecord($pdo, $tableName, $userId, $deviceId, 'initialize', 0);
+        RequestHandler::forceSyncRecord($pdo, $tableName, $userId, $deviceId, 'load', 0);
+    }
+    
+    // Enregistrer cette opération unique de synchronisation dans l'historique
+    RequestHandler::forceSyncRecord($pdo, $tableName, $userId, $deviceId, 'sync', count($records));
     
     // Vérifier si la table existe et la créer si nécessaire
     $tables = $pdo->query("SHOW TABLES LIKE '{$userTableName}'")->fetchAll();
@@ -106,8 +115,8 @@ try {
     // Insérer les documents
     if (!empty($records)) {
         $insertQuery = "INSERT INTO `{$userTableName}` 
-            (id, nom, description, link, groupId, userId, last_sync_device) 
-            VALUES (?, ?, ?, ?, ?, ?, ?)";
+            (id, nom, description, link, groupId, userId, last_sync_device, date_creation, date_modification) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), NOW())";
         $stmt = $pdo->prepare($insertQuery);
         
         foreach ($records as $doc) {
@@ -131,9 +140,6 @@ try {
     }
     
     error_log("Enregistrements de {$tableName} synchronisés: " . count($records));
-    
-    // Enregistrer la fin de la synchronisation
-    RequestHandler::forceSyncRecord($pdo, $tableName, $userId, $deviceId, 'sync-end', count($records));
     
     // Réponse réussie
     RequestHandler::sendJsonResponse(true, "Données de {$tableName} synchronisées avec succès", [

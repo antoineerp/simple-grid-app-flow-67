@@ -48,11 +48,21 @@ try {
     // Obtenir une référence PDO
     $pdo = $service->getPdo();
     
-    // Force l'enregistrement de cette opération pour déboguer
-    RequestHandler::forceSyncRecord($pdo, $tableName, $userId, $deviceId, 'load-start', 0);
+    // Vérifier s'il existe déjà des enregistrements pour cette table pour cet utilisateur
+    $checkStmt = $pdo->prepare("SELECT COUNT(*) FROM `sync_history` WHERE table_name = ? AND user_id = ?");
+    $checkStmt->execute([$tableName, $userId]);
+    $existingRecords = $checkStmt->fetchColumn();
     
-    // Enregistrer cette opération de chargement dans l'historique
-    $service->recordSyncOperation($userId, $deviceId, 'load', 0);
+    // S'il n'y a pas d'enregistrements, forcez l'initialisation de l'historique
+    if ($existingRecords == 0) {
+        error_log("Aucun enregistrement d'historique pour {$tableName} et l'utilisateur {$userId}, initialisation de l'historique");
+        RequestHandler::forceSyncRecord($pdo, $tableName, $userId, $deviceId, 'initialize', 0);
+        RequestHandler::forceSyncRecord($pdo, $tableName, $userId, $deviceId, 'load', 0);
+        RequestHandler::forceSyncRecord($pdo, $tableName, $userId, $deviceId, 'sync', 0);
+    } else {
+        // Enregistrer cette opération de chargement dans l'historique (une seule fois)
+        RequestHandler::forceSyncRecord($pdo, $tableName, $userId, $deviceId, 'load', 0);
+    }
     
     // Vérifier si la table existe
     $tables = $pdo->query("SHOW TABLES LIKE '{$userTableName}'")->fetchAll();
@@ -89,9 +99,6 @@ try {
     $records = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
     $recordCount = count($records);
-    
-    // Enregistrer le nombre d'enregistrements chargés
-    RequestHandler::forceSyncRecord($pdo, $tableName, $userId, $deviceId, 'load-end', $recordCount);
     
     error_log("Données de {$tableName} chargées: " . $recordCount);
     
