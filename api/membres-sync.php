@@ -1,28 +1,21 @@
 
 <?php
+// Force output buffering to prevent output before headers
+ob_start();
+
+// Initialiser la gestion de synchronisation
 require_once 'services/DataSyncService.php';
+require_once 'services/RequestHandler.php';
 
-// Définir les en-têtes pour éviter les problèmes CORS
-header('Content-Type: application/json; charset=UTF-8');
-header("Access-Control-Allow-Origin: *");
-header("Access-Control-Allow-Methods: POST, OPTIONS");
-header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With");
-header("Cache-Control: no-cache, no-store, must-revalidate");
+// Nom de la table à synchroniser
+$tableName = 'membres';
 
-// Si c'est une requête OPTIONS (preflight), terminer
-if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
-    http_response_code(200);
-    exit;
-}
+// Créer le service de synchronisation
+$service = new DataSyncService($tableName);
 
-// Activer la journalisation des erreurs
-error_reporting(E_ALL);
-ini_set('display_errors', 0); // Ne pas afficher les erreurs directement
-ini_set('log_errors', 1);
-ini_set('error_log', __DIR__ . '/error_log.txt');
-
-// Initialiser le service
-$service = new DataSyncService('membres');
+// Définir les en-têtes standard
+RequestHandler::setStandardHeaders("POST, OPTIONS");
+RequestHandler::handleOptionsRequest();
 
 // Vérifier la méthode
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
@@ -32,7 +25,10 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 }
 
 try {
-    // Récupérer les données POST
+    // Nettoyer le buffer
+    if (ob_get_level()) ob_clean();
+    
+    // Récupérer les données POST JSON
     $json = file_get_contents('php://input');
     $data = json_decode($json, true);
     
@@ -40,32 +36,40 @@ try {
         throw new Exception("Aucune donnée reçue ou format JSON invalide");
     }
     
+    error_log("Données reçues pour synchronisation des membres");
+    
+    // Vérifier si les données nécessaires sont présentes
     if (!isset($data['userId']) || !isset($data['membres'])) {
         throw new Exception("Données incomplètes. 'userId' et 'membres' sont requis");
     }
     
-    // Connecter à la base de données
+    // Récupérer les données
+    $userId = RequestHandler::sanitizeUserId($data['userId']);
+    $membres = $data['membres'];
+    $deviceId = isset($data['deviceId']) ? $data['deviceId'] : 'unknown';
+    
+    error_log("Synchronisation pour l'utilisateur: {$userId} depuis l'appareil: {$deviceId}");
+    error_log("Nombre de membres: " . count($membres));
+    
+    // Connexion à la base de données
     if (!$service->connectToDatabase()) {
         throw new Exception("Impossible de se connecter à la base de données");
     }
     
-    $userId = $service->sanitizeUserId($data['userId']);
-    $membres = $data['membres'];
-    $deviceId = isset($data['deviceId']) ? $data['deviceId'] : 'unknown';
+    // Nom de la table spécifique à l'utilisateur
+    $userTableName = "{$tableName}_" . preg_replace('/[^a-zA-Z0-9_]/', '_', $userId);
     
-    // Journaliser les informations de synchronisation
-    error_log("Synchronisation des membres - UserId: {$userId}, DeviceId: {$deviceId}, Nombre: " . count($membres));
-    
+    // Obtenir une référence PDO
     $pdo = $service->getPdo();
     
     // Vérifier si un enregistrement récent existe déjà pour cette synchronisation
     // afin d'éviter les synchronisations multiples à la même milliseconde
     try {
         $checkRecentSync = $pdo->prepare("SELECT COUNT(*) FROM `sync_history` 
-                                       WHERE table_name = 'membres' AND user_id = ? 
+                                       WHERE table_name = ? AND user_id = ? 
                                        AND device_id = ? AND operation = 'sync'
                                        AND sync_timestamp > DATE_SUB(NOW(), INTERVAL 3 SECOND)");
-        $checkRecentSync->execute([$userId, $deviceId]);
+        $checkRecentSync->execute([$tableName, $userId, $deviceId]);
         $recentSyncCount = (int)$checkRecentSync->fetchColumn();
         
         if ($recentSyncCount > 0) {
@@ -88,7 +92,7 @@ try {
     
     // Créer la table de synchronisation si elle n'existe pas
     try {
-        $query = "CREATE TABLE IF NOT EXISTS `sync_history` (
+        $pdo->exec("CREATE TABLE IF NOT EXISTS `sync_history` (
             `id` INT AUTO_INCREMENT PRIMARY KEY,
             `table_name` VARCHAR(100) NOT NULL,
             `user_id` VARCHAR(50) NOT NULL,
@@ -97,25 +101,20 @@ try {
             `sync_timestamp` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
             `operation` VARCHAR(20) NOT NULL DEFAULT 'sync',
             INDEX `idx_user_device` (`user_id`, `device_id`)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
+        )");
         
-        if ($pdo) {
-            $pdo->query($query);
-            
-            // Insérer l'enregistrement de synchronisation avec l'identifiant technique
-            // et ajouter l'opération 'sync' explicitement
-            $stmt = $pdo->prepare("INSERT INTO `sync_history` 
-                         (table_name, user_id, device_id, record_count, sync_timestamp, operation) 
-                         VALUES (?, ?, ?, ?, NOW(), 'sync')");
-            $stmt->execute(['membres', $userId, $deviceId, count($membres)]);
-        }
+        // Insérer l'enregistrement de synchronisation
+        $stmt = $pdo->prepare("INSERT INTO `sync_history` 
+                     (table_name, user_id, device_id, record_count, sync_timestamp, operation) 
+                     VALUES (?, ?, ?, ?, NOW(), 'sync')");
+        $stmt->execute([$tableName, $userId, $deviceId, count($membres)]);
     } catch (Exception $e) {
         // Journaliser mais continuer
         error_log("Erreur lors de l'enregistrement de l'historique: " . $e->getMessage());
     }
     
-    // Schéma de la table membres avec support explicite du format UUID/GUID pour l'ID
-    $schema = "CREATE TABLE IF NOT EXISTS `membres_{$userId}` (
+    // Schéma de la table membres
+    $schema = "CREATE TABLE IF NOT EXISTS `{$userTableName}` (
         `id` VARCHAR(36) PRIMARY KEY,
         `nom` VARCHAR(100) NOT NULL,
         `prenom` VARCHAR(100) NOT NULL,
@@ -130,26 +129,24 @@ try {
         `date_creation` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
         `date_modification` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
         `last_sync_device` VARCHAR(100) NULL
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
+    )";
     
     // Créer la table si nécessaire
-    if (!$service->ensureTableExists($schema)) {
-        throw new Exception("Impossible de créer ou vérifier la table");
-    }
+    $pdo->exec($schema);
     
     // Vérifier si la colonne last_sync_device existe
     try {
-        $columnsResult = $service->query("SHOW COLUMNS FROM `membres_{$userId}` LIKE 'last_sync_device'");
+        $columnsResult = $pdo->query("SHOW COLUMNS FROM `{$userTableName}` LIKE 'last_sync_device'");
         if ($columnsResult->rowCount() === 0) {
             // Ajouter la colonne
-            $pdo->query("ALTER TABLE `membres_{$userId}` ADD COLUMN `last_sync_device` VARCHAR(100) NULL");
+            $pdo->query("ALTER TABLE `{$userTableName}` ADD COLUMN `last_sync_device` VARCHAR(100) NULL");
         }
         
         // Vérifier si la colonne mot_de_passe existe
-        $pwdColumnsResult = $service->query("SHOW COLUMNS FROM `membres_{$userId}` LIKE 'mot_de_passe'");
+        $pwdColumnsResult = $pdo->query("SHOW COLUMNS FROM `{$userTableName}` LIKE 'mot_de_passe'");
         if ($pwdColumnsResult->rowCount() === 0) {
             // Ajouter la colonne mot_de_passe si elle n'existe pas
-            $pdo->query("ALTER TABLE `membres_{$userId}` ADD COLUMN `mot_de_passe` VARCHAR(255) NULL");
+            $pdo->query("ALTER TABLE `{$userTableName}` ADD COLUMN `mot_de_passe` VARCHAR(255) NULL");
         }
     } catch (Exception $e) {
         error_log("Erreur lors de la vérification/ajout des colonnes: " . $e->getMessage());
@@ -169,12 +166,9 @@ try {
                     // Générer un UUID v4 pour remplacer l'ID
                     $newId = $service->generateUuid();
                     error_log("Conversion d'ID: {$id} -> {$newId}");
+                    
                     // Stocker la relation entre l'ancien et le nouvel ID pour référence future
                     try {
-                        $mapStmt = $pdo->prepare("INSERT IGNORE INTO `id_mapping` (original_id, uuid_id, table_name, user_id) VALUES (?, ?, 'membres', ?)");
-                        $mapStmt->execute([$id, $newId, $userId]);
-                    } catch (Exception $e) {
-                        // Si la table n'existe pas, la créer d'abord
                         $pdo->exec("CREATE TABLE IF NOT EXISTS `id_mapping` (
                             `id` INT AUTO_INCREMENT PRIMARY KEY,
                             `original_id` VARCHAR(100) NOT NULL,
@@ -183,11 +177,12 @@ try {
                             `user_id` VARCHAR(50) NOT NULL,
                             `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                             UNIQUE KEY `uniq_mapping` (`original_id`, `table_name`, `user_id`)
-                        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+                        )");
                         
-                        // Réessayer l'insertion
-                        $mapStmt = $pdo->prepare("INSERT IGNORE INTO `id_mapping` (original_id, uuid_id, table_name, user_id) VALUES (?, ?, 'membres', ?)");
-                        $mapStmt->execute([$id, $newId, $userId]);
+                        $mapStmt = $pdo->prepare("INSERT IGNORE INTO `id_mapping` (original_id, uuid_id, table_name, user_id) VALUES (?, ?, ?, ?)");
+                        $mapStmt->execute([$id, $newId, $tableName, $userId]);
+                    } catch (Exception $e) {
+                        error_log("Erreur lors du mappage d'ID: " . $e->getMessage());
                     }
                     
                     // Mettre à jour l'ID dans le tableau
@@ -202,8 +197,31 @@ try {
             $membres[$key]['last_sync_device'] = $deviceId;
         }
         
-        // Synchroniser les données avec les IDs standardisés
-        $service->syncData($membres);
+        // Supprimer les membres qui viennent de cet appareil pour les remplacer
+        $stmt = $pdo->prepare("DELETE FROM `{$userTableName}` WHERE userId = ? AND (last_sync_device = ? OR last_sync_device IS NULL)");
+        $stmt->execute([$userId, $deviceId]);
+        
+        // Insérer les membres
+        foreach ($membres as $membre) {
+            $columns = [];
+            $placeholders = [];
+            $values = [];
+            
+            foreach ($membre as $key => $value) {
+                // Ignorer les champs vides ou null
+                if ($value !== null && $value !== '') {
+                    $columns[] = "`$key`";
+                    $placeholders[] = "?";
+                    $values[] = $value;
+                }
+            }
+            
+            if (!empty($columns)) {
+                $insertQuery = "INSERT INTO `{$userTableName}` (" . implode(", ", $columns) . ") VALUES (" . implode(", ", $placeholders) . ")";
+                $insertStmt = $pdo->prepare($insertQuery);
+                $insertStmt->execute($values);
+            }
+        }
         
         // Valider la transaction
         $service->commitTransaction();
@@ -224,20 +242,25 @@ try {
         throw $innerEx;
     }
     
-} catch (Exception $e) {
-    error_log("Erreur dans membres-sync.php: " . $e->getMessage());
-    
-    // S'assurer que tout buffer de sortie est nettoyé
-    if (ob_get_level()) {
-        ob_clean();
-    }
-    
+} catch (PDOException $e) {
+    error_log("Erreur PDO dans {$tableName}-sync.php: " . $e->getMessage());
     http_response_code(500);
     echo json_encode([
         'success' => false,
-        'message' => 'Erreur serveur: ' . $e->getMessage()
+        'message' => 'Erreur de base de données: ' . $e->getMessage()
+    ]);
+} catch (Exception $e) {
+    error_log("Erreur dans {$tableName}-sync.php: " . $e->getMessage());
+    http_response_code(400);
+    echo json_encode([
+        'success' => false,
+        'message' => $e->getMessage()
     ]);
 } finally {
-    $service->finalize();
+    if (isset($service)) {
+        $service->finalize();
+    }
+    
+    error_log("=== FIN DE L'EXÉCUTION DE {$tableName}-sync.php ===");
+    if (ob_get_level()) ob_end_flush();
 }
-?>

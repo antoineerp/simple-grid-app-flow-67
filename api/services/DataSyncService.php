@@ -54,6 +54,38 @@ class DataSyncService {
     }
 
     /**
+     * Définit les en-têtes standard pour les endpoints API
+     * 
+     * @param string $allowedMethods Méthodes HTTP autorisées (ex: "GET, POST, OPTIONS")
+     * @param int $maxAge Durée maximale de mise en cache des préflight (en secondes)
+     */
+    public function setStandardHeaders($allowedMethods = "GET, POST, OPTIONS", $maxAge = 3600) {
+        // Entêtes CORS standard
+        header("Access-Control-Allow-Origin: *");
+        header("Access-Control-Allow-Methods: $allowedMethods");
+        header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Device-ID");
+        header("Access-Control-Max-Age: $maxAge");
+        
+        // Entêtes Content-Type standard
+        header("Content-Type: application/json; charset=UTF-8");
+        
+        // Désactiver le cache pour les API dynamiques
+        header("Cache-Control: no-store, no-cache, must-revalidate, max-age=0");
+        header("Pragma: no-cache");
+        header("Expires: 0");
+    }
+    
+    /**
+     * Gère les requêtes OPTIONS pour le CORS preflight
+     */
+    public function handleOptionsRequest() {
+        if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+            http_response_code(200);
+            exit;
+        }
+    }
+
+    /**
      * Génère un UUID v4 pour standardiser les IDs
      * @return string UUID au format 8-4-4-4-12
      */

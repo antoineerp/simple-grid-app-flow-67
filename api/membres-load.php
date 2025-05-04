@@ -3,21 +3,24 @@
 // Force output buffering to prevent output before headers
 ob_start();
 
-// Headers pour CORS et Content-Type
-header("Content-Type: application/json; charset=UTF-8");
-header("Access-Control-Allow-Origin: *");
-header("Access-Control-Allow-Methods: GET, OPTIONS");
-header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With");
-header("Cache-Control: no-cache, no-store, must-revalidate");
+// Initialiser la gestion de synchronisation
+require_once 'services/DataSyncService.php';
+require_once 'services/RequestHandler.php';
 
-// Journalisation
-error_log("=== DEBUT DE L'EXÉCUTION DE membres-load.php ===");
-error_log("Méthode: " . $_SERVER['REQUEST_METHOD'] . " - URI: " . $_SERVER['REQUEST_URI']);
+// Nom de la table à synchroniser
+$tableName = 'membres';
 
-// Gestion des requêtes OPTIONS (preflight)
-if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
-    http_response_code(200);
-    echo json_encode(['status' => 'success', 'message' => 'Preflight OK']);
+// Créer le service de synchronisation
+$service = new DataSyncService($tableName);
+
+// Définir les en-têtes standard
+RequestHandler::setStandardHeaders("GET, OPTIONS");
+RequestHandler::handleOptionsRequest();
+
+// Vérifier la méthode
+if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
+    http_response_code(405);
+    echo json_encode(['success' => false, 'message' => 'Méthode non autorisée. Utilisez GET.']);
     exit;
 }
 
@@ -25,20 +28,71 @@ try {
     // Nettoyer le buffer
     if (ob_get_level()) ob_clean();
     
-    // Récupérer l'ID utilisateur et appareil depuis les paramètres GET
-    $userId = isset($_GET['userId']) ? $_GET['userId'] : null;
+    // Vérifier si l'userId est présent
+    $userId = "";
+    
+    if (isset($_GET['userId']) && !empty($_GET['userId'])) {
+        $userId = RequestHandler::sanitizeUserId($_GET['userId']);
+    } else {
+        error_log("UserId manquant dans la requête");
+        throw new Exception("UserId manquant");
+    }
+    
+    // Récupérer l'ID de l'appareil s'il est fourni
     $deviceId = isset($_GET['deviceId']) ? $_GET['deviceId'] : 'unknown';
     
-    if (!$userId) {
-        throw new Exception("ID utilisateur manquant");
-    }
-    error_log("UserId reçu: " . $userId . ", DeviceId: " . $deviceId);
+    error_log("Chargement des membres pour l'utilisateur: {$userId} depuis l'appareil: {$deviceId}");
     
-    // Configuration de la connexion à la base de données
-    $host = "p71x6d.myd.infomaniak.com";
-    $dbname = "p71x6d_system";
-    $username = "p71x6d_system";
-    $password = "Trottinette43!";
+    // Connexion à la base de données
+    if (!$service->connectToDatabase()) {
+        throw new Exception("Impossible de se connecter à la base de données");
+    }
+    
+    // Nom de la table spécifique à l'utilisateur
+    $userTableName = "{$tableName}_" . preg_replace('/[^a-zA-Z0-9_]/', '_', $userId);
+    error_log("Table à consulter: {$userTableName}");
+    
+    // Obtenir une référence PDO
+    $pdo = $service->getPdo();
+    
+    // Vérifier si la table existe
+    $tableExists = false;
+    
+    // Utiliser information_schema pour vérifier l'existence de la table
+    $dbName = $pdo->query("SELECT DATABASE()")->fetchColumn();
+    $tableExistsQuery = "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = ? AND table_name = ?";
+    $stmt = $pdo->prepare($tableExistsQuery);
+    
+    // Vérifier la table
+    $stmt->execute([$dbName, $userTableName]);
+    $tableExists = (int)$stmt->fetchColumn() > 0;
+    
+    // Enregistrer cette requête de chargement
+    try {
+        // Créer la table d'historique si elle n'existe pas
+        $pdo->exec("CREATE TABLE IF NOT EXISTS `sync_history` (
+            `id` INT AUTO_INCREMENT PRIMARY KEY,
+            `table_name` VARCHAR(100) NOT NULL,
+            `user_id` VARCHAR(50) NOT NULL,
+            `device_id` VARCHAR(100) NOT NULL,
+            `record_count` INT NOT NULL,
+            `operation` VARCHAR(50) DEFAULT 'sync',
+            `sync_timestamp` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            INDEX `idx_user_device` (`user_id`, `device_id`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+        
+        // Insérer l'enregistrement de chargement
+        $stmt = $pdo->prepare("INSERT INTO `sync_history` 
+                              (table_name, user_id, device_id, record_count, operation, sync_timestamp) 
+                              VALUES (?, ?, ?, 0, 'load', NOW())");
+        $stmt->execute([$tableName, $userId, $deviceId]);
+    } catch (Exception $e) {
+        // Continuer même si l'enregistrement échoue
+        error_log("Erreur lors de l'enregistrement de l'historique de chargement: " . $e->getMessage());
+    }
+    
+    // Initialiser les résultats
+    $membres = [];
     
     // Simuler des données pour le test
     $mockData = [
@@ -66,241 +120,117 @@ try {
         ]
     ];
     
-    // Essayer de se connecter à la base de données
-    try {
-        $pdo = new PDO("mysql:host={$host};dbname={$dbname};charset=utf8mb4", $username, $password, [
-            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION
-        ]);
+    // Récupérer les données si la table existe
+    if ($tableExists) {
+        // Vérifier si la colonne last_sync_device existe
+        $columnsResult = $pdo->query("SHOW COLUMNS FROM `{$userTableName}` LIKE 'last_sync_device'");
+        $hasLastSyncColumn = $columnsResult->rowCount() > 0;
         
-        error_log("Connexion à la base de données réussie");
-        
-        // Si la connexion à la base de données est réussie, essayer de récupérer les données
-        try {
-            $safeUserId = preg_replace('/[^a-zA-Z0-9_]/', '_', $userId);
-            $tableName = "membres_{$safeUserId}";
-            
-            // Vérifier si la table existe
-            $stmt = $pdo->prepare("SELECT COUNT(*) FROM information_schema.tables 
-                                   WHERE table_schema = ? AND table_name = ?");
-            $stmt->execute([$dbname, $tableName]);
-            $tableExists = (int)$stmt->fetchColumn() > 0;
-            
-            // Vérifier si des synchronisations récentes ont été faites par d'autres appareils
-            $hasRecentSyncs = false;
-            if ($tableExists) {
-                try {
-                    // Vérifier la table d'historique de synchronisation
-                    $syncCheckStmt = $pdo->prepare("SELECT COUNT(*) FROM sync_history 
-                                                  WHERE user_id = ? AND device_id != ? 
-                                                  AND table_name = 'membres'
-                                                  AND sync_timestamp > DATE_SUB(NOW(), INTERVAL 5 MINUTE)");
-                    $syncCheckStmt->execute([$userId, $deviceId]);
-                    $recentSyncs = (int)$syncCheckStmt->fetchColumn();
-                    
-                    if ($recentSyncs > 0) {
-                        error_log("Des synchronisations récentes détectées depuis d'autres appareils: {$recentSyncs}");
-                        $hasRecentSyncs = true;
-                    }
-                } catch (Exception $syncCheckErr) {
-                    error_log("Erreur lors de la vérification des synchronisations récentes: " . $syncCheckErr->getMessage());
-                    // Continuer malgré l'erreur
-                }
-            }
-            
-            if ($tableExists) {
-                // La table existe, récupérer les données
-                error_log("Table {$tableName} existe, récupération des données");
-                
-                // Vérifier si la colonne last_sync_device existe
-                $columnsResult = $pdo->query("SHOW COLUMNS FROM `{$tableName}` LIKE 'last_sync_device'");
-                $hasLastSyncColumn = $columnsResult->rowCount() > 0;
-                
-                if (!$hasLastSyncColumn) {
-                    // Ajouter la colonne si elle n'existe pas
-                    $pdo->exec("ALTER TABLE `{$tableName}` ADD COLUMN `last_sync_device` VARCHAR(100) NULL");
-                    error_log("Colonne last_sync_device ajoutée à {$tableName}");
-                }
-                
-                $stmt = $pdo->prepare("SELECT * FROM `{$tableName}`");
-                $stmt->execute();
-                $membres = $stmt->fetchAll(PDO::FETCH_ASSOC);
-                
-                // Si aucun membre trouvé, utiliser les données de test
-                if (empty($membres)) {
-                    error_log("Aucun membre trouvé dans la table, utilisation des données de test");
-                    $membres = $mockData;
-                } else {
-                    error_log("Nombre de membres récupérés: " . count($membres));
-                    // S'assurer que chaque membre a un userId
-                    foreach ($membres as &$membre) {
-                        if (!isset($membre['userId'])) {
-                            $membre['userId'] = $userId;
-                        }
-                    }
-                }
-                
-                // Vérifier si un enregistrement récent existe déjà dans l'historique pour ce device et cette table
-                // pour éviter les enregistrements multiples au même moment
-                $checkRecentLog = $pdo->prepare("SELECT COUNT(*) FROM `sync_history` 
-                                              WHERE table_name = 'membres' AND user_id = ? 
-                                              AND device_id = ? AND operation = 'load'
-                                              AND sync_timestamp > DATE_SUB(NOW(), INTERVAL 3 SECOND)");
-                $checkRecentLog->execute([$userId, $deviceId]);
-                $recentLogCount = (int)$checkRecentLog->fetchColumn();
-                
-                if ($recentLogCount == 0) {
-                    // Enregistrer ce chargement dans l'historique de synchronisation seulement si aucun récent
-                    try {
-                        // Créer la table si elle n'existe pas
-                        $pdo->exec("CREATE TABLE IF NOT EXISTS `sync_history` (
-                            `id` INT AUTO_INCREMENT PRIMARY KEY,
-                            `table_name` VARCHAR(100) NOT NULL,
-                            `user_id` VARCHAR(50) NOT NULL,
-                            `device_id` VARCHAR(100) NOT NULL,
-                            `record_count` INT NOT NULL,
-                            `sync_timestamp` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                            `operation` VARCHAR(20) NOT NULL DEFAULT 'load',
-                            INDEX `idx_user_device` (`user_id`, `device_id`)
-                        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
-                        
-                        // Insérer dans l'historique
-                        $historyStmt = $pdo->prepare("INSERT INTO `sync_history` 
-                                                    (table_name, user_id, device_id, record_count, operation) 
-                                                    VALUES ('membres', ?, ?, ?, 'load')");
-                        $historyStmt->execute([$userId, $deviceId, count($membres)]);
-                        error_log("Enregistrement d'historique ajouté pour l'opération 'load'");
-                    } catch (Exception $historyErr) {
-                        error_log("Erreur lors de l'enregistrement de l'historique de chargement: " . $historyErr->getMessage());
-                        // Continuer malgré l'erreur
-                    }
-                } else {
-                    error_log("Enregistrement d'historique ignoré - un enregistrement récent existe déjà");
-                }
-                
-            } else {
-                error_log("Table {$tableName} n'existe pas, utilisation des données de test");
-                $membres = $mockData;
-                
-                // Créer la table pour la prochaine utilisation
-                error_log("Création de la table {$tableName}");
-                $pdo->exec("CREATE TABLE IF NOT EXISTS `{$tableName}` (
-                    `id` VARCHAR(36) PRIMARY KEY,
-                    `nom` VARCHAR(100) NOT NULL,
-                    `prenom` VARCHAR(100) NOT NULL,
-                    `email` VARCHAR(255) NULL,
-                    `telephone` VARCHAR(20) NULL,
-                    `fonction` VARCHAR(100) NULL,
-                    `organisation` VARCHAR(255) NULL,
-                    `notes` TEXT NULL,
-                    `initiales` VARCHAR(10) NULL,
-                    `userId` VARCHAR(50) NOT NULL,
-                    `date_creation` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                    `date_modification` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-                    `last_sync_device` VARCHAR(100) NULL
-                )");
-                
-                // Insérer les données de test
-                $stmt = $pdo->prepare("INSERT INTO `{$tableName}` 
-                                      (id, nom, prenom, fonction, initiales, email, telephone, userId, date_creation, last_sync_device) 
-                                      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
-                
-                foreach ($mockData as $membre) {
-                    $stmt->execute([
-                        $membre['id'],
-                        $membre['nom'],
-                        $membre['prenom'],
-                        $membre['fonction'],
-                        $membre['initiales'],
-                        $membre['email'],
-                        $membre['telephone'],
-                        $userId,
-                        $membre['date_creation'],
-                        $deviceId
-                    ]);
-                }
-                
-                // Vérifier si un enregistrement récent existe déjà dans l'historique
-                $checkRecentLog = $pdo->prepare("SELECT COUNT(*) FROM `sync_history` 
-                                               WHERE table_name = 'membres' AND user_id = ? 
-                                               AND device_id = ? AND operation = 'load'
-                                               AND sync_timestamp > DATE_SUB(NOW(), INTERVAL 3 SECOND)");
-                $checkRecentLog->execute([$userId, $deviceId]);
-                $recentLogCount = (int)$checkRecentLog->fetchColumn();
-                
-                if ($recentLogCount == 0) {
-                    // Enregistrer la création de table dans l'historique uniquement si pas d'entrée récente
-                    try {
-                        // Créer la table d'historique si elle n'existe pas
-                        $pdo->exec("CREATE TABLE IF NOT EXISTS `sync_history` (
-                            `id` INT AUTO_INCREMENT PRIMARY KEY,
-                            `table_name` VARCHAR(100) NOT NULL,
-                            `user_id` VARCHAR(50) NOT NULL,
-                            `device_id` VARCHAR(100) NOT NULL,
-                            `record_count` INT NOT NULL,
-                            `sync_timestamp` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                            `operation` VARCHAR(20) NOT NULL DEFAULT 'load',
-                            INDEX `idx_user_device` (`user_id`, `device_id`)
-                        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
-                        
-                        // Insérer dans l'historique
-                        $historyStmt = $pdo->prepare("INSERT INTO `sync_history` 
-                                                    (table_name, user_id, device_id, record_count, operation) 
-                                                    VALUES ('membres', ?, ?, ?, 'load')");
-                        $historyStmt->execute([$userId, $deviceId, count($mockData)]);
-                        error_log("Enregistrement d'historique ajouté pour l'opération 'load' (nouvelle table)");
-                    } catch (Exception $historyErr) {
-                        error_log("Erreur lors de l'enregistrement de l'historique de chargement: " . $historyErr->getMessage());
-                        // Continuer malgré l'erreur
-                    }
-                } else {
-                    error_log("Enregistrement d'historique ignoré - un enregistrement récent existe déjà");
-                }
-            }
-            
-            // Préparer la réponse
-            $response = [
-                'success' => true,
-                'records' => $membres,
-                'hasRecentSyncs' => $hasRecentSyncs,
-                'timestamp' => date('c')
-            ];
-            
-        } catch (PDOException $e) {
-            error_log("Erreur lors de la récupération des données: " . $e->getMessage());
-            // En cas d'erreur, utiliser les données de test
-            $response = [
-                'success' => true,
-                'records' => $mockData,
-                'error' => "Error fetching from database: " . $e->getMessage(),
-                'timestamp' => date('c')
-            ];
+        if (!$hasLastSyncColumn) {
+            // Ajouter la colonne si elle n'existe pas
+            $pdo->exec("ALTER TABLE `{$userTableName}` ADD COLUMN `last_sync_device` VARCHAR(100) NULL");
+            error_log("Colonne last_sync_device ajoutée à {$userTableName}");
         }
-    } catch (PDOException $e) {
-        error_log("Erreur de connexion à la base de données: " . $e->getMessage());
-        // En cas d'échec de connexion, utiliser les données de test
-        $response = [
-            'success' => true,
-            'records' => $mockData,
-            'error' => "Database connection failed: " . $e->getMessage(),
-            'timestamp' => date('c')
-        ];
+        
+        $query = "SELECT * FROM `{$userTableName}` WHERE userId = ? ORDER BY id";
+        error_log("Exécution de la requête: {$query}");
+        $stmt = $pdo->prepare($query);
+        $stmt->execute([$userId]);
+        $membres = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        
+        // Si aucun membre trouvé, utiliser les données de test
+        if (empty($membres)) {
+            error_log("Aucun membre trouvé dans la table, utilisation des données de test");
+            $membres = $mockData;
+        } else {
+            error_log("Membres récupérés: " . count($membres));
+            // Formater les dates pour le client
+            foreach ($membres as &$membre) {
+                // Convertir les dates
+                if (isset($membre['date_creation']) && $membre['date_creation']) {
+                    $membre['date_creation'] = date('Y-m-d\TH:i:s', strtotime($membre['date_creation']));
+                }
+                if (isset($membre['date_modification']) && $membre['date_modification']) {
+                    $membre['date_modification'] = date('Y-m-d\TH:i:s', strtotime($membre['date_modification']));
+                }
+                
+                // S'assurer que chaque membre a un userId
+                if (!isset($membre['userId'])) {
+                    $membre['userId'] = $userId;
+                }
+            }
+        }
+    } else {
+        error_log("Table {$userTableName} n'existe pas, utilisation des données de test");
+        $membres = $mockData;
+        
+        // Créer la table pour la prochaine utilisation
+        error_log("Création de la table {$userTableName}");
+        $pdo->exec("CREATE TABLE IF NOT EXISTS `{$userTableName}` (
+            `id` VARCHAR(36) PRIMARY KEY,
+            `nom` VARCHAR(100) NOT NULL,
+            `prenom` VARCHAR(100) NOT NULL,
+            `email` VARCHAR(255) NULL,
+            `telephone` VARCHAR(20) NULL,
+            `fonction` VARCHAR(100) NULL,
+            `organisation` VARCHAR(255) NULL,
+            `notes` TEXT NULL,
+            `initiales` VARCHAR(10) NULL,
+            `userId` VARCHAR(50) NOT NULL,
+            `mot_de_passe` VARCHAR(255) NULL,
+            `date_creation` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            `date_modification` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            `last_sync_device` VARCHAR(100) NULL
+        )");
+        
+        // Insérer les données de test
+        $stmt = $pdo->prepare("INSERT INTO `{$userTableName}` 
+                             (id, nom, prenom, fonction, initiales, email, telephone, userId, date_creation, last_sync_device) 
+                             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+        
+        foreach ($mockData as $membre) {
+            $stmt->execute([
+                $membre['id'],
+                $membre['nom'],
+                $membre['prenom'],
+                $membre['fonction'],
+                $membre['initiales'],
+                $membre['email'],
+                $membre['telephone'],
+                $userId,
+                $membre['date_creation'],
+                $deviceId
+            ]);
+        }
     }
     
-    http_response_code(200);
-    echo json_encode($response);
-    error_log("Réponse de membres-load.php : " . json_encode($response));
+    echo json_encode([
+        'success' => true,
+        'membres' => $membres,
+        'count' => count($membres),
+        'timestamp' => date('c'),
+        'deviceId' => $deviceId
+    ]);
     
+} catch (PDOException $e) {
+    error_log("Erreur PDO dans {$tableName}-load.php: " . $e->getMessage());
+    http_response_code(500);
+    echo json_encode([
+        'success' => false,
+        'message' => 'Erreur de base de données: ' . $e->getMessage()
+    ]);
 } catch (Exception $e) {
-    error_log("Exception dans membres-load.php: " . $e->getMessage());
+    error_log("Exception dans {$tableName}-load.php: " . $e->getMessage());
     http_response_code(400);
-    $errorResponse = [
+    echo json_encode([
         'success' => false,
         'message' => $e->getMessage()
-    ];
-    echo json_encode($errorResponse);
-    error_log("Réponse d'erreur: " . json_encode($errorResponse));
+    ]);
 } finally {
-    error_log("=== FIN DE L'EXÉCUTION DE membres-load.php ===");
+    if (isset($service)) {
+        $service->finalize();
+    }
+    
+    error_log("=== FIN DE L'EXÉCUTION DE {$tableName}-load.php ===");
     if (ob_get_level()) ob_end_flush();
 }
-?>
