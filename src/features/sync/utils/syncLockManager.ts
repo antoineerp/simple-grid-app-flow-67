@@ -18,3 +18,7 @@ export const checkSyncLock = async (userId: string, operation: string): Promise<
   console.log("Fonctionnalité de verrouillage désactivée");
   return false;
 };
+
+// Ajout des alias pour la compatibilité avec syncOperations.ts
+export const acquireLock = acquireSyncLock;
+export const releaseLock = releaseSyncLock;
