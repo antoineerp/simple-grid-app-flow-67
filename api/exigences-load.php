@@ -5,11 +5,14 @@ ob_start();
 
 // Initialiser la gestion de synchronisation
 require_once 'services/DataSyncService.php';
+require_once 'services/RequestHandler.php';
 
 // Créer le service de synchronisation
 $service = new DataSyncService('exigences');
-$service->setStandardHeaders("GET, OPTIONS");
-$service->handleOptionsRequest();
+
+// Définir les en-têtes standard
+RequestHandler::setStandardHeaders("GET, OPTIONS");
+RequestHandler::handleOptionsRequest();
 
 // Vérifier la méthode
 if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
@@ -26,7 +29,7 @@ try {
     $userId = "";
     
     if (isset($_GET['userId']) && !empty($_GET['userId'])) {
-        $userId = $service->sanitizeUserId($_GET['userId']);
+        $userId = RequestHandler::sanitizeUserId($_GET['userId']);
     } else {
         error_log("UserId manquant dans la requête");
         throw new Exception("UserId manquant");

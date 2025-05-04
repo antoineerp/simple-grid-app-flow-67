@@ -1,87 +1,103 @@
-import { useState, useCallback, useEffect } from 'react';
-import { SyncResult } from '@/services/sync/SyncService';
-import { useToast } from '@/components/ui/use-toast';
-import { useNetworkStatus } from '@/hooks/useNetworkStatus';
-import { useSyncContext } from '@/features/sync/hooks/useSyncContext';
-import { SyncState } from '@/features/sync/types/syncTypes';
 
-/**
- * Hook pour gérer la synchronisation de données avec le serveur
- */
-export const useSync = (tableName: string): SyncState & {
-  syncAndProcess: <T>(data: T[], trigger?: "auto" | "manual" | "initial") => Promise<SyncResult>;
-  resetSyncStatus: () => void;
-  isOnline: boolean; // Add isOnline to the return type
-} => {
+import { useState, useCallback, useEffect } from 'react';
+import { useSyncContext } from '@/contexts/SyncContext';
+import { toast } from '@/components/ui/use-toast';
+
+export function useSync(tableName: string) {
+  const syncContext = useSyncContext();
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [syncFailed, setSyncFailed] = useState(false);
   const [lastSynced, setLastSynced] = useState<Date | null>(null);
-  const { isOnline } = useNetworkStatus();
-  const { syncTable, syncStates } = useSyncContext();
-  const { toast } = useToast();
   
-  // Obtenir l'état de synchronisation à partir du contexte global
-  const syncState = syncStates[tableName] || { 
-    isSyncing: false, 
-    lastSynced: null, 
-    syncFailed: false,
-    pendingSync: false,
-    dataChanged: false
-  };
-  
-  // Extraire les états
-  const isSyncing = syncState.isSyncing;
-  const syncFailed = syncState.syncFailed;
-  const pendingSync = syncState.pendingSync;
-  
-  // Mise à jour de l'état de synchronisation local à partir du contexte global
   useEffect(() => {
-    if (syncState.lastSynced && (!lastSynced || new Date(syncState.lastSynced) > lastSynced)) {
-      setLastSynced(new Date(syncState.lastSynced));
+    // Initialiser avec les données du contexte
+    if (syncContext.isInitialized()) {
+      setLastSynced(syncContext.getLastSynced(tableName));
+      const error = syncContext.getSyncError(tableName);
+      setSyncFailed(!!error);
     }
-  }, [syncState, lastSynced]);
-  
-  // Fonction pour synchroniser les données et gérer les erreurs
-  const syncAndProcess = useCallback(async <T>(
+  }, [syncContext, tableName]);
+
+  const syncAndProcess = useCallback(async <T extends {}>(
     data: T[],
-    trigger: "auto" | "manual" | "initial" = "auto"
-  ): Promise<SyncResult> => {
-    // Utiliser le service central pour la synchronisation
+    trigger: "auto" | "manual" | "initial" = "manual"
+  ) => {
+    setIsSyncing(true);
+    setSyncFailed(false);
+    
     try {
-      const result = await syncTable(tableName, data, trigger);
+      // Synchroniser les données
+      const success = await syncContext.syncData<T>(tableName, data);
       
-      if (result.success) {
-        return {
-          success: true,
-          message: `${tableName} synchronisé avec succès`
-        };
+      if (success) {
+        const newLastSynced = syncContext.getLastSynced(tableName);
+        setLastSynced(newLastSynced);
+        
+        if (trigger === "manual") {
+          toast({
+            title: "Synchronisation réussie",
+            description: `Données ${tableName} synchronisées avec succès.`
+          });
+        }
+        
+        return { success: true, timestamp: newLastSynced };
       } else {
-        return {
-          success: false,
-          message: result.message
-        };
+        setSyncFailed(true);
+        
+        if (trigger === "manual") {
+          toast({
+            title: "Échec de la synchronisation",
+            description: syncContext.getSyncError(tableName) || "Une erreur s'est produite",
+            variant: "destructive"
+          });
+        }
+        
+        return { success: false, error: syncContext.getSyncError(tableName) };
       }
     } catch (error) {
-      console.error(`useSync: Erreur lors de la synchronisation de ${tableName}:`, error);
+      setSyncFailed(true);
+      
+      if (trigger === "manual") {
+        toast({
+          title: "Erreur de synchronisation",
+          description: error instanceof Error ? error.message : "Une erreur s'est produite",
+          variant: "destructive"
+        });
+      }
+      
       return {
         success: false,
-        message: error instanceof Error ? error.message : String(error)
+        error: error instanceof Error ? error.message : "Une erreur s'est produite"
       };
+    } finally {
+      setIsSyncing(false);
     }
-  }, [tableName, syncTable]);
-  
-  // Réinitialiser l'état de synchronisation (compatibilité)
-  const resetSyncStatus = useCallback(() => {
-    // Cette fonction est conservée pour la compatibilité
-    console.log(`useSync: resetSyncStatus appelé pour ${tableName} (no-op)`);
-  }, [tableName]);
-  
+  }, [syncContext, tableName]);
+
+  const loadData = useCallback(async <T extends {}>(): Promise<T[]> => {
+    setIsSyncing(true);
+    setSyncFailed(false);
+    
+    try {
+      const result = await syncContext.loadData<T>(tableName);
+      const newLastSynced = syncContext.getLastSynced(tableName);
+      setLastSynced(newLastSynced);
+      return result;
+    } catch (error) {
+      setSyncFailed(true);
+      throw error;
+    } finally {
+      setIsSyncing(false);
+    }
+  }, [syncContext, tableName]);
+
   return {
+    syncAndProcess,
+    loadData,
     isSyncing,
+    isOnline: syncContext.isOnline,
     lastSynced,
     syncFailed,
-    pendingSync,
-    dataChanged: syncState.dataChanged || false,
-    syncAndProcess,
-    resetSyncStatus,
-    isOnline  // Include isOnline in the return object
+    syncError: syncContext.getSyncError(tableName)
   };
-};
+}
