@@ -14,6 +14,7 @@ export const useAuth = () => {
         setUser(currentUser);
       } catch (error) {
         console.error("Error loading user:", error);
+        setUser(null); // S'assurer que l'utilisateur est null en cas d'erreur
       } finally {
         setIsLoading(false);
       }

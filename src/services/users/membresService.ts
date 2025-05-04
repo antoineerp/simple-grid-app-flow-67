@@ -45,10 +45,17 @@ export const getMembres = async (forceRefresh: boolean = false): Promise<Membre[
     const token = localStorage.getItem('authToken') || sessionStorage.getItem('authToken');
     if (!token) {
       console.error("Tentative de récupération des membres sans authentification");
-      return getLocalMembres() || [];
+      const localData = getLocalMembres();
+      return localData && Array.isArray(localData) ? localData : [];
     }
 
     const API_URL = getApiUrl();
+    if (!API_URL) {
+      console.error("URL de l'API non configurée");
+      const localData = getLocalMembres();
+      return localData && Array.isArray(localData) ? localData : [];
+    }
+
     console.log(`Chargement des membres pour l'utilisateur: ${userId}`);
 
     // Génération d'un timestamp pour éviter le cache du navigateur
@@ -117,14 +124,19 @@ export const getMembres = async (forceRefresh: boolean = false): Promise<Membre[
     console.error("Erreur lors de la récupération des membres:", error);
     
     // Essayer de récupérer depuis le stockage local avec le nouveau système
-    const localMembres = loadLocalData<Membre>('membres', userId);
-    if (localMembres && localMembres.length > 0) {
-      console.log("Utilisation des membres du stockage local unifié:", localMembres.length);
-      return localMembres;
+    try {
+      const localMembres = loadLocalData<Membre>('membres', userId);
+      if (localMembres && Array.isArray(localMembres) && localMembres.length > 0) {
+        console.log("Utilisation des membres du stockage local unifié:", localMembres.length);
+        return localMembres;
+      }
+    } catch (localError) {
+      console.error("Erreur lors du chargement des données locales unifiées:", localError);
     }
     
     // Si rien dans le système unifié, essayer l'ancien système
-    return getLocalMembres() || [];
+    const oldLocalData = getLocalMembres();
+    return oldLocalData && Array.isArray(oldLocalData) ? oldLocalData : [];
   }
 };
 
@@ -135,18 +147,23 @@ export const getMembres = async (forceRefresh: boolean = false): Promise<Membre[
 const getLocalMembres = (): Membre[] | null => {
   try {
     const userId = getCurrentUserId();
+    if (!userId) {
+      console.warn("Aucun ID utilisateur disponible pour charger les données locales");
+      return [];
+    }
+    
     const localData = localStorage.getItem(`membres_${userId}`);
     
     if (localData) {
       const parsedData = JSON.parse(localData);
       console.log("Utilisation des données locales pour les membres (ancien système)");
-      return parsedData;
+      return Array.isArray(parsedData) ? parsedData : [];
     }
   } catch (localError) {
     console.error("Erreur lors de la lecture des données locales des membres:", localError);
   }
   
-  return null;
+  return [];
 };
 
 /**
@@ -154,32 +171,68 @@ const getLocalMembres = (): Membre[] | null => {
  */
 export const syncMembres = async (membres?: Membre[]): Promise<boolean> => {
   try {
+    // Valider l'entrée
+    if (membres !== undefined && !Array.isArray(membres)) {
+      console.error("syncMembres: L'argument membres n'est pas un tableau valide", typeof membres);
+      return false;
+    }
+    
     const token = localStorage.getItem('authToken') || sessionStorage.getItem('authToken');
     if (!token) {
+      console.error("Utilisateur non authentifié pour la synchronisation des membres");
       throw new Error("Utilisateur non authentifié");
     }
 
     const API_URL = getApiUrl();
+    if (!API_URL) {
+      console.error("URL de l'API non configurée pour la synchronisation des membres");
+      return false;
+    }
+    
     const userId = getCurrentUserId();
+    if (!userId) {
+      console.error("ID utilisateur non disponible pour la synchronisation");
+      return false;
+    }
+    
     const deviceId = localStorage.getItem('deviceId') || 'unknown';
 
     // Si aucune liste de membres n'est fournie, utiliser les données du cache ou le stockage local
-    const membresToSync = membres || membresCache || loadLocalData<Membre>('membres', userId) || [];
+    let membresToSync: Membre[] = [];
     
-    // Vérifier que membresToSync est un tableau et non undefined
-    if (!Array.isArray(membresToSync)) {
-      console.error("syncMembres: La liste des membres n'est pas un tableau valide");
-      return false;
+    if (Array.isArray(membres) && membres.length > 0) {
+      membresToSync = membres;
+    } else if (membresCache && Array.isArray(membresCache)) {
+      membresToSync = membresCache;
+    } else {
+      try {
+        const localData = loadLocalData<Membre>('membres', userId);
+        if (Array.isArray(localData) && localData.length > 0) {
+          membresToSync = localData;
+        } else {
+          // Dernier recours: ancien système de stockage
+          const oldData = getLocalMembres();
+          if (Array.isArray(oldData) && oldData.length > 0) {
+            membresToSync = oldData;
+          } else {
+            // Initialiser un tableau vide si toutes les autres options échouent
+            membresToSync = [];
+          }
+        }
+      } catch (e) {
+        console.error("Erreur lors du chargement des données locales pour la synchronisation:", e);
+        membresToSync = [];
+      }
     }
-
+    
+    console.log(`Synchronisation de ${membresToSync.length} membres pour l'utilisateur ${userId}`);
+    
     // Assurer que chaque membre a un userId
     const membresWithUserId = membresToSync.map(membre => ({
       ...membre,
       userId: membre.userId || userId
     }));
 
-    console.log(`Synchronisation de ${membresWithUserId.length} membres pour l'utilisateur ${userId}`);
-    
     const response = await fetch(`${API_URL}/membres-sync.php`, {
       method: 'POST',
       headers: {

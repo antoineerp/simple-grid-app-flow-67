@@ -40,10 +40,14 @@ export const MembresProvider: React.FC<{children: ReactNode}> = ({ children }) =
     setError(null);
     
     try {
+      // S'assurer que membres est toujours un tableau valide, même si vide
+      const membresToSync = Array.isArray(membres) ? [...membres] : [];
+      
       // Synchroniser les données avec le serveur
       if (isOnline) {
         console.log("MembresContext: Synchronisation des membres depuis le serveur");
-        await syncMembres([...membres]); // Passer une copie des membres actuels pour éviter les problèmes de référence
+        console.log("MembresContext: État des membres avant synchronisation:", membresToSync);
+        await syncMembres(membresToSync);
         setLastSynced(new Date());
         setSyncFailed(false);
       } else {
@@ -53,7 +57,15 @@ export const MembresProvider: React.FC<{children: ReactNode}> = ({ children }) =
       // Charger les données (potentiellement depuis la base locale)
       console.log("MembresContext: Chargement des membres");
       const membresData = await getMembres();
-      setMembres(membresData);
+      
+      // S'assurer que membresData est toujours un tableau
+      if (Array.isArray(membresData)) {
+        setMembres(membresData);
+        console.log("MembresContext: Membres chargés avec succès:", membresData.length);
+      } else {
+        console.error("MembresContext: Les données des membres ne sont pas un tableau valide");
+        setMembres([]);
+      }
     } catch (err) {
       console.error("MembresContext: Erreur lors du chargement des membres", err);
       setSyncFailed(true);
