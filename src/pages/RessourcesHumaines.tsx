@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { Card } from "@/components/ui/card";
 import { MembresTable } from '@/components/ressources/MembresTable';
@@ -35,7 +34,7 @@ const RessourcesHumaines: React.FC = () => {
         }
       };
 
-      // Enregistrer la fonction de synchronisation
+      // Enregistrer la fonction de synchronisation - MODIFIÉ: suppression des arguments
       syncContext.registerSyncFunction('membres', syncMembresFunction);
       console.log("RessourcesHumaines: Fonction de synchronisation des membres enregistrée");
       
@@ -53,6 +52,7 @@ const RessourcesHumaines: React.FC = () => {
     // Nettoyage au démontage
     return () => {
       if (syncContext.isInitialized()) {
+        // MODIFIÉ: suppression de l'argument
         syncContext.unregisterSyncFunction('membres');
         console.log("RessourcesHumaines: Fonction de synchronisation des membres désenregistrée");
       }
