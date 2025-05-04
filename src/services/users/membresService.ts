@@ -4,6 +4,7 @@ import { getApiUrl } from '@/config/apiConfig';
 import { getAuthHeaders } from '../auth/authService';
 import { saveLocalData, loadLocalData } from '@/features/sync/utils/syncStorageManager';
 import { getCurrentUserId } from '@/services/core/userService';
+import { validateJsonResponse, extractValidJson } from '@/utils/jsonValidator';
 
 // Cache pour les membres
 let membresCache: Membre[] | null = null;
@@ -79,8 +80,29 @@ export const getMembres = async (forceRefresh: boolean = false): Promise<Membre[
       throw new Error(`Erreur HTTP: ${response.status} - ${response.statusText}`);
     }
 
-    const data = await response.json();
-    console.log("Réponse brute de membres-load.php:", data);
+    const responseText = await response.text();
+    console.log("Réponse brute de membres-load.php:", responseText.substring(0, 200));
+    
+    // Utiliser notre utilitaire pour valider et analyser la réponse JSON
+    const { isValid, data, error } = validateJsonResponse(responseText);
+    
+    if (!isValid) {
+      console.error("Réponse invalide du serveur:", error);
+      console.error("Aperçu de la réponse:", responseText.substring(0, 500));
+      
+      // Tenter d'extraire une partie JSON valide
+      const { extracted, data: extractedData } = extractValidJson(responseText);
+      if (extracted && extractedData) {
+        console.log("JSON extrait avec succès de la réponse corrompue");
+        membresCache = Array.isArray(extractedData) ? extractedData : 
+                     (extractedData.records && Array.isArray(extractedData.records) ? extractedData.records : []);
+        lastFetchTimestamp = Date.now();
+        saveLocalData('membres', membresCache, userId);
+        return membresCache;
+      }
+      
+      throw new Error(`Réponse invalide du serveur: ${error}`);
+    }
     
     // Si les données sont vides, retourner un tableau vide
     if (!data) {
@@ -237,7 +259,8 @@ export const syncMembres = async (membres?: Membre[]): Promise<boolean> => {
       method: 'POST',
       headers: {
         ...getAuthHeaders(),
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'  // Spécifier que nous attendons du JSON
       },
       body: JSON.stringify({
         userId,
@@ -246,13 +269,54 @@ export const syncMembres = async (membres?: Membre[]): Promise<boolean> => {
       })
     });
 
+    // Si la réponse n'est pas OK, obtenir le texte d'erreur
     if (!response.ok) {
       const errorText = await response.text();
       console.error(`Erreur HTTP ${response.status}: ${errorText}`);
+      
+      // Vérifier si l'erreur contient du HTML (ce qui pourrait indiquer un problème côté serveur)
+      if (errorText.indexOf('<') !== -1) {
+        console.error("La réponse contient du HTML au lieu de JSON:", errorText.substring(0, 200));
+        throw new Error(`Le serveur a renvoyé une page HTML au lieu de JSON (statut: ${response.status})`);
+      }
+      
       throw new Error(`Erreur HTTP: ${response.status} - ${response.statusText}`);
     }
 
-    const result = await response.json();
+    // Récupérer le texte brut pour pouvoir le diagnostiquer
+    const responseText = await response.text();
+    console.log("Réponse brute de membres-sync.php:", responseText.substring(0, 200));
+    
+    // Utiliser notre utilitaire pour valider et analyser la réponse JSON
+    const { isValid, data: result, error } = validateJsonResponse(responseText);
+    
+    if (!isValid) {
+      console.error("Réponse invalide du serveur lors de la synchronisation:", error);
+      console.error("Aperçu de la réponse:", responseText.substring(0, 500));
+      
+      // Tenter d'extraire une partie JSON valide
+      const { extracted, data: extractedData } = extractValidJson(responseText);
+      if (extracted && extractedData && extractedData.success) {
+        console.log("JSON extrait avec succès de la réponse corrompue");
+        
+        // Mettre à jour le cache
+        membresCache = membresWithUserId;
+        lastFetchTimestamp = Date.now();
+        
+        // Sauvegarde locale avec le système unifié
+        saveLocalData('membres', membresWithUserId, userId);
+        
+        // Enregistrer l'horodatage de la dernière synchronisation
+        localStorage.setItem(`lastServerSync_membres_${userId}`, Date.now().toString());
+        
+        // Notifier le succès de la synchronisation - important pour la cohérence cross-device
+        dispatchSyncEvent('membres', 'sync', true);
+        
+        return true;
+      }
+      
+      throw new Error(`Réponse invalide du serveur: ${error}`);
+    }
     
     if (result.success) {
       // Mise à jour du cache
