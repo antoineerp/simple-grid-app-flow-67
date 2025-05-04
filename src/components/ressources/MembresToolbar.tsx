@@ -1,10 +1,10 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
-import { Loader2, RefreshCw, Trash, List, AlertCircle } from 'lucide-react';
+import { Loader2, RefreshCw, Trash, List, AlertCircle, Database } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { fr } from 'date-fns/locale';
-import { cleanCorruptedIdData, standardizeIds } from '@/utils/idStandardizer';
+import { cleanCorruptedIdData, standardizeIds, checkSyncConsistency } from '@/utils/idStandardizer';
 import { getCurrentUserId } from '@/services/core/userService';
 import { cleanupSyncHistory } from '@/features/sync/utils/syncOperations';
 import { toast } from '@/components/ui/use-toast';
@@ -22,6 +22,8 @@ const MembresToolbar: React.FC<MembresToolbarProps> = ({
   isLoading, 
   error 
 }) => {
+  const [isChecking, setIsChecking] = useState<boolean>(false);
+  
   // Afficher la date de dernière synchronisation sous forme relative
   const lastSyncText = lastSynced ? 
     `Dernière synchronisation ${formatDistanceToNow(lastSynced, { addSuffix: true, locale: fr })}` : 
@@ -32,27 +34,14 @@ const MembresToolbar: React.FC<MembresToolbarProps> = ({
   
   // Déclencher un nettoyage complet des données et standardisation des IDs
   const handleCleanup = async () => {
-    // Nettoyer d'abord les données locales corrompues
-    const cleaned = cleanCorruptedIdData();
-    
-    // Nettoyer les doublons de l'historique de synchronisation
-    try {
-      const cleanupResult = await cleanupSyncHistory();
-      
-      if (cleanupResult.success) {
-        toast({
-          title: "Nettoyage de l'historique",
-          description: cleanupResult.message
-        });
-      }
-    } catch (error) {
-      console.error("Erreur lors du nettoyage de l'historique:", error);
-    }
+    // Nettoyer d'abord les données locales corrompues et l'historique de synchronisation
+    await cleanCorruptedIdData();
     
     // Standardiser les IDs
     try {
       const userId = getCurrentUserId();
       if (userId) {
+        // Standardiser tous les IDs dans toutes les tables
         await standardizeIds(userId);
       } else {
         toast({
@@ -66,8 +55,47 @@ const MembresToolbar: React.FC<MembresToolbarProps> = ({
     }
     
     // Si nécessaire, forcer un rechargement après le nettoyage
-    if (cleaned || hasError) {
+    if (hasError) {
       onSync();
+    }
+  };
+
+  // Vérifier la cohérence de synchronisation
+  const handleCheckConsistency = async () => {
+    setIsChecking(true);
+    try {
+      const userId = getCurrentUserId();
+      if (userId) {
+        const result = await checkSyncConsistency(userId);
+        
+        if (result.success) {
+          toast({
+            title: "Vérification terminée",
+            description: result.message,
+          });
+        } else {
+          toast({
+            title: "Problème détecté",
+            description: result.message,
+            variant: "destructive"
+          });
+        }
+      } else {
+        toast({
+          title: "Erreur",
+          description: "ID utilisateur non disponible",
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      console.error("Erreur lors de la vérification de la cohérence:", error);
+      toast({
+        title: "Erreur",
+        description: error instanceof Error ? error.message : "Une erreur s'est produite",
+        variant: "destructive"
+      });
+    } finally {
+      setIsChecking(false);
     }
   };
 
@@ -97,6 +125,16 @@ const MembresToolbar: React.FC<MembresToolbarProps> = ({
         >
           <Trash className="h-4 w-4 mr-1" />
           <span>Nettoyer</span>
+        </Button>
+        
+        <Button 
+          variant="ghost" 
+          size="sm"
+          onClick={handleCheckConsistency}
+          disabled={isChecking}
+        >
+          <Database className="h-4 w-4 mr-1" />
+          <span>{isChecking ? 'Vérification...' : 'Vérifier'}</span>
         </Button>
         
         <Button 

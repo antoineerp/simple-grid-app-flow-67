@@ -1,4 +1,3 @@
-
 <?php
 // Enable strict error reporting but don't display errors in response
 error_reporting(E_ALL);
@@ -32,8 +31,11 @@ if ($action === 'update_sync_history') {
     // Nettoyer les entrées dupliquées de l'historique de synchronisation
     handleSyncHistoryCleanup();
 } elseif ($action === 'standardize_ids') {
-    // Standardiser les IDs pour les membres existants
+    // Modifier la fonction pour prendre en compte le paramètre tableName
     handleStandardizeIds();
+} elseif ($action === 'check_sync_consistency') {
+    // Nouvelle action pour vérifier la cohérence entre les tables
+    handleCheckSyncConsistency();
 } else {
     // Default action: return basic system info
     
@@ -227,13 +229,14 @@ function handleSyncHistoryCleanup() {
 }
 
 /**
- * Standardise les IDs des membres existants pour un utilisateur spécifique
- * Convertit tous les IDs numériques ou non-UUID en UUIDs valides
+ * Standardise les IDs existants pour un utilisateur spécifique
+ * Cette fonction est modifiée pour accepter un nom de table spécifique
  */
 function handleStandardizeIds() {
     try {
         // Récupérer le ID utilisateur cible
         $userId = isset($_GET['userId']) ? $_GET['userId'] : null;
+        $tableName = isset($_GET['tableName']) ? $_GET['tableName'] : null;
         
         if (!$userId) {
             throw new Exception("ID utilisateur non fourni");
@@ -247,18 +250,10 @@ function handleStandardizeIds() {
         
         $database = new Database();
         $conn = $database->getConnection();
-        $service = new DataSyncService('membres');
+        $service = new DataSyncService('membres'); // On utilise membres juste pour accéder aux méthodes
         
         if (!$conn) {
             throw new Exception("Impossible de se connecter à la base de données");
-        }
-        
-        // Vérifier si la table existe
-        $tableName = "membres_{$safeUserId}";
-        $checkTable = $conn->query("SHOW TABLES LIKE '{$tableName}'");
-        
-        if ($checkTable->rowCount() === 0) {
-            throw new Exception("La table {$tableName} n'existe pas");
         }
         
         // Créer la table de mappage d'IDs si elle n'existe pas
@@ -276,41 +271,33 @@ function handleStandardizeIds() {
         $conn->beginTransaction();
         
         try {
-            // 1. Récupérer tous les membres avec IDs non-UUID
-            $stmt = $conn->prepare("SELECT * FROM `{$tableName}`");
-            $stmt->execute();
-            $records = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            $totalProcessed = 0;
+            $totalConverted = 0;
+            $tablesProcessed = 0;
             
-            $totalRecords = count($records);
-            $convertedRecords = 0;
-            
-            foreach ($records as $record) {
-                $id = $record['id'];
-                
-                // Vérifier si l'ID est déjà un UUID valide (format 8-4-4-4-12)
-                if (!preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i', $id)) {
-                    // Générer un nouvel UUID
-                    $newId = $service->generateUuid();
-                    
-                    // Enregistrer le mappage de l'ancien au nouvel ID
-                    $mapStmt = $conn->prepare("INSERT IGNORE INTO `id_mapping` 
-                                            (original_id, uuid_id, table_name, user_id) 
-                                            VALUES (?, ?, 'membres', ?)");
-                    $mapStmt->execute([$id, $newId, $safeUserId]);
-                    
-                    // Mettre à jour l'ID du membre
-                    $updateStmt = $conn->prepare("UPDATE `{$tableName}` SET `id` = ? WHERE `id` = ?");
-                    if ($updateStmt->execute([$newId, $id])) {
-                        $convertedRecords++;
-                    }
+            // Si un nom de table spécifique est fourni, ne traiter que cette table
+            if ($tableName) {
+                $tableFullName = "{$tableName}_{$safeUserId}";
+                $result = processTableForStandardization($conn, $service, $tableFullName, $safeUserId, $tableName);
+                $totalProcessed += $result['totalRecords'];
+                $totalConverted += $result['convertedRecords'];
+                $tablesProcessed = 1;
+            } else {
+                // Sinon, récupérer toutes les tables de l'utilisateur
+                $tables = [];
+                $tableQuery = $conn->query("SHOW TABLES LIKE '%\_$safeUserId'");
+                while ($row = $tableQuery->fetch(PDO::FETCH_NUM)) {
+                    $tables[] = $row[0];
                 }
-            }
-            
-            // Vérifier la colonne mot_de_passe, l'ajouter si elle n'existe pas
-            $pwdColumnsResult = $conn->query("SHOW COLUMNS FROM `{$tableName}` LIKE 'mot_de_passe'");
-            if ($pwdColumnsResult->rowCount() === 0) {
-                // Ajouter la colonne mot_de_passe
-                $conn->exec("ALTER TABLE `{$tableName}` ADD COLUMN `mot_de_passe` VARCHAR(255) NULL");
+                
+                foreach ($tables as $table) {
+                    // Extraire le nom de base de la table (sans le suffixe utilisateur)
+                    $baseTableName = preg_replace("/_$safeUserId$/", '', $table);
+                    $result = processTableForStandardization($conn, $service, $table, $safeUserId, $baseTableName);
+                    $totalProcessed += $result['totalRecords'];
+                    $totalConverted += $result['convertedRecords'];
+                    $tablesProcessed++;
+                }
             }
             
             // Valider la transaction
@@ -318,15 +305,213 @@ function handleStandardizeIds() {
             
             echo json_encode([
                 'status' => 'success',
-                'message' => "Standardisation des IDs terminée. {$convertedRecords}/{$totalRecords} IDs convertis en UUIDs.",
-                'total' => $totalRecords,
-                'converted' => $convertedRecords,
-                'table' => $tableName
+                'message' => $tableName 
+                    ? "Standardisation des IDs terminée pour $tableName."
+                    : "Standardisation des IDs terminée pour toutes les tables.",
+                'totalProcessed' => $totalProcessed,
+                'totalConverted' => $totalConverted,
+                'tablesProcessed' => $tablesProcessed,
+                'tableName' => $tableName
             ]);
         } catch (Exception $e) {
             $conn->rollBack();
             throw new Exception("Erreur lors de la standardisation des IDs: " . $e->getMessage());
         }
+    } catch (Exception $e) {
+        http_response_code(500);
+        echo json_encode([
+            'status' => 'error',
+            'message' => $e->getMessage()
+        ]);
+    }
+}
+
+/**
+ * Traite une table pour la standardisation des IDs
+ */
+function processTableForStandardization($conn, $service, $tableName, $userId, $baseTableName) {
+    // Vérifier si la table existe
+    $checkTable = $conn->query("SHOW TABLES LIKE '{$tableName}'");
+    if ($checkTable->rowCount() === 0) {
+        return ['totalRecords' => 0, 'convertedRecords' => 0];
+    }
+    
+    // Récupérer tous les enregistrements
+    $stmt = $conn->prepare("SELECT * FROM `{$tableName}`");
+    $stmt->execute();
+    $records = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    
+    $totalRecords = count($records);
+    $convertedRecords = 0;
+    
+    // Vérifier si la colonne ID existe
+    $columnsResult = $conn->query("SHOW COLUMNS FROM `{$tableName}` LIKE 'id'");
+    if ($columnsResult->rowCount() === 0) {
+        return ['totalRecords' => $totalRecords, 'convertedRecords' => 0];
+    }
+    
+    foreach ($records as $record) {
+        if (!isset($record['id'])) continue;
+        
+        $id = $record['id'];
+        
+        // Vérifier si l'ID est déjà un UUID valide (format 8-4-4-4-12)
+        if (!preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i', $id)) {
+            // Générer un nouvel UUID
+            $newId = $service->generateUuid();
+            
+            // Enregistrer le mappage de l'ancien au nouvel ID
+            $mapStmt = $conn->prepare("INSERT IGNORE INTO `id_mapping` 
+                                    (original_id, uuid_id, table_name, user_id) 
+                                    VALUES (?, ?, ?, ?)");
+            $mapStmt->execute([$id, $newId, $baseTableName, $userId]);
+            
+            // Mettre à jour l'ID
+            $updateStmt = $conn->prepare("UPDATE `{$tableName}` SET `id` = ? WHERE `id` = ?");
+            if ($updateStmt->execute([$newId, $id])) {
+                $convertedRecords++;
+            }
+        }
+    }
+    
+    return ['totalRecords' => $totalRecords, 'convertedRecords' => $convertedRecords];
+}
+
+/**
+ * Vérifie la cohérence de synchronisation entre les tables
+ */
+function handleCheckSyncConsistency() {
+    try {
+        // Récupérer le ID utilisateur cible
+        $userId = isset($_GET['userId']) ? $_GET['userId'] : null;
+        
+        if (!$userId) {
+            throw new Exception("ID utilisateur non fourni");
+        }
+        
+        // Assainir l'ID utilisateur
+        $safeUserId = preg_replace('/[^a-zA-Z0-9_]/', '_', $userId);
+        
+        require_once 'config/database.php';
+        $database = new Database();
+        $conn = $database->getConnection();
+        
+        if (!$conn) {
+            throw new Exception("Impossible de se connecter à la base de données");
+        }
+        
+        // Récupérer toutes les tables de l'utilisateur
+        $tables = [];
+        $tableQuery = $conn->query("SHOW TABLES LIKE '%\_$safeUserId'");
+        while ($row = $tableQuery->fetch(PDO::FETCH_NUM)) {
+            $tables[] = $row[0];
+        }
+        
+        if (count($tables) === 0) {
+            echo json_encode([
+                'status' => 'warning',
+                'message' => "Aucune table trouvée pour l'utilisateur $safeUserId"
+            ]);
+            return;
+        }
+        
+        // Vérifier les statistiques de synchronisation
+        $syncStats = [];
+        $incohérences = [];
+        
+        // Récupérer les dernières synchronisations par table
+        $stmt = $conn->prepare("SELECT 
+                                    table_name, 
+                                    MAX(sync_timestamp) as last_sync, 
+                                    COUNT(*) as sync_count,
+                                    GROUP_CONCAT(DISTINCT operation) as operations
+                                FROM sync_history 
+                                WHERE user_id = ? 
+                                GROUP BY table_name");
+        $stmt->execute([$safeUserId]);
+        $tableSyncs = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        
+        // Analyser les résultats
+        $lastSyncTimes = [];
+        foreach ($tableSyncs as $sync) {
+            $tableName = $sync['table_name'];
+            $lastSync = $sync['last_sync'];
+            $syncCount = $sync['sync_count'];
+            $operations = explode(',', $sync['operations']);
+            
+            $lastSyncTimes[$tableName] = $lastSync;
+            
+            $syncStats[$tableName] = [
+                'last_sync' => $lastSync,
+                'sync_count' => $syncCount,
+                'operations' => $operations
+            ];
+            
+            // Vérifier les opérations manquantes
+            if (!in_array('sync', $operations)) {
+                $incohérences[] = "La table '$tableName' n'a jamais été synchronisée (opération 'sync' manquante)";
+            }
+            if (!in_array('load', $operations)) {
+                $incohérences[] = "La table '$tableName' n'a jamais été chargée (opération 'load' manquante)";
+            }
+        }
+        
+        // Vérifier les écarts de temps entre les dernières synchronisations
+        $maxDiffMinutes = 0;
+        $tablesWithMaxDiff = ['table1' => '', 'table2' => ''];
+        
+        foreach ($lastSyncTimes as $table1 => $time1) {
+            foreach ($lastSyncTimes as $table2 => $time2) {
+                if ($table1 != $table2) {
+                    $t1 = strtotime($time1);
+                    $t2 = strtotime($time2);
+                    $diffMinutes = abs($t1 - $t2) / 60;
+                    
+                    if ($diffMinutes > $maxDiffMinutes) {
+                        $maxDiffMinutes = $diffMinutes;
+                        $tablesWithMaxDiff['table1'] = $table1;
+                        $tablesWithMaxDiff['table2'] = $table2;
+                    }
+                }
+            }
+        }
+        
+        // Vérifier les identifiants non standardisés
+        $nonStandardIds = [];
+        foreach ($tables as $table) {
+            $idStmt = $conn->prepare("SELECT id FROM `{$table}` WHERE id NOT REGEXP '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'");
+            $idStmt->execute();
+            $nonStandardCount = $idStmt->rowCount();
+            
+            if ($nonStandardCount > 0) {
+                $baseTableName = preg_replace("/_$safeUserId$/", '', $table);
+                $nonStandardIds[$baseTableName] = $nonStandardCount;
+                $incohérences[] = "La table '$baseTableName' contient $nonStandardCount IDs non standardisés";
+            }
+        }
+        
+        // Construire le rapport
+        $details = [
+            'tables' => count($tables),
+            'sync_stats' => $syncStats,
+            'max_sync_time_diff_minutes' => $maxDiffMinutes,
+            'tables_with_max_diff' => $tablesWithMaxDiff,
+            'non_standard_ids' => $nonStandardIds,
+            'inconsistencies' => $incohérences
+        ];
+        
+        // Déterminer l'état global
+        $status = count($incohérences) === 0 ? 'success' : 'warning';
+        $message = count($incohérences) === 0 
+            ? "La synchronisation est cohérente entre toutes les tables"
+            : "Des incohérences de synchronisation ont été détectées";
+        
+        echo json_encode([
+            'status' => $status,
+            'message' => $message,
+            'details' => $details
+        ]);
+        
     } catch (Exception $e) {
         http_response_code(500);
         echo json_encode([
