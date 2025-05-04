@@ -6,7 +6,7 @@ import { getDatabaseConnectionCurrentUser } from '@/services/core/databaseConnec
 import { Button } from '@/components/ui/button';
 import { Plus, FileText, RefreshCw, FolderPlus } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { syncDebugger } from '@/utils/syncDebugHelper';
+import { syncRepairTool } from '@/utils/syncRepairTool';
 
 const GestionDocumentaire = () => {
   const { 
@@ -55,14 +55,34 @@ const GestionDocumentaire = () => {
   }, [forceReload]);
 
   const handleRefresh = async () => {
-    // D'abord réparer l'historique de synchronisation
-    await syncDebugger.repairSyncHistory();
-    
-    // Puis vérifier et réparer les tables
-    await syncDebugger.checkAndRepairTables();
-    
-    // Enfin, forcer le rechargement des données
-    forceReload();
+    try {
+      // Réparer l'historique de synchronisation
+      await syncRepairTool.repairSyncHistory();
+      
+      // Vérifier et réparer les tables
+      await syncRepairTool.checkAndRepairTables();
+      
+      // Supprimer les duplications
+      await syncRepairTool.removeDuplicates();
+      
+      // Réinitialiser la file d'attente
+      await syncRepairTool.resetSyncQueue();
+      
+      // Enfin, forcer le rechargement des données
+      await forceReload();
+      
+      toast({
+        title: "Synchronisation réparée",
+        description: "Les problèmes de synchronisation ont été réparés et les données ont été rechargées."
+      });
+    } catch (error) {
+      console.error("Erreur lors de la réparation de la synchronisation:", error);
+      toast({
+        variant: "destructive",
+        title: "Erreur",
+        description: "Impossible de réparer la synchronisation. Veuillez réessayer."
+      });
+    }
   };
 
   return (
