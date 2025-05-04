@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import DocumentTable from '@/components/documents/DocumentTable';
 import { Button } from '@/components/ui/button';
@@ -25,11 +26,7 @@ const GestionDocumentaire = () => {
       // Fonction de chargement des documents
       console.log("Chargement des documents pour", userId);
       const storedData = localStorage.getItem(`documents_${userId}`);
-      return storedData ? JSON.parse(storedData).map((doc: any) => ({
-        ...doc,
-        // Ensure etat is one of the allowed values or null
-        etat: ['NC', 'PC', 'C', 'EX'].includes(doc.etat) ? doc.etat : null
-      })) : [];
+      return storedData ? JSON.parse(storedData) : [];
     },
     async (data, userId) => {
       // Fonction de sauvegarde des documents
@@ -140,7 +137,7 @@ const GestionDocumentaire = () => {
     setDocuments(updatedDocuments);
   };
 
-  const handleAtteinteChange = (id: string, atteinte: 'NC' | 'PC' | 'C' | null) => {
+  const handleAtteinteChange = (id: string, atteinte: 'NC' | 'PC' | 'C' | 'EX' | null) => {
     // Mettre à jour l'atteinte d'un document
     const updatedDocuments = documents.map(doc => {
       if (doc.id === id) {
@@ -160,7 +157,7 @@ const GestionDocumentaire = () => {
       if (doc.id === id) {
         return {
           ...doc,
-          etat: doc.etat === 'EX' ? null : 'EX' as 'EX'
+          etat: doc.etat === 'EX' ? null : 'EX'
         };
       }
       return doc;
