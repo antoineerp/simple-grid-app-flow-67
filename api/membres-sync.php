@@ -114,7 +114,7 @@ try {
         error_log("Erreur lors de l'enregistrement de l'historique: " . $e->getMessage());
     }
     
-    // Schéma de la table membres
+    // Schéma de la table membres avec support explicite du format UUID/GUID pour l'ID
     $schema = "CREATE TABLE IF NOT EXISTS `membres_{$userId}` (
         `id` VARCHAR(36) PRIMARY KEY,
         `nom` VARCHAR(100) NOT NULL,
@@ -126,6 +126,7 @@ try {
         `notes` TEXT NULL,
         `initiales` VARCHAR(10) NULL,
         `userId` VARCHAR(50) NOT NULL,
+        `mot_de_passe` VARCHAR(255) NULL,
         `date_creation` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
         `date_modification` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
         `last_sync_device` VARCHAR(100) NULL
@@ -143,15 +144,65 @@ try {
             // Ajouter la colonne
             $pdo->query("ALTER TABLE `membres_{$userId}` ADD COLUMN `last_sync_device` VARCHAR(100) NULL");
         }
+        
+        // Vérifier si la colonne mot_de_passe existe
+        $pwdColumnsResult = $service->query("SHOW COLUMNS FROM `membres_{$userId}` LIKE 'mot_de_passe'");
+        if ($pwdColumnsResult->rowCount() === 0) {
+            // Ajouter la colonne mot_de_passe si elle n'existe pas
+            $pdo->query("ALTER TABLE `membres_{$userId}` ADD COLUMN `mot_de_passe` VARCHAR(255) NULL");
+        }
     } catch (Exception $e) {
-        error_log("Erreur lors de la vérification/ajout de la colonne: " . $e->getMessage());
+        error_log("Erreur lors de la vérification/ajout des colonnes: " . $e->getMessage());
     }
     
     // Démarrer une transaction
     $service->beginTransaction();
     
     try {
-        // Synchroniser les données
+        // Standardiser les IDs - S'assurer que tous les membres ont des IDs au format UUID
+        foreach ($membres as $key => $membre) {
+            // Vérifier si l'ID est un simple nombre ou un format non-UUID
+            if (isset($membre['id'])) {
+                $id = $membre['id'];
+                // Si c'est un nombre ou un ID court (moins de 32 caractères)
+                if (is_numeric($id) || strlen($id) < 32 || !preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i', $id)) {
+                    // Générer un UUID v4 pour remplacer l'ID
+                    $newId = $service->generateUuid();
+                    error_log("Conversion d'ID: {$id} -> {$newId}");
+                    // Stocker la relation entre l'ancien et le nouvel ID pour référence future
+                    try {
+                        $mapStmt = $pdo->prepare("INSERT IGNORE INTO `id_mapping` (original_id, uuid_id, table_name, user_id) VALUES (?, ?, 'membres', ?)");
+                        $mapStmt->execute([$id, $newId, $userId]);
+                    } catch (Exception $e) {
+                        // Si la table n'existe pas, la créer d'abord
+                        $pdo->exec("CREATE TABLE IF NOT EXISTS `id_mapping` (
+                            `id` INT AUTO_INCREMENT PRIMARY KEY,
+                            `original_id` VARCHAR(100) NOT NULL,
+                            `uuid_id` VARCHAR(36) NOT NULL,
+                            `table_name` VARCHAR(50) NOT NULL,
+                            `user_id` VARCHAR(50) NOT NULL,
+                            `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                            UNIQUE KEY `uniq_mapping` (`original_id`, `table_name`, `user_id`)
+                        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+                        
+                        // Réessayer l'insertion
+                        $mapStmt = $pdo->prepare("INSERT IGNORE INTO `id_mapping` (original_id, uuid_id, table_name, user_id) VALUES (?, ?, 'membres', ?)");
+                        $mapStmt->execute([$id, $newId, $userId]);
+                    }
+                    
+                    // Mettre à jour l'ID dans le tableau
+                    $membres[$key]['id'] = $newId;
+                }
+            } else {
+                // Si le membre n'a pas d'ID, en générer un
+                $membres[$key]['id'] = $service->generateUuid();
+            }
+            
+            // Assigner le deviceId comme dernier appareil de synchronisation
+            $membres[$key]['last_sync_device'] = $deviceId;
+        }
+        
+        // Synchroniser les données avec les IDs standardisés
         $service->syncData($membres);
         
         // Valider la transaction
@@ -163,7 +214,8 @@ try {
             'message' => 'Synchronisation des membres réussie',
             'count' => count($membres),
             'deviceId' => $deviceId,
-            'userId' => $userId
+            'userId' => $userId,
+            'standardized_ids' => true
         ]);
         
     } catch (Exception $innerEx) {

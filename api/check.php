@@ -31,6 +31,9 @@ if ($action === 'update_sync_history') {
 } elseif ($action === 'cleanup_duplicates') {
     // Nettoyer les entrées dupliquées de l'historique de synchronisation
     handleSyncHistoryCleanup();
+} elseif ($action === 'standardize_ids') {
+    // Standardiser les IDs pour les membres existants
+    handleStandardizeIds();
 } else {
     // Default action: return basic system info
     
@@ -214,6 +217,116 @@ function handleSyncHistoryCleanup() {
             ]);
         }
         
+    } catch (Exception $e) {
+        http_response_code(500);
+        echo json_encode([
+            'status' => 'error',
+            'message' => $e->getMessage()
+        ]);
+    }
+}
+
+/**
+ * Standardise les IDs des membres existants pour un utilisateur spécifique
+ * Convertit tous les IDs numériques ou non-UUID en UUIDs valides
+ */
+function handleStandardizeIds() {
+    try {
+        // Récupérer le ID utilisateur cible
+        $userId = isset($_GET['userId']) ? $_GET['userId'] : null;
+        
+        if (!$userId) {
+            throw new Exception("ID utilisateur non fourni");
+        }
+        
+        // Assainir l'ID utilisateur
+        $safeUserId = preg_replace('/[^a-zA-Z0-9_]/', '_', $userId);
+        
+        require_once 'config/database.php';
+        require_once 'services/DataSyncService.php';
+        
+        $database = new Database();
+        $conn = $database->getConnection();
+        $service = new DataSyncService('membres');
+        
+        if (!$conn) {
+            throw new Exception("Impossible de se connecter à la base de données");
+        }
+        
+        // Vérifier si la table existe
+        $tableName = "membres_{$safeUserId}";
+        $checkTable = $conn->query("SHOW TABLES LIKE '{$tableName}'");
+        
+        if ($checkTable->rowCount() === 0) {
+            throw new Exception("La table {$tableName} n'existe pas");
+        }
+        
+        // Créer la table de mappage d'IDs si elle n'existe pas
+        $conn->exec("CREATE TABLE IF NOT EXISTS `id_mapping` (
+            `id` INT AUTO_INCREMENT PRIMARY KEY,
+            `original_id` VARCHAR(100) NOT NULL,
+            `uuid_id` VARCHAR(36) NOT NULL,
+            `table_name` VARCHAR(50) NOT NULL,
+            `user_id` VARCHAR(50) NOT NULL,
+            `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE KEY `uniq_mapping` (`original_id`, `table_name`, `user_id`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+        
+        // Démarrer une transaction
+        $conn->beginTransaction();
+        
+        try {
+            // 1. Récupérer tous les membres avec IDs non-UUID
+            $stmt = $conn->prepare("SELECT * FROM `{$tableName}`");
+            $stmt->execute();
+            $records = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            
+            $totalRecords = count($records);
+            $convertedRecords = 0;
+            
+            foreach ($records as $record) {
+                $id = $record['id'];
+                
+                // Vérifier si l'ID est déjà un UUID valide (format 8-4-4-4-12)
+                if (!preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i', $id)) {
+                    // Générer un nouvel UUID
+                    $newId = $service->generateUuid();
+                    
+                    // Enregistrer le mappage de l'ancien au nouvel ID
+                    $mapStmt = $conn->prepare("INSERT IGNORE INTO `id_mapping` 
+                                            (original_id, uuid_id, table_name, user_id) 
+                                            VALUES (?, ?, 'membres', ?)");
+                    $mapStmt->execute([$id, $newId, $safeUserId]);
+                    
+                    // Mettre à jour l'ID du membre
+                    $updateStmt = $conn->prepare("UPDATE `{$tableName}` SET `id` = ? WHERE `id` = ?");
+                    if ($updateStmt->execute([$newId, $id])) {
+                        $convertedRecords++;
+                    }
+                }
+            }
+            
+            // Vérifier la colonne mot_de_passe, l'ajouter si elle n'existe pas
+            $pwdColumnsResult = $conn->query("SHOW COLUMNS FROM `{$tableName}` LIKE 'mot_de_passe'");
+            if ($pwdColumnsResult->rowCount() === 0) {
+                // Ajouter la colonne mot_de_passe
+                $conn->exec("ALTER TABLE `{$tableName}` ADD COLUMN `mot_de_passe` VARCHAR(255) NULL");
+            }
+            
+            // Valider la transaction
+            $conn->commit();
+            
+            echo json_encode([
+                'status' => 'success',
+                'message' => "Standardisation des IDs terminée. {$convertedRecords}/{$totalRecords} IDs convertis en UUIDs.",
+                'total' => $totalRecords,
+                'converted' => $convertedRecords,
+                'table' => $tableName
+            ]);
+        } catch (Exception $e) {
+            $conn->rollBack();
+            throw new Exception("Erreur lors de la standardisation des IDs: " . $e->getMessage());
+        }
     } catch (Exception $e) {
         http_response_code(500);
         echo json_encode([
