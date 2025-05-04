@@ -139,29 +139,42 @@ try {
                     }
                 }
                 
-                // Enregistrer ce chargement dans l'historique de synchronisation
-                try {
-                    // Créer la table si elle n'existe pas
-                    $pdo->exec("CREATE TABLE IF NOT EXISTS `sync_history` (
-                        `id` INT AUTO_INCREMENT PRIMARY KEY,
-                        `table_name` VARCHAR(100) NOT NULL,
-                        `user_id` VARCHAR(50) NOT NULL,
-                        `device_id` VARCHAR(100) NOT NULL,
-                        `record_count` INT NOT NULL,
-                        `sync_timestamp` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                        `operation` VARCHAR(20) NOT NULL DEFAULT 'load',
-                        INDEX `idx_user_device` (`user_id`, `device_id`)
-                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
-                    
-                    // Insérer dans l'historique
-                    $historyStmt = $pdo->prepare("INSERT INTO `sync_history` 
-                                                (table_name, user_id, device_id, record_count, operation) 
-                                                VALUES ('membres', ?, ?, ?, 'load')");
-                    $historyStmt->execute([$userId, $deviceId, count($membres)]);
-                    
-                } catch (Exception $historyErr) {
-                    error_log("Erreur lors de l'enregistrement de l'historique de chargement: " . $historyErr->getMessage());
-                    // Continuer malgré l'erreur
+                // Vérifier si un enregistrement récent existe déjà dans l'historique pour ce device et cette table
+                // pour éviter les enregistrements multiples au même moment
+                $checkRecentLog = $pdo->prepare("SELECT COUNT(*) FROM `sync_history` 
+                                              WHERE table_name = 'membres' AND user_id = ? 
+                                              AND device_id = ? AND operation = 'load'
+                                              AND sync_timestamp > DATE_SUB(NOW(), INTERVAL 3 SECOND)");
+                $checkRecentLog->execute([$userId, $deviceId]);
+                $recentLogCount = (int)$checkRecentLog->fetchColumn();
+                
+                if ($recentLogCount == 0) {
+                    // Enregistrer ce chargement dans l'historique de synchronisation seulement si aucun récent
+                    try {
+                        // Créer la table si elle n'existe pas
+                        $pdo->exec("CREATE TABLE IF NOT EXISTS `sync_history` (
+                            `id` INT AUTO_INCREMENT PRIMARY KEY,
+                            `table_name` VARCHAR(100) NOT NULL,
+                            `user_id` VARCHAR(50) NOT NULL,
+                            `device_id` VARCHAR(100) NOT NULL,
+                            `record_count` INT NOT NULL,
+                            `sync_timestamp` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                            `operation` VARCHAR(20) NOT NULL DEFAULT 'load',
+                            INDEX `idx_user_device` (`user_id`, `device_id`)
+                        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+                        
+                        // Insérer dans l'historique
+                        $historyStmt = $pdo->prepare("INSERT INTO `sync_history` 
+                                                    (table_name, user_id, device_id, record_count, operation) 
+                                                    VALUES ('membres', ?, ?, ?, 'load')");
+                        $historyStmt->execute([$userId, $deviceId, count($membres)]);
+                        error_log("Enregistrement d'historique ajouté pour l'opération 'load'");
+                    } catch (Exception $historyErr) {
+                        error_log("Erreur lors de l'enregistrement de l'historique de chargement: " . $historyErr->getMessage());
+                        // Continuer malgré l'erreur
+                    }
+                } else {
+                    error_log("Enregistrement d'historique ignoré - un enregistrement récent existe déjà");
                 }
                 
             } else {
@@ -204,6 +217,43 @@ try {
                         $membre['date_creation'],
                         $deviceId
                     ]);
+                }
+                
+                // Vérifier si un enregistrement récent existe déjà dans l'historique
+                $checkRecentLog = $pdo->prepare("SELECT COUNT(*) FROM `sync_history` 
+                                               WHERE table_name = 'membres' AND user_id = ? 
+                                               AND device_id = ? AND operation = 'load'
+                                               AND sync_timestamp > DATE_SUB(NOW(), INTERVAL 3 SECOND)");
+                $checkRecentLog->execute([$userId, $deviceId]);
+                $recentLogCount = (int)$checkRecentLog->fetchColumn();
+                
+                if ($recentLogCount == 0) {
+                    // Enregistrer la création de table dans l'historique uniquement si pas d'entrée récente
+                    try {
+                        // Créer la table d'historique si elle n'existe pas
+                        $pdo->exec("CREATE TABLE IF NOT EXISTS `sync_history` (
+                            `id` INT AUTO_INCREMENT PRIMARY KEY,
+                            `table_name` VARCHAR(100) NOT NULL,
+                            `user_id` VARCHAR(50) NOT NULL,
+                            `device_id` VARCHAR(100) NOT NULL,
+                            `record_count` INT NOT NULL,
+                            `sync_timestamp` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                            `operation` VARCHAR(20) NOT NULL DEFAULT 'load',
+                            INDEX `idx_user_device` (`user_id`, `device_id`)
+                        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+                        
+                        // Insérer dans l'historique
+                        $historyStmt = $pdo->prepare("INSERT INTO `sync_history` 
+                                                    (table_name, user_id, device_id, record_count, operation) 
+                                                    VALUES ('membres', ?, ?, ?, 'load')");
+                        $historyStmt->execute([$userId, $deviceId, count($mockData)]);
+                        error_log("Enregistrement d'historique ajouté pour l'opération 'load' (nouvelle table)");
+                    } catch (Exception $historyErr) {
+                        error_log("Erreur lors de l'enregistrement de l'historique de chargement: " . $historyErr->getMessage());
+                        // Continuer malgré l'erreur
+                    }
+                } else {
+                    error_log("Enregistrement d'historique ignoré - un enregistrement récent existe déjà");
                 }
             }
             

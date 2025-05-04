@@ -1,3 +1,4 @@
+
 /**
  * Core synchronization operations
  */
@@ -10,6 +11,10 @@ import { syncMonitor } from './syncMonitor';
 
 // Tableau pour stocker les noms des tables synchronisées récemment (pour éviter les doublons)
 const recentlySyncedTables = new Set<string>();
+// Stockage du dernier timestamp de synchronisation par table
+const lastSyncTimestamps: Record<string, number> = {};
+// Délai minimum entre deux synchronisations en millisecondes (3 secondes)
+const MIN_SYNC_INTERVAL = 3000;
 
 // Nettoie la liste des tables synchronisées récemment après un délai
 const cleanupRecentlySynced = (tableName: string) => {
@@ -31,6 +36,14 @@ export const executeSyncOperation = async <T>(
   if (!data || !Array.isArray(data) || data.length === 0) {
     console.log(`SyncOperations: No data to sync for ${tableName}`);
     return { success: false, message: "No data to synchronize" };
+  }
+  
+  // Vérifier le délai minimum entre deux synchronisations de la même table
+  const now = Date.now();
+  const lastSync = lastSyncTimestamps[tableName] || 0;
+  if (now - lastSync < MIN_SYNC_INTERVAL && trigger === "auto") {
+    console.log(`SyncOperations: Synchronisation de ${tableName} trop fréquente, ignorée (dernière: ${new Date(lastSync).toISOString()})`);
+    return { success: true, message: "Synchronization throttled" };
   }
   
   // Vérifier si cette table a été synchronisée récemment
@@ -65,6 +78,9 @@ export const executeSyncOperation = async <T>(
         tableName,
         operation: `${trigger}-sync`
       });
+      
+      // Mettre à jour le timestamp de dernière synchronisation
+      lastSyncTimestamps[tableName] = Date.now();
       
       // Emit an event to inform the application about the sync start
       if (typeof window !== 'undefined') {
@@ -163,4 +179,38 @@ export const isSynchronizing = (tableName: string): boolean => {
 export const cancelPendingSynchronizations = (tableName: string): number => {
   recentlySyncedTables.delete(tableName);
   return syncQueue.cancelPendingTasks(tableName);
+};
+
+// Expose a method to clean sync history via the API
+export const cleanupSyncHistory = async (): Promise<{ success: boolean, message: string }> => {
+  try {
+    const API_URL = process.env.REACT_APP_API_URL || 'https://qualiopi.ch/api';
+    const response = await fetch(`${API_URL}/check.php?action=cleanup_duplicates`, {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json',
+        'Cache-Control': 'no-cache'
+      }
+    });
+    
+    if (!response.ok) {
+      throw new Error(`HTTP error: ${response.status}`);
+    }
+    
+    const result = await response.json();
+    
+    if (result.status === 'success') {
+      console.log(`SyncOperations: Nettoyage des doublons effectué - ${result.duplicatesRemoved} entrées supprimées`);
+      return { success: true, message: result.message };
+    } else {
+      console.error(`SyncOperations: Erreur lors du nettoyage: ${result.message}`);
+      return { success: false, message: result.message };
+    }
+  } catch (error) {
+    console.error('SyncOperations: Erreur lors du nettoyage de l\'historique:', error);
+    return { 
+      success: false, 
+      message: error instanceof Error ? error.message : String(error)
+    };
+  }
 };

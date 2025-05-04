@@ -56,9 +56,38 @@ try {
     // Journaliser les informations de synchronisation
     error_log("Synchronisation des membres - UserId: {$userId}, DeviceId: {$deviceId}, Nombre: " . count($membres));
     
+    $pdo = $service->getPdo();
+    
+    // Vérifier si un enregistrement récent existe déjà pour cette synchronisation
+    // afin d'éviter les synchronisations multiples à la même milliseconde
+    try {
+        $checkRecentSync = $pdo->prepare("SELECT COUNT(*) FROM `sync_history` 
+                                       WHERE table_name = 'membres' AND user_id = ? 
+                                       AND device_id = ? AND operation = 'sync'
+                                       AND sync_timestamp > DATE_SUB(NOW(), INTERVAL 3 SECOND)");
+        $checkRecentSync->execute([$userId, $deviceId]);
+        $recentSyncCount = (int)$checkRecentSync->fetchColumn();
+        
+        if ($recentSyncCount > 0) {
+            // Si une synchronisation récente existe déjà, renvoyer une réponse de succès sans effectuer la synchronisation
+            error_log("Synchronisation ignorée - une synchronisation récente existe déjà");
+            echo json_encode([
+                'success' => true,
+                'message' => 'Synchronisation des membres ignorée (déjà synchronisé récemment)',
+                'count' => count($membres),
+                'deviceId' => $deviceId,
+                'userId' => $userId,
+                'duplicate' => true
+            ]);
+            exit;
+        }
+    } catch (Exception $e) {
+        // En cas d'erreur, continuer avec la synchronisation
+        error_log("Erreur lors de la vérification des synchronisations récentes: " . $e->getMessage());
+    }
+    
     // Créer la table de synchronisation si elle n'existe pas
     try {
-        $pdo = $service->getPdo();
         $query = "CREATE TABLE IF NOT EXISTS `sync_history` (
             `id` INT AUTO_INCREMENT PRIMARY KEY,
             `table_name` VARCHAR(100) NOT NULL,
@@ -112,7 +141,6 @@ try {
         $columnsResult = $service->query("SHOW COLUMNS FROM `membres_{$userId}` LIKE 'last_sync_device'");
         if ($columnsResult->rowCount() === 0) {
             // Ajouter la colonne
-            $pdo = $service->getPdo();
             $pdo->query("ALTER TABLE `membres_{$userId}` ADD COLUMN `last_sync_device` VARCHAR(100) NULL");
         }
     } catch (Exception $e) {
@@ -135,7 +163,7 @@ try {
             'message' => 'Synchronisation des membres réussie',
             'count' => count($membres),
             'deviceId' => $deviceId,
-            'userId' => $userId // Ajouter l'ID dans la réponse pour debug
+            'userId' => $userId
         ]);
         
     } catch (Exception $innerEx) {
