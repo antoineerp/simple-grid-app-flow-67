@@ -1,6 +1,9 @@
 
 /**
- * Hook complètement désactivé
+ * Hook de synchronisation complètement désactivé
+ * 
+ * Cette version du hook ne fait absolument rien et retourne uniquement des valeurs factices
+ * pour assurer la compatibilité avec le code existant qui l'utilise.
  */
 
 // Version entièrement neutralisée qui ne fait absolument rien

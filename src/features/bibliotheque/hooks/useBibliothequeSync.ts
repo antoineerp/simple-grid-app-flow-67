@@ -8,7 +8,7 @@ import { toast } from '@/components/ui/use-toast';
 export const useBibliothequeSync = () => {
   const [lastSynced, setLastSynced] = useState<Date | null>(new Date()); // Date factice
   const { isOnline } = useNetworkStatus();
-  const { syncAndProcess } = useSync('collaboration');
+  const { syncAndProcess } = useSync();
   
   // Fonction pour charger les documents depuis le stockage local uniquement
   const loadFromServer = useCallback(async (userId?: string): Promise<BibliothequeDocument[]> => {

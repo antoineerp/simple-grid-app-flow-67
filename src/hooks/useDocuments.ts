@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from 'react';
 import { Document, DocumentStats, DocumentGroup } from '@/types/documents';
 import { useToast } from '@/hooks/use-toast';
@@ -48,7 +47,7 @@ export const useDocuments = () => {
   const [initialLoadDone, setInitialLoadDone] = useState(false);
 
   // Utiliser le hook de synchronisation central
-  const { syncAndProcess } = useSync('documents');
+  const { syncAndProcess } = useSync();
 
   // Calculer les statistiques lorsque les documents changent
   useEffect(() => {
