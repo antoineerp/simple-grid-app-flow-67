@@ -1,88 +1,196 @@
 
 import React, { useEffect, useState } from 'react';
 import DocumentTable from '@/components/documents/DocumentTable';
-import { useDocuments } from '@/hooks/useDocuments';
-import { getDatabaseConnectionCurrentUser } from '@/services/core/databaseConnectionService';
 import { Button } from '@/components/ui/button';
 import { Plus, FileText, RefreshCw, FolderPlus } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { syncRepairTool } from '@/utils/syncRepairTool';
+import { useSyncedData } from '@/hooks/useSyncedData';
+import { getDatabaseConnectionCurrentUser } from '@/services/core/databaseConnectionService';
+
+// Types simplifiés pour l'exemple
+interface Document {
+  id: string;
+  [key: string]: any;
+}
+
+interface DocumentGroup {
+  id: string;
+  name: string;
+  expanded: boolean;
+  [key: string]: any;
+}
 
 const GestionDocumentaire = () => {
-  const { 
-    documents, 
-    groups, 
-    handleEdit, 
-    handleDelete, 
-    handleReorder, 
-    handleToggleGroup, 
-    handleEditGroup, 
-    handleDeleteGroup, 
-    handleResponsabiliteChange, 
-    handleAtteinteChange, 
-    handleExclusionChange, 
-    handleAddDocument, 
-    handleAddGroup,
-    handleGroupReorder,
-    forceReload,
-    isSyncing,
-    isOnline
-  } = useDocuments();
-  
-  const [currentUser, setCurrentUser] = useState<string>(getDatabaseConnectionCurrentUser() || 'default');
   const { toast } = useToast();
   
-  // Écouter les changements d'utilisateur
-  useEffect(() => {
-    const handleUserChange = (event: Event) => {
-      const customEvent = event as CustomEvent;
-      if (customEvent.detail?.user) {
-        setCurrentUser(customEvent.detail.user);
-        console.log(`GestionDocumentaire: Changement d'utilisateur - ${customEvent.detail.user}`);
-        
-        // Forcer un rechargement des données après un changement d'utilisateur
-        setTimeout(() => {
-          forceReload();
-        }, 500);
+  // Utiliser notre nouveau hook pour gérer les documents
+  const {
+    data: documents,
+    updateData: setDocuments,
+    isSyncing,
+    isOnline,
+    forceReload,
+    repairSync,
+    currentUser
+  } = useSyncedData<Document>(
+    'documents',
+    [],
+    async (userId) => {
+      // Fonction de chargement des documents
+      console.log("Chargement des documents pour", userId);
+      const storedData = localStorage.getItem(`documents_${userId}`);
+      return storedData ? JSON.parse(storedData) : [];
+    },
+    async (data, userId) => {
+      // Fonction de sauvegarde des documents
+      console.log("Sauvegarde des documents pour", userId);
+      localStorage.setItem(`documents_${userId}`, JSON.stringify(data));
+      return true;
+    }
+  );
+  
+  // Utiliser notre nouveau hook pour gérer les groupes de documents
+  const {
+    data: groups,
+    updateData: setGroups,
+  } = useSyncedData<DocumentGroup>(
+    'document_groups',
+    [],
+    async (userId) => {
+      // Fonction de chargement des groupes
+      console.log("Chargement des groupes pour", userId);
+      const storedData = localStorage.getItem(`document_groups_${userId}`);
+      return storedData ? JSON.parse(storedData) : [];
+    },
+    async (data, userId) => {
+      // Fonction de sauvegarde des groupes
+      console.log("Sauvegarde des groupes pour", userId);
+      localStorage.setItem(`document_groups_${userId}`, JSON.stringify(data));
+      return true;
+    }
+  );
+
+  // Fonctions de gestion des documents
+  const handleEdit = (id: string) => {
+    // Implémentation de la modification d'un document
+    console.log("Édition du document", id);
+    // Logique d'édition...
+  };
+
+  const handleDelete = (id: string) => {
+    // Supprimer un document
+    const updatedDocuments = documents.filter(doc => doc.id !== id);
+    setDocuments(updatedDocuments);
+  };
+
+  const handleReorder = (startIndex: number, endIndex: number, targetGroupId?: string) => {
+    // Réordonner les documents
+    const result = Array.from(documents);
+    const [removed] = result.splice(startIndex, 1);
+    
+    if (targetGroupId) {
+      removed.groupId = targetGroupId;
+    }
+    
+    result.splice(endIndex, 0, removed);
+    setDocuments(result);
+  };
+
+  const handleGroupReorder = (startIndex: number, endIndex: number) => {
+    // Réordonner les groupes
+    const result = Array.from(groups);
+    const [removed] = result.splice(startIndex, 1);
+    result.splice(endIndex, 0, removed);
+    setGroups(result);
+  };
+  
+  // Fonctions de gestion des groupes
+  const handleToggleGroup = (id: string) => {
+    // Ouvrir/fermer un groupe
+    const updatedGroups = groups.map(group => 
+      group.id === id ? {...group, expanded: !group.expanded} : group
+    );
+    setGroups(updatedGroups);
+  };
+
+  const handleEditGroup = (group: DocumentGroup) => {
+    // Modifier un groupe
+    const updatedGroups = groups.map(g => 
+      g.id === group.id ? group : g
+    );
+    setGroups(updatedGroups);
+  };
+
+  const handleDeleteGroup = (id: string) => {
+    // Supprimer un groupe et mettre à jour les documents associés
+    const updatedDocuments = documents.map(doc => 
+      doc.groupId === id ? {...doc, groupId: undefined} : doc
+    );
+    setDocuments(updatedDocuments);
+    
+    const updatedGroups = groups.filter(group => group.id !== id);
+    setGroups(updatedGroups);
+  };
+  
+  // Fonctions pour les responsabilités et l'atteinte
+  const handleResponsabiliteChange = (id: string, type: 'r' | 'a' | 'c' | 'i', values: string[]) => {
+    // Mettre à jour les responsabilités d'un document
+    const updatedDocuments = documents.map(doc => {
+      if (doc.id === id) {
+        return {
+          ...doc,
+          [type]: values
+        };
       }
-    };
-    
-    window.addEventListener('database-user-changed', handleUserChange);
-    
-    return () => {
-      window.removeEventListener('database-user-changed', handleUserChange);
-    };
-  }, [forceReload]);
+      return doc;
+    });
+    setDocuments(updatedDocuments);
+  };
+
+  const handleAtteinteChange = (id: string, atteinte: 'NC' | 'PC' | 'C' | null) => {
+    // Mettre à jour l'atteinte d'un document
+    const updatedDocuments = documents.map(doc => {
+      if (doc.id === id) {
+        return {
+          ...doc,
+          atteinte
+        };
+      }
+      return doc;
+    });
+    setDocuments(updatedDocuments);
+  };
+
+  const handleExclusionChange = (id: string) => {
+    // Exclure un document
+    const updatedDocuments = documents.map(doc => {
+      if (doc.id === id) {
+        return {
+          ...doc,
+          excluded: !doc.excluded
+        };
+      }
+      return doc;
+    });
+    setDocuments(updatedDocuments);
+  };
+  
+  // Gestion des ajouts
+  const handleAddDocument = () => {
+    // Ajouter un nouveau document
+    console.log("Ajout d'un nouveau document");
+    // Logique d'ajout...
+  };
+
+  const handleAddGroup = () => {
+    // Ajouter un nouveau groupe
+    console.log("Ajout d'un nouveau groupe");
+    // Logique d'ajout...
+  };
 
   const handleRefresh = async () => {
-    try {
-      // Réparer l'historique de synchronisation
-      await syncRepairTool.repairSyncHistory();
-      
-      // Vérifier et réparer les tables
-      await syncRepairTool.checkAndRepairTables();
-      
-      // Supprimer les duplications
-      await syncRepairTool.removeDuplicates();
-      
-      // Réinitialiser la file d'attente
-      await syncRepairTool.resetSyncQueue();
-      
-      // Enfin, forcer le rechargement des données
-      await forceReload();
-      
-      toast({
-        title: "Synchronisation réparée",
-        description: "Les problèmes de synchronisation ont été réparés et les données ont été rechargées."
-      });
-    } catch (error) {
-      console.error("Erreur lors de la réparation de la synchronisation:", error);
-      toast({
-        variant: "destructive",
-        title: "Erreur",
-        description: "Impossible de réparer la synchronisation. Veuillez réessayer."
-      });
-    }
+    await repairSync();
   };
 
   return (

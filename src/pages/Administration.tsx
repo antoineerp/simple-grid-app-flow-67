@@ -1,14 +1,53 @@
 
 import React, { useState } from 'react';
 import { PageHeader } from '@/components/ui/page-header';
-import { Settings, Database, RefreshCcw, AlertTriangle } from 'lucide-react';
+import { Settings, Database, RefreshCcw, AlertTriangle, Loader2 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { SystemResetModal } from '@/components/admin/SystemResetModal';
 import ResetSystemLink from '@/components/admin/ResetSystemLink';
+import { useSyncedData } from '@/hooks/useSyncedData';
+
+// Type pour les paramètres système
+interface SystemSetting {
+  id: string;
+  key: string;
+  value: string;
+  description: string;
+}
 
 const Administration = () => {
   const [isResetModalOpen, setIsResetModalOpen] = useState(false);
+  
+  // Utiliser notre hook pour gérer les paramètres système avec synchronisation
+  const {
+    data: systemSettings,
+    updateData: setSystemSettings,
+    isSyncing,
+    isOnline,
+    forceReload,
+    repairSync
+  } = useSyncedData<SystemSetting>(
+    'system_settings',
+    [],
+    async (userId) => {
+      // Fonction de chargement des paramètres système
+      console.log("Chargement des paramètres système pour", userId);
+      const storedData = localStorage.getItem(`system_settings_${userId}`);
+      return storedData ? JSON.parse(storedData) : [];
+    },
+    async (data, userId) => {
+      // Fonction de sauvegarde des paramètres système
+      console.log("Sauvegarde des paramètres système pour", userId);
+      localStorage.setItem(`system_settings_${userId}`, JSON.stringify(data));
+      return true;
+    }
+  );
+
+  // Fonction pour vérifier l'intégrité de la base de données (simulée)
+  const handleCheckIntegrity = () => {
+    forceReload();
+  };
 
   return (
     <div className="container mx-auto py-6 space-y-6">
@@ -30,13 +69,48 @@ const Administration = () => {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <Button className="w-full sm:w-auto" variant="outline">
-              <Database className="mr-2 h-4 w-4" />
-              Vérifier l'intégrité
+            <Button 
+              className="w-full sm:w-auto" 
+              variant="outline"
+              onClick={handleCheckIntegrity}
+              disabled={isSyncing}
+            >
+              {isSyncing ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Vérification en cours...
+                </>
+              ) : (
+                <>
+                  <Database className="mr-2 h-4 w-4" />
+                  Vérifier l'intégrité
+                </>
+              )}
             </Button>
             
             <div className="pt-2">
               <ResetSystemLink className="w-full sm:w-auto" />
+            </div>
+            
+            <div className="pt-2">
+              <Button 
+                className="w-full sm:w-auto" 
+                variant="outline"
+                onClick={repairSync}
+                disabled={isSyncing}
+              >
+                {isSyncing ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Réparation en cours...
+                  </>
+                ) : (
+                  <>
+                    <RefreshCcw className="mr-2 h-4 w-4" />
+                    Réparer la synchronisation
+                  </>
+                )}
+              </Button>
             </div>
           </CardContent>
         </Card>
@@ -55,9 +129,20 @@ const Administration = () => {
             <Button 
               className="w-full sm:w-auto" 
               variant="outline"
+              onClick={forceReload}
+              disabled={isSyncing}
             >
-              <RefreshCcw className="mr-2 h-4 w-4" />
-              Vérifier les mises à jour
+              {isSyncing ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Vérification en cours...
+                </>
+              ) : (
+                <>
+                  <RefreshCcw className="mr-2 h-4 w-4" />
+                  Vérifier les mises à jour
+                </>
+              )}
             </Button>
             
             <div className="pt-2">
