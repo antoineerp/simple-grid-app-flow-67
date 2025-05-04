@@ -49,8 +49,15 @@ class UserDeleteOperations extends BaseOperations {
                       ", Email=" . $user['email'] . 
                       ", IdTechnique=" . $user['identifiant_technique']);
             
+            // Vérifier que l'identifiant technique est valide
+            if (empty($user['identifiant_technique']) || strpos($user['identifiant_technique'], 'p71x6d_') !== 0) {
+                error_log("Identifiant technique invalide ou manquant: " . $user['identifiant_technique']);
+                ResponseHandler::error("Identifiant technique invalide pour la suppression des tables", 400);
+                return;
+            }
+            
             // Supprimer les tables de l'utilisateur
-            $this->cleanupUserTables($user['identifiant_technique']);
+            $tablesResult = $this->cleanupUserTables($user['identifiant_technique']);
             
             // Supprimer l'utilisateur
             $this->model->id = $data->id;
@@ -59,7 +66,7 @@ class UserDeleteOperations extends BaseOperations {
                     "message" => "Utilisateur supprimé avec succès",
                     "id" => $data->id,
                     "identifiant_technique" => $user['identifiant_technique'],
-                    "cleanupStatus" => "completed"
+                    "cleanupStatus" => $tablesResult
                 ]);
             } else {
                 ResponseHandler::error("Impossible de supprimer l'utilisateur", 500);
@@ -80,7 +87,11 @@ class UserDeleteOperations extends BaseOperations {
             // Vérification du format de l'identifiant technique
             if (empty($userId) || strpos($userId, 'p71x6d_') !== 0) {
                 error_log("Format d'identifiant invalide pour le nettoyage: $userId");
-                return false;
+                return [
+                    'success' => false,
+                    'error' => 'Format d\'identifiant invalide',
+                    'tablesDeleted' => 0
+                ];
             }
             
             // Liste des préfixes de tables à nettoyer
@@ -138,12 +149,26 @@ class UserDeleteOperations extends BaseOperations {
                 error_log("Erreur lors du nettoyage de l'historique de synchronisation: " . $e->getMessage());
             }
             
-            error_log("Nettoyage terminé pour l'utilisateur $userId: " . count($deletedTables) . " tables supprimées.");
-            return true;
+            $result = [
+                'success' => count($deletedTables) > 0 || count($tablesToDelete) === 0,
+                'tablesFound' => count($tablesToDelete),
+                'tablesDeleted' => count($deletedTables),
+                'deletedTables' => $deletedTables
+            ];
+            
+            if (!empty($errors)) {
+                $result['errors'] = $errors;
+            }
+            
+            error_log("Nettoyage terminé pour l'utilisateur $userId: " . json_encode($result));
+            return $result;
             
         } catch (Exception $e) {
             error_log("Erreur lors du nettoyage des tables: " . $e->getMessage());
-            return false;
+            return [
+                'success' => false,
+                'error' => $e->getMessage()
+            ];
         }
     }
 }

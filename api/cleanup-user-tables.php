@@ -20,10 +20,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
 error_log("API cleanup-user-tables.php - Méthode: " . $_SERVER['REQUEST_METHOD'] . " - Requête: " . $_SERVER['REQUEST_URI']);
 
 // Configuration de la base de données
-$host = "p71x6d.myd.infomaniak.com";
-$dbname = "p71x6d_system";
-$username = "p71x6d_system";
-$password = "Trottinette43!";
+require_once __DIR__ . '/config/database.php';
 
 // Liste des préfixes de tables à nettoyer pour un utilisateur
 $tablePrefixes = [
@@ -71,15 +68,13 @@ try {
     }
     
     // Connexion à la base de données
-    $dsn = "mysql:host={$host};dbname={$dbname};charset=utf8mb4";
-    $options = [
-        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-        PDO::ATTR_EMULATE_PREPARES => false,
-    ];
+    $database = new Database();
+    $pdo = $database->getConnection(true);
     
-    error_log("Tentative de connexion à la base de données pour nettoyage des tables");
-    $pdo = new PDO($dsn, $username, $password, $options);
+    if (!$database->testConnection()) {
+        throw new Exception("Impossible de se connecter à la base de données. Vérifiez la configuration.");
+    }
+    
     error_log("Connexion réussie pour le nettoyage");
     
     // Récupérer toutes les tables de la base de données
@@ -118,6 +113,16 @@ try {
             error_log($errorMessage);
             $errors[] = $errorMessage;
         }
+    }
+    
+    // Nettoyer aussi l'historique de synchronisation
+    try {
+        $pdo->exec("DELETE FROM sync_history WHERE user_id = '{$userId}'");
+        error_log("Historique de synchronisation nettoyé pour l'utilisateur {$userId}");
+    } catch (PDOException $e) {
+        $errorMessage = "Erreur lors du nettoyage de l'historique de synchronisation: " . $e->getMessage();
+        error_log($errorMessage);
+        $errors[] = $errorMessage;
     }
     
     // Préparer la réponse

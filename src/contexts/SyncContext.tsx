@@ -1,65 +1,59 @@
 
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import React, { createContext, useState, useContext, ReactNode } from 'react';
 
-interface SyncContextProps {
-  lastSynced: Record<string, Date | null>;
-  isSyncing: Record<string, boolean>;
-  syncErrors: Record<string, string | null>;
-  isOnline: boolean;
-  isInitialized: () => boolean;
-  syncData: <T>(tableName: string, data: T[]) => Promise<boolean>;
-  loadData: <T>(tableName: string) => Promise<T[]>;
-  getLastSynced: (tableName: string) => Date | null;
-  getSyncError: (tableName: string) => string | null;
+// Types pour le contexte de synchronisation
+interface SyncContextType {
+  isSyncing: boolean;
+  lastSyncTime: Date | null;
+  syncError: string | null;
+  startSync: () => Promise<boolean>;
+  syncStatus: 'idle' | 'syncing' | 'success' | 'error';
 }
 
-// Création d'un contexte vide
-const SyncContext = createContext<SyncContextProps | undefined>(undefined);
+// Valeurs par défaut pour le contexte
+const defaultSyncContext: SyncContextType = {
+  isSyncing: false,
+  lastSyncTime: null,
+  syncError: null,
+  startSync: async () => false,
+  syncStatus: 'idle'
+};
 
-// Provider qui ne fait rien de réel
-export const SyncProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  // Valeurs factices
-  const contextValue: SyncContextProps = {
-    lastSynced: {},
-    isSyncing: {},
-    syncErrors: {},
-    isOnline: true,
-    isInitialized: () => true,
-    syncData: async <T>(tableName: string, data: T[]) => {
-      console.log(`Synchronisation désactivée pour ${tableName}`);
-      return true;
-    },
-    loadData: async <T>(tableName: string) => {
-      console.log(`Chargement désactivé pour ${tableName}`);
-      return [] as T[];
-    },
-    getLastSynced: () => new Date(),
-    getSyncError: () => null
+// Création du contexte
+const SyncContext = createContext<SyncContextType>(defaultSyncContext);
+
+// Hook personnalisé pour utiliser le contexte
+export const useSyncContext = () => useContext(SyncContext);
+
+interface SyncProviderProps {
+  children: ReactNode;
+}
+
+// Composant fournisseur pour le contexte de synchronisation
+export const SyncProvider: React.FC<SyncProviderProps> = ({ children }) => {
+  const [isSyncing, setIsSyncing] = useState<boolean>(false);
+  const [lastSyncTime, setLastSyncTime] = useState<Date | null>(null);
+  const [syncError, setSyncError] = useState<string | null>(null);
+  const [syncStatus, setSyncStatus] = useState<'idle' | 'syncing' | 'success' | 'error'>('idle');
+
+  // Fonction simulée de synchronisation (désactivée pour cette application)
+  const startSync = async (): Promise<boolean> => {
+    console.log("Fonctionnalité de synchronisation désactivée");
+    // Simuler une synchronisation réussie
+    setLastSyncTime(new Date());
+    return true;
   };
 
-  return (
-    <SyncContext.Provider value={contextValue}>
-      {children}
-    </SyncContext.Provider>
-  );
+  // Valeurs à fournir au contexte
+  const value: SyncContextType = {
+    isSyncing,
+    lastSyncTime,
+    syncError,
+    startSync,
+    syncStatus
+  };
+
+  return <SyncContext.Provider value={value}>{children}</SyncContext.Provider>;
 };
 
-// Hook d'utilisation du contexte qui retourne des valeurs par défaut si non disponible
-export const useSyncContext = (): SyncContextProps => {
-  const context = useContext(SyncContext);
-  if (context === undefined) {
-    // Valeurs par défaut au lieu de lancer une erreur
-    return {
-      lastSynced: {},
-      isSyncing: {},
-      syncErrors: {},
-      isOnline: true,
-      isInitialized: () => true,
-      syncData: async () => true,
-      loadData: async () => [],
-      getLastSynced: () => new Date(),
-      getSyncError: () => null
-    };
-  }
-  return context;
-};
+export default SyncContext;
