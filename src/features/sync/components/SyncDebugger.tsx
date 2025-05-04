@@ -5,9 +5,8 @@ interface SyncDebuggerProps {
   enabled?: boolean;
 }
 
-// Version simplifiée du débogueur de synchronisation (ne fait rien)
 const SyncDebugger: React.FC<SyncDebuggerProps> = ({ enabled = false }) => {
-  // Ne rien afficher, fonctionnalité désactivée
+  // Ne rien afficher si désactivé
   if (!enabled) return null;
   
   return (
