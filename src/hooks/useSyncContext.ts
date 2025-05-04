@@ -1,94 +1,35 @@
 
-/**
- * Interface simple de synchronisation sans dépendances externes
- */
-
-interface SyncState {
-  isSyncing: boolean;
-  lastSynced: Date | null;
-  error: string | null;
-}
-
-// État global pour la synchronisation
-const globalSyncState = {
-  isSyncing: false,
-  lastSynced: null,
-  error: null,
-  syncFunctions: new Map<string, () => Promise<boolean>>(),
-  initialized: false
-};
+// Hook de simulation de synchronisation (ne fait rien de réel)
 
 export const useSyncContext = () => {
   // Initialiser le contexte si ce n'est pas déjà fait
-  if (!globalSyncState.initialized) {
-    console.log("SyncContext: Initialisation");
-    globalSyncState.initialized = true;
-  }
+  console.log("SyncContext: Désactivé, fonctionnalité simulée");
 
-  // Enregistrer une fonction de synchronisation
+  // Fonctions factices qui ne font rien de réel
   const registerSyncFunction = (key: string, syncFn: () => Promise<boolean>) => {
-    globalSyncState.syncFunctions.set(key, syncFn);
-    console.log(`SyncContext: Fonction de synchronisation enregistrée: ${key}`);
+    console.log(`SyncContext: Fonctionnalité désactivée - ${key}`);
+    return;
   };
 
-  // Désenregistrer une fonction de synchronisation 
   const unregisterSyncFunction = (key: string) => {
-    globalSyncState.syncFunctions.delete(key);
-    console.log(`SyncContext: Fonction de synchronisation supprimée: ${key}`);
+    return;
   };
 
-  // Synchroniser tout
   const syncAll = async (): Promise<boolean> => {
-    if (globalSyncState.isSyncing) {
-      console.log("SyncContext: Synchronisation déjà en cours...");
-      return false;
-    }
-
-    console.log("SyncContext: Début de la synchronisation globale...");
-    globalSyncState.isSyncing = true;
-    globalSyncState.error = null;
-
-    try {
-      const syncPromises = Array.from(globalSyncState.syncFunctions.entries()).map(
-        async ([key, fn]) => {
-          try {
-            console.log(`SyncContext: Synchronisation de: ${key}`);
-            return await fn();
-          } catch (error) {
-            console.error(`SyncContext: Erreur lors de la synchronisation de ${key}:`, error);
-            return false;
-          }
-        }
-      );
-
-      const results = await Promise.all(syncPromises);
-      const success = results.every(result => result === true);
-
-      globalSyncState.lastSynced = new Date();
-      console.log(`SyncContext: Synchronisation terminée avec ${success ? 'succès' : 'des erreurs'}`);
-      
-      return success;
-    } catch (error) {
-      console.error("SyncContext: Erreur lors de la synchronisation globale:", error);
-      globalSyncState.error = error instanceof Error ? error.message : String(error);
-      return false;
-    } finally {
-      globalSyncState.isSyncing = false;
-    }
+    console.log("SyncContext: Synchronisation désactivée");
+    return true;
   };
 
-  // Obtenir l'état actuel de la synchronisation
-  const getSyncState = (): SyncState => {
+  const getSyncState = () => {
     return {
-      isSyncing: globalSyncState.isSyncing,
-      lastSynced: globalSyncState.lastSynced,
-      error: globalSyncState.error
+      isSyncing: false,
+      lastSynced: new Date(),
+      error: null
     };
   };
 
-  // Vérifier si le contexte est initialisé
   const isInitialized = (): boolean => {
-    return globalSyncState.initialized;
+    return true;
   };
 
   return {
@@ -100,4 +41,8 @@ export const useSyncContext = () => {
   };
 };
 
-export type { SyncState };
+export interface SyncState {
+  isSyncing: boolean;
+  lastSynced: Date | null;
+  error: string | null;
+}

@@ -1,7 +1,5 @@
 
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { syncService } from '@/services/core/syncService';
-import { useNetworkStatus } from '@/hooks/useNetworkStatus';
+import React, { createContext, useContext, useState, ReactNode } from 'react';
 
 interface SyncContextProps {
   lastSynced: Record<string, Date | null>;
@@ -15,80 +13,28 @@ interface SyncContextProps {
   getSyncError: (tableName: string) => string | null;
 }
 
+// Création d'un contexte vide
 const SyncContext = createContext<SyncContextProps | undefined>(undefined);
 
+// Provider qui ne fait rien de réel
 export const SyncProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [lastSynced, setLastSynced] = useState<Record<string, Date | null>>({});
-  const [isSyncing, setIsSyncing] = useState<Record<string, boolean>>({});
-  const [syncErrors, setSyncErrors] = useState<Record<string, string | null>>({});
-  const [initialized, setInitialized] = useState(false);
-  const { isOnline } = useNetworkStatus();
-
-  useEffect(() => {
-    // Initialiser l'état avec les données du service
-    const tables = ['membres', 'exigences', 'documents', 'collaboration', 'audits'];
-    const syncState: Record<string, Date | null> = {};
-    const syncingState: Record<string, boolean> = {};
-    const errorsState: Record<string, string | null> = {};
-    
-    tables.forEach(table => {
-      syncState[table] = syncService.getLastSynced(table);
-      syncingState[table] = syncService.isSyncingTable(table);
-      errorsState[table] = syncService.getLastError(table);
-    });
-    
-    setLastSynced(syncState);
-    setIsSyncing(syncingState);
-    setSyncErrors(errorsState);
-    setInitialized(true);
-  }, []);
-
-  const syncData = async <T extends {}>(tableName: string, data: T[]): Promise<boolean> => {
-    setIsSyncing(prev => ({ ...prev, [tableName]: true }));
-    setSyncErrors(prev => ({ ...prev, [tableName]: null }));
-    
-    try {
-      const result = await syncService.sendDataToServer<T>(tableName, data);
-      setLastSynced(prev => ({ ...prev, [tableName]: new Date() }));
-      setSyncErrors(prev => ({ ...prev, [tableName]: null }));
-      return result;
-    } catch (error) {
-      const errorMsg = error instanceof Error ? error.message : 'Erreur inconnue';
-      setSyncErrors(prev => ({ ...prev, [tableName]: errorMsg }));
-      return false;
-    } finally {
-      setIsSyncing(prev => ({ ...prev, [tableName]: false }));
-    }
-  };
-
-  const loadData = async <T extends {}>(tableName: string): Promise<T[]> => {
-    setIsSyncing(prev => ({ ...prev, [tableName]: true }));
-    setSyncErrors(prev => ({ ...prev, [tableName]: null }));
-    
-    try {
-      const data = await syncService.loadDataFromServer<T>(tableName);
-      setLastSynced(prev => ({ ...prev, [tableName]: new Date() }));
-      setSyncErrors(prev => ({ ...prev, [tableName]: null }));
-      return data;
-    } catch (error) {
-      const errorMsg = error instanceof Error ? error.message : 'Erreur inconnue';
-      setSyncErrors(prev => ({ ...prev, [tableName]: errorMsg }));
-      throw error;
-    } finally {
-      setIsSyncing(prev => ({ ...prev, [tableName]: false }));
-    }
-  };
-
+  // Valeurs factices
   const contextValue: SyncContextProps = {
-    lastSynced,
-    isSyncing,
-    syncErrors,
-    isOnline,
-    isInitialized: () => initialized,
-    syncData,
-    loadData,
-    getLastSynced: (tableName: string) => lastSynced[tableName] || null,
-    getSyncError: (tableName: string) => syncErrors[tableName] || null
+    lastSynced: {},
+    isSyncing: {},
+    syncErrors: {},
+    isOnline: true,
+    isInitialized: () => true,
+    syncData: async <T>(tableName: string, data: T[]) => {
+      console.log(`Synchronisation désactivée pour ${tableName}`);
+      return true;
+    },
+    loadData: async <T>(tableName: string) => {
+      console.log(`Chargement désactivé pour ${tableName}`);
+      return [] as T[];
+    },
+    getLastSynced: () => new Date(),
+    getSyncError: () => null
   };
 
   return (
@@ -98,10 +44,22 @@ export const SyncProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   );
 };
 
+// Hook d'utilisation du contexte qui retourne des valeurs par défaut si non disponible
 export const useSyncContext = (): SyncContextProps => {
   const context = useContext(SyncContext);
   if (context === undefined) {
-    throw new Error('useSyncContext must be used within a SyncProvider');
+    // Valeurs par défaut au lieu de lancer une erreur
+    return {
+      lastSynced: {},
+      isSyncing: {},
+      syncErrors: {},
+      isOnline: true,
+      isInitialized: () => true,
+      syncData: async () => true,
+      loadData: async () => [],
+      getLastSynced: () => new Date(),
+      getSyncError: () => null
+    };
   }
   return context;
 };

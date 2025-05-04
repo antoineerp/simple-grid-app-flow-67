@@ -40,8 +40,6 @@ const Home = () => {
     }
   };
 
-  // Forcer la valeur isAdmin à true pour tester
-  // const isAdmin = true; 
   // Utiliser les informations de l'utilisateur connecté
   const isAdmin = user && (user.role === 'admin' || user.role === 'administrateur');
   
@@ -131,13 +129,12 @@ const Home = () => {
                 Réparation d'urgence
               </CardTitle>
               <CardDescription className="text-amber-700">
-                Résolvez les problèmes de synchronisation persistants
+                Résolvez les problèmes persistants
               </CardDescription>
             </CardHeader>
             <CardContent>
               <p className="text-sm text-amber-700">
-                Utilisez cet outil en cas d'erreurs de synchronisation répétées, 
-                notamment avec les messages d'erreur concernant des entrées dupliquées.
+                Utilisez cet outil en cas d'erreurs répétées.
               </p>
             </CardContent>
             <CardFooter>
@@ -163,7 +160,7 @@ const Home = () => {
             </CardHeader>
             <CardContent>
               <p className="text-sm text-red-700">
-                Supprime toutes les données locales et les paramètres de synchronisation.
+                Supprime toutes les données locales et les paramètres.
                 Vous devrez vous reconnecter après cette opération.
               </p>
             </CardContent>
@@ -178,7 +175,7 @@ const Home = () => {
             </CardFooter>
           </Card>
           
-          {/* Assurons-nous que cette section est conditionnelle et affichée pour les administrateurs */}
+          {/* Section conditionnelle pour les administrateurs */}
           {isAdmin && (
             <Card className="bg-purple-50 border-purple-200">
               <CardHeader>
