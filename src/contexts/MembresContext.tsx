@@ -28,6 +28,7 @@ export const MembresProvider: React.FC<{children: ReactNode}> = ({ children }) =
   const [error, setError] = useState<string | Error | null>(null);
   const [syncFailed, setSyncFailed] = useState<boolean>(false);
   const [lastSynced, setLastSynced] = useState<Date | null>(null);
+  const [isSyncing, setIsSyncing] = useState<boolean>(false); // Nouvel état pour éviter les boucles
   const { isAuthenticated } = useAuth();
   const { isOnline } = useNetworkStatus();
   const { toast } = useToast();
@@ -38,8 +39,14 @@ export const MembresProvider: React.FC<{children: ReactNode}> = ({ children }) =
       return;
     }
     
+    if (isSyncing) {
+      console.log("MembresContext: Synchronisation déjà en cours, requête ignorée");
+      return;
+    }
+    
     setIsLoading(true);
     setError(null);
+    setIsSyncing(true);
     
     try {
       // S'assurer que membres est toujours un tableau valide, même si vide
@@ -63,7 +70,6 @@ export const MembresProvider: React.FC<{children: ReactNode}> = ({ children }) =
             toast({
               title: "Synchronisation incomplète",
               description: "Des problèmes sont survenus lors de la synchronisation des membres",
-              // Correction de l'erreur ici: "warning" -> "default"
               variant: "default",
             });
           }
@@ -123,8 +129,9 @@ export const MembresProvider: React.FC<{children: ReactNode}> = ({ children }) =
       setError(err instanceof Error ? err : new Error(String(err)));
     } finally {
       setIsLoading(false);
+      setIsSyncing(false); // Important: Toujours mettre à jour l'état à la fin
     }
-  }, [isAuthenticated, isOnline, membres, toast]);
+  }, [isAuthenticated, isOnline, membres, toast, isSyncing]);
 
   const addMembre = async (membre: Membre): Promise<void> => {
     // Implémentation à venir
@@ -147,10 +154,10 @@ export const MembresProvider: React.FC<{children: ReactNode}> = ({ children }) =
 
   // Charger les membres lors du montage du composant
   useEffect(() => {
-    if (isAuthenticated()) {
+    if (isAuthenticated() && !isSyncing) {
       refreshMembres();
     }
-  }, [refreshMembres, isAuthenticated]);
+  }, [refreshMembres, isAuthenticated, isSyncing]);
 
   return (
     <MembresContext.Provider 

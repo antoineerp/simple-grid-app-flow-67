@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { Card } from "@/components/ui/card";
 import { MembresTable } from '@/components/ressources/MembresTable';
@@ -18,64 +19,39 @@ const RessourcesHumaines: React.FC = () => {
   const syncContext = useSyncContext();
   const { isOnline } = useNetworkStatus();
   const [repairInProgress, setRepairInProgress] = useState(false);
+  const [initialSyncDone, setInitialSyncDone] = useState(false);
 
   // Enregistrement de la fonction de synchronisation au montage du composant
   useEffect(() => {
     if (syncContext.isInitialized()) {
-      const syncMembresFunction = async () => {
-        console.log("RessourcesHumaines: Synchronisation des membres demandée");
-        try {
-          // Utiliser refreshMembres au lieu de syncMembres directement
-          await refreshMembres();
-          return true;
-        } catch (error) {
-          console.error("Erreur lors de la synchronisation des membres:", error);
-          return false;
-        }
-      };
-
-      // Enregistrer la fonction de synchronisation sans arguments
-      syncContext.registerSyncFunction();
       console.log("RessourcesHumaines: Fonction de synchronisation des membres enregistrée");
       
-      // Synchronisation initiale si nécessaire
-      if (isOnline && (!lastSynced || syncFailed)) {
+      // Synchronisation initiale si nécessaire uniquement au premier rendu
+      if (isOnline && (!lastSynced || syncFailed) && !initialSyncDone) {
         console.log("RessourcesHumaines: Synchronisation initiale des membres");
-        syncContext.syncAll().catch(error => {
+        refreshMembres().then(() => {
+          setInitialSyncDone(true);
+        }).catch(error => {
           console.error("Erreur lors de la synchronisation initiale:", error);
+          setInitialSyncDone(true); // Marquer comme terminé même en cas d'erreur
         });
+      } else if (!initialSyncDone) {
+        setInitialSyncDone(true);
       }
     } else {
       console.error("RessourcesHumaines: Le contexte de synchronisation n'est pas initialisé");
     }
-    
-    // Nettoyage au démontage
-    return () => {
-      if (syncContext.isInitialized()) {
-        // Désactiver la synchronisation sans argument
-        syncContext.unregisterSyncFunction();
-        console.log("RessourcesHumaines: Fonction de synchronisation des membres désenregistrée");
-      }
-    };
-  }, [syncContext, refreshMembres, lastSynced, syncFailed, isOnline]);
+  }, [syncContext, refreshMembres, lastSynced, syncFailed, isOnline, initialSyncDone]);
 
   const handleSyncClick = async () => {
     try {
       if (syncContext.isInitialized()) {
         toast({ title: "Synchronisation", description: "Synchronisation en cours..." });
-        const success = await syncContext.syncAll();
-        if (success) {
-          toast({ 
-            title: "Synchronisation terminée", 
-            description: "Les données ont été synchronisées avec succès" 
-          });
-        } else {
-          toast({ 
-            title: "Synchronisation incomplète", 
-            description: "Certaines données n'ont pas pu être synchronisées", 
-            variant: "destructive" 
-          });
-        }
+        await refreshMembres();
+        toast({ 
+          title: "Synchronisation terminée", 
+          description: "Les données ont été synchronisées avec succès" 
+        });
       } else {
         toast({ 
           title: "Erreur", 
@@ -141,10 +117,10 @@ const RessourcesHumaines: React.FC = () => {
               Erreur de synchronisation détectée - Cliquez pour réparer
             </Button>
           </AlertDialogTrigger>
-          <AlertDialogContent>
+          <AlertDialogContent aria-describedby="alert-dialog-description">
             <AlertDialogHeader>
               <AlertDialogTitle>Réparer les erreurs de synchronisation</AlertDialogTitle>
-              <AlertDialogDescription>
+              <AlertDialogDescription id="alert-dialog-description">
                 Une erreur de duplication d'ID a été détectée. Cette procédure va nettoyer les données locales et réparer 
                 l'erreur sur le serveur. L'application sera rechargée à la fin du processus.
               </AlertDialogDescription>

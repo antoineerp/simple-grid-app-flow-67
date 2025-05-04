@@ -1,14 +1,32 @@
 
-// Hook de simulation de synchronisation entièrement désactivé
+/**
+ * Hook de contexte de synchronisation simplifié
+ * Cette version fournit uniquement les interfaces nécessaires pour éviter les erreurs
+ */
 
 export const useSyncContext = () => {
-  // Aucune initialisation réelle
-  
   // Fonctions factices qui ne font strictement rien
-  const registerSyncFunction = () => {};
-  const unregisterSyncFunction = () => {};
-  const syncAll = async (): Promise<boolean> => true;
-  const getSyncState = () => ({ isSyncing: false, lastSynced: new Date(), error: null });
+  const registerSyncFunction = () => {
+    console.log("SyncContext: Fonction d'enregistrement appelée (désactivée)");
+    return true;
+  };
+  
+  const unregisterSyncFunction = () => {
+    console.log("SyncContext: Fonction de désenregistrement appelée (désactivée)");
+    return true;
+  };
+  
+  const syncAll = async (): Promise<boolean> => {
+    console.log("SyncContext: Fonction syncAll appelée (désactivée)");
+    return true;
+  };
+  
+  const getSyncState = () => ({ 
+    isSyncing: false, 
+    lastSynced: new Date(), 
+    error: null 
+  });
+  
   const isInitialized = (): boolean => true;
 
   return {
