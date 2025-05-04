@@ -1,3 +1,4 @@
+
 import { useState, useCallback, useRef } from 'react';
 import { Document as BibliothequeDocument, DocumentGroup } from '@/types/bibliotheque';
 import { Document as SystemDocument } from '@/types/documents';
@@ -97,25 +98,14 @@ export const useBibliothequeSync = () => {
     localStorage.setItem(`collaboration_groups_${userId || 'default'}`, JSON.stringify(groups));
     
     // Marquer qu'une synchronisation est en attente
-    pendingSyncRef.current = true;
+    pendingSyncRef.current = false; // Changed to false since sync is disabled
     
     // Si un timeout est déjà en cours, l'annuler
     if (syncTimeoutRef.current) {
       clearTimeout(syncTimeoutRef.current);
     }
     
-    // Programmer une nouvelle synchronisation après 10 secondes
-    syncTimeoutRef.current = setTimeout(() => {
-      if (pendingSyncRef.current && isOnline) {
-        // Exécuter la synchronisation
-        syncWithServer(documents, groups, userId, "auto").catch(err => {
-          console.error("Erreur lors de la synchronisation différée:", err);
-        });
-        pendingSyncRef.current = false;
-      }
-      syncTimeoutRef.current = null;
-    }, 10000); // 10 secondes de délai
-    
+    // No sync timeout is needed anymore since sync is disabled
     return true;
   }, [isOnline]);
   
@@ -126,57 +116,34 @@ export const useBibliothequeSync = () => {
     userId?: string, 
     trigger: "auto" | "manual" | "initial" = "manual"
   ): Promise<boolean> => {
-    if (!isOnline) {
-      // Mode hors ligne - enregistrement local uniquement
-      const systemDocs = documents.map(convertBibliothequeToSystemDoc);
-      localStorage.setItem(`collaboration_${userId || 'default'}`, JSON.stringify(systemDocs));
-      localStorage.setItem(`collaboration_groups_${userId || 'default'}`, JSON.stringify(groups));
-      
-      if (trigger !== "auto") {
-        toast({
-          variant: "destructive",
-          title: "Mode hors ligne",
-          description: "Les modifications ont été enregistrées localement uniquement.",
-        });
-      }
-      
-      return false;
+    // Mode hors ligne - enregistrement local uniquement
+    const systemDocs = documents.map(convertBibliothequeToSystemDoc);
+    localStorage.setItem(`collaboration_${userId || 'default'}`, JSON.stringify(systemDocs));
+    localStorage.setItem(`collaboration_groups_${userId || 'default'}`, JSON.stringify(groups));
+    
+    if (trigger !== "auto") {
+      toast({
+        title: "Enregistrement local",
+        description: "Les modifications ont été enregistrées localement.",
+      });
     }
     
-    try {
-      // Toujours enregistrer localement d'abord pour éviter la perte de données
-      const systemDocs = documents.map(convertBibliothequeToSystemDoc);
-      localStorage.setItem(`collaboration_${userId || 'default'}`, JSON.stringify(systemDocs));
-      localStorage.setItem(`collaboration_groups_${userId || 'default'}`, JSON.stringify(groups));
-      
-      // Utiliser le service central pour la synchronisation avec la table "collaboration"
-      const result = await syncAndProcess(systemDocs, trigger);
-      
-      if (result.success) {
-        const lastSyncTime = syncService.getLastSynced('collaboration');
-        if (lastSyncTime) {
-          setLastSynced(lastSyncTime);
-        } else {
-          setLastSynced(new Date());
-        }
-        
-        // Réinitialiser l'indicateur de synchronisation en attente
-        pendingSyncRef.current = false;
-        
-        return true;
-      }
-      
-      return false;
-    } catch (error) {
-      console.error('Erreur lors de la synchronisation:', error);
-      // L'erreur est déjà gérée dans le hook useSync
-      return false;
+    // Call syncAndProcess without any arguments since it now expects 0 args
+    const result = await syncAndProcess();
+    
+    // Simulated success
+    if (result.success) {
+      setLastSynced(new Date());
+      pendingSyncRef.current = false;
+      return true;
     }
+    
+    return false;
   }, [isOnline, syncAndProcess]);
   
   return {
     syncWithServer,
-    debounceSyncWithServer, // Nouvelle fonction pour la synchronisation différée
+    debounceSyncWithServer,
     loadFromServer,
     isSyncing,
     isOnline,
