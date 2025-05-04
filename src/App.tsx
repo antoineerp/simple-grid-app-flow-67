@@ -15,7 +15,6 @@ import Collaboration from '@/pages/Collaboration';
 import DatabaseCheckPage from '@/pages/DatabaseCheckPage';
 import { getIsLoggedIn, getCurrentUser } from '@/services/auth/authService';
 import { MembresProvider } from '@/contexts/MembresContext';
-import { initializeSyncStorageCleaner } from './utils/syncStorageCleaner';
 import { Loader2 } from 'lucide-react';
 import SyncHealthIndicator from './components/common/SyncHealthIndicator';
 
@@ -110,13 +109,8 @@ function App() {
     
     window.addEventListener('error', handleGlobalError);
     
-    // Exécuter le nettoyage des données de synchronisation au démarrage
-    try {
-      initializeSyncStorageCleaner();
-      console.log("App - Nettoyage des données de synchronisation initialisé");
-    } catch (error) {
-      console.error("App - Erreur lors de l'initialisation du nettoyage:", error);
-    }
+    // Suppression de l'initialisation du nettoyage des données de synchronisation
+    console.log("App - Synchronisation désactivée");
     
     return () => {
       window.removeEventListener('error', handleGlobalError);
@@ -198,8 +192,8 @@ function App() {
         </TooltipProvider>
       </Router>
       
-      {/* Ajouter l'indicateur de santé des synchronisations */}
-      <SyncHealthIndicator position="bottom-right" />
+      {/* Remplacé l'indicateur de santé des synchronisations par null */}
+      {/* <SyncHealthIndicator position="bottom-right" /> */}
     </div>
   );
 }
