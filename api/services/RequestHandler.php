@@ -1,102 +1,117 @@
 
 <?php
+/**
+ * Classe utilitaire pour la gestion des requêtes HTTP
+ */
 class RequestHandler {
     /**
-     * Configure les en-têtes standards pour les réponses API
+     * Définit les en-têtes standard pour les endpoints API
+     * 
+     * @param string $allowedMethods Méthodes HTTP autorisées (ex: "GET, POST, OPTIONS")
+     * @param int $maxAge Durée maximale de mise en cache des préflight (en secondes)
      */
-    public static function setStandardHeaders($methods = "GET, POST, OPTIONS") {
-        header('Content-Type: application/json; charset=UTF-8');
+    public static function setStandardHeaders($allowedMethods = "GET, POST, OPTIONS", $maxAge = 3600) {
+        // Entêtes CORS standard
         header("Access-Control-Allow-Origin: *");
-        header("Access-Control-Allow-Methods: $methods");
-        header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With, X-Device-ID");
-        header("Cache-Control: no-cache, no-store, must-revalidate");
+        header("Access-Control-Allow-Methods: $allowedMethods");
+        header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Device-ID");
+        header("Access-Control-Max-Age: $maxAge");
+        
+        // Entêtes Content-Type standard
+        header("Content-Type: application/json; charset=UTF-8");
+        
+        // Désactiver le cache pour les API dynamiques
+        header("Cache-Control: no-store, no-cache, must-revalidate, max-age=0");
+        header("Pragma: no-cache");
+        header("Expires: 0");
     }
-
+    
     /**
-     * Gère les requêtes OPTIONS (preflight) pour CORS
+     * Gère les requêtes OPTIONS pour le CORS preflight
      */
     public static function handleOptionsRequest() {
-        if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
+        if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
             http_response_code(200);
-            echo json_encode(['success' => true, 'message' => 'Preflight OK']);
             exit;
         }
     }
     
     /**
-     * Récupère l'ID de l'appareil client depuis les en-têtes ou les paramètres
-     */
-    public static function getDeviceId() {
-        // Vérifier dans les en-têtes HTTP
-        $headers = getallheaders();
-        if (isset($headers['X-Device-ID'])) {
-            return self::sanitizeDeviceId($headers['X-Device-ID']);
-        }
-        
-        // Vérifier dans les paramètres GET
-        if (isset($_GET['deviceId'])) {
-            return self::sanitizeDeviceId($_GET['deviceId']);
-        }
-        
-        // Valeur par défaut
-        return 'unknown_device';
-    }
-
-    /**
-     * Nettoie l'identifiant utilisateur pour éviter les injections SQL
+     * Sanitize l'ID utilisateur
+     * 
+     * @param string $userId ID utilisateur à sanitizer
+     * @return string ID utilisateur sanitizé
      */
     public static function sanitizeUserId($userId) {
-        // Nettoyage simple de l'userId
-        $userId = preg_replace('/[^a-zA-Z0-9_\-\.]/', '_', $userId);
-        return substr($userId, 0, 50); // Limiter la longueur
-    }
-    
-    /**
-     * Nettoie l'identifiant d'appareil pour éviter les injections SQL
-     */
-    public static function sanitizeDeviceId($deviceId) {
-        // Nettoyage simple de l'deviceId
-        $deviceId = preg_replace('/[^a-zA-Z0-9_\-\.]/', '_', $deviceId);
-        return substr($deviceId, 0, 100); // Limiter la longueur
-    }
-    
-    /**
-     * Vérifie si l'utilisateur est autorisé pour une ressource donnée
-     */
-    public static function checkUserAuthorization($resourceUserId, $currentUserId, $isAdmin = false) {
-        // Si l'utilisateur est admin, il a accès à tout
-        if ($isAdmin) {
-            return true;
+        if (!$userId) {
+            throw new Exception("ID utilisateur invalide");
         }
         
-        // Si la ressource n'appartient à aucun utilisateur, elle est publique
-        if (empty($resourceUserId)) {
-            return true;
-        }
-        
-        // Sinon, l'utilisateur ne peut accéder qu'à ses propres ressources
-        return $resourceUserId === $currentUserId;
-    }
-    
-    /**
-     * Enregistre les informations de synchronisation lors d'une requête
-     */
-    public static function logSyncRequest($userId, $deviceId, $tableName, $action) {
-        try {
-            // Créer un fichier de log pour faciliter le débogage
-            $logFile = __DIR__ . '/../logs/sync_log.txt';
-            $logDir = dirname($logFile);
-            
-            // Créer le répertoire logs s'il n'existe pas
-            if (!file_exists($logDir)) {
-                mkdir($logDir, 0755, true);
+        // Si c'est un objet, tenter d'extraire l'ID
+        if (is_array($userId)) {
+            if (isset($userId['identifiant_technique'])) {
+                $userId = $userId['identifiant_technique'];
+            } else if (isset($userId['id'])) {
+                $userId = $userId['id'];
             }
-            
-            $logData = date('Y-m-d H:i:s') . " | User: $userId | Device: $deviceId | Table: $tableName | Action: $action" . PHP_EOL;
-            file_put_contents($logFile, $logData, FILE_APPEND);
-        } catch (Exception $e) {
-            error_log("Erreur lors de l'enregistrement du log de synchronisation: " . $e->getMessage());
         }
+        
+        // Convertir en string et nettoyer
+        $userId = (string)$userId;
+        return preg_replace('/[^a-zA-Z0-9_]/', '_', $userId);
+    }
+    
+    /**
+     * Vérifie si un utilisateur est autorisé à accéder à une ressource
+     * 
+     * @param string $requestUserId ID utilisateur de la requête
+     * @param string $resourceUserId ID utilisateur de la ressource
+     * @return bool True si l'accès est autorisé
+     */
+    public static function authorizeAccess($requestUserId, $resourceUserId) {
+        // Dans cette version simple, vérifie juste si les IDs correspondent
+        // Dans une version plus complète, on pourrait vérifier les rôles, etc.
+        return $requestUserId === $resourceUserId;
+    }
+    
+    /**
+     * Génère une réponse d'erreur et termine l'exécution
+     * 
+     * @param string $message Message d'erreur
+     * @param int $code Code HTTP d'erreur
+     */
+    public static function sendError($message, $code = 400) {
+        http_response_code($code);
+        echo json_encode([
+            'success' => false,
+            'message' => $message,
+            'code' => $code
+        ]);
+        exit;
+    }
+    
+    /**
+     * Génère une réponse de succès
+     * 
+     * @param array $data Données à retourner
+     * @param string $message Message de succès optionnel
+     */
+    public static function sendSuccess($data, $message = null) {
+        $response = [
+            'success' => true,
+            'timestamp' => date('c')
+        ];
+        
+        if ($message) {
+            $response['message'] = $message;
+        }
+        
+        if (is_array($data)) {
+            $response = array_merge($response, $data);
+        } else {
+            $response['data'] = $data;
+        }
+        
+        echo json_encode($response);
     }
 }
-?>
