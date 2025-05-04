@@ -1,14 +1,17 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Pencil, Trash, ExternalLink, ChevronDown, ChevronUp, FolderPlus, Plus } from 'lucide-react';
-import { useBibliotheque } from '@/hooks/useBibliotheque';
+import { Pencil, Trash, ExternalLink, ChevronDown, ChevronUp, FolderPlus, Plus, RefreshCw } from 'lucide-react';
+import { useSyncedData } from '@/hooks/useSyncedData';
 import { Document, DocumentGroup } from '@/types/bibliotheque';
 import { useDragAndDrop } from '@/components/gestion-documentaire/table/useDragAndDrop';
 import SyncIndicator from '@/components/common/SyncIndicator';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { getDeviceId } from '@/services/core/userService';
 
 // Simplified document dialog component
 const DocumentDialog = ({ 
@@ -114,31 +117,111 @@ const GroupDialog = ({
 };
 
 const Collaboration = () => {
+  // Utiliser le hook useSyncedData pour les documents
   const {
-    documents,
-    groups,
+    data: documents,
+    updateData: setDocuments,
+    isSyncing: isSyncingDocuments,
     isOnline,
     lastSynced,
-    syncFailed,
-    isSyncing,
-    handleToggleGroup,
-    handleEditDocument,
-    handleDeleteDocument,
-    handleEditGroup,
-    handleDeleteGroup,
-    handleAddGroup,
-    handleAddDocument,
-    syncWithServer,
+    forceReload: forceReloadDocuments,
+    repairSync: repairSyncDocuments,
     currentUser
-  } = useBibliotheque();
+  } = useSyncedData<Document>(
+    'collaboration',
+    [],
+    async (userId) => {
+      try {
+        console.log("Chargement des documents de collaboration pour", userId);
+        
+        // Rechercher les données sous différentes clés possibles
+        let storedData = localStorage.getItem(`collaboration_${userId}`);
+        if (!storedData) {
+          storedData = localStorage.getItem('collaboration');
+          if (!storedData) {
+            storedData = localStorage.getItem(`bibliotheque_${userId}`);
+            if (!storedData) {
+              storedData = localStorage.getItem('bibliotheque');
+            }
+          }
+        }
+        
+        return storedData ? JSON.parse(storedData) : [];
+      } catch (error) {
+        console.error("Erreur lors du chargement des documents:", error);
+        return [];
+      }
+    },
+    async (data, userId) => {
+      try {
+        console.log("Sauvegarde des documents de collaboration pour", userId);
+        localStorage.setItem(`collaboration_${userId}`, JSON.stringify(data));
+        return true;
+      } catch (error) {
+        console.error("Erreur lors de la sauvegarde des documents:", error);
+        return false;
+      }
+    }
+  );
+
+  // Utiliser le hook useSyncedData pour les groupes
+  const {
+    data: groups,
+    updateData: setGroups,
+    isSyncing: isSyncingGroups,
+    forceReload: forceReloadGroups,
+    repairSync: repairSyncGroups
+  } = useSyncedData<DocumentGroup>(
+    'collaboration_groups',
+    [],
+    async (userId) => {
+      try {
+        console.log("Chargement des groupes de collaboration pour", userId);
+        
+        // Rechercher les données sous différentes clés possibles
+        let storedData = localStorage.getItem(`collaboration_groups_${userId}`);
+        if (!storedData) {
+          storedData = localStorage.getItem('collaboration_groups');
+          if (!storedData) {
+            storedData = localStorage.getItem(`bibliotheque_groups_${userId}`);
+            if (!storedData) {
+              storedData = localStorage.getItem('bibliotheque_groups');
+            }
+          }
+        }
+        
+        return storedData ? JSON.parse(storedData) : [];
+      } catch (error) {
+        console.error("Erreur lors du chargement des groupes:", error);
+        return [];
+      }
+    },
+    async (data, userId) => {
+      try {
+        console.log("Sauvegarde des groupes de collaboration pour", userId);
+        localStorage.setItem(`collaboration_groups_${userId}`, JSON.stringify(data));
+        return true;
+      } catch (error) {
+        console.error("Erreur lors de la sauvegarde des groupes:", error);
+        return false;
+      }
+    }
+  );
 
   const [isDocumentDialogOpen, setIsDocumentDialogOpen] = useState(false);
   const [isGroupDialogOpen, setIsGroupDialogOpen] = useState(false);
   const [currentDocument, setCurrentDocument] = useState<Document | null>(null);
   const [currentGroup, setCurrentGroup] = useState<DocumentGroup | null>(null);
   const [isEditing, setIsEditing] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
   
-  // Use the useDragAndDrop hook for drag and drop functionality - but with the proper document type
+  // Variable qui indique si une synchronisation est en cours
+  const isSyncing = isSyncingDocuments || isSyncingGroups;
+  
+  // Variable qui indique si une erreur de synchronisation est survenue
+  const syncFailed = loadError !== null;
+
+  // Use the useDragAndDrop hook for drag and drop functionality
   const { 
     draggedItem,
     handleDragStart,
@@ -147,9 +230,17 @@ const Collaboration = () => {
     handleDrop,
     handleDragEnd,
     handleGroupDrop
-  } = useDragAndDrop(documents as any[], (sourceIndex, targetIndex, targetGroupId) => {
-    // Handle reordering through the useBibliotheque hook
-    console.log('Reordering:', sourceIndex, targetIndex, targetGroupId);
+  } = useDragAndDrop(documents, (sourceIndex, targetIndex, targetGroupId) => {
+    // Fonction de réorganisation
+    const result = Array.from(documents);
+    const [removed] = result.splice(sourceIndex, 1);
+    
+    if (targetGroupId) {
+      removed.groupId = targetGroupId;
+    }
+    
+    result.splice(targetIndex, 0, removed);
+    setDocuments(result);
   });
 
   // Handle document changes
@@ -172,6 +263,20 @@ const Collaboration = () => {
     }
   };
 
+  // Fonction de synchronisation
+  const handleSync = async () => {
+    setLoadError(null);
+    try {
+      await Promise.all([
+        forceReloadDocuments(),
+        forceReloadGroups()
+      ]);
+    } catch (error) {
+      console.error("Erreur lors de la synchronisation:", error);
+      setLoadError("Échec de la synchronisation. Veuillez réessayer.");
+    }
+  };
+
   // Handle edit document button click
   const handleEditDocumentClick = (doc: Document) => {
     setCurrentDocument(doc);
@@ -182,7 +287,7 @@ const Collaboration = () => {
   // Handle add document button click
   const handleAddDocumentClick = () => {
     setCurrentDocument({ 
-      id: '', 
+      id: String(Date.now()), 
       name: '', 
       link: null,
       userId: currentUser 
@@ -195,9 +300,13 @@ const Collaboration = () => {
   const handleSaveDocument = () => {
     if (currentDocument) {
       if (isEditing) {
-        handleEditDocument(currentDocument);
+        // Mise à jour d'un document existant
+        setDocuments(documents.map(doc => 
+          doc.id === currentDocument.id ? currentDocument : doc
+        ));
       } else {
-        handleAddDocument(currentDocument);
+        // Ajout d'un nouveau document
+        setDocuments([...documents, currentDocument]);
       }
       setIsDocumentDialogOpen(false);
     }
@@ -216,7 +325,7 @@ const Collaboration = () => {
     setCurrentGroup({
       id: newId,
       name: '',
-      expanded: false,
+      expanded: true,
       items: [],
       userId: currentUser
     });
@@ -228,56 +337,62 @@ const Collaboration = () => {
   const handleSaveGroup = () => {
     if (currentGroup) {
       if (isEditing) {
-        handleEditGroup(currentGroup);
+        // Mise à jour d'un groupe existant
+        setGroups(groups.map(group => 
+          group.id === currentGroup.id ? currentGroup : group
+        ));
       } else {
-        // Fixed: Call handleAddGroup with the currentGroup
-        handleAddGroup(currentGroup);
+        // Ajout d'un nouveau groupe
+        setGroups([...groups, currentGroup]);
       }
       setIsGroupDialogOpen(false);
     }
   };
-
-  // Create a wrapper function that converts Promise<boolean> to Promise<void>
-  const handleSync = async (): Promise<void> => {
-    try {
-      console.log("Initiating manual sync from Collaboration page");
-      // Pass the required parameters to syncWithServer - documents and groups
-      await syncWithServer(documents, groups);
-      console.log("Manual sync completed");
-    } catch (error) {
-      console.error('Sync error:', error);
-    }
+  
+  // Handle toggle group expansion
+  const handleToggleGroup = (id: string) => {
+    setGroups(prevGroups => 
+      prevGroups.map(group => 
+        group.id === id ? { ...group, expanded: !group.expanded } : group
+      )
+    );
+  };
+  
+  // Handle delete document
+  const handleDeleteDocument = (id: string) => {
+    setDocuments(documents.filter(doc => doc.id !== id));
+  };
+  
+  // Handle delete group
+  const handleDeleteGroup = (id: string) => {
+    setGroups(groups.filter(group => group.id !== id));
+    
+    // Mettre à jour les documents qui étaient dans ce groupe
+    setDocuments(documents.map(doc => 
+      doc.groupId === id ? { ...doc, groupId: undefined } : doc
+    ));
   };
 
-  // Synchronize on component mount and when network status changes
-  useEffect(() => {
-    console.log("Collaboration component mounted, checking for data");
-    // Initialize synchronization if necessary
-    if (isOnline) {
-      console.log("Network is online, initiating sync");
-      handleSync();
-    }
-  }, [isOnline]);
-
-  // Add periodic sync (every 30 seconds) when the component is active
-  useEffect(() => {
-    const syncInterval = setInterval(() => {
-      if (isOnline && !isSyncing) {
-        console.log("Periodic sync triggered");
-        handleSync();
-      }
-    }, 30000); // 30 seconds
-    
-    return () => clearInterval(syncInterval);
-  }, [isOnline, isSyncing]);
+  // Récupérer l'ID de l'appareil actuel
+  const deviceId = getDeviceId();
 
   return (
     <div className="w-full px-6 py-6">
-      <div className="mb-6">
+      <div className="mb-6 flex items-center justify-between">
         <h1 className="text-3xl font-bold text-blue-600">Collaboration</h1>
+        <Button 
+          onClick={handleSync}
+          variant="outline"
+          size="sm"
+          disabled={isSyncing}
+          className="ml-4"
+        >
+          <RefreshCw className={`h-4 w-4 mr-2 ${isSyncing ? 'animate-spin' : ''}`} />
+          {isSyncing ? 'Synchronisation...' : 'Synchroniser'}
+        </Button>
       </div>
 
-      {/* Show sync indicator always to give feedback about sync status */}
+      {/* Show sync indicator */}
       <div className="mb-4">
         <SyncIndicator
           isSyncing={isSyncing}
@@ -287,8 +402,26 @@ const Collaboration = () => {
           onSync={handleSync}
           showOnlyErrors={false}
           tableName="collaboration"
+          deviceId={deviceId}
         />
       </div>
+
+      {loadError && (
+        <Alert variant="destructive" className="mb-4">
+          <AlertTitle>Erreur</AlertTitle>
+          <AlertDescription className="flex items-center justify-between">
+            <div>{loadError}</div>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={handleSync}
+              className="ml-4"
+            >
+              Réessayer
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
 
       <div className="bg-white rounded-md shadow overflow-hidden">
         <div className="overflow-x-auto">
@@ -356,7 +489,9 @@ const Collaboration = () => {
                       </Button>
                     </td>
                   </tr>
-                  {group.expanded && group.items && group.items.map((item) => (
+                  {group.expanded && documents
+                    .filter(doc => doc.groupId === group.id)
+                    .map((item) => (
                     <tr 
                       key={item.id} 
                       className="bg-white"
@@ -405,7 +540,9 @@ const Collaboration = () => {
               ))}
 
               {/* Afficher les documents qui ne sont pas dans un groupe */}
-              {documents.filter(doc => !doc.groupId).map((doc) => (
+              {documents
+                .filter(doc => !doc.groupId)
+                .map((doc) => (
                 <tr 
                   key={doc.id} 
                   className="bg-white"

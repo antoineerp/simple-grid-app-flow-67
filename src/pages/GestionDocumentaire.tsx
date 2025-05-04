@@ -4,9 +4,7 @@ import DocumentTable from '@/components/documents/DocumentTable';
 import { Button } from '@/components/ui/button';
 import { Plus, FileText, RefreshCw, FolderPlus } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { syncRepairTool } from '@/utils/syncRepairTool';
 import { useSyncedData } from '@/hooks/useSyncedData';
-import { getDatabaseConnectionCurrentUser } from '@/services/core/databaseConnectionService';
 import { Document, DocumentGroup } from '@/types/documents';
 
 const GestionDocumentaire = () => {
@@ -139,7 +137,7 @@ const GestionDocumentaire = () => {
     setDocuments(updatedDocuments);
   };
 
-  const handleAtteinteChange = (id: string, atteinte: 'NC' | 'PC' | 'C' | null) => {
+  const handleAtteinteChange = (id: string, atteinte: 'NC' | 'PC' | 'C' | 'EX' | null) => {
     // Mettre à jour l'atteinte d'un document
     const updatedDocuments = documents.map(doc => {
       if (doc.id === id) {
