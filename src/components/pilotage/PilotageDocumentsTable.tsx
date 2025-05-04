@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
 
-interface Document {
+interface PilotageDocument {
   id: number;
   ordre: number;
   nom: string;
@@ -20,8 +20,8 @@ interface Document {
 }
 
 interface PilotageDocumentsTableProps {
-  documents: Document[];
-  onEditDocument: (doc: Document) => void;
+  documents: PilotageDocument[];
+  onEditDocument: (doc: PilotageDocument) => void;
   onDeleteDocument: (id: number) => void;
   onReorder: (startIndex: number, endIndex: number) => void;
 }

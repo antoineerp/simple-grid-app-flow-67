@@ -7,19 +7,7 @@ import { useToast } from '@/hooks/use-toast';
 import { syncRepairTool } from '@/utils/syncRepairTool';
 import { useSyncedData } from '@/hooks/useSyncedData';
 import { getDatabaseConnectionCurrentUser } from '@/services/core/databaseConnectionService';
-
-// Types simplifiés pour l'exemple
-interface Document {
-  id: string;
-  [key: string]: any;
-}
-
-interface DocumentGroup {
-  id: string;
-  name: string;
-  expanded: boolean;
-  [key: string]: any;
-}
+import { Document, DocumentGroup } from '@/types/documents';
 
 const GestionDocumentaire = () => {
   const { toast } = useToast();
@@ -140,7 +128,10 @@ const GestionDocumentaire = () => {
       if (doc.id === id) {
         return {
           ...doc,
-          [type]: values
+          responsabilites: {
+            ...(doc.responsabilites || { r: [], a: [], c: [], i: [] }),
+            [type]: values
+          }
         };
       }
       return doc;
@@ -154,7 +145,7 @@ const GestionDocumentaire = () => {
       if (doc.id === id) {
         return {
           ...doc,
-          atteinte
+          etat: atteinte
         };
       }
       return doc;
@@ -168,7 +159,7 @@ const GestionDocumentaire = () => {
       if (doc.id === id) {
         return {
           ...doc,
-          excluded: !doc.excluded
+          etat: doc.etat === 'EX' ? null : 'EX'
         };
       }
       return doc;

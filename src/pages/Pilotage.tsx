@@ -13,11 +13,12 @@ import DocumentSummary from '@/components/pilotage/DocumentSummary';
 import ResponsabilityMatrix from '@/components/pilotage/ResponsabilityMatrix';
 import { useState } from 'react';
 
-// Type simplifié du document pour l'exemple
-interface Document {
-  id: string;
-  name: string;
-  [key: string]: any;
+// Type spécifique pour le document de pilotage
+interface PilotageDocument {
+  id: number;
+  ordre: number;
+  nom: string;
+  lien: string | null;
 }
 
 const Pilotage = () => {
@@ -26,9 +27,11 @@ const Pilotage = () => {
   // États pour la gestion du dialogue
   const [isDialogOpen, setIsDialogOpen] = useState<boolean>(false);
   const [isEditing, setIsEditing] = useState<boolean>(false);
-  const [currentDocument, setCurrentDocument] = useState<Document>({
-    id: "",
-    name: "",
+  const [currentDocument, setCurrentDocument] = useState<PilotageDocument>({
+    id: 0,
+    ordre: 0,
+    nom: "",
+    lien: null
   });
   
   // Utiliser le hook pour la gestion des documents avec synchronisation
@@ -38,7 +41,7 @@ const Pilotage = () => {
     isSyncing,
     forceReload,
     repairSync,
-  } = useSyncedData<Document>(
+  } = useSyncedData<PilotageDocument>(
     'pilotage_documents', // Nom de la table pour le stockage
     [], // Données initiales
     async (userId) => {
@@ -59,26 +62,29 @@ const Pilotage = () => {
 
   // Gérer l'ajout d'un document
   const handleAddDocument = () => {
+    const nextOrdre = documents.length > 0 
+      ? Math.max(...documents.map(doc => doc.ordre)) + 1 
+      : 1;
+      
     setCurrentDocument({
-      id: crypto.randomUUID(),
-      name: "",
+      id: 0,
+      ordre: nextOrdre,
+      nom: "",
+      lien: null
     });
     setIsEditing(false);
     setIsDialogOpen(true);
   };
 
   // Gérer la modification d'un document
-  const handleEditDocument = (id: string) => {
-    const doc = documents.find(d => d.id === id);
-    if (doc) {
-      setCurrentDocument({ ...doc });
-      setIsEditing(true);
-      setIsDialogOpen(true);
-    }
+  const handleEditDocument = (doc: PilotageDocument) => {
+    setCurrentDocument({ ...doc });
+    setIsEditing(true);
+    setIsDialogOpen(true);
   };
 
   // Gérer la suppression d'un document
-  const handleDeleteDocument = (id: string) => {
+  const handleDeleteDocument = (id: number) => {
     const updatedDocs = documents.filter(d => d.id !== id);
     setDocuments(updatedDocs);
   };
@@ -88,7 +94,7 @@ const Pilotage = () => {
     const { name, value } = e.target;
     setCurrentDocument(prev => ({
       ...prev,
-      [name]: value
+      [name]: name === 'ordre' ? parseInt(value, 10) || 0 : value
     }));
   };
 
@@ -100,7 +106,11 @@ const Pilotage = () => {
       );
       setDocuments(updatedDocs);
     } else {
-      setDocuments([...documents, currentDocument]);
+      const newId = documents.length > 0 
+        ? Math.max(...documents.map(doc => doc.id)) + 1 
+        : 1;
+      
+      setDocuments([...documents, { ...currentDocument, id: newId }]);
     }
     setIsDialogOpen(false);
   };
@@ -110,7 +120,14 @@ const Pilotage = () => {
     const result = Array.from(documents);
     const [removed] = result.splice(startIndex, 1);
     result.splice(endIndex, 0, removed);
-    setDocuments(result);
+    
+    // Mettre à jour l'ordre explicite
+    const reorderedDocs = result.map((doc, idx) => ({
+      ...doc,
+      ordre: idx + 1
+    }));
+    
+    setDocuments(reorderedDocs);
   };
 
   // Gérer l'export PDF
