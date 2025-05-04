@@ -60,6 +60,9 @@ try {
     // Obtenir une référence PDO
     $pdo = $service->getPdo();
     
+    // Force l'enregistrement de cette opération pour déboguer
+    RequestHandler::forceSyncRecord($pdo, $tableName, $userId, $deviceId, 'sync-start', count($documents));
+    
     // Enregistrer cette synchronisation dans l'historique
     $service->recordSyncOperation($userId, $deviceId, 'sync', count($documents));
     
@@ -102,6 +105,9 @@ try {
     }
     
     error_log("Documents de collaboration synchronisés: " . count($documents));
+    
+    // Enregistrer la fin de la synchronisation
+    RequestHandler::forceSyncRecord($pdo, $tableName, $userId, $deviceId, 'sync-end', count($documents));
     
     // Réponse réussie
     RequestHandler::sendJsonResponse(true, 'Données de collaboration synchronisées avec succès', [

@@ -77,6 +77,11 @@ class DataSyncService {
         }
         
         try {
+            // Récupérer le nom réel de la table (sans le suffix utilisateur)
+            $baseTableName = $this->tableName;
+            
+            error_log("DEBUT: Enregistrement de l'opération {$operation} pour table {$baseTableName}, utilisateur {$userId}");
+            
             // Créer la table d'historique si elle n'existe pas
             $this->pdo->exec("CREATE TABLE IF NOT EXISTS `sync_history` (
                 `id` INT AUTO_INCREMENT PRIMARY KEY,
@@ -98,22 +103,31 @@ class DataSyncService {
                                                WHERE table_name = ? AND user_id = ? 
                                                AND device_id = ? AND operation = ?
                                                AND sync_timestamp > DATE_SUB(NOW(), INTERVAL 3 SECOND)");
-                $checkStmt->execute([$this->tableName, $userId, $deviceId, $operation]);
+                $checkStmt->execute([$baseTableName, $userId, $deviceId, $operation]);
                 $recentCount = (int)$checkStmt->fetchColumn();
                 
                 if ($recentCount > 0) {
-                    error_log("Opération {$operation} pour {$this->tableName} déjà enregistrée récemment, doublon évité");
+                    error_log("Opération {$operation} pour {$baseTableName} déjà enregistrée récemment, doublon évité");
                     return false;
                 }
             }
+            
+            // Logging détaillé avant l'insertion
+            error_log("Tentative d'insertion dans sync_history - Table: {$baseTableName}, User: {$userId}, Device: {$deviceId}, Op: {$operation}");
             
             // Insérer l'enregistrement de synchronisation
             $stmt = $this->pdo->prepare("INSERT INTO `sync_history` 
                                        (table_name, user_id, device_id, record_count, operation, sync_timestamp) 
                                        VALUES (?, ?, ?, ?, ?, NOW())");
-            $result = $stmt->execute([$this->tableName, $userId, $deviceId, $recordCount, $operation]);
+            $result = $stmt->execute([$baseTableName, $userId, $deviceId, $recordCount, $operation]);
             
-            error_log("Opération {$operation} pour {$this->tableName} enregistrée avec succès: {$recordCount} enregistrements");
+            if ($result) {
+                $lastId = $this->pdo->lastInsertId();
+                error_log("Succès: Opération {$operation} pour {$baseTableName} enregistrée avec ID {$lastId}");
+            } else {
+                error_log("Échec: Impossible d'enregistrer l'opération {$operation} pour {$baseTableName}");
+            }
+            
             return $result;
         } catch (Exception $e) {
             error_log("Erreur lors de l'enregistrement de l'opération {$operation}: " . $e->getMessage());

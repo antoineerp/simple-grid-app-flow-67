@@ -74,4 +74,39 @@ class RequestHandler {
         self::sendJsonResponse(false, $error instanceof Exception ? $error->getMessage() : $error);
         exit;
     }
+
+    /**
+     * Force l'enregistrement d'une opération de synchronisation
+     * Utile pour déboguer et s'assurer que les opérations sont correctement enregistrées
+     */
+    public static function forceSyncRecord($pdo, $tableName, $userId, $deviceId, $operation = 'sync', $recordCount = 0) {
+        try {
+            error_log("Force d'enregistrement de l'opération {$operation} pour la table {$tableName}");
+            
+            // Créer la table d'historique si elle n'existe pas
+            $pdo->exec("CREATE TABLE IF NOT EXISTS `sync_history` (
+                `id` INT AUTO_INCREMENT PRIMARY KEY,
+                `table_name` VARCHAR(100) NOT NULL,
+                `user_id` VARCHAR(50) NOT NULL,
+                `device_id` VARCHAR(100) NOT NULL,
+                `record_count` INT NOT NULL,
+                `operation` VARCHAR(50) DEFAULT 'sync',
+                `sync_timestamp` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                INDEX `idx_user_device` (`user_id`, `device_id`),
+                INDEX `idx_table_user` (`table_name`, `user_id`),
+                INDEX `idx_timestamp` (`sync_timestamp`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+            
+            // Insérer l'enregistrement directement
+            $stmt = $pdo->prepare("INSERT INTO `sync_history` 
+                                (table_name, user_id, device_id, record_count, operation, sync_timestamp) 
+                                VALUES (?, ?, ?, ?, ?, NOW())");
+            $stmt->execute([$tableName, $userId, $deviceId, $recordCount, $operation]);
+            
+            return true;
+        } catch (Exception $e) {
+            error_log("Erreur lors de l'enregistrement forcé de l'opération {$operation}: " . $e->getMessage());
+            return false;
+        }
+    }
 }

@@ -47,6 +47,12 @@ try {
     // Obtenir une référence PDO
     $pdo = $service->getPdo();
     
+    // Force l'enregistrement de cette opération pour déboguer
+    RequestHandler::forceSyncRecord($pdo, $tableName, $userId, $deviceId, 'load-start', 0);
+    
+    // Enregistrer cette opération de chargement dans l'historique
+    $service->recordSyncOperation($userId, $deviceId, 'load', 0);
+    
     // Vérifier si la table existe
     $tables = $pdo->query("SHOW TABLES LIKE '{$userTableName}'")->fetchAll();
     if (count($tables) === 0) {
@@ -64,15 +70,17 @@ try {
     $stmt->execute([$userId]);
     $records = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
-    // Enregistrer cette opération de chargement dans l'historique
-    $service->recordSyncOperation($userId, $deviceId, 'load', count($records));
+    $recordCount = count($records);
     
-    error_log("Documents de collaboration chargés: " . count($records));
+    // Enregistrer le nombre d'enregistrements chargés
+    RequestHandler::forceSyncRecord($pdo, $tableName, $userId, $deviceId, 'load-end', $recordCount);
+    
+    error_log("Documents de collaboration chargés: " . $recordCount);
     
     // Réponse réussie
     RequestHandler::sendJsonResponse(true, 'Données chargées avec succès', [
         'collaboration' => $records,
-        'count' => count($records),
+        'count' => $recordCount,
         'deviceId' => $deviceId,
         'tableName' => $tableName
     ]);
