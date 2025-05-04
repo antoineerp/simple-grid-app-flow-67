@@ -1,8 +1,8 @@
 
 import React from 'react';
 
-// Composant désactivé - ne fait rien
-const SyncHealthIndicator: React.FC<{position?: string}> = () => {
+// Composant complètement désactivé
+const SyncHealthIndicator: React.FC<any> = () => {
   return null;
 };
 
