@@ -13,10 +13,11 @@ import RessourcesHumaines from '@/pages/RessourcesHumaines';
 import Administration from '@/pages/Administration';
 import Collaboration from '@/pages/Collaboration';
 import DatabaseCheckPage from '@/pages/DatabaseCheckPage';
+import ResetSystem from '@/pages/admin/ResetSystem';
+import UserSelections from '@/pages/UserSelections';
 import { getIsLoggedIn, getCurrentUser } from '@/services/auth/authService';
 import { MembresProvider } from '@/contexts/MembresContext';
 import { Loader2 } from 'lucide-react';
-import SyncHealthIndicator from './components/common/SyncHealthIndicator';
 
 // Composant de route protégée avec gestion des erreurs améliorée
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
@@ -109,8 +110,7 @@ function App() {
     
     window.addEventListener('error', handleGlobalError);
     
-    // Suppression de l'initialisation du nettoyage des données de synchronisation
-    console.log("App - Synchronisation désactivée");
+    console.log("App - Synchronisation totalement désactivée");
     
     return () => {
       window.removeEventListener('error', handleGlobalError);
@@ -144,7 +144,21 @@ function App() {
                   </ProtectedRoute>
                 } />
                 
-                {/* Nouvelle route pour la page de vérification de base de données */}
+                {/* Route pour la page de réinitialisation du système */}
+                <Route path="admin/reset-system" element={
+                  <ProtectedRoute>
+                    <ResetSystem />
+                  </ProtectedRoute>
+                } />
+                
+                {/* Route pour les sélections utilisateur */}
+                <Route path="selections" element={
+                  <ProtectedRoute>
+                    <UserSelections />
+                  </ProtectedRoute>
+                } />
+                
+                {/* Route pour la page de vérification de base de données */}
                 <Route path="database-check" element={
                   <ProtectedRoute>
                     <DatabaseCheckPage />
@@ -191,9 +205,6 @@ function App() {
           </MembresProvider>
         </TooltipProvider>
       </Router>
-      
-      {/* Remplacé l'indicateur de santé des synchronisations par null */}
-      {/* <SyncHealthIndicator position="bottom-right" /> */}
     </div>
   );
 }

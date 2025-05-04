@@ -1,4 +1,3 @@
-
 import { getApiUrl } from '@/config/apiConfig';
 import { User, AuthResponse } from '@/types/auth';
 import { setCurrentUser as setDbUser } from '@/services/core/databaseConnectionService';
@@ -50,7 +49,7 @@ export const getCurrentUser = (): User | null => {
 };
 
 export const getAuthToken = (): string | null => {
-  return sessionStorage.getItem('authToken');
+  return sessionStorage.getItem('authToken') || localStorage.getItem('authToken');
 };
 
 export const getIsLoggedIn = (): boolean => {

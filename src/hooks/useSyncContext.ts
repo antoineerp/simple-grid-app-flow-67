@@ -1,36 +1,15 @@
 
-// Hook de simulation de synchronisation (ne fait rien de réel)
+// Hook de simulation de synchronisation entièrement désactivé
 
 export const useSyncContext = () => {
-  // Initialiser le contexte si ce n'est pas déjà fait
-  console.log("SyncContext: Désactivé, fonctionnalité simulée");
-
-  // Fonctions factices qui ne font rien de réel
-  const registerSyncFunction = (key: string, syncFn: () => Promise<boolean>) => {
-    console.log(`SyncContext: Fonctionnalité désactivée - ${key}`);
-    return;
-  };
-
-  const unregisterSyncFunction = (key: string) => {
-    return;
-  };
-
-  const syncAll = async (): Promise<boolean> => {
-    console.log("SyncContext: Synchronisation désactivée");
-    return true;
-  };
-
-  const getSyncState = () => {
-    return {
-      isSyncing: false,
-      lastSynced: new Date(),
-      error: null
-    };
-  };
-
-  const isInitialized = (): boolean => {
-    return true;
-  };
+  // Aucune initialisation réelle
+  
+  // Fonctions factices qui ne font strictement rien
+  const registerSyncFunction = () => {};
+  const unregisterSyncFunction = () => {};
+  const syncAll = async (): Promise<boolean> => true;
+  const getSyncState = () => ({ isSyncing: false, lastSynced: new Date(), error: null });
+  const isInitialized = (): boolean => true;
 
   return {
     registerSyncFunction,

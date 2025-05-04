@@ -5,8 +5,6 @@ import { Toaster } from "@/components/ui/toaster";
 import Sidebar from '../Sidebar';
 import { Header } from './Header';
 import { GlobalDataProvider } from '@/contexts/GlobalDataContext';
-import { GlobalSyncProvider } from '@/contexts/GlobalSyncContext';
-import GlobalSyncManager from '@/components/common/GlobalSyncManager';
 import { getIsLoggedIn, getCurrentUser } from '@/services/auth/authService';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { Loader2 } from 'lucide-react';
@@ -90,24 +88,20 @@ const Layout = () => {
 
   return (
     <GlobalDataProvider>
-      <GlobalSyncProvider>
-        <TooltipProvider>
-          <div className="flex flex-col h-screen bg-background">
-            <Header />
-            <div className="flex flex-1 overflow-hidden">
-              <Sidebar />
-              <main className="flex-1 overflow-auto bg-slate-50 w-full">
-                <div data-testid="layout-content">
-                  <Outlet />
-                </div>
-              </main>
-            </div>
-            <Toaster />
-            <GlobalSyncManager />
-            <div data-testid="global-sync-initialized" className="hidden" />
+      <TooltipProvider>
+        <div className="flex flex-col h-screen bg-background">
+          <Header />
+          <div className="flex flex-1 overflow-hidden">
+            <Sidebar />
+            <main className="flex-1 overflow-auto bg-slate-50 w-full">
+              <div data-testid="layout-content">
+                <Outlet />
+              </div>
+            </main>
           </div>
-        </TooltipProvider>
-      </GlobalSyncProvider>
+          <Toaster />
+        </div>
+      </TooltipProvider>
     </GlobalDataProvider>
   );
 };

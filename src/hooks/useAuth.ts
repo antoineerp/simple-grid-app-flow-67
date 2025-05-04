@@ -11,9 +11,10 @@ export const useAuth = () => {
     const loadUser = () => {
       try {
         const currentUser = getCurrentUser();
+        console.log("useAuth - Chargement utilisateur:", currentUser);
         setUser(currentUser);
       } catch (error) {
-        console.error("Error loading user:", error);
+        console.error("useAuth - Erreur lors du chargement utilisateur:", error);
         setUser(null); // S'assurer que l'utilisateur est null en cas d'erreur
       } finally {
         setIsLoading(false);
@@ -25,7 +26,9 @@ export const useAuth = () => {
 
   const isAuthenticated = (): boolean => {
     const token = getAuthToken();
-    return !!token && !!user;
+    const isAuth = !!token && !!user;
+    console.log("useAuth - Vérification authentication:", isAuth);
+    return isAuth;
   };
 
   const getUserId = (): string | undefined => {
