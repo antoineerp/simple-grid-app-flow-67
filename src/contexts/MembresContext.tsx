@@ -63,7 +63,8 @@ export const MembresProvider: React.FC<{children: ReactNode}> = ({ children }) =
             toast({
               title: "Synchronisation incomplète",
               description: "Des problèmes sont survenus lors de la synchronisation des membres",
-              variant: "warning",
+              // Correction de l'erreur ici: "warning" -> "default"
+              variant: "default",
             });
           }
         } catch (syncError) {
