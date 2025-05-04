@@ -48,19 +48,23 @@ try {
     // Obtenir une référence PDO
     $pdo = $service->getPdo();
     
-    // Vérifier s'il existe déjà des enregistrements pour cette table pour cet utilisateur
-    $checkStmt = $pdo->prepare("SELECT COUNT(*) FROM `sync_history` WHERE table_name = ? AND user_id = ?");
+    // Empêcher les opérations simultanées en vérifiant s'il y a déjà un chargement en cours
+    $checkStmt = $pdo->prepare("
+        SELECT COUNT(*) 
+        FROM sync_history 
+        WHERE table_name = ? 
+        AND user_id = ? 
+        AND operation = 'load' 
+        AND sync_timestamp > DATE_SUB(NOW(), INTERVAL 5 SECOND)
+    ");
     $checkStmt->execute([$tableName, $userId]);
-    $existingRecords = $checkStmt->fetchColumn();
+    $recentLoads = $checkStmt->fetchColumn();
     
-    // S'il n'y a pas d'enregistrements, forcez l'initialisation de l'historique
-    if ($existingRecords == 0) {
-        error_log("Aucun enregistrement d'historique pour {$tableName} et l'utilisateur {$userId}, initialisation de l'historique");
-        RequestHandler::forceSyncRecord($pdo, $tableName, $userId, $deviceId, 'initialize', 0);
-        RequestHandler::forceSyncRecord($pdo, $tableName, $userId, $deviceId, 'load', 0);
-        RequestHandler::forceSyncRecord($pdo, $tableName, $userId, $deviceId, 'sync', 0);
+    if ($recentLoads > 0) {
+        error_log("Attention: Opération de chargement déjà en cours pour {$tableName} et l'utilisateur {$userId}, optimisation...");
+        // Pas d'erreur, continuer car ce n'est pas critique
     } else {
-        // Enregistrer cette opération de chargement dans l'historique (une seule fois)
+        // Enregistrer cette opération de chargement dans l'historique
         RequestHandler::forceSyncRecord($pdo, $tableName, $userId, $deviceId, 'load', 0);
     }
     

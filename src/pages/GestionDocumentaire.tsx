@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Plus, FileText, RefreshCw, FolderPlus } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import SyncIndicator from '@/components/common/SyncIndicator';
+import { syncDebugger } from '@/utils/syncDebugHelper';
 
 const GestionDocumentaire = () => {
   const { 
@@ -41,6 +42,11 @@ const GestionDocumentaire = () => {
       if (customEvent.detail?.user) {
         setCurrentUser(customEvent.detail.user);
         console.log(`GestionDocumentaire: Changement d'utilisateur - ${customEvent.detail.user}`);
+        
+        // Forcer un rechargement des données après un changement d'utilisateur
+        setTimeout(() => {
+          forceReload();
+        }, 500);
       }
     };
     
@@ -49,9 +55,16 @@ const GestionDocumentaire = () => {
     return () => {
       window.removeEventListener('database-user-changed', handleUserChange);
     };
-  }, []);
+  }, [forceReload]);
 
-  const handleRefresh = () => {
+  const handleRefresh = async () => {
+    // D'abord réparer l'historique de synchronisation
+    await syncDebugger.repairSyncHistory();
+    
+    // Puis vérifier et réparer les tables
+    await syncDebugger.checkAndRepairTables();
+    
+    // Enfin, forcer le rechargement des données
     forceReload();
   };
 
@@ -59,16 +72,18 @@ const GestionDocumentaire = () => {
     <div className="container mx-auto py-6 px-4">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold">Gestion Documentaire</h1>
-        <Button
-          onClick={handleRefresh}
-          variant="outline"
-          size="sm"
-          className="ml-2"
-          disabled={isSyncing}
-        >
-          <RefreshCw className={`h-4 w-4 mr-1 ${isSyncing ? 'animate-spin' : ''}`} />
-          {isSyncing ? 'Synchronisation...' : 'Actualiser'}
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            onClick={handleRefresh}
+            variant="outline"
+            size="sm"
+            className="ml-2"
+            disabled={isSyncing}
+          >
+            <RefreshCw className={`h-4 w-4 mr-1 ${isSyncing ? 'animate-spin' : ''}`} />
+            {isSyncing ? 'Synchronisation...' : 'Actualiser'}
+          </Button>
+        </div>
       </div>
       
       {/* Indicateur de synchronisation pour afficher l'état de la synchronisation */}
@@ -81,7 +96,7 @@ const GestionDocumentaire = () => {
         tableName="documents"
       />
       
-      {documents.length > 0 ? (
+      {documents && documents.length > 0 ? (
         <DocumentTable 
           documents={documents}
           groups={groups}

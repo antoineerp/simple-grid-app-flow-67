@@ -70,20 +70,35 @@ try {
     // Obtenir une référence PDO
     $pdo = $service->getPdo();
     
-    // Vérifier s'il existe déjà des enregistrements pour cette table pour cet utilisateur
-    $checkStmt = $pdo->prepare("SELECT COUNT(*) FROM `sync_history` WHERE table_name = ? AND user_id = ?");
+    // Empêcher les opérations simultanées en vérifiant s'il y a déjà une synchronisation en cours
+    $checkStmt = $pdo->prepare("
+        SELECT COUNT(*) 
+        FROM sync_history 
+        WHERE table_name = ? 
+        AND user_id = ? 
+        AND operation = 'sync' 
+        AND sync_timestamp > DATE_SUB(NOW(), INTERVAL 5 SECOND)
+    ");
     $checkStmt->execute([$tableName, $userId]);
-    $existingRecords = $checkStmt->fetchColumn();
+    $recentSyncs = $checkStmt->fetchColumn();
     
-    // S'il n'y a pas d'enregistrements, forcez l'initialisation de l'historique
-    if ($existingRecords == 0) {
-        error_log("Aucun enregistrement d'historique pour {$tableName} et l'utilisateur {$userId}, initialisation de l'historique");
-        RequestHandler::forceSyncRecord($pdo, $tableName, $userId, $deviceId, 'initialize', 0);
-        RequestHandler::forceSyncRecord($pdo, $tableName, $userId, $deviceId, 'load', 0);
+    if ($recentSyncs > 0) {
+        error_log("Attention: Opération de synchronisation déjà en cours pour {$tableName} et l'utilisateur {$userId}, optimisation...");
+        // On continue quand même mais on met à jour le timestamp plutôt que d'ajouter un nouvel enregistrement
+        $updateStmt = $pdo->prepare("
+            UPDATE sync_history 
+            SET sync_timestamp = NOW(), record_count = record_count + ? 
+            WHERE table_name = ? 
+            AND user_id = ? 
+            AND operation = 'sync' 
+            ORDER BY sync_timestamp DESC 
+            LIMIT 1
+        ");
+        $updateStmt->execute([count($records), $tableName, $userId]);
+    } else {
+        // Enregistrer cette opération de synchronisation dans l'historique
+        RequestHandler::forceSyncRecord($pdo, $tableName, $userId, $deviceId, 'sync', count($records));
     }
-    
-    // Enregistrer cette opération unique de synchronisation dans l'historique
-    RequestHandler::forceSyncRecord($pdo, $tableName, $userId, $deviceId, 'sync', count($records));
     
     // Vérifier si la table existe et la créer si nécessaire
     $tables = $pdo->query("SHOW TABLES LIKE '{$userTableName}'")->fetchAll();

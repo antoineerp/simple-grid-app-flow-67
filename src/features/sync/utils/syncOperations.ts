@@ -13,15 +13,15 @@ import { syncMonitor } from './syncMonitor';
 const recentlySyncedTables = new Set<string>();
 // Stockage du dernier timestamp de synchronisation par table
 const lastSyncTimestamps: Record<string, number> = {};
-// Délai minimum entre deux synchronisations en millisecondes (5 secondes)
-const MIN_SYNC_INTERVAL = 5000;
+// Délai minimum entre deux synchronisations en millisecondes (15 secondes)
+const MIN_SYNC_INTERVAL = 15000;
 
 // Nettoie la liste des tables synchronisées récemment après un délai
 const cleanupRecentlySynced = (tableName: string) => {
   setTimeout(() => {
     recentlySyncedTables.delete(tableName);
     console.log(`SyncOperations: Table ${tableName} retirée de la liste des synchronisations récentes`);
-  }, 10000); // 10 secondes de "cooldown" entre les synchronisations
+  }, 20000); // 20 secondes de "cooldown" entre les synchronisations
 };
 
 // Execute a sync operation with proper locking
