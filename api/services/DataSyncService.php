@@ -46,6 +46,51 @@ class DataSyncService {
         }
     }
 
+    /**
+     * Exécute une requête SQL directe
+     * @param string $sql La requête SQL à exécuter
+     * @return bool|PDOStatement Résultat de l'exécution
+     */
+    public function exec($sql) {
+        if (!$this->connection) {
+            error_log("Tentative d'exécution SQL sans connexion à la base de données");
+            return false;
+        }
+        
+        try {
+            return $this->connection->exec($sql);
+        } catch (PDOException $e) {
+            error_log("Erreur lors de l'exécution SQL: " . $e->getMessage());
+            throw $e; // Relancer l'exception pour qu'elle puisse être gérée par l'appelant
+        }
+    }
+
+    /**
+     * Prépare et retourne une requête SQL
+     * @param string $sql La requête SQL à préparer
+     * @return PDOStatement La requête préparée
+     */
+    public function prepare($sql) {
+        if (!$this->connection) {
+            throw new Exception("Pas de connexion à la base de données");
+        }
+        
+        return $this->connection->prepare($sql);
+    }
+    
+    /**
+     * Exécute une requête SQL et retourne un PDOStatement
+     * @param string $sql La requête SQL à exécuter
+     * @return PDOStatement Le résultat de la requête
+     */
+    public function query($sql) {
+        if (!$this->connection) {
+            throw new Exception("Pas de connexion à la base de données");
+        }
+        
+        return $this->connection->query($sql);
+    }
+
     public function ensureTableExists($schema) {
         if (!$this->tableManager) {
             $this->tableManager = new TableManager($this->connection, $this->tableName, $this->userId);
