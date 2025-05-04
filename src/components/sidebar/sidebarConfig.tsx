@@ -1,40 +1,25 @@
 
-import { BarChart2, FileCheck, FileText, Users, Handshake, Settings } from 'lucide-react';
-import { hasPermission, UserRole } from '@/types/roles';
+import { Users, FileText, FolderOpen, Settings } from "lucide-react";
 
-export interface NavItem {
-  path: string;
-  icon: typeof BarChart2;
-  label: string;
-  requiredPermission?: keyof typeof hasPermission;
-}
-
-export const navigationItems: NavItem[] = [
+export const navigationItems = [
   {
-    path: '/pilotage',
-    icon: BarChart2,
-    label: 'Pilotage'
+    path: "/",
+    icon: <FileText className="h-5 w-5" />,
+    label: "Gestion Documentaire"
   },
   {
-    path: '/exigences',
-    icon: FileCheck,
-    label: 'Exigences'
+    path: "/ressources-humaines",
+    icon: <Users className="h-5 w-5" />,
+    label: "Ressources Humaines"
   },
   {
-    path: '/gestion-documentaire',
-    icon: FileText,
-    label: 'Gestion Documentaire'
+    path: "/collaboration",
+    icon: <FolderOpen className="h-5 w-5" />,
+    label: "Collaboration"
   },
   {
-    path: '/ressources-humaines',
-    icon: Users,
-    label: 'Ressources Humaines'
-  },
-  {
-    path: '/collaboration',
-    icon: Handshake,
-    label: 'Collaboration'
+    path: "/admin",
+    icon: <Settings className="h-5 w-5" />,
+    label: "Administration"
   }
 ];
-
-// L'élément Administration a été retiré de la liste principale
