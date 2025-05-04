@@ -34,8 +34,8 @@ const RessourcesHumaines: React.FC = () => {
         }
       };
 
-      // Enregistrer la fonction de synchronisation - MODIFIÉ: suppression des arguments
-      syncContext.registerSyncFunction('membres', syncMembresFunction);
+      // Enregistrer la fonction de synchronisation sans arguments
+      syncContext.registerSyncFunction();
       console.log("RessourcesHumaines: Fonction de synchronisation des membres enregistrée");
       
       // Synchronisation initiale si nécessaire
@@ -52,8 +52,8 @@ const RessourcesHumaines: React.FC = () => {
     // Nettoyage au démontage
     return () => {
       if (syncContext.isInitialized()) {
-        // MODIFIÉ: suppression de l'argument
-        syncContext.unregisterSyncFunction('membres');
+        // Désactiver la synchronisation sans argument
+        syncContext.unregisterSyncFunction();
         console.log("RessourcesHumaines: Fonction de synchronisation des membres désenregistrée");
       }
     };
