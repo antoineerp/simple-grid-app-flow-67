@@ -2,7 +2,9 @@
 import { Membre } from '@/types/membres';
 import { getApiUrl } from '@/config/apiConfig';
 import { getAuthHeaders } from '@/services/auth/authService';
-import { validateJsonResponse, getHelpfulErrorFromHtml } from '@/utils/jsonValidator';
+import { validateJsonResponse } from '@/utils/jsonValidator';
+import { saveLocalData, loadLocalData, cleanupMalformedData } from '@/features/sync/utils/syncStorageManager';
+import { getCurrentUser } from '@/services/core/databaseConnectionService';
 
 /**
  * Extrait un identifiant utilisateur valide pour les requêtes
@@ -56,6 +58,9 @@ const extractValidUserId = (userId: any): string => {
  */
 export const loadMembresFromServer = async (currentUser: any): Promise<Membre[]> => {
   try {
+    // Nettoyer les données potentiellement corrompues avant de commencer
+    cleanupMalformedData();
+    
     const API_URL = getApiUrl();
     
     // Extraire l'identifiant technique ou email de l'utilisateur
@@ -101,10 +106,7 @@ export const loadMembresFromServer = async (currentUser: any): Promise<Membre[]>
       if (!validationResult.isValid) {
         // Si HTML détecté, extraire une erreur plus informative
         if (validationResult.htmlDetected) {
-          const helpfulError = getHelpfulErrorFromHtml(responseText);
-          console.error(`Erreur HTML détectée: ${helpfulError}`);
-          console.error(`Aperçu de la réponse HTML: ${responseText.substring(0, 300)}`);
-          throw new Error(helpfulError);
+          throw new Error(`Erreur HTML détectée: ${responseText.substring(0, 200)}`);
         }
         
         throw new Error(validationResult.error || "Format de réponse invalide");
@@ -118,10 +120,15 @@ export const loadMembresFromServer = async (currentUser: any): Promise<Membre[]>
       
       // Transformer les dates string en objets Date
       const membres = result.membres || [];
-      return membres.map((membre: any) => ({
+      const processedMembres = membres.map((membre: any) => ({
         ...membre,
         date_creation: membre.date_creation ? new Date(membre.date_creation) : new Date()
       }));
+      
+      // Sauvegarde dans le nouveau système de stockage unifié
+      saveLocalData('membres', processedMembres);
+      
+      return processedMembres;
     } catch (error) {
       if (error.name === 'AbortError') {
         throw new Error("Délai d'attente dépassé lors du chargement des membres");
@@ -148,6 +155,13 @@ export const syncMembresWithServer = async (membres: Membre[], currentUser: any)
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 20000); // 20 secondes de timeout
     
+    // Générer un identifiant d'appareil pour le suivi de synchronisation
+    let deviceId = localStorage.getItem('deviceId');
+    if (!deviceId) {
+      deviceId = `device_${Date.now()}_${Math.random().toString(36).substring(2, 15)}`;
+      localStorage.setItem('deviceId', deviceId);
+    }
+    
     try {
       // Préparer les données à envoyer - convertir les objets Date en chaînes
       const membresForSync = membres.map(membre => ({
@@ -166,7 +180,11 @@ export const syncMembresWithServer = async (membres: Membre[], currentUser: any)
           ...getAuthHeaders(),
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ userId, membres: membresForSync }),
+        body: JSON.stringify({ 
+          userId, 
+          membres: membresForSync,
+          deviceId
+        }),
         signal: controller.signal
       });
       
@@ -180,10 +198,7 @@ export const syncMembresWithServer = async (membres: Membre[], currentUser: any)
       if (!validationResult.isValid) {
         // Si HTML détecté, extraire une erreur plus informative
         if (validationResult.htmlDetected) {
-          const helpfulError = getHelpfulErrorFromHtml(responseText);
-          console.error(`Erreur HTML détectée: ${helpfulError}`);
-          console.error(`Aperçu de la réponse HTML: ${responseText.substring(0, 300)}`);
-          throw new Error(helpfulError);
+          throw new Error(`Erreur HTML détectée: ${responseText.substring(0, 200)}`);
         }
         
         throw new Error(validationResult.error || "Format de réponse invalide");
@@ -195,6 +210,9 @@ export const syncMembresWithServer = async (membres: Membre[], currentUser: any)
       if (!result.success) {
         throw new Error(result.message || "Erreur de synchronisation inconnue");
       }
+      
+      // Sauvegarder dans le système de stockage unifié
+      saveLocalData('membres', membres);
       
       return true;
     } catch (error) {
@@ -222,12 +240,23 @@ export const getMembres = async (): Promise<Membre[]> => {
   } catch (error) {
     console.error("Erreur lors du chargement des membres depuis le serveur:", error);
     
-    // En cas d'échec, charger depuis le local storage
+    // En cas d'échec, charger depuis le système unifié
     try {
-      const localMembres = localStorage.getItem('membres');
-      if (localMembres) {
-        const parsed = JSON.parse(localMembres);
-        console.log("Membres chargés depuis le stockage local:", parsed.length);
+      // Utiliser getCurrentUser pour consistance
+      const userId = getCurrentUser() || 'default';
+      const localMembres = loadLocalData<Membre>('membres', userId);
+      if (localMembres && localMembres.length > 0) {
+        console.log("Membres chargés depuis le stockage unifié:", localMembres.length);
+        return localMembres;
+      }
+      
+      // En dernier recours, essayer l'ancien système
+      const oldLocalData = localStorage.getItem('membres');
+      if (oldLocalData) {
+        const parsed = JSON.parse(oldLocalData);
+        console.log("Membres chargés depuis l'ancien stockage local:", parsed.length);
+        // Migrer vers le nouveau système unifié
+        saveLocalData('membres', parsed);
         return parsed;
       }
     } catch (localError) {
@@ -244,8 +273,9 @@ export const getMembres = async (): Promise<Membre[]> => {
  */
 export const syncMembres = async (membres: Membre[]): Promise<boolean> => {
   try {
-    // Sauvegarder localement d'abord
-    localStorage.setItem('membres', JSON.stringify(membres));
+    // Sauvegarder localement d'abord avec le système unifié
+    const userId = getCurrentUser() || 'default';
+    saveLocalData('membres', membres, userId);
     
     // Ensuite synchroniser avec le serveur
     const currentUser = localStorage.getItem('currentUser');
@@ -258,3 +288,34 @@ export const syncMembres = async (membres: Membre[]): Promise<boolean> => {
   }
 };
 
+/**
+ * Nettoie le stockage local des données corrompues et réinitialise
+ * Fonction d'urgence à utiliser en cas de boucle ou de problème de synchronisation
+ */
+export const resetSyncState = async (): Promise<void> => {
+  try {
+    console.log("Réinitialisation de l'état de synchronisation des membres");
+    
+    // Effacer toutes les données de synchronisation locales
+    const userId = getCurrentUser() || 'default';
+    localStorage.removeItem(`membres_${userId}`);
+    localStorage.removeItem(`membres_${userId}_last_saved`);
+    sessionStorage.removeItem(`membres_${userId}`);
+    sessionStorage.removeItem(`membres_${userId}_last_saved`);
+    
+    // Nettoyer aussi l'ancien format
+    localStorage.removeItem('membres');
+    
+    // Effacer les indicateurs de synchronisation
+    localStorage.removeItem(`lastServerSync_membres_${userId}`);
+    localStorage.removeItem(`pending_sync_membres`);
+    sessionStorage.removeItem(`pending_sync_membres`);
+    
+    // Exécuter un nettoyage global
+    cleanupMalformedData();
+    
+    console.log("État de synchronisation des membres réinitialisé avec succès");
+  } catch (error) {
+    console.error("Erreur lors de la réinitialisation de l'état de synchronisation:", error);
+  }
+};

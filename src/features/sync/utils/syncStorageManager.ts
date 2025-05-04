@@ -44,6 +44,24 @@ export const saveLocalData = <T>(tableName: string, data: T[], syncKey?: string)
       // Essayer de convertir en JSON
       const jsonData = JSON.stringify(data);
       
+      // Vérifier la validité du JSON (parse test)
+      try {
+        JSON.parse(jsonData);
+      } catch (parseError) {
+        console.error(`SyncStorageManager: Les données pour ${tableName} ne sont pas valides pour JSON:`, parseError);
+        return;
+      }
+      
+      // Nettoyer les anciennes entrées potentiellement corrompues
+      try {
+        localStorage.removeItem(storageKey);
+        sessionStorage.removeItem(storageKey);
+        localStorage.removeItem(`${storageKey}_last_saved`);
+        sessionStorage.removeItem(`${storageKey}_last_saved`);
+      } catch (cleanError) {
+        console.warn(`SyncStorageManager: Erreur lors du nettoyage des anciennes entrées:`, cleanError);
+      }
+      
       // Sauvegarder dans localStorage pour persistance entre sessions
       localStorage.setItem(storageKey, jsonData);
       
@@ -93,12 +111,23 @@ export const loadLocalData = <T>(tableName: string, syncKey?: string): T[] => {
     
     if (localData) {
       try {
+        // Vérifier si les données commencent par [ ou { (format JSON valide)
+        if (!localData.trim().startsWith('[') && !localData.trim().startsWith('{')) {
+          console.warn(`SyncStorageManager: Données corrompues pour ${tableName} dans ${source}, suppression...`);
+          localStorage.removeItem(storageKey);
+          sessionStorage.removeItem(storageKey);
+          return [];
+        }
+        
         const parsedData = JSON.parse(localData);
         if (Array.isArray(parsedData)) {
           console.log(`SyncStorageManager: ${parsedData.length} éléments chargés depuis ${source} pour ${tableName}`);
           return parsedData;
         } else {
           console.warn(`SyncStorageManager: Les données pour ${tableName} ne sont pas un tableau`);
+          // Tenter de nettoyer les données corrompues
+          localStorage.removeItem(storageKey);
+          sessionStorage.removeItem(storageKey);
           return [];
         }
       } catch (parseError) {
@@ -206,6 +235,14 @@ export const cleanupMalformedData = (): void => {
           const data = storage.getItem(key);
           if (data && (data.startsWith('{') || data.startsWith('['))) {
             JSON.parse(data);
+          } else if (data && key.includes('_last_saved')) {
+            // Vérifier si c'est une date valide
+            new Date(data);
+          } else if (data) {
+            // Si ce n'est pas un JSON valide et pas un timestamp, supprimer
+            console.log(`Suppression de l'entrée non-JSON dans ${name}: ${key}`);
+            storage.removeItem(key);
+            cleanedCount++;
           }
         } catch (e) {
           console.log(`Suppression de l'entrée avec JSON invalide dans ${name}: ${key}`);
@@ -248,11 +285,19 @@ export const syncBetweenStorages = (): void => {
             (localTimestamp && sessionTimestamp && new Date(localTimestamp) > new Date(sessionTimestamp))) {
           const data = localStorage.getItem(key);
           if (data) {
-            sessionStorage.setItem(key, data);
-            if (localTimestamp) {
-              sessionStorage.setItem(localTimestampKey, localTimestamp);
+            // Vérifier si c'est du JSON valide avant de copier
+            try {
+              if (data.startsWith('[') || data.startsWith('{')) {
+                JSON.parse(data);
+                sessionStorage.setItem(key, data);
+                if (localTimestamp) {
+                  sessionStorage.setItem(localTimestampKey, localTimestamp);
+                }
+                console.log(`SyncStorageManager: Données de "${key}" mises à jour dans sessionStorage`);
+              }
+            } catch (e) {
+              console.log(`SyncStorageManager: Données invalides non copiées pour "${key}"`);
             }
-            console.log(`SyncStorageManager: Données de "${key}" mises à jour dans sessionStorage`);
           }
         }
       }
@@ -270,17 +315,62 @@ export const syncBetweenStorages = (): void => {
             (sessionTimestamp && localTimestamp && new Date(sessionTimestamp) > new Date(localTimestamp))) {
           const data = sessionStorage.getItem(key);
           if (data) {
-            localStorage.setItem(key, data);
-            if (sessionTimestamp) {
-              localStorage.setItem(sessionTimestampKey, sessionTimestamp);
+            // Vérifier si c'est du JSON valide avant de copier
+            try {
+              if (data.startsWith('[') || data.startsWith('{')) {
+                JSON.parse(data);
+                localStorage.setItem(key, data);
+                if (sessionTimestamp) {
+                  localStorage.setItem(sessionTimestampKey, sessionTimestamp);
+                }
+                console.log(`SyncStorageManager: Données de "${key}" mises à jour dans localStorage`);
+              }
+            } catch (e) {
+              console.log(`SyncStorageManager: Données invalides non copiées pour "${key}"`);
             }
-            console.log(`SyncStorageManager: Données de "${key}" mises à jour dans localStorage`);
           }
         }
       }
     }
   } catch (error) {
     console.error("SyncStorageManager: Erreur lors de la synchronisation entre storages:", error);
+  }
+};
+
+// Fonction pour nettoyer complètement toutes les données de synchronisation
+export const clearAllSyncData = (): void => {
+  try {
+    console.log("SyncStorageManager: Nettoyage complet des données de synchronisation");
+    
+    // Fonction pour nettoyer un storage
+    const clearSyncData = (storage: Storage, name: string) => {
+      const keys = Object.keys(storage);
+      let clearedCount = 0;
+      
+      const syncRelatedKeys = keys.filter(key => 
+        key.includes('_last_saved') || 
+        key.includes('pending_sync_') || 
+        key.includes('membres_') || 
+        key.includes('documents_') || 
+        key.includes('collaboration_')
+      );
+      
+      for (const key of syncRelatedKeys) {
+        storage.removeItem(key);
+        clearedCount++;
+      }
+      
+      return clearedCount;
+    };
+    
+    // Nettoyer localStorage et sessionStorage
+    const clearedLocal = clearSyncData(localStorage, 'localStorage');
+    const clearedSession = clearSyncData(sessionStorage, 'sessionStorage');
+    
+    console.log(`SyncStorageManager: ${clearedLocal} entrées de synchronisation nettoyées dans localStorage`);
+    console.log(`SyncStorageManager: ${clearedSession} entrées de synchronisation nettoyées dans sessionStorage`);
+  } catch (error) {
+    console.error("SyncStorageManager: Erreur lors du nettoyage complet des données:", error);
   }
 };
 

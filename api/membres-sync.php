@@ -59,7 +59,7 @@ try {
     // Créer la table de synchronisation si elle n'existe pas
     try {
         $pdo = $service->getPdo();
-        $pdo->exec("CREATE TABLE IF NOT EXISTS `sync_history` (
+        $query = "CREATE TABLE IF NOT EXISTS `sync_history` (
             `id` INT AUTO_INCREMENT PRIMARY KEY,
             `table_name` VARCHAR(100) NOT NULL,
             `user_id` VARCHAR(50) NOT NULL,
@@ -67,14 +67,17 @@ try {
             `record_count` INT NOT NULL,
             `sync_timestamp` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
             INDEX `idx_user_device` (`user_id`, `device_id`)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
         
-        // Insérer l'enregistrement de synchronisation
-        $stmt = $pdo->prepare("INSERT INTO `sync_history` 
+        if ($pdo) {
+            $pdo->query($query);
+            
+            // Insérer l'enregistrement de synchronisation
+            $stmt = $pdo->prepare("INSERT INTO `sync_history` 
                          (table_name, user_id, device_id, record_count, sync_timestamp) 
                          VALUES (?, ?, ?, ?, NOW())");
-        $stmt->execute(['membres', $userId, $deviceId, count($membres)]);
-        
+            $stmt->execute(['membres', $userId, $deviceId, count($membres)]);
+        }
     } catch (Exception $e) {
         // Journaliser mais continuer
         error_log("Erreur lors de l'enregistrement de l'historique: " . $e->getMessage());
@@ -108,7 +111,7 @@ try {
         if ($columnsResult->rowCount() === 0) {
             // Ajouter la colonne
             $pdo = $service->getPdo();
-            $pdo->exec("ALTER TABLE `membres_{$userId}` ADD COLUMN `last_sync_device` VARCHAR(100) NULL");
+            $pdo->query("ALTER TABLE `membres_{$userId}` ADD COLUMN `last_sync_device` VARCHAR(100) NULL");
         }
     } catch (Exception $e) {
         error_log("Erreur lors de la vérification/ajout de la colonne: " . $e->getMessage());
