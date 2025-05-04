@@ -31,7 +31,7 @@ const SyncIndicator: React.FC<SyncIndicatorProps> = ({
 }) => {
   if (!isOnline) {
     return (
-      <Alert variant="warning" className="flex items-center justify-between">
+      <Alert variant="destructive" className="flex items-center justify-between bg-yellow-50 border-yellow-200 text-yellow-800">
         <div className="flex items-center">
           <WifiOff className="h-4 w-4 mr-2" />
           <AlertDescription>

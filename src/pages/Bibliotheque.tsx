@@ -140,6 +140,7 @@ const Bibliotheque: React.FC = () => {
           syncFailed={syncFailed}
           lastSynced={lastSynced}
           onSync={handleSyncDocuments}
+          tableName="bibliotheque"
         />
       </div>
       

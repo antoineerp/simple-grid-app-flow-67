@@ -285,7 +285,8 @@ const Collaboration = () => {
           syncFailed={syncFailed}
           lastSynced={lastSynced}
           onSync={handleSync}
-          showOnlyErrors={false} // Changed to always show status
+          showOnlyErrors={false}
+          tableName="collaboration"
         />
       </div>
 
