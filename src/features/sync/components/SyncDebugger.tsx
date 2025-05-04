@@ -1,19 +1,11 @@
 
 import React from 'react';
 
-interface SyncDebuggerProps {
-  enabled?: boolean;
-}
-
-const SyncDebugger: React.FC<SyncDebuggerProps> = ({ enabled = false }) => {
-  // Ne rien afficher si désactivé
-  if (!enabled) return null;
-  
-  return (
-    <div className="hidden">
-      {/* Débogage de synchronisation désactivé */}
-    </div>
-  );
+/**
+ * Composant de débogage de synchronisation (désactivé)
+ */
+const SyncDebugger: React.FC = () => {
+  return null; // Fonctionnalité désactivée
 };
 
 export default SyncDebugger;

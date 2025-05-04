@@ -15,7 +15,7 @@ import { adminImportFromManager } from '@/services/core/userInitializationServic
 import { getApiUrl } from '@/config/apiConfig';
 import { getAuthHeaders } from '@/services/auth/authService';
 import { clearUsersCache, type Utilisateur } from '@/services';
-import { cleanupUserTables } from '@/services/users/tableCleanupService';
+import { cleanupUserLocalStorage } from '@/services/users/tableCleanupService';
 
 interface UserManagementProps {
   currentDatabaseUser: string | null;
@@ -145,17 +145,9 @@ const UserManagement = ({ currentDatabaseUser, onUserConnect }: UserManagementPr
     setDeletingUserId(userId);
     
     try {
-      // Étape 1: Supprimer les tables associées à l'utilisateur
-      console.log(`Suppression des tables pour l'utilisateur: ${identifiantTechnique}`);
-      const tablesDeleted = await cleanupUserTables(identifiantTechnique);
+      console.log(`Demande de suppression de l'utilisateur: ${identifiantTechnique} (ID: ${userId})`);
       
-      if (!tablesDeleted) {
-        console.warn(`Problème lors de la suppression des tables pour ${identifiantTechnique}`);
-      } else {
-        console.log(`Tables supprimées avec succès pour ${identifiantTechnique}`);
-      }
-      
-      // Étape 2: Supprimer l'utilisateur lui-même
+      // Suppression de l'utilisateur via l'API - cette opération supprimera aussi les tables associées
       const response = await fetch(`${getApiUrl()}/users`, {
         method: 'DELETE',
         headers: {
@@ -168,9 +160,12 @@ const UserManagement = ({ currentDatabaseUser, onUserConnect }: UserManagementPr
       const data = await response.json();
 
       if (response.ok) {
+        // Nettoyage des données locales uniquement
+        cleanupUserLocalStorage(identifiantTechnique);
+        
         toast({
           title: "Suppression réussie",
-          description: `L'utilisateur et ses ${tablesDeleted ? 'données associées ont' : 'a'} été supprimé${tablesDeleted ? 's' : ''} avec succès`,
+          description: "L'utilisateur et ses données associées ont été supprimés avec succès",
         });
         
         clearUsersCache();
