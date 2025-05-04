@@ -1,8 +1,5 @@
 
 import React from 'react';
-import { RefreshCw, CloudOff, AlertCircle, CheckCircle } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface SyncStatusIndicatorProps {
   isSyncing: boolean;
@@ -12,7 +9,7 @@ interface SyncStatusIndicatorProps {
   onSyncClick?: () => void;
 }
 
-// Indicateur de statut de synchronisation qui est maintenant invisible selon votre demande
+// Indicateur de statut de synchronisation invisible
 const SyncStatusIndicator: React.FC<SyncStatusIndicatorProps> = () => {
   // Ne rien afficher du tout
   return null;

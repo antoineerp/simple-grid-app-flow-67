@@ -55,7 +55,7 @@ try {
         WHERE table_name = ? 
         AND user_id = ? 
         AND operation = 'load' 
-        AND sync_timestamp > DATE_SUB(NOW(), INTERVAL 5 SECOND)
+        AND sync_timestamp > DATE_SUB(NOW(), INTERVAL 10 SECOND)
     ");
     $checkStmt->execute([$tableName, $userId]);
     $recentLoads = $checkStmt->fetchColumn();

@@ -6,7 +6,6 @@ import { getDatabaseConnectionCurrentUser } from '@/services/core/databaseConnec
 import { Button } from '@/components/ui/button';
 import { Plus, FileText, RefreshCw, FolderPlus } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import SyncIndicator from '@/components/common/SyncIndicator';
 import { syncDebugger } from '@/utils/syncDebugHelper';
 
 const GestionDocumentaire = () => {
@@ -27,8 +26,6 @@ const GestionDocumentaire = () => {
     handleGroupReorder,
     forceReload,
     isSyncing,
-    syncFailed,
-    lastSynced,
     isOnline
   } = useDocuments();
   
@@ -81,20 +78,10 @@ const GestionDocumentaire = () => {
             disabled={isSyncing}
           >
             <RefreshCw className={`h-4 w-4 mr-1 ${isSyncing ? 'animate-spin' : ''}`} />
-            {isSyncing ? 'Synchronisation...' : 'Actualiser'}
+            {isSyncing ? 'Chargement...' : 'Actualiser'}
           </Button>
         </div>
       </div>
-      
-      {/* Indicateur de synchronisation pour afficher l'état de la synchronisation */}
-      <SyncIndicator 
-        isSyncing={isSyncing}
-        isOnline={isOnline}
-        syncFailed={syncFailed}
-        lastSynced={lastSynced}
-        onSync={forceReload}
-        tableName="documents"
-      />
       
       {documents && documents.length > 0 ? (
         <DocumentTable 
