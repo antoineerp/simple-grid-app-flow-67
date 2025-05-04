@@ -14,6 +14,12 @@ export const resetEntireSystem = async (): Promise<{ success: boolean; message: 
     const confirmationCode = 'RESET_ALL_SYSTEM_2024';
     const API_URL = getApiUrl();
     
+    if (!API_URL) {
+      throw new Error("URL de l'API non configurée");
+    }
+    
+    console.log(`Envoi de la requête de réinitialisation à ${API_URL}/admin/reset-system.php`);
+    
     const response = await fetch(`${API_URL}/admin/reset-system.php`, {
       method: 'POST',
       headers: {

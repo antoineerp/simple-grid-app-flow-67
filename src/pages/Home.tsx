@@ -40,7 +40,14 @@ const Home = () => {
     }
   };
 
+  // Forcer la valeur isAdmin à true pour tester
+  // const isAdmin = true; 
+  // Utiliser les informations de l'utilisateur connecté
   const isAdmin = user && (user.role === 'admin' || user.role === 'administrateur');
+  
+  console.log("Home - Informations utilisateur:", user);
+  console.log("Home - Rôle utilisateur:", user?.role);
+  console.log("Home - isAdmin:", isAdmin);
 
   return (
     <div className="container py-8">
@@ -171,6 +178,7 @@ const Home = () => {
             </CardFooter>
           </Card>
           
+          {/* Assurons-nous que cette section est conditionnelle et affichée pour les administrateurs */}
           {isAdmin && (
             <Card className="bg-purple-50 border-purple-200">
               <CardHeader>
@@ -202,6 +210,7 @@ const Home = () => {
         </div>
       </div>
       
+      {/* Modaux de réparation et de réinitialisation */}
       <EmergencyRepairModal
         open={repairModalOpen}
         onOpenChange={setRepairModalOpen}

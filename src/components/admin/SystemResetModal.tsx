@@ -29,7 +29,10 @@ export const SystemResetModal: React.FC<SystemResetModalProps> = ({ open, onOpen
 
     setIsResetting(true);
     try {
+      console.log("Démarrage de la réinitialisation du système...");
       const resetResult = await resetEntireSystem();
+      console.log("Résultat de la réinitialisation:", resetResult);
+      
       setResult(resetResult);
       
       if (resetResult.success) {
@@ -51,6 +54,8 @@ export const SystemResetModal: React.FC<SystemResetModalProps> = ({ open, onOpen
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "Erreur inconnue";
+      console.error("Erreur lors de la réinitialisation:", errorMessage);
+      
       toast({
         title: "Erreur",
         description: `Une erreur s'est produite: ${errorMessage}`,
