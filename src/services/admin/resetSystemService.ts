@@ -1,63 +1,64 @@
 
 import { getApiUrl } from '@/config/apiConfig';
 import { getAuthHeaders } from '../auth/authService';
+import { toast } from '@/components/ui/use-toast';
 
 /**
- * Service pour réinitialiser complètement le système
- * ATTENTION: Cette fonction est dangereuse et doit être utilisée uniquement en développement
+ * Service pour réinitialiser complètement le système,
+ * supprimer toutes les tables et les recréer pour l'administrateur
  */
-export const resetEntireSystem = async (): Promise<{ success: boolean; message: string; details?: any }> => {
+export const resetEntireSystem = async (): Promise<{
+  success: boolean;
+  message: string;
+  details?: any;
+}> => {
+  console.log("Démarrage de la réinitialisation complète du système");
+  
   try {
-    console.log("Tentative de réinitialisation complète du système");
-    
-    // Code de confirmation spécial pour autoriser la réinitialisation
-    const confirmationCode = 'RESET_ALL_SYSTEM_2024';
-    const API_URL = getApiUrl();
-    
-    if (!API_URL) {
-      throw new Error("URL de l'API non configurée");
-    }
-    
-    console.log(`Envoi de la requête de réinitialisation à ${API_URL}/admin/reset-system.php`);
-    
-    const response = await fetch(`${API_URL}/admin/reset-system.php`, {
+    const apiUrl = getApiUrl();
+    const response = await fetch(`${apiUrl}/reset-system.php`, {
       method: 'POST',
       headers: {
         ...getAuthHeaders(),
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        confirmationCode,
-        timestamp: new Date().getTime()
+        admin_email: 'antcirier@gmail.com',
+        confirm: 'RESET_ALL_CONFIRM'
       })
     });
     
+    console.log("Réponse de l'API reset-system:", response.status);
+    
     if (!response.ok) {
-      const errorData = await response.json();
-      console.error(`Erreur lors de la réinitialisation: ${errorData.message || response.statusText}`);
-      return {
-        success: false,
-        message: errorData.message || "La réinitialisation a échoué",
-      };
+      const errorText = await response.text();
+      console.error("Erreur lors de la réinitialisation du système:", errorText);
+      throw new Error(`Erreur HTTP ${response.status}: ${errorText}`);
     }
     
     const result = await response.json();
-    console.log(`Résultat de la réinitialisation: ${JSON.stringify(result)}`);
+    console.log("Résultat de la réinitialisation:", result);
     
-    // Vider le stockage local et les caches
-    localStorage.clear();
-    sessionStorage.clear();
+    // Nettoyer le stockage local après réinitialisation
+    if (result.success) {
+      localStorage.clear();
+      sessionStorage.clear();
+      
+      // Forcer la déconnexion locale
+      localStorage.removeItem('currentUser');
+      localStorage.removeItem('userProfile');
+      localStorage.removeItem('authToken');
+      
+      console.log("Stockage local nettoyé suite à la réinitialisation");
+    }
     
-    return {
-      success: true,
-      message: "Le système a été réinitialisé avec succès. Un nouvel utilisateur a été créé.",
-      details: result.details
-    };
+    return result;
   } catch (error) {
-    console.error(`Erreur lors de la réinitialisation du système: ${error instanceof Error ? error.message : String(error)}`);
+    console.error("Erreur lors de la réinitialisation du système:", error);
+    const errorMessage = error instanceof Error ? error.message : String(error);
     return {
       success: false,
-      message: `La réinitialisation a échoué: ${error instanceof Error ? error.message : "Erreur inconnue"}`,
+      message: `Échec de la réinitialisation: ${errorMessage}`
     };
   }
 };
