@@ -66,16 +66,18 @@ try {
             `device_id` VARCHAR(100) NOT NULL,
             `record_count` INT NOT NULL,
             `sync_timestamp` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            `operation` VARCHAR(20) NOT NULL DEFAULT 'sync',
             INDEX `idx_user_device` (`user_id`, `device_id`)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
         
         if ($pdo) {
             $pdo->query($query);
             
-            // Insérer l'enregistrement de synchronisation
+            // Insérer l'enregistrement de synchronisation avec l'identifiant technique
+            // et ajouter l'opération 'sync' explicitement
             $stmt = $pdo->prepare("INSERT INTO `sync_history` 
-                         (table_name, user_id, device_id, record_count, sync_timestamp) 
-                         VALUES (?, ?, ?, ?, NOW())");
+                         (table_name, user_id, device_id, record_count, sync_timestamp, operation) 
+                         VALUES (?, ?, ?, ?, NOW(), 'sync')");
             $stmt->execute(['membres', $userId, $deviceId, count($membres)]);
         }
     } catch (Exception $e) {
@@ -132,7 +134,8 @@ try {
             'success' => true,
             'message' => 'Synchronisation des membres réussie',
             'count' => count($membres),
-            'deviceId' => $deviceId
+            'deviceId' => $deviceId,
+            'userId' => $userId // Ajouter l'ID dans la réponse pour debug
         ]);
         
     } catch (Exception $innerEx) {

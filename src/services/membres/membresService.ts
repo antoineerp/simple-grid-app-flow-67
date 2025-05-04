@@ -8,6 +8,7 @@ import { getCurrentUser } from '@/services/core/databaseConnectionService';
 
 /**
  * Extrait un identifiant utilisateur valide pour les requêtes
+ * Améliore la gestion des identifiants techniques pour éviter la confusion
  */
 const extractValidUserId = (userId: any): string => {
   // Si l'entrée est undefined ou null
@@ -23,6 +24,19 @@ const extractValidUserId = (userId: any): string => {
       console.log("userId est la chaîne '[object Object]', utilisation de l'ID par défaut");
       return 'p71x6d_system';
     }
+    
+    // Si c'est un nombre ou paraît être un simple ID numérique, préfixer avec p71x6d_
+    if (/^\d+$/.test(userId)) {
+      console.log(`userId semble être un ID numérique (${userId}), conversion en identifiant technique`);
+      return `p71x6d_user_${userId}`;
+    }
+    
+    // Si l'ID ne commence pas par p71x6d_, le préfixer
+    if (!userId.startsWith('p71x6d_')) {
+      console.log(`Préfixage de l'identifiant utilisateur: ${userId}`);
+      return `p71x6d_${userId}`;
+    }
+    
     return userId;
   }
   
@@ -36,8 +50,21 @@ const extractValidUserId = (userId: any): string => {
     
     for (const prop of idProperties) {
       if (userId[prop] && typeof userId[prop] === 'string' && userId[prop].length > 0) {
-        console.log(`ID utilisateur extrait de l'objet: ${prop}=${userId[prop]}`);
-        return userId[prop];
+        // Si l'ID extrait est numérique, le préfixer
+        if (prop === 'id' && /^\d+$/.test(userId[prop])) {
+          console.log(`ID numérique extrait: ${userId[prop]}, conversion en identifiant technique`);
+          return `p71x6d_user_${userId[prop]}`;
+        }
+        
+        // Si l'identifiant n'a pas le bon préfixe, l'ajouter
+        const extractedId = userId[prop];
+        if (!extractedId.startsWith('p71x6d_')) {
+          console.log(`Préfixage de l'identifiant extrait: ${extractedId}`);
+          return `p71x6d_${extractedId}`;
+        }
+        
+        console.log(`ID utilisateur extrait de l'objet: ${prop}=${extractedId}`);
+        return extractedId;
       }
     }
     
@@ -45,8 +72,18 @@ const extractValidUserId = (userId: any): string => {
     const userIdString = String(userId);
     if (userIdString !== '[object Object]' && userIdString !== 'null' && userIdString !== 'undefined') {
       console.log(`Conversion de l'objet en chaîne: ${userIdString}`);
-      return userIdString;
+      // Vérifier si c'est un ID numérique
+      if (/^\d+$/.test(userIdString)) {
+        return `p71x6d_user_${userIdString}`;
+      }
+      return userIdString.startsWith('p71x6d_') ? userIdString : `p71x6d_${userIdString}`;
     }
+  }
+  
+  // Si c'est un nombre, le convertir en identifiant technique
+  if (typeof userId === 'number') {
+    console.log(`Conversion de l'ID numérique ${userId} en identifiant technique`);
+    return `p71x6d_user_${userId}`;
   }
   
   console.log(`Utilisation de l'ID par défaut: p71x6d_system`);
@@ -317,5 +354,50 @@ export const resetSyncState = async (): Promise<void> => {
     console.log("État de synchronisation des membres réinitialisé avec succès");
   } catch (error) {
     console.error("Erreur lors de la réinitialisation de l'état de synchronisation:", error);
+  }
+};
+
+/**
+ * Nouvelle fonction pour ajouter une colonne operation à la table sync_history
+ * pour distinguer les opérations de chargement et de synchronisation
+ */
+export const addSyncHistoryOperation = async (): Promise<void> => {
+  try {
+    const API_URL = getApiUrl();
+    const response = await fetch(`${API_URL}/check.php?action=update_sync_history`, {
+      method: 'GET',
+      headers: getAuthHeaders()
+    });
+    
+    if (response.ok) {
+      console.log("Structure de la table sync_history mise à jour");
+    }
+  } catch (error) {
+    console.error("Erreur lors de la mise à jour de la table sync_history:", error);
+  }
+};
+
+/**
+ * Récupère les statistiques de synchronisation pour un utilisateur
+ */
+export const getSyncStats = async (userId?: string): Promise<any> => {
+  try {
+    const API_URL = getApiUrl();
+    const validUserId = userId ? extractValidUserId(userId) : extractValidUserId(getCurrentUser());
+    
+    const response = await fetch(`${API_URL}/check.php?action=sync_stats&userId=${encodeURIComponent(validUserId)}`, {
+      method: 'GET',
+      headers: getAuthHeaders()
+    });
+    
+    if (response.ok) {
+      const data = await response.json();
+      return data;
+    }
+    
+    return { success: false, message: "Impossible de récupérer les statistiques" };
+  } catch (error) {
+    console.error("Erreur lors de la récupération des statistiques:", error);
+    return { success: false, error: String(error) };
   }
 };
