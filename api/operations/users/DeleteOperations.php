@@ -42,12 +42,20 @@ class UserDeleteOperations extends BaseOperations {
                 return;
             }
             
+            // Journaliser les informations de l'utilisateur avant suppression
+            error_log("Suppression de l'utilisateur: ID=" . $user['id'] . 
+                      ", Nom=" . $user['nom'] . 
+                      ", Prenom=" . $user['prenom'] . 
+                      ", Email=" . $user['email'] . 
+                      ", IdTechnique=" . $user['identifiant_technique']);
+            
             // Supprimer l'utilisateur
             $this->model->id = $data->id;
             if ($this->model->delete()) {
                 ResponseHandler::success([
                     "message" => "Utilisateur supprimé avec succès",
-                    "id" => $data->id
+                    "id" => $data->id,
+                    "identifiant_technique" => $user['identifiant_technique']
                 ]);
             } else {
                 ResponseHandler::error("Impossible de supprimer l'utilisateur", 500);

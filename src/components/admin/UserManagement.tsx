@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -16,6 +15,7 @@ import { adminImportFromManager } from '@/services/core/userInitializationServic
 import { getApiUrl } from '@/config/apiConfig';
 import { getAuthHeaders } from '@/services/auth/authService';
 import { clearUsersCache, type Utilisateur } from '@/services';
+import { cleanupUserTables } from '@/services/users/tableCleanupService';
 
 interface UserManagementProps {
   currentDatabaseUser: string | null;
@@ -137,14 +137,25 @@ const UserManagement = ({ currentDatabaseUser, onUserConnect }: UserManagementPr
     }
   };
   
-  const handleDeleteUser = async (userId: number) => {
-    if (!window.confirm("Êtes-vous sûr de vouloir supprimer cet utilisateur ?")) {
+  const handleDeleteUser = async (userId: number, identifiantTechnique: string) => {
+    if (!window.confirm("Êtes-vous sûr de vouloir supprimer cet utilisateur et toutes ses données associées ?")) {
       return;
     }
     
     setDeletingUserId(userId);
     
     try {
+      // Étape 1: Supprimer les tables associées à l'utilisateur
+      console.log(`Suppression des tables pour l'utilisateur: ${identifiantTechnique}`);
+      const tablesDeleted = await cleanupUserTables(identifiantTechnique);
+      
+      if (!tablesDeleted) {
+        console.warn(`Problème lors de la suppression des tables pour ${identifiantTechnique}`);
+      } else {
+        console.log(`Tables supprimées avec succès pour ${identifiantTechnique}`);
+      }
+      
+      // Étape 2: Supprimer l'utilisateur lui-même
       const response = await fetch(`${getApiUrl()}/users`, {
         method: 'DELETE',
         headers: {
@@ -158,8 +169,8 @@ const UserManagement = ({ currentDatabaseUser, onUserConnect }: UserManagementPr
 
       if (response.ok) {
         toast({
-          title: "Succès",
-          description: "L'utilisateur a été supprimé avec succès",
+          title: "Suppression réussie",
+          description: `L'utilisateur et ses ${tablesDeleted ? 'données associées ont' : 'a'} été supprimé${tablesDeleted ? 's' : ''} avec succès`,
         });
         
         clearUsersCache();
@@ -175,7 +186,7 @@ const UserManagement = ({ currentDatabaseUser, onUserConnect }: UserManagementPr
       console.error("Erreur lors de la suppression:", error);
       toast({
         title: "Erreur",
-        description: "Impossible de supprimer l'utilisateur",
+        description: "Impossible de supprimer l'utilisateur ou ses données",
         variant: "destructive",
       });
     } finally {
@@ -344,7 +355,7 @@ const UserManagement = ({ currentDatabaseUser, onUserConnect }: UserManagementPr
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => handleDeleteUser(user.id)}
+                          onClick={() => handleDeleteUser(user.id, user.identifiant_technique)}
                           className="text-red-500 hover:text-red-700"
                           disabled={currentDatabaseUser === user.identifiant_technique || deletingUserId === user.id}
                         >

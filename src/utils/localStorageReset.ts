@@ -1,4 +1,3 @@
-
 /**
  * Utilitaire pour réinitialiser complètement le stockage local de l'application
  * À utiliser en cas de problèmes graves de synchronisation
@@ -151,5 +150,65 @@ export const resetDeviceId = (): string => {
   } catch (error) {
     console.error("Erreur lors de la réinitialisation de l'identifiant d'appareil:", error);
     return "";
+  }
+};
+
+/**
+ * Nettoie toutes les données locales liées à un utilisateur spécifique
+ * @param {string} userId - L'identifiant technique de l'utilisateur
+ * @returns {boolean} - Indique si le nettoyage a été effectué avec succès
+ */
+export const cleanupUserLocalStorage = (userId: string): boolean => {
+  try {
+    console.log(`Nettoyage des données locales pour l'utilisateur: ${userId}`);
+    
+    if (!userId || userId.trim() === '') {
+      console.error("Identifiant utilisateur invalide pour le nettoyage");
+      return false;
+    }
+    
+    // Liste des préfixes pour les données de l'utilisateur spécifique
+    const userPrefixes = [
+      `membres_${userId}`,
+      `documents_${userId}`,
+      `collaboration_${userId}`,
+      `sync_in_progress_${userId}`,
+      `last_sync_id_${userId}`,
+      `sync_pending_${userId}`,
+      `last_synced_${userId}`,
+      `lastServerSync_${userId}`
+    ];
+    
+    // Parcourir toutes les clés du localStorage et sessionStorage
+    const localStorageKeys = Object.keys(localStorage);
+    const sessionStorageKeys = Object.keys(sessionStorage);
+    
+    let keysRemoved = 0;
+    
+    // Supprimer les données de localStorage
+    localStorageKeys.forEach(key => {
+      const shouldRemove = userPrefixes.some(prefix => key.startsWith(prefix)) || key === userId;
+      if (shouldRemove) {
+        localStorage.removeItem(key);
+        console.log(`Clé supprimée de localStorage: ${key}`);
+        keysRemoved++;
+      }
+    });
+    
+    // Supprimer les données de sessionStorage
+    sessionStorageKeys.forEach(key => {
+      const shouldRemove = userPrefixes.some(prefix => key.startsWith(prefix)) || key === userId;
+      if (shouldRemove) {
+        sessionStorage.removeItem(key);
+        console.log(`Clé supprimée de sessionStorage: ${key}`);
+        keysRemoved++;
+      }
+    });
+    
+    console.log(`Nettoyage des données locales terminé pour ${userId}. ${keysRemoved} clés supprimées.`);
+    return true;
+  } catch (error) {
+    console.error(`Erreur lors du nettoyage des données locales pour ${userId}:`, error);
+    return false;
   }
 };
