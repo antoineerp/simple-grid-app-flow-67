@@ -6,6 +6,7 @@ ob_start();
 // Initialiser la gestion de synchronisation
 require_once 'services/DataSyncService.php';
 require_once 'services/RequestHandler.php';
+require_once 'services/TableManager.php';
 
 // Nom de la table à synchroniser
 $tableName = 'collaboration';
@@ -75,18 +76,27 @@ try {
     // Enregistrer cette synchronisation dans l'historique
     $service->recordSyncOperation($userId, $deviceId, 'sync', count($records));
     
-    // Créer la table si elle n'existe pas
-    $pdo->exec("CREATE TABLE IF NOT EXISTS `{$userTableName}` (
-        `id` VARCHAR(36) NOT NULL PRIMARY KEY,
-        `nom` VARCHAR(255) NOT NULL,
-        `description` TEXT NULL,
-        `link` VARCHAR(255) NULL,
-        `groupId` VARCHAR(36) NULL,
-        `userId` VARCHAR(50) NOT NULL,
-        `last_sync_device` VARCHAR(100) NULL,
-        `date_creation` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        `date_modification` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+    // Vérifier si la table existe et la créer si nécessaire
+    $tables = $pdo->query("SHOW TABLES LIKE '{$userTableName}'")->fetchAll();
+    if (count($tables) === 0) {
+        // La table n'existe pas, utilisons TableManager pour la créer
+        error_log("Table {$userTableName} non trouvée, création automatique via TableManager");
+        
+        try {
+            // Initialiser la table pour cet utilisateur
+            $success = TableManager::initializeTableForUser($pdo, $tableName, $userId);
+            
+            if ($success) {
+                error_log("Table {$userTableName} créée avec succès via TableManager");
+            } else {
+                error_log("Échec de la création de la table {$userTableName} via TableManager");
+                throw new Exception("Impossible de créer la table {$userTableName}");
+            }
+        } catch (Exception $e) {
+            error_log("Erreur lors de la création de la table {$userTableName}: " . $e->getMessage());
+            throw $e;
+        }
+    }
     
     // Vider la table pour une synchronisation complète
     // Note: Dans un système de production, vous voudrez peut-être modifier uniquement les enregistrements modifiés
