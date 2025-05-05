@@ -1,7 +1,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useToast } from '@/hooks/use-toast';
-import { dataSyncManager, SyncRecord, SyncOptions } from '@/services/sync/DataSyncManager';
+import { dataSyncManager, SyncStatus, SyncOptions } from '@/services/sync/DataSyncManager';
 import { useNetworkStatus } from './useNetworkStatus';
 
 export interface DataSyncState<T> {

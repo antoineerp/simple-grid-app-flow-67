@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import { useInterval } from '@/hooks/useInterval';
 import { useToast } from '@/hooks/use-toast';
-import { dataSyncManager } from '@/services/sync/DataSyncManager';
+import { dataSyncManager, SyncStatus } from '@/services/sync/DataSyncManager';
 import { getCurrentUser } from '@/services/auth/authService';
 import { databaseHelper } from '@/services/sync/DatabaseHelper';
 
@@ -59,7 +59,7 @@ export const GlobalSyncManager: React.FC = () => {
   // Vérifier l'état de synchronisation global
   useEffect(() => {
     const status = dataSyncManager.getSyncStatus();
-    setSyncFailed(status === 'error');
+    setSyncFailed(status === SyncStatus.Error);
   }, []);
 
   // Synchronisation périodique si en ligne
