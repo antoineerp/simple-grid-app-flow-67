@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from 'react';
 import { dataSyncManager, SyncStatusEnum, SyncStatus } from '@/services/sync/DataSyncManager';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
@@ -20,7 +19,7 @@ export interface DataSyncState<T> extends SyncRecord {
  */
 export function useDataSync<T>(tableName: string): DataSyncState<T> {
   const [syncRecord, setSyncRecord] = useState<SyncRecord>({
-    status: SyncStatusEnum.IDLE as SyncStatus,
+    status: SyncStatusEnum.IDLE as unknown as SyncStatus,
     lastSynced: null,
     lastError: null,
     pendingChanges: false
@@ -32,10 +31,10 @@ export function useDataSync<T>(tableName: string): DataSyncState<T> {
   const refreshStatus = useCallback(() => {
     const state = dataSyncManager.getTableStatus(tableName);
     setSyncRecord({
-      status: state.isSyncing ? SyncStatusEnum.SYNCING as SyncStatus : 
-              state.hasError ? SyncStatusEnum.ERROR as SyncStatus : 
-              state.lastSynced ? SyncStatusEnum.SUCCESS as SyncStatus : 
-              SyncStatusEnum.IDLE as SyncStatus,
+      status: state.isSyncing ? (SyncStatusEnum.SYNCING as unknown as SyncStatus) : 
+              state.hasError ? (SyncStatusEnum.ERROR as unknown as SyncStatus) : 
+              state.lastSynced ? (SyncStatusEnum.SUCCESS as unknown as SyncStatus) : 
+              (SyncStatusEnum.IDLE as unknown as SyncStatus),
       lastSynced: state.lastSynced ? new Date(state.lastSynced) : null,
       lastError: state.errorMessage || null,
       pendingChanges: state.hasPendingChanges || false
