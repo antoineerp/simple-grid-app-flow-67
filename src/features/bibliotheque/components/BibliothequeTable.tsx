@@ -1,193 +1,98 @@
 
 import React from 'react';
-import { GripVertical, Pencil, Trash, ChevronDown, ExternalLink } from 'lucide-react';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Document, DocumentGroup } from '@/types/bibliotheque';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Button } from '@/components/ui/button';
+import { Pencil, Trash2, Loader2 } from 'lucide-react';
+import type { Document, DocumentGroup } from '@/hooks/useBibliotheque';
 
 interface BibliothequeTableProps {
+  isLoading?: boolean;
   documents: Document[];
   groups: DocumentGroup[];
-  onEditDocument: (doc: Document) => void;
-  onDeleteDocument: (id: string) => void;
-  onEditGroup: (group: DocumentGroup) => void;
-  onDeleteGroup: (id: string) => void;
-  onToggleGroup: (id: string) => void;
-  onDragStart: (e: React.DragEvent<HTMLTableRowElement>, id: string, groupId?: string) => void;
-  onDragOver: (e: React.DragEvent<HTMLTableRowElement>) => void;
-  onDragLeave: (e: React.DragEvent<HTMLTableRowElement>) => void;
-  onDrop: (e: React.DragEvent<HTMLTableRowElement>, targetId: string, targetGroupId?: string) => void;
-  onDragEnd: (e: React.DragEvent<HTMLTableRowElement>) => void;
-  onGroupDrop: (e: React.DragEvent<HTMLTableRowElement>, targetGroupId: string) => void;
+  onGroupEdit: (group: DocumentGroup) => void;
+  onGroupDelete: (groupId: string | number) => void;
+  onDocumentEdit: (document: Document) => void;
+  onDocumentDelete: (documentId: string | number) => void;
 }
 
 export const BibliothequeTable: React.FC<BibliothequeTableProps> = ({
+  isLoading,
   documents,
   groups,
-  onEditDocument,
-  onDeleteDocument,
-  onEditGroup,
-  onDeleteGroup,
-  onToggleGroup,
-  onDragStart,
-  onDragOver,
-  onDragLeave,
-  onDrop,
-  onDragEnd,
-  onGroupDrop
+  onGroupEdit,
+  onGroupDelete,
+  onDocumentEdit,
+  onDocumentDelete
 }) => {
-  const renderDocumentLink = (link: string | null) => {
-    if (!link || link === 'Voir le document') return <span className="text-gray-500">-</span>;
-    
+  if (isLoading) {
     return (
-      <a 
-        href={link} 
-        target="_blank" 
-        rel="noopener noreferrer" 
-        className="text-app-blue hover:underline inline-flex items-center gap-1"
-      >
-        {link}
-        <ExternalLink className="h-4 w-4" />
-      </a>
+      <div className="flex justify-center items-center p-8">
+        <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
+      </div>
     );
-  };
+  }
+
+  if (documents.length === 0) {
+    return (
+      <div className="text-center p-8 bg-gray-50 border border-gray-200 rounded-md">
+        <p className="text-gray-600 mb-2">Aucun document trouvé</p>
+        <p className="text-sm text-gray-500">Créez votre premier document en cliquant sur "Nouveau Document"</p>
+      </div>
+    );
+  }
 
   return (
-    <div className="bg-white rounded-md shadow overflow-hidden mt-6">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead className="w-10"></TableHead>
-            <TableHead className="py-3 px-4 text-app-blue font-semibold">Nom du document</TableHead>
-            <TableHead className="py-3 px-4 text-app-blue font-semibold">Lien</TableHead>
-            <TableHead className="py-3 px-4 text-app-blue font-semibold text-right">Actions</TableHead>
+    <Table>
+      <TableHeader>
+        <TableRow>
+          <TableHead className="w-[300px]">Titre</TableHead>
+          <TableHead>Groupe</TableHead>
+          <TableHead>Statut</TableHead>
+          <TableHead className="text-right">Actions</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {documents.map((doc) => (
+          <TableRow key={doc.id}>
+            <TableCell className="font-medium">{doc.title}</TableCell>
+            <TableCell>
+              {groups.find(g => g.id === doc.groupId)?.name || 'Sans groupe'}
+            </TableCell>
+            <TableCell>
+              <span className={`px-2 py-1 rounded text-xs font-medium ${
+                doc.status === 'validated' ? 'bg-green-100 text-green-800' : 
+                doc.status === 'pending' ? 'bg-yellow-100 text-yellow-800' : 
+                'bg-gray-100 text-gray-800'
+              }`}>
+                {doc.status === 'validated' ? 'Validé' : 
+                 doc.status === 'pending' ? 'En attente' : 'Brouillon'}
+              </span>
+            </TableCell>
+            <TableCell className="text-right">
+              <div className="flex justify-end space-x-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => onDocumentEdit(doc)}
+                  className="h-8 w-8 p-0"
+                >
+                  <Pencil className="h-4 w-4" />
+                  <span className="sr-only">Modifier</span>
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => onDocumentDelete(doc.id)}
+                  className="h-8 w-8 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
+                >
+                  <Trash2 className="h-4 w-4" />
+                  <span className="sr-only">Supprimer</span>
+                </Button>
+              </div>
+            </TableCell>
           </TableRow>
-        </TableHeader>
-        
-        {groups.map((group) => (
-          <TableBody key={group.id}>
-            <TableRow 
-              className="border-b hover:bg-gray-50 cursor-pointer" 
-              onClick={() => onToggleGroup(group.id)}
-              draggable
-              onDragStart={(e) => onDragStart(e, group.id)}
-              onDragOver={(e) => onDragOver(e)}
-              onDragLeave={(e) => onDragLeave(e)}
-              onDrop={(e) => onGroupDrop(e, group.id)}
-              onDragEnd={onDragEnd}
-            >
-              <TableCell className="py-3 px-2 w-10">
-                <GripVertical className="h-5 w-5 text-gray-400" />
-              </TableCell>
-              <TableCell className="py-3 px-4">
-                <div className="flex items-center">
-                  <ChevronDown className={`h-4 w-4 mr-2 inline-block transition-transform ${group.expanded ? 'rotate-180' : ''}`} />
-                  <span className="font-medium">{group.name}</span>
-                </div>
-              </TableCell>
-              <TableCell className="py-3 px-4"></TableCell>
-              <TableCell className="py-3 px-4 text-right">
-                <button 
-                  className="text-gray-600 hover:text-app-blue mr-3"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onEditGroup(group);
-                  }}
-                >
-                  <Pencil className="h-5 w-5 inline-block" />
-                </button>
-                <button 
-                  className="text-gray-600 hover:text-red-500"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onDeleteGroup(group.id);
-                  }}
-                >
-                  <Trash className="h-5 w-5 inline-block" />
-                </button>
-              </TableCell>
-            </TableRow>
-            
-            {group.expanded && group.items.map((item) => (
-              <TableRow 
-                key={item.id} 
-                className="border-b hover:bg-gray-50 bg-gray-50"
-                draggable
-                onDragStart={(e) => onDragStart(e, item.id, group.id)}
-                onDragOver={(e) => onDragOver(e)}
-                onDragLeave={(e) => onDragLeave(e)}
-                onDrop={(e) => onDrop(e, item.id, group.id)}
-                onDragEnd={onDragEnd}
-              >
-                <TableCell className="py-3 px-2 w-10">
-                  <GripVertical className="h-5 w-5 text-gray-400" />
-                </TableCell>
-                <TableCell className="py-3 px-4 pl-8">{item.name}</TableCell>
-                <TableCell className="py-3 px-4">
-                  {renderDocumentLink(item.link)}
-                </TableCell>
-                <TableCell className="py-3 px-4 text-right">
-                  <button 
-                    className="text-gray-600 hover:text-app-blue mr-3"
-                    onClick={() => onEditDocument(item)}
-                  >
-                    <Pencil className="h-5 w-5 inline-block" />
-                  </button>
-                  <button 
-                    className="text-gray-600 hover:text-red-500"
-                    onClick={() => onDeleteDocument(item.id)}
-                  >
-                    <Trash className="h-5 w-5 inline-block" />
-                  </button>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
         ))}
-        
-        <TableBody>
-          {documents.map((doc) => (
-            <TableRow 
-              key={doc.id} 
-              className="border-b hover:bg-gray-50"
-              draggable
-              onDragStart={(e) => onDragStart(e, doc.id)}
-              onDragOver={(e) => onDragOver(e)}
-              onDragLeave={(e) => onDragLeave(e)}
-              onDrop={(e) => onDrop(e, doc.id)}
-              onDragEnd={onDragEnd}
-            >
-              <TableCell className="py-3 px-2 w-10">
-                <GripVertical className="h-5 w-5 text-gray-400" />
-              </TableCell>
-              <TableCell className="py-3 px-4">{doc.name}</TableCell>
-              <TableCell className="py-3 px-4">
-                {renderDocumentLink(doc.link)}
-              </TableCell>
-              <TableCell className="py-3 px-4 text-right">
-                <button 
-                  className="text-gray-600 hover:text-app-blue mr-3"
-                  onClick={() => onEditDocument(doc)}
-                >
-                  <Pencil className="h-5 w-5 inline-block" />
-                </button>
-                <button 
-                  className="text-gray-600 hover:text-red-500"
-                  onClick={() => onDeleteDocument(doc.id)}
-                >
-                  <Trash className="h-5 w-5 inline-block" />
-                </button>
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </div>
+      </TableBody>
+    </Table>
   );
 };

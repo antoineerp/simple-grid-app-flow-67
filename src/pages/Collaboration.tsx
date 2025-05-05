@@ -7,36 +7,39 @@ import { useBibliotheque } from '@/hooks/useBibliotheque';
 
 const Collaboration = () => {
   const { 
-    isLoading, 
-    documents, 
-    handleGroupChange, 
-    handleGroupDelete,
-    handleDocumentCreate,
-    handleDocumentUpdate,
+    documents,
+    groups,
+    openDocumentDialog,
+    openGroupDialog,
     handleDocumentDelete,
-    handleSync,
-    syncStatus
+    handleDocumentEdit,
+    handleGroupEdit,
+    handleGroupDelete,
+    syncWithServer,
+    isSyncing,
+    syncFailed
   } = useBibliotheque();
 
   return (
     <div className="container mx-auto py-8">
       <BibliothequeHeader 
-        onSync={handleSync}
-        syncFailed={syncStatus.syncFailed}
+        onSync={syncWithServer}
+        syncFailed={syncFailed}
       />
       
       <BibliothequeActions
-        onGroupCreate={handleGroupChange} 
-        onDocumentCreate={handleDocumentCreate}
+        onAddGroup={() => openGroupDialog(null)} 
+        onAddDocument={() => openDocumentDialog(null)}
       />
       
       <div className="mt-6">
         <BibliothequeTable
-          isLoading={isLoading}
+          isLoading={isSyncing}
           documents={documents}
-          onGroupEdit={handleGroupChange}
+          groups={groups}
+          onGroupEdit={handleGroupEdit}
           onGroupDelete={handleGroupDelete}
-          onDocumentEdit={handleDocumentUpdate}
+          onDocumentEdit={handleDocumentEdit}
           onDocumentDelete={handleDocumentDelete}
         />
       </div>
