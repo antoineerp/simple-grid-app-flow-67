@@ -9,14 +9,34 @@ import { getDatabaseConnectionCurrentUser } from '@/services/core/databaseConnec
 
 interface ExigenceGroupDialogProps {
   isOpen: boolean;
+  open?: boolean; // Added for compatibility
   onClose: () => void;
+  onOpenChange?: (open: boolean) => void; // Added for compatibility 
   group: ExigenceGroup | null;
-  onSave: (group: ExigenceGroup, isEditing: boolean) => void; // Mettre à jour la signature pour accepter isEditing
+  onSave: (group: ExigenceGroup, isEditing: boolean) => void;
 }
 
-export const ExigenceGroupDialog = ({ isOpen, onClose, group, onSave }: ExigenceGroupDialogProps) => {
+export const ExigenceGroupDialog = ({ 
+  isOpen, 
+  open, 
+  onClose, 
+  onOpenChange,
+  group, 
+  onSave 
+}: ExigenceGroupDialogProps) => {
   const [name, setName] = React.useState(group?.name || '');
   const currentUserId = getDatabaseConnectionCurrentUser() || 'default';
+  
+  // Support both isOpen and open props
+  const dialogOpen = isOpen !== undefined ? isOpen : open;
+  
+  // Support both onClose and onOpenChange props
+  const handleOpenChange = (isOpen: boolean) => {
+    if (!isOpen) {
+      if (onClose) onClose();
+      if (onOpenChange) onOpenChange(false);
+    }
+  };
 
   React.useEffect(() => {
     if (group) {
@@ -34,12 +54,13 @@ export const ExigenceGroupDialog = ({ isOpen, onClose, group, onSave }: Exigence
       items: group?.items || [],
       userId: group?.userId || currentUserId
     };
-    onSave(updatedGroup, !!group); // Passer isEditing = true si group existe
-    onClose();
+    onSave(updatedGroup, !!group);
+    if (onClose) onClose();
+    if (onOpenChange) onOpenChange(false);
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+    <Dialog open={dialogOpen} onOpenChange={handleOpenChange}>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>{group ? 'Modifier le groupe' : 'Ajouter un groupe'}</DialogTitle>

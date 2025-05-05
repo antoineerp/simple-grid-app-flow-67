@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from 'react';
 import { Exigence, ExigenceStats, ExigenceGroup } from '@/types/exigences';
 import { useExigenceMutations } from './useExigenceMutations';
@@ -84,6 +85,9 @@ export const useExigences = () => {
   
   const mutations = useExigenceMutations(exigences, setExigences);
   const groupOperations = useExigenceGroups(groups, setGroups, setExigences);
+
+  // Extract required methods from mutations
+  const { handleResponsabiliteChange, handleAtteinteChange, handleExclusionChange, handleDelete } = mutations;
 
   // Load data from local storage on initial render
   useEffect(() => {
@@ -247,8 +251,8 @@ export const useExigences = () => {
 
   // Corriger l'appel à handleDeleteGroup en ajoutant les paramètres manquants
   const handleDeleteGroup = useCallback((id: string) => {
-    exigenceMutations.handleDeleteGroup(id, groups, setGroups, exigences, setExigences);
-  }, [groups, exigences, setGroups, setExigences, exigenceMutations]);
+    mutations.handleDeleteGroup(id, groups, setGroups, exigences, setExigences);
+  }, [groups, exigences, setGroups, setExigences, mutations]);
 
   return {
     exigences,
@@ -270,6 +274,11 @@ export const useExigences = () => {
     handleAddGroup,
     handleEditGroup,
     handleResetLoadAttempts,
+    // Explicitly include methods from mutations and groupOperations
+    handleResponsabiliteChange,
+    handleAtteinteChange, 
+    handleExclusionChange,
+    handleDelete,
     ...mutations,
     ...groupOperations,
     syncWithServer,

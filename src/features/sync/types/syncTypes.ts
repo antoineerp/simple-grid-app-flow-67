@@ -28,14 +28,46 @@ export interface SyncStatus {
 export interface SyncOptions {
   mode?: 'manual' | 'auto' | 'background';
   priority?: 'high' | 'normal' | 'low';
+  showToast?: boolean;
+  hideIndicators?: boolean;
+}
+
+// Added SyncHookOptions for useSyncContext
+export interface SyncHookOptions {
+  showToasts?: boolean;
+  hideIndicators?: boolean;
 }
 
 export interface SyncState {
   isSyncing: boolean;
   lastSynced: Date | null;
   syncFailed: boolean;
+  pendingSync?: boolean; // Added this property
+  dataChanged?: boolean; // Added this property
 }
 
 export interface SyncStateRecord {
   [tableName: string]: SyncState;
+}
+
+// Added missing interfaces for sync operations
+export interface SyncOperationResult {
+  success: boolean;
+  message?: string;
+  data?: any;
+}
+
+// Added SyncMonitorStatus
+export interface SyncMonitorStatus {
+  activeCount: number;
+  recentAttempts: SyncAttempt[];
+  stats: {
+    success: number;
+    failure: number;
+  };
+  health: 'good' | 'warning' | 'critical';
+  lastSync: {
+    time: number | null;
+    success: boolean;
+  };
 }

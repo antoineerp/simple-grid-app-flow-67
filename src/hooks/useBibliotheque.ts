@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from 'react';
 import { Document, DocumentGroup } from '@/types/bibliotheque';
 import { useToast } from '@/hooks/use-toast';
@@ -13,17 +12,24 @@ export const useBibliotheque = () => {
   const [isDialogOpen, setIsDialogOpen] = useState<boolean>(false);
   const [isGroupDialogOpen, setIsGroupDialogOpen] = useState<boolean>(false);
   const [isEditing, setIsEditing] = useState<boolean>(false);
+  
+  // Get current user first to use in initial states
+  const currentUserValue = getDatabaseConnectionCurrentUser() || 'default';
+  
   const [currentDocument, setCurrentDocument] = useState<Document>({
     id: "",
     name: "",
     link: "",
-    groupId: undefined
+    groupId: undefined,
+    userId: currentUserValue
   });
+  
   const [currentGroup, setCurrentGroup] = useState<DocumentGroup>({
     id: "",
     name: "",
     expanded: false,
-    items: []
+    items: [],
+    userId: currentUserValue
   });
   
   const { toast } = useToast();
