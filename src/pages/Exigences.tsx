@@ -57,6 +57,15 @@ const ExigencesContent = () => {
     });
   };
 
+  // Create a wrapper function that adapts the handler for ExigenceTable
+  const handleExclusionChangeWrapper = (id: string) => {
+    // Get the current exigence to toggle its exclusion state
+    const exigence = exigences.find(e => e.id === id);
+    if (exigence) {
+      handleExclusionChange(id, !exigence.exclusion);
+    }
+  };
+
   return (
     <div className="p-8">
       <div className="flex items-center justify-between mb-2">
@@ -110,7 +119,7 @@ const ExigencesContent = () => {
           groups={groups}
           onResponsabiliteChange={handleResponsabiliteChange}
           onAtteinteChange={handleAtteinteChange}
-          onExclusionChange={handleExclusionChange}
+          onExclusionChange={handleExclusionChangeWrapper}
           onEdit={handleEdit}
           onDelete={handleDelete}
           onReorder={handleReorder}

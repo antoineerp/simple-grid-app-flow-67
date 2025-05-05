@@ -83,8 +83,8 @@ export default function DbTest() {
                   <Save className="mr-2 h-4 w-4" />
                   Ajouter une donnée
                 </Button>
-                <Button onClick={handleSync} disabled={!isOnline || status === SyncStatusEnum.SYNCING}>
-                  <RefreshCw className={`mr-2 h-4 w-4 ${status === SyncStatusEnum.SYNCING ? 'animate-spin' : ''}`} />
+                <Button onClick={handleSync} disabled={!isOnline || status.toString() === SyncStatusEnum.SYNCING.toString()}>
+                  <RefreshCw className={`mr-2 h-4 w-4 ${status.toString() === SyncStatusEnum.SYNCING.toString() ? 'animate-spin' : ''}`} />
                   Synchroniser
                 </Button>
               </div>

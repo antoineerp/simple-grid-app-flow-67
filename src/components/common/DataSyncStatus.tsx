@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -5,12 +6,13 @@ import { AlertTriangle, RotateCw, Check, CloudOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
 import { SyncStatusEnum } from '@/services/sync/DataSyncManager';
+import { SyncStatus } from '@/features/sync/types/syncTypes';
 
-// Use our SyncStatusEnum type
-type SyncStatus = SyncStatusEnum | string;
+// Use a union type to accept both SyncStatusEnum and SyncStatus
+type StatusType = SyncStatusEnum | SyncStatus | string;
 
 interface DataSyncStatusProps {
-  status: SyncStatus;
+  status: StatusType;
   lastSynced: Date | null;
   lastError: string | null;
   pendingChanges: boolean;
