@@ -4,33 +4,32 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
+  DialogFooter,
 } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
 import { Document } from '@/types/bibliotheque';
 
 interface DocumentDialogProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
-  onClose: () => void;
-  document: Document | null;
+  currentDocument: Document;
   isEditing: boolean;
-  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onInputChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onSave: () => void;
 }
 
-export const DocumentDialog = ({
+export const DocumentDialog: React.FC<DocumentDialogProps> = ({
   isOpen,
   onOpenChange,
-  document,
+  currentDocument,
   isEditing,
-  onChange,
-  onSave,
-  onClose
-}: DocumentDialogProps) => {
+  onInputChange,
+  onSave
+}) => {
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent>
@@ -39,44 +38,47 @@ export const DocumentDialog = ({
             {isEditing ? "Modifier le document" : "Ajouter un document"}
           </DialogTitle>
           <DialogDescription>
-            {isEditing
-              ? "Modifiez les informations du document ci-dessous."
+            {isEditing 
+              ? "Modifiez les informations du document ci-dessous." 
               : "Remplissez les informations pour ajouter un nouveau document."}
           </DialogDescription>
         </DialogHeader>
+        
         <div className="grid gap-4 py-4">
           <div className="grid grid-cols-4 items-center gap-4">
-            <label htmlFor="name" className="text-right">
+            <Label htmlFor="name" className="text-right">
               Nom
-            </label>
+            </Label>
             <Input
               id="name"
               name="name"
-              value={document?.name || ''}
-              onChange={onChange}
               className="col-span-3"
+              value={currentDocument.name}
+              onChange={onInputChange}
             />
           </div>
+          
           <div className="grid grid-cols-4 items-center gap-4">
-            <label htmlFor="link" className="text-right">
+            <Label htmlFor="link" className="text-right">
               Lien
-            </label>
+            </Label>
             <Input
               id="link"
               name="link"
-              value={document?.link || ''}
-              onChange={onChange}
               className="col-span-3"
-              placeholder="https://..."
+              value={currentDocument.link || ''}
+              onChange={onInputChange}
+              placeholder="Laisser vide si aucun lien"
             />
           </div>
         </div>
+        
         <DialogFooter>
-          <Button variant="outline" onClick={onClose}>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
             Annuler
           </Button>
-          <Button type="submit" onClick={onSave}>
-            {isEditing ? "Modifier" : "Ajouter"}
+          <Button onClick={onSave}>
+            {isEditing ? "Mettre à jour" : "Ajouter"}
           </Button>
         </DialogFooter>
       </DialogContent>

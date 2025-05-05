@@ -15,7 +15,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
 
 // Activer la journalisation d'erreurs
 error_reporting(E_ALL);
-ini_set('display_errors', 0);
+ini_set('display_errors', 0); // Désactiver l'affichage HTML des erreurs
 ini_set('log_errors', 1);
 ini_set('error_log', __DIR__ . '/db_diagnostic_errors.log');
 
@@ -39,7 +39,7 @@ try {
         ]
     ];
     
-    // Configuration directe pour le PDO Test (unique et fiable)
+    // Configuration directe pour le PDO Test
     $pdo_config = [
         'host' => 'p71x6d.myd.infomaniak.com',
         'db_name' => 'p71x6d_system',
@@ -47,9 +47,87 @@ try {
         'password' => 'Trottinette43!'
     ];
     
-    // Test direct PDO (méthode principale et fiable)
-    $result['database_connection'] = testPdoConnection($pdo_config);
+    // 1. Test direct PDO
+    $result['pdo_direct'] = testPdoConnection($pdo_config);
     
+    // 2. Test avec la classe Database
+    try {
+        if (file_exists(__DIR__ . '/config/database.php')) {
+            require_once __DIR__ . '/config/database.php';
+            $database = new Database('db-diagnostic');
+            $db_connected = $database->testConnection();
+            
+            $result['database_class'] = [
+                'status' => $db_connected ? 'success' : 'error',
+                'message' => $db_connected ? 'Connexion réussie via la classe Database' : 'Échec de la connexion via Database',
+                'config' => $database->getConfig(),
+                'error' => $database->connection_error
+            ];
+        } else {
+            $result['database_class'] = [
+                'status' => 'error',
+                'message' => 'Le fichier database.php n\'existe pas',
+                'error' => 'File not found: ' . __DIR__ . '/config/database.php'
+            ];
+        }
+    } catch (Exception $e) {
+        $result['database_class'] = [
+            'status' => 'error',
+            'message' => 'Erreur lors du chargement de la classe Database',
+            'error' => $e->getMessage()
+        ];
+    }
+    
+    // 3. Test du fichier de configuration
+    try {
+        $config_file = __DIR__ . '/config/db_config.json';
+        if (file_exists($config_file)) {
+            $config_content = file_get_contents($config_file);
+            $config = json_decode($config_content, true);
+            
+            if ($config && is_array($config)) {
+                $result['config_file'] = [
+                    'status' => 'success',
+                    'message' => 'Fichier de configuration trouvé et valide',
+                    'config' => [
+                        'host' => $config['host'] ?? 'non défini',
+                        'db_name' => $config['db_name'] ?? 'non défini',
+                        'username' => $config['username'] ?? 'non défini'
+                        // Mot de passe masqué pour des raisons de sécurité
+                    ]
+                ];
+            } else {
+                $result['config_file'] = [
+                    'status' => 'error',
+                    'message' => 'Fichier de configuration trouvé mais invalide',
+                    'error' => json_last_error_msg()
+                ];
+            }
+        } else {
+            $result['config_file'] = [
+                'status' => 'error',
+                'message' => 'Fichier de configuration non trouvé',
+                'error' => 'Le fichier ' . $config_file . ' n\'existe pas'
+            ];
+        }
+    } catch (Exception $e) {
+        $result['config_file'] = [
+            'status' => 'error',
+            'message' => 'Erreur lors de la lecture du fichier de configuration',
+            'error' => $e->getMessage()
+        ];
+    }
+    
+    // 4. Vérifier la cohérence entre la config directe et la config chargée
+    $result['config_consistency'] = checkConsistency(
+        $pdo_config,
+        [
+            'host' => $database->host ?? '',
+            'db_name' => $database->db_name ?? '',
+            'username' => $database->username ?? ''
+        ]
+    );
+
     // Nettoyer toute sortie précédente
     clean_output();
     
@@ -75,7 +153,7 @@ try {
 // Fin du script: vidage du buffer
 ob_end_flush();
 
-// Fonction pour tester la connexion PDO (unique et fiable)
+// Fonction pour tester la connexion PDO
 function testPdoConnection($config) {
     try {
         $dsn = "mysql:host={$config['host']};dbname={$config['db_name']};charset=utf8mb4";
@@ -85,32 +163,61 @@ function testPdoConnection($config) {
             PDO::ATTR_EMULATE_PREPARES => false
         ]);
         
-        // Vérifier la connexion avec une requête simple
-        $stmt = $pdo->query("SELECT VERSION() as version");
-        $version = $stmt->fetchColumn();
-        
-        // Récupérer la liste des tables
-        $tableQuery = $pdo->query("SHOW TABLES");
-        $tables = $tableQuery->fetchAll(PDO::FETCH_COLUMN);
-        
         return [
             'status' => 'success',
-            'message' => 'Connexion à la base de données réussie',
+            'message' => 'Connexion PDO directe réussie',
             'connection_info' => [
                 'host' => $config['host'],
                 'database' => $config['db_name'],
-                'user' => $config['username'],
-                'version' => $version,
-                'tables_count' => count($tables),
-                'tables' => $tables
+                'user' => $config['username']
             ]
         ];
     } catch (PDOException $e) {
         return [
             'status' => 'error',
-            'message' => 'Échec de la connexion à la base de données',
+            'message' => 'Échec de la connexion PDO directe',
             'error' => $e->getMessage()
         ];
     }
+}
+
+// Fonction pour vérifier la cohérence des configurations
+function checkConsistency($direct_config, $loaded_config) {
+    $differences = [];
+    $is_consistent = true;
+    
+    // Comparer les valeurs
+    if ($direct_config['host'] !== $loaded_config['host']) {
+        $differences['host'] = [
+            'direct' => $direct_config['host'],
+            'loaded' => $loaded_config['host']
+        ];
+        $is_consistent = false;
+    }
+    
+    if ($direct_config['db_name'] !== $loaded_config['db_name']) {
+        $differences['database'] = [
+            'direct' => $direct_config['db_name'],
+            'loaded' => $loaded_config['db_name']
+        ];
+        $is_consistent = false;
+    }
+    
+    if ($direct_config['username'] !== $loaded_config['username']) {
+        $differences['username'] = [
+            'direct' => $direct_config['username'],
+            'loaded' => $loaded_config['username']
+        ];
+        $is_consistent = false;
+    }
+    
+    return [
+        'status' => $is_consistent ? 'success' : 'warning',
+        'is_consistent' => $is_consistent,
+        'message' => $is_consistent 
+            ? 'Les configurations directe et chargée sont cohérentes' 
+            : 'Des différences ont été détectées entre les configurations',
+        'differences' => $differences
+    ];
 }
 ?>

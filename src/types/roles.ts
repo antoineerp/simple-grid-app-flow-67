@@ -1,4 +1,3 @@
-
 export type UserRole = 'administrateur' | 'utilisateur' | 'gestionnaire';
 
 export interface RolePermissions {
@@ -22,8 +21,7 @@ export const ROLE_PERMISSIONS: Record<UserRole, RolePermissions> = {
       '/exigences',
       '/gestion-documentaire',
       '/ressources-humaines',
-      '/bibliotheque',
-      '/collaboration'
+      '/bibliotheque'
     ],
     editTables: ['*'],
     createUsers: false,
@@ -35,8 +33,7 @@ export const ROLE_PERMISSIONS: Record<UserRole, RolePermissions> = {
       '/exigences',
       '/gestion-documentaire',
       '/ressources-humaines',
-      '/bibliotheque',
-      '/collaboration'
+      '/bibliotheque'
     ],
     editTables: ['*'],
     createUsers: false,

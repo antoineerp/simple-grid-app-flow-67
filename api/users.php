@@ -1,4 +1,3 @@
-
 <?php
 // Forcer l'output buffering pour éviter tout output avant les headers
 ob_start();
@@ -17,9 +16,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
     exit;
 }
 
-// Inclure les services requis
-require_once 'services/TableManager.php';
-
 // Journaliser l'appel
 error_log("API users.php - Méthode: " . $_SERVER['REQUEST_METHOD'] . " - Requête: " . $_SERVER['REQUEST_URI']);
 
@@ -32,47 +28,6 @@ function generateShortId() {
         $id .= $chars[rand(0, strlen($chars) - 1)];
     }
     return $id;
-}
-
-// Liste des tables standard à initialiser pour chaque utilisateur
-function getStandardTables() {
-    return [
-        'documents',
-        'exigences',
-        'membres',
-        'bibliotheque',
-        'collaboration',
-        'collaboration_groups',
-        'test_table'
-    ];
-}
-
-// Fonction pour initialiser toutes les tables pour un nouvel utilisateur
-function initializeTablesForUser($pdo, $userId) {
-    $tables = getStandardTables();
-    $initializedTables = [];
-    $errors = [];
-    
-    foreach ($tables as $tableName) {
-        try {
-            if (TableManager::initializeTableForUser($pdo, $tableName, $userId)) {
-                $initializedTables[] = $tableName;
-            } else {
-                $errors[] = "Échec de l'initialisation de la table {$tableName}";
-            }
-        } catch (Exception $e) {
-            error_log("Erreur lors de l'initialisation de la table {$tableName}: " . $e->getMessage());
-            $errors[] = "Erreur: {$tableName} - " . $e->getMessage();
-        }
-    }
-    
-    return [
-        'success' => count($initializedTables) > 0,
-        'initialized_tables' => $initializedTables,
-        'errors' => $errors,
-        'total' => count($initializedTables),
-        'failed' => count($errors)
-    ];
 }
 
 // Configuration de la base de données
@@ -283,13 +238,6 @@ try {
                 
                 error_log("Utilisateur créé avec succès. ID: " . $data['id']);
                 
-                // Initialiser toutes les tables pour le nouvel utilisateur
-                $userId = $data['identifiant_technique'];
-                error_log("Initialisation des tables pour l'utilisateur: " . $userId);
-                
-                $initResult = initializeTablesForUser($pdo, $userId);
-                error_log("Résultat de l'initialisation des tables: " . json_encode($initResult));
-                
                 // Récupérer l'utilisateur créé
                 $stmt = $pdo->prepare("SELECT id, nom, prenom, email, identifiant_technique, role, date_creation FROM utilisateurs WHERE id = :id");
                 $stmt->execute(['id' => $data['id']]);
@@ -301,13 +249,7 @@ try {
                 }
                 
                 http_response_code(201); // Created
-                echo json_encode([
-                    'status' => 'success', 
-                    'message' => 'Utilisateur créé avec succès', 
-                    'data' => $user,
-                    'tables_initialized' => $initResult['initialized_tables'],
-                    'tables_failed' => $initResult['failed'] > 0 ? $initResult['errors'] : []
-                ]);
+                echo json_encode(['status' => 'success', 'message' => 'Utilisateur créé avec succès', 'data' => $user]);
                 exit;
             } catch (PDOException $e) {
                 error_log("PDOException lors de l'insertion: " . $e->getMessage());

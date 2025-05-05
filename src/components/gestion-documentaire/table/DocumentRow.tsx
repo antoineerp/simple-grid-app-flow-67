@@ -1,11 +1,10 @@
+
 import React from 'react';
-import { TableRow, TableCell } from "@/components/ui/table";
-import { Document } from '@/types/documents';
 import { Pencil, Trash, GripVertical } from 'lucide-react';
-import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
-import FileLink from './FileLink';
+import { TableCell, TableRow } from "@/components/ui/table";
+import { Document } from '@/types/documents';
 import ResponsableSelector from '@/components/ResponsableSelector';
+import FileLink from './FileLink';
 
 interface DocumentRowProps {
   doc: Document;
@@ -14,19 +13,19 @@ interface DocumentRowProps {
   onExclusionChange: (id: string) => void;
   onEdit: (id: string) => void;
   onDelete: (id: string) => void;
-  onDragStart?: (e: React.DragEvent<HTMLTableRowElement>, id: string, groupId?: string) => void;
-  onDragOver?: (e: React.DragEvent<HTMLTableRowElement>) => void;
-  onDragLeave?: (e: React.DragEvent<HTMLTableRowElement>) => void;
-  onDrop?: (e: React.DragEvent<HTMLTableRowElement>, id: string, groupId?: string) => void;
-  onDragEnd?: (e: React.DragEvent<HTMLTableRowElement>) => void;
+  onDragStart: (e: React.DragEvent<HTMLTableRowElement>, id: string, groupId?: string) => void;
+  onDragOver: (e: React.DragEvent<HTMLTableRowElement>) => void;
+  onDragLeave: (e: React.DragEvent<HTMLTableRowElement>) => void;
+  onDrop: (e: React.DragEvent<HTMLTableRowElement>, id: string, groupId?: string) => void;
+  onDragEnd: (e: React.DragEvent<HTMLTableRowElement>) => void;
 }
 
-const DocumentRow: React.FC<DocumentRowProps> = ({
-  doc,
-  onResponsabiliteChange,
-  onAtteinteChange,
-  onExclusionChange,
-  onEdit,
+const DocumentRow: React.FC<DocumentRowProps> = ({ 
+  doc, 
+  onResponsabiliteChange, 
+  onAtteinteChange, 
+  onExclusionChange, 
+  onEdit, 
   onDelete,
   onDragStart,
   onDragOver,
@@ -34,135 +33,117 @@ const DocumentRow: React.FC<DocumentRowProps> = ({
   onDrop,
   onDragEnd
 }) => {
-  const handleResponsabiliteChange = (type: 'r' | 'a' | 'c' | 'i', values: string[]) => {
-    onResponsabiliteChange(doc.id, type, values);
-  };
-  
-  const handleAtteinteChange = (value: 'NC' | 'PC' | 'C' | null) => {
-    onAtteinteChange(doc.id, value);
-  };
-  
-  const handleExclusionChange = () => {
-    onExclusionChange(doc.id);
-  };
-  
-  // Calculate if the document is excluded
-  const isExcluded = doc.etat === 'EX';
-  
   return (
     <TableRow 
-      className={`border-b ${isExcluded ? 'bg-gray-100' : 'bg-white'}`}
+      key={doc.id} 
+      className="border-b hover:bg-gray-50"
       draggable
-      onDragStart={e => onDragStart && onDragStart(e, doc.id, doc.groupId)}
-      onDragOver={e => onDragOver && onDragOver(e)}
-      onDragLeave={e => onDragLeave && onDragLeave(e)}
-      onDrop={e => onDrop && onDrop(e, doc.id, doc.groupId)}
+      onDragStart={(e) => onDragStart(e, doc.id, doc.groupId)}
+      onDragOver={onDragOver}
+      onDragLeave={onDragLeave}
+      onDrop={(e) => onDrop(e, doc.id, doc.groupId)}
       onDragEnd={onDragEnd}
     >
-      <TableCell className="w-10 p-2">
-        <div className="flex justify-center cursor-grab">
-          <GripVertical className="h-4 w-4 text-gray-400" />
-        </div>
+      <TableCell className="py-3 px-2 w-10">
+        <GripVertical className="h-5 w-5 text-gray-400" />
       </TableCell>
-      
-      <TableCell className="py-3 px-4 font-medium">{doc.nom || doc.name}</TableCell>
-      
+      <TableCell className="py-3 px-4">{doc.nom}</TableCell>
       <TableCell className="py-3 px-4">
-        <FileLink filePath={doc.fichier_path} />
+        <FileLink fichier_path={doc.fichier_path} />
       </TableCell>
       
-      {/* RACI Columns - these are the ones that were missing or not rendering */}
-      <TableCell className="py-3 px-2 text-center">
-        <ResponsableSelector
-          selectedInitiales={doc.responsabilites?.r || []}
-          onChange={(values) => handleResponsabiliteChange('r', values)}
+      <TableCell className="py-3 px-1 text-center">
+        <ResponsableSelector 
+          selectedInitiales={doc.responsabilites.r}
+          onChange={(values) => onResponsabiliteChange(doc.id, 'r', values)}
           type="r"
         />
       </TableCell>
-      
-      <TableCell className="py-3 px-2 text-center">
-        <ResponsableSelector
-          selectedInitiales={doc.responsabilites?.a || []}
-          onChange={(values) => handleResponsabiliteChange('a', values)}
+      <TableCell className="py-3 px-1 text-center">
+        <ResponsableSelector 
+          selectedInitiales={doc.responsabilites.a}
+          onChange={(values) => onResponsabiliteChange(doc.id, 'a', values)}
           type="a"
         />
       </TableCell>
-      
-      <TableCell className="py-3 px-2 text-center">
-        <ResponsableSelector
-          selectedInitiales={doc.responsabilites?.c || []}
-          onChange={(values) => handleResponsabiliteChange('c', values)}
+      <TableCell className="py-3 px-1 text-center">
+        <ResponsableSelector 
+          selectedInitiales={doc.responsabilites.c}
+          onChange={(values) => onResponsabiliteChange(doc.id, 'c', values)}
           type="c"
         />
       </TableCell>
-      
-      <TableCell className="py-3 px-2 text-center">
-        <ResponsableSelector
-          selectedInitiales={doc.responsabilites?.i || []}
-          onChange={(values) => handleResponsabiliteChange('i', values)}
+      <TableCell className="py-3 px-1 text-center">
+        <ResponsableSelector 
+          selectedInitiales={doc.responsabilites.i}
+          onChange={(values) => onResponsabiliteChange(doc.id, 'i', values)}
           type="i"
         />
       </TableCell>
       
       <TableCell className="py-3 px-4 text-center">
-        <Checkbox 
-          checked={isExcluded} 
-          onCheckedChange={handleExclusionChange}
+        <input 
+          type="checkbox" 
+          className="form-checkbox h-4 w-4 text-app-blue rounded"
+          checked={doc.etat === 'EX'}
+          onChange={() => onExclusionChange(doc.id)}
+          onClick={(e) => e.stopPropagation()}
         />
       </TableCell>
       
       <TableCell className="py-3 px-1 text-center">
-        <Button
-          variant={doc.etat === 'NC' ? "default" : "outline"}
-          size="sm"
-          className="h-8 w-8 p-0 rounded-full border-red-200 text-red-500"
-          onClick={() => handleAtteinteChange(doc.etat === 'NC' ? null : 'NC')}
-        >
-          NC
-        </Button>
+        <input 
+          type="radio" 
+          name={`atteinte-${doc.id}`}
+          checked={doc.etat === 'NC'}
+          onChange={() => onAtteinteChange(doc.id, 'NC')}
+          className="form-radio h-4 w-4 text-red-500"
+          disabled={doc.etat === 'EX'}
+          onClick={(e) => e.stopPropagation()}
+        />
       </TableCell>
-      
       <TableCell className="py-3 px-1 text-center">
-        <Button
-          variant={doc.etat === 'PC' ? "default" : "outline"}
-          size="sm"
-          className="h-8 w-8 p-0 rounded-full border-yellow-200 text-yellow-500"
-          onClick={() => handleAtteinteChange(doc.etat === 'PC' ? null : 'PC')}
-        >
-          PC
-        </Button>
+        <input 
+          type="radio" 
+          name={`atteinte-${doc.id}`}
+          checked={doc.etat === 'PC'}
+          onChange={() => onAtteinteChange(doc.id, 'PC')}
+          className="form-radio h-4 w-4 text-yellow-500"
+          disabled={doc.etat === 'EX'}
+          onClick={(e) => e.stopPropagation()}
+        />
       </TableCell>
-      
       <TableCell className="py-3 px-1 text-center">
-        <Button
-          variant={doc.etat === 'C' ? "default" : "outline"}
-          size="sm"
-          className="h-8 w-8 p-0 rounded-full border-green-200 text-green-500"
-          onClick={() => handleAtteinteChange(doc.etat === 'C' ? null : 'C')}
-        >
-          C
-        </Button>
+        <input 
+          type="radio" 
+          name={`atteinte-${doc.id}`}
+          checked={doc.etat === 'C'}
+          onChange={() => onAtteinteChange(doc.id, 'C')}
+          className="form-radio h-4 w-4 text-green-500"
+          disabled={doc.etat === 'EX'}
+          onClick={(e) => e.stopPropagation()}
+        />
       </TableCell>
       
       <TableCell className="py-3 px-4 text-right">
-        <div className="flex justify-end space-x-1">
-          <Button 
-            variant="ghost" 
-            size="sm"
-            className="h-8 w-8 p-0" 
-            onClick={() => onEdit(doc.id)}
-          >
-            <Pencil className="h-4 w-4" />
-          </Button>
-          <Button 
-            variant="ghost" 
-            size="sm"
-            className="h-8 w-8 p-0 text-red-500" 
-            onClick={() => onDelete(doc.id)}
-          >
-            <Trash className="h-4 w-4" />
-          </Button>
-        </div>
+        <button 
+          className="text-gray-600 hover:text-app-blue mr-3"
+          onClick={(e) => {
+            e.stopPropagation();
+            onEdit(doc.id);
+          }}
+        >
+          <Pencil className="h-5 w-5 inline-block" />
+        </button>
+        <button 
+          className="text-gray-600 hover:text-red-500"
+          onClick={(e) => {
+            e.stopPropagation();
+            onDelete(doc.id);
+          }}
+        >
+          <Trash className="h-5 w-5 inline-block" />
+        </button>
       </TableCell>
     </TableRow>
   );

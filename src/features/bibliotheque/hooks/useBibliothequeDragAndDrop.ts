@@ -20,82 +20,29 @@ export const useBibliothequeDragAndDrop = (
     
     if (sourceId === targetId && sourceGroupId === targetGroupId) return;
     
-    // Debug log
-    console.log(`Déplacement de ${sourceId} (groupe: ${sourceGroupId || 'aucun'}) vers ${targetId} (groupe: ${targetGroupId || 'aucun'})`);
-    
-    if (targetGroupId !== undefined) {
+    if (targetGroupId !== undefined && sourceGroupId !== targetGroupId) {
       // Move document to a group
-      let docToMove: Document | undefined;
+      let docToMove;
       
       if (sourceGroupId) {
-        // Source is in a group
-        setGroups(groups => {
-          const updatedGroups = groups.map(group => {
-            if (group.id === sourceGroupId) {
-              const filteredItems = group.items.filter(item => item.id !== sourceId);
-              const foundItem = group.items.find(item => item.id === sourceId);
-              if (foundItem) docToMove = foundItem;
-              return { ...group, items: filteredItems };
-            }
-            return group;
-          });
-          
-          return updatedGroups;
-        });
-      } else {
-        // Source is not in a group
+        setGroups(groups => groups.map(group => 
+          group.id === sourceGroupId 
+            ? { ...group, items: group.items.filter(item => item.id !== sourceId) }
+            : group
+        ));
+        
         docToMove = documents.find(doc => doc.id === sourceId);
+      } else {
         setDocuments(docs => docs.filter(doc => doc.id !== sourceId));
+        docToMove = documents.find(d => d.id === sourceId);
       }
       
       if (docToMove) {
-        // Ensure we update the groupId on the document
-        const docWithGroupId = { ...docToMove, groupId: targetGroupId };
-        console.log(`Document à déplacer:`, docWithGroupId);
-        
-        setGroups(groups => {
-          return groups.map(group => {
-            if (group.id === targetGroupId) {
-              // Add the document to the target group
-              const updatedGroup = { 
-                ...group, 
-                items: [...group.items, docWithGroupId] 
-              };
-              console.log(`Groupe mis à jour:`, updatedGroup);
-              return updatedGroup;
-            }
-            return group;
-          });
-        });
-      }
-    } else {
-      // Move to standalone documents
-      if (sourceGroupId) {
-        // Source is in a group, move to standalone
-        let docToMove: Document | undefined;
-        
-        setGroups(groups => {
-          const updatedGroups = groups.map(group => {
-            if (group.id === sourceGroupId) {
-              const filteredItems = group.items.filter(item => item.id !== sourceId);
-              const foundItem = group.items.find(item => item.id === sourceId);
-              if (foundItem) docToMove = foundItem;
-              return { ...group, items: filteredItems };
-            }
-            return group;
-          });
-          
-          return updatedGroups;
-        });
-        
-        if (docToMove) {
-          // Remove the groupId
-          const docWithoutGroupId = { ...docToMove };
-          delete docWithoutGroupId.groupId;
-          console.log(`Document sorti du groupe:`, docWithoutGroupId);
-          
-          setDocuments(docs => [...docs, docWithoutGroupId]);
-        }
+        setGroups(groups => groups.map(group => 
+          group.id === targetGroupId
+            ? { ...group, items: [...group.items, { ...docToMove, groupId: targetGroupId }] }
+            : group
+        ));
       }
     }
     
@@ -107,52 +54,20 @@ export const useBibliothequeDragAndDrop = (
     
     const { id: sourceId, groupId: sourceGroupId } = draggedItem;
     
-    if (sourceGroupId === targetGroupId) return;
+    if (sourceGroupId !== undefined && sourceId === targetGroupId) return;
     
-    console.log(`Déplacement du document ${sourceId} vers le groupe ${targetGroupId}`);
-    
-    let docToMove: Document | undefined;
-    
-    if (sourceGroupId) {
-      // Moving from one group to another
-      setGroups(groups => {
-        const updatedGroups = groups.map(group => {
-          if (group.id === sourceGroupId) {
-            const filteredItems = group.items.filter(item => item.id !== sourceId);
-            const foundItem = group.items.find(item => item.id === sourceId);
-            if (foundItem) docToMove = foundItem;
-            return { ...group, items: filteredItems };
-          }
-          return group;
-        });
-        
-        return updatedGroups;
-      });
-    } else {
-      // Moving from standalone to a group
-      docToMove = documents.find(d => d.id === sourceId);
+    if (sourceGroupId === undefined && sourceId) {
       setDocuments(docs => docs.filter(doc => doc.id !== sourceId));
-    }
-    
-    if (docToMove) {
-      // Ensure we update the groupId on the document
-      const docWithGroupId = { ...docToMove, groupId: targetGroupId };
-      console.log(`Document à déplacer dans le groupe:`, docWithGroupId);
       
-      setGroups(groups => {
-        return groups.map(group => {
-          if (group.id === targetGroupId) {
-            // Add the document to the target group
-            const updatedGroup = {
-              ...group, 
-              items: [...group.items, docWithGroupId] 
-            };
-            console.log(`Groupe mis à jour:`, updatedGroup);
-            return updatedGroup;
-          }
-          return group;
-        });
-      });
+      const docToMove = documents.find(d => d.id === sourceId);
+      
+      if (docToMove) {
+        setGroups(groups => groups.map(group => 
+          group.id === targetGroupId
+            ? { ...group, items: [...group.items, { ...docToMove, groupId: targetGroupId }] }
+            : group
+        ));
+      }
     }
     
     setDraggedItem(null);

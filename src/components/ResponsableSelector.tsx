@@ -31,12 +31,6 @@ const ResponsableSelector = ({ selectedInitiales, onChange, type }: ResponsableS
     }
   };
 
-  // Make sure we have some default data if membres is empty
-  const membresData = membres && membres.length > 0 ? membres : [
-    { id: '1', prenom: 'Jean', nom: 'Dupont', initiales: 'JD' },
-    { id: '2', prenom: 'Marie', nom: 'Martin', initiales: 'MM' }
-  ];
-
   return (
     <Popover>
       <PopoverTrigger asChild>
@@ -59,7 +53,7 @@ const ResponsableSelector = ({ selectedInitiales, onChange, type }: ResponsableS
           {type === 'r' ? 'Responsable' : type === 'a' ? 'Approbateur' : type === 'c' ? 'Consulté' : 'Informé'}
         </div>
         <div className="max-h-48 overflow-y-auto">
-          {membresData.map((membre) => (
+          {membres.map((membre) => (
             <div 
               key={membre.id} 
               className="flex items-center justify-between p-1.5 hover:bg-gray-100 cursor-pointer rounded"

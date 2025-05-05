@@ -1,170 +1,139 @@
 
-import React, { useState } from 'react';
-import { PageHeader } from '@/components/ui/page-header';
-import { Settings, Database, RefreshCcw, AlertTriangle, Loader2 } from 'lucide-react';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { SystemResetModal } from '@/components/admin/SystemResetModal';
-import ResetSystemLink from '@/components/admin/ResetSystemLink';
-import { useSyncedData } from '@/hooks/useSyncedData';
-
-// Type pour les paramètres système
-interface SystemSetting {
-  id: string;
-  key: string;
-  value: string;
-  description: string;
-}
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import UserManagement from '@/components/admin/UserManagement';
+import DatabaseInfo from '@/components/admin/DatabaseInfo';
+import DatabaseDiagnostic from '@/components/admin/DatabaseDiagnostic';
+import ApiConfiguration from '@/components/admin/ApiConfiguration';
+import ServerTest from '@/components/ServerTest';
+import ImageConfiguration from '@/components/admin/ImageConfiguration';
+import { getDatabaseConnectionCurrentUser } from '@/services';
+import { useToast } from "@/hooks/use-toast";
+import { hasPermission, UserRole } from '@/types/roles';
+import UserDiagnostic from '@/components/admin/UserDiagnostic';
+import ManagerDataImport from '@/components/admin/ManagerDataImport';
+import { getUtilisateurs } from '@/services/users/userService';
 
 const Administration = () => {
-  const [isResetModalOpen, setIsResetModalOpen] = useState(false);
-  
-  // Utiliser notre hook pour gérer les paramètres système avec synchronisation
-  const {
-    data: systemSettings,
-    updateData: setSystemSettings,
-    isSyncing,
-    isOnline,
-    forceReload,
-    repairSync
-  } = useSyncedData<SystemSetting>(
-    'system_settings',
-    [],
-    async (userId) => {
-      // Fonction de chargement des paramètres système
-      console.log("Chargement des paramètres système pour", userId);
-      const storedData = localStorage.getItem(`system_settings_${userId}`);
-      return storedData ? JSON.parse(storedData) : [];
-    },
-    async (data, userId) => {
-      // Fonction de sauvegarde des paramètres système
-      console.log("Sauvegarde des paramètres système pour", userId);
-      localStorage.setItem(`system_settings_${userId}`, JSON.stringify(data));
-      return true;
-    }
-  );
+  const navigate = useNavigate();
+  const { toast } = useToast();
+  const [currentDatabaseUser, setCurrentDatabaseUser] = useState<string | null>(getDatabaseConnectionCurrentUser());
+  const [hasManager, setHasManager] = useState(false);
 
-  // Fonction pour vérifier l'intégrité de la base de données (simulée)
-  const handleCheckIntegrity = () => {
-    forceReload();
+  useEffect(() => {
+    const userRole = localStorage.getItem('userRole') as UserRole;
+    
+    if (!hasPermission(userRole, 'accessAdminPanel')) {
+      toast({
+        title: "Accès refusé",
+        description: "Vous n'avez pas les droits pour accéder à cette page.",
+        variant: "destructive",
+      });
+      navigate('/pilotage');
+      return;
+    }
+
+    setCurrentDatabaseUser(getDatabaseConnectionCurrentUser());
+    
+    // Vérifier s'il y a un gestionnaire dans le système
+    const checkForManager = async () => {
+      try {
+        const users = await getUtilisateurs();
+        const managerExists = users.some(user => user.role === 'gestionnaire');
+        setHasManager(managerExists);
+      } catch (error) {
+        console.error("Erreur lors de la vérification des gestionnaires:", error);
+      }
+    };
+    
+    checkForManager();
+  }, [navigate, toast]);
+
+  const handleUserConnect = (identifiant: string) => {
+    setCurrentDatabaseUser(identifiant);
   };
 
   return (
-    <div className="container mx-auto py-6 space-y-6">
-      <PageHeader
-        title="Administration"
-        description="Gérez les paramètres système et les opérations de maintenance"
-        icon={<Settings className="h-6 w-6" />}
-      />
+    <div className="container mx-auto py-8">
+      <h1 className="text-3xl font-bold mb-8">Administration du système</h1>
+      
+      {currentDatabaseUser && (
+        <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-md">
+          <p className="font-medium text-blue-800">
+            Vous êtes actuellement connecté à la base de données en tant que: <span className="font-bold">{currentDatabaseUser}</span>
+          </p>
+        </div>
+      )}
+      
+      <Tabs defaultValue="utilisateurs">
+        <TabsList className="mb-8">
+          <TabsTrigger value="utilisateurs">Utilisateurs</TabsTrigger>
+          <TabsTrigger value="database">Base de données</TabsTrigger>
+          <TabsTrigger value="api">Configuration API</TabsTrigger>
+          <TabsTrigger value="systeme">État du système</TabsTrigger>
+          <TabsTrigger value="images">Images</TabsTrigger>
+          <TabsTrigger value="diagnostic">Diagnostic</TabsTrigger>
+          <TabsTrigger value="sync">Synchronisation</TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value="utilisateurs">
+          <UserManagement 
+            currentDatabaseUser={currentDatabaseUser} 
+            onUserConnect={handleUserConnect}
+          />
+          <div className="mt-6">
+            <UserDiagnostic />
+          </div>
+        </TabsContent>
 
-      <div className="grid gap-6 md:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center">
-              <Database className="mr-2 h-5 w-5" />
-              Maintenance de la base de données
-            </CardTitle>
-            <CardDescription>
-              Outils de gestion et de maintenance de la base de données
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <Button 
-              className="w-full sm:w-auto" 
-              variant="outline"
-              onClick={handleCheckIntegrity}
-              disabled={isSyncing}
-            >
-              {isSyncing ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Vérification en cours...
-                </>
-              ) : (
-                <>
-                  <Database className="mr-2 h-4 w-4" />
-                  Vérifier l'intégrité
-                </>
-              )}
-            </Button>
-            
-            <div className="pt-2">
-              <ResetSystemLink className="w-full sm:w-auto" />
-            </div>
-            
-            <div className="pt-2">
-              <Button 
-                className="w-full sm:w-auto" 
-                variant="outline"
-                onClick={repairSync}
-                disabled={isSyncing}
-              >
-                {isSyncing ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Réparation en cours...
-                  </>
-                ) : (
-                  <>
-                    <RefreshCcw className="mr-2 h-4 w-4" />
-                    Réparer la synchronisation
-                  </>
-                )}
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+        <TabsContent value="database">
+          <DatabaseInfo />
+        </TabsContent>
+        
+        <TabsContent value="api">
+          <ApiConfiguration />
+        </TabsContent>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center">
-              <RefreshCcw className="mr-2 h-5 w-5" />
-              Système
-            </CardTitle>
-            <CardDescription>
-              Actions système et réinitialisation
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <Button 
-              className="w-full sm:w-auto" 
-              variant="outline"
-              onClick={forceReload}
-              disabled={isSyncing}
-            >
-              {isSyncing ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Vérification en cours...
-                </>
-              ) : (
-                <>
-                  <RefreshCcw className="mr-2 h-4 w-4" />
-                  Vérifier les mises à jour
-                </>
-              )}
-            </Button>
-            
-            <div className="pt-2">
-              <Button 
-                variant="destructive" 
-                className="w-full sm:w-auto"
-                onClick={() => setIsResetModalOpen(true)}
-              >
-                <AlertTriangle className="mr-2 h-4 w-4" />
-                Réinitialisation (Modal)
-              </Button>
+        <TabsContent value="systeme">
+          <div className="rounded-lg border bg-card text-card-foreground shadow-sm">
+            <div className="flex flex-col space-y-1.5 p-6">
+              <h3 className="text-2xl font-semibold leading-none tracking-tight">État du système</h3>
+              <p className="text-sm text-muted-foreground">Vérifiez l'état des différents composants du système</p>
             </div>
-          </CardContent>
-        </Card>
-      </div>
+            <div className="p-6 pt-0">
+              <ServerTest />
+            </div>
+          </div>
+        </TabsContent>
 
-      <SystemResetModal
-        open={isResetModalOpen}
-        onOpenChange={setIsResetModalOpen}
-      />
+        <TabsContent value="images">
+          <ImageConfiguration />
+        </TabsContent>
+
+        <TabsContent value="diagnostic">
+          <div className="rounded-lg border bg-card text-card-foreground shadow-sm">
+            <div className="p-6">
+              <h3 className="text-xl font-semibold mb-4">Diagnostic complet du système</h3>
+              <p className="mb-6 text-muted-foreground">
+                Cet outil effectue une analyse approfondie de votre configuration système pour identifier les problèmes potentiels.
+              </p>
+              <div className="space-y-6">
+                <DatabaseDiagnostic />
+                <UserDiagnostic />
+              </div>
+            </div>
+          </div>
+        </TabsContent>
+        
+        <TabsContent value="sync">
+          <div className="space-y-6">
+            <ManagerDataImport hasManager={hasManager} />
+          </div>
+        </TabsContent>
+      </Tabs>
     </div>
   );
-};
+}
 
 export default Administration;

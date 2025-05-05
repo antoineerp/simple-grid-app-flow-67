@@ -4,7 +4,7 @@ import { User, AuthResponse } from '@/types/auth';
 import { setCurrentUser as setDbUser } from '@/services/core/databaseConnectionService';
 
 export const getCurrentUser = (): User | null => {
-  const token = sessionStorage.getItem('authToken') || localStorage.getItem('authToken');
+  const token = sessionStorage.getItem('authToken');
   if (!token) return null;
 
   try {
@@ -33,11 +33,6 @@ export const getCurrentUser = (): User | null => {
         setDbUser(userData.user.identifiant_technique);
       }
       
-      // Stocker le rôle dans le localStorage pour faciliter l'accès
-      if (userData.user && userData.user.role) {
-        localStorage.setItem('userRole', userData.user.role);
-      }
-      
       return userData.user || null;
     } catch (decodeError) {
       console.error("Erreur lors du décodage du payload:", decodeError);
@@ -50,21 +45,13 @@ export const getCurrentUser = (): User | null => {
 };
 
 export const getAuthToken = (): string | null => {
-  return sessionStorage.getItem('authToken') || localStorage.getItem('authToken');
+  return sessionStorage.getItem('authToken');
 };
 
 export const getIsLoggedIn = (): boolean => {
   const token = getAuthToken();
-  if (!token) return false;
-  
-  // Ne pas extraire les données utilisateur sauf si nécessaire
-  try {
-    const parts = token.split('.');
-    if (parts.length !== 3) return false;
-    return true;
-  } catch (error) {
-    return false;
-  }
+  const user = getCurrentUser();
+  return !!(token && user && user.identifiant_technique);
 };
 
 export const getAuthHeaders = () => {
@@ -147,16 +134,10 @@ export const login = async (username: string, password: string): Promise<AuthRes
           
           // Token validé, on peut le sauvegarder
           sessionStorage.setItem('authToken', data.token);
-          localStorage.setItem('authToken', data.token);
           
           // Initialiser l'utilisateur courant pour la base de données
           if (data.user && data.user.identifiant_technique) {
             setDbUser(data.user.identifiant_technique);
-          }
-          
-          // Stocker explicitement le rôle utilisateur
-          if (data.user && data.user.role) {
-            localStorage.setItem('userRole', data.user.role);
           }
           
           return { 
@@ -197,7 +178,4 @@ export const login = async (username: string, password: string): Promise<AuthRes
 
 export const logout = () => {
   sessionStorage.removeItem('authToken');
-  localStorage.removeItem('authToken');
-  localStorage.removeItem('userRole');
-  localStorage.removeItem('currentUser');
 };

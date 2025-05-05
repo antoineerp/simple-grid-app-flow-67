@@ -1,10 +1,9 @@
 
-import { useState, useCallback } from 'react';
+import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
 import { login } from '@/services/auth/authService';
 import { useToast } from '@/hooks/use-toast';
-import { initializeCurrentUser } from '@/services/core/databaseConnectionService';
 
 export interface LoginFormValues {
   username: string;
@@ -27,7 +26,7 @@ export const useLoginForm = () => {
     }
   });
   
-  const handleSubmit = useCallback(async (values: LoginFormValues) => {
+  const onSubmit = async (values: LoginFormValues) => {
     setIsLoading(true);
     setError(null);
     setHasDbError(false);
@@ -40,53 +39,19 @@ export const useLoginForm = () => {
       const result = await login(values.username, values.password);
       
       if (result.success && result.token) {
-        console.log("Connexion réussie, token reçu:", result.token.substring(0, 20) + "...");
-        console.log("Données utilisateur:", result.user);
-        
-        // Enregistrer le token avant la navigation
-        sessionStorage.setItem('authToken', result.token);
-        localStorage.setItem('authToken', result.token);
-        
-        // Stocker les données utilisateur et le rôle explicitement
-        if (result.user) {
-          localStorage.setItem('currentUser', JSON.stringify(result.user));
-          // S'assurer que le rôle est correctement enregistré pour les vérifications de permissions
-          if (result.user.role) {
-            localStorage.setItem('userRole', result.user.role);
-          }
-        }
-        
-        // C'est seulement maintenant qu'on initialise l'utilisateur courant pour la base de données
-        if (result.user && result.user.identifiant_technique) {
-          initializeCurrentUser();
-        }
-        
         toast({
           title: "Connexion réussie",
-          description: `Bienvenue ${result.user?.prenom || ''} ${result.user?.nom || ''}`,
+          description: "Vous êtes maintenant connecté",
         });
         
-        console.log("Connexion réussie, redirection vers /pilotage");
+        console.log("Redirection vers le tableau de bord après connexion réussie");
         
-        try {
-          // Navigation simplifiée, plus robuste
-          navigate('/pilotage', { replace: true });
-          
-          // Fallback si la navigation ne fonctionne pas
-          setTimeout(() => {
-            if (window.location.pathname === '/') {
-              console.log("Fallback: redirection par window.location");
-              window.location.href = '/pilotage';
-            }
-          }, 500);
-        } catch (navError) {
-          console.error("Erreur lors de la navigation:", navError);
-          window.location.href = '/pilotage';
-        }
+        // Force la navigation en utilisant window.location pour un rechargement complet
+        window.location.href = '/pilotage';
       } else {
-        console.error("Échec de connexion:", result.message);
         setError(result.message || 'Échec de la connexion');
         
+        // Déterminer le type d'erreur
         if (result.message?.includes('base de données') || result.message?.includes('database')) {
           setHasDbError(true);
         } else if (result.message?.includes('serveur') || result.message?.includes('server') || result.message?.includes('env.php')) {
@@ -102,10 +67,10 @@ export const useLoginForm = () => {
         });
       }
     } catch (err) {
-      console.error("Exception lors de la connexion:", err);
       const errorMessage = err instanceof Error ? err.message : "Erreur lors de la connexion";
       setError(errorMessage);
       
+      // Déterminer le type d'erreur
       if (errorMessage.includes('base de données') || errorMessage.includes('database')) {
         setHasDbError(true);
       } else if (errorMessage.includes('serveur') || errorMessage.includes('server') || errorMessage.includes('env.php')) {
@@ -122,9 +87,7 @@ export const useLoginForm = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [navigate, toast]);
-  
-  const onSubmit = form.handleSubmit(handleSubmit);
+  };
   
   return {
     form,
@@ -133,6 +96,6 @@ export const useLoginForm = () => {
     hasDbError,
     hasServerError,
     hasAuthError,
-    onSubmit
+    onSubmit: form.handleSubmit(onSubmit)
   };
 };

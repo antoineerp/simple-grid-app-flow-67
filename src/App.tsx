@@ -1,38 +1,79 @@
 
 import React from 'react';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import Login from '@/pages/Login';
-import Layout from '@/components/layout/Layout';
-import GestionDocumentaire from '@/pages/GestionDocumentaire';
-import Admin from '@/pages/Admin';
-import RessourcesHumaines from '@/pages/RessourcesHumaines';
-import Collaboration from '@/pages/Collaboration';
-import { Toaster } from "@/components/ui/toaster";
-import { MembresProvider } from '@/contexts/MembresContext';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { Toaster } from '@/components/ui/toaster';
+import GlobalSyncManager from '@/components/common/GlobalSyncManager';
+import DbAdmin from '@/pages/DbAdmin';
+import DbTest from '@/pages/DbTest';
+import Index from '@/pages/Index';
+import Layout from '@/components/Layout';
 import Pilotage from '@/pages/Pilotage';
-import Exigences from '@/pages/Exigences';
+import { getIsLoggedIn } from '@/services/auth/authService';
+
+// Composant de route protégée qui vérifie l'authentification
+const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
+  const isLoggedIn = getIsLoggedIn();
+  if (!isLoggedIn) {
+    console.log('Unauthorized access attempt, redirecting to login');
+    return <Navigate to="/" />;
+  }
+  return <>{children}</>;
+};
 
 function App() {
   return (
-    <BrowserRouter>
+    <Router>
       <Routes>
-        <Route path="/" element={<Login />} />
-        <Route path="/login" element={<Login />} />
-        <Route path="/pilotage" element={
-          <MembresProvider>
-            <Layout />
-          </MembresProvider>
-        }>
-          <Route index element={<Pilotage />} />
-          <Route path="exigences" element={<Exigences />} />
-          <Route path="ressources-humaines" element={<RessourcesHumaines />} />
-          <Route path="collaboration" element={<Collaboration />} />
-          <Route path="gestion-documentaire" element={<GestionDocumentaire />} />
-          <Route path="admin" element={<Admin />} />
+        {/* Route publique */}
+        <Route path="/" element={<Index />} />
+        
+        {/* Routes protégées dans le Layout */}
+        <Route path="/" element={<Layout />}>
+          <Route path="pilotage" element={
+            <ProtectedRoute>
+              <Pilotage />
+            </ProtectedRoute>
+          } />
+          <Route path="db-test" element={
+            <ProtectedRoute>
+              <DbTest />
+            </ProtectedRoute>
+          } />
+          <Route path="db-admin" element={
+            <ProtectedRoute>
+              <DbAdmin />
+            </ProtectedRoute>
+          } />
+          
+          {/* Pour les routes des autres items du menu de navigation */}
+          <Route path="exigences" element={
+            <ProtectedRoute>
+              <div className="p-8">Page des exigences en cours de développement</div>
+            </ProtectedRoute>
+          } />
+          <Route path="gestion-documentaire" element={
+            <ProtectedRoute>
+              <div className="p-8">Page de gestion documentaire en cours de développement</div>
+            </ProtectedRoute>
+          } />
+          <Route path="ressources-humaines" element={
+            <ProtectedRoute>
+              <div className="p-8">Page des ressources humaines en cours de développement</div>
+            </ProtectedRoute>
+          } />
+          <Route path="collaboration" element={
+            <ProtectedRoute>
+              <div className="p-8">Page de collaboration en cours de développement</div>
+            </ProtectedRoute>
+          } />
         </Route>
+        
+        {/* Redirection pour les routes inconnues */}
+        <Route path="*" element={<Navigate to="/" />} />
       </Routes>
       <Toaster />
-    </BrowserRouter>
+      <GlobalSyncManager />
+    </Router>
   );
 }
 

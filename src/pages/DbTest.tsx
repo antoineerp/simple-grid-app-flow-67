@@ -6,7 +6,6 @@ import DbConnectionTest from "@/components/DbConnectionTest";
 import { Database, RefreshCw, Save } from 'lucide-react';
 import { useDataSync } from '@/hooks/useDataSync';
 import DataSyncStatus from '@/components/common/DataSyncStatus';
-import { SyncStatus } from '@/services/sync/DataSyncManager';
 
 interface TestData {
   id: string;
@@ -17,15 +16,14 @@ interface TestData {
 export default function DbTest() {
   const { 
     data, 
+    status, 
+    lastSynced, 
+    lastError, 
+    pendingChanges, 
+    isOnline,
     syncData, 
     loadData, 
-    saveLocalData,
-    refreshStatus,
-    status,
-    lastSynced,
-    lastError,
-    pendingChanges,
-    isOnline
+    saveLocalData 
   } = useDataSync<TestData>('test_table');
 
   // Charger les données au démarrage
@@ -68,7 +66,7 @@ export default function DbTest() {
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle>Test de synchronisation</CardTitle>
             <DataSyncStatus 
-              status={status as SyncStatus}
+              status={status}
               lastSynced={lastSynced}
               lastError={lastError}
               pendingChanges={pendingChanges}

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -8,14 +9,13 @@ import { Dialog, DialogTrigger } from "@/components/ui/dialog";
 import { Loader2, RefreshCw, UserPlus, LogIn, AlertCircle, Eye, EyeOff, Download, Trash } from 'lucide-react';
 import { useAdminUsers } from '@/hooks/useAdminUsers';
 import UserForm from './UserForm';
-import { getCurrentUser, getLastConnectionError, getDatabaseConnectionCurrentUser } from '@/services/core/databaseConnectionService';
+import { getCurrentUser, getLastConnectionError } from '@/services/core/databaseConnectionService';
 import { useToast } from "@/hooks/use-toast";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { adminImportFromManager } from '@/services/core/userInitializationService';
 import { getApiUrl } from '@/config/apiConfig';
 import { getAuthHeaders } from '@/services/auth/authService';
-import { clearUsersCache, type Utilisateur } from '@/services';
-import { cleanupUserLocalStorage } from '@/services/users/tableCleanupService';
+import type { Utilisateur } from '@/services';
 
 interface UserManagementProps {
   currentDatabaseUser: string | null;
@@ -30,37 +30,15 @@ const UserManagement = ({ currentDatabaseUser, onUserConnect }: UserManagementPr
   const [showPasswords, setShowPasswords] = useState<{[key: string]: boolean}>({});
   const [importingData, setImportingData] = useState(false);
   const [deletingUserId, setDeletingUserId] = useState<number | null>(null);
-  const [connectingUser, setConnectingUser] = useState<string | null>(null);
 
   useEffect(() => {
-    // Recharger les données au montage
-    loadUtilisateurs();
-    
-    // Vérifier s'il y a une erreur de connexion
     const lastError = getLastConnectionError();
     if (lastError) {
       setConnectionError(lastError);
     }
-    
-    // Écouter les changements d'utilisateur
-    const handleUserChange = (event: Event) => {
-      const customEvent = event as CustomEvent;
-      const newUser = customEvent.detail?.user;
-      if (newUser) {
-        onUserConnect(newUser);
-        setConnectionError(null);
-      }
-    };
-    
-    window.addEventListener('database-user-changed', handleUserChange);
-    
-    return () => {
-      window.removeEventListener('database-user-changed', handleUserChange);
-    };
-  }, [onUserConnect, loadUtilisateurs]);
+  }, [currentDatabaseUser]);
 
   const handleSuccessfulUserCreation = () => {
-    clearUsersCache();
     loadUtilisateurs();
     setConnectionError(null);
   };
@@ -78,41 +56,13 @@ const UserManagement = ({ currentDatabaseUser, onUserConnect }: UserManagementPr
 
   const connectUser = async (identifiantTechnique: string) => {
     setConnectionError(null);
-    setConnectingUser(identifiantTechnique);
-    
-    try {
-      const success = await handleConnectAsUser(identifiantTechnique);
-      
-      if (success) {
-        onUserConnect(identifiantTechnique);
-        toast({
-          title: "Connexion réussie",
-          description: `Connecté en tant que ${identifiantTechnique}`,
-        });
-        
-        // Redirection pour forcer un rechargement complet
-        setTimeout(() => {
-          window.location.reload();
-        }, 500);
-      } else {
-        const error = getLastConnectionError();
-        setConnectionError(error || "Erreur inconnue lors de la connexion");
-        toast({
-          title: "Erreur de connexion",
-          description: error || "Erreur inconnue lors de la connexion",
-          variant: "destructive",
-        });
-      }
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "Erreur inconnue";
-      setConnectionError(errorMessage);
-      toast({
-        title: "Erreur de connexion",
-        description: errorMessage,
-        variant: "destructive",
-      });
-    } finally {
-      setConnectingUser(null);
+    const success = await handleConnectAsUser(identifiantTechnique);
+    if (success) {
+      onUserConnect(identifiantTechnique);
+      window.location.reload(); // Recharger la page dans la même fenêtre
+    } else {
+      const error = getLastConnectionError();
+      setConnectionError(error || "Erreur inconnue lors de la connexion");
     }
   };
   
@@ -137,17 +87,14 @@ const UserManagement = ({ currentDatabaseUser, onUserConnect }: UserManagementPr
     }
   };
   
-  const handleDeleteUser = async (userId: number, identifiantTechnique: string) => {
-    if (!window.confirm("Êtes-vous sûr de vouloir supprimer cet utilisateur et toutes ses données associées ?")) {
+  const handleDeleteUser = async (userId: number) => {
+    if (!window.confirm("Êtes-vous sûr de vouloir supprimer cet utilisateur ?")) {
       return;
     }
     
     setDeletingUserId(userId);
     
     try {
-      console.log(`Demande de suppression de l'utilisateur: ${identifiantTechnique} (ID: ${userId})`);
-      
-      // Suppression de l'utilisateur via l'API - cette opération supprimera aussi les tables associées
       const response = await fetch(`${getApiUrl()}/users`, {
         method: 'DELETE',
         headers: {
@@ -160,16 +107,11 @@ const UserManagement = ({ currentDatabaseUser, onUserConnect }: UserManagementPr
       const data = await response.json();
 
       if (response.ok) {
-        // Nettoyage des données locales uniquement
-        cleanupUserLocalStorage(identifiantTechnique);
-        
         toast({
-          title: "Suppression réussie",
-          description: "L'utilisateur et ses données associées ont été supprimés avec succès",
+          title: "Succès",
+          description: "L'utilisateur a été supprimé avec succès",
         });
-        
-        clearUsersCache();
-        loadUtilisateurs();
+        loadUtilisateurs();  // Recharger la liste des utilisateurs
       } else {
         toast({
           title: "Erreur",
@@ -181,7 +123,7 @@ const UserManagement = ({ currentDatabaseUser, onUserConnect }: UserManagementPr
       console.error("Erreur lors de la suppression:", error);
       toast({
         title: "Erreur",
-        description: "Impossible de supprimer l'utilisateur ou ses données",
+        description: "Impossible de supprimer l'utilisateur",
         variant: "destructive",
       });
     } finally {
@@ -192,7 +134,7 @@ const UserManagement = ({ currentDatabaseUser, onUserConnect }: UserManagementPr
   const isCurrentUserAdmin = () => {
     if (!currentDatabaseUser || !utilisateurs.length) return false;
     const currentUser = utilisateurs.find(user => user.identifiant_technique === currentDatabaseUser);
-    return currentUser?.role === 'admin' || currentUser?.role === 'administrateur';
+    return currentUser?.role === 'admin';
   };
   
   const hasManager = utilisateurs.some(user => user.role === 'gestionnaire');
@@ -295,7 +237,7 @@ const UserManagement = ({ currentDatabaseUser, onUserConnect }: UserManagementPr
                 </TableRow>
               ) : (
                 utilisateurs.map(user => (
-                  <TableRow key={user.id} className={currentDatabaseUser === user.identifiant_technique ? "bg-blue-50" : ""}>
+                  <TableRow key={user.id}>
                     <TableCell className="flex items-center space-x-3">
                       <Avatar>
                         <AvatarFallback>{getInitials(user.nom, user.prenom)}</AvatarFallback>
@@ -305,9 +247,7 @@ const UserManagement = ({ currentDatabaseUser, onUserConnect }: UserManagementPr
                       </div>
                     </TableCell>
                     <TableCell>{user.email}</TableCell>
-                    <TableCell>
-                      <span className="font-mono text-xs">{user.identifiant_technique}</span>
-                    </TableCell>
+                    <TableCell>{user.identifiant_technique}</TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
                         <span className="font-mono">
@@ -327,7 +267,7 @@ const UserManagement = ({ currentDatabaseUser, onUserConnect }: UserManagementPr
                       </div>
                     </TableCell>
                     <TableCell>
-                      <Badge variant={user.role === 'admin' || user.role === 'administrateur' ? 'default' : user.role === 'gestionnaire' ? 'destructive' : 'secondary'}>
+                      <Badge variant={user.role === 'admin' ? 'default' : user.role === 'gestionnaire' ? 'destructive' : 'secondary'}>
                         {user.role}
                       </Badge>
                     </TableCell>
@@ -335,22 +275,18 @@ const UserManagement = ({ currentDatabaseUser, onUserConnect }: UserManagementPr
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
                         <Button 
-                          variant={currentDatabaseUser === user.identifiant_technique ? "secondary" : "ghost"}
+                          variant="ghost" 
                           size="sm"
                           onClick={() => connectUser(user.identifiant_technique)}
-                          disabled={connectingUser === user.identifiant_technique || loading}
+                          disabled={currentDatabaseUser === user.identifiant_technique}
                         >
-                          {connectingUser === user.identifiant_technique ? (
-                            <Loader2 className="h-4 w-4 animate-spin mr-1" />
-                          ) : (
-                            <LogIn className="h-4 w-4 mr-1" />
-                          )}
+                          <LogIn className="h-4 w-4 mr-1" />
                           {currentDatabaseUser === user.identifiant_technique ? 'Connecté' : 'Connecter'}
                         </Button>
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => handleDeleteUser(user.id, user.identifiant_technique)}
+                          onClick={() => handleDeleteUser(user.id)}
                           className="text-red-500 hover:text-red-700"
                           disabled={currentDatabaseUser === user.identifiant_technique || deletingUserId === user.id}
                         >

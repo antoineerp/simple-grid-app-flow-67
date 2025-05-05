@@ -4,7 +4,6 @@ export interface Document {
   name: string;
   link: string | null;
   groupId?: string;
-  userId?: string;
 }
 
 export interface DocumentGroup {
@@ -12,5 +11,4 @@ export interface DocumentGroup {
   name: string;
   expanded: boolean;
   items: Document[];
-  userId?: string;
 }

@@ -1,83 +1,125 @@
 
 import { useState, useCallback } from 'react';
 import { Document as BibliothequeDocument, DocumentGroup } from '@/types/bibliotheque';
+import { Document as SystemDocument } from '@/types/documents';
+import { syncService } from '@/services/sync/SyncService';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { useSync } from '@/hooks/useSync';
 import { toast } from '@/components/ui/use-toast';
 
+// Helper function to convert between document types
+const convertSystemToBibliothequeDoc = (doc: SystemDocument): BibliothequeDocument => ({
+  id: doc.id,
+  name: doc.nom || '',
+  link: doc.fichier_path,
+  groupId: doc.groupId
+});
+
+const convertBibliothequeToSystemDoc = (doc: BibliothequeDocument): SystemDocument => ({
+  id: doc.id,
+  nom: doc.name || '',
+  fichier_path: doc.link,
+  groupId: doc.groupId,
+  responsabilites: { r: [], a: [], c: [], i: [] },
+  etat: null,
+  date_creation: new Date(),
+  date_modification: new Date()
+});
+
 export const useBibliothequeSync = () => {
-  const [lastSynced, setLastSynced] = useState<Date | null>(new Date()); // Date factice
+  const [lastSynced, setLastSynced] = useState<Date | null>(null);
   const { isOnline } = useNetworkStatus();
-  const { syncAndProcess } = useSync();
+  const { isSyncing, syncFailed, syncAndProcess } = useSync('bibliotheque');
   
-  // Fonction pour charger les documents depuis le stockage local uniquement
   const loadFromServer = useCallback(async (userId?: string): Promise<BibliothequeDocument[]> => {
-    try {
-      const localData = localStorage.getItem(`collaboration_${userId || 'default'}`);
-      
-      if (localData) {
-        const localDocs = JSON.parse(localData);
-        return localDocs;
+    if (!isOnline) {
+      console.log('Mode hors ligne - chargement des documents locaux');
+      try {
+        const localData = localStorage.getItem(`bibliotheque_${userId || 'default'}`);
+        if (localData) {
+          const localDocs = JSON.parse(localData);
+          return localDocs.map(convertSystemToBibliothequeDoc);
+        }
+      } catch (e) {
+        console.error('Erreur lors du chargement des documents locaux:', e);
       }
-    } catch (e) {
-      console.error('Erreur lors du chargement des documents locaux:', e);
-      toast({
-        variant: "destructive",
-        title: "Erreur",
-        description: "Impossible de charger les documents locaux.",
-      });
+      return [];
     }
-    return [];
-  }, []);
-  
-  // Fonction pour enregistrer uniquement en local
-  const syncWithServer = useCallback(async (
-    documents: BibliothequeDocument[], 
-    groups: DocumentGroup[], 
-    userId?: string
-  ): Promise<boolean> => {
+    
     try {
-      // Enregistrer uniquement en local
-      localStorage.setItem(`collaboration_${userId || 'default'}`, JSON.stringify(documents));
-      localStorage.setItem(`collaboration_groups_${userId || 'default'}`, JSON.stringify(groups));
-      
-      toast({
-        title: "Enregistrement local",
-        description: "Les modifications ont été enregistrées localement.",
-      });
-      
-      setLastSynced(new Date());
-      return true;
+      // Utiliser le service central pour charger les données
+      const documents = await syncService.loadDataFromServer<SystemDocument>('bibliotheque', userId);
+      setLastSynced(syncService.getLastSynced('bibliotheque') || new Date());
+      return documents.map(convertSystemToBibliothequeDoc);
     } catch (error) {
-      console.error("Erreur lors de l'enregistrement local:", error);
+      console.error('Erreur lors du chargement des documents:', error);
       toast({
         variant: "destructive",
         title: "Erreur",
-        description: "Impossible d'enregistrer les modifications localement.",
+        description: "Impossible de charger les documents du serveur. Mode hors-ligne activé.",
       });
+      
+      // En cas d'erreur, chargement des documents locaux comme solution de secours
+      try {
+        const localData = localStorage.getItem(`bibliotheque_${userId || 'default'}`);
+        if (localData) {
+          const localDocs = JSON.parse(localData);
+          return localDocs.map(convertSystemToBibliothequeDoc);
+        }
+      } catch (e) {
+        console.error('Erreur lors du chargement des documents locaux:', e);
+      }
+      return [];
+    }
+  }, [isOnline]);
+  
+  const syncWithServer = useCallback(async (documents: BibliothequeDocument[], groups: DocumentGroup[], userId?: string, trigger: "auto" | "manual" | "initial" = "manual"): Promise<boolean> => {
+    if (!isOnline) {
+      // Mode hors ligne - enregistrement local uniquement
+      const systemDocs = documents.map(convertBibliothequeToSystemDoc);
+      localStorage.setItem(`bibliotheque_${userId || 'default'}`, JSON.stringify(systemDocs));
+      localStorage.setItem(`bibliotheque_groups_${userId || 'default'}`, JSON.stringify(groups));
+      
+      toast({
+        variant: "destructive",
+        title: "Mode hors ligne",
+        description: "Les modifications ont été enregistrées localement uniquement.",
+      });
+      
       return false;
     }
-  }, []);
-  
-  // Fonction avec délai (debounce) - maintenant simplement enregistre localement
-  const debounceSyncWithServer = useCallback((
-    documents: BibliothequeDocument[], 
-    groups: DocumentGroup[], 
-    userId?: string
-  ) => {
-    // Enregistrer localement immédiatement
-    localStorage.setItem(`collaboration_${userId || 'default'}`, JSON.stringify(documents));
-    localStorage.setItem(`collaboration_groups_${userId || 'default'}`, JSON.stringify(groups));
-    return true;
-  }, []);
+    
+    try {
+      // Toujours enregistrer localement d'abord pour éviter la perte de données
+      const systemDocs = documents.map(convertBibliothequeToSystemDoc);
+      localStorage.setItem(`bibliotheque_${userId || 'default'}`, JSON.stringify(systemDocs));
+      localStorage.setItem(`bibliotheque_groups_${userId || 'default'}`, JSON.stringify(groups));
+      
+      // Utiliser le service central pour la synchronisation
+      const result = await syncAndProcess({
+        tableName: 'bibliotheque',
+        data: systemDocs,
+        groups: groups
+      }, trigger);
+      
+      if (result.success) {
+        setLastSynced(syncService.getLastSynced('bibliotheque') || new Date());
+        return true;
+      }
+      
+      return false;
+    } catch (error) {
+      console.error('Erreur lors de la synchronisation:', error);
+      // L'erreur est déjà gérée dans le hook useSync
+      return false;
+    }
+  }, [isOnline, syncAndProcess]);
   
   return {
     syncWithServer,
-    debounceSyncWithServer,
     loadFromServer,
-    isSyncing: false,
-    isOnline: true,
-    lastSynced,
-    syncFailed: false
+    isSyncing,
+    isOnline,
+    lastSynced
   };
 };

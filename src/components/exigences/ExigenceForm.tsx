@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { Exigence } from '@/types/exigences';
-import { getCurrentUser } from '@/services/auth/authService';
 
 interface ExigenceFormProps {
   exigence: Exigence | null;
@@ -17,8 +16,6 @@ interface ExigenceFormProps {
 
 const ExigenceForm: React.FC<ExigenceFormProps> = ({ exigence, open, onOpenChange, onSave }) => {
   const { toast } = useToast();
-  const currentUser = getCurrentUser()?.identifiant_technique || 'system';
-  
   const [formData, setFormData] = useState<Exigence>({
     id: exigence?.id || '',
     nom: exigence?.nom || '',
@@ -26,8 +23,7 @@ const ExigenceForm: React.FC<ExigenceFormProps> = ({ exigence, open, onOpenChang
     exclusion: exigence?.exclusion || false,
     atteinte: exigence?.atteinte || null,
     date_creation: exigence?.date_creation || new Date(),
-    date_modification: exigence?.date_modification || new Date(),
-    userId: exigence?.userId || currentUser
+    date_modification: exigence?.date_modification || new Date()
   });
 
   useEffect(() => {
@@ -39,11 +35,10 @@ const ExigenceForm: React.FC<ExigenceFormProps> = ({ exigence, open, onOpenChang
         exclusion: exigence.exclusion,
         atteinte: exigence.atteinte,
         date_creation: exigence.date_creation,
-        date_modification: exigence.date_modification,
-        userId: exigence.userId || currentUser
+        date_modification: exigence.date_modification
       });
     }
-  }, [exigence, currentUser]);
+  }, [exigence]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;

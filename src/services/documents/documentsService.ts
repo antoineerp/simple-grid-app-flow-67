@@ -19,8 +19,7 @@ export const loadDocumentsFromStorage = (currentUser: string): Document[] => {
     return [
       { 
         id: '1', 
-        name: 'Manuel qualité',
-        nom: 'Manuel qualité',
+        nom: 'Manuel qualité', 
         fichier_path: null,
         responsabilites: { r: [], a: [], c: [], i: [] },
         etat: null,
@@ -29,8 +28,7 @@ export const loadDocumentsFromStorage = (currentUser: string): Document[] => {
       },
       { 
         id: '2', 
-        name: 'Processus opérationnel',
-        nom: 'Processus opérationnel',
+        nom: 'Processus opérationnel', 
         fichier_path: null,
         responsabilites: { r: [], a: [], c: [], i: [] },
         etat: null,

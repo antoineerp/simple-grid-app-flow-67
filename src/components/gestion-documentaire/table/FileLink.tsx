@@ -1,32 +1,26 @@
 
 import React from 'react';
-import { FileText } from 'lucide-react';
+import { ExternalLink } from 'lucide-react';
 
 interface FileLinkProps {
-  filePath: string;
+  fichier_path: string | null;
 }
 
-const FileLink: React.FC<FileLinkProps> = ({ filePath }) => {
-  if (!filePath) {
-    return (
-      <div className="text-gray-400">
-        <FileText className="h-4 w-4 inline-block mr-1" />
-        <span className="text-sm">Aucun fichier</span>
-      </div>
-    );
-  }
-
+const FileLink: React.FC<FileLinkProps> = ({ fichier_path }) => {
+  if (!fichier_path) return <span className="text-gray-500">-</span>;
+  
+  // Get just the filename from the path for display
+  const displayName = fichier_path.split('/').pop() || fichier_path;
+  
   return (
     <a 
-      href={filePath}
+      href={fichier_path}
       target="_blank"
       rel="noopener noreferrer"
-      className="text-blue-500 hover:underline flex items-center"
+      className="text-app-blue hover:underline inline-flex items-center gap-1"
     >
-      <FileText className="h-4 w-4 mr-1" />
-      <span className="text-sm truncate max-w-[200px]">
-        {filePath.split('/').pop()}
-      </span>
+      {displayName}
+      <ExternalLink className="h-4 w-4" />
     </a>
   );
 };

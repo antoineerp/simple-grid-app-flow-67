@@ -1,17 +1,7 @@
 
-import { useState } from 'react';
-
-// Types nécessaires pour la compatibilité
-export interface SyncRecord {
-  status: 'idle' | 'syncing' | 'error' | 'success';
-  lastSynced: Date | null;
-  lastError: string | null;
-  pendingChanges: boolean;
-}
-
-export interface SyncOptions {
-  showToast?: boolean;
-}
+import { useState, useEffect, useCallback } from 'react';
+import { dataSyncManager, SyncRecord, SyncOptions } from '@/services/sync/DataSyncManager';
+import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 
 export interface DataSyncState<T> extends SyncRecord {
   data: T[];
@@ -22,60 +12,77 @@ export interface DataSyncState<T> extends SyncRecord {
   isOnline: boolean;
 }
 
-// Hook de synchronisation de données simplifié qui ne fait plus de vraies synchronisations
+/**
+ * Hook pour la synchronisation des données avec le gestionnaire centralisé
+ */
 export function useDataSync<T>(tableName: string): DataSyncState<T> {
+  const [syncRecord, setSyncRecord] = useState<SyncRecord>(() => 
+    dataSyncManager.getSyncStatus(tableName)
+  );
   const [data, setData] = useState<T[]>([]);
+  const { isOnline } = useNetworkStatus();
   
-  // Rafraîchir le statut - ne fait rien maintenant
-  const refreshStatus = () => {
-    // Ne fait rien
-    console.log(`Statut de synchronisation désactivé pour ${tableName}`);
-  };
+  // Rafraîchir le statut
+  const refreshStatus = useCallback(() => {
+    setSyncRecord({ ...dataSyncManager.getSyncStatus(tableName) });
+  }, [tableName]);
   
-  // Synchroniser les données - ne fait plus rien de réel
-  const syncData = async (
+  // Charger les données initiales localement
+  useEffect(() => {
+    const localData = dataSyncManager.getLocalData<T>(tableName);
+    setData(localData);
+    
+    // Configurer un intervalle pour surveiller les changements de statut
+    const intervalId = setInterval(refreshStatus, 2000);
+    
+    return () => clearInterval(intervalId);
+  }, [tableName, refreshStatus]);
+  
+  // Synchroniser les données avec le serveur
+  const syncData = useCallback(async (
     newData?: T[],
     options?: SyncOptions
   ): Promise<boolean> => {
+    if (!isOnline) {
+      return false;
+    }
+    
+    const dataToSync = newData || data;
+    
+    // Si des données sont fournies, les enregistrer localement d'abord
     if (newData) {
       setData(newData);
-      localStorage.setItem(`local_data_${tableName}`, JSON.stringify(newData));
+      dataSyncManager.saveLocalData(tableName, newData);
     }
-    console.log(`Synchronisation désactivée pour ${tableName}`);
-    return true;
-  };
+    
+    const result = await dataSyncManager.syncData(tableName, dataToSync, options);
+    refreshStatus();
+    
+    return result.success;
+  }, [tableName, data, isOnline, refreshStatus]);
   
-  // Charger les données - charge uniquement depuis localStorage
-  const loadData = async (): Promise<T[]> => {
-    try {
-      const localData = localStorage.getItem(`local_data_${tableName}`);
-      if (localData) {
-        const parsedData = JSON.parse(localData) as T[];
-        setData(parsedData);
-        return parsedData;
-      }
-    } catch (error) {
-      console.error(`Erreur lors du chargement local des données pour ${tableName}:`, error);
-    }
-    return [] as T[];
-  };
+  // Charger les données depuis le serveur
+  const loadData = useCallback(async (options?: SyncOptions): Promise<T[]> => {
+    const loadedData = await dataSyncManager.loadData<T>(tableName, options);
+    setData(loadedData);
+    refreshStatus();
+    return loadedData;
+  }, [tableName, refreshStatus]);
   
   // Sauvegarder les données localement
-  const saveLocalData = (newData: T[]): void => {
+  const saveLocalData = useCallback((newData: T[]): void => {
     setData(newData);
-    localStorage.setItem(`local_data_${tableName}`, JSON.stringify(newData));
-  };
+    dataSyncManager.saveLocalData(tableName, newData);
+    refreshStatus();
+  }, [tableName, refreshStatus]);
   
   return {
-    status: 'idle',
-    lastSynced: new Date(), // Date factice
-    lastError: null,
-    pendingChanges: false,
+    ...syncRecord,
     data,
     syncData,
     loadData,
     saveLocalData,
     refreshStatus,
-    isOnline: true
+    isOnline
   };
 }

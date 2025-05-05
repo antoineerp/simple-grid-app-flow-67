@@ -3,24 +3,29 @@
 // Force output buffering to prevent output before headers
 ob_start();
 
-// Initialiser la gestion de synchronisation
-require_once 'services/DataSyncService.php';
-require_once 'services/RequestHandler.php';
+// Headers pour CORS et Content-Type
+header("Content-Type: application/json; charset=UTF-8");
+header("Access-Control-Allow-Origin: *");
+header("Access-Control-Allow-Methods: POST, OPTIONS");
+header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With");
+header("Cache-Control: no-cache, no-store, must-revalidate");
 
-// Nom de la table à synchroniser
-$tableName = 'documents';
+// Journalisation
+error_log("=== DEBUT DE L'EXÉCUTION DE documents-sync.php ===");
+error_log("Méthode: " . $_SERVER['REQUEST_METHOD'] . " - URI: " . $_SERVER['REQUEST_URI']);
 
-// Créer le service de synchronisation
-$service = new DataSyncService($tableName);
-
-// Définir les en-têtes standard
-RequestHandler::setStandardHeaders("POST, OPTIONS");
-RequestHandler::handleOptionsRequest();
-
-// Vérifier la méthode
-if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-    RequestHandler::handleError('Méthode non autorisée. Utilisez POST.', 405);
+// Gestion des requêtes OPTIONS (preflight)
+if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
+    http_response_code(200);
+    echo json_encode(['status' => 'success', 'message' => 'Preflight OK']);
+    exit;
 }
+
+// Configuration de la base de données (sans dépendre de env.php)
+$host = "p71x6d.myd.infomaniak.com";
+$dbname = "p71x6d_system";
+$username = "p71x6d_system";
+$password = "Trottinette43!";
 
 try {
     // Nettoyer le buffer
@@ -37,95 +42,134 @@ try {
     error_log("Données reçues pour synchronisation des documents");
     
     // Vérifier si les données nécessaires sont présentes
-    if (!isset($data['userId'])) {
-        throw new Exception("Données incomplètes. 'userId' est requis");
+    if (!isset($data['userId']) || !isset($data['documents'])) {
+        throw new Exception("Données incomplètes. 'userId' et 'documents' sont requis");
     }
     
-    // Récupérer les données
-    $userId = RequestHandler::sanitizeUserId($data['userId']);
-    $deviceId = isset($data['deviceId']) ? $data['deviceId'] : RequestHandler::getDeviceId();
-    $documents = isset($data['documents']) ? $data['documents'] : [];
+    $userId = $data['userId'];
+    $documents = $data['documents'];
     
-    error_log("Synchronisation pour l'utilisateur: {$userId} depuis l'appareil: {$deviceId}");
+    error_log("Synchronisation pour l'utilisateur: {$userId}");
     error_log("Nombre de documents: " . count($documents));
     
     // Connexion à la base de données
-    if (!$service->connectToDatabase()) {
-        throw new Exception("Impossible de se connecter à la base de données");
-    }
+    $pdo = new PDO("mysql:host={$host};dbname={$dbname};charset=utf8mb4", $username, $password, [
+        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+        PDO::ATTR_EMULATE_PREPARES => false,
+    ]);
     
     // Nom de la table spécifique à l'utilisateur
-    $userTableName = "{$tableName}_" . $userId;
-    
-    // Obtenir une référence PDO
-    $pdo = $service->getPdo();
-    
-    // Enregistrer cette synchronisation dans l'historique
-    $service->recordSyncOperation($userId, $deviceId, 'sync', count($documents));
+    $safeUserId = preg_replace('/[^a-zA-Z0-9_]/', '_', $userId);
+    $tableName = "documents_" . $safeUserId;
+    error_log("Table à utiliser: {$tableName}");
     
     // Créer la table si elle n'existe pas
-    $pdo->exec("CREATE TABLE IF NOT EXISTS `{$userTableName}` (
+    $createTableQuery = "CREATE TABLE IF NOT EXISTS `{$tableName}` (
         `id` VARCHAR(36) PRIMARY KEY,
-        `nom` VARCHAR(255) NOT NULL,
-        `fichier_path` VARCHAR(255) NULL,
-        `responsabilites` TEXT NULL,
-        `etat` VARCHAR(50) NULL,
-        `groupId` VARCHAR(36) NULL,
-        `userId` VARCHAR(50) NOT NULL,
-        `last_sync_device` VARCHAR(100) NULL,
+        `titre` VARCHAR(255) NOT NULL,
+        `description` TEXT NULL,
+        `url_fichier` VARCHAR(255) NULL,
+        `type` VARCHAR(50) NULL,
+        `tags` TEXT NULL,
         `date_creation` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
         `date_modification` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+    )";
     
-    // Vider la table pour une synchronisation complète
-    $stmt = $pdo->prepare("DELETE FROM `{$userTableName}` WHERE userId = ?");
-    $stmt->execute([$userId]);
+    error_log("Création de la table si nécessaire");
+    $pdo->exec($createTableQuery);
     
-    // Insérer les documents
-    if (!empty($documents)) {
-        $insertQuery = "INSERT INTO `{$userTableName}` 
-            (id, nom, fichier_path, responsabilites, etat, groupId, userId, last_sync_device) 
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
-        $stmt = $pdo->prepare($insertQuery);
+    // Démarrer une transaction
+    error_log("Début de la transaction");
+    $pdo->beginTransaction();
+    $transaction_active = true;
+    
+    try {
+        // Vider la table avant d'insérer les nouvelles données
+        $pdo->exec("TRUNCATE TABLE `{$tableName}`");
+        error_log("Table vidée");
         
-        foreach ($documents as $doc) {
-            $responsabilitesJson = isset($doc['responsabilites']) ? 
-                (is_string($doc['responsabilites']) ? $doc['responsabilites'] : json_encode($doc['responsabilites'])) : 
-                null;
+        // Insérer les documents
+        if (count($documents) > 0) {
+            $insertQuery = "INSERT INTO `{$tableName}` 
+                (id, titre, description, url_fichier, type, tags, date_creation) 
+                VALUES (:id, :titre, :description, :url_fichier, :type, :tags, :date_creation)";
+            $stmt = $pdo->prepare($insertQuery);
+            
+            foreach ($documents as $document) {
+                // Convertir la date au format SQL si nécessaire
+                if (isset($document['date_creation']) && is_string($document['date_creation'])) {
+                    $dateCreation = date('Y-m-d H:i:s', strtotime($document['date_creation']));
+                } else {
+                    $dateCreation = date('Y-m-d H:i:s');
+                }
                 
-            $stmt->execute([
-                $doc['id'],
-                $doc['nom'],
-                $doc['fichier_path'] ?? null,
-                $responsabilitesJson,
-                $doc['etat'] ?? null,
-                $doc['groupId'] ?? null,
-                $userId,
-                $deviceId
-            ]);
+                // Convertir les tags en JSON si c'est un tableau
+                $tags = isset($document['tags']) ? 
+                    (is_array($document['tags']) ? json_encode($document['tags']) : $document['tags']) : 
+                    NULL;
+                
+                $stmt->execute([
+                    'id' => $document['id'],
+                    'titre' => $document['titre'],
+                    'description' => isset($document['description']) ? $document['description'] : NULL,
+                    'url_fichier' => isset($document['url_fichier']) ? $document['url_fichier'] : NULL,
+                    'type' => isset($document['type']) ? $document['type'] : NULL,
+                    'tags' => $tags,
+                    'date_creation' => $dateCreation
+                ]);
+            }
+            error_log("Documents insérés: " . count($documents));
+        }
+        
+        // Valider la transaction
+        if ($transaction_active && $pdo->inTransaction()) {
+            $pdo->commit();
+            $transaction_active = false;
+            error_log("Transaction validée");
+        }
+        
+        echo json_encode([
+            'success' => true,
+            'message' => 'Synchronisation réussie',
+            'count' => count($documents)
+        ]);
+        
+    } catch (Exception $e) {
+        // Annuler la transaction en cas d'erreur
+        if ($transaction_active && $pdo->inTransaction()) {
+            $pdo->rollBack();
+            $transaction_active = false;
+            error_log("Transaction annulée suite à une erreur");
+        }
+        throw $e;
+    }
+    
+} catch (PDOException $e) {
+    error_log("Erreur PDO dans documents-sync.php: " . $e->getMessage());
+    http_response_code(500);
+    echo json_encode([
+        'success' => false,
+        'message' => 'Erreur de base de données: ' . $e->getMessage()
+    ]);
+} catch (Exception $e) {
+    error_log("Exception dans documents-sync.php: " . $e->getMessage());
+    http_response_code(400);
+    echo json_encode([
+        'success' => false,
+        'message' => $e->getMessage()
+    ]);
+} finally {
+    // S'assurer que la transaction est terminée si elle est encore active
+    if (isset($pdo) && isset($transaction_active) && $transaction_active && $pdo->inTransaction()) {
+        try {
+            error_log("Annulation de la transaction qui était encore active dans le bloc finally");
+            $pdo->rollBack();
+        } catch (Exception $e) {
+            error_log("Erreur lors du rollback final: " . $e->getMessage());
         }
     }
     
-    error_log("Documents synchronisés: " . count($documents));
-    
-    // Réponse réussie
-    RequestHandler::sendJsonResponse(true, 'Synchronisation réussie', [
-        'count' => count($documents),
-        'deviceId' => $deviceId,
-        'tableName' => $tableName
-    ]);
-    
-} catch (PDOException $e) {
-    error_log("Erreur PDO dans {$tableName}-sync.php: " . $e->getMessage());
-    RequestHandler::handleError($e, 500);
-} catch (Exception $e) {
-    error_log("Exception dans {$tableName}-sync.php: " . $e->getMessage());
-    RequestHandler::handleError($e);
-} finally {
-    if (isset($service)) {
-        $service->finalize();
-    }
-    
-    error_log("=== FIN DE L'EXÉCUTION DE {$tableName}-sync.php ===");
+    error_log("=== FIN DE L'EXÉCUTION DE documents-sync.php ===");
     if (ob_get_level()) ob_end_flush();
 }

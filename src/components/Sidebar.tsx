@@ -2,14 +2,10 @@
 import React from 'react';
 import SidebarNavItem from './sidebar/SidebarNavItem';
 import { navigationItems } from './sidebar/sidebarConfig';
-import { hasPermission } from '@/types/roles';
-import { getCurrentUser } from '@/services/auth/authService';
 
 const Sidebar = () => {
   const sidebarImageUrl = localStorage.getItem('sidebarImageUrl') || '/lovable-uploads/swiss-army-knife-logo.png';
   const sidebarLinkUrl = localStorage.getItem('sidebarLinkUrl') || '';
-  const user = getCurrentUser();
-  const userRole = (user?.role || 'utilisateur');
 
   return (
     <aside className="w-64 bg-gray-50 border-r min-h-screen">

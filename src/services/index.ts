@@ -2,20 +2,8 @@
 // Re-export functions from other service files
 export * from './core/userInitializationService';
 export * from './documents';
+export * from './users/userService';
 export * from './users/createUserService';
-export * from './users/userManager';
-
-// Export du type Utilisateur
-export interface Utilisateur {
-  id: number;
-  nom: string;
-  prenom: string;
-  email: string;
-  mot_de_passe: string;
-  identifiant_technique: string;
-  role: string;
-  date_creation: string;
-}
 
 // Explicitement renommer les exports de getCurrentUser pour éviter l'ambiguïté
 export { 
@@ -34,3 +22,15 @@ export {
   testDatabaseConnection,
   getDatabaseInfo
 } from './core/databaseConnectionService';
+
+// Define types here if needed
+export interface Utilisateur {
+  id: number;
+  nom: string;
+  prenom: string;
+  email: string;
+  mot_de_passe: string;
+  identifiant_technique: string;
+  role: string;
+  date_creation: string;
+}

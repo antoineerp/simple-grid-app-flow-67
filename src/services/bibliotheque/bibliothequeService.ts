@@ -1,11 +1,12 @@
+
 import { Document, DocumentGroup } from '@/types/bibliotheque';
 
 /**
- * Loads collaboration documents from localStorage for a specific user
+ * Loads bibliotheque documents from localStorage for a specific user
  */
 export const loadBibliothequeFromStorage = (currentUser: string): { documents: Document[], groups: DocumentGroup[] } => {
-  const storedDocuments = localStorage.getItem(`collaboration_documents_${currentUser}`);
-  const storedGroups = localStorage.getItem(`collaboration_groups_${currentUser}`);
+  const storedDocuments = localStorage.getItem(`bibliotheque_documents_${currentUser}`);
+  const storedGroups = localStorage.getItem(`bibliotheque_groups_${currentUser}`);
   
   let documents: Document[] = [];
   let groups: DocumentGroup[] = [];
@@ -13,13 +14,13 @@ export const loadBibliothequeFromStorage = (currentUser: string): { documents: D
   if (storedDocuments) {
     documents = JSON.parse(storedDocuments);
   } else {
-    const defaultDocuments = localStorage.getItem('collaboration_documents_template') || localStorage.getItem('collaboration_documents');
+    const defaultDocuments = localStorage.getItem('bibliotheque_documents_template') || localStorage.getItem('bibliotheque_documents');
     if (defaultDocuments) {
       documents = JSON.parse(defaultDocuments);
     } else {
       documents = [
-        { id: "1", name: 'Organigramme', link: 'Voir le document', userId: currentUser },
-        { id: "2", name: 'Administration', link: 'Voir le document', userId: currentUser },
+        { id: "1", name: 'Organigramme', link: 'Voir le document' },
+        { id: "2", name: 'Administration', link: 'Voir le document' },
       ];
     }
   }
@@ -27,13 +28,13 @@ export const loadBibliothequeFromStorage = (currentUser: string): { documents: D
   if (storedGroups) {
     groups = JSON.parse(storedGroups);
   } else {
-    const defaultGroups = localStorage.getItem('collaboration_groups_template') || localStorage.getItem('collaboration_groups');
+    const defaultGroups = localStorage.getItem('bibliotheque_groups_template') || localStorage.getItem('bibliotheque_groups');
     if (defaultGroups) {
       groups = JSON.parse(defaultGroups);
     } else {
       groups = [
-        { id: "1", name: 'Documents organisationnels', expanded: false, items: [], userId: currentUser },
-        { id: "2", name: 'Documents administratifs', expanded: false, items: [], userId: currentUser },
+        { id: "1", name: 'Documents organisationnels', expanded: false, items: [] },
+        { id: "2", name: 'Documents administratifs', expanded: false, items: [] },
       ];
     }
   }
@@ -51,7 +52,7 @@ export const loadBibliothequeFromStorage = (currentUser: string): { documents: D
 };
 
 /**
- * Saves collaboration documents to localStorage for a specific user
+ * Saves bibliotheque documents to localStorage for a specific user
  */
 export const saveBibliothequeToStorage = (documents: Document[], groups: DocumentGroup[], currentUser: string): void => {
   // Extraction des documents des groupes
@@ -65,16 +66,16 @@ export const saveBibliothequeToStorage = (documents: Document[], groups: Documen
   // Groupes sans les items (pour éviter une duplication)
   const groupsWithoutItems = groups.map(({items, ...rest}) => rest);
   
-  localStorage.setItem(`collaboration_documents_${currentUser}`, JSON.stringify(allDocuments));
-  localStorage.setItem(`collaboration_groups_${currentUser}`, JSON.stringify(groupsWithoutItems));
+  localStorage.setItem(`bibliotheque_documents_${currentUser}`, JSON.stringify(allDocuments));
+  localStorage.setItem(`bibliotheque_groups_${currentUser}`, JSON.stringify(groupsWithoutItems));
   
   // Si l'utilisateur est admin, aussi sauvegarder comme template
   const userRole = localStorage.getItem('userRole');
   if (userRole === 'admin' || userRole === 'administrateur') {
-    localStorage.setItem('collaboration_documents_template', JSON.stringify(allDocuments));
-    localStorage.setItem('collaboration_groups_template', JSON.stringify(groupsWithoutItems));
+    localStorage.setItem('bibliotheque_documents_template', JSON.stringify(allDocuments));
+    localStorage.setItem('bibliotheque_groups_template', JSON.stringify(groupsWithoutItems));
   }
   
   // Notifier sur la mise à jour de la bibliothèque
-  window.dispatchEvent(new Event('collaborationUpdate'));
+  window.dispatchEvent(new Event('bibliothequeUpdate'));
 };

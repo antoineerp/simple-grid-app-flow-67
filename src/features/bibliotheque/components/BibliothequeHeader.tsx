@@ -1,54 +1,50 @@
 
 import React from 'react';
-import { CloudSun, RefreshCw } from 'lucide-react';
-import { Button } from "@/components/ui/button";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import SyncIndicator from '@/components/common/SyncIndicator';
+import { FileText } from 'lucide-react';
+import { exportBibliothecaireDocsToPdf } from '@/services/pdfExport';
+import { useToast } from '@/hooks/use-toast';
+import SyncStatusIndicator from '@/components/common/SyncStatusIndicator';
 
 interface BibliothequeHeaderProps {
-  onSync: () => Promise<void>;
+  onSync?: () => Promise<void>;
   syncFailed?: boolean;
-  isSyncing?: boolean;
-  isOnline?: boolean;
-  lastSynced?: Date | null;
 }
 
 export const BibliothequeHeader: React.FC<BibliothequeHeaderProps> = ({
   onSync,
-  syncFailed = false,
-  isSyncing = false,
-  isOnline = navigator.onLine,
-  lastSynced = null
+  syncFailed
 }) => {
+  const { toast } = useToast();
+
+  const handleExportPdf = () => {
+    exportBibliothecaireDocsToPdf([], []);
+    toast({
+      title: "Export PDF réussi",
+      description: "Le document a été généré et téléchargé",
+    });
+  };
+
   return (
-    <div className="mb-6">
-      <div className="flex justify-between items-center mb-2">
-        <h1 className="text-3xl font-bold text-app-blue">Bibliothèque de documents</h1>
-        
-        {/* Bouton de synchronisation invisible mais fonctionnel */}
-        <Button
-          onClick={onSync}
-          variant="outline"
-          size="sm"
-          className="hidden"
-        >
-          <RefreshCw className={`h-4 w-4 mr-1 ${isSyncing ? 'animate-spin' : ''}`} />
-          Actualiser
-        </Button>
+    <>
+      <div className="flex items-center justify-between mb-2">
+        <div>
+          <h1 className="text-3xl font-bold text-app-blue">Collaboration</h1>
+          <p className="text-gray-600">Gestion des documents partagés</p>
+        </div>
+        <div className="flex space-x-2">
+          <button 
+            onClick={handleExportPdf}
+            className="text-red-600 p-2 rounded-md hover:bg-red-50 transition-colors"
+            title="Exporter en PDF"
+          >
+            <FileText className="h-6 w-6 stroke-[1.5]" />
+          </button>
+        </div>
       </div>
       
-      {/* Indicateur de synchronisation invisible */}
-      <div className="mb-4 hidden">
-        <SyncIndicator
-          isSyncing={isSyncing}
-          isOnline={isOnline}
-          syncFailed={syncFailed}
-          lastSynced={lastSynced}
-          onSync={onSync}
-          showOnlyErrors={true}
-          tableName="bibliotheque"
-        />
-      </div>
-    </div>
+      {syncFailed && <div className="mb-4">
+        <SyncStatusIndicator syncFailed={syncFailed} onReset={onSync} />
+      </div>}
+    </>
   );
 };

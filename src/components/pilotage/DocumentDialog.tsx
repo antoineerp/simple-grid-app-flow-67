@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-interface PilotageDocument {
+interface Document {
   id: number;
   ordre: number;
   nom: string;
@@ -21,7 +21,7 @@ interface PilotageDocument {
 interface DocumentDialogProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
-  currentDocument: PilotageDocument;
+  currentDocument: Document;
   onInputChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onSave: () => void;
   isEditing: boolean;

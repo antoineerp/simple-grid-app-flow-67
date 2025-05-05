@@ -19,12 +19,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
 
 // Journaliser l'exécution
 error_log("=== EXÉCUTION DE check-users.php ===");
-error_log("Méthode: " . $_SERVER['REQUEST_METHOD'] . " - URI: " . $_SERVER['REQUEST_URI']);
-error_log("Paramètres GET: " . print_r($_GET, true));
-
-// Récupérer l'utilisateur source, si spécifié
-$source = isset($_GET['source']) ? $_GET['source'] : 'default';
-error_log("Source de connexion: " . $source);
 
 // Capturer toute sortie pour éviter la contamination du JSON
 if (ob_get_level()) ob_clean();
@@ -33,17 +27,8 @@ try {
     // Tester la connexion PDO directement sans passer par notre classe Database
     $host = "p71x6d.myd.infomaniak.com";
     $dbname = "p71x6d_system";
-    
-    // Utiliser l'identifiant technique spécifié s'il est fourni et valide
-    if (!empty($source) && $source !== 'default' && strpos($source, 'p71x6d_') === 0) {
-        $username = $source;
-        $password = "Trottinette43!";
-        error_log("Utilisation de l'identifiant technique fourni: " . $username);
-    } else {
-        $username = "p71x6d_system";
-        $password = "Trottinette43!";
-        error_log("Utilisation de l'identifiant par défaut: p71x6d_system");
-    }
+    $username = "p71x6d_system";
+    $password = "Trottinette43!";
     
     $dsn = "mysql:host={$host};dbname={$dbname};charset=utf8mb4";
     $options = [
@@ -52,7 +37,7 @@ try {
         PDO::ATTR_EMULATE_PREPARES => false,
     ];
     
-    error_log("Tentative de connexion PDO directe à la base de données avec utilisateur: " . $username);
+    error_log("Tentative de connexion PDO directe à la base de données");
     $pdo = new PDO($dsn, $username, $password, $options);
     error_log("Connexion PDO réussie");
     
@@ -198,8 +183,7 @@ try {
         'database_info' => [
             'host' => $host,
             'database' => $dbname,
-            'user' => $username,
-            'source' => $source
+            'user' => $username
         ],
         'table_structure' => $tableStructure
     ]);
@@ -214,8 +198,7 @@ try {
     echo json_encode([
         'status' => 'error',
         'message' => 'Échec de la connexion à la base de données',
-        'error' => $e->getMessage(),
-        'source_attempted' => $source ?? 'default'
+        'error' => $e->getMessage()
     ]);
     exit;
 } catch (Exception $e) {
@@ -228,8 +211,7 @@ try {
     echo json_encode([
         'status' => 'error',
         'message' => 'Erreur lors du test de connexion',
-        'error' => $e->getMessage(),
-        'source_attempted' => $source ?? 'default'
+        'error' => $e->getMessage()
     ]);
     exit;
 } finally {

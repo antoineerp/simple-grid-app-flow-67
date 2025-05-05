@@ -1,32 +1,36 @@
 
-import { Users, FileText, FolderOpen, Settings, BarChart2 } from "lucide-react";
-import { type LucideIcon } from "lucide-react";
+import { BarChart2, FileCheck, FileText, Users, Handshake } from 'lucide-react';
 
-interface NavigationItem {
+export interface NavItem {
   path: string;
-  icon: LucideIcon;
+  icon: typeof BarChart2;
   label: string;
 }
 
-export const navigationItems: NavigationItem[] = [
+export const navigationItems: NavItem[] = [
   {
-    path: "/pilotage",
+    path: '/pilotage',
     icon: BarChart2,
-    label: "Pilotage"
+    label: 'Pilotage'
   },
   {
-    path: "/gestion-documentaire",
+    path: '/exigences',
+    icon: FileCheck,
+    label: 'Exigences'
+  },
+  {
+    path: '/gestion-documentaire',
     icon: FileText,
-    label: "Gestion Documentaire"
+    label: 'Gestion Documentaire'
   },
   {
-    path: "/ressources-humaines",
+    path: '/ressources-humaines',
     icon: Users,
-    label: "Ressources Humaines"
+    label: 'Ressources Humaines'
   },
   {
-    path: "/collaboration",
-    icon: FolderOpen,
-    label: "Collaboration"
+    path: '/collaboration',
+    icon: Handshake,
+    label: 'Collaboration'
   }
 ];

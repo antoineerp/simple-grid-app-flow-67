@@ -1,161 +1,266 @@
 
-import React, { useEffect, useState } from 'react';
-import { Card } from "@/components/ui/card";
-import { MembresTable } from '@/components/ressources/MembresTable';
+import React, { useEffect } from 'react';
+import { FileText, UserPlus, CloudSun, AlertTriangle } from 'lucide-react';
+import { useToast } from "@/hooks/use-toast";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { useMembres } from '@/contexts/MembresContext';
-import MembresToolbar from '@/components/ressources/MembresToolbar';
-import { PageHeader } from '@/components/ui/page-header';
-import { Users, AlertTriangle, RefreshCcw } from 'lucide-react';
-import { useSyncContext } from '@/hooks/useSyncContext';
-import { useToast } from '@/hooks/use-toast';
-import { useNetworkStatus } from '@/hooks/useNetworkStatus';
-import { syncRepairTool } from '@/utils/syncRepairTool';
-import { Button } from '@/components/ui/button';
-import { AlertDialog, AlertDialogTrigger, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from '@/components/ui/alert-dialog';
+import MemberList from '@/components/ressources-humaines/MemberList';
+import MemberForm from '@/components/ressources-humaines/MemberForm';
+import { Membre } from '@/types/membres';
+import { exportAllCollaborateursToPdf } from '@/services/collaborateurExport';
+import SyncStatusIndicator from '@/components/common/SyncStatusIndicator';
 
-const RessourcesHumaines: React.FC = () => {
+const RessourcesHumaines = () => {
   const { toast } = useToast();
-  const { membres, lastSynced, isLoading, error, refreshMembres, syncFailed } = useMembres();
-  const syncContext = useSyncContext();
-  const { isOnline } = useNetworkStatus();
-  const [repairInProgress, setRepairInProgress] = useState(false);
-  const [initialSyncDone, setInitialSyncDone] = useState(false);
-
-  // Enregistrement de la fonction de synchronisation au montage du composant
-  useEffect(() => {
-    if (syncContext.isInitialized()) {
-      console.log("RessourcesHumaines: Fonction de synchronisation des membres enregistrée");
-      
-      // Synchronisation initiale si nécessaire uniquement au premier rendu
-      if (isOnline && (!lastSynced || syncFailed) && !initialSyncDone) {
-        console.log("RessourcesHumaines: Synchronisation initiale des membres");
-        refreshMembres().then(() => {
-          setInitialSyncDone(true);
-        }).catch(error => {
-          console.error("Erreur lors de la synchronisation initiale:", error);
-          setInitialSyncDone(true); // Marquer comme terminé même en cas d'erreur
-        });
-      } else if (!initialSyncDone) {
-        setInitialSyncDone(true);
-      }
-    } else {
-      console.error("RessourcesHumaines: Le contexte de synchronisation n'est pas initialisé");
-    }
-  }, [syncContext, refreshMembres, lastSynced, syncFailed, isOnline, initialSyncDone]);
-
-  const handleSyncClick = async () => {
-    try {
-      if (syncContext.isInitialized()) {
-        toast({ title: "Synchronisation", description: "Synchronisation en cours..." });
-        await refreshMembres();
-        toast({ 
-          title: "Synchronisation terminée", 
-          description: "Les données ont été synchronisées avec succès" 
-        });
-      } else {
-        toast({ 
-          title: "Erreur", 
-          description: "Le système de synchronisation n'est pas disponible", 
-          variant: "destructive" 
-        });
-      }
-    } catch (error) {
-      console.error("Erreur lors de la synchronisation:", error);
-      toast({ 
-        title: "Erreur de synchronisation", 
-        description: error instanceof Error ? error.message : "Erreur inconnue", 
-        variant: "destructive" 
-      });
-    }
-  };
-
-  const handleEmergencyRepair = async () => {
-    setRepairInProgress(true);
-    try {
-      // Exécuter la procédure de réparation complète
-      await syncRepairTool.repairMemberInsertionErrors();
-      
-      // Attendre un peu pour que la réparation soit effective
-      setTimeout(() => {
-        // Actualiser la page pour recharger avec les changements
-        window.location.reload();
-      }, 3000);
-    } catch (error) {
-      console.error("Erreur lors de la procédure de réparation d'urgence:", error);
-      toast({
-        variant: "destructive",
-        title: "Échec de la réparation",
-        description: "La réparation d'urgence a échoué. Essayez de recharger l'application manuellement."
-      });
-    } finally {
-      setRepairInProgress(false);
-    }
-  };
-
-  // Convertir l'erreur en string pour éviter l'erreur de type
-  const errorMessage = error ? (error instanceof Error ? error.message : String(error)) : null;
+  const { 
+    membres, 
+    setMembres, 
+    isSyncing, 
+    isOnline, 
+    lastSynced, 
+    syncWithServer, 
+    isLoading, 
+    error,
+    syncFailed,
+    resetSyncFailed
+  } = useMembres();
   
-  // Vérifier si l'erreur concerne le problème spécifique d'ID dupliqué
-  const hasDuplicateIdError = errorMessage && 
-    (errorMessage.includes('Duplicate entry') || 
-     errorMessage.includes('002ecca6-dc39-468d-a6ce-a1aed0264383') ||
-     errorMessage.includes('Integrity constraint violation'));
+  const [isDialogOpen, setIsDialogOpen] = React.useState(false);
+  const [currentMembre, setCurrentMembre] = React.useState<Membre>({
+    id: '',
+    nom: '',
+    prenom: '',
+    fonction: '',
+    initiales: '',
+    date_creation: new Date(),
+    mot_de_passe: '' 
+  });
+  const [isEditing, setIsEditing] = React.useState(false);
+
+  // Effectuer une seule synchronisation au chargement de la page, si nécessaire
+  useEffect(() => {
+    // Ne synchroniser que lorsque le chargement initial est terminé
+    // et uniquement si on est en ligne et qu'il n'y a pas d'échec précédent
+    if (!isLoading && isOnline && !syncFailed && !isSyncing) {
+      console.log("Synchronisation initiale des membres");
+      syncWithServer().catch(console.error);
+    }
+  }, [isLoading]);
+
+  const handleEdit = (id: string) => {
+    const membre = membres.find(m => m.id === id);
+    if (membre) {
+      setCurrentMembre({ ...membre });
+      setIsEditing(true);
+      setIsDialogOpen(true);
+    }
+  };
+
+  const handleDelete = (id: string) => {
+    setMembres(prev => prev.filter(membre => membre.id !== id));
+    toast({
+      title: "Suppression",
+      description: `Le membre ${id} a été supprimé`,
+    });
+    
+    // Synchroniser manuellement après une suppression
+    if (isOnline && !syncFailed && !isSyncing) {
+      syncWithServer().catch(console.error);
+    }
+  };
+
+  const handleAddMember = () => {
+    const newId = membres.length > 0 
+      ? String(Math.max(...membres.map(membre => parseInt(membre.id))) + 1)
+      : '1';
+    
+    setCurrentMembre({
+      id: newId,
+      nom: '',
+      prenom: '',
+      fonction: '',
+      initiales: '',
+      date_creation: new Date(),
+      mot_de_passe: '' 
+    });
+    setIsEditing(false);
+    setIsDialogOpen(true);
+  };
+
+  const handleExportMember = (id: string) => {
+    console.log(`Exporting member with id: ${id}`);
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setCurrentMembre({
+      ...currentMembre,
+      [name]: value
+    });
+  };
+
+  const handleSaveMember = () => {
+    if (currentMembre.nom.trim() === '' || currentMembre.prenom.trim() === '') {
+      toast({
+        title: "Erreur",
+        description: "Le nom et le prénom sont requis",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (currentMembre.initiales.trim() === '') {
+      const initiales = `${currentMembre.prenom.charAt(0)}${currentMembre.nom.charAt(0)}`;
+      currentMembre.initiales = initiales.toUpperCase();
+    }
+
+    if (isEditing) {
+      setMembres(prev => 
+        prev.map(membre => membre.id === currentMembre.id ? currentMembre : membre)
+      );
+      toast({
+        title: "Modification",
+        description: `Le membre ${currentMembre.id} a été modifié`,
+      });
+    } else {
+      setMembres(prev => [...prev, currentMembre]);
+      toast({
+        title: "Ajout",
+        description: `Le membre ${currentMembre.id} a été ajouté`,
+      });
+    }
+    
+    setIsDialogOpen(false);
+    
+    // Synchroniser manuellement après un ajout/modification
+    if (isOnline && !syncFailed && !isSyncing) {
+      syncWithServer().catch(console.error);
+    }
+  };
+
+  const handleExportAllToPdf = () => {
+    try {
+      exportAllCollaborateursToPdf(membres);
+      toast({
+        title: "Export PDF",
+        description: "La liste des collaborateurs a été exportée",
+      });
+    } catch (error) {
+      console.error("Erreur lors de l'export PDF:", error);
+      toast({
+        title: "Erreur",
+        description: `Erreur lors de l'export PDF: ${error}`,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleResetSync = () => {
+    resetSyncFailed();
+    // Tenter une nouvelle synchronisation après réinitialisation
+    syncWithServer().catch(console.error);
+  };
 
   return (
-    <div className="container mx-auto py-6 space-y-6">
-      <PageHeader
-        title="Gestion des Ressources Humaines"
-        description="Gérez les membres de votre équipe"
-        icon={<Users className="h-6 w-6" />}
-      />
-      
-      {hasDuplicateIdError && (
-        <AlertDialog>
-          <AlertDialogTrigger asChild>
-            <Button variant="destructive" className="w-full">
-              <AlertTriangle className="mr-2 h-4 w-4" />
-              Erreur de synchronisation détectée - Cliquez pour réparer
+    <div className="p-8">
+      <div className="flex items-center justify-between mb-2">
+        <div>
+          <h1 className="text-3xl font-bold text-app-blue">Ressources Humaines</h1>
+        </div>
+        <div className="flex space-x-2">
+          <button 
+            onClick={() => syncWithServer()}
+            className="text-blue-600 p-2 rounded-md hover:bg-blue-50 transition-colors flex items-center"
+            title="Synchroniser avec le serveur"
+            disabled={isSyncing || !isOnline || syncFailed}
+          >
+            <CloudSun className={`h-6 w-6 stroke-[1.5] ${isSyncing ? 'animate-spin' : ''} ${syncFailed ? 'text-gray-400' : ''}`} />
+          </button>
+          <button 
+            onClick={handleExportAllToPdf}
+            className="text-red-600 p-2 rounded-md hover:bg-red-50 transition-colors"
+            title="Exporter en PDF"
+          >
+            <FileText className="h-6 w-6 stroke-[1.5]" />
+          </button>
+        </div>
+      </div>
+
+      <div className="mb-4">
+        <SyncStatusIndicator 
+          syncFailed={syncFailed} 
+          onReset={handleResetSync} 
+          isSyncing={isSyncing} 
+          isOnline={isOnline}
+          lastSynced={lastSynced}
+        />
+      </div>
+
+      {isLoading ? (
+        <div className="bg-white rounded-md shadow p-8 text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-app-blue mx-auto"></div>
+          <p className="mt-4 text-gray-600">Chargement des données...</p>
+        </div>
+      ) : (
+        <>
+          <div className="bg-white rounded-md shadow overflow-hidden mt-6">
+            {membres.length > 0 ? (
+              <MemberList 
+                membres={membres} 
+                onEdit={handleEdit} 
+                onDelete={handleDelete}
+                onExport={handleExportMember} 
+              />
+            ) : (
+              <div className="p-8 text-center text-gray-500">
+                <p>Aucun membre à afficher.</p>
+                <p className="text-sm mt-2">Cliquez sur "Ajouter un membre" pour commencer.</p>
+              </div>
+            )}
+          </div>
+
+          <div className="flex justify-end mt-4 gap-4">
+            <Button 
+              className="flex items-center"
+              onClick={handleAddMember}
+            >
+              <UserPlus className="h-4 w-4 mr-2" />
+              Ajouter un membre
             </Button>
-          </AlertDialogTrigger>
-          <AlertDialogContent aria-describedby="alert-dialog-description">
-            <AlertDialogHeader>
-              <AlertDialogTitle>Réparer les erreurs de synchronisation</AlertDialogTitle>
-              <AlertDialogDescription id="alert-dialog-description">
-                Une erreur de duplication d'ID a été détectée. Cette procédure va nettoyer les données locales et réparer 
-                l'erreur sur le serveur. L'application sera rechargée à la fin du processus.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Annuler</AlertDialogCancel>
-              <AlertDialogAction 
-                onClick={handleEmergencyRepair} 
-                disabled={repairInProgress}
-                className="bg-red-600 hover:bg-red-700"
-              >
-                {repairInProgress ? (
-                  <>
-                    <RefreshCcw className="mr-2 h-4 w-4 animate-spin" />
-                    Réparation en cours...
-                  </>
-                ) : (
-                  "Lancer la réparation"
-                )}
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+          </div>
+
+          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>
+                  {isEditing ? "Modifier le membre" : "Ajouter un membre"}
+                </DialogTitle>
+                <DialogDescription>
+                  {isEditing 
+                    ? "Modifiez les informations du membre ci-dessous." 
+                    : "Remplissez les informations pour ajouter un nouveau membre."}
+                </DialogDescription>
+              </DialogHeader>
+              
+              <MemberForm 
+                currentMembre={currentMembre}
+                isEditing={isEditing}
+                onInputChange={handleInputChange}
+                onSave={handleSaveMember}
+                onCancel={() => setIsDialogOpen(false)}
+              />
+            </DialogContent>
+          </Dialog>
+        </>
       )}
-      
-      <MembresToolbar 
-        onSync={handleSyncClick} 
-        lastSynced={lastSynced} 
-        isLoading={isLoading} 
-        error={errorMessage}
-      />
-      
-      <Card>
-        <MembresTable membres={membres} isLoading={isLoading} />
-      </Card>
     </div>
   );
 };
