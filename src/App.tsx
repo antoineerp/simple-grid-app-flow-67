@@ -11,6 +11,8 @@ import Pilotage from '@/pages/Pilotage';
 import Exigences from '@/pages/Exigences';
 import GestionDocumentaire from '@/pages/GestionDocumentaire';
 import RessourcesHumaines from '@/pages/RessourcesHumaines';
+import Collaboration from '@/pages/Collaboration';
+import Administration from '@/pages/Administration';
 import NotFound from '@/pages/NotFound';
 import { getIsLoggedIn } from '@/services/auth/authService';
 
@@ -55,7 +57,12 @@ function App() {
           } />
           <Route path="collaboration" element={
             <ProtectedRoute>
-              <div className="p-8">Page de collaboration en cours de développement</div>
+              <Collaboration />
+            </ProtectedRoute>
+          } />
+          <Route path="administration" element={
+            <ProtectedRoute>
+              <Administration />
             </ProtectedRoute>
           } />
           <Route path="db-test" element={

@@ -1,138 +1,105 @@
 
 import { getApiUrl } from '@/config/apiConfig';
-import { toast } from '@/components/ui/use-toast';
-import { initializeUserTables } from './userInitializationService';
+import { getAuthHeaders } from '@/services/auth/authService';
 
-// Clés de stockage local
-const CURRENT_USER_KEY = 'db_current_user';
-const LAST_ERROR_KEY = 'db_last_error';
-
-// État global
-let isConnected = false;
 let lastConnectionError: string | null = null;
-let dbInfo: any = null;
+let currentUser: string | null = null;
 
 /**
  * Récupère l'utilisateur actuellement connecté à la base de données
  */
-export function getCurrentUser(): string | null {
-  return localStorage.getItem(CURRENT_USER_KEY);
-}
+export const getCurrentUser = (): string | null => {
+  if (!currentUser) {
+    currentUser = localStorage.getItem('databaseUser');
+  }
+  return currentUser;
+};
+
+/**
+ * Initialise l'utilisateur courant pour la connexion à la base de données
+ */
+export const initializeCurrentUser = (): void => {
+  const userId = localStorage.getItem('userId');
+  if (userId) {
+    currentUser = userId;
+    localStorage.setItem('databaseUser', userId);
+  }
+};
+
+/**
+ * Se connecter en tant qu'utilisateur spécifique
+ */
+export const connectAsUser = async (identifiantTechnique: string): Promise<boolean> => {
+  try {
+    console.log(`Tentative de connexion en tant que: ${identifiantTechnique}`);
+    lastConnectionError = null;
+    
+    localStorage.setItem('databaseUser', identifiantTechnique);
+    currentUser = identifiantTechnique;
+    
+    return true;
+  } catch (error) {
+    console.error("Erreur lors de la connexion en tant qu'utilisateur:", error);
+    lastConnectionError = error instanceof Error ? error.message : "Erreur inconnue lors de la connexion";
+    return false;
+  }
+};
 
 /**
  * Récupère la dernière erreur de connexion
  */
-export function getLastConnectionError(): string | null {
+export const getLastConnectionError = (): string | null => {
   return lastConnectionError;
-}
-
-/**
- * Se connecte en tant qu'utilisateur spécifique
- */
-export async function connectAsUser(userId: string): Promise<boolean> {
-  try {
-    console.log(`Tentative de connexion en tant que ${userId}`);
-    
-    // Vérifier le format de l'identifiant utilisateur
-    if (!userId || typeof userId !== 'string' || !userId.startsWith('p71x6d_')) {
-      throw new Error(`Format d'identifiant invalide: ${userId}`);
-    }
-    
-    // Initialiser les tables utilisateur si nécessaire
-    await initializeUserTables(userId);
-    
-    // Enregistrer l'utilisateur courant
-    localStorage.setItem(CURRENT_USER_KEY, userId);
-    localStorage.removeItem(LAST_ERROR_KEY);
-    
-    isConnected = true;
-    lastConnectionError = null;
-    
-    console.log(`Connexion réussie en tant que ${userId}`);
-    return true;
-    
-  } catch (error) {
-    console.error("Erreur lors de la connexion:", error);
-    
-    lastConnectionError = error instanceof Error ? error.message : "Erreur inconnue";
-    localStorage.setItem(LAST_ERROR_KEY, lastConnectionError);
-    
-    isConnected = false;
-    
-    return false;
-  }
-}
+};
 
 /**
  * Déconnecte l'utilisateur actuel
  */
-export function disconnectUser(): void {
-  localStorage.removeItem(CURRENT_USER_KEY);
-  isConnected = false;
-  console.log("Utilisateur déconnecté de la base de données");
-}
+export const disconnectUser = (): void => {
+  localStorage.removeItem('databaseUser');
+  currentUser = null;
+};
 
 /**
  * Teste la connexion à la base de données
  */
-export async function testDatabaseConnection(): Promise<boolean> {
+export const testDatabaseConnection = async (): Promise<boolean> => {
   try {
-    const API_URL = getApiUrl();
-    
-    const response = await fetch(`${API_URL}/db-test.php`, {
+    const apiUrl = getApiUrl();
+    const response = await fetch(`${apiUrl}/db-test.php`, {
       method: 'GET',
-      headers: { 'Cache-Control': 'no-cache' }
+      headers: {
+        ...getAuthHeaders(),
+        'Content-Type': 'application/json'
+      }
     });
     
-    if (!response.ok) {
-      throw new Error(`Erreur HTTP: ${response.status}`);
-    }
-    
-    const result = await response.json();
-    
-    if (!result.connected) {
-      throw new Error(result.message || "Échec de la connexion à la base de données");
-    }
-    
-    console.log("Test de connexion à la base de données réussi");
-    return true;
-    
+    const data = await response.json();
+    return data.success || false;
   } catch (error) {
     console.error("Erreur lors du test de connexion:", error);
-    
-    toast({
-      variant: "destructive",
-      title: "Erreur de connexion",
-      description: error instanceof Error ? error.message : "Erreur inconnue"
-    });
-    
     return false;
   }
-}
+};
 
 /**
  * Récupère les informations sur la base de données
  */
-export async function getDatabaseInfo(): Promise<any> {
+export const getDatabaseInfo = async (): Promise<any> => {
   try {
-    const API_URL = getApiUrl();
-    
-    const response = await fetch(`${API_URL}/db-info.php`, {
+    const apiUrl = getApiUrl();
+    const response = await fetch(`${apiUrl}/db-info.php`, {
       method: 'GET',
-      headers: { 'Cache-Control': 'no-cache' }
+      headers: {
+        ...getAuthHeaders(),
+        'Content-Type': 'application/json'
+      }
     });
     
-    if (!response.ok) {
-      throw new Error(`Erreur HTTP: ${response.status}`);
-    }
-    
-    const result = await response.json();
-    dbInfo = result;
-    
-    return result;
-    
+    const data = await response.json();
+    return data;
   } catch (error) {
-    console.error("Erreur lors de la récupération des informations de la base de données:", error);
-    return null;
+    console.error("Erreur lors de la récupération des informations:", error);
+    return { error: 'Impossible de récupérer les informations de la base de données' };
   }
-}
+};

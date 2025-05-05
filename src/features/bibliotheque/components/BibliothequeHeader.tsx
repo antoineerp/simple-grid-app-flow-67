@@ -42,9 +42,16 @@ export const BibliothequeHeader: React.FC<BibliothequeHeaderProps> = ({
         </div>
       </div>
       
-      {syncFailed && <div className="mb-4">
-        <SyncStatusIndicator syncFailed={syncFailed} onReset={onSync} />
-      </div>}
+      {syncFailed && onSync && (
+        <div className="mb-4">
+          <SyncStatusIndicator 
+            isSyncing={false} 
+            syncFailed={true} 
+            onReset={onSync} 
+            lastSynced={null}
+          />
+        </div>
+      )}
     </>
   );
 };
