@@ -1,26 +1,32 @@
 
-import React from 'react';
 import { Users, FileText, FolderOpen, Settings } from "lucide-react";
+import { type LucideIcon } from "lucide-react";
 
-export const navigationItems = [
+interface NavigationItem {
+  path: string;
+  icon: LucideIcon;
+  label: string;
+}
+
+export const navigationItems: NavigationItem[] = [
   {
     path: "/",
-    icon: <FileText className="h-5 w-5" />,
+    icon: FileText,
     label: "Gestion Documentaire"
   },
   {
     path: "/ressources-humaines",
-    icon: <Users className="h-5 w-5" />,
+    icon: Users,
     label: "Ressources Humaines"
   },
   {
     path: "/collaboration",
-    icon: <FolderOpen className="h-5 w-5" />,
+    icon: FolderOpen,
     label: "Collaboration"
   },
   {
     path: "/admin",
-    icon: <Settings className="h-5 w-5" />,
+    icon: Settings,
     label: "Administration"
   }
 ];

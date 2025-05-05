@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { LucideIcon } from 'lucide-react';
+import { type LucideIcon } from 'lucide-react';
 
 interface SidebarNavItemProps {
   to: string;
