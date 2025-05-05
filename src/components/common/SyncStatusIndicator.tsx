@@ -5,7 +5,7 @@ import { cn } from '@/lib/utils';
 
 interface SyncStatusIndicatorProps {
   isSyncing: boolean;
-  isOnline: boolean;
+  isOnline?: boolean;
   lastSynced?: Date;
   syncFailed?: boolean;
   onReset?: () => void;
@@ -13,7 +13,7 @@ interface SyncStatusIndicatorProps {
 
 const SyncStatusIndicator: React.FC<SyncStatusIndicatorProps> = ({
   isSyncing,
-  isOnline,
+  isOnline = navigator.onLine,
   lastSynced,
   syncFailed = false,
   onReset

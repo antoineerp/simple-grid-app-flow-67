@@ -1,75 +1,78 @@
 
-import DbConnectionTest from '@/components/DbConnectionTest';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { getApiUrl } from '@/config/apiConfig';
+import React, { useState } from 'react';
+import { useDataSync } from '@/hooks/useDataSync';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 
-export default function DbTest() {
+interface TestData {
+  message: string;
+  createdAt: string;
+}
+
+const DbTest = () => {
+  const [inputText, setInputText] = useState('');
+  const { 
+    data, 
+    updateData, 
+    resetData, 
+    syncWithServer, 
+    isSyncing, 
+    isOnline, 
+    status, 
+    lastSynced, 
+    lastError, 
+    pendingChanges 
+  } = useDataSync<TestData>(
+    'test-data',
+    { message: 'Test initial', createdAt: new Date().toISOString() },
+    'test-sync'
+  );
+  
+  const handleUpdateMessage = () => {
+    if (!inputText.trim()) return;
+    
+    updateData({
+      message: inputText,
+      createdAt: new Date().toISOString()
+    });
+    
+    setInputText('');
+  };
+  
   return (
-    <div className="container py-6">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold">Test de connexion à la base de données</h1>
-        <p className="text-muted-foreground">
-          Cette page permet de tester directement la connexion à la base de données MySQL Infomaniak
-        </p>
+    <div className="p-8">
+      <h1 className="text-2xl font-bold mb-4">Test de la base de données</h1>
+      
+      <div className="bg-white p-4 rounded shadow mb-4">
+        <h2 className="text-lg font-semibold mb-2">État actuel</h2>
+        <p><strong>Message:</strong> {data.message}</p>
+        <p><strong>Date de création:</strong> {new Date(data.createdAt).toLocaleString()}</p>
+        <p><strong>En synchronisation:</strong> {isSyncing ? 'Oui' : 'Non'}</p>
+        <p><strong>En ligne:</strong> {isOnline ? 'Oui' : 'Non'}</p>
+        <p><strong>État:</strong> {status}</p>
+        <p><strong>Dernière synchro:</strong> {lastSynced ? lastSynced.toLocaleString() : 'Jamais'}</p>
+        <p><strong>Dernière erreur:</strong> {lastError ? lastError.message : 'Aucune'}</p>
+        <p><strong>Modifications en attente:</strong> {pendingChanges}</p>
       </div>
       
-      <Tabs defaultValue="direct">
-        <TabsList>
-          <TabsTrigger value="direct">Test direct</TabsTrigger>
-          <TabsTrigger value="info">Informations de connexion</TabsTrigger>
-        </TabsList>
-        <TabsContent value="direct" className="mt-4">
-          <DbConnectionTest />
-        </TabsContent>
-        <TabsContent value="info" className="mt-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Informations de connexion</CardTitle>
-              <CardDescription>
-                Paramètres de connexion à la base de données MySQL Infomaniak
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="bg-muted p-3 rounded">
-                    <h3 className="font-medium">Hôte</h3>
-                    <p className="font-mono text-sm">p71x6d.myd.infomaniak.com</p>
-                  </div>
-                  <div className="bg-muted p-3 rounded">
-                    <h3 className="font-medium">Base de données</h3>
-                    <p className="font-mono text-sm">p71x6d_system</p>
-                  </div>
-                  <div className="bg-muted p-3 rounded">
-                    <h3 className="font-medium">Utilisateur</h3>
-                    <p className="font-mono text-sm">p71x6d_system</p>
-                  </div>
-                  <div className="bg-muted p-3 rounded">
-                    <h3 className="font-medium">API URL</h3>
-                    <p className="font-mono text-sm">{getApiUrl()}</p>
-                  </div>
-                </div>
-                
-                <div className="bg-muted p-3 rounded">
-                  <h3 className="font-medium">Test direct via navigateur</h3>
-                  <p className="text-sm mb-2">
-                    Vous pouvez accéder directement au script de test via l'URL suivante:
-                  </p>
-                  <a 
-                    href={`${getApiUrl()}/direct-db-test.php`} 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="text-blue-600 hover:underline text-sm font-mono break-all"
-                  >
-                    {getApiUrl()}/direct-db-test.php
-                  </a>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+      <div className="flex items-center space-x-2 mb-4">
+        <Input
+          value={inputText}
+          onChange={(e) => setInputText(e.target.value)}
+          placeholder="Nouveau message"
+          className="flex-1"
+        />
+        <Button onClick={handleUpdateMessage}>Mettre à jour</Button>
+      </div>
+      
+      <div className="space-x-2">
+        <Button onClick={() => syncWithServer()} disabled={isSyncing}>
+          {isSyncing ? 'Synchronisation...' : 'Synchroniser'}
+        </Button>
+        <Button variant="outline" onClick={resetData}>Réinitialiser</Button>
+      </div>
     </div>
   );
-}
+};
+
+export default DbTest;

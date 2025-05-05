@@ -1,111 +1,208 @@
 
-// Énumération pour les statuts de synchronisation
-export enum SyncStatus {
+import { getApiUrl } from '@/config/apiConfig';
+import { getCurrentUser, getAuthHeaders } from '@/services/auth/authService';
+
+// Interface pour les options de synchronisation
+export interface SyncOptions {
+  forceSync?: boolean;
+  clearLocal?: boolean;
+  userId?: string;
+}
+
+// Interface pour l'état de synchronisation
+export interface SyncStatus {
+  lastSyncTime: Date | null;
+  isSyncing: boolean;
+  hasError: boolean;
+  errorMessage?: string;
+}
+
+// Types d'état de synchronisation
+export enum SyncState {
   Idle = 'idle',
   Syncing = 'syncing',
   Error = 'error',
+  Success = 'success'
 }
 
-// Options pour la synchronisation
-export interface SyncOptions {
-  showToast?: boolean;
-}
-
-// Structure pour les enregistrements de synchronisation
+// Interface pour un enregistrement de synchronisation
 export interface SyncRecord<T> {
-  timestamp: Date;
+  id: string;
+  timestamp: number;
   data: T;
-  status: 'pending' | 'synced' | 'error';
+  type: 'create' | 'update' | 'delete';
+  synced: boolean;
   error?: string;
 }
 
-// Interface pour les types de tables de données
-export interface DataTable<T> {
-  name: string;
-  endpoint: string;
-  getData: () => T[];
-  setData: (data: T[]) => void;
-}
-
-// Résultat de synchronisation
-export interface SyncResult {
-  success: boolean;
-  message?: string;
-  error?: any;
-}
-
-// Gestionnaire de synchronisation de données
+// Classe principale pour la gestion de la synchronisation des données
 class DataSyncManager {
-  private status: SyncStatus = SyncStatus.Idle;
-  private lastError: Error | null = null;
-  private lastSynced: Date | null = null;
-
+  private syncStatus: SyncStatus = {
+    lastSyncTime: null,
+    isSyncing: false,
+    hasError: false
+  };
+  
   constructor() {
-    console.log('DataSyncManager initialized');
+    console.log('DataSyncManager initialisé');
   }
-
-  // Obtenir le statut actuel de synchronisation
-  getSyncStatus(): SyncStatus {
-    return this.status;
+  
+  // Récupère l'état actuel de la synchronisation
+  public getSyncStatus(): SyncState {
+    if (this.syncStatus.isSyncing) {
+      return SyncState.Syncing;
+    }
+    
+    if (this.syncStatus.hasError) {
+      return SyncState.Error;
+    }
+    
+    if (this.syncStatus.lastSyncTime) {
+      return SyncState.Success;
+    }
+    
+    return SyncState.Idle;
   }
-
-  // Définir le statut de synchronisation
-  private setStatus(status: SyncStatus): void {
-    this.status = status;
-  }
-
-  // Synchroniser une table spécifique
-  async syncTable<T>(table: DataTable<T>, options?: SyncOptions): Promise<SyncResult> {
+  
+  // Méthode pour synchroniser toutes les tables
+  public async syncAllTables(): Promise<boolean> {
+    console.log('Synchronisation de toutes les tables...');
+    this.syncStatus.isSyncing = true;
+    
     try {
-      this.setStatus(SyncStatus.Syncing);
+      // Ici, on implémenterait la logique de synchronisation de toutes les tables
+      // Pour l'exemple, on simule une synchronisation réussie
       
-      // Logique de synchronisation avec le serveur
-      console.log(`Synchronizing table: ${table.name}`);
+      this.syncStatus.lastSyncTime = new Date();
+      this.syncStatus.hasError = false;
+      this.syncStatus.errorMessage = undefined;
+      this.syncStatus.isSyncing = false;
       
-      // Simuler un délai de réseau
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      this.setStatus(SyncStatus.Idle);
-      this.lastSynced = new Date();
-      
-      return { success: true };
+      return true;
     } catch (error) {
-      this.setStatus(SyncStatus.Error);
-      this.lastError = error as Error;
-      console.error(`Error syncing table ${table.name}:`, error);
-      return { 
-        success: false, 
-        error: error,
-        message: error instanceof Error ? error.message : 'Erreur inconnue'
-      };
+      console.error('Erreur lors de la synchronisation de toutes les tables:', error);
+      
+      this.syncStatus.hasError = true;
+      this.syncStatus.errorMessage = error instanceof Error ? error.message : 'Erreur de synchronisation inconnue';
+      this.syncStatus.isSyncing = false;
+      
+      return false;
     }
   }
-
-  // Synchroniser toutes les tables
-  async syncAllTables(): Promise<SyncResult[]> {
-    // Cette méthode serait implémentée pour synchroniser toutes les tables
-    console.log("Syncing all tables");
-    return [{ success: true }];
-  }
-
-  // Réinitialiser le statut d'erreur
-  resetErrorStatus(): void {
-    if (this.status === SyncStatus.Error) {
-      this.status = SyncStatus.Idle;
-      this.lastError = null;
+  
+  // Méthodes pour la gestion des données locales
+  public getLocalData<T>(key: string, userId?: string): Promise<T | null> {
+    const currentUser = userId || getCurrentUser()?.id || 'default';
+    const storageKey = `${key}_${currentUser}`;
+    
+    try {
+      const data = localStorage.getItem(storageKey);
+      return Promise.resolve(data ? JSON.parse(data) : null);
+    } catch (error) {
+      console.error(`Erreur lors de la récupération des données locales pour ${key}:`, error);
+      return Promise.resolve(null);
     }
   }
-
-  // Obtenir la dernière erreur
-  getLastError(): Error | null {
-    return this.lastError;
+  
+  public saveLocalData<T>(key: string, data: T, userId?: string): Promise<boolean> {
+    const currentUser = userId || getCurrentUser()?.id || 'default';
+    const storageKey = `${key}_${currentUser}`;
+    
+    try {
+      localStorage.setItem(storageKey, JSON.stringify(data));
+      return Promise.resolve(true);
+    } catch (error) {
+      console.error(`Erreur lors de la sauvegarde des données locales pour ${key}:`, error);
+      return Promise.resolve(false);
+    }
   }
-
-  // Obtenir la date de dernière synchronisation
-  getLastSynced(): Date | null {
-    return this.lastSynced;
+  
+  // Méthode générique pour synchroniser des données avec le serveur
+  public async syncData<T>(endpoint: string, data: T, options: SyncOptions = {}): Promise<boolean> {
+    if (!navigator.onLine && !options.forceSync) {
+      console.log('Mode hors ligne détecté, synchronisation ignorée');
+      return false;
+    }
+    
+    this.syncStatus.isSyncing = true;
+    
+    try {
+      const API_URL = getApiUrl();
+      const userId = options.userId || getCurrentUser()?.id || 'default';
+      
+      const response = await fetch(`${API_URL}/${endpoint}`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ userId, data })
+      });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`Erreur lors de la synchronisation avec ${endpoint}:`, errorText);
+        throw new Error(`Échec de la synchronisation (${response.status}): ${errorText}`);
+      }
+      
+      const result = await response.json();
+      
+      this.syncStatus.lastSyncTime = new Date();
+      this.syncStatus.hasError = false;
+      this.syncStatus.errorMessage = undefined;
+      
+      return result.success === true;
+    } catch (error) {
+      console.error(`Erreur lors de la synchronisation avec ${endpoint}:`, error);
+      
+      this.syncStatus.hasError = true;
+      this.syncStatus.errorMessage = error instanceof Error ? error.message : 'Erreur de synchronisation inconnue';
+      
+      return false;
+    } finally {
+      this.syncStatus.isSyncing = false;
+    }
+  }
+  
+  // Méthode générique pour charger des données depuis le serveur
+  public async loadData<T>(endpoint: string, options: SyncOptions = {}): Promise<T | null> {
+    if (!navigator.onLine && !options.forceSync) {
+      console.log('Mode hors ligne détecté, chargement depuis le serveur ignoré');
+      return null;
+    }
+    
+    this.syncStatus.isSyncing = true;
+    
+    try {
+      const API_URL = getApiUrl();
+      const userId = options.userId || getCurrentUser()?.id || 'default';
+      
+      const response = await fetch(`${API_URL}/${endpoint}?userId=${encodeURIComponent(userId)}`, {
+        method: 'GET',
+        headers: getAuthHeaders()
+      });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`Erreur lors du chargement depuis ${endpoint}:`, errorText);
+        throw new Error(`Échec du chargement (${response.status}): ${errorText}`);
+      }
+      
+      const result = await response.json();
+      
+      this.syncStatus.lastSyncTime = new Date();
+      this.syncStatus.hasError = false;
+      this.syncStatus.errorMessage = undefined;
+      
+      return result.success ? result.data : null;
+    } catch (error) {
+      console.error(`Erreur lors du chargement depuis ${endpoint}:`, error);
+      
+      this.syncStatus.hasError = true;
+      this.syncStatus.errorMessage = error instanceof Error ? error.message : 'Erreur de chargement inconnue';
+      
+      return null;
+    } finally {
+      this.syncStatus.isSyncing = false;
+    }
   }
 }
 
-// Exporter une instance singleton
 export const dataSyncManager = new DataSyncManager();

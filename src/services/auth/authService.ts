@@ -113,3 +113,14 @@ export const getUserRole = (): string | null => {
 export const saveToken = (token: string): void => {
   localStorage.setItem(TOKEN_KEY, token);
 };
+
+/**
+ * Récupère les entêtes d'authentification pour les requêtes API
+ */
+export const getAuthHeaders = () => {
+  const token = getToken();
+  return {
+    'Authorization': token ? `Bearer ${token}` : '',
+    'Content-Type': 'application/json'
+  };
+};
