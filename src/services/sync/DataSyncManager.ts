@@ -1,257 +1,251 @@
 
-import { syncService, SyncResult } from './SyncService';
+import { toast } from '@/hooks/use-toast';
+import { syncService, SyncResult } from '@/services/sync/SyncService';
+import { getCurrentUser } from '@/services/core/databaseConnectionService';
 
-export type SyncStatus = 'idle' | 'syncing' | 'success' | 'failed';
+// Types exportés
+export type SyncStatus = 'pending' | 'success' | 'failed' | 'syncing';
 
 export interface SyncRecord {
-  tableName: string;
   lastSynced: Date | null;
   status: SyncStatus;
-  pendingChanges: number;
   lastError: string | null;
+  pendingChanges: number;
 }
 
 export interface SyncOptions {
   showToast?: boolean;
-  forceSync?: boolean;
 }
 
 class DataSyncManager {
-  private syncStatus: Map<string, SyncRecord> = new Map();
-  private activeSyncs: number = 0;
-
-  /**
-   * Récupère le statut de synchronisation global
-   */
-  getGlobalSyncStatus() {
-    const pendingChangesCount = Array.from(this.syncStatus.values())
-      .reduce((sum, status) => sum + status.pendingChanges, 0);
+  private syncRecords: Map<string, SyncRecord> = new Map();
+  
+  constructor() {
+    // Initialiser l'état de synchronisation pour chaque table
+    this.resetSyncRecord('documents');
+    this.resetSyncRecord('document_groups');
+    this.resetSyncRecord('exigences');
+    this.resetSyncRecord('exigence_groups');
     
-    return {
-      pendingChangesCount,
-      activeSyncCount: this.activeSyncs
-    };
+    console.log('DataSyncManager initialized');
   }
-
-  /**
-   * Récupère le statut de synchronisation pour une table spécifique
-   */
-  getSyncStatus(tableName: string): SyncRecord {
-    return this.syncStatus.get(tableName) || {
-      tableName,
+  
+  private resetSyncRecord(tableName: string) {
+    this.syncRecords.set(tableName, {
       lastSynced: null,
-      status: 'idle',
-      pendingChanges: 0,
-      lastError: null
-    };
-  }
-
-  /**
-   * Marque une table comme ayant des modifications en attente
-   */
-  markTableAsChanged(tableName: string, changeCount: number = 1) {
-    const currentStatus = this.getSyncStatus(tableName);
-    
-    this.syncStatus.set(tableName, {
-      ...currentStatus,
-      pendingChanges: currentStatus.pendingChanges + changeCount
+      status: 'pending',
+      lastError: null,
+      pendingChanges: 0
     });
   }
-
-  /**
-   * Synchronise toutes les tables qui ont des modifications en attente
-   */
-  async syncAllPending(): Promise<SyncResult> {
-    const tablesToSync = Array.from(this.syncStatus.entries())
-      .filter(([_, status]) => status.pendingChanges > 0)
-      .map(([tableName]) => tableName);
-    
-    if (tablesToSync.length === 0) {
-      return { success: true, message: "Aucune modification en attente" };
-    }
-    
-    try {
-      this.activeSyncs++;
-      
-      // Sync each table one by one
-      const results = await Promise.all(
-        tablesToSync.map(async (tableName) => {
-          try {
-            // Load data from local storage
-            const localData = localStorage.getItem(`${tableName}_data`);
-            const localGroups = localStorage.getItem(`${tableName}_groups`);
-            
-            if (!localData) {
-              return { tableName, success: true, message: "Pas de données locales" };
-            }
-            
-            const data = JSON.parse(localData);
-            const groups = localGroups ? JSON.parse(localGroups) : [];
-            
-            // Sync data with server
-            const result = await syncService.syncTable({
-              tableName,
-              data,
-              groups
-            });
-            
-            // Update sync status
-            if (result.success) {
-              const currentStatus = this.getSyncStatus(tableName);
-              this.syncStatus.set(tableName, {
-                ...currentStatus,
-                lastSynced: new Date(),
-                status: 'success',
-                pendingChanges: 0
-              });
-            }
-            
-            return { tableName, ...result };
-          } catch (error) {
-            console.error(`Error syncing ${tableName}:`, error);
-            return {
-              tableName,
-              success: false,
-              message: error instanceof Error ? error.message : "Unknown error"
-            };
-          }
-        })
-      );
-      
-      // Check if all syncs succeeded
-      const allSuccess = results.every(r => r.success);
-      const messages = results.map(r => `${r.tableName}: ${r.message || (r.success ? "OK" : "Failed")}`);
-      
-      return {
-        success: allSuccess,
-        message: allSuccess ? "All pending changes synced" : "Some syncs failed",
-        details: {
-          results,
-          messages
-        }
-      };
-    } catch (error) {
-      console.error("Error syncing all pending changes:", error);
-      return {
-        success: false,
-        message: error instanceof Error ? error.message : "Unknown error"
-      };
-    } finally {
-      this.activeSyncs--;
-    }
+  
+  public getSyncStatus(tableName: string): SyncRecord {
+    return this.syncRecords.get(tableName) || {
+      lastSynced: null,
+      status: 'pending',
+      lastError: null,
+      pendingChanges: 0
+    };
   }
   
-  /**
-   * Get local data for a table
-   */
-  getLocalData<T>(tableName: string): T[] {
-    try {
-      const data = localStorage.getItem(`${tableName}_data`);
-      return data ? JSON.parse(data) : [];
-    } catch (error) {
-      console.error(`Error getting local data for ${tableName}:`, error);
-      return [];
-    }
+  public markTableAsChanged(tableName: string): void {
+    const record = this.getSyncStatus(tableName);
+    this.syncRecords.set(tableName, {
+      ...record,
+      pendingChanges: (record.pendingChanges || 0) + 1
+    });
   }
   
-  /**
-   * Save data locally
-   */
-  saveLocalData<T>(tableName: string, data: T[]): void {
-    try {
-      localStorage.setItem(`${tableName}_data`, JSON.stringify(data));
-      this.markTableAsChanged(tableName);
-    } catch (error) {
-      console.error(`Error saving local data for ${tableName}:`, error);
-    }
+  public resetSyncStatus(tableName: string): void {
+    const record = this.getSyncStatus(tableName);
+    this.syncRecords.set(tableName, {
+      ...record,
+      status: 'pending',
+      lastError: null
+    });
   }
   
-  /**
-   * Synchronize data with server
-   */
-  async syncData<T>(tableName: string, data: T[], options?: SyncOptions): Promise<SyncResult> {
+  public async syncData<T>(
+    tableName: string, 
+    data: T[],
+    options?: SyncOptions
+  ): Promise<SyncResult> {
     try {
-      this.activeSyncs++;
+      // Mettre à jour l'état
+      const record = this.getSyncStatus(tableName);
+      this.syncRecords.set(tableName, {
+        ...record,
+        status: 'syncing'
+      });
       
+      // Obtenir l'ID utilisateur
+      const userId = getCurrentUser();
+      
+      if (!userId) {
+        throw new Error("Utilisateur non connecté");
+      }
+      
+      // Synchroniser avec le serveur
       const result = await syncService.syncTable({
         tableName,
         data
-      }, options?.showToast);
+      }, userId);
       
+      // Mettre à jour l'état
       if (result.success) {
-        const currentStatus = this.getSyncStatus(tableName);
-        this.syncStatus.set(tableName, {
-          ...currentStatus,
+        this.syncRecords.set(tableName, {
           lastSynced: new Date(),
           status: 'success',
-          pendingChanges: 0,
-          lastError: null
+          lastError: null,
+          pendingChanges: 0
         });
+        
+        // Notification de réussite si demandé
+        if (options?.showToast) {
+          toast({
+            title: "Synchronisation",
+            description: `Synchronisation de ${tableName} réussie`,
+          });
+        }
       } else {
-        const currentStatus = this.getSyncStatus(tableName);
-        this.syncStatus.set(tableName, {
-          ...currentStatus,
+        this.syncRecords.set(tableName, {
+          ...record,
           status: 'failed',
-          lastError: result.message || "Unknown error"
+          lastError: result.message || "Erreur inconnue"
         });
+        
+        // Notification d'échec si demandé
+        if (options?.showToast) {
+          toast({
+            title: "Erreur de synchronisation",
+            description: result.message || `Échec de la synchronisation de ${tableName}`,
+            variant: "destructive",
+          });
+        }
       }
       
       return result;
     } catch (error) {
-      console.error(`Error syncing data for ${tableName}:`, error);
+      // Gérer l'erreur
+      const errorMessage = error instanceof Error ? error.message : "Erreur inconnue";
       
-      const currentStatus = this.getSyncStatus(tableName);
-      this.syncStatus.set(tableName, {
-        ...currentStatus,
+      // Mettre à jour l'état
+      const record = this.getSyncStatus(tableName);
+      this.syncRecords.set(tableName, {
+        ...record,
         status: 'failed',
-        lastError: error instanceof Error ? error.message : "Unknown error"
+        lastError: errorMessage
       });
+      
+      // Notification d'échec
+      if (options?.showToast) {
+        toast({
+          title: "Erreur de synchronisation",
+          description: errorMessage,
+          variant: "destructive",
+        });
+      }
       
       return {
         success: false,
-        message: error instanceof Error ? error.message : "Unknown error"
+        message: errorMessage
       };
-    } finally {
-      this.activeSyncs--;
     }
   }
   
-  /**
-   * Load data from server
-   */
-  async loadData<T>(tableName: string, options?: SyncOptions): Promise<T[]> {
+  public async loadData<T>(
+    tableName: string, 
+    options?: SyncOptions
+  ): Promise<T[]> {
     try {
-      this.activeSyncs++;
+      // Mettre à jour l'état
+      const record = this.getSyncStatus(tableName);
+      this.syncRecords.set(tableName, {
+        ...record,
+        status: 'syncing'
+      });
       
-      const data = await syncService.loadDataFromServer<T>(tableName);
+      // Obtenir l'ID utilisateur
+      const userId = getCurrentUser();
       
-      // Save data to local storage
-      this.saveLocalData(tableName, data);
+      if (!userId) {
+        throw new Error("Utilisateur non connecté");
+      }
       
-      const currentStatus = this.getSyncStatus(tableName);
-      this.syncStatus.set(tableName, {
-        ...currentStatus,
+      // Charger les données depuis le serveur
+      const data = await syncService.loadDataFromServer<T>(tableName, userId);
+      
+      // Mettre à jour l'état
+      this.syncRecords.set(tableName, {
         lastSynced: new Date(),
         status: 'success',
-        pendingChanges: 0,
-        lastError: null
+        lastError: null,
+        pendingChanges: 0
       });
+      
+      // Notification de réussite si demandé
+      if (options?.showToast) {
+        toast({
+          title: "Données chargées",
+          description: `Les données de ${tableName} ont été chargées`,
+        });
+      }
       
       return data;
     } catch (error) {
-      console.error(`Error loading data for ${tableName}:`, error);
+      // Gérer l'erreur
+      const errorMessage = error instanceof Error ? error.message : "Erreur inconnue";
       
-      const currentStatus = this.getSyncStatus(tableName);
-      this.syncStatus.set(tableName, {
-        ...currentStatus,
+      // Mettre à jour l'état
+      const record = this.getSyncStatus(tableName);
+      this.syncRecords.set(tableName, {
+        ...record,
         status: 'failed',
-        lastError: error instanceof Error ? error.message : "Unknown error"
+        lastError: errorMessage
       });
       
-      // Return local data as fallback
-      return this.getLocalData<T>(tableName);
-    } finally {
-      this.activeSyncs--;
+      // Notification d'échec
+      if (options?.showToast) {
+        toast({
+          title: "Erreur de chargement",
+          description: errorMessage,
+          variant: "destructive",
+        });
+      }
+      
+      // Retourner un tableau vide en cas d'erreur
+      return [];
+    }
+  }
+
+  // Méthode pour obtenir les données locales
+  public getLocalData<T>(tableName: string): T[] {
+    try {
+      const key = `${tableName}_data`;
+      const data = localStorage.getItem(key);
+      if (data) {
+        return JSON.parse(data);
+      }
+      return [];
+    } catch (error) {
+      console.error(`Erreur lors de la récupération des données locales pour ${tableName}:`, error);
+      return [];
+    }
+  }
+
+  // Méthode pour sauvegarder les données localement
+  public saveLocalData<T>(tableName: string, data: T[]): void {
+    try {
+      const key = `${tableName}_data`;
+      localStorage.setItem(key, JSON.stringify(data));
+      this.markTableAsChanged(tableName);
+    } catch (error) {
+      console.error(`Erreur lors de la sauvegarde des données locales pour ${tableName}:`, error);
+      toast({
+        title: "Erreur de sauvegarde",
+        description: "Impossible de sauvegarder les données localement",
+        variant: "destructive",
+      });
     }
   }
 }

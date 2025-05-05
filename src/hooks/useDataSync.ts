@@ -1,13 +1,14 @@
 
 import { useState, useEffect, useCallback } from 'react';
-import { dataSyncManager, SyncStatus } from '@/services/sync/DataSyncManager';
+import { dataSyncManager, SyncStatus, SyncRecord, SyncOptions } from '@/services/sync/DataSyncManager';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { SyncResult } from '@/services/sync/SyncService';
+import { getCurrentUser } from '@/services/core/databaseConnectionService';
 
 export interface DataSyncState<T> {
   data: T[];
-  syncData: (newData?: T[], options?: { showToast?: boolean }) => Promise<boolean>;
-  loadData: (options?: { showToast?: boolean }) => Promise<T[]>;
+  syncData: (newData?: T[], options?: SyncOptions) => Promise<boolean>;
+  loadData: (options?: SyncOptions) => Promise<T[]>;
   saveLocalData: (newData: T[]) => void;
   refreshStatus: () => void;
   isOnline: boolean;
@@ -34,14 +35,8 @@ export function useDataSync<T>(tableName: string): DataSyncState<T> {
   
   // Charger les données initiales localement
   useEffect(() => {
-    const localData = localStorage.getItem(`${tableName}_data`);
-    if (localData) {
-      try {
-        setData(JSON.parse(localData));
-      } catch (e) {
-        console.error(`Error parsing local data for ${tableName}:`, e);
-      }
-    }
+    const localData = dataSyncManager.getLocalData<T>(tableName);
+    setData(localData);
     
     // Configurer un intervalle pour surveiller les changements de statut
     const intervalId = setInterval(refreshStatus, 2000);
@@ -52,7 +47,7 @@ export function useDataSync<T>(tableName: string): DataSyncState<T> {
   // Synchroniser les données avec le serveur
   const syncData = useCallback(async (
     newData?: T[],
-    options?: { showToast?: boolean }
+    options?: SyncOptions
   ): Promise<boolean> => {
     if (!isOnline) {
       return false;
@@ -63,7 +58,7 @@ export function useDataSync<T>(tableName: string): DataSyncState<T> {
     // Si des données sont fournies, les enregistrer localement d'abord
     if (newData) {
       setData(newData);
-      localStorage.setItem(`${tableName}_data`, JSON.stringify(newData));
+      dataSyncManager.saveLocalData(tableName, newData);
       dataSyncManager.markTableAsChanged(tableName);
     }
     
@@ -78,7 +73,7 @@ export function useDataSync<T>(tableName: string): DataSyncState<T> {
   }, [tableName, data, isOnline, refreshStatus]);
   
   // Charger les données depuis le serveur
-  const loadData = useCallback(async (options?: { showToast?: boolean }): Promise<T[]> => {
+  const loadData = useCallback(async (options?: SyncOptions): Promise<T[]> => {
     try {
       const result = await dataSyncManager.loadData<T>(tableName, options);
       setData(result);
@@ -87,25 +82,16 @@ export function useDataSync<T>(tableName: string): DataSyncState<T> {
     } catch (error) {
       console.error(`Error loading data for ${tableName}:`, error);
       // Try to load from local storage as fallback
-      const localData = localStorage.getItem(`${tableName}_data`);
-      if (localData) {
-        try {
-          const parsedData = JSON.parse(localData);
-          setData(parsedData);
-          return parsedData;
-        } catch (e) {
-          console.error(`Error parsing local data for ${tableName}:`, e);
-        }
-      }
-      return [];
+      const localData = dataSyncManager.getLocalData<T>(tableName);
+      setData(localData);
+      return localData;
     }
   }, [tableName, refreshStatus]);
   
   // Sauvegarder les données localement
   const saveLocalData = useCallback((newData: T[]): void => {
     setData(newData);
-    localStorage.setItem(`${tableName}_data`, JSON.stringify(newData));
-    dataSyncManager.markTableAsChanged(tableName);
+    dataSyncManager.saveLocalData(tableName, newData);
     refreshStatus();
   }, [tableName, refreshStatus]);
   

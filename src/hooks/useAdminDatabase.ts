@@ -1,136 +1,103 @@
-import { useState, useCallback, useEffect } from 'react';
-import { getApiUrl } from '@/config/apiConfig';
-import { getAuthHeaders } from '@/services/auth/authService';
-import { useToast } from '@/hooks/use-toast';
 
-export interface DatabaseInfo {
+import { useState, useEffect, useCallback } from 'react';
+import { useToast } from '@/hooks/use-toast';
+import { getDatabaseInfo } from '@/services/core/databaseConnectionService';
+import { databaseHelper } from '@/services/sync/DatabaseHelper';
+
+// Interface pour les informations de la base de données
+interface DatabaseInfo {
   host: string;
-  database: string;
-  size: string;
-  tables: number;
-  lastBackup: string;
-  status: string;
-  encoding: string;
-  collation: string;
-  tableList: any[];
+  db_name: string;
+  username: string;
+  password?: string;
+  is_connected: boolean;
+  error?: string | null;
+  source?: string;
 }
 
-export const useAdminDatabase = () => {
-  const [dbInfo, setDbInfo] = useState<DatabaseInfo | null>(null);
-  const [loading, setLoading] = useState<boolean>(false);
+export function useAdminDatabase() {
+  const [databaseInfo, setDatabaseInfo] = useState<DatabaseInfo | null>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-  const [testingConnection, setTestingConnection] = useState<boolean>(false);
+  const [isUpdating, setIsUpdating] = useState<boolean>(false);
   const { toast } = useToast();
-
-  // Fonction pour charger les informations de la base de données
+  
+  // Charger les informations de la base de données
   const loadDatabaseInfo = useCallback(async () => {
-    setLoading(true);
+    setIsLoading(true);
     setError(null);
     
     try {
-      // Utiliser l'endpoint direct pour obtenir des informations réelles
-      const response = await fetch('/api/direct-db-test.php');
+      const data = await getDatabaseInfo();
       
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || `Erreur HTTP ${response.status}: ${response.statusText}`);
-      }
-      
-      const result = await response.json();
-      
-      if (result.status !== 'success') {
-        throw new Error(result.message || result.error || 'Échec de la récupération des informations');
-      }
-      
-      // Format des données pour notre interface
-      const info: DatabaseInfo = {
-        host: result.host,
-        database: result.database,
-        size: result.size || '0 MB',
-        tables: result.tables ? result.tables.length : 0,
-        lastBackup: new Date().toISOString().split('T')[0] + ' 00:00:00',
-        status: 'Online',
-        encoding: 'utf8mb4',
-        collation: 'utf8mb4_unicode_ci',
-        tableList: result.tables || []
-      };
-      
-      setDbInfo(info);
-      console.log("Informations de la base de données reçues:", info);
-    } catch (err) {
-      console.error("Erreur lors du chargement des informations de la base de données:", err);
-      const errorMessage = err instanceof Error ? err.message : "Erreur inconnue";
-      setError(`Erreur lors du chargement des informations de la base de données: ${errorMessage}`);
-      
-      toast({
-        title: "Erreur",
-        description: "Impossible de charger les informations de la base de données.",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
-  }, [toast]);
-
-  // Fonction pour tester la connexion à la base de données
-  const handleTestConnection = useCallback(async () => {
-    setTestingConnection(true);
-    setError(null);
-    
-    try {
-      const API_URL = getApiUrl();
-      console.log("Test de la connexion à la base de données");
-      
-      // Utiliser l'endpoint direct pour un test réel
-      const response = await fetch(`${API_URL}/direct-db-test.php`, {
-        method: 'GET',
-        headers: getAuthHeaders()
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || errorData.error || `Échec du test (HTTP ${response.status})`);
-      }
-      
-      const data = await response.json();
-      
-      if (data.status === 'success') {
+      if (data.error) {
+        setError(data.error);
         toast({
-          title: "Connexion réussie",
-          description: `Connexion établie à ${data.host || 'la base de données'}.`,
+          title: "Erreur de connexion",
+          description: data.error,
+          variant: "destructive",
         });
       } else {
-        throw new Error(data.message || data.error || "Échec de la connexion à la base de données");
+        setDatabaseInfo(data);
       }
-      
-      // Recharger les informations après le test
-      await loadDatabaseInfo();
     } catch (err) {
-      console.error("Erreur lors du test de connexion:", err);
-      const errorMessage = err instanceof Error ? err.message : "Erreur inconnue";
-      setError(`Erreur lors du test de connexion: ${errorMessage}`);
-      
+      const message = err instanceof Error ? err.message : "Erreur inconnue";
+      setError(message);
       toast({
         title: "Erreur de connexion",
-        description: errorMessage,
+        description: message,
         variant: "destructive",
       });
     } finally {
-      setTestingConnection(false);
+      setIsLoading(false);
     }
-  }, [toast, loadDatabaseInfo]);
-
-  // Charger les informations au montage du composant
+  }, [toast]);
+  
+  // Mettre à jour la structure de la base de données
+  const updateDatabaseStructure = useCallback(async () => {
+    setIsUpdating(true);
+    
+    try {
+      const result = await databaseHelper.forceUpdateAllTables();
+      
+      if (result.success) {
+        toast({
+          title: "Mise à jour réussie",
+          description: "La structure de la base de données a été mise à jour avec succès",
+        });
+      } else {
+        toast({
+          title: "Échec de la mise à jour",
+          description: result.message || "Une erreur est survenue lors de la mise à jour",
+          variant: "destructive",
+        });
+      }
+      
+      return result;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Erreur inconnue";
+      toast({
+        title: "Erreur de mise à jour",
+        description: message,
+        variant: "destructive",
+      });
+      return { success: false, message };
+    } finally {
+      setIsUpdating(false);
+    }
+  }, [toast]);
+  
+  // Charger les informations au montage
   useEffect(() => {
     loadDatabaseInfo();
   }, [loadDatabaseInfo]);
-
+  
   return {
-    dbInfo,
-    loading,
+    databaseInfo,
+    isLoading,
     error,
-    testingConnection,
+    isUpdating,
     loadDatabaseInfo,
-    handleTestConnection
+    updateDatabaseStructure
   };
-};
+}

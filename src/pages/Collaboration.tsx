@@ -23,6 +23,7 @@ const Collaboration = () => {
   // Wrapper function to handle void return type
   const handleSync = async (): Promise<void> => {
     await syncWithServer();
+    // Ne rien retourner pour garantir le type void
   };
 
   return (
