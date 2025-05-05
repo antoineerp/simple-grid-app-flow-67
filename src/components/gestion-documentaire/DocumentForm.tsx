@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -18,7 +17,8 @@ const DocumentForm: React.FC<DocumentFormProps> = ({ document, open, onOpenChang
   const { toast } = useToast();
   const [formData, setFormData] = useState<Document>({
     id: document?.id || '',
-    nom: document?.nom || '',
+    name: document?.name || document?.nom || '',
+    nom: document?.nom || document?.name || '',
     fichier_path: document?.fichier_path || null,
     responsabilites: document?.responsabilites || { r: [], a: [], c: [], i: [] },
     etat: document?.etat || null,
@@ -30,7 +30,8 @@ const DocumentForm: React.FC<DocumentFormProps> = ({ document, open, onOpenChang
     if (document) {
       setFormData({
         id: document.id,
-        nom: document.nom,
+        name: document.name || document.nom || '',
+        nom: document.nom || document.name || '',
         fichier_path: document.fichier_path,
         responsabilites: document.responsabilites,
         etat: document.etat,
@@ -44,7 +45,10 @@ const DocumentForm: React.FC<DocumentFormProps> = ({ document, open, onOpenChang
     const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
-      [name]: value
+      [name]: value,
+      // Keep name and nom in sync
+      ...(name === 'nom' ? { name: value } : {}),
+      ...(name === 'name' ? { nom: value } : {})
     }));
   };
 
@@ -73,7 +77,7 @@ const DocumentForm: React.FC<DocumentFormProps> = ({ document, open, onOpenChang
               <Input
                 id="nom"
                 name="nom"
-                value={formData.nom}
+                value={formData.nom || ''}
                 onChange={handleInputChange}
                 className="col-span-3"
               />

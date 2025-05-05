@@ -1,7 +1,7 @@
 
 export interface Document {
   id: string;
-  name: string;           // Propriété originale
+  name?: string;           // Made optional since some components use nom instead
   nom?: string;           // Propriété utilisée dans certains composants
   link?: string | null;
   groupId?: string;

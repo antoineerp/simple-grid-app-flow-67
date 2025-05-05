@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import DocumentTable from '@/components/documents/DocumentTable';
 import { Button } from '@/components/ui/button';
@@ -134,7 +133,7 @@ const GestionDocumentaire = () => {
       }
       return doc;
     });
-    setDocuments(updatedDocuments);
+    setDocuments(updatedDocuments as Document[]);
   };
 
   const handleAtteinteChange = (id: string, atteinte: 'NC' | 'PC' | 'C' | 'EX' | null) => {
@@ -148,7 +147,7 @@ const GestionDocumentaire = () => {
       }
       return doc;
     });
-    setDocuments(updatedDocuments);
+    setDocuments(updatedDocuments as Document[]);
   };
 
   const handleExclusionChange = (id: string) => {
@@ -162,7 +161,7 @@ const GestionDocumentaire = () => {
       }
       return doc;
     });
-    setDocuments(updatedDocuments);
+    setDocuments(updatedDocuments as Document[]);
   };
   
   // Gestion des ajouts

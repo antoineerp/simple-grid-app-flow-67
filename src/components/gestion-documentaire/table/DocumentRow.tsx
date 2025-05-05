@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { TableRow, TableCell } from "@/components/ui/table";
 import { Document } from '@/types/documents';
@@ -66,7 +65,7 @@ const DocumentRow: React.FC<DocumentRowProps> = ({
         </div>
       </TableCell>
       
-      <TableCell className="py-3 px-4 font-medium">{doc.nom}</TableCell>
+      <TableCell className="py-3 px-4 font-medium">{doc.nom || doc.name}</TableCell>
       
       <TableCell className="py-3 px-4">
         <FileLink filePath={doc.fichier_path} />

@@ -197,6 +197,7 @@ export const useDocuments = () => {
     const newId = (maxId + 1).toString();
     const newDocument: Document = {
       id: newId,
+      name: `Document ${newId}`,
       nom: `Document ${newId}`,
       fichier_path: null,
       responsabilites: { r: [], a: [], c: [], i: [] },

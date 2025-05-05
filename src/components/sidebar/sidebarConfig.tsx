@@ -1,4 +1,5 @@
 
+import React from 'react';
 import { Users, FileText, FolderOpen, Settings } from "lucide-react";
 
 export const navigationItems = [
