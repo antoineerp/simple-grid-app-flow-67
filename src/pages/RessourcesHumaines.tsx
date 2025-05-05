@@ -17,7 +17,7 @@ const RessourcesHumaines = () => {
   
   const handleTabChange = (value: string) => {
     setActiveTab(value);
-    logUserActivity('Changement d'onglet', value);
+    logUserActivity("Changement d'onglet", value);
   };
   
   return (
