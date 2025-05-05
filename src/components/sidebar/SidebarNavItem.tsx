@@ -15,7 +15,7 @@ const SidebarNavItem = ({ to, icon: Icon, label }: SidebarNavItemProps) => {
       to={to} 
       className={({ isActive }) => `
         flex items-center p-3 mb-1 rounded hover:bg-app-light-blue
-        ${isActive ? 'active-sidebar-item' : ''}
+        ${isActive ? 'bg-app-light-blue text-app-blue font-medium' : 'text-gray-700'}
       `}
     >
       <Icon className="mr-3 h-5 w-5" />

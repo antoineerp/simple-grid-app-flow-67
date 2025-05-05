@@ -8,6 +8,10 @@ import DbTest from '@/pages/DbTest';
 import Index from '@/pages/Index';
 import Layout from '@/components/Layout';
 import Pilotage from '@/pages/Pilotage';
+import Exigences from '@/pages/Exigences';
+import GestionDocumentaire from '@/pages/GestionDocumentaire';
+import RessourcesHumaines from '@/pages/RessourcesHumaines';
+import NotFound from '@/pages/NotFound';
 import { getIsLoggedIn } from '@/services/auth/authService';
 
 // Composant de route protégée qui vérifie l'authentification
@@ -34,6 +38,26 @@ function App() {
               <Pilotage />
             </ProtectedRoute>
           } />
+          <Route path="exigences" element={
+            <ProtectedRoute>
+              <Exigences />
+            </ProtectedRoute>
+          } />
+          <Route path="gestion-documentaire" element={
+            <ProtectedRoute>
+              <GestionDocumentaire />
+            </ProtectedRoute>
+          } />
+          <Route path="ressources-humaines" element={
+            <ProtectedRoute>
+              <RessourcesHumaines />
+            </ProtectedRoute>
+          } />
+          <Route path="collaboration" element={
+            <ProtectedRoute>
+              <div className="p-8">Page de collaboration en cours de développement</div>
+            </ProtectedRoute>
+          } />
           <Route path="db-test" element={
             <ProtectedRoute>
               <DbTest />
@@ -44,32 +68,10 @@ function App() {
               <DbAdmin />
             </ProtectedRoute>
           } />
-          
-          {/* Pour les routes des autres items du menu de navigation */}
-          <Route path="exigences" element={
-            <ProtectedRoute>
-              <div className="p-8">Page des exigences en cours de développement</div>
-            </ProtectedRoute>
-          } />
-          <Route path="gestion-documentaire" element={
-            <ProtectedRoute>
-              <div className="p-8">Page de gestion documentaire en cours de développement</div>
-            </ProtectedRoute>
-          } />
-          <Route path="ressources-humaines" element={
-            <ProtectedRoute>
-              <div className="p-8">Page des ressources humaines en cours de développement</div>
-            </ProtectedRoute>
-          } />
-          <Route path="collaboration" element={
-            <ProtectedRoute>
-              <div className="p-8">Page de collaboration en cours de développement</div>
-            </ProtectedRoute>
-          } />
         </Route>
         
         {/* Redirection pour les routes inconnues */}
-        <Route path="*" element={<Navigate to="/" />} />
+        <Route path="*" element={<NotFound />} />
       </Routes>
       <Toaster />
       <GlobalSyncManager />
