@@ -5,7 +5,7 @@ import Header from './Header';
 import Footer from './Footer';
 import Sidebar from './Sidebar';
 import { MembresProvider } from '@/contexts/MembresContext';
-import { getIsLoggedIn, getAuthToken, getCurrentUser } from '@/services/auth/authService';
+import { getIsLoggedIn, getToken, getCurrentUser } from '@/services/auth/authService';
 import { initializeCurrentUser } from '@/services/core/databaseConnectionService';
 
 interface LayoutProps {
@@ -25,7 +25,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     // Vérifier si l'utilisateur est connecté
     const checkAuth = () => {
       const isLoggedIn = getIsLoggedIn();
-      const hasToken = !!getAuthToken();
+      const hasToken = !!getToken();
       const user = getCurrentUser();
       
       console.log('Auth status:', isLoggedIn ? 'Logged in' : 'Not logged in');

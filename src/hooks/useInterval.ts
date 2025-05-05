@@ -2,22 +2,24 @@
 import { useEffect, useRef } from 'react';
 
 /**
- * Hook personnalisé pour exécuter une fonction à intervalle régulier
+ * Hook qui exécute une fonction à intervalles réguliers
+ * @param callback La fonction à exécuter
+ * @param delay Délai en ms (null pour arrêter l'intervalle)
  */
 export function useInterval(callback: () => void, delay: number | null) {
-  const savedCallback = useRef<() => void>();
-  
-  // Se souvenir du callback le plus récent
+  const savedCallback = useRef<() => void>(callback);
+
+  // Se souvenir de la dernière fonction de callback
   useEffect(() => {
     savedCallback.current = callback;
   }, [callback]);
-  
-  // Mettre en place l'intervalle
+
+  // Configurer l'intervalle
   useEffect(() => {
     function tick() {
-      savedCallback.current?.();
+      savedCallback.current();
     }
-    
+
     if (delay !== null) {
       const id = setInterval(tick, delay);
       return () => clearInterval(id);

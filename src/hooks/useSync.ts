@@ -4,6 +4,7 @@ import { DataTable, syncService } from '@/services/sync/SyncService';
 import { dataSyncManager } from '@/services/sync/DataSyncManager';
 import { getCurrentUser } from '@/services/core/databaseConnectionService';
 import { toast } from '@/components/ui/use-toast';
+import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 
 /**
  * Hook personnalisé pour gérer la synchronisation des données
@@ -13,6 +14,7 @@ export function useSync(tableName: string) {
   const [isSyncing, setIsSyncing] = useState(false);
   const [lastSynced, setLastSynced] = useState<Date | null>(null);
   const [syncFailed, setSyncFailed] = useState(false);
+  const { isOnline } = useNetworkStatus();
   
   // Mettre à jour l'état initial
   useEffect(() => {
@@ -26,8 +28,13 @@ export function useSync(tableName: string) {
    */
   const syncAndProcess = useCallback(async <T>(
     table: DataTable<T>, 
-    options: { showToast?: boolean } = {}
+    options: { showToast?: boolean } | string = {}
   ) => {
+    // Handle string parameter for backward compatibility
+    const opts = typeof options === 'string' 
+      ? { showToast: options !== 'auto' } 
+      : options;
+    
     if (isSyncing) {
       toast({
         title: "Synchronisation en cours",
@@ -48,14 +55,14 @@ export function useSync(tableName: string) {
       setSyncFailed(!result.success);
       
       if (result.success) {
-        if (options.showToast !== false) {
+        if (opts.showToast !== false) {
           toast({
             title: "Synchronisation réussie",
             description: `Les données ont été synchronisées (${table.tableName})`
           });
         }
       } else {
-        if (options.showToast !== false) {
+        if (opts.showToast !== false) {
           toast({
             variant: "destructive",
             title: "Échec de la synchronisation",
@@ -69,7 +76,7 @@ export function useSync(tableName: string) {
       console.error("Erreur lors de la synchronisation:", error);
       setSyncFailed(true);
       
-      if (options.showToast !== false) {
+      if (opts.showToast !== false) {
         toast({
           variant: "destructive",
           title: "Erreur de synchronisation",
@@ -116,11 +123,20 @@ export function useSync(tableName: string) {
     }
   }, [tableName, currentUser]);
   
+  /**
+   * Réinitialise l'état de synchronisation
+   */
+  const resetSyncStatus = useCallback(() => {
+    setSyncFailed(false);
+  }, []);
+  
   return {
     isSyncing,
     lastSynced,
     syncFailed,
+    isOnline,
     syncAndProcess,
-    loadFromServer
+    loadFromServer,
+    resetSyncStatus
   };
 }

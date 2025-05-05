@@ -1,6 +1,8 @@
+
 import { getApiUrl } from '@/config/apiConfig';
 import { initializeUserTables, checkUserTablesInitialized } from '@/services/core/userInitializationService';
 import { toast } from '@/components/ui/use-toast';
+import { User, AuthResponse } from '@/types/auth';
 
 /**
  * Effectue une requête d'authentification
@@ -38,6 +40,32 @@ export const register = async (userData: any): Promise<any> => {
 };
 
 /**
+ * Fonction de login
+ * @param username Nom d'utilisateur ou email
+ * @param password Mot de passe
+ */
+export const login = async (username: string, password: string): Promise<AuthResponse> => {
+  try {
+    const apiUrl = getApiUrl();
+    const response = await fetch(`${apiUrl}/login.php`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ username, password })
+    });
+    
+    return handleAuthResponse(response);
+  } catch (error) {
+    console.error('Erreur lors de la connexion:', error);
+    return {
+      success: false,
+      message: error instanceof Error ? error.message : 'Erreur inconnue lors de la connexion'
+    };
+  }
+};
+
+/**
  * Vérifie si l'utilisateur est connecté
  */
 export const getIsLoggedIn = (): boolean => {
@@ -49,6 +77,13 @@ export const getIsLoggedIn = (): boolean => {
  */
 export const getToken = (): string | null => {
   return localStorage.getItem('token');
+};
+
+/**
+ * Alias de getToken pour compatibilité
+ */
+export const getAuthToken = (): string | null => {
+  return getToken();
 };
 
 /**
@@ -67,6 +102,29 @@ export const logout = (): void => {
   localStorage.removeItem('userId');
   localStorage.removeItem('userRole');
   window.location.href = '/';
+};
+
+/**
+ * Obtient l'utilisateur courant
+ */
+export const getCurrentUser = (): User | null => {
+  const token = getToken();
+  if (!token) return null;
+  
+  try {
+    // Vérifier si c'est un token JWT valide
+    const parts = token.split('.');
+    if (parts.length !== 3) return null;
+    
+    // Décoder le payload
+    const payload = JSON.parse(atob(parts[1]));
+    if (!payload.user) return null;
+    
+    return payload.user;
+  } catch (error) {
+    console.error('Erreur lors du décodage du token JWT:', error);
+    return null;
+  }
 };
 
 /**
