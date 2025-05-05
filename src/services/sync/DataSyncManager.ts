@@ -18,6 +18,14 @@ export interface SyncOptions {
 // Re-export the SyncStatus enum for backward compatibility
 export type { GlobalSyncStatus as SyncStatus };
 
+// Also create an enum value for code that uses SyncStatus as a value
+export enum SyncStatusEnum {
+  IDLE = 'idle',
+  SYNCING = 'syncing',
+  SUCCESS = 'success',
+  ERROR = 'error'
+}
+
 export class DataSyncManager {
   getTableStatus(tableName: string) {
     return {

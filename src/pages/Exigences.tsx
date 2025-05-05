@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { FileText, FolderPlus } from 'lucide-react';
 import { MembresProvider } from '@/contexts/MembresContext';
@@ -56,11 +55,6 @@ const ExigencesContent = () => {
       title: "Export PDF réussi",
       description: "Le document a été généré et téléchargé",
     });
-  };
-
-  // Adapter wrapper function to match the expected signature
-  const handleSaveExigenceWrapper = (exigence: Exigence) => {
-    handleSaveExigence(exigence);
   };
 
   return (
@@ -157,7 +151,7 @@ const ExigencesContent = () => {
         exigence={editingExigence}
         open={dialogOpen}
         onOpenChange={setDialogOpen}
-        onSave={handleSaveExigenceWrapper}
+        onSave={handleSaveExigence}
       />
 
       <ExigenceGroupDialog

@@ -1,13 +1,13 @@
-
 import React from 'react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { AlertTriangle, RotateCw, Check, CloudOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
+import { SyncStatusEnum } from '@/services/sync/DataSyncManager';
 
-// Correction : définir correctement le type SyncStatus
-type SyncStatus = 'idle' | 'syncing' | 'error' | 'success';
+// Use our SyncStatusEnum type
+type SyncStatus = SyncStatusEnum | string;
 
 interface DataSyncStatusProps {
   status: SyncStatus;
@@ -27,7 +27,7 @@ const DataSyncStatus: React.FC<DataSyncStatusProps> = ({
   onSync
 }) => {
   // Ne rien afficher si tout est normal et qu'on n'est pas en synchronisation
-  if (status === 'idle' && !pendingChanges && !lastSynced) return null;
+  if (status === SyncStatusEnum.IDLE && !pendingChanges && !lastSynced) return null;
   
   // Mode hors ligne
   if (!isOnline) {
@@ -55,7 +55,7 @@ const DataSyncStatus: React.FC<DataSyncStatusProps> = ({
   
   let statusComponent;
   
-  if (status === 'error') {
+  if (status === SyncStatusEnum.ERROR) {
     // Échec de synchronisation
     statusComponent = (
       <TooltipProvider>
@@ -84,7 +84,7 @@ const DataSyncStatus: React.FC<DataSyncStatusProps> = ({
         </Tooltip>
       </TooltipProvider>
     );
-  } else if (status === 'syncing') {
+  } else if (status === SyncStatusEnum.SYNCING) {
     // Synchronisation en cours
     statusComponent = (
       <TooltipProvider>

@@ -1,6 +1,6 @@
 
 import { useState, useEffect, useCallback } from 'react';
-import { dataSyncManager } from '@/services/sync/DataSyncManager';
+import { dataSyncManager, SyncStatusEnum } from '@/services/sync/DataSyncManager';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { SyncStatus } from '@/features/sync/types/syncTypes';
 
@@ -21,7 +21,7 @@ export interface DataSyncState<T> extends SyncRecord {
  */
 export function useDataSync<T>(tableName: string): DataSyncState<T> {
   const [syncRecord, setSyncRecord] = useState<SyncRecord>({
-    status: SyncStatus.IDLE,
+    status: SyncStatusEnum.IDLE,
     lastSynced: null,
     lastError: null,
     pendingChanges: false
@@ -33,7 +33,7 @@ export function useDataSync<T>(tableName: string): DataSyncState<T> {
   const refreshStatus = useCallback(() => {
     const state = dataSyncManager.getTableStatus(tableName);
     setSyncRecord({
-      status: state.isSyncing ? SyncStatus.SYNCING : state.hasError ? SyncStatus.ERROR : state.lastSynced ? SyncStatus.SUCCESS : SyncStatus.IDLE,
+      status: state.isSyncing ? SyncStatusEnum.SYNCING : state.hasError ? SyncStatusEnum.ERROR : state.lastSynced ? SyncStatusEnum.SUCCESS : SyncStatusEnum.IDLE,
       lastSynced: state.lastSynced ? new Date(state.lastSynced) : null,
       lastError: state.errorMessage || null,
       pendingChanges: state.hasPendingChanges || false

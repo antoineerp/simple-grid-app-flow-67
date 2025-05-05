@@ -1,11 +1,10 @@
-
 import { useState, useCallback } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { Exigence, ExigenceGroup } from '@/types/exigences';
 import { useToast } from '@/hooks/use-toast';
 import { getDatabaseConnectionCurrentUser } from '@/services/core/databaseConnectionService';
 
-export const useExigenceMutations = () => {
+export const useExigenceMutations = (exigences = [], setExigences) => {
   const { toast } = useToast();
   const currentUserId = getDatabaseConnectionCurrentUser() || 'default';
   
@@ -27,6 +26,54 @@ export const useExigenceMutations = () => {
   // État des dialogues
   const [dialogOpen, setDialogOpen] = useState(false);
   const [groupDialogOpen, setGroupDialogOpen] = useState(false);
+  
+  // Handlers for specific field changes
+  const handleResponsabiliteChange = useCallback((id: string, role: string, value: string[]) => {
+    setExigences(prev => 
+      prev.map(exigence => {
+        if (exigence.id === id) {
+          return {
+            ...exigence,
+            responsabilites: {
+              ...exigence.responsabilites,
+              [role]: value
+            }
+          };
+        }
+        return exigence;
+      })
+    );
+  }, [setExigences]);
+
+  const handleAtteinteChange = useCallback((id: string, value: 'NC' | 'PC' | 'C' | null) => {
+    setExigences(prev => 
+      prev.map(exigence => {
+        if (exigence.id === id) {
+          return {
+            ...exigence,
+            atteinte: value,
+            date_modification: new Date()
+          };
+        }
+        return exigence;
+      })
+    );
+  }, [setExigences]);
+
+  const handleExclusionChange = useCallback((id: string, value: boolean) => {
+    setExigences(prev => 
+      prev.map(exigence => {
+        if (exigence.id === id) {
+          return {
+            ...exigence,
+            exclusion: value,
+            date_modification: new Date()
+          };
+        }
+        return exigence;
+      })
+    );
+  }, [setExigences]);
   
   // Fonction pour mettre à jour l'exigence en cours d'édition
   const setCurrentExigence = useCallback((exigence: Exigence | null) => {
@@ -63,7 +110,7 @@ export const useExigenceMutations = () => {
   }, [setCurrentExigence]);
   
   // Fonction pour gérer la sauvegarde d'une exigence (ajout ou mise à jour)
-  const handleSaveExigence = useCallback((exigence: Exigence, exigences: Exigence[], setExigences: React.Dispatch<React.SetStateAction<Exigence[]>>) => {
+  const handleSaveExigence = useCallback((exigence: Exigence) => {
     const now = new Date();
     const updatedExigence = {
       ...exigence,
@@ -99,17 +146,17 @@ export const useExigenceMutations = () => {
     }
     
     setDialogOpen(false);
-  }, [toast, currentUserId]);
+  }, [toast, currentUserId, setExigences]);
   
   // Fonction pour gérer la suppression d'une exigence
-  const handleDeleteExigence = useCallback((id: string, exigences: Exigence[], setExigences: React.Dispatch<React.SetStateAction<Exigence[]>>) => {
+  const handleDelete = useCallback((id: string) => {
     setExigences(prev => prev.filter(e => e.id !== id));
     
     toast({
       title: "Exigence supprimée",
       description: "L'exigence a été supprimée avec succès",
     });
-  }, [toast]);
+  }, [toast, setExigences]);
   
   // Fonction pour gérer le début de l'édition d'un groupe
   const handleEditGroup = useCallback((group: ExigenceGroup) => {
@@ -205,11 +252,10 @@ export const useExigenceMutations = () => {
     handleEditExigence,
     handleAddExigence,
     handleSaveExigence,
-    handleDeleteExigence,
-    handleEditGroup,
-    handleAddGroup,
-    handleSaveGroup,
-    handleDeleteGroup,
+    handleDelete,
+    handleResponsabiliteChange,
+    handleAtteinteChange,
+    handleExclusionChange,
     createNewExigence
   };
 };
