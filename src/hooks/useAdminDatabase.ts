@@ -2,9 +2,21 @@
 import { useState, useEffect } from 'react';
 import { getDatabaseInfo } from '@/services/core/databaseConnectionService';
 
+interface DatabaseInfo {
+  host: string;
+  database: string;
+  size: string;
+  tables: number;
+  lastBackup: string;
+  status: string;
+  encoding?: string;
+  collation?: string;
+  tableList?: string[];
+}
+
 export const useAdminDatabase = () => {
   const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [databaseInfo, setDatabaseInfo] = useState<any>(null);
+  const [databaseInfo, setDatabaseInfo] = useState<DatabaseInfo | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {

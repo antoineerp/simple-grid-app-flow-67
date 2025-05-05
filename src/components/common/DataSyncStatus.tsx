@@ -1,7 +1,14 @@
 
 import React from 'react';
 import { CloudOff, CloudSun, Check } from 'lucide-react';
-import { dataSyncManager, SyncStatus } from '@/services/sync/DataSyncManager';
+import { dataSyncManager } from '@/services/sync/DataSyncManager';
+
+// Définir l'enum SyncStatus à utiliser comme valeur
+enum SyncStatusEnum {
+  Idle = "Idle",
+  Syncing = "Syncing",
+  Error = "Error"
+}
 
 interface DataSyncStatusProps {
   syncFailed?: boolean;
@@ -16,7 +23,8 @@ export const DataSyncStatus: React.FC<DataSyncStatusProps> = ({
   isSyncing = false,
   lastSynced
 }) => {
-  const status = dataSyncManager.getSyncStatus();
+  // Utiliser une fonction pour obtenir le statut plutôt que d'utiliser directement le type
+  const status = dataSyncManager.getSyncStatus ? dataSyncManager.getSyncStatus() : SyncStatusEnum.Idle;
   const isOnline = navigator.onLine;
 
   return (
@@ -32,7 +40,7 @@ export const DataSyncStatus: React.FC<DataSyncStatusProps> = ({
       <span className="mr-1">
         {isSyncing ? "Synchronisation..." : 
          syncFailed ? "Échec de la synchronisation" : 
-         status === SyncStatus.Idle ? "Synchronisé" : 
+         status === SyncStatusEnum.Idle ? "Synchronisé" : 
          "Prêt"}
       </span>
       
