@@ -1,124 +1,317 @@
 
-// Définir l'enum SyncStatus
-export enum SyncStatus {
-  Idle = "Idle",
-  Syncing = "Syncing",
-  Error = "Error"
+// Si le fichier ne contient pas ces exports, ajoutons-les
+
+// Type pour les états de synchronisation
+export type SyncStatus = 'idle' | 'syncing' | 'error' | 'success';
+
+export interface SyncState {
+  isSyncing: boolean;
+  lastSynced: number | null;
+  hasError: boolean;
+  errorMessage: string | null;
+  hasPendingChanges: boolean;
 }
 
-// Define SyncOptions interface
-export interface SyncOptions {
-  force?: boolean;
-  silent?: boolean;
-  background?: boolean;
-}
-
-// Define SyncRecord interface
-export interface SyncRecord<T = any> {
-  key: string;
-  data: T;
-  lastSynced?: Date;
+export interface SyncRecord {
+  status: SyncStatus;
+  lastSynced: Date | null;
+  lastError: string | null;
   pendingChanges: boolean;
 }
 
+export interface SyncOptions {
+  showToast?: boolean;
+  force?: boolean;
+}
+
+export interface SyncResult {
+  success: boolean;
+  error?: string;
+  timestamp?: number;
+}
+
 class DataSyncManager {
-  private status: SyncStatus = SyncStatus.Idle;
-  private localData: Map<string, any> = new Map();
-  
-  getSyncStatus(): SyncStatus {
-    return this.status;
+  private tableStatuses: Map<string, SyncState>;
+  private localData: Map<string, any[]>;
+
+  constructor() {
+    console.log("DataSyncManager initialisé");
+    this.tableStatuses = new Map();
+    this.localData = new Map();
   }
 
-  setSyncStatus(status: SyncStatus): void {
-    this.status = status;
+  // Méthode pour obtenir le statut d'une table
+  public getTableStatus(tableName: string): SyncState {
+    if (!this.tableStatuses.has(tableName)) {
+      this.tableStatuses.set(tableName, {
+        isSyncing: false,
+        lastSynced: null,
+        hasError: false,
+        errorMessage: null,
+        hasPendingChanges: false
+      });
+    }
+    return this.tableStatuses.get(tableName)!;
   }
-  
-  // Method to get local data
-  async getLocalData<T>(key: string): Promise<T | null> {
+
+  // Méthode pour sauvegarder les données localement
+  public saveLocalData<T>(tableName: string, data: T[]): void {
+    this.localData.set(tableName, data);
+    const status = this.getTableStatus(tableName);
+    status.hasPendingChanges = true;
+    this.tableStatuses.set(tableName, status);
+    
+    // Sauvegarder dans localStorage pour persistance
     try {
-      if (this.localData.has(key)) {
-        return this.localData.get(key) as T;
-      }
-      
-      const storedData = localStorage.getItem(`sync_data_${key}`);
+      localStorage.setItem(`sync_data_${tableName}`, JSON.stringify(data));
+    } catch (e) {
+      console.error("Erreur lors de la sauvegarde des données locales:", e);
+    }
+  }
+
+  // Méthode pour obtenir les données locales
+  public getLocalData<T>(tableName: string): T[] {
+    if (this.localData.has(tableName)) {
+      return this.localData.get(tableName) as T[];
+    }
+
+    // Essayer de récupérer depuis localStorage
+    try {
+      const storedData = localStorage.getItem(`sync_data_${tableName}`);
       if (storedData) {
-        const data = JSON.parse(storedData) as T;
-        this.localData.set(key, data);
-        return data;
+        const parsedData = JSON.parse(storedData) as T[];
+        this.localData.set(tableName, parsedData);
+        return parsedData;
       }
-      return null;
+    } catch (e) {
+      console.error("Erreur lors de la récupération des données locales:", e);
+    }
+
+    return [] as T[];
+  }
+
+  // Méthode pour synchroniser les données
+  public async syncTable<T>(tableName: string, data: T[], options?: SyncOptions): Promise<SyncResult> {
+    const status = this.getTableStatus(tableName);
+    if (status.isSyncing && !(options?.force)) {
+      return { success: false, error: "Synchronisation déjà en cours" };
+    }
+
+    // Mettre à jour le statut pour indiquer que la synchronisation est en cours
+    status.isSyncing = true;
+    this.tableStatuses.set(tableName, status);
+
+    try {
+      // Ici vous ajouteriez la logique de synchronisation avec le serveur
+      console.log(`Synchronisation de la table ${tableName} avec ${data.length} éléments`);
+      
+      // Simulons une réussite après appel à l'API réelle
+      const result: SyncResult = await this.syncWithApi(tableName, data);
+
+      // Mettre à jour le statut après synchronisation
+      const updatedStatus = {
+        ...status,
+        isSyncing: false,
+        lastSynced: result.timestamp || Date.now(),
+        hasError: false,
+        errorMessage: null,
+        hasPendingChanges: false
+      };
+      this.tableStatuses.set(tableName, updatedStatus);
+
+      return result;
     } catch (error) {
-      console.error(`Error retrieving local data for key ${key}:`, error);
-      return null;
+      // Mettre à jour le statut en cas d'erreur
+      const updatedStatus = {
+        ...status,
+        isSyncing: false,
+        hasError: true,
+        errorMessage: error instanceof Error ? error.message : String(error)
+      };
+      this.tableStatuses.set(tableName, updatedStatus);
+
+      return { 
+        success: false, 
+        error: error instanceof Error ? error.message : String(error)
+      };
     }
   }
-  
-  // Method to save data locally
-  async saveLocalData<T>(key: string, data: T): Promise<boolean> {
+
+  // Méthode qui effectue réellement la synchronisation avec l'API
+  private async syncWithApi<T>(tableName: string, data: T[]): Promise<SyncResult> {
     try {
-      this.localData.set(key, data);
-      localStorage.setItem(`sync_data_${key}`, JSON.stringify(data));
-      return true;
-    } catch (error) {
-      console.error(`Error saving local data for key ${key}:`, error);
-      return false;
-    }
-  }
-  
-  // Method to sync data with server
-  async syncData<T>(endpoint: string, data: T, options?: SyncOptions): Promise<boolean> {
-    try {
-      if (!navigator.onLine) {
-        return false;
+      // Construction de l'URL de l'API
+      const apiUrl = `/api/${tableName}-sync.php`;
+      
+      // Préparation des données pour l'API
+      const payload = {
+        userId: localStorage.getItem('currentUser') || 'p71x6d_system',
+        [tableName]: data
+      };
+      
+      console.log(`Envoi des données à ${apiUrl}:`, payload);
+      
+      // Appel à l'API
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('authToken') || ''}`
+        },
+        body: JSON.stringify(payload)
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Erreur serveur: ${response.status} ${response.statusText}`);
       }
       
-      this.setSyncStatus(SyncStatus.Syncing);
+      const responseData = await response.json();
+      console.log(`Réponse de ${apiUrl}:`, responseData);
       
-      // Simulate API call success
-      // In a real application, you would make an actual API call here
-      console.log(`Syncing data with endpoint ${endpoint}`, data);
+      if (!responseData.success) {
+        throw new Error(responseData.message || "Synchronisation échouée");
+      }
       
-      // Wait for a moment to simulate network request
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      this.setSyncStatus(SyncStatus.Idle);
-      return true;
+      return {
+        success: true,
+        timestamp: Date.now(),
+        error: undefined
+      };
     } catch (error) {
-      console.error(`Error syncing data with endpoint ${endpoint}:`, error);
-      this.setSyncStatus(SyncStatus.Error);
-      return false;
+      console.error(`Erreur lors de la synchronisation avec l'API pour ${tableName}:`, error);
+      throw error;
     }
   }
-  
-  // Method to sync all tables
-  async syncAllTables(): Promise<boolean> {
+
+  // Méthode pour charger les données depuis le serveur
+  public async loadData<T>(tableName: string, options?: SyncOptions): Promise<T[]> {
     try {
-      this.setSyncStatus(SyncStatus.Syncing);
+      // Construction de l'URL de l'API
+      const apiUrl = `/api/${tableName}-load.php`;
       
-      // Get all keys from local storage that start with "sync_data_"
-      const keys = Object.keys(localStorage)
-        .filter(key => key.startsWith('sync_data_'))
-        .map(key => key.replace('sync_data_', ''));
+      console.log(`Chargement des données depuis ${apiUrl}`);
       
-      // Sync each table
-      for (const key of keys) {
-        const data = await this.getLocalData(key);
-        if (data) {
-          // In a real app, you would determine the endpoint based on the key
-          const endpoint = `/api/${key}-sync`;
-          await this.syncData(endpoint, data);
+      // Appel à l'API
+      const response = await fetch(`${apiUrl}?userId=${localStorage.getItem('currentUser') || 'p71x6d_system'}`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('authToken') || ''}`,
+          'Cache-Control': 'no-cache'
         }
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Erreur serveur: ${response.status} ${response.statusText}`);
       }
       
-      this.setSyncStatus(SyncStatus.Idle);
-      return true;
+      const responseData = await response.json();
+      console.log(`Données reçues de ${apiUrl}:`, responseData);
+      
+      let data: T[] = [];
+      
+      if (responseData.success && responseData[tableName]) {
+        data = responseData[tableName] as T[];
+      } else if (responseData.success && responseData.data) {
+        data = responseData.data as T[];
+      } else if (responseData.success && responseData.documents) {
+        data = responseData.documents as T[];
+      } else if (Array.isArray(responseData)) {
+        data = responseData as T[];
+      }
+      
+      // Mettre à jour les données locales
+      this.localData.set(tableName, data);
+      localStorage.setItem(`sync_data_${tableName}`, JSON.stringify(data));
+      
+      // Mettre à jour le statut
+      const status = this.getTableStatus(tableName);
+      status.lastSynced = Date.now();
+      status.hasError = false;
+      status.errorMessage = null;
+      status.hasPendingChanges = false;
+      this.tableStatuses.set(tableName, status);
+      
+      return data;
     } catch (error) {
-      console.error('Error syncing all tables:', error);
-      this.setSyncStatus(SyncStatus.Error);
-      return false;
+      console.error(`Erreur lors du chargement des données pour ${tableName}:`, error);
+      
+      // En cas d'erreur, essayer de récupérer les données locales
+      return this.getLocalData<T>(tableName);
     }
+  }
+
+  // Ajout des méthodes manquantes utilisées par SyncService
+  public markSyncSuccess(tableName: string): void {
+    const status = this.getTableStatus(tableName);
+    this.tableStatuses.set(tableName, {
+      ...status,
+      lastSynced: Date.now(),
+      hasError: false,
+      errorMessage: null,
+      hasPendingChanges: false,
+      isSyncing: false
+    });
+  }
+
+  public markSyncFailed(tableName: string, errorMessage: string): void {
+    const status = this.getTableStatus(tableName);
+    this.tableStatuses.set(tableName, {
+      ...status,
+      hasError: true,
+      errorMessage: errorMessage,
+      isSyncing: false
+    });
+  }
+
+  // Méthode pour obtenir l'état global de synchronisation
+  public getGlobalSyncStatus(): {
+    activeSyncCount: number;
+    pendingChangesCount: number;
+    failedSyncCount: number;
+  } {
+    let activeSyncCount = 0;
+    let pendingChangesCount = 0;
+    let failedSyncCount = 0;
+
+    for (const status of this.tableStatuses.values()) {
+      if (status.isSyncing) activeSyncCount++;
+      if (status.hasPendingChanges) pendingChangesCount++;
+      if (status.hasError) failedSyncCount++;
+    }
+
+    return {
+      activeSyncCount,
+      pendingChangesCount,
+      failedSyncCount
+    };
+  }
+
+  // Méthode pour convertir SyncState à SyncRecord pour garder la compatibilité
+  public getSyncStatus(tableName: string): SyncRecord {
+    const state = this.getTableStatus(tableName);
+    return {
+      status: state.isSyncing ? 'syncing' : state.hasError ? 'error' : state.lastSynced ? 'success' : 'idle',
+      lastSynced: state.lastSynced ? new Date(state.lastSynced) : null,
+      lastError: state.errorMessage,
+      pendingChanges: state.hasPendingChanges
+    };
+  }
+  
+  // Méthode pour synchroniser toutes les tables avec des changements en attente
+  public async syncAllPendingChanges(): Promise<Record<string, SyncResult>> {
+    const results: Record<string, SyncResult> = {};
+    
+    for (const [tableName, status] of this.tableStatuses.entries()) {
+      if (status.hasPendingChanges && !status.isSyncing) {
+        console.log(`Synchronisation automatique des modifications en attente pour ${tableName}`);
+        const data = this.getLocalData(tableName);
+        results[tableName] = await this.syncTable(tableName, data);
+      }
+    }
+    
+    return results;
   }
 }
 
-// Exporter une instance singleton
+// Singleton
 export const dataSyncManager = new DataSyncManager();

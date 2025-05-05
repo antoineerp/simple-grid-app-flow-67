@@ -1,63 +1,179 @@
-/**
- * Helper class to manage local database operations
- */
-class DatabaseHelper {
-  private isInitialized: boolean = false;
+
+import { getApiUrl } from '@/config/apiConfig';
+import { getCurrentUser } from '@/services/core/databaseConnectionService';
+import { toast } from '@/components/ui/use-toast';
+
+export interface DatabaseUpdateResult {
+  success: boolean;
+  message: string;
+  tables_created?: string[];
+  tables_updated?: string[];
+  error_type?: string;
+  timestamp?: string;
+}
+
+export class DatabaseHelper {
+  private static instance: DatabaseHelper;
+  private lastUpdateCheck: Record<string, Date> = {};
+  
+  private constructor() {
+    console.log('DatabaseHelper initialisé');
+  }
+  
+  public static getInstance(): DatabaseHelper {
+    if (!DatabaseHelper.instance) {
+      DatabaseHelper.instance = new DatabaseHelper();
+    }
+    return DatabaseHelper.instance;
+  }
   
   /**
-   * Initialize the local database
+   * Vérifie et met à jour la structure de la base de données
+   * @param userId ID utilisateur (optionnel)
+   * @param showToast Afficher les notifications toast (optionnel)
    */
-  async initDatabase(): Promise<boolean> {
+  public async updateDatabaseStructure(
+    userId?: string, 
+    showToast: boolean = true
+  ): Promise<DatabaseUpdateResult> {
     try {
-      if (this.isInitialized) {
+      const currentUser = userId || getCurrentUser() || 'p71x6d_system';
+      const API_URL = getApiUrl();
+      const safeUserId = encodeURIComponent(currentUser);
+      
+      console.log(`Demande de mise à jour de la structure pour l'utilisateur ${safeUserId}`);
+      
+      // Tentative avec l'URL principale
+      let response;
+      try {
+        response = await fetch(`${API_URL}/db-update.php?userId=${safeUserId}`, {
+          method: 'GET',
+          headers: {
+            'Cache-Control': 'no-cache, no-store, must-revalidate'
+          }
+        });
+      } catch (primaryError) {
+        console.warn("Erreur avec l'URL principale:", primaryError);
+        
+        // Tentative avec l'URL alternative
+        try {
+          const alternativeUrl = `/sites/qualiopi.ch/api/db-update.php`;
+          console.log(`Tentative avec URL alternative: ${alternativeUrl}`);
+          
+          response = await fetch(`${alternativeUrl}?userId=${safeUserId}`, {
+            method: 'GET',
+            headers: {
+              'Cache-Control': 'no-cache, no-store, must-revalidate'
+            }
+          });
+        } catch (altError) {
+          console.error("Erreur avec l'URL alternative:", altError);
+          throw new Error(`Erreur de connexion: ${primaryError}`);
+        }
+      }
+      
+      if (!response.ok) {
+        throw new Error(`Erreur HTTP: ${response.status}`);
+      }
+      
+      const result = await response.json();
+      
+      // Enregistrer la date de mise à jour
+      this.lastUpdateCheck[currentUser] = new Date();
+      
+      // Notification de succès
+      if (showToast && result.success) {
+        const createdCount = result.tables_created?.length || 0;
+        const updatedCount = result.tables_updated?.length || 0;
+        
+        toast({
+          title: "Mise à jour de la structure",
+          description: `${createdCount} table(s) créée(s) et ${updatedCount} table(s) mise(s) à jour`,
+        });
+      }
+      
+      return result;
+    } catch (error) {
+      console.error("Erreur lors de la mise à jour de la structure:", error);
+      
+      if (showToast) {
+        toast({
+          variant: "destructive",
+          title: "Erreur de mise à jour",
+          description: error instanceof Error ? error.message : "Erreur inconnue"
+        });
+      }
+      
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : "Erreur inconnue"
+      };
+    }
+  }
+  
+  /**
+   * Vérifie si une table existe et contient les bonnes colonnes
+   * @param tableName Nom de la table
+   * @param userId ID utilisateur (optionnel)
+   * @param force Forcer la mise à jour (optionnel)
+   */
+  public async validateTable(
+    tableName: string, 
+    userId?: string,
+    force: boolean = false
+  ): Promise<boolean> {
+    try {
+      const currentUser = userId || getCurrentUser() || 'p71x6d_system';
+      
+      // Vérifier si on a déjà fait une mise à jour récemment (moins d'une minute)
+      const lastUpdate = this.lastUpdateCheck[currentUser];
+      const now = new Date();
+      
+      if (!force && lastUpdate && (now.getTime() - lastUpdate.getTime() < 60000)) {
+        console.log(`Validation de table ignorée pour ${tableName}, dernière vérification récente`);
         return true;
       }
       
-      console.log('Initializing local database...');
+      // Mettre à jour la structure
+      const updateResult = await this.updateDatabaseStructure(currentUser, false);
       
-      // In a real implementation, this would be where you'd:
-      // 1. Open IndexedDB connections
-      // 2. Create object stores if needed
-      // 3. Set up schema and versioning
+      if (updateResult.success) {
+        const tableFullName = `${tableName}_${currentUser}`;
+        
+        // Vérifier si la table a été créée ou mise à jour
+        const createdTables = updateResult.tables_created || [];
+        const updatedTables = updateResult.tables_updated || [];
+        
+        if (createdTables.includes(tableFullName) || updatedTables.includes(tableFullName)) {
+          console.log(`Table ${tableFullName} validée avec succès`);
+          return true;
+        }
+        
+        // Si la table n'est pas mentionnée, c'est qu'elle existait déjà et n'a pas eu besoin de mise à jour
+        return true;
+      }
       
-      // For now, we'll just simulate success
-      await new Promise(resolve => setTimeout(resolve, 100));
-      this.isInitialized = true;
+      // Afficher une notification si la validation échoue
+      toast({
+        title: "Validation de structure",
+        description: updateResult.message || `Erreur de validation pour la table ${tableName}`,
+        variant: "destructive"
+      });
       
-      console.log('Local database initialized successfully');
-      return true;
+      return false;
     } catch (error) {
-      console.error('Error initializing database:', error);
+      console.error("Erreur lors de la validation de la table:", error);
       return false;
     }
   }
   
   /**
-   * Check if the database is initialized
+   * Force une mise à jour de toutes les tables
    */
-  isInitializedDB(): boolean {
-    return this.isInitialized;
-  }
-  
-  /**
-   * Reset the database to its initial state
-   */
-  async resetDatabase(): Promise<boolean> {
-    try {
-      console.log('Resetting local database...');
-      
-      // In a real implementation, this would clear all data
-      
-      // For demonstration, just simulate a delay
-      await new Promise(resolve => setTimeout(resolve, 100));
-      
-      console.log('Local database reset successfully');
-      return true;
-    } catch (error) {
-      console.error('Error resetting database:', error);
-      return false;
-    }
+  public async forceUpdateAllTables(): Promise<DatabaseUpdateResult> {
+    return this.updateDatabaseStructure(undefined, true);
   }
 }
 
-export const databaseHelper = new DatabaseHelper();
+// Export d'une instance singleton
+export const databaseHelper = DatabaseHelper.getInstance();

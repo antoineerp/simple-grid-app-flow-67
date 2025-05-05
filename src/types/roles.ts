@@ -1,21 +1,15 @@
 
-export type UserRole = 'admin' | 'administrateur' | 'utilisateur' | 'gestionnaire';
+export type UserRole = 'administrateur' | 'utilisateur' | 'gestionnaire';
 
 export interface RolePermissions {
   viewPages: string[];
   editTables: string[];
   createUsers: boolean;
   accessAdminPanel: boolean;
-  limitedCount?: number; // Nombre maximum d'utilisateurs pour ce rôle
+  limitedCount?: number;
 }
 
 export const ROLE_PERMISSIONS: Record<UserRole, RolePermissions> = {
-  admin: {
-    viewPages: ['*'],
-    editTables: ['*'],
-    createUsers: true,
-    accessAdminPanel: true
-  },
   administrateur: {
     viewPages: ['*'],
     editTables: ['*'],
@@ -28,9 +22,10 @@ export const ROLE_PERMISSIONS: Record<UserRole, RolePermissions> = {
       '/exigences',
       '/gestion-documentaire',
       '/ressources-humaines',
-      '/bibliotheque'
+      '/bibliotheque',
+      '/collaboration'
     ],
-    editTables: ['*'], // Maintenant l'utilisateur peut modifier tous les tableaux
+    editTables: ['*'],
     createUsers: false,
     accessAdminPanel: false
   },
@@ -40,17 +35,17 @@ export const ROLE_PERMISSIONS: Record<UserRole, RolePermissions> = {
       '/exigences',
       '/gestion-documentaire',
       '/ressources-humaines',
-      '/bibliotheque'
+      '/bibliotheque',
+      '/collaboration'
     ],
-    editTables: ['*'], // Le gestionnaire aussi peut modifier tous les tableaux
+    editTables: ['*'],
     createUsers: false,
     accessAdminPanel: false,
-    limitedCount: 1 // Un seul compte gestionnaire autorisé
+    limitedCount: 1
   }
 };
 
 export function hasPermission(role: UserRole, permission: keyof RolePermissions, context?: string): boolean {
-  // Si le rôle n'existe pas, aucune permission
   if (!role || !ROLE_PERMISSIONS[role]) {
     return false;
   }
@@ -69,12 +64,10 @@ export function hasPermission(role: UserRole, permission: keyof RolePermissions,
   }
 }
 
-// Vérifier si un rôle a une limite de nombre d'utilisateurs
 export function hasRoleLimit(role: UserRole): boolean {
   return typeof ROLE_PERMISSIONS[role]?.limitedCount === 'number';
 }
 
-// Obtenir la limite d'utilisateurs pour un rôle donné
 export function getRoleLimit(role: UserRole): number {
   return ROLE_PERMISSIONS[role]?.limitedCount || Infinity;
 }

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import Logo from '@/components/auth/Logo';
 import LoginForm from '@/components/auth/LoginForm';

@@ -1,454 +1,175 @@
-
-import React from 'react';
-import { FileText, Pencil, Trash, ChevronDown, FolderPlus, GripVertical, ExternalLink, CloudSun } from 'lucide-react';
-import { useToast } from "@/hooks/use-toast";
-import { exportBibliothecaireDocsToPdf } from '@/services/pdfExport';
-import { useBibliotheque } from '@/hooks/useBibliotheque';
-import SyncStatusIndicator from '@/components/common/SyncStatusIndicator';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow
-} from "@/components/ui/table";
+import React, { useState, useEffect } from 'react';
+import { useToast } from '@/hooks/use-toast';
+import BibliothequeHeader from '@/components/bibliotheque/BibliothequeHeader';
+import BibliothequeList from '@/components/bibliotheque/BibliothequeList';
+import BibliothequeGroup from '@/components/bibliotheque/BibliothequeGroup';
+import { Document, DocumentGroup } from '@/types/bibliotheque';
+import { v4 as uuidv4 } from 'uuid';
+import { bibliothequeService } from '@/services/bibliotheque/bibliothequeService';
+import { getDatabaseConnectionCurrentUser } from '@/services/core/databaseConnectionService';
 
 const Bibliotheque = () => {
+  const [documents, setDocuments] = useState<Document[]>([]);
+  const [filteredDocuments, setFilteredDocuments] = useState<Document[]>([]);
+  const [searchTerm, setSearchTerm] = useState<string>('');
+  const [groups, setGroups] = useState<DocumentGroup[]>([]);
+  const [currentUser, setCurrentUser] = useState<string>(getDatabaseConnectionCurrentUser() || 'default');
   const { toast } = useToast();
-  const {
-    documents,
-    groups,
-    isDialogOpen,
-    isGroupDialogOpen,
-    isEditing,
-    currentDocument,
-    currentGroup,
-    isSyncing,
-    isOnline,
-    lastSynced,
-    setIsDialogOpen,
-    setIsGroupDialogOpen,
-    handleEditDocument,
-    handleDeleteDocument,
-    handleAddDocument,
-    handleDocumentInputChange,
-    handleSaveDocument,
-    handleEditGroup,
-    handleDeleteGroup,
-    handleAddGroup,
-    handleGroupInputChange,
-    handleSaveGroup,
-    handleDrop,
-    handleGroupDrop,
-    toggleGroup,
-    setDraggedItem,
-    syncWithServer
-  } = useBibliotheque();
-  
-  const handleExportPdf = () => {
-    exportBibliothecaireDocsToPdf(documents, groups);
+
+  useEffect(() => {
+    // Charger les données initiales
+    const loadedDocs = bibliothequeService.loadDocuments();
+    if (loadedDocs && loadedDocs.length > 0) {
+      // Assurer que tous les documents ont un userId
+      const docsWithUser = loadedDocs.map(doc => ({
+        ...doc,
+        userId: doc.userId || currentUser
+      }));
+      setDocuments(docsWithUser);
+    } else {
+      const initialDocs = bibliothequeService.getInitialDocuments();
+      setDocuments(initialDocs);
+    }
+
+    const loadedGroups = bibliothequeService.loadGroups();
+    if (loadedGroups && loadedGroups.length > 0) {
+      // Assurer que tous les groupes ont un userId
+      const groupsWithUser = loadedGroups.map(group => ({
+        ...group,
+        userId: group.userId || currentUser
+      }));
+      setGroups(groupsWithUser);
+    } else {
+      const initialGroups = bibliothequeService.getInitialGroups();
+      setGroups(initialGroups);
+    }
+  }, [currentUser]);
+
+  useEffect(() => {
+    // Filtrer les documents selon le terme de recherche
+    if (!searchTerm) {
+      setFilteredDocuments(documents);
+    } else {
+      const filtered = documents.filter(doc =>
+        doc.name.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+      setFilteredDocuments(filtered);
+    }
+  }, [documents, searchTerm]);
+
+  // Sauvegarder les documents quand ils changent
+  useEffect(() => {
+    bibliothequeService.saveDocuments(documents);
+  }, [documents]);
+
+  // Sauvegarder les groupes quand ils changent
+  useEffect(() => {
+    bibliothequeService.saveGroups(groups);
+  }, [groups]);
+
+  const handleSearch = (term: string) => {
+    setSearchTerm(term);
+  };
+
+  const handleAddDocument = () => {
+    const newDocument: Document = {
+      id: uuidv4(),
+      name: "Nouveau document",
+      link: "",
+      groupId: undefined,
+      userId: currentUser
+    };
+    setDocuments([...documents, newDocument]);
     toast({
-      title: "Export PDF réussi",
-      description: "Le document a été généré et téléchargé",
+      title: "Document ajouté",
+      description: "Le nouveau document a été ajouté à la bibliothèque",
     });
   };
 
-  const handleDragStart = (e: React.DragEvent<HTMLTableRowElement>, id: string, groupId?: string) => {
-    setDraggedItem({ id, groupId });
-    e.dataTransfer.setData('text/plain', JSON.stringify({ id, groupId }));
-    e.currentTarget.classList.add('opacity-50');
+  const handleAddGroup = () => {
+    const newGroup: DocumentGroup = {
+      id: uuidv4(),
+      name: "Nouveau groupe",
+      expanded: false,
+      items: [],
+      userId: currentUser
+    };
+    setGroups([...groups, newGroup]);
+    toast({
+      title: "Groupe ajouté",
+      description: "Le nouveau groupe a été ajouté à la bibliothèque",
+    });
   };
 
-  const handleDragOver = (e: React.DragEvent<HTMLTableRowElement>) => {
-    e.preventDefault();
-    e.currentTarget.classList.add('border-dashed', 'border-2', 'border-primary');
-  };
-
-  const handleDragLeave = (e: React.DragEvent<HTMLTableRowElement>) => {
-    e.currentTarget.classList.remove('border-dashed', 'border-2', 'border-primary');
-  };
-
-  const handleDocDrop = (e: React.DragEvent<HTMLTableRowElement>, targetId: string, targetGroupId?: string) => {
-    e.preventDefault();
-    e.currentTarget.classList.remove('border-dashed', 'border-2', 'border-primary');
-    
-    try {
-      const data = JSON.parse(e.dataTransfer.getData('text/plain'));
-      const { id: sourceId, groupId: sourceGroupId } = data;
-      handleDrop(targetId, targetGroupId);
-    } catch (error) {
-      console.error("Erreur lors du drop:", error);
-    }
-    setDraggedItem(null);
-  };
-
-  const handleDocGroupDrop = (e: React.DragEvent<HTMLTableRowElement>, targetGroupId: string) => {
-    e.preventDefault();
-    e.currentTarget.classList.remove('border-dashed', 'border-2', 'border-primary');
-    
-    try {
-      const data = JSON.parse(e.dataTransfer.getData('text/plain'));
-      handleGroupDrop(targetGroupId);
-    } catch (error) {
-      console.error("Erreur lors du drop du groupe:", error);
-    }
-    setDraggedItem(null);
-  };
-
-  const handleDragEnd = (e: React.DragEvent<HTMLTableRowElement>) => {
-    e.currentTarget.classList.remove('opacity-50');
-    setDraggedItem(null);
-  };
-
-  const renderDocumentLink = (link: string | null) => {
-    if (!link || link === 'Voir le document') return <span className="text-gray-500">-</span>;
-    
-    return (
-      <a 
-        href={link} 
-        target="_blank" 
-        rel="noopener noreferrer" 
-        className="text-app-blue hover:underline inline-flex items-center gap-1"
-      >
-        {link}
-        <ExternalLink className="h-4 w-4" />
-      </a>
+  const handleEditDocument = (document: Document) => {
+    const updatedDocuments = documents.map(doc =>
+      doc.id === document.id ? document : doc
     );
+    setDocuments(updatedDocuments);
+    toast({
+      title: "Document modifié",
+      description: "Le document a été modifié avec succès",
+    });
+  };
+
+  const handleEditGroup = (group: DocumentGroup) => {
+    const updatedGroups = groups.map(g =>
+      g.id === group.id ? group : g
+    );
+    setGroups(updatedGroups);
+    toast({
+      title: "Groupe modifié",
+      description: "Le groupe a été modifié avec succès",
+    });
+  };
+
+  const handleDeleteDocument = (id: string) => {
+    const updatedDocuments = documents.filter(doc => doc.id !== id);
+    setDocuments(updatedDocuments);
+    toast({
+      title: "Document supprimé",
+      description: "Le document a été supprimé de la bibliothèque",
+    });
+  };
+
+  const handleDeleteGroup = (id: string) => {
+    const updatedGroups = groups.filter(group => group.id !== id);
+    setGroups(updatedGroups);
+    toast({
+      title: "Groupe supprimé",
+      description: "Le groupe a été supprimé de la bibliothèque",
+    });
   };
 
   return (
-    <div className="p-8">
-      <div className="flex items-center justify-between mb-2">
-        <div>
-          <h1 className="text-3xl font-bold text-app-blue">Bibliothèque</h1>
-          <p className="text-gray-600">Gestion des documents administratifs</p>
-        </div>
-        <div className="flex space-x-2">
-          <button 
-            onClick={syncWithServer}
-            className="text-blue-600 p-2 rounded-md hover:bg-blue-50 transition-colors flex items-center"
-            title="Synchroniser avec le serveur"
-            disabled={isSyncing}
-          >
-            <CloudSun className={`h-6 w-6 stroke-[1.5] ${isSyncing ? 'animate-spin' : ''}`} />
-          </button>
-          <button 
-            onClick={handleExportPdf}
-            className="text-red-600 p-2 rounded-md hover:bg-red-50 transition-colors"
-            title="Exporter en PDF"
-          >
-            <FileText className="h-6 w-6 stroke-[1.5]" />
-          </button>
-        </div>
-      </div>
+    <div className="container mx-auto p-4">
+      <BibliothequeHeader 
+        onSearch={handleSearch} 
+        onAddDocument={handleAddDocument} 
+        onAddGroup={handleAddGroup}
+      />
       
-      <div className="mb-4">
-        <SyncStatusIndicator 
-          isSyncing={isSyncing}
-          isOnline={isOnline}
-          lastSynced={lastSynced}
+      <div className="mt-6 space-y-4">
+        {/* Afficher les groupes */}
+        {groups.map(group => (
+          <BibliothequeGroup
+            key={group.id}
+            group={group}
+            onEditGroup={handleEditGroup}
+            onDeleteGroup={handleDeleteGroup}
+            documents={documents.filter(doc => doc.groupId === group.id)}
+            onEditDocument={handleEditDocument}
+            onDeleteDocument={handleDeleteDocument}
+          />
+        ))}
+        
+        {/* Afficher les documents qui ne sont pas dans un groupe */}
+        <BibliothequeList 
+          documents={filteredDocuments.filter(doc => !doc.groupId)}
+          onEditDocument={handleEditDocument}
+          onDeleteDocument={handleDeleteDocument}
         />
       </div>
-
-      <div className="bg-white rounded-md shadow overflow-hidden mt-6">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="w-10"></TableHead>
-              <TableHead className="py-3 px-4 text-app-blue font-semibold">Nom du document</TableHead>
-              <TableHead className="py-3 px-4 text-app-blue font-semibold">Lien</TableHead>
-              <TableHead className="py-3 px-4 text-app-blue font-semibold text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {groups.map((group) => (
-              <React.Fragment key={group.id}>
-                <TableRow 
-                  className="border-b hover:bg-gray-50 cursor-pointer" 
-                  onClick={() => toggleGroup(group.id)}
-                  draggable
-                  onDragStart={(e) => {
-                    e.stopPropagation();
-                    handleDragStart(e, group.id, undefined);
-                  }}
-                  onDragOver={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    handleDragOver(e);
-                  }}
-                  onDragLeave={(e) => {
-                    e.stopPropagation();
-                    handleDragLeave(e);
-                  }}
-                  onDrop={(e) => {
-                    e.stopPropagation();
-                    handleDocGroupDrop(e, group.id);
-                  }}
-                  onDragEnd={(e) => {
-                    e.stopPropagation();
-                    handleDragEnd(e);
-                  }}
-                >
-                  <TableCell className="py-3 px-2 w-10">
-                    <GripVertical className="h-5 w-5 text-gray-400" />
-                  </TableCell>
-                  <TableCell 
-                    className="py-3 px-4 w-full text-left" 
-                  >
-                    <div className="flex items-center">
-                      <ChevronDown className={`h-4 w-4 mr-2 inline-block transition-transform ${group.expanded ? 'rotate-180' : ''}`} />
-                      <span className="font-medium">{group.name}</span>
-                    </div>
-                  </TableCell>
-                  <TableCell className="py-3 px-4"></TableCell>
-                  <TableCell className="py-3 px-4 text-right">
-                    <button 
-                      className="text-gray-600 hover:text-app-blue mr-3"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleEditGroup(group);
-                      }}
-                    >
-                      <Pencil className="h-5 w-5 inline-block" />
-                    </button>
-                    <button 
-                      className="text-gray-600 hover:text-red-500"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDeleteGroup(group.id);
-                      }}
-                    >
-                      <Trash className="h-5 w-5 inline-block" />
-                    </button>
-                  </TableCell>
-                </TableRow>
-                
-                {group.expanded && (
-                  group.items.map((item) => (
-                    <TableRow 
-                      key={item.id} 
-                      className="border-b hover:bg-gray-50 bg-gray-50"
-                      draggable
-                      onDragStart={(e) => {
-                        e.stopPropagation();
-                        handleDragStart(e, item.id, group.id);
-                      }}
-                      onDragOver={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        handleDragOver(e);
-                      }}
-                      onDragLeave={(e) => {
-                        e.stopPropagation();
-                        handleDragLeave(e);
-                      }}
-                      onDrop={(e) => {
-                        e.stopPropagation();
-                        handleDocDrop(e, item.id, group.id);
-                      }}
-                      onDragEnd={(e) => {
-                        e.stopPropagation();
-                        handleDragEnd(e);
-                      }}
-                    >
-                      <TableCell className="py-3 px-2 w-10">
-                        <GripVertical className="h-5 w-5 text-gray-400" />
-                      </TableCell>
-                      <TableCell className="py-3 px-4 pl-8">{item.name}</TableCell>
-                      <TableCell className="py-3 px-4">
-                        {renderDocumentLink(item.link)}
-                      </TableCell>
-                      <TableCell className="py-3 px-4 text-right">
-                        <button 
-                          className="text-gray-600 hover:text-app-blue mr-3"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleEditDocument({...item, groupId: group.id});
-                          }}
-                        >
-                          <Pencil className="h-5 w-5 inline-block" />
-                        </button>
-                        <button 
-                          className="text-gray-600 hover:text-red-500"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDeleteDocument(item.id);
-                          }}
-                        >
-                          <Trash className="h-5 w-5 inline-block" />
-                        </button>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </React.Fragment>
-            ))}
-          </TableBody>
-          <TableBody>
-            {documents.map((doc) => (
-              <TableRow 
-                key={doc.id} 
-                className="border-b hover:bg-gray-50"
-                draggable
-                onDragStart={(e) => handleDragStart(e, doc.id)}
-                onDragOver={handleDragOver}
-                onDragLeave={handleDragLeave}
-                onDrop={(e) => handleDocDrop(e, doc.id)}
-                onDragEnd={handleDragEnd}
-              >
-                <TableCell className="py-3 px-2 w-10">
-                  <GripVertical className="h-5 w-5 text-gray-400" />
-                </TableCell>
-                <TableCell className="py-3 px-4">{doc.name}</TableCell>
-                <TableCell className="py-3 px-4">
-                  {renderDocumentLink(doc.link)}
-                </TableCell>
-                <TableCell className="py-3 px-4 text-right">
-                  <button 
-                    className="text-gray-600 hover:text-app-blue mr-3"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleEditDocument(doc);
-                    }}
-                  >
-                    <Pencil className="h-5 w-5 inline-block" />
-                  </button>
-                  <button 
-                    className="text-gray-600 hover:text-red-500"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleDeleteDocument(doc.id);
-                    }}
-                  >
-                    <Trash className="h-5 w-5 inline-block" />
-                  </button>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
-
-      <div className="flex justify-end mt-4 space-x-2">
-        <Button 
-          variant="outline"
-          className="hover:bg-gray-100 transition-colors"
-          onClick={handleAddGroup}
-        >
-          <FolderPlus className="h-4 w-4 mr-2" />
-          Nouveau groupe
-        </Button>
-        <Button 
-          variant="default"
-          onClick={handleAddDocument}
-        >
-          Nouveau document
-        </Button>
-      </div>
-
-      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>
-              {isEditing ? "Modifier le document" : "Ajouter un document"}
-            </DialogTitle>
-            <DialogDescription>
-              {isEditing 
-                ? "Modifiez les informations du document ci-dessous." 
-                : "Remplissez les informations pour ajouter un nouveau document."}
-            </DialogDescription>
-          </DialogHeader>
-          
-          <div className="grid gap-4 py-4">
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="name" className="text-right">
-                Nom
-              </Label>
-              <Input
-                id="name"
-                name="name"
-                className="col-span-3"
-                value={currentDocument.name}
-                onChange={handleDocumentInputChange}
-              />
-            </div>
-            
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="link" className="text-right">
-                Lien
-              </Label>
-              <Input
-                id="link"
-                name="link"
-                className="col-span-3"
-                value={currentDocument.link || ''}
-                onChange={handleDocumentInputChange}
-                placeholder="Laisser vide si aucun lien"
-              />
-            </div>
-          </div>
-          
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
-              Annuler
-            </Button>
-            <Button onClick={handleSaveDocument}>
-              {isEditing ? "Mettre à jour" : "Ajouter"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={isGroupDialogOpen} onOpenChange={setIsGroupDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>
-              {isEditing ? "Modifier le groupe" : "Ajouter un groupe"}
-            </DialogTitle>
-            <DialogDescription>
-              {isEditing 
-                ? "Modifiez les informations du groupe ci-dessous." 
-                : "Remplissez les informations pour ajouter un nouveau groupe."}
-            </DialogDescription>
-          </DialogHeader>
-          
-          <div className="grid gap-4 py-4">
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="name" className="text-right">
-                Nom
-              </Label>
-              <Input
-                id="name"
-                name="name"
-                className="col-span-3"
-                value={currentGroup.name}
-                onChange={handleGroupInputChange}
-              />
-            </div>
-          </div>
-          
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsGroupDialogOpen(false)}>
-              Annuler
-            </Button>
-            <Button onClick={handleSaveGroup}>
-              {isEditing ? "Mettre à jour" : "Ajouter"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 };

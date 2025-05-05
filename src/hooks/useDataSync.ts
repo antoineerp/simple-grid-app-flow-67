@@ -1,178 +1,127 @@
 
 import { useState, useEffect, useCallback } from 'react';
-import { useToast } from '@/hooks/use-toast';
 import { dataSyncManager, SyncStatus, SyncOptions } from '@/services/sync/DataSyncManager';
-import { useNetworkStatus } from './useNetworkStatus';
+import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 
-export interface DataSyncState<T> {
-  data: T;
-  isSyncing: boolean;
-  isLoading: boolean;
-  error: string | null;
-  status: 'idle' | 'loading' | 'success' | 'error';
+export interface SyncRecord {
+  status: SyncStatus;
   lastSynced: Date | null;
-  lastError: Error | null;
-  pendingChanges: number;
+  lastError: string | null;
+  pendingChanges: boolean;
 }
 
-export const useDataSync = <T>(
-  key: string,
-  initialData: T,
-  endpoint?: string,
-  autoSync: boolean = true,
-  syncInterval: number | null = 60000
-) => {
-  const [state, setState] = useState<DataSyncState<T>>({
-    data: initialData,
-    isSyncing: false,
-    isLoading: true,
-    error: null,
-    status: 'loading',
+export interface DataSyncState<T> extends SyncRecord {
+  data: T[];
+  syncData: (newData?: T[], options?: SyncOptions) => Promise<boolean>;
+  loadData: (options?: SyncOptions) => Promise<T[]>;
+  saveLocalData: (newData: T[]) => void;
+  refreshStatus: () => void;
+  isOnline: boolean;
+}
+
+/**
+ * Hook pour la synchronisation des données avec le gestionnaire centralisé
+ */
+export function useDataSync<T>(tableName: string): DataSyncState<T> {
+  const [syncRecord, setSyncRecord] = useState<SyncRecord>(() => ({
+    status: 'idle',
     lastSynced: null,
     lastError: null,
-    pendingChanges: 0
-  });
-  const { toast } = useToast();
+    pendingChanges: false
+  }));
+  const [data, setData] = useState<T[]>([]);
   const { isOnline } = useNetworkStatus();
-
-  // Load local data on component mount
+  
+  // Rafraîchir le statut
+  const refreshStatus = useCallback(() => {
+    const state = dataSyncManager.getTableStatus(tableName);
+    setSyncRecord({
+      status: state.isSyncing ? 'syncing' : state.hasError ? 'error' : state.lastSynced ? 'success' : 'idle',
+      lastSynced: state.lastSynced ? new Date(state.lastSynced) : null,
+      lastError: state.errorMessage || null,
+      pendingChanges: state.hasPendingChanges || false
+    });
+  }, [tableName]);
+  
+  // Charger les données initiales localement
   useEffect(() => {
-    const loadData = async () => {
-      try {
-        const localData = await dataSyncManager.getLocalData<T>(key);
-        if (localData) {
-          setState(prev => ({
-            ...prev,
-            data: localData,
-            isLoading: false,
-            status: 'success'
-          }));
-        } else if (endpoint && isOnline && autoSync) {
-          await syncWithServer();
-        } else {
-          setState(prev => ({
-            ...prev,
-            isLoading: false,
-            status: 'idle',
-            data: initialData
-          }));
-        }
-      } catch (error) {
-        console.error('Error loading data:', error);
-        setState(prev => ({ 
-          ...prev, 
-          isLoading: false,
-          status: 'error',
-          error: error instanceof Error ? error.message : 'Unknown error',
-          lastError: error instanceof Error ? error : new Error('Unknown error')
-        }));
-      }
-    };
-    loadData();
-  }, [key]);
-
-  // Save data locally whenever it changes
-  useEffect(() => {
-    if (!state.isLoading) {
-      dataSyncManager.saveLocalData(key, state.data)
-        .catch(error => console.error('Error saving data locally:', error));
-    }
-  }, [state.data, key]);
-
-  // Sync with server when online if autoSync is enabled
-  useEffect(() => {
-    if (autoSync && endpoint && isOnline && state.pendingChanges > 0 && !state.isSyncing) {
-      const timer = setTimeout(syncWithServer, 2000); // Debounce sync
-      return () => clearTimeout(timer);
-    }
-  }, [state.data, isOnline, autoSync, endpoint, state.pendingChanges, state.isSyncing]);
-
-  // Method to sync with the server
-  const syncWithServer = async (options?: SyncOptions) => {
-    if (!endpoint || state.isSyncing) return false;
-
-    setState(prev => ({ ...prev, isSyncing: true }));
+    const localData = dataSyncManager.getLocalData<T>(tableName) || [];
+    setData(localData);
     
-    try {
-      if (isOnline) {
-        const success = await dataSyncManager.syncData(endpoint, state.data, options);
-        
-        if (success) {
-          setState(prev => ({ 
-            ...prev, 
-            isSyncing: false, 
-            lastSynced: new Date(),
-            pendingChanges: 0,
-            status: 'success',
-            error: null
-          }));
-          return true;
-        } else {
-          throw new Error('Sync failed for unknown reason');
-        }
-      } else {
-        toast({
-          title: "Synchronisation impossible",
-          description: "Vous êtes actuellement hors ligne",
-          variant: "destructive"
-        });
-        setState(prev => ({ ...prev, isSyncing: false }));
-        return false;
-      }
-    } catch (error) {
-      console.error('Sync error:', error);
-      setState(prev => ({ 
-        ...prev, 
-        isSyncing: false,
-        status: 'error',
-        error: error instanceof Error ? error.message : 'Unknown sync error',
-        lastError: error instanceof Error ? error : new Error('Unknown sync error')
-      }));
-
-      toast({
-        title: "Échec de la synchronisation",
-        description: `${error instanceof Error ? error.message : 'Erreur inconnue'}`,
-        variant: "destructive"
-      });
-      
+    // Configurer un intervalle pour surveiller les changements de statut
+    const intervalId = setInterval(refreshStatus, 2000);
+    
+    return () => clearInterval(intervalId);
+  }, [tableName, refreshStatus]);
+  
+  // Synchroniser les données avec le serveur
+  const syncData = useCallback(async (
+    newData?: T[],
+    options?: SyncOptions
+  ): Promise<boolean> => {
+    if (!isOnline) {
       return false;
     }
-  };
-
-  // Update data
-  const updateData = useCallback((newData: T | ((prev: T) => T)) => {
-    setState(prev => {
-      const updatedData = typeof newData === 'function' 
-        ? (newData as ((prev: T) => T))(prev.data) 
-        : newData;
-      
-      return {
-        ...prev,
-        data: updatedData,
-        pendingChanges: prev.pendingChanges + 1
-      };
-    });
-  }, []);
-
-  // Reset to initial data
-  const resetData = useCallback(() => {
-    setState(prev => ({
-      ...prev,
-      data: initialData,
-      pendingChanges: prev.pendingChanges + 1
-    }));
     
-    toast({
-      title: "Données réinitialisées",
-      description: "Les données ont été réinitialisées avec succès"
-    });
-  }, [initialData, toast]);
-
+    const dataToSync = newData || data;
+    
+    // Si des données sont fournies, les enregistrer localement d'abord
+    if (newData) {
+      setData(newData);
+      dataSyncManager.saveLocalData(tableName, newData);
+    }
+    
+    try {
+      console.log(`[useDataSync] Synchronisation des données pour ${tableName} (${dataToSync.length} éléments)`);
+      const result = await dataSyncManager.syncTable(tableName, dataToSync, options);
+      refreshStatus();
+      return result.success;
+    } catch (error) {
+      console.error(`[useDataSync] Erreur lors de la synchronisation pour ${tableName}:`, error);
+      refreshStatus();
+      return false;
+    }
+  }, [tableName, data, isOnline, refreshStatus]);
+  
+  // Charger les données depuis le serveur
+  const loadData = useCallback(async (options?: SyncOptions): Promise<T[]> => {
+    try {
+      console.log(`[useDataSync] Chargement des données pour ${tableName}`);
+      const loadedData = await dataSyncManager.loadData<T>(tableName, options);
+      setData(loadedData);
+      refreshStatus();
+      return loadedData;
+    } catch (error) {
+      console.error(`[useDataSync] Erreur lors du chargement des données pour ${tableName}:`, error);
+      refreshStatus();
+      
+      // En cas d'erreur, retourner les données actuelles
+      return data;
+    }
+  }, [tableName, refreshStatus, data]);
+  
+  // Sauvegarder les données localement
+  const saveLocalData = useCallback((newData: T[]): void => {
+    console.log(`[useDataSync] Sauvegarde locale des données pour ${tableName} (${newData.length} éléments)`);
+    setData(newData);
+    dataSyncManager.saveLocalData(tableName, newData);
+    refreshStatus();
+    
+    // Tenter une synchronisation automatique si en ligne
+    if (isOnline) {
+      syncData(newData, { showToast: false }).catch(err => {
+        console.warn(`[useDataSync] Échec de la synchronisation automatique pour ${tableName}:`, err);
+      });
+    }
+  }, [tableName, refreshStatus, syncData, isOnline]);
+  
   return {
-    ...state,
-    updateData,
-    resetData,
-    syncWithServer,
+    ...syncRecord,
+    data,
+    syncData,
+    loadData,
+    saveLocalData,
+    refreshStatus,
     isOnline
   };
-};
+}

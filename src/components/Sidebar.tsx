@@ -2,8 +2,15 @@
 import React from 'react';
 import SidebarNavItem from './sidebar/SidebarNavItem';
 import { navigationItems } from './sidebar/sidebarConfig';
+import { hasPermission } from '@/types/roles';
+import { getCurrentUser } from '@/services/auth/authService';
 
 const Sidebar = () => {
+  const sidebarImageUrl = localStorage.getItem('sidebarImageUrl') || '/lovable-uploads/swiss-army-knife-logo.png';
+  const sidebarLinkUrl = localStorage.getItem('sidebarLinkUrl') || '';
+  const user = getCurrentUser();
+  const userRole = (user?.role || 'utilisateur');
+
   return (
     <aside className="w-64 bg-gray-50 border-r min-h-screen">
       <nav className="flex flex-col p-4">
@@ -17,11 +24,21 @@ const Sidebar = () => {
         ))}
         
         <div className="mt-auto pt-8 flex items-center justify-center">
-          <img 
-            src="/lovable-uploads/fa423773-b335-4b1a-8ba6-56b7a83123e3.png"
-            alt="Qualite.cloud Swiss Army Knife"
-            className="w-24 h-auto opacity-90 transition-all duration-200" // était w-16, maintenant w-24
-          />
+          {sidebarLinkUrl ? (
+            <a href={sidebarLinkUrl} target="_blank" rel="noopener noreferrer">
+              <img 
+                src={sidebarImageUrl}
+                alt="Logo personnalisé"
+                className="w-24 h-auto opacity-90 transition-all duration-200"
+              />
+            </a>
+          ) : (
+            <img 
+              src={sidebarImageUrl}
+              alt="Logo personnalisé"
+              className="w-24 h-auto opacity-90 transition-all duration-200"
+            />
+          )}
         </div>
       </nav>
     </aside>

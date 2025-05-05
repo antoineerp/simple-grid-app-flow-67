@@ -6,14 +6,16 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogTrigger } from "@/components/ui/dialog";
-import { Loader2, RefreshCw, UserPlus, LogIn, AlertCircle, Eye, EyeOff, Download } from 'lucide-react';
+import { Loader2, RefreshCw, UserPlus, LogIn, AlertCircle, Eye, EyeOff, Download, Trash } from 'lucide-react';
 import { useAdminUsers } from '@/hooks/useAdminUsers';
 import UserForm from './UserForm';
-import { getCurrentUser, getLastConnectionError } from '@/services/core/databaseConnectionService';
+import { getCurrentUser, getLastConnectionError, getDatabaseConnectionCurrentUser } from '@/services/core/databaseConnectionService';
 import { useToast } from "@/hooks/use-toast";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { adminImportFromManager } from '@/services/core/userInitializationService';
-import type { Utilisateur } from '@/services';
+import { getApiUrl } from '@/config/apiConfig';
+import { getAuthHeaders } from '@/services/auth/authService';
+import { clearUsersCache, type Utilisateur } from '@/services';
 
 interface UserManagementProps {
   currentDatabaseUser: string | null;
@@ -27,15 +29,38 @@ const UserManagement = ({ currentDatabaseUser, onUserConnect }: UserManagementPr
   const [connectionError, setConnectionError] = useState<string | null>(null);
   const [showPasswords, setShowPasswords] = useState<{[key: string]: boolean}>({});
   const [importingData, setImportingData] = useState(false);
+  const [deletingUserId, setDeletingUserId] = useState<number | null>(null);
+  const [connectingUser, setConnectingUser] = useState<string | null>(null);
 
   useEffect(() => {
+    // Recharger les données au montage
+    loadUtilisateurs();
+    
+    // Vérifier s'il y a une erreur de connexion
     const lastError = getLastConnectionError();
     if (lastError) {
       setConnectionError(lastError);
     }
-  }, [currentDatabaseUser]);
+    
+    // Écouter les changements d'utilisateur
+    const handleUserChange = (event: Event) => {
+      const customEvent = event as CustomEvent;
+      const newUser = customEvent.detail?.user;
+      if (newUser) {
+        onUserConnect(newUser);
+        setConnectionError(null);
+      }
+    };
+    
+    window.addEventListener('database-user-changed', handleUserChange);
+    
+    return () => {
+      window.removeEventListener('database-user-changed', handleUserChange);
+    };
+  }, [onUserConnect, loadUtilisateurs]);
 
   const handleSuccessfulUserCreation = () => {
+    clearUsersCache();
     loadUtilisateurs();
     setConnectionError(null);
   };
@@ -53,13 +78,41 @@ const UserManagement = ({ currentDatabaseUser, onUserConnect }: UserManagementPr
 
   const connectUser = async (identifiantTechnique: string) => {
     setConnectionError(null);
-    const success = await handleConnectAsUser(identifiantTechnique);
-    if (success) {
-      onUserConnect(identifiantTechnique);
-      window.location.reload(); // Recharger la page dans la même fenêtre
-    } else {
-      const error = getLastConnectionError();
-      setConnectionError(error || "Erreur inconnue lors de la connexion");
+    setConnectingUser(identifiantTechnique);
+    
+    try {
+      const success = await handleConnectAsUser(identifiantTechnique);
+      
+      if (success) {
+        onUserConnect(identifiantTechnique);
+        toast({
+          title: "Connexion réussie",
+          description: `Connecté en tant que ${identifiantTechnique}`,
+        });
+        
+        // Redirection pour forcer un rechargement complet
+        setTimeout(() => {
+          window.location.reload();
+        }, 500);
+      } else {
+        const error = getLastConnectionError();
+        setConnectionError(error || "Erreur inconnue lors de la connexion");
+        toast({
+          title: "Erreur de connexion",
+          description: error || "Erreur inconnue lors de la connexion",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "Erreur inconnue";
+      setConnectionError(errorMessage);
+      toast({
+        title: "Erreur de connexion",
+        description: errorMessage,
+        variant: "destructive",
+      });
+    } finally {
+      setConnectingUser(null);
     }
   };
   
@@ -84,14 +137,58 @@ const UserManagement = ({ currentDatabaseUser, onUserConnect }: UserManagementPr
     }
   };
   
-  // Vérifier si l'utilisateur actuel est admin
+  const handleDeleteUser = async (userId: number) => {
+    if (!window.confirm("Êtes-vous sûr de vouloir supprimer cet utilisateur ?")) {
+      return;
+    }
+    
+    setDeletingUserId(userId);
+    
+    try {
+      const response = await fetch(`${getApiUrl()}/users`, {
+        method: 'DELETE',
+        headers: {
+          ...getAuthHeaders(),
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ id: userId })
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        toast({
+          title: "Succès",
+          description: "L'utilisateur a été supprimé avec succès",
+        });
+        
+        clearUsersCache();
+        loadUtilisateurs();
+      } else {
+        toast({
+          title: "Erreur",
+          description: data.message || "Erreur lors de la suppression de l'utilisateur",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error("Erreur lors de la suppression:", error);
+      toast({
+        title: "Erreur",
+        description: "Impossible de supprimer l'utilisateur",
+        variant: "destructive",
+      });
+    } finally {
+      setDeletingUserId(null);
+    }
+  };
+
   const isCurrentUserAdmin = () => {
     if (!currentDatabaseUser || !utilisateurs.length) return false;
     const currentUser = utilisateurs.find(user => user.identifiant_technique === currentDatabaseUser);
-    return currentUser?.role === 'admin';
+    return currentUser?.role === 'admin' || currentUser?.role === 'administrateur';
   };
   
-  // Vérifier s'il existe un gestionnaire
   const hasManager = utilisateurs.some(user => user.role === 'gestionnaire');
 
   return (
@@ -192,7 +289,7 @@ const UserManagement = ({ currentDatabaseUser, onUserConnect }: UserManagementPr
                 </TableRow>
               ) : (
                 utilisateurs.map(user => (
-                  <TableRow key={user.id}>
+                  <TableRow key={user.id} className={currentDatabaseUser === user.identifiant_technique ? "bg-blue-50" : ""}>
                     <TableCell className="flex items-center space-x-3">
                       <Avatar>
                         <AvatarFallback>{getInitials(user.nom, user.prenom)}</AvatarFallback>
@@ -202,7 +299,9 @@ const UserManagement = ({ currentDatabaseUser, onUserConnect }: UserManagementPr
                       </div>
                     </TableCell>
                     <TableCell>{user.email}</TableCell>
-                    <TableCell>{user.identifiant_technique}</TableCell>
+                    <TableCell>
+                      <span className="font-mono text-xs">{user.identifiant_technique}</span>
+                    </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
                         <span className="font-mono">
@@ -222,21 +321,40 @@ const UserManagement = ({ currentDatabaseUser, onUserConnect }: UserManagementPr
                       </div>
                     </TableCell>
                     <TableCell>
-                      <Badge variant={user.role === 'admin' ? 'default' : user.role === 'gestionnaire' ? 'destructive' : 'secondary'}>
+                      <Badge variant={user.role === 'admin' || user.role === 'administrateur' ? 'default' : user.role === 'gestionnaire' ? 'destructive' : 'secondary'}>
                         {user.role}
                       </Badge>
                     </TableCell>
                     <TableCell>{user.date_creation}</TableCell>
                     <TableCell className="text-right">
-                      <Button 
-                        variant="ghost" 
-                        size="sm"
-                        onClick={() => connectUser(user.identifiant_technique)}
-                        disabled={currentDatabaseUser === user.identifiant_technique}
-                      >
-                        <LogIn className="h-4 w-4 mr-1" />
-                        {currentDatabaseUser === user.identifiant_technique ? 'Connecté' : 'Connecter'}
-                      </Button>
+                      <div className="flex justify-end gap-2">
+                        <Button 
+                          variant={currentDatabaseUser === user.identifiant_technique ? "secondary" : "ghost"}
+                          size="sm"
+                          onClick={() => connectUser(user.identifiant_technique)}
+                          disabled={connectingUser === user.identifiant_technique || loading}
+                        >
+                          {connectingUser === user.identifiant_technique ? (
+                            <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                          ) : (
+                            <LogIn className="h-4 w-4 mr-1" />
+                          )}
+                          {currentDatabaseUser === user.identifiant_technique ? 'Connecté' : 'Connecter'}
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleDeleteUser(user.id)}
+                          className="text-red-500 hover:text-red-700"
+                          disabled={currentDatabaseUser === user.identifiant_technique || deletingUserId === user.id}
+                        >
+                          {deletingUserId === user.id ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <Trash className="h-4 w-4" />
+                          )}
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))

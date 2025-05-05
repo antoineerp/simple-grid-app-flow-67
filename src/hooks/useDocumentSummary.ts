@@ -1,7 +1,8 @@
 
 import { useState, useEffect } from 'react';
 import type { DocumentStats } from '@/types/documents';
-import { loadDocumentsFromStorage, calculateDocumentStats } from '@/services/documents';
+import { loadDocumentsFromServer, calculateDocumentStats } from '@/services/documents';
+import { getCurrentUser } from '@/services/core/databaseConnectionService';
 
 export const useDocumentSummary = () => {
   const [stats, setStats] = useState<DocumentStats>({
@@ -12,31 +13,32 @@ export const useDocumentSummary = () => {
     total: 0
   });
   
-  const currentUser = localStorage.getItem('currentUser') || 'default';
+  const currentUser = getCurrentUser() || 'p71x6d_system';
 
   useEffect(() => {
     // Function to load documents and calculate stats
-    const loadDocuments = () => {
-      // Retrieve documents from local storage for the current user
-      const documents = loadDocumentsFromStorage(currentUser);
-      
-      // Calculate stats
-      const documentStats = calculateDocumentStats(documents);
-      
-      setStats(documentStats);
+    const loadDocuments = async () => {
+      try {
+        // Retrieve documents from server for the current user
+        const documents = await loadDocumentsFromServer(currentUser);
+        
+        // Calculate stats
+        const documentStats = calculateDocumentStats(documents);
+        
+        setStats(documentStats);
+      } catch (error) {
+        console.error('Erreur lors du chargement des documents:', error);
+      }
     };
 
     // Load documents initially
     loadDocuments();
 
-    // Set up event listener for storage changes
-    window.addEventListener('storage', loadDocuments);
-    // Add custom event listener for document updates
+    // Set up event listener for document updates
     window.addEventListener('documentUpdate', loadDocuments);
 
-    // Clean up event listeners
+    // Clean up event listener
     return () => {
-      window.removeEventListener('storage', loadDocuments);
       window.removeEventListener('documentUpdate', loadDocuments);
     };
   }, [currentUser]);

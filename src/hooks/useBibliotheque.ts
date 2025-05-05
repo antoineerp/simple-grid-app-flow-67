@@ -1,422 +1,332 @@
 
 import { useState, useEffect, useCallback } from 'react';
-import { useToast } from '@/hooks/use-toast';
 import { Document, DocumentGroup } from '@/types/bibliotheque';
-import { loadBibliothequeFromStorage, saveBibliothequeToStorage } from '@/services/bibliotheque/bibliothequeService';
-import { syncBibliothequeWithServer, loadBibliothequeFromServer } from '@/services/bibliotheque/bibliothequeSync';
-import { useNetworkStatus } from '@/hooks/useNetworkStatus';
+import { useToast } from '@/hooks/use-toast';
+import { useSyncContext } from '@/hooks/useSyncContext';
+import { getCurrentUser } from '@/services/auth/authService';
+import { useGlobalSync } from '@/contexts/GlobalSyncContext';
+import { getDatabaseConnectionCurrentUser } from '@/services/core/databaseConnectionService';
 
 export const useBibliotheque = () => {
-  const { toast } = useToast();
   const [documents, setDocuments] = useState<Document[]>([]);
   const [groups, setGroups] = useState<DocumentGroup[]>([]);
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [isGroupDialogOpen, setIsGroupDialogOpen] = useState(false);
-  const [isEditing, setIsEditing] = useState(false);
+  const [isDialogOpen, setIsDialogOpen] = useState<boolean>(false);
+  const [isGroupDialogOpen, setIsGroupDialogOpen] = useState<boolean>(false);
+  const [isEditing, setIsEditing] = useState<boolean>(false);
   const [currentDocument, setCurrentDocument] = useState<Document>({
-    id: '',
-    name: '',
-    link: null
+    id: "",
+    name: "",
+    link: "",
+    groupId: undefined
   });
   const [currentGroup, setCurrentGroup] = useState<DocumentGroup>({
-    id: '',
-    name: '',
+    id: "",
+    name: "",
     expanded: false,
     items: []
   });
-  const [draggedItem, setDraggedItem] = useState<{ id: string, groupId?: string } | null>(null);
-  const [isSyncing, setIsSyncing] = useState(false);
-  const [lastSynced, setLastSynced] = useState<Date | undefined>(undefined);
-  const { isOnline } = useNetworkStatus();
-
-  const currentUser = localStorage.getItem('currentUser') || 'default';
-
-  // Charger les données au démarrage
-  useEffect(() => {
-    loadData();
+  
+  const { toast } = useToast();
+  
+  // S'assurer que currentUser est toujours une chaîne
+  const [currentUser, setCurrentUser] = useState<string>(() => {
+    const dbUser = getDatabaseConnectionCurrentUser();
+    if (dbUser) return dbUser;
+    
+    const authUser = getCurrentUser();
+    if (authUser && typeof authUser === 'object' && 'identifiant_technique' in authUser) {
+      return String(authUser.identifiant_technique);
+    }
+    
+    return 'default';
+  });
+  
+  // Use the GlobalSync context
+  const { syncTable, syncAll, isOnline } = useGlobalSync();
+  const { syncStates } = useGlobalSync();
+  
+  // Récupérer l'état de synchronisation spécifique pour 'collaboration'
+  const collaborationSyncState = syncStates['collaboration'] || { 
+    isSyncing: false, 
+    lastSynced: null,
+    syncFailed: false 
+  };
+  
+  // Déstructurer l'état de synchronisation pour faciliter l'accès
+  const { isSyncing, lastSynced, syncFailed } = collaborationSyncState;
+  
+  // Create local implementation for missing functions
+  const syncWithServer = useCallback(async (documents: Document[], groups: DocumentGroup[], userId?: string) => {
+    try {
+      console.log(`useBibliotheque: Manually syncing ${documents.length} documents`);
+      return await syncTable('collaboration', documents);
+    } catch (error) {
+      console.error('useBibliotheque: Sync error:', error);
+      return false;
+    }
+  }, [syncTable]);
+  
+  const notifyChanges = useCallback(() => {
+    console.log('useBibliotheque: Notifying data changes');
+    
+    // Dispatch an event that can be caught by other components
+    window.dispatchEvent(new CustomEvent('collaboration-data-changed', {
+      detail: { timestamp: Date.now() }
+    }));
   }, []);
   
-  // Sauvegarder les données à chaque changement
+  // Écouter les changements d'utilisateur de base de données
   useEffect(() => {
-    if (documents.length > 0 || groups.length > 0) {
-      saveBibliothequeToStorage(documents, groups, currentUser);
-    }
-  }, [documents, groups]);
-
-  // Charger les données
-  const loadData = async () => {
-    // D'abord, essayer de charger depuis le serveur
-    if (isOnline) {
-      try {
-        const serverData = await loadBibliothequeFromServer(currentUser);
-        if (serverData) {
-          setDocuments(serverData.documents);
-          setGroups(serverData.groups);
-          setLastSynced(new Date());
-          return;
-        }
-      } catch (error) {
-        console.error('Erreur lors du chargement depuis le serveur:', error);
+    const handleUserChange = (event: Event) => {
+      const customEvent = event as CustomEvent;
+      if (customEvent.detail?.user) {
+        const newUser = customEvent.detail.user;
+        console.log(`useBibliotheque: Changement d'utilisateur détecté - ${newUser}`);
+        setCurrentUser(newUser);
+        
+        // Vider les données actuelles
+        setDocuments([]);
+        setGroups([]);
+        
+        // Charger les données du nouvel utilisateur
+        loadLocalData(newUser);
       }
-    }
+    };
     
-    // Charger depuis le stockage local si le serveur n'est pas disponible
-    const localData = loadBibliothequeFromStorage(currentUser);
-    setDocuments(localData.documents);
-    setGroups(localData.groups);
-  };
-
-  // Méthode de synchronisation avec le serveur
-  const syncWithServer = async () => {
-    if (!isOnline) {
-      toast({
-        title: "Synchronisation impossible",
-        description: "Vous êtes actuellement hors ligne",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setIsSyncing(true);
+    window.addEventListener('database-user-changed', handleUserChange);
     
+    return () => {
+      window.removeEventListener('database-user-changed', handleUserChange);
+    };
+  }, []);
+  
+  // Fonction pour charger les données locales
+  const loadLocalData = useCallback((userId: string) => {
     try {
-      // Extraction des documents des groupes
-      const groupDocuments = groups.flatMap(group => 
-        group.items.map(item => ({...item, groupId: group.id}))
-      );
+      console.log(`useBibliotheque: Chargement des données pour l'utilisateur ${userId}`);
       
-      // Combiner les documents indépendants et ceux des groupes
-      const allDocuments = [...documents, ...groupDocuments];
+      // Mise à jour pour vérifier aussi les données sous l'ancien nom
+      let docsData = localStorage.getItem(`collaboration_${userId}`);
+      if (!docsData) {
+        docsData = localStorage.getItem('collaboration');
+        if (!docsData) {
+          docsData = localStorage.getItem(`bibliotheque_${userId}`);
+          if (!docsData) {
+            docsData = localStorage.getItem('bibliotheque');
+          }
+        }
+        
+        // Si trouvé sous l'ancien nom, migrer vers le nouveau
+        if (docsData) {
+          localStorage.setItem(`collaboration_${userId}`, docsData);
+        }
+      }
       
-      // Groupes sans les items (mais en gardant la structure complète)
-      const groupsData: DocumentGroup[] = groups.map(group => ({
-        id: group.id,
-        name: group.name,
-        expanded: group.expanded,
-        items: [] // Adding empty items array to satisfy the type
-      }));
+      let groupsData = localStorage.getItem(`collaboration_groups_${userId}`);
+      if (!groupsData) {
+        groupsData = localStorage.getItem('collaboration_groups');
+        if (!groupsData) {
+          groupsData = localStorage.getItem(`bibliotheque_groups_${userId}`);
+          if (!groupsData) {
+            groupsData = localStorage.getItem('bibliotheque_groups');
+          }
+        }
+        
+        // Si trouvé sous l'ancien nom, migrer vers le nouveau
+        if (groupsData) {
+          localStorage.setItem(`collaboration_groups_${userId}`, groupsData);
+        }
+      }
       
-      const success = await syncBibliothequeWithServer(allDocuments, groupsData, currentUser);
+      if (docsData) {
+        const parsedDocs = JSON.parse(docsData);
+        // Ensure all documents have userId
+        const docsWithUser = parsedDocs.map((doc: Document) => ({
+          ...doc,
+          userId: doc.userId || userId
+        }));
+        setDocuments(docsWithUser);
+        console.log(`Chargé ${docsWithUser.length} documents pour l'utilisateur ${userId}`);
+      }
       
-      if (success) {
-        toast({
-          title: "Synchronisation réussie",
-          description: "La bibliothèque a été synchronisée avec le serveur",
-        });
-        setLastSynced(new Date());
-      } else {
-        toast({
-          title: "Échec de la synchronisation",
-          description: "Une erreur est survenue lors de la synchronisation",
-          variant: "destructive",
-        });
+      if (groupsData) {
+        const parsedGroups = JSON.parse(groupsData);
+        // Ensure all groups have userId
+        const groupsWithUser = parsedGroups.map((group: DocumentGroup) => ({
+          ...group,
+          userId: group.userId || userId
+        }));
+        setGroups(groupsWithUser);
+        console.log(`Chargé ${groupsWithUser.length} groupes pour l'utilisateur ${userId}`);
       }
     } catch (error) {
-      console.error('Erreur de synchronisation:', error);
-      toast({
-        title: "Erreur de synchronisation",
-        description: `${error}`,
-        variant: "destructive",
-      });
-    } finally {
-      setIsSyncing(false);
+      console.error("Erreur lors du chargement des données locales:", error);
     }
-  };
-
-  // Gestion des documents
-  const handleEditDocument = (doc: Document) => {
-    setCurrentDocument({ ...doc });
-    setIsEditing(true);
-    setIsDialogOpen(true);
-  };
-
-  const handleDeleteDocument = (id: string) => {
-    // Supprimer des documents non-groupés
-    setDocuments(docs => docs.filter(doc => doc.id !== id));
+  }, []);
+  
+  // Charger les données locales au démarrage
+  useEffect(() => {
+    loadLocalData(currentUser);
     
-    // Supprimer des groupes
-    setGroups(groups => groups.map(group => ({
-      ...group,
-      items: group.items.filter(item => item.id !== id)
-    })));
-    
-    toast({
-      title: "Suppression",
-      description: "Le document a été supprimé",
-    });
-  };
-
-  const handleAddDocument = () => {
-    // Générer un nouvel ID
-    const allDocs = [...documents, ...groups.flatMap(g => g.items)];
-    const newId = allDocs.length > 0 
-      ? String(Math.max(...allDocs.map(d => parseInt(d.id))) + 1)
-      : "1";
-    
-    setCurrentDocument({
-      id: newId,
-      name: '',
-      link: null
-    });
-    setIsEditing(false);
-    setIsDialogOpen(true);
-  };
-
-  const handleDocumentInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setCurrentDocument({
-      ...currentDocument,
-      [name]: value
-    });
-  };
-
-  const handleSaveDocument = () => {
-    if (currentDocument.name.trim() === '') {
-      toast({
-        title: "Erreur",
-        description: "Le nom du document est requis",
-        variant: "destructive",
-      });
-      return;
+    // Initial sync when component mounts
+    if (isOnline) {
+      setTimeout(() => {
+        handleSyncDocuments().catch(console.error);
+      }, 1000);
     }
-
-    if (isEditing) {
-      if (currentDocument.groupId) {
-        setGroups(groups => 
-          groups.map(group => 
-            group.id === currentDocument.groupId 
-              ? {
-                  ...group,
-                  items: group.items.map(item => 
-                    item.id === currentDocument.id ? { 
-                      ...currentDocument,
-                      groupId: group.id  // Assurer que groupId est conservé
-                    } : item
-                  )
-                }
-              : group
-          )
-        );
-      } else {
-        setDocuments(docs => 
-          docs.map(doc => doc.id === currentDocument.id ? currentDocument : doc)
-        );
-      }
-      toast({
-        title: "Modification",
-        description: "Le document a été modifié",
-      });
-    } else {
-      setDocuments(docs => [...docs, currentDocument]);
-      toast({
-        title: "Ajout",
-        description: "Le document a été ajouté",
-      });
-    }
-    
-    setIsDialogOpen(false);
-  };
-
-  // Gestion des groupes
-  const handleEditGroup = (group: DocumentGroup) => {
-    setCurrentGroup({ ...group });
-    setIsEditing(true);
-    setIsGroupDialogOpen(true);
-  };
-
-  const handleDeleteGroup = (id: string) => {
-    const groupToDelete = groups.find(g => g.id === id);
-    if (groupToDelete && groupToDelete.items.length > 0) {
-      const docsToMove = [...groupToDelete.items];
-      setDocuments(prev => [...prev, ...docsToMove]);
-    }
-    
-    setGroups(groups => groups.filter(group => group.id !== id));
-    toast({
-      title: "Suppression",
-      description: "Le groupe a été supprimé",
-    });
-  };
-
-  const handleAddGroup = () => {
-    const newId = groups.length > 0 
-      ? String(Math.max(...groups.map(g => parseInt(g.id))) + 1)
-      : "1";
-    setCurrentGroup({
-      id: newId,
-      name: '',
-      expanded: false,
-      items: []
-    });
-    setIsEditing(false);
-    setIsGroupDialogOpen(true);
-  };
-
-  const handleGroupInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setCurrentGroup({
-      ...currentGroup,
-      [name]: value
-    });
-  };
-
-  const handleSaveGroup = () => {
-    if (currentGroup.name.trim() === '') {
-      toast({
-        title: "Erreur",
-        description: "Le nom du groupe est requis",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (isEditing) {
-      setGroups(groups => 
-        groups.map(group => group.id === currentGroup.id ? {
-          ...currentGroup,
-          items: group.items // Conserver les items existants
-        } : group)
-      );
-      toast({
-        title: "Modification",
-        description: "Le groupe a été modifié",
-      });
-    } else {
-      setGroups(groups => [...groups, { ...currentGroup, items: [] }]);
-      toast({
-        title: "Ajout",
-        description: "Le groupe a été ajouté",
-      });
-    }
-    
-    setIsGroupDialogOpen(false);
-  };
-
-  // Gestion du drag & drop
-  const handleDrop = (targetId: string, targetGroupId?: string) => {
-    if (!draggedItem) return;
-    
-    const { id: sourceId, groupId: sourceGroupId } = draggedItem;
-    
-    if (sourceId === targetId && sourceGroupId === targetGroupId) return;
-    
-    if (targetGroupId !== undefined && sourceGroupId !== targetGroupId) {
-      // Déplacer un document vers un groupe
-      let docToMove;
+  }, [currentUser, isOnline, loadLocalData]);
+  
+  // Sauvegarder les documents localement quand ils changent
+  useEffect(() => {
+    if (documents.length > 0) {
+      // Make sure all documents have a userId
+      const docsWithUser = documents.map(doc => ({
+        ...doc,
+        userId: doc.userId || currentUser
+      }));
       
-      if (sourceGroupId) {
-        // Document provient d'un autre groupe
-        setGroups(groups => groups.map(group => 
-          group.id === sourceGroupId 
-            ? { ...group, items: group.items.filter(item => item.id !== sourceId) }
-            : group
-        ));
-        
-        // Trouver le document
-        const sourceGroup = groups.find(g => g.id === sourceGroupId);
-        docToMove = sourceGroup?.items.find(d => d.id === sourceId);
-      } else {
-        // Document provient de la liste principale
-        setDocuments(docs => docs.filter(doc => doc.id !== sourceId));
-        docToMove = documents.find(d => d.id === sourceId);
-      }
+      // Mise à jour pour utiliser le nouveau nom de stockage avec l'ID utilisateur
+      localStorage.setItem(`collaboration_${currentUser}`, JSON.stringify(docsWithUser));
+      notifyChanges();
+      console.log(`Sauvegardé ${docsWithUser.length} documents pour l'utilisateur ${currentUser}`);
       
-      if (docToMove) {
-        // Ajouter au nouveau groupe
-        setGroups(groups => groups.map(group => 
-          group.id === targetGroupId
-            ? { ...group, items: [...group.items, { ...docToMove, groupId: targetGroupId }] }
-            : group
-        ));
+      // Sync with server (debounced)
+      if (isOnline) {
+        const timer = setTimeout(() => {
+          syncTable('collaboration', docsWithUser).catch(console.error);
+        }, 2000);
         
-        toast({
-          title: "Déplacement",
-          description: "Le document a été déplacé vers un groupe",
-        });
-      }
-    } else if (sourceGroupId === targetGroupId) {
-      // Réorganiser à l'intérieur d'un groupe ou de la liste principale
-      if (sourceGroupId) {
-        // Réorganiser à l'intérieur d'un groupe
-        const group = groups.find(g => g.id === sourceGroupId);
-        if (!group) return;
-        
-        const sourceIndex = group.items.findIndex(item => item.id === sourceId);
-        const targetIndex = group.items.findIndex(item => item.id === targetId);
-        
-        if (sourceIndex === -1 || targetIndex === -1 || sourceIndex === targetIndex) return;
-        
-        setGroups(groups => groups.map(g => {
-          if (g.id === sourceGroupId) {
-            const newItems = [...g.items];
-            const [removed] = newItems.splice(sourceIndex, 1);
-            newItems.splice(targetIndex, 0, removed);
-            return { ...g, items: newItems };
-          }
-          return g;
-        }));
-      } else {
-        // Réorganiser dans la liste principale
-        const sourceIndex = documents.findIndex(doc => doc.id === sourceId);
-        const targetIndex = documents.findIndex(doc => doc.id === targetId);
-        
-        if (sourceIndex === -1 || targetIndex === -1 || sourceIndex === targetIndex) return;
-        
-        setDocuments(prev => {
-          const result = Array.from(prev);
-          const [removed] = result.splice(sourceIndex, 1);
-          result.splice(targetIndex, 0, removed);
-          return result;
-        });
-      }
-      
-      toast({
-        title: "Réorganisation",
-        description: "L'ordre des documents a été mis à jour",
-      });
-    }
-    
-    setDraggedItem(null);
-  };
-
-  const handleGroupDrop = (targetGroupId: string) => {
-    if (!draggedItem) return;
-    
-    const { id: sourceId, groupId: sourceGroupId } = draggedItem;
-    
-    if (sourceGroupId !== undefined && sourceId === targetGroupId) return;
-    
-    if (sourceGroupId === undefined && sourceId) {
-      // On déplace un document vers un groupe (en ciblant le groupe directement)
-      setDocuments(docs => docs.filter(doc => doc.id !== sourceId));
-      
-      const docToMove = documents.find(d => d.id === sourceId);
-      
-      if (docToMove) {
-        setGroups(groups => groups.map(group => 
-          group.id === targetGroupId
-            ? { ...group, items: [...group.items, { ...docToMove, groupId: targetGroupId }] }
-            : group
-        ));
-        
-        toast({
-          title: "Déplacement",
-          description: `Document déplacé dans le groupe ${groups.find(g => g.id === targetGroupId)?.name}`,
-        });
+        return () => clearTimeout(timer);
       }
     }
-    
-    setDraggedItem(null);
-  };
+  }, [documents, notifyChanges, currentUser, syncTable, isOnline]);
+  
+  // Sauvegarder les groupes localement quand ils changent
+  useEffect(() => {
+    if (groups.length > 0) {
+      // Make sure all groups have a userId
+      const groupsWithUser = groups.map(group => ({
+        ...group,
+        userId: group.userId || currentUser
+      }));
+      
+      // Mise à jour pour utiliser le nouveau nom de stockage avec l'ID utilisateur
+      localStorage.setItem(`collaboration_groups_${currentUser}`, JSON.stringify(groupsWithUser));
+      notifyChanges();
+      console.log(`Sauvegardé ${groupsWithUser.length} groupes pour l'utilisateur ${currentUser}`);
+      
+      // Sync with server (debounced)
+      if (isOnline) {
+        const timer = setTimeout(() => {
+          syncTable('collaboration_groups', groupsWithUser).catch(console.error);
+        }, 2000);
+        
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [groups, notifyChanges, currentUser, syncTable, isOnline]);
+  
+  // Fonctions pour gérer les documents
+  const handleAddDocument = useCallback((doc: Document) => {
+    setDocuments((prevDocs) => [
+      ...prevDocs,
+      { ...doc, userId: currentUser }
+    ]);
+  }, [currentUser]);
+  
+  const handleUpdateDocument = useCallback((doc: Document) => {
+    setDocuments((prevDocs) =>
+      prevDocs.map((d) => (d.id === doc.id ? { ...doc, userId: doc.userId || currentUser } : d))
+    );
+  }, [currentUser]);
+  
+  const handleDeleteDocument = useCallback((id: string) => {
+    setDocuments((prevDocs) => prevDocs.filter((d) => d.id !== id));
+  }, []);
 
-  const toggleGroup = (id: string) => {
-    setGroups(groups => 
-      groups.map(group => 
+  // Fonctions pour gérer les documents - pour la compatibilité avec Collaboration.tsx
+  const handleEditDocument = useCallback((doc: Document) => {
+    setDocuments((prevDocs) =>
+      prevDocs.map((d) => (d.id === doc.id ? { ...doc, userId: doc.userId || currentUser } : d))
+    );
+  }, [currentUser]);
+  
+  // Fonctions pour gérer les groupes
+  const handleAddGroup = useCallback((group: DocumentGroup) => {
+    setGroups((prevGroups) => [
+      ...prevGroups, 
+      { ...group, userId: currentUser }
+    ]);
+  }, [currentUser]);
+  
+  const handleUpdateGroup = useCallback((group: DocumentGroup) => {
+    setGroups((prevGroups) =>
+      prevGroups.map((g) => (g.id === group.id ? { ...group, userId: group.userId || currentUser } : g))
+    );
+  }, [currentUser]);
+  
+  const handleDeleteGroup = useCallback((id: string) => {
+    // Mettre à jour les documents qui étaient dans ce groupe
+    setDocuments((prevDocs) =>
+      prevDocs.map((d) => (d.groupId === id ? { ...d, groupId: undefined } : d))
+    );
+    
+    // Supprimer le groupe
+    setGroups((prevGroups) => prevGroups.filter((g) => g.id !== id));
+  }, []);
+
+  // Fonctions pour gérer les groupes - pour la compatibilité avec Collaboration.tsx
+  const handleEditGroup = useCallback((group: DocumentGroup) => {
+    setGroups((prevGroups) =>
+      prevGroups.map((g) => (g.id === group.id ? { ...group, userId: group.userId || currentUser } : g))
+    );
+  }, [currentUser]);
+
+  const handleToggleGroup = useCallback((id: string) => {
+    setGroups(prevGroups => 
+      prevGroups.map(group => 
         group.id === id ? { ...group, expanded: !group.expanded } : group
       )
     );
+  }, []);
+  
+  // Fonction de synchronisation manuelle
+  const handleSyncDocuments = async (): Promise<void> => {
+    try {
+      // Ajouter des logs pour déboguer la synchronisation
+      console.log("Début de la synchronisation des documents de collaboration");
+      console.log(`Documents à synchroniser pour l'utilisateur ${currentUser}:`, documents);
+      console.log(`Groupes à synchroniser pour l'utilisateur ${currentUser}:`, groups);
+      
+      // Synchroniser les documents
+      await syncTable('collaboration', documents.map(doc => ({
+        ...doc,
+        userId: doc.userId || currentUser
+      })));
+      
+      // Synchroniser les groupes
+      await syncTable('collaboration_groups', groups.map(group => ({
+        ...group,
+        userId: group.userId || currentUser
+      })));
+      
+      // Forcer la synchronisation des groupes également
+      const syncEvent = new CustomEvent('force-sync-required', {
+        detail: {
+          timestamp: Date.now(),
+          tables: ['collaboration', 'collaboration_groups']
+        }
+      });
+      window.dispatchEvent(syncEvent);
+      
+      console.log("Fin de la synchronisation des documents de collaboration");
+      return Promise.resolve();
+    } catch (error) {
+      console.error("Erreur lors de la synchronisation des documents:", error);
+      return Promise.reject(error);
+    }
   };
-
+  
   return {
     documents,
     groups,
@@ -425,25 +335,27 @@ export const useBibliotheque = () => {
     isEditing,
     currentDocument,
     currentGroup,
+    setIsDialogOpen,
+    setIsGroupDialogOpen,
+    setIsEditing,
+    setCurrentDocument,
+    setCurrentGroup,
+    handleAddDocument,
+    handleUpdateDocument,
+    handleDeleteDocument,
+    handleAddGroup,
+    handleUpdateGroup,
+    handleDeleteGroup,
+    handleSyncDocuments,
+    // Ajouter ces méthodes pour la compatibilité avec Collaboration.tsx
+    handleEditDocument,
+    handleEditGroup,
+    handleToggleGroup,
+    syncWithServer,
     isSyncing,
     isOnline,
     lastSynced,
-    setIsDialogOpen,
-    setIsGroupDialogOpen,
-    handleEditDocument,
-    handleDeleteDocument,
-    handleAddDocument,
-    handleDocumentInputChange,
-    handleSaveDocument,
-    handleEditGroup,
-    handleDeleteGroup,
-    handleAddGroup,
-    handleGroupInputChange,
-    handleSaveGroup,
-    handleDrop,
-    handleGroupDrop,
-    toggleGroup,
-    setDraggedItem,
-    syncWithServer
+    syncFailed,
+    currentUser
   };
 };

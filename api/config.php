@@ -59,26 +59,6 @@ function jsonErrorHandler($errno, $errstr, $errfile, $errline) {
 // Définir notre gestionnaire d'erreurs
 set_error_handler("jsonErrorHandler", E_ALL);
 
-// Gestionnaire d'exceptions non capturées
-function jsonExceptionHandler($e) {
-    // Journaliser l'exception
-    error_log("Exception non capturée: " . $e->getMessage() . " dans " . $e->getFile() . " ligne " . $e->getLine());
-    
-    http_response_code(500);
-    echo json_encode([
-        'status' => 'error',
-        'message' => 'Exception: ' . $e->getMessage(),
-        'details' => [
-            'file' => basename($e->getFile()),
-            'line' => $e->getLine()
-        ]
-    ]);
-    exit(1);
-}
-
-// Définir notre gestionnaire d'exceptions
-set_exception_handler("jsonExceptionHandler");
-
 // Journaliser la requête pour débogage
 error_log("Config API - Méthode: " . $_SERVER['REQUEST_METHOD'] . " - URI: " . $_SERVER['REQUEST_URI']);
 
@@ -100,11 +80,110 @@ ob_start(function($buffer) {
     return $buffer;
 });
 
-// Inclure le contrôleur de configuration
-try {
-    require_once 'controllers/ConfigController.php';
-} catch (Exception $e) {
-    // Déjà géré par notre gestionnaire d'exceptions
+// Fichier de configuration
+$configFile = __DIR__ . '/config/app_config.json';
+
+// Détermininer la méthode de requête
+$method = $_SERVER['REQUEST_METHOD'];
+
+// Journaliser pour le débogage
+error_log("ConfigController - Méthode: $method");
+
+switch($method) {
+    case 'GET':
+        try {
+            // Lire la configuration actuelle
+            if (file_exists($configFile)) {
+                $config = json_decode(file_get_contents($configFile), true);
+                if ($config === null && json_last_error() !== JSON_ERROR_NONE) {
+                    throw new Exception("Erreur de parsing JSON: " . json_last_error_msg());
+                }
+            } else {
+                $config = [
+                    'api_urls' => [
+                        'development' => 'http://localhost:8080/api',
+                        'production' => 'https://qualiopi.ch/api'
+                    ],
+                    'allowed_origins' => [
+                        'development' => 'http://localhost:8080',
+                        'production' => 'https://qualiopi.ch'
+                    ]
+                ];
+                
+                // Créer le fichier s'il n'existe pas
+                if (!file_put_contents($configFile, json_encode($config, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE))) {
+                    throw new Exception("Impossible de créer le fichier de configuration");
+                }
+            }
+            
+            http_response_code(200);
+            echo json_encode($config, JSON_UNESCAPED_UNICODE);
+        } catch (Exception $e) {
+            http_response_code(500);
+            echo json_encode(["message" => "Erreur lors de la lecture de la configuration: " . $e->getMessage()], JSON_UNESCAPED_UNICODE);
+        }
+        break;
+        
+    case 'POST':
+        try {
+            // Obtenir les données postées et assurer qu'elles sont en UTF-8
+            $json_input = file_get_contents("php://input");
+            if (!$json_input) {
+                throw new Exception("Aucune donnée reçue");
+            }
+            
+            error_log("Données reçues: " . $json_input);
+            
+            $data = json_decode(cleanUTF8($json_input), true);
+            if ($data === null && json_last_error() !== JSON_ERROR_NONE) {
+                throw new Exception("Erreur de parsing JSON: " . json_last_error_msg());
+            }
+            
+            // Valider la structure des données
+            if (!isset($data['api_urls']) || 
+                !isset($data['allowed_origins']) ||
+                !isset($data['api_urls']['development']) || 
+                !isset($data['api_urls']['production']) || 
+                !isset($data['allowed_origins']['development']) || 
+                !isset($data['allowed_origins']['production'])
+            ) {
+                throw new Exception("Structure de données incomplète");
+            }
+            
+            // Vérifier que le dossier config existe
+            $configDir = dirname($configFile);
+            if (!is_dir($configDir)) {
+                if (!mkdir($configDir, 0755, true)) {
+                    throw new Exception("Impossible de créer le dossier de configuration");
+                }
+            }
+            
+            // Vérifier les permissions d'écriture
+            if (file_exists($configFile) && !is_writable($configFile)) {
+                throw new Exception("Impossible d'écrire dans le fichier de configuration (permissions insuffisantes)");
+            }
+            
+            // Mettre à jour la configuration
+            if (!file_put_contents($configFile, json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE))) {
+                throw new Exception("Erreur lors de l'écriture du fichier");
+            }
+            
+            http_response_code(200);
+            echo json_encode(["message" => "Configuration mise à jour avec succès"], JSON_UNESCAPED_UNICODE);
+        } catch (Exception $e) {
+            error_log("Erreur ConfigController: " . $e->getMessage());
+            http_response_code(500);
+            echo json_encode([
+                "message" => "Erreur lors de la mise à jour de la configuration", 
+                "details" => $e->getMessage()
+            ], JSON_UNESCAPED_UNICODE);
+        }
+        break;
+        
+    default:
+        http_response_code(405);
+        echo json_encode(["message" => "Méthode non autorisée"], JSON_UNESCAPED_UNICODE);
+        break;
 }
 
 // Vider le tampon de sortie
