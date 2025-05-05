@@ -1,153 +1,126 @@
 
-import { useState, useCallback, useEffect } from 'react';
-import { syncService, DataTable, SyncResult } from '@/services/sync/SyncService';
-import { useToast } from '@/components/ui/use-toast';
-import { useNetworkStatus } from '@/hooks/useNetworkStatus';
-
-export interface SyncState {
-  isSyncing: boolean;
-  lastSynced: Date | null;
-  syncFailed: boolean;
-  syncAndProcess: <T>(table: DataTable<T>, trigger?: "auto" | "manual" | "initial") => Promise<SyncResult>;
-  resetSyncStatus: () => void;
-  isOnline: boolean;
-}
+import { useState, useEffect, useCallback } from 'react';
+import { DataTable, syncService } from '@/services/sync/SyncService';
+import { dataSyncManager } from '@/services/sync/DataSyncManager';
+import { getCurrentUser } from '@/services/core/databaseConnectionService';
+import { toast } from '@/components/ui/use-toast';
 
 /**
- * Hook pour gérer la synchronisation de données avec le serveur
+ * Hook personnalisé pour gérer la synchronisation des données
  */
-export const useSync = (tableName: string): SyncState => {
-  const [isSyncing, setIsSyncing] = useState<boolean>(false);
-  const [lastSynced, setLastSynced] = useState<Date | null>(syncService.getLastSynced(tableName));
-  const [syncFailed, setSyncFailed] = useState<boolean>(false);
-  const { toast } = useToast();
-  const { isOnline } = useNetworkStatus();
+export function useSync(tableName: string) {
+  const currentUser = getCurrentUser();
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [lastSynced, setLastSynced] = useState<Date | null>(null);
+  const [syncFailed, setSyncFailed] = useState(false);
   
-  // Mise à jour de l'état de synchronisation
+  // Mettre à jour l'état initial
   useEffect(() => {
-    const syncingState = syncService.isSyncingTable(tableName);
-    setIsSyncing(syncingState);
-    
-    // Mettre à jour la dernière date de synchronisation
-    const lastSyncDate = syncService.getLastSynced(tableName);
-    if (lastSyncDate && (!lastSynced || lastSyncDate > lastSynced)) {
-      setLastSynced(lastSyncDate);
-    }
-    
-    // Vérifier dans le localStorage s'il y a eu un échec de synchronisation
-    const lastFailedSync = localStorage.getItem(`sync_failed_${tableName}`);
-    if (lastFailedSync) {
-      try {
-        const failedSync = JSON.parse(lastFailedSync);
-        // Considérer comme échoué seulement si la dernière tentative a échoué il y a moins de 24h
-        const failedTime = new Date(failedSync.timestamp).getTime();
-        const now = new Date().getTime();
-        const oneDay = 24 * 60 * 60 * 1000; // 24 heures en millisecondes
-        
-        if (now - failedTime < oneDay) {
-          setSyncFailed(true);
-        } else {
-          // Supprimer l'entrée si elle est trop ancienne
-          localStorage.removeItem(`sync_failed_${tableName}`);
-        }
-      } catch (e) {
-        console.error(`Erreur lors de la lecture de l'état de synchronisation: ${e}`);
-      }
-    }
-  }, [tableName, lastSynced]);
+    const syncStatus = dataSyncManager.getSyncStatus(tableName);
+    setLastSynced(syncStatus.lastSynced);
+    setSyncFailed(syncStatus.status === 'failed');
+  }, [tableName]);
   
-  // Fonction pour synchroniser les données et gérer les erreurs
+  /**
+   * Fonction pour synchroniser les données
+   */
   const syncAndProcess = useCallback(async <T>(
     table: DataTable<T>, 
-    trigger: "auto" | "manual" | "initial" = "auto"
-  ): Promise<SyncResult> => {
-    if (!isOnline) {
-      toast({
-        title: "Mode hors ligne",
-        description: "La synchronisation n'est pas disponible en mode hors ligne",
-        variant: "destructive"
-      });
-      throw new Error("Mode hors ligne");
-    }
-    
+    options: { showToast?: boolean } = {}
+  ) => {
     if (isSyncing) {
       toast({
         title: "Synchronisation en cours",
-        description: "Veuillez attendre la fin de la synchronisation en cours",
+        description: "Veuillez patienter, une synchronisation est déjà en cours"
       });
-      throw new Error("Synchronisation déjà en cours");
+      return { success: false, message: "Une synchronisation est déjà en cours" };
     }
     
-    setIsSyncing(true);
-    
     try {
-      // Si c'est une synchronisation automatique, ne pas afficher de toast de début
-      if (trigger !== "auto") {
-        toast({
-          title: "Synchronisation en cours",
-          description: "Veuillez patienter pendant la synchronisation..."
-        });
-      }
+      setIsSyncing(true);
+      setSyncFailed(false);
       
-      const result = await syncService.syncTable(table, null, trigger);
+      // Synchroniser les données
+      const result = await syncService.syncTable(table, currentUser);
+      
+      // Mettre à jour l'état
+      setLastSynced(new Date());
+      setSyncFailed(!result.success);
       
       if (result.success) {
-        setLastSynced(new Date());
-        setSyncFailed(false);
-        
-        // Supprimer toute trace d'échec précédent
-        localStorage.removeItem(`sync_failed_${tableName}`);
-        
-        // Pour les synchronisations manuelles et initiales, afficher un toast de succès
-        if (trigger !== "auto") {
+        if (options.showToast !== false) {
           toast({
             title: "Synchronisation réussie",
-            description: result.message || `${tableName} synchronisé avec succès`,
+            description: `Les données ont été synchronisées (${table.tableName})`
           });
         }
       } else {
-        setSyncFailed(true);
-        toast({
-          title: "Échec de la synchronisation",
-          description: result.message || "Une erreur est survenue lors de la synchronisation",
-          variant: "destructive"
-        });
+        if (options.showToast !== false) {
+          toast({
+            variant: "destructive",
+            title: "Échec de la synchronisation",
+            description: result.message || "Une erreur est survenue lors de la synchronisation"
+          });
+        }
       }
       
       return result;
     } catch (error) {
+      console.error("Erreur lors de la synchronisation:", error);
       setSyncFailed(true);
-      const errorMessage = error instanceof Error ? error.message : "Erreur inconnue";
       
-      // Sauvegarder l'échec dans le localStorage
-      localStorage.setItem(`sync_failed_${tableName}`, JSON.stringify({
-        timestamp: new Date().toISOString(),
-        error: errorMessage
-      }));
+      if (options.showToast !== false) {
+        toast({
+          variant: "destructive",
+          title: "Erreur de synchronisation",
+          description: error instanceof Error ? error.message : "Erreur inconnue"
+        });
+      }
       
-      toast({
-        title: "Erreur de synchronisation",
-        description: errorMessage,
-        variant: "destructive"
-      });
-      throw error;
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : "Erreur inconnue"
+      };
     } finally {
       setIsSyncing(false);
     }
-  }, [isOnline, isSyncing, tableName, toast]);
+  }, [tableName, isSyncing, currentUser]);
   
-  // Réinitialiser l'état de synchronisation
-  const resetSyncStatus = useCallback(() => {
-    setSyncFailed(false);
-    localStorage.removeItem(`sync_failed_${tableName}`);
-  }, [tableName]);
+  /**
+   * Charger les données depuis le serveur
+   */
+  const loadFromServer = useCallback(async <T>() => {
+    try {
+      setIsSyncing(true);
+      
+      // Charger les données
+      const data = await syncService.loadDataFromServer<T>(tableName, currentUser);
+      
+      setLastSynced(new Date());
+      setSyncFailed(false);
+      
+      return data;
+    } catch (error) {
+      console.error("Erreur lors du chargement des données:", error);
+      setSyncFailed(true);
+      
+      toast({
+        variant: "destructive",
+        title: "Erreur de chargement",
+        description: error instanceof Error ? error.message : "Erreur inconnue"
+      });
+      
+      return [];
+    } finally {
+      setIsSyncing(false);
+    }
+  }, [tableName, currentUser]);
   
   return {
     isSyncing,
     lastSynced,
     syncFailed,
     syncAndProcess,
-    resetSyncStatus,
-    isOnline
+    loadFromServer
   };
-};
+}

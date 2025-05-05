@@ -1,278 +1,159 @@
 
-import { toast } from '@/hooks/use-toast';
-import { getCurrentUser } from './databaseConnectionService';
-import { getUtilisateurs, type Utilisateur } from '../users/userService';
+import { toast } from '@/components/ui/use-toast';
+import { getApiUrl } from '@/config/apiConfig';
+import { getAuthHeaders } from '@/services/auth/authService';
+import { DatabaseHelper } from '@/services/sync/DatabaseHelper';
 
 /**
- * Service responsible for initializing user data when they first log in
+ * Service pour initialiser les tables et données d'un utilisateur
  */
-class UserInitializationService {
-  private static instance: UserInitializationService;
-
-  private constructor() {
-    console.log("User initialization service initialized");
-  }
-
-  // Singleton pattern to get the instance
-  public static getInstance(): UserInitializationService {
-    if (!UserInitializationService.instance) {
-      UserInitializationService.instance = new UserInitializationService();
-    }
-    return UserInitializationService.instance;
-  }
-
-  /**
-   * Check if the user data needs to be initialized
-   * @returns True if data needs initialization, false otherwise
-   */
-  public needsInitialization(userId: string): boolean {
-    // Check if the user has documents data
-    const hasDocuments = localStorage.getItem(`documents_${userId}`) !== null;
+export async function initializeUserTables(userId: string): Promise<boolean> {
+  try {
+    console.log(`Initialisation des tables pour l'utilisateur: ${userId}`);
     
-    // Check if the user has exigences data
-    const hasExigences = localStorage.getItem(`exigences_${userId}`) !== null;
-    
-    // If either is missing, initialization is needed
-    return !hasDocuments || !hasExigences;
-  }
-
-  /**
-   * Initialize user data by copying templates from gestionnaire or using defaults
-   * @param userId The user ID to initialize
-   * @returns True if successful, false otherwise
-   */
-  public async initializeUserData(userId: string): Promise<boolean> {
-    try {
-      console.log(`Initializing data for user: ${userId}`);
-      
-      // Tenter d'initialiser à partir d'un gestionnaire d'abord
-      const initializedFromManager = await this.initializeFromManager(userId);
-      
-      if (!initializedFromManager) {
-        console.log("Aucune donnée de gestionnaire trouvée, initialisation avec les valeurs par défaut");
-        // Initialize documents if needed
-        if (!localStorage.getItem(`documents_${userId}`)) {
-          this.initializeDocuments(userId);
-        }
-        
-        // Initialize exigences if needed
-        if (!localStorage.getItem(`exigences_${userId}`)) {
-          this.initializeExigences(userId);
-        }
-      }
-      
-      toast({
-        title: "Données initialisées",
-        description: "Vos données ont été configurées avec succès",
-      });
-      
-      return true;
-    } catch (error) {
-      console.error("Error initializing user data:", error);
-      toast({
-        title: "Erreur d'initialisation",
-        description: "Impossible d'initialiser vos données",
-        variant: "destructive",
-      });
+    // Vérifier le format de l'identifiant utilisateur
+    if (!userId || typeof userId !== 'string' || !userId.startsWith('p71x6d_')) {
+      console.error(`Format d'identifiant invalide: ${userId}`);
       return false;
     }
-  }
-
-  /**
-   * Tente d'initialiser les données d'un utilisateur à partir d'un gestionnaire
-   */
-  private async initializeFromManager(userId: string): Promise<boolean> {
-    try {
-      // Récupérer la liste des utilisateurs pour trouver un gestionnaire
-      const users = await getUtilisateurs();
-      const manager = users.find(user => user.role === 'gestionnaire');
-      
-      if (!manager) {
-        console.log("Aucun gestionnaire trouvé pour l'initialisation");
-        return false;
-      }
-      
-      console.log(`Gestionnaire trouvé: ${manager.prenom} ${manager.nom}`);
-      const managerId = manager.identifiant_technique;
-      
-      // Copier les documents du gestionnaire
-      const managerDocuments = localStorage.getItem(`documents_${managerId}`);
-      if (managerDocuments) {
-        localStorage.setItem(`documents_${userId}`, managerDocuments);
-        console.log("Documents copiés du gestionnaire");
-      }
-      
-      // Copier les exigences du gestionnaire
-      const managerExigences = localStorage.getItem(`exigences_${managerId}`);
-      if (managerExigences) {
-        localStorage.setItem(`exigences_${userId}`, managerExigences);
-        console.log("Exigences copiées du gestionnaire");
-      }
-      
-      return true;
-    } catch (error) {
-      console.error("Erreur lors de l'initialisation depuis le gestionnaire:", error);
+    
+    // Initialiser la structure de base de données
+    const dbHelper = new DatabaseHelper();
+    const result = await dbHelper.updateDatabaseStructure(userId, false);
+    
+    if (!result.success) {
+      console.error("Échec de la mise à jour de la structure de la base de données:", result.message);
       return false;
     }
-  }
-
-  /**
-   * Initialize documents for a user
-   */
-  private initializeDocuments(userId: string): void {
-    // Try to get the template from admin
-    const templateDocuments = localStorage.getItem('documents_template');
     
-    if (templateDocuments) {
-      // Use the template if available
-      localStorage.setItem(`documents_${userId}`, templateDocuments);
-      console.log(`Documents initialized from template for user ${userId}`);
-    } else {
-      // Create default documents if no template exists
-      const defaultDocuments = [
-        { 
-          id: '1', 
-          nom: 'Document 1',
-          fichier_path: 'Voir le document',
-          responsabilites: { r: [], a: [], c: [], i: [] },
-          etat: 'C',
-          date_creation: new Date(),
-          date_modification: new Date()
-        },
-        { 
-          id: '2', 
-          nom: 'Document 2',
-          fichier_path: null,
-          responsabilites: { r: [], a: [], c: [], i: [] },
-          etat: 'PC',
-          date_creation: new Date(),
-          date_modification: new Date()
-        },
-        { 
-          id: '3', 
-          nom: 'Document 3',
-          fichier_path: 'Voir le document',
-          responsabilites: { r: [], a: [], c: [], i: [] },
-          etat: 'NC',
-          date_creation: new Date(),
-          date_modification: new Date()
-        },
-      ];
-      
-      localStorage.setItem(`documents_${userId}`, JSON.stringify(defaultDocuments));
-      console.log(`Default documents created for user ${userId}`);
-    }
-  }
-
-  /**
-   * Initialize exigences for a user
-   */
-  private initializeExigences(userId: string): void {
-    // Try to get the template from admin
-    const templateExigences = localStorage.getItem('exigences_template');
+    // Initialiser les données d'exemple si c'est un nouvel utilisateur
+    const initResult = await initializeUserData(userId);
     
-    if (templateExigences) {
-      // Use the template if available
-      localStorage.setItem(`exigences_${userId}`, templateExigences);
-      console.log(`Exigences initialized from template for user ${userId}`);
-    } else {
-      // Create default exigences if no template exists
-      const defaultExigences = [
-        { 
-          id: '1', 
-          nom: 'Levée du courrier', 
-          responsabilites: { r: [], a: [], c: [], i: [] },
-          exclusion: false,
-          atteinte: null,
-          date_creation: new Date(),
-          date_modification: new Date()
-        },
-        { 
-          id: '2', 
-          nom: 'Ouverture du courrier', 
-          responsabilites: { r: [], a: [], c: [], i: [] },
-          exclusion: false,
-          atteinte: null,
-          date_creation: new Date(),
-          date_modification: new Date()
-        },
-      ];
-      
-      localStorage.setItem(`exigences_${userId}`, JSON.stringify(defaultExigences));
-      console.log(`Default exigences created for user ${userId}`);
-    }
-  }
-  
-  /**
-   * Permet à un administrateur de récupérer manuellement les données du gestionnaire
-   */
-  public async adminImportFromManager(): Promise<boolean> {
-    try {
-      const currentUser = getCurrentUser();
-      if (!currentUser) {
-        console.error("Aucun utilisateur connecté");
-        return false;
-      }
-      
-      // Vérifier si l'utilisateur est admin
-      const users = await getUtilisateurs();
-      const currentUserDetails = users.find(user => user.identifiant_technique === currentUser);
-      
-      if (!currentUserDetails || currentUserDetails.role !== 'admin') {
-        console.error("Seul un administrateur peut effectuer cette opération");
-        return false;
-      }
-      
-      // Récupérer le gestionnaire
-      const manager = users.find(user => user.role === 'gestionnaire');
-      
-      if (!manager) {
-        console.error("Aucun gestionnaire trouvé");
-        return false;
-      }
-      
-      // Copier les données du gestionnaire
-      const managerDocuments = localStorage.getItem(`documents_${manager.identifiant_technique}`);
-      const managerExigences = localStorage.getItem(`exigences_${manager.identifiant_technique}`);
-      
-      if (managerDocuments) {
-        localStorage.setItem(`documents_${currentUser}`, managerDocuments);
-      }
-      
-      if (managerExigences) {
-        localStorage.setItem(`exigences_${currentUser}`, managerExigences);
-      }
-      
-      toast({
-        title: "Données importées",
-        description: "Les données du gestionnaire ont été importées avec succès",
-      });
-      
-      return true;
-    } catch (error) {
-      console.error("Erreur lors de l'importation des données du gestionnaire:", error);
-      toast({
-        title: "Erreur d'importation",
-        description: "Impossible d'importer les données du gestionnaire",
-        variant: "destructive",
-      });
-      return false;
-    }
+    console.log(`Initialisation terminée pour ${userId}, résultat:`, initResult);
+    return true;
+    
+  } catch (error) {
+    console.error("Erreur lors de l'initialisation des tables utilisateur:", error);
+    toast({
+      variant: "destructive",
+      title: "Erreur d'initialisation",
+      description: "Impossible d'initialiser les tables utilisateur."
+    });
+    return false;
   }
 }
 
-// Export the user initialization service instance
-const userInitService = UserInitializationService.getInstance();
+/**
+ * Initialise les données de l'utilisateur en copiant depuis le compte de référence (gestionnaire)
+ */
+async function initializeUserData(userId: string): Promise<boolean> {
+  try {
+    const API_URL = getApiUrl();
+    const endpoint = `${API_URL}/user-init.php`;
+    
+    console.log(`Initialisation des données utilisateur depuis ${endpoint}`);
+    
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        ...getAuthHeaders(),
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ userId })
+    });
+    
+    if (!response.ok) {
+      // Essayer l'URL alternative
+      const alternativeUrl = `/sites/qualiopi.ch/api/user-init.php`;
+      console.log(`Tentative avec URL alternative: ${alternativeUrl}`);
+      
+      const altResponse = await fetch(alternativeUrl, {
+        method: 'POST',
+        headers: {
+          ...getAuthHeaders(),
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ userId })
+      });
+      
+      if (!altResponse.ok) {
+        throw new Error(`Erreur HTTP: ${altResponse.status}`);
+      }
+      
+      const result = await altResponse.json();
+      return result.success;
+    }
+    
+    const result = await response.json();
+    return result.success;
+    
+  } catch (error) {
+    console.error("Erreur lors de l'initialisation des données utilisateur:", error);
+    return false;
+  }
+}
 
-// Export simplified functions for easier usage
-export const needsInitialization = (userId: string): boolean => {
-  return userInitService.needsInitialization(userId);
-};
+/**
+ * Vérifie si les tables de l'utilisateur ont déjà été initialisées
+ */
+export async function checkUserTablesInitialized(userId: string): Promise<boolean> {
+  try {
+    // Vérifier si la table documents existe pour cet utilisateur
+    const API_URL = getApiUrl();
+    const checkEndpoint = `${API_URL}/table-check.php?userId=${userId}&table=documents`;
+    
+    const response = await fetch(checkEndpoint, {
+      method: 'GET',
+      headers: getAuthHeaders()
+    });
+    
+    if (!response.ok) {
+      return false;
+    }
+    
+    const result = await response.json();
+    return result.exists;
+    
+  } catch (error) {
+    console.error("Erreur lors de la vérification des tables utilisateur:", error);
+    return false;
+  }
+}
 
-export const initializeUserData = (userId: string): Promise<boolean> => {
-  return userInitService.initializeUserData(userId);
-};
-
-export const adminImportFromManager = (): Promise<boolean> => {
-  return userInitService.adminImportFromManager();
-};
+/**
+ * Journal des modifications utilisateur
+ */
+export async function logUserActivity(
+  userId: string,
+  action: 'create' | 'update' | 'delete',
+  resourceType: 'document' | 'exigence' | 'membre',
+  resourceId: string,
+  details?: Record<string, any>
+): Promise<void> {
+  try {
+    const API_URL = getApiUrl();
+    const logEndpoint = `${API_URL}/activity-log.php`;
+    
+    await fetch(logEndpoint, {
+      method: 'POST',
+      headers: {
+        ...getAuthHeaders(),
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        userId,
+        action,
+        resourceType,
+        resourceId,
+        details: details || {},
+        timestamp: new Date().toISOString()
+      })
+    });
+    
+    console.log(`Activité journalisée: ${action} ${resourceType} ${resourceId} par ${userId}`);
+    
+  } catch (error) {
+    console.error("Erreur lors de la journalisation de l'activité utilisateur:", error);
+    // Ne pas bloquer le flux principal en cas d'erreur de journalisation
+  }
+}

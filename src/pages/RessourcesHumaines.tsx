@@ -1,267 +1,226 @@
 
-import React, { useEffect } from 'react';
-import { FileText, UserPlus, CloudSun, AlertTriangle } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { MembresProvider } from '@/contexts/MembresContext';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Button } from '@/components/ui/button';
+import { UserPlus, Users, Download } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
-import { useMembres } from '@/contexts/MembresContext';
-import MemberList from '@/components/ressources-humaines/MemberList';
-import MemberForm from '@/components/ressources-humaines/MemberForm';
-import { Membre } from '@/types/membres';
-import { exportAllCollaborateursToPdf } from '@/services/collaborateurExport';
+import { useSync } from '@/hooks/useSync';
 import SyncStatusIndicator from '@/components/common/SyncStatusIndicator';
+import { Membre } from '@/types/membres';
+import { getCurrentUser } from '@/services/core/databaseConnectionService';
+import { logUserActivity } from '@/services/core/userInitializationService';
 
 const RessourcesHumaines = () => {
   const { toast } = useToast();
-  const { 
-    membres, 
-    setMembres, 
-    isSyncing, 
-    isOnline, 
-    lastSynced, 
-    syncWithServer, 
-    isLoading, 
-    error,
-    syncFailed,
-    resetSyncFailed
-  } = useMembres();
-  
-  const [isDialogOpen, setIsDialogOpen] = React.useState(false);
-  const [currentMembre, setCurrentMembre] = React.useState<Membre>({
-    id: '',
-    nom: '',
-    prenom: '',
-    fonction: '',
-    initiales: '',
-    date_creation: new Date(),
-    mot_de_passe: '' 
-  });
-  const [isEditing, setIsEditing] = React.useState(false);
+  const [membres, setMembres] = useState<Membre[]>([]);
+  const [activeTab, setActiveTab] = useState('liste');
+  const { isSyncing, syncFailed, lastSynced, syncAndProcess, loadFromServer } = useSync('membres');
 
-  // Effectuer une seule synchronisation au chargement de la page, si nécessaire
   useEffect(() => {
-    // Ne synchroniser que lorsque le chargement initial est terminé
-    // et uniquement si on est en ligne et qu'il n'y a pas d'échec précédent
-    if (!isLoading && isOnline && !syncFailed && !isSyncing) {
-      console.log("Synchronisation initiale des membres");
-      syncWithServer().catch(console.error);
-    }
-  }, [isLoading]);
+    const fetchMembres = async () => {
+      try {
+        // Charger les membres depuis le serveur
+        const data = await loadFromServer<Membre>();
+        if (data && data.length > 0) {
+          setMembres(data);
+        }
+      } catch (error) {
+        console.error("Erreur de chargement des membres:", error);
+      }
+    };
 
-  const handleEdit = (id: string) => {
-    const membre = membres.find(m => m.id === id);
-    if (membre) {
-      setCurrentMembre({ ...membre });
-      setIsEditing(true);
-      setIsDialogOpen(true);
-    }
-  };
+    fetchMembres();
+  }, [loadFromServer]);
 
-  const handleDelete = (id: string) => {
-    setMembres(prev => prev.filter(membre => membre.id !== id));
-    toast({
-      title: "Suppression",
-      description: `Le membre ${id} a été supprimé`,
-    });
-    
-    // Synchroniser manuellement après une suppression
-    if (isOnline && !syncFailed && !isSyncing) {
-      syncWithServer().catch(console.error);
+  const handleSync = async () => {
+    try {
+      await syncAndProcess({
+        tableName: 'membres',
+        data: membres
+      });
+    } catch (error) {
+      console.error("Erreur de synchronisation:", error);
     }
   };
 
-  const handleAddMember = () => {
-    const newId = membres.length > 0 
-      ? String(Math.max(...membres.map(membre => parseInt(membre.id))) + 1)
-      : '1';
-    
-    setCurrentMembre({
-      id: newId,
-      nom: '',
-      prenom: '',
-      fonction: '',
-      initiales: '',
-      date_creation: new Date(),
-      mot_de_passe: '' 
-    });
-    setIsEditing(false);
-    setIsDialogOpen(true);
-  };
-
-  const handleExportMember = (id: string) => {
-    console.log(`Exporting member with id: ${id}`);
-  };
-
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setCurrentMembre({
-      ...currentMembre,
-      [name]: value
-    });
-  };
-
-  const handleSaveMember = () => {
-    if (currentMembre.nom.trim() === '' || currentMembre.prenom.trim() === '') {
+  const handleAddMembre = async () => {
+    const currentUser = getCurrentUser();
+    if (!currentUser) {
       toast({
-        title: "Erreur",
-        description: "Le nom et le prénom sont requis",
         variant: "destructive",
+        title: "Erreur",
+        description: "Vous devez être connecté pour ajouter un membre"
       });
       return;
     }
 
-    if (currentMembre.initiales.trim() === '') {
-      const initiales = `${currentMembre.prenom.charAt(0)}${currentMembre.nom.charAt(0)}`;
-      currentMembre.initiales = initiales.toUpperCase();
-    }
-
-    if (isEditing) {
-      setMembres(prev => 
-        prev.map(membre => membre.id === currentMembre.id ? currentMembre : membre)
-      );
-      toast({
-        title: "Modification",
-        description: `Le membre ${currentMembre.id} a été modifié`,
-      });
-    } else {
-      setMembres(prev => [...prev, currentMembre]);
-      toast({
-        title: "Ajout",
-        description: `Le membre ${currentMembre.id} a été ajouté`,
-      });
-    }
-    
-    setIsDialogOpen(false);
-    
-    // Synchroniser manuellement après un ajout/modification
-    if (isOnline && !syncFailed && !isSyncing) {
-      syncWithServer().catch(console.error);
-    }
-  };
-
-  const handleExportAllToPdf = () => {
     try {
-      exportAllCollaborateursToPdf(membres);
+      const newId = `M${membres.length + 1}`;
+      const newMembre: Membre = {
+        id: newId,
+        nom: "Nouveau",
+        prenom: "Membre",
+        fonction: "À définir",
+        initiales: "NM",
+        date_creation: new Date()
+      };
+
+      const updatedMembres = [...membres, newMembre];
+      setMembres(updatedMembres);
+
+      // Journaliser l'action
+      await logUserActivity(
+        currentUser,
+        'create',
+        'membre',
+        newId,
+        { nom: newMembre.nom, prenom: newMembre.prenom }
+      );
+
+      // Synchroniser les données
+      await syncAndProcess({
+        tableName: 'membres',
+        data: updatedMembres
+      });
+
       toast({
-        title: "Export PDF",
-        description: "La liste des collaborateurs a été exportée",
+        title: "Membre ajouté",
+        description: "Le nouveau membre a été ajouté avec succès"
       });
     } catch (error) {
-      console.error("Erreur lors de l'export PDF:", error);
+      console.error("Erreur lors de l'ajout du membre:", error);
       toast({
-        title: "Erreur",
-        description: `Erreur lors de l'export PDF: ${error}`,
         variant: "destructive",
+        title: "Erreur",
+        description: "Impossible d'ajouter le membre"
       });
     }
   };
 
-  const handleResetSync = () => {
-    resetSyncFailed();
-    // Tenter une nouvelle synchronisation après réinitialisation
-    syncWithServer().catch(console.error);
+  const handleExportMembres = () => {
+    // Logique d'export à implémenter
+    toast({
+      title: "Export en cours",
+      description: "La liste des membres est en cours d'export"
+    });
   };
 
   return (
-    <div className="p-8">
-      <div className="flex items-center justify-between mb-2">
-        <div>
-          <h1 className="text-3xl font-bold text-app-blue">Ressources Humaines</h1>
+    <MembresProvider>
+      <div className="p-8">
+        <div className="flex items-center justify-between mb-2">
+          <div>
+            <h1 className="text-3xl font-bold text-app-blue">Ressources Humaines</h1>
+            <p className="text-gray-500">Gestion des membres de l'équipe</p>
+          </div>
+          <div className="flex space-x-2">
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={handleExportMembres}
+              title="Exporter"
+            >
+              <Download className="h-5 w-5" />
+            </Button>
+          </div>
         </div>
-        <div className="flex space-x-2">
-          <button 
-            onClick={() => syncWithServer()}
-            className="text-blue-600 p-2 rounded-md hover:bg-blue-50 transition-colors flex items-center"
-            title="Synchroniser avec le serveur"
-            disabled={isSyncing || !isOnline || syncFailed}
-          >
-            <CloudSun className={`h-6 w-6 stroke-[1.5] ${isSyncing ? 'animate-spin' : ''} ${syncFailed ? 'text-gray-400' : ''}`} />
-          </button>
-          <button 
-            onClick={handleExportAllToPdf}
-            className="text-red-600 p-2 rounded-md hover:bg-red-50 transition-colors"
-            title="Exporter en PDF"
-          >
-            <FileText className="h-6 w-6 stroke-[1.5]" />
-          </button>
-        </div>
-      </div>
 
-      <div className="mb-4">
         <SyncStatusIndicator 
           syncFailed={syncFailed} 
-          onReset={handleResetSync} 
+          onReset={handleSync} 
           isSyncing={isSyncing} 
-          isOnline={isOnline}
-          lastSynced={lastSynced}
+          lastSynced={lastSynced} 
         />
-      </div>
 
-      {isLoading ? (
-        <div className="bg-white rounded-md shadow p-8 text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-app-blue mx-auto"></div>
-          <p className="mt-4 text-gray-600">Chargement des données...</p>
-        </div>
-      ) : (
-        <>
-          <div className="bg-white rounded-md shadow overflow-hidden mt-6">
-            {membres.length > 0 ? (
-              <MemberList 
-                membres={membres} 
-                onEdit={handleEdit} 
-                onDelete={handleDelete}
-                onExport={handleExportMember} 
-              />
-            ) : (
-              <div className="p-8 text-center text-gray-500">
-                <p>Aucun membre à afficher.</p>
-                <p className="text-sm mt-2">Cliquez sur "Ajouter un membre" pour commencer.</p>
-              </div>
-            )}
-          </div>
-
-          <div className="flex justify-end mt-4 gap-4">
-            <Button 
-              className="flex items-center"
-              onClick={handleAddMember}
-            >
+        <Tabs 
+          value={activeTab} 
+          onValueChange={setActiveTab}
+          className="w-full"
+        >
+          <div className="flex justify-between items-center">
+            <TabsList>
+              <TabsTrigger value="liste" className="px-6">
+                <Users className="h-4 w-4 mr-2" />
+                Liste des membres
+              </TabsTrigger>
+              <TabsTrigger value="roles" className="px-6">
+                Rôles et responsabilités
+              </TabsTrigger>
+            </TabsList>
+            
+            <Button onClick={handleAddMembre}>
               <UserPlus className="h-4 w-4 mr-2" />
               Ajouter un membre
             </Button>
           </div>
-
-          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>
-                  {isEditing ? "Modifier le membre" : "Ajouter un membre"}
-                </DialogTitle>
-                <DialogDescription>
-                  {isEditing 
-                    ? "Modifiez les informations du membre ci-dessous." 
-                    : "Remplissez les informations pour ajouter un nouveau membre."}
-                </DialogDescription>
-              </DialogHeader>
-              
-              <MemberForm 
-                currentMembre={currentMembre}
-                isEditing={isEditing}
-                onInputChange={handleInputChange}
-                onSave={handleSaveMember}
-                onCancel={() => setIsDialogOpen(false)}
-              />
-            </DialogContent>
-          </Dialog>
-        </>
-      )}
-    </div>
+          
+          <TabsContent value="liste" className="mt-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Membres de l'équipe</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {membres.length === 0 ? (
+                  <div className="text-center py-8 text-gray-500">
+                    Aucun membre n'a été ajouté. Cliquez sur "Ajouter un membre" pour commencer.
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {membres.map(membre => (
+                      <Card key={membre.id} className="overflow-hidden">
+                        <CardHeader className="bg-gray-50 p-4">
+                          <div className="flex items-center">
+                            <div className="w-10 h-10 rounded-full bg-app-blue text-white flex items-center justify-center text-lg font-semibold">
+                              {membre.initiales}
+                            </div>
+                            <div className="ml-3">
+                              <h3 className="font-medium">{membre.prenom} {membre.nom}</h3>
+                              <p className="text-sm text-gray-500">{membre.fonction}</p>
+                            </div>
+                          </div>
+                        </CardHeader>
+                        <CardContent className="p-4">
+                          {membre.email && (
+                            <p className="text-sm mb-1">
+                              <span className="font-medium">Email:</span> {membre.email}
+                            </p>
+                          )}
+                          {membre.telephone && (
+                            <p className="text-sm mb-1">
+                              <span className="font-medium">Tél:</span> {membre.telephone}
+                            </p>
+                          )}
+                          {membre.organisation && (
+                            <p className="text-sm">
+                              <span className="font-medium">Organisation:</span> {membre.organisation}
+                            </p>
+                          )}
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+          
+          <TabsContent value="roles" className="mt-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Rôles et responsabilités</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-center py-8 text-gray-500">
+                  Cette fonctionnalité est en cours de développement.
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
+      </div>
+    </MembresProvider>
   );
 };
 

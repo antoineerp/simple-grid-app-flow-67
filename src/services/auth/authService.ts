@@ -1,181 +1,183 @@
 
 import { getApiUrl } from '@/config/apiConfig';
-import { User, AuthResponse } from '@/types/auth';
-import { setCurrentUser as setDbUser } from '@/services/core/databaseConnectionService';
+import { initializeUserTables, checkUserTablesInitialized } from '@/services/core/userInitializationService';
+import { toast } from '@/components/ui/use-toast';
 
-export const getCurrentUser = (): User | null => {
-  const token = sessionStorage.getItem('authToken');
-  if (!token) return null;
+// Clés pour le stockage local
+const USER_TOKEN_KEY = 'user_token';
+const USER_DATA_KEY = 'user_data';
 
-  try {
-    // Vérification plus robuste du format du token
-    if (!token.includes('.') || token.split('.').length !== 3) {
-      console.error("Format de token invalide:", token);
-      return null;
-    }
-    
-    // Extraire la partie payload (deuxième partie du token)
-    const parts = token.split('.');
-    const payloadBase64 = parts[1];
-    
-    // Préparation pour le décodage base64
-    const base64 = payloadBase64.replace(/-/g, '+').replace(/_/g, '/');
-    const pad = base64.length % 4;
-    const paddedBase64 = pad ? base64 + '='.repeat(4 - pad) : base64;
-    
-    // Décodage plus sûr avec try/catch
-    try {
-      const jsonPayload = atob(paddedBase64);
-      const userData = JSON.parse(jsonPayload);
-      
-      // Synchroniser avec le service de base de données
-      if (userData.user && userData.user.identifiant_technique) {
-        setDbUser(userData.user.identifiant_technique);
-      }
-      
-      return userData.user || null;
-    } catch (decodeError) {
-      console.error("Erreur lors du décodage du payload:", decodeError);
-      return null;
-    }
-  } catch (error) {
-    console.error("Erreur lors du décodage du token:", error);
-    return null;
-  }
-};
+// Interface pour les données utilisateur
+export interface UserData {
+  id: string;
+  nom: string;
+  prenom: string;
+  email: string;
+  identifiant_technique: string;
+  role: string;
+}
 
-export const getAuthToken = (): string | null => {
-  return sessionStorage.getItem('authToken');
-};
-
-export const getIsLoggedIn = (): boolean => {
-  const token = getAuthToken();
-  const user = getCurrentUser();
-  return !!(token && user && user.identifiant_technique);
-};
-
-export const getAuthHeaders = () => {
-  const token = getAuthToken();
-  return token ? {
-    'Authorization': `Bearer ${token}`,
-    'Content-Type': 'application/json'
-  } : {
-    'Content-Type': 'application/json'
-  };
-};
-
-export const login = async (username: string, password: string): Promise<AuthResponse> => {
+/**
+ * Effectue une tentative de connexion
+ */
+export async function login(email: string, password: string): Promise<UserData | null> {
   try {
     const API_URL = getApiUrl();
-    console.log(`Tentative de connexion à: ${API_URL}/auth.php avec l'utilisateur: ${username}`);
     
-    const response = await fetch(`${API_URL}/auth.php`, {
+    const response = await fetch(`${API_URL}/login.php`, {
       method: 'POST',
-      headers: { 
-        'Content-Type': 'application/json', 
-        'Cache-Control': 'no-cache, no-store, must-revalidate',
-        'Pragma': 'no-cache' 
+      headers: {
+        'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ username, password })
+      body: JSON.stringify({ email, password }),
     });
-
-    const responseText = await response.text();
     
-    // Tenter de parser la réponse en JSON
-    let data;
-    try {
-      data = JSON.parse(responseText);
-    } catch (parseError) {
-      console.error('Erreur lors du parsing de la réponse JSON:', parseError);
-      console.error('Réponse brute:', responseText.substring(0, 500));
-      
-      if (responseText.includes('env.php') || responseText.includes('Failed to open stream')) {
-        return { 
-          success: false, 
-          message: "Erreur de configuration du serveur: Fichier env.php manquant" 
-        };
-      }
-      
-      return { 
-        success: false, 
-        message: `Erreur dans la réponse JSON: ${parseError}. Réponse reçue: ${responseText.substring(0, 100)}...` 
-      };
-    }
-
     if (!response.ok) {
-      console.error(`Erreur HTTP: ${response.status}`);
-      return { 
-        success: false, 
-        message: data.message || `Erreur serveur: ${response.status} ${response.statusText}` 
-      };
+      const errorData = await response.json();
+      throw new Error(errorData.message || 'Échec de connexion');
     }
     
-    console.log('Réponse de l\'authentification:', data);
+    const data = await response.json();
     
-    if (data.token) {
-      // Vérifier que le token a bien le format d'un JWT (contient exactement deux points)
-      if (data.token.split('.').length === 3) {
-        // Test de décodage pour vérifier que le token est valide
-        try {
-          const parts = data.token.split('.');
-          const base64Payload = parts[1].replace(/-/g, '+').replace(/_/g, '/');
-          const pad = base64Payload.length % 4;
-          const paddedBase64 = pad ? base64Payload + '='.repeat(4 - pad) : base64Payload;
-          
-          const decodedPayload = JSON.parse(atob(paddedBase64));
-          
-          if (!decodedPayload || !decodedPayload.user) {
-            console.error("Décodage du token réussi mais structure invalide:", decodedPayload);
-            return {
-              success: false,
-              message: "Le token reçu du serveur a une structure invalide"
-            };
-          }
-          
-          // Token validé, on peut le sauvegarder
-          sessionStorage.setItem('authToken', data.token);
-          
-          // Initialiser l'utilisateur courant pour la base de données
-          if (data.user && data.user.identifiant_technique) {
-            setDbUser(data.user.identifiant_technique);
-          }
-          
-          return { 
-            success: true, 
-            token: data.token,
-            user: data.user || null,
-            message: data.message || 'Connexion réussie'
-          };
-        } catch (decodeError) {
-          console.error("Token de format invalide reçu:", data.token);
-          console.error("Erreur lors du décodage:", decodeError);
-          return {
-            success: false,
-            message: "Le format du token reçu est invalide"
-          };
+    if (!data.success) {
+      throw new Error(data.message || 'Identifiants invalides');
+    }
+    
+    // Stocker le jeton et les données utilisateur
+    localStorage.setItem(USER_TOKEN_KEY, data.token);
+    localStorage.setItem(USER_DATA_KEY, JSON.stringify(data.user));
+    
+    // Initialiser les tables utilisateur si nécessaire
+    if (data.user && data.user.identifiant_technique) {
+      const userId = data.user.identifiant_technique;
+      
+      // Vérifier si les tables utilisateur sont déjà initialisées
+      const initialized = await checkUserTablesInitialized(userId);
+      
+      if (!initialized) {
+        console.log(`Tables non initialisées pour ${userId}, démarrage de l'initialisation...`);
+        
+        // Initialiser les tables utilisateur
+        const initResult = await initializeUserTables(userId);
+        
+        if (initResult) {
+          toast({
+            title: "Initialisation des données",
+            description: "Vos données ont été initialisées avec succès.",
+          });
+        } else {
+          toast({
+            variant: "destructive",
+            title: "Attention",
+            description: "Vos données n'ont pas pu être complètement initialisées."
+          });
         }
       } else {
-        console.error("Token de format invalide reçu:", data.token);
-        return {
-          success: false,
-          message: "Le format du token reçu est invalide (doit contenir 3 parties)"
-        };
+        console.log(`Tables déjà initialisées pour ${userId}`);
       }
     }
     
-    return { 
-      success: false, 
-      message: data.message || data.error || 'Identifiants invalides' 
-    };
+    return data.user;
+    
   } catch (error) {
-    console.error('Erreur lors de la connexion:', error);
-    return { 
-      success: false, 
-      message: error instanceof Error ? error.message : 'Erreur lors de la connexion' 
-    };
+    console.error('Erreur de connexion:', error);
+    throw error;
   }
-};
+}
 
-export const logout = () => {
-  sessionStorage.removeItem('authToken');
-};
+/**
+ * Déconnecte l'utilisateur
+ */
+export function logout(): void {
+  localStorage.removeItem(USER_TOKEN_KEY);
+  localStorage.removeItem(USER_DATA_KEY);
+}
+
+/**
+ * Vérifie si l'utilisateur est connecté
+ */
+export function getIsLoggedIn(): boolean {
+  return !!localStorage.getItem(USER_TOKEN_KEY);
+}
+
+/**
+ * Récupère les données de l'utilisateur connecté
+ */
+export function getCurrentUser(): UserData | null {
+  const userData = localStorage.getItem(USER_DATA_KEY);
+  return userData ? JSON.parse(userData) : null;
+}
+
+/**
+ * Récupère le jeton d'authentification
+ */
+export function getAuthToken(): string | null {
+  return localStorage.getItem(USER_TOKEN_KEY);
+}
+
+/**
+ * Génère les en-têtes d'authentification
+ */
+export function getAuthHeaders(): Record<string, string> {
+  const token = getAuthToken();
+  const headers: Record<string, string> = {
+    'Accept': 'application/json',
+    'Content-Type': 'application/json'
+  };
+  
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+  
+  return headers;
+}
+
+/**
+ * Change le mot de passe utilisateur
+ */
+export async function changePassword(
+  userId: string,
+  currentPassword: string,
+  newPassword: string
+): Promise<boolean> {
+  try {
+    const API_URL = getApiUrl();
+    
+    const response = await fetch(`${API_URL}/change-password.php`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({
+        userId,
+        currentPassword,
+        newPassword
+      }),
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || 'Échec du changement de mot de passe');
+    }
+    
+    const data = await response.json();
+    return data.success;
+    
+  } catch (error) {
+    console.error('Erreur lors du changement de mot de passe:', error);
+    throw error;
+  }
+}
+
+/**
+ * Vérifie si l'utilisateur a un rôle spécifique
+ */
+export function hasRole(role: string): boolean {
+  const user = getCurrentUser();
+  return user ? user.role === role : false;
+}
+
+/**
+ * Vérifie si l'utilisateur est administrateur
+ */
+export function isAdmin(): boolean {
+  return hasRole('admin') || hasRole('administrateur');
+}

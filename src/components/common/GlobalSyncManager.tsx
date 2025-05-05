@@ -1,43 +1,78 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
+import { useInterval } from '@/hooks/useInterval';
+import { useToast } from '@/hooks/use-toast';
 import { dataSyncManager } from '@/services/sync/DataSyncManager';
-import { toast } from '@/components/ui/use-toast';
+import { getCurrentUser } from '@/services/auth/authService';
+import { databaseHelper } from '@/services/sync/DatabaseHelper';
 
+/**
+ * Composant global qui gère la synchronisation des données
+ * et l'initialisation des tables en arrière-plan
+ */
 const GlobalSyncManager: React.FC = () => {
-  const [syncStatus, setSyncStatus] = useState({
-    activeSyncCount: 0,
-    pendingChangesCount: 0,
-    failedSyncCount: 0
-  });
+  const { toast } = useToast();
+  const [initialized, setInitialized] = useState(false);
   
+  // Vérifier et mettre à jour la structure de la base de données au démarrage
   useEffect(() => {
-    // Vérifier périodiquement l'état global de synchronisation
-    const intervalId = setInterval(() => {
+    const initializeDatabase = async () => {
       try {
-        const status = dataSyncManager.getGlobalSyncStatus();
-        setSyncStatus({
-          activeSyncCount: status.activeSyncCount,
-          pendingChangesCount: status.pendingChangesCount,
-          failedSyncCount: status.failedSyncCount
-        });
+        const currentUser = getCurrentUser();
         
-        // Si des synchronisations ont échoué, afficher un toast mais pas trop souvent
-        if (status.failedSyncCount > 0 && Math.random() < 0.1) {
-          toast({
-            title: "Synchronisation en attente",
-            description: `${status.failedSyncCount} table(s) n'ont pas pu être synchronisée(s).`,
-            variant: "destructive"
-          });
+        if (currentUser?.identifiant_technique) {
+          console.log("GlobalSyncManager: Vérification de la structure de la base de données");
+          
+          const result = await databaseHelper.updateDatabaseStructure(
+            currentUser.identifiant_technique,
+            false
+          );
+          
+          if (result.success) {
+            setInitialized(true);
+            console.log("GlobalSyncManager: Structure de base de données initialisée avec succès");
+          } else {
+            console.warn("GlobalSyncManager: Problème lors de l'initialisation de la structure:", result.message);
+          }
         }
       } catch (error) {
-        console.error("Erreur lors de la vérification du statut de synchronisation:", error);
+        console.error("GlobalSyncManager: Erreur lors de l'initialisation de la base de données:", error);
       }
-    }, 5000);
+    };
     
-    return () => clearInterval(intervalId);
+    initializeDatabase();
   }, []);
   
-  return null; // Ce composant n'affiche rien, il gère uniquement la logique en arrière-plan
+  // Synchroniser les données pendantes toutes les 5 minutes
+  useInterval(() => {
+    const syncPending = async () => {
+      try {
+        const currentUser = getCurrentUser();
+        if (!currentUser) return;
+        
+        const status = dataSyncManager.getGlobalSyncStatus();
+        
+        // Ne synchroniser que s'il y a des changements en attente et qu'aucune synchronisation n'est en cours
+        if (status.pendingChangesCount > 0 && status.activeSyncCount === 0) {
+          console.log("GlobalSyncManager: Synchronisation des données pendantes...");
+          
+          const result = await dataSyncManager.syncAllPending();
+          
+          if (result.success) {
+            console.log("GlobalSyncManager: Toutes les données ont été synchronisées avec succès");
+          } else {
+            console.warn("GlobalSyncManager: Certaines données n'ont pas pu être synchronisées");
+          }
+        }
+      } catch (error) {
+        console.error("GlobalSyncManager: Erreur lors de la synchronisation:", error);
+      }
+    };
+    
+    syncPending();
+  }, 300000); // 5 minutes
+  
+  return null; // Ce composant ne rend rien visuellement
 };
 
 export default GlobalSyncManager;
