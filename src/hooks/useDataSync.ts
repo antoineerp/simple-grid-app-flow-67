@@ -1,14 +1,9 @@
-
 import { useState, useEffect, useCallback } from 'react';
 import { dataSyncManager, SyncStatus, SyncOptions } from '@/services/sync/DataSyncManager';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 
-export interface SyncRecord {
-  status: SyncStatus;
-  lastSynced: Date | null;
-  lastError: string | null;
-  pendingChanges: boolean;
-}
+// Use existing SyncRecord from DataSyncManager
+import { SyncRecord } from '@/services/sync/DataSyncManager';
 
 export interface DataSyncState<T> extends SyncRecord {
   data: T[];
@@ -23,12 +18,12 @@ export interface DataSyncState<T> extends SyncRecord {
  * Hook pour la synchronisation des données avec le gestionnaire centralisé
  */
 export function useDataSync<T>(tableName: string): DataSyncState<T> {
-  const [syncRecord, setSyncRecord] = useState<SyncRecord>(() => ({
-    status: 'idle',
+  const [syncRecord, setSyncRecord] = useState<SyncRecord>({
+    status: SyncStatus.IDLE,
     lastSynced: null,
     lastError: null,
     pendingChanges: false
-  }));
+  });
   const [data, setData] = useState<T[]>([]);
   const { isOnline } = useNetworkStatus();
   
@@ -36,7 +31,7 @@ export function useDataSync<T>(tableName: string): DataSyncState<T> {
   const refreshStatus = useCallback(() => {
     const state = dataSyncManager.getTableStatus(tableName);
     setSyncRecord({
-      status: state.isSyncing ? 'syncing' : state.hasError ? 'error' : state.lastSynced ? 'success' : 'idle',
+      status: state.isSyncing ? SyncStatus.SYNCING : state.hasError ? SyncStatus.ERROR : state.lastSynced ? SyncStatus.SUCCESS : SyncStatus.IDLE,
       lastSynced: state.lastSynced ? new Date(state.lastSynced) : null,
       lastError: state.errorMessage || null,
       pendingChanges: state.hasPendingChanges || false

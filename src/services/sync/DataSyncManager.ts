@@ -14,10 +14,10 @@ export interface SyncOptions {
 }
 
 export enum SyncStatus {
-  IDLE = 'idle',
-  SYNCING = 'syncing',
-  SUCCESS = 'success',
-  ERROR = 'error'
+  IDLE = 'IDLE',
+  SYNCING = 'SYNCING',
+  SUCCESS = 'SUCCESS',
+  ERROR = 'ERROR'
 }
 
 export class DataSyncManager {
@@ -26,7 +26,8 @@ export class DataSyncManager {
       isSyncing: false,
       hasError: false,
       lastSynced: null,
-      hasPendingChanges: false
+      hasPendingChanges: false,
+      errorMessage: null // Added missing errorMessage property
     };
   }
   

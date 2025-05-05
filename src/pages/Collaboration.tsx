@@ -138,16 +138,19 @@ const Collaboration = () => {
           <BibliothequeGroup
             key={group.id}
             group={group}
-            onEdit={() => handleOpenEditGroup(group)}
-            onDelete={handleDeleteGroupFn}
+            onEditGroup={() => handleOpenEditGroup(group)}
+            onDeleteGroup={handleDeleteGroupFn}
+            documents={filteredDocuments}
+            onEditDocument={handleOpenEditDocument}
+            onDeleteDocument={handleDelete}
           />
         ))}
         
         {/* Afficher les documents qui ne sont pas dans un groupe */}
         <BibliothequeList 
           documents={filteredDocuments.filter(doc => !doc.groupId)}
-          onEdit={handleOpenEditDocument}
-          onDelete={handleDelete}
+          onEditDocument={handleOpenEditDocument}
+          onDeleteDocument={handleDelete}
         />
       </div>
 

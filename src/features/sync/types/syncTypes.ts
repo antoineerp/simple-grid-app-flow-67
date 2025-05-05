@@ -1,4 +1,3 @@
-
 // Types pour la synchronisation
 export interface SyncAttempt {
   id: string;
@@ -8,7 +7,7 @@ export interface SyncAttempt {
   success: boolean;
   error?: string;
   duration?: number;
-  operation?: string; // Rendre cette propriété optionnelle pour éviter les erreurs
+  operation: string; // Changed from optional to required
 }
 
 export interface SyncStatus {
@@ -42,8 +41,8 @@ export interface SyncState {
   isSyncing: boolean;
   lastSynced: Date | null;
   syncFailed: boolean;
-  pendingSync?: boolean; // Added this property
-  dataChanged?: boolean; // Added this property
+  pendingSync?: boolean;
+  dataChanged?: boolean;
 }
 
 export interface SyncStateRecord {

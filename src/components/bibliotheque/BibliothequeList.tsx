@@ -7,10 +7,10 @@ import { Edit2, Trash2 } from 'lucide-react';
 
 interface BibliothequeListProps {
   documents: Document[];
-  onEditDocument: (document: Document) => void;
-  onDeleteDocument: (id: string) => void;
-  onEdit?: (document: Document) => void; // Added for backward compatibility
-  onDelete?: (id: string) => void; // Added for backward compatibility
+  onEditDocument?: (document: Document) => void;
+  onDeleteDocument?: (id: string) => void;
+  onEdit?: (document: Document) => void; // For backward compatibility
+  onDelete?: (id: string) => void; // For backward compatibility
 }
 
 const BibliothequeList: React.FC<BibliothequeListProps> = ({
@@ -22,18 +22,18 @@ const BibliothequeList: React.FC<BibliothequeListProps> = ({
 }) => {
   // Use either the new or old prop names
   const handleEdit = (doc: Document) => {
-    if (onEdit) {
-      onEdit(doc);
-    } else {
+    if (onEditDocument) {
       onEditDocument(doc);
+    } else if (onEdit) {
+      onEdit(doc);
     }
   };
 
   const handleDelete = (id: string) => {
-    if (onDelete) {
-      onDelete(id);
-    } else {
+    if (onDeleteDocument) {
       onDeleteDocument(id);
+    } else if (onDelete) {
+      onDelete(id);
     }
   };
 

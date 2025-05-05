@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { FileText, FolderPlus } from 'lucide-react';
 import { MembresProvider } from '@/contexts/MembresContext';
@@ -156,10 +155,9 @@ const ExigencesContent = () => {
 
       <ExigenceGroupDialog
         group={editingGroup}
-        open={groupDialogOpen}
+        isOpen={groupDialogOpen}
         onOpenChange={setGroupDialogOpen}
         onSave={handleSaveGroup}
-        isEditing={!!editingGroup}
       />
     </div>
   );

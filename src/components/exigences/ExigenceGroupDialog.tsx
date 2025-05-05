@@ -8,12 +8,13 @@ import { ExigenceGroup } from '@/types/exigences';
 import { getDatabaseConnectionCurrentUser } from '@/services/core/databaseConnectionService';
 
 interface ExigenceGroupDialogProps {
-  isOpen: boolean;
+  isOpen?: boolean;
   open?: boolean; // Added for compatibility
-  onClose: () => void;
+  onClose?: () => void;
   onOpenChange?: (open: boolean) => void; // Added for compatibility 
   group: ExigenceGroup | null;
   onSave: (group: ExigenceGroup, isEditing: boolean) => void;
+  isEditing?: boolean; // Added for compatibility
 }
 
 export const ExigenceGroupDialog = ({ 
@@ -22,13 +23,15 @@ export const ExigenceGroupDialog = ({
   onClose, 
   onOpenChange,
   group, 
-  onSave 
+  onSave,
+  isEditing: isEditingProp
 }: ExigenceGroupDialogProps) => {
   const [name, setName] = React.useState(group?.name || '');
   const currentUserId = getDatabaseConnectionCurrentUser() || 'default';
   
   // Support both isOpen and open props
   const dialogOpen = isOpen !== undefined ? isOpen : open;
+  const isEditing = isEditingProp !== undefined ? isEditingProp : !!group;
   
   // Support both onClose and onOpenChange props
   const handleOpenChange = (isOpen: boolean) => {
@@ -54,7 +57,7 @@ export const ExigenceGroupDialog = ({
       items: group?.items || [],
       userId: group?.userId || currentUserId
     };
-    onSave(updatedGroup, !!group);
+    onSave(updatedGroup, isEditing);
     if (onClose) onClose();
     if (onOpenChange) onOpenChange(false);
   };
@@ -63,7 +66,7 @@ export const ExigenceGroupDialog = ({
     <Dialog open={dialogOpen} onOpenChange={handleOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{group ? 'Modifier le groupe' : 'Ajouter un groupe'}</DialogTitle>
+          <DialogTitle>{isEditing ? 'Modifier le groupe' : 'Ajouter un groupe'}</DialogTitle>
         </DialogHeader>
         <div className="grid gap-4 py-4">
           <div className="grid grid-cols-4 items-center gap-4">
@@ -81,7 +84,7 @@ export const ExigenceGroupDialog = ({
             Annuler
           </Button>
           <Button onClick={handleSave}>
-            {group ? 'Mettre à jour' : 'Ajouter'}
+            {isEditing ? 'Mettre à jour' : 'Ajouter'}
           </Button>
         </DialogFooter>
       </DialogContent>
