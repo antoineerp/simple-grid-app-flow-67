@@ -24,24 +24,24 @@ const Layout = () => {
       try {
         // Vérifier si l'utilisateur est connecté
         const isLoggedIn = getIsLoggedIn();
-        const currentUser = getCurrentUser();
         
-        console.log("Layout - État de connexion:", isLoggedIn);
-        console.log("Layout - Utilisateur actuel:", currentUser);
-        
-        if (!isLoggedIn) {
+        if (isLoggedIn) {
+          const currentUser = getCurrentUser();
+          console.log("Layout - État de connexion:", isLoggedIn);
+          console.log("Layout - Utilisateur actuel:", currentUser);
+          
+          console.log("Layout - Utilisateur authentifié");
+          setIsAuthenticated(true);
+          
+          console.log("Layout - Initialisation du composant Layout pour un utilisateur connecté");
+          console.log("Layout - Nom d'utilisateur:", currentUser?.email);
+          console.log("Layout - Rôle utilisateur:", currentUser?.role);
+          console.log("Layout - Identifiant technique:", currentUser?.identifiant_technique);
+        } else {
           console.log("Layout - Utilisateur non connecté, redirection vers la page de connexion");
           navigate('/', { replace: true, state: { from: location.pathname } });
           return;
         }
-        
-        console.log("Layout - Utilisateur authentifié");
-        setIsAuthenticated(true);
-        
-        console.log("Layout - Initialisation du composant Layout pour un utilisateur connecté");
-        console.log("Layout - Nom d'utilisateur:", currentUser?.email);
-        console.log("Layout - Rôle utilisateur:", currentUser?.role);
-        console.log("Layout - Identifiant technique:", currentUser?.identifiant_technique);
       } catch (error) {
         console.error("Layout - Erreur lors de la vérification de l'authentification:", error);
         // Augmenter le nombre d'essais

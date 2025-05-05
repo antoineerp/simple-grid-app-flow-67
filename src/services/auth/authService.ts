@@ -1,3 +1,4 @@
+
 import { getApiUrl } from '@/config/apiConfig';
 import { User, AuthResponse } from '@/types/auth';
 import { setCurrentUser as setDbUser } from '@/services/core/databaseConnectionService';
@@ -54,8 +55,16 @@ export const getAuthToken = (): string | null => {
 
 export const getIsLoggedIn = (): boolean => {
   const token = getAuthToken();
-  const user = getCurrentUser();
-  return !!(token && user && user.identifiant_technique);
+  if (!token) return false;
+  
+  // Ne pas extraire les données utilisateur sauf si nécessaire
+  try {
+    const parts = token.split('.');
+    if (parts.length !== 3) return false;
+    return true;
+  } catch (error) {
+    return false;
+  }
 };
 
 export const getAuthHeaders = () => {

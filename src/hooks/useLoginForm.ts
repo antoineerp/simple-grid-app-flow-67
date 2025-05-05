@@ -4,6 +4,7 @@ import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
 import { login } from '@/services/auth/authService';
 import { useToast } from '@/hooks/use-toast';
+import { initializeCurrentUser } from '@/services/core/databaseConnectionService';
 
 export interface LoginFormValues {
   username: string;
@@ -53,6 +54,11 @@ export const useLoginForm = () => {
           if (result.user.role) {
             localStorage.setItem('userRole', result.user.role);
           }
+        }
+        
+        // C'est seulement maintenant qu'on initialise l'utilisateur courant pour la base de données
+        if (result.user && result.user.identifiant_technique) {
+          initializeCurrentUser();
         }
         
         toast({

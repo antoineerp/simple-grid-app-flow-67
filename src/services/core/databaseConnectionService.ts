@@ -1,3 +1,4 @@
+
 import { getApiUrl } from '@/config/apiConfig';
 import { getAuthHeaders } from '@/services/auth/authService';
 
@@ -9,40 +10,8 @@ export const getCurrentUser = (): string | null => {
   // Si nous avons déjà récupéré l'utilisateur, le renvoyer
   if (currentDatabaseUser) return currentDatabaseUser;
   
-  // Essayer de récupérer depuis l'authentification
-  try {
-    const authToken = sessionStorage.getItem('authToken') || localStorage.getItem('authToken');
-    if (authToken) {
-      // Vérifier que le token a le bon format avant de le traiter
-      const parts = authToken.split('.');
-      if (parts && parts.length >= 2 && parts[1]) {
-        try {
-          const base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
-          const rawPayload = atob(base64);
-          const jsonPayload = decodeURIComponent(
-            Array.from(rawPayload)
-              .map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
-              .join('')
-          );
-
-          const userData = JSON.parse(jsonPayload);
-          if (userData.user && userData.user.identifiant_technique) {
-            currentDatabaseUser = userData.user.identifiant_technique;
-            return userData.user.identifiant_technique;
-          }
-        } catch (decodeError) {
-          console.error("Erreur lors du décodage du token:", decodeError);
-        }
-      } else {
-        console.error("Format de token invalide lors de l'initialisation");
-      }
-    }
-  } catch (error) {
-    console.error("Erreur lors de la récupération de l'utilisateur depuis le token:", error);
-  }
-  
-  // Valeur par défaut pour les opérations sans authentification - utiliser p71x6d_qualiflow au lieu de p71x6d_system
-  return 'p71x6d_qualiflow';
+  // Ne pas essayer de récupérer des informations à moins qu'explicitement demandé
+  return null;
 };
 
 // Fonction pour définir l'utilisateur actuel
@@ -127,19 +96,8 @@ export const getDatabaseConnectionCurrentUser = (): string | null => {
     return currentDatabaseUser;
   }
   
-  // Sinon, essayer de récupérer depuis localStorage
-  try {
-    const savedUser = localStorage.getItem('currentDatabaseUser');
-    if (savedUser) {
-      currentDatabaseUser = savedUser;
-      return savedUser;
-    }
-  } catch (error) {
-    console.error("Erreur lors de la récupération de l'utilisateur depuis localStorage:", error);
-  }
-  
-  // Si rien n'est trouvé, utiliser l'utilisateur par défaut (p71x6d_qualiflow au lieu de p71x6d_system)
-  return 'p71x6d_qualiflow';
+  // Ne pas essayer de récupérer des informations à moins qu'explicitement demandé
+  return null;
 };
 
 // Interface pour les informations de base de données
@@ -161,6 +119,13 @@ export const testDatabaseConnection = async (): Promise<boolean> => {
     console.log("Test de connexion à la base de données via check-users.php");
     // Utiliser check-users.php au lieu de direct-db-test.php car il fonctionne mieux
     const currentUser = getDatabaseConnectionCurrentUser();
+    
+    // Si pas d'utilisateur configuré, ne pas tenter de connexion
+    if (!currentUser) {
+      console.log("Aucun utilisateur configuré, test de connexion ignoré");
+      return false;
+    }
+    
     const response = await fetch(`${getApiUrl()}/check-users?source=${currentUser}`, {
       headers: getAuthHeaders()
     });
@@ -190,6 +155,19 @@ export const testDatabaseConnection = async (): Promise<boolean> => {
 export const getDatabaseInfo = async (): Promise<DatabaseInfo> => {
   try {
     const currentUser = getDatabaseConnectionCurrentUser();
+    
+    // Si pas d'utilisateur configuré, renvoyer des valeurs par défaut
+    if (!currentUser) {
+      return {
+        host: "Non configuré",
+        database: "Non configuré",
+        size: '0 MB',
+        tables: 0,
+        lastBackup: '-',
+        status: 'Non connecté'
+      };
+    }
+    
     console.log(`Récupération des informations de base de données pour: ${currentUser || 'utilisateur par défaut'}`);
     
     // Appel direct à check-users pour obtenir des informations réelles (le même endpoint qui fonctionne)
@@ -248,54 +226,10 @@ export const getDatabaseInfo = async (): Promise<DatabaseInfo> => {
   }
 };
 
-// Fonction pour initialiser l'utilisateur actuel
+// Fonction pour initialiser l'utilisateur actuel - ne plus appeler automatiquement
 export const initializeCurrentUser = (): void => {
-  // D'abord, essayer de récupérer depuis localStorage
-  try {
-    const savedUser = localStorage.getItem('currentDatabaseUser');
-    if (savedUser && savedUser.startsWith('p71x6d_')) {
-      currentDatabaseUser = savedUser;
-      console.log(`Utilisateur récupéré depuis localStorage: ${savedUser}`);
-      return;
-    }
-  } catch (error) {
-    console.error("Erreur lors de la récupération de l'utilisateur depuis localStorage:", error);
-  }
-  
-  // Sinon, essayer depuis le token d'authentification
-  try {
-    const authToken = sessionStorage.getItem('authToken') || localStorage.getItem('authToken');
-    if (authToken) {
-      // Vérifier que le token est correctement formaté (format JWT)
-      const parts = authToken.split('.');
-      if (parts && parts.length >= 3) { // Un token JWT valide a 3 parties
-        try {
-          const base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
-          const rawPayload = atob(base64);
-          const jsonPayload = decodeURIComponent(
-            Array.from(rawPayload)
-              .map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
-              .join('')
-          );
-
-          const userData = JSON.parse(jsonPayload);
-          if (userData.user && userData.user.identifiant_technique) {
-            setCurrentUser(userData.user.identifiant_technique);
-            console.log(`Utilisateur initialisé depuis le token JWT: ${userData.user.identifiant_technique}`);
-            return;
-          }
-        } catch (decodeError) {
-          console.error("Erreur lors du décodage du token:", decodeError);
-        }
-      } else {
-        console.error("Format de token invalide lors de l'initialisation");
-      }
-    }
-  } catch (error) {
-    console.error("Erreur lors de l'initialisation de l'utilisateur depuis le token:", error);
-  }
-  
-  // Si aucun utilisateur n'est trouvé, utiliser la valeur par défaut (p71x6d_qualiflow)
-  setCurrentUser('p71x6d_qualiflow');
-  console.log(`Utilisateur initialisé avec la valeur par défaut: p71x6d_qualiflow`);
+  console.log("Initialisation de l'utilisateur UNIQUEMENT après connexion réussie");
 };
+
+// Ne plus initialiser automatiquement
+// Suppression de l'initialisation automatique

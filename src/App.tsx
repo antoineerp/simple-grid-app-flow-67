@@ -13,8 +13,9 @@ function App() {
   return (
     <BrowserRouter>
       <Routes>
+        <Route path="/" element={<Login />} />
         <Route path="/login" element={<Login />} />
-        <Route path="/" element={<Layout />}>
+        <Route path="/pilotage" element={<Layout />}>
           <Route index element={<GestionDocumentaire />} />
           <Route path="ressources-humaines" element={<RessourcesHumaines />} />
           <Route path="collaboration" element={<Collaboration />} />
