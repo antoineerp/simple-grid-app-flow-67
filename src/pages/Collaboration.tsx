@@ -20,10 +20,15 @@ const Collaboration = () => {
     syncFailed
   } = useBibliotheque();
 
+  // Wrapper function to handle void return type
+  const handleSync = async (): Promise<void> => {
+    await syncWithServer();
+  };
+
   return (
     <div className="container mx-auto py-8">
       <BibliothequeHeader 
-        onSync={syncWithServer}
+        onSync={handleSync}
         syncFailed={syncFailed}
       />
       

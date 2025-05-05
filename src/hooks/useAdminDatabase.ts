@@ -1,9 +1,19 @@
-
 import { useState, useCallback, useEffect } from 'react';
-import { DatabaseInfo, getDatabaseInfo } from '@/services/core/databaseConnectionService';
 import { getApiUrl } from '@/config/apiConfig';
 import { getAuthHeaders } from '@/services/auth/authService';
 import { useToast } from '@/hooks/use-toast';
+
+export interface DatabaseInfo {
+  host: string;
+  database: string;
+  size: string;
+  tables: number;
+  lastBackup: string;
+  status: string;
+  encoding: string;
+  collation: string;
+  tableList: any[];
+}
 
 export const useAdminDatabase = () => {
   const [dbInfo, setDbInfo] = useState<DatabaseInfo | null>(null);

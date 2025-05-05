@@ -16,7 +16,7 @@ interface TestData {
 export default function DbTest() {
   const { 
     data, 
-    status, 
+    syncStatus, 
     lastSynced, 
     lastError, 
     pendingChanges, 
@@ -66,7 +66,7 @@ export default function DbTest() {
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle>Test de synchronisation</CardTitle>
             <DataSyncStatus 
-              status={status}
+              status={syncStatus}
               lastSynced={lastSynced}
               lastError={lastError}
               pendingChanges={pendingChanges}
@@ -81,8 +81,8 @@ export default function DbTest() {
                   <Save className="mr-2 h-4 w-4" />
                   Ajouter une donnée
                 </Button>
-                <Button onClick={handleSync} disabled={!isOnline || status === 'syncing'}>
-                  <RefreshCw className={`mr-2 h-4 w-4 ${status === 'syncing' ? 'animate-spin' : ''}`} />
+                <Button onClick={handleSync} disabled={!isOnline || syncStatus === 'syncing'}>
+                  <RefreshCw className={`mr-2 h-4 w-4 ${syncStatus === 'syncing' ? 'animate-spin' : ''}`} />
                   Synchroniser
                 </Button>
               </div>

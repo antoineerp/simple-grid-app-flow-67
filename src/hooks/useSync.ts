@@ -28,12 +28,15 @@ export function useSync(tableName: string) {
    */
   const syncAndProcess = useCallback(async <T>(
     table: DataTable<T>, 
-    options: { showToast?: boolean } | string = {}
+    options?: { showToast?: boolean } | string
   ) => {
     // Handle string parameter for backward compatibility
-    const opts = typeof options === 'string' 
-      ? { showToast: options !== 'auto' } 
-      : options;
+    let showToast = true;
+    if (typeof options === 'string') {
+      showToast = options !== 'auto';
+    } else if (options && typeof options === 'object') {
+      showToast = options.showToast !== false;
+    }
     
     if (isSyncing) {
       toast({
@@ -55,14 +58,14 @@ export function useSync(tableName: string) {
       setSyncFailed(!result.success);
       
       if (result.success) {
-        if (opts.showToast !== false) {
+        if (showToast) {
           toast({
             title: "Synchronisation réussie",
             description: `Les données ont été synchronisées (${table.tableName})`
           });
         }
       } else {
-        if (opts.showToast !== false) {
+        if (showToast) {
           toast({
             variant: "destructive",
             title: "Échec de la synchronisation",
@@ -76,7 +79,7 @@ export function useSync(tableName: string) {
       console.error("Erreur lors de la synchronisation:", error);
       setSyncFailed(true);
       
-      if (opts.showToast !== false) {
+      if (showToast) {
         toast({
           variant: "destructive",
           title: "Erreur de synchronisation",

@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { FileText, FolderPlus, CloudSun, RefreshCw } from 'lucide-react';
 import { MembresProvider } from '@/contexts/MembresContext';
@@ -115,7 +114,6 @@ const ExigencesContent = () => {
           syncFailed={syncFailed || !!loadError} 
           onReset={handleResetLoadAttempts} 
           isSyncing={isSyncing}
-          isOnline={isOnline}
           lastSynced={lastSynced}
         />
       </div>

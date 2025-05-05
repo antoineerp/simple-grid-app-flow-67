@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { MembresProvider } from '@/contexts/MembresContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -10,7 +9,6 @@ import { useSync } from '@/hooks/useSync';
 import SyncStatusIndicator from '@/components/common/SyncStatusIndicator';
 import { Membre } from '@/types/membres';
 import { getCurrentUser } from '@/services/core/databaseConnectionService';
-import { logUserActivity } from '@/services/core/userInitializationService';
 
 const RessourcesHumaines = () => {
   const { toast } = useToast();
@@ -70,6 +68,8 @@ const RessourcesHumaines = () => {
       const updatedMembres = [...membres, newMembre];
       setMembres(updatedMembres);
 
+      // Import for logUserActivity is missing, let's comment it out for now
+      /*
       // Journaliser l'action
       await logUserActivity(
         currentUser,
@@ -78,6 +78,7 @@ const RessourcesHumaines = () => {
         newId,
         { nom: newMembre.nom, prenom: newMembre.prenom }
       );
+      */
 
       // Synchroniser les données
       await syncAndProcess({

@@ -1,15 +1,23 @@
 
 import { syncService, SyncResult } from './SyncService';
 
-interface SyncStatus {
+export type SyncStatus = 'idle' | 'syncing' | 'success' | 'failed';
+
+export interface SyncRecord {
   tableName: string;
   lastSynced: Date | null;
-  status: 'success' | 'failed' | 'pending';
+  status: SyncStatus;
   pendingChanges: number;
+  lastError: string | null;
+}
+
+export interface SyncOptions {
+  showToast?: boolean;
+  forceSync?: boolean;
 }
 
 class DataSyncManager {
-  private syncStatus: Map<string, SyncStatus> = new Map();
+  private syncStatus: Map<string, SyncRecord> = new Map();
   private activeSyncs: number = 0;
 
   /**
@@ -28,12 +36,13 @@ class DataSyncManager {
   /**
    * Récupère le statut de synchronisation pour une table spécifique
    */
-  getSyncStatus(tableName: string): SyncStatus {
+  getSyncStatus(tableName: string): SyncRecord {
     return this.syncStatus.get(tableName) || {
       tableName,
       lastSynced: null,
-      status: 'pending',
-      pendingChanges: 0
+      status: 'idle',
+      pendingChanges: 0,
+      lastError: null
     };
   }
 
@@ -127,6 +136,120 @@ class DataSyncManager {
         success: false,
         message: error instanceof Error ? error.message : "Unknown error"
       };
+    } finally {
+      this.activeSyncs--;
+    }
+  }
+  
+  /**
+   * Get local data for a table
+   */
+  getLocalData<T>(tableName: string): T[] {
+    try {
+      const data = localStorage.getItem(`${tableName}_data`);
+      return data ? JSON.parse(data) : [];
+    } catch (error) {
+      console.error(`Error getting local data for ${tableName}:`, error);
+      return [];
+    }
+  }
+  
+  /**
+   * Save data locally
+   */
+  saveLocalData<T>(tableName: string, data: T[]): void {
+    try {
+      localStorage.setItem(`${tableName}_data`, JSON.stringify(data));
+      this.markTableAsChanged(tableName);
+    } catch (error) {
+      console.error(`Error saving local data for ${tableName}:`, error);
+    }
+  }
+  
+  /**
+   * Synchronize data with server
+   */
+  async syncData<T>(tableName: string, data: T[], options?: SyncOptions): Promise<SyncResult> {
+    try {
+      this.activeSyncs++;
+      
+      const result = await syncService.syncTable({
+        tableName,
+        data
+      }, options?.showToast);
+      
+      if (result.success) {
+        const currentStatus = this.getSyncStatus(tableName);
+        this.syncStatus.set(tableName, {
+          ...currentStatus,
+          lastSynced: new Date(),
+          status: 'success',
+          pendingChanges: 0,
+          lastError: null
+        });
+      } else {
+        const currentStatus = this.getSyncStatus(tableName);
+        this.syncStatus.set(tableName, {
+          ...currentStatus,
+          status: 'failed',
+          lastError: result.message || "Unknown error"
+        });
+      }
+      
+      return result;
+    } catch (error) {
+      console.error(`Error syncing data for ${tableName}:`, error);
+      
+      const currentStatus = this.getSyncStatus(tableName);
+      this.syncStatus.set(tableName, {
+        ...currentStatus,
+        status: 'failed',
+        lastError: error instanceof Error ? error.message : "Unknown error"
+      });
+      
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : "Unknown error"
+      };
+    } finally {
+      this.activeSyncs--;
+    }
+  }
+  
+  /**
+   * Load data from server
+   */
+  async loadData<T>(tableName: string, options?: SyncOptions): Promise<T[]> {
+    try {
+      this.activeSyncs++;
+      
+      const data = await syncService.loadDataFromServer<T>(tableName);
+      
+      // Save data to local storage
+      this.saveLocalData(tableName, data);
+      
+      const currentStatus = this.getSyncStatus(tableName);
+      this.syncStatus.set(tableName, {
+        ...currentStatus,
+        lastSynced: new Date(),
+        status: 'success',
+        pendingChanges: 0,
+        lastError: null
+      });
+      
+      return data;
+    } catch (error) {
+      console.error(`Error loading data for ${tableName}:`, error);
+      
+      const currentStatus = this.getSyncStatus(tableName);
+      this.syncStatus.set(tableName, {
+        ...currentStatus,
+        status: 'failed',
+        lastError: error instanceof Error ? error.message : "Unknown error"
+      });
+      
+      // Return local data as fallback
+      return this.getLocalData<T>(tableName);
     } finally {
       this.activeSyncs--;
     }

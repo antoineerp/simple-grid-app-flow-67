@@ -42,8 +42,8 @@ const Bibliotheque = () => {
       <BibliothequeTable
         documents={documents}
         groups={groups}
-        onEditDocument={handleDocumentEdit}
-        onDeleteDocument={handleDocumentDelete}
+        onDocumentEdit={handleDocumentEdit}
+        onDocumentDelete={handleDocumentDelete}
         isLoading={isSyncing}
       />
 

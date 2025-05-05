@@ -9,10 +9,12 @@ interface BibliothequeTableProps {
   isLoading?: boolean;
   documents: Document[];
   groups: DocumentGroup[];
-  onGroupEdit: (group: DocumentGroup) => void;
-  onGroupDelete: (groupId: string | number) => void;
-  onDocumentEdit: (document: Document) => void;
-  onDocumentDelete: (documentId: string | number) => void;
+  onEditDocument?: (document: Document) => void;
+  onDeleteDocument?: (documentId: string | number) => void;
+  onDocumentEdit?: (document: Document) => void;
+  onDocumentDelete?: (documentId: string | number) => void;
+  onGroupEdit?: (group: DocumentGroup) => void;
+  onGroupDelete?: (groupId: string | number) => void;
 }
 
 export const BibliothequeTable: React.FC<BibliothequeTableProps> = ({
@@ -22,8 +24,14 @@ export const BibliothequeTable: React.FC<BibliothequeTableProps> = ({
   onGroupEdit,
   onGroupDelete,
   onDocumentEdit,
-  onDocumentDelete
+  onDeleteDocument,
+  onDocumentDelete,
+  onEditDocument
 }) => {
+  // Use either onDocumentEdit or onEditDocument (for backward compatibility)
+  const handleEditDocument = onEditDocument || onDocumentEdit;
+  const handleDeleteDocument = onDeleteDocument || onDocumentDelete;
+
   if (isLoading) {
     return (
       <div className="flex justify-center items-center p-8">
@@ -73,7 +81,7 @@ export const BibliothequeTable: React.FC<BibliothequeTableProps> = ({
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => onDocumentEdit(doc)}
+                  onClick={() => handleEditDocument && handleEditDocument(doc)}
                   className="h-8 w-8 p-0"
                 >
                   <Pencil className="h-4 w-4" />
@@ -82,7 +90,7 @@ export const BibliothequeTable: React.FC<BibliothequeTableProps> = ({
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => onDocumentDelete(doc.id)}
+                  onClick={() => handleDeleteDocument && handleDeleteDocument(doc.id)}
                   className="h-8 w-8 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
                 >
                   <Trash2 className="h-4 w-4" />
