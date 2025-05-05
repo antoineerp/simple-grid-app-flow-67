@@ -1,12 +1,13 @@
+
 import React from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import Login from '@/pages/Login';
-import Layout from '@/components/Layout';
+import Layout from '@/components/layout/Layout';
 import GestionDocumentaire from '@/pages/GestionDocumentaire';
 import Admin from '@/pages/Admin';
 import RessourcesHumaines from '@/pages/RessourcesHumaines';
 import Collaboration from '@/pages/Collaboration';
-import { Toaster } from "@/components/ui/toaster"
+import { Toaster } from "@/components/ui/toaster";
 
 function App() {
   return (
