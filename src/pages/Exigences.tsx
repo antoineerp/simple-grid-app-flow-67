@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { FileText, FolderPlus } from 'lucide-react';
 import { MembresProvider } from '@/contexts/MembresContext';
@@ -11,6 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import SyncIndicator from '@/components/common/SyncIndicator';
+import { Exigence } from '@/types/exigences';
 
 const ExigencesContent = () => {
   const {
@@ -54,6 +56,11 @@ const ExigencesContent = () => {
       title: "Export PDF réussi",
       description: "Le document a été généré et téléchargé",
     });
+  };
+
+  // Adapter wrapper function to match the expected signature
+  const handleSaveExigenceWrapper = (exigence: Exigence) => {
+    handleSaveExigence(exigence);
   };
 
   return (
@@ -150,7 +157,7 @@ const ExigencesContent = () => {
         exigence={editingExigence}
         open={dialogOpen}
         onOpenChange={setDialogOpen}
-        onSave={handleSaveExigence}
+        onSave={handleSaveExigenceWrapper}
       />
 
       <ExigenceGroupDialog

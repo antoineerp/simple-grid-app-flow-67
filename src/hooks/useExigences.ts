@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from 'react';
 import { Exigence, ExigenceStats, ExigenceGroup } from '@/types/exigences';
 import { useExigenceMutations } from './useExigenceMutations';
@@ -82,8 +83,9 @@ export const useExigences = () => {
   const lastSynced = syncState.lastSynced;
   const syncFailed = syncState.syncFailed;
   
+  // Fixed: Pass the correct parameters to useExigenceMutations and useExigenceGroups
   const mutations = useExigenceMutations(exigences, setExigences);
-  const groupOperations = useExigenceGroups(groups, setGroups);
+  const groupOperations = useExigenceGroups(groups, setGroups, setExigences);
   
   // Extract required methods from mutations
   const { handleResponsabiliteChange, handleAtteinteChange, handleExclusionChange, handleDelete } = mutations;
@@ -248,10 +250,10 @@ export const useExigences = () => {
     }
   };
 
-  // Corriger l'appel à handleDeleteGroup en ajoutant les paramètres manquants
+  // Fix the handleDeleteGroup call by using the correct import
   const handleDeleteGroup = useCallback((id: string) => {
-    mutations.handleDeleteGroup(id);
-  }, [mutations]);
+    groupOperations.handleDeleteGroup(id);
+  }, [groupOperations]);
 
   return {
     exigences,

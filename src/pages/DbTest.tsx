@@ -6,7 +6,7 @@ import DbConnectionTest from "@/components/DbConnectionTest";
 import { Database, RefreshCw, Save } from 'lucide-react';
 import { useDataSync } from '@/hooks/useDataSync';
 import DataSyncStatus from '@/components/common/DataSyncStatus';
-import { SyncStatus } from '@/services/sync/DataSyncManager';
+import { SyncStatus } from '@/features/sync/types/syncTypes';
 
 interface TestData {
   id: string;
@@ -68,7 +68,7 @@ export default function DbTest() {
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle>Test de synchronisation</CardTitle>
             <DataSyncStatus 
-              status={status as SyncStatus}
+              status={status}
               lastSynced={lastSynced}
               lastError={lastError}
               pendingChanges={pendingChanges}
@@ -83,8 +83,8 @@ export default function DbTest() {
                   <Save className="mr-2 h-4 w-4" />
                   Ajouter une donnée
                 </Button>
-                <Button onClick={handleSync} disabled={!isOnline || status === 'syncing'}>
-                  <RefreshCw className={`mr-2 h-4 w-4 ${status === 'syncing' ? 'animate-spin' : ''}`} />
+                <Button onClick={handleSync} disabled={!isOnline || status === SyncStatus.SYNCING}>
+                  <RefreshCw className={`mr-2 h-4 w-4 ${status === SyncStatus.SYNCING ? 'animate-spin' : ''}`} />
                   Synchroniser
                 </Button>
               </div>

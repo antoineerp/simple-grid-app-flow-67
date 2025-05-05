@@ -1,7 +1,9 @@
 
 // If this file doesn't exist, create it with the necessary interfaces
+import { SyncStatus as GlobalSyncStatus } from '@/features/sync/types/syncTypes';
+
 export interface SyncRecord {
-  status: SyncStatus;
+  status: GlobalSyncStatus;
   lastSynced: Date | null;
   lastError: string | null;
   pendingChanges: boolean;
@@ -13,12 +15,8 @@ export interface SyncOptions {
   showToast?: boolean;
 }
 
-export enum SyncStatus {
-  IDLE = 'IDLE',
-  SYNCING = 'SYNCING',
-  SUCCESS = 'SUCCESS',
-  ERROR = 'ERROR'
-}
+// Re-export the SyncStatus enum for backward compatibility
+export { GlobalSyncStatus as SyncStatus };
 
 export class DataSyncManager {
   getTableStatus(tableName: string) {
