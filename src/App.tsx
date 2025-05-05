@@ -25,6 +25,7 @@ function App() {
           <Route index element={<Pilotage />} />
           <Route path="ressources-humaines" element={<RessourcesHumaines />} />
           <Route path="collaboration" element={<Collaboration />} />
+          <Route path="gestion-documentaire" element={<GestionDocumentaire />} />
           <Route path="admin" element={<Admin />} />
         </Route>
       </Routes>

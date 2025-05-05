@@ -1,12 +1,13 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useToast } from "@/hooks/use-toast";
-import { getDatabaseConnectionCurrentUser } from '@/services/core/databaseConnectionService';
+import { getCurrentUser } from '@/services/auth/authService';
 import { syncRepairTool } from '@/utils/syncRepairTool';
+import { dataSyncManager } from '@/services/sync/DataSyncManager';
 
 /**
- * Hook pour gérer une collection de données avec synchronisation
- * Basé sur l'implémentation réussie de GestionDocumentaire.tsx
+ * Hook optimisé pour gérer une collection de données avec synchronisation
+ * Version simplifiée et améliorée basée sur les meilleures pratiques
  */
 export function useSyncedData<T>(
   tableName: string,
@@ -18,7 +19,7 @@ export function useSyncedData<T>(
   const [isSyncing, setIsSyncing] = useState<boolean>(false);
   const [isOnline, setIsOnline] = useState<boolean>(navigator.onLine);
   const [lastSynced, setLastSynced] = useState<Date | null>(null);
-  const [currentUser, setCurrentUser] = useState<string>(getDatabaseConnectionCurrentUser() || 'default');
+  const [currentUser, setCurrentUser] = useState<string>(getCurrentUser()?.identifiant_technique || 'default');
   const { toast } = useToast();
   
   // Utiliser une référence pour éviter les synchronisations multiples
@@ -50,16 +51,12 @@ export function useSyncedData<T>(
           console.log(`useSyncedData(${tableName}): Aucune donnée chargée ou fonction de chargement non fournie`);
         }
       } else {
-        // Sinon, essayer de charger depuis localStorage
-        const storedData = localStorage.getItem(`${tableName}_${currentUser}`);
-        if (storedData) {
-          try {
-            const parsedData = JSON.parse(storedData);
-            console.log(`useSyncedData(${tableName}): ${parsedData.length} éléments chargés depuis localStorage`);
-            setData(parsedData);
-          } catch (e) {
-            console.error(`useSyncedData(${tableName}): Erreur lors du parsing des données`, e);
-          }
+        // Sinon, utiliser le DataSyncManager pour charger depuis localStorage
+        const loadedData = dataSyncManager.getLocalData<T>(tableName);
+        if (loadedData && loadedData.length > 0) {
+          console.log(`useSyncedData(${tableName}): ${loadedData.length} éléments chargés depuis localStorage`);
+          setData(loadedData);
+          setLastSynced(new Date());
         }
       }
       
@@ -68,7 +65,7 @@ export function useSyncedData<T>(
       console.error(`useSyncedData(${tableName}): Erreur lors du chargement des données`, error);
       toast({
         variant: "destructive",
-        title: "Erreur",
+        title: "Erreur de chargement",
         description: "Une erreur est survenue lors du chargement des données."
       });
     } finally {
@@ -77,7 +74,7 @@ export function useSyncedData<T>(
     }
   }, [tableName, currentUser, loadDataFn, toast]);
   
-  // Fonction pour sauvegarder les données
+  // Fonction pour sauvegarder les données avec debounce
   const saveData = useCallback(async (newData: T[]) => {
     if (!dataChangedRef.current) {
       console.log(`useSyncedData(${tableName}): Sauvegarde ignorée - données non modifiées`);
@@ -93,24 +90,13 @@ export function useSyncedData<T>(
       setIsSyncing(true);
       syncInProgressRef.current = true;
       
-      // Sauvegarder localement dans tous les cas pour éviter la perte de données
-      localStorage.setItem(`${tableName}_${currentUser}`, JSON.stringify(newData));
+      // Utiliser le DataSyncManager pour la sauvegarde avec debounce
+      dataSyncManager.saveDataWithDebounce(tableName, newData, saveDataFn);
       
-      // Si une fonction de sauvegarde est fournie et que nous sommes en ligne, synchroniser avec le serveur
-      if (saveDataFn && isOnline) {
-        console.log(`useSyncedData(${tableName}): Synchronisation avec le serveur`);
-        const success = await saveDataFn(newData, currentUser);
-        
-        if (success) {
-          console.log(`useSyncedData(${tableName}): Synchronisation réussie`);
-          setLastSynced(new Date());
-          dataChangedRef.current = false;
-        } else {
-          console.log(`useSyncedData(${tableName}): Échec de la synchronisation`);
-        }
-      } else {
-        console.log(`useSyncedData(${tableName}): Données sauvegardées localement uniquement`);
-      }
+      // Mettre à jour le dernier timestamp de synchronisation
+      setLastSynced(new Date());
+      dataChangedRef.current = false;
+      
     } catch (error) {
       console.error(`useSyncedData(${tableName}): Erreur lors de la sauvegarde des données`, error);
       toast({
@@ -122,7 +108,7 @@ export function useSyncedData<T>(
       setIsSyncing(false);
       syncInProgressRef.current = false;
     }
-  }, [tableName, currentUser, saveDataFn, isOnline, toast]);
+  }, [tableName, saveDataFn, toast]);
   
   // Mise à jour des données avec marquage explicite des modifications
   const updateData = useCallback((newData: T[]) => {
@@ -130,11 +116,9 @@ export function useSyncedData<T>(
     dataChangedRef.current = true;
     
     // Planifier une sauvegarde différée pour éviter de trop nombreuses synchronisations
-    const timer = setTimeout(() => {
-      saveData(newData).catch(console.error);
-    }, 2000);
+    saveData(newData).catch(console.error);
     
-    return () => clearTimeout(timer);
+    return newData;
   }, [saveData]);
   
   // Forcer le rechargement des données
@@ -214,7 +198,6 @@ export function useSyncedData<T>(
       setIsOnline(true);
       // Si les données ont été modifiées, tenter une synchronisation
       if (dataChangedRef.current) {
-        console.log(`useSyncedData(${tableName}): Tentative de synchronisation après reconnexion`);
         saveData(data).catch(console.error);
       }
     };
