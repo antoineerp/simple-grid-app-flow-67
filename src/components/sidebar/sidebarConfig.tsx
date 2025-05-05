@@ -1,5 +1,5 @@
 
-import { Users, FileText, FolderOpen, Settings } from "lucide-react";
+import { Users, FileText, FolderOpen, Settings, BarChart2 } from "lucide-react";
 import { type LucideIcon } from "lucide-react";
 
 interface NavigationItem {
@@ -10,7 +10,12 @@ interface NavigationItem {
 
 export const navigationItems: NavigationItem[] = [
   {
-    path: "/",
+    path: "/pilotage",
+    icon: BarChart2,
+    label: "Pilotage"
+  },
+  {
+    path: "/gestion-documentaire",
     icon: FileText,
     label: "Gestion Documentaire"
   },
@@ -23,10 +28,5 @@ export const navigationItems: NavigationItem[] = [
     path: "/collaboration",
     icon: FolderOpen,
     label: "Collaboration"
-  },
-  {
-    path: "/admin",
-    icon: Settings,
-    label: "Administration"
   }
 ];

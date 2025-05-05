@@ -10,6 +10,7 @@ import Collaboration from '@/pages/Collaboration';
 import { Toaster } from "@/components/ui/toaster";
 import { MembresProvider } from '@/contexts/MembresContext';
 import Pilotage from '@/pages/Pilotage';
+import Exigences from '@/pages/Exigences';
 
 function App() {
   return (
@@ -23,6 +24,7 @@ function App() {
           </MembresProvider>
         }>
           <Route index element={<Pilotage />} />
+          <Route path="exigences" element={<Exigences />} />
           <Route path="ressources-humaines" element={<RessourcesHumaines />} />
           <Route path="collaboration" element={<Collaboration />} />
           <Route path="gestion-documentaire" element={<GestionDocumentaire />} />
