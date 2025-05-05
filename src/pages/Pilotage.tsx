@@ -1,7 +1,6 @@
 
 import React from 'react';
 import { useToast } from "@/hooks/use-toast";
-import { MembresProvider } from '@/contexts/MembresContext';
 import { exportPilotageToOdf } from "@/services/pdfExport";
 import { useSyncedData } from '@/hooks/useSyncedData';
 import PilotageHeader from '@/components/pilotage/PilotageHeader';
@@ -140,50 +139,48 @@ const Pilotage = () => {
   };
 
   return (
-    <MembresProvider>
-      <div className="p-8">
-        <PilotageHeader onExport={handleExportPdf} />
+    <div className="p-8">
+      <PilotageHeader onExport={handleExportPdf} />
 
-        <div className="flex justify-end mb-4">
-          <button 
-            onClick={forceReload} 
-            className="px-3 py-1 mr-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50"
-            disabled={isSyncing}
-          >
-            {isSyncing ? "Chargement..." : "Actualiser"}
-          </button>
-          <button 
-            onClick={repairSync} 
-            className="px-3 py-1 bg-yellow-500 text-white rounded hover:bg-yellow-600 disabled:opacity-50"
-            disabled={isSyncing}
-          >
-            Réparer la synchronisation
-          </button>
-        </div>
-
-        <PilotageDocumentsTable 
-          documents={documents}
-          onEditDocument={handleEditDocument}
-          onDeleteDocument={handleDeleteDocument}
-          onReorder={handleReorder}
-        />
-
-        <PilotageActions onAddDocument={handleAddDocument} />
-
-        <ExigenceSummary />
-        <DocumentSummary />
-        <ResponsabilityMatrix />
-
-        <DocumentDialog 
-          isOpen={isDialogOpen}
-          onOpenChange={setIsDialogOpen}
-          currentDocument={currentDocument}
-          onInputChange={handleInputChange}
-          onSave={handleSaveDocument}
-          isEditing={isEditing}
-        />
+      <div className="flex justify-end mb-4">
+        <button 
+          onClick={forceReload} 
+          className="px-3 py-1 mr-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50"
+          disabled={isSyncing}
+        >
+          {isSyncing ? "Chargement..." : "Actualiser"}
+        </button>
+        <button 
+          onClick={repairSync} 
+          className="px-3 py-1 bg-yellow-500 text-white rounded hover:bg-yellow-600 disabled:opacity-50"
+          disabled={isSyncing}
+        >
+          Réparer la synchronisation
+        </button>
       </div>
-    </MembresProvider>
+
+      <PilotageDocumentsTable 
+        documents={documents}
+        onEditDocument={handleEditDocument}
+        onDeleteDocument={handleDeleteDocument}
+        onReorder={handleReorder}
+      />
+
+      <PilotageActions onAddDocument={handleAddDocument} />
+
+      <ExigenceSummary />
+      <DocumentSummary />
+      <ResponsabilityMatrix />
+
+      <DocumentDialog 
+        isOpen={isDialogOpen}
+        onOpenChange={setIsDialogOpen}
+        currentDocument={currentDocument}
+        onInputChange={handleInputChange}
+        onSave={handleSaveDocument}
+        isEditing={isEditing}
+      />
+    </div>
   );
 };
 

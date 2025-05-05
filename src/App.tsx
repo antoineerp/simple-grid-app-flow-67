@@ -8,6 +8,8 @@ import Admin from '@/pages/Admin';
 import RessourcesHumaines from '@/pages/RessourcesHumaines';
 import Collaboration from '@/pages/Collaboration';
 import { Toaster } from "@/components/ui/toaster";
+import { MembresProvider } from '@/contexts/MembresContext';
+import Pilotage from '@/pages/Pilotage';
 
 function App() {
   return (
@@ -15,8 +17,12 @@ function App() {
       <Routes>
         <Route path="/" element={<Login />} />
         <Route path="/login" element={<Login />} />
-        <Route path="/pilotage" element={<Layout />}>
-          <Route index element={<GestionDocumentaire />} />
+        <Route path="/pilotage" element={
+          <MembresProvider>
+            <Layout />
+          </MembresProvider>
+        }>
+          <Route index element={<Pilotage />} />
           <Route path="ressources-humaines" element={<RessourcesHumaines />} />
           <Route path="collaboration" element={<Collaboration />} />
           <Route path="admin" element={<Admin />} />
