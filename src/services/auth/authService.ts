@@ -1,256 +1,115 @@
-import { getApiUrl } from '@/config/apiConfig';
-import { toast } from '@/hooks/use-toast';
-import { disconnectUser } from '../core/databaseConnectionService';
-import { initializeUserData } from '../core/userInitializationService';
 
-const API_URL = getApiUrl();
+// Constantes
+const TOKEN_KEY = 'authToken';
+const USER_KEY = 'currentUser';
+const IS_LOGGED_IN = 'isLoggedIn';
+const USER_ROLE = 'userRole';
 
-class AuthService {
-    private static instance: AuthService;
-    private token: string | null = null;
-    private currentUser: string | null = null;
-
-    private constructor() {
-        console.log("Authentication service initialized");
-        this.token = localStorage.getItem('authToken');
-        this.currentUser = localStorage.getItem('currentUser');
-    }
-
-    public static getInstance(): AuthService {
-        if (!AuthService.instance) {
-            AuthService.instance = new AuthService();
-        }
-        return AuthService.instance;
-    }
-
-    public setToken(token: string | null): void {
-        this.token = token;
-        if (token) {
-            localStorage.setItem('authToken', token);
-            localStorage.setItem('isLoggedIn', 'true');
-        } else {
-            localStorage.removeItem('authToken');
-            localStorage.removeItem('isLoggedIn');
-        }
-    }
-
-    public getToken(): string | null {
-        if (!this.token) {
-            this.token = localStorage.getItem('authToken');
-        }
-        return this.token;
-    }
-
-    public getAuthHeaders(): HeadersInit {
-        const headers: HeadersInit = {
-            'Content-Type': 'application/json',
-            'Cache-Control': 'no-cache, no-store, must-revalidate',
-            'Accept': 'application/json'
-        };
-        
-        const token = this.getToken();
-        if (token) {
-            headers['Authorization'] = `Bearer ${token}`;
-        }
-        
-        return headers;
-    }
-
-    private async parseJsonResponse(response: Response): Promise<any> {
-        const responseText = await response.text();
-        console.log(`Réponse reçue (${response.status}): ${responseText.substring(0, 200)}...`);
-        
-        if (!responseText || responseText.trim() === '') {
-            console.warn('Réponse vide reçue du serveur');
-            throw new Error('Réponse vide du serveur');
-        }
-        
-        // Ne pas traiter la réponse de test comme une erreur, mais la reconnaître comme une réponse spéciale
-        if (responseText.includes('API PHP disponible') && !responseText.includes('token')) {
-            console.log('Détecté: réponse API info standard');
-            return { info: true, message: 'API info response' };
-        }
-        
-        if (responseText.trim().startsWith('<!DOCTYPE') || 
-            responseText.trim().startsWith('<html') ||
-            responseText.includes('<body')) {
-            console.error('Réponse HTML reçue au lieu de JSON:', responseText.substring(0, 200));
-            throw new Error('Le serveur a renvoyé une page HTML au lieu de JSON. Vérifiez la configuration du serveur.');
-        }
-        
-        try {
-            return JSON.parse(responseText);
-        } catch (e) {
-            console.error('Erreur lors du parsing JSON:', e);
-            console.error('Texte reçu:', responseText.substring(0, 500));
-            throw new Error('Réponse du serveur non valide. Format JSON attendu.');
-        }
-    }
-
-    public async login(username: string, password: string): Promise<any> {
-        try {
-            console.log(`Tentative de connexion pour l'utilisateur: ${username}`);
-            
-            // Essayer d'abord AuthController.php
-            const authUrl = `${getApiUrl()}/auth`;
-            console.log(`URL de requête (authentification): ${authUrl}`);
-            
-            try {
-                const response = await fetch(authUrl, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Cache-Control': 'no-cache, no-store, must-revalidate'
-                    },
-                    body: JSON.stringify({ username, password })
-                });
-                
-                console.log(`Réponse du serveur auth: ${response.status} ${response.statusText}`);
-                
-                if (!response.ok) {
-                    const errorData = await this.parseJsonResponse(response);
-                    throw new Error(errorData.message || `Échec de l'authentification (${response.status})`);
-                }
-                
-                const data = await this.parseJsonResponse(response);
-                
-                if (!data || !data.token) {
-                    throw new Error(data?.message || "Authentification échouée");
-                }
-                
-                this.setToken(data.token);
-                
-                if (data.user) {
-                    // Use the user's full name if available, otherwise fallback to email or technical identifier
-                    const displayName = 
-                        (data.user.prenom && data.user.nom) 
-                            ? `${data.user.prenom} ${data.user.nom}` 
-                            : (data.user.email || data.user.identifiant_technique || 'Utilisateur');
-                    
-                    localStorage.setItem('currentUser', data.user.identifiant_technique);
-                    localStorage.setItem('userRole', data.user.role);
-                    localStorage.setItem('userName', displayName);
-                }
-                
-                if (data.user && data.user.identifiant_technique) {
-                    await initializeUserData(data.user.identifiant_technique);
-                }
-                
-                return {
-                    success: true,
-                    user: data.user
-                };
-            } catch (authError) {
-                console.error("Erreur avec /auth:", authError);
-                
-                // Si l'authentification échoue, essayer login-test.php comme fallback
-                const testUrl = `${getApiUrl()}/login-test.php`;
-                console.log(`URL de requête (fallback): ${testUrl}`);
-                
-                const response = await fetch(testUrl, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Cache-Control': 'no-cache, no-store, must-revalidate'
-                    },
-                    body: JSON.stringify({ username, password })
-                });
-                
-                console.log(`Réponse du serveur login-test: ${response.status} ${response.statusText}`);
-                
-                if (!response.ok) {
-                    const errorData = await this.parseJsonResponse(response);
-                    throw new Error(errorData.message || `Échec de l'authentification (${response.status})`);
-                }
-                
-                const data = await this.parseJsonResponse(response);
-                
-                if (!data || !data.token) {
-                    throw new Error(data?.message || "Authentification échouée");
-                }
-                
-                this.setToken(data.token);
-                
-                if (data.user) {
-                    // Use the user's full name if available, otherwise fallback to email or technical identifier
-                    const displayName = 
-                        (data.user.prenom && data.user.nom) 
-                            ? `${data.user.prenom} ${data.user.nom}` 
-                            : (data.user.email || data.user.identifiant_technique || 'Utilisateur');
-                    
-                    localStorage.setItem('currentUser', data.user.identifiant_technique);
-                    localStorage.setItem('userRole', data.user.role);
-                    localStorage.setItem('userName', displayName);
-                }
-                
-                if (data.user && data.user.identifiant_technique) {
-                    await initializeUserData(data.user.identifiant_technique);
-                }
-                
-                return {
-                    success: true,
-                    user: data.user
-                };
-            }
-        } catch (error) {
-            console.error("Erreur lors de la connexion:", error);
-            
-            toast({
-                title: "Échec de la connexion",
-                description: error instanceof Error ? error.message : "Erreur inconnue",
-                variant: "destructive",
-            });
-            
-            throw error;
-        }
-    }
-
-    public logout(): void {
-        this.setToken(null);
-        localStorage.removeItem('currentUser');
-        localStorage.removeItem('userRole');
-        localStorage.removeItem('userName');
-        localStorage.removeItem('isLoggedIn');
-        
-        disconnectUser();
-        
-        toast({
-            title: "Déconnexion réussie",
-            description: "Vous avez été déconnecté avec succès",
-        });
-    }
-
-    public isLoggedIn(): boolean {
-        return !!this.getToken();
-    }
-
-    public getCurrentUser(): string | null {
-        return this.currentUser || localStorage.getItem('currentUser');
-    }
+// Interface pour le résultat de login
+export interface LoginResult {
+  success: boolean;
+  token?: string;
+  user?: any;
+  message?: string;
+  error?: any;
 }
 
-const authService = AuthService.getInstance();
+// Interface pour un utilisateur
+export interface User {
+  id: string;
+  username?: string;
+  email?: string;
+  role?: string;
+  [key: string]: any;
+}
 
-export const login = (username: string, password: string): Promise<any> => {
-    return authService.login(username, password);
+/**
+ * Tente de connecter un utilisateur avec ses identifiants
+ */
+export const login = async (username: string, password: string): Promise<LoginResult> => {
+  try {
+    // Simulation de login pour le moment
+    console.log(`Tentative de connexion pour l'utilisateur: ${username}`);
+
+    // Logique de connexion réelle serait implémentée ici
+    // Pour l'instant, on simule une connexion réussie
+    const user = {
+      id: '1',
+      username,
+      email: `${username}@example.com`,
+      role: 'user'
+    };
+
+    // Stocker les infos de session
+    localStorage.setItem(TOKEN_KEY, 'fake-jwt-token');
+    localStorage.setItem(USER_KEY, JSON.stringify(user));
+    localStorage.setItem(IS_LOGGED_IN, 'true');
+    localStorage.setItem(USER_ROLE, user.role);
+
+    return {
+      success: true,
+      token: 'fake-jwt-token',
+      user
+    };
+  } catch (error) {
+    console.error('Erreur de connexion:', error);
+    return {
+      success: false,
+      message: error instanceof Error ? error.message : 'Une erreur est survenue lors de la connexion',
+      error
+    };
+  }
 };
 
+/**
+ * Déconnecte l'utilisateur actuel
+ */
 export const logout = (): void => {
-    authService.logout();
+  localStorage.removeItem(TOKEN_KEY);
+  localStorage.removeItem(USER_KEY);
+  localStorage.setItem(IS_LOGGED_IN, 'false');
+  localStorage.removeItem(USER_ROLE);
 };
 
-export const isLoggedIn = (): boolean => {
-    return authService.isLoggedIn();
+/**
+ * Vérifie si un utilisateur est connecté
+ */
+export const isAuthenticated = (): boolean => {
+  return localStorage.getItem(IS_LOGGED_IN) === 'true';
 };
 
-export const getCurrentUser = (): string | null => {
-    return authService.getCurrentUser();
+/**
+ * Récupère le token d'authentification
+ */
+export const getToken = (): string | null => {
+  return localStorage.getItem(TOKEN_KEY);
 };
 
-export const getAuthHeaders = (): HeadersInit => {
-    return authService.getAuthHeaders();
+/**
+ * Récupère l'utilisateur actuel
+ */
+export const getCurrentUser = (): User | null => {
+  const userJson = localStorage.getItem(USER_KEY);
+  if (!userJson) return null;
+  
+  try {
+    return JSON.parse(userJson);
+  } catch (error) {
+    console.error('Erreur lors de la récupération des données utilisateur:', error);
+    return null;
+  }
 };
 
-export const loginUser = login;
-export const logoutUser = logout;
-export const getToken = authService.getToken.bind(authService);
+/**
+ * Récupère le rôle de l'utilisateur
+ */
+export const getUserRole = (): string | null => {
+  return localStorage.getItem(USER_ROLE);
+};
+
+/**
+ * Sauvegarde le token dans le stockage local
+ */
+export const saveToken = (token: string): void => {
+  localStorage.setItem(TOKEN_KEY, token);
+};

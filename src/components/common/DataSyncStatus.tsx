@@ -1,23 +1,24 @@
 
 import React from 'react';
-import { CloudOff, CloudSun, CheckCircle } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { CloudOff, CloudSun, Check } from 'lucide-react';
+import { dataSyncManager, SyncStatus } from '@/services/sync/DataSyncManager';
 
-interface SyncStatusIndicatorProps {
-  isSyncing: boolean;
-  isOnline: boolean;
-  lastSynced?: Date;
+interface DataSyncStatusProps {
   syncFailed?: boolean;
   onReset?: () => void;
+  isSyncing?: boolean;
+  lastSynced?: Date;
 }
 
-const SyncStatusIndicator: React.FC<SyncStatusIndicatorProps> = ({
-  isSyncing,
-  isOnline,
-  lastSynced,
+export const DataSyncStatus: React.FC<DataSyncStatusProps> = ({
   syncFailed = false,
-  onReset
+  onReset,
+  isSyncing = false,
+  lastSynced
 }) => {
+  const status = dataSyncManager.getSyncStatus();
+  const isOnline = navigator.onLine;
+
   return (
     <div className="flex items-center text-sm text-gray-500">
       {isSyncing ? (
@@ -25,13 +26,14 @@ const SyncStatusIndicator: React.FC<SyncStatusIndicatorProps> = ({
       ) : syncFailed ? (
         <CloudOff className="h-4 w-4 mr-1 text-red-500" />
       ) : (
-        <CloudSun className={cn("h-4 w-4 mr-1", isOnline ? "text-green-500" : "text-amber-500")} />
+        <CloudSun className="h-4 w-4 mr-1" />
       )}
       
       <span className="mr-1">
         {isSyncing ? "Synchronisation..." : 
          syncFailed ? "Échec de la synchronisation" : 
-         isOnline ? "Synchronisé" : "Mode hors ligne"}
+         status === SyncStatus.Idle ? "Synchronisé" : 
+         "Prêt"}
       </span>
       
       {lastSynced && !isSyncing && !syncFailed && (
@@ -57,5 +59,3 @@ const SyncStatusIndicator: React.FC<SyncStatusIndicatorProps> = ({
     </div>
   );
 };
-
-export default SyncStatusIndicator;
