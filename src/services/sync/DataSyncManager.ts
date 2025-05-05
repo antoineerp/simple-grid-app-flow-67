@@ -16,7 +16,7 @@ export interface SyncOptions {
 }
 
 // Re-export the SyncStatus enum for backward compatibility
-export { GlobalSyncStatus as SyncStatus };
+export type { GlobalSyncStatus as SyncStatus };
 
 export class DataSyncManager {
   getTableStatus(tableName: string) {
