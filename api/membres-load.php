@@ -1,114 +1,79 @@
 
 <?php
-require_once 'services/DataSyncService.php';
+header("Content-Type: application/json; charset=UTF-8");
+header("Access-Control-Allow-Origin: *");
+header("Access-Control-Allow-Methods: GET, OPTIONS");
+header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With");
 
-// Initialiser le service
-$service = new DataSyncService('membres');
-$service->setStandardHeaders();
-$service->handleOptionsRequest();
+// Si c'est une requête OPTIONS (preflight), nous la terminons ici
+if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
+    http_response_code(200);
+    echo json_encode(['status' => 200, 'message' => 'Preflight OK']);
+    exit;
+}
+
+// Gérer uniquement les requêtes GET
+if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
+    http_response_code(405);
+    echo json_encode(['success' => false, 'message' => 'Méthode non autorisée']);
+    exit;
+}
+
+// Récupérer l'ID utilisateur
+$userId = isset($_GET['userId']) ? $_GET['userId'] : null;
+
+if (!$userId) {
+    http_response_code(400);
+    echo json_encode(['success' => false, 'message' => 'ID utilisateur requis']);
+    exit;
+}
+
+// Journaliser la requête
+error_log("Chargement des membres pour l'utilisateur: " . $userId);
 
 try {
-    // Vérifier si l'userId est présent
-    if (!isset($_GET['userId'])) {
-        throw new Exception("Paramètre 'userId' manquant");
+    // Inclure la configuration de la base de données
+    require_once 'config/database.php';
+    $database = new Database();
+    $conn = $database->getConnection();
+
+    // Vérifier si la connexion est établie
+    if (!$database->is_connected) {
+        throw new Exception("Erreur de connexion à la base de données: " . ($database->connection_error ?? "Erreur inconnue"));
     }
+
+    // Nom de la table des membres pour cet utilisateur
+    $tableName = "user_membres_" . preg_replace('/[^a-z0-9_]/i', '_', $userId);
     
-    $userId = $service->sanitizeUserId($_GET['userId']);
-    
-    // Connecter à la base de données
-    if (!$service->connectToDatabase()) {
-        throw new Exception("Impossible de se connecter à la base de données");
-    }
-    
-    // Schéma de la table membres - Mise à jour pour inclure tous les champs nécessaires
-    $schema = "CREATE TABLE IF NOT EXISTS `membres_{$userId}` (
-        `id` VARCHAR(36) PRIMARY KEY,
-        `nom` VARCHAR(100) NOT NULL,
-        `prenom` VARCHAR(100) NOT NULL,
-        `email` VARCHAR(255) NULL,
-        `telephone` VARCHAR(20) NULL,
-        `fonction` VARCHAR(100) NULL,
-        `organisation` VARCHAR(255) NULL,
-        `notes` TEXT NULL,
-        `initiales` VARCHAR(10) NULL,
-        `date_creation` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        `date_modification` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
-    
-    // Créer la table si nécessaire
-    if (!$service->ensureTableExists($schema)) {
-        throw new Exception("Impossible de créer ou vérifier la table");
-    }
-    
-    // Récupérer les colonnes existantes
-    $columns = $service->getTableColumns();
-    error_log("Colonnes disponibles dans la table membres_{$userId}: " . implode(", ", $columns));
-    
-    // Vérifier si la table est vide
-    $tableEmpty = true;
-    $tableName = "membres_{$userId}";
-    $checkEmptyQuery = "SELECT COUNT(*) FROM `{$tableName}`";
-    $stmt = $service->getPdo()->prepare($checkEmptyQuery);
+    // Vérifier si la table existe
+    $stmt = $conn->prepare("SHOW TABLES LIKE :tableName");
+    $stmt->bindParam(':tableName', $tableName);
     $stmt->execute();
-    $count = $stmt->fetchColumn();
-    if ($count > 0) {
-        $tableEmpty = false;
-    }
     
-    error_log("La table membres_{$userId} " . ($tableEmpty ? "est vide" : "contient des données"));
+    $membres = [];
     
-    // Données de test pour les nouveaux utilisateurs ou tables vides
-    if ($tableEmpty) {
-        error_log("Insertion de données de test pour membres_{$userId}");
+    if ($stmt->rowCount() > 0) {
+        // Récupérer tous les membres
+        $sql = "SELECT * FROM `$tableName`";
+        $stmt = $conn->prepare($sql);
+        $stmt->execute();
         
-        $testMembers = [
-            [
-                'id' => '1b9d6bcd-bbfd-4b2d-9b5d-ab8dfbbd4bed',
-                'nom' => 'Dupont',
-                'prenom' => 'Jean',
-                'email' => 'jean.dupont@example.com',
-                'telephone' => '0601020304',
-                'fonction' => 'Directeur',
-                'organisation' => 'Entreprise A',
-                'notes' => 'Contact principal',
-                'initiales' => 'JD'
-            ],
-            [
-                'id' => '9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d',
-                'nom' => 'Martin',
-                'prenom' => 'Sophie',
-                'email' => 'sophie.martin@example.com',
-                'telephone' => '0607080910',
-                'fonction' => 'Responsable RH',
-                'organisation' => 'Entreprise B',
-                'notes' => 'Partenaire stratégique',
-                'initiales' => 'SM'
-            ]
-        ];
-        
-        // Filtrer les données de test pour correspondre aux colonnes existantes
-        $filteredMembers = [];
-        foreach ($testMembers as $member) {
-            $filteredMember = [];
-            foreach ($columns as $column) {
-                if (isset($member[$column])) {
-                    $filteredMember[$column] = $member[$column];
-                }
-            }
-            $filteredMembers[] = $filteredMember;
-        }
-        
-        // Insérer les données filtrées
-        if (!empty($filteredMembers)) {
-            error_log("Insertion de " . count($filteredMembers) . " membres filtrés selon les colonnes disponibles");
-            $service->insertMultipleData($filteredMembers);
+        while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+            $membre = [
+                'id' => $row['id'],
+                'nom' => $row['nom'],
+                'prenom' => $row['prenom'],
+                'fonction' => $row['fonction'],
+                'initiales' => $row['initiales'],
+                'mot_de_passe' => $row['mot_de_passe'],
+                'date_creation' => $row['date_creation']
+            ];
+            
+            $membres[] = $membre;
         }
     }
-    
-    // Charger les données
-    $membres = $service->loadData();
-    
-    // Réponse réussie
+
+    http_response_code(200);
     echo json_encode([
         'success' => true,
         'membres' => $membres,
@@ -116,13 +81,11 @@ try {
     ]);
     
 } catch (Exception $e) {
-    error_log("Erreur dans membres-load.php: " . $e->getMessage());
+    error_log("Erreur lors du chargement des membres: " . $e->getMessage());
     http_response_code(500);
     echo json_encode([
-        'success' => false,
+        'success' => false, 
         'message' => 'Erreur serveur: ' . $e->getMessage()
     ]);
-} finally {
-    $service->finalize();
 }
 ?>

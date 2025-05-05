@@ -1,84 +1,50 @@
 
 import React from 'react';
-import { format } from 'date-fns';
-import { fr } from 'date-fns/locale';
-import { RefreshCw, AlertTriangle, CheckCircle, CloudOff } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Cloud, Check, CloudSun } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
-export interface SyncStatusIndicatorProps {
-  syncFailed: boolean;
-  onReset: () => void;
+type SyncStatusProps = {
   isSyncing: boolean;
-  lastSynced?: Date | null;
-  isOnline?: boolean;
-}
+  isOnline: boolean;
+  lastSynced?: Date;
+};
 
-const SyncStatusIndicator: React.FC<SyncStatusIndicatorProps> = ({
-  syncFailed,
-  onReset,
-  isSyncing,
-  lastSynced,
-  isOnline = true
+const SyncStatusIndicator: React.FC<SyncStatusProps> = ({ 
+  isSyncing, 
+  isOnline,
+  lastSynced
 }) => {
-  if (isSyncing) {
-    return (
-      <Alert className="bg-blue-50 border-blue-200 text-blue-800 mb-4">
-        <div className="flex items-center">
-          <RefreshCw className="h-4 w-4 animate-spin mr-2" />
-          <AlertDescription>Synchronisation en cours...</AlertDescription>
-        </div>
-      </Alert>
-    );
-  }
+  const getStatusText = () => {
+    if (isSyncing) return "Synchronisation en cours...";
+    if (!isOnline) return "Hors ligne - Les modifications sont enregistrées localement";
+    if (lastSynced) return `Dernière synchronisation: ${lastSynced.toLocaleTimeString()}`;
+    return "Synchronisé avec le serveur";
+  };
 
-  if (!isOnline) {
-    return (
-      <Alert className="bg-gray-50 border-gray-200 text-gray-800 mb-4">
-        <div className="flex items-center">
-          <CloudOff className="h-4 w-4 mr-2" />
-          <AlertDescription>Mode hors ligne</AlertDescription>
-        </div>
-      </Alert>
-    );
-  }
-
-  if (syncFailed) {
-    return (
-      <Alert className="bg-red-50 border-red-200 text-red-800 mb-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center">
-            <AlertTriangle className="h-4 w-4 mr-2" />
-            <AlertDescription>Échec de la synchronisation</AlertDescription>
+  return (
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <div className="flex items-center space-x-1 text-xs text-gray-500">
+            {isSyncing ? (
+              <CloudSun className="h-4 w-4 animate-spin text-blue-500" />
+            ) : isOnline ? (
+              <div className="relative">
+                <Cloud className="h-4 w-4 text-green-500" />
+                <Check className="h-3 w-3 text-green-500 absolute -bottom-1 -right-1" />
+              </div>
+            ) : (
+              <Cloud className="h-4 w-4 text-amber-500" />
+            )}
+            <span className="hidden md:inline">{getStatusText()}</span>
           </div>
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={onReset}
-            className="h-8 px-3"
-          >
-            <RefreshCw className="h-4 w-4 mr-2" />
-            Réessayer
-          </Button>
-        </div>
-      </Alert>
-    );
-  }
-
-  if (lastSynced) {
-    const formattedDate = format(lastSynced, "dd MMMM à HH:mm", { locale: fr });
-    
-    return (
-      <Alert className="bg-green-50 border-green-200 text-green-800 mb-4">
-        <div className="flex items-center">
-          <CheckCircle className="h-4 w-4 mr-2" />
-          <AlertDescription>Dernière synchronisation: {formattedDate}</AlertDescription>
-        </div>
-      </Alert>
-    );
-  }
-
-  return null;
+        </TooltipTrigger>
+        <TooltipContent>
+          <p>{getStatusText()}</p>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
 };
 
 export default SyncStatusIndicator;

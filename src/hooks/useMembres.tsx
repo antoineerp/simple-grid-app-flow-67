@@ -1,50 +1,63 @@
 
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { createContext, useState, useEffect, useContext, ReactNode } from 'react';
 import { Membre } from '@/types/membres';
-import { useNetworkStatus } from '@/hooks/useNetworkStatus';
+import { useToast } from '@/hooks/use-toast';
 import { loadMembresFromStorage, saveMembrestoStorage } from '@/services/membres/membresService';
 import { syncMembresWithServer, loadMembresFromServer } from '@/services/membres/membresSync';
-import { useToast } from '@/hooks/use-toast';
+import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 
-interface MembresContextType {
+interface MembresContextProps {
   membres: Membre[];
   setMembres: React.Dispatch<React.SetStateAction<Membre[]>>;
   isSyncing: boolean;
   isOnline: boolean;
   lastSynced?: Date;
   syncWithServer: () => Promise<void>;
+  loadData: () => Promise<void>;
 }
 
-const MembresContext = createContext<MembresContextType | undefined>(undefined);
+const MembresContext = createContext<MembresContextProps | undefined>(undefined);
 
-export const MembresProvider = ({ children }: { children: ReactNode }) => {
-  // Récupérer l'identifiant de l'utilisateur connecté
-  const currentUser = localStorage.getItem('currentUser') || 'default';
-  const { isOnline } = useNetworkStatus();
+export const MembresProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const { toast } = useToast();
+  const [membres, setMembres] = useState<Membre[]>([]);
   const [isSyncing, setIsSyncing] = useState(false);
   const [lastSynced, setLastSynced] = useState<Date | undefined>(undefined);
-  
-  // Récupérer les membres du localStorage spécifiques à l'utilisateur actuel
-  const [membres, setMembres] = useState<Membre[]>(() => {
-    const storedMembres = localStorage.getItem(`membres_${currentUser}`);
-    return storedMembres ? JSON.parse(storedMembres) : [
-      { 
-        id: "1", 
-        nom: 'BONNET', 
-        prenom: 'RICHARD', 
-        fonction: 'DXDXD', 
-        initiales: 'RB',
-        date_creation: new Date(),
-        mot_de_passe: '****' // Ajout du champ obligatoire
-      }
-    ];
-  });
+  const { isOnline } = useNetworkStatus();
+  const currentUser = localStorage.getItem('currentUser') || 'default';
 
-  // Sauvegarder les membres dans le localStorage spécifique à l'utilisateur actuel
+  // Charger les données au démarrage
   useEffect(() => {
-    localStorage.setItem(`membres_${currentUser}`, JSON.stringify(membres));
-  }, [membres, currentUser]);
+    loadData();
+  }, []);
+
+  // Sauvegarder les données à chaque changement
+  useEffect(() => {
+    if (membres.length > 0) {
+      saveMembrestoStorage(membres, currentUser);
+    }
+  }, [membres]);
+
+  // Charger les données
+  const loadData = async () => {
+    // D'abord, essayer de charger depuis le serveur
+    if (isOnline) {
+      try {
+        const serverData = await loadMembresFromServer(currentUser);
+        if (serverData) {
+          setMembres(serverData);
+          setLastSynced(new Date());
+          return;
+        }
+      } catch (error) {
+        console.error('Erreur lors du chargement depuis le serveur:', error);
+      }
+    }
+    
+    // Charger depuis le stockage local si le serveur n'est pas disponible
+    const localData = loadMembresFromStorage(currentUser);
+    setMembres(localData);
+  };
 
   // Méthode de synchronisation avec le serveur
   const syncWithServer = async () => {
@@ -90,21 +103,22 @@ export const MembresProvider = ({ children }: { children: ReactNode }) => {
   return (
     <MembresContext.Provider value={{ 
       membres, 
-      setMembres,
+      setMembres, 
       isSyncing,
       isOnline,
       lastSynced,
-      syncWithServer
+      syncWithServer,
+      loadData
     }}>
       {children}
     </MembresContext.Provider>
   );
 };
 
-export const useMembres = (): MembresContextType => {
+export const useMembres = () => {
   const context = useContext(MembresContext);
   if (context === undefined) {
-    throw new Error('useMembres must be used within a MembresProvider');
+    throw new Error('useMembres doit être utilisé à l\'intérieur d\'un MembresProvider');
   }
   return context;
 };

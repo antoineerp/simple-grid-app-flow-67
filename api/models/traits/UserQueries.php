@@ -44,48 +44,6 @@ trait UserQueries {
                 throw new Exception("Un utilisateur avec cet identifiant existe déjà");
             }
             
-            // Vérifier si le rôle est autorisé dans la structure de la table
-            try {
-                $roleColumnQuery = "SHOW COLUMNS FROM " . $this->table_name . " LIKE 'role'";
-                $stmt = $this->conn->prepare($roleColumnQuery);
-                $stmt->execute();
-                $roleColumn = $stmt->fetch(PDO::FETCH_ASSOC);
-                
-                if ($roleColumn && strpos($roleColumn['Type'], 'enum') === 0) {
-                    preg_match('/enum\((.*)\)/', $roleColumn['Type'], $matches);
-                    if (isset($matches[1])) {
-                        $enumStr = $matches[1];
-                        $enumValues = array_map(function($val) {
-                            return trim($val, "'\"");
-                        }, explode(',', $enumStr));
-                        
-                        if (!in_array($this->role, $enumValues)) {
-                            error_log("Rôle non autorisé dans la structure de la table: " . $this->role);
-                            error_log("Valeurs autorisées: " . implode(', ', $enumValues));
-                            
-                            // Tenter d'adapter le rôle
-                            if ($this->role === 'gestionnaire' && in_array('admin', $enumValues)) {
-                                error_log("Adaptation du rôle 'gestionnaire' vers 'admin'");
-                                $this->role = 'admin';
-                            } else if ($this->role === 'utilisateur' && in_array('user', $enumValues)) {
-                                error_log("Adaptation du rôle 'utilisateur' vers 'user'");
-                                $this->role = 'user';
-                            } else if ($this->role === 'administrateur' && in_array('admin', $enumValues)) {
-                                error_log("Adaptation du rôle 'administrateur' vers 'admin'");
-                                $this->role = 'admin';
-                            } else {
-                                // Utiliser la première valeur disponible comme fallback
-                                error_log("Utilisation de la première valeur disponible comme fallback: " . $enumValues[0]);
-                                $this->role = $enumValues[0];
-                            }
-                        }
-                    }
-                }
-            } catch (Exception $e) {
-                error_log("Erreur lors de la vérification du rôle: " . $e->getMessage());
-                // Continuer malgré l'erreur, MySQL lèvera une exception si le rôle n'est pas valide
-            }
-            
             $query = "INSERT INTO " . $this->table_name . "
                     (nom, prenom, email, mot_de_passe, identifiant_technique, role, date_creation)
                     VALUES
@@ -125,16 +83,14 @@ trait UserQueries {
             $stmt->bindParam(":role", $this->role);
 
             // Exécution de la requête
-            error_log("Exécution de la requête INSERT avec rôle: " . $this->role);
+            error_log("Exécution de la requête INSERT");
             if (!$stmt->execute()) {
                 $errorInfo = $stmt->errorInfo();
                 error_log("Erreur SQL lors de la création: " . json_encode($errorInfo));
                 throw new Exception("Erreur SQL: " . ($errorInfo[2] ?? "Erreur inconnue"));
             }
             
-            // Récupérer l'ID inséré
-            $this->id = $this->conn->lastInsertId();
-            error_log("Création de l'utilisateur réussie avec ID: " . $this->id);
+            error_log("Création de l'utilisateur réussie");
             return true;
         } catch (PDOException $e) {
             error_log("Exception PDO lors de la création d'un utilisateur: " . $e->getMessage());

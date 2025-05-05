@@ -1,236 +1,244 @@
-
 <?php
 require_once dirname(__DIR__) . '/models/User.php';
 require_once dirname(__DIR__) . '/utils/ResponseHandler.php';
-require_once dirname(__FILE__) . '/BaseOperations.php';
 
-class UserOperations extends BaseOperations {
-    
+class UserOperations {
+    private $user;
+    private $db;
+
+    public function __construct($db) {
+        $this->db = $db;
+        $this->user = new User($db);
+    }
+
     public function handleGetRequest() {
-        error_log("UserOperations::handleGetRequest - Début");
-        
+        if (isset($_GET['email'])) {
+            $this->checkEmail($_GET['email']);
+            return;
+        }
+        $this->getAllUsers();
+    }
+
+    public function handlePostRequest() {
+        // Récupérer et vérifier les données
+        $data = json_decode(file_get_contents("php://input"));
+        error_log("Données reçues POST: " . json_encode($data));
+
+        if (!$this->validateUserData($data)) {
+            error_log("Validation des données utilisateur échouée");
+            ResponseHandler::error("Données incomplètes ou invalides", 400);
+            return;
+        }
+
         try {
-            if (isset($_GET['email'])) {
-                error_log("UserOperations - Recherche par email: " . $_GET['email']);
-                $this->checkEmail($_GET['email']);
+            error_log("Vérification du rôle gestionnaire: " . $data->role);
+            if ($data->role === 'gestionnaire' && $this->user->countUsersByRole('gestionnaire') > 0) {
+                error_log("Tentative de création d'un second compte gestionnaire rejetée");
+                ResponseHandler::error("Un seul compte gestionnaire peut être créé", 409);
                 return;
             }
-            error_log("UserOperations - Récupération de tous les utilisateurs");
-            $this->getAllUsers();
-        } catch (Exception $e) {
-            error_log("UserOperations::handleGetRequest - Erreur: " . $e->getMessage());
-            ResponseHandler::error("Erreur lors de la récupération des utilisateurs: " . $e->getMessage(), 500);
-        }
-    }
-    
-    private function checkEmail($email) {
-        try {
-            error_log("UserOperations::checkEmail - Vérification de l'email: $email");
-            $stmt = $this->model->findByEmailQuery($email);
-            $num = $stmt ? $stmt->rowCount() : 0;
-            error_log("UserOperations::checkEmail - Nombre d'utilisateurs trouvés: $num");
+
+            error_log("Vérification de l'email: " . $data->email);
+            if ($this->user->emailExists($data->email)) {
+                error_log("Email déjà utilisé: " . $data->email);
+                ResponseHandler::error("Email déjà utilisé", 409);
+                return;
+            }
+
+            // Assigner les valeurs à l'objet utilisateur
+            $this->user->nom = $data->nom;
+            $this->user->prenom = $data->prenom;
+            $this->user->email = $data->email;
+            $this->user->identifiant_technique = $data->identifiant_technique;
+            $this->user->mot_de_passe = $data->mot_de_passe;
+            $this->user->role = $data->role;
+
+            error_log("Tentative de création de l'utilisateur: " . $data->nom . " " . $data->prenom);
             
-            $users_arr = ["records" => []];
+            // S'assurer qu'aucun contenu n'a été envoyé avant d'essayer de créer l'utilisateur
+            if (ob_get_length()) ob_clean();
             
-            if ($num > 0) {
-                while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
-                    // Masquer le mot de passe dans la réponse
-                    $row['mot_de_passe'] = '******';
-                    array_push($users_arr["records"], $row);
+            // Vérifier si la table existe et la créer si nécessaire
+            if (!$this->user->tableExists()) {
+                error_log("Table utilisateurs non existante, tentative de création");
+                $created = $this->user->createTable();
+                if (!$created) {
+                    error_log("Échec de création de la table utilisateurs");
+                    ResponseHandler::error("Échec de création de la table utilisateurs", 500);
+                    return;
                 }
+                error_log("Table utilisateurs créée avec succès");
             }
             
-            error_log("UserOperations::checkEmail - Réponse: " . json_encode($users_arr));
-            ResponseHandler::success($users_arr);
+            // Vérifier la création
+            if (!$this->user->create()) {
+                error_log("Échec de création de l'utilisateur sans exception");
+                ResponseHandler::error("Échec de création de l'utilisateur", 500);
+                return;
+            }
+            
+            $lastId = $this->db->lastInsertId();
+            error_log("Utilisateur créé avec succès. ID: " . $lastId);
+            
+            if ($data->role === 'utilisateur') {
+                error_log("Initialisation des données utilisateur depuis le gestionnaire");
+                $this->user->initializeUserDataFromManager($data->identifiant_technique);
+            }
+            
+            // Renvoyer une réponse avec les données minimales nécessaires
+            $responseData = [
+                'id' => $lastId,
+                'identifiant_technique' => $data->identifiant_technique,
+                'nom' => $data->nom,
+                'prenom' => $data->prenom,
+                'email' => $data->email,
+                'role' => $data->role
+            ];
+            
+            // S'assurer que les headers sont correctement définis
+            if (!headers_sent()) {
+                header('Content-Type: application/json; charset=UTF-8');
+                http_response_code(201);
+            }
+            
+            echo json_encode([
+                'status' => 'success',
+                'message' => "Utilisateur créé avec succès",
+                'data' => $responseData
+            ]);
+            
+            // Terminer l'exécution pour éviter tout autre output
+            exit;
+            
         } catch (Exception $e) {
-            error_log("UserOperations::checkEmail - Erreur: " . $e->getMessage());
-            ResponseHandler::error("Erreur lors de la vérification de l'email: " . $e->getMessage(), 500);
+            error_log("Erreur création utilisateur: " . $e->getMessage() . " dans " . $e->getFile() . " ligne " . $e->getLine());
+            
+            // Nettoyer tout buffer de sortie
+            if (ob_get_length()) ob_clean();
+            
+            // S'assurer que les en-têtes sont correctement définis
+            if (!headers_sent()) {
+                header('Content-Type: application/json; charset=UTF-8');
+            }
+            
+            ResponseHandler::error($e->getMessage(), 500);
         }
     }
-    
-    private function getAllUsers() {
-        error_log("UserOperations::getAllUsers - Début");
-        
-        try {
-            // Force la création de la table si elle n'existe pas
-            $this->model->createTableIfNotExists();
-            
-            // Récupère tous les utilisateurs
-            $stmt = $this->model->read();
-            $num = $stmt->rowCount();
-            
-            error_log("UserOperations::getAllUsers - Nombre d'utilisateurs trouvés: $num");
-            
-            // Initialise le tableau de réponse
-            $users_arr = ["records" => []];
-            
-            if ($num > 0) {
-                while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
-                    // Masquer le mot de passe dans la réponse
-                    $row['mot_de_passe'] = '******';
-                    array_push($users_arr["records"], $row);
-                }
-                error_log("UserOperations::getAllUsers - Retourne " . count($users_arr["records"]) . " utilisateurs");
-                ResponseHandler::success($users_arr);
-            } else {
-                error_log("UserOperations::getAllUsers - Aucun utilisateur trouvé");
-                // Si aucun utilisateur n'est trouvé, retourner un tableau vide mais pas une erreur 404
-                // pour éviter les problèmes côté client
-                ResponseHandler::success($users_arr);
-            }
-        } catch (Exception $e) {
-            error_log("UserOperations::getAllUsers - Erreur: " . $e->getMessage());
-            ResponseHandler::error("Erreur lors de la récupération des utilisateurs: " . $e->getMessage(), 500);
-        }
-    }
-    
-    public function handlePostRequest() {
-        error_log("UserOperations::handlePostRequest - Début");
-        
-        try {
-            // Récupérer les données POST
-            $data = json_decode(file_get_contents("php://input"));
-            error_log("UserOperations::handlePostRequest - Données reçues: " . json_encode($data));
-            
-            // Vérifier que les données nécessaires sont présentes
-            if (!isset($data->nom) || !isset($data->prenom) || !isset($data->email) || !isset($data->role)) {
-                throw new Exception("Données incomplètes pour la création de l'utilisateur");
-            }
-            
-            // Préparer les données pour la création d'un nouvel utilisateur
-            $this->model->nom = $data->nom;
-            $this->model->prenom = $data->prenom;
-            $this->model->email = $data->email;
-            $this->model->role = $data->role;
-            
-            // Définir l'identifiant technique s'il est fourni, sinon en créer un
-            $this->model->identifiant_technique = isset($data->identifiant_technique) ? 
-                $data->identifiant_technique : 
-                $this->generateIdentifiantTechnique($data->nom, $data->prenom);
-                
-            // Définir le mot de passe s'il est fourni
-            if (isset($data->mot_de_passe) && !empty($data->mot_de_passe)) {
-                $this->model->mot_de_passe = $data->mot_de_passe;
-            }
-            
-            // Créer l'utilisateur
-            if ($this->model->create()) {
-                ResponseHandler::success([
-                    "message" => "Utilisateur créé avec succès",
-                    "user" => [
-                        "id" => $this->model->id,
-                        "nom" => $this->model->nom,
-                        "prenom" => $this->model->prenom,
-                        "email" => $this->model->email,
-                        "identifiant_technique" => $this->model->identifiant_technique,
-                        "role" => $this->model->role
-                    ]
-                ], 201);
-            } else {
-                throw new Exception("Impossible de créer l'utilisateur");
-            }
-        } catch (Exception $e) {
-            error_log("UserOperations::handlePostRequest - Erreur: " . $e->getMessage());
-            ResponseHandler::error("Erreur lors de la création de l'utilisateur: " . $e->getMessage(), 500);
-        }
-    }
-    
-    private function generateIdentifiantTechnique($nom, $prenom) {
-        // Supprimer les espaces et les caractères spéciaux
-        $nom = preg_replace('/[^a-z0-9]/i', '', $nom);
-        $prenom = preg_replace('/[^a-z0-9]/i', '', $prenom);
-        
-        // Convertir en minuscules
-        $nom = strtolower($nom);
-        $prenom = strtolower($prenom);
-        
-        // Générer un identifiant au format prenom_nom avec un suffixe aléatoire
-        $base = substr($prenom, 0, 3) . "_" . $nom;
-        $suffix = "_" . substr(md5(uniqid()), 0, 6);
-        
-        return "user_" . $base . $suffix;
-    }
-    
+
     public function handlePutRequest() {
-        error_log("UserOperations::handlePutRequest - Début");
+        $data = json_decode(file_get_contents("php://input"));
+        error_log("Données reçues PUT: " . json_encode($data));
         
+        if (!$this->validateUpdateData($data)) {
+            ResponseHandler::error("Données incomplètes pour la mise à jour", 400);
+            return;
+        }
+
         try {
-            // Récupérer les données PUT
-            $data = json_decode(file_get_contents("php://input"));
-            error_log("UserOperations::handlePutRequest - Données reçues: " . json_encode($data));
-            
-            // Vérifier que l'ID est présent
-            if (!isset($data->id)) {
-                throw new Exception("ID de l'utilisateur non spécifié");
-            }
-            
-            // Récupérer l'utilisateur existant
-            $user = $this->model->findById($data->id);
-            if (!$user) {
-                throw new Exception("Utilisateur non trouvé");
-            }
-            
-            // Mettre à jour uniquement les champs fournis
-            $this->model->id = $data->id;
-            $this->model->nom = isset($data->nom) ? $data->nom : $user['nom'];
-            $this->model->prenom = isset($data->prenom) ? $data->prenom : $user['prenom'];
-            $this->model->email = isset($data->email) ? $data->email : $user['email'];
-            $this->model->role = isset($data->role) ? $data->role : $user['role'];
-            
-            // Mettre à jour l'utilisateur
-            if ($this->model->update()) {
-                ResponseHandler::success([
-                    "message" => "Utilisateur mis à jour avec succès",
-                    "user" => [
-                        "id" => $this->model->id,
-                        "nom" => $this->model->nom,
-                        "prenom" => $this->model->prenom,
-                        "email" => $this->model->email,
-                        "role" => $this->model->role
-                    ]
-                ]);
+            $this->user->id = $data->id;
+            $this->user->nom = $data->nom;
+            $this->user->prenom = $data->prenom;
+            $this->user->email = $data->email;
+            $this->user->role = $data->role;
+
+            if ($this->user->update()) {
+                ResponseHandler::success(null, "Utilisateur mis à jour avec succès");
             } else {
-                throw new Exception("Impossible de mettre à jour l'utilisateur");
+                ResponseHandler::error("Impossible de mettre à jour l'utilisateur", 503);
             }
         } catch (Exception $e) {
-            error_log("UserOperations::handlePutRequest - Erreur: " . $e->getMessage());
-            ResponseHandler::error("Erreur lors de la mise à jour de l'utilisateur: " . $e->getMessage(), 500);
+            ResponseHandler::error($e->getMessage(), 500);
         }
     }
-    
+
     public function handleDeleteRequest() {
-        error_log("UserOperations::handleDeleteRequest - Début");
+        $data = json_decode(file_get_contents("php://input"));
+        error_log("Données reçues DELETE: " . json_encode($data));
         
+        if (empty($data->id)) {
+            ResponseHandler::error("ID non fourni", 400);
+            return;
+        }
+
         try {
-            // Récupérer les données DELETE
-            $data = json_decode(file_get_contents("php://input"));
-            error_log("UserOperations::handleDeleteRequest - Données reçues: " . json_encode($data));
-            
-            // Vérifier que l'ID est présent
-            if (!isset($data->id)) {
-                throw new Exception("ID de l'utilisateur non spécifié");
-            }
-            
-            // Récupérer l'utilisateur existant
-            $user = $this->model->findById($data->id);
-            if (!$user) {
-                throw new Exception("Utilisateur non trouvé");
-            }
-            
-            // Supprimer l'utilisateur
-            $this->model->id = $data->id;
-            if ($this->model->delete()) {
-                ResponseHandler::success([
-                    "message" => "Utilisateur supprimé avec succès",
-                    "id" => $data->id
-                ]);
+            $this->user->id = $data->id;
+            if ($this->user->delete()) {
+                ResponseHandler::success(null, "Utilisateur supprimé avec succès");
             } else {
-                throw new Exception("Impossible de supprimer l'utilisateur");
+                ResponseHandler::error("Impossible de supprimer l'utilisateur", 503);
             }
         } catch (Exception $e) {
-            error_log("UserOperations::handleDeleteRequest - Erreur: " . $e->getMessage());
-            ResponseHandler::error("Erreur lors de la suppression de l'utilisateur: " . $e->getMessage(), 500);
+            ResponseHandler::error($e->getMessage(), 500);
         }
+    }
+
+    private function validateUserData($data) {
+        error_log("Validation des données: " . json_encode($data));
+        
+        // Vérifier que l'objet $data existe
+        if (!is_object($data)) {
+            error_log("Données invalides: ce n'est pas un objet");
+            return false;
+        }
+        
+        $isValid = isset($data->nom) && !empty($data->nom) &&
+                   isset($data->prenom) && !empty($data->prenom) &&
+                   isset($data->email) && !empty($data->email) &&
+                   isset($data->identifiant_technique) && !empty($data->identifiant_technique) &&
+                   isset($data->mot_de_passe) && !empty($data->mot_de_passe) &&
+                   isset($data->role) && !empty($data->role);
+               
+        if (!$isValid) {
+            error_log("Champs manquants: " . 
+                (!isset($data->nom) || empty($data->nom) ? "nom " : "") .
+                (!isset($data->prenom) || empty($data->prenom) ? "prenom " : "") .
+                (!isset($data->email) || empty($data->email) ? "email " : "") .
+                (!isset($data->identifiant_technique) || empty($data->identifiant_technique) ? "identifiant_technique " : "") .
+                (!isset($data->mot_de_passe) || empty($data->mot_de_passe) ? "mot_de_passe " : "") .
+                (!isset($data->role) || empty($data->role) ? "role " : ""));
+        }
+               
+        return $isValid;
+    }
+
+    private function checkEmail($email) {
+        $stmt = $this->user->findByEmailQuery($email);
+        $num = $stmt ? $stmt->rowCount() : 0;
+        
+        $users_arr = ["records" => []];
+        
+        if ($num > 0) {
+            while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+                $row['mot_de_passe'] = '******';
+                array_push($users_arr["records"], $row);
+            }
+        }
+        
+        ResponseHandler::success($users_arr);
+    }
+
+    private function getAllUsers() {
+        $stmt = $this->user->read();
+        $num = $stmt ? $stmt->rowCount() : 0;
+        
+        if ($num > 0) {
+            $users_arr = ["records" => []];
+            while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+                $row['mot_de_passe'] = '******';
+                array_push($users_arr["records"], $row);
+            }
+            ResponseHandler::success($users_arr);
+        } else {
+            ResponseHandler::success(["records" => []], "Aucun utilisateur trouvé");
+        }
+    }
+
+    private function validateUpdateData($data) {
+        return !empty($data->id) &&
+               !empty($data->nom) &&
+               !empty($data->prenom) &&
+               !empty($data->email) &&
+               !empty($data->role);
     }
 }
 ?>

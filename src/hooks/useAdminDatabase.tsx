@@ -28,7 +28,6 @@ export const useAdminDatabase = () => {
       setLoading(true);
       setError(null);
       const info = await getDatabaseInfo();
-      console.log("Informations de la base de données reçues:", info);
       setDbInfo(info);
     } catch (err) {
       console.error("Erreur lors du chargement des informations de la base de données:", err);

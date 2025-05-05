@@ -15,7 +15,7 @@ interface UserFormProps {
 }
 
 const UserForm = ({ onClose, onSuccess, onUserConnect }: UserFormProps) => {
-  const { utilisateurs, loadUtilisateurs } = useAdminUsers();
+  const { utilisateurs } = useAdminUsers();
   const [hasManager, setHasManager] = React.useState(false);
 
   const {
@@ -27,17 +27,7 @@ const UserForm = ({ onClose, onSuccess, onUserConnect }: UserFormProps) => {
     setConnectAfterCreate,
     handleSubmit,
     handleChange
-  } = useUserForm({ 
-    onClose, 
-    onSuccess: () => {
-      // Appel explicite pour recharger la liste des utilisateurs
-      setTimeout(loadUtilisateurs, 1000);
-      
-      // Appeler le callback de succès d'origine
-      if (onSuccess) onSuccess();
-    }, 
-    onUserConnect 
-  });
+  } = useUserForm({ onClose, onSuccess, onUserConnect });
 
   useEffect(() => {
     if (utilisateurs.some(user => user.role === 'gestionnaire')) {

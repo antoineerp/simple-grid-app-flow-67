@@ -13,7 +13,7 @@ require_once $baseDir . '/operations/UserOperations.php';
 // Handle CORS and preflight requests
 RequestHandler::handleCORS();
 
-// Log request information for debugging
+// Log request information
 error_log("UsersController - Méthode: " . $_SERVER['REQUEST_METHOD'] . " - URI: " . $_SERVER['REQUEST_URI']);
 error_log("UsersController - Données brutes: " . file_get_contents("php://input"));
 
@@ -39,6 +39,9 @@ try {
             // Capturer les données brutes
             $postData = file_get_contents("php://input");
             error_log("UsersController - Données POST brutes: " . $postData);
+            
+            // Vider tout buffer de sortie existant
+            if (ob_get_level()) ob_clean();
             
             if (empty($postData)) {
                 ResponseHandler::error("Aucune donnée reçue", 400);

@@ -1,6 +1,6 @@
 
-import React, { useState } from 'react';
-import { FileText, FolderPlus } from 'lucide-react';
+import React from 'react';
+import { FileText, FolderPlus, CloudSun, AlertTriangle, Info } from 'lucide-react';
 import { MembresProvider } from '@/contexts/MembresContext';
 import DocumentForm from '@/components/gestion-documentaire/DocumentForm';
 import DocumentStatusDisplay from '@/components/gestion-documentaire/DocumentStats';
@@ -10,7 +10,9 @@ import { useDocuments } from '@/hooks/useDocuments';
 import { exportDocumentsToPdf } from '@/services/pdfExport';
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription } from "@/components/ui/alert"; 
 import SyncStatusIndicator from '@/components/common/SyncStatusIndicator';
+import { getFullApiUrl } from '@/config/apiConfig';
 
 const GestionDocumentaireContent = () => {
   const {
@@ -21,6 +23,9 @@ const GestionDocumentaireContent = () => {
     editingGroup,
     dialogOpen,
     groupDialogOpen,
+    isSyncing,
+    isOnline,
+    lastSynced,
     setDialogOpen,
     setGroupDialogOpen,
     handleResponsabiliteChange,
@@ -38,19 +43,10 @@ const GestionDocumentaireContent = () => {
     handleGroupReorder,
     handleToggleGroup,
     syncWithServer,
-    isSyncing,
-    syncFailed
+    apiAvailable
   } = useDocuments();
   
   const { toast } = useToast();
-
-  const handleSync = async () => {
-    try {
-      await syncWithServer();
-    } catch (error) {
-      console.error("Sync failed:", error);
-    }
-  };
 
   const handleExportPdf = () => {
     exportDocumentsToPdf(documents, groups);
@@ -60,6 +56,8 @@ const GestionDocumentaireContent = () => {
     });
   };
 
+  const apiUnavailable = !apiAvailable.load || !apiAvailable.sync;
+
   return (
     <div className="p-8">
       <div className="flex items-center justify-between mb-2">
@@ -67,6 +65,14 @@ const GestionDocumentaireContent = () => {
           <h1 className="text-3xl font-bold text-app-blue">Gestion Documentaire</h1>
         </div>
         <div className="flex space-x-2">
+          <button 
+            onClick={syncWithServer}
+            className="text-blue-600 p-2 rounded-md hover:bg-blue-50 transition-colors flex items-center"
+            title="Synchroniser avec le serveur"
+            disabled={isSyncing || !apiAvailable.sync}
+          >
+            <CloudSun className={`h-6 w-6 stroke-[1.5] ${isSyncing ? 'animate-spin' : ''}`} />
+          </button>
           <button 
             onClick={handleExportPdf}
             className="text-red-600 p-2 rounded-md hover:bg-red-50 transition-colors"
@@ -77,7 +83,25 @@ const GestionDocumentaireContent = () => {
         </div>
       </div>
 
-      <SyncStatusIndicator syncFailed={syncFailed} onReset={handleSync} isSyncing={isSyncing} />
+      {apiUnavailable && (
+        <Alert variant="default" className="mb-4 bg-amber-50 text-amber-800 border-amber-200">
+          <AlertTriangle className="h-4 w-4 mr-2" />
+          <AlertDescription>
+            <span className="font-bold">Mode hors ligne</span>: La synchronisation avec le serveur n'est pas disponible pour le moment. Les modifications seront sauvegardées localement.
+            <div className="mt-1 text-xs">
+              API Load: {apiAvailable.load ? '✅' : '❌'} | API Sync: {apiAvailable.sync ? '✅' : '❌'} | Endpoint: {getFullApiUrl()}
+            </div>
+          </AlertDescription>
+        </Alert>
+      )}
+
+      <div className="mb-4">
+        <SyncStatusIndicator 
+          isSyncing={isSyncing}
+          isOnline={isOnline}
+          lastSynced={lastSynced}
+        />
+      </div>
 
       <DocumentStatusDisplay stats={stats} />
 

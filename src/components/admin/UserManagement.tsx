@@ -6,15 +6,13 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogTrigger } from "@/components/ui/dialog";
-import { Loader2, RefreshCw, UserPlus, LogIn, AlertCircle, Eye, EyeOff, Download, Trash } from 'lucide-react';
+import { Loader2, RefreshCw, UserPlus, LogIn, AlertCircle, Eye, EyeOff, Download } from 'lucide-react';
 import { useAdminUsers } from '@/hooks/useAdminUsers';
 import UserForm from './UserForm';
 import { getCurrentUser, getLastConnectionError } from '@/services/core/databaseConnectionService';
 import { useToast } from "@/hooks/use-toast";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { adminImportFromManager } from '@/services/core/userInitializationService';
-import { getApiUrl } from '@/config/apiConfig';
-import { getAuthHeaders } from '@/services/auth/authService';
 import type { Utilisateur } from '@/services';
 
 interface UserManagementProps {
@@ -29,7 +27,6 @@ const UserManagement = ({ currentDatabaseUser, onUserConnect }: UserManagementPr
   const [connectionError, setConnectionError] = useState<string | null>(null);
   const [showPasswords, setShowPasswords] = useState<{[key: string]: boolean}>({});
   const [importingData, setImportingData] = useState(false);
-  const [deletingUserId, setDeletingUserId] = useState<number | null>(null);
 
   useEffect(() => {
     const lastError = getLastConnectionError();
@@ -87,56 +84,14 @@ const UserManagement = ({ currentDatabaseUser, onUserConnect }: UserManagementPr
     }
   };
   
-  const handleDeleteUser = async (userId: number) => {
-    if (!window.confirm("Êtes-vous sûr de vouloir supprimer cet utilisateur ?")) {
-      return;
-    }
-    
-    setDeletingUserId(userId);
-    
-    try {
-      const response = await fetch(`${getApiUrl()}/users`, {
-        method: 'DELETE',
-        headers: {
-          ...getAuthHeaders(),
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ id: userId })
-      });
-
-      const data = await response.json();
-
-      if (response.ok) {
-        toast({
-          title: "Succès",
-          description: "L'utilisateur a été supprimé avec succès",
-        });
-        loadUtilisateurs();  // Recharger la liste des utilisateurs
-      } else {
-        toast({
-          title: "Erreur",
-          description: data.message || "Erreur lors de la suppression de l'utilisateur",
-          variant: "destructive",
-        });
-      }
-    } catch (error) {
-      console.error("Erreur lors de la suppression:", error);
-      toast({
-        title: "Erreur",
-        description: "Impossible de supprimer l'utilisateur",
-        variant: "destructive",
-      });
-    } finally {
-      setDeletingUserId(null);
-    }
-  };
-
+  // Vérifier si l'utilisateur actuel est admin
   const isCurrentUserAdmin = () => {
     if (!currentDatabaseUser || !utilisateurs.length) return false;
     const currentUser = utilisateurs.find(user => user.identifiant_technique === currentDatabaseUser);
     return currentUser?.role === 'admin';
   };
   
+  // Vérifier s'il existe un gestionnaire
   const hasManager = utilisateurs.some(user => user.role === 'gestionnaire');
 
   return (
@@ -273,30 +228,15 @@ const UserManagement = ({ currentDatabaseUser, onUserConnect }: UserManagementPr
                     </TableCell>
                     <TableCell>{user.date_creation}</TableCell>
                     <TableCell className="text-right">
-                      <div className="flex justify-end gap-2">
-                        <Button 
-                          variant="ghost" 
-                          size="sm"
-                          onClick={() => connectUser(user.identifiant_technique)}
-                          disabled={currentDatabaseUser === user.identifiant_technique}
-                        >
-                          <LogIn className="h-4 w-4 mr-1" />
-                          {currentDatabaseUser === user.identifiant_technique ? 'Connecté' : 'Connecter'}
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleDeleteUser(user.id)}
-                          className="text-red-500 hover:text-red-700"
-                          disabled={currentDatabaseUser === user.identifiant_technique || deletingUserId === user.id}
-                        >
-                          {deletingUserId === user.id ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                          ) : (
-                            <Trash className="h-4 w-4" />
-                          )}
-                        </Button>
-                      </div>
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
+                        onClick={() => connectUser(user.identifiant_technique)}
+                        disabled={currentDatabaseUser === user.identifiant_technique}
+                      >
+                        <LogIn className="h-4 w-4 mr-1" />
+                        {currentDatabaseUser === user.identifiant_technique ? 'Connecté' : 'Connecter'}
+                      </Button>
                     </TableCell>
                   </TableRow>
                 ))

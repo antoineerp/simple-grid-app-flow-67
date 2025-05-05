@@ -1,162 +1,256 @@
-
 import { getApiUrl } from '@/config/apiConfig';
-import { initializeUserTables, checkUserTablesInitialized } from '@/services/core/userInitializationService';
-import { toast } from '@/components/ui/use-toast';
-import { User, AuthResponse } from '@/types/auth';
+import { toast } from '@/hooks/use-toast';
+import { disconnectUser } from '../core/databaseConnectionService';
+import { initializeUserData } from '../core/userInitializationService';
 
-/**
- * Effectue une requête d'authentification
- * @param endpoint L'URL de l'endpoint d'authentification
- * @param credentials Les identifiants de l'utilisateur
- */
-export const authenticate = async (endpoint: string, credentials: any): Promise<any> => {
-  const apiUrl = getApiUrl();
-  const response = await fetch(`${apiUrl}/${endpoint}`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify(credentials)
-  });
-  
-  return handleAuthResponse(response);
-};
+const API_URL = getApiUrl();
 
-/**
- * Enregistre un nouvel utilisateur
- * @param userData Les données de l'utilisateur à enregistrer
- */
-export const register = async (userData: any): Promise<any> => {
-  const apiUrl = getApiUrl();
-  const response = await fetch(`${apiUrl}/register.php`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify(userData)
-  });
-  
-  return handleAuthResponse(response);
-};
+class AuthService {
+    private static instance: AuthService;
+    private token: string | null = null;
+    private currentUser: string | null = null;
 
-/**
- * Fonction de login
- * @param username Nom d'utilisateur ou email
- * @param password Mot de passe
- */
-export const login = async (username: string, password: string): Promise<AuthResponse> => {
-  try {
-    const apiUrl = getApiUrl();
-    const response = await fetch(`${apiUrl}/login.php`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ username, password })
-    });
-    
-    return handleAuthResponse(response);
-  } catch (error) {
-    console.error('Erreur lors de la connexion:', error);
-    return {
-      success: false,
-      message: error instanceof Error ? error.message : 'Erreur inconnue lors de la connexion'
-    };
-  }
-};
-
-/**
- * Vérifie si l'utilisateur est connecté
- */
-export const getIsLoggedIn = (): boolean => {
-  return !!localStorage.getItem('token');
-};
-
-/**
- * Obtient le jeton d'authentification
- */
-export const getToken = (): string | null => {
-  return localStorage.getItem('token');
-};
-
-/**
- * Alias de getToken pour compatibilité
- */
-export const getAuthToken = (): string | null => {
-  return getToken();
-};
-
-/**
- * Obtient les en-têtes d'authentification
- */
-export const getAuthHeaders = (): Record<string, string> => {
-  const token = getToken();
-  return token ? { 'Authorization': `Bearer ${token}` } : {};
-};
-
-/**
- * Déconnecte l'utilisateur
- */
-export const logout = (): void => {
-  localStorage.removeItem('token');
-  localStorage.removeItem('userId');
-  localStorage.removeItem('userRole');
-  window.location.href = '/';
-};
-
-/**
- * Obtient l'utilisateur courant
- */
-export const getCurrentUser = (): User | null => {
-  const token = getToken();
-  if (!token) return null;
-  
-  try {
-    // Vérifier si c'est un token JWT valide
-    const parts = token.split('.');
-    if (parts.length !== 3) return null;
-    
-    // Décoder le payload
-    const payload = JSON.parse(atob(parts[1]));
-    if (!payload.user) return null;
-    
-    return payload.user;
-  } catch (error) {
-    console.error('Erreur lors du décodage du token JWT:', error);
-    return null;
-  }
-};
-
-/**
- * Traite la réponse d'authentification
- */
-export const handleAuthResponse = async (response: Response): Promise<any> => {
-  const data = await response.json();
-  
-  if (!response.ok) {
-    throw new Error(data.message || 'Erreur d\'authentification');
-  }
-  
-  if (data.token) {
-    localStorage.setItem('token', data.token);
-    
-    if (data.user) {
-      localStorage.setItem('userId', data.user.identifiant_technique || '');
-      localStorage.setItem('userRole', data.user.role || 'utilisateur');
-      
-      // Vérifier et initialiser les tables utilisateur si nécessaire
-      const tablesInitialized = await checkUserTablesInitialized();
-      
-      if (!tablesInitialized) {
-        console.log("Initialisation des tables utilisateur...");
-        await initializeUserTables();
-        toast({
-          title: "Tables initialisées",
-          description: "Les tables de données ont été configurées pour votre compte."
-        });
-      }
+    private constructor() {
+        console.log("Authentication service initialized");
+        this.token = localStorage.getItem('authToken');
+        this.currentUser = localStorage.getItem('currentUser');
     }
-  }
-  
-  return data;
+
+    public static getInstance(): AuthService {
+        if (!AuthService.instance) {
+            AuthService.instance = new AuthService();
+        }
+        return AuthService.instance;
+    }
+
+    public setToken(token: string | null): void {
+        this.token = token;
+        if (token) {
+            localStorage.setItem('authToken', token);
+            localStorage.setItem('isLoggedIn', 'true');
+        } else {
+            localStorage.removeItem('authToken');
+            localStorage.removeItem('isLoggedIn');
+        }
+    }
+
+    public getToken(): string | null {
+        if (!this.token) {
+            this.token = localStorage.getItem('authToken');
+        }
+        return this.token;
+    }
+
+    public getAuthHeaders(): HeadersInit {
+        const headers: HeadersInit = {
+            'Content-Type': 'application/json',
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Accept': 'application/json'
+        };
+        
+        const token = this.getToken();
+        if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
+        }
+        
+        return headers;
+    }
+
+    private async parseJsonResponse(response: Response): Promise<any> {
+        const responseText = await response.text();
+        console.log(`Réponse reçue (${response.status}): ${responseText.substring(0, 200)}...`);
+        
+        if (!responseText || responseText.trim() === '') {
+            console.warn('Réponse vide reçue du serveur');
+            throw new Error('Réponse vide du serveur');
+        }
+        
+        // Ne pas traiter la réponse de test comme une erreur, mais la reconnaître comme une réponse spéciale
+        if (responseText.includes('API PHP disponible') && !responseText.includes('token')) {
+            console.log('Détecté: réponse API info standard');
+            return { info: true, message: 'API info response' };
+        }
+        
+        if (responseText.trim().startsWith('<!DOCTYPE') || 
+            responseText.trim().startsWith('<html') ||
+            responseText.includes('<body')) {
+            console.error('Réponse HTML reçue au lieu de JSON:', responseText.substring(0, 200));
+            throw new Error('Le serveur a renvoyé une page HTML au lieu de JSON. Vérifiez la configuration du serveur.');
+        }
+        
+        try {
+            return JSON.parse(responseText);
+        } catch (e) {
+            console.error('Erreur lors du parsing JSON:', e);
+            console.error('Texte reçu:', responseText.substring(0, 500));
+            throw new Error('Réponse du serveur non valide. Format JSON attendu.');
+        }
+    }
+
+    public async login(username: string, password: string): Promise<any> {
+        try {
+            console.log(`Tentative de connexion pour l'utilisateur: ${username}`);
+            
+            // Essayer d'abord AuthController.php
+            const authUrl = `${getApiUrl()}/auth`;
+            console.log(`URL de requête (authentification): ${authUrl}`);
+            
+            try {
+                const response = await fetch(authUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Cache-Control': 'no-cache, no-store, must-revalidate'
+                    },
+                    body: JSON.stringify({ username, password })
+                });
+                
+                console.log(`Réponse du serveur auth: ${response.status} ${response.statusText}`);
+                
+                if (!response.ok) {
+                    const errorData = await this.parseJsonResponse(response);
+                    throw new Error(errorData.message || `Échec de l'authentification (${response.status})`);
+                }
+                
+                const data = await this.parseJsonResponse(response);
+                
+                if (!data || !data.token) {
+                    throw new Error(data?.message || "Authentification échouée");
+                }
+                
+                this.setToken(data.token);
+                
+                if (data.user) {
+                    // Use the user's full name if available, otherwise fallback to email or technical identifier
+                    const displayName = 
+                        (data.user.prenom && data.user.nom) 
+                            ? `${data.user.prenom} ${data.user.nom}` 
+                            : (data.user.email || data.user.identifiant_technique || 'Utilisateur');
+                    
+                    localStorage.setItem('currentUser', data.user.identifiant_technique);
+                    localStorage.setItem('userRole', data.user.role);
+                    localStorage.setItem('userName', displayName);
+                }
+                
+                if (data.user && data.user.identifiant_technique) {
+                    await initializeUserData(data.user.identifiant_technique);
+                }
+                
+                return {
+                    success: true,
+                    user: data.user
+                };
+            } catch (authError) {
+                console.error("Erreur avec /auth:", authError);
+                
+                // Si l'authentification échoue, essayer login-test.php comme fallback
+                const testUrl = `${getApiUrl()}/login-test.php`;
+                console.log(`URL de requête (fallback): ${testUrl}`);
+                
+                const response = await fetch(testUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Cache-Control': 'no-cache, no-store, must-revalidate'
+                    },
+                    body: JSON.stringify({ username, password })
+                });
+                
+                console.log(`Réponse du serveur login-test: ${response.status} ${response.statusText}`);
+                
+                if (!response.ok) {
+                    const errorData = await this.parseJsonResponse(response);
+                    throw new Error(errorData.message || `Échec de l'authentification (${response.status})`);
+                }
+                
+                const data = await this.parseJsonResponse(response);
+                
+                if (!data || !data.token) {
+                    throw new Error(data?.message || "Authentification échouée");
+                }
+                
+                this.setToken(data.token);
+                
+                if (data.user) {
+                    // Use the user's full name if available, otherwise fallback to email or technical identifier
+                    const displayName = 
+                        (data.user.prenom && data.user.nom) 
+                            ? `${data.user.prenom} ${data.user.nom}` 
+                            : (data.user.email || data.user.identifiant_technique || 'Utilisateur');
+                    
+                    localStorage.setItem('currentUser', data.user.identifiant_technique);
+                    localStorage.setItem('userRole', data.user.role);
+                    localStorage.setItem('userName', displayName);
+                }
+                
+                if (data.user && data.user.identifiant_technique) {
+                    await initializeUserData(data.user.identifiant_technique);
+                }
+                
+                return {
+                    success: true,
+                    user: data.user
+                };
+            }
+        } catch (error) {
+            console.error("Erreur lors de la connexion:", error);
+            
+            toast({
+                title: "Échec de la connexion",
+                description: error instanceof Error ? error.message : "Erreur inconnue",
+                variant: "destructive",
+            });
+            
+            throw error;
+        }
+    }
+
+    public logout(): void {
+        this.setToken(null);
+        localStorage.removeItem('currentUser');
+        localStorage.removeItem('userRole');
+        localStorage.removeItem('userName');
+        localStorage.removeItem('isLoggedIn');
+        
+        disconnectUser();
+        
+        toast({
+            title: "Déconnexion réussie",
+            description: "Vous avez été déconnecté avec succès",
+        });
+    }
+
+    public isLoggedIn(): boolean {
+        return !!this.getToken();
+    }
+
+    public getCurrentUser(): string | null {
+        return this.currentUser || localStorage.getItem('currentUser');
+    }
+}
+
+const authService = AuthService.getInstance();
+
+export const login = (username: string, password: string): Promise<any> => {
+    return authService.login(username, password);
 };
+
+export const logout = (): void => {
+    authService.logout();
+};
+
+export const isLoggedIn = (): boolean => {
+    return authService.isLoggedIn();
+};
+
+export const getCurrentUser = (): string | null => {
+    return authService.getCurrentUser();
+};
+
+export const getAuthHeaders = (): HeadersInit => {
+    return authService.getAuthHeaders();
+};
+
+export const loginUser = login;
+export const logoutUser = logout;
+export const getToken = authService.getToken.bind(authService);

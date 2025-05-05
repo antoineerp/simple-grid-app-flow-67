@@ -1,89 +1,42 @@
 
-import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { Toaster } from '@/components/ui/toaster';
-import GlobalSyncManager from '@/components/common/GlobalSyncManager';
-import DbAdmin from '@/pages/DbAdmin';
-import DbTest from '@/pages/DbTest';
-import Index from '@/pages/Index';
-import Layout from '@/components/Layout';
-import Pilotage from '@/pages/Pilotage';
-import Exigences from '@/pages/Exigences';
-import GestionDocumentaire from '@/pages/GestionDocumentaire';
-import RessourcesHumaines from '@/pages/RessourcesHumaines';
-import Collaboration from '@/pages/Collaboration';
-import Administration from '@/pages/Administration';
-import NotFound from '@/pages/NotFound';
-import { getIsLoggedIn } from '@/services/auth/authService';
+import { Toaster } from "@/components/ui/toaster";
+import { Toaster as Sonner } from "@/components/ui/sonner";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
+import Layout from "./components/Layout";
+import Index from "./pages/Index";
+import Pilotage from "./pages/Pilotage";
+import Exigences from "./pages/Exigences";
+import GestionDocumentaire from "./pages/GestionDocumentaire";
+import RessourcesHumaines from "./pages/RessourcesHumaines";
+import Bibliotheque from "./pages/Bibliotheque";
+import Administration from "./pages/Administration";
+import NotFound from "./pages/NotFound";
 
-// Composant de route protégée qui vérifie l'authentification
-const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-  const isLoggedIn = getIsLoggedIn();
-  if (!isLoggedIn) {
-    console.log('Unauthorized access attempt, redirecting to login');
-    return <Navigate to="/" />;
-  }
-  return <>{children}</>;
-};
+const queryClient = new QueryClient();
 
-function App() {
-  return (
-    <Router>
-      <Routes>
-        {/* Route publique */}
-        <Route path="/" element={<Index />} />
-        
-        {/* Routes protégées dans le Layout */}
-        <Route path="/" element={<Layout />}>
-          <Route path="pilotage" element={
-            <ProtectedRoute>
-              <Pilotage />
-            </ProtectedRoute>
-          } />
-          <Route path="exigences" element={
-            <ProtectedRoute>
-              <Exigences />
-            </ProtectedRoute>
-          } />
-          <Route path="gestion-documentaire" element={
-            <ProtectedRoute>
-              <GestionDocumentaire />
-            </ProtectedRoute>
-          } />
-          <Route path="ressources-humaines" element={
-            <ProtectedRoute>
-              <RessourcesHumaines />
-            </ProtectedRoute>
-          } />
-          <Route path="collaboration" element={
-            <ProtectedRoute>
-              <Collaboration />
-            </ProtectedRoute>
-          } />
-          <Route path="administration" element={
-            <ProtectedRoute>
-              <Administration />
-            </ProtectedRoute>
-          } />
-          <Route path="db-test" element={
-            <ProtectedRoute>
-              <DbTest />
-            </ProtectedRoute>
-          } />
-          <Route path="db-admin" element={
-            <ProtectedRoute>
-              <DbAdmin />
-            </ProtectedRoute>
-          } />
-        </Route>
-        
-        {/* Redirection pour les routes inconnues */}
-        <Route path="*" element={<NotFound />} />
-      </Routes>
+const App = () => (
+  <QueryClientProvider client={queryClient}>
+    <TooltipProvider>
+      <BrowserRouter>
+        <Routes>
+          <Route path="/" element={<Layout />}>
+            <Route index element={<Index />} />
+            <Route path="pilotage" element={<Pilotage />} />
+            <Route path="exigences" element={<Exigences />} />
+            <Route path="gestion-documentaire" element={<GestionDocumentaire />} />
+            <Route path="ressources-humaines" element={<RessourcesHumaines />} />
+            <Route path="bibliotheque" element={<Bibliotheque />} />
+            <Route path="administration" element={<Administration />} />
+          </Route>
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+      </BrowserRouter>
       <Toaster />
-      <GlobalSyncManager />
-    </Router>
-  );
-}
+      <Sonner />
+    </TooltipProvider>
+  </QueryClientProvider>
+);
 
 export default App;

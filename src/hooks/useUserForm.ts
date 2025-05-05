@@ -78,9 +78,7 @@ export const useUserForm = ({ onClose, onSuccess, onUserConnect }: UseUserFormPr
     setIsSubmitting(true);
 
     try {
-      console.log("Soumission du formulaire avec les données:", formData);
       const result = await createUser(formData);
-      console.log("Résultat de la création:", result);
       
       toast({
         title: "Utilisateur créé",
@@ -89,9 +87,7 @@ export const useUserForm = ({ onClose, onSuccess, onUserConnect }: UseUserFormPr
       
       if (connectAfterCreate && result.identifiant_technique) {
         try {
-          console.log("Tentative de connexion avec:", result.identifiant_technique);
           const connectSuccess = await connectAsUser(result.identifiant_technique);
-          console.log("Résultat de la connexion:", connectSuccess);
           
           if (connectSuccess) {
             toast({
@@ -121,7 +117,6 @@ export const useUserForm = ({ onClose, onSuccess, onUserConnect }: UseUserFormPr
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "Une erreur est survenue";
       setFormError(errorMessage);
-      console.error("Erreur lors de la création de l'utilisateur:", errorMessage);
       
       if (errorMessage.includes("email existe déjà")) {
         setFieldErrors(prev => ({ ...prev, email: "Cet email est déjà utilisé" }));

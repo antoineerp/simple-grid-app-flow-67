@@ -1,5 +1,5 @@
 
-import { jsPDF } from 'jspdf';
+import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -11,9 +11,8 @@ import { fr } from 'date-fns/locale';
 
 // Get the current logo from localStorage or return default
 export const getCurrentLogo = (): string => {
-  const storedLogo = localStorage.getItem('pdfLogo');
-  console.log('Logo stocké :', storedLogo ? storedLogo.substring(0, 50) + '...' : 'Pas de logo');
-  return storedLogo || "/lovable-uploads/formacert-logo.png";
+  // Always return FormaCert logo for PDF exports
+  return "/lovable-uploads/formacert-logo.png";
 };
 
 // Format state to human-readable text

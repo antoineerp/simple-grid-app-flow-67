@@ -1,98 +1,124 @@
 
 import { useState } from 'react';
-import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
-import { login } from '@/services/auth/authService';
-import { useToast } from '@/hooks/use-toast';
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { useToast } from "@/hooks/use-toast";
+import { login as loginUser } from '@/services/auth/authService';
 
-export interface LoginFormValues {
-  username: string;
-  password: string;
-}
+export const loginSchema = z.object({
+  username: z.string().min(3, { message: "Le nom d'utilisateur doit comporter au moins 3 caractères" }),
+  password: z.string().min(6, { message: "Le mot de passe doit comporter au moins 6 caractères" }),
+});
+
+export type LoginFormValues = z.infer<typeof loginSchema>;
 
 export const useLoginForm = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [hasDbError, setHasDbError] = useState(false);
   const [hasServerError, setHasServerError] = useState(false);
   const [hasAuthError, setHasAuthError] = useState(false);
   
   const form = useForm<LoginFormValues>({
+    resolver: zodResolver(loginSchema),
     defaultValues: {
-      username: '',
-      password: ''
-    }
+      username: "",
+      password: "",
+    },
   });
-  
-  const onSubmit = async (values: LoginFormValues) => {
+
+  const onSubmit = async (data: LoginFormValues) => {
+    if (isLoading) return;
+    
     setIsLoading(true);
-    setError(null);
     setHasDbError(false);
     setHasServerError(false);
     setHasAuthError(false);
     
-    console.log('Tentative de connexion pour:', values.username);
-    
     try {
-      const result = await login(values.username, values.password);
+      console.log("Tentative de connexion pour:", data.username);
       
-      if (result.success && result.token) {
+      // En cas d'erreur fréquente pour antcirier@gmail.com, ajouter un message spécial
+      if (data.username === 'antcirier@gmail.com') {
+        console.log("Utilisateur spécial détecté: antcirier@gmail.com");
+        console.log("Mot de passe attendu: password123 ou Password123!");
+        console.log("Mot de passe fourni (longueur): " + data.password.length);
+      }
+      
+      const result = await loginUser(data.username, data.password);
+      
+      if (result.success && result.user) {
+        // Réinitialiser l'état d'erreur
+        setHasDbError(false);
+        setHasServerError(false);
+        setHasAuthError(false);
+        
+        localStorage.setItem('isLoggedIn', 'true');
+        
         toast({
           title: "Connexion réussie",
-          description: "Vous êtes maintenant connecté",
+          description: `Bienvenue, ${data.username} (${result.user.role || 'utilisateur'})`,
         });
         
-        console.log("Redirection vers le tableau de bord après connexion réussie");
+        // Forcer la navigation vers le pilotage
+        console.log("Redirection vers /pilotage après connexion réussie");
+        navigate("/pilotage", { replace: true });
+      }
+    } catch (error) {
+      console.error("Erreur lors de la connexion:", error);
+      
+      // Vérifier s'il s'agit d'une erreur de base de données
+      if (error instanceof Error) {
+        const errorMessage = error.message.toLowerCase();
         
-        // Force la navigation en utilisant window.location pour un rechargement complet
-        window.location.href = '/pilotage';
-      } else {
-        setError(result.message || 'Échec de la connexion');
-        
-        // Déterminer le type d'erreur
-        if (result.message?.includes('base de données') || result.message?.includes('database')) {
+        if (errorMessage.includes("base de données") || 
+            errorMessage.includes("database") ||
+            errorMessage.includes("connexion") ||
+            errorMessage.includes("sql")) {
           setHasDbError(true);
-        } else if (result.message?.includes('serveur') || result.message?.includes('server') || result.message?.includes('env.php')) {
+          toast({
+            title: "Erreur de connexion à la base de données",
+            description: "Vérifiez la configuration de votre base de données dans le panneau d'administration.",
+            variant: "destructive",
+          });
+        } else if (errorMessage.includes("serveur") || 
+                  errorMessage.includes("inaccessible") ||
+                  errorMessage.includes("réponse invalide")) {
           setHasServerError(true);
-        } else {
+          toast({
+            title: "Erreur de connexion au serveur",
+            description: "Le serveur d'authentification est temporairement inaccessible.",
+            variant: "destructive",
+          });
+        } else if (errorMessage.includes("mot de passe") ||
+                  errorMessage.includes("identifiants") ||
+                  errorMessage.includes("invalide")) {
           setHasAuthError(true);
+          toast({
+            title: "Identifiants incorrects",
+            description: "Le nom d'utilisateur ou le mot de passe est incorrect.",
+            variant: "destructive",
+          });
+        } else {
+          // Erreur générique
+          toast({
+            title: "Échec de la connexion",
+            description: error.message || "Erreur lors de la tentative de connexion",
+            variant: "destructive",
+          });
         }
-        
-        toast({
-          title: "Erreur de connexion",
-          description: result.message || "Identifiants invalides",
-          variant: "destructive",
-        });
       }
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "Erreur lors de la connexion";
-      setError(errorMessage);
-      
-      // Déterminer le type d'erreur
-      if (errorMessage.includes('base de données') || errorMessage.includes('database')) {
-        setHasDbError(true);
-      } else if (errorMessage.includes('serveur') || errorMessage.includes('server') || errorMessage.includes('env.php')) {
-        setHasServerError(true);
-      } else {
-        setHasAuthError(true);
-      }
-      
-      toast({
-        title: "Erreur",
-        description: errorMessage,
-        variant: "destructive",
-      });
     } finally {
       setIsLoading(false);
     }
   };
-  
+
   return {
     form,
     isLoading,
-    error,
     hasDbError,
     hasServerError,
     hasAuthError,

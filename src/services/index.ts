@@ -29,7 +29,7 @@ export interface Utilisateur {
   nom: string;
   prenom: string;
   email: string;
-  mot_de_passe: string;
+  mot_de_passe: string; // Added this property to fix the TypeScript error
   identifiant_technique: string;
   role: string;
   date_creation: string;

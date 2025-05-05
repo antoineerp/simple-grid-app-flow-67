@@ -1,25 +1,18 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import UserManagement from '@/components/admin/UserManagement';
 import DatabaseInfo from '@/components/admin/DatabaseInfo';
-import DatabaseDiagnostic from '@/components/admin/DatabaseDiagnostic';
 import ApiConfiguration from '@/components/admin/ApiConfiguration';
 import ServerTest from '@/components/ServerTest';
-import ImageConfiguration from '@/components/admin/ImageConfiguration';
 import { getDatabaseConnectionCurrentUser } from '@/services';
 import { useToast } from "@/hooks/use-toast";
 import { hasPermission, UserRole } from '@/types/roles';
-import UserDiagnostic from '@/components/admin/UserDiagnostic';
-import ManagerDataImport from '@/components/admin/ManagerDataImport';
-import { getUtilisateurs } from '@/services/users/userService';
 
 const Administration = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [currentDatabaseUser, setCurrentDatabaseUser] = useState<string | null>(getDatabaseConnectionCurrentUser());
-  const [hasManager, setHasManager] = useState(false);
 
   useEffect(() => {
     const userRole = localStorage.getItem('userRole') as UserRole;
@@ -35,19 +28,6 @@ const Administration = () => {
     }
 
     setCurrentDatabaseUser(getDatabaseConnectionCurrentUser());
-    
-    // Vérifier s'il y a un gestionnaire dans le système
-    const checkForManager = async () => {
-      try {
-        const users = await getUtilisateurs();
-        const managerExists = users.some(user => user.role === 'gestionnaire');
-        setHasManager(managerExists);
-      } catch (error) {
-        console.error("Erreur lors de la vérification des gestionnaires:", error);
-      }
-    };
-    
-    checkForManager();
   }, [navigate, toast]);
 
   const handleUserConnect = (identifiant: string) => {
@@ -72,9 +52,6 @@ const Administration = () => {
           <TabsTrigger value="database">Base de données</TabsTrigger>
           <TabsTrigger value="api">Configuration API</TabsTrigger>
           <TabsTrigger value="systeme">État du système</TabsTrigger>
-          <TabsTrigger value="images">Images</TabsTrigger>
-          <TabsTrigger value="diagnostic">Diagnostic</TabsTrigger>
-          <TabsTrigger value="sync">Synchronisation</TabsTrigger>
         </TabsList>
         
         <TabsContent value="utilisateurs">
@@ -82,9 +59,6 @@ const Administration = () => {
             currentDatabaseUser={currentDatabaseUser} 
             onUserConnect={handleUserConnect}
           />
-          <div className="mt-6">
-            <UserDiagnostic />
-          </div>
         </TabsContent>
 
         <TabsContent value="database">
@@ -106,34 +80,9 @@ const Administration = () => {
             </div>
           </div>
         </TabsContent>
-
-        <TabsContent value="images">
-          <ImageConfiguration />
-        </TabsContent>
-
-        <TabsContent value="diagnostic">
-          <div className="rounded-lg border bg-card text-card-foreground shadow-sm">
-            <div className="p-6">
-              <h3 className="text-xl font-semibold mb-4">Diagnostic complet du système</h3>
-              <p className="mb-6 text-muted-foreground">
-                Cet outil effectue une analyse approfondie de votre configuration système pour identifier les problèmes potentiels.
-              </p>
-              <div className="space-y-6">
-                <DatabaseDiagnostic />
-                <UserDiagnostic />
-              </div>
-            </div>
-          </div>
-        </TabsContent>
-        
-        <TabsContent value="sync">
-          <div className="space-y-6">
-            <ManagerDataImport hasManager={hasManager} />
-          </div>
-        </TabsContent>
       </Tabs>
     </div>
   );
-}
+};
 
 export default Administration;

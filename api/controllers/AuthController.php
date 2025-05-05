@@ -6,6 +6,35 @@ ob_start();
 // Début de la journalisation
 error_log("=== DÉBUT DE L'EXÉCUTION DE AuthController.php ===");
 
+// Inclure notre fichier de configuration d'environnement s'il n'est pas déjà inclus
+if (!function_exists('env')) {
+    $env_file = __DIR__ . '/../config/env.php';
+    if (file_exists($env_file)) {
+        error_log("Inclusion du fichier env.php: $env_file");
+        require_once $env_file;
+    } else {
+        // Log et continuer
+        error_log("ERREUR: Fichier env.php introuvable: $env_file");
+    }
+}
+
+// Journaliser l'accès au contrôleur d'authentification
+error_log("AuthController.php appelé | URI: " . $_SERVER['REQUEST_URI'] . " | Méthode: " . $_SERVER['REQUEST_METHOD']);
+
+// Fonction pour nettoyer les données UTF-8
+if (!function_exists('cleanUTF8')) {
+    function cleanUTF8($input) {
+        if (is_string($input)) {
+            return mb_convert_encoding($input, 'UTF-8', 'UTF-8');
+        } elseif (is_array($input)) {
+            foreach ($input as $key => $value) {
+                $input[$key] = cleanUTF8($value);
+            }
+        }
+        return $input;
+    }
+}
+
 // Configuration des en-têtes CORS et de la réponse JSON
 header("Content-Type: application/json; charset=UTF-8");
 header("Access-Control-Allow-Origin: *");
@@ -16,7 +45,7 @@ header("Cache-Control: no-cache, no-store, must-revalidate");
 // Si c'est une requête OPTIONS (preflight), nous la terminons ici
 if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
     http_response_code(200);
-    echo json_encode(['success' => true, 'message' => 'Preflight OK']);
+    echo json_encode(['status' => 200, 'message' => 'Preflight OK']);
     exit;
 }
 
@@ -25,14 +54,14 @@ try {
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
         error_log("Méthode non autorisée: " . $_SERVER['REQUEST_METHOD']);
         http_response_code(405);
-        echo json_encode(['success' => false, 'message' => 'Méthode non autorisée. Utilisez POST pour l\'authentification.']);
+        echo json_encode(['message' => 'Méthode non autorisée. Utilisez POST pour l\'authentification.', 'status' => 405]);
         exit;
     }
 
     // Récupérer les données POST
     $json_input = file_get_contents("php://input");
 
-    // Journaliser la réception des données (masquer les infos sensibles)
+    // Log la réception des données (masquer les infos sensibles)
     $log_input = json_decode($json_input, true);
     if (isset($log_input['password'])) {
         $log_input['password'] = '********';
@@ -44,7 +73,7 @@ try {
         throw new Exception("Aucune donnée reçue");
     }
     
-    $data = json_decode($json_input);
+    $data = json_decode(cleanUTF8($json_input));
 
     // Vérifier si le décodage a réussi
     if (json_last_error() !== JSON_ERROR_NONE) {
@@ -53,190 +82,165 @@ try {
 
     // Vérifier si les données sont présentes
     if(!empty($data->username) && !empty($data->password)) {
-        $username = $data->username;
-        $password = $data->password;
+        // Nettoyer les entrées utilisateur
+        $username = cleanUTF8($data->username);
+        $password = cleanUTF8($data->password);
         
         error_log("Tentative de connexion pour: " . $username);
         
-        // Connexion spéciale pour antcirier@gmail.com
-        if ($username === 'antcirier@gmail.com' && 
-            ($password === 'password123' || $password === 'Password123!' || $password === 'Trottinette43!')) {
-            
-            error_log("Connexion spéciale acceptée pour antcirier@gmail.com");
-            
-            // Identifiant technique standardisé
-            $identifiant_technique = 'p71x6d_cirier';
-            
-            // Générer un token simple
-            $token = base64_encode(json_encode([
-                'user' => [
-                    'id' => '999',
-                    'username' => $username,
-                    'identifiant_technique' => $identifiant_technique,
-                    'email' => $username,
-                    'role' => 'admin',
-                    'nom' => 'Cirier',
-                    'prenom' => 'Antoine'
-                ],
-                'exp' => time() + 3600
-            ]));
-            
-            // Envoyer la réponse
-            echo json_encode([
-                'success' => true,
-                'message' => 'Connexion réussie',
-                'token' => $token,
-                'user' => [
-                    'id' => '999',
-                    'nom' => 'Cirier',
-                    'prenom' => 'Antoine',
-                    'email' => $username,
-                    'identifiant_technique' => $identifiant_technique,
-                    'role' => 'admin'
-                ]
-            ]);
-            exit;
-        }
-        
+        // Tenter la connexion à la base de données
         try {
-            // Tentative de connexion à la base de données
-            require_once __DIR__ . '/../config/database.php';
-            $database = new Database();
-            $db = $database->getConnection();
+            // Inclure les fichiers requis pour la base de données
+            $basePath = __DIR__ . '/../';
+            $configFile = $basePath . 'config/database.php';
+            $userFile = $basePath . 'models/User.php';
+            $jwtFile = $basePath . 'utils/JwtHandler.php';
             
-            if (!$db) {
-                throw new Exception("Connexion à la base de données impossible");
+            if (!file_exists($configFile) || !file_exists($jwtFile)) {
+                throw new Exception("Fichiers requis introuvables");
             }
             
-            // Recherche de l'utilisateur
-            $query = "SELECT * FROM utilisateurs WHERE email = ? OR identifiant_technique = ? LIMIT 1";
-            $stmt = $db->prepare($query);
-            $stmt->execute([$username, $username]);
-            $user = $stmt->fetch(PDO::FETCH_ASSOC);
+            // Inclure les fichiers requis
+            include_once $configFile;
+            include_once $jwtFile;
             
-            if ($user) {
-                $valid_password = password_verify($password, $user['mot_de_passe']);
+            // Essayer une connexion à la base de données
+            $database = new Database();
+            $db = $database->getConnection(true); // Exiger une connexion réussie
+            
+            if ($database->is_connected && file_exists($userFile)) {
+                include_once $userFile;
+                $user = new User($db);
                 
-                // Accepter aussi les mots de passe non hashés
-                if (!$valid_password && $password === $user['mot_de_passe']) {
-                    $valid_password = true;
+                // Journaliser l'état de la connexion à la base de données
+                error_log("Connexion à la base de données établie. Recherche de l'utilisateur: " . $username);
+                
+                $user_found = false;
+                
+                // Rechercher l'utilisateur par son identifiant technique OU par email
+                if($user->findByIdentifiant($username)) {
+                    error_log("Utilisateur trouvé par identifiant technique dans la base de données: " . $username);
+                    $user_found = true;
+                } 
+                else if ($user->findByEmail($username)) {
+                    error_log("Utilisateur trouvé par email dans la base de données: " . $username);
+                    $user_found = true;
                 }
                 
-                if ($valid_password) {
-                    // Vérifier et corriger l'identifiant technique si nécessaire
-                    if (empty($user['identifiant_technique']) || strpos($user['identifiant_technique'], 'p71x6d_') !== 0) {
-                        $identifiant_technique = 'p71x6d_' . preg_replace('/[^a-z0-9]/', '', strtolower($user['nom']));
-                        
-                        // Mettre à jour l'utilisateur dans la base de données
-                        $update = $db->prepare("UPDATE utilisateurs SET identifiant_technique = ? WHERE id = ?");
-                        $update->execute([$identifiant_technique, $user['id']]);
-                        
-                        error_log("Identifiant technique corrigé pour l'utilisateur {$user['id']}: {$identifiant_technique}");
-                        
-                        $user['identifiant_technique'] = $identifiant_technique;
+                if ($user_found) {
+                    // Pour la démo, accepter certains mots de passe spécifiques
+                    $valid_password = false;
+                    
+                    error_log("Vérification du mot de passe pour: " . $username);
+                    error_log("Type du mot de passe stocké: " . gettype($user->mot_de_passe));
+                    error_log("Format du mot de passe stocké (début): " . substr($user->mot_de_passe, 0, 20));
+                    error_log("Format du mot de passe fourni: " . substr($password, 0, 3) . '***');
+                    
+                    // Pour l'utilisateur p71x6d_system, accepter à la fois le mot de passe haché et 'Trottinette43!'
+                    if ($user->identifiant_technique === 'p71x6d_system' && $password === 'Trottinette43!') {
+                        error_log("Mot de passe spécial accepté pour p71x6d_system");
+                        $valid_password = true;
+                    }
+                    // Pour les utilisateurs ayant l'email "antcirier@gmail.com", accepter le mot de passe 'password123'
+                    else if ($user->email === 'antcirier@gmail.com' && ($password === 'password123' || $password === 'Password123!')) {
+                        error_log("Mot de passe spécial accepté pour antcirier@gmail.com");
+                        $valid_password = true;
+                    }
+                    // Si le mot de passe est hashé dans la BD, vérifier avec password_verify
+                    else if (password_verify($password, $user->mot_de_passe)) {
+                        $valid_password = true;
+                        error_log("Mot de passe vérifié avec succès via password_verify()");
+                    }
+                    // Si c'est un mot de passe non haché, comparer directement
+                    else if ($password === $user->mot_de_passe) {
+                        $valid_password = true;
+                        error_log("Mot de passe vérifié avec succès via comparaison directe");
+                    }
+                    // Pour les tests, accepter aussi les mots de passe de développement
+                    else if (in_array($password, ['admin123', 'manager456', 'user789', 'password123', 'Password123!']) && 
+                             (strpos($user->identifiant_technique, 'admin') !== false || strpos($user->identifiant_technique, 'system') !== false || strpos($user->email, 'antcirier') !== false)) {
+                        $valid_password = true;
+                        error_log("Mot de passe accepté via liste de développement (uniquement pour admin/system)");
                     }
                     
-                    // Générer un token simple
-                    $token = base64_encode(json_encode([
-                        'user' => [
-                            'id' => $user['id'],
-                            'username' => $user['email'],
-                            'identifiant_technique' => $user['identifiant_technique'],
-                            'email' => $user['email'],
-                            'role' => $user['role'],
-                            'nom' => $user['nom'],
-                            'prenom' => $user['prenom']
-                        ],
-                        'exp' => time() + 3600
-                    ]));
-                    
-                    // Envoyer la réponse
-                    echo json_encode([
-                        'success' => true,
-                        'message' => 'Connexion réussie',
-                        'token' => $token,
-                        'user' => [
-                            'id' => $user['id'],
-                            'nom' => $user['nom'],
-                            'prenom' => $user['prenom'],
-                            'email' => $user['email'],
-                            'identifiant_technique' => $user['identifiant_technique'],
-                            'role' => $user['role']
-                        ]
-                    ]);
-                    exit;
-                } else {
-                    throw new Exception("Mot de passe incorrect");
-                }
-            } else {
-                // Si c'est antcirier@gmail.com, créer l'utilisateur automatiquement
-                if ($username === 'antcirier@gmail.com') {
-                    try {
-                        $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
-                        $identifiant_technique = 'p71x6d_cirier';
+                    if($valid_password) {
+                        // Créer un JWT handler
+                        $jwt = new JwtHandler();
                         
-                        $query = "INSERT INTO utilisateurs 
-                            (nom, prenom, email, mot_de_passe, identifiant_technique, role) 
-                            VALUES (?, ?, ?, ?, ?, ?)";
-                        $stmt = $db->prepare($query);
-                        $stmt->execute(['Cirier', 'Antoine', 'antcirier@gmail.com', $hashedPassword, $identifiant_technique, 'admin']);
+                        // Données à encoder dans le JWT
+                        $token_data = [
+                            'id' => $user->id,
+                            'identifiant_technique' => $user->identifiant_technique,
+                            'role' => $user->role
+                        ];
                         
-                        $userId = $db->lastInsertId();
+                        // Générer le token JWT
+                        $token = $jwt->encode($token_data);
                         
-                        // Générer le token
-                        $token = base64_encode(json_encode([
-                            'user' => [
-                                'id' => $userId,
-                                'username' => 'antcirier@gmail.com',
-                                'identifiant_technique' => $identifiant_technique,
-                                'email' => 'antcirier@gmail.com',
-                                'role' => 'admin',
-                                'nom' => 'Cirier',
-                                'prenom' => 'Antoine'
-                            ],
-                            'exp' => time() + 3600
-                        ]));
+                        error_log("Connexion réussie pour: " . $username);
                         
-                        // Envoyer la réponse
+                        // Réponse
+                        http_response_code(200);
                         echo json_encode([
-                            'success' => true,
-                            'message' => 'Compte créé et connexion réussie',
+                            'message' => 'Connexion réussie',
                             'token' => $token,
                             'user' => [
-                                'id' => $userId,
-                                'nom' => 'Cirier',
-                                'prenom' => 'Antoine',
-                                'email' => 'antcirier@gmail.com',
-                                'identifiant_technique' => $identifiant_technique,
-                                'role' => 'admin'
+                                'id' => $user->id,
+                                'nom' => $user->nom,
+                                'prenom' => $user->prenom,
+                                'email' => $user->email,
+                                'identifiant_technique' => $user->identifiant_technique,
+                                'role' => $user->role
                             ]
                         ]);
                         exit;
-                    } catch (PDOException $e) {
-                        error_log("Erreur lors de la création de l'utilisateur: " . $e->getMessage());
-                        throw new Exception("Erreur lors de la création de l'utilisateur");
+                    } else {
+                        error_log("Mot de passe incorrect pour: " . $username);
+                        error_log("Mot de passe fourni: " . substr($password, 0, 3) . '***');
+                        error_log("Format du mot de passe stocké: " . substr($user->mot_de_passe, 0, 10) . '...');
+                        
+                        throw new Exception("Mot de passe incorrect");
                     }
+                } else {
+                    error_log("Utilisateur non trouvé dans la base de données: " . $username);
+                    throw new Exception("Utilisateur non trouvé dans la base de données");
                 }
-                
-                throw new Exception("Utilisateur non trouvé");
+            } else {
+                error_log("Problème de connexion à la base de données: " . ($database->connection_error ?? "Erreur inconnue"));
+                throw new Exception("La connexion à la base de données a échoué: " . ($database->connection_error ?? "Erreur inconnue"));
             }
         } catch (Exception $e) {
-            error_log("Erreur d'authentification: " . $e->getMessage());
-            throw new Exception("Erreur d'authentification: " . $e->getMessage());
+            // Échec de l'authentification par la base de données
+            error_log("Échec de l'authentification: " . $e->getMessage());
+            
+            // Si l'utilisateur n'existe pas ou le mot de passe est incorrect
+            http_response_code(401);
+            echo json_encode([
+                'message' => 'Identifiants invalides ou base de données inaccessible',
+                'status' => 401,
+                'error' => $e->getMessage()
+            ]);
+            exit;
         }
     } else {
-        throw new Exception("Nom d'utilisateur ou mot de passe manquant");
+        // Si des données sont manquantes
+        error_log("Données incomplètes pour la connexion");
+        http_response_code(400);
+        echo json_encode(['message' => 'Données incomplètes', 'status' => 400]);
+        exit;
     }
 } catch (Exception $e) {
-    error_log("Erreur dans AuthController.php: " . $e->getMessage());
+    // Log l'erreur et renvoyer une réponse formatée
+    error_log("Erreur dans AuthController: " . $e->getMessage());
     
-    http_response_code(401);
+    http_response_code(500);
     echo json_encode([
-        'success' => false,
-        'message' => $e->getMessage()
+        'message' => 'Erreur serveur', 
+        'error' => $e->getMessage()
     ]);
+    exit;
 } finally {
     error_log("=== FIN DE L'EXÉCUTION DE AuthController.php ===");
+    // Vider et terminer le tampon de sortie
     ob_end_flush();
 }
-?>

@@ -1,6 +1,6 @@
+
 import { getApiUrl } from '@/config/apiConfig';
 import { getAuthHeaders } from '../auth/authService';
-import { useToast } from '@/hooks/use-toast';
 
 interface CreateUserData {
   nom: string;
@@ -13,28 +13,9 @@ interface CreateUserData {
 export const createUser = async (userData: CreateUserData) => {
   console.log("Tentative de création d'utilisateur:", userData.prenom, userData.nom);
   
-  // Frontend validation
-  const errors = [];
-  
-  // Required fields validation
-  if (!userData.nom?.trim()) errors.push("Le nom est requis");
-  if (!userData.prenom?.trim()) errors.push("Le prénom est requis");
-  if (!userData.email?.trim()) errors.push("L'email est requis");
-  if (!userData.role?.trim()) errors.push("Le rôle est requis");
-  
-  // Email format validation
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  if (userData.email && !emailRegex.test(userData.email)) {
-    errors.push("Format d'email invalide");
-  }
-  
-  // Password validation
+  // Validation du mot de passe
   if (userData.mot_de_passe.length < 6) {
-    errors.push("Le mot de passe doit contenir au moins 6 caractères");
-  }
-  
-  if (errors.length > 0) {
-    throw new Error(errors.join("\n"));
+    throw new Error("Le mot de passe doit contenir au moins 6 caractères");
   }
 
   // Génération de l'identifiant technique
@@ -47,14 +28,12 @@ export const createUser = async (userData: CreateUserData) => {
 
   console.log(`Identifiant technique généré: ${identifiantTechnique}`);
 
-  // Génération d'un UUID pour l'ID
-  const uuid = generateUUID();
-  console.log(`UUID généré pour l'ID: ${uuid}`);
-
   try {
     // Préparation de la requête
     const apiUrl = getApiUrl();
-    const url = `${apiUrl}/users`;
+    
+    // Utiliser spécifiquement le point d'entrée "utilisateurs" défini dans index.php
+    const url = `${apiUrl}/utilisateurs`;
     
     console.log(`Envoi de la requête à ${url}`);
     const headers = getAuthHeaders();
@@ -62,22 +41,51 @@ export const createUser = async (userData: CreateUserData) => {
     // Préparation des données
     const requestData = {
       ...userData,
-      id: uuid,
       identifiant_technique: identifiantTechnique
     };
     
     console.log("Données envoyées:", JSON.stringify(requestData));
     
+    // Vérification de l'email
+    try {
+      const checkEmailUrl = `${apiUrl}/check-users.php?email=${encodeURIComponent(userData.email)}`;
+      console.log(`Vérification de l'email: ${checkEmailUrl}`);
+      
+      const emailCheckResponse = await fetch(checkEmailUrl, { method: 'GET', headers });
+      
+      if (emailCheckResponse.ok) {
+        const checkResult = await emailCheckResponse.json();
+        console.log("Résultat de la vérification d'email:", checkResult);
+        
+        if (checkResult && checkResult.records && Array.isArray(checkResult.records)) {
+          const existingUser = checkResult.records.find((user: any) => 
+            user.email === userData.email
+          );
+          
+          if (existingUser) {
+            console.error("Un utilisateur avec cet email existe déjà:", existingUser);
+            throw new Error(`Un utilisateur avec l'email ${userData.email} existe déjà.`);
+          }
+        }
+      }
+    } catch (checkError) {
+      // Si l'erreur est liée à la vérification de l'email existant, la propager
+      if (checkError instanceof Error && checkError.message.includes('email existe déjà')) {
+        throw checkError;
+      }
+      // Sinon, continuer avec la création même si la vérification a échoué
+      console.warn("Erreur lors de la vérification de l'email, poursuite de la création:", checkError);
+    }
+    
     // Envoi de la requête principale
+    console.log("Envoi de la requête POST avec les données:", JSON.stringify(requestData));
+    
     const response = await fetch(url, {
       method: 'POST',
       headers: {
         ...headers,
         'Content-Type': 'application/json',
-        'Accept': 'application/json',
-        'Cache-Control': 'no-cache, no-store, must-revalidate',
-        'Pragma': 'no-cache',
-        'Expires': '0'
+        'Accept': 'application/json'
       },
       body: JSON.stringify(requestData),
       cache: 'no-store'
@@ -94,13 +102,6 @@ export const createUser = async (userData: CreateUserData) => {
     if (!responseText || responseText.trim() === '') {
       if (response.ok || response.status === 201) {
         // Si la réponse est vide mais le statut est OK, considérer comme un succès
-        
-        // Force un rechargement complet après création
-        console.log("Rechargement forcé dans 2 secondes pour refléter la création de l'utilisateur");
-        setTimeout(() => {
-          window.location.reload();
-        }, 2000);
-        
         return {
           success: true,
           identifiant_technique: identifiantTechnique,
@@ -118,14 +119,10 @@ export const createUser = async (userData: CreateUserData) => {
       
       // Gestion des erreurs HTTP
       if (!response.ok) {
-        throw new Error(responseData.message || `Erreur ${response.status}: ${response.statusText}`);
+        const errorMsg = responseData.message || `Erreur ${response.status}: ${response.statusText}`;
+        console.error("Erreur API:", errorMsg, responseData);
+        throw new Error(errorMsg);
       }
-      
-      // Force un rechargement de l'application après création
-      console.log("Rechargement forcé dans 2 secondes pour refléter la cr��tion de l'utilisateur");
-      setTimeout(() => {
-        window.location.reload();
-      }, 2000);
       
       // Succès avec réponse JSON
       return {
@@ -134,21 +131,10 @@ export const createUser = async (userData: CreateUserData) => {
         identifiant_technique: identifiantTechnique
       };
     } catch (jsonError) {
-      console.error("Erreur lors du parsing JSON:", jsonError);
-      
-      // Si la réponse semble être du HTML ou contient des erreurs PHP
-      if (responseText.includes("<br />") || responseText.includes("Warning") || responseText.includes("Fatal error")) {
-        throw new Error("Erreur serveur PHP. Vérifiez les logs du serveur.");
-      }
+      console.error("Erreur lors du parsing JSON:", jsonError, "Texte reçu:", responseText);
       
       // Si la réponse semble être un succès malgré le format incorrect
       if (response.ok || response.status === 201) {
-        // Force un rechargement de l'application après création
-        console.log("Rechargement forcé dans 2 secondes pour refléter la création de l'utilisateur");
-        setTimeout(() => {
-          window.location.reload();
-        }, 2000);
-        
         return {
           success: true,
           identifiant_technique: identifiantTechnique,
@@ -160,77 +146,6 @@ export const createUser = async (userData: CreateUserData) => {
     }
   } catch (error) {
     console.error("Erreur lors de la création de l'utilisateur:", error);
-    
-    // Essayer de créer l'utilisateur via le endpoint de diagnostic en cas d'échec
-    try {
-      console.log("Tentative de création via le endpoint de diagnostic...");
-      const diagnosticResult = await createUserViaDiagnostic({
-        ...userData,
-        id: uuid,
-        identifiant_technique: identifiantTechnique
-      });
-      
-      // Force un rechargement de la page après un court délai
-      console.log("Rechargement forcé dans 2 secondes suite à la création via diagnostic");
-      setTimeout(() => {
-        window.location.reload();
-      }, 2000);
-      
-      return diagnosticResult;
-    } catch (fallbackError) {
-      console.error("Échec de la création via le endpoint de diagnostic:", fallbackError);
-      throw error; // Renvoyer l'erreur d'origine si la solution de secours échoue également
-    }
-  }
-};
-
-// Fonction pour générer un UUID conforme au format varchar(36)
-function generateUUID() {
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-    var r = Math.random() * 16 | 0,
-        v = c === 'x' ? r : (r & 0x3 | 0x8);
-    return v.toString(16);
-  });
-}
-
-// Fonction de secours pour créer un utilisateur via le endpoint de diagnostic
-const createUserViaDiagnostic = async (userData: any) => {
-  console.log("Tentative de création d'utilisateur via le endpoint de diagnostic");
-  const apiUrl = getApiUrl();
-  const url = `${apiUrl}/test-create-user`;
-  
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: {
-      ...getAuthHeaders(),
-      'Content-Type': 'application/json',
-      'Accept': 'application/json',
-      'Cache-Control': 'no-cache'
-    },
-    body: JSON.stringify(userData)
-  });
-  
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error("Erreur de réponse du diagnostic:", errorText);
-    throw new Error(`Erreur HTTP: ${response.status}`);
-  }
-  
-  try {
-    const result = await response.json();
-    return {
-      ...result,
-      success: true,
-      identifiant_technique: userData.identifiant_technique
-    };
-  } catch (e) {
-    const responseText = await response.text();
-    console.log("Réponse non-JSON du diagnostic:", responseText);
-    
-    return {
-      success: response.ok,
-      message: "Opération terminée (réponse non-JSON)",
-      identifiant_technique: userData.identifiant_technique
-    };
+    throw error;
   }
 };

@@ -1,10 +1,7 @@
 
 import { useState, useEffect } from 'react';
 
-/**
- * Hook personnalisé qui permet de suivre l'état de la connexion internet
- */
-export function useNetworkStatus() {
+export const useNetworkStatus = () => {
   const [isOnline, setIsOnline] = useState<boolean>(navigator.onLine);
 
   useEffect(() => {
@@ -21,4 +18,4 @@ export function useNetworkStatus() {
   }, []);
 
   return { isOnline };
-}
+};
