@@ -1,5 +1,6 @@
 
 import { Membre } from '@/types/membres';
+import { createLocalTableForUser } from './membreLocalSync';
 
 /**
  * Loads membres from localStorage for a specific user
@@ -13,10 +14,13 @@ export const loadMembresFromStorage = (currentUser: string): Membre[] => {
     const defaultMembres = localStorage.getItem('membres_template') || localStorage.getItem('membres');
     
     if (defaultMembres) {
+      // Créer une nouvelle table locale pour l'utilisateur
+      createLocalTableForUser(currentUser);
       return JSON.parse(defaultMembres);
     }
     
-    return [
+    // Données par défaut
+    const defaultData = [
       { 
         id: '1', 
         nom: 'Dupont',
@@ -36,6 +40,10 @@ export const loadMembresFromStorage = (currentUser: string): Membre[] => {
         mot_de_passe: ''
       },
     ];
+    
+    // Créer la table et retourner les données par défaut
+    localStorage.setItem(`membres_${currentUser}`, JSON.stringify(defaultData));
+    return defaultData;
   }
 };
 

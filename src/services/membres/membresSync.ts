@@ -2,6 +2,7 @@
 import { Membre } from '@/types/membres';
 import { getApiUrl } from '@/config/apiConfig';
 import { getAuthHeaders } from '@/services/auth/authService';
+import { getLocalUsers, synchroniserMembresEntreUtilisateurs } from './membreLocalSync';
 
 /**
  * Synchronizes membres with the server
@@ -13,6 +14,12 @@ export const syncMembresWithServer = async (
   try {
     console.log(`Synchronisation des membres pour l'utilisateur ${currentUser}`);
     
+    // D'abord, synchroniser localement entre tous les utilisateurs
+    const allLocalUsers = getLocalUsers();
+    synchroniserMembresEntreUtilisateurs(membres, currentUser, allLocalUsers);
+    console.log("Synchronisation locale effectuée avec succès");
+    
+    // Ensuite, synchroniser avec le serveur
     const API_URL = getApiUrl();
     const response = await fetch(`${API_URL}/membres-sync.php`, {
       method: 'POST',

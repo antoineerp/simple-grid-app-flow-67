@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -87,7 +86,7 @@ const UserManagement = ({ currentDatabaseUser, onUserConnect }: UserManagementPr
     }
   };
   
-  const handleDeleteUser = async (userId: number) => {
+  const handleDeleteUser = async (userId: number, identifiantTechnique: string) => {
     if (!window.confirm("Êtes-vous sûr de vouloir supprimer cet utilisateur ?")) {
       return;
     }
@@ -95,6 +94,13 @@ const UserManagement = ({ currentDatabaseUser, onUserConnect }: UserManagementPr
     setDeletingUserId(userId);
     
     try {
+      // Supprimer les tables locales de l'utilisateur
+      import('@/services/membres/membreLocalSync').then(module => {
+        module.deleteLocalTablesForUser(identifiantTechnique);
+        console.log(`Tables locales supprimées pour ${identifiantTechnique}`);
+      });
+      
+      // Supprimer l'utilisateur sur le serveur
       const response = await fetch(`${getApiUrl()}/users`, {
         method: 'DELETE',
         headers: {
@@ -286,7 +292,7 @@ const UserManagement = ({ currentDatabaseUser, onUserConnect }: UserManagementPr
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => handleDeleteUser(user.id)}
+                          onClick={() => handleDeleteUser(user.id, user.identifiant_technique)}
                           className="text-red-500 hover:text-red-700"
                           disabled={currentDatabaseUser === user.identifiant_technique || deletingUserId === user.id}
                         >
