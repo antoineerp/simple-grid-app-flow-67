@@ -21,8 +21,8 @@ export const useAdminUsers = () => {
         ...user,
         // Assurer que date_creation est un string formaté
         date_creation: user.date_creation 
-          ? (typeof user.date_creation === 'object' && user.date_creation instanceof Date 
-              ? user.date_creation.toISOString().split('T')[0]
+          ? (typeof user.date_creation === 'object' 
+              ? String(user.date_creation) // Convertir en string sans utiliser instanceof
               : String(user.date_creation))
           : ''
       }));
