@@ -1,5 +1,5 @@
 
-import { jsPDF } from 'jspdf';
+import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { Document } from '@/types/documents';
 import { 
@@ -21,7 +21,7 @@ export const exportDocumentsToPdf = (documents: Document[], groups: any[] = [], 
       currentY += 10;
       
       // Trouver les documents du groupe
-      const groupDocs = documents.filter(doc => doc.groupId === group.id);
+      const groupDocs = group.items || [];
       
       if (groupDocs.length > 0) {
         // Générer le tableau pour ce groupe
@@ -32,8 +32,7 @@ export const exportDocumentsToPdf = (documents: Document[], groups: any[] = [], 
             doc.nom,
             doc.fichier_path || '-',
             formatResponsabilities(doc.responsabilites),
-            // Vérifier si la propriété 'exclusion' existe avant de l'utiliser
-            doc.etat === 'EX' ? 'Exclusion' : formatState(doc.etat)
+            formatState(doc.etat)
           ]),
           theme: 'grid',
           styles: { fontSize: 10, cellPadding: 5 },
@@ -48,12 +47,6 @@ export const exportDocumentsToPdf = (documents: Document[], groups: any[] = [], 
         
         // Mettre à jour la position Y
         currentY = (doc as any).lastAutoTable.finalY + 15;
-      } else {
-        // Si aucun document dans ce groupe, indiquer que le groupe est vide
-        doc.setFontSize(10);
-        doc.setFont('helvetica', 'italic');
-        doc.text('(Aucun document dans ce groupe)', 20, currentY);
-        currentY += 15;
       }
     });
     
@@ -72,8 +65,7 @@ export const exportDocumentsToPdf = (documents: Document[], groups: any[] = [], 
           doc.nom,
           doc.fichier_path || '-',
           formatResponsabilities(doc.responsabilites),
-          // Vérifier si la propriété 'exclusion' existe avant de l'utiliser
-          doc.etat === 'EX' ? 'Exclusion' : formatState(doc.etat)
+          formatState(doc.etat)
         ]),
         theme: 'grid',
         styles: { fontSize: 10, cellPadding: 5 },

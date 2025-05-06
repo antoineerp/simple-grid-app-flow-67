@@ -1,5 +1,6 @@
 
 import React from 'react';
+import Layout from '@/components/Layout';
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -7,9 +8,11 @@ interface DashboardLayoutProps {
 
 const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
   return (
-    <div className="w-full">
-      {children}
-    </div>
+    <Layout>
+      <div className="container mx-auto px-4 py-6">
+        {children}
+      </div>
+    </Layout>
   );
 };
 

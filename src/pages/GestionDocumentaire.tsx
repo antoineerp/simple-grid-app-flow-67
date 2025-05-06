@@ -1,107 +1,93 @@
-import React, { useEffect, useState } from 'react';
-import DocumentTable from '@/components/documents/DocumentTable';
-import { useDocuments } from '@/hooks/useDocuments';
-import { getDatabaseConnectionCurrentUser } from '@/services/core/databaseConnectionService';
-import { Button } from '@/components/ui/button';
-import { Plus, FileText, RefreshCw, FolderPlus } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
-import { DocumentGroupDialog } from '@/components/gestion-documentaire/DocumentGroupDialog';
-import { DocumentGroup } from '@/types/documents';
 
-const GestionDocumentaire = () => {
-  const { 
-    documents, 
-    groups, 
-    handleEdit, 
-    handleDelete, 
-    handleReorder, 
-    handleToggleGroup, 
-    handleEditGroup, 
-    handleDeleteGroup, 
-    handleResponsabiliteChange, 
-    handleAtteinteChange, 
-    handleExclusionChange, 
-    handleAddDocument, 
+import React from 'react';
+import { FileText, FolderPlus, CloudSun } from 'lucide-react';
+import { MembresProvider } from '@/contexts/MembresContext';
+import DocumentForm from '@/components/gestion-documentaire/DocumentForm';
+import DocumentStatusDisplay from '@/components/gestion-documentaire/DocumentStats';
+import DocumentTable from '@/components/gestion-documentaire/DocumentTable';
+import { DocumentGroupDialog } from '@/components/gestion-documentaire/DocumentGroupDialog';
+import { useDocuments } from '@/hooks/useDocuments';
+import { exportDocumentsToPdf } from '@/services/pdfExport';
+import { useToast } from "@/hooks/use-toast";
+import { Button } from "@/components/ui/button";
+import SyncStatusIndicator from '@/components/common/SyncStatusIndicator';
+
+const GestionDocumentaireContent = () => {
+  const {
+    documents,
+    groups,
+    stats,
+    editingDocument,
+    editingGroup,
+    dialogOpen,
+    groupDialogOpen,
+    isSyncing,
+    isOnline,
+    lastSynced,
+    setDialogOpen,
+    setGroupDialogOpen,
+    handleResponsabiliteChange,
+    handleAtteinteChange,
+    handleExclusionChange,
+    handleEdit,
+    handleSaveDocument,
+    handleDelete,
+    handleAddDocument,
+    handleReorder,
     handleAddGroup,
+    handleEditGroup,
+    handleSaveGroup,
+    handleDeleteGroup,
     handleGroupReorder,
-    forceReload,
-    isSyncing
+    handleToggleGroup,
+    syncWithServer
   } = useDocuments();
   
-  const [currentUser, setCurrentUser] = useState<string>(getDatabaseConnectionCurrentUser() || 'default');
   const { toast } = useToast();
-  
-  // État pour la gestion de la boîte de dialogue des groupes
-  const [isGroupDialogOpen, setIsGroupDialogOpen] = useState(false);
-  const [currentGroup, setCurrentGroup] = useState<DocumentGroup | null>(null);
-  const [isEditing, setIsEditing] = useState(false);
-  
-  // Écouter les changements d'utilisateur
-  useEffect(() => {
-    const handleUserChange = (event: Event) => {
-      const customEvent = event as CustomEvent;
-      if (customEvent.detail?.user) {
-        setCurrentUser(customEvent.detail.user);
-        console.log(`GestionDocumentaire: Changement d'utilisateur - ${customEvent.detail.user}`);
-      }
-    };
-    
-    window.addEventListener('database-user-changed', handleUserChange);
-    
-    return () => {
-      window.removeEventListener('database-user-changed', handleUserChange);
-    };
-  }, []);
 
-  const handleRefresh = () => {
-    forceReload();
-  };
-  
-  // Gérer l'ouverture du dialogue d'ajout de groupe
-  const openAddGroupDialog = () => {
-    setCurrentGroup({
-      id: crypto.randomUUID(),
-      name: '',
-      expanded: false,
-      items: [],
-      userId: currentUser
-    } as DocumentGroup);
-    setIsEditing(false);
-    setIsGroupDialogOpen(true);
-  };
-  
-  // Gérer l'édition d'un groupe
-  const openEditGroupDialog = (group: DocumentGroup) => {
-    setCurrentGroup(group);
-    setIsEditing(true);
-    setIsGroupDialogOpen(true);
-  };
-  
-  // Gérer la sauvegarde d'un groupe
-  const handleSaveGroup = (group: DocumentGroup, isEditing: boolean) => {
-    if (isEditing) {
-      handleEditGroup(group);
-    } else {
-      handleAddGroup(group);
-    }
-    setIsGroupDialogOpen(false);
+  const handleExportPdf = () => {
+    exportDocumentsToPdf(documents, groups);
+    toast({
+      title: "Export PDF réussi",
+      description: "Le document a été généré et téléchargé",
+    });
   };
 
   return (
-    <div className="container mx-auto py-6 px-4">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">Gestion Documentaire</h1>
-        <Button
-          onClick={handleRefresh}
-          variant="outline"
-          size="sm"
-          className="ml-2 hidden"
-        >
-          <RefreshCw className={`h-4 w-4 mr-1 ${isSyncing ? 'animate-spin' : ''}`} />
-          Actualiser
-        </Button>
+    <div className="p-8">
+      <div className="flex items-center justify-between mb-2">
+        <div>
+          <h1 className="text-3xl font-bold text-app-blue">Gestion Documentaire</h1>
+        </div>
+        <div className="flex space-x-2">
+          <button 
+            onClick={syncWithServer}
+            className="text-blue-600 p-2 rounded-md hover:bg-blue-50 transition-colors flex items-center"
+            title="Synchroniser avec le serveur"
+            disabled={isSyncing}
+          >
+            <CloudSun className={`h-6 w-6 stroke-[1.5] ${isSyncing ? 'animate-spin' : ''}`} />
+          </button>
+          <button 
+            onClick={handleExportPdf}
+            className="text-red-600 p-2 rounded-md hover:bg-red-50 transition-colors"
+            title="Exporter en PDF"
+          >
+            <FileText className="h-6 w-6 stroke-[1.5]" />
+          </button>
+        </div>
       </div>
-      
+
+      <div className="mb-4">
+        <SyncStatusIndicator 
+          isSyncing={isSyncing}
+          isOnline={isOnline}
+          lastSynced={lastSynced}
+        />
+      </div>
+
+      <DocumentStatusDisplay stats={stats} />
+
       <DocumentTable 
         documents={documents}
         groups={groups}
@@ -113,38 +99,50 @@ const GestionDocumentaire = () => {
         onReorder={handleReorder}
         onGroupReorder={handleGroupReorder}
         onToggleGroup={handleToggleGroup}
-        onEditGroup={openEditGroupDialog}
+        onEditGroup={handleEditGroup}
         onDeleteGroup={handleDeleteGroup}
       />
-      
-      <div className="mt-4 flex justify-end space-x-2">
-        <Button
-          onClick={openAddGroupDialog}
+
+      <div className="flex justify-end mt-4 space-x-2">
+        <Button 
           variant="outline"
-          className="flex items-center hover:bg-gray-100 transition-colors"
+          onClick={handleAddGroup}
+          className="hover:bg-gray-100 transition-colors mr-2"
+          title="Nouveau groupe"
         >
-          <FolderPlus className="h-4 w-4 mr-2" />
+          <FolderPlus className="h-5 w-5 mr-2" />
           Nouveau groupe
         </Button>
-        <Button
+        <Button 
+          variant="default"
           onClick={handleAddDocument}
-          className="flex items-center bg-app-blue hover:bg-app-blue/90"
         >
-          <Plus className="h-4 w-4 mr-1" />
-          Ajouter un document
+          Nouveau document
         </Button>
       </div>
-      
-      {/* Dialog pour ajouter/éditer un groupe */}
+
+      <DocumentForm 
+        document={editingDocument}
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        onSave={handleSaveDocument}
+      />
+
       <DocumentGroupDialog
-        group={currentGroup}
-        open={isGroupDialogOpen}
-        onOpenChange={setIsGroupDialogOpen}
+        group={editingGroup}
+        open={groupDialogOpen}
+        onOpenChange={setGroupDialogOpen}
         onSave={handleSaveGroup}
-        isEditing={isEditing}
+        isEditing={!!editingGroup}
       />
     </div>
   );
 };
+
+const GestionDocumentaire = () => (
+  <MembresProvider>
+    <GestionDocumentaireContent />
+  </MembresProvider>
+);
 
 export default GestionDocumentaire;

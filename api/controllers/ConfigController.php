@@ -1,29 +1,8 @@
 
 <?php
-// Use absolute path for including configuration files
+// Inclure notre fichier de configuration d'environnement s'il n'est pas déjà inclus
 if (!function_exists('env')) {
-    // Chemin absolu pour éviter les erreurs
-    $envFile = __DIR__ . '/../../api/config/env.php';
-    
-    // Vérifier si env.php existe et est accessible
-    if (file_exists($envFile)) {
-        require_once $envFile;
-    } else {
-        // Définir une fonction env de secours si le fichier est manquant
-        function env($key, $default = null) {
-            $constants = [
-                'APP_ENV' => 'production',
-                'ALLOWED_ORIGIN_DEV' => 'http://localhost:8080',
-                'ALLOWED_ORIGIN_PROD' => 'https://qualiopi.ch',
-                'DB_HOST' => 'p71x6d.myd.infomaniak.com',
-                'DB_NAME' => 'p71x6d_system',
-                'DB_USER' => 'p71x6d_system',
-                'DB_PASS' => 'Trottinette43!'
-            ];
-            
-            return $constants[$key] ?? $default;
-        }
-    }
+    require_once __DIR__ . '/../config/env.php';
 }
 
 // Déterminer l'environnement
@@ -62,29 +41,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
 // Journaliser l'accès à ce contrôleur (pour débogage)
 error_log("Accès au ConfigController - Méthode: " . $_SERVER['REQUEST_METHOD']);
 
-// Inclusion des fichiers nécessaires avec chemins absolus
-$databasePath = __DIR__ . '/../../api/config/database.php';
-$authPath = __DIR__ . '/../../api/middleware/Auth.php';
-
-if (file_exists($databasePath)) {
-    include_once $databasePath;
-} else {
-    // Gestion de l'erreur si le fichier n'existe pas
-    error_log("Fichier database.php introuvable: $databasePath");
-    http_response_code(500);
-    echo json_encode(["message" => "Configuration de base de données introuvable"], JSON_UNESCAPED_UNICODE);
-    exit;
-}
-
-if (file_exists($authPath)) {
-    include_once $authPath;
-} else {
-    // Gestion de l'erreur si le fichier n'existe pas
-    error_log("Fichier Auth.php introuvable: $authPath");
-    http_response_code(500);
-    echo json_encode(["message" => "Middleware d'authentification introuvable"], JSON_UNESCAPED_UNICODE);
-    exit;
-}
+// Inclusion des fichiers nécessaires
+include_once __DIR__ . '/../config/database.php';
+include_once __DIR__ . '/../middleware/Auth.php';
 
 // Récupérer les en-têtes pour l'authentification
 $allHeaders = getallheaders();
@@ -107,8 +66,8 @@ if ($userData['data']['role'] !== 'administrateur' && $userData['data']['role'] 
     exit;
 }
 
-// Fichier de configuration avec chemin absolu
-$configFile = __DIR__ . '/../../api/config/app_config.json';
+// Fichier de configuration
+$configFile = __DIR__ . '/../config/app_config.json';
 
 // Détermininer la méthode de requête
 $method = $_SERVER['REQUEST_METHOD'];

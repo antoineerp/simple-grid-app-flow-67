@@ -4,7 +4,6 @@ export interface DocumentGroup {
   name: string;
   expanded: boolean;
   items: Document[];
-  userId?: string; // Added userId field
 }
 
 export interface Document {
@@ -21,8 +20,6 @@ export interface Document {
   date_creation: Date;
   date_modification: Date;
   groupId?: string;
-  userId?: string; // Added userId field
-  excluded?: boolean; // Added excluded field
 }
 
 export interface DocumentStats {

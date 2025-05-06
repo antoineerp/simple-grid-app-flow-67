@@ -1,12 +1,10 @@
 
-import { BarChart2, FileCheck, FileText, Users, Handshake, Settings } from 'lucide-react';
-import { hasPermission, UserRole } from '@/types/roles';
+import { BarChart2, FileCheck, FileText, Users, Handshake } from 'lucide-react';
 
 export interface NavItem {
   path: string;
   icon: typeof BarChart2;
   label: string;
-  requiredPermission?: keyof typeof hasPermission;
 }
 
 export const navigationItems: NavItem[] = [
@@ -36,5 +34,3 @@ export const navigationItems: NavItem[] = [
     label: 'Collaboration'
   }
 ];
-
-// L'élément Administration a été retiré de la liste principale

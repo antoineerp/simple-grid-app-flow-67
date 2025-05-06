@@ -8,16 +8,12 @@ import DatabaseDiagnostic from '@/components/admin/DatabaseDiagnostic';
 import ApiConfiguration from '@/components/admin/ApiConfiguration';
 import ServerTest from '@/components/ServerTest';
 import ImageConfiguration from '@/components/admin/ImageConfiguration';
-import { getDatabaseConnectionCurrentUser, initializeCurrentUser } from '@/services/core/databaseConnectionService';
+import { getDatabaseConnectionCurrentUser } from '@/services';
 import { useToast } from "@/hooks/use-toast";
 import { hasPermission, UserRole } from '@/types/roles';
 import UserDiagnostic from '@/components/admin/UserDiagnostic';
 import ManagerDataImport from '@/components/admin/ManagerDataImport';
-import { UserManager } from '@/services/users/userManager';
-import { SyncDiagnosticPanel } from '@/components/diagnostics/SyncDiagnosticPanel';
-import DbConnectionTest from "@/components/DbConnectionTest";
-import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
-import { getCurrentUser } from '@/services/auth/authService';
+import { getUtilisateurs } from '@/services/users/userService';
 
 const Administration = () => {
   const navigate = useNavigate();
@@ -26,31 +22,9 @@ const Administration = () => {
   const [hasManager, setHasManager] = useState(false);
 
   useEffect(() => {
-    console.log("Administration: vérification des permissions...");
-    
-    // Initialiser l'utilisateur de la base de données
-    initializeCurrentUser();
-    
-    // Obtenez le rôle directement de localStorage et utilisez getCurrentUser comme fallback
-    let userRole = localStorage.getItem('userRole') as UserRole;
-    
-    if (!userRole) {
-      const currentUser = getCurrentUser();
-      userRole = (currentUser?.role || 'utilisateur') as UserRole;
-      console.log("Rôle récupéré depuis getCurrentUser:", userRole);
-      
-      // Stocker le rôle pour les futures vérifications
-      if (userRole) {
-        localStorage.setItem('userRole', userRole);
-      }
-    } else {
-      console.log("Rôle récupéré depuis localStorage:", userRole);
-    }
-    
-    console.log("Vérification d'accès avec le rôle:", userRole);
+    const userRole = localStorage.getItem('userRole') as UserRole;
     
     if (!hasPermission(userRole, 'accessAdminPanel')) {
-      console.log("Accès refusé à l'administration pour le rôle:", userRole);
       toast({
         title: "Accès refusé",
         description: "Vous n'avez pas les droits pour accéder à cette page.",
@@ -58,8 +32,6 @@ const Administration = () => {
       });
       navigate('/pilotage');
       return;
-    } else {
-      console.log("Accès autorisé à l'administration pour le rôle:", userRole);
     }
 
     setCurrentDatabaseUser(getDatabaseConnectionCurrentUser());
@@ -67,7 +39,8 @@ const Administration = () => {
     // Vérifier s'il y a un gestionnaire dans le système
     const checkForManager = async () => {
       try {
-        const managerExists = await UserManager.hasUserWithRole('gestionnaire');
+        const users = await getUtilisateurs();
+        const managerExists = users.some(user => user.role === 'gestionnaire');
         setHasManager(managerExists);
       } catch (error) {
         console.error("Erreur lors de la vérification des gestionnaires:", error);
@@ -75,21 +48,6 @@ const Administration = () => {
     };
     
     checkForManager();
-    
-    // Ajouter un écouteur d'événements pour les changements d'utilisateur
-    const handleUserChange = (event: Event) => {
-      const customEvent = event as CustomEvent;
-      if (customEvent.detail?.user) {
-        setCurrentDatabaseUser(customEvent.detail.user);
-      }
-    };
-    
-    window.addEventListener('database-user-changed', handleUserChange);
-    
-    // Nettoyage
-    return () => {
-      window.removeEventListener('database-user-changed', handleUserChange);
-    };
   }, [navigate, toast]);
 
   const handleUserConnect = (identifiant: string) => {
@@ -170,26 +128,6 @@ const Administration = () => {
         
         <TabsContent value="sync">
           <div className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Test de connexion à la base de données</CardTitle>
-                <CardDescription>Vérifier la connexion au serveur Infomaniak</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <DbConnectionTest />
-              </CardContent>
-            </Card>
-            
-            <Card>
-              <CardHeader>
-                <CardTitle>Diagnostic de synchronisation</CardTitle>
-                <CardDescription>Vérifier l'état de synchronisation et forcer la synchronisation des données</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <SyncDiagnosticPanel onClose={() => {}} />
-              </CardContent>
-            </Card>
-            
             <ManagerDataImport hasManager={hasManager} />
           </div>
         </TabsContent>

@@ -1,5 +1,5 @@
 
-import { jsPDF } from 'jspdf';
+import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { 
   formatState, 
@@ -20,7 +20,7 @@ export const exportExigencesToPdf = (exigences: any[], groups: any[] = [], title
       currentY += 10;
       
       // Trouver les exigences du groupe
-      const groupExigences = exigences.filter(exigence => exigence.groupId === group.id);
+      const groupExigences = group.items || [];
       
       if (groupExigences.length > 0) {
         // Générer le tableau pour ce groupe
@@ -44,12 +44,6 @@ export const exportExigencesToPdf = (exigences: any[], groups: any[] = [], title
         
         // Mettre à jour la position Y
         currentY = (doc as any).lastAutoTable.finalY + 15;
-      } else {
-        // Si aucune exigence dans ce groupe, indiquer que le groupe est vide
-        doc.setFontSize(10);
-        doc.setFont('helvetica', 'italic');
-        doc.text('(Aucune exigence dans ce groupe)', 20, currentY);
-        currentY += 15;
       }
     });
     
@@ -73,9 +67,9 @@ export const exportExigencesToPdf = (exigences: any[], groups: any[] = [], title
         styles: { fontSize: 10, cellPadding: 5 },
         headStyles: { fillColor: [0, 48, 135], textColor: [255, 255, 255] },
         columnStyles: {
-            0: { cellWidth: 70 },
-            1: { cellWidth: 70 },
-            2: { cellWidth: 50 }
+          0: { cellWidth: 70 },
+          1: { cellWidth: 70 },
+          2: { cellWidth: 50 }
         }
       });
     }

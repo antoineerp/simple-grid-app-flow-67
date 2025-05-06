@@ -1,45 +1,34 @@
 
 import React from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
 import { ExigenceGroup } from '@/types/exigences';
-import { getDatabaseConnectionCurrentUser } from '@/services/core/databaseConnectionService';
 
 interface ExigenceGroupDialogProps {
-  isOpen?: boolean;
-  open?: boolean; // Added for compatibility
-  onClose?: () => void;
-  onOpenChange?: (open: boolean) => void; // Added for compatibility 
   group: ExigenceGroup | null;
-  onSave: (group: ExigenceGroup, isEditing: boolean) => void;
-  isEditing?: boolean; // Added for compatibility
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onSave: (group: ExigenceGroup) => void;
+  isEditing: boolean;
 }
 
-export const ExigenceGroupDialog = ({ 
-  isOpen, 
-  open, 
-  onClose, 
+export const ExigenceGroupDialog = ({
+  group,
+  open,
   onOpenChange,
-  group, 
   onSave,
-  isEditing: isEditingProp
+  isEditing
 }: ExigenceGroupDialogProps) => {
   const [name, setName] = React.useState(group?.name || '');
-  const currentUserId = getDatabaseConnectionCurrentUser() || 'default';
-  
-  // Support both isOpen and open props
-  const dialogOpen = isOpen !== undefined ? isOpen : open;
-  const isEditing = isEditingProp !== undefined ? isEditingProp : !!group;
-  
-  // Support both onClose and onOpenChange props
-  const handleOpenChange = (isOpen: boolean) => {
-    if (!isOpen) {
-      if (onClose) onClose();
-      if (onOpenChange) onOpenChange(false);
-    }
-  };
 
   React.useEffect(() => {
     if (group) {
@@ -51,26 +40,34 @@ export const ExigenceGroupDialog = ({
 
   const handleSave = () => {
     const updatedGroup: ExigenceGroup = {
-      id: group?.id || crypto.randomUUID(),
+      id: group?.id || Math.random().toString(36).substr(2, 9),
       name,
       expanded: group?.expanded || false,
-      items: group?.items || [],
-      userId: group?.userId || currentUserId
+      items: group?.items || []
     };
-    onSave(updatedGroup, isEditing);
-    if (onClose) onClose();
-    if (onOpenChange) onOpenChange(false);
+    onSave(updatedGroup);
+    onOpenChange(false);
   };
 
   return (
-    <Dialog open={dialogOpen} onOpenChange={handleOpenChange}>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{isEditing ? 'Modifier le groupe' : 'Ajouter un groupe'}</DialogTitle>
+          <DialogTitle>
+            {isEditing ? "Modifier le groupe" : "Ajouter un groupe"}
+          </DialogTitle>
+          <DialogDescription>
+            {isEditing 
+              ? "Modifiez les informations du groupe ci-dessous."
+              : "Remplissez les informations pour ajouter un nouveau groupe."}
+          </DialogDescription>
         </DialogHeader>
+        
         <div className="grid gap-4 py-4">
           <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="name" className="text-right">Nom</Label>
+            <Label htmlFor="name" className="text-right">
+              Nom
+            </Label>
             <Input
               id="name"
               value={name}
@@ -79,17 +76,16 @@ export const ExigenceGroupDialog = ({
             />
           </div>
         </div>
+        
         <DialogFooter>
-          <Button variant="outline" onClick={onClose}>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
             Annuler
           </Button>
           <Button onClick={handleSave}>
-            {isEditing ? 'Mettre à jour' : 'Ajouter'}
+            {isEditing ? "Mettre à jour" : "Ajouter"}
           </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
   );
 };
-
-export default ExigenceGroupDialog;

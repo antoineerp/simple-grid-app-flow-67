@@ -1,9 +1,9 @@
+
 export interface ExigenceGroup {
   id: string;
   name: string;
   expanded: boolean;
   items: Exigence[];
-  userId: string; // Added userId field
 }
 
 export interface Exigence {
@@ -20,7 +20,6 @@ export interface Exigence {
   date_creation: Date;
   date_modification: Date;
   groupId?: string;
-  userId: string; // Added userId field
 }
 
 export interface ExigenceStats {

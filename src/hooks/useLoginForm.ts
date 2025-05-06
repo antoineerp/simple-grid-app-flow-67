@@ -1,132 +1,127 @@
 
-import { useState, useCallback } from 'react';
-import { useForm } from 'react-hook-form';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { login } from '@/services/auth/authService';
-import { useToast } from '@/hooks/use-toast';
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { useToast } from "@/hooks/use-toast";
+import { login as loginUser } from '@/services/auth/authService';
 
-export interface LoginFormValues {
-  username: string;
-  password: string;
-}
+export const loginSchema = z.object({
+  username: z.string().min(3, { message: "Le nom d'utilisateur doit comporter au moins 3 caractères" }),
+  password: z.string().min(6, { message: "Le mot de passe doit comporter au moins 6 caractères" }),
+});
+
+export type LoginFormValues = z.infer<typeof loginSchema>;
 
 export const useLoginForm = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [hasDbError, setHasDbError] = useState(false);
   const [hasServerError, setHasServerError] = useState(false);
   const [hasAuthError, setHasAuthError] = useState(false);
   
   const form = useForm<LoginFormValues>({
+    resolver: zodResolver(loginSchema),
     defaultValues: {
-      username: '',
-      password: ''
-    }
+      username: "",
+      password: "",
+    },
   });
-  
-  const handleSubmit = useCallback(async (values: LoginFormValues) => {
+
+  const onSubmit = async (data: LoginFormValues) => {
+    if (isLoading) return;
+    
     setIsLoading(true);
-    setError(null);
     setHasDbError(false);
     setHasServerError(false);
     setHasAuthError(false);
     
-    console.log('Tentative de connexion pour:', values.username);
-    
     try {
-      const result = await login(values.username, values.password);
+      console.log("Tentative de connexion pour:", data.username);
       
-      if (result.success && result.token) {
-        console.log("Connexion réussie, token reçu:", result.token.substring(0, 20) + "...");
-        console.log("Données utilisateur:", result.user);
+      // En cas d'erreur fréquente pour antcirier@gmail.com, ajouter un message spécial
+      if (data.username === 'antcirier@gmail.com') {
+        console.log("Utilisateur spécial détecté: antcirier@gmail.com");
+        console.log("Mot de passe attendu: password123 ou Password123!");
+        console.log("Mot de passe fourni (longueur): " + data.password.length);
+      }
+      
+      const result = await loginUser(data.username, data.password);
+      
+      if (result.success && result.user) {
+        // Réinitialiser l'état d'erreur
+        setHasDbError(false);
+        setHasServerError(false);
+        setHasAuthError(false);
         
-        // Enregistrer le token avant la navigation
-        sessionStorage.setItem('authToken', result.token);
-        localStorage.setItem('authToken', result.token);
-        
-        // Stocker les données utilisateur et le rôle explicitement
-        if (result.user) {
-          localStorage.setItem('currentUser', JSON.stringify(result.user));
-          // S'assurer que le rôle est correctement enregistré pour les vérifications de permissions
-          if (result.user.role) {
-            localStorage.setItem('userRole', result.user.role);
-          }
-        }
+        localStorage.setItem('isLoggedIn', 'true');
         
         toast({
           title: "Connexion réussie",
-          description: `Bienvenue ${result.user?.prenom || ''} ${result.user?.nom || ''}`,
+          description: `Bienvenue, ${data.username} (${result.user.role || 'utilisateur'})`,
         });
         
-        console.log("Connexion réussie, redirection vers /pilotage");
+        // Forcer la navigation vers le pilotage
+        console.log("Redirection vers /pilotage après connexion réussie");
+        navigate("/pilotage", { replace: true });
+      }
+    } catch (error) {
+      console.error("Erreur lors de la connexion:", error);
+      
+      // Vérifier s'il s'agit d'une erreur de base de données
+      if (error instanceof Error) {
+        const errorMessage = error.message.toLowerCase();
         
-        try {
-          // Navigation simplifiée, plus robuste
-          navigate('/pilotage', { replace: true });
-          
-          // Fallback si la navigation ne fonctionne pas
-          setTimeout(() => {
-            if (window.location.pathname === '/') {
-              console.log("Fallback: redirection par window.location");
-              window.location.href = '/pilotage';
-            }
-          }, 500);
-        } catch (navError) {
-          console.error("Erreur lors de la navigation:", navError);
-          window.location.href = '/pilotage';
-        }
-      } else {
-        console.error("Échec de connexion:", result.message);
-        setError(result.message || 'Échec de la connexion');
-        
-        if (result.message?.includes('base de données') || result.message?.includes('database')) {
+        if (errorMessage.includes("base de données") || 
+            errorMessage.includes("database") ||
+            errorMessage.includes("connexion") ||
+            errorMessage.includes("sql")) {
           setHasDbError(true);
-        } else if (result.message?.includes('serveur') || result.message?.includes('server') || result.message?.includes('env.php')) {
+          toast({
+            title: "Erreur de connexion à la base de données",
+            description: "Vérifiez la configuration de votre base de données dans le panneau d'administration.",
+            variant: "destructive",
+          });
+        } else if (errorMessage.includes("serveur") || 
+                  errorMessage.includes("inaccessible") ||
+                  errorMessage.includes("réponse invalide")) {
           setHasServerError(true);
-        } else {
+          toast({
+            title: "Erreur de connexion au serveur",
+            description: "Le serveur d'authentification est temporairement inaccessible.",
+            variant: "destructive",
+          });
+        } else if (errorMessage.includes("mot de passe") ||
+                  errorMessage.includes("identifiants") ||
+                  errorMessage.includes("invalide")) {
           setHasAuthError(true);
+          toast({
+            title: "Identifiants incorrects",
+            description: "Le nom d'utilisateur ou le mot de passe est incorrect.",
+            variant: "destructive",
+          });
+        } else {
+          // Erreur générique
+          toast({
+            title: "Échec de la connexion",
+            description: error.message || "Erreur lors de la tentative de connexion",
+            variant: "destructive",
+          });
         }
-        
-        toast({
-          title: "Erreur de connexion",
-          description: result.message || "Identifiants invalides",
-          variant: "destructive",
-        });
       }
-    } catch (err) {
-      console.error("Exception lors de la connexion:", err);
-      const errorMessage = err instanceof Error ? err.message : "Erreur lors de la connexion";
-      setError(errorMessage);
-      
-      if (errorMessage.includes('base de données') || errorMessage.includes('database')) {
-        setHasDbError(true);
-      } else if (errorMessage.includes('serveur') || errorMessage.includes('server') || errorMessage.includes('env.php')) {
-        setHasServerError(true);
-      } else {
-        setHasAuthError(true);
-      }
-      
-      toast({
-        title: "Erreur",
-        description: errorMessage,
-        variant: "destructive",
-      });
     } finally {
       setIsLoading(false);
     }
-  }, [navigate, toast]);
-  
-  const onSubmit = form.handleSubmit(handleSubmit);
-  
+  };
+
   return {
     form,
     isLoading,
-    error,
     hasDbError,
     hasServerError,
     hasAuthError,
-    onSubmit
+    onSubmit: form.handleSubmit(onSubmit)
   };
 };
