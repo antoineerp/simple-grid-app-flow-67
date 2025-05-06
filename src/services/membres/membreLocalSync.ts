@@ -2,28 +2,21 @@
 import { Membre } from '@/types/membres';
 
 /**
- * Synchronise les membres entre différents utilisateurs en local
+ * Synchronise les membres dans le stockage local uniquement pour l'utilisateur concerné
  * @param membres Les membres à synchroniser
- * @param sourceUser L'utilisateur source
- * @param targetUsers Les utilisateurs cibles
+ * @param userId L'identifiant de l'utilisateur
  */
-export const synchroniserMembresEntreUtilisateurs = (
+export const synchroniserMembresLocaux = (
   membres: Membre[],
-  sourceUser: string,
-  targetUsers: string[]
+  userId: string
 ): void => {
-  console.log(`Synchronisation locale des membres depuis ${sourceUser} vers ${targetUsers.length} utilisateurs`);
+  console.log(`Mise à jour locale des données membres pour l'utilisateur ${userId}`);
   
   // Cloner les membres pour éviter les références
   const membresClone = JSON.parse(JSON.stringify(membres));
   
-  // Pour chaque utilisateur cible, enregistrer les membres
-  targetUsers.forEach(targetUser => {
-    if (targetUser !== sourceUser) {
-      console.log(`- Synchronisation des données vers ${targetUser}`);
-      localStorage.setItem(`membres_${targetUser}`, JSON.stringify(membresClone));
-    }
-  });
+  // Enregistrer dans le localStorage pour cet utilisateur uniquement
+  localStorage.setItem(`membres_${userId}`, JSON.stringify(membresClone));
   
   // Notifier sur la mise à jour des membres
   window.dispatchEvent(new Event('membresLocalSync'));
@@ -52,21 +45,54 @@ export const getLocalUsers = (): string[] => {
 /**
  * Crée une table locale pour un nouvel utilisateur
  */
-export const createLocalTableForUser = (userId: string, fromUserId?: string): void => {
+export const createLocalTableForUser = (userId: string): void => {
   console.log(`Création d'une table locale pour l'utilisateur ${userId}`);
   
-  if (fromUserId) {
-    // Copier les données depuis l'utilisateur source
-    const sourceData = localStorage.getItem(`membres_${fromUserId}`);
-    if (sourceData) {
-      localStorage.setItem(`membres_${userId}`, sourceData);
-      console.log(`Table créée avec les données de ${fromUserId}`);
-      return;
+  // Vérifier si la table existe déjà
+  if (localStorage.getItem(`membres_${userId}`)) {
+    console.log(`La table locale pour ${userId} existe déjà`);
+    return;
+  }
+  
+  // Chercher un gestionnaire
+  let sourceData = null;
+  const users = getLocalUsers();
+  
+  // Recherche d'un utilisateur gestionnaire stocké en local
+  for (const user of users) {
+    const userRole = localStorage.getItem(`role_${user}`);
+    if (userRole === 'gestionnaire') {
+      sourceData = localStorage.getItem(`membres_${user}`);
+      if (sourceData) {
+        console.log(`Utilisation des données du gestionnaire local ${user}`);
+        break;
+      }
     }
   }
   
-  // Si pas de source ou source non trouvée, utiliser le template ou créer un template vide
-  const defaultData = localStorage.getItem('membres_template') || JSON.stringify([
+  // Si aucun gestionnaire trouvé, chercher un administrateur
+  if (!sourceData) {
+    for (const user of users) {
+      const userRole = localStorage.getItem(`role_${user}`);
+      if (userRole === 'admin' || userRole === 'administrateur') {
+        sourceData = localStorage.getItem(`membres_${user}`);
+        if (sourceData) {
+          console.log(`Utilisation des données de l'administrateur local ${user}`);
+          break;
+        }
+      }
+    }
+  }
+  
+  // Si on a trouvé des données sources, les utiliser
+  if (sourceData) {
+    localStorage.setItem(`membres_${userId}`, sourceData);
+    console.log(`Table locale créée pour ${userId} avec données existantes`);
+    return;
+  }
+  
+  // Sinon, créer des données par défaut
+  const defaultData = [
     { 
       id: '1', 
       nom: 'Dupont',
@@ -85,10 +111,10 @@ export const createLocalTableForUser = (userId: string, fromUserId?: string): vo
       date_creation: new Date(),
       mot_de_passe: ''
     },
-  ]);
+  ];
   
-  localStorage.setItem(`membres_${userId}`, defaultData);
-  console.log(`Table créée avec les données par défaut`);
+  localStorage.setItem(`membres_${userId}`, JSON.stringify(defaultData));
+  console.log(`Table locale créée pour ${userId} avec données par défaut`);
 };
 
 /**
@@ -100,9 +126,9 @@ export const deleteLocalTablesForUser = (userId: string): void => {
   // Supprimer la table des membres
   localStorage.removeItem(`membres_${userId}`);
   
-  // Supprimer d'autres tables associées à l'utilisateur si nécessaire
-  // localStorage.removeItem(`documents_${userId}`);
-  // localStorage.removeItem(`exigences_${userId}`);
+  // Supprimer d'autres tables associées à l'utilisateur
+  localStorage.removeItem(`documents_${userId}`);
+  localStorage.removeItem(`exigences_${userId}`);
   
   console.log(`Tables supprimées pour l'utilisateur ${userId}`);
 };

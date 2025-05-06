@@ -1,4 +1,3 @@
-
 <?php
 if (!defined('DIRECT_ACCESS_CHECK')) {
     define('DIRECT_ACCESS_CHECK', true);
@@ -222,32 +221,58 @@ function deleteUserTables($db, $userId) {
  */
 function copyManagerDataIfAvailable($db, $targetUserId) {
     try {
-        // Trouver le gestionnaire
+        // Chercher d'abord un gestionnaire
         $stmt = $db->prepare("SELECT identifiant_technique FROM utilisateurs WHERE role = 'gestionnaire' LIMIT 1");
         $stmt->execute();
         $manager = $stmt->fetch(PDO::FETCH_ASSOC);
         
-        if (!$manager) {
-            error_log("Aucun gestionnaire trouvé pour la copie des données");
-            return false;
+        if ($manager) {
+            // Si un gestionnaire existe, utiliser ses données
+            $sourceUserId = $manager['identifiant_technique'];
+            copyUserData($db, $sourceUserId, $targetUserId);
+            error_log("Données copiées du gestionnaire {$sourceUserId} vers {$targetUserId}");
+            return true;
         }
         
-        $managerUserId = $manager['identifiant_technique'];
-        error_log("Copie des données du gestionnaire {$managerUserId} vers {$targetUserId}");
+        // Si aucun gestionnaire trouvé, chercher un administrateur
+        $stmt = $db->prepare("SELECT identifiant_technique FROM utilisateurs WHERE role IN ('admin', 'administrateur') LIMIT 1");
+        $stmt->execute();
+        $admin = $stmt->fetch(PDO::FETCH_ASSOC);
         
+        if ($admin) {
+            // Utiliser les données de l'administrateur
+            $sourceUserId = $admin['identifiant_technique'];
+            copyUserData($db, $sourceUserId, $targetUserId);
+            error_log("Données copiées de l'administrateur {$sourceUserId} vers {$targetUserId}");
+            return true;
+        }
+        
+        error_log("Aucun gestionnaire ou administrateur trouvé pour la copie des données");
+        return false;
+    } catch (PDOException $e) {
+        error_log("Erreur lors de la recherche d'un gestionnaire ou administrateur: " . $e->getMessage());
+        return false;
+    }
+}
+
+/**
+ * Copie les données d'un utilisateur vers un autre
+ */
+function copyUserData($db, $sourceUserId, $targetUserId) {
+    try {
         // Sécuriser les identifiants
-        $safeManagerId = preg_replace('/[^a-zA-Z0-9_]/', '_', $managerUserId);
+        $safeSourceId = preg_replace('/[^a-zA-Z0-9_]/', '_', $sourceUserId);
         $safeTargetId = preg_replace('/[^a-zA-Z0-9_]/', '_', $targetUserId);
         
         // Copier les tables
         $tables = [
-            "membres" => "membres_{$safeManagerId}",
-            "documents" => "documents_{$safeManagerId}",
-            "exigences" => "exigences_{$safeManagerId}"
+            "membres" => "membres_{$safeSourceId}",
+            "documents" => "documents_{$safeSourceId}",
+            "exigences" => "exigences_{$safeSourceId}"
         ];
         
         foreach ($tables as $type => $sourceTable) {
-            $targetTable = str_replace($safeManagerId, $safeTargetId, $sourceTable);
+            $targetTable = str_replace($safeSourceId, $safeTargetId, $sourceTable);
             
             // Vérifier si la table source existe
             $stmt = $db->prepare("SHOW TABLES LIKE :table");
@@ -255,6 +280,45 @@ function copyManagerDataIfAvailable($db, $targetUserId) {
             
             if ($stmt->rowCount() > 0) {
                 error_log("Copie de {$sourceTable} vers {$targetTable}");
+                
+                // S'assurer que la table cible existe
+                $tableCreateQueries = [
+                    "membres" => "CREATE TABLE IF NOT EXISTS `{$targetTable}` (
+                        `id` VARCHAR(36) PRIMARY KEY,
+                        `nom` VARCHAR(100) NOT NULL,
+                        `prenom` VARCHAR(100) NOT NULL,
+                        `fonction` VARCHAR(100),
+                        `initiales` VARCHAR(10),
+                        `mot_de_passe` VARCHAR(255),
+                        `date_creation` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                        `date_modification` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4",
+                    "documents" => "CREATE TABLE IF NOT EXISTS `{$targetTable}` (
+                        `id` VARCHAR(36) PRIMARY KEY,
+                        `name` VARCHAR(255) NOT NULL,
+                        `link` VARCHAR(1024),
+                        `groupId` VARCHAR(36),
+                        `date_creation` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                        `date_modification` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4",
+                    "exigences" => "CREATE TABLE IF NOT EXISTS `{$targetTable}` (
+                        `id` VARCHAR(36) PRIMARY KEY,
+                        `nom` VARCHAR(255) NOT NULL,
+                        `responsabilites` JSON,
+                        `exclusion` BOOLEAN DEFAULT FALSE,
+                        `atteinte` ENUM('NC', 'PC', 'C') NULL,
+                        `groupId` VARCHAR(36),
+                        `date_creation` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                        `date_modification` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
+                ];
+                
+                if (isset($tableCreateQueries[$type])) {
+                    $db->exec($tableCreateQueries[$type]);
+                }
+                
+                // Vider la table cible avant d'y copier les données
+                $db->exec("DELETE FROM `{$targetTable}`");
                 
                 // Copier les données
                 $db->exec("INSERT INTO `{$targetTable}` SELECT * FROM `{$sourceTable}`");
@@ -266,7 +330,7 @@ function copyManagerDataIfAvailable($db, $targetUserId) {
         
         return true;
     } catch (PDOException $e) {
-        error_log("Erreur lors de la copie des données du gestionnaire: " . $e->getMessage());
+        error_log("Erreur lors de la copie des données: " . $e->getMessage());
         return false;
     }
 }

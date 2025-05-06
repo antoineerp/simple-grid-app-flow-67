@@ -15,6 +15,7 @@ import { adminImportFromManager } from '@/services/core/userInitializationServic
 import { getApiUrl } from '@/config/apiConfig';
 import { getAuthHeaders } from '@/services/auth/authService';
 import type { Utilisateur } from '@/services';
+import { deleteLocalTablesForUser } from '@/services/membres/membreLocalSync';
 
 interface UserManagementProps {
   currentDatabaseUser: string | null;
@@ -86,56 +87,54 @@ const UserManagement = ({ currentDatabaseUser, onUserConnect }: UserManagementPr
     }
   };
   
-  const handleDeleteUser = async (userId: number, identifiantTechnique: string) => {
-    if (!window.confirm("Êtes-vous sûr de vouloir supprimer cet utilisateur ?")) {
-      return;
-    }
+const handleDeleteUser = async (userId: number, identifiantTechnique: string) => {
+  if (!window.confirm("Êtes-vous sûr de vouloir supprimer cet utilisateur ?")) {
+    return;
+  }
+  
+  setDeletingUserId(userId);
+  
+  try {
+    // Supprimer les tables locales de l'utilisateur
+    deleteLocalTablesForUser(identifiantTechnique);
+    console.log(`Tables locales supprimées pour ${identifiantTechnique}`);
     
-    setDeletingUserId(userId);
-    
-    try {
-      // Supprimer les tables locales de l'utilisateur
-      import('@/services/membres/membreLocalSync').then(module => {
-        module.deleteLocalTablesForUser(identifiantTechnique);
-        console.log(`Tables locales supprimées pour ${identifiantTechnique}`);
-      });
-      
-      // Supprimer l'utilisateur sur le serveur
-      const response = await fetch(`${getApiUrl()}/users`, {
-        method: 'DELETE',
-        headers: {
-          ...getAuthHeaders(),
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ id: userId })
-      });
+    // Supprimer l'utilisateur sur le serveur
+    const response = await fetch(`${getApiUrl()}/users`, {
+      method: 'DELETE',
+      headers: {
+        ...getAuthHeaders(),
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ id: userId })
+    });
 
-      const data = await response.json();
+    const data = await response.json();
 
-      if (response.ok) {
-        toast({
-          title: "Succès",
-          description: "L'utilisateur a été supprimé avec succès",
-        });
-        loadUtilisateurs();  // Recharger la liste des utilisateurs
-      } else {
-        toast({
-          title: "Erreur",
-          description: data.message || "Erreur lors de la suppression de l'utilisateur",
-          variant: "destructive",
-        });
-      }
-    } catch (error) {
-      console.error("Erreur lors de la suppression:", error);
+    if (response.ok) {
+      toast({
+        title: "Succès",
+        description: "L'utilisateur a été supprimé avec succès",
+      });
+      loadUtilisateurs();  // Recharger la liste des utilisateurs
+    } else {
       toast({
         title: "Erreur",
-        description: "Impossible de supprimer l'utilisateur",
+        description: data.message || "Erreur lors de la suppression de l'utilisateur",
         variant: "destructive",
       });
-    } finally {
-      setDeletingUserId(null);
     }
-  };
+  } catch (error) {
+    console.error("Erreur lors de la suppression:", error);
+    toast({
+      title: "Erreur",
+      description: "Impossible de supprimer l'utilisateur",
+      variant: "destructive",
+    });
+  } finally {
+    setDeletingUserId(null);
+  }
+};
 
   const isCurrentUserAdmin = () => {
     if (!currentDatabaseUser || !utilisateurs.length) return false;
