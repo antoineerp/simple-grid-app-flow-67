@@ -75,27 +75,16 @@ jobs:
         ls -la dist/public/ || echo "No public folder"
         
     # ----------- MODIFICATION ----------- #
-    - name: Sync full dist folder to Infomaniak server
-      uses: SamKirkland/FTP-Deploy-Action@v4.3.4
+    - name: Deploy to Infomaniak using SFTP
+      uses: wlixcc/SFTP-Deploy-Action@v1.2.4
       with:
         server: ${{ secrets.FTP_SERVER }}
         username: ${{ secrets.FTP_USERNAME }}
         password: ${{ secrets.FTP_PASSWORD }}
-        local-dir: ./dist/
-        server-dir: /sites/qualiopi.ch/
-        dangerous-clean-slate: false
-        exclude: |
-          **/.git*
-          **/.git*/**
-          **/node_modules/**
-          README.md
-          package.json
-          package-lock.json
-          tsconfig*.json
-          *.log
-        log-level: verbose
-        timeout: 120000
-        dry-run: false
+        port: 22
+        local_path: './dist/'
+        remote_path: '/sites/qualiopi.ch/'
+        delete_remote_files: false
     # ----------- FIN MODIFICATION ----------- #
     
     - name: Post-deployment verification
@@ -104,3 +93,4 @@ jobs:
         echo "Exécutez fix-assets-runtime.php sur votre serveur pour vérifier l'état du déploiement."
         echo "URL: https://qualiopi.ch/fix-assets-runtime.php"
         echo "Vérifiez également: https://qualiopi.ch/fix-index-references.php"
+
