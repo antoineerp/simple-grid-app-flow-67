@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { FileText, Pencil, Trash, ChevronDown, FolderPlus, GripVertical, ExternalLink, CloudSun } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
@@ -38,7 +37,6 @@ const Bibliotheque = () => {
     isSyncing,
     isOnline,
     lastSynced,
-    queueStatus,
     hasUnsyncedData,
     setIsDialogOpen,
     setIsGroupDialogOpen,
@@ -56,9 +54,7 @@ const Bibliotheque = () => {
     handleGroupDrop,
     toggleGroup,
     setDraggedItem,
-    syncWithServer,
-    retryFailedOperations,
-    clearFailedOperations
+    syncWithServer
   } = useBibliotheque();
   
   const handleExportPdf = () => {
@@ -67,6 +63,16 @@ const Bibliotheque = () => {
       title: "Export PDF réussi",
       description: "Le document a été généré et téléchargé",
     });
+  };
+
+  const handleSyncClick = async () => {
+    const success = await syncWithServer();
+    if (success) {
+      toast({
+        title: "Synchronisation réussie",
+        description: "Toutes les données ont été synchronisées avec le serveur",
+      });
+    }
   };
 
   const handleDragStart = (e: React.DragEvent<HTMLTableRowElement>, id: string, groupId?: string) => {
@@ -141,7 +147,7 @@ const Bibliotheque = () => {
         </div>
         <div className="flex space-x-2">
           <button 
-            onClick={syncWithServer}
+            onClick={handleSyncClick}
             className="text-blue-600 p-2 rounded-md hover:bg-blue-50 transition-colors flex items-center"
             title="Synchroniser avec le serveur"
             disabled={isSyncing}
@@ -163,10 +169,8 @@ const Bibliotheque = () => {
           isSyncing={isSyncing}
           isOnline={isOnline}
           lastSynced={lastSynced}
-          queueStatus={queueStatus}
           hasUnsyncedData={hasUnsyncedData}
-          onRetry={retryFailedOperations}
-          onClear={clearFailedOperations}
+          onSync={handleSyncClick}
         />
       </div>
       

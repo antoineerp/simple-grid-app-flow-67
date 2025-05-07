@@ -6,7 +6,7 @@ import {
   loadBibliothequeFromStorage,
   saveBibliothequeToStorage
 } from '@/services/bibliotheque/bibliothequeService';
-import { useGlobalSync } from '@/hooks/useGlobalSync'; // Ajustez cette importation selon votre structure
+import { useGlobalSync } from '@/hooks/useGlobalSync';
 
 export const useBibliotheque = () => {
   const { toast } = useToast();
@@ -27,10 +27,7 @@ export const useBibliotheque = () => {
     isSyncing,
     isOnline,
     lastSynced,
-    queueStatus,
-    hasUnsyncedData,
-    retryFailedOperations,
-    clearFailedOperations
+    hasUnsyncedData
   } = useGlobalSync();
 
   useEffect(() => {
@@ -304,7 +301,6 @@ export const useBibliotheque = () => {
     isSyncing,
     isOnline,
     lastSynced,
-    queueStatus,
     hasUnsyncedData,
     setIsDialogOpen,
     setIsGroupDialogOpen,
@@ -322,8 +318,6 @@ export const useBibliotheque = () => {
     handleGroupDrop,
     toggleGroup,
     setDraggedItem,
-    syncWithServer,
-    retryFailedOperations,
-    clearFailedOperations
+    syncWithServer
   };
 };
