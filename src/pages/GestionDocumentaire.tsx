@@ -10,7 +10,6 @@ import { useDocuments } from '@/hooks/useDocuments';
 import { exportDocumentsToPdf } from '@/services/pdfExport';
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
-import SyncStatusIndicator from '@/components/common/SyncStatusIndicator';
 
 const GestionDocumentaireContent = () => {
   const {
@@ -76,14 +75,6 @@ const GestionDocumentaireContent = () => {
             <FileText className="h-6 w-6 stroke-[1.5]" />
           </button>
         </div>
-      </div>
-
-      <div className="mb-4">
-        <SyncStatusIndicator 
-          isSyncing={isSyncing}
-          isOnline={isOnline}
-          lastSynced={lastSynced}
-        />
       </div>
 
       <DocumentStatusDisplay stats={stats} />

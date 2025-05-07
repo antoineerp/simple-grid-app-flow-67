@@ -10,12 +10,11 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { useMembres } from '@/contexts/MembresContext';
+import { useMembres } from '@/hooks/useMembres';
 import MemberList from '@/components/ressources-humaines/MemberList';
 import MemberForm from '@/components/ressources-humaines/MemberForm';
 import { Membre } from '@/types/membres';
 import { exportAllCollaborateursToPdf } from '@/services/collaborateurExport';
-import SyncStatusIndicator from '@/components/common/SyncStatusIndicator';
 
 const RessourcesHumaines = () => {
   const { toast } = useToast();
@@ -184,14 +183,6 @@ const RessourcesHumaines = () => {
             <FileText className="h-6 w-6 stroke-[1.5]" />
           </button>
         </div>
-      </div>
-
-      <div className="mb-4">
-        <SyncStatusIndicator 
-          isSyncing={isSyncing}
-          isOnline={isOnline}
-          lastSynced={lastSynced}
-        />
       </div>
 
       {isLoading ? (
