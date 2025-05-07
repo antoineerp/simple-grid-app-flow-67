@@ -2,7 +2,24 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
-import { componentTagger } from "lovable-tagger";
+
+// Only import the componentTagger in development, and only if Node.js version is compatible
+const getDevPlugins = (mode) => {
+  const plugins = [];
+  
+  // Only use componentTagger in development mode
+  if (mode === 'development') {
+    try {
+      // Dynamically import to avoid import errors in production or with older Node.js
+      const { componentTagger } = require("lovable-tagger");
+      plugins.push(componentTagger());
+    } catch (error) {
+      console.warn("WARNING: componentTagger plugin could not be loaded. This is expected in production or with Node.js < 18.");
+    }
+  }
+  
+  return plugins;
+};
 
 export default defineConfig(({ mode }) => {
   // Configuration spécifique pour Infomaniak
@@ -20,8 +37,8 @@ export default defineConfig(({ mode }) => {
     },
     plugins: [
       react(),
-      mode === 'development' && componentTagger(),
-    ].filter(Boolean),
+      ...(getDevPlugins(mode)),
+    ],
     resolve: {
       alias: {
         "@": path.resolve(__dirname, "./src"),
