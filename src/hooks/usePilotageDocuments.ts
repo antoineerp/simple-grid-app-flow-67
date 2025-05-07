@@ -1,122 +1,129 @@
 
-import { useState } from 'react';
-import { useToast } from "@/hooks/use-toast";
-
-interface Document {
-  id: number;
-  ordre: number;
-  nom: string;
-  lien: string | null;
-}
+import { useState, useEffect, useCallback } from 'react';
+import { useToast } from '@/hooks/use-toast';
+import { Document } from '@/types/documents';
+import { syncPilotageWithServer, loadPilotageFromStorage } from '@/services/pilotage/pilotageSyncService';
 
 export const usePilotageDocuments = () => {
   const { toast } = useToast();
-  const [documents, setDocuments] = useState<Document[]>([
-    { id: 1, ordre: 1, nom: 'Charte institutionnelle', lien: 'Voir le document' },
-    { id: 2, ordre: 2, nom: 'Objectifs stratégiques', lien: null },
-    { id: 3, ordre: 3, nom: 'Objectifs opérationnels', lien: 'Voir le document' },
-    { id: 4, ordre: 4, nom: 'Risques', lien: null },
-  ]);
-
+  const currentUser = localStorage.getItem('currentUser') || 'default';
+  const [documents, setDocuments] = useState<Document[]>(() => loadPilotageFromStorage(currentUser));
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
-  const [currentDocument, setCurrentDocument] = useState<Document>({
-    id: 0,
-    ordre: 0,
-    nom: '',
-    lien: null
-  });
-
-  const handleAddDocument = () => {
-    const nextOrdre = documents.length > 0 
-      ? Math.max(...documents.map(doc => doc.ordre)) + 1 
-      : 1;
+  const [currentDocument, setCurrentDocument] = useState<Document | null>(null);
+  
+  // Sauvegarder les changements dans le stockage local et synchroniser avec le serveur
+  useEffect(() => {
+    const savePilotageToStorage = async () => {
+      localStorage.setItem(`pilotage_${currentUser}`, JSON.stringify(documents));
+      
+      // Si l'utilisateur est admin ou gestionnaire, aussi sauvegarder comme template
+      const userRole = localStorage.getItem('userRole');
+      if (userRole === 'admin' || userRole === 'administrateur' || userRole === 'gestionnaire') {
+        localStorage.setItem('pilotage_template', JSON.stringify(documents));
+      }
+      
+      // Synchroniser avec le serveur
+      try {
+        await syncPilotageWithServer(documents, currentUser);
+      } catch (error) {
+        console.error('Erreur de synchronisation des documents de pilotage:', error);
+      }
+      
+      // Notifier sur la mise à jour des documents
+      window.dispatchEvent(new Event('pilotageUpdate'));
+    };
     
-    setCurrentDocument({
-      id: 0,
-      ordre: nextOrdre,
-      nom: '',
-      lien: null
-    });
+    savePilotageToStorage();
+  }, [documents, currentUser]);
+  
+  const handleAddDocument = useCallback(() => {
+    const maxId = documents.length > 0 
+      ? Math.max(...documents.map(d => parseInt(d.id)))
+      : 0;
+    
+    const newId = (maxId + 1).toString();
+    
+    const newDocument: Document = {
+      id: newId,
+      nom: `Document ${newId}`,
+      fichier_path: null,
+      responsabilites: { r: [], a: [], c: [], i: [] },
+      etat: null,
+      date_creation: new Date(),
+      date_modification: new Date()
+    };
+    
+    setCurrentDocument(newDocument);
     setIsEditing(false);
     setIsDialogOpen(true);
-  };
-
-  const handleEditDocument = (doc: Document) => {
-    setCurrentDocument({ ...doc });
+  }, [documents]);
+  
+  const handleEditDocument = useCallback((document: Document) => {
+    setCurrentDocument({ ...document });
     setIsEditing(true);
     setIsDialogOpen(true);
-  };
-
-  const handleDeleteDocument = (id: number) => {
-    setDocuments(documents.filter(doc => doc.id !== id));
+  }, []);
+  
+  const handleDeleteDocument = useCallback((id: string) => {
+    setDocuments(prev => prev.filter(doc => doc.id !== id));
     toast({
       title: "Document supprimé",
-      description: "Le document a été supprimé avec succès",
+      description: `Le document ${id} a été supprimé`,
     });
-  };
-
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setCurrentDocument({
-      ...currentDocument,
-      [name]: value
+  }, [toast]);
+  
+  const handleInputChange = useCallback((field: string, value: any) => {
+    setCurrentDocument(prev => {
+      if (!prev) return null;
+      return { ...prev, [field]: value };
     });
-  };
-
-  const handleSaveDocument = () => {
-    if (currentDocument.nom.trim() === '') {
-      toast({
-        title: "Erreur",
-        description: "Le nom du document est requis",
-        variant: "destructive",
-      });
-      return;
-    }
-
+  }, []);
+  
+  const handleSaveDocument = useCallback(() => {
+    if (!currentDocument) return;
+    
     if (isEditing) {
-      setDocuments(documents.map(doc => 
-        doc.id === currentDocument.id ? currentDocument : doc
-      ));
+      // Mise à jour d'un document existant
+      setDocuments(prev => 
+        prev.map(doc => 
+          doc.id === currentDocument.id 
+            ? { ...currentDocument, date_modification: new Date() }
+            : doc
+        )
+      );
+      
       toast({
         title: "Document mis à jour",
-        description: "Le document a été mis à jour avec succès",
+        description: `Le document ${currentDocument.id} a été mis à jour`,
       });
     } else {
-      const newId = documents.length > 0 
-        ? Math.max(...documents.map(doc => doc.id)) + 1 
-        : 1;
+      // Ajout d'un nouveau document
+      setDocuments(prev => [...prev, { 
+        ...currentDocument, 
+        date_creation: new Date(),
+        date_modification: new Date()
+      }]);
       
-      setDocuments([...documents, { ...currentDocument, id: newId }]);
       toast({
         title: "Document ajouté",
-        description: "Le nouveau document a été ajouté avec succès",
+        description: `Le document ${currentDocument.id} a été ajouté`,
       });
     }
     
     setIsDialogOpen(false);
-  };
-
-  const handleReorder = (startIndex: number, endIndex: number) => {
-    if (startIndex === endIndex) return;
-    
-    const result = Array.from(documents);
-    const [removed] = result.splice(startIndex, 1);
-    result.splice(endIndex, 0, removed);
-    
-    const updatedDocuments = result.map((doc, index) => ({
-      ...doc,
-      ordre: index + 1
-    }));
-    
-    setDocuments(updatedDocuments);
-    
-    toast({
-      title: "Ordre mis à jour",
-      description: "L'ordre des documents a été mis à jour avec succès",
+    setCurrentDocument(null);
+  }, [currentDocument, isEditing, toast]);
+  
+  const handleReorder = useCallback((startIndex: number, endIndex: number) => {
+    setDocuments(prev => {
+      const result = Array.from(prev);
+      const [removed] = result.splice(startIndex, 1);
+      result.splice(endIndex, 0, removed);
+      return result;
     });
-  };
-
+  }, []);
+  
   return {
     documents,
     isDialogOpen,
