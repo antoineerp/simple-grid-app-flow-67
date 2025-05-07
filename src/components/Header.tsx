@@ -2,7 +2,6 @@
 import React from 'react';
 import { User } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import GlobalSyncStatus from './common/GlobalSyncStatus';
 
 const Header: React.FC = () => {
   const navigate = useNavigate();
@@ -22,8 +21,6 @@ const Header: React.FC = () => {
       </div>
       
       <div className="flex items-center space-x-4">
-        <GlobalSyncStatus />
-        
         <div className="flex items-center">
           <div className="bg-gray-100 rounded-full p-2">
             <User className="h-5 w-5 text-gray-600" />

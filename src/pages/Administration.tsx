@@ -14,12 +14,16 @@ import { hasPermission, UserRole } from '@/types/roles';
 import UserDiagnostic from '@/components/admin/UserDiagnostic';
 import ManagerDataImport from '@/components/admin/ManagerDataImport';
 import { getUtilisateurs } from '@/services/users/userService';
+import { useGlobalSync } from '@/hooks/useGlobalSync';
+import { Button } from '@/components/ui/button';
+import { RefreshCw } from 'lucide-react';
 
 const Administration = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [currentDatabaseUser, setCurrentDatabaseUser] = useState<string | null>(getDatabaseConnectionCurrentUser());
   const [hasManager, setHasManager] = useState(false);
+  const { syncWithServer, isSyncing } = useGlobalSync();
 
   useEffect(() => {
     const userRole = localStorage.getItem('userRole') as UserRole;
@@ -55,18 +59,44 @@ const Administration = () => {
   const handleUserConnect = (identifiant: string) => {
     setCurrentDatabaseUser(identifiant);
   };
+  
+  const handleSync = async () => {
+    if (!isSyncing) {
+      const success = await syncWithServer();
+      if (success) {
+        toast({
+          title: "Synchronisation réussie",
+          description: "Toutes les données ont été synchronisées avec le serveur",
+        });
+      }
+    }
+  };
 
   return (
     <div className="container mx-auto py-8">
-      <h1 className="text-3xl font-bold mb-8">Administration du système</h1>
+      <h1 className="text-3xl font-bold mb-4">Administration du système</h1>
       
-      {currentDatabaseUser && (
-        <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-md">
-          <p className="font-medium text-blue-800">
-            Vous êtes actuellement connecté à la base de données en tant que: <span className="font-bold">{currentDatabaseUser}</span>
-          </p>
+      <div className="mb-8 flex justify-between items-center">
+        <div>
+          {currentDatabaseUser && (
+            <div className="p-2 bg-blue-50 border border-blue-200 rounded-md">
+              <p className="font-medium text-blue-800 text-sm">
+                Connecté en tant que: <span className="font-bold">{currentDatabaseUser}</span>
+              </p>
+            </div>
+          )}
         </div>
-      )}
+        
+        <Button
+          variant="outline"
+          onClick={handleSync}
+          disabled={isSyncing}
+          className="flex items-center gap-2"
+        >
+          <RefreshCw className={`h-4 w-4 ${isSyncing ? 'animate-spin' : ''}`} />
+          {isSyncing ? 'Synchronisation...' : 'Synchroniser les données'}
+        </Button>
+      </div>
       
       <Tabs defaultValue="utilisateurs">
         <TabsList className="mb-8">

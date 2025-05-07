@@ -95,7 +95,6 @@ export const loadAllFromServer = async (userId: any): Promise<AppData | null> =>
   try {
     const normalizedId = normalizeUserId(userId);
     const API_URL = getApiUrl();
-    console.log(`Chargement global des données pour l'utilisateur ${normalizedId}`);
     
     const response = await fetch(`${API_URL}/global-load.php?userId=${encodeURIComponent(normalizedId)}`, {
       method: 'GET',
@@ -108,7 +107,6 @@ export const loadAllFromServer = async (userId: any): Promise<AppData | null> =>
     }
     
     const result = await response.json();
-    console.log("Données globales chargées depuis le serveur:", result);
     
     return result.data || null;
   } catch (error) {

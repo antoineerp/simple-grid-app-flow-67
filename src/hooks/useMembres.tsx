@@ -8,9 +8,6 @@ import { useGlobalSync } from '@/hooks/useGlobalSync';
 interface MembresContextProps {
   membres: Membre[];
   setMembres: React.Dispatch<React.SetStateAction<Membre[]>>;
-  isSyncing: boolean;
-  isOnline: boolean;
-  lastSynced?: Date;
 }
 
 const MembresContext = createContext<MembresContextProps | undefined>(undefined);
@@ -18,7 +15,7 @@ const MembresContext = createContext<MembresContextProps | undefined>(undefined)
 export const MembresProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const { toast } = useToast();
   const [membres, setMembres] = useState<Membre[]>([]);
-  const { isSyncing, isOnline, lastSynced, appData, saveData } = useGlobalSync();
+  const { appData, saveData } = useGlobalSync();
 
   // Récupérer l'identifiant technique de l'utilisateur connecté
   const getUserId = (): string => {
@@ -37,22 +34,19 @@ export const MembresProvider: React.FC<{ children: ReactNode }> = ({ children })
 
   // Charger les données au démarrage
   useEffect(() => {
-    // Charger depuis le stockage local
-    const loadFromStorage = () => {
-      const localData = loadMembresFromStorage(userId);
-      setMembres(localData);
-    };
-    
     // Charger depuis les données globales quand elles sont disponibles
     if (appData.membres) {
       setMembres(appData.membres);
     } else {
-      loadFromStorage();
+      // Charger depuis le stockage local
+      const localData = loadMembresFromStorage(userId);
+      setMembres(localData);
     }
     
     // Écouter les mises à jour des membres
     const handleMembresUpdate = () => {
-      loadFromStorage();
+      const localData = loadMembresFromStorage(userId);
+      setMembres(localData);
     };
     
     window.addEventListener('membresUpdate', handleMembresUpdate);
@@ -78,10 +72,7 @@ export const MembresProvider: React.FC<{ children: ReactNode }> = ({ children })
   return (
     <MembresContext.Provider value={{ 
       membres, 
-      setMembres, 
-      isSyncing,
-      isOnline,
-      lastSynced
+      setMembres
     }}>
       {children}
     </MembresContext.Provider>
