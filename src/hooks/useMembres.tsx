@@ -3,8 +3,7 @@ import { createContext, useState, useEffect, useContext, ReactNode } from 'react
 import { Membre } from '@/types/membres';
 import { useToast } from '@/hooks/use-toast';
 import { loadMembresFromStorage, saveMembrestoStorage } from '@/services/membres/membresService';
-import { syncMembresWithServer, loadMembresFromServer } from '@/services/membres/membresSync';
-import { useNetworkStatus } from '@/hooks/useNetworkStatus';
+import { useGlobalSync } from '@/hooks/useGlobalSync';
 
 interface MembresContextProps {
   membres: Membre[];
@@ -12,8 +11,6 @@ interface MembresContextProps {
   isSyncing: boolean;
   isOnline: boolean;
   lastSynced?: Date;
-  syncWithServer: () => Promise<void>;
-  loadData: () => Promise<void>;
 }
 
 const MembresContext = createContext<MembresContextProps | undefined>(undefined);
@@ -21,84 +18,48 @@ const MembresContext = createContext<MembresContextProps | undefined>(undefined)
 export const MembresProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const { toast } = useToast();
   const [membres, setMembres] = useState<Membre[]>([]);
-  const [isSyncing, setIsSyncing] = useState(false);
-  const [lastSynced, setLastSynced] = useState<Date | undefined>(undefined);
-  const { isOnline } = useNetworkStatus();
+  const { isSyncing, isOnline, lastSynced, appData, saveData } = useGlobalSync();
   const currentUser = localStorage.getItem('currentUser') || 'default';
 
   // Charger les données au démarrage
   useEffect(() => {
-    loadData();
-  }, []);
+    // Charger depuis le stockage local
+    const loadFromStorage = () => {
+      const localData = loadMembresFromStorage(currentUser);
+      setMembres(localData);
+    };
+    
+    // Charger depuis les données globales quand elles sont disponibles
+    if (appData.membres) {
+      setMembres(appData.membres);
+    } else {
+      loadFromStorage();
+    }
+    
+    // Écouter les mises à jour des membres
+    const handleMembresUpdate = () => {
+      loadFromStorage();
+    };
+    
+    window.addEventListener('membresUpdate', handleMembresUpdate);
+    
+    return () => {
+      window.removeEventListener('membresUpdate', handleMembresUpdate);
+    };
+  }, [currentUser, appData.membres]);
 
   // Sauvegarder les données à chaque changement
   useEffect(() => {
     if (membres.length > 0) {
       saveMembrestoStorage(membres, currentUser);
+      
+      // Mettre à jour les données globales
+      saveData({
+        ...appData,
+        membres: membres
+      });
     }
   }, [membres]);
-
-  // Charger les données
-  const loadData = async () => {
-    // D'abord, essayer de charger depuis le serveur
-    if (isOnline) {
-      try {
-        const serverData = await loadMembresFromServer(currentUser);
-        if (serverData) {
-          setMembres(serverData);
-          setLastSynced(new Date());
-          return;
-        }
-      } catch (error) {
-        console.error('Erreur lors du chargement depuis le serveur:', error);
-      }
-    }
-    
-    // Charger depuis le stockage local si le serveur n'est pas disponible
-    const localData = loadMembresFromStorage(currentUser);
-    setMembres(localData);
-  };
-
-  // Méthode de synchronisation avec le serveur
-  const syncWithServer = async () => {
-    if (!isOnline) {
-      toast({
-        title: "Synchronisation impossible",
-        description: "Vous êtes actuellement hors ligne",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setIsSyncing(true);
-    
-    try {
-      const success = await syncMembresWithServer(membres, currentUser);
-      
-      if (success) {
-        toast({
-          title: "Synchronisation réussie",
-          description: "Les membres ont été synchronisés avec le serveur",
-        });
-        setLastSynced(new Date());
-      } else {
-        toast({
-          title: "Échec de la synchronisation",
-          description: "Une erreur est survenue lors de la synchronisation",
-          variant: "destructive",
-        });
-      }
-    } catch (error) {
-      console.error('Erreur de synchronisation:', error);
-      toast({
-        title: "Erreur de synchronisation",
-        description: `${error}`,
-        variant: "destructive",
-      });
-    } finally {
-      setIsSyncing(false);
-    }
-  };
 
   return (
     <MembresContext.Provider value={{ 
@@ -106,9 +67,7 @@ export const MembresProvider: React.FC<{ children: ReactNode }> = ({ children })
       setMembres, 
       isSyncing,
       isOnline,
-      lastSynced,
-      syncWithServer,
-      loadData
+      lastSynced
     }}>
       {children}
     </MembresContext.Provider>
