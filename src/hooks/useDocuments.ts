@@ -1,73 +1,54 @@
-
 import { useState, useEffect, useCallback } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { Document, DocumentStats, DocumentGroup } from '@/types/documents';
-import { syncDocumentsWithServer, loadDocumentsFromServer } from '@/services/documents/documentSyncService';
 import { loadDocumentsFromStorage, saveDocumentsToStorage, calculateDocumentStats } from '@/services/documents/documentsService';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
+import { useGlobalSync } from './useGlobalSync';
 
 export const useDocuments = () => {
   const { toast } = useToast();
   const { isOnline } = useNetworkStatus();
+  const { isSyncing, lastSynced, syncWithServer, appData, saveData } = useGlobalSync();
   const currentUser = localStorage.getItem('currentUser') || 'default';
   
-  const [documents, setDocuments] = useState<Document[]>(() => loadDocumentsFromStorage(currentUser));
+  const [documents, setDocuments] = useState<Document[]>(() => {
+    // Tenter de charger depuis les données globales d'abord
+    if (appData.documents && appData.documents.length > 0) {
+      return appData.documents;
+    }
+    return loadDocumentsFromStorage(currentUser);
+  });
+
   const [groups, setGroups] = useState<DocumentGroup[]>(() => {
     const storedGroups = localStorage.getItem(`document_groups_${currentUser}`);
     return storedGroups ? JSON.parse(storedGroups) : [];
   });
+  
   const [editingDocument, setEditingDocument] = useState<Document | null>(null);
   const [editingGroup, setEditingGroup] = useState<DocumentGroup | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [groupDialogOpen, setGroupDialogOpen] = useState(false);
   const [stats, setStats] = useState<DocumentStats>(() => calculateDocumentStats(documents));
-  const [isSyncing, setIsSyncing] = useState(false);
-  const [lastSynced, setLastSynced] = useState<Date | undefined>(undefined);
-
-  useEffect(() => {
-    const fetchDocumentsFromServer = async () => {
-      try {
-        const serverDocuments = await loadDocumentsFromServer(currentUser);
-        if (serverDocuments) {
-          setDocuments(serverDocuments);
-          localStorage.setItem(`documents_${currentUser}`, JSON.stringify(serverDocuments));
-          console.log('Documents chargés depuis le serveur et mis en cache');
-        } else {
-          console.log('Aucun document trouvé sur le serveur, utilisation des données locales');
-          syncWithServer();
-        }
-      } catch (error) {
-        console.error('Erreur lors du chargement des documents depuis le serveur:', error);
-        toast({
-          title: "Erreur de synchronisation",
-          description: "Impossible de charger les données depuis le serveur. Utilisation des données locales.",
-          variant: "destructive"
-        });
-      }
-    };
-
-    fetchDocumentsFromServer();
-  }, [currentUser]);
 
   useEffect(() => {
     setStats(calculateDocumentStats(documents));
   }, [documents]);
 
   useEffect(() => {
-    saveDocumentsToStorage(documents, currentUser);
-  }, [documents, currentUser]);
+    if (documents.length > 0) {
+      saveDocumentsToStorage(documents, currentUser);
+      
+      // Mettre à jour les données globales
+      saveData({
+        ...appData,
+        documents: documents
+      });
+    }
+  }, [documents, currentUser, appData, saveData]);
 
   useEffect(() => {
     localStorage.setItem(`document_groups_${currentUser}`, JSON.stringify(groups));
   }, [groups, currentUser]);
-
-  useEffect(() => {
-    const debounceSync = setTimeout(() => {
-      syncWithServer();
-    }, 2000);
-
-    return () => clearTimeout(debounceSync);
-  }, [documents]);
 
   const handleResponsabiliteChange = useCallback((id: string, type: 'r' | 'a' | 'c' | 'i', values: string[]) => {
     setDocuments(prev => 
@@ -258,51 +239,6 @@ export const useDocuments = () => {
     );
   }, []);
 
-  const syncWithServer = async () => {
-    if (isSyncing) return;
-    
-    setIsSyncing(true);
-    try {
-      await syncDocumentsWithServer(documents, currentUser);
-    } catch (error) {
-      console.error('Erreur lors de la synchronisation:', error);
-    } finally {
-      setIsSyncing(false);
-    }
-  };
-
-  const forceSyncWithServer = async () => {
-    if (isSyncing) return;
-    
-    setIsSyncing(true);
-    try {
-      const success = await syncDocumentsWithServer(documents, currentUser);
-      
-      if (success) {
-        setLastSynced(new Date());
-        toast({
-          title: "Synchronisation réussie",
-          description: "Vos documents ont été synchronisés avec le serveur",
-        });
-      } else {
-        toast({
-          title: "Erreur de synchronisation",
-          description: "Impossible de synchroniser vos documents",
-          variant: "destructive"
-        });
-      }
-    } catch (error) {
-      console.error('Erreur lors de la synchronisation:', error);
-      toast({
-        title: "Erreur de synchronisation",
-        description: `Erreur: ${error instanceof Error ? error.message : 'Inconnue'}`,
-        variant: "destructive"
-      });
-    } finally {
-      setIsSyncing(false);
-    }
-  };
-
   const processedGroups = groups.map(group => {
     const groupItems = documents.filter(doc => doc.groupId === group.id);
     return {
@@ -336,7 +272,7 @@ export const useDocuments = () => {
     handleDeleteGroup,
     handleGroupReorder,
     handleToggleGroup,
-    syncWithServer: forceSyncWithServer,
+    syncWithServer,
     isOnline,
     lastSynced
   };

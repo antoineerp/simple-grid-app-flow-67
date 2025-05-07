@@ -13,4 +13,4 @@ export {
 // Export the primary calculateDocumentStats from documentStatsService
 export { calculateDocumentStats } from './documentStatsService';
 
-export * from './documentSyncService';
+// Note: documentSyncService is no longer used with the global sync system

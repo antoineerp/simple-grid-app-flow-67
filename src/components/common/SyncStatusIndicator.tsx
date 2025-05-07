@@ -31,7 +31,7 @@ const SyncStatusIndicator: React.FC<SyncStatusProps> = ({
             ) : isOnline ? (
               <div className="relative">
                 <Cloud className="h-4 w-4 text-green-500" />
-                <Check className="h-3 w-3 text-green-500 absolute -bottom-1 -right-1" />
+                {lastSynced && <Check className="h-3 w-3 text-green-500 absolute -bottom-1 -right-1" />}
               </div>
             ) : (
               <Cloud className="h-4 w-4 text-amber-500" />

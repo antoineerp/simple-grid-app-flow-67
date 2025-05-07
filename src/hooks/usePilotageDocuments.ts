@@ -2,11 +2,12 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { Document } from '@/types/documents';
-import { syncPilotageWithServer, loadPilotageFromStorage } from '@/services/pilotage/pilotageSyncService';
 import { PilotageDocument } from '@/components/pilotage/types';
+import { useGlobalSync } from './useGlobalSync';
 
 export const usePilotageDocuments = () => {
   const { toast } = useToast();
+  const { appData, saveData } = useGlobalSync();
   const currentUser = localStorage.getItem('currentUser') || 'default';
   
   // Transformer les documents du format Document au format PilotageDocument
@@ -38,17 +39,27 @@ export const usePilotageDocuments = () => {
   };
   
   const [documents, setDocuments] = useState<PilotageDocument[]>(() => {
-    const loadedDocs = loadPilotageFromStorage(currentUser);
-    return transformDocumentsForPilotage(loadedDocs);
+    // Tenter de charger depuis les données globales d'abord
+    if (appData.pilotageDocuments && appData.pilotageDocuments.length > 0) {
+      return transformDocumentsForPilotage(appData.pilotageDocuments);
+    } 
+    
+    // Sinon charger depuis le stockage local
+    const pilotageData = localStorage.getItem(`pilotage_${currentUser}`);
+    if (pilotageData) {
+      return transformDocumentsForPilotage(JSON.parse(pilotageData));
+    }
+    
+    return [];
   });
   
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [currentDocument, setCurrentDocument] = useState<PilotageDocument | null>(null);
   
-  // Sauvegarder les changements dans le stockage local et synchroniser avec le serveur
+  // Sauvegarder les changements dans le stockage local et dans le service global
   useEffect(() => {
-    const savePilotageToStorage = async () => {
+    const savePilotageToStorage = () => {
       const storageDocuments = transformDocumentsForStorage(documents);
       
       localStorage.setItem(`pilotage_${currentUser}`, JSON.stringify(storageDocuments));
@@ -59,19 +70,20 @@ export const usePilotageDocuments = () => {
         localStorage.setItem('pilotage_template', JSON.stringify(storageDocuments));
       }
       
-      // Synchroniser avec le serveur
-      try {
-        await syncPilotageWithServer(storageDocuments, currentUser);
-      } catch (error) {
-        console.error('Erreur de synchronisation des documents de pilotage:', error);
-      }
+      // Mettre à jour les données globales
+      saveData({
+        ...appData,
+        pilotageDocuments: storageDocuments
+      });
       
       // Notifier sur la mise à jour des documents
       window.dispatchEvent(new Event('pilotageUpdate'));
     };
     
-    savePilotageToStorage();
-  }, [documents, currentUser]);
+    if (documents.length > 0) {
+      savePilotageToStorage();
+    }
+  }, [documents, currentUser, appData, saveData]);
   
   const handleAddDocument = useCallback(() => {
     const maxId = documents.length > 0 

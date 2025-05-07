@@ -1,15 +1,38 @@
-
 import { useState, useEffect, useCallback } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { Document, DocumentGroup } from '@/types/bibliotheque';
 import { loadBibliothequeFromStorage, saveBibliothequeToStorage } from '@/services/bibliotheque/bibliothequeService';
-import { syncBibliothequeWithServer, loadBibliothequeFromServer } from '@/services/bibliotheque/bibliothequeSync';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
+import { useGlobalSync } from './useGlobalSync';
 
 export const useBibliotheque = () => {
   const { toast } = useToast();
-  const [documents, setDocuments] = useState<Document[]>([]);
-  const [groups, setGroups] = useState<DocumentGroup[]>([]);
+  const { isOnline } = useNetworkStatus();
+  const { isSyncing, lastSynced, syncWithServer, appData, saveData } = useGlobalSync();
+  const currentUser = localStorage.getItem('currentUser') || 'default';
+  
+  const [documents, setDocuments] = useState<Document[]>(() => {
+    // Tenter de charger depuis les données globales d'abord
+    if (appData.bibliotheque && appData.bibliotheque.documents) {
+      return appData.bibliotheque.documents;
+    }
+    
+    // Sinon, charger depuis le stockage local
+    const localData = loadBibliothequeFromStorage(currentUser);
+    return localData.documents;
+  });
+
+  const [groups, setGroups] = useState<DocumentGroup[]>(() => {
+    // Tenter de charger depuis les données globales d'abord
+    if (appData.bibliotheque && appData.bibliotheque.groups) {
+      return appData.bibliotheque.groups;
+    }
+    
+    // Sinon, charger depuis le stockage local
+    const localData = loadBibliothequeFromStorage(currentUser);
+    return localData.groups;
+  });
+
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isGroupDialogOpen, setIsGroupDialogOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -25,103 +48,22 @@ export const useBibliotheque = () => {
     items: []
   });
   const [draggedItem, setDraggedItem] = useState<{ id: string, groupId?: string } | null>(null);
-  const [isSyncing, setIsSyncing] = useState(false);
-  const [lastSynced, setLastSynced] = useState<Date | undefined>(undefined);
-  const { isOnline } = useNetworkStatus();
-
-  const currentUser = localStorage.getItem('currentUser') || 'default';
-
-  // Charger les données au démarrage
-  useEffect(() => {
-    loadData();
-  }, []);
   
   // Sauvegarder les données à chaque changement
   useEffect(() => {
     if (documents.length > 0 || groups.length > 0) {
       saveBibliothequeToStorage(documents, groups, currentUser);
-    }
-  }, [documents, groups]);
-
-  // Charger les données
-  const loadData = async () => {
-    // D'abord, essayer de charger depuis le serveur
-    if (isOnline) {
-      try {
-        const serverData = await loadBibliothequeFromServer(currentUser);
-        if (serverData) {
-          setDocuments(serverData.documents);
-          setGroups(serverData.groups);
-          setLastSynced(new Date());
-          return;
+      
+      // Mettre à jour les données globales
+      saveData({
+        ...appData,
+        bibliotheque: {
+          documents,
+          groups
         }
-      } catch (error) {
-        console.error('Erreur lors du chargement depuis le serveur:', error);
-      }
-    }
-    
-    // Charger depuis le stockage local si le serveur n'est pas disponible
-    const localData = loadBibliothequeFromStorage(currentUser);
-    setDocuments(localData.documents);
-    setGroups(localData.groups);
-  };
-
-  // Méthode de synchronisation avec le serveur
-  const syncWithServer = async () => {
-    if (!isOnline) {
-      toast({
-        title: "Synchronisation impossible",
-        description: "Vous êtes actuellement hors ligne",
-        variant: "destructive",
       });
-      return;
     }
-
-    setIsSyncing(true);
-    
-    try {
-      // Extraction des documents des groupes
-      const groupDocuments = groups.flatMap(group => 
-        group.items.map(item => ({...item, groupId: group.id}))
-      );
-      
-      // Combiner les documents indépendants et ceux des groupes
-      const allDocuments = [...documents, ...groupDocuments];
-      
-      // Groupes sans les items (mais en gardant la structure complète)
-      const groupsData: DocumentGroup[] = groups.map(group => ({
-        id: group.id,
-        name: group.name,
-        expanded: group.expanded,
-        items: [] // Adding empty items array to satisfy the type
-      }));
-      
-      const success = await syncBibliothequeWithServer(allDocuments, groupsData, currentUser);
-      
-      if (success) {
-        toast({
-          title: "Synchronisation réussie",
-          description: "La bibliothèque a été synchronisée avec le serveur",
-        });
-        setLastSynced(new Date());
-      } else {
-        toast({
-          title: "Échec de la synchronisation",
-          description: "Une erreur est survenue lors de la synchronisation",
-          variant: "destructive",
-        });
-      }
-    } catch (error) {
-      console.error('Erreur de synchronisation:', error);
-      toast({
-        title: "Erreur de synchronisation",
-        description: `${error}`,
-        variant: "destructive",
-      });
-    } finally {
-      setIsSyncing(false);
-    }
-  };
+  }, [documents, groups, currentUser, appData, saveData]);
 
   // Gestion des documents
   const handleEditDocument = (doc: Document) => {

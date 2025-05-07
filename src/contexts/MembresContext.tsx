@@ -2,10 +2,10 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { Membre } from '@/types/membres';
 import { loadMembresFromStorage, saveMembrestoStorage } from '@/services/membres/membresService';
-import { syncMembresWithServer, loadMembresFromServer } from '@/services/membres/membresSync';
 import { getCurrentUser } from '@/services/auth/authService';
 import { useToast } from '@/hooks/use-toast';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
+import { useGlobalSync } from '@/hooks/useGlobalSync';
 
 interface MembresContextType {
   membres: Membre[];
@@ -23,124 +23,30 @@ const MembresContext = createContext<MembresContextType | undefined>(undefined);
 export const MembresProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [membres, setMembres] = useState<Membre[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isSyncing, setIsSyncing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [lastSynced, setLastSynced] = useState<Date | null>(null);
   const { toast } = useToast();
   const { isOnline } = useNetworkStatus();
+  const { isSyncing, lastSynced, syncWithServer, appData } = useGlobalSync();
   
-  // Fonction pour synchroniser les données avec le serveur
-  const syncWithServer = async (): Promise<boolean> => {
-    const currentUser = getCurrentUser();
-    
-    if (!currentUser) {
-      console.error("Aucun utilisateur connecté pour synchroniser");
-      toast({
-        title: "Erreur de synchronisation",
-        description: "Vous devez être connecté pour synchroniser vos données",
-        variant: "destructive",
-      });
-      return false;
-    }
-    
-    if (!isOnline) {
-      toast({
-        title: "Mode hors-ligne",
-        description: "La synchronisation est indisponible en mode hors-ligne",
-        variant: "destructive",
-      });
-      return false;
-    }
-    
-    try {
-      setIsSyncing(true);
-      setError(null);
-      
-      // Envoyer les données au serveur
-      const success = await syncMembresWithServer(membres, currentUser);
-      
-      if (success) {
-        setLastSynced(new Date());
-        toast({
-          title: "Synchronisation réussie",
-          description: "Les données ont été synchronisées avec le serveur",
-        });
-        return true;
-      } else {
-        setError("Échec de la synchronisation");
-        toast({
-          title: "Échec de synchronisation",
-          description: "Impossible de synchroniser avec le serveur",
-          variant: "destructive",
-        });
-        return false;
-      }
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "Erreur inconnue";
-      setError(errorMessage);
-      toast({
-        title: "Erreur de synchronisation",
-        description: errorMessage,
-        variant: "destructive",
-      });
-      return false;
-    } finally {
-      setIsSyncing(false);
-    }
-  };
-  
-  // Sauvegarder les membres dans le stockage local quand ils changent
-  useEffect(() => {
-    if (!isLoading && membres.length > 0) {
-      const currentUser = getCurrentUser();
-      if (currentUser) {
-        console.log("Sauvegarde des membres dans le stockage local pour", currentUser);
-        saveMembrestoStorage(membres, currentUser);
-      }
-    }
-  }, [membres, isLoading]);
+  const currentUser = getCurrentUser() || localStorage.getItem('currentUser') || 'default';
   
   // Charger les membres au démarrage
   useEffect(() => {
-    const loadMembres = async () => {
+    const loadData = () => {
       setIsLoading(true);
       setError(null);
       
       try {
-        const currentUser = getCurrentUser();
-        if (!currentUser) {
-          console.warn("Aucun utilisateur connecté pour charger les membres");
-          setMembres([]);
-          return;
+        // Si des données sont disponibles depuis la synchronisation globale
+        if (appData.membres && appData.membres.length > 0) {
+          console.log("Chargement des membres depuis les données globales:", appData.membres.length);
+          setMembres(appData.membres);
+        } else {
+          // Sinon, charger depuis le stockage local
+          console.log("Chargement des membres depuis le stockage local");
+          const storageMembres = loadMembresFromStorage(currentUser);
+          setMembres(storageMembres);
         }
-        
-        console.log("Chargement des membres pour l'utilisateur", currentUser);
-        
-        // Essayer d'abord de charger depuis le serveur si en ligne
-        if (isOnline) {
-          try {
-            setIsSyncing(true);
-            const serverMembres = await loadMembresFromServer(currentUser);
-            
-            if (serverMembres && serverMembres.length > 0) {
-              console.log("Membres chargés depuis le serveur:", serverMembres.length);
-              setMembres(serverMembres);
-              saveMembrestoStorage(serverMembres, currentUser);
-              setLastSynced(new Date());
-              return;
-            }
-          } catch (err) {
-            console.error("Erreur lors du chargement des membres depuis le serveur:", err);
-          } finally {
-            setIsSyncing(false);
-          }
-        }
-        
-        // Fallback: charger depuis le stockage local
-        console.log("Chargement des membres depuis le stockage local");
-        const storageMembres = loadMembresFromStorage(currentUser);
-        setMembres(storageMembres);
-        
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : "Erreur inconnue";
         setError(errorMessage);
@@ -150,19 +56,17 @@ export const MembresProvider: React.FC<{ children: ReactNode }> = ({ children })
       }
     };
     
-    loadMembres();
-    
-    // Configurer une synchronisation automatique toutes les 5 minutes si en ligne
-    const autoSyncInterval = setInterval(() => {
-      if (isOnline && !isSyncing && getCurrentUser()) {
-        console.log("Tentative de synchronisation automatique");
-        syncWithServer().catch(console.error);
-      }
-    }, 5 * 60 * 1000);
-    
-    return () => clearInterval(autoSyncInterval);
-  }, [isOnline]);
-  
+    loadData();
+  }, [currentUser, appData.membres]);
+
+  // Sauvegarder les membres dans le stockage local quand ils changent
+  useEffect(() => {
+    if (!isLoading && membres.length > 0) {
+      console.log("Sauvegarde des membres dans le stockage local pour", currentUser);
+      saveMembrestoStorage(membres, currentUser);
+    }
+  }, [membres, isLoading, currentUser]);
+
   return (
     <MembresContext.Provider value={{
       membres,

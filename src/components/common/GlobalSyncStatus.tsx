@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Button } from "@/components/ui/button";
-import { Cloud, CloudSync, Check, CloudSun } from 'lucide-react';
+import { Cloud, CloudSun, Check } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useGlobalSync } from '@/hooks/useGlobalSync';
 
@@ -58,7 +58,7 @@ const GlobalSyncStatus: React.FC = () => {
         disabled={isSyncing || !isOnline}
         className="flex items-center text-xs"
       >
-        <CloudSync className="h-4 w-4 mr-1" />
+        <CloudSun className="h-4 w-4 mr-1" />
         Synchroniser
       </Button>
     </div>
