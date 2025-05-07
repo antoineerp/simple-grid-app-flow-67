@@ -2,17 +2,20 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
-import { 
-  AppData, 
-  syncAllWithServer, 
-  loadAllFromServer, 
-  saveAllToStorage, 
-  loadAllFromStorage,
-  hasUnsyncedChanges,
-  getSyncQueueStatus,
-  retryFailedSyncs,
-  clearFailedSyncs
-} from '@/services/sync/globalSyncService';
+import { getApiUrl } from '@/config/apiConfig';
+import { getAuthHeaders } from '@/services/auth/authService';
+
+export interface AppData {
+  documents?: any[];
+  exigences?: any[];
+  membres?: any[];
+  pilotageDocuments?: any[];
+  bibliotheque?: {
+    documents: any[];
+    groups: any[];
+  };
+  lastModified?: number;
+}
 
 export const useGlobalSync = () => {
   const { toast } = useToast();
@@ -20,13 +23,6 @@ export const useGlobalSync = () => {
   const [isSyncing, setIsSyncing] = useState(false);
   const [lastSynced, setLastSynced] = useState<Date | null>(null);
   const [appData, setAppData] = useState<AppData>({});
-  const [queueStatus, setQueueStatus] = useState({
-    total: 0,
-    pending: 0,
-    processing: 0,
-    failed: 0,
-    hasFailures: false
-  });
 
   // Récupérer l'identifiant technique de l'utilisateur connecté
   const getUserId = (): string => {
@@ -35,22 +31,13 @@ export const useGlobalSync = () => {
     
     try {
       const currentUser = JSON.parse(currentUserStr);
-      // Utiliser l'identifiant technique ou l'id comme identifiant unique
       return currentUser.identifiant_technique || currentUser.id || 'default';
     } catch (e) {
-      // Si ce n'est pas du JSON valide, utiliser la chaîne directement
       return currentUserStr;
     }
   };
   
   const userId = getUserId();
-
-  // Mettre à jour le statut de la file d'attente
-  const updateQueueStatus = useCallback(() => {
-    const status = getSyncQueueStatus();
-    setQueueStatus(status);
-    return status;
-  }, []);
 
   // Charger les données au démarrage
   useEffect(() => {
@@ -59,21 +46,14 @@ export const useGlobalSync = () => {
     // Écouter les mises à jour de données
     const handleDataUpdate = () => {
       setAppData(loadAllFromStorage(userId));
-      updateQueueStatus();
     };
     
     window.addEventListener('globalDataUpdate', handleDataUpdate);
     
-    // Vérifier périodiquement l'état de la file d'attente
-    const intervalId = setInterval(() => {
-      updateQueueStatus();
-    }, 10000);
-    
     return () => {
       window.removeEventListener('globalDataUpdate', handleDataUpdate);
-      clearInterval(intervalId);
     };
-  }, [userId, updateQueueStatus]);
+  }, [userId]);
 
   // Fonction pour charger les données
   const loadData = async () => {
@@ -85,7 +65,6 @@ export const useGlobalSync = () => {
           saveAllToStorage(userId, serverData);
           setAppData(serverData);
           setLastSynced(new Date());
-          updateQueueStatus();
           setIsSyncing(false);
           return;
         }
@@ -99,7 +78,6 @@ export const useGlobalSync = () => {
     // Si hors ligne ou erreur de chargement, utiliser les données locales
     const localData = loadAllFromStorage(userId);
     setAppData(localData);
-    updateQueueStatus();
   };
 
   // Fonction pour sauvegarder les données actuelles
@@ -112,7 +90,6 @@ export const useGlobalSync = () => {
     
     saveAllToStorage(userId, dataWithTimestamp);
     setAppData(dataWithTimestamp);
-    updateQueueStatus();
   };
 
   // Fonction pour synchroniser les données avec le serveur
@@ -132,31 +109,22 @@ export const useGlobalSync = () => {
       // Récupérer les données les plus récentes du localStorage
       const currentData = loadAllFromStorage(userId);
       
-      const success = await syncAllWithServer(userId, currentData);
+      // Envoyer directement les données au serveur
+      const success = await sendDataToServer(userId, currentData);
       
       if (success) {
         const now = new Date();
         setLastSynced(now);
         toast({
-          title: "Synchronisation en cours",
-          description: "Les données sont en cours de synchronisation avec le serveur",
+          title: "Synchronisation réussie",
+          description: "Toutes les données ont été synchronisées avec le serveur",
         });
-        
-        const status = updateQueueStatus();
-        
-        // Si la file d'attente est vide ou ne contient que des opérations complétées
-        if (status.pending === 0 && status.processing === 0) {
-          toast({
-            title: "Synchronisation réussie",
-            description: "Toutes les données ont été synchronisées avec le serveur",
-          });
-        }
-        
         return true;
       } else {
         toast({
-          title: "Synchronisation planifiée",
-          description: "Les données seront synchronisées dès que possible",
+          title: "Erreur de synchronisation",
+          description: "Impossible de synchroniser avec le serveur",
+          variant: "destructive",
         });
         return false;
       }
@@ -173,28 +141,44 @@ export const useGlobalSync = () => {
     }
   };
   
-  // Fonction pour réessayer les synchronisations échouées
-  const retryFailedOperations = () => {
-    retryFailedSyncs();
-    updateQueueStatus();
-    toast({
-      title: "Nouvelle tentative",
-      description: "Les opérations échouées seront réessayées",
-    });
-  };
-  
-  // Fonction pour effacer les synchronisations échouées
-  const clearFailedOperations = () => {
-    clearFailedSyncs();
-    updateQueueStatus();
-    toast({
-      title: "Nettoyage",
-      description: "Les opérations échouées ont été supprimées",
-    });
+  // Fonction simplifiée pour envoyer les données au serveur
+  const sendDataToServer = async (userId: string, data: AppData): Promise<boolean> => {
+    const API_URL = getApiUrl();
+    
+    try {
+      const response = await fetch(`${API_URL}/global-sync.php`, {
+        method: 'POST',
+        headers: {
+          ...getAuthHeaders(),
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          userId: userId,
+          data: data
+        })
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Erreur ${response.status}: ${response.statusText}`);
+      }
+      
+      const result = await response.json();
+      return result.success || false;
+    } catch (error) {
+      console.error("Erreur lors de l'envoi des données:", error);
+      throw error;
+    }
   };
   
   // Vérifier si des modifications sont en attente de synchronisation
-  const hasUnsyncedData = lastSynced ? hasUnsyncedChanges(lastSynced, appData) : false;
+  const hasUnsyncedData = (): boolean => {
+    if (!lastSynced) return true;
+    
+    const lastSyncedTime = lastSynced.getTime();
+    const lastModified = appData.lastModified || 0;
+    
+    return lastModified > lastSyncedTime;
+  };
 
   return {
     appData,
@@ -204,9 +188,201 @@ export const useGlobalSync = () => {
     isSyncing,
     isOnline,
     lastSynced,
-    queueStatus,
-    hasUnsyncedData,
-    retryFailedOperations,
-    clearFailedOperations
+    hasUnsyncedData: hasUnsyncedData()
   };
+};
+
+// Fonctions utilitaires déplacées ici pour simplifier
+
+const normalizeUserId = (userId: any): string => {
+  if (!userId) return 'default';
+  
+  if (typeof userId === 'string') {
+    try {
+      const userObj = JSON.parse(userId);
+      return userObj.identifiant_technique || userObj.id?.toString() || 'default';
+    } catch (e) {
+      return userId;
+    }
+  } else if (typeof userId === 'object') {
+    return userId.identifiant_technique || userId.id?.toString() || 'default';
+  }
+  
+  return String(userId);
+};
+
+export const loadAllFromServer = async (userId: any): Promise<AppData | null> => {
+  try {
+    const normalizedId = normalizeUserId(userId);
+    const API_URL = getApiUrl();
+    
+    const response = await fetch(`${API_URL}/global-load.php?userId=${encodeURIComponent(normalizedId)}`, {
+      method: 'GET',
+      headers: getAuthHeaders()
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Échec du chargement global: ${response.statusText}`);
+    }
+    
+    const result = await response.json();
+    
+    const data = result.data || null;
+    if (data) {
+      data.lastModified = Date.now();
+    }
+    
+    return data;
+  } catch (error) {
+    console.error('Erreur de chargement global:', error);
+    return null;
+  }
+};
+
+export const saveAllToStorage = (userId: any, data: AppData): void => {
+  const normalizedId = normalizeUserId(userId);
+  
+  const timestamp = Date.now();
+  const dataWithTimestamp = {
+    ...data,
+    lastModified: timestamp
+  };
+  
+  if (dataWithTimestamp.documents) {
+    localStorage.setItem(`documents_${normalizedId}`, JSON.stringify({
+      data: dataWithTimestamp.documents,
+      lastModified: timestamp
+    }));
+  }
+  
+  if (dataWithTimestamp.exigences) {
+    localStorage.setItem(`exigences_${normalizedId}`, JSON.stringify({
+      data: dataWithTimestamp.exigences,
+      lastModified: timestamp
+    }));
+  }
+  
+  if (dataWithTimestamp.membres) {
+    localStorage.setItem(`membres_${normalizedId}`, JSON.stringify({
+      data: dataWithTimestamp.membres,
+      lastModified: timestamp
+    }));
+  }
+  
+  if (dataWithTimestamp.pilotageDocuments) {
+    localStorage.setItem(`pilotage_${normalizedId}`, JSON.stringify({
+      data: dataWithTimestamp.pilotageDocuments,
+      lastModified: timestamp
+    }));
+  }
+  
+  if (dataWithTimestamp.bibliotheque) {
+    const { documents, groups } = dataWithTimestamp.bibliotheque;
+    localStorage.setItem(`bibliotheque_documents_${normalizedId}`, JSON.stringify({
+      data: documents,
+      lastModified: timestamp
+    }));
+    localStorage.setItem(`bibliotheque_groups_${normalizedId}`, JSON.stringify({
+      data: groups,
+      lastModified: timestamp
+    }));
+  }
+  
+  window.dispatchEvent(new Event('globalDataUpdate'));
+};
+
+export const loadAllFromStorage = (userId: any): AppData => {
+  const normalizedId = normalizeUserId(userId);
+  const data: AppData = {};
+  let globalLastModified = 0;
+  
+  const documentsJson = localStorage.getItem(`documents_${normalizedId}`);
+  if (documentsJson) {
+    try {
+      const parsed = JSON.parse(documentsJson);
+      data.documents = parsed.data || parsed;
+      if (parsed.lastModified && parsed.lastModified > globalLastModified) {
+        globalLastModified = parsed.lastModified;
+      }
+    } catch (e) {
+      console.error("Erreur lors du parsing des documents:", e);
+    }
+  }
+  
+  const exigencesJson = localStorage.getItem(`exigences_${normalizedId}`);
+  if (exigencesJson) {
+    try {
+      const parsed = JSON.parse(exigencesJson);
+      data.exigences = parsed.data || parsed;
+      if (parsed.lastModified && parsed.lastModified > globalLastModified) {
+        globalLastModified = parsed.lastModified;
+      }
+    } catch (e) {
+      console.error("Erreur lors du parsing des exigences:", e);
+    }
+  }
+  
+  const membresJson = localStorage.getItem(`membres_${normalizedId}`);
+  if (membresJson) {
+    try {
+      const parsed = JSON.parse(membresJson);
+      data.membres = parsed.data || parsed;
+      if (parsed.lastModified && parsed.lastModified > globalLastModified) {
+        globalLastModified = parsed.lastModified;
+      }
+    } catch (e) {
+      console.error("Erreur lors du parsing des membres:", e);
+    }
+  }
+  
+  const pilotageJson = localStorage.getItem(`pilotage_${normalizedId}`);
+  if (pilotageJson) {
+    try {
+      const parsed = JSON.parse(pilotageJson);
+      data.pilotageDocuments = parsed.data || parsed;
+      if (parsed.lastModified && parsed.lastModified > globalLastModified) {
+        globalLastModified = parsed.lastModified;
+      }
+    } catch (e) {
+      console.error("Erreur lors du parsing des documents de pilotage:", e);
+    }
+  }
+  
+  const bibliothequeDocumentsJson = localStorage.getItem(`bibliotheque_documents_${normalizedId}`);
+  const bibliothequeGroupsJson = localStorage.getItem(`bibliotheque_groups_${normalizedId}`);
+  
+  if (bibliothequeDocumentsJson || bibliothequeGroupsJson) {
+    data.bibliotheque = {
+      documents: [],
+      groups: []
+    };
+    
+    if (bibliothequeDocumentsJson) {
+      try {
+        const parsed = JSON.parse(bibliothequeDocumentsJson);
+        data.bibliotheque.documents = parsed.data || parsed;
+        if (parsed.lastModified && parsed.lastModified > globalLastModified) {
+          globalLastModified = parsed.lastModified;
+        }
+      } catch (e) {
+        console.error("Erreur lors du parsing des documents bibliothèque:", e);
+      }
+    }
+    
+    if (bibliothequeGroupsJson) {
+      try {
+        const parsed = JSON.parse(bibliothequeGroupsJson);
+        data.bibliotheque.groups = parsed.data || parsed;
+        if (parsed.lastModified && parsed.lastModified > globalLastModified) {
+          globalLastModified = parsed.lastModified;
+        }
+      } catch (e) {
+        console.error("Erreur lors du parsing des groupes de bibliothèque:", e);
+      }
+    }
+  }
+  
+  data.lastModified = globalLastModified || Date.now();
+  
+  return data;
 };

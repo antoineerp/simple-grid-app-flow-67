@@ -13,26 +13,16 @@ interface SyncStatusIndicatorProps {
   isSyncing: boolean;
   isOnline: boolean;
   lastSynced: Date | null;
-  queueStatus?: {
-    total: number;
-    pending: number;
-    processing: number;
-    failed: number;
-    hasFailures: boolean;
-  };
   hasUnsyncedData?: boolean;
-  onRetry?: () => void;
-  onClear?: () => void;
+  onSync?: () => void;
 }
 
 const SyncStatusIndicator: React.FC<SyncStatusIndicatorProps> = ({
   isSyncing,
   isOnline,
   lastSynced,
-  queueStatus = { total: 0, pending: 0, processing: 0, failed: 0, hasFailures: false },
   hasUnsyncedData = false,
-  onRetry,
-  onClear
+  onSync
 }) => {
   // Formater la date de dernière synchronisation
   const formatLastSynced = () => {
@@ -72,33 +62,6 @@ const SyncStatusIndicator: React.FC<SyncStatusIndicatorProps> = ({
         label: 'Synchronisation en cours',
         className: 'text-blue-500',
         description: 'Synchronisation des données avec le serveur en cours...'
-      };
-    }
-    
-    if (queueStatus.processing > 0) {
-      return {
-        icon: <Loader className="h-4 w-4 text-blue-500 animate-spin" />,
-        label: `Synchronisation en cours (${queueStatus.processing}/${queueStatus.total})`,
-        className: 'text-blue-500',
-        description: 'Opérations en cours de traitement...'
-      };
-    }
-    
-    if (queueStatus.pending > 0) {
-      return {
-        icon: <Clock className="h-4 w-4 text-amber-500" />,
-        label: `En attente (${queueStatus.pending})`,
-        className: 'text-amber-500',
-        description: 'Opérations en attente de synchronisation...'
-      };
-    }
-    
-    if (queueStatus.hasFailures) {
-      return {
-        icon: <AlertCircle className="h-4 w-4 text-red-500" />,
-        label: `Échec (${queueStatus.failed})`,
-        className: 'text-red-500',
-        description: 'Certaines opérations de synchronisation ont échoué.'
       };
     }
     
@@ -142,25 +105,14 @@ const SyncStatusIndicator: React.FC<SyncStatusIndicatorProps> = ({
         <span>Dernière synchronisation: {formatLastSynced()}</span>
       </div>
       
-      {queueStatus.hasFailures && onRetry && (
+      {hasUnsyncedData && isOnline && onSync && (
         <Button 
           variant="outline" 
           size="sm" 
-          onClick={onRetry}
+          onClick={onSync}
           className="ml-2"
         >
-          Réessayer
-        </Button>
-      )}
-      
-      {queueStatus.hasFailures && onClear && (
-        <Button 
-          variant="outline" 
-          size="sm" 
-          onClick={onClear}
-          className="ml-1"
-        >
-          Effacer
+          Synchroniser
         </Button>
       )}
     </div>
