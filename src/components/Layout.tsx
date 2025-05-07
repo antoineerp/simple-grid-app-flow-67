@@ -21,10 +21,12 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     const checkAuth = () => {
       const token = localStorage.getItem('authToken');
       const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
+      const userRole = localStorage.getItem('userRole');
       
       console.log('Auth status:', isLoggedIn ? 'Logged in' : 'Not logged in');
       console.log('Current path:', location.pathname);
       console.log('Auth token exists:', !!token);
+      console.log('User role:', userRole);
       
       setIsAuthenticated(isLoggedIn);
       

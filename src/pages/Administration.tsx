@@ -23,8 +23,10 @@ const Administration = () => {
 
   useEffect(() => {
     const userRole = localStorage.getItem('userRole') as UserRole;
+    console.log("Current user role:", userRole);
     
-    if (!hasPermission(userRole, 'accessAdminPanel')) {
+    // Vérification plus permissive pour l'accès à la page d'administration
+    if (!userRole || (userRole !== 'administrateur' && userRole !== 'admin')) {
       toast({
         title: "Accès refusé",
         description: "Vous n'avez pas les droits pour accéder à cette page.",

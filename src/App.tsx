@@ -27,7 +27,7 @@ const App = () => (
             <Route path="exigences" element={<Exigences />} />
             <Route path="gestion-documentaire" element={<GestionDocumentaire />} />
             <Route path="ressources-humaines" element={<RessourcesHumaines />} />
-            <Route path="collaboration" element={<Bibliotheque />} />
+            <Route path="bibliotheque" element={<Bibliotheque />} />
             <Route path="administration" element={<Administration />} />
           </Route>
           <Route path="*" element={<NotFound />} />

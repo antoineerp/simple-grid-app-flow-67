@@ -128,7 +128,18 @@ class AuthService {
                             : (data.user.email || data.user.identifiant_technique || 'Utilisateur');
                     
                     localStorage.setItem('currentUser', data.user.identifiant_technique);
-                    localStorage.setItem('userRole', data.user.role);
+                    
+                    // Standardiser le rôle de l'utilisateur
+                    let userRole = data.user.role;
+                    // Si le rôle est 'admin', le normaliser à 'administrateur'
+                    if (userRole === 'admin') {
+                        console.log("Normalisation du rôle d'admin à administrateur");
+                        userRole = 'administrateur';
+                    }
+                    
+                    localStorage.setItem('userRole', userRole);
+                    console.log("Rôle utilisateur stocké:", userRole);
+                    
                     localStorage.setItem('userName', displayName);
                 }
                 
@@ -179,7 +190,18 @@ class AuthService {
                             : (data.user.email || data.user.identifiant_technique || 'Utilisateur');
                     
                     localStorage.setItem('currentUser', data.user.identifiant_technique);
-                    localStorage.setItem('userRole', data.user.role);
+                    
+                    // Standardiser le rôle de l'utilisateur
+                    let userRole = data.user.role;
+                    // Si le rôle est 'admin', le normaliser à 'administrateur'
+                    if (userRole === 'admin') {
+                        console.log("Normalisation du rôle d'admin à administrateur");
+                        userRole = 'administrateur';
+                    }
+                    
+                    localStorage.setItem('userRole', userRole);
+                    console.log("Rôle utilisateur stocké:", userRole);
+                    
                     localStorage.setItem('userName', displayName);
                 }
                 
