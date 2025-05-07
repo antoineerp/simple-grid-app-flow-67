@@ -62,7 +62,7 @@ header('Content-Type: text/html; charset=utf-8');
                         echo "</ul>";
                         
                         echo "<h3>✓ Votre configuration FTP fonctionne correctement</h3>";
-                        echo "<p>Vous pouvez utiliser ces paramètres avec l'action GitHub <code>SamKirkland/FTP-Deploy-Action@4.3.4</code></p>";
+                        echo "<p>Vous pouvez utiliser ces paramètres avec l'action GitHub <code>SamKirkland/FTP-Deploy-Action@4.3.3</code></p>";
                     } else {
                         echo "<p class='error'>Échec de l'authentification FTP. Vérifiez vos identifiants.</p>";
                     }
@@ -110,7 +110,7 @@ header('Content-Type: text/html; charset=utf-8');
             <p>Pour configurer votre workflow GitHub Actions avec FTP:</p>
             <pre>
 - name: Deploy to Infomaniak using FTP
-  uses: SamKirkland/FTP-Deploy-Action@4.3.4
+  uses: SamKirkland/FTP-Deploy-Action@4.3.3
   with:
     server: ${{ secrets.FTP_SERVER }}
     username: ${{ secrets.FTP_USERNAME }}

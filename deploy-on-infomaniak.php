@@ -1,3 +1,4 @@
+
 <?php
 header('Content-Type: text/html; charset=utf-8');
 // Fonction pour vérifier que les secrets GitHub sont configurés
