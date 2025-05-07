@@ -19,13 +19,27 @@ export const MembresProvider: React.FC<{ children: ReactNode }> = ({ children })
   const { toast } = useToast();
   const [membres, setMembres] = useState<Membre[]>([]);
   const { isSyncing, isOnline, lastSynced, appData, saveData } = useGlobalSync();
-  const currentUser = localStorage.getItem('currentUser') || 'default';
+
+  // Récupérer l'identifiant technique de l'utilisateur connecté
+  const getUserId = (): string => {
+    const currentUserStr = localStorage.getItem('currentUser');
+    if (!currentUserStr) return 'default';
+    
+    try {
+      const currentUser = JSON.parse(currentUserStr);
+      return currentUser.identifiant_technique || currentUser.id || 'default';
+    } catch (e) {
+      return currentUserStr;
+    }
+  };
+  
+  const userId = getUserId();
 
   // Charger les données au démarrage
   useEffect(() => {
     // Charger depuis le stockage local
     const loadFromStorage = () => {
-      const localData = loadMembresFromStorage(currentUser);
+      const localData = loadMembresFromStorage(userId);
       setMembres(localData);
     };
     
@@ -46,12 +60,12 @@ export const MembresProvider: React.FC<{ children: ReactNode }> = ({ children })
     return () => {
       window.removeEventListener('membresUpdate', handleMembresUpdate);
     };
-  }, [currentUser, appData.membres]);
+  }, [userId, appData.membres]);
 
   // Sauvegarder les données à chaque changement
   useEffect(() => {
     if (membres.length > 0) {
-      saveMembrestoStorage(membres, currentUser);
+      saveMembrestoStorage(membres, userId);
       
       // Mettre à jour les données globales
       saveData({
@@ -59,7 +73,7 @@ export const MembresProvider: React.FC<{ children: ReactNode }> = ({ children })
         membres: membres
       });
     }
-  }, [membres, currentUser, appData, saveData]);
+  }, [membres, userId, appData, saveData]);
 
   return (
     <MembresContext.Provider value={{ 

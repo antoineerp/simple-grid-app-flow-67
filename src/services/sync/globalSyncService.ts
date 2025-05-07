@@ -18,14 +18,45 @@ export interface AppData {
 }
 
 /**
+ * Normalise l'identifiant utilisateur pour la synchronisation
+ * @param userId L'identifiant utilisateur (chaîne ou objet)
+ * @returns Un identifiant utilisateur normalisé
+ */
+const normalizeUserId = (userId: any): string => {
+  if (!userId) return 'default';
+  
+  if (typeof userId === 'string') {
+    try {
+      // Vérifier si c'est un objet JSON stocké sous forme de chaîne
+      const userObj = JSON.parse(userId);
+      return userObj.identifiant_technique || 
+             userObj.id?.toString() || 
+             'default';
+    } catch (e) {
+      // Ce n'est pas du JSON valide, utiliser la chaîne directement
+      return userId;
+    }
+  } else if (typeof userId === 'object') {
+    // C'est déjà un objet
+    return userId.identifiant_technique || 
+           userId.id?.toString() || 
+           'default';
+  }
+  
+  // Fallback
+  return String(userId);
+};
+
+/**
  * Service centralisé pour la synchronisation globale des données avec le serveur
  */
 export const syncAllWithServer = async (
-  userId: string,
+  userId: any,
   data: AppData
 ): Promise<boolean> => {
   try {
-    console.log(`Synchronisation globale pour l'utilisateur ${userId}`);
+    const normalizedId = normalizeUserId(userId);
+    console.log(`Synchronisation globale pour l'utilisateur ${normalizedId}`);
     
     const API_URL = getApiUrl();
     const response = await fetch(`${API_URL}/global-sync.php`, {
@@ -35,7 +66,7 @@ export const syncAllWithServer = async (
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        userId,
+        userId: normalizedId,
         data
       })
     });
@@ -60,12 +91,13 @@ export const syncAllWithServer = async (
 /**
  * Charge toutes les données depuis le serveur
  */
-export const loadAllFromServer = async (userId: string): Promise<AppData | null> => {
+export const loadAllFromServer = async (userId: any): Promise<AppData | null> => {
   try {
+    const normalizedId = normalizeUserId(userId);
     const API_URL = getApiUrl();
-    console.log(`Chargement global des données pour l'utilisateur ${userId}`);
+    console.log(`Chargement global des données pour l'utilisateur ${normalizedId}`);
     
-    const response = await fetch(`${API_URL}/global-load.php?userId=${encodeURIComponent(userId)}`, {
+    const response = await fetch(`${API_URL}/global-load.php?userId=${encodeURIComponent(normalizedId)}`, {
       method: 'GET',
       headers: getAuthHeaders()
     });
@@ -88,28 +120,30 @@ export const loadAllFromServer = async (userId: string): Promise<AppData | null>
 /**
  * Enregistre toutes les données dans le localStorage
  */
-export const saveAllToStorage = (userId: string, data: AppData): void => {
+export const saveAllToStorage = (userId: any, data: AppData): void => {
+  const normalizedId = normalizeUserId(userId);
+  
   // Sauvegarder chaque type de données dans son emplacement approprié
   if (data.documents) {
-    localStorage.setItem(`documents_${userId}`, JSON.stringify(data.documents));
+    localStorage.setItem(`documents_${normalizedId}`, JSON.stringify(data.documents));
   }
   
   if (data.exigences) {
-    localStorage.setItem(`exigences_${userId}`, JSON.stringify(data.exigences));
+    localStorage.setItem(`exigences_${normalizedId}`, JSON.stringify(data.exigences));
   }
   
   if (data.membres) {
-    localStorage.setItem(`membres_${userId}`, JSON.stringify(data.membres));
+    localStorage.setItem(`membres_${normalizedId}`, JSON.stringify(data.membres));
   }
   
   if (data.pilotageDocuments) {
-    localStorage.setItem(`pilotage_${userId}`, JSON.stringify(data.pilotageDocuments));
+    localStorage.setItem(`pilotage_${normalizedId}`, JSON.stringify(data.pilotageDocuments));
   }
   
   if (data.bibliotheque) {
     const { documents, groups } = data.bibliotheque;
-    localStorage.setItem(`bibliotheque_documents_${userId}`, JSON.stringify(documents));
-    localStorage.setItem(`bibliotheque_groups_${userId}`, JSON.stringify(groups));
+    localStorage.setItem(`bibliotheque_documents_${normalizedId}`, JSON.stringify(documents));
+    localStorage.setItem(`bibliotheque_groups_${normalizedId}`, JSON.stringify(groups));
   }
   
   // Déclencher un événement global pour informer l'application qu'une mise à jour a été effectuée
@@ -119,31 +153,32 @@ export const saveAllToStorage = (userId: string, data: AppData): void => {
 /**
  * Charge toutes les données depuis le localStorage
  */
-export const loadAllFromStorage = (userId: string): AppData => {
+export const loadAllFromStorage = (userId: any): AppData => {
+  const normalizedId = normalizeUserId(userId);
   const data: AppData = {};
   
-  const documentsJson = localStorage.getItem(`documents_${userId}`);
+  const documentsJson = localStorage.getItem(`documents_${normalizedId}`);
   if (documentsJson) {
     data.documents = JSON.parse(documentsJson);
   }
   
-  const exigencesJson = localStorage.getItem(`exigences_${userId}`);
+  const exigencesJson = localStorage.getItem(`exigences_${normalizedId}`);
   if (exigencesJson) {
     data.exigences = JSON.parse(exigencesJson);
   }
   
-  const membresJson = localStorage.getItem(`membres_${userId}`);
+  const membresJson = localStorage.getItem(`membres_${normalizedId}`);
   if (membresJson) {
     data.membres = JSON.parse(membresJson);
   }
   
-  const pilotageJson = localStorage.getItem(`pilotage_${userId}`);
+  const pilotageJson = localStorage.getItem(`pilotage_${normalizedId}`);
   if (pilotageJson) {
     data.pilotageDocuments = JSON.parse(pilotageJson);
   }
   
-  const bibliothequeDocumentsJson = localStorage.getItem(`bibliotheque_documents_${userId}`);
-  const bibliothequeGroupsJson = localStorage.getItem(`bibliotheque_groups_${userId}`);
+  const bibliothequeDocumentsJson = localStorage.getItem(`bibliotheque_documents_${normalizedId}`);
+  const bibliothequeGroupsJson = localStorage.getItem(`bibliotheque_groups_${normalizedId}`);
   if (bibliothequeDocumentsJson || bibliothequeGroupsJson) {
     data.bibliotheque = {
       documents: bibliothequeDocumentsJson ? JSON.parse(bibliothequeDocumentsJson) : [],

@@ -16,7 +16,23 @@ export const useGlobalSync = () => {
   const [isSyncing, setIsSyncing] = useState(false);
   const [lastSynced, setLastSynced] = useState<Date | null>(null);
   const [appData, setAppData] = useState<AppData>({});
-  const currentUser = localStorage.getItem('currentUser') || 'default';
+
+  // Récupérer l'identifiant technique de l'utilisateur connecté
+  const getUserId = (): string => {
+    const currentUserStr = localStorage.getItem('currentUser');
+    if (!currentUserStr) return 'default';
+    
+    try {
+      const currentUser = JSON.parse(currentUserStr);
+      // Utiliser l'identifiant technique ou l'id comme identifiant unique
+      return currentUser.identifiant_technique || currentUser.id || 'default';
+    } catch (e) {
+      // Si ce n'est pas du JSON valide, utiliser la chaîne directement
+      return currentUserStr;
+    }
+  };
+  
+  const userId = getUserId();
 
   // Charger les données au démarrage
   useEffect(() => {
@@ -24,7 +40,7 @@ export const useGlobalSync = () => {
     
     // Écouter les mises à jour de données
     const handleDataUpdate = () => {
-      setAppData(loadAllFromStorage(currentUser));
+      setAppData(loadAllFromStorage(userId));
     };
     
     window.addEventListener('globalDataUpdate', handleDataUpdate);
@@ -32,15 +48,15 @@ export const useGlobalSync = () => {
     return () => {
       window.removeEventListener('globalDataUpdate', handleDataUpdate);
     };
-  }, [currentUser]);
+  }, [userId]);
 
   // Fonction pour charger les données
   const loadData = async () => {
     if (isOnline) {
       try {
-        const serverData = await loadAllFromServer(currentUser);
+        const serverData = await loadAllFromServer(userId);
         if (serverData) {
-          saveAllToStorage(currentUser, serverData);
+          saveAllToStorage(userId, serverData);
           setAppData(serverData);
           setLastSynced(new Date());
           return;
@@ -51,13 +67,13 @@ export const useGlobalSync = () => {
     }
     
     // Si hors ligne ou erreur de chargement, utiliser les données locales
-    const localData = loadAllFromStorage(currentUser);
+    const localData = loadAllFromStorage(userId);
     setAppData(localData);
   };
 
   // Fonction pour sauvegarder les données actuelles
   const saveData = (newData: AppData) => {
-    saveAllToStorage(currentUser, newData);
+    saveAllToStorage(userId, newData);
     setAppData(newData);
   };
 
@@ -76,9 +92,9 @@ export const useGlobalSync = () => {
     
     try {
       // Récupérer les données les plus récentes du localStorage
-      const currentData = loadAllFromStorage(currentUser);
+      const currentData = loadAllFromStorage(userId);
       
-      const success = await syncAllWithServer(currentUser, currentData);
+      const success = await syncAllWithServer(userId, currentData);
       
       if (success) {
         toast({
