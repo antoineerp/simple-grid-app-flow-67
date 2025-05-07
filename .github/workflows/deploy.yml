@@ -74,18 +74,20 @@ jobs:
         echo "Public files:"
         ls -la dist/public/ || echo "No public folder"
     
-    - name: Test FTP connection
-      uses: SamKirkland/FTP-Deploy-Action@4.3.3
+    - name: Try SFTP deployment first
+      id: sftp-deploy
+      uses: wlixcc/SFTP-Deploy-Action@v1.2.4
+      continue-on-error: true  # Continue even if this step fails
       with:
         server: ${{ secrets.FTP_SERVER }}
         username: ${{ secrets.FTP_USERNAME }}
         password: ${{ secrets.FTP_PASSWORD }}
-        local-dir: ./dist/
-        server-dir: /sites/qualiopi.ch/
-        dry-run: true
-        log-level: verbose
-        
-    - name: Deploy to Infomaniak using FTP
+        port: 22
+        local_path: './dist/'
+        remote_path: '/sites/qualiopi.ch/'
+    
+    - name: Deploy using FTP if SFTP failed
+      if: steps.sftp-deploy.outcome == 'failure'
       uses: SamKirkland/FTP-Deploy-Action@4.3.3
       with:
         server: ${{ secrets.FTP_SERVER }}
@@ -95,6 +97,7 @@ jobs:
         server-dir: /sites/qualiopi.ch/
         dangerous-clean-slate: false
         timeout: 120000
+        protocol: ftp  # Explicitly setting FTP protocol
     
     - name: Post-deployment verification
       run: |
