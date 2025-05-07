@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
@@ -23,6 +22,7 @@ export const useGlobalSync = () => {
   const [isSyncing, setIsSyncing] = useState(false);
   const [lastSynced, setLastSynced] = useState<Date | null>(null);
   const [appData, setAppData] = useState<AppData>({});
+  const [changeCounter, setChangeCounter] = useState(0);
 
   // Récupérer l'identifiant technique de l'utilisateur connecté
   const getUserId = (): string => {
@@ -46,6 +46,7 @@ export const useGlobalSync = () => {
     // Écouter les mises à jour de données
     const handleDataUpdate = () => {
       setAppData(loadAllFromStorage(userId));
+      setChangeCounter(prev => prev + 1); // Incrémenter le compteur de modifications
     };
     
     window.addEventListener('globalDataUpdate', handleDataUpdate);
@@ -54,6 +55,15 @@ export const useGlobalSync = () => {
       window.removeEventListener('globalDataUpdate', handleDataUpdate);
     };
   }, [userId]);
+
+  // Synchroniser après un certain nombre de modifications
+  useEffect(() => {
+    // Ne pas déclencher sur le premier rendu
+    if (changeCounter > 0 && changeCounter % 3 === 0 && isOnline && !isSyncing) {
+      console.log(`Synchronisation automatique après ${changeCounter} modifications`);
+      syncWithServer();
+    }
+  }, [changeCounter, isOnline]);
 
   // Fonction pour charger les données
   const loadData = async () => {
@@ -90,16 +100,12 @@ export const useGlobalSync = () => {
     
     saveAllToStorage(userId, dataWithTimestamp);
     setAppData(dataWithTimestamp);
+    setChangeCounter(prev => prev + 1);
   };
 
   // Fonction pour synchroniser les données avec le serveur
   const syncWithServer = async () => {
     if (!isOnline) {
-      toast({
-        title: "Synchronisation impossible",
-        description: "Vous êtes actuellement hors ligne",
-        variant: "destructive",
-      });
       return false;
     }
 
@@ -115,26 +121,13 @@ export const useGlobalSync = () => {
       if (success) {
         const now = new Date();
         setLastSynced(now);
-        toast({
-          title: "Synchronisation réussie",
-          description: "Toutes les données ont été synchronisées avec le serveur",
-        });
         return true;
       } else {
-        toast({
-          title: "Erreur de synchronisation",
-          description: "Impossible de synchroniser avec le serveur",
-          variant: "destructive",
-        });
+        console.error("Erreur de synchronisation avec le serveur");
         return false;
       }
     } catch (error) {
       console.error('Erreur de synchronisation:', error);
-      toast({
-        title: "Erreur de synchronisation",
-        description: `${error}`,
-        variant: "destructive",
-      });
       return false;
     } finally {
       setIsSyncing(false);

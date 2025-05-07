@@ -1,7 +1,6 @@
 
 import React from 'react';
-import { CloudSun, AlertCircle, Loader, CheckCircle, CloudOff, Clock } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { CloudOff, CheckCircle, Clock, Loader } from 'lucide-react';
 import {
   Tooltip,
   TooltipContent,
@@ -14,15 +13,14 @@ interface SyncStatusIndicatorProps {
   isOnline: boolean;
   lastSynced: Date | null;
   hasUnsyncedData?: boolean;
-  onSync?: () => void;
+  onSync?: () => void; // Kept for compatibility but not used for auto-sync
 }
 
 const SyncStatusIndicator: React.FC<SyncStatusIndicatorProps> = ({
   isSyncing,
   isOnline,
   lastSynced,
-  hasUnsyncedData = false,
-  onSync
+  hasUnsyncedData = false
 }) => {
   // Formater la date de dernière synchronisation
   const formatLastSynced = () => {
@@ -52,7 +50,7 @@ const SyncStatusIndicator: React.FC<SyncStatusIndicatorProps> = ({
         icon: <CloudOff className="h-4 w-4 text-gray-500" />,
         label: 'Hors ligne',
         className: 'text-gray-500',
-        description: 'Vous êtes actuellement hors ligne. La synchronisation reprendra automatiquement lorsque la connexion sera rétablie.'
+        description: 'Synchronisation automatique reprendra lorsque la connexion sera rétablie.'
       };
     }
     
@@ -68,9 +66,9 @@ const SyncStatusIndicator: React.FC<SyncStatusIndicatorProps> = ({
     if (hasUnsyncedData) {
       return {
         icon: <Clock className="h-4 w-4 text-amber-500" />,
-        label: 'Modifications non synchronisées',
+        label: 'Modifications en attente',
         className: 'text-amber-500',
-        description: 'Changements locaux non encore synchronisés avec le serveur.'
+        description: 'Synchronisation automatique dans quelques secondes...'
       };
     }
     
@@ -104,17 +102,6 @@ const SyncStatusIndicator: React.FC<SyncStatusIndicatorProps> = ({
         <span className="mx-2">•</span>
         <span>Dernière synchronisation: {formatLastSynced()}</span>
       </div>
-      
-      {hasUnsyncedData && isOnline && onSync && (
-        <Button 
-          variant="outline" 
-          size="sm" 
-          onClick={onSync}
-          className="ml-2"
-        >
-          Synchroniser
-        </Button>
-      )}
     </div>
   );
 };
