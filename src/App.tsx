@@ -28,6 +28,7 @@ const App = () => (
             <Route path="gestion-documentaire" element={<GestionDocumentaire />} />
             <Route path="ressources-humaines" element={<RessourcesHumaines />} />
             <Route path="bibliotheque" element={<Bibliotheque />} />
+            <Route path="collaboration" element={<Bibliotheque />} />
             <Route path="administration" element={<Administration />} />
           </Route>
           <Route path="*" element={<NotFound />} />
