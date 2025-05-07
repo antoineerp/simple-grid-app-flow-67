@@ -59,7 +59,7 @@ export const MembresProvider: React.FC<{ children: ReactNode }> = ({ children })
         membres: membres
       });
     }
-  }, [membres]);
+  }, [membres, currentUser, appData, saveData]);
 
   return (
     <MembresContext.Provider value={{ 

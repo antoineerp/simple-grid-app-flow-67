@@ -14,9 +14,9 @@ export const useGlobalSync = () => {
   const { toast } = useToast();
   const { isOnline } = useNetworkStatus();
   const [isSyncing, setIsSyncing] = useState(false);
-  const [lastSynced, setLastSynced] = useState<Date | undefined>(undefined);
+  const [lastSynced, setLastSynced] = useState<Date | null>(null);
   const [appData, setAppData] = useState<AppData>({});
-  const userId = localStorage.getItem('currentUser') || 'default';
+  const currentUser = localStorage.getItem('currentUser') || 'default';
 
   // Charger les données au démarrage
   useEffect(() => {
@@ -24,7 +24,7 @@ export const useGlobalSync = () => {
     
     // Écouter les mises à jour de données
     const handleDataUpdate = () => {
-      setAppData(loadAllFromStorage(userId));
+      setAppData(loadAllFromStorage(currentUser));
     };
     
     window.addEventListener('globalDataUpdate', handleDataUpdate);
@@ -32,15 +32,15 @@ export const useGlobalSync = () => {
     return () => {
       window.removeEventListener('globalDataUpdate', handleDataUpdate);
     };
-  }, [userId]);
+  }, [currentUser]);
 
   // Fonction pour charger les données
   const loadData = async () => {
     if (isOnline) {
       try {
-        const serverData = await loadAllFromServer(userId);
+        const serverData = await loadAllFromServer(currentUser);
         if (serverData) {
-          saveAllToStorage(userId, serverData);
+          saveAllToStorage(currentUser, serverData);
           setAppData(serverData);
           setLastSynced(new Date());
           return;
@@ -51,13 +51,13 @@ export const useGlobalSync = () => {
     }
     
     // Si hors ligne ou erreur de chargement, utiliser les données locales
-    const localData = loadAllFromStorage(userId);
+    const localData = loadAllFromStorage(currentUser);
     setAppData(localData);
   };
 
   // Fonction pour sauvegarder les données actuelles
   const saveData = (newData: AppData) => {
-    saveAllToStorage(userId, newData);
+    saveAllToStorage(currentUser, newData);
     setAppData(newData);
   };
 
@@ -76,9 +76,9 @@ export const useGlobalSync = () => {
     
     try {
       // Récupérer les données les plus récentes du localStorage
-      const currentData = loadAllFromStorage(userId);
+      const currentData = loadAllFromStorage(currentUser);
       
-      const success = await syncAllWithServer(userId, currentData);
+      const success = await syncAllWithServer(currentUser, currentData);
       
       if (success) {
         toast({
