@@ -10,7 +10,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { useMembres } from '@/hooks/useMembres';
+import { useMembres } from '@/contexts/MembresContext';
 import MemberList from '@/components/ressources-humaines/MemberList';
 import MemberForm from '@/components/ressources-humaines/MemberForm';
 import { Membre } from '@/types/membres';
@@ -18,7 +18,7 @@ import { exportAllCollaborateursToPdf } from '@/services/collaborateurExport';
 
 const RessourcesHumaines = () => {
   const { toast } = useToast();
-  const { membres, setMembres, isSyncing, isOnline, lastSynced, syncWithServer, isLoading } = useMembres();
+  const { membres, setMembres } = useMembres();
   
   const [isDialogOpen, setIsDialogOpen] = React.useState(false);
   const [currentMembre, setCurrentMembre] = React.useState<Membre>({
@@ -31,14 +31,7 @@ const RessourcesHumaines = () => {
     mot_de_passe: '' 
   });
   const [isEditing, setIsEditing] = React.useState(false);
-
-  // Synchronisation au chargement de la page si connecté et en ligne
-  useEffect(() => {
-    if (isOnline && !isSyncing && !isLoading) {
-      console.log("Synchronisation automatique au chargement de la page");
-      syncWithServer().catch(console.error);
-    }
-  }, [isLoading]);
+  const [isLoading, setIsLoading] = React.useState(false);
 
   // Handler for edit action
   const handleEdit = (id: string) => {
@@ -57,11 +50,6 @@ const RessourcesHumaines = () => {
       title: "Suppression",
       description: `Le membre ${id} a été supprimé`,
     });
-    
-    // Synchroniser après la suppression si en ligne
-    if (isOnline) {
-      syncWithServer().catch(console.error);
-    }
   };
 
   // Handler for adding a new member
@@ -135,11 +123,6 @@ const RessourcesHumaines = () => {
     }
     
     setIsDialogOpen(false);
-    
-    // Synchroniser après l'ajout/modification si en ligne
-    if (isOnline) {
-      syncWithServer().catch(console.error);
-    }
   };
 
   // Handler for exporting all members to PDF
@@ -167,14 +150,6 @@ const RessourcesHumaines = () => {
           <h1 className="text-3xl font-bold text-app-blue">Ressources Humaines</h1>
         </div>
         <div className="flex space-x-2">
-          <button 
-            onClick={() => syncWithServer()}
-            className="text-blue-600 p-2 rounded-md hover:bg-blue-50 transition-colors flex items-center"
-            title="Synchroniser avec le serveur"
-            disabled={isSyncing || !isOnline}
-          >
-            <CloudSun className={`h-6 w-6 stroke-[1.5] ${isSyncing ? 'animate-spin' : ''}`} />
-          </button>
           <button 
             onClick={handleExportAllToPdf}
             className="text-red-600 p-2 rounded-md hover:bg-red-50 transition-colors"
