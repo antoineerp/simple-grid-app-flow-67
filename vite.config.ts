@@ -4,7 +4,7 @@ import react from "@vitejs/plugin-react-swc";
 import path from "path";
 
 // Only import the componentTagger in development, and only if Node.js version is compatible
-const getDevPlugins = (mode) => {
+const getDevPlugins = (mode: string) => {
   const plugins = [];
   
   // Only use componentTagger in development mode
@@ -21,7 +21,7 @@ const getDevPlugins = (mode) => {
   return plugins;
 };
 
-export default defineConfig(({ mode }) => {
+export default defineConfig(({ mode }: { mode: string }) => {
   // Configuration spécifique pour Infomaniak
   const isInfomaniak = process.env.VITE_HOSTING === 'infomaniak' || process.env.NODE_ENV === 'production';
   const basePath = isInfomaniak ? '/' : '/';
