@@ -1,362 +1,296 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useToast } from '@/hooks/use-toast';
+import { v4 as uuidv4 } from 'uuid';
 import { Document, DocumentGroup } from '@/types/bibliotheque';
-import { loadBibliothequeFromStorage, saveBibliothequeToStorage } from '@/services/bibliotheque/bibliothequeService';
-import { useNetworkStatus } from '@/hooks/useNetworkStatus';
-import { useGlobalSync } from './useGlobalSync';
+import { useToast } from "@/hooks/use-toast";
+import {
+  loadBibliothequeFromStorage,
+  saveBibliothequeToStorage
+} from '@/services/bibliotheque/bibliothequeService';
+import { useGlobalSync } from '@/hooks/useGlobalSync'; // Ajustez cette importation selon votre structure
 
 export const useBibliotheque = () => {
   const { toast } = useToast();
-  const { isOnline } = useNetworkStatus();
-  const { isSyncing, lastSynced, syncWithServer, appData, saveData } = useGlobalSync();
-  const currentUser = localStorage.getItem('currentUser') || 'default';
-  
-  const [documents, setDocuments] = useState<Document[]>(() => {
-    // Tenter de charger depuis les données globales d'abord
-    if (appData.bibliotheque && appData.bibliotheque.documents) {
-      return appData.bibliotheque.documents;
-    }
-    
-    // Sinon, charger depuis le stockage local
-    const localData = loadBibliothequeFromStorage(currentUser);
-    return localData.documents;
-  });
-
-  const [groups, setGroups] = useState<DocumentGroup[]>(() => {
-    // Tenter de charger depuis les données globales d'abord
-    if (appData.bibliotheque && appData.bibliotheque.groups) {
-      return appData.bibliotheque.groups;
-    }
-    
-    // Sinon, charger depuis le stockage local
-    const localData = loadBibliothequeFromStorage(currentUser);
-    return localData.groups;
-  });
-
+  const [documents, setDocuments] = useState<Document[]>([]);
+  const [groups, setGroups] = useState<DocumentGroup[]>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isGroupDialogOpen, setIsGroupDialogOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
-  const [currentDocument, setCurrentDocument] = useState<Document>({
-    id: '',
-    name: '',
-    link: null
-  });
-  const [currentGroup, setCurrentGroup] = useState<DocumentGroup>({
-    id: '',
-    name: '',
-    expanded: false,
-    items: []
-  });
-  const [draggedItem, setDraggedItem] = useState<{ id: string, groupId?: string } | null>(null);
+  const [currentDocument, setCurrentDocument] = useState<Document>({ id: '', name: '', link: '' });
+  const [currentGroup, setCurrentGroup] = useState<DocumentGroup>({ id: '', name: '', expanded: false, items: [] });
+  const [draggedItem, setDraggedItem] = useState<{ id: string | null, groupId: string | null }>({ id: null, groupId: null });
   
-  // Sauvegarder les données à chaque changement
-  useEffect(() => {
-    if (documents.length > 0 || groups.length > 0) {
-      saveBibliothequeToStorage(documents, groups, currentUser);
-      
-      // Mettre à jour les données globales
-      saveData({
-        ...appData,
-        bibliotheque: {
-          documents,
-          groups
-        }
-      });
-    }
-  }, [documents, groups, currentUser, appData, saveData]);
+  const currentUser = localStorage.getItem('currentUser') || 'default';
+  const { 
+    appData,
+    saveData,
+    syncWithServer,
+    isSyncing,
+    isOnline,
+    lastSynced,
+    queueStatus,
+    hasUnsyncedData,
+    retryFailedOperations,
+    clearFailedOperations
+  } = useGlobalSync();
 
-  // Gestion des documents
-  const handleEditDocument = (doc: Document) => {
-    setCurrentDocument({ ...doc });
+  useEffect(() => {
+    const { documents: loadedDocuments, groups: loadedGroups } = loadBibliothequeFromStorage(currentUser);
+    setDocuments(loadedDocuments);
+    setGroups(loadedGroups);
+    
+    const handleBibliothequeUpdate = () => {
+      const { documents: updatedDocuments, groups: updatedGroups } = loadBibliothequeFromStorage(currentUser);
+      setDocuments(updatedDocuments);
+      setGroups(updatedGroups);
+    };
+    
+    window.addEventListener('bibliothequeUpdate', handleBibliothequeUpdate);
+    
+    return () => {
+      window.removeEventListener('bibliothequeUpdate', handleBibliothequeUpdate);
+    };
+  }, [currentUser]);
+
+  const saveToStorage = useCallback((newDocuments: Document[], newGroups: DocumentGroup[]) => {
+    saveBibliothequeToStorage(newDocuments, newGroups, currentUser);
+    
+    // Mettre à jour les données globales
+    saveData({
+      ...appData,
+      bibliotheque: {
+        documents: newDocuments,
+        groups: newGroups
+      }
+    });
+  }, [currentUser, appData, saveData]);
+
+  const handleEditDocument = (document: Document) => {
+    setCurrentDocument(document);
     setIsEditing(true);
     setIsDialogOpen(true);
   };
 
   const handleDeleteDocument = (id: string) => {
-    // Supprimer des documents non-groupés
-    setDocuments(docs => docs.filter(doc => doc.id !== id));
-    
-    // Supprimer des groupes
-    setGroups(groups => groups.map(group => ({
-      ...group,
-      items: group.items.filter(item => item.id !== id)
-    })));
-    
+    const updatedDocuments = documents.filter(doc => doc.id !== id);
+    setDocuments(updatedDocuments);
+    saveToStorage(updatedDocuments, groups);
     toast({
-      title: "Suppression",
-      description: "Le document a été supprimé",
+      title: "Document supprimé",
+      description: "Le document a été supprimé avec succès",
     });
   };
 
   const handleAddDocument = () => {
-    // Générer un nouvel ID
-    const allDocs = [...documents, ...groups.flatMap(g => g.items)];
-    const newId = allDocs.length > 0 
-      ? String(Math.max(...allDocs.map(d => parseInt(d.id))) + 1)
-      : "1";
-    
-    setCurrentDocument({
-      id: newId,
-      name: '',
-      link: null
-    });
+    setCurrentDocument({ id: '', name: '', link: '' });
     setIsEditing(false);
     setIsDialogOpen(true);
   };
 
   const handleDocumentInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    setCurrentDocument({
-      ...currentDocument,
-      [name]: value
-    });
+    setCurrentDocument(prev => ({ ...prev, [name]: value }));
   };
 
   const handleSaveDocument = () => {
-    if (currentDocument.name.trim() === '') {
+    if (!currentDocument.name) {
       toast({
         title: "Erreur",
-        description: "Le nom du document est requis",
+        description: "Le nom du document est obligatoire",
         variant: "destructive",
       });
       return;
     }
 
+    const docToSave = { ...currentDocument };
+
     if (isEditing) {
-      if (currentDocument.groupId) {
-        setGroups(groups => 
-          groups.map(group => 
-            group.id === currentDocument.groupId 
-              ? {
-                  ...group,
-                  items: group.items.map(item => 
-                    item.id === currentDocument.id ? { 
-                      ...currentDocument,
-                      groupId: group.id  // Assurer que groupId est conservé
-                    } : item
-                  )
-                }
-              : group
-          )
-        );
-      } else {
-        setDocuments(docs => 
-          docs.map(doc => doc.id === currentDocument.id ? currentDocument : doc)
-        );
-      }
+      const updatedDocuments = documents.map(doc =>
+        doc.id === docToSave.id ? docToSave : doc
+      );
+      setDocuments(updatedDocuments);
+      saveToStorage(updatedDocuments, groups);
       toast({
-        title: "Modification",
-        description: "Le document a été modifié",
+        title: "Document mis à jour",
+        description: "Le document a été mis à jour avec succès",
       });
     } else {
-      setDocuments(docs => [...docs, currentDocument]);
+      const newDocument = { ...docToSave, id: uuidv4() };
+      const updatedDocuments = [...documents, newDocument];
+      setDocuments(updatedDocuments);
+      saveToStorage(updatedDocuments, groups);
       toast({
-        title: "Ajout",
-        description: "Le document a été ajouté",
+        title: "Document ajouté",
+        description: "Le document a été ajouté avec succès",
       });
     }
-    
+
     setIsDialogOpen(false);
+    setCurrentDocument({ id: '', name: '', link: '' });
   };
 
-  // Gestion des groupes
   const handleEditGroup = (group: DocumentGroup) => {
-    setCurrentGroup({ ...group });
+    setCurrentGroup(group);
     setIsEditing(true);
     setIsGroupDialogOpen(true);
   };
 
   const handleDeleteGroup = (id: string) => {
-    const groupToDelete = groups.find(g => g.id === id);
-    if (groupToDelete && groupToDelete.items.length > 0) {
-      const docsToMove = [...groupToDelete.items];
-      setDocuments(prev => [...prev, ...docsToMove]);
-    }
+    const updatedGroups = groups.filter(group => group.id !== id);
+    setGroups(updatedGroups);
     
-    setGroups(groups => groups.filter(group => group.id !== id));
+    // Supprimer les groupId des documents associés
+    const updatedDocuments = documents.map(doc =>
+      doc.groupId === id ? { ...doc, groupId: undefined } : doc
+    );
+    setDocuments(updatedDocuments);
+    
+    saveToStorage(updatedDocuments, updatedGroups);
     toast({
-      title: "Suppression",
-      description: "Le groupe a été supprimé",
+      title: "Groupe supprimé",
+      description: "Le groupe a été supprimé avec succès",
     });
   };
 
   const handleAddGroup = () => {
-    const newId = groups.length > 0 
-      ? String(Math.max(...groups.map(g => parseInt(g.id))) + 1)
-      : "1";
-    setCurrentGroup({
-      id: newId,
-      name: '',
-      expanded: false,
-      items: []
-    });
+    setCurrentGroup({ id: '', name: '', expanded: false, items: [] });
     setIsEditing(false);
     setIsGroupDialogOpen(true);
   };
 
   const handleGroupInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    setCurrentGroup({
-      ...currentGroup,
-      [name]: value
-    });
+    setCurrentGroup(prev => ({ ...prev, [name]: value }));
   };
 
   const handleSaveGroup = () => {
-    if (currentGroup.name.trim() === '') {
+    if (!currentGroup.name) {
       toast({
         title: "Erreur",
-        description: "Le nom du groupe est requis",
+        description: "Le nom du groupe est obligatoire",
         variant: "destructive",
       });
       return;
     }
 
+    const groupToSave = { ...currentGroup };
+
     if (isEditing) {
-      setGroups(groups => 
-        groups.map(group => group.id === currentGroup.id ? {
-          ...currentGroup,
-          items: group.items // Conserver les items existants
-        } : group)
+      const updatedGroups = groups.map(group =>
+        group.id === groupToSave.id ? { ...groupToSave, items: group.items } : group
       );
+      setGroups(updatedGroups);
+      saveToStorage(documents, updatedGroups);
       toast({
-        title: "Modification",
-        description: "Le groupe a été modifié",
+        title: "Groupe mis à jour",
+        description: "Le groupe a été mis à jour avec succès",
       });
     } else {
-      setGroups(groups => [...groups, { ...currentGroup, items: [] }]);
+      const newGroup = { ...groupToSave, id: uuidv4(), items: [] };
+      const updatedGroups = [...groups, newGroup];
+      setGroups(updatedGroups);
+      saveToStorage(documents, updatedGroups);
       toast({
-        title: "Ajout",
-        description: "Le groupe a été ajouté",
+        title: "Groupe ajouté",
+        description: "Le groupe a été ajouté avec succès",
       });
     }
-    
+
     setIsGroupDialogOpen(false);
+    setCurrentGroup({ id: '', name: '', expanded: false, items: [] });
   };
 
-  // Gestion du drag & drop
   const handleDrop = (targetId: string, targetGroupId?: string) => {
-    if (!draggedItem) return;
+    if (!draggedItem.id) return;
     
-    const { id: sourceId, groupId: sourceGroupId } = draggedItem;
+    const sourceId = draggedItem.id;
+    const sourceGroupId = draggedItem.groupId;
     
-    if (sourceId === targetId && sourceGroupId === targetGroupId) return;
-    
-    if (targetGroupId !== undefined && sourceGroupId !== targetGroupId) {
-      // Déplacer un document vers un groupe
-      let docToMove;
+    setDocuments(prevDocuments => {
+      // 1. Retirer l'élément de sa position actuelle
+      let itemToMove: Document | undefined;
+      let updatedSourceDocuments = [...prevDocuments];
       
       if (sourceGroupId) {
-        // Document provient d'un autre groupe
-        setGroups(groups => groups.map(group => 
-          group.id === sourceGroupId 
-            ? { ...group, items: group.items.filter(item => item.id !== sourceId) }
-            : group
-        ));
-        
-        // Trouver le document
-        const sourceGroup = groups.find(g => g.id === sourceGroupId);
-        docToMove = sourceGroup?.items.find(d => d.id === sourceId);
+        // L'élément vient d'un groupe
+        const sourceGroup = groups.find(group => group.id === sourceGroupId);
+        if (sourceGroup) {
+          itemToMove = sourceGroup.items.find(item => item.id === sourceId);
+          
+          // Retirer l'élément du groupe source
+          const updatedGroups = groups.map(group => {
+            if (group.id === sourceGroupId) {
+              return {
+                ...group,
+                items: group.items.filter(item => item.id !== sourceId)
+              };
+            }
+            return group;
+          });
+          setGroups(updatedGroups);
+        }
       } else {
-        // Document provient de la liste principale
-        setDocuments(docs => docs.filter(doc => doc.id !== sourceId));
-        docToMove = documents.find(d => d.id === sourceId);
+        // L'élément vient de la liste des documents non groupés
+        itemToMove = prevDocuments.find(doc => doc.id === sourceId);
+        updatedSourceDocuments = prevDocuments.filter(doc => doc.id !== sourceId);
       }
       
-      if (docToMove) {
-        // Ajouter au nouveau groupe
-        setGroups(groups => groups.map(group => 
-          group.id === targetGroupId
-            ? { ...group, items: [...group.items, { ...docToMove, groupId: targetGroupId }] }
-            : group
-        ));
-        
-        toast({
-          title: "Déplacement",
-          description: "Le document a été déplacé vers un groupe",
-        });
-      }
-    } else if (sourceGroupId === targetGroupId) {
-      // Réorganiser à l'intérieur d'un groupe ou de la liste principale
-      if (sourceGroupId) {
-        // Réorganiser à l'intérieur d'un groupe
-        const group = groups.find(g => g.id === sourceGroupId);
-        if (!group) return;
-        
-        const sourceIndex = group.items.findIndex(item => item.id === sourceId);
-        const targetIndex = group.items.findIndex(item => item.id === targetId);
-        
-        if (sourceIndex === -1 || targetIndex === -1 || sourceIndex === targetIndex) return;
-        
-        setGroups(groups => groups.map(g => {
-          if (g.id === sourceGroupId) {
-            const newItems = [...g.items];
-            const [removed] = newItems.splice(sourceIndex, 1);
-            newItems.splice(targetIndex, 0, removed);
-            return { ...g, items: newItems };
+      if (!itemToMove) return prevDocuments;
+      
+      // 2. Ajouter l'élément à sa nouvelle position
+      itemToMove = { ...itemToMove, groupId: targetGroupId };
+      let updatedTargetDocuments = [...updatedSourceDocuments];
+      
+      if (targetGroupId) {
+        // L'élément va dans un groupe
+        const updatedGroups = groups.map(group => {
+          if (group.id === targetGroupId) {
+            return {
+              ...group,
+              items: [...group.items, itemToMove].sort((a, b) => (a.name || '').localeCompare(b.name || ''))
+            };
           }
-          return g;
-        }));
-      } else {
-        // Réorganiser dans la liste principale
-        const sourceIndex = documents.findIndex(doc => doc.id === sourceId);
-        const targetIndex = documents.findIndex(doc => doc.id === targetId);
-        
-        if (sourceIndex === -1 || targetIndex === -1 || sourceIndex === targetIndex) return;
-        
-        setDocuments(prev => {
-          const result = Array.from(prev);
-          const [removed] = result.splice(sourceIndex, 1);
-          result.splice(targetIndex, 0, removed);
-          return result;
+          return group;
         });
+        setGroups(updatedGroups);
+      } else {
+        // L'élément va dans la liste des documents non groupés
+        updatedTargetDocuments = [...updatedSourceDocuments, itemToMove].sort((a, b) => (a.name || '').localeCompare(b.name || ''));
       }
       
-      toast({
-        title: "Réorganisation",
-        description: "L'ordre des documents a été mis à jour",
-      });
-    }
-    
-    setDraggedItem(null);
+      saveToStorage(updatedTargetDocuments, groups);
+      return updatedTargetDocuments;
+    });
   };
 
   const handleGroupDrop = (targetGroupId: string) => {
-    if (!draggedItem) return;
+    if (!draggedItem.id) return;
     
-    const { id: sourceId, groupId: sourceGroupId } = draggedItem;
+    const sourceId = draggedItem.id;
     
-    if (sourceGroupId !== undefined && sourceId === targetGroupId) return;
-    
-    if (sourceGroupId === undefined && sourceId) {
-      // On déplace un document vers un groupe (en ciblant le groupe directement)
-      setDocuments(docs => docs.filter(doc => doc.id !== sourceId));
+    setGroups(prevGroups => {
+      // 1. Retirer le groupe de sa position actuelle
+      const groupToMove = groups.find(group => group.id === sourceId);
+      if (!groupToMove) return prevGroups;
       
-      const docToMove = documents.find(d => d.id === sourceId);
+      const updatedSourceGroups = prevGroups.filter(group => group.id !== sourceId);
       
-      if (docToMove) {
-        setGroups(groups => groups.map(group => 
-          group.id === targetGroupId
-            ? { ...group, items: [...group.items, { ...docToMove, groupId: targetGroupId }] }
-            : group
-        ));
-        
-        toast({
-          title: "Déplacement",
-          description: `Document déplacé dans le groupe ${groups.find(g => g.id === targetGroupId)?.name}`,
-        });
-      }
-    }
-    
-    setDraggedItem(null);
+      // 2. Trouver le groupe cible et insérer le groupe déplacé
+      const targetIndex = updatedSourceGroups.findIndex(group => group.id === targetGroupId);
+      if (targetIndex === -1) return prevGroups;
+      
+      updatedSourceGroups.splice(targetIndex + 1, 0, groupToMove);
+      
+      saveToStorage(documents, updatedSourceGroups);
+      return updatedSourceGroups;
+    });
   };
 
-  const toggleGroup = (id: string) => {
-    setGroups(groups => 
-      groups.map(group => 
-        group.id === id ? { ...group, expanded: !group.expanded } : group
-      )
+  const toggleGroup = (groupId: string) => {
+    const updatedGroups = groups.map(group =>
+      group.id === groupId ? { ...group, expanded: !group.expanded } : group
     );
+    setGroups(updatedGroups);
+    saveToStorage(documents, updatedGroups);
   };
 
   return {
@@ -370,6 +304,8 @@ export const useBibliotheque = () => {
     isSyncing,
     isOnline,
     lastSynced,
+    queueStatus,
+    hasUnsyncedData,
     setIsDialogOpen,
     setIsGroupDialogOpen,
     handleEditDocument,
@@ -386,6 +322,8 @@ export const useBibliotheque = () => {
     handleGroupDrop,
     toggleGroup,
     setDraggedItem,
-    syncWithServer
+    syncWithServer,
+    retryFailedOperations,
+    clearFailedOperations
   };
 };

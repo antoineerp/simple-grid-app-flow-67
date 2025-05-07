@@ -1,6 +1,7 @@
 
 import { getApiUrl } from '@/config/apiConfig';
 import { getAuthHeaders } from '@/services/auth/authService';
+import { syncQueueManager } from './syncQueueService';
 
 /**
  * Structure des données de l'application
@@ -15,6 +16,7 @@ export interface AppData {
     groups: any[];
   };
   // Autres données à synchroniser
+  lastModified?: number; // Horodatage de la dernière modification
 }
 
 /**
@@ -58,32 +60,28 @@ export const syncAllWithServer = async (
     const normalizedId = normalizeUserId(userId);
     console.log(`Synchronisation globale pour l'utilisateur ${normalizedId}`);
     
-    const API_URL = getApiUrl();
-    const response = await fetch(`${API_URL}/global-sync.php`, {
-      method: 'POST',
-      headers: {
-        ...getAuthHeaders(),
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
+    // Ajouter l'horodatage de la dernière modification
+    const dataWithTimestamp = {
+      ...data,
+      lastModified: Date.now()
+    };
+    
+    // Ajouter à la file d'attente au lieu de synchroniser immédiatement
+    syncQueueManager.addToQueue({
+      type: 'global',
+      userId: normalizedId,
+      data: {
         userId: normalizedId,
-        data
-      })
+        data: dataWithTimestamp
+      }
     });
     
-    if (!response.ok) {
-      console.error(`Erreur lors de la synchronisation globale: ${response.status}`);
-      const errorText = await response.text();
-      console.error("Détails de l'erreur:", errorText);
-      throw new Error(`Échec de la synchronisation globale: ${response.statusText}`);
-    }
+    // Commencer le traitement de la file d'attente
+    syncQueueManager.processQueue();
     
-    const result = await response.json();
-    console.log("Résultat de la synchronisation globale:", result);
-    
-    return result.success === true;
+    return true;
   } catch (error) {
-    console.error('Erreur de synchronisation globale:', error);
+    console.error('Erreur lors de l\'ajout à la file de synchronisation globale:', error);
     return false;
   }
 };
@@ -108,7 +106,13 @@ export const loadAllFromServer = async (userId: any): Promise<AppData | null> =>
     
     const result = await response.json();
     
-    return result.data || null;
+    // Ajouter l'horodatage de chargement
+    const data = result.data || null;
+    if (data) {
+      data.lastModified = Date.now();
+    }
+    
+    return data;
   } catch (error) {
     console.error('Erreur de chargement global:', error);
     return null;
@@ -121,27 +125,52 @@ export const loadAllFromServer = async (userId: any): Promise<AppData | null> =>
 export const saveAllToStorage = (userId: any, data: AppData): void => {
   const normalizedId = normalizeUserId(userId);
   
+  // Ajouter l'horodatage de la dernière modification
+  const timestamp = Date.now();
+  const dataWithTimestamp = {
+    ...data,
+    lastModified: timestamp
+  };
+  
   // Sauvegarder chaque type de données dans son emplacement approprié
-  if (data.documents) {
-    localStorage.setItem(`documents_${normalizedId}`, JSON.stringify(data.documents));
+  if (dataWithTimestamp.documents) {
+    localStorage.setItem(`documents_${normalizedId}`, JSON.stringify({
+      data: dataWithTimestamp.documents,
+      lastModified: timestamp
+    }));
   }
   
-  if (data.exigences) {
-    localStorage.setItem(`exigences_${normalizedId}`, JSON.stringify(data.exigences));
+  if (dataWithTimestamp.exigences) {
+    localStorage.setItem(`exigences_${normalizedId}`, JSON.stringify({
+      data: dataWithTimestamp.exigences,
+      lastModified: timestamp
+    }));
   }
   
-  if (data.membres) {
-    localStorage.setItem(`membres_${normalizedId}`, JSON.stringify(data.membres));
+  if (dataWithTimestamp.membres) {
+    localStorage.setItem(`membres_${normalizedId}`, JSON.stringify({
+      data: dataWithTimestamp.membres,
+      lastModified: timestamp
+    }));
   }
   
-  if (data.pilotageDocuments) {
-    localStorage.setItem(`pilotage_${normalizedId}`, JSON.stringify(data.pilotageDocuments));
+  if (dataWithTimestamp.pilotageDocuments) {
+    localStorage.setItem(`pilotage_${normalizedId}`, JSON.stringify({
+      data: dataWithTimestamp.pilotageDocuments,
+      lastModified: timestamp
+    }));
   }
   
-  if (data.bibliotheque) {
-    const { documents, groups } = data.bibliotheque;
-    localStorage.setItem(`bibliotheque_documents_${normalizedId}`, JSON.stringify(documents));
-    localStorage.setItem(`bibliotheque_groups_${normalizedId}`, JSON.stringify(groups));
+  if (dataWithTimestamp.bibliotheque) {
+    const { documents, groups } = dataWithTimestamp.bibliotheque;
+    localStorage.setItem(`bibliotheque_documents_${normalizedId}`, JSON.stringify({
+      data: documents,
+      lastModified: timestamp
+    }));
+    localStorage.setItem(`bibliotheque_groups_${normalizedId}`, JSON.stringify({
+      data: groups,
+      lastModified: timestamp
+    }));
   }
   
   // Déclencher un événement global pour informer l'application qu'une mise à jour a été effectuée
@@ -154,35 +183,129 @@ export const saveAllToStorage = (userId: any, data: AppData): void => {
 export const loadAllFromStorage = (userId: any): AppData => {
   const normalizedId = normalizeUserId(userId);
   const data: AppData = {};
+  let globalLastModified = 0;
   
   const documentsJson = localStorage.getItem(`documents_${normalizedId}`);
   if (documentsJson) {
-    data.documents = JSON.parse(documentsJson);
+    try {
+      const parsed = JSON.parse(documentsJson);
+      data.documents = parsed.data || parsed;
+      if (parsed.lastModified && parsed.lastModified > globalLastModified) {
+        globalLastModified = parsed.lastModified;
+      }
+    } catch (e) {
+      console.error("Erreur lors du parsing des documents:", e);
+    }
   }
   
   const exigencesJson = localStorage.getItem(`exigences_${normalizedId}`);
   if (exigencesJson) {
-    data.exigences = JSON.parse(exigencesJson);
+    try {
+      const parsed = JSON.parse(exigencesJson);
+      data.exigences = parsed.data || parsed;
+      if (parsed.lastModified && parsed.lastModified > globalLastModified) {
+        globalLastModified = parsed.lastModified;
+      }
+    } catch (e) {
+      console.error("Erreur lors du parsing des exigences:", e);
+    }
   }
   
   const membresJson = localStorage.getItem(`membres_${normalizedId}`);
   if (membresJson) {
-    data.membres = JSON.parse(membresJson);
+    try {
+      const parsed = JSON.parse(membresJson);
+      data.membres = parsed.data || parsed;
+      if (parsed.lastModified && parsed.lastModified > globalLastModified) {
+        globalLastModified = parsed.lastModified;
+      }
+    } catch (e) {
+      console.error("Erreur lors du parsing des membres:", e);
+    }
   }
   
   const pilotageJson = localStorage.getItem(`pilotage_${normalizedId}`);
   if (pilotageJson) {
-    data.pilotageDocuments = JSON.parse(pilotageJson);
+    try {
+      const parsed = JSON.parse(pilotageJson);
+      data.pilotageDocuments = parsed.data || parsed;
+      if (parsed.lastModified && parsed.lastModified > globalLastModified) {
+        globalLastModified = parsed.lastModified;
+      }
+    } catch (e) {
+      console.error("Erreur lors du parsing des documents de pilotage:", e);
+    }
   }
   
   const bibliothequeDocumentsJson = localStorage.getItem(`bibliotheque_documents_${normalizedId}`);
   const bibliothequeGroupsJson = localStorage.getItem(`bibliotheque_groups_${normalizedId}`);
+  
   if (bibliothequeDocumentsJson || bibliothequeGroupsJson) {
     data.bibliotheque = {
-      documents: bibliothequeDocumentsJson ? JSON.parse(bibliothequeDocumentsJson) : [],
-      groups: bibliothequeGroupsJson ? JSON.parse(bibliothequeGroupsJson) : []
+      documents: [],
+      groups: []
     };
+    
+    if (bibliothequeDocumentsJson) {
+      try {
+        const parsed = JSON.parse(bibliothequeDocumentsJson);
+        data.bibliotheque.documents = parsed.data || parsed;
+        if (parsed.lastModified && parsed.lastModified > globalLastModified) {
+          globalLastModified = parsed.lastModified;
+        }
+      } catch (e) {
+        console.error("Erreur lors du parsing des documents bibliothèque:", e);
+      }
+    }
+    
+    if (bibliothequeGroupsJson) {
+      try {
+        const parsed = JSON.parse(bibliothequeGroupsJson);
+        data.bibliotheque.groups = parsed.data || parsed;
+        if (parsed.lastModified && parsed.lastModified > globalLastModified) {
+          globalLastModified = parsed.lastModified;
+        }
+      } catch (e) {
+        console.error("Erreur lors du parsing des groupes de bibliothèque:", e);
+      }
+    }
   }
   
+  // Ajouter l'horodatage global le plus récent
+  data.lastModified = globalLastModified || Date.now();
+  
   return data;
+};
+
+/**
+ * Vérifie si des données ont été modifiées depuis la dernière synchronisation
+ */
+export const hasUnsyncedChanges = (lastSynced: Date | null, data: AppData): boolean => {
+  if (!lastSynced) return true;
+  
+  const lastSyncedTime = lastSynced.getTime();
+  const lastModified = data.lastModified || 0;
+  
+  return lastModified > lastSyncedTime;
+};
+
+/**
+ * Obtient le statut de la file d'attente de synchronisation
+ */
+export const getSyncQueueStatus = () => {
+  return syncQueueManager.getQueueStatus();
+};
+
+/**
+ * Réessaye les opérations de synchronisation échouées
+ */
+export const retryFailedSyncs = () => {
+  return syncQueueManager.retryFailedOperations();
+};
+
+/**
+ * Efface les opérations de synchronisation échouées
+ */
+export const clearFailedSyncs = () => {
+  return syncQueueManager.clearFailedOperations();
 };

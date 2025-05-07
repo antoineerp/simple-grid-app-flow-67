@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { 
@@ -7,7 +7,11 @@ import {
   syncAllWithServer, 
   loadAllFromServer, 
   saveAllToStorage, 
-  loadAllFromStorage 
+  loadAllFromStorage,
+  hasUnsyncedChanges,
+  getSyncQueueStatus,
+  retryFailedSyncs,
+  clearFailedSyncs
 } from '@/services/sync/globalSyncService';
 
 export const useGlobalSync = () => {
@@ -16,6 +20,13 @@ export const useGlobalSync = () => {
   const [isSyncing, setIsSyncing] = useState(false);
   const [lastSynced, setLastSynced] = useState<Date | null>(null);
   const [appData, setAppData] = useState<AppData>({});
+  const [queueStatus, setQueueStatus] = useState({
+    total: 0,
+    pending: 0,
+    processing: 0,
+    failed: 0,
+    hasFailures: false
+  });
 
   // Récupérer l'identifiant technique de l'utilisateur connecté
   const getUserId = (): string => {
@@ -34,6 +45,13 @@ export const useGlobalSync = () => {
   
   const userId = getUserId();
 
+  // Mettre à jour le statut de la file d'attente
+  const updateQueueStatus = useCallback(() => {
+    const status = getSyncQueueStatus();
+    setQueueStatus(status);
+    return status;
+  }, []);
+
   // Charger les données au démarrage
   useEffect(() => {
     loadData();
@@ -41,40 +59,60 @@ export const useGlobalSync = () => {
     // Écouter les mises à jour de données
     const handleDataUpdate = () => {
       setAppData(loadAllFromStorage(userId));
+      updateQueueStatus();
     };
     
     window.addEventListener('globalDataUpdate', handleDataUpdate);
     
+    // Vérifier périodiquement l'état de la file d'attente
+    const intervalId = setInterval(() => {
+      updateQueueStatus();
+    }, 10000);
+    
     return () => {
       window.removeEventListener('globalDataUpdate', handleDataUpdate);
+      clearInterval(intervalId);
     };
-  }, [userId]);
+  }, [userId, updateQueueStatus]);
 
   // Fonction pour charger les données
   const loadData = async () => {
     if (isOnline) {
       try {
+        setIsSyncing(true);
         const serverData = await loadAllFromServer(userId);
         if (serverData) {
           saveAllToStorage(userId, serverData);
           setAppData(serverData);
           setLastSynced(new Date());
+          updateQueueStatus();
+          setIsSyncing(false);
           return;
         }
       } catch (error) {
         console.error('Erreur lors du chargement depuis le serveur:', error);
+      } finally {
+        setIsSyncing(false);
       }
     }
     
     // Si hors ligne ou erreur de chargement, utiliser les données locales
     const localData = loadAllFromStorage(userId);
     setAppData(localData);
+    updateQueueStatus();
   };
 
   // Fonction pour sauvegarder les données actuelles
   const saveData = (newData: AppData) => {
-    saveAllToStorage(userId, newData);
-    setAppData(newData);
+    // Ajouter l'horodatage de modification
+    const dataWithTimestamp = {
+      ...newData,
+      lastModified: Date.now()
+    };
+    
+    saveAllToStorage(userId, dataWithTimestamp);
+    setAppData(dataWithTimestamp);
+    updateQueueStatus();
   };
 
   // Fonction pour synchroniser les données avec le serveur
@@ -97,17 +135,28 @@ export const useGlobalSync = () => {
       const success = await syncAllWithServer(userId, currentData);
       
       if (success) {
+        const now = new Date();
+        setLastSynced(now);
         toast({
-          title: "Synchronisation réussie",
-          description: "Toutes les données ont été synchronisées avec le serveur",
+          title: "Synchronisation en cours",
+          description: "Les données sont en cours de synchronisation avec le serveur",
         });
-        setLastSynced(new Date());
+        
+        const status = updateQueueStatus();
+        
+        // Si la file d'attente est vide ou ne contient que des opérations complétées
+        if (status.pending === 0 && status.processing === 0) {
+          toast({
+            title: "Synchronisation réussie",
+            description: "Toutes les données ont été synchronisées avec le serveur",
+          });
+        }
+        
         return true;
       } else {
         toast({
-          title: "Échec de la synchronisation",
-          description: "Une erreur est survenue lors de la synchronisation",
-          variant: "destructive",
+          title: "Synchronisation planifiée",
+          description: "Les données seront synchronisées dès que possible",
         });
         return false;
       }
@@ -123,6 +172,29 @@ export const useGlobalSync = () => {
       setIsSyncing(false);
     }
   };
+  
+  // Fonction pour réessayer les synchronisations échouées
+  const retryFailedOperations = () => {
+    retryFailedSyncs();
+    updateQueueStatus();
+    toast({
+      title: "Nouvelle tentative",
+      description: "Les opérations échouées seront réessayées",
+    });
+  };
+  
+  // Fonction pour effacer les synchronisations échouées
+  const clearFailedOperations = () => {
+    clearFailedSyncs();
+    updateQueueStatus();
+    toast({
+      title: "Nettoyage",
+      description: "Les opérations échouées ont été supprimées",
+    });
+  };
+  
+  // Vérifier si des modifications sont en attente de synchronisation
+  const hasUnsyncedData = lastSynced ? hasUnsyncedChanges(lastSynced, appData) : false;
 
   return {
     appData,
@@ -131,6 +203,10 @@ export const useGlobalSync = () => {
     loadData,
     isSyncing,
     isOnline,
-    lastSynced
+    lastSynced,
+    queueStatus,
+    hasUnsyncedData,
+    retryFailedOperations,
+    clearFailedOperations
   };
 };

@@ -4,6 +4,7 @@ import { FileText, Pencil, Trash, ChevronDown, FolderPlus, GripVertical, Externa
 import { useToast } from "@/hooks/use-toast";
 import { exportBibliothecaireDocsToPdf } from '@/services/pdfExport';
 import { useBibliotheque } from '@/hooks/useBibliotheque';
+import SyncStatusIndicator from '@/components/common/SyncStatusIndicator';
 import {
   Dialog,
   DialogContent,
@@ -37,6 +38,8 @@ const Bibliotheque = () => {
     isSyncing,
     isOnline,
     lastSynced,
+    queueStatus,
+    hasUnsyncedData,
     setIsDialogOpen,
     setIsGroupDialogOpen,
     handleEditDocument,
@@ -53,7 +56,9 @@ const Bibliotheque = () => {
     handleGroupDrop,
     toggleGroup,
     setDraggedItem,
-    syncWithServer
+    syncWithServer,
+    retryFailedOperations,
+    clearFailedOperations
   } = useBibliotheque();
   
   const handleExportPdf = () => {
@@ -136,6 +141,14 @@ const Bibliotheque = () => {
         </div>
         <div className="flex space-x-2">
           <button 
+            onClick={syncWithServer}
+            className="text-blue-600 p-2 rounded-md hover:bg-blue-50 transition-colors flex items-center"
+            title="Synchroniser avec le serveur"
+            disabled={isSyncing}
+          >
+            <CloudSun className={`h-6 w-6 stroke-[1.5] ${isSyncing ? 'animate-spin' : ''}`} />
+          </button>
+          <button 
             onClick={handleExportPdf}
             className="text-red-600 p-2 rounded-md hover:bg-red-50 transition-colors"
             title="Exporter en PDF"
@@ -143,6 +156,18 @@ const Bibliotheque = () => {
             <FileText className="h-6 w-6 stroke-[1.5]" />
           </button>
         </div>
+      </div>
+      
+      <div className="mb-4">
+        <SyncStatusIndicator 
+          isSyncing={isSyncing}
+          isOnline={isOnline}
+          lastSynced={lastSynced}
+          queueStatus={queueStatus}
+          hasUnsyncedData={hasUnsyncedData}
+          onRetry={retryFailedOperations}
+          onClear={clearFailedOperations}
+        />
       </div>
       
       <div className="bg-white rounded-md shadow overflow-hidden mt-6">
