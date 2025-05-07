@@ -75,7 +75,7 @@ jobs:
         ls -la dist/public/ || echo "No public folder"
     
     - name: Test FTP connection
-      uses: SamKirkland/FTP-Deploy-Action@4.3.4
+      uses: SamKirkland/FTP-Deploy-Action@v4
       with:
         server: ${{ secrets.FTP_SERVER }}
         username: ${{ secrets.FTP_USERNAME }}
@@ -86,7 +86,7 @@ jobs:
         log-level: verbose
         
     - name: Deploy to Infomaniak using FTP
-      uses: SamKirkland/FTP-Deploy-Action@4.3.4
+      uses: SamKirkland/FTP-Deploy-Action@v4
       with:
         server: ${{ secrets.FTP_SERVER }}
         username: ${{ secrets.FTP_USERNAME }}
