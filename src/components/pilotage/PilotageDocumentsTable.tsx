@@ -11,18 +11,12 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
-
-interface Document {
-  id: number;
-  ordre: number;
-  nom: string;
-  lien: string | null;
-}
+import { PilotageDocument } from './types';
 
 interface PilotageDocumentsTableProps {
-  documents: Document[];
-  onEditDocument: (doc: Document) => void;
-  onDeleteDocument: (id: number) => void;
+  documents: PilotageDocument[];
+  onEditDocument: (doc: PilotageDocument) => void;
+  onDeleteDocument: (id: string) => void;
   onReorder: (startIndex: number, endIndex: number) => void;
 }
 

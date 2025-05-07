@@ -1,5 +1,7 @@
 
 import { toast } from '@/hooks/use-toast';
+import { getApiUrl } from '@/config/apiConfig';
+import { getAuthHeaders } from '@/services/auth/authService';
 
 /**
  * Initialises user data on login
@@ -234,4 +236,65 @@ const getAllLocalUsers = (): string[] => {
   }
   
   return users;
+};
+
+/**
+ * Import data from manager user to admin
+ */
+export const adminImportFromManager = async (): Promise<boolean> => {
+  try {
+    console.log("Import des données du gestionnaire vers l'administrateur");
+    
+    // Trouver l'utilisateur gestionnaire
+    const users = getAllLocalUsers();
+    let managerUser = null;
+    
+    for (const user of users) {
+      const role = localStorage.getItem(`role_${user}`);
+      if (role === 'gestionnaire') {
+        managerUser = user;
+        break;
+      }
+    }
+    
+    if (!managerUser) {
+      console.error("Aucun utilisateur gestionnaire trouvé");
+      return false;
+    }
+    
+    // Obtenir l'utilisateur administrateur actuel
+    const currentUser = localStorage.getItem('currentUser');
+    if (!currentUser) {
+      console.error("Aucun utilisateur connecté");
+      return false;
+    }
+    
+    // Copier les données du gestionnaire vers l'administrateur
+    const membreData = localStorage.getItem(`membres_${managerUser}`);
+    const documentsData = localStorage.getItem(`documents_${managerUser}`);
+    const exigencesData = localStorage.getItem(`exigences_${managerUser}`);
+    const pilotageData = localStorage.getItem(`pilotage_${managerUser}`);
+    const bibliothequeData = localStorage.getItem(`bibliotheque_${managerUser}`);
+    
+    if (membreData) localStorage.setItem(`membres_${currentUser}`, membreData);
+    if (documentsData) localStorage.setItem(`documents_${currentUser}`, documentsData);
+    if (exigencesData) localStorage.setItem(`exigences_${currentUser}`, exigencesData);
+    if (pilotageData) localStorage.setItem(`pilotage_${currentUser}`, pilotageData);
+    if (bibliothequeData) localStorage.setItem(`bibliotheque_${currentUser}`, bibliothequeData);
+    
+    // Mettre à jour les templates
+    if (membreData) localStorage.setItem('membres_template', membreData);
+    if (documentsData) localStorage.setItem('documents_template', documentsData);
+    if (exigencesData) localStorage.setItem('exigences_template', exigencesData);
+    if (pilotageData) localStorage.setItem('pilotage_template', pilotageData);
+    if (bibliothequeData) localStorage.setItem('bibliotheque_template', bibliothequeData);
+    
+    // Synchronisation avec le serveur pour l'administrateur
+    // Vous pourriez appeler vos fonctions de synchronisation ici
+    
+    return true;
+  } catch (error) {
+    console.error("Erreur lors de l'importation des données du gestionnaire:", error);
+    return false;
+  }
 };
