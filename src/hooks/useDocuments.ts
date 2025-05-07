@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { Document, DocumentStats, DocumentGroup } from '@/types/documents';
@@ -8,7 +9,7 @@ import { useGlobalSync } from './useGlobalSync';
 export const useDocuments = () => {
   const { toast } = useToast();
   const { isOnline } = useNetworkStatus();
-  const { isSyncing, lastSynced, syncWithServer, appData, saveData } = useGlobalSync();
+  const { syncWithServer, isSyncing, lastSynced, appData, saveData } = useGlobalSync();
   const currentUser = localStorage.getItem('currentUser') || 'default';
   
   const [documents, setDocuments] = useState<Document[]>(() => {

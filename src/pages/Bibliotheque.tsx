@@ -3,6 +3,7 @@ import { FileText, Pencil, Trash, ChevronDown, FolderPlus, GripVertical, Externa
 import { useToast } from "@/hooks/use-toast";
 import { exportBibliothecaireDocsToPdf } from '@/services/pdfExport';
 import { useBibliotheque } from '@/hooks/useBibliotheque';
+import { useSynchronization } from '@/hooks/useSynchronization';
 import SyncStatusIndicator from '@/components/common/SyncStatusIndicator';
 import {
   Dialog,
@@ -34,10 +35,6 @@ const Bibliotheque = () => {
     isEditing,
     currentDocument,
     currentGroup,
-    isSyncing,
-    isOnline,
-    lastSynced,
-    hasUnsyncedData,
     setIsDialogOpen,
     setIsGroupDialogOpen,
     handleEditDocument,
@@ -57,22 +54,14 @@ const Bibliotheque = () => {
     syncWithServer
   } = useBibliotheque();
   
+  const { handleSync, isSyncing, isOnline, lastSynced, hasUnsyncedData } = useSynchronization();
+  
   const handleExportPdf = () => {
     exportBibliothecaireDocsToPdf(documents, groups);
     toast({
       title: "Export PDF réussi",
       description: "Le document a été généré et téléchargé",
     });
-  };
-
-  const handleSyncClick = async () => {
-    const success = await syncWithServer();
-    if (success) {
-      toast({
-        title: "Synchronisation réussie",
-        description: "Toutes les données ont été synchronisées avec le serveur",
-      });
-    }
   };
 
   const handleDragStart = (e: React.DragEvent<HTMLTableRowElement>, id: string, groupId?: string) => {
@@ -147,7 +136,7 @@ const Bibliotheque = () => {
         </div>
         <div className="flex space-x-2">
           <button 
-            onClick={handleSyncClick}
+            onClick={handleSync}
             className="text-blue-600 p-2 rounded-md hover:bg-blue-50 transition-colors flex items-center"
             title="Synchroniser avec le serveur"
             disabled={isSyncing}
@@ -170,7 +159,7 @@ const Bibliotheque = () => {
           isOnline={isOnline}
           lastSynced={lastSynced}
           hasUnsyncedData={hasUnsyncedData}
-          onSync={handleSyncClick}
+          onSync={handleSync}
         />
       </div>
       

@@ -7,7 +7,7 @@ import { useGlobalSync } from '@/hooks/useGlobalSync';
 export const useExigences = () => {
   const { toast } = useToast();
   const { isOnline } = useNetworkStatus();
-  const { isSyncing, lastSynced, syncWithServer, appData, saveData } = useGlobalSync();
+  const { syncWithServer, isSyncing, lastSynced, appData, saveData } = useGlobalSync();
   const currentUser = localStorage.getItem('currentUser') || 'default';
   
   const [exigences, setExigences] = useState<Exigence[]>(() => {

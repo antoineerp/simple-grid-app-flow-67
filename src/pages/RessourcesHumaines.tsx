@@ -1,5 +1,5 @@
 
-import React, { useEffect } from 'react';
+import React from 'react';
 import { FileText, UserPlus, CloudSun } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -11,14 +11,17 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { useMembres } from '@/contexts/MembresContext';
+import { useSynchronization } from '@/hooks/useSynchronization';
 import MemberList from '@/components/ressources-humaines/MemberList';
 import MemberForm from '@/components/ressources-humaines/MemberForm';
+import SyncStatusIndicator from '@/components/common/SyncStatusIndicator';
 import { Membre } from '@/types/membres';
 import { exportAllCollaborateursToPdf } from '@/services/collaborateurExport';
 
 const RessourcesHumaines = () => {
   const { toast } = useToast();
   const { membres, setMembres } = useMembres();
+  const { handleSync, isSyncing, isOnline, lastSynced, hasUnsyncedData } = useSynchronization();
   
   const [isDialogOpen, setIsDialogOpen] = React.useState(false);
   const [currentMembre, setCurrentMembre] = React.useState<Membre>({
@@ -151,6 +154,14 @@ const RessourcesHumaines = () => {
         </div>
         <div className="flex space-x-2">
           <button 
+            onClick={handleSync}
+            className="text-blue-600 p-2 rounded-md hover:bg-blue-50 transition-colors flex items-center"
+            title="Synchroniser avec le serveur"
+            disabled={isSyncing}
+          >
+            <CloudSun className={`h-6 w-6 stroke-[1.5] ${isSyncing ? 'animate-spin' : ''}`} />
+          </button>
+          <button 
             onClick={handleExportAllToPdf}
             className="text-red-600 p-2 rounded-md hover:bg-red-50 transition-colors"
             title="Exporter en PDF"
@@ -158,6 +169,16 @@ const RessourcesHumaines = () => {
             <FileText className="h-6 w-6 stroke-[1.5]" />
           </button>
         </div>
+      </div>
+
+      <div className="mb-4">
+        <SyncStatusIndicator 
+          isSyncing={isSyncing}
+          isOnline={isOnline}
+          lastSynced={lastSynced}
+          hasUnsyncedData={hasUnsyncedData}
+          onSync={handleSync}
+        />
       </div>
 
       {isLoading ? (

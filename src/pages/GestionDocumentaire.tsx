@@ -7,9 +7,11 @@ import DocumentStatusDisplay from '@/components/gestion-documentaire/DocumentSta
 import DocumentTable from '@/components/gestion-documentaire/DocumentTable';
 import { DocumentGroupDialog } from '@/components/gestion-documentaire/DocumentGroupDialog';
 import { useDocuments } from '@/hooks/useDocuments';
+import { useSynchronization } from '@/hooks/useSynchronization';
 import { exportDocumentsToPdf } from '@/services/pdfExport';
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
+import SyncStatusIndicator from '@/components/common/SyncStatusIndicator';
 
 const GestionDocumentaireContent = () => {
   const {
@@ -20,9 +22,6 @@ const GestionDocumentaireContent = () => {
     editingGroup,
     dialogOpen,
     groupDialogOpen,
-    isSyncing,
-    isOnline,
-    lastSynced,
     setDialogOpen,
     setGroupDialogOpen,
     handleResponsabiliteChange,
@@ -38,10 +37,10 @@ const GestionDocumentaireContent = () => {
     handleSaveGroup,
     handleDeleteGroup,
     handleGroupReorder,
-    handleToggleGroup,
-    syncWithServer
+    handleToggleGroup
   } = useDocuments();
   
+  const { handleSync, isSyncing, isOnline, lastSynced, hasUnsyncedData } = useSynchronization();
   const { toast } = useToast();
 
   const handleExportPdf = () => {
@@ -60,7 +59,7 @@ const GestionDocumentaireContent = () => {
         </div>
         <div className="flex space-x-2">
           <button 
-            onClick={syncWithServer}
+            onClick={handleSync}
             className="text-blue-600 p-2 rounded-md hover:bg-blue-50 transition-colors flex items-center"
             title="Synchroniser avec le serveur"
             disabled={isSyncing}
@@ -75,6 +74,16 @@ const GestionDocumentaireContent = () => {
             <FileText className="h-6 w-6 stroke-[1.5]" />
           </button>
         </div>
+      </div>
+
+      <div className="mb-4">
+        <SyncStatusIndicator 
+          isSyncing={isSyncing}
+          isOnline={isOnline}
+          lastSynced={lastSynced}
+          hasUnsyncedData={hasUnsyncedData}
+          onSync={handleSync}
+        />
       </div>
 
       <DocumentStatusDisplay stats={stats} />

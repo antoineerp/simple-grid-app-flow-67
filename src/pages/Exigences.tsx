@@ -7,9 +7,11 @@ import ExigenceStats from '@/components/exigences/ExigenceStats';
 import ExigenceTable from '@/components/exigences/ExigenceTable';
 import { ExigenceGroupDialog } from '@/components/exigences/ExigenceGroupDialog';
 import { useExigences } from '@/hooks/useExigences';
+import { useSynchronization } from '@/hooks/useSynchronization';
 import { exportExigencesToPdf } from '@/services/pdfExport';
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
+import SyncStatusIndicator from '@/components/common/SyncStatusIndicator';
 
 const ExigencesContent = () => {
   const {
@@ -20,9 +22,6 @@ const ExigencesContent = () => {
     editingGroup,
     dialogOpen,
     groupDialogOpen,
-    isSyncing,
-    isOnline,
-    lastSynced,
     setDialogOpen,
     setGroupDialogOpen,
     handleResponsabiliteChange,
@@ -38,10 +37,10 @@ const ExigencesContent = () => {
     handleSaveGroup,
     handleDeleteGroup,
     handleGroupReorder,
-    handleToggleGroup,
-    syncWithServer
+    handleToggleGroup
   } = useExigences();
   
+  const { handleSync, isSyncing, isOnline, lastSynced, hasUnsyncedData } = useSynchronization();
   const { toast } = useToast();
 
   const handleExportPdf = () => {
@@ -60,7 +59,7 @@ const ExigencesContent = () => {
         </div>
         <div className="flex space-x-2">
           <button 
-            onClick={syncWithServer}
+            onClick={handleSync}
             className="text-blue-600 p-2 rounded-md hover:bg-blue-50 transition-colors flex items-center"
             title="Synchroniser avec le serveur"
             disabled={isSyncing}
@@ -75,6 +74,16 @@ const ExigencesContent = () => {
             <FileText className="h-6 w-6 stroke-[1.5]" />
           </button>
         </div>
+      </div>
+
+      <div className="mb-4">
+        <SyncStatusIndicator 
+          isSyncing={isSyncing}
+          isOnline={isOnline}
+          lastSynced={lastSynced}
+          hasUnsyncedData={hasUnsyncedData}
+          onSync={handleSync}
+        />
       </div>
 
       <ExigenceStats stats={stats} />
