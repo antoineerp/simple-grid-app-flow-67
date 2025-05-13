@@ -45,6 +45,11 @@ RewriteRule ^api/([^/]+)$ api/$1.php [QSA,L]
 # Règle pour autres requêtes API
 RewriteRule ^api/(.*)$ api/$1 [QSA,L]
 
+# Permettre l'accès direct aux fichiers de diagnostic
+RewriteRule ^diagnose-infomaniak\.php$ - [L]
+RewriteRule ^verify-deploy\.php$ - [L]
+RewriteRule ^user-diagnostic\.php$ - [L]
+
 # Permettre l'accès direct aux assets dans leur dossier
 RewriteCond %{REQUEST_URI} ^/assets/
 RewriteCond %{REQUEST_FILENAME} -f
