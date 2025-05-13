@@ -38,6 +38,42 @@ export const getFullApiUrl = (): string => {
   return `${baseUrl}${apiPath}`;
 };
 
+// Helper pour gérer les erreurs de fetch de manière cohérente
+export const fetchWithErrorHandling = async (url: string, options: RequestInit = {}): Promise<any> => {
+  try {
+    const response = await fetch(url, options);
+    
+    // Si la réponse n'est pas OK, lancer une erreur
+    if (!response.ok) {
+      const errorText = await response.text();
+      let errorMessage;
+      
+      try {
+        // Tenter de parser le message d'erreur comme JSON
+        const errorData = JSON.parse(errorText);
+        errorMessage = errorData.message || errorData.error || `Erreur HTTP: ${response.status}`;
+      } catch (e) {
+        // Si ce n'est pas du JSON, utiliser le texte brut
+        errorMessage = `Erreur HTTP: ${response.status} - ${errorText.substring(0, 100)}${errorText.length > 100 ? '...' : ''}`;
+      }
+      
+      throw new Error(errorMessage);
+    }
+    
+    // Tenter de parser la réponse comme JSON
+    try {
+      return await response.json();
+    } catch (e) {
+      const text = await response.text();
+      console.error("Échec du parsing JSON:", text.substring(0, 200));
+      throw new Error(`La réponse n'est pas au format JSON valide: ${text.substring(0, 100)}${text.length > 100 ? '...' : ''}`);
+    }
+  } catch (error) {
+    console.error("Erreur fetch:", error);
+    throw error;
+  }
+};
+
 // Tester la connexion à l'API
 export const testApiConnection = async (): Promise<{ 
   success: boolean; 
@@ -51,7 +87,7 @@ export const testApiConnection = async (): Promise<{
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 5000);
     
-    const response = await fetch(`${getFullApiUrl()}/test.php`, {
+    const response = await fetch(`${getFullApiUrl()}/simple-test.php`, {
       method: 'GET',
       headers: {
         'Cache-Control': 'no-cache, no-store, must-revalidate',
