@@ -1,171 +1,190 @@
 
 <?php
-// Forcer l'output buffering pour éviter tout output avant les headers
-ob_start();
-
-// Fichier pour vérifier l'état des utilisateurs dans la base de données
+// Définir les en-têtes pour empêcher la mise en cache et autoriser CORS
 header("Content-Type: application/json; charset=UTF-8");
 header("Access-Control-Allow-Origin: *");
-header("Access-Control-Allow-Methods: GET, OPTIONS, POST");
+header("Access-Control-Allow-Methods: GET, OPTIONS");
 header("Access-Control-Allow-Headers: Content-Type, Authorization");
 header("Cache-Control: no-cache, no-store, must-revalidate");
 
-// Si c'est une requête OPTIONS (preflight), nous la terminons ici
-if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
-    http_response_code(200);
-    echo json_encode(['status' => 200, 'message' => 'Preflight OK']);
-    exit;
-}
-
-// Journaliser l'exécution
+// Journalisation pour débogage
 error_log("=== EXÉCUTION DE check-users.php ===");
 
-// Capturer toute sortie pour éviter la contamination du JSON
-if (ob_get_level()) ob_clean();
-
 try {
-    // Tester la connexion PDO directement sans passer par notre classe Database
+    // Paramètres de connexion directe à la base de données Infomaniak
     $host = "p71x6d.myd.infomaniak.com";
     $dbname = "p71x6d_system";
     $username = "p71x6d_system";
     $password = "Trottinette43!";
     
-    $dsn = "mysql:host={$host};dbname={$dbname};charset=utf8mb4";
+    error_log("Tentative de connexion directe à la base de données Infomaniak");
+    
+    // Connexion directe à la base de données
+    $dsn = "mysql:host=$host;dbname=$dbname;charset=utf8mb4";
     $options = [
         PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
         PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
         PDO::ATTR_EMULATE_PREPARES => false,
     ];
     
-    error_log("Tentative de connexion PDO directe à la base de données");
     $pdo = new PDO($dsn, $username, $password, $options);
-    error_log("Connexion PDO réussie");
+    error_log("Connexion à la base de données réussie");
     
-    // Vérifier si la table existe
-    $tableExistsQuery = "SHOW TABLES LIKE 'utilisateurs'";
-    $stmt = $pdo->prepare($tableExistsQuery);
-    $stmt->execute();
-    
-    if ($stmt->rowCount() == 0) {
-        // La table n'existe pas, la créer
-        error_log("La table 'utilisateurs' n'existe pas, création en cours");
-        $createTableQuery = "CREATE TABLE IF NOT EXISTS utilisateurs (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            nom VARCHAR(100) NOT NULL,
-            prenom VARCHAR(100) NOT NULL,
-            email VARCHAR(100) NOT NULL UNIQUE,
-            mot_de_passe VARCHAR(255) NOT NULL,
-            identifiant_technique VARCHAR(100) NOT NULL UNIQUE,
-            role ENUM('admin', 'user', 'administrateur', 'utilisateur', 'gestionnaire') NOT NULL,
-            date_creation TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci";
-        
-        $pdo->exec($createTableQuery);
-        error_log("Table 'utilisateurs' créée avec succès");
-        
-        // Créer un utilisateur admin par défaut
-        $defaultAdminQuery = "INSERT INTO utilisateurs (nom, prenom, email, mot_de_passe, identifiant_technique, role) 
-        VALUES ('Admin', 'System', 'admin@system.local', :password, 'p71x6d_system_admin', 'admin')";
-        
-        $stmt = $pdo->prepare($defaultAdminQuery);
-        $hashedPassword = password_hash('admin123', PASSWORD_BCRYPT);
-        $stmt->bindParam(':password', $hashedPassword);
-        $stmt->execute();
-        
-        error_log("Utilisateur admin par défaut créé");
-    } else {
-        error_log("La table 'utilisateurs' existe déjà");
-        
-        // Vérifier la structure de la colonne 'role'
-        $roleColumnQuery = "SHOW COLUMNS FROM utilisateurs LIKE 'role'";
-        $stmt = $pdo->prepare($roleColumnQuery);
-        $stmt->execute();
-        $roleColumn = $stmt->fetch(PDO::FETCH_ASSOC);
-        
-        if ($roleColumn) {
-            error_log("Structure actuelle de la colonne 'role': " . $roleColumn['Type']);
-            
-            // Vérifier si la colonne 'role' inclut tous les types nécessaires
-            if (strpos($roleColumn['Type'], 'enum') === 0 && 
-                (!strpos($roleColumn['Type'], 'gestionnaire') || 
-                 !strpos($roleColumn['Type'], 'utilisateur') || 
-                 !strpos($roleColumn['Type'], 'administrateur'))) {
-                
-                error_log("Tentative de modification de la colonne 'role' pour inclure tous les types nécessaires");
-                try {
-                    $alterQuery = "ALTER TABLE utilisateurs MODIFY COLUMN role ENUM('admin', 'user', 'administrateur', 'utilisateur', 'gestionnaire') NOT NULL";
-                    $pdo->exec($alterQuery);
-                    error_log("Colonne 'role' modifiée avec succès");
-                } catch (PDOException $e) {
-                    error_log("Erreur lors de la modification de la colonne 'role': " . $e->getMessage());
-                }
-            }
-        } else {
-            error_log("Colonne 'role' introuvable dans la table 'utilisateurs'");
-        }
+    // Vérifier si la table utilisateurs existe
+    $tables = [];
+    $stmt = $pdo->query("SHOW TABLES");
+    while ($row = $stmt->fetch(PDO::FETCH_NUM)) {
+        $tables[] = $row[0];
     }
     
-    // Récupérer tous les utilisateurs
-    $query = "SELECT id, nom, prenom, email, role, identifiant_technique, date_creation, mot_de_passe FROM utilisateurs";
-    $stmt = $pdo->prepare($query);
-    $stmt->execute();
-    $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
-    $count = count($users);
+    $response = [
+        "status" => "success",
+        "message" => "Connexion à la base de données réussie",
+        "tables" => $tables,
+        "timestamp" => date('Y-m-d H:i:s')
+    ];
     
-    error_log("Nombre d'utilisateurs récupérés: " . $count);
+    // Si la table utilisateurs existe, récupérer les utilisateurs
+    if (in_array('utilisateurs', $tables)) {
+        error_log("Table utilisateurs trouvée, récupération des utilisateurs");
+        
+        $stmt = $pdo->query("SELECT * FROM utilisateurs LIMIT 10");
+        $users = $stmt->fetchAll();
+        
+        // Vérifier si antcirier@gmail.com existe et ajouter des informations de débogage
+        $stmt = $pdo->prepare("SELECT * FROM utilisateurs WHERE email = ?");
+        $stmt->execute(["antcirier@gmail.com"]);
+        $antcirier = $stmt->fetch();
+        
+        if ($antcirier) {
+            error_log("Utilisateur antcirier@gmail.com trouvé: " . json_encode($antcirier));
+            $response["antcirier_exists"] = true;
+            $response["antcirier_data"] = [
+                "id" => $antcirier["id"],
+                "email" => $antcirier["email"],
+                "role" => $antcirier["role"],
+                "identifiant_technique" => $antcirier["identifiant_technique"],
+                "mot_de_passe_length" => strlen($antcirier["mot_de_passe"]),
+                "mot_de_passe_start" => substr($antcirier["mot_de_passe"], 0, 10) . "..."
+            ];
+        } else {
+            error_log("Utilisateur antcirier@gmail.com non trouvé");
+            $response["antcirier_exists"] = false;
+        }
+        
+        // Compter le nombre d'utilisateurs
+        $stmt = $pdo->query("SELECT COUNT(*) FROM utilisateurs");
+        $count = $stmt->fetchColumn();
+        
+        $response["utilisateurs_count"] = $count;
+        $response["utilisateurs_sample"] = $users;
+    } else {
+        error_log("Table utilisateurs non trouvée, création de la table");
+        
+        // Créer la table utilisateurs si elle n'existe pas
+        $pdo->exec("CREATE TABLE IF NOT EXISTS utilisateurs (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            nom VARCHAR(100),
+            prenom VARCHAR(100),
+            email VARCHAR(100) UNIQUE,
+            mot_de_passe VARCHAR(255),
+            identifiant_technique VARCHAR(100) UNIQUE,
+            role VARCHAR(50),
+            date_creation TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        ) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
+        
+        // Ajouter un utilisateur administrateur antcirier@gmail.com
+        $stmt = $pdo->prepare("INSERT INTO utilisateurs (nom, prenom, email, mot_de_passe, identifiant_technique, role) 
+                               VALUES (?, ?, ?, ?, ?, ?) 
+                               ON DUPLICATE KEY UPDATE mot_de_passe = ?");
+        
+        $admin_password = password_hash("password123", PASSWORD_DEFAULT);
+        $stmt->execute([
+            "Cirier", 
+            "Antoine", 
+            "antcirier@gmail.com", 
+            $admin_password, 
+            "antcirier", 
+            "admin",
+            $admin_password
+        ]);
+        
+        error_log("Utilisateur administrateur créé ou mis à jour");
+        
+        // Ajouter également un utilisateur p71x6d_system
+        $stmt = $pdo->prepare("INSERT INTO utilisateurs (nom, prenom, email, mot_de_passe, identifiant_technique, role) 
+                               VALUES (?, ?, ?, ?, ?, ?)
+                               ON DUPLICATE KEY UPDATE mot_de_passe = ?");
+        
+        $system_password = password_hash("Trottinette43!", PASSWORD_DEFAULT);
+        $stmt->execute([
+            "System", 
+            "Admin", 
+            "system@qualiopi.ch", 
+            $system_password, 
+            "p71x6d_system", 
+            "admin",
+            $system_password
+        ]);
+        
+        error_log("Utilisateur système créé ou mis à jour");
+        
+        // Récupérer les utilisateurs après création
+        $stmt = $pdo->query("SELECT * FROM utilisateurs");
+        $users = $stmt->fetchAll();
+        
+        $response["table_created"] = true;
+        $response["utilisateurs_count"] = count($users);
+        $response["utilisateurs_sample"] = $users;
+    }
     
-    // Vérifier la structure de la table pour le diagnostic
-    $tableStructureQuery = "DESCRIBE utilisateurs";
-    $stmt = $pdo->prepare($tableStructureQuery);
-    $stmt->execute();
-    $tableStructure = $stmt->fetchAll(PDO::FETCH_ASSOC);
-    
-    // Nettoyer tout output accumulé
-    if (ob_get_level()) ob_clean();
-    
-    // Préparer la réponse
-    http_response_code(200);
-    echo json_encode([
-        'status' => 'success',
-        'message' => 'Connexion réussie à la base de données',
-        'records' => $users,
-        'count' => $count,
-        'database_info' => [
-            'host' => $host,
-            'database' => $dbname,
-            'user' => $username
+    // Ajouter des utilisateurs de secours pour la connexion
+    $response["fallback_users"] = [
+        [
+            "identifiant_technique" => "antcirier@gmail.com",
+            "mot_de_passe" => "password123",
+            "role" => "admin"
         ],
-        'table_structure' => $tableStructure
-    ]);
-    exit;
+        [
+            "identifiant_technique" => "p71x6d_system",
+            "mot_de_passe" => "Trottinette43!",
+            "role" => "admin"
+        ]
+    ];
+    
+    // Renvoyer la réponse en format JSON
+    echo json_encode($response, JSON_PRETTY_PRINT);
+    
 } catch (PDOException $e) {
-    error_log("Erreur de connexion PDO: " . $e->getMessage());
+    error_log("Erreur PDO: " . $e->getMessage());
     
-    // Nettoyer tout output accumulé
-    if (ob_get_level()) ob_clean();
-    
-    http_response_code(500);
     echo json_encode([
-        'status' => 'error',
-        'message' => 'Échec de la connexion à la base de données',
-        'error' => $e->getMessage()
+        "status" => "error",
+        "message" => "Erreur de connexion à la base de données",
+        "error" => $e->getMessage(),
+        "fallback_users" => [
+            [
+                "identifiant_technique" => "antcirier@gmail.com",
+                "mot_de_passe" => "password123",
+                "role" => "admin"
+            ],
+            [
+                "identifiant_technique" => "p71x6d_system",
+                "mot_de_passe" => "Trottinette43!",
+                "role" => "admin"
+            ]
+        ]
     ]);
-    exit;
+    
 } catch (Exception $e) {
     error_log("Erreur générale: " . $e->getMessage());
     
-    // Nettoyer tout output accumulé
-    if (ob_get_level()) ob_clean();
-    
-    http_response_code(500);
     echo json_encode([
-        'status' => 'error',
-        'message' => 'Erreur lors du test de connexion',
-        'error' => $e->getMessage()
+        "status" => "error",
+        "message" => "Erreur générale",
+        "error" => $e->getMessage()
     ]);
-    exit;
-} finally {
-    // S'assurer que nous avons terminé proprement
-    if (ob_get_level()) ob_end_clean();
 }
+
+error_log("=== FIN DE L'EXÉCUTION DE check-users.php ===");
 ?>
