@@ -52,6 +52,10 @@ jobs:
         
         # Copier les fichiers PHP d'utilitaires et de test
         find . -name "*.php" -not -path "./dist/*" -not -path "./vendor/*" -exec cp -v --parents {} dist/ \; || echo "Attention: problème lors de la copie des fichiers PHP"
+        
+        # Copier les fichiers HTML de diagnostic
+        cp -v diagnostic.html dist/ || echo "Attention: diagnostic.html non trouvé"
+        cp -v api-test.html dist/ || echo "Attention: api-test.html non trouvé"
 
     - name: Copy API files with explicit paths
       run: |
@@ -62,6 +66,9 @@ jobs:
         find . -type f -name "*.php" -exec cp -v --parents {} ../dist/api/ \; || echo "Erreur lors de la copie des fichiers PHP"
         find . -type f -name ".htaccess" -exec cp -v --parents {} ../dist/api/ \; || echo "Erreur lors de la copie des .htaccess"
         find . -type f -name ".user.ini" -exec cp -v --parents {} ../dist/api/ \; || echo "Erreur lors de la copie des .user.ini"
+        
+        # Copier le fichier HTML de diagnostic API
+        cp -v diagnostic.html ../dist/api/ || echo "Attention: api/diagnostic.html non trouvé"
         cd ..
         
     - name: Check structure before deployment
@@ -107,3 +114,4 @@ jobs:
         echo "Exécutez fix-assets-runtime.php sur votre serveur pour vérifier l'état du déploiement."
         echo "URL: https://qualiopi.ch/fix-assets-runtime.php"
         echo "Vérifiez également: https://qualiopi.ch/fix-index-references.php"
+        echo "Pages de diagnostic: https://qualiopi.ch/diagnostic.html et https://qualiopi.ch/api/diagnostic.html"
