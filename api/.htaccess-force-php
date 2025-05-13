@@ -1,0 +1,34 @@
+
+# Forcer l'exécution des fichiers PHP
+AddHandler application/x-httpd-php .php
+AddHandler fcgid-script .php
+AddHandler php8-fcgi .php
+
+# Définir le handler PHP comme gestionnaire des fichiers PHP
+<FilesMatch "\.php$">
+    SetHandler application/x-httpd-php
+    SetHandler php8-fcgi
+</FilesMatch>
+
+# Activer l'exécution de PHP
+Options +ExecCGI
+
+# Définition du moteur PHP
+<IfModule mod_php.c>
+    php_flag engine on
+</IfModule>
+
+# Configurer les variables php.ini
+<IfModule mod_php.c>
+    php_value default_charset "UTF-8"
+    php_flag display_errors Off
+    php_value error_log "php_errors.log"
+    php_flag log_errors On
+</IfModule>
+
+# Désactiver le mode PHP_INFO dans les URL
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteCond %{QUERY_STRING} ^=PHP[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$ [NC]
+    RewriteRule .* - [F]
+</IfModule>
