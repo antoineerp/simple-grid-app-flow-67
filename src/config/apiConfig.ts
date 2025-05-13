@@ -2,40 +2,16 @@
 // Configuration de l'API
 // Ce fichier centralise les paramètres de connexion à l'API
 
-// Définir l'URL de base de l'API en fonction de l'environnement
+// Définir l'URL de base de l'API - toujours vers Infomaniak
 export const getApiUrl = (): string => {
-  // Vérifier si nous sommes sur le domaine Infomaniak
-  const hostname = window.location.hostname;
-  const isInfomaniak = hostname.includes('myd.infomaniak.com') || 
-                      hostname.includes('qualiopi.ch');
-  
-  // Si nous sommes sur Infomaniak, utiliser le chemin relatif
-  if (isInfomaniak) {
-    return '/api';
-  }
-  
-  // En développement local, utiliser localhost
-  if (process.env.NODE_ENV === 'development') {
-    // Le port 5173 est celui utilisé par Vite en développement
-    return 'http://localhost:5173/api';
-  }
-  
-  // Par défaut, utiliser un chemin relatif
+  // Toujours utiliser le chemin relatif pour Infomaniak
   return '/api';
 };
 
 // Obtenir l'URL complète de l'API
 export const getFullApiUrl = (): string => {
   const baseUrl = window.location.origin;
-  const apiPath = getApiUrl();
-  
-  // Si l'URL de l'API est déjà absolue, la retourner directement
-  if (apiPath.startsWith('http')) {
-    return apiPath;
-  }
-  
-  // Sinon, combiner avec l'origine actuelle
-  return `${baseUrl}${apiPath}`;
+  return `${baseUrl}/api`;
 };
 
 // Helper pour gérer les erreurs de fetch de manière cohérente
