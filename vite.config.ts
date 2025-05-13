@@ -26,6 +26,12 @@ export default defineConfig(({ mode }: { mode: string }) => {
   const isInfomaniak = process.env.VITE_HOSTING === 'infomaniak' || process.env.NODE_ENV === 'production';
   const basePath = isInfomaniak ? '/' : '/';
   
+  // Database configuration
+  process.env.VITE_DB_HOST = process.env.VITE_DB_HOST || 'p71x6d.myd.infomaniak.com';
+  process.env.VITE_DB_NAME = process.env.VITE_DB_NAME || 'p71x6d_system';
+  process.env.VITE_DB_USER = process.env.VITE_DB_USER || 'p71x6d_system';
+  process.env.VITE_DB_PASSWORD = process.env.VITE_DB_PASSWORD || 'Trottinette43!';
+  
   return {
     server: {
       host: "0.0.0.0",
@@ -71,5 +77,11 @@ export default defineConfig(({ mode }: { mode: string }) => {
     },
     publicDir: 'public',
     base: basePath,
+    define: {
+      'process.env.VITE_DB_HOST': JSON.stringify(process.env.VITE_DB_HOST),
+      'process.env.VITE_DB_NAME': JSON.stringify(process.env.VITE_DB_NAME),
+      'process.env.VITE_DB_USER': JSON.stringify(process.env.VITE_DB_USER),
+      'process.env.VITE_DB_PASSWORD': JSON.stringify(process.env.VITE_DB_PASSWORD),
+    }
   };
 });
