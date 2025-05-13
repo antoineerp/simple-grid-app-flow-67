@@ -14,10 +14,10 @@ class DatabaseConfig {
     }
 
     private function loadDefaultConfig() {
-        // Utiliser les valeurs de System par défaut
+        // Utiliser les valeurs de Richard par défaut
         $this->host = "p71x6d.myd.infomaniak.com";
-        $this->db_name = "p71x6d_system";
-        $this->username = "p71x6d_system";
+        $this->db_name = "p71x6d_richard";
+        $this->username = "p71x6d_richard";
         $this->password = "Trottinette43!";
     }
 
@@ -35,11 +35,11 @@ class DatabaseConfig {
                         $this->host = $config['host'];
                     }
                     
-                    if (isset($config['db_name']) && $config['db_name'] === 'p71x6d_system') {
+                    if (isset($config['db_name']) && $config['db_name'] === 'p71x6d_richard') {
                         $this->db_name = $config['db_name'];
                     }
                     
-                    if (isset($config['username']) && $config['username'] === 'p71x6d_system') {
+                    if (isset($config['username']) && $config['username'] === 'p71x6d_richard') {
                         $this->username = $config['username'];
                     }
                     
@@ -54,9 +54,9 @@ class DatabaseConfig {
     }
 
     public function saveConfig() {
-        // Force p71x6d_system uniquement
-        $this->db_name = 'p71x6d_system';
-        $this->username = 'p71x6d_system';
+        // Forcer p71x6d_richard uniquement
+        $this->db_name = 'p71x6d_richard';
+        $this->username = 'p71x6d_richard';
         
         $config = [
             'host' => $this->host,
@@ -100,9 +100,9 @@ class DatabaseConfig {
             $this->host = "p71x6d.myd.infomaniak.com";
         }
         
-        // Force p71x6d_system uniquement
-        $this->db_name = 'p71x6d_system';
-        $this->username = 'p71x6d_system';
+        // Forcer p71x6d_richard uniquement
+        $this->db_name = 'p71x6d_richard';
+        $this->username = 'p71x6d_richard';
         
         // Le mot de passe n'est mis à jour que s'il est fourni et n'est pas masqué
         if ($password && $password !== '********') {

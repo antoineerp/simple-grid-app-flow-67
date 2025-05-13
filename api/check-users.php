@@ -32,7 +32,7 @@ if (ob_get_level()) ob_clean();
 try {
     // Tester la connexion PDO directement sans passer par notre classe Database
     $host = "p71x6d.myd.infomaniak.com";
-    $dbname = "p71x6d_system";
+    $dbname = "p71x6d_richard";
     
     // Utiliser l'identifiant technique spécifié s'il est fourni et valide
     if (!empty($source) && $source !== 'default' && strpos($source, 'p71x6d_') === 0) {
@@ -40,9 +40,9 @@ try {
         $password = "Trottinette43!";
         error_log("Utilisation de l'identifiant technique fourni: " . $username);
     } else {
-        $username = "p71x6d_system";
+        $username = "p71x6d_richard";
         $password = "Trottinette43!";
-        error_log("Utilisation de l'identifiant par défaut: p71x6d_system");
+        error_log("Utilisation de l'identifiant par défaut: p71x6d_richard");
     }
     
     $dsn = "mysql:host={$host};dbname={$dbname};charset=utf8mb4";
@@ -65,7 +65,7 @@ try {
         // La table n'existe pas, la créer
         error_log("La table 'utilisateurs' n'existe pas, création en cours");
         $createTableQuery = "CREATE TABLE IF NOT EXISTS utilisateurs (
-            id INT AUTO_INCREMENT PRIMARY KEY,
+            id VARCHAR(36) PRIMARY KEY,
             nom VARCHAR(100) NOT NULL,
             prenom VARCHAR(100) NOT NULL,
             email VARCHAR(100) NOT NULL UNIQUE,
@@ -79,11 +79,13 @@ try {
         error_log("Table 'utilisateurs' créée avec succès");
         
         // Créer un utilisateur admin par défaut
-        $defaultAdminQuery = "INSERT INTO utilisateurs (nom, prenom, email, mot_de_passe, identifiant_technique, role) 
-        VALUES ('Admin', 'System', 'admin@system.local', :password, 'p71x6d_system_admin', 'admin')";
+        $defaultAdminQuery = "INSERT INTO utilisateurs (id, nom, prenom, email, mot_de_passe, identifiant_technique, role) 
+        VALUES (:id, 'Admin', 'System', 'admin@system.local', :password, 'p71x6d_richard_admin', 'admin')";
         
         $stmt = $pdo->prepare($defaultAdminQuery);
         $hashedPassword = password_hash('admin123', PASSWORD_BCRYPT);
+        $adminId = bin2hex(random_bytes(16));
+        $stmt->bindParam(':id', $adminId);
         $stmt->bindParam(':password', $hashedPassword);
         $stmt->execute();
         
@@ -118,10 +120,64 @@ try {
         } else {
             error_log("Colonne 'role' introuvable dans la table 'utilisateurs'");
         }
+        
+        // Vérifier si la colonne 'id' est de type VARCHAR(36)
+        $idColumnQuery = "SHOW COLUMNS FROM utilisateurs LIKE 'id'";
+        $stmt = $pdo->prepare($idColumnQuery);
+        $stmt->execute();
+        $idColumn = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if ($idColumn && $idColumn['Type'] === 'int(11)') {
+            // Tenter de convertir la colonne id en VARCHAR(36)
+            error_log("Tentative de modification de la colonne 'id' de INT à VARCHAR(36)");
+            try {
+                // Créer une table temporaire
+                $pdo->exec("CREATE TABLE utilisateurs_temp LIKE utilisateurs");
+                $pdo->exec("ALTER TABLE utilisateurs_temp MODIFY COLUMN id VARCHAR(36) NOT NULL");
+                
+                // Copier les données avec conversion d'ID
+                $selectQuery = "SELECT * FROM utilisateurs";
+                $stmt = $pdo->prepare($selectQuery);
+                $stmt->execute();
+                $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
+                
+                // Vider la table temporaire
+                $pdo->exec("TRUNCATE TABLE utilisateurs_temp");
+                
+                // Insérer les données dans la table temporaire avec UUID
+                foreach ($users as $user) {
+                    $uuid = bin2hex(random_bytes(16));
+                    $uuid = substr($uuid, 0, 8) . '-' . substr($uuid, 8, 4) . '-' . substr($uuid, 12, 4) . '-' . 
+                           substr($uuid, 16, 4) . '-' . substr($uuid, 20);
+                    
+                    $insertQuery = "INSERT INTO utilisateurs_temp 
+                                   (id, nom, prenom, email, mot_de_passe, identifiant_technique, role) 
+                                   VALUES (?, ?, ?, ?, ?, ?, ?)";
+                    $insertStmt = $pdo->prepare($insertQuery);
+                    $insertStmt->execute([
+                        $uuid, 
+                        $user['nom'], 
+                        $user['prenom'], 
+                        $user['email'], 
+                        $user['mot_de_passe'], 
+                        $user['identifiant_technique'], 
+                        $user['role']
+                    ]);
+                }
+                
+                // Renommer les tables
+                $pdo->exec("RENAME TABLE utilisateurs TO utilisateurs_old, utilisateurs_temp TO utilisateurs");
+                $pdo->exec("DROP TABLE utilisateurs_old");
+                
+                error_log("Colonne 'id' convertie de INT à VARCHAR(36) avec succès");
+            } catch (PDOException $e) {
+                error_log("Erreur lors de la conversion de la colonne 'id': " . $e->getMessage());
+            }
+        }
     }
     
     // Récupérer tous les utilisateurs
-    $query = "SELECT id, nom, prenom, email, role, identifiant_technique, date_creation, mot_de_passe FROM utilisateurs";
+    $query = "SELECT id, nom, prenom, email, role, identifiant_technique, date_creation FROM utilisateurs";
     $stmt = $pdo->prepare($query);
     $stmt->execute();
     $users = $stmt->fetchAll(PDO::FETCH_ASSOC);

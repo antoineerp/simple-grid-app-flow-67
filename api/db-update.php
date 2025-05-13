@@ -19,8 +19,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
 
 // Configuration de la base de données
 $host = "p71x6d.myd.infomaniak.com";
-$dbname = "p71x6d_system";
-$username = "p71x6d_system";
+$dbname = "p71x6d_richard";
+$username = "p71x6d_richard";
 $password = "Trottinette43!";
 
 try {
@@ -32,7 +32,7 @@ try {
     ]);
     
     // Récupération de l'utilisateur demandé
-    $userId = isset($_GET['userId']) ? $_GET['userId'] : 'p71x6d_system';
+    $userId = isset($_GET['userId']) ? $_GET['userId'] : 'p71x6d_richard';
     error_log("Mise à jour des tables pour l'utilisateur: {$userId}");
     
     // Sécurisation de l'ID utilisateur pour éviter les injections SQL
