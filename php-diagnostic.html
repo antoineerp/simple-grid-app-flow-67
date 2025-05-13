@@ -1,0 +1,127 @@
+
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Diagnostic Infomaniak</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
+        .section { margin-bottom: 20px; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
+        .success { color: green; font-weight: bold; }
+        .error { color: red; font-weight: bold; }
+        pre { background: #f5f5f5; padding: 10px; border-radius: 5px; overflow: auto; }
+        button { padding: 10px; background: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        button:hover { background: #45a049; }
+    </style>
+</head>
+<body>
+    <h1>Diagnostic du serveur Infomaniak</h1>
+    
+    <div class="section">
+        <h2>1. Test simple PHP (via AJAX)</h2>
+        <p>Ce test essaie de charger un fichier PHP simple et vérifie s'il est exécuté ou affiché comme texte.</p>
+        <button onclick="testPhpExecution()">Exécuter le test</button>
+        <div id="phpResult">Résultat: en attente...</div>
+    </div>
+    
+    <div class="section">
+        <h2>2. Instructions .htaccess</h2>
+        <p>Créez un fichier .htaccess à la racine de votre site avec le contenu suivant:</p>
+        <pre>
+AddHandler application/x-httpd-php .php
+AddHandler fcgid-script .php
+AddHandler php8-fcgi .php
+
+&lt;FilesMatch "\.php$"&gt;
+    SetHandler application/x-httpd-php
+&lt;/FilesMatch&gt;
+
+Options +ExecCGI
+        </pre>
+        <button onclick="downloadHtaccess()">Télécharger ce .htaccess</button>
+    </div>
+    
+    <div class="section">
+        <h2>3. Informations Infomaniak</h2>
+        <p>Si rien ne fonctionne, contactez le support Infomaniak avec les informations suivantes:</p>
+        <ul>
+            <li>Le module PHP ne s'exécute pas sur votre hébergement</li>
+            <li>Les fichiers PHP sont affichés comme du texte au lieu d'être exécutés</li>
+            <li>Vous avez déjà essayé d'ajouter un fichier .htaccess avec les configurations appropriées</li>
+            <li>Demandez-leur de vérifier si PHP est correctement activé sur votre hébergement</li>
+        </ul>
+    </div>
+    
+    <script>
+        // Test si PHP s'exécute
+        function testPhpExecution() {
+            const resultDiv = document.getElementById('phpResult');
+            resultDiv.innerHTML = "Test en cours...";
+            
+            // Créer un fichier PHP de test unique pour éviter la mise en cache
+            const testFile = "test-" + Math.random().toString(36).substring(2, 15) + ".php";
+            
+            // Première requête pour créer le fichier via fetch
+            fetch('create-test-php.html', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: 'filename=' + testFile
+            })
+            .then(response => {
+                // Maintenant essayer de charger le fichier PHP
+                setTimeout(() => {
+                    fetch(testFile + '?nocache=' + new Date().getTime())
+                    .then(response => response.text())
+                    .then(data => {
+                        // Analyser la réponse
+                        if (data.includes('<?php')) {
+                            resultDiv.innerHTML = "<p class='error'>ERREUR: PHP n'est PAS exécuté. Le code PHP est affiché comme du texte.</p>";
+                        } else if (data.includes('PHP fonctionne')) {
+                            resultDiv.innerHTML = "<p class='success'>SUCCÈS: PHP s'exécute correctement!</p>";
+                        } else {
+                            resultDiv.innerHTML = "<p class='error'>Résultat indéterminé. Voici la réponse:</p><pre>" + escapeHtml(data) + "</pre>";
+                        }
+                    })
+                    .catch(error => {
+                        resultDiv.innerHTML = "<p class='error'>Erreur lors du test: " + error.message + "</p>";
+                    });
+                }, 500);
+            })
+            .catch(error => {
+                resultDiv.innerHTML = "<p class='error'>Erreur lors de la création du fichier de test: " + error.message + "</p>";
+            });
+        }
+
+        // Fonction pour échapper le HTML
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        // Télécharger le fichier .htaccess
+        function downloadHtaccess() {
+            const htaccessContent = `AddHandler application/x-httpd-php .php
+AddHandler fcgid-script .php
+AddHandler php8-fcgi .php
+
+<FilesMatch "\\.php$">
+    SetHandler application/x-httpd-php
+</FilesMatch>
+
+Options +ExecCGI`;
+            
+            const blob = new Blob([htaccessContent], { type: 'text/plain' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = '.htaccess';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        }
+    </script>
+</body>
+</html>
