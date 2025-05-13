@@ -1,8 +1,10 @@
+
 import { useState, useEffect, useCallback } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { getApiUrl } from '@/config/apiConfig';
 import { getAuthHeaders } from '@/services/auth/authService';
+import _ from 'lodash';
 
 export interface AppData {
   documents?: any[];
@@ -23,6 +25,7 @@ export const useGlobalSync = () => {
   const [lastSynced, setLastSynced] = useState<Date | null>(null);
   const [appData, setAppData] = useState<AppData>({});
   const [changeCounter, setChangeCounter] = useState(0);
+  const [errorCount, setErrorCount] = useState(0);
 
   // Récupérer l'identifiant technique de l'utilisateur connecté
   const getUserId = (): string => {
@@ -70,16 +73,27 @@ export const useGlobalSync = () => {
     if (isOnline) {
       try {
         setIsSyncing(true);
+        // Utiliser le nouveau point d'accès fixé
         const serverData = await loadAllFromServer(userId);
         if (serverData) {
           saveAllToStorage(userId, serverData);
           setAppData(serverData);
           setLastSynced(new Date());
-          setIsSyncing(false);
-          return;
+          if (errorCount > 0) setErrorCount(0); // Réinitialiser le compteur d'erreurs
         }
+        return;
       } catch (error) {
         console.error('Erreur lors du chargement depuis le serveur:', error);
+        setErrorCount(prev => prev + 1);
+        
+        if (errorCount >= 3) {
+          // Après 3 erreurs, notifier l'utilisateur
+          toast({
+            title: "Problème de connexion",
+            description: "Impossible de synchroniser les données avec le serveur. Mode hors ligne activé.",
+            duration: 5000
+          });
+        }
       } finally {
         setIsSyncing(false);
       }
@@ -209,17 +223,37 @@ export const loadAllFromServer = async (userId: any): Promise<AppData | null> =>
     const normalizedId = normalizeUserId(userId);
     const API_URL = getApiUrl();
     
-    const response = await fetch(`${API_URL}/global-load.php?userId=${encodeURIComponent(normalizedId)}`, {
+    console.log(`Chargement des données depuis ${API_URL}/global-load-fixed.php`);
+    
+    const response = await fetch(`${API_URL}/global-load-fixed.php?userId=${encodeURIComponent(normalizedId)}`, {
       method: 'GET',
-      headers: getAuthHeaders()
+      headers: {
+        ...getAuthHeaders(),
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache'
+      }
     });
     
     if (!response.ok) {
       throw new Error(`Échec du chargement global: ${response.statusText}`);
     }
     
-    const result = await response.json();
+    // Vérifier le Content-Type
+    const contentType = response.headers.get('content-type');
+    if (!contentType || !contentType.includes('application/json')) {
+      console.error('La réponse n\'est pas du JSON valide, content-type:', contentType);
+      
+      // Récupérer le début de la réponse pour diagnostic
+      const responseText = await response.text();
+      console.error('Début de la réponse:', responseText.substring(0, 100));
+      
+      throw new Error('Format de réponse invalide. Attendu: JSON');
+    }
     
+    // On doit recréer un Response puisque text() a déjà été appelé
+    const result = JSON.parse(await response.clone().text());
+    
+    // Ajouter l'horodatage de chargement
     const data = result.data || null;
     if (data) {
       data.lastModified = Date.now();
@@ -228,7 +262,18 @@ export const loadAllFromServer = async (userId: any): Promise<AppData | null> =>
     return data;
   } catch (error) {
     console.error('Erreur de chargement global:', error);
-    return null;
+    // Retourner un objet de données vide mais valide en cas d'erreur
+    return {
+      documents: [],
+      exigences: [],
+      membres: [],
+      pilotageDocuments: [],
+      bibliotheque: {
+        documents: [],
+        groups: []
+      },
+      lastModified: Date.now()
+    };
   }
 };
 

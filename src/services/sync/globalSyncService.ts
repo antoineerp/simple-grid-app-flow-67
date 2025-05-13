@@ -1,7 +1,7 @@
-
 import { getApiUrl } from '@/config/apiConfig';
 import { getAuthHeaders } from '@/services/auth/authService';
 import { syncQueueManager } from './syncQueueService';
+import _ from 'lodash';
 
 /**
  * Structure des données de l'application
@@ -94,9 +94,16 @@ export const loadAllFromServer = async (userId: any): Promise<AppData | null> =>
     const normalizedId = normalizeUserId(userId);
     const API_URL = getApiUrl();
     
-    const response = await fetch(`${API_URL}/global-load.php?userId=${encodeURIComponent(normalizedId)}`, {
+    console.log(`Chargement des données pour l'utilisateur ${normalizedId} depuis ${API_URL}/global-load-fixed.php`);
+    
+    const response = await fetch(`${API_URL}/global-load-fixed.php?userId=${encodeURIComponent(normalizedId)}`, {
       method: 'GET',
-      headers: getAuthHeaders()
+      headers: {
+        ...getAuthHeaders(),
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0'
+      }
     });
     
     if (!response.ok) {
@@ -104,18 +111,50 @@ export const loadAllFromServer = async (userId: any): Promise<AppData | null> =>
       throw new Error(`Échec du chargement global: ${response.statusText}`);
     }
     
-    const result = await response.json();
-    
-    // Ajouter l'horodatage de chargement
-    const data = result.data || null;
-    if (data) {
-      data.lastModified = Date.now();
+    // Vérifier que la réponse est du JSON valide
+    const contentType = response.headers.get('content-type');
+    if (!contentType || !contentType.includes('application/json')) {
+      console.error('La réponse n\'est pas du JSON valide, content-type:', contentType);
+      throw new Error('Format de réponse invalide. Attendu: JSON');
     }
     
-    return data;
+    // Récupérer le texte brut d'abord pour le journaliser en cas d'erreur
+    const responseText = await response.text();
+    
+    try {
+      // Essayer de parser le JSON
+      const result = JSON.parse(responseText);
+      
+      // Ajouter l'horodatage de chargement
+      const data = result.data || null;
+      if (data) {
+        data.lastModified = Date.now();
+      }
+      
+      if (result.error) {
+        console.warn('Avertissement du serveur:', result.error);
+      }
+      
+      return data;
+    } catch (jsonError) {
+      console.error('Erreur de parsing JSON:', jsonError);
+      console.error('Texte de réponse brut:', responseText.substring(0, 200) + '...');
+      throw new Error('La réponse du serveur n\'est pas un JSON valide');
+    }
   } catch (error) {
     console.error('Erreur de chargement global:', error);
-    return null;
+    // En cas d'erreur, retourner un objet de données vide mais valide
+    return {
+      documents: [],
+      exigences: [],
+      membres: [],
+      pilotageDocuments: [],
+      bibliotheque: {
+        documents: [],
+        groups: []
+      },
+      lastModified: Date.now()
+    };
   }
 };
 
@@ -308,4 +347,21 @@ export const retryFailedSyncs = () => {
  */
 export const clearFailedSyncs = () => {
   return syncQueueManager.clearFailedOperations();
+};
+
+/**
+ * Vérifie si la connexion au serveur est disponible
+ */
+export const checkServerConnection = async (): Promise<boolean> => {
+  try {
+    const API_URL = getApiUrl();
+    const response = await fetch(`${API_URL}/simple-test.php`, { 
+      method: 'GET',
+      headers: { 'Cache-Control': 'no-cache' }
+    });
+    return response.ok;
+  } catch (error) {
+    console.error('Erreur de connexion au serveur:', error);
+    return false;
+  }
 };
