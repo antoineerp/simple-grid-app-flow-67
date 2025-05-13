@@ -1,4 +1,3 @@
-
 <?php
 // Forcer l'output buffering pour éviter tout output avant les headers
 ob_start();
@@ -92,8 +91,10 @@ function routeApi() {
         
         case 'config':
         case 'config.php':
-            // Configuration de l'API
-            if (file_exists(__DIR__ . '/config.php')) {
+            // Configuration de l'API - Utiliser un chemin absolu
+            if (file_exists(__DIR__ . '/controllers/ConfigController.php')) {
+                require_once __DIR__ . '/controllers/ConfigController.php';
+            } else if (file_exists(__DIR__ . '/config.php')) {
                 require_once __DIR__ . '/config.php';
             } else {
                 handleSimpleError(404, "Fichier de configuration introuvable", ['path' => $path]);
@@ -215,6 +216,16 @@ function routeApi() {
                 require_once __DIR__ . '/error-log.php';
             } else {
                 handleSimpleError(404, "Fichier de diagnostic des erreurs introuvable", ['path' => $path]);
+            }
+            exit;
+            
+        case 'view-logs':
+        case 'view-logs.php':
+            // Nouveau point d'entrée plus robuste pour voir les logs
+            if (file_exists(__DIR__ . '/view-logs.php')) {
+                require_once __DIR__ . '/view-logs.php';
+            } else {
+                handleSimpleError(404, "Visualiseur de logs introuvable", ['path' => $path]);
             }
             exit;
             
@@ -376,7 +387,8 @@ function diagnoseRequest() {
             '/api/error-log' => 'Diagnostic des erreurs PHP et du serveur',
             '/api/server-status' => 'Statut du serveur',
             '/api/phpinfo-test' => 'Test phpinfo',
-            '/api/clear-log' => 'Nettoyage des logs'
+            '/api/clear-log' => 'Nettoyage des logs',
+            '/api/config-test' => 'Configuration en lecture seule (toujours disponible)'
         ],
         'server_details' => [
             'php_version' => phpversion(),

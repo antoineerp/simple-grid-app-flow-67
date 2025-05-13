@@ -1,67 +1,85 @@
 
 <?php
-// Fichier de test direct de connexion à la base de données
+// Script de test direct et simplifié de la base de données
 header("Content-Type: application/json; charset=UTF-8");
 header("Access-Control-Allow-Origin: *");
 header("Access-Control-Allow-Methods: GET, OPTIONS");
 header("Access-Control-Allow-Headers: Content-Type, Authorization");
+header("Cache-Control: no-cache, no-store, must-revalidate");
 
-// Si c'est une requête OPTIONS (preflight), nous la terminons ici
-if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
-    http_response_code(200);
-    echo json_encode(['status' => 'success', 'message' => 'Preflight OK']);
-    exit;
-}
-
-// Journaliser l'exécution
-error_log("=== EXÉCUTION DE direct-db-test.php ===");
+// Journalisation
+error_log("=== DÉBUT DU TEST DE CONNEXION À LA BASE DE DONNÉES ===");
 
 try {
-    // Tester la connexion PDO directement
+    // Configuration de la base de données (constante et fiable)
     $host = "p71x6d.myd.infomaniak.com";
     $dbname = "p71x6d_system";
     $username = "p71x6d_system";
     $password = "Trottinette43!";
     
-    $dsn = "mysql:host={$host};dbname={$dbname};charset=utf8mb4";
-    $options = [
-        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-        PDO::ATTR_EMULATE_PREPARES => false,
+    // Récupérer des informations sur le serveur
+    $server_info = [
+        'php_version' => phpversion(),
+        'server_software' => $_SERVER['SERVER_SOFTWARE'] ?? 'Inconnu',
+        'document_root' => $_SERVER['DOCUMENT_ROOT'] ?? 'Inconnu',
+        'request_time' => date('Y-m-d H:i:s'),
+        'remote_addr' => $_SERVER['REMOTE_ADDR'] ?? 'Inconnue'
     ];
     
-    error_log("Tentative de connexion PDO directe à la base de données");
-    $pdo = new PDO($dsn, $username, $password, $options);
-    error_log("Connexion PDO réussie");
+    // Vérifier les extensions PHP requises
+    $php_extensions = [
+        'pdo' => extension_loaded('pdo'),
+        'pdo_mysql' => extension_loaded('pdo_mysql'),
+        'json' => extension_loaded('json'),
+        'mbstring' => extension_loaded('mbstring')
+    ];
     
-    // Vérifier que la connexion fonctionne en exécutant une requête simple
-    $stmt = $pdo->query("SELECT DATABASE() as db");
-    $result = $stmt->fetch();
-    $current_db = $result['db'];
+    // Tenter une connexion à la base de données (une seule méthode, directe)
+    try {
+        $pdo = new PDO("mysql:host={$host};dbname={$dbname};charset=utf8mb4", $username, $password, [
+            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION
+        ]);
+        
+        $db_version = $pdo->query('SELECT VERSION()')->fetchColumn();
+        
+        // Vérifier les tableaux existants
+        $stmt = $pdo->query("SHOW TABLES");
+        $tables = $stmt->fetchAll(PDO::FETCH_COLUMN);
+        
+        // Compiler les informations de la base de données
+        $db_info = [
+            'status' => 'success',
+            'connected' => true,
+            'version' => $db_version,
+            'host' => $host,
+            'database' => $dbname,
+            'tables_count' => count($tables),
+            'tables' => $tables
+        ];
+    } catch (PDOException $e) {
+        $db_info = [
+            'status' => 'error',
+            'connected' => false,
+            'error' => $e->getMessage()
+        ];
+    }
     
-    http_response_code(200);
+    // Compiler toutes les informations et renvoyer le résultat
     echo json_encode([
-        'status' => 'success',
-        'message' => 'Connexion PDO directe réussie',
-        'database' => $current_db
-    ]);
-} catch (PDOException $e) {
-    error_log("Erreur de connexion PDO: " . $e->getMessage());
+        'timestamp' => date('Y-m-d H:i:s'),
+        'server_info' => $server_info,
+        'php_extensions' => $php_extensions,
+        'database' => $db_info
+    ], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
     
-    http_response_code(500);
-    echo json_encode([
-        'status' => 'error',
-        'message' => 'Échec de la connexion PDO directe',
-        'error' => $e->getMessage()
-    ]);
 } catch (Exception $e) {
-    error_log("Erreur générale: " . $e->getMessage());
-    
+    error_log("Exception dans le test de connexion: " . $e->getMessage());
     http_response_code(500);
     echo json_encode([
         'status' => 'error',
-        'message' => 'Erreur lors du test de connexion',
-        'error' => $e->getMessage()
+        'message' => 'Erreur lors du test de connexion: ' . $e->getMessage()
     ]);
+} finally {
+    error_log("=== FIN DU TEST DE CONNEXION À LA BASE DE DONNÉES ===");
 }
 ?>

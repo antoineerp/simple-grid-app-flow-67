@@ -1,278 +1,195 @@
+
 import { getApiUrl } from '@/config/apiConfig';
-import { toast } from '@/hooks/use-toast';
-import { disconnectUser } from '../core/databaseConnectionService';
-import { initializeUserData } from '../core/userInitializationService';
+import { User, AuthResponse } from '@/types/auth';
+import { setCurrentUser as setDbUser } from '@/services/core/databaseConnectionService';
 
-const API_URL = getApiUrl();
+export const getCurrentUser = (): User | null => {
+  const token = sessionStorage.getItem('authToken') || localStorage.getItem('authToken');
+  if (!token) return null;
 
-class AuthService {
-    private static instance: AuthService;
-    private token: string | null = null;
-    private currentUser: string | null = null;
-
-    private constructor() {
-        console.log("Authentication service initialized");
-        this.token = localStorage.getItem('authToken');
-        this.currentUser = localStorage.getItem('currentUser');
+  try {
+    // Vérification plus robuste du format du token
+    if (!token.includes('.') || token.split('.').length !== 3) {
+      console.error("Format de token invalide:", token);
+      return null;
     }
-
-    public static getInstance(): AuthService {
-        if (!AuthService.instance) {
-            AuthService.instance = new AuthService();
-        }
-        return AuthService.instance;
+    
+    // Extraire la partie payload (deuxième partie du token)
+    const parts = token.split('.');
+    const payloadBase64 = parts[1];
+    
+    // Préparation pour le décodage base64
+    const base64 = payloadBase64.replace(/-/g, '+').replace(/_/g, '/');
+    const pad = base64.length % 4;
+    const paddedBase64 = pad ? base64 + '='.repeat(4 - pad) : base64;
+    
+    // Décodage plus sûr avec try/catch
+    try {
+      const jsonPayload = atob(paddedBase64);
+      const userData = JSON.parse(jsonPayload);
+      
+      // Synchroniser avec le service de base de données
+      if (userData.user && userData.user.identifiant_technique) {
+        setDbUser(userData.user.identifiant_technique);
+      }
+      
+      // Stocker le rôle dans le localStorage pour faciliter l'accès
+      if (userData.user && userData.user.role) {
+        localStorage.setItem('userRole', userData.user.role);
+      }
+      
+      return userData.user || null;
+    } catch (decodeError) {
+      console.error("Erreur lors du décodage du payload:", decodeError);
+      return null;
     }
+  } catch (error) {
+    console.error("Erreur lors du décodage du token:", error);
+    return null;
+  }
+};
 
-    public setToken(token: string | null): void {
-        this.token = token;
-        if (token) {
-            localStorage.setItem('authToken', token);
-            localStorage.setItem('isLoggedIn', 'true');
-        } else {
-            localStorage.removeItem('authToken');
-            localStorage.removeItem('isLoggedIn');
-        }
-    }
+export const getAuthToken = (): string | null => {
+  return sessionStorage.getItem('authToken');
+};
 
-    public getToken(): string | null {
-        if (!this.token) {
-            this.token = localStorage.getItem('authToken');
-        }
-        return this.token;
-    }
+export const getIsLoggedIn = (): boolean => {
+  const token = getAuthToken();
+  const user = getCurrentUser();
+  return !!(token && user && user.identifiant_technique);
+};
 
-    public getAuthHeaders(): HeadersInit {
-        const headers: HeadersInit = {
-            'Content-Type': 'application/json',
-            'Cache-Control': 'no-cache, no-store, must-revalidate',
-            'Accept': 'application/json'
+export const getAuthHeaders = () => {
+  const token = getAuthToken();
+  return token ? {
+    'Authorization': `Bearer ${token}`,
+    'Content-Type': 'application/json'
+  } : {
+    'Content-Type': 'application/json'
+  };
+};
+
+export const login = async (username: string, password: string): Promise<AuthResponse> => {
+  try {
+    const API_URL = getApiUrl();
+    console.log(`Tentative de connexion à: ${API_URL}/auth.php avec l'utilisateur: ${username}`);
+    
+    const response = await fetch(`${API_URL}/auth.php`, {
+      method: 'POST',
+      headers: { 
+        'Content-Type': 'application/json', 
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache' 
+      },
+      body: JSON.stringify({ username, password })
+    });
+
+    const responseText = await response.text();
+    
+    // Tenter de parser la réponse en JSON
+    let data;
+    try {
+      data = JSON.parse(responseText);
+    } catch (parseError) {
+      console.error('Erreur lors du parsing de la réponse JSON:', parseError);
+      console.error('Réponse brute:', responseText.substring(0, 500));
+      
+      if (responseText.includes('env.php') || responseText.includes('Failed to open stream')) {
+        return { 
+          success: false, 
+          message: "Erreur de configuration du serveur: Fichier env.php manquant" 
         };
-        
-        const token = this.getToken();
-        if (token) {
-            headers['Authorization'] = `Bearer ${token}`;
-        }
-        
-        return headers;
+      }
+      
+      return { 
+        success: false, 
+        message: `Erreur dans la réponse JSON: ${parseError}. Réponse reçue: ${responseText.substring(0, 100)}...` 
+      };
     }
 
-    private async parseJsonResponse(response: Response): Promise<any> {
-        const responseText = await response.text();
-        console.log(`Réponse reçue (${response.status}): ${responseText.substring(0, 200)}...`);
-        
-        if (!responseText || responseText.trim() === '') {
-            console.warn('Réponse vide reçue du serveur');
-            throw new Error('Réponse vide du serveur');
-        }
-        
-        // Ne pas traiter la réponse de test comme une erreur, mais la reconnaître comme une réponse spéciale
-        if (responseText.includes('API PHP disponible') && !responseText.includes('token')) {
-            console.log('Détecté: réponse API info standard');
-            return { info: true, message: 'API info response' };
-        }
-        
-        if (responseText.trim().startsWith('<!DOCTYPE') || 
-            responseText.trim().startsWith('<html') ||
-            responseText.includes('<body')) {
-            console.error('Réponse HTML reçue au lieu de JSON:', responseText.substring(0, 200));
-            throw new Error('Le serveur a renvoyé une page HTML au lieu de JSON. Vérifiez la configuration du serveur.');
-        }
-        
+    if (!response.ok) {
+      console.error(`Erreur HTTP: ${response.status}`);
+      return { 
+        success: false, 
+        message: data.message || `Erreur serveur: ${response.status} ${response.statusText}` 
+      };
+    }
+    
+    console.log('Réponse de l\'authentification:', data);
+    
+    if (data.token) {
+      // Vérifier que le token a bien le format d'un JWT (contient exactement deux points)
+      if (data.token.split('.').length === 3) {
+        // Test de décodage pour vérifier que le token est valide
         try {
-            return JSON.parse(responseText);
-        } catch (e) {
-            console.error('Erreur lors du parsing JSON:', e);
-            console.error('Texte reçu:', responseText.substring(0, 500));
-            throw new Error('Réponse du serveur non valide. Format JSON attendu.');
+          const parts = data.token.split('.');
+          const base64Payload = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+          const pad = base64Payload.length % 4;
+          const paddedBase64 = pad ? base64Payload + '='.repeat(4 - pad) : base64Payload;
+          
+          const decodedPayload = JSON.parse(atob(paddedBase64));
+          
+          if (!decodedPayload || !decodedPayload.user) {
+            console.error("Décodage du token réussi mais structure invalide:", decodedPayload);
+            return {
+              success: false,
+              message: "Le token reçu du serveur a une structure invalide"
+            };
+          }
+          
+          // Token validé, on peut le sauvegarder
+          sessionStorage.setItem('authToken', data.token);
+          localStorage.setItem('authToken', data.token);
+          
+          // Initialiser l'utilisateur courant pour la base de données
+          if (data.user && data.user.identifiant_technique) {
+            setDbUser(data.user.identifiant_technique);
+          }
+          
+          // Stocker explicitement le rôle utilisateur
+          if (data.user && data.user.role) {
+            localStorage.setItem('userRole', data.user.role);
+          }
+          
+          return { 
+            success: true, 
+            token: data.token,
+            user: data.user || null,
+            message: data.message || 'Connexion réussie'
+          };
+        } catch (decodeError) {
+          console.error("Token de format invalide reçu:", data.token);
+          console.error("Erreur lors du décodage:", decodeError);
+          return {
+            success: false,
+            message: "Le format du token reçu est invalide"
+          };
         }
+      } else {
+        console.error("Token de format invalide reçu:", data.token);
+        return {
+          success: false,
+          message: "Le format du token reçu est invalide (doit contenir 3 parties)"
+        };
+      }
     }
-
-    public async login(username: string, password: string): Promise<any> {
-        try {
-            console.log(`Tentative de connexion pour l'utilisateur: ${username}`);
-            
-            // Essayer d'abord AuthController.php
-            const authUrl = `${getApiUrl()}/auth`;
-            console.log(`URL de requête (authentification): ${authUrl}`);
-            
-            try {
-                const response = await fetch(authUrl, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Cache-Control': 'no-cache, no-store, must-revalidate'
-                    },
-                    body: JSON.stringify({ username, password })
-                });
-                
-                console.log(`Réponse du serveur auth: ${response.status} ${response.statusText}`);
-                
-                if (!response.ok) {
-                    const errorData = await this.parseJsonResponse(response);
-                    throw new Error(errorData.message || `Échec de l'authentification (${response.status})`);
-                }
-                
-                const data = await this.parseJsonResponse(response);
-                
-                if (!data || !data.token) {
-                    throw new Error(data?.message || "Authentification échouée");
-                }
-                
-                this.setToken(data.token);
-                
-                if (data.user) {
-                    // Use the user's full name if available, otherwise fallback to email or technical identifier
-                    const displayName = 
-                        (data.user.prenom && data.user.nom) 
-                            ? `${data.user.prenom} ${data.user.nom}` 
-                            : (data.user.email || data.user.identifiant_technique || 'Utilisateur');
-                    
-                    localStorage.setItem('currentUser', data.user.identifiant_technique);
-                    
-                    // Standardiser le rôle de l'utilisateur
-                    let userRole = data.user.role;
-                    // Si le rôle est 'admin', le normaliser à 'administrateur'
-                    if (userRole === 'admin') {
-                        console.log("Normalisation du rôle d'admin à administrateur");
-                        userRole = 'administrateur';
-                    }
-                    
-                    localStorage.setItem('userRole', userRole);
-                    console.log("Rôle utilisateur stocké:", userRole);
-                    
-                    localStorage.setItem('userName', displayName);
-                }
-                
-                if (data.user && data.user.identifiant_technique) {
-                    await initializeUserData(data.user.identifiant_technique);
-                }
-                
-                return {
-                    success: true,
-                    user: data.user
-                };
-            } catch (authError) {
-                console.error("Erreur avec /auth:", authError);
-                
-                // Si l'authentification échoue, essayer login-test.php comme fallback
-                const testUrl = `${getApiUrl()}/login-test.php`;
-                console.log(`URL de requête (fallback): ${testUrl}`);
-                
-                const response = await fetch(testUrl, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Cache-Control': 'no-cache, no-store, must-revalidate'
-                    },
-                    body: JSON.stringify({ username, password })
-                });
-                
-                console.log(`Réponse du serveur login-test: ${response.status} ${response.statusText}`);
-                
-                if (!response.ok) {
-                    const errorData = await this.parseJsonResponse(response);
-                    throw new Error(errorData.message || `Échec de l'authentification (${response.status})`);
-                }
-                
-                const data = await this.parseJsonResponse(response);
-                
-                if (!data || !data.token) {
-                    throw new Error(data?.message || "Authentification échouée");
-                }
-                
-                this.setToken(data.token);
-                
-                if (data.user) {
-                    // Use the user's full name if available, otherwise fallback to email or technical identifier
-                    const displayName = 
-                        (data.user.prenom && data.user.nom) 
-                            ? `${data.user.prenom} ${data.user.nom}` 
-                            : (data.user.email || data.user.identifiant_technique || 'Utilisateur');
-                    
-                    localStorage.setItem('currentUser', data.user.identifiant_technique);
-                    
-                    // Standardiser le rôle de l'utilisateur
-                    let userRole = data.user.role;
-                    // Si le rôle est 'admin', le normaliser à 'administrateur'
-                    if (userRole === 'admin') {
-                        console.log("Normalisation du rôle d'admin à administrateur");
-                        userRole = 'administrateur';
-                    }
-                    
-                    localStorage.setItem('userRole', userRole);
-                    console.log("Rôle utilisateur stocké:", userRole);
-                    
-                    localStorage.setItem('userName', displayName);
-                }
-                
-                if (data.user && data.user.identifiant_technique) {
-                    await initializeUserData(data.user.identifiant_technique);
-                }
-                
-                return {
-                    success: true,
-                    user: data.user
-                };
-            }
-        } catch (error) {
-            console.error("Erreur lors de la connexion:", error);
-            
-            toast({
-                title: "Échec de la connexion",
-                description: error instanceof Error ? error.message : "Erreur inconnue",
-                variant: "destructive",
-            });
-            
-            throw error;
-        }
-    }
-
-    public logout(): void {
-        this.setToken(null);
-        localStorage.removeItem('currentUser');
-        localStorage.removeItem('userRole');
-        localStorage.removeItem('userName');
-        localStorage.removeItem('isLoggedIn');
-        
-        disconnectUser();
-        
-        toast({
-            title: "Déconnexion réussie",
-            description: "Vous avez été déconnecté avec succès",
-        });
-    }
-
-    public isLoggedIn(): boolean {
-        return !!this.getToken();
-    }
-
-    public getCurrentUser(): string | null {
-        return this.currentUser || localStorage.getItem('currentUser');
-    }
-}
-
-const authService = AuthService.getInstance();
-
-export const login = (username: string, password: string): Promise<any> => {
-    return authService.login(username, password);
+    
+    return { 
+      success: false, 
+      message: data.message || data.error || 'Identifiants invalides' 
+    };
+  } catch (error) {
+    console.error('Erreur lors de la connexion:', error);
+    return { 
+      success: false, 
+      message: error instanceof Error ? error.message : 'Erreur lors de la connexion' 
+    };
+  }
 };
 
-export const logout = (): void => {
-    authService.logout();
+export const logout = () => {
+  sessionStorage.removeItem('authToken');
+  localStorage.removeItem('authToken');
+  localStorage.removeItem('userRole');
+  localStorage.removeItem('currentUser');
 };
-
-export const isLoggedIn = (): boolean => {
-    return authService.isLoggedIn();
-};
-
-export const getCurrentUser = (): string | null => {
-    return authService.getCurrentUser();
-};
-
-export const getAuthHeaders = (): HeadersInit => {
-    return authService.getAuthHeaders();
-};
-
-export const loginUser = login;
-export const logoutUser = logout;
-export const getToken = authService.getToken.bind(authService);

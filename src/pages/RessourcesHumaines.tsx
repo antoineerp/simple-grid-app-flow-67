@@ -1,244 +1,115 @@
 
-import React from 'react';
-import { FileText, UserPlus, CloudSun } from 'lucide-react';
-import { useToast } from "@/hooks/use-toast";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
+import React, { useEffect } from 'react';
+import { Card } from "@/components/ui/card";
+import { MembresTable } from '@/components/ressources/MembresTable';
 import { useMembres } from '@/contexts/MembresContext';
-import { useSynchronization } from '@/hooks/useSynchronization';
-import MemberList from '@/components/ressources-humaines/MemberList';
-import MemberForm from '@/components/ressources-humaines/MemberForm';
-import SyncStatusIndicator from '@/components/common/SyncStatusIndicator';
-import { Membre } from '@/types/membres';
-import { exportAllCollaborateursToPdf } from '@/services/collaborateurExport';
+import MembresToolbar from '@/components/ressources/MembresToolbar';
+import { PageHeader } from '@/components/ui/page-header';
+import { Users } from 'lucide-react';
+import { useSyncContext } from '@/hooks/useSyncContext';
+import { useToast } from '@/hooks/use-toast';
+import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 
-const RessourcesHumaines = () => {
+const RessourcesHumaines: React.FC = () => {
   const { toast } = useToast();
-  const { membres, setMembres } = useMembres();
-  const { handleSync, isSyncing, isOnline, lastSynced, hasUnsyncedData } = useSynchronization();
-  
-  const [isDialogOpen, setIsDialogOpen] = React.useState(false);
-  const [currentMembre, setCurrentMembre] = React.useState<Membre>({
-    id: '',
-    nom: '',
-    prenom: '',
-    fonction: '',
-    initiales: '',
-    date_creation: new Date(),
-    mot_de_passe: '' 
-  });
-  const [isEditing, setIsEditing] = React.useState(false);
-  const [isLoading, setIsLoading] = React.useState(false);
+  const { membres, lastSynced, isLoading, error, refreshMembres, syncFailed } = useMembres();
+  const syncContext = useSyncContext();
+  const { isOnline } = useNetworkStatus();
 
-  // Handler for edit action
-  const handleEdit = (id: string) => {
-    const membre = membres.find(m => m.id === id);
-    if (membre) {
-      setCurrentMembre({ ...membre });
-      setIsEditing(true);
-      setIsDialogOpen(true);
-    }
-  };
+  // Enregistrement de la fonction de synchronisation au montage du composant
+  useEffect(() => {
+    if (syncContext.isInitialized()) {
+      const syncMembresFunction = async () => {
+        console.log("RessourcesHumaines: Synchronisation des membres demandée");
+        try {
+          // Utiliser refreshMembres au lieu de syncMembres directement
+          await refreshMembres();
+          return true;
+        } catch (error) {
+          console.error("Erreur lors de la synchronisation des membres:", error);
+          return false;
+        }
+      };
 
-  // Handler for delete action
-  const handleDelete = (id: string) => {
-    setMembres(prev => prev.filter(membre => membre.id !== id));
-    toast({
-      title: "Suppression",
-      description: `Le membre ${id} a été supprimé`,
-    });
-  };
-
-  // Handler for adding a new member
-  const handleAddMember = () => {
-    // Generate a new ID for the new member - convert to string
-    const newId = membres.length > 0 
-      ? String(Math.max(...membres.map(membre => parseInt(membre.id))) + 1)
-      : '1';
-    
-    setCurrentMembre({
-      id: newId,
-      nom: '',
-      prenom: '',
-      fonction: '',
-      initiales: '',
-      date_creation: new Date(),
-      mot_de_passe: '' 
-    });
-    setIsEditing(false);
-    setIsDialogOpen(true);
-  };
-
-  // Handler for export function
-  const handleExportMember = (id: string) => {
-    // Implementation for export functionality
-    console.log(`Exporting member with id: ${id}`);
-  };
-
-  // Handler for input changes in the form
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setCurrentMembre({
-      ...currentMembre,
-      [name]: value
-    });
-  };
-
-  // Handler for saving member (add or update)
-  const handleSaveMember = () => {
-    if (currentMembre.nom.trim() === '' || currentMembre.prenom.trim() === '') {
-      toast({
-        title: "Erreur",
-        description: "Le nom et le prénom sont requis",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    // Calculate initials if not provided
-    if (currentMembre.initiales.trim() === '') {
-      const initiales = `${currentMembre.prenom.charAt(0)}${currentMembre.nom.charAt(0)}`;
-      currentMembre.initiales = initiales.toUpperCase();
-    }
-
-    if (isEditing) {
-      // Update existing member
-      setMembres(prev => 
-        prev.map(membre => membre.id === currentMembre.id ? currentMembre : membre)
-      );
-      toast({
-        title: "Modification",
-        description: `Le membre ${currentMembre.id} a été modifié`,
-      });
+      // Enregistrer la fonction de synchronisation
+      syncContext.registerSyncFunction('membres', syncMembresFunction);
+      console.log("RessourcesHumaines: Fonction de synchronisation des membres enregistrée");
+      
+      // Synchronisation initiale si nécessaire
+      if (isOnline && (!lastSynced || syncFailed)) {
+        console.log("RessourcesHumaines: Synchronisation initiale des membres");
+        syncContext.syncAll().catch(error => {
+          console.error("Erreur lors de la synchronisation initiale:", error);
+        });
+      }
     } else {
-      // Add new member
-      setMembres(prev => [...prev, currentMembre]);
-      toast({
-        title: "Ajout",
-        description: `Le membre ${currentMembre.id} a été ajouté`,
-      });
+      console.error("RessourcesHumaines: Le contexte de synchronisation n'est pas initialisé");
     }
     
-    setIsDialogOpen(false);
-  };
+    // Nettoyage au démontage
+    return () => {
+      if (syncContext.isInitialized()) {
+        syncContext.unregisterSyncFunction('membres');
+        console.log("RessourcesHumaines: Fonction de synchronisation des membres désenregistrée");
+      }
+    };
+  }, [syncContext, refreshMembres, lastSynced, syncFailed, isOnline]);
 
-  // Handler for exporting all members to PDF
-  const handleExportAllToPdf = () => {
+  const handleSyncClick = async () => {
     try {
-      exportAllCollaborateursToPdf(membres);
-      toast({
-        title: "Export PDF",
-        description: "La liste des collaborateurs a été exportée",
-      });
+      if (syncContext.isInitialized()) {
+        toast({ title: "Synchronisation", description: "Synchronisation en cours..." });
+        const success = await syncContext.syncAll();
+        if (success) {
+          toast({ 
+            title: "Synchronisation terminée", 
+            description: "Les données ont été synchronisées avec succès" 
+          });
+        } else {
+          toast({ 
+            title: "Synchronisation incomplète", 
+            description: "Certaines données n'ont pas pu être synchronisées", 
+            variant: "destructive" 
+          });
+        }
+      } else {
+        toast({ 
+          title: "Erreur", 
+          description: "Le système de synchronisation n'est pas disponible", 
+          variant: "destructive" 
+        });
+      }
     } catch (error) {
-      console.error("Erreur lors de l'export PDF:", error);
-      toast({
-        title: "Erreur",
-        description: `Erreur lors de l'export PDF: ${error}`,
-        variant: "destructive",
+      console.error("Erreur lors de la synchronisation:", error);
+      toast({ 
+        title: "Erreur de synchronisation", 
+        description: error instanceof Error ? error.message : "Erreur inconnue", 
+        variant: "destructive" 
       });
     }
   };
+
+  // Convertir l'erreur en string pour éviter l'erreur de type
+  const errorMessage = error ? (error instanceof Error ? error.message : String(error)) : null;
 
   return (
-    <div className="p-8">
-      <div className="flex items-center justify-between mb-2">
-        <div>
-          <h1 className="text-3xl font-bold text-app-blue">Ressources Humaines</h1>
-        </div>
-        <div className="flex space-x-2">
-          <button 
-            onClick={handleSync}
-            className="text-blue-600 p-2 rounded-md hover:bg-blue-50 transition-colors flex items-center"
-            title="Synchroniser avec le serveur"
-            disabled={isSyncing}
-          >
-            <CloudSun className={`h-6 w-6 stroke-[1.5] ${isSyncing ? 'animate-spin' : ''}`} />
-          </button>
-          <button 
-            onClick={handleExportAllToPdf}
-            className="text-red-600 p-2 rounded-md hover:bg-red-50 transition-colors"
-            title="Exporter en PDF"
-          >
-            <FileText className="h-6 w-6 stroke-[1.5]" />
-          </button>
-        </div>
-      </div>
-
-      <div className="mb-4">
-        <SyncStatusIndicator 
-          isSyncing={isSyncing}
-          isOnline={isOnline}
-          lastSynced={lastSynced}
-          hasUnsyncedData={hasUnsyncedData}
-          onSync={handleSync}
-        />
-      </div>
-
-      {isLoading ? (
-        <div className="bg-white rounded-md shadow p-8 text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-app-blue mx-auto"></div>
-          <p className="mt-4 text-gray-600">Chargement des données...</p>
-        </div>
-      ) : (
-        <>
-          <div className="bg-white rounded-md shadow overflow-hidden mt-6">
-            {membres.length > 0 ? (
-              <MemberList 
-                membres={membres} 
-                onEdit={handleEdit} 
-                onDelete={handleDelete}
-                onExport={handleExportMember} 
-              />
-            ) : (
-              <div className="p-8 text-center text-gray-500">
-                <p>Aucun membre à afficher.</p>
-                <p className="text-sm mt-2">Cliquez sur "Ajouter un membre" pour commencer.</p>
-              </div>
-            )}
-          </div>
-
-          <div className="flex justify-end mt-4 gap-4">
-            <Button 
-              className="flex items-center"
-              onClick={handleAddMember}
-            >
-              <UserPlus className="h-4 w-4 mr-2" />
-              Ajouter un membre
-            </Button>
-          </div>
-
-          {/* Modal pour ajouter/modifier un membre */}
-          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>
-                  {isEditing ? "Modifier le membre" : "Ajouter un membre"}
-                </DialogTitle>
-                <DialogDescription>
-                  {isEditing 
-                    ? "Modifiez les informations du membre ci-dessous." 
-                    : "Remplissez les informations pour ajouter un nouveau membre."}
-                </DialogDescription>
-              </DialogHeader>
-              
-              <MemberForm 
-                currentMembre={currentMembre}
-                isEditing={isEditing}
-                onInputChange={handleInputChange}
-                onSave={handleSaveMember}
-                onCancel={() => setIsDialogOpen(false)}
-              />
-            </DialogContent>
-          </Dialog>
-        </>
-      )}
+    <div className="container mx-auto py-6 space-y-6">
+      <PageHeader
+        title="Gestion des Ressources Humaines"
+        description="Gérez les membres de votre équipe"
+        icon={<Users className="h-6 w-6" />}
+      />
+      
+      <MembresToolbar 
+        onSync={handleSyncClick} 
+        lastSynced={lastSynced} 
+        isLoading={isLoading} 
+        error={errorMessage}
+      />
+      
+      <Card>
+        <MembresTable membres={membres} isLoading={isLoading} />
+      </Card>
     </div>
   );
 };

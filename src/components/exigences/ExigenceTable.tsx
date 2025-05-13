@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Pencil, Trash, GripVertical, ChevronDown } from 'lucide-react';
 import ResponsableSelector from '@/components/ResponsableSelector';
@@ -10,6 +11,8 @@ import {
   TableHeader,
   TableRow
 } from "@/components/ui/table";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 
 interface ExigenceTableProps {
   exigences: Exigence[];
@@ -230,6 +233,7 @@ const ExigenceTable: React.FC<ExigenceTableProps> = ({
         <TableBody>
           {groups.map((group) => (
             <React.Fragment key={group.id}>
+              {/* Group Row */}
               <TableRow 
                 className="border-b hover:bg-gray-50 cursor-pointer" 
                 onClick={() => onToggleGroup(group.id)}
@@ -264,7 +268,7 @@ const ExigenceTable: React.FC<ExigenceTableProps> = ({
                     <ChevronDown 
                       className={`h-4 w-4 mr-2 inline-block transition-transform ${group.expanded ? 'rotate-180' : ''}`} 
                     />
-                    <span className="font-medium">{group.name}</span>
+                    <span className="font-bold text-app-blue text-sm">{group.name}</span>
                   </div>
                 </TableCell>
                 <TableCell className="py-3 px-4 text-right">
@@ -351,47 +355,46 @@ const ExigenceTable: React.FC<ExigenceTableProps> = ({
                     </TableCell>
                     
                     <TableCell className="py-3 px-4 text-center">
-                      <input 
-                        type="checkbox" 
+                      <Checkbox 
                         checked={exigence.exclusion}
-                        onChange={() => onExclusionChange(exigence.id)}
+                        onCheckedChange={() => onExclusionChange(exigence.id)}
                         className="form-checkbox h-4 w-4 text-app-blue rounded"
-                        onClick={(e) => e.stopPropagation()} 
                       />
                     </TableCell>
 
+                    {/* Nouveaux boutons d'atteinte comme dans DocumentRow */}
                     <TableCell className="py-3 px-1 text-center">
-                      <input 
-                        type="radio" 
-                        name={`atteinte-${exigence.id}`}
-                        checked={exigence.atteinte === 'NC'}
-                        onChange={() => onAtteinteChange(exigence.id, 'NC')}
-                        className="form-radio h-4 w-4 text-red-500"
+                      <Button
+                        variant={exigence.atteinte === 'NC' ? "default" : "outline"}
+                        size="sm"
+                        className="h-8 w-8 p-0 rounded-full border-red-200 text-red-500"
+                        onClick={() => onAtteinteChange(exigence.id, exigence.atteinte === 'NC' ? null : 'NC')}
                         disabled={exigence.exclusion}
-                        onClick={(e) => e.stopPropagation()} 
-                      />
+                      >
+                        NC
+                      </Button>
                     </TableCell>
                     <TableCell className="py-3 px-1 text-center">
-                      <input 
-                        type="radio" 
-                        name={`atteinte-${exigence.id}`}
-                        checked={exigence.atteinte === 'PC'}
-                        onChange={() => onAtteinteChange(exigence.id, 'PC')}
-                        className="form-radio h-4 w-4 text-yellow-500"
+                      <Button
+                        variant={exigence.atteinte === 'PC' ? "default" : "outline"}
+                        size="sm"
+                        className="h-8 w-8 p-0 rounded-full border-yellow-200 text-yellow-500"
+                        onClick={() => onAtteinteChange(exigence.id, exigence.atteinte === 'PC' ? null : 'PC')}
                         disabled={exigence.exclusion}
-                        onClick={(e) => e.stopPropagation()} 
-                      />
+                      >
+                        PC
+                      </Button>
                     </TableCell>
                     <TableCell className="py-3 px-1 text-center">
-                      <input 
-                        type="radio" 
-                        name={`atteinte-${exigence.id}`}
-                        checked={exigence.atteinte === 'C'}
-                        onChange={() => onAtteinteChange(exigence.id, 'C')}
-                        className="form-radio h-4 w-4 text-green-500"
+                      <Button
+                        variant={exigence.atteinte === 'C' ? "default" : "outline"}
+                        size="sm"
+                        className="h-8 w-8 p-0 rounded-full border-green-200 text-green-500"
+                        onClick={() => onAtteinteChange(exigence.id, exigence.atteinte === 'C' ? null : 'C')}
                         disabled={exigence.exclusion}
-                        onClick={(e) => e.stopPropagation()} 
-                      />
+                      >
+                        C
+                      </Button>
                     </TableCell>
                     
                     <TableCell className="py-3 px-4 text-right">
@@ -467,47 +470,46 @@ const ExigenceTable: React.FC<ExigenceTableProps> = ({
               </TableCell>
               
               <TableCell className="py-3 px-4 text-center">
-                <input 
-                  type="checkbox" 
+                <Checkbox 
                   checked={exigence.exclusion}
-                  onChange={() => onExclusionChange(exigence.id)}
+                  onCheckedChange={() => onExclusionChange(exigence.id)}
                   className="form-checkbox h-4 w-4 text-app-blue rounded"
-                  onClick={(e) => e.stopPropagation()} 
                 />
               </TableCell>
 
+              {/* Nouveaux boutons d'atteinte comme dans DocumentRow */}
               <TableCell className="py-3 px-1 text-center">
-                <input 
-                  type="radio" 
-                  name={`atteinte-${exigence.id}`}
-                  checked={exigence.atteinte === 'NC'}
-                  onChange={() => onAtteinteChange(exigence.id, 'NC')}
-                  className="form-radio h-4 w-4 text-red-500"
+                <Button
+                  variant={exigence.atteinte === 'NC' ? "default" : "outline"}
+                  size="sm"
+                  className="h-8 w-8 p-0 rounded-full border-red-200 text-red-500"
+                  onClick={() => onAtteinteChange(exigence.id, exigence.atteinte === 'NC' ? null : 'NC')}
                   disabled={exigence.exclusion}
-                  onClick={(e) => e.stopPropagation()} 
-                />
+                >
+                  NC
+                </Button>
               </TableCell>
               <TableCell className="py-3 px-1 text-center">
-                <input 
-                  type="radio" 
-                  name={`atteinte-${exigence.id}`}
-                  checked={exigence.atteinte === 'PC'}
-                  onChange={() => onAtteinteChange(exigence.id, 'PC')}
-                  className="form-radio h-4 w-4 text-yellow-500"
+                <Button
+                  variant={exigence.atteinte === 'PC' ? "default" : "outline"}
+                  size="sm"
+                  className="h-8 w-8 p-0 rounded-full border-yellow-200 text-yellow-500"
+                  onClick={() => onAtteinteChange(exigence.id, exigence.atteinte === 'PC' ? null : 'PC')}
                   disabled={exigence.exclusion}
-                  onClick={(e) => e.stopPropagation()} 
-                />
+                >
+                  PC
+                </Button>
               </TableCell>
               <TableCell className="py-3 px-1 text-center">
-                <input 
-                  type="radio" 
-                  name={`atteinte-${exigence.id}`}
-                  checked={exigence.atteinte === 'C'}
-                  onChange={() => onAtteinteChange(exigence.id, 'C')}
-                  className="form-radio h-4 w-4 text-green-500"
+                <Button
+                  variant={exigence.atteinte === 'C' ? "default" : "outline"}
+                  size="sm"
+                  className="h-8 w-8 p-0 rounded-full border-green-200 text-green-500"
+                  onClick={() => onAtteinteChange(exigence.id, exigence.atteinte === 'C' ? null : 'C')}
                   disabled={exigence.exclusion}
-                  onClick={(e) => e.stopPropagation()} 
-                />
+                >
+                  C
+                </Button>
               </TableCell>
               
               <TableCell className="py-3 px-4 text-right">

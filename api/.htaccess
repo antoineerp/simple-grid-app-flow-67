@@ -1,17 +1,48 @@
 
-# Forcer PHP à s'exécuter dans ce répertoire
-AddType application/x-httpd-php .php
-AddHandler application/x-httpd-php .php
-AddHandler php8-fcgi .php
-
-# Forcer explicitement PHP pour tous les fichiers .php
-<FilesMatch "\.php$">
-    SetHandler application/x-httpd-php
-    SetHandler php8-fcgi
-</FilesMatch>
-
 # Activer la réécriture d'URL
 RewriteEngine On
+
+# Définir les types MIME corrects
+AddType application/javascript .js
+AddType application/javascript .mjs
+AddType application/javascript .es.js
+AddType text/css .css
+AddType application/json .json
+
+# Gérer les requêtes OPTIONS pour CORS
+RewriteCond %{REQUEST_METHOD} OPTIONS
+RewriteRule ^(.*)$ $1 [R=200,L]
+
+# Configuration CORS et types MIME
+<IfModule mod_headers.c>
+    # Force le bon type MIME pour les JavaScript modules
+    <FilesMatch "\.(m?js|es\.js)$">
+        Header set Content-Type "application/javascript"
+        Header set X-Content-Type-Options "nosniff"
+    </FilesMatch>
+    
+    Header set Access-Control-Allow-Origin "*"
+    Header set Access-Control-Allow-Methods "GET, POST, OPTIONS, PUT, DELETE"
+    Header set Access-Control-Allow-Headers "Content-Type, Authorization, X-Requested-With"
+    
+    # Eviter la mise en cache
+    Header set Cache-Control "no-cache, no-store, must-revalidate"
+    Header set Pragma "no-cache"
+    Header set Expires 0
+</IfModule>
+
+# Permettre l'accès direct aux fichiers PHP spécifiques
+RewriteCond %{REQUEST_FILENAME} -f
+RewriteRule \.(php)$ - [L]
+
+# Gérer les requêtes OPTIONS pour CORS
+RewriteCond %{REQUEST_METHOD} OPTIONS
+RewriteRule ^(.*)$ $1 [R=200,L]
+
+# Rediriger toutes les requêtes vers l'index.php sauf pour les fichiers existants
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^(.*)$ index.php [QSA,L]
 
 # Définir les types MIME corrects
 AddType application/javascript .js
@@ -19,45 +50,36 @@ AddType application/javascript .mjs
 AddType text/css .css
 AddType application/json .json
 
-# Gérer les requêtes OPTIONS pour CORS (important pour les API)
-RewriteCond %{REQUEST_METHOD} OPTIONS
-RewriteRule ^(.*)$ $1 [R=200,L]
-
-# Permettre l'accès direct aux fichiers PHP spécifiques
-RewriteCond %{REQUEST_FILENAME} -f
-RewriteRule \.(php)$ - [L]
-
-# Configuration des en-têtes pour tous les fichiers PHP
-<Files *.php>
-    Order Allow,Deny
-    Allow from all
+# Définir les en-têtes CORS
+<IfModule mod_headers.c>
+    # Force le bon type MIME pour les JavaScript modules
+    <FilesMatch "\.m?js$">
+        Header set Content-Type "application/javascript"
+    </FilesMatch>
     
-    # En-têtes CORS pour les API
-    <IfModule mod_headers.c>
-        Header set Access-Control-Allow-Origin "*"
-        Header set Access-Control-Allow-Methods "GET, POST, OPTIONS, PUT, DELETE"
-        Header set Access-Control-Allow-Headers "Content-Type, Authorization, X-Requested-With"
-        
-        # Désactiver le cache pour les réponses API
-        Header set Cache-Control "no-cache, no-store, must-revalidate"
-        Header set Pragma "no-cache"
-        Header set Expires 0
-    </IfModule>
-</Files>
-
-# Définition d'une page d'erreur JSON personnalisée pour les erreurs
-ErrorDocument 500 '{"status":"error","message":"Erreur interne du serveur","code":500}'
-ErrorDocument 404 '{"status":"error","message":"Ressource non trouvée","code":404}'
-ErrorDocument 403 '{"status":"error","message":"Accès interdit","code":403}'
+    Header set Access-Control-Allow-Origin "*"
+    Header set Access-Control-Allow-Methods "GET, POST, OPTIONS, PUT, DELETE"
+    Header set Access-Control-Allow-Headers "Content-Type, Authorization, X-Requested-With"
+    
+    # Eviter la mise en cache
+    Header set Cache-Control "no-cache, no-store, must-revalidate"
+    Header set Pragma "no-cache"
+    Header set Expires 0
+</IfModule>
 
 # Forcer PHP à utiliser le bon encodage
 <IfModule mod_php.c>
     php_value default_charset "UTF-8"
-    php_flag display_errors Off
+    php_flag display_errors off
     php_value error_log "php_errors.log"
-    php_flag log_errors On
+    php_flag log_errors on
     php_value upload_max_filesize "16M"
     php_value post_max_size "16M"
     php_value memory_limit "128M"
     php_value max_execution_time 300
 </IfModule>
+
+# Définition d'une page d'erreur JSON personnalisée pour les erreurs
+ErrorDocument 500 '{"status":"error","message":"Erreur interne du serveur","code":500}'
+ErrorDocument 404 '{"status":"error","message":"Ressource non trouvée","code":404}'
+ErrorDocument 403 '{"status":"error","message":"Accès interdit","code":403}'

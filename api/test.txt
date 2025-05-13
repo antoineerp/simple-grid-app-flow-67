@@ -1,4 +1,0 @@
-
-Ce fichier texte simple permet de vérifier si le serveur renvoie correctement des fichiers non-PHP.
-Si vous pouvez lire ce message dans votre navigateur, le serveur web fonctionne correctement,
-mais il y a probablement un problème avec la configuration PHP.

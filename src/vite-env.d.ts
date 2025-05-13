@@ -1,13 +1,7 @@
 
 /// <reference types="vite/client" />
 
-interface ImportMetaEnv {
-  readonly VITE_DB_HOST: string;
-  readonly VITE_DB_NAME: string;
-  readonly VITE_DB_USER: string;
-  readonly VITE_DB_PASSWORD: string;
-}
-
-interface ImportMeta {
-  readonly env: ImportMetaEnv;
+// Extension du type Window pour inclure errorLogs
+interface Window {
+  errorLogs?: string[]; // Made optional to match the declaration in errorLogger.ts
 }

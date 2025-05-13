@@ -5,6 +5,7 @@ import { AlertCircle, CheckCircle, Database, Server, Users } from "lucide-react"
 import { getApiUrl, fetchWithErrorHandling } from '@/config/apiConfig';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { getAuthHeaders } from '@/services/auth/authService';
+import { UserManager } from '@/services/users/userManager';
 import {
   Accordion,
   AccordionContent,
@@ -12,6 +13,7 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { Badge } from "@/components/ui/badge";
+import { Utilisateur } from '@/services';
 
 interface User {
   id: number;
@@ -37,7 +39,7 @@ const ServerTest = () => {
   const [apiMessage, setApiMessage] = useState<string>('');
   const [dbMessage, setDbMessage] = useState<string>('');
   const [usersMessage, setUsersMessage] = useState<string>('');
-  const [users, setUsers] = useState<User[]>([]);
+  const [users, setUsers] = useState<Utilisateur[]>([]);
   const [fallbackUsers, setFallbackUsers] = useState<FallbackUser[]>([]);
 
   const testApiConnection = async () => {
@@ -69,17 +71,28 @@ const ServerTest = () => {
     setDbStatus('loading');
     try {
       const API_URL = getApiUrl();
-      console.log("Testing database connection to:", API_URL + '/database-test');
+      console.log("Testing database connection using check-users endpoint");
       
-      const data = await fetchWithErrorHandling(`${API_URL}/database-test`, {
+      // Utiliser le même endpoint que celui qui fonctionne pour les utilisateurs
+      const response = await fetch(`${API_URL}/check-users.php`, {
         method: 'GET',
         headers: getAuthHeaders()
       });
       
+      if (!response.ok) {
+        throw new Error(`Erreur HTTP: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      
       console.log("Database response:", data);
       
-      setDbMessage(`Connexion DB réussie (${data.message || 'Pas de message'})`);
-      setDbStatus('success');
+      if (data.status === 'success') {
+        setDbMessage(`Connexion DB réussie (${data.message || 'Pas de message'})`);
+        setDbStatus('success');
+      } else {
+        throw new Error(data.message || 'Échec de la connexion à la base de données');
+      }
     } catch (error) {
       console.error("Erreur DB:", error);
       setDbMessage(`Échec de la connexion DB: ${error instanceof Error ? error.message : 'Erreur inconnue'}`);
@@ -90,51 +103,11 @@ const ServerTest = () => {
   const testUsersConnection = async () => {
     setUsersStatus('loading');
     try {
-      const API_URL = getApiUrl();
-      console.log("Testing users connection to:", API_URL + '/check-users.php');
+      // Utiliser notre service centralisé avec forceRefresh pour ignorer le cache
+      const usersData = await UserManager.getUtilisateurs(true);
       
-      const response = await fetch(`${API_URL}/check-users.php`, {
-        method: 'GET',
-        headers: getAuthHeaders(),
-        cache: 'no-store'
-      });
-      
-      if (!response.ok) {
-        throw new Error(`Erreur HTTP: ${response.status} - ${response.statusText}`);
-      }
-      
-      const responseText = await response.text();
-      console.log("Réponse brute:", responseText.substring(0, 200) + "...");
-      
-      if (!responseText.trim()) {
-        throw new Error("Réponse vide du serveur");
-      }
-      
-      let data;
-      try {
-        data = JSON.parse(responseText);
-      } catch (parseError) {
-        console.error("Erreur de parsing JSON:", parseError);
-        throw new Error("La réponse n'est pas au format JSON valide");
-      }
-      
-      console.log("Users response parsed:", data);
-      
-      if (data.records && Array.isArray(data.records)) {
-        setUsers(data.records);
-      } else if (data.users && Array.isArray(data.users)) {
-        setUsers(data.users);
-      } else {
-        console.warn("Format de réponse inattendu:", data);
-        setUsers([]);
-      }
-      
-      if (data.fallback_users) {
-        setFallbackUsers(data.fallback_users);
-      }
-      
-      const userCount = data.records ? data.records.length : (data.users ? data.users.length : 0);
-      setUsersMessage(`Utilisateurs récupérés avec succès (${userCount} utilisateurs dans la base)`);
+      setUsers(usersData);
+      setUsersMessage(`Utilisateurs récupérés avec succès (${usersData.length} utilisateurs dans la base)`);
       setUsersStatus('success');
     } catch (error) {
       console.error("Erreur Users:", error);

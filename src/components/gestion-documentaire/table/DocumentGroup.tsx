@@ -77,11 +77,11 @@ const DocumentGroupComponent: React.FC<DocumentGroupProps> = ({
           className="py-3 px-4 w-full text-left" 
           colSpan={9}
         >
-          <div className="flex items-center text-sm">
+          <div className="flex items-center">
             <ChevronDown 
               className={`h-4 w-4 mr-2 inline-block transition-transform ${group.expanded ? 'rotate-180' : ''}`} 
             />
-            <span className="font-medium text-black">{group.name}</span>
+            <span className="font-bold text-app-blue text-sm">{group.name}</span>
           </div>
         </TableCell>
         <TableCell className="py-3 px-4 text-right">

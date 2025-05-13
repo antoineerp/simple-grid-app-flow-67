@@ -1,83 +1,22 @@
 
 <?php
-// Inclure la configuration de base
-require_once __DIR__ . '/config/index.php';
+// Force output buffering to prevent output before headers
+ob_start();
 
-// Configuration des headers
-header("Content-Type: application/json; charset=UTF-8");
-header("Access-Control-Allow-Origin: *");
-header("Access-Control-Allow-Methods: POST, OPTIONS");
-header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With");
-header("Cache-Control: no-cache, no-store, must-revalidate");
+// Initialiser la gestion de synchronisation
+require_once 'services/RequestHandler.php';
 
-// Si c'est une requête OPTIONS (preflight), nous la terminons ici
-if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
-    http_response_code(200);
-    echo json_encode(['status' => 'success', 'message' => 'Preflight OK']);
-    exit;
-}
+// Définir les en-têtes standard
+RequestHandler::setStandardHeaders("POST, OPTIONS");
+RequestHandler::handleOptionsRequest();
 
-try {
-    // Inclure la base de données si elle existe
-    if (file_exists(__DIR__ . '/config/database.php')) {
-        require_once __DIR__ . '/config/database.php';
-    }
+// Journalisation
+error_log("=== DEBUT DE L'EXÉCUTION DE bibliotheque-sync.php (REDIRECTEUR) ===");
+error_log("Méthode: " . $_SERVER['REQUEST_METHOD'] . " - URI: " . $_SERVER['REQUEST_URI']);
 
-    // Vérifier l'authentification si le middleware Auth existe
-    if (file_exists(__DIR__ . '/middleware/Auth.php')) {
-        include_once __DIR__ . '/middleware/Auth.php';
-        
-        $allHeaders = getallheaders();
-        
-        if (class_exists('Auth')) {
-            $auth = new Auth($allHeaders);
-            $userData = $auth->isAuth();
-            
-            if (!$userData) {
-                http_response_code(401);
-                echo json_encode(["status" => "error", "message" => "Non autorisé"]);
-                exit;
-            }
-        }
-    }
+// Redirection vers le nouveau endpoint
+error_log("bibliotheque-sync.php: Redirection vers collaboration-sync.php");
+include_once 'collaboration-sync.php';
 
-    // S'assurer que la méthode est POST
-    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-        http_response_code(405);
-        echo json_encode(["status" => "error", "message" => "Méthode non autorisée"]);
-        exit;
-    }
-
-    // Récupérer et décoder les données JSON envoyées
-    $input = json_decode(file_get_contents('php://input'), true);
-    
-    if (json_last_error() !== JSON_ERROR_NONE) {
-        http_response_code(400);
-        echo json_encode(["status" => "error", "message" => "Format JSON invalide"]);
-        exit;
-    }
-
-    // Vérifier les données reçues
-    if (!isset($input['userId'])) {
-        http_response_code(400);
-        echo json_encode(["status" => "error", "message" => "L'identifiant utilisateur est requis"]);
-        exit;
-    }
-
-    // Simuler une synchronisation réussie (à remplacer par la vraie logique)
-    $result = [
-        "success" => true,
-        "message" => "Bibliothèque synchronisée avec succès"
-    ];
-
-    // Envoyer la réponse
-    http_response_code(200);
-    echo json_encode($result);
-    
-} catch (Exception $e) {
-    // Gérer les erreurs
-    error_log("Erreur dans bibliotheque-sync.php: " . $e->getMessage());
-    http_response_code(500);
-    echo json_encode(["status" => "error", "message" => "Erreur serveur: " . $e->getMessage()]);
-}
+// Note: Pas besoin de terminer ce fichier car collaboration-sync.php s'en charge
 ?>

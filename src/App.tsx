@@ -1,104 +1,207 @@
 
-import { useState, useEffect } from "react";
-import { Toaster } from "@/components/ui/toaster";
-import { Toaster as Sonner } from "@/components/ui/sonner";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
-import Layout from "./components/Layout";
-import Index from "./pages/Index";
-import Pilotage from "./pages/Pilotage";
-import Exigences from "./pages/Exigences";
-import GestionDocumentaire from "./pages/GestionDocumentaire";
-import RessourcesHumaines from "./pages/RessourcesHumaines";
-import Bibliotheque from "./pages/Bibliotheque";
-import Administration from "./pages/Administration";
-import NotFound from "./pages/NotFound";
-import ServerTest from "./components/ServerTest";
-import _ from 'lodash';
+import React, { useEffect, useState } from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { Toaster } from '@/components/ui/toaster';
+import { TooltipProvider } from '@/components/ui/tooltip';
+import DbAdmin from '@/pages/DbAdmin';
+import Index from '@/pages/Index';
+import Layout from '@/components/layout/Layout';
+import Pilotage from '@/pages/Pilotage';
+import Exigences from '@/pages/Exigences';
+import GestionDocumentaire from '@/pages/GestionDocumentaire';
+import RessourcesHumaines from '@/pages/RessourcesHumaines';
+import Administration from '@/pages/Administration';
+import Collaboration from '@/pages/Collaboration';
+import DatabaseCheckPage from '@/pages/DatabaseCheckPage';
+import { getIsLoggedIn, getCurrentUser } from '@/services/auth/authService';
+import { MembresProvider } from '@/contexts/MembresContext';
+import { initializeSyncStorageCleaner } from './utils/syncStorageCleaner';
+import { Loader2 } from 'lucide-react';
+import SyncHealthIndicator from './components/common/SyncHealthIndicator';
 
-// S'assurer que lodash est correctement configuré
-if (!_) {
-  console.error("Lodash n'est pas correctement chargé!");
-}
-
-// Créer le queryClient
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      retry: 2,
-      staleTime: 5 * 60 * 1000, // 5 minutes
-      refetchOnWindowFocus: false
-    }
-  }
-});
-
-const App = () => {
-  const [isError, setIsError] = useState(false);
-  const [errorDetails, setErrorDetails] = useState("");
-
+// Composant de route protégée avec gestion des erreurs améliorée
+const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
+  const location = useLocation();
+  const [isChecking, setIsChecking] = useState(true);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  
   useEffect(() => {
-    // Vérifier si lodash est correctement chargé
-    if (typeof _.map !== 'function') {
-      setIsError(true);
-      setErrorDetails("La bibliothèque Lodash n'est pas correctement chargée. Veuillez actualiser la page.");
-    }
-  }, []);
-
-  if (isError) {
+    const checkAuth = () => {
+      try {
+        const isLoggedIn = getIsLoggedIn();
+        const currentUser = getCurrentUser();
+        
+        console.log('ProtectedRoute - Vérification de connexion:', isLoggedIn);
+        console.log('ProtectedRoute - Chemin demandé:', location.pathname);
+        
+        if (currentUser) {
+          console.log('ProtectedRoute - Détails utilisateur:', currentUser.email || 'inconnu');
+        }
+        
+        setIsAuthenticated(isLoggedIn);
+      } catch (error) {
+        console.error('ProtectedRoute - Erreur lors de la vérification:', error);
+        setIsAuthenticated(false);
+      } finally {
+        setIsChecking(false);
+      }
+    };
+    
+    checkAuth();
+  }, [location.pathname]);
+  
+  // Afficher un indicateur de chargement pendant la vérification
+  if (isChecking) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-gray-100 p-4">
-        <div className="bg-white p-6 rounded-lg shadow-lg max-w-md w-full">
-          <div className="text-red-600 text-2xl font-bold mb-4">Erreur de chargement</div>
-          <div className="text-gray-800 mb-6">{errorDetails}</div>
-          <div className="flex flex-col space-y-4">
-            <button 
-              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-              onClick={() => window.location.reload()}
-            >
-              Actualiser la page
-            </button>
-            <button 
-              className="px-4 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300"
-              onClick={() => {
-                // Effacer le cache avant de recharger
-                localStorage.removeItem('appCache');
-                sessionStorage.clear();
-                window.location.reload();
-              }}
-            >
-              Actualiser et effacer le cache
-            </button>
-          </div>
-        </div>
+      <div className="h-screen w-full flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
   }
-
-  return (
-    <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <BrowserRouter>
-          <Routes>
-            <Route path="/" element={<Layout />}>
-              <Route index element={<Index />} />
-              <Route path="pilotage" element={<Pilotage />} />
-              <Route path="exigences" element={<Exigences />} />
-              <Route path="gestion-documentaire" element={<GestionDocumentaire />} />
-              <Route path="ressources-humaines" element={<RessourcesHumaines />} />
-              <Route path="bibliotheque" element={<Bibliotheque />} />
-              <Route path="collaboration" element={<Bibliotheque />} />
-              <Route path="administration" element={<Administration />} />
-              <Route path="server-test" element={<ServerTest />} />
-            </Route>
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </BrowserRouter>
-        <Toaster />
-        <Sonner />
-      </TooltipProvider>
-    </QueryClientProvider>
-  );
+  
+  if (!isAuthenticated) {
+    console.log('ProtectedRoute - Accès non autorisé, redirection vers la page de connexion');
+    return <Navigate to="/" />;
+  }
+  
+  console.log('ProtectedRoute - Accès autorisé, affichage du contenu');
+  return <>{children}</>;
 };
+
+// Composant pour tracer le chemin actuel
+const RouteTracker = () => {
+  const location = useLocation();
+  
+  useEffect(() => {
+    console.log('App - Navigation détectée vers:', location.pathname);
+  }, [location]);
+  
+  return null;
+};
+
+function ErrorBoundaryComponent() {
+  return (
+    <div className="h-screen flex flex-col items-center justify-center p-4">
+      <h1 className="text-2xl font-bold text-red-600 mb-4">
+        Une erreur s'est produite
+      </h1>
+      <p className="mb-6 text-center">
+        L'application a rencontré un problème inattendu.
+      </p>
+      <button 
+        className="px-4 py-2 bg-blue-500 text-white rounded"
+        onClick={() => window.location.href = '/'}
+      >
+        Retourner à l'accueil
+      </button>
+    </div>
+  );
+}
+
+function App() {
+  const [hasError, setHasError] = useState(false);
+  
+  useEffect(() => {
+    // Gestionnaire d'erreurs global
+    const handleGlobalError = (event: ErrorEvent) => {
+      console.error("Erreur globale détectée:", event.error);
+      setHasError(true);
+    };
+    
+    window.addEventListener('error', handleGlobalError);
+    
+    // Exécuter le nettoyage des données de synchronisation au démarrage
+    try {
+      initializeSyncStorageCleaner();
+      console.log("App - Nettoyage des données de synchronisation initialisé");
+    } catch (error) {
+      console.error("App - Erreur lors de l'initialisation du nettoyage:", error);
+    }
+    
+    return () => {
+      window.removeEventListener('error', handleGlobalError);
+    };
+  }, []);
+  
+  if (hasError) {
+    return <ErrorBoundaryComponent />;
+  }
+  
+  return (
+    <div className="app">
+      <Router>
+        <TooltipProvider>
+          <MembresProvider>
+            <Routes>
+              {/* Route publique */}
+              <Route path="/" element={<Index />} />
+              
+              {/* Routes protégées dans le Layout */}
+              <Route path="/" element={<Layout />}>
+                <Route path="pilotage" element={
+                  <ProtectedRoute>
+                    <Pilotage />
+                  </ProtectedRoute>
+                } />
+                
+                <Route path="db-admin" element={
+                  <ProtectedRoute>
+                    <DbAdmin />
+                  </ProtectedRoute>
+                } />
+                
+                {/* Nouvelle route pour la page de vérification de base de données */}
+                <Route path="database-check" element={
+                  <ProtectedRoute>
+                    <DatabaseCheckPage />
+                  </ProtectedRoute>
+                } />
+                
+                {/* Routes vers les pages réelles */}
+                <Route path="exigences" element={
+                  <ProtectedRoute>
+                    <Exigences />
+                  </ProtectedRoute>
+                } />
+                
+                <Route path="gestion-documentaire" element={
+                  <ProtectedRoute>
+                    <GestionDocumentaire />
+                  </ProtectedRoute>
+                } />
+                
+                <Route path="ressources-humaines" element={
+                  <ProtectedRoute>
+                    <RessourcesHumaines />
+                  </ProtectedRoute>
+                } />
+                
+                <Route path="collaboration" element={
+                  <ProtectedRoute>
+                    <Collaboration />
+                  </ProtectedRoute>
+                } />
+                
+                <Route path="administration" element={
+                  <ProtectedRoute>
+                    <Administration />
+                  </ProtectedRoute>
+                } />
+              </Route>
+              
+              {/* Redirection pour les routes inconnues */}
+              <Route path="*" element={<Navigate to="/" />} />
+            </Routes>
+            <Toaster />
+            <RouteTracker />
+          </MembresProvider>
+        </TooltipProvider>
+      </Router>
+      
+      {/* Ajouter l'indicateur de santé des synchronisations */}
+      <SyncHealthIndicator position="bottom-right" />
+    </div>
+  );
+}
 
 export default App;

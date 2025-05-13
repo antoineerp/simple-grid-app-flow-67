@@ -1,5 +1,5 @@
 
-import jsPDF from 'jspdf';
+import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { 
   createAndDownloadPdf
@@ -17,13 +17,15 @@ export const exportBibliothecaireDocsToPdf = (documents: any[], groups: any[], t
       doc.text(group.name, 15, currentY);
       currentY += 10;
       
-      // Vérifier si le groupe a des documents
-      if (group.items && group.items.length > 0) {
+      // Trouver les documents du groupe
+      const groupDocs = documents.filter(doc => doc.groupId === group.id);
+      
+      if (groupDocs.length > 0) {
         // Générer le tableau pour ce groupe
         autoTable(doc, {
           startY: currentY,
           head: [['Nom du document', 'Lien']],
-          body: group.items.map(doc => [
+          body: groupDocs.map(doc => [
             doc.name,
             doc.link || '-'
           ]),
@@ -38,6 +40,12 @@ export const exportBibliothecaireDocsToPdf = (documents: any[], groups: any[], t
         
         // Mettre à jour la position Y
         currentY = (doc as any).lastAutoTable.finalY + 15;
+      } else {
+        // Si aucun document dans ce groupe, indiquer que le groupe est vide
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'italic');
+        doc.text('(Aucun document dans ce groupe)', 20, currentY);
+        currentY += 15;
       }
     });
     

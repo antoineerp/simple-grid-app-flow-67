@@ -1,84 +1,166 @@
 
 <?php
-// Inclure la configuration de base
-require_once __DIR__ . '/config/index.php';
+// Force output buffering to prevent output before headers
+ob_start();
 
-// Configuration des headers
-header("Content-Type: application/json; charset=UTF-8");
-header("Access-Control-Allow-Origin: *");
-header("Access-Control-Allow-Methods: POST, OPTIONS");
-header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With");
-header("Cache-Control: no-cache, no-store, must-revalidate");
+// Initialiser la gestion de synchronisation
+require_once 'services/DataSyncService.php';
+require_once 'services/RequestHandler.php';
 
-// Si c'est une requête OPTIONS (preflight), nous la terminons ici
-if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
-    http_response_code(200);
-    echo json_encode(['status' => 'success', 'message' => 'Preflight OK']);
+// Nom de la table à synchroniser
+$tableName = 'documents';
+
+// Créer le service de synchronisation
+$service = new DataSyncService($tableName);
+
+// Définir les en-têtes standard
+RequestHandler::setStandardHeaders("POST, OPTIONS");
+RequestHandler::handleOptionsRequest();
+
+// Vérifier la méthode
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    http_response_code(405);
+    echo json_encode(['success' => false, 'message' => 'Méthode non autorisée. Utilisez POST.']);
     exit;
 }
 
 try {
-    // Inclure la base de données si elle existe
-    if (file_exists(__DIR__ . '/config/database.php')) {
-        require_once __DIR__ . '/config/database.php';
+    // Nettoyer le buffer
+    if (ob_get_level()) ob_clean();
+    
+    // Récupérer les données POST JSON
+    $json = file_get_contents('php://input');
+    $data = json_decode($json, true);
+    
+    if (!$json || !$data) {
+        throw new Exception("Aucune donnée reçue ou format JSON invalide");
     }
-
-    // Vérifier l'authentification si le middleware Auth existe
-    if (file_exists(__DIR__ . '/middleware/Auth.php')) {
-        include_once __DIR__ . '/middleware/Auth.php';
+    
+    error_log("Données reçues pour synchronisation des documents");
+    error_log("Contenu: " . substr($json, 0, 500) . "...");
+    
+    // Vérifier si les données nécessaires sont présentes
+    if (!isset($data['userId'])) {
+        throw new Exception("Données incomplètes. 'userId' est requis");
+    }
+    
+    // Récupérer les données
+    $userId = RequestHandler::sanitizeUserId($data['userId']);
+    $deviceId = isset($data['deviceId']) ? $data['deviceId'] : 'unknown';
+    $documents = isset($data['documents']) ? $data['documents'] : [];
+    
+    error_log("Synchronisation pour l'utilisateur: {$userId} depuis l'appareil: {$deviceId}");
+    error_log("Nombre de documents: " . count($documents));
+    
+    // Connexion à la base de données
+    if (!$service->connectToDatabase()) {
+        throw new Exception("Impossible de se connecter à la base de données");
+    }
+    
+    // Nom de la table spécifique à l'utilisateur
+    $userTableName = "{$tableName}_" . preg_replace('/[^a-zA-Z0-9_]/', '_', $userId);
+    
+    // Obtenir une référence PDO
+    $pdo = $service->getPdo();
+    
+    // Enregistrer cette synchronisation dans l'historique
+    try {
+        // Créer la table d'historique si elle n'existe pas
+        $pdo->exec("CREATE TABLE IF NOT EXISTS `sync_history` (
+            `id` INT AUTO_INCREMENT PRIMARY KEY,
+            `table_name` VARCHAR(100) NOT NULL,
+            `user_id` VARCHAR(50) NOT NULL,
+            `device_id` VARCHAR(100) NOT NULL,
+            `record_count` INT NOT NULL,
+            `operation` VARCHAR(50) DEFAULT 'sync',
+            `sync_timestamp` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            INDEX `idx_user_device` (`user_id`, `device_id`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
         
-        $allHeaders = getallheaders();
+        // Insérer l'enregistrement de synchronisation
+        $stmt = $pdo->prepare("INSERT INTO `sync_history` 
+                              (table_name, user_id, device_id, record_count, operation, sync_timestamp) 
+                              VALUES (?, ?, ?, ?, 'sync', NOW())");
+        $stmt->execute([$tableName, $userId, $deviceId, count($documents)]);
+    } catch (Exception $e) {
+        // Continuer même si l'enregistrement échoue
+        error_log("Erreur lors de l'enregistrement de l'historique de synchronisation: " . $e->getMessage());
+    }
+    
+    // Créer la table si elle n'existe pas
+    $pdo->exec("CREATE TABLE IF NOT EXISTS `{$userTableName}` (
+        `id` VARCHAR(36) PRIMARY KEY,
+        `nom` VARCHAR(255) NOT NULL,
+        `fichier_path` VARCHAR(255) NULL,
+        `responsabilites` TEXT NULL,
+        `etat` VARCHAR(50) NULL,
+        `groupId` VARCHAR(36) NULL,
+        `userId` VARCHAR(50) NOT NULL,
+        `last_sync_device` VARCHAR(100) NULL,
+        `date_creation` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        `date_modification` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+    
+    // Vider la table pour une synchronisation complète
+    // Note: Dans un système de production, vous voudrez peut-être modifier uniquement les enregistrements modifiés
+    $stmt = $pdo->prepare("DELETE FROM `{$userTableName}` WHERE userId = ?");
+    $stmt->execute([$userId]);
+    
+    // Insérer les documents
+    if (!empty($documents)) {
+        $insertQuery = "INSERT INTO `{$userTableName}` 
+            (id, nom, fichier_path, responsabilites, etat, groupId, userId, last_sync_device) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+        $stmt = $pdo->prepare($insertQuery);
         
-        if (class_exists('Auth')) {
-            $auth = new Auth($allHeaders);
-            $userData = $auth->isAuth();
-            
-            if (!$userData) {
-                http_response_code(401);
-                echo json_encode(["status" => "error", "message" => "Non autorisé"]);
-                exit;
-            }
+        foreach ($documents as $doc) {
+            $responsabilitesJson = isset($doc['responsabilites']) ? 
+                (is_string($doc['responsabilites']) ? $doc['responsabilites'] : json_encode($doc['responsabilites'])) : 
+                null;
+                
+            $stmt->execute([
+                $doc['id'],
+                $doc['nom'],
+                $doc['fichier_path'] ?? null,
+                $responsabilitesJson,
+                $doc['etat'] ?? null,
+                $doc['groupId'] ?? null,
+                $userId,
+                $deviceId
+            ]);
         }
     }
-
-    // S'assurer que la méthode est POST
-    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-        http_response_code(405);
-        echo json_encode(["status" => "error", "message" => "Méthode non autorisée"]);
-        exit;
-    }
-
-    // Récupérer et décoder les données JSON envoyées
-    $input = json_decode(file_get_contents('php://input'), true);
     
-    if (json_last_error() !== JSON_ERROR_NONE) {
-        http_response_code(400);
-        echo json_encode(["status" => "error", "message" => "Format JSON invalide"]);
-        exit;
-    }
-
-    // Vérifier les données reçues
-    if (!isset($input['userId']) || !isset($input['documents'])) {
-        http_response_code(400);
-        echo json_encode(["status" => "error", "message" => "Données incomplètes"]);
-        exit;
-    }
-
-    // Simuler une synchronisation réussie (à remplacer par la vraie logique)
-    $result = [
-        "success" => true,
-        "message" => "Documents synchronisés avec succès",
-        "count" => count($input['documents'])
-    ];
-
-    // Envoyer la réponse
-    http_response_code(200);
-    echo json_encode($result);
+    error_log("Documents synchronisés: " . count($documents));
     
-} catch (Exception $e) {
-    // Gérer les erreurs
-    error_log("Erreur dans documents-sync.php: " . $e->getMessage());
+    // Réponse réussie
+    echo json_encode([
+        'success' => true,
+        'message' => 'Synchronisation réussie',
+        'count' => count($documents),
+        'timestamp' => date('c'),
+        'deviceId' => $deviceId
+    ]);
+    
+} catch (PDOException $e) {
+    error_log("Erreur PDO dans {$tableName}-sync.php: " . $e->getMessage());
     http_response_code(500);
-    echo json_encode(["status" => "error", "message" => "Erreur serveur: " . $e->getMessage()]);
+    echo json_encode([
+        'success' => false,
+        'message' => 'Erreur de base de données: ' . $e->getMessage()
+    ]);
+} catch (Exception $e) {
+    error_log("Exception dans {$tableName}-sync.php: " . $e->getMessage());
+    http_response_code(400);
+    echo json_encode([
+        'success' => false,
+        'message' => $e->getMessage()
+    ]);
+} finally {
+    if (isset($service)) {
+        $service->finalize();
+    }
+    
+    error_log("=== FIN DE L'EXÉCUTION DE {$tableName}-sync.php ===");
+    if (ob_get_level()) ob_end_flush();
 }
-?>
