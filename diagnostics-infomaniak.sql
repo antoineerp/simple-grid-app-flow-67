@@ -6,7 +6,7 @@
 SELECT 
     VERSION() AS mysql_version,
     DATABASE() AS current_database,
-    USER() AS current_user;
+    USER() AS currentuser;
 
 -- Vérifier les privilèges de l'utilisateur actuel
 SHOW GRANTS;
