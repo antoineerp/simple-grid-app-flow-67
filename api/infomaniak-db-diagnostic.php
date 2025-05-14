@@ -1,47 +1,9 @@
-
 <?php
 header('Content-Type: text/html; charset=utf-8');
 
 // Définir une fonction pour échapper les sorties HTML
 function h($text) {
     return htmlspecialchars($text, ENT_QUOTES, 'UTF-8');
-}
-
-// Fonction pour tester la connexion à la base de données
-function testDatabaseConnection($host, $dbname, $username, $password) {
-    try {
-        $options = [
-            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-            PDO::ATTR_EMULATE_PREPARES => false,
-        ];
-        
-        // Tentative de connexion
-        $dsn = "mysql:host={$host};dbname={$dbname};charset=utf8mb4";
-        $pdo = new PDO($dsn, $username, $password, $options);
-        
-        // Récupérer la version MySQL
-        $stmt = $pdo->query('SELECT VERSION() as version');
-        $version = $stmt->fetch()['version'];
-        
-        // Compter les tables dans la base de données
-        $stmt = $pdo->query('SHOW TABLES');
-        $tables = $stmt->fetchAll(PDO::FETCH_COLUMN);
-        
-        return [
-            'success' => true,
-            'version' => $version,
-            'tables_count' => count($tables),
-            'tables' => $tables,
-            'connection_string' => "mysql:host={$host};dbname={$dbname}"
-        ];
-    } catch (PDOException $e) {
-        return [
-            'success' => false,
-            'error' => $e->getMessage(),
-            'connection_string' => "mysql:host={$host};dbname={$dbname}"
-        ];
-    }
 }
 
 // Fonction pour tester si un fichier existe
@@ -136,6 +98,43 @@ $important_files = [
 $file_checks = [];
 foreach ($important_files as $file) {
     $file_checks[$file] = checkFileExists($file);
+}
+
+// Fonction pour tester la connexion à la base de données
+function testDatabaseConnection($host, $dbname, $username, $password) {
+    try {
+        $options = [
+            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+            PDO::ATTR_EMULATE_PREPARES => false,
+        ];
+        
+        // Tentative de connexion
+        $dsn = "mysql:host={$host};dbname={$dbname};charset=utf8mb4";
+        $pdo = new PDO($dsn, $username, $password, $options);
+        
+        // Récupérer la version MySQL
+        $stmt = $pdo->query('SELECT VERSION() as version');
+        $version = $stmt->fetch()['version'];
+        
+        // Compter les tables dans la base de données
+        $stmt = $pdo->query('SHOW TABLES');
+        $tables = $stmt->fetchAll(PDO::FETCH_COLUMN);
+        
+        return [
+            'success' => true,
+            'version' => $version,
+            'tables_count' => count($tables),
+            'tables' => $tables,
+            'connection_string' => "mysql:host={$host};dbname={$dbname}"
+        ];
+    } catch (PDOException $e) {
+        return [
+            'success' => false,
+            'error' => $e->getMessage(),
+            'connection_string' => "mysql:host={$host};dbname={$dbname}"
+        ];
+    }
 }
 
 ?>

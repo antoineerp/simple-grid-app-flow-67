@@ -1,3 +1,4 @@
+
 /**
  * Utilitaires pour aider à la vérification des structures de tables
  * et des relations dans la base de données.
@@ -111,7 +112,7 @@ RÉSUMÉ DES VÉRIFICATIONS:
    - Vérification des index ✓
 
 2. Isolation des données:
-   - V��rification de la séparation par utilisateur ✓
+   - Vérification de la séparation par utilisateur ✓
    - Test de requêtes croisées ✓
 
 3. Intégrité des données:
@@ -125,3 +126,4 @@ RÉSUMÉ DES VÉRIFICATIONS:
 Pour des vérifications plus détaillées, exécutez les requêtes générées
 par la fonction generateTableCheckQueries() dans phpMyAdmin.
 `;
+};
