@@ -14,6 +14,12 @@ AddType text/css .css
 # Forcer explicitement le type MIME pour CSS
 <FilesMatch "\.css$">
     ForceType text/css
+    Header set Content-Type "text/css; charset=utf-8"
+</FilesMatch>
+
+<FilesMatch "\.js$">
+    ForceType application/javascript
+    Header set Content-Type "application/javascript; charset=utf-8"
 </FilesMatch>
 
 # Compression Gzip pour améliorer les performances
@@ -21,23 +27,31 @@ AddType text/css .css
   AddOutputFilterByType DEFLATE text/html text/plain text/xml text/css application/javascript application/json
 </IfModule>
 
-# En-têtes de mise en cache pour les ressources statiques
+# En-têtes de mise en cache pour les ressources statiques - éviter must-revalidate et no-store
 <IfModule mod_expires.c>
   ExpiresActive On
   ExpiresByType image/jpg "access plus 1 month"
   ExpiresByType image/jpeg "access plus 1 month"
   ExpiresByType image/png "access plus 1 month"
+  ExpiresByType image/svg+xml "access plus 1 month"
   ExpiresByType text/css "access plus 1 week"
   ExpiresByType application/javascript "access plus 1 week"
+  ExpiresByType application/json "access plus 1 day"
 </IfModule>
 
-<FilesMatch "\.(css|js|jpg|jpeg|png|gif|ico)$">
-    Allow from all
+# Meilleur contrôle du cache - éviter must-revalidate et no-store
+<FilesMatch "\.(css|js|jpg|jpeg|png|gif|ico|svg)$">
+    Header set Cache-Control "public, max-age=31536000"
+</FilesMatch>
+
+<FilesMatch "\.(html|php)$">
+    Header set Cache-Control "public, max-age=86400"
 </FilesMatch>
 
 # En-têtes de sécurité
 Header set X-Content-Type-Options "nosniff"
-Header set Content-Security-Policy "frame-ancestors 'self'; default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:;"
+# Mise à jour de la CSP pour autoriser cdn.gpteng.co
+Header set Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.gpteng.co; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; font-src 'self'; object-src 'none'; media-src 'self'; frame-src 'self'; frame-ancestors 'self'; form-action 'self';"
 
 # Explicitement définir les types MIME dans les en-têtes
 <FilesMatch "\.css$">
@@ -48,13 +62,6 @@ Header set Content-Security-Policy "frame-ancestors 'self'; default-src 'self'; 
 </FilesMatch>
 <FilesMatch "\.(html|php)$">
     Header set Content-Type "text/html; charset=utf-8"
-    Header set Cache-Control "public, max-age=0, must-revalidate"
-</FilesMatch>
-
-# En-têtes de cache corrects
-Header set Cache-Control "public, max-age=31536000, immutable"
-<FilesMatch "\.(html|php)$">
-    Header set Cache-Control "public, max-age=0, must-revalidate"
 </FilesMatch>
 
 # Traitement des ressources statiques

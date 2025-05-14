@@ -18,9 +18,9 @@ AddType text/css .css
     Header set Content-Type "application/javascript; charset=utf-8"
 </FilesMatch>
 
-# En-têtes de cache pour les assets
-<FilesMatch "\.(js|mjs|css)$">
-    Header set Cache-Control "max-age=31536000, public"
+# En-têtes de cache pour les assets - éviter must-revalidate
+<FilesMatch "\.(js|mjs|css|jpg|jpeg|png|gif|svg)$">
+    Header set Cache-Control "public, max-age=31536000"
 </FilesMatch>
 
 # Autoriser l'accès aux fichiers
@@ -28,3 +28,6 @@ AddType text/css .css
     Order Allow,Deny
     Allow from all
 </Files>
+
+# Ajouter l'en-tête X-Content-Type-Options
+Header set X-Content-Type-Options "nosniff"
