@@ -1,5 +1,8 @@
 
 <?php
+// Éviter l'erreur "headers already sent"
+// Assurez-vous qu'il n'y a aucun espace ou sortie avant cette ligne
+ob_start();
 header('Content-Type: text/html; charset=utf-8');
 ?>
 <!DOCTYPE html>
