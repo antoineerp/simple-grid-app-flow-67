@@ -28,10 +28,11 @@ RewriteRule ^(.*)$ $1 [R=200,L]
         Header set X-Content-Type-Options "nosniff"
     </FilesMatch>
     
-    # Configuration CORS
-    Header set Access-Control-Allow-Origin "*"
-    Header set Access-Control-Allow-Methods "GET, POST, OPTIONS, PUT, DELETE"
-    Header set Access-Control-Allow-Headers "Content-Type, Authorization, X-Requested-With"
+    # Configuration CORS standardisée
+    Header always set Access-Control-Allow-Origin "*"
+    Header always set Access-Control-Allow-Methods "GET, POST, OPTIONS, PUT, DELETE"
+    Header always set Access-Control-Allow-Headers "Content-Type, Authorization, X-Requested-With, X-Device-ID"
+    Header always set Access-Control-Max-Age "3600"
     
     # Éviter la mise en cache des réponses API
     Header set Cache-Control "no-cache, no-store, must-revalidate"
@@ -40,7 +41,7 @@ RewriteRule ^(.*)$ $1 [R=200,L]
 </IfModule>
 
 # Permettre l'accès direct aux fichiers PHP spécifiques
-<FilesMatch "^(phpinfo|db-test|check|phpinfo-test|diagnostic|testdb|test)\.php$">
+<FilesMatch "^(phpinfo|db-test|check|phpinfo-test|diagnostic|testdb|test|cors-diagnostic)\.php$">
     # Aucune réécriture pour ces fichiers
 </FilesMatch>
 

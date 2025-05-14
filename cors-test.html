@@ -1,0 +1,179 @@
+
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Test des requêtes CORS</title>
+    <style>
+        body {
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.6;
+            padding: 20px;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .panel {
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        .result {
+            background: #f9f9f9;
+            border-left: 4px solid #007bff;
+            padding: 10px;
+            white-space: pre-wrap;
+            font-family: monospace;
+            margin: 10px 0;
+            max-height: 300px;
+            overflow: auto;
+        }
+        .error {
+            border-left-color: #dc3545;
+        }
+        .success {
+            border-left-color: #28a745;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 3px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #0069d9;
+        }
+        input[type="text"] {
+            padding: 8px;
+            width: 100%;
+            box-sizing: border-box;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Test des requêtes CORS</h1>
+    
+    <div class="panel">
+        <h2>Test Diagnostic CORS</h2>
+        <button id="testCorsButton">Tester le diagnostic CORS</button>
+        <div id="corsResult" class="result"></div>
+    </div>
+    
+    <div class="panel">
+        <h2>Test d'API Personnalisé</h2>
+        <label for="apiUrl">URL de l'API à tester:</label>
+        <input type="text" id="apiUrl" value="/api/check.php" />
+        <button id="testApiButton">Tester l'API</button>
+        <div id="apiResult" class="result"></div>
+    </div>
+    
+    <div class="panel">
+        <h2>Test avec Configuration JSON</h2>
+        <button id="testConfigButton">Tester la Config API</button>
+        <div id="configResult" class="result"></div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const baseUrl = window.location.origin;
+            const corsResultEl = document.getElementById('corsResult');
+            const apiResultEl = document.getElementById('apiResult');
+            const configResultEl = document.getElementById('configResult');
+            
+            // Fonction utilitaire pour afficher les résultats
+            function displayResult(element, data, isError = false) {
+                element.textContent = JSON.stringify(data, null, 2);
+                element.classList.toggle('error', isError);
+                element.classList.toggle('success', !isError);
+            }
+            
+            // Test 1: Diagnostic CORS
+            document.getElementById('testCorsButton').addEventListener('click', async () => {
+                try {
+                    corsResultEl.textContent = 'Chargement...';
+                    const response = await fetch(`${baseUrl}/api/cors-diagnostic.php`, {
+                        method: 'GET',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest'
+                        }
+                    });
+                    
+                    const data = await response.json();
+                    displayResult(corsResultEl, data);
+                } catch (error) {
+                    displayResult(corsResultEl, {
+                        error: error.message,
+                        note: "Erreur lors de la requête. Vérifiez la console pour plus de détails."
+                    }, true);
+                    console.error('Erreur test CORS:', error);
+                }
+            });
+            
+            // Test 2: API personnalisée
+            document.getElementById('testApiButton').addEventListener('click', async () => {
+                try {
+                    const apiUrl = document.getElementById('apiUrl').value;
+                    apiResultEl.textContent = 'Chargement...';
+                    
+                    const fullUrl = apiUrl.startsWith('http') ? apiUrl : `${baseUrl}${apiUrl}`;
+                    const response = await fetch(fullUrl, {
+                        method: 'GET',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest'
+                        }
+                    });
+                    
+                    try {
+                        const data = await response.json();
+                        displayResult(apiResultEl, data);
+                    } catch (jsonError) {
+                        const text = await response.text();
+                        displayResult(apiResultEl, {
+                            status: response.status,
+                            statusText: response.statusText,
+                            contentType: response.headers.get('Content-Type'),
+                            responseText: text,
+                            error: "Réponse non-JSON"
+                        }, true);
+                    }
+                } catch (error) {
+                    displayResult(apiResultEl, {
+                        error: error.message,
+                        note: "Erreur lors de la requête. Vérifiez la console pour plus de détails."
+                    }, true);
+                    console.error('Erreur test API:', error);
+                }
+            });
+            
+            // Test 3: Config API
+            document.getElementById('testConfigButton').addEventListener('click', async () => {
+                try {
+                    configResultEl.textContent = 'Chargement...';
+                    const response = await fetch(`${baseUrl}/api/config-test.php`, {
+                        method: 'GET',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest'
+                        }
+                    });
+                    
+                    const data = await response.json();
+                    displayResult(configResultEl, data);
+                } catch (error) {
+                    displayResult(configResultEl, {
+                        error: error.message,
+                        note: "Erreur lors de la requête. Vérifiez la console pour plus de détails."
+                    }, true);
+                    console.error('Erreur test Config:', error);
+                }
+            });
+        });
+    </script>
+</body>
+</html>
