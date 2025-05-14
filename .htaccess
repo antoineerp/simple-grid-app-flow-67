@@ -48,9 +48,9 @@ AddType text/css .css
     Header set Cache-Control "public, max-age=86400"
 </FilesMatch>
 
-# En-têtes de sécurité
+# En-têtes de sécurité avec modification pour permettre gptengineer.js
 Header set X-Content-Type-Options "nosniff"
-Header set Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; font-src 'self'; object-src 'none'; media-src 'self'; frame-src 'self'; frame-ancestors 'self'; form-action 'self';"
+Header set Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.gpteng.co; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; font-src 'self'; object-src 'none'; media-src 'self'; frame-src 'self'; frame-ancestors 'self'; form-action 'self';"
 
 # Explicitement définir les types MIME dans les en-têtes
 <FilesMatch "\.css$">
@@ -64,7 +64,7 @@ Header set Content-Security-Policy "default-src 'self'; script-src 'self' 'unsaf
 </FilesMatch>
 
 # Permettre l'accès direct aux scripts de diagnostic
-<FilesMatch "^(phpinfo|fix-htaccess|check-infomaniak|infomaniak-fix|deploy-on-infomaniak)\.php$">
+<FilesMatch "^(phpinfo|fix-htaccess|check-infomaniak|infomaniak-fix|deploy-on-infomaniak|fix-mime-types-css)\.php$">
     # Aucune réécriture pour ces fichiers
 </FilesMatch>
 
