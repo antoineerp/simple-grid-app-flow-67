@@ -1,6 +1,6 @@
 
 <?php
-// Redirection vers le script de diagnostic
-header('Location: php-debug.php');
+// Redirection vers le script de déploiement
+header('Location: deploy-on-infomaniak.php');
 exit;
 ?>

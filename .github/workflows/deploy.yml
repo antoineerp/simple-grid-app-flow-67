@@ -5,6 +5,11 @@ on:
   push:
     branches: [ main ]
   workflow_dispatch:
+    inputs:
+      reason:
+        description: 'Reason for manual deployment'
+        required: false
+        default: 'Manual deployment'
 
 jobs:
   build-and-deploy:
@@ -115,6 +120,9 @@ jobs:
         cp diagnose-infomaniak.php deploy/ || echo "Fichier diagnose-infomaniak.php non trouvé"
         cp index.php deploy/ || echo "Fichier index.php non trouvé"
         cp deploy-on-infomaniak.php deploy/ || echo "Fichier deploy-on-infomaniak.php non trouvé"
+        cp test-db-connection.php deploy/ || echo "Fichier test-db-connection.php non trouvé"
+        cp test-users.php deploy/ || echo "Fichier test-users.php non trouvé"
+        cp verify-users.php deploy/ || echo "Fichier verify-users.php non trouvé"
         
         # Copie des scripts bash et leur rendre exécutable
         echo "Copie des scripts bash..."

@@ -1,3 +1,4 @@
+
 <?php
 header('Content-Type: text/html; charset=utf-8');
 // Fonction pour vérifier que les secrets GitHub sont configurés
@@ -52,11 +53,54 @@ $secretsStatus = checkGitHubSecrets();
         .steps li { margin-bottom: 10px; }
         img.screenshot { max-width: 100%; border: 1px solid #ddd; margin: 10px 0; border-radius: 4px; }
         .highlight { background-color: #ffffcc; padding: 2px 5px; border-radius: 3px; }
+        .note { font-style: italic; color: #666; margin-top: 5px; }
+        .troubleshooting { background-color: #f1f1f1; padding: 15px; border-radius: 4px; margin-top: 20px; border-left: 4px solid #ff5722; }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>Déploiement Manuel sur Infomaniak</h1>
+        
+        <div class="card">
+            <h2>Comment trouver le bouton "Run workflow"</h2>
+            
+            <div class="steps">
+                <h3>1. Accès au workflow</h3>
+                <ol>
+                    <li>Connectez-vous à votre compte GitHub</li>
+                    <li>Accédez au dépôt <a href="https://github.com/antoineerp/simple-grid-app-flow-67" target="_blank">simple-grid-app-flow-67</a></li>
+                    <li>Cliquez sur l'onglet <strong>Actions</strong> en haut de la page</li>
+                    <li>Sur la page Actions, cliquez sur <strong>"Deploy to Infomaniak"</strong> dans la liste des workflows à gauche</li>
+                </ol>
+                <div class="note">Si vous ne voyez pas le workflow, assurez-vous d'être dans la branche principale (main).</div>
+            </div>
+            
+            <div class="steps">
+                <h3>2. Utilisation du bouton "Run workflow"</h3>
+                <ol>
+                    <li>Une fois sur la page du workflow, cherchez le bouton <span class="highlight">"Run workflow"</span> qui devrait être visible en haut à droite</li>
+                    <li>Si le bouton n'est pas visible, vérifiez que :
+                        <ul>
+                            <li>Vous avez les permissions nécessaires (être propriétaire ou collaborateur avec droits d'écriture)</li>
+                            <li>Le workflow est configuré avec <code>workflow_dispatch</code> (déjà configuré)</li>
+                            <li>Vous avez actualisé la page (F5)</li>
+                        </ul>
+                    </li>
+                </ol>
+            </div>
+            
+            <div class="troubleshooting">
+                <h3>Résolution des problèmes courants</h3>
+                <ul>
+                    <li><strong>Bouton non visible</strong> - Essayez d'utiliser un autre navigateur ou de vider le cache</li>
+                    <li><strong>Erreur d'autorisation</strong> - Vérifiez vos droits sur le dépôt</li>
+                    <li><strong>Workflow non listé</strong> - Vérifiez que le fichier .github/workflows/deploy.yml existe bien</li>
+                </ul>
+                <p>Vous pouvez également déclencher un déploiement en poussant une modification sur la branche main :</p>
+                <pre>git commit --allow-empty -m "Force deployment"
+git push origin main</pre>
+            </div>
+        </div>
         
         <div class="card">
             <h2>Checklist Complète de Déploiement</h2>
@@ -158,6 +202,28 @@ git push origin main
                         </ul>
                     </li>
                 </ol>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>Autres options de déploiement</h2>
+            <p>Si le bouton "Run workflow" n'est toujours pas visible, vous pouvez essayer ces alternatives :</p>
+            
+            <div class="steps">
+                <h3>Option 1: Utiliser l'API GitHub</h3>
+                <p>Créez un token d'accès personnel sur GitHub et utilisez cette commande cURL :</p>
+                <pre>curl -X POST \
+-H "Accept: application/vnd.github.v3+json" \
+-H "Authorization: token YOUR_PERSONAL_TOKEN" \
+https://api.github.com/repos/antoineerp/simple-grid-app-flow-67/actions/workflows/deploy.yml/dispatches \
+-d '{"ref":"main"}'</pre>
+            </div>
+            
+            <div class="steps">
+                <h3>Option 2: Commit vide</h3>
+                <p>Un commit vide déclenchera aussi le workflow :</p>
+                <pre>git commit --allow-empty -m "Force deployment"
+git push origin main</pre>
             </div>
         </div>
 
