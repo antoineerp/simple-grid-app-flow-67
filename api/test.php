@@ -1,68 +1,43 @@
 
 <?php
-header('Content-Type: application/json');
+// Simple test API endpoint
+header("Content-Type: application/json; charset=UTF-8");
+header("Access-Control-Allow-Origin: *");
+header("Access-Control-Allow-Methods: GET, OPTIONS");
+header("Access-Control-Allow-Headers: Content-Type");
 
-// Activation des erreurs pour le débogage
-ini_set('display_errors', 1);
-error_reporting(E_ALL);
+// Si c'est une requête OPTIONS (preflight), nous la terminons ici
+if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
+    http_response_code(200);
+    echo json_encode(['status' => 'success', 'message' => 'Preflight OK']);
+    exit;
+}
+
+// Journaliser l'exécution
+error_log("=== EXÉCUTION DE test.php ===");
+error_log("Méthode: " . $_SERVER['REQUEST_METHOD'] . " - URI: " . $_SERVER['REQUEST_URI']);
 
 try {
-    // Vérifier si le fichier de configuration existe
-    $config_file = 'config/db_config.json';
-    $config_exists = file_exists($config_file);
-    
-    // Charger la configuration si elle existe
-    if ($config_exists) {
-        $config = json_decode(file_get_contents($config_file), true);
-        
-        // Tester la connexion à la base de données
-        $dsn = "mysql:host={$config['host']};dbname={$config['db_name']}";
-        $options = [
-            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-            PDO::ATTR_TIMEOUT => 3
-        ];
-        
-        try {
-            $pdo = new PDO($dsn, $config['username'], $config['password'], $options);
-            
-            // Test réussi
-            echo json_encode([
-                'status' => 'success',
-                'message' => 'API et connexion à la base de données fonctionnent correctement',
-                'config' => [
-                    'host' => $config['host'],
-                    'db_name' => $config['db_name'],
-                    'username' => $config['username']
-                ]
-            ]);
-        } catch (PDOException $e) {
-            // Erreur de connexion à la base de données
-            echo json_encode([
-                'status' => 'error',
-                'message' => 'Erreur de connexion à la base de données',
-                'error' => $e->getMessage(),
-                'config' => [
-                    'host' => $config['host'],
-                    'db_name' => $config['db_name'],
-                    'username' => $config['username']
-                ]
-            ]);
-        }
-    } else {
-        // Configuration non trouvée
-        echo json_encode([
-            'status' => 'error',
-            'message' => 'Fichier de configuration de base de données non trouvé',
-            'path' => realpath($config_file) ?: 'N/A'
-        ]);
-    }
+    // Renvoyer un résultat simple
+    echo json_encode([
+        'status' => 'success',
+        'message' => 'API PHP fonctionnelle',
+        'timestamp' => date('Y-m-d H:i:s'),
+        'php_version' => phpversion(),
+        'server_info' => [
+            'software' => $_SERVER['SERVER_SOFTWARE'] ?? 'Inconnu',
+            'method' => $_SERVER['REQUEST_METHOD'],
+            'uri' => $_SERVER['REQUEST_URI'],
+            'remote_addr' => $_SERVER['REMOTE_ADDR']
+        ]
+    ]);
 } catch (Exception $e) {
-    // Erreur générale
+    error_log("Erreur dans test.php: " . $e->getMessage());
+    
+    http_response_code(500);
     echo json_encode([
         'status' => 'error',
-        'message' => 'Erreur lors du traitement de la requête',
-        'error' => $e->getMessage()
+        'message' => $e->getMessage()
     ]);
 }
 ?>
