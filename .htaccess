@@ -2,17 +2,13 @@
 # Activer le moteur de réécriture
 RewriteEngine On
 
-# Autoriser l'exécution de PHP
-<Files *.php>
+# Force l'interprétation des fichiers .php par le moteur PHP
+AddType application/x-httpd-php .php
+<FilesMatch "\.php$">
     SetHandler application/x-httpd-php
-</Files>
+</FilesMatch>
 
-# Rediriger toutes les requêtes vers index.html sauf les fichiers physiques, dossiers ou API
-RewriteCond %{REQUEST_FILENAME} !-f
-RewriteCond %{REQUEST_FILENAME} !-d
-RewriteRule ^(?!api/)(.*)$ /index.html [L]
-
-# Configuration explicite des types MIME
+# Configuration des types MIME
 AddType text/css .css
 AddType application/javascript .js
 AddType application/javascript .mjs
@@ -30,15 +26,10 @@ AddType image/svg+xml .svg
     Header set Content-Type "application/javascript; charset=utf-8"
 </FilesMatch>
 
-# Cache pour les fichiers statiques
-<IfModule mod_expires.c>
-    ExpiresActive On
-    ExpiresByType text/css "access plus 1 month"
-    ExpiresByType application/javascript "access plus 1 month"
-    ExpiresByType image/jpeg "access plus 1 month"
-    ExpiresByType image/png "access plus 1 month"
-    ExpiresByType image/svg+xml "access plus 1 month"
-</IfModule>
+# Rediriger toutes les requêtes vers index.html sauf les fichiers physiques, dossiers ou API
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^(?!api/)(.*)$ /index.html [L]
 
 # Désactiver l'indexation des répertoires
 Options -Indexes
@@ -47,3 +38,8 @@ Options -Indexes
 <IfModule mod_headers.c>
     Header set X-Content-Type-Options "nosniff"
 </IfModule>
+
+# Force PHP pour tous les fichiers .php
+<Files *.php>
+    SetHandler application/x-httpd-php
+</Files>
