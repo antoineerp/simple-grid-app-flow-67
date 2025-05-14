@@ -22,15 +22,15 @@ ini_set('error_log', __DIR__ . '/connection_diagnostic_errors.log');
 // Configuration standard utilisée partout dans l'application
 $db_config = [
     'host' => 'p71x6d.myd.infomaniak.com',
-    'db_name' => 'p71x6d_richard',
-    'username' => 'p71x6d_richard',
+    'db_name' => 'p71x6d_system',
+    'username' => 'p71x6d_system',
     'password' => 'Trottinette43!'
 ];
 
 // Fonction pour tester la connexion à la base de données
 function testDatabaseConnection($config) {
     try {
-        $dsn = "mysql:host={$config['host']};dbname={$config['db_name']};charset=utf8";
+        $dsn = "mysql:host={$config['host']};dbname={$config['db_name']};charset=utf8mb4";
         $options = [
             PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
             PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,

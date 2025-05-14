@@ -14,10 +14,10 @@ class DatabaseConfig {
     }
 
     private function loadDefaultConfig() {
-        // Utiliser les valeurs de Richard par défaut
+        // Utiliser uniquement les valeurs d'Infomaniak
         $this->host = "p71x6d.myd.infomaniak.com";
-        $this->db_name = "p71x6d_richard";
-        $this->username = "p71x6d_richard";
+        $this->db_name = "p71x6d_system";
+        $this->username = "p71x6d_system";
         $this->password = "Trottinette43!";
     }
 
@@ -35,17 +35,9 @@ class DatabaseConfig {
                         $this->host = $config['host'];
                     }
                     
-                    if (isset($config['db_name']) && $config['db_name'] === 'p71x6d_richard') {
-                        $this->db_name = $config['db_name'];
-                    }
-                    
-                    if (isset($config['username']) && $config['username'] === 'p71x6d_richard') {
-                        $this->username = $config['username'];
-                    }
-                    
-                    if (isset($config['password'])) {
-                        $this->password = $config['password'];
-                    }
+                    if (isset($config['db_name'])) $this->db_name = $config['db_name'];
+                    if (isset($config['username'])) $this->username = $config['username'];
+                    if (isset($config['password'])) $this->password = $config['password'];
                 }
             } catch (Exception $e) {
                 error_log("Error loading database configuration: " . $e->getMessage());
@@ -54,10 +46,6 @@ class DatabaseConfig {
     }
 
     public function saveConfig() {
-        // Forcer p71x6d_richard uniquement
-        $this->db_name = 'p71x6d_richard';
-        $this->username = 'p71x6d_richard';
-        
         $config = [
             'host' => $this->host,
             'db_name' => $this->db_name,
@@ -100,15 +88,9 @@ class DatabaseConfig {
             $this->host = "p71x6d.myd.infomaniak.com";
         }
         
-        // Forcer p71x6d_richard uniquement
-        $this->db_name = 'p71x6d_richard';
-        $this->username = 'p71x6d_richard';
-        
-        // Le mot de passe n'est mis à jour que s'il est fourni et n'est pas masqué
-        if ($password && $password !== '********') {
-            $this->password = $password;
-        }
-        
+        $this->db_name = $db_name;
+        $this->username = $username;
+        $this->password = $password;
         return $this->saveConfig();
     }
 }

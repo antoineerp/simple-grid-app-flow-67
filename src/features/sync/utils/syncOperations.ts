@@ -11,10 +11,6 @@ import { syncMonitor } from './syncMonitor';
 
 // Tableau pour stocker les noms des tables synchronisées récemment (pour éviter les doublons)
 const recentlySyncedTables = new Set<string>();
-// Stockage du dernier timestamp de synchronisation par table
-const lastSyncTimestamps: Record<string, number> = {};
-// Délai minimum entre deux synchronisations en millisecondes (3 secondes)
-const MIN_SYNC_INTERVAL = 3000;
 
 // Nettoie la liste des tables synchronisées récemment après un délai
 const cleanupRecentlySynced = (tableName: string) => {
@@ -36,14 +32,6 @@ export const executeSyncOperation = async <T>(
   if (!data || !Array.isArray(data) || data.length === 0) {
     console.log(`SyncOperations: No data to sync for ${tableName}`);
     return { success: false, message: "No data to synchronize" };
-  }
-  
-  // Vérifier le délai minimum entre deux synchronisations de la même table
-  const now = Date.now();
-  const lastSync = lastSyncTimestamps[tableName] || 0;
-  if (now - lastSync < MIN_SYNC_INTERVAL && trigger === "auto") {
-    console.log(`SyncOperations: Synchronisation de ${tableName} trop fréquente, ignorée (dernière: ${new Date(lastSync).toISOString()})`);
-    return { success: true, message: "Synchronization throttled" };
   }
   
   // Vérifier si cette table a été synchronisée récemment
@@ -72,17 +60,10 @@ export const executeSyncOperation = async <T>(
       const operationId = `${tableName}_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
       console.log(`SyncOperations: Starting synchronization ${tableName} (operation ${operationId}, trigger: ${trigger})`);
       
-      // Record the start of the operation in the monitor
-      syncMonitor.recordSyncStart({
-        attemptId: operationId,
-        tableName,
-        operation: `${trigger}-sync`
-      });
+      // Enregistrer le début de l'opération dans le moniteur
+      syncMonitor.recordSyncStart(operationId, `${trigger}-sync`);
       
-      // Mettre à jour le timestamp de dernière synchronisation
-      lastSyncTimestamps[tableName] = Date.now();
-      
-      // Emit an event to inform the application about the sync start
+      // Émettre un événement pour informer l'application du début de la synchronisation
       if (typeof window !== 'undefined') {
         window.dispatchEvent(new CustomEvent('syncStarted', { 
           detail: { tableName, operationId, trigger } 
@@ -96,11 +77,11 @@ export const executeSyncOperation = async <T>(
         // Perform the actual synchronization with timeout handling
         const syncPromise = syncFn(tableName, data, operationId);
         
-        // Create a timeout promise (reduced to 10 seconds)
+        // Create a timeout promise (réduit à 10 secondes)
         const timeoutPromise = new Promise<boolean>((_, reject) => {
           setTimeout(() => {
             reject(new Error(`Synchronization timeout for ${tableName} (operation ${operationId})`));
-          }, 10000); // 10 seconds timeout
+          }, 10000); // 10 secondes timeout
         });
         
         // Race between sync and timeout
@@ -109,10 +90,10 @@ export const executeSyncOperation = async <T>(
         if (success) {
           console.log(`SyncOperations: Synchronization successful for ${tableName} (operation ${operationId})`);
           
-          // Record the success in the monitor
+          // Enregistrer le succès dans le moniteur
           syncMonitor.recordSyncEnd(operationId, true);
           
-          // Emit a success event
+          // Émettre un événement de succès
           if (typeof window !== 'undefined') {
             window.dispatchEvent(new CustomEvent('syncCompleted', { 
               detail: { tableName, operationId, trigger } 
@@ -123,10 +104,10 @@ export const executeSyncOperation = async <T>(
         } else {
           console.error(`SyncOperations: Synchronization failed for ${tableName} (operation ${operationId})`);
           
-          // Record the failure in the monitor
+          // Enregistrer l'échec dans le moniteur
           syncMonitor.recordSyncEnd(operationId, false, "Synchronization failed");
           
-          // Emit a failure event
+          // Émettre un événement d'échec
           if (typeof window !== 'undefined') {
             window.dispatchEvent(new CustomEvent('syncFailed', { 
               detail: { tableName, operationId, error: "Synchronization failed" } 
@@ -138,10 +119,10 @@ export const executeSyncOperation = async <T>(
       } catch (error) {
         console.error(`SyncOperations: Error during synchronization of ${tableName}:`, error);
         
-        // Record the error in the monitor
+        // Enregistrer l'erreur dans le moniteur
         syncMonitor.recordSyncEnd(operationId, false, error instanceof Error ? error.message : String(error));
         
-        // Emit an error event
+        // Émettre un événement d'erreur
         if (typeof window !== 'undefined') {
           window.dispatchEvent(new CustomEvent('syncFailed', { 
             detail: { 
@@ -179,38 +160,4 @@ export const isSynchronizing = (tableName: string): boolean => {
 export const cancelPendingSynchronizations = (tableName: string): number => {
   recentlySyncedTables.delete(tableName);
   return syncQueue.cancelPendingTasks(tableName);
-};
-
-// Expose a method to clean sync history via the API
-export const cleanupSyncHistory = async (): Promise<{ success: boolean, message: string }> => {
-  try {
-    const API_URL = process.env.REACT_APP_API_URL || 'https://qualiopi.ch/api';
-    const response = await fetch(`${API_URL}/check.php?action=cleanup_duplicates`, {
-      method: 'GET',
-      headers: {
-        'Accept': 'application/json',
-        'Cache-Control': 'no-cache'
-      }
-    });
-    
-    if (!response.ok) {
-      throw new Error(`HTTP error: ${response.status}`);
-    }
-    
-    const result = await response.json();
-    
-    if (result.status === 'success') {
-      console.log(`SyncOperations: Nettoyage des doublons effectué - ${result.duplicatesRemoved} entrées supprimées`);
-      return { success: true, message: result.message };
-    } else {
-      console.error(`SyncOperations: Erreur lors du nettoyage: ${result.message}`);
-      return { success: false, message: result.message };
-    }
-  } catch (error) {
-    console.error('SyncOperations: Erreur lors du nettoyage de l\'historique:', error);
-    return { 
-      success: false, 
-      message: error instanceof Error ? error.message : String(error)
-    };
-  }
 };

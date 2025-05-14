@@ -1,3 +1,4 @@
+
 <?php
 // Forcer l'output buffering pour éviter tout output avant les headers
 ob_start();
@@ -26,7 +27,7 @@ try {
     $username = "p71x6d_system";
     $password = "Trottinette43!";
     
-    $dsn = "mysql:host={$host};dbname={$dbname};charset=utf8";
+    $dsn = "mysql:host={$host};dbname={$dbname};charset=utf8mb4";
     $options = [
         PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
         PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,

@@ -13,5 +13,4 @@ export interface Membre {
   identifiant_technique?: string;
   role?: string;
   mot_de_passe?: string;
-  userId?: string; // Ajout de la propriété userId qui peut être optionnelle
 }

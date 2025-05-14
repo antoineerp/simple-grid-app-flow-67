@@ -1,3 +1,4 @@
+
 <?php
 // En-têtes et configuration initiale
 header('Content-Type: application/json');

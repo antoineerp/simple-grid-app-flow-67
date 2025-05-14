@@ -54,8 +54,8 @@ try {
         error_log("Le fichier env.php est manquant, utilisation des valeurs par défaut");
         // Valeurs par défaut si le fichier env.php n'est pas trouvé
         define('DB_HOST', 'p71x6d.myd.infomaniak.com');
-        define('DB_NAME', 'p71x6d_richard');
-        define('DB_USER', 'p71x6d_richard');
+        define('DB_NAME', 'p71x6d_system');
+        define('DB_USER', 'p71x6d_system');
         define('DB_PASS', 'Trottinette43!');
     }
 

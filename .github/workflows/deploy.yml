@@ -5,11 +5,6 @@ on:
   push:
     branches: [ main ]
   workflow_dispatch:
-    inputs:
-      reason:
-        description: 'Reason for manual deployment'
-        required: false
-        default: 'Manual deployment'
 
 jobs:
   build-and-deploy:
@@ -37,7 +32,7 @@ jobs:
         ls -la dist/
         echo "Liste des fichiers assets:"
         ls -la dist/assets/ || echo "Dossier assets non trouvé"
-        
+
     - name: Prepare deployment directory
       run: |
         # Création des dossiers nécessaires
@@ -52,8 +47,7 @@ jobs:
         mkdir -p deploy/api/operations
         mkdir -p deploy/api/utils
         mkdir -p deploy/public/lovable-uploads
-        mkdir -p deploy/.github/workflows
-
+        
         # Copie des fichiers compilés directement dans assets
         cp -r dist/assets/* deploy/assets/
         
@@ -61,87 +55,37 @@ jobs:
         cp dist/index.html deploy/
         cp .htaccess deploy/ || echo "Fichier .htaccess non trouvé"
         
-        # Création du fichier .user.ini à la racine (IMPORTANT)
-        echo "; Configuration PHP pour Infomaniak" > deploy/.user.ini
-        echo "display_errors = Off" >> deploy/.user.ini
-        echo "log_errors = On" >> deploy/.user.ini
-        echo "error_reporting = E_ALL & ~E_DEPRECATED & ~E_STRICT" >> deploy/.user.ini
-        echo "max_execution_time = 120" >> deploy/.user.ini
-        echo "memory_limit = 256M" >> deploy/.user.ini
-        echo "upload_max_filesize = 64M" >> deploy/.user.ini
-        echo "post_max_size = 64M" >> deploy/.user.ini
-        chmod 644 deploy/.user.ini
-        echo "Fichier .user.ini créé à la racine du déploiement"
-        
         # Copie des fichiers de configuration
         echo "Copie des fichiers de configuration..."
         mkdir -p deploy/api/config
-        
-        # Utilisation d'une méthode fiable pour créer les fichiers PHP (éviter les heredoc)
-        mkdir -p deploy/api/config
-        
-        # Création de env.php
-        echo "<?php" > deploy/api/config/env.php
-        echo "// Configuration des variables d'environnement pour Infomaniak" >> deploy/api/config/env.php
-        echo "define('DB_HOST', 'p71x6d.myd.infomaniak.com');" >> deploy/api/config/env.php
-        echo "define('DB_NAME', 'p71x6d_richard');" >> deploy/api/config/env.php
-        echo "define('DB_USER', 'p71x6d_richard');" >> deploy/api/config/env.php
-        echo "define('DB_PASS', 'Trottinette43!');" >> deploy/api/config/env.php
-        echo "define('API_BASE_URL', '/api');" >> deploy/api/config/env.php
-        echo "define('APP_ENV', 'production');" >> deploy/api/config/env.php
-        echo "" >> deploy/api/config/env.php
-        echo "// Fonction d'aide pour récupérer les variables d'environnement" >> deploy/api/config/env.php
-        echo "function get_env(\$key, \$default = null) {" >> deploy/api/config/env.php
-        echo "    \$const_name = strtoupper(\$key);" >> deploy/api/config/env.php
-        echo "    if (defined(\$const_name)) {" >> deploy/api/config/env.php
-        echo "        return constant(\$const_name);" >> deploy/api/config/env.php
-        echo "    }" >> deploy/api/config/env.php
-        echo "    return \$default;" >> deploy/api/config/env.php
-        echo "}" >> deploy/api/config/env.php
-        echo "?>" >> deploy/api/config/env.php
-        
-        # Création de db_config.json
-        echo '{' > deploy/api/config/db_config.json
-        echo '    "host": "p71x6d.myd.infomaniak.com",' >> deploy/api/config/db_config.json
-        echo '    "db_name": "p71x6d_richard",' >> deploy/api/config/db_config.json
-        echo '    "username": "p71x6d_richard",' >> deploy/api/config/db_config.json
-        echo '    "password": "Trottinette43!"' >> deploy/api/config/db_config.json
-        echo '}' >> deploy/api/config/db_config.json
-        
-        # Copie des autres fichiers de configuration
+        cp api/config/env.php deploy/api/config/ || echo "Fichier env.php non trouvé"
         cp api/config/DatabaseConfig.php deploy/api/config/ || echo "Fichier DatabaseConfig.php non trouvé"
         cp api/config/DatabaseConnection.php deploy/api/config/ || echo "Fichier DatabaseConnection.php non trouvé"
         cp api/config/DatabaseDiagnostics.php deploy/api/config/ || echo "Fichier DatabaseDiagnostics.php non trouvé"
         cp api/config/database.php deploy/api/config/ || echo "Fichier database.php non trouvé"
         
-        # Création d'un fichier .htaccess pour les assets
-        echo "# Configurer les types MIME corrects pour les assets" > deploy/assets/.htaccess
-        echo "AddType text/css .css" >> deploy/assets/.htaccess
-        echo "AddType application/javascript .js" >> deploy/assets/.htaccess
-        echo "AddType application/javascript .mjs" >> deploy/assets/.htaccess
-        echo "AddType image/svg+xml .svg" >> deploy/assets/.htaccess
-        echo "AddType font/ttf .ttf" >> deploy/assets/.htaccess
-        echo "AddType font/woff .woff" >> deploy/assets/.htaccess
-        echo "AddType font/woff2 .woff2" >> deploy/assets/.htaccess
-        echo "" >> deploy/assets/.htaccess
-        echo "# Force le type MIME pour CSS" >> deploy/assets/.htaccess
-        echo "<FilesMatch \"\.css$\">" >> deploy/assets/.htaccess
-        echo "    ForceType text/css" >> deploy/assets/.htaccess
-        echo "    Header set Content-Type \"text/css; charset=utf-8\"" >> deploy/assets/.htaccess
-        echo "</FilesMatch>" >> deploy/assets/.htaccess
-        echo "" >> deploy/assets/.htaccess
-        echo "# Force le type MIME pour JavaScript" >> deploy/assets/.htaccess
-        echo "<FilesMatch \"\.js$\">" >> deploy/assets/.htaccess
-        echo "    ForceType application/javascript" >> deploy/assets/.htaccess
-        echo "    Header set Content-Type \"application/javascript; charset=utf-8\"" >> deploy/assets/.htaccess
-        echo "</FilesMatch>" >> deploy/assets/.htaccess
-        echo "" >> deploy/assets/.htaccess
-        echo "# Activer la mise en cache" >> deploy/assets/.htaccess
-        echo "<IfModule mod_expires.c>" >> deploy/assets/.htaccess
-        echo "  ExpiresActive On" >> deploy/assets/.htaccess
-        echo "  ExpiresByType text/css \"access plus 1 week\"" >> deploy/assets/.htaccess
-        echo "  ExpiresByType application/javascript \"access plus 1 week\"" >> deploy/assets/.htaccess
-        echo "</IfModule>" >> deploy/assets/.htaccess
+        # Vérifier et créer env.php s'il n'existe pas
+        if [ ! -f "deploy/api/config/env.php" ]; then
+          echo "<?php
+          // Configuration des variables d'environnement pour Infomaniak
+          define('DB_HOST', 'p71x6d.myd.infomaniak.com');
+          define('DB_NAME', 'p71x6d_system');
+          define('DB_USER', 'p71x6d_system');
+          define('DB_PASS', 'Trottinette43!');
+          define('API_BASE_URL', '/api');
+          define('APP_ENV', 'production');
+
+          // Fonction d'aide pour récupérer les variables d'environnement
+          function get_env(\$key, \$default = null) {
+              \$const_name = strtoupper(\$key);
+              if (defined(\$const_name)) {
+                  return constant(\$const_name);
+              }
+              return \$default;
+          }
+          ?>" > deploy/api/config/env.php
+          echo "Fichier env.php créé manuellement"
+        fi
         
         # Copie explicite des fichiers API
         if [ -d "api" ]; then
@@ -159,34 +103,8 @@ jobs:
           echo "Dossier uploads non trouvé"
         fi
         
-        # Création des fichiers de diagnostic PHP
-        # Fichier test-php-execution.php
-        echo "<?php" > deploy/test-php-execution.php
-        echo "header(\"Content-Type: text/html; charset=utf-8\");" >> deploy/test-php-execution.php
-        echo "echo \"<h1>Test d'exécution PHP</h1>\";" >> deploy/test-php-execution.php
-        echo "echo \"<p>Si vous voyez ce message, PHP fonctionne correctement via le web.</p>\";" >> deploy/test-php-execution.php
-        echo "echo \"<p>Date et heure: \" . date(\"Y-m-d H:i:s\") . \"</p>\";" >> deploy/test-php-execution.php
-        echo "echo \"<p>Version PHP: \" . phpversion() . \"</p>\";" >> deploy/test-php-execution.php
-        echo "echo \"<p>Extensions chargées: \" . implode(\", \", array_slice(get_loaded_extensions(), 0, 10)) . \"...</p>\";" >> deploy/test-php-execution.php
-        echo "?>" >> deploy/test-php-execution.php
-        chmod 644 deploy/test-php-execution.php
-        
-        # Fichier phpinfo.php
-        echo "<?php phpinfo(); ?>" > deploy/phpinfo.php
-        chmod 644 deploy/phpinfo.php
-        
-        # Fichier index.php
-        echo "<?php" > deploy/index.php
-        echo "// Redirection vers index.html" >> deploy/index.php
-        echo "header('Location: index.html');" >> deploy/index.php
-        echo "exit;" >> deploy/index.php
-        echo "?>" >> deploy/index.php
-        chmod 644 deploy/index.php
-
-        # Structure du dossier de déploiement
         echo "Structure du dossier de déploiement:"
-        find deploy -type f -name "*.php" | sort
-        find deploy -type f -name "*.sh" | sort
+        find deploy -type f | sort
 
     - name: Sync to Infomaniak server
       uses: SamKirkland/FTP-Deploy-Action@v4.3.4

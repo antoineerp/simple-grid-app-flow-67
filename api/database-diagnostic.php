@@ -1,3 +1,4 @@
+
 <?php
 // Point d'accès pour le diagnostic de base de données
 header("Content-Type: application/json; charset=UTF-8");
@@ -37,7 +38,7 @@ function performDatabaseDiagnostic() {
 
     // Test avec PDO directement
     try {
-        $dsn = "mysql:host=p71x6d.myd.infomaniak.com;dbname=p71x6d_system;charset=utf8";
+        $dsn = "mysql:host=p71x6d.myd.infomaniak.com;dbname=p71x6d_system;charset=utf8mb4";
         $pdo = new PDO($dsn, "p71x6d_system", "Trottinette43!");
         $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
         
@@ -73,8 +74,8 @@ function performDatabaseDiagnostic() {
                 'tables_count' => count($tables),
                 'tables_list' => $tables,
                 'size_mb' => $totalSizeMB . ' MB',
-                'encoding' => 'utf8',
-                'collation' => 'utf8_unicode_ci',
+                'encoding' => 'utf8mb4',
+                'collation' => 'utf8mb4_unicode_ci',
                 'last_backup' => 'Inconnu'
             ];
         } catch (PDOException $e) {

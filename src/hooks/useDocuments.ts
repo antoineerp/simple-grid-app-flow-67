@@ -57,10 +57,18 @@ export const useDocuments = () => {
     // AMÉLIORATION: Utiliser le système de stockage centralisé pour sauvegarder
     if (documents.length > 0) {
       const currentUser = getCurrentUser() || 'default';
+      // Sauvegarder à la fois dans localStorage ET sessionStorage pour persistance
       saveLocalData('documents', documents, currentUser);
       saveLocalData('document_groups', groups, currentUser);
       
-      console.log(`${documents.length} documents sauvegardés dans le stockage local`);
+      // Sauvegarder également dans l'état global de session
+      sessionStorage.setItem(`${SESSION_STORAGE_KEY}_${currentUser}`, JSON.stringify({
+        documents,
+        groups,
+        timestamp: new Date().toISOString()
+      }));
+      
+      console.log(`${documents.length} documents sauvegardés dans le stockage local et session`);
     }
   }, [documents, groups]);
 
@@ -70,8 +78,43 @@ export const useDocuments = () => {
       const loadInitialData = async () => {
         setIsSyncing(true);
         try {
-          // Charger d'abord les documents locaux pour affichage immédiat
           const currentUser = getCurrentUser() || 'default';
+          
+          // AMÉLIORATION MAJEURE: D'abord vérifier si des données existent dans sessionStorage
+          // (cela garantira la persistance entre les pages)
+          const sessionData = sessionStorage.getItem(`${SESSION_STORAGE_KEY}_${currentUser}`);
+          if (sessionData) {
+            try {
+              const parsedData = JSON.parse(sessionData);
+              if (parsedData.documents && parsedData.documents.length > 0) {
+                console.log(`${parsedData.documents.length} documents chargés depuis sessionStorage`);
+                setDocuments(parsedData.documents);
+                
+                if (parsedData.groups && parsedData.groups.length > 0) {
+                  console.log(`${parsedData.groups.length} groupes chargés depuis sessionStorage`);
+                  setGroups(parsedData.groups);
+                }
+                
+                // Définir le délai avant de tenter une synchronisation avec le serveur
+                setTimeout(() => {
+                  if (isOnline) {
+                    syncWithServer().catch(err => {
+                      console.error("Erreur lors de la synchronisation après chargement depuis sessionStorage:", err);
+                    });
+                  }
+                }, 2000);
+                
+                setIsSyncing(false);
+                setInitialLoadDone(true);
+                return; // Sortir tôt si les données sont chargées depuis sessionStorage
+              }
+            } catch (e) {
+              console.error('Erreur lors du parsing des données de session:', e);
+            }
+          }
+          
+          // Si aucune donnée n'est trouvée dans sessionStorage, passer aux autres sources
+          // Charger d'abord les documents locaux pour affichage immédiat
           let localDocs = loadLocalData<Document>('documents', currentUser);
           
           // Si aucun document n'est trouvé avec le nouveau système, essayer l'ancien
@@ -89,6 +132,13 @@ export const useDocuments = () => {
               console.log(`${localGroups.length} groupes chargés depuis le stockage local`);
               setGroups(localGroups);
             }
+            
+            // Sauvegarder dans sessionStorage pour persistance entre les pages
+            sessionStorage.setItem(`${SESSION_STORAGE_KEY}_${currentUser}`, JSON.stringify({
+              documents: localDocs,
+              groups: localGroups,
+              timestamp: new Date().toISOString()
+            }));
           }
           
           // Ensuite, essayer de charger depuis le serveur si en ligne
@@ -98,6 +148,13 @@ export const useDocuments = () => {
             if (loadedDocs && loadedDocs.length > 0) {
               console.log(`${loadedDocs.length} documents chargés depuis le serveur`);
               setDocuments(loadedDocs);
+              
+              // Sauvegarder dans sessionStorage pour persistance entre les pages
+              sessionStorage.setItem(`${SESSION_STORAGE_KEY}_${currentUser}`, JSON.stringify({
+                documents: loadedDocs,
+                groups,
+                timestamp: new Date().toISOString()
+              }));
             } else {
               console.log("Aucun document chargé depuis le serveur");
             }
@@ -133,6 +190,14 @@ export const useDocuments = () => {
       if (result) {
         setLastSynced(new Date());
         setSyncFailed(false);
+        
+        // Assurer la persistance dans sessionStorage après une synchronisation réussie
+        const currentUser = getCurrentUser() || 'default';
+        sessionStorage.setItem(`${SESSION_STORAGE_KEY}_${currentUser}`, JSON.stringify({
+          documents,
+          groups,
+          timestamp: new Date().toISOString()
+        }));
       } else {
         setSyncFailed(true);
       }
@@ -176,8 +241,18 @@ export const useDocuments = () => {
       // AMÉLIORATION: Sauvegarde locale immédiate ET lancement de la synchronisation
       const currentUser = getCurrentUser() || 'default';
       const allDocs = documents.map(doc => doc.id === newDoc.id ? newDoc : doc);
+      
+      // Sauvegarder dans localStorage ET sessionStorage
       saveLocalData('documents', allDocs, currentUser);
       
+      // Sauvegarder également dans l'état global de session
+      sessionStorage.setItem(`${SESSION_STORAGE_KEY}_${currentUser}`, JSON.stringify({
+        documents: allDocs,
+        groups,
+        timestamp: new Date().toISOString()
+      }));
+      
+      // Lancer la synchronisation
       syncWithServer().catch(error => {
         console.error("Erreur lors de la synchronisation après mise à jour:", error);
       });
@@ -187,7 +262,7 @@ export const useDocuments = () => {
         description: `Le document ${newDoc.id} a été mis à jour avec succès`,
       });
     },
-    [documents, setDocuments, toast]
+    [documents, groups, setDocuments, toast]
   );
 
   const handleAddDocument = useCallback(() => {
@@ -209,19 +284,29 @@ export const useDocuments = () => {
     const updatedDocuments = [...documents, newDocument];
     setDocuments(updatedDocuments);
     
-    // AMÉLIORATION: Sauvegarde locale immédiate
+    // AMÉLIORATION: Sauvegarde locale immédiate dans TOUS les systèmes de stockage
     const currentUser = getCurrentUser() || 'default';
+    
+    // 1. Sauvegarder dans le système central
     saveLocalData('documents', updatedDocuments, currentUser);
     
+    // 2. Sauvegarder dans sessionStorage pour persistance entre pages
+    sessionStorage.setItem(`${SESSION_STORAGE_KEY}_${currentUser}`, JSON.stringify({
+      documents: updatedDocuments,
+      groups,
+      timestamp: new Date().toISOString()
+    }));
+    
+    // 3. Lancer la synchronisation avec le serveur
     syncWithServer().catch(error => {
       console.error("Erreur lors de la synchronisation après ajout:", error);
     });
     
     toast({
       title: "Nouveau document",
-      description: `Le document ${newId} a été ajouté`,
+      description: `Le document ${newId} a été ajouté et sauvegardé localement`,
     });
-  }, [documents, toast, setDocuments, syncWithServer]);
+  }, [documents, groups, toast, setDocuments, syncWithServer]);
 
   const handleReorder = useCallback((startIndex: number, endIndex: number, targetGroupId?: string) => {
     setDocuments(prev => {
@@ -241,9 +326,18 @@ export const useDocuments = () => {
       // Log pour le débogage
       console.log(`Document ${removed.id} déplacé: groupId=${removed.groupId || 'aucun'}`);
       
-      // AMÉLIORATION: Sauvegarde locale immédiate
+      // AMÉLIORATION: Sauvegarde locale immédiate dans TOUS les systèmes de stockage
       const currentUser = getCurrentUser() || 'default';
+      
+      // 1. Sauvegarder dans le système central
       saveLocalData('documents', result, currentUser);
+      
+      // 2. Sauvegarder dans sessionStorage pour persistance entre pages
+      sessionStorage.setItem(`${SESSION_STORAGE_KEY}_${currentUser}`, JSON.stringify({
+        documents: result,
+        groups,
+        timestamp: new Date().toISOString()
+      }));
       
       // Synchroniser les changements
       syncWithServer().catch(error => {
@@ -252,7 +346,7 @@ export const useDocuments = () => {
       
       return result;
     });
-  }, [setDocuments, syncWithServer]);
+  }, [groups, setDocuments, syncWithServer]);
 
   const handleAddGroup = useCallback(() => {
     setEditingGroup(null);
@@ -276,6 +370,14 @@ export const useDocuments = () => {
           title: "Rechargement réussi",
           description: `${loadedDocs.length} documents chargés depuis le serveur Infomaniak`,
         });
+        
+        // Sauvegarder dans sessionStorage pour persistance entre pages
+        const currentUser = getCurrentUser() || 'default';
+        sessionStorage.setItem(`${SESSION_STORAGE_KEY}_${currentUser}`, JSON.stringify({
+          documents: loadedDocs,
+          groups,
+          timestamp: new Date().toISOString()
+        }));
       }
     } catch (error) {
       console.error("Erreur lors du rechargement forcé:", error);
@@ -288,7 +390,7 @@ export const useDocuments = () => {
     } finally {
       setIsSyncing(false);
     }
-  }, [setDocuments, setIsSyncing, setLastSynced, setSyncFailed, toast]);
+  }, [groups, setDocuments, setIsSyncing, setLastSynced, setSyncFailed, toast]);
 
   return {
     documents,

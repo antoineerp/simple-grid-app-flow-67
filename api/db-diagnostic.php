@@ -42,8 +42,8 @@ try {
     // Configuration directe pour le PDO Test (unique et fiable)
     $pdo_config = [
         'host' => 'p71x6d.myd.infomaniak.com',
-        'db_name' => 'p71x6d_richard',
-        'username' => 'p71x6d_richard',
+        'db_name' => 'p71x6d_system',
+        'username' => 'p71x6d_system',
         'password' => 'Trottinette43!'
     ];
     
@@ -78,7 +78,7 @@ ob_end_flush();
 // Fonction pour tester la connexion PDO (unique et fiable)
 function testPdoConnection($config) {
     try {
-        $dsn = "mysql:host={$config['host']};dbname={$config['db_name']};charset=utf8";
+        $dsn = "mysql:host={$config['host']};dbname={$config['db_name']};charset=utf8mb4";
         $pdo = new PDO($dsn, $config['username'], $config['password'], [
             PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
             PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,

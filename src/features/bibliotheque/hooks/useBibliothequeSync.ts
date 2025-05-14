@@ -1,18 +1,19 @@
-import { useState, useCallback, useRef } from 'react';
+
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { Document as BibliothequeDocument, DocumentGroup } from '@/types/bibliotheque';
 import { Document as SystemDocument } from '@/types/documents';
 import { syncService } from '@/services/sync/SyncService';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { useSync } from '@/hooks/useSync';
 import { toast } from '@/components/ui/use-toast';
+import { getDatabaseConnectionCurrentUser } from '@/services/core/databaseConnectionService';
 
 // Helper function to convert between document types
 const convertSystemToBibliothequeDoc = (doc: SystemDocument): BibliothequeDocument => ({
   id: doc.id,
   name: doc.nom || '',
   link: doc.fichier_path,
-  groupId: doc.groupId,
-  userId: doc.userId || 'system' // Ensure userId is set
+  groupId: doc.groupId
 });
 
 const convertBibliothequeToSystemDoc = (doc: BibliothequeDocument): SystemDocument => ({
@@ -32,14 +33,20 @@ export const useBibliothequeSync = () => {
   const { isSyncing, syncFailed, syncAndProcess } = useSync('collaboration');
   const syncTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const pendingSyncRef = useRef<boolean>(false);
+  const documentsRef = useRef<BibliothequeDocument[]>([]);
+  const groupsRef = useRef<DocumentGroup[]>([]);
+  const lastChangedRef = useRef<Date | null>(null);
   
   // Fonction pour charger les documents depuis le serveur
   const loadFromServer = useCallback(async (userId?: string): Promise<BibliothequeDocument[]> => {
+    // Toujours utiliser l'utilisateur courant si non spécifié
+    const currentUser = userId || getDatabaseConnectionCurrentUser() || 'default';
+    
     if (!isOnline) {
       console.log('Mode hors ligne - chargement des documents locaux');
       try {
         // UNIQUEMENT chercher sous le nouveau nom (collaboration)
-        const localData = localStorage.getItem(`collaboration_${userId || 'default'}`);
+        const localData = localStorage.getItem(`collaboration_${currentUser}`);
         
         if (localData) {
           const localDocs = JSON.parse(localData);
@@ -53,7 +60,7 @@ export const useBibliothequeSync = () => {
     
     try {
       // Utiliser le service central pour charger les données
-      const documents = await syncService.loadDataFromServer<SystemDocument>('collaboration', userId);
+      const documents = await syncService.loadDataFromServer<SystemDocument>('collaboration', currentUser);
       const lastSyncTime = syncService.getLastSynced('collaboration');
       if (lastSyncTime) {
         setLastSynced(lastSyncTime);
@@ -72,7 +79,7 @@ export const useBibliothequeSync = () => {
       // En cas d'erreur, chargement des documents locaux comme solution de secours
       try {
         // UNIQUEMENT chercher sous le nouveau nom (collaboration)
-        const localData = localStorage.getItem(`collaboration_${userId || 'default'}`);
+        const localData = localStorage.getItem(`collaboration_${currentUser}`);
         
         if (localData) {
           const localDocs = JSON.parse(localData);
@@ -84,6 +91,30 @@ export const useBibliothequeSync = () => {
       return [];
     }
   }, [isOnline]);
+
+  // Effet pour déclencher la synchronisation automatique
+  useEffect(() => {
+    // Intervalle de vérification de synchronisation automatique toutes les 30 secondes
+    const autoSyncInterval = setInterval(() => {
+      if (lastChangedRef.current && documentsRef.current.length > 0 && groupsRef.current.length > 0) {
+        const now = new Date();
+        const timeSinceLastChange = now.getTime() - lastChangedRef.current.getTime();
+        
+        // Si des modifications ont été faites il y a plus de 10 secondes, synchroniser
+        if (timeSinceLastChange > 10000 && !isSyncing) {
+          console.log('Synchronisation automatique déclenchée');
+          
+          // Utiliser l'utilisateur courant
+          const currentUser = getDatabaseConnectionCurrentUser() || 'default';
+          
+          syncWithServer(documentsRef.current, groupsRef.current, currentUser, "auto")
+            .catch(err => console.error("Erreur lors de la synchronisation automatique:", err));
+        }
+      }
+    }, 30000); // Vérifier toutes les 30 secondes
+    
+    return () => clearInterval(autoSyncInterval);
+  }, [isSyncing]);
   
   // Fonction pour synchroniser avec délai (debounce)
   const debounceSyncWithServer = useCallback((
@@ -91,10 +122,18 @@ export const useBibliothequeSync = () => {
     groups: DocumentGroup[], 
     userId?: string
   ) => {
+    // Toujours utiliser l'utilisateur courant si non spécifié
+    const currentUser = userId || getDatabaseConnectionCurrentUser() || 'default';
+    
+    // Mettre à jour les références pour la synchronisation automatique
+    documentsRef.current = documents;
+    groupsRef.current = groups;
+    lastChangedRef.current = new Date();
+    
     // Toujours sauvegarder localement immédiatement
     const systemDocs = documents.map(convertBibliothequeToSystemDoc);
-    localStorage.setItem(`collaboration_${userId || 'default'}`, JSON.stringify(systemDocs));
-    localStorage.setItem(`collaboration_groups_${userId || 'default'}`, JSON.stringify(groups));
+    localStorage.setItem(`collaboration_${currentUser}`, JSON.stringify(systemDocs));
+    localStorage.setItem(`collaboration_groups_${currentUser}`, JSON.stringify(groups));
     
     // Marquer qu'une synchronisation est en attente
     pendingSyncRef.current = true;
@@ -108,7 +147,7 @@ export const useBibliothequeSync = () => {
     syncTimeoutRef.current = setTimeout(() => {
       if (pendingSyncRef.current && isOnline) {
         // Exécuter la synchronisation
-        syncWithServer(documents, groups, userId, "auto").catch(err => {
+        syncWithServer(documents, groups, currentUser, "auto").catch(err => {
           console.error("Erreur lors de la synchronisation différée:", err);
         });
         pendingSyncRef.current = false;
@@ -126,11 +165,16 @@ export const useBibliothequeSync = () => {
     userId?: string, 
     trigger: "auto" | "manual" | "initial" = "manual"
   ): Promise<boolean> => {
+    // Toujours utiliser l'utilisateur courant si non spécifié
+    const currentUser = userId || getDatabaseConnectionCurrentUser() || 'default';
+    
+    console.log(`Synchronisation pour l'utilisateur: ${currentUser}`);
+    
     if (!isOnline) {
       // Mode hors ligne - enregistrement local uniquement
       const systemDocs = documents.map(convertBibliothequeToSystemDoc);
-      localStorage.setItem(`collaboration_${userId || 'default'}`, JSON.stringify(systemDocs));
-      localStorage.setItem(`collaboration_groups_${userId || 'default'}`, JSON.stringify(groups));
+      localStorage.setItem(`collaboration_${currentUser}`, JSON.stringify(systemDocs));
+      localStorage.setItem(`collaboration_groups_${currentUser}`, JSON.stringify(groups));
       
       if (trigger !== "auto") {
         toast({
@@ -146,10 +190,11 @@ export const useBibliothequeSync = () => {
     try {
       // Toujours enregistrer localement d'abord pour éviter la perte de données
       const systemDocs = documents.map(convertBibliothequeToSystemDoc);
-      localStorage.setItem(`collaboration_${userId || 'default'}`, JSON.stringify(systemDocs));
-      localStorage.setItem(`collaboration_groups_${userId || 'default'}`, JSON.stringify(groups));
+      localStorage.setItem(`collaboration_${currentUser}`, JSON.stringify(systemDocs));
+      localStorage.setItem(`collaboration_groups_${currentUser}`, JSON.stringify(groups));
       
       // Utiliser le service central pour la synchronisation avec la table "collaboration"
+      // Correct : passer seulement les arguments requis à syncAndProcess
       const result = await syncAndProcess(systemDocs, trigger);
       
       if (result.success) {
@@ -176,7 +221,7 @@ export const useBibliothequeSync = () => {
   
   return {
     syncWithServer,
-    debounceSyncWithServer, // Nouvelle fonction pour la synchronisation différée
+    debounceSyncWithServer,
     loadFromServer,
     isSyncing,
     isOnline,

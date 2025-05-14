@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { 
   Plus, 
@@ -46,8 +47,7 @@ const Bibliotheque: React.FC = () => {
     isSyncing,
     isOnline,
     lastSynced,
-    syncFailed,
-    currentUser
+    syncFailed
   } = useBibliotheque();
   
   const [searchTerm, setSearchTerm] = React.useState("");
@@ -78,8 +78,7 @@ const Bibliotheque: React.FC = () => {
       id: `doc-${Date.now()}`,
       name: "",
       link: "",
-      groupId: undefined,
-      userId: currentUser
+      groupId: undefined
     });
     setIsEditing(false);
     setIsDialogOpen(true);
@@ -91,8 +90,7 @@ const Bibliotheque: React.FC = () => {
       id: `group-${Date.now()}`,
       name: "",
       expanded: false,
-      items: [],
-      userId: currentUser
+      items: []
     });
     setIsEditing(false);
     setIsGroupDialogOpen(true);
@@ -140,7 +138,6 @@ const Bibliotheque: React.FC = () => {
           syncFailed={syncFailed}
           lastSynced={lastSynced}
           onSync={handleSyncDocuments}
-          tableName="bibliotheque"
         />
       </div>
       

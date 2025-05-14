@@ -129,7 +129,6 @@ const Collaboration = () => {
     handleAddGroup,
     handleAddDocument,
     syncWithServer,
-    currentUser
   } = useBibliotheque();
 
   const [isDocumentDialogOpen, setIsDocumentDialogOpen] = useState(false);
@@ -181,12 +180,7 @@ const Collaboration = () => {
 
   // Handle add document button click
   const handleAddDocumentClick = () => {
-    setCurrentDocument({ 
-      id: '', 
-      name: '', 
-      link: null,
-      userId: currentUser 
-    });
+    setCurrentDocument({ id: '', name: '', link: null });
     setIsEditing(false);
     setIsDocumentDialogOpen(true);
   };
@@ -217,8 +211,7 @@ const Collaboration = () => {
       id: newId,
       name: '',
       expanded: false,
-      items: [],
-      userId: currentUser
+      items: []
     });
     setIsEditing(false);
     setIsGroupDialogOpen(true);
@@ -285,8 +278,7 @@ const Collaboration = () => {
           syncFailed={syncFailed}
           lastSynced={lastSynced}
           onSync={handleSync}
-          showOnlyErrors={false}
-          tableName="collaboration"
+          showOnlyErrors={false} // Changed to always show status
         />
       </div>
 

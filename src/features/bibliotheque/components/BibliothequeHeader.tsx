@@ -46,7 +46,6 @@ export const BibliothequeHeader: React.FC<BibliothequeHeaderProps> = ({
           lastSynced={lastSynced}
           onSync={onSync}
           showOnlyErrors={true}
-          tableName="bibliotheque"
         />
       </div>
     </div>

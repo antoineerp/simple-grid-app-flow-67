@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { Toaster } from '@/components/ui/toaster';
@@ -12,7 +11,6 @@ import GestionDocumentaire from '@/pages/GestionDocumentaire';
 import RessourcesHumaines from '@/pages/RessourcesHumaines';
 import Administration from '@/pages/Administration';
 import Collaboration from '@/pages/Collaboration';
-import DatabaseCheckPage from '@/pages/DatabaseCheckPage';
 import { getIsLoggedIn, getCurrentUser } from '@/services/auth/authService';
 import { MembresProvider } from '@/contexts/MembresContext';
 import { initializeSyncStorageCleaner } from './utils/syncStorageCleaner';
@@ -147,13 +145,6 @@ function App() {
                 <Route path="db-admin" element={
                   <ProtectedRoute>
                     <DbAdmin />
-                  </ProtectedRoute>
-                } />
-                
-                {/* Nouvelle route pour la page de vérification de base de données */}
-                <Route path="database-check" element={
-                  <ProtectedRoute>
-                    <DatabaseCheckPage />
                   </ProtectedRoute>
                 } />
                 
