@@ -17,16 +17,16 @@ else
 fi
 
 echo -e "\n== Recherche des répertoires clients =="
-if [ -d "/home/customers" ]; then
-    echo "✓ Répertoire /home/customers/ trouvé"
-    ls -la /home/customers/ | head -n 5
+if [ -d "/home/clients" ]; then
+    echo "✓ Répertoire /home/clients/ trouvé"
+    ls -la /home/clients/ | head -n 5
 else
-    echo "✗ Répertoire /home/customers/ non trouvé"
+    echo "✗ Répertoire /home/clients/ non trouvé"
 fi
 
 echo -e "\n== Recherche de votre identifiant client =="
 # Rechercher les répertoires clients qui vous appartiennent
-client_dirs=$(find /home/customers -maxdepth 1 -type d -user $(whoami) 2>/dev/null)
+client_dirs=$(find /home/clients -maxdepth 1 -type d -user $(whoami) 2>/dev/null)
 if [ -n "$client_dirs" ]; then
     echo "✓ Répertoires clients trouvés pour votre utilisateur:"
     for dir in $client_dirs; do
@@ -44,7 +44,7 @@ fi
 
 echo -e "\n== Recherche du fichier ssh-diagnostic.sh =="
 # Chercher dans les endroits les plus probables
-find /home/customers -name "ssh-diagnostic.sh" 2>/dev/null | while read file; do
+find /home/clients -name "ssh-diagnostic.sh" 2>/dev/null | while read file; do
     echo "Trouvé: $file ($(du -h $file | cut -f1))"
     echo "Permissions: $(ls -la $file | awk '{print $1,$3,$4}')"
 done
@@ -59,6 +59,6 @@ fi
 echo -e "\n== Commandes pour accéder au site =="
 echo "Pour accéder à votre site, essayez:"
 echo "cd /sites/qualiopi.ch  # ou le nom de votre domaine"
-echo "cd /home/customers/*/sites/qualiopi.ch  # en remplaçant * par votre ID client"
+echo "cd /home/clients/*/sites/qualiopi.ch  # en remplaçant * par votre ID client"
 
 echo -e "\nDiagnostic terminé."
