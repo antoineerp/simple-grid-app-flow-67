@@ -202,54 +202,5 @@ header('Content-Type: text/html; charset=utf-8');
         
         <p>Si vous avez des problèmes avec cette application, n'hésitez pas à consulter la documentation ou contacter le support.</p>
     </div>
-    
-    <div class="section">
-        <h2>6. Chemins configurés dans l'application</h2>
-        <?php
-        // Vérifier si le chemin est correctement configuré dans les fichiers source
-        $deployScriptPath = 'deploy-on-infomaniak.php';
-        $sshDiagnosticPath = 'ssh-diagnostic.sh';
-        $diagnoseInfomaniakPath = 'diagnose-infomaniak.php';
-        
-        echo "<h3>Configuration des chemins dans les scripts:</h3>";
-        echo "<table>";
-        echo "<tr><th>Fichier</th><th>Chemin configuré</th><th>Statut</th></tr>";
-        
-        // Vérifier le fichier deploy-on-infomaniak.php
-        if (file_exists($deployScriptPath)) {
-            $content = file_get_contents($deployScriptPath);
-            preg_match('/\$client_path\s*=\s*[\'"]([^\'"]*)[\'"]/', $content, $matches);
-            $configuredPath = $matches[1] ?? 'Non trouvé';
-            $status = ($configuredPath === '/home/clients/df8dceff557ccc0605d45e1581aa661b') ? 
-                '<span class="success">Correct</span>' : 
-                '<span class="error">Incorrect</span>';
-            echo "<tr><td>{$deployScriptPath}</td><td>{$configuredPath}</td><td>{$status}</td></tr>";
-        }
-        
-        // Vérifier le fichier ssh-diagnostic.sh
-        if (file_exists($sshDiagnosticPath)) {
-            $content = file_get_contents($sshDiagnosticPath);
-            preg_match('/BASE_PATH\s*=\s*[\'"]([^\'"]*)[\'"]/', $content, $matches);
-            $configuredPath = $matches[1] ?? 'Non trouvé (utilise le répertoire courant)';
-            $status = (strpos($configuredPath, '/home/clients/df8dceff557ccc0605d45e1581aa661b') !== false) ? 
-                '<span class="success">Correct</span>' : 
-                '<span class="warning">Incorrect ou non défini</span>';
-            echo "<tr><td>{$sshDiagnosticPath}</td><td>{$configuredPath}</td><td>{$status}</td></tr>";
-        } else {
-            echo "<tr><td>{$sshDiagnosticPath}</td><td>Fichier non trouvé</td><td><span class='error'>Manquant</span></td></tr>";
-        }
-        
-        // Vérifier ce fichier lui-même
-        $currentContent = file_get_contents(__FILE__);
-        preg_match('/\$infoPath\s*=\s*[\'"]([^\'"]*)[\'"]/', $currentContent, $matches);
-        $configuredPath = $matches[1] ?? 'Non trouvé';
-        $status = ($configuredPath === '/home/clients/df8dceff557ccc0605d45e1581aa661b') ? 
-            '<span class="success">Correct</span>' : 
-            '<span class="error">Incorrect</span>';
-        echo "<tr><td>" . basename(__FILE__) . "</td><td>{$configuredPath}</td><td>{$status}</td></tr>";
-        
-        echo "</table>";
-        ?>
-    </div>
 </body>
 </html>
