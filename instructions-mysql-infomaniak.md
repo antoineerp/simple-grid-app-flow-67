@@ -7,7 +7,7 @@
 2. Accédez à l'espace "Hébergement Web"
 3. Sélectionnez votre site (qualiopi.ch)
 4. Dans le menu, cliquez sur "Bases de données MySQL"
-5. Trouvez votre base de données dans la liste (probablement p71x6d_richard)
+5. Trouvez votre base de données dans la liste (p71x6d_richard)
 6. Cliquez sur l'icône phpMyAdmin à côté de la base de données
 7. Connectez-vous avec les informations suivantes:
    - Utilisateur: p71x6d_richard
@@ -16,40 +16,65 @@
 9. Copiez-collez le contenu du fichier `diagnostics-infomaniak.sql`
 10. Cliquez sur "Exécuter" pour exécuter les requêtes
 
-## Option 2: Via MySQL Workbench ou autre client MySQL
+## Option 2: Via SSH et MySQL Client
 
-1. Ouvrez MySQL Workbench ou votre client MySQL préféré
-2. Créez une nouvelle connexion avec les paramètres suivants:
-   - Nom de la connexion: Infomaniak-Qualiopi
-   - Méthode de connexion: Standard TCP/IP
-   - Hôte: p71x6d.myd.infomaniak.com
-   - Port: 3306
-   - Utilisateur: p71x6d_richard
-   - Mot de passe: Trottinette43!
-   - Base de données par défaut: p71x6d_richard
-3. Testez la connexion
-4. Si la connexion est réussie, ouvrez un nouvel éditeur SQL
-5. Copiez-collez le contenu du fichier `diagnostics-infomaniak.sql`
-6. Exécutez les requêtes
+1. Connectez-vous à votre serveur via SSH
+   ```
+   ssh df8dceff557ccc0605d45e1581aa661b@ssh-df8dceff557ccc0605d45e1581aa661b.infomaniak.ch
+   ```
+   
+2. Une fois connecté, rendez le script de diagnostic exécutable:
+   ```
+   chmod +x diagnose-infomaniak.sh
+   ```
+   
+3. Exécutez le script de diagnostic:
+   ```
+   ./diagnose-infomaniak.sh
+   ```
 
-## Résolution des problèmes courants
+## Résolution du problème de MIME type CSS
 
-### Erreur d'accès refusé
-Si vous obtenez une erreur "Access denied", vérifiez que:
-- Le nom d'utilisateur et mot de passe sont corrects
-- L'utilisateur a les droits d'accès à la base de données
-- Votre adresse IP est autorisée (vérifiez les restrictions d'accès dans le panneau Infomaniak)
+Si les fichiers CSS sont servis avec le mauvais type MIME (text/html au lieu de text/css), ajoutez ou modifiez le fichier `.htaccess` dans le dossier `assets/` avec le contenu suivant:
 
-### Impossible de se connecter au serveur
-Si vous ne pouvez pas vous connecter au serveur:
-- Vérifiez que l'hôte est correct (p71x6d.myd.infomaniak.com)
-- Vérifiez que le port 3306 est ouvert et accessible
-- Contactez le support Infomaniak pour confirmer que les connexions externes sont autorisées
+```
+# Définir les types MIME corrects
+<IfModule mod_mime.c>
+    AddType text/css .css
+    AddType application/javascript .js
+</IfModule>
 
-## Vérifications à faire
+# Forcer le type MIME pour les fichiers CSS
+<FilesMatch "\.css$">
+    ForceType text/css
+</FilesMatch>
 
-Après avoir exécuté le script SQL:
-1. Vérifiez que la version de MySQL est affichée
-2. Confirmez que vous êtes connecté à la bonne base de données (p71x6d_richard)
-3. Vérifiez la liste des tables pour confirmer que la structure de la base de données est correcte
-4. Vérifiez que la table de diagnostic a été créée avec succès
+# Désactiver tout filtrage de type pour les fichiers statiques
+<IfModule mod_filter.c>
+    FilterDeclare COMPRESS
+    <FilesMatch "\.(css|js)$">
+        FilterProvider COMPRESS DEFLATE "%{CONTENT_TYPE} = 'text/css' or %{CONTENT_TYPE} = 'application/javascript'"
+        FilterChain COMPRESS
+    </FilesMatch>
+</IfModule>
+```
+
+Pour ajouter ce fichier via SSH:
+```
+echo '# Définir les types MIME corrects
+<IfModule mod_mime.c>
+    AddType text/css .css
+    AddType application/javascript .js
+</IfModule>
+
+# Forcer le type MIME pour les fichiers CSS
+<FilesMatch "\.css$">
+    ForceType text/css
+</FilesMatch>' > /home/clients/df8dceff557ccc0605d45e1581aa661b/sites/qualiopi.ch/assets/.htaccess
+```
+
+## Vérifications à faire après correction
+
+1. Confirmez que la base de données contient les tables nécessaires
+2. Vérifiez que les fichiers CSS sont correctement servis avec le type MIME `text/css`
+3. Testez l'application pour vous assurer qu'elle fonctionne comme prévu

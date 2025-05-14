@@ -51,26 +51,51 @@ for file in index.php .htaccess api/index.php api/.htaccess api/config/db_config
     fi
 done
 
-# Trouver les assets compilés
-echo -e "\n== Recherche d'assets =="
-find . -name "*.js" -o -name "*.css" | grep -v "node_modules" | head -n 10
+# Résoudre le problème MIME CSS
+echo -e "\n== Correction des types MIME =="
+ASSETS_HTACCESS="$BASE_PATH/assets/.htaccess"
 
-# Vérifier les permissions du répertoire web
-echo -e "\n== Permissions des répertoires principaux =="
-for dir in . ./api ./assets ./public; do
-    if [ -d "$dir" ]; then
-        echo "$dir: $(ls -ld "$dir" | awk '{print $1, $3, $4}')"
-    fi
-done
+echo "Création/Mise à jour du fichier .htaccess pour les assets..."
+cat > "$ASSETS_HTACCESS" << 'EOF'
+# Définir les types MIME corrects
+<IfModule mod_mime.c>
+    AddType text/css .css
+    AddType application/javascript .js
+</IfModule>
 
-# Vérifier les journaux d'erreurs si disponibles
-echo -e "\n== Logs d'erreurs =="
-for log in ./error_log ./api/error_log /var/log/apache2/error.log; do
-    if [ -f "$log" ] && [ -r "$log" ]; then
-        echo "✓ $log existe, dernières lignes:"
-        tail -n 10 "$log"
-    fi
-done
+# Forcer le type MIME pour les fichiers CSS
+<FilesMatch "\.css$">
+    ForceType text/css
+</FilesMatch>
+
+# Désactiver tout filtrage de type pour les fichiers statiques
+<IfModule mod_filter.c>
+    FilterDeclare COMPRESS
+    <FilesMatch "\.(css|js)$">
+        FilterProvider COMPRESS DEFLATE "%{CONTENT_TYPE} = 'text/css' or %{CONTENT_TYPE} = 'application/javascript'"
+        FilterChain COMPRESS
+    </FilesMatch>
+</IfModule>
+EOF
+
+# S'assurer que le fichier est accessible
+chmod 644 "$ASSETS_HTACCESS"
+echo "✓ Fichier .htaccess créé dans assets/"
+echo "  Contenu:"
+cat "$ASSETS_HTACCESS" | sed 's/^/  /'
+
+# Vérifier si un test CSS existe
+TEST_CSS="$BASE_PATH/assets/test-style.css"
+if [ ! -f "$TEST_CSS" ]; then
+    echo "Création d'un fichier CSS de test..."
+    echo "/* Fichier CSS de test pour vérifier le type MIME */
+body { 
+  background-color: #f0f8ff; 
+  font-family: Arial, sans-serif;
+}" > "$TEST_CSS"
+    chmod 644 "$TEST_CSS"
+    echo "✓ Fichier CSS de test créé: $TEST_CSS"
+fi
 
 # Vérifier la configuration du déploiement GitHub
 echo -e "\n== Configuration GitHub Actions =="
@@ -90,5 +115,7 @@ else
 fi
 
 echo -e "\n== Diagnostic terminé =="
-echo "Pour créer les dossiers manquants, exécutez: bash mkdir_script.sh"
+echo "Pour tester si les corrections ont été appliquées, accédez à:"
+echo "https://qualiopi.ch/assets/test-style.css"
+echo "Le type MIME dans les en-têtes de réponse devrait être 'text/css'"
 echo "==================================================="
