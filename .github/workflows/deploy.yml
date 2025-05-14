@@ -37,6 +37,7 @@ jobs:
         ls -la dist/
         echo "Liste des fichiers assets:"
         ls -la dist/assets/ || echo "Dossier assets non trouvé"
+        
     - name: Prepare deployment directory
       run: |
         # Création des dossiers nécessaires
@@ -63,16 +64,15 @@ jobs:
         echo "Copie des fichiers de configuration..."
         mkdir -p deploy/api/config
         
-        # Créer config/env.php avec les bonnes valeurs
-        cat > deploy/api/config/env.php << 'EOL'
-<?php
+        # Créer config/env.php avec les variables d'environnement
+        echo '<?php
 // Configuration des variables d'environnement pour Infomaniak
-define('DB_HOST', 'p71x6d.myd.infomaniak.com');
-define('DB_NAME', 'p71x6d_richard');
-define('DB_USER', 'p71x6d_richard');
-define('DB_PASS', 'Trottinette43!');
-define('API_BASE_URL', '/api');
-define('APP_ENV', 'production');
+define("DB_HOST", "p71x6d.myd.infomaniak.com");
+define("DB_NAME", "p71x6d_richard");
+define("DB_USER", "p71x6d_richard");
+define("DB_PASS", "Trottinette43!");
+define("API_BASE_URL", "/api");
+define("APP_ENV", "production");
 // Fonction d'aide pour récupérer les variables d'environnement
 function get_env($key, $default = null) {
     $const_name = strtoupper($key);
@@ -81,21 +81,16 @@ function get_env($key, $default = null) {
     }
     return $default;
 }
-?>
-EOL
-
+?>' > deploy/api/config/env.php
         echo "Fichier env.php créé avec p71x6d_richard"
         
         # Créer config/db_config.json avec les bonnes valeurs
-        cat > deploy/api/config/db_config.json << 'EOL'
-{
+        echo '{
     "host": "p71x6d.myd.infomaniak.com",
     "db_name": "p71x6d_richard",
     "username": "p71x6d_richard",
     "password": "Trottinette43!"
-}
-EOL
-
+}' > deploy/api/config/db_config.json
         echo "Fichier db_config.json créé avec p71x6d_richard"
         
         # Copie des autres fichiers de configuration
@@ -148,8 +143,7 @@ EOL
         
         # Créer users.ini s'il n'existe pas
         if [ ! -f "deploy/users.ini" ]; then
-          cat > deploy/users.ini << 'EOL'
-; Configuration des utilisateurs et de leurs rôles
+          echo '; Configuration des utilisateurs et de leurs rôles
 ; Format: username = password:role
 ; Exemple: admin = hashed_password:admin
 
@@ -174,9 +168,7 @@ require_number = true
 require_special = false
 max_login_attempts = 5
 lockout_time = 30  ; minutes
-session_timeout = 120  ; minutes
-EOL
-
+session_timeout = 120  ; minutes' > deploy/users.ini
           echo "Fichier users.ini créé manuellement"
         else
           cp users.ini deploy/ || echo "Fichier users.ini non trouvé"
