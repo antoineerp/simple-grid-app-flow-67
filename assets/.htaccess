@@ -7,6 +7,17 @@ AddType application/javascript .js
 AddType application/javascript .mjs
 AddType text/css .css
 
+# Forcer explicitement le type MIME pour CSS
+<FilesMatch "\.css$">
+    ForceType text/css
+    Header set Content-Type "text/css; charset=utf-8"
+</FilesMatch>
+
+<FilesMatch "\.js$">
+    ForceType application/javascript
+    Header set Content-Type "application/javascript; charset=utf-8"
+</FilesMatch>
+
 # En-têtes de cache pour les assets
 <FilesMatch "\.(js|mjs|css)$">
     Header set Cache-Control "max-age=31536000, public"
