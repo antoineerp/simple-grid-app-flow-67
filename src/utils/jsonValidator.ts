@@ -28,189 +28,101 @@ export const validateJsonResponse = <T = any>(responseText: string): JsonValidat
     };
   }
   
-  // Vérifier si la réponse contient du HTML (probablement une page d'erreur)
-  const containsHtml = responseText.includes('<html') || 
-                      responseText.includes('<!DOCTYPE') || 
-                      responseText.includes('<br') || 
-                      responseText.includes('<body') ||
-                      responseText.includes('<head');
+  // Vérifier si la réponse contient du HTML
+  const hasHtmlTag = /<(!DOCTYPE|html|head|body|div|script)/i.test(responseText);
   
-  if (containsHtml) {
-    // Tenter d'extraire un message d'erreur PHP utile
-    const errorMessage = extractPhpErrorMessage(responseText);
-    
+  if (hasHtmlTag) {
+    const htmlTitle = responseText.match(/<title>(.*?)<\/title>/i);
+    const errorMessage = htmlTitle 
+      ? `Le serveur a retourné une page HTML au lieu de JSON: ${htmlTitle[1]}` 
+      : 'Le serveur a retourné une page HTML au lieu de JSON';
+      
     return {
       isValid: false,
       data: null,
-      error: errorMessage || 'La réponse du serveur contient du HTML au lieu de JSON',
+      error: errorMessage,
       htmlDetected: true
     };
   }
   
+  // Essayer de parser le JSON
   try {
-    // Tenter d'analyser la réponse comme JSON
-    const data = JSON.parse(responseText) as T;
+    const parsedData = JSON.parse(responseText) as T;
     return {
       isValid: true,
-      data,
+      data: parsedData,
       error: null,
       htmlDetected: false
     };
   } catch (error) {
-    // Si l'analyse JSON échoue, tenter d'extraire une partie JSON valide
-    const extracted = extractValidJson<T>(responseText);
-    
-    if (extracted.extracted) {
-      return {
-        isValid: true,
-        data: extracted.data,
-        error: 'Avertissement: JSON extrait d\'une réponse potentiellement corrompue',
-        htmlDetected: false
-      };
-    }
-    
     return {
       isValid: false,
       data: null,
-      error: `Impossible d'analyser la réponse JSON: ${error instanceof Error ? error.message : String(error)}`,
+      error: `Erreur de parsing JSON: ${error instanceof Error ? error.message : 'Erreur inconnue'}`,
       htmlDetected: false
     };
   }
 };
 
 /**
- * Tente d'extraire une partie JSON valide d'une réponse corrompue
- * Utile pour les cas où le serveur renvoie du JSON valide entouré d'autres caractères
+ * Analyse en toute sécurité une réponse du serveur, en gérant le cas où
+ * le serveur renvoie du HTML au lieu de JSON
+ * @param response - La réponse fetch à analyser
+ * @returns Les données JSON ou lance une erreur avec un message clair
  */
-export const extractValidJson = <T = any>(text: string): { extracted: boolean; data: T | null } => {
-  // Chercher le début et la fin d'un objet ou tableau JSON potentiel
-  const jsonStart = text.indexOf('{') !== -1 ? text.indexOf('{') : text.indexOf('[');
+export const safeParseJsonResponse = async <T = any>(response: Response): Promise<T> => {
+  const responseText = await response.text();
+  const result = validateJsonResponse<T>(responseText);
   
-  if (jsonStart === -1) {
-    return { extracted: false, data: null };
-  }
-  
-  // Chercher la fin correspondante
-  const starter = text[jsonStart];
-  const ender = starter === '{' ? '}' : ']';
-  let nesting = 0;
-  let jsonEnd = -1;
-  
-  for (let i = jsonStart; i < text.length; i++) {
-    if (text[i] === starter) nesting++;
-    if (text[i] === ender) nesting--;
-    if (nesting === 0) {
-      jsonEnd = i;
-      break;
+  if (!result.isValid) {
+    const detailedError = new Error(result.error || 'Erreur lors du parsing de la réponse');
+    if (result.htmlDetected) {
+      // Ajouter des informations supplémentaires sur l'erreur HTML
+      (detailedError as any).htmlResponse = responseText.substring(0, 500);
+      (detailedError as any).htmlDetected = true;
+      console.error('Le serveur a retourné du HTML au lieu de JSON:', responseText.substring(0, 500));
     }
+    
+    throw detailedError;
   }
   
-  if (jsonEnd === -1) {
-    return { extracted: false, data: null };
-  }
-  
-  const jsonText = text.substring(jsonStart, jsonEnd + 1);
-  
-  try {
-    return { extracted: true, data: JSON.parse(jsonText) };
-  } catch (e) {
-    return { extracted: false, data: null };
-  }
+  return result.data as T;
 };
 
 /**
- * Fonction pour vérifier si une réponse est une erreur PHP ou une page d'erreur serveur
- * Utile pour diagnostiquer les problèmes de configuration du serveur
+ * Modifie une fonction fetch pour automatiquement valider et nettoyer les réponses JSON
+ * @param fetchFunction - La fonction fetch à modifier
+ * @returns Une fonction fetch qui gère automatiquement les erreurs de parsing JSON
  */
-export const isPhpErrorResponse = (text: string): boolean => {
-  const phpErrorPatterns = [
-    'Fatal error:',
-    'Parse error:',
-    'Warning:',
-    'Notice:',
-    'Deprecated:',
-    '<b>PHP Error</b>',
-    'Stack trace:',
-    'Exception',
-    'Call to undefined'
-  ];
-  
-  return phpErrorPatterns.some(pattern => text.includes(pattern));
-};
-
-/**
- * Extrait les messages d'erreur PHP utiles d'une réponse HTML
- */
-export const extractPhpErrorMessage = (text: string): string | null => {
-  // Recherche de "Call to undefined method" qui est l'erreur courante
-  if (text.includes('Call to undefined method')) {
-    const match = text.match(/Call to undefined method ([^(]+)\(\)/);
-    if (match) {
-      return `Erreur PHP: Méthode non définie ${match[1]}`;
-    }
-  }
-
-  // Recherche des motifs d'erreur PHP courants
-  const errorRegex = /(Fatal error|Parse error|Warning|Notice|Deprecated):\s*(.+?)\s+in\s+(.+?)\s+on\s+line\s+(\d+)/i;
-  const match = text.match(errorRegex);
-  
-  if (match) {
-    return `${match[1]}: ${match[2]} (dans ${match[3]} ligne ${match[4]})`;
-  }
-  
-  // Si aucun motif standard n'est trouvé, essayer de trouver tout texte significatif
-  if (text.includes('<body')) {
-    // Extraire le contenu entre les balises body
-    const bodyMatch = text.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
-    if (bodyMatch) {
-      // Nettoyer le HTML
-      const content = bodyMatch[1]
-        .replace(/<[^>]*>/g, ' ') // Supprimer les balises
-        .replace(/\s+/g, ' ')     // Normaliser les espaces
-        .trim();
-      
-      if (content) {
-        return content.substring(0, 200) + (content.length > 200 ? '...' : '');
+export const createSafeFetch = (fetchFunction = fetch) => {
+  return async <T = any>(input: RequestInfo | URL, init?: RequestInit): Promise<T> => {
+    const response = await fetchFunction(input, init);
+    
+    if (!response.ok) {
+      try {
+        // Essayer de parser le corps de l'erreur comme JSON
+        const errorText = await response.text();
+        const errorResult = validateJsonResponse(errorText);
+        
+        if (errorResult.isValid && errorResult.data) {
+          throw new Error(
+            (errorResult.data as any).message || 
+            (errorResult.data as any).error || 
+            `Erreur HTTP: ${response.status}`
+          );
+        } else if (errorResult.htmlDetected) {
+          throw new Error(`Le serveur a retourné une page HTML au lieu de JSON (${response.status})`);
+        } else {
+          throw new Error(`Erreur HTTP: ${response.status} ${response.statusText}`);
+        }
+      } catch (parseError) {
+        // Si l'erreur ne peut pas être parsée comme JSON, lancer une erreur HTTP standard
+        throw new Error(`Erreur HTTP: ${response.status} ${response.statusText}`);
       }
     }
-  }
-  
-  return null;
+    
+    return safeParseJsonResponse<T>(response);
+  };
 };
 
-/**
- * Fonction pour nettoyer une réponse HTML et extraire des informations utiles
- */
-export const getHelpfulErrorFromHtml = (htmlResponse: string): string => {
-  // Recherche des erreurs PHP spécifiques
-  if (isPhpErrorResponse(htmlResponse)) {
-    const errorMessage = extractPhpErrorMessage(htmlResponse);
-    if (errorMessage) {
-      return `Erreur PHP détectée: ${errorMessage}`;
-    }
-  }
-  
-  // Vérifier si c'est une erreur d'accès refusé (403)
-  if (htmlResponse.includes('403 Forbidden') || 
-      htmlResponse.includes('Access forbidden') || 
-      htmlResponse.includes('accès refusé')) {
-    return "Erreur 403: Accès refusé. Vérifiez les permissions des fichiers PHP sur le serveur.";
-  }
-  
-  // Vérifier s'il s'agit d'une erreur 404
-  if (htmlResponse.includes('404 Not Found') || 
-      htmlResponse.includes('fichier inexistant') || 
-      htmlResponse.includes('not found')) {
-    return "Erreur 404: Le fichier PHP demandé n'existe pas ou n'est pas accessible.";
-  }
-  
-  // Vérifier s'il s'agit d'une erreur de configuration
-  if (htmlResponse.includes('configuration error') || 
-      htmlResponse.includes('erreur de configuration')) {
-    return "Erreur de configuration du serveur web détectée.";
-  }
-  
-  // Si aucune erreur spécifique n'est identifiée
-  return "Le serveur a renvoyé du HTML au lieu de JSON. Vérifiez la configuration du serveur PHP.";
-};
-
+// Exemple d'utilisation: const safeFetch = createSafeFetch();
