@@ -9,7 +9,7 @@ echo "==========================================="
 # Vérifier les chemins spécifiques à Infomaniak
 echo -e "\n== Chemins Infomaniak =="
 infomaniak_paths=(
-  "/home/customers/"
+  "/home/clients/"
   "/sites/"
   "/tmp/"
   "/var/log/"
