@@ -51,18 +51,30 @@ try {
     echo "Date/heure MySQL: " . $result['now'] . "\n";
     echo "Base de données: " . $result['db'] . "\n\n";
     
-    // Liste des tables
+    // Liste des tables - CORRECTION du bug ici
     echo "Tables disponibles dans la base de données:\n";
-    $tables = $pdo->query("SHOW TABLES");
+    $tables = $pdo->query("SHOW TABLES")->fetchAll(PDO::FETCH_ASSOC);
     $table_count = 0;
-    foreach ($tables as $table) {
-        $table_name = $table[0];
-        echo "- $table_name";
-        
-        // Compter les enregistrements
-        $count = $pdo->query("SELECT COUNT(*) FROM `$table_name`")->fetchColumn();
-        echo " ($count enregistrements)\n";
-        $table_count++;
+    
+    if (count($tables) > 0) {
+        foreach ($tables as $table) {
+            // Récupérer la première valeur du tableau associatif (nom de la table)
+            $table_name = reset($table);
+            if ($table_name) {
+                echo "- $table_name";
+                
+                try {
+                    // Compter les enregistrements
+                    $count = $pdo->query("SELECT COUNT(*) FROM `$table_name`")->fetchColumn();
+                    echo " ($count enregistrements)\n";
+                } catch (Exception $e) {
+                    echo " (Impossible de compter les enregistrements: {$e->getMessage()})\n";
+                }
+                $table_count++;
+            }
+        }
+    } else {
+        echo "Aucune table trouvée dans la base de données.\n";
     }
     
     if ($table_count === 0) {
@@ -101,6 +113,41 @@ try {
         }
     } else {
         echo "✗ La table utilisateurs n'existe pas\n";
+        
+        // Créer la table utilisateurs si demandé
+        echo "\nVoulez-vous créer la table utilisateurs? [o/n]: ";
+        $handle = fopen("php://stdin", "r");
+        $line = trim(fgets($handle));
+        if (strtolower($line) === 'o' || strtolower($line) === 'oui') {
+            echo "Création de la table utilisateurs...\n";
+            
+            $sql = "CREATE TABLE IF NOT EXISTS utilisateurs (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                nom VARCHAR(100) NOT NULL,
+                prenom VARCHAR(100) NOT NULL,
+                email VARCHAR(100) NOT NULL UNIQUE,
+                mot_de_passe VARCHAR(255) NOT NULL,
+                identifiant_technique VARCHAR(100) NOT NULL UNIQUE,
+                role ENUM('administrateur', 'utilisateur', 'gestionnaire') NOT NULL DEFAULT 'utilisateur',
+                date_creation TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_general_ci;";
+            
+            try {
+                $pdo->exec($sql);
+                echo "✓ Table utilisateurs créée avec succès\n";
+                
+                // Ajouter un utilisateur administrateur par défaut
+                echo "Ajout d'un utilisateur administrateur par défaut...\n";
+                $password_hash = password_hash("admin123", PASSWORD_DEFAULT);
+                $sql = "INSERT INTO utilisateurs (nom, prenom, email, mot_de_passe, identifiant_technique, role)
+                        VALUES ('Admin', 'Système', 'admin@system.local', :password, 'p71x6d_system', 'administrateur')";
+                $stmt = $pdo->prepare($sql);
+                $stmt->execute(['password' => $password_hash]);
+                echo "✓ Utilisateur administrateur créé avec succès\n";
+            } catch (PDOException $e) {
+                echo "✗ Erreur lors de la création de la table: " . $e->getMessage() . "\n";
+            }
+        }
     }
     
     echo "\n=== TEST DE CONNEXION TERMINÉ AVEC SUCCÈS ===\n";
