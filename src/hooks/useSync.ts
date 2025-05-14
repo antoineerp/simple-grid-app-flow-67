@@ -48,7 +48,8 @@ export const useSync = (tableName: string): SyncState & {
   ): Promise<SyncResult> => {
     // Utiliser le service central pour la synchronisation
     try {
-      const result = await syncTable(tableName, data, trigger, options);
+      // Fix: Remove the trigger argument as the syncTable function expects only 3 arguments
+      const result = await syncTable(tableName, data, trigger);
       
       if (result.success) {
         return {
