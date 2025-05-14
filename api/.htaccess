@@ -40,7 +40,7 @@ RewriteRule ^(.*)$ $1 [R=200,L]
 </IfModule>
 
 # Permettre l'accès direct aux fichiers PHP spécifiques
-<FilesMatch "^(phpinfo|db-test|check|phpinfo-test|diagnostic)\.php$">
+<FilesMatch "^(phpinfo|db-test|check|phpinfo-test|diagnostic|testdb|test)\.php$">
     # Aucune réécriture pour ces fichiers
 </FilesMatch>
 
