@@ -30,7 +30,7 @@ $db_config = [
 // Fonction pour tester la connexion à la base de données
 function testDatabaseConnection($config) {
     try {
-        $dsn = "mysql:host={$config['host']};dbname={$config['db_name']};charset=utf8mb4";
+        $dsn = "mysql:host={$config['host']};dbname={$config['db_name']};charset=utf8";
         $options = [
             PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
             PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,

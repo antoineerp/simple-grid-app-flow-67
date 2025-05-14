@@ -78,7 +78,7 @@ ob_end_flush();
 // Fonction pour tester la connexion PDO (unique et fiable)
 function testPdoConnection($config) {
     try {
-        $dsn = "mysql:host={$config['host']};dbname={$config['db_name']};charset=utf8mb4";
+        $dsn = "mysql:host={$config['host']};dbname={$config['db_name']};charset=utf8";
         $pdo = new PDO($dsn, $config['username'], $config['password'], [
             PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
             PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,

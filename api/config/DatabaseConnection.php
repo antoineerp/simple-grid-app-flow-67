@@ -26,7 +26,7 @@ class DatabaseConnection {
                 throw new Exception("Missing database configuration parameters");
             }
 
-            $dsn = "mysql:host=" . $params['host'] . ";dbname=" . $params['db_name'] . ";charset=utf8mb4";
+            $dsn = "mysql:host=" . $params['host'] . ";dbname=" . $params['db_name'] . ";charset=utf8";
             
             $options = [
                 PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
@@ -35,7 +35,7 @@ class DatabaseConnection {
             ];
             
             $this->conn = new PDO($dsn, $params['username'], $params['password'], $options);
-            $this->conn->exec("SET NAMES utf8mb4");
+            $this->conn->exec("SET NAMES utf8");
             $this->is_connected = true;
             
         } catch(PDOException $e) {

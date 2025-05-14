@@ -16,7 +16,7 @@ CREATE TABLE IF NOT EXISTS db_operations_log (
     target_table VARCHAR(100) NOT NULL,
     status VARCHAR(20) NOT NULL,
     message TEXT
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_general_ci;
 
 -- Journaliser cette opération
 INSERT INTO db_operations_log (operation_type, target_table, status, message)
@@ -44,7 +44,7 @@ CREATE TABLE IF NOT EXISTS utilisateurs (
     identifiant_technique VARCHAR(100) NOT NULL UNIQUE,
     role ENUM("administrateur", "utilisateur", "gestionnaire") NOT NULL DEFAULT "utilisateur",
     date_creation TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_general_ci;
 ');
 
 PREPARE create_users_stmt FROM @create_users_table;
@@ -70,7 +70,7 @@ CREATE TABLE IF NOT EXISTS test_table (
     value TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_general_ci;
 
 -- Créer un index pour améliorer les performances
 ALTER TABLE utilisateurs ADD INDEX IF NOT EXISTS idx_email (email);
@@ -84,7 +84,7 @@ CREATE TABLE IF NOT EXISTS sync_test (
     status VARCHAR(20) NOT NULL,
     data JSON,
     INDEX idx_device (device_id)
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_general_ci;
 
 -- Insérer un enregistrement de test pour la synchronisation
 INSERT INTO sync_test (id, device_id, status, data)

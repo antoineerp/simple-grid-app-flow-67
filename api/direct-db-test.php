@@ -1,4 +1,3 @@
-
 <?php
 // Script de test direct et simplifié de la base de données
 header("Content-Type: application/json; charset=UTF-8");
@@ -36,6 +35,40 @@ try {
     $dbname = $config['db_name'] ?? '';
     $username = $config['username'];
     $password = $config['password'] ?? '';
+    
+    // Tester la connexion PDO directement
+    try {
+        $dsn = "mysql:host={$host};charset=utf8";
+        if (!empty($dbname)) {
+            $dsn .= ";dbname={$dbname}";
+        }
+        
+        $pdo = new PDO($dsn, $username, $password, [
+            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION
+        ]);
+        
+        $version = $pdo->query('SELECT VERSION()')->fetchColumn();
+        
+        $tables = [];
+        if (!empty($dbname)) {
+            $tables_result = $pdo->query("SHOW TABLES");
+            if ($tables_result) {
+                $tables = $tables_result->fetchAll(PDO::FETCH_COLUMN);
+            }
+        }
+        
+        $pdo_info = [
+            'status' => 'success',
+            'version' => $version,
+            'tables_count' => count($tables),
+            'tables' => $tables
+        ];
+    } catch (PDOException $e) {
+        $pdo_info = [
+            'status' => 'error',
+            'message' => 'Erreur PDO: ' . $e->getMessage()
+        ];
+    }
     
     // Récupérer des informations sur le serveur
     $server_info = [
@@ -95,48 +128,6 @@ try {
         $mysqli_info = [
             'status' => 'error',
             'message' => 'Extension MySQLi non disponible'
-        ];
-    }
-    
-    // Tenter une connexion PDO
-    $pdo_info = [];
-    if (extension_loaded('pdo') && extension_loaded('pdo_mysql')) {
-        try {
-            $dsn = "mysql:host={$host};charset=utf8mb4";
-            if (!empty($dbname)) {
-                $dsn .= ";dbname={$dbname}";
-            }
-            
-            $pdo = new PDO($dsn, $username, $password, [
-                PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION
-            ]);
-            
-            $version = $pdo->query('SELECT VERSION()')->fetchColumn();
-            
-            $tables = [];
-            if (!empty($dbname)) {
-                $tables_result = $pdo->query("SHOW TABLES");
-                if ($tables_result) {
-                    $tables = $tables_result->fetchAll(PDO::FETCH_COLUMN);
-                }
-            }
-            
-            $pdo_info = [
-                'status' => 'success',
-                'version' => $version,
-                'tables_count' => count($tables),
-                'tables' => $tables
-            ];
-        } catch (PDOException $e) {
-            $pdo_info = [
-                'status' => 'error',
-                'message' => 'Erreur PDO: ' . $e->getMessage()
-            ];
-        }
-    } else {
-        $pdo_info = [
-            'status' => 'error',
-            'message' => 'Extensions PDO et/ou PDO_MySQL non disponibles'
         ];
     }
     
