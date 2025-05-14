@@ -55,6 +55,15 @@ export const useDocumentSync = () => {
   };
 
   const loadFromServer = async (userId: string): Promise<Document[] | null> => {
+    if (!isOnline) {
+      toast({
+        title: "Connexion hors ligne",
+        description: "Impossible de charger les documents. Veuillez vérifier votre connexion.",
+        variant: "destructive"
+      });
+      return null;
+    }
+    
     setIsSyncing(true);
     try {
       console.log(`Chargement des documents pour l'utilisateur ${userId}`);

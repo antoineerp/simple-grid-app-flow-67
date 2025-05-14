@@ -55,39 +55,7 @@ jobs:
         cp dist/index.html deploy/
         cp .htaccess deploy/ || echo "Fichier .htaccess non trouvé"
         
-        # Copie des fichiers de configuration
-        echo "Copie des fichiers de configuration..."
-        mkdir -p deploy/api/config
-        cp api/config/env.php deploy/api/config/ || echo "Fichier env.php non trouvé"
-        cp api/config/DatabaseConfig.php deploy/api/config/ || echo "Fichier DatabaseConfig.php non trouvé"
-        cp api/config/DatabaseConnection.php deploy/api/config/ || echo "Fichier DatabaseConnection.php non trouvé"
-        cp api/config/DatabaseDiagnostics.php deploy/api/config/ || echo "Fichier DatabaseDiagnostics.php non trouvé"
-        cp api/config/database.php deploy/api/config/ || echo "Fichier database.php non trouvé"
-        
-        # Vérifier et créer env.php s'il n'existe pas
-        if [ ! -f "deploy/api/config/env.php" ]; then
-          echo "<?php
-          // Configuration des variables d'environnement pour Infomaniak
-          define('DB_HOST', 'p71x6d.myd.infomaniak.com');
-          define('DB_NAME', 'p71x6d_system');
-          define('DB_USER', 'p71x6d_system');
-          define('DB_PASS', 'Trottinette43!');
-          define('API_BASE_URL', '/api');
-          define('APP_ENV', 'production');
-
-          // Fonction d'aide pour récupérer les variables d'environnement
-          function get_env(\$key, \$default = null) {
-              \$const_name = strtoupper(\$key);
-              if (defined(\$const_name)) {
-                  return constant(\$const_name);
-              }
-              return \$default;
-          }
-          ?>" > deploy/api/config/env.php
-          echo "Fichier env.php créé manuellement"
-        fi
-        
-        # Copie explicite des fichiers API
+        # Copie des fichiers de l'API
         if [ -d "api" ]; then
           echo "Copie des fichiers API..."
           cp -r api/* deploy/api/
@@ -98,7 +66,7 @@ jobs:
         # Copie des uploads si existants
         if [ -d "public/lovable-uploads" ]; then
           echo "Copie des uploads..."
-          cp -r public/lovable-uploads/* deploy/public/lovable-uploads/
+          cp -r public/lovable-uploads/* deploy/public/lovable-uploads/ || echo "Copie des uploads échouée"
         else
           echo "Dossier uploads non trouvé"
         fi
