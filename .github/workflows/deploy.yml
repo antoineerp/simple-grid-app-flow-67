@@ -64,16 +64,20 @@ jobs:
         echo "Copie des fichiers de configuration..."
         mkdir -p deploy/api/config
         
-        # Créer config/env.php avec les variables d'environnement
-        echo '<?php
-// Configuration des variables d'environnement pour Infomaniak
+        # Créer config/env.php avec les variables d'environnement - UTILISATION DE FICHIER EXISTANT
+        cp api/config/env.php deploy/api/config/ || echo "Copie directe de env.php échouée"
+        
+        # Méthode de secours si la copie directe échoue
+        if [ ! -f deploy/api/config/env.php ]; then
+          echo '<?php
+// Configuration des variables d'\''environnement pour Infomaniak
 define("DB_HOST", "p71x6d.myd.infomaniak.com");
 define("DB_NAME", "p71x6d_richard");
 define("DB_USER", "p71x6d_richard");
 define("DB_PASS", "Trottinette43!");
 define("API_BASE_URL", "/api");
 define("APP_ENV", "production");
-// Fonction d'aide pour récupérer les variables d'environnement
+// Fonction d'\''aide pour récupérer les variables d'\''environnement
 function get_env($key, $default = null) {
     $const_name = strtoupper($key);
     if (defined($const_name)) {
@@ -82,16 +86,26 @@ function get_env($key, $default = null) {
     return $default;
 }
 ?>' > deploy/api/config/env.php
-        echo "Fichier env.php créé avec p71x6d_richard"
+          echo "Fichier env.php créé avec p71x6d_richard par méthode de secours"
+        else
+          echo "Fichier env.php copié directement du projet"
+        fi
         
-        # Créer config/db_config.json avec les bonnes valeurs
-        echo '{
+        # Créer config/db_config.json - COPIE DIRECTE
+        cp api/config/db_config.json deploy/api/config/ || echo "Copie directe de db_config.json échouée"
+        
+        # Méthode de secours si la copie directe échoue
+        if [ ! -f deploy/api/config/db_config.json ]; then
+          echo '{
     "host": "p71x6d.myd.infomaniak.com",
     "db_name": "p71x6d_richard",
     "username": "p71x6d_richard",
     "password": "Trottinette43!"
 }' > deploy/api/config/db_config.json
-        echo "Fichier db_config.json créé avec p71x6d_richard"
+          echo "Fichier db_config.json créé par méthode de secours"
+        else
+          echo "Fichier db_config.json copié directement du projet"
+        fi
         
         # Copie des autres fichiers de configuration
         cp api/config/DatabaseConfig.php deploy/api/config/ || echo "Fichier DatabaseConfig.php non trouvé"
@@ -143,7 +157,11 @@ function get_env($key, $default = null) {
         
         # Créer users.ini s'il n'existe pas
         if [ ! -f "deploy/users.ini" ]; then
-          echo '; Configuration des utilisateurs et de leurs rôles
+          cp users.ini deploy/ || echo "Copie directe de users.ini échouée"
+          
+          # En cas d'échec de la copie directe
+          if [ ! -f "deploy/users.ini" ]; then
+            echo '; Configuration des utilisateurs et de leurs rôles
 ; Format: username = password:role
 ; Exemple: admin = hashed_password:admin
 
@@ -169,7 +187,10 @@ require_special = false
 max_login_attempts = 5
 lockout_time = 30  ; minutes
 session_timeout = 120  ; minutes' > deploy/users.ini
-          echo "Fichier users.ini créé manuellement"
+            echo "Fichier users.ini créé manuellement"
+          else
+            echo "Fichier users.ini copié directement du projet"
+          fi
         else
           cp users.ini deploy/ || echo "Fichier users.ini non trouvé"
         fi
