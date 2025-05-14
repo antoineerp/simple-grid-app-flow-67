@@ -38,40 +38,49 @@ header('Content-Type: text/html; charset=utf-8');
         echo "</table>";
         
         // Vérifier si nous sommes sur Infomaniak
-        $isInfomaniak = strpos($_SERVER['DOCUMENT_ROOT'] ?? '', '/sites/') !== false;
+        $isInfomaniak = strpos($_SERVER['DOCUMENT_ROOT'] ?? '', '/home/clients') !== false;
         echo "<p>Détection Infomaniak: <strong>" . ($isInfomaniak ? '<span class="success">Oui</span>' : '<span class="warning">Non</span>') . "</strong></p>";
         
         // Tester les chemins courants
         $currentDir = getcwd();
         echo "<p>Répertoire courant: <span class='monospace'>$currentDir</span></p>";
         
-        // Vérifier l'existence du répertoire /sites/
-        $sitesDir = '/sites/';
+        // Vérifier l'existence du répertoire /home/clients/
+        $clientsDir = '/home/clients';
+        $clientsDirExists = is_dir($clientsDir);
+        echo "<p>Répertoire $clientsDir: " . ($clientsDirExists ? '<span class="success">Existe</span>' : '<span class="error">N\'existe pas</span>') . "</p>";
+        
+        // Vérifier l'existence du répertoire spécifique au client
+        $clientDir = '/home/clients/df8dceff557ccc0605d45e1581aa661b';
+        $clientDirExists = is_dir($clientDir);
+        echo "<p>Répertoire du client ($clientDir): " . ($clientDirExists ? '<span class="success">Existe</span>' : '<span class="error">N\'existe pas</span>') . "</p>";
+        
+        // Vérifier le répertoire des sites
+        $sitesDir = '/home/clients/df8dceff557ccc0605d45e1581aa661b/sites';
         $sitesDirExists = is_dir($sitesDir);
-        echo "<p>Répertoire /sites/: " . ($sitesDirExists ? '<span class="success">Existe</span>' : '<span class="error">N\'existe pas</span>') . "</p>";
+        echo "<p>Répertoire des sites ($sitesDir): " . ($sitesDirExists ? '<span class="success">Existe</span>' : '<span class="error">N\'existe pas</span>') . "</p>";
         
-        // Vérifier l'existence du répertoire spécifique au domaine
-        $domainDir = '/sites/qualiopi.ch';
+        // Vérifier le répertoire du domaine
+        $domainDir = '/home/clients/df8dceff557ccc0605d45e1581aa661b/sites/qualiopi.ch';
         $domainDirExists = is_dir($domainDir);
-        echo "<p>Répertoire du domaine (/sites/qualiopi.ch): " . ($domainDirExists ? '<span class="success">Existe</span>' : '<span class="error">N\'existe pas</span>') . "</p>";
+        echo "<p>Répertoire du domaine ($domainDir): " . ($domainDirExists ? '<span class="success">Existe</span>' : '<span class="error">N\'existe pas</span>') . "</p>";
         
-        // Tester la présence de répertoires spécifiques à Infomaniak
-        $infomaniakDirs = [
-            '/home/clients' => 'Répertoire clients',
-            '/home/clients/df8dceff557ccc0605d45e1581aa661b' => 'Répertoire client spécifique',
-            '/home/clients/df8dceff557ccc0605d45e1581aa661b/sites' => 'Répertoire sites',
-            '/home/clients/df8dceff557ccc0605d45e1581aa661b/sites/qualiopi.ch' => 'Répertoire domaine principal',
-            '/home/clients/df8dceff557ccc0605d45e1581aa661b/sites/test.qualiopi.ch' => 'Répertoire sous-domaine'
+        // Vérifier les dossiers importants du domaine
+        $importantFolders = [
+            '/api' => 'Dossier API',
+            '/assets' => 'Dossier assets',
+            '/public' => 'Dossier public'
         ];
         
-        echo "<h3>Test des chemins Infomaniak spécifiques:</h3>";
+        echo "<h3>Dossiers importants:</h3>";
         echo "<table>";
         echo "<tr><th>Chemin</th><th>Description</th><th>Existe</th></tr>";
         
-        foreach ($infomaniakDirs as $dir => $desc) {
-            $exists = is_dir($dir);
+        foreach ($importantFolders as $folder => $desc) {
+            $folderPath = $currentDir . $folder;
+            $exists = is_dir($folderPath);
             echo "<tr>";
-            echo "<td class='monospace'>$dir</td>";
+            echo "<td class='monospace'>$folderPath</td>";
             echo "<td>$desc</td>";
             echo "<td>" . ($exists ? '<span class="success">Oui</span>' : '<span class="error">Non</span>') . "</td>";
             echo "</tr>";
@@ -85,10 +94,9 @@ header('Content-Type: text/html; charset=utf-8');
         <h2>Test d'accès aux fichiers statiques</h2>
         <?php
         $staticFiles = [
-            '/assets/index.js' => 'JavaScript principal (chemin standard)',
-            '/sites/qualiopi.ch/assets/index.js' => 'JavaScript principal (chemin Infomaniak)',
+            '/assets/index.js' => 'JavaScript principal',
             '/lovable-uploads/formacert-logo.png' => 'Logo (chemin standard)',
-            '/sites/qualiopi.ch/public/lovable-uploads/formacert-logo.png' => 'Logo (chemin Infomaniak)'
+            '/public/lovable-uploads/formacert-logo.png' => 'Logo (chemin public)'
         ];
         
         echo "<table>";
@@ -96,7 +104,6 @@ header('Content-Type: text/html; charset=utf-8');
         
         // Trouver les fichiers JS et CSS réels avec hachage dans le nom
         $assetsDir = 'assets';
-        $infomaniakAssetsDir = '/sites/qualiopi.ch/assets';
         
         if (is_dir($assetsDir)) {
             $jsFiles = glob("$assetsDir/*.js");
@@ -105,7 +112,7 @@ header('Content-Type: text/html; charset=utf-8');
             if (!empty($jsFiles)) {
                 echo "<tr>";
                 echo "<td class='monospace'>" . $jsFiles[0] . "</td>";
-                echo "<td>Fichier JS trouvé (chemin standard)</td>";
+                echo "<td>Fichier JS trouvé</td>";
                 echo "<td class='success'>Oui</td>";
                 echo "<td>" . filesize($jsFiles[0]) . " octets</td>";
                 echo "</tr>";
@@ -114,30 +121,7 @@ header('Content-Type: text/html; charset=utf-8');
             if (!empty($cssFiles)) {
                 echo "<tr>";
                 echo "<td class='monospace'>" . $cssFiles[0] . "</td>";
-                echo "<td>Fichier CSS trouvé (chemin standard)</td>";
-                echo "<td class='success'>Oui</td>";
-                echo "<td>" . filesize($cssFiles[0]) . " octets</td>";
-                echo "</tr>";
-            }
-        }
-        
-        if (is_dir($infomaniakAssetsDir)) {
-            $jsFiles = glob("$infomaniakAssetsDir/*.js");
-            $cssFiles = glob("$infomaniakAssetsDir/*.css");
-            
-            if (!empty($jsFiles)) {
-                echo "<tr>";
-                echo "<td class='monospace'>" . $jsFiles[0] . "</td>";
-                echo "<td>Fichier JS trouvé (chemin Infomaniak)</td>";
-                echo "<td class='success'>Oui</td>";
-                echo "<td>" . filesize($jsFiles[0]) . " octets</td>";
-                echo "</tr>";
-            }
-            
-            if (!empty($cssFiles)) {
-                echo "<tr>";
-                echo "<td class='monospace'>" . $cssFiles[0] . "</td>";
-                echo "<td>Fichier CSS trouvé (chemin Infomaniak)</td>";
+                echo "<td>Fichier CSS trouvé</td>";
                 echo "<td class='success'>Oui</td>";
                 echo "<td>" . filesize($cssFiles[0]) . " octets</td>";
                 echo "</tr>";
@@ -171,7 +155,7 @@ header('Content-Type: text/html; charset=utf-8');
         <ol>
             <li>Assurez-vous que votre fichier .htaccess contient des règles de réécriture spécifiques pour Infomaniak.</li>
             <li>Vérifiez que le fichier env.php dans api/config/ est correctement configuré avec les chemins Infomaniak.</li>
-            <li>Si le répertoire /sites/ n'est pas accessible, contactez le support Infomaniak pour vérifier la configuration.</li>
+            <li>Si le répertoire des sites n'est pas accessible, contactez le support Infomaniak pour vérifier la configuration.</li>
             <li>Assurez-vous que le workflow GitHub Actions déploie tous les fichiers nécessaires dans la structure correcte.</li>
         </ol>
         

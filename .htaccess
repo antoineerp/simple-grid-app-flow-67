@@ -86,6 +86,8 @@ RewriteRule ^diagnose-infomaniak\.php$ - [L]
 RewriteRule ^verify-deploy\.php$ - [L]
 RewriteRule ^user-diagnostic\.php$ - [L]
 RewriteRule ^php-debug\.php$ - [L]
+RewriteRule ^path-fix\.php$ - [L]
+RewriteRule ^php-test\.php$ - [L]
 RewriteRule ^users\.ini$ - [F,L]
 
 # Permettre l'accès direct aux assets dans leur dossier
