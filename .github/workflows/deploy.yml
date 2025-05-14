@@ -64,44 +64,45 @@ jobs:
         echo "Copie des fichiers de configuration..."
         mkdir -p deploy/api/config
         
-        # Créer config/env.php avec les variables d'environnement - UTILISATION DE FICHIER EXISTANT
+        # Copie directe du fichier env.php existant
         cp api/config/env.php deploy/api/config/ || echo "Copie directe de env.php échouée"
         
         # Méthode de secours si la copie directe échoue
         if [ ! -f deploy/api/config/env.php ]; then
-          echo '<?php
-// Configuration des variables d'\''environnement pour Infomaniak
-define("DB_HOST", "p71x6d.myd.infomaniak.com");
-define("DB_NAME", "p71x6d_richard");
-define("DB_USER", "p71x6d_richard");
-define("DB_PASS", "Trottinette43!");
-define("API_BASE_URL", "/api");
-define("APP_ENV", "production");
-// Fonction d'\''aide pour récupérer les variables d'\''environnement
-function get_env($key, $default = null) {
-    $const_name = strtoupper($key);
-    if (defined($const_name)) {
-        return constant($const_name);
-    }
-    return $default;
-}
-?>' > deploy/api/config/env.php
-          echo "Fichier env.php créé avec p71x6d_richard par méthode de secours"
+          echo "<?php" > deploy/api/config/env.php
+          echo "// Configuration des variables d'environnement pour Infomaniak" >> deploy/api/config/env.php
+          echo "define('DB_HOST', 'p71x6d.myd.infomaniak.com');" >> deploy/api/config/env.php
+          echo "define('DB_NAME', 'p71x6d_richard');" >> deploy/api/config/env.php
+          echo "define('DB_USER', 'p71x6d_richard');" >> deploy/api/config/env.php
+          echo "define('DB_PASS', 'Trottinette43!');" >> deploy/api/config/env.php
+          echo "define('API_BASE_URL', '/api');" >> deploy/api/config/env.php
+          echo "define('APP_ENV', 'production');" >> deploy/api/config/env.php
+          echo "" >> deploy/api/config/env.php
+          echo "// Fonction d'aide pour récupérer les variables d'environnement" >> deploy/api/config/env.php
+          echo "function get_env(\$key, \$default = null) {" >> deploy/api/config/env.php
+          echo "    \$const_name = strtoupper(\$key);" >> deploy/api/config/env.php
+          echo "    if (defined(\$const_name)) {" >> deploy/api/config/env.php
+          echo "        return constant(\$const_name);" >> deploy/api/config/env.php
+          echo "    }" >> deploy/api/config/env.php
+          echo "    return \$default;" >> deploy/api/config/env.php
+          echo "}" >> deploy/api/config/env.php
+          echo "?>" >> deploy/api/config/env.php
+          echo "Fichier env.php créé par méthode de secours"
         else
           echo "Fichier env.php copié directement du projet"
         fi
         
-        # Créer config/db_config.json - COPIE DIRECTE
+        # Copie directe du fichier db_config.json
         cp api/config/db_config.json deploy/api/config/ || echo "Copie directe de db_config.json échouée"
         
         # Méthode de secours si la copie directe échoue
         if [ ! -f deploy/api/config/db_config.json ]; then
-          echo '{
-    "host": "p71x6d.myd.infomaniak.com",
-    "db_name": "p71x6d_richard",
-    "username": "p71x6d_richard",
-    "password": "Trottinette43!"
-}' > deploy/api/config/db_config.json
+          echo "{" > deploy/api/config/db_config.json
+          echo "    \"host\": \"p71x6d.myd.infomaniak.com\"," >> deploy/api/config/db_config.json
+          echo "    \"db_name\": \"p71x6d_richard\"," >> deploy/api/config/db_config.json
+          echo "    \"username\": \"p71x6d_richard\"," >> deploy/api/config/db_config.json
+          echo "    \"password\": \"Trottinette43!\"" >> deploy/api/config/db_config.json
+          echo "}" >> deploy/api/config/db_config.json
           echo "Fichier db_config.json créé par méthode de secours"
         else
           echo "Fichier db_config.json copié directement du projet"
@@ -155,44 +156,40 @@ function get_env($key, $default = null) {
         # Rendre les scripts bash exécutables
         chmod +x deploy/*.sh || echo "Impossible de rendre les scripts bash exécutables"
         
-        # Créer users.ini s'il n'existe pas
+        # Copie du fichier users.ini
+        cp users.ini deploy/ || echo "Copie directe de users.ini échouée"
+        
+        # Méthode de secours si la copie directe échoue
         if [ ! -f "deploy/users.ini" ]; then
-          cp users.ini deploy/ || echo "Copie directe de users.ini échouée"
-          
-          # En cas d'échec de la copie directe
-          if [ ! -f "deploy/users.ini" ]; then
-            echo '; Configuration des utilisateurs et de leurs rôles
-; Format: username = password:role
-; Exemple: admin = hashed_password:admin
-
-[users]
-; Utilisateur par défaut (à modifier après la première connexion)
-admin = admin123:admin
-
-[roles]
-; Définition des rôles (ne pas modifier)
-admin = Administrateur système
-manager = Responsable qualité
-user = Utilisateur standard
-auditor = Auditeur
-consultant = Consultant
-external = Partenaire externe
-
-[settings]
-; Paramètres de sécurité
-password_min_length = 8
-require_uppercase = true
-require_number = true
-require_special = false
-max_login_attempts = 5
-lockout_time = 30  ; minutes
-session_timeout = 120  ; minutes' > deploy/users.ini
-            echo "Fichier users.ini créé manuellement"
-          else
-            echo "Fichier users.ini copié directement du projet"
-          fi
+          echo "; Configuration des utilisateurs et de leurs rôles" > deploy/users.ini
+          echo "; Format: username = password:role" >> deploy/users.ini
+          echo "; Exemple: admin = hashed_password:admin" >> deploy/users.ini
+          echo "" >> deploy/users.ini
+          echo "[users]" >> deploy/users.ini
+          echo "; Utilisateur par défaut (à modifier après la première connexion)" >> deploy/users.ini
+          echo "admin = admin123:admin" >> deploy/users.ini
+          echo "" >> deploy/users.ini
+          echo "[roles]" >> deploy/users.ini
+          echo "; Définition des rôles (ne pas modifier)" >> deploy/users.ini
+          echo "admin = Administrateur système" >> deploy/users.ini
+          echo "manager = Responsable qualité" >> deploy/users.ini
+          echo "user = Utilisateur standard" >> deploy/users.ini
+          echo "auditor = Auditeur" >> deploy/users.ini
+          echo "consultant = Consultant" >> deploy/users.ini
+          echo "external = Partenaire externe" >> deploy/users.ini
+          echo "" >> deploy/users.ini
+          echo "[settings]" >> deploy/users.ini
+          echo "; Paramètres de sécurité" >> deploy/users.ini
+          echo "password_min_length = 8" >> deploy/users.ini
+          echo "require_uppercase = true" >> deploy/users.ini
+          echo "require_number = true" >> deploy/users.ini
+          echo "require_special = false" >> deploy/users.ini
+          echo "max_login_attempts = 5" >> deploy/users.ini
+          echo "lockout_time = 30  ; minutes" >> deploy/users.ini
+          echo "session_timeout = 120  ; minutes" >> deploy/users.ini
+          echo "Fichier users.ini créé manuellement"
         else
-          cp users.ini deploy/ || echo "Fichier users.ini non trouvé"
+          echo "Fichier users.ini copié directement du projet"
         fi
         
         echo "Structure du dossier de déploiement:"
@@ -222,3 +219,4 @@ session_timeout = 120  ; minutes' > deploy/users.ini
       run: |
         rm -rf deploy
         rm -rf dist
+
