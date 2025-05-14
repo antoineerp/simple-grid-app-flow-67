@@ -64,7 +64,7 @@ jobs:
         echo "Copie des fichiers de configuration..."
         mkdir -p deploy/api/config
         
-        # Créer config/env.php avec les bonnes valeurs
+               # Créer config/env.php avec les bonnes valeurs
         cat > deploy/api/config/env.php << 'EOL'
 <?php
 // Configuration des variables d'environnement pour Infomaniak
@@ -84,8 +84,8 @@ function get_env($key, $default = null) {
 }
 ?>
 EOL
-
         echo "Fichier env.php créé avec p71x6d_richard"
+
         
         # Créer config/db_config.json avec les bonnes valeurs
         cat > deploy/api/config/db_config.json << 'EOL'
