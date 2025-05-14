@@ -60,6 +60,32 @@ header('Content-Type: text/html; charset=utf-8');
                     }
                 } else {
                     echo "<p>Note: L'extension YAML n'est pas disponible pour valider la syntaxe.</p>";
+                    
+                    // Vérification spécifique des blocs heredoc (EOL)
+                    $lines = explode("\n", $workflow_content);
+                    $has_heredoc = false;
+                    $heredoc_errors = [];
+                    
+                    for ($i = 0; $i < count($lines); $i++) {
+                        $line = $lines[$i];
+                        if (strpos($line, "<<") !== false && strpos($line, "EOL") !== false) {
+                            $has_heredoc = true;
+                            $lineNum = $i + 1;
+                            
+                            // Vérifier s'il y a un saut de ligne après le délimiteur EOL
+                            if ($i + 1 < count($lines)) {
+                                $nextLine = $lines[$i + 1];
+                                if (strpos($nextLine, "<?php") === 0 || strpos($nextLine, "{") === 0 || strpos($nextLine, ";") === 0) {
+                                    echo "<p><span class='warning'>Attention à la ligne $lineNum: Le délimiteur EOL devrait être suivi d'un saut de ligne.</span></p>";
+                                    $heredoc_errors[] = $lineNum;
+                                }
+                            }
+                        }
+                    }
+                    
+                    if ($has_heredoc && empty($heredoc_errors)) {
+                        echo "<p><span class='success'>Les blocs heredoc (EOL) semblent correctement formatés.</span></p>";
+                    }
                 }
             } else {
                 echo "<p>Fichier de workflow: <span class='error'>Non trouvé</span></p>";
