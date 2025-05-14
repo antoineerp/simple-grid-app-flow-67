@@ -52,7 +52,8 @@ jobs:
         mkdir -p deploy/api/operations
         mkdir -p deploy/api/utils
         mkdir -p deploy/public/lovable-uploads
-        
+        mkdir -p deploy/.github/workflows
+
         # Copie des fichiers compilés directement dans assets
         cp -r dist/assets/* deploy/assets/
         
@@ -60,7 +61,7 @@ jobs:
         cp dist/index.html deploy/
         cp .htaccess deploy/ || echo "Fichier .htaccess non trouvé"
         
-        # Création du fichier .user.ini à la racine
+        # Création du fichier .user.ini à la racine (IMPORTANT)
         echo "; Configuration PHP pour Infomaniak" > deploy/.user.ini
         echo "display_errors = Off" >> deploy/.user.ini
         echo "log_errors = On" >> deploy/.user.ini
@@ -76,49 +77,35 @@ jobs:
         echo "Copie des fichiers de configuration..."
         mkdir -p deploy/api/config
         
-        # Copie directe du fichier env.php existant
-        cp api/config/env.php deploy/api/config/ || echo "Copie directe de env.php échouée"
+        # Méthode fiable pour créer le fichier env.php
+        echo "<?php" > deploy/api/config/env.php
+        echo "// Configuration des variables d'environnement pour Infomaniak" >> deploy/api/config/env.php
+        echo "define('DB_HOST', 'p71x6d.myd.infomaniak.com');" >> deploy/api/config/env.php
+        echo "define('DB_NAME', 'p71x6d_richard');" >> deploy/api/config/env.php
+        echo "define('DB_USER', 'p71x6d_richard');" >> deploy/api/config/env.php
+        echo "define('DB_PASS', 'Trottinette43!');" >> deploy/api/config/env.php
+        echo "define('API_BASE_URL', '/api');" >> deploy/api/config/env.php
+        echo "define('APP_ENV', 'production');" >> deploy/api/config/env.php
+        echo "" >> deploy/api/config/env.php
+        echo "// Fonction d'aide pour récupérer les variables d'environnement" >> deploy/api/config/env.php
+        echo "function get_env(\$key, \$default = null) {" >> deploy/api/config/env.php
+        echo "    \$const_name = strtoupper(\$key);" >> deploy/api/config/env.php
+        echo "    if (defined(\$const_name)) {" >> deploy/api/config/env.php
+        echo "        return constant(\$const_name);" >> deploy/api/config/env.php
+        echo "    }" >> deploy/api/config/env.php
+        echo "    return \$default;" >> deploy/api/config/env.php
+        echo "}" >> deploy/api/config/env.php
+        echo "?>" >> deploy/api/config/env.php
+        echo "Fichier env.php créé par méthode fiable"
         
-        # Méthode de secours si la copie directe échoue
-        if [ ! -f deploy/api/config/env.php ]; then
-          echo "<?php" > deploy/api/config/env.php
-          echo "// Configuration des variables d'environnement pour Infomaniak" >> deploy/api/config/env.php
-          echo "define('DB_HOST', 'p71x6d.myd.infomaniak.com');" >> deploy/api/config/env.php
-          echo "define('DB_NAME', 'p71x6d_richard');" >> deploy/api/config/env.php
-          echo "define('DB_USER', 'p71x6d_richard');" >> deploy/api/config/env.php
-          echo "define('DB_PASS', 'Trottinette43!');" >> deploy/api/config/env.php
-          echo "define('API_BASE_URL', '/api');" >> deploy/api/config/env.php
-          echo "define('APP_ENV', 'production');" >> deploy/api/config/env.php
-          echo "" >> deploy/api/config/env.php
-          echo "// Fonction d'aide pour récupérer les variables d'environnement" >> deploy/api/config/env.php
-          echo "function get_env(\$key, \$default = null) {" >> deploy/api/config/env.php
-          echo "    \$const_name = strtoupper(\$key);" >> deploy/api/config/env.php
-          echo "    if (defined(\$const_name)) {" >> deploy/api/config/env.php
-          echo "        return constant(\$const_name);" >> deploy/api/config/env.php
-          echo "    }" >> deploy/api/config/env.php
-          echo "    return \$default;" >> deploy/api/config/env.php
-          echo "}" >> deploy/api/config/env.php
-          echo "?>" >> deploy/api/config/env.php
-          echo "Fichier env.php créé par méthode de secours"
-        else
-          echo "Fichier env.php copié directement du projet"
-        fi
-        
-        # Copie directe du fichier db_config.json
-        cp api/config/db_config.json deploy/api/config/ || echo "Copie directe de db_config.json échouée"
-        
-        # Méthode de secours si la copie directe échoue
-        if [ ! -f deploy/api/config/db_config.json ]; then
-          echo "{" > deploy/api/config/db_config.json
-          echo "    \"host\": \"p71x6d.myd.infomaniak.com\"," >> deploy/api/config/db_config.json
-          echo "    \"db_name\": \"p71x6d_richard\"," >> deploy/api/config/db_config.json
-          echo "    \"username\": \"p71x6d_richard\"," >> deploy/api/config/db_config.json
-          echo "    \"password\": \"Trottinette43!\"" >> deploy/api/config/db_config.json
-          echo "}" >> deploy/api/config/db_config.json
-          echo "Fichier db_config.json créé par méthode de secours"
-        else
-          echo "Fichier db_config.json copié directement du projet"
-        fi
+        # Méthode fiable pour créer le fichier db_config.json
+        echo "{" > deploy/api/config/db_config.json
+        echo "    \"host\": \"p71x6d.myd.infomaniak.com\"," >> deploy/api/config/db_config.json
+        echo "    \"db_name\": \"p71x6d_richard\"," >> deploy/api/config/db_config.json
+        echo "    \"username\": \"p71x6d_richard\"," >> deploy/api/config/db_config.json
+        echo "    \"password\": \"Trottinette43!\"" >> deploy/api/config/db_config.json
+        echo "}" >> deploy/api/config/db_config.json
+        echo "Fichier db_config.json créé par méthode fiable"
         
         # Copie des autres fichiers de configuration
         cp api/config/DatabaseConfig.php deploy/api/config/ || echo "Fichier DatabaseConfig.php non trouvé"
@@ -135,6 +122,19 @@ jobs:
         echo "AddType font/ttf .ttf" >> deploy/assets/.htaccess
         echo "AddType font/woff .woff" >> deploy/assets/.htaccess
         echo "AddType font/woff2 .woff2" >> deploy/assets/.htaccess
+        echo "" >> deploy/assets/.htaccess
+        echo "# Force le type MIME pour CSS" >> deploy/assets/.htaccess
+        echo "<FilesMatch \"\.css$\">" >> deploy/assets/.htaccess
+        echo "    ForceType text/css" >> deploy/assets/.htaccess
+        echo "    Header set Content-Type \"text/css; charset=utf-8\"" >> deploy/assets/.htaccess
+        echo "</FilesMatch>" >> deploy/assets/.htaccess
+        echo "" >> deploy/assets/.htaccess
+        echo "# Force le type MIME pour JavaScript" >> deploy/assets/.htaccess
+        echo "<FilesMatch \"\.js$\">" >> deploy/assets/.htaccess
+        echo "    ForceType application/javascript" >> deploy/assets/.htaccess
+        echo "    Header set Content-Type \"application/javascript; charset=utf-8\"" >> deploy/assets/.htaccess
+        echo "</FilesMatch>" >> deploy/assets/.htaccess
+        echo "" >> deploy/assets/.htaccess
         echo "# Activer la mise en cache" >> deploy/assets/.htaccess
         echo "<IfModule mod_expires.c>" >> deploy/assets/.htaccess
         echo "  ExpiresActive On" >> deploy/assets/.htaccess
@@ -142,7 +142,7 @@ jobs:
         echo "  ExpiresByType application/javascript \"access plus 1 week\"" >> deploy/assets/.htaccess
         echo "</IfModule>" >> deploy/assets/.htaccess
         chmod 644 deploy/assets/.htaccess
-        echo "Fichier .htaccess créé pour les assets"
+        echo "Fichier .htaccess créé pour les assets avec ForceType"
         
         # Copie explicite des fichiers API
         if [ -d "api" ]; then
@@ -178,6 +178,19 @@ jobs:
         cp check-github-workflow.php deploy/ || echo "Fichier check-github-workflow.php non trouvé"
         cp fix-workflow-yaml.php deploy/ || echo "Fichier fix-workflow-yaml.php non trouvé"
         cp trigger-github-workflow.php deploy/ || echo "Fichier trigger-github-workflow.php non trouvé"
+        cp check-build-status.php deploy/ || echo "Fichier check-build-status.php non trouvé"
+        cp verify-php-ssh.sh deploy/ || echo "Fichier verify-php-ssh.sh non trouvé"
+        
+        # Si les fichiers de diagnostic n'existent pas dans le dépôt, les créer directement
+        if [ ! -f "deploy/check-build-status.php" ]; then
+          echo "Création directe du fichier check-build-status.php..."
+          cp check-build-status.php deploy/ || echo "Création directe échouée"
+        fi
+        
+        if [ ! -f "deploy/verify-php-ssh.sh" ]; then
+          echo "Création directe du fichier verify-php-ssh.sh..."
+          cp verify-php-ssh.sh deploy/ || echo "Création directe échouée"
+        fi
         
         # Créer des fichiers de test supplémentaires
         echo '<?php phpinfo(); ?>' > deploy/web-php-test.php
@@ -229,8 +242,12 @@ jobs:
           echo "Fichier users.ini copié directement du projet"
         fi
         
+        # Copier le workflow GitHub lui-même
+        cp -r .github/workflows/* deploy/.github/workflows/ || echo "Copie des fichiers workflow échouée"
+        
         echo "Structure du dossier de déploiement:"
-        find deploy -type f | sort
+        find deploy -type f -name "*.php" | sort
+        find deploy -type f -name "*.sh" | sort
 
     - name: Sync to Infomaniak server
       uses: SamKirkland/FTP-Deploy-Action@v4.3.4
