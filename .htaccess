@@ -2,6 +2,11 @@
 # Activer le moteur de réécriture
 RewriteEngine On
 
+# Autoriser l'exécution de PHP
+<Files *.php>
+    SetHandler application/x-httpd-php
+</Files>
+
 # Rediriger toutes les requêtes vers index.html sauf les fichiers physiques, dossiers ou API
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
