@@ -27,7 +27,7 @@ header('Content-Type: text/html; charset=utf-8');
         <?php
         // Détecter l'environnement Infomaniak
         $client_path = '/home/clients/df8dceff557ccc0605d45e1581aa661b';
-        $sites_path = '/sites';
+        $sites_path = $client_path . '/sites';
         $domain = 'qualiopi.ch';
         $site_path = "{$sites_path}/{$domain}";
         
@@ -44,6 +44,28 @@ header('Content-Type: text/html; charset=utf-8');
         echo "<li>Répertoire courant: <code>" . getcwd() . "</code></li>";
         echo "<li>Document root: <code>" . ($_SERVER['DOCUMENT_ROOT'] ?? 'Non disponible') . "</code></li>";
         echo "</ul>";
+        
+        // Test de compatibilité entre le chemin courant et celui attendu
+        $current_path = getcwd();
+        $expected_paths = [
+            $site_path,
+            $_SERVER['DOCUMENT_ROOT'] ?? '',
+            str_replace('/sites/' . $domain, '', $current_path) . '/sites/' . $domain
+        ];
+        
+        $path_match = false;
+        foreach ($expected_paths as $path) {
+            if ($path && strpos($current_path, $path) !== false) {
+                $path_match = true;
+                break;
+            }
+        }
+        
+        echo "<p>Compatibilité du chemin: " . 
+             ($path_match ? 
+              '<span class="success">Le chemin actuel semble correspondre à la structure attendue</span>' : 
+              '<span class="warning">Le chemin actuel ne correspond pas exactement à la structure attendue</span>') .
+             "</p>";
         ?>
     </div>
     
@@ -53,7 +75,7 @@ header('Content-Type: text/html; charset=utf-8');
         
         <h3>Naviguer vers le répertoire correct</h3>
         <div class="command">
-            cd <?php echo $client_path; ?>
+            cd <?php echo $site_path; ?>
         </div>
         
         <h3>Exécuter les scripts de diagnostic</h3>
@@ -146,6 +168,8 @@ header('Content-Type: text/html; charset=utf-8');
                 $content = file_get_contents($script);
                 if (strpos($content, '/home/customers') !== false) {
                     echo "<li><code>{$script}</code> - <span class='warning'>Contient des références à corriger</span></li>";
+                } else if (strpos($script, 'ssh-diagnostic.sh') !== false && !strpos($content, 'BASE_PATH=')) {
+                    echo "<li><code>{$script}</code> - <span class='warning'>Ne contient pas de définition de BASE_PATH</span></li>";
                 } else {
                     echo "<li><code>{$script}</code> - <span class='success'>Aucune correction nécessaire</span></li>";
                 }
@@ -169,24 +193,46 @@ header('Content-Type: text/html; charset=utf-8');
             echo "<ul>";
             
             // Mettre à jour find-paths.sh
-            $find_paths_content = file_get_contents('find-paths.sh');
-            $updated_find_paths = str_replace('/home/customers', '/home/clients', $find_paths_content);
-            if ($find_paths_content !== $updated_find_paths) {
-                file_put_contents('find-paths.sh', $updated_find_paths);
-                echo "<li><code>find-paths.sh</code> - <span class='success'>Mise à jour effectuée</span></li>";
-            } else {
-                echo "<li><code>find-paths.sh</code> - <span class='success'>Aucune mise à jour nécessaire</span></li>";
+            if (file_exists('find-paths.sh')) {
+                $find_paths_content = file_get_contents('find-paths.sh');
+                $updated_find_paths = str_replace('/home/customers', '/home/clients', $find_paths_content);
+                if ($find_paths_content !== $updated_find_paths) {
+                    file_put_contents('find-paths.sh', $updated_find_paths);
+                    echo "<li><code>find-paths.sh</code> - <span class='success'>Mise à jour effectuée</span></li>";
+                } else {
+                    echo "<li><code>find-paths.sh</code> - <span class='success'>Aucune mise à jour nécessaire</span></li>";
+                }
             }
             
             // Mettre à jour ssh-diagnostic.sh
             if (file_exists('ssh-diagnostic.sh')) {
                 $diagnostic_content = file_get_contents('ssh-diagnostic.sh');
+                
+                // Corriger les chemins /home/customers si présents
                 $updated_diagnostic = str_replace('/home/customers', '/home/clients', $diagnostic_content);
-                if ($diagnostic_content !== $updated_diagnostic) {
-                    file_put_contents('ssh-diagnostic.sh', $updated_diagnostic);
-                    echo "<li><code>ssh-diagnostic.sh</code> - <span class='success'>Mise à jour effectuée</span></li>";
+                
+                // Ajouter BASE_PATH si non présent
+                if (strpos($updated_diagnostic, 'BASE_PATH=') === false) {
+                    $base_path_code = "# Définir le chemin de base correct pour Infomaniak\nBASE_PATH=\"/home/clients/df8dceff557ccc0605d45e1581aa661b/sites/qualiopi.ch\"\necho \"Utilisation du chemin de base: \$BASE_PATH\"\necho \"Chemin actuel: \$(pwd)\"\n\n# Se déplacer dans le répertoire de l'application si nécessaire\nif [ \"\$(pwd)\" != \"\$BASE_PATH\" ]; then\n    echo \"Changement vers le répertoire \$BASE_PATH pour le diagnostic...\"\n    cd \"\$BASE_PATH\" || echo \"⚠️ Impossible d'accéder au répertoire \$BASE_PATH\"\n    echo \"Nouveau répertoire courant: \$(pwd)\"\nfi\n\n";
+                    
+                    // Insérer après la première section (après la ligne "echo ===")
+                    $pattern = "/echo \"==+\"\n/";
+                    if (preg_match($pattern, $updated_diagnostic)) {
+                        $updated_diagnostic = preg_replace($pattern, "$0\n$base_path_code", $updated_diagnostic, 1);
+                    } else {
+                        // Au cas où le modèle n'est pas trouvé, ajouter après les commentaires initiaux
+                        $updated_diagnostic = preg_replace("/(^.*?exécution via SSH.*?\n\n)/s", "$1$base_path_code", $updated_diagnostic, 1);
+                    }
+                    
+                    echo "<li><code>ssh-diagnostic.sh</code> - <span class='success'>BASE_PATH ajouté et chemins mis à jour</span></li>";
+                } elseif ($diagnostic_content !== $updated_diagnostic) {
+                    echo "<li><code>ssh-diagnostic.sh</code> - <span class='success'>Chemins mis à jour</span></li>";
                 } else {
                     echo "<li><code>ssh-diagnostic.sh</code> - <span class='success'>Aucune mise à jour nécessaire</span></li>";
+                }
+                
+                if ($diagnostic_content !== $updated_diagnostic) {
+                    file_put_contents('ssh-diagnostic.sh', $updated_diagnostic);
                 }
             }
             
@@ -221,6 +267,27 @@ header('Content-Type: text/html; charset=utf-8');
             <a href="diagnose-infomaniak.php" style="display: inline-block; background-color: #3b82f6; color: white; padding: 10px 20px; text-decoration: none; border-radius: 6px; margin-right: 10px;">Lancer le diagnostic Infomaniak</a>
             <a href="phpinfo.php" style="display: inline-block; background-color: #4b5563; color: white; padding: 10px 20px; text-decoration: none; border-radius: 6px;">Voir la configuration PHP</a>
         </p>
+    </div>
+    
+    <div class="section">
+        <h2>6. Structure des chemins sur Infomaniak</h2>
+        <p>Voici la structure de chemins attendue pour cette installation :</p>
+        <pre>
+/home/clients/df8dceff557ccc0605d45e1581aa661b/     # Répertoire client
+├── sites/                                         # Dossier contenant les sites
+│   └── qualiopi.ch/                               # Dossier du site (racine web)
+│       ├── api/                                   # API
+│       │   ├── config/                            # Configuration de l'API
+│       │   │   └── db_config.json                 # Configuration BD
+│       │   ├── controllers/                       # Contrôleurs API
+│       │   └── models/                            # Modèles de données
+│       ├── assets/                                # Fichiers JS/CSS compilés
+│       ├── public/                                # Fichiers publics
+│       │   └── lovable-uploads/                   # Uploads d'images
+│       ├── index.php                              # Point d'entrée PHP
+│       ├── index.html                             # Point d'entrée HTML
+│       └── .htaccess                              # Configuration Apache
+        </pre>
     </div>
 </body>
 </html>

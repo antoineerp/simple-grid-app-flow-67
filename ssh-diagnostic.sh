@@ -6,6 +6,18 @@ echo "==========================================="
 echo "Diagnostic SSH avancé pour FormaCert - $(date)"
 echo "==========================================="
 
+# Définir le chemin de base correct pour Infomaniak
+BASE_PATH="/home/clients/df8dceff557ccc0605d45e1581aa661b/sites/qualiopi.ch"
+echo "Utilisation du chemin de base: $BASE_PATH"
+echo "Chemin actuel: $(pwd)"
+
+# Se déplacer dans le répertoire de l'application si nécessaire
+if [ "$(pwd)" != "$BASE_PATH" ]; then
+    echo "Changement vers le répertoire $BASE_PATH pour le diagnostic..."
+    cd "$BASE_PATH" || echo "⚠️ Impossible d'accéder au répertoire $BASE_PATH"
+    echo "Nouveau répertoire courant: $(pwd)"
+fi
+
 # Vérifier la structure des dossiers
 echo -e "\n== Structure des dossiers =="
 for dir in "." "assets" "api" "api/config" "api/controllers" "api/models" "public" "public/lovable-uploads"
