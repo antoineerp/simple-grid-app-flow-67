@@ -1,19 +1,10 @@
 
 <?php
-// Force output buffering to prevent output before headers
-ob_start();
-
-// Inclure la configuration de base
-if (file_exists(__DIR__ . '/config/index.php')) {
-    require_once __DIR__ . '/config/index.php';
-}
-
-// Configuration des headers
+// Point d'entrée pour la configuration de la base de données
 header("Content-Type: application/json; charset=UTF-8");
 header("Access-Control-Allow-Origin: *");
-header("Access-Control-Allow-Methods: GET, POST, OPTIONS");
-header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With");
-header("Cache-Control: no-cache, no-store, must-revalidate");
+header("Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS");
+header("Access-Control-Allow-Headers: Content-Type, Access-Control-Allow-Headers, Authorization, X-Requested-With");
 
 // Si c'est une requête OPTIONS (preflight), nous la terminons ici
 if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
@@ -22,122 +13,63 @@ if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
     exit;
 }
 
-// Définir DIRECT_ACCESS_CHECK pour protéger les fichiers inclus
-if (!defined('DIRECT_ACCESS_CHECK')) {
-    define('DIRECT_ACCESS_CHECK', true);
-}
+// Inclure les fichiers nécessaires
+require_once __DIR__ . '/config/DatabaseConfig.php';
 
-// Activer la journalisation des erreurs
-error_log("===== DEBUT EXECUTION database-config.php =====");
-error_log("Méthode: " . $_SERVER['REQUEST_METHOD'] . " - URI: " . $_SERVER['REQUEST_URI']);
-
-try {
-    // Inclure la base de données si elle existe
-    if (file_exists(__DIR__ . '/config/database.php')) {
-        require_once __DIR__ . '/config/database.php';
-    } else {
-        throw new Exception("Le fichier de configuration de base de données est introuvable");
-    }
-
-    // Vérifier si l'utilisateur est authentifié avec un token valide
-    $isAuthenticated = false;
-    $userData = null;
-    
-    // Récupérer les en-têtes de la requête
-    $allHeaders = getallheaders();
-    
-    // Journaliser les en-têtes pour le débogage
-    error_log("Headers reçus dans database-config.php: " . json_encode($allHeaders));
-    
-    // Mode de développement ou de production
-    $isDevelopment = true; // Toujours en mode développement pour permettre l'accès
-    
-    // En mode développement, on bypass l'authentification
-    if ($isDevelopment) {
-        $isAuthenticated = true;
-        error_log("Mode développement activé: authentification contournée");
+// Installer un gestionnaire d'erreur pour renvoyer des erreurs en JSON
+function json_error_handler($errno, $errstr, $errfile, $errline) {
+    if (!(error_reporting() & $errno)) {
+        return;
     }
     
-    // Extraire le token d'autorisation s'il est présent
-    $bearerToken = null;
-    if (isset($allHeaders['Authorization'])) {
-        $authHeader = $allHeaders['Authorization'];
-        if (strpos($authHeader, 'Bearer ') === 0) {
-            $bearerToken = substr($authHeader, 7);
-            error_log("Token d'autorisation trouvé: " . substr($bearerToken, 0, 10) . "...");
-            $isAuthenticated = true;
-        }
-    }
-    
-    // Si nous avons un contrôleur de configuration de base de données, l'utiliser
-    if (file_exists(__DIR__ . '/controllers/DatabaseConfigController.php')) {
-        require_once __DIR__ . '/controllers/DatabaseConfigController.php';
-        error_log("===== FIN EXECUTION database-config.php (via controller) =====");
-        exit;
-    }
-
-    // En l'absence du contrôleur, créer une réponse par défaut avec la configuration
-    $database = new Database();
-    $config = $database->getConfig();
-
-    // Masquer le mot de passe pour la sécurité
-    $config['password'] = '********';
-
-    // Ajouter des informations supplémentaires sur la connexion
-    $dbInfo = [
-        'status' => 'success',
-        'message' => 'Configuration de la base de données récupérée',
-        'config' => $config,
-        'connection' => [
-            'is_connected' => $database->testConnection(),
-            'error' => null
-        ],
-        'authentication' => [
-            'is_authenticated' => $isAuthenticated,
-            'development_mode' => $isDevelopment,
-            'has_bearer_token' => !empty($bearerToken)
-        ]
-    ];
-
-    // Tentative de récupération des bases de données disponibles
-    try {
-        $conn = $database->getConnection();
-        if ($conn) {
-            $stmt = $conn->query("SHOW DATABASES");
-            $databases = $stmt->fetchAll(PDO::FETCH_COLUMN);
-            
-            // Filtrer les bases de données système
-            $databases = array_filter($databases, function($db) {
-                return $db != 'information_schema' && $db != 'performance_schema' && 
-                       $db != 'mysql' && $db != 'sys';
-            });
-            
-            $dbInfo['available_databases'] = array_values($databases);
-        } else {
-            $dbInfo['connection']['error'] = "Impossible d'établir une connexion à la base de données";
-            $dbInfo['available_databases'] = [];
-        }
-    } catch (Exception $e) {
-        $dbInfo['connection']['error'] = $e->getMessage();
-        $dbInfo['available_databases'] = [];
-    }
-
-    // Envoyer la réponse
-    http_response_code(200);
-    echo json_encode($dbInfo, JSON_UNESCAPED_UNICODE);
-    error_log("===== FIN EXECUTION database-config.php (réponse par défaut) =====");
-    
-} catch (Exception $e) {
-    // Gérer les erreurs
-    error_log("Erreur dans database-config.php: " . $e->getMessage());
     http_response_code(500);
     echo json_encode([
-        "status" => "error", 
-        "message" => "Erreur serveur: " . $e->getMessage()
+        'status' => 'error',
+        'message' => $errstr,
+        'file' => basename($errfile),
+        'line' => $errline
     ]);
-    error_log("===== FIN EXECUTION database-config.php (avec erreur) =====");
+    exit;
 }
 
-// S'assurer que tout buffer est vidé
-if (ob_get_level()) ob_end_flush();
+set_error_handler("json_error_handler");
+
+try {
+    $config = new DatabaseConfig();
+    
+    // Traitement des requêtes en fonction de la méthode
+    switch($_SERVER['REQUEST_METHOD']) {
+        case 'GET':
+            // Récupérer la configuration (sans exposer le mot de passe complet)
+            echo json_encode($config->getConfig());
+            break;
+            
+        case 'POST':
+            // Mettre à jour la configuration
+            $data = json_decode(file_get_contents("php://input"), true);
+            
+            if (!$data || !isset($data['host']) || !isset($data['db_name']) || !isset($data['username'])) {
+                http_response_code(400);
+                echo json_encode(['status' => 'error', 'message' => 'Données incomplètes']);
+                break;
+            }
+            
+            $password = isset($data['password']) ? $data['password'] : '';
+            
+            if ($config->updateConfig($data['host'], $data['db_name'], $data['username'], $password)) {
+                echo json_encode(['status' => 'success', 'message' => 'Configuration mise à jour']);
+            } else {
+                http_response_code(500);
+                echo json_encode(['status' => 'error', 'message' => 'Échec de la mise à jour']);
+            }
+            break;
+            
+        default:
+            http_response_code(405);
+            echo json_encode(['status' => 'error', 'message' => 'Méthode non autorisée']);
+    }
+} catch (Exception $e) {
+    http_response_code(500);
+    echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);
+}
 ?>
