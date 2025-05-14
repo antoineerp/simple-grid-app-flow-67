@@ -102,5 +102,13 @@ header("Content-Type: text/html; charset=utf-8");
             <p><strong>Solution:</strong> Si vous voyez cette page, exécutez le fichier emergency-php-fix.php pour créer les fichiers manquants.</p>
         </div>
     <?php endif; ?>
+
+    <h2>Liens utiles</h2>
+    <ul>
+        <li><a href="phpinfo.php">Informations PHP</a></li>
+        <li><a href="test-php-execution.php">Test d'exécution PHP</a></li>
+        <li><a href="emergency-php-fix.php">Script de réparation d'urgence</a></li>
+        <li><a href="index.html">Application principale</a></li>
+    </ul>
 </body>
 </html>

@@ -132,7 +132,38 @@ $diagnostic = diagnostiquer_probleme_php();
 $actions_effectuees = [];
 $erreurs = [];
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+// Vérifier si c'est un accès web ou ligne de commande
+$is_cli = (php_sapi_name() === 'cli');
+$is_post_request = !$is_cli && isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] === 'POST';
+
+// Gestion des actions en fonction du contexte
+if ($is_cli) {
+    // Mode CLI: créer automatiquement tous les fichiers
+    if (creer_htaccess()) {
+        $actions_effectuees[] = "Fichier .htaccess créé ou mis à jour";
+    } else {
+        $erreurs[] = "Impossible de créer ou mettre à jour le fichier .htaccess";
+    }
+    
+    if (creer_user_ini()) {
+        $actions_effectuees[] = "Fichier .user.ini créé ou mis à jour";
+    } else {
+        $erreurs[] = "Impossible de créer ou mettre à jour le fichier .user.ini";
+    }
+    
+    if (creer_phpinfo()) {
+        $actions_effectuees[] = "Fichier phpinfo-complet.php créé";
+    } else {
+        $erreurs[] = "Impossible de créer le fichier phpinfo-complet.php";
+    }
+    
+    if (creer_test_minimal()) {
+        $actions_effectuees[] = "Fichier php-test-minimal.php créé";
+    } else {
+        $erreurs[] = "Impossible de créer le fichier php-test-minimal.php";
+    }
+} elseif ($is_post_request) {
+    // Mode web avec formulaire POST
     if (isset($_POST['fix_htaccess'])) {
         if (creer_htaccess()) {
             $actions_effectuees[] = "Fichier .htaccess créé ou mis à jour";
@@ -166,7 +197,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-// S'assurer que les fichiers critiques existent
+// S'assurer que les fichiers critiques existent toujours
 if (!file_exists("test-php-execution.php")) {
     $test_php_content = <<<EOT
 <?php
@@ -184,6 +215,28 @@ EOT;
 
 // Vider le tampon de sortie pour éviter les erreurs "headers already sent"
 ob_end_flush();
+
+// Si mode CLI, afficher directement les résultats
+if ($is_cli) {
+    echo "=== RÉPARATION D'URGENCE PHP ===\n\n";
+    echo "Version PHP: " . $diagnostic["version_php"] . "\n";
+    echo "Mode d'exécution: " . $diagnostic["sapi"] . "\n\n";
+    
+    echo "=== ACTIONS RÉALISÉES ===\n";
+    foreach ($actions_effectuees as $action) {
+        echo "✓ $action\n";
+    }
+    
+    if (!empty($erreurs)) {
+        echo "\n=== ERREURS RENCONTRÉES ===\n";
+        foreach ($erreurs as $erreur) {
+            echo "✗ $erreur\n";
+        }
+    }
+    
+    echo "\nFichiers créés avec succès. Vous pouvez maintenant accéder à ces fichiers via votre navigateur.\n";
+    exit;
+}
 ?>
 
 <!DOCTYPE html>
