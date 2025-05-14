@@ -1,4 +1,3 @@
-
 name: Deploy to Infomaniak
 
 on:
@@ -37,7 +36,6 @@ jobs:
         ls -la dist/
         echo "Liste des fichiers assets:"
         ls -la dist/assets/ || echo "Dossier assets non trouvé"
-
     - name: Prepare deployment directory
       run: |
         # Création des dossiers nécessaires
@@ -84,6 +82,7 @@ function get_env($key, $default = null) {
 }
 ?>
 EOL
+
         echo "Fichier env.php créé avec p71x6d_richard"
         
         # Créer config/db_config.json avec les bonnes valeurs
@@ -95,6 +94,7 @@ EOL
     "password": "Trottinette43!"
 }
 EOL
+
         echo "Fichier db_config.json créé avec p71x6d_richard"
         
         # Copie des autres fichiers de configuration
@@ -175,6 +175,7 @@ max_login_attempts = 5
 lockout_time = 30  ; minutes
 session_timeout = 120  ; minutes
 EOL
+
           echo "Fichier users.ini créé manuellement"
         else
           cp users.ini deploy/ || echo "Fichier users.ini non trouvé"
