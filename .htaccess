@@ -29,6 +29,17 @@ AddType text/css .css
     Allow from all
 </FilesMatch>
 
+# En-têtes de sécurité
+Header set X-Content-Type-Options "nosniff"
+Header set Content-Security-Policy "frame-ancestors 'self'; default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:;"
+Header set Content-Type "text/html; charset=utf-8"
+
+# En-têtes de cache corrects
+Header set Cache-Control "public, max-age=31536000, immutable"
+<FilesMatch "\.(html|php)$">
+    Header set Cache-Control "public, max-age=0, must-revalidate"
+</FilesMatch>
+
 # Traitement des ressources statiques
 RewriteCond %{REQUEST_URI} ^/lovable-uploads/
 RewriteRule ^lovable-uploads/(.*)$ public/lovable-uploads/$1 [L]
@@ -51,6 +62,7 @@ RewriteRule ^diagnose-infomaniak\.php$ - [L]
 RewriteRule ^verify-deploy\.php$ - [L]
 RewriteRule ^user-diagnostic\.php$ - [L]
 RewriteRule ^php-debug\.php$ - [L]
+RewriteRule ^users\.ini$ - [F,L]
 
 # Permettre l'accès direct aux assets dans leur dossier
 RewriteCond %{REQUEST_URI} ^/assets/
@@ -66,11 +78,6 @@ RewriteCond %{REQUEST_FILENAME} !-d
 RewriteCond %{REQUEST_URI} !^/api/
 RewriteRule ^(.*)$ index.html [QSA,L]
 
-# Configuration de sécurité et CORS
-Header set X-Content-Type-Options "nosniff"
-Header set X-XSS-Protection "1; mode=block"
-Header set X-Frame-Options "SAMEORIGIN"
-
 # Réponses CORS
 Header set Access-Control-Allow-Origin "*"
 Header set Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS"
@@ -79,14 +86,3 @@ Header set Access-Control-Allow-Headers "Content-Type, Authorization"
 # Gérer les erreurs 404 et 500
 ErrorDocument 404 /index.html
 ErrorDocument 500 /index.html
-
-# PHP Settings
-<IfModule mod_php.c>
-    php_flag display_errors on
-    php_value error_log "api/php_errors.log"
-    php_flag log_errors on
-    php_value upload_max_filesize "10M"
-    php_value post_max_size "12M"
-    php_value memory_limit "256M"
-    php_value max_execution_time 300
-</IfModule>
