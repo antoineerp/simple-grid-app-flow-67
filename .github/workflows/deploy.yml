@@ -60,6 +60,18 @@ jobs:
         cp dist/index.html deploy/
         cp .htaccess deploy/ || echo "Fichier .htaccess non trouvé"
         
+        # Création du fichier .user.ini à la racine
+        echo "; Configuration PHP pour Infomaniak" > deploy/.user.ini
+        echo "display_errors = Off" >> deploy/.user.ini
+        echo "log_errors = On" >> deploy/.user.ini
+        echo "error_reporting = E_ALL & ~E_DEPRECATED & ~E_STRICT" >> deploy/.user.ini
+        echo "max_execution_time = 120" >> deploy/.user.ini
+        echo "memory_limit = 256M" >> deploy/.user.ini
+        echo "upload_max_filesize = 64M" >> deploy/.user.ini
+        echo "post_max_size = 64M" >> deploy/.user.ini
+        chmod 644 deploy/.user.ini
+        echo "Fichier .user.ini créé à la racine du déploiement"
+        
         # Copie des fichiers de configuration
         echo "Copie des fichiers de configuration..."
         mkdir -p deploy/api/config
@@ -114,6 +126,24 @@ jobs:
         cp api/config/DatabaseDiagnostics.php deploy/api/config/ || echo "Fichier DatabaseDiagnostics.php non trouvé"
         cp api/config/database.php deploy/api/config/ || echo "Fichier database.php non trouvé"
         
+        # Création d'un fichier .htaccess pour les assets
+        echo "# Configurer les types MIME corrects pour les assets" > deploy/assets/.htaccess
+        echo "AddType text/css .css" >> deploy/assets/.htaccess
+        echo "AddType application/javascript .js" >> deploy/assets/.htaccess
+        echo "AddType application/javascript .mjs" >> deploy/assets/.htaccess
+        echo "AddType image/svg+xml .svg" >> deploy/assets/.htaccess
+        echo "AddType font/ttf .ttf" >> deploy/assets/.htaccess
+        echo "AddType font/woff .woff" >> deploy/assets/.htaccess
+        echo "AddType font/woff2 .woff2" >> deploy/assets/.htaccess
+        echo "# Activer la mise en cache" >> deploy/assets/.htaccess
+        echo "<IfModule mod_expires.c>" >> deploy/assets/.htaccess
+        echo "  ExpiresActive On" >> deploy/assets/.htaccess
+        echo "  ExpiresByType text/css \"access plus 1 week\"" >> deploy/assets/.htaccess
+        echo "  ExpiresByType application/javascript \"access plus 1 week\"" >> deploy/assets/.htaccess
+        echo "</IfModule>" >> deploy/assets/.htaccess
+        chmod 644 deploy/assets/.htaccess
+        echo "Fichier .htaccess créé pour les assets"
+        
         # Copie explicite des fichiers API
         if [ -d "api" ]; then
           echo "Copie des fichiers API..."
@@ -146,12 +176,19 @@ jobs:
         cp verify-users.php deploy/ || echo "Fichier verify-users.php non trouvé"
         cp user-diagnostic.php deploy/ || echo "Fichier user-diagnostic.php non trouvé"
         cp check-github-workflow.php deploy/ || echo "Fichier check-github-workflow.php non trouvé"
+        cp fix-workflow-yaml.php deploy/ || echo "Fichier fix-workflow-yaml.php non trouvé"
+        cp trigger-github-workflow.php deploy/ || echo "Fichier trigger-github-workflow.php non trouvé"
+        
+        # Créer des fichiers de test supplémentaires
+        echo '<?php phpinfo(); ?>' > deploy/web-php-test.php
+        chmod 644 deploy/web-php-test.php
         
         # Copie des scripts bash et leur rendre exécutable
         echo "Copie des scripts bash..."
         cp diagnose-infomaniak.sh deploy/ || echo "Fichier diagnose-infomaniak.sh non trouvé"
         cp check-users-ini.sh deploy/ || echo "Fichier check-users-ini.sh non trouvé"
         cp ssh-diagnostic.sh deploy/ || echo "Fichier ssh-diagnostic.sh non trouvé"
+        cp deploy-manual.sh deploy/ || echo "Fichier deploy-manual.sh non trouvé"
         
         # Rendre les scripts bash exécutables
         chmod +x deploy/*.sh || echo "Impossible de rendre les scripts bash exécutables"
@@ -219,4 +256,3 @@ jobs:
       run: |
         rm -rf deploy
         rm -rf dist
-

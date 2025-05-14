@@ -5,98 +5,93 @@ header('Content-Type: text/html; charset=utf-8');
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Test d'exécution PHP via Web</title>
+    <title>Test PHP Web</title>
     <style>
         body { font-family: Arial, sans-serif; margin: 20px; line-height: 1.6; }
         .success { color: green; font-weight: bold; }
         .error { color: red; font-weight: bold; }
-        .section { background-color: #f5f5f5; padding: 15px; margin-bottom: 20px; border-radius: 5px; }
-        pre { background: #eee; padding: 10px; overflow-x: auto; }
+        .info { background-color: #f5f5f5; padding: 10px; border-left: 4px solid #2196F3; }
+        .section { margin-bottom: 20px; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
     </style>
 </head>
 <body>
-    <h1>Test d'exécution PHP via navigateur</h1>
+    <h1>Test d'exécution PHP via Web</h1>
     
     <div class="section">
         <h2>Informations PHP</h2>
-        <p>Date et heure: <strong><?php echo date('Y-m-d H:i:s'); ?></strong></p>
-        <p>Version PHP: <strong><?php echo phpversion(); ?></strong></p>
-        <p>Interface SAPI: <strong><?php echo php_sapi_name(); ?></strong></p>
-        <p>Extensions chargées: <?php echo count(get_loaded_extensions()); ?> extensions</p>
+        <p>Date et heure: <?php echo date('Y-m-d H:i:s'); ?></p>
+        <p>Version PHP: <?php echo phpversion(); ?></p>
+        <p>Serveur: <?php echo $_SERVER['SERVER_SOFTWARE']; ?></p>
+        <p>Document Root: <?php echo $_SERVER['DOCUMENT_ROOT']; ?></p>
     </div>
     
     <div class="section">
-        <h2>Chemins du système</h2>
-        <p>Document Root: <strong><?php echo $_SERVER['DOCUMENT_ROOT']; ?></strong></p>
-        <p>Script Filename: <strong><?php echo $_SERVER['SCRIPT_FILENAME']; ?></strong></p>
-        <p>Répertoire actuel: <strong><?php echo getcwd(); ?></strong></p>
-        <p>Chemin du fichier: <strong><?php echo __FILE__; ?></strong></p>
-    </div>
-    
-    <div class="section">
-        <h2>Fichiers importants</h2>
+        <h2>Test des fichiers de configuration</h2>
         <?php
-        $important_files = [
-            '.htaccess' => 'Configuration Apache',
-            'index.html' => 'Page principale',
-            'index.php' => 'Point d\'entrée PHP',
-            '.user.ini' => 'Configuration PHP',
-            'users.ini' => 'Fichier utilisateurs',
-            'api/index.php' => 'Point d\'entrée API'
-        ];
-        
-        echo "<ul>";
-        foreach ($important_files as $file => $desc) {
-            echo "<li>$file: ";
-            if (file_exists($file)) {
-                echo "<span class='success'>Existe</span>";
-            } else {
-                echo "<span class='error'>N'existe pas</span>";
-            }
-            echo " - $desc</li>";
-        }
-        echo "</ul>";
-        ?>
-    </div>
-    
-    <div class="section">
-        <h2>Vérification des MIME types</h2>
-        <?php
-        // Tester la configuration MIME pour les fichiers CSS et JS
-        $mime_types = [
-            '.css' => 'text/css',
-            '.js' => 'application/javascript'
-        ];
-        
-        echo "<p>Configuration des types MIME dans le .htaccess:</p>";
-        if (file_exists('.htaccess')) {
-            $htaccess = file_get_contents('.htaccess');
-            echo "<pre>" . htmlspecialchars(preg_grep('/AddType|ForceType/', file('.htaccess'))) . "</pre>";
+        // Vérifier si .user.ini existe
+        $user_ini = './.user.ini';
+        if (file_exists($user_ini)) {
+            echo "<p class='success'>.user.ini existe et a été trouvé</p>";
+            echo "<pre>" . htmlspecialchars(file_get_contents($user_ini)) . "</pre>";
         } else {
-            echo "<p class='error'>Fichier .htaccess non trouvé</p>";
+            echo "<p class='error'>.user.ini n'existe pas à l'emplacement actuel</p>";
+        }
+        
+        // Vérifier si .htaccess existe
+        $htaccess = './.htaccess';
+        if (file_exists($htaccess)) {
+            echo "<p class='success'>.htaccess existe et a été trouvé</p>";
+            echo "<p>Taille: " . filesize($htaccess) . " octets</p>";
+        } else {
+            echo "<p class='error'>.htaccess n'existe pas à l'emplacement actuel</p>";
+        }
+        
+        // Vérifier la structure des dossiers
+        echo "<h3>Structure des dossiers:</h3>";
+        $directories = [
+            './api' => 'API',
+            './assets' => 'Assets',
+            './public' => 'Public'
+        ];
+        
+        foreach ($directories as $dir => $name) {
+            echo "<p>$name ($dir): ";
+            if (is_dir($dir)) {
+                echo "<span class='success'>OK</span>";
+            } else {
+                echo "<span class='error'>NON TROUVÉ</span>";
+            }
+            echo "</p>";
         }
         ?>
     </div>
     
     <div class="section">
-        <h2>Test de génération de JSON</h2>
+        <h2>Vérification des types MIME</h2>
+        <p>Le serveur doit être configuré pour servir les fichiers CSS et JavaScript avec les types MIME corrects.</p>
         <?php
-        $test_array = [
-            'success' => true,
-            'message' => 'Test JSON réussi',
-            'timestamp' => time(),
-            'php_version' => phpversion()
-        ];
-        
-        echo "<p>Voici un exemple de JSON généré par PHP:</p>";
-        echo "<pre>" . htmlspecialchars(json_encode($test_array, JSON_PRETTY_PRINT)) . "</pre>";
+        echo "<p>Contenu de .htaccess lié aux types MIME:</p>";
+        if (file_exists($htaccess)) {
+            $content = file_get_contents($htaccess);
+            if (preg_match_all('/AddType\s+([^\s]+)\s+([^\s]+)/', $content, $matches)) {
+                echo "<ul>";
+                for ($i = 0; $i < count($matches[0]); $i++) {
+                    echo "<li>" . htmlspecialchars($matches[0][$i]) . "</li>";
+                }
+                echo "</ul>";
+                
+                if (strpos($content, 'AddType text/css .css') !== false) {
+                    echo "<p class='success'>Le type MIME pour CSS est correctement configuré</p>";
+                } else {
+                    echo "<p class='error'>Le type MIME pour CSS n'est PAS configuré correctement</p>";
+                }
+            } else {
+                echo "<p class='error'>Aucune directive AddType trouvée dans .htaccess</p>";
+            }
+        }
         ?>
     </div>
     
-    <p>Ce test confirme que PHP fonctionne correctement sur votre serveur via le web.</p>
-    
-    <p>
-        <a href="/" style="display:inline-block; background:#607D8B; color:white; padding:10px 15px; text-decoration:none; border-radius:5px;">Retour à la page d'accueil</a>
-    </p>
+    <p class="info">Si vous voyez cette page, cela signifie que PHP fonctionne correctement sur votre serveur web.</p>
 </body>
 </html>
