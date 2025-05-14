@@ -5,208 +5,228 @@ header('Content-Type: text/html; charset=utf-8');
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Diagnostic PHP et MySQL</title>
+    <title>Diagnostic PHP - FormaCert</title>
     <style>
         body { font-family: Arial, sans-serif; margin: 20px; line-height: 1.6; }
+        .section { border: 1px solid #ddd; padding: 15px; margin-bottom: 20px; border-radius: 5px; }
         .success { color: green; font-weight: bold; }
         .error { color: red; font-weight: bold; }
         .warning { color: orange; font-weight: bold; }
-        .section { margin-bottom: 30px; border: 1px solid #ddd; padding: 15px; border-radius: 5px; }
-        pre { background: #f5f5f5; padding: 10px; border-radius: 5px; overflow-x: auto; }
+        pre { background-color: #f5f5f5; padding: 10px; border-radius: 5px; overflow-x: auto; }
+        table { border-collapse: collapse; width: 100%; }
+        table, th, td { border: 1px solid #ddd; }
+        th, td { padding: 8px; text-align: left; }
+        th { background-color: #f5f5f5; }
     </style>
 </head>
 <body>
-    <h1>Diagnostic PHP et MySQL</h1>
+    <h1>Diagnostic PHP - FormaCert</h1>
+    <p>Date d'exécution: <?php echo date('Y-m-d H:i:s'); ?></p>
     
     <div class="section">
-        <h2>Environnement PHP</h2>
-        <?php
-        echo "<p>PHP Version: " . phpversion() . "</p>";
-        echo "<p>Serveur Web: " . $_SERVER['SERVER_SOFTWARE'] . "</p>";
-        echo "<p>Interface PHP: " . php_sapi_name() . "</p>";
-        echo "<p>Extensions chargées: " . implode(', ', get_loaded_extensions()) . "</p>";
-        
-        // Vérifier les extensions critiques
-        $required_extensions = ['pdo', 'pdo_mysql', 'mysqli', 'json', 'mbstring'];
-        echo "<h3>Extensions requises:</h3><ul>";
-        foreach ($required_extensions as $ext) {
-            if (extension_loaded($ext)) {
-                echo "<li><span class='success'>✓ $ext</span></li>";
-            } else {
-                echo "<li><span class='error'>✗ $ext</span></li>";
-            }
-        }
-        echo "</ul>";
-        ?>
+        <h2>Informations PHP</h2>
+        <p>Version PHP: <strong><?php echo phpversion(); ?></strong></p>
+        <p>Interface SAPI: <strong><?php echo php_sapi_name(); ?></strong></p>
+        <p>Système d'exploitation: <strong><?php echo PHP_OS; ?></strong></p>
+        <p>Répertoire actuel: <strong><?php echo getcwd(); ?></strong></p>
     </div>
     
     <div class="section">
-        <h2>Test de connexion à la base de données</h2>
-        <?php
-        // Tester la connexion avec les paramètres de db_config.json
-        $config_file = __DIR__ . '/api/config/db_config.json';
-        if (file_exists($config_file)) {
-            echo "<p>Fichier de configuration trouvé: $config_file</p>";
-            $json = file_get_contents($config_file);
-            $config = json_decode($json, true);
-            
-            if (json_last_error() !== JSON_ERROR_NONE) {
-                echo "<p class='error'>Erreur de décodage JSON: " . json_last_error_msg() . "</p>";
-                echo "<pre>" . htmlentities($json) . "</pre>";
-            } else {
-                echo "<p>Configuration chargée:</p>";
-                echo "<ul>";
-                echo "<li>Hôte: " . (isset($config['host']) ? $config['host'] : 'Non défini') . "</li>";
-                echo "<li>Base de données: " . (isset($config['db_name']) ? $config['db_name'] : 'Non défini') . "</li>";
-                echo "<li>Utilisateur: " . (isset($config['username']) ? $config['username'] : 'Non défini') . "</li>";
-                echo "<li>Mot de passe: " . (isset($config['password']) ? (empty($config['password']) ? 'VIDE' : 'Défini') : 'Non défini') . "</li>";
-                echo "</ul>";
-                
-                // Tester la connexion MySQLi
-                if (extension_loaded('mysqli')) {
-                    echo "<h3>Test de connexion MySQLi:</h3>";
-                    if (isset($config['host']) && isset($config['username'])) {
-                        try {
-                            $mysqli = new mysqli(
-                                $config['host'],
-                                $config['username'],
-                                $config['password'] ?? '',
-                                $config['db_name'] ?? ''
-                            );
-                            
-                            if ($mysqli->connect_error) {
-                                echo "<p class='error'>Erreur de connexion MySQLi: " . $mysqli->connect_error . "</p>";
-                            } else {
-                                echo "<p class='success'>Connexion MySQLi réussie!</p>";
-                                echo "<p>Version MySQL: " . $mysqli->server_info . "</p>";
-                                
-                                // Afficher les tables
-                                $tables_result = $mysqli->query("SHOW TABLES");
-                                if ($tables_result) {
-                                    $tables = [];
-                                    while ($row = $tables_result->fetch_array()) {
-                                        $tables[] = $row[0];
-                                    }
-                                    echo "<p>Tables disponibles (" . count($tables) . "): " . implode(", ", $tables) . "</p>";
-                                }
-                                
-                                $mysqli->close();
-                            }
-                        } catch (Exception $e) {
-                            echo "<p class='error'>Exception MySQLi: " . $e->getMessage() . "</p>";
-                        }
-                    } else {
-                        echo "<p class='warning'>Configuration incomplète pour le test MySQLi.</p>";
-                    }
-                } else {
-                    echo "<p class='warning'>Extension MySQLi non disponible.</p>";
-                }
-                
-                // Tester la connexion PDO
-                if (extension_loaded('pdo') && extension_loaded('pdo_mysql')) {
-                    echo "<h3>Test de connexion PDO:</h3>";
-                    if (isset($config['host']) && isset($config['username'])) {
-                        try {
-                            $dsn = "mysql:host={$config['host']};charset=utf8mb4";
-                            if (isset($config['db_name']) && !empty($config['db_name'])) {
-                                $dsn .= ";dbname={$config['db_name']}";
-                            }
-                            
-                            $pdo = new PDO(
-                                $dsn,
-                                $config['username'],
-                                $config['password'] ?? '',
-                                [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]
-                            );
-                            
-                            echo "<p class='success'>Connexion PDO réussie!</p>";
-                            
-                            // Afficher la version
-                            $version = $pdo->query('SELECT VERSION()')->fetchColumn();
-                            echo "<p>Version MySQL: " . $version . "</p>";
-                            
-                            // Afficher les tables
-                            if (isset($config['db_name']) && !empty($config['db_name'])) {
-                                $tables_result = $pdo->query("SHOW TABLES");
-                                if ($tables_result) {
-                                    $tables = $tables_result->fetchAll(PDO::FETCH_COLUMN);
-                                    echo "<p>Tables disponibles (" . count($tables) . "): " . implode(", ", $tables) . "</p>";
-                                }
-                            }
-                        } catch (PDOException $e) {
-                            echo "<p class='error'>Erreur PDO: " . $e->getMessage() . "</p>";
-                        }
-                    } else {
-                        echo "<p class='warning'>Configuration incomplète pour le test PDO.</p>";
-                    }
-                } else {
-                    echo "<p class='warning'>Extensions PDO et/ou PDO_MySQL non disponibles.</p>";
-                }
-            }
-        } else {
-            echo "<p class='error'>Fichier de configuration non trouvé: $config_file</p>";
-        }
-        ?>
+        <h2>Chemins importants</h2>
+        <table>
+            <tr>
+                <th>Variable</th>
+                <th>Valeur</th>
+            </tr>
+            <tr>
+                <td>Document Root</td>
+                <td><?php echo $_SERVER['DOCUMENT_ROOT'] ?? 'Non défini'; ?></td>
+            </tr>
+            <tr>
+                <td>Script Filename</td>
+                <td><?php echo $_SERVER['SCRIPT_FILENAME'] ?? 'Non défini'; ?></td>
+            </tr>
+            <tr>
+                <td>PHP_SELF</td>
+                <td><?php echo $_SERVER['PHP_SELF'] ?? 'Non défini'; ?></td>
+            </tr>
+            <tr>
+                <td>REQUEST_URI</td>
+                <td><?php echo $_SERVER['REQUEST_URI'] ?? 'Non défini'; ?></td>
+            </tr>
+            <tr>
+                <td>HTTP_HOST</td>
+                <td><?php echo $_SERVER['HTTP_HOST'] ?? 'Non défini'; ?></td>
+            </tr>
+            <tr>
+                <td>include_path</td>
+                <td><?php echo get_include_path(); ?></td>
+            </tr>
+        </table>
     </div>
     
     <div class="section">
-        <h2>Informations sur le serveur</h2>
+        <h2>Configuration PHP</h2>
         <?php
-        echo "<p>Document Root: " . $_SERVER['DOCUMENT_ROOT'] . "</p>";
-        echo "<p>Chemin absolu du script: " . __FILE__ . "</p>";
-        echo "<p>Répertoire du script: " . dirname(__FILE__) . "</p>";
-        
-        // Vérifier les droits d'écriture
-        $test_directories = [
-            __DIR__ . '/api',
-            __DIR__ . '/api/config',
-            __DIR__ . '/api/logs',
-            __DIR__ . '/public',
-            __DIR__ . '/public/lovable-uploads'
+        $important_settings = [
+            'display_errors', 'error_reporting', 'log_errors', 'error_log',
+            'max_execution_time', 'memory_limit', 'post_max_size', 'upload_max_filesize',
+            'date.timezone', 'default_charset', 'allow_url_fopen', 'allow_url_include',
+            'opcache.enable'
         ];
         
-        echo "<h3>Permissions des dossiers:</h3><ul>";
-        foreach ($test_directories as $dir) {
-            if (file_exists($dir)) {
-                if (is_writable($dir)) {
-                    echo "<li><span class='success'>✓ $dir (Accessible en écriture)</span></li>";
-                } else {
-                    echo "<li><span class='error'>✗ $dir (Non accessible en écriture)</span></li>";
+        echo '<table>';
+        echo '<tr><th>Directive</th><th>Valeur</th></tr>';
+        
+        foreach ($important_settings as $setting) {
+            echo '<tr>';
+            echo '<td>' . $setting . '</td>';
+            echo '<td>' . ini_get($setting) . '</td>';
+            echo '</tr>';
+        }
+        
+        echo '</table>';
+        ?>
+    </div>
+    
+    <div class="section">
+        <h2>Extensions PHP</h2>
+        <?php
+        $required_extensions = [
+            'mysqli' => 'MySQL Improved', 
+            'pdo' => 'PDO', 
+            'pdo_mysql' => 'PDO MySQL',
+            'json' => 'JSON', 
+            'curl' => 'cURL',
+            'mbstring' => 'Multibyte String'
+        ];
+        
+        echo '<table>';
+        echo '<tr><th>Extension</th><th>Description</th><th>Statut</th></tr>';
+        
+        foreach ($required_extensions as $ext => $desc) {
+            echo '<tr>';
+            echo '<td>' . $ext . '</td>';
+            echo '<td>' . $desc . '</td>';
+            if (extension_loaded($ext)) {
+                echo '<td class="success">Chargée</td>';
+            } else {
+                echo '<td class="error">Non chargée</td>';
+            }
+            echo '</tr>';
+        }
+        
+        echo '</table>';
+        ?>
+    </div>
+    
+    <div class="section">
+        <h2>Test des chemins sur le serveur</h2>
+        <?php
+        $paths_to_check = [
+            '.' => 'Répertoire courant',
+            './api' => 'Dossier API',
+            './api/config' => 'Configuration API',
+            './assets' => 'Assets',
+            './public' => 'Dossier public'
+        ];
+        
+        echo '<table>';
+        echo '<tr><th>Chemin</th><th>Description</th><th>Existe</th><th>Permissions</th></tr>';
+        
+        foreach ($paths_to_check as $path => $desc) {
+            echo '<tr>';
+            echo '<td>' . $path . '</td>';
+            echo '<td>' . $desc . '</td>';
+            
+            if (file_exists($path)) {
+                echo '<td class="success">Oui</td>';
+                $perms = substr(sprintf('%o', fileperms($path)), -4);
+                $owner = function_exists('posix_getpwuid') ? posix_getpwuid(fileowner($path))['name'] : 'N/A';
+                $group = function_exists('posix_getgrgid') ? posix_getgrgid(filegroup($path))['name'] : 'N/A';
+                echo '<td>' . $perms . ' (owner: ' . $owner . ', group: ' . $group . ')</td>';
+            } else {
+                echo '<td class="error">Non</td>';
+                echo '<td>N/A</td>';
+            }
+            
+            echo '</tr>';
+        }
+        
+        echo '</table>';
+        ?>
+    </div>
+    
+    <div class="section">
+        <h2>Test de la base de données</h2>
+        <?php
+        $db_config_file = './api/config/db_config.json';
+        
+        if (file_exists($db_config_file)) {
+            $db_config = json_decode(file_get_contents($db_config_file), true);
+            
+            if ($db_config) {
+                echo '<p>Configuration trouvée:</p>';
+                echo '<ul>';
+                echo '<li>Host: ' . $db_config['host'] . '</li>';
+                echo '<li>DB Name: ' . $db_config['db_name'] . '</li>';
+                echo '<li>Username: ' . $db_config['username'] . '</li>';
+                echo '<li>Password: ' . (empty($db_config['password']) ? '<span class="error">Manquant</span>' : '<span class="success">Défini</span>') . '</li>';
+                echo '</ul>';
+                
+                // Test de connexion
+                try {
+                    $dsn = "mysql:host={$db_config['host']};dbname={$db_config['db_name']}";
+                    $options = [
+                        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+                        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+                        PDO::ATTR_TIMEOUT => 5,
+                    ];
+                    
+                    echo '<p>Tentative de connexion...</p>';
+                    
+                    $pdo = new PDO($dsn, $db_config['username'], $db_config['password'], $options);
+                    echo '<p class="success">Connexion réussie!</p>';
+                    
+                    // Test de requête simple
+                    $stmt = $pdo->query("SELECT VERSION() as version");
+                    $result = $stmt->fetch();
+                    
+                    echo '<p>Version MySQL: ' . $result['version'] . '</p>';
+                    
+                    // Liste des tables
+                    $stmt = $pdo->query("SHOW TABLES");
+                    $tables = $stmt->fetchAll(PDO::FETCH_COLUMN);
+                    
+                    echo '<p>Tables dans la base de données:</p>';
+                    echo '<ul>';
+                    foreach ($tables as $table) {
+                        echo '<li>' . $table . '</li>';
+                    }
+                    echo '</ul>';
+                    
+                } catch (PDOException $e) {
+                    echo '<p class="error">Erreur de connexion: ' . $e->getMessage() . '</p>';
                 }
             } else {
-                echo "<li><span class='warning'>? $dir (N'existe pas)</span></li>";
+                echo '<p class="error">Erreur de lecture du fichier de configuration.</p>';
             }
-        }
-        echo "</ul>";
-        
-        // Vérifier si nous pouvons créer un fichier test
-        $test_file = __DIR__ . '/api/test_file.txt';
-        $test_content = "Test d'écriture: " . date('Y-m-d H:i:s');
-        $write_success = @file_put_contents($test_file, $test_content);
-        
-        if ($write_success !== false) {
-            echo "<p class='success'>Test d'écriture de fichier réussi: $test_file</p>";
-            // Nettoyer après le test
-            @unlink($test_file);
         } else {
-            echo "<p class='error'>Échec du test d'écriture de fichier: $test_file</p>";
+            echo '<p class="error">Fichier de configuration non trouvé: ' . $db_config_file . '</p>';
         }
         ?>
     </div>
     
     <div class="section">
-        <h2>Actions</h2>
-        <p>
-            <a href="phpinfo.php" style="display:inline-block; background:#4CAF50; color:white; padding:10px 15px; text-decoration:none; border-radius:5px; margin-right:10px;">
-                Voir phpinfo()
-            </a>
-            <a href="api/db-info.php" style="display:inline-block; background:#2196F3; color:white; padding:10px 15px; text-decoration:none; border-radius:5px; margin-right:10px;">
-                Info base de données
-            </a>
-            <a href="api/db-test.php" style="display:inline-block; background:#FF9800; color:white; padding:10px 15px; text-decoration:none; border-radius:5px;">
-                Tester connexion DB
-            </a>
-        </p>
+        <h2>Outils de diagnostic</h2>
+        <p>Liens vers d'autres outils de diagnostic:</p>
+        <ul>
+            <li><a href="phpinfo.php">phpinfo()</a> - Informations détaillées sur PHP</li>
+            <li><a href="deploy-check.php">deploy-check.php</a> - Vérification du déploiement</li>
+            <li><a href="infomaniak-paths-check.php">infomaniak-paths-check.php</a> - Vérification des chemins spécifiques à Infomaniak</li>
+            <li><a href="diagnose-infomaniak.php">diagnose-infomaniak.php</a> - Diagnostic complet pour Infomaniak</li>
+            <li><a href="check-installation.php">check-installation.php</a> - Vérification de l'installation</li>
+        </ul>
     </div>
 </body>
 </html>

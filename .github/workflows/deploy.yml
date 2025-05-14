@@ -63,6 +63,7 @@ jobs:
         cp api/config/DatabaseConnection.php deploy/api/config/ || echo "Fichier DatabaseConnection.php non trouvé"
         cp api/config/DatabaseDiagnostics.php deploy/api/config/ || echo "Fichier DatabaseDiagnostics.php non trouvé"
         cp api/config/database.php deploy/api/config/ || echo "Fichier database.php non trouvé"
+        cp api/config/db_config.json deploy/api/config/ || echo "Fichier db_config.json non trouvé"
         
         # Vérifier et créer env.php s'il n'existe pas
         if [ ! -f "deploy/api/config/env.php" ]; then
@@ -101,6 +102,61 @@ jobs:
           cp -r public/lovable-uploads/* deploy/public/lovable-uploads/
         else
           echo "Dossier uploads non trouvé"
+        fi
+        
+        # Copie des fichiers de diagnostic PHP et Bash
+        echo "Copie des scripts de diagnostic..."
+        cp phpinfo.php deploy/ || echo "Fichier phpinfo.php non trouvé"
+        cp php-debug.php deploy/ || echo "Fichier php-debug.php non trouvé"
+        cp check-paths.php deploy/ || echo "Fichier check-paths.php non trouvé"
+        cp check-installation.php deploy/ || echo "Fichier check-installation.php non trouvé"
+        cp deploy-check.php deploy/ || echo "Fichier deploy-check.php non trouvé"
+        cp infomaniak-paths-check.php deploy/ || echo "Fichier infomaniak-paths-check.php non trouvé"
+        cp diagnose-infomaniak.php deploy/ || echo "Fichier diagnose-infomaniak.php non trouvé"
+        cp index.php deploy/ || echo "Fichier index.php non trouvé"
+        cp deploy-on-infomaniak.php deploy/ || echo "Fichier deploy-on-infomaniak.php non trouvé"
+        
+        # Copie des scripts bash et leur rendre exécutable
+        echo "Copie des scripts bash..."
+        cp diagnose-infomaniak.sh deploy/ || echo "Fichier diagnose-infomaniak.sh non trouvé"
+        cp check-users-ini.sh deploy/ || echo "Fichier check-users-ini.sh non trouvé"
+        cp ssh-diagnostic.sh deploy/ || echo "Fichier ssh-diagnostic.sh non trouvé"
+        
+        # Rendre les scripts bash exécutables
+        chmod +x deploy/*.sh || echo "Impossible de rendre les scripts bash exécutables"
+        
+        # Créer users.ini s'il n'existe pas
+        if [ ! -f "deploy/users.ini" ]; then
+          echo "; Configuration des utilisateurs et de leurs rôles
+; Format: username = password:role
+; Exemple: admin = hashed_password:admin
+
+[users]
+; Utilisateur par défaut (à modifier après la première connexion)
+admin = admin123:admin
+
+[roles]
+; Définition des rôles (ne pas modifier)
+admin = Administrateur système
+manager = Responsable qualité
+user = Utilisateur standard
+auditor = Auditeur
+consultant = Consultant
+external = Partenaire externe
+
+[settings]
+; Paramètres de sécurité
+password_min_length = 8
+require_uppercase = true
+require_number = true
+require_special = false
+max_login_attempts = 5
+lockout_time = 30  ; minutes
+session_timeout = 120  ; minutes
+" > deploy/users.ini
+          echo "Fichier users.ini créé manuellement"
+        else
+          cp users.ini deploy/ || echo "Fichier users.ini non trouvé"
         fi
         
         echo "Structure du dossier de déploiement:"
