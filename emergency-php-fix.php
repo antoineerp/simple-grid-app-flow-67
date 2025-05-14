@@ -1,129 +1,128 @@
 
 <?php
 // Assurez-vous qu'il n'y a aucun espace ou sortie avant cette ligne
-// Supprimer les BOM (Byte Order Mark) si présent et autres caractères invisibles
 ob_start(); // Démarrer la mise en tampon de sortie
-header('Content-Type: text/html; charset=utf-8');
+header("Content-Type: text/html; charset=utf-8");
 
+// Fonctions de diagnostic et réparation
 function diagnostiquer_probleme_php() {
-    $resultats = [];
+    $diagnostic = [];
     
-    // Vérifier la version PHP
-    $resultats['version_php'] = phpversion();
+    // Version PHP
+    $diagnostic["version_php"] = phpversion();
+    $diagnostic["sapi"] = php_sapi_name();
     
-    // Vérifier le mode d'exécution PHP
-    $resultats['sapi'] = php_sapi_name();
+    // Permissions
+    $diagnostic["permission_script"] = sprintf("%o", fileperms(__FILE__) & 0777);
+    $diagnostic["owner"] = function_exists("posix_getpwuid") ? posix_getpwuid(fileowner(__FILE__))["name"] : "inconnu";
     
-    // Vérifier les modules Apache chargés si applicable
-    if (function_exists('apache_get_modules')) {
-        $resultats['apache_modules'] = apache_get_modules();
-        $resultats['mod_php_present'] = in_array('mod_php7', $resultats['apache_modules']) || 
-                                       in_array('mod_php', $resultats['apache_modules']);
-    } else {
-        $resultats['apache_modules'] = "Non disponible (probablement en mode CGI/FastCGI)";
-        $resultats['mod_php_present'] = false;
+    // Fichiers de configuration
+    $diagnostic["htaccess_exists"] = file_exists(".htaccess");
+    if ($diagnostic["htaccess_exists"]) {
+        $diagnostic["htaccess_permissions"] = sprintf("%o", fileperms(".htaccess") & 0777);
     }
     
-    // Vérifier les permissions des fichiers PHP
-    $script_actuel = $_SERVER['SCRIPT_FILENAME'];
-    $permissions = fileperms($script_actuel);
-    $resultats['permissions_script_actuel'] = sprintf('%o', $permissions & 0777);
-    
-    // Vérifier si .htaccess existe et ses permissions
-    $htaccess_path = dirname($_SERVER['SCRIPT_FILENAME']) . '/.htaccess';
-    $resultats['htaccess_existe'] = file_exists($htaccess_path);
-    $resultats['htaccess_permissions'] = $resultats['htaccess_existe'] ? 
-                                        sprintf('%o', fileperms($htaccess_path) & 0777) : 'N/A';
-    
-    // Vérifier .user.ini
-    $user_ini_path = dirname($_SERVER['SCRIPT_FILENAME']) . '/.user.ini';
-    $resultats['user_ini_existe'] = file_exists($user_ini_path);
-    $resultats['user_ini_permissions'] = $resultats['user_ini_existe'] ? 
-                                       sprintf('%o', fileperms($user_ini_path) & 0777) : 'N/A';
-    
-    // Vérifier les directives PHP importantes
-    $directives = ['display_errors', 'log_errors', 'error_reporting', 'short_open_tag', 
-                  'upload_max_filesize', 'post_max_size', 'memory_limit'];
-    $resultats['directives_php'] = [];
-    foreach ($directives as $directive) {
-        $resultats['directives_php'][$directive] = ini_get($directive);
+    $diagnostic["user_ini_exists"] = file_exists(".user.ini");
+    if ($diagnostic["user_ini_exists"]) {
+        $diagnostic["user_ini_permissions"] = sprintf("%o", fileperms(".user.ini") & 0777);
     }
     
-    // Vérifier le propriétaire des fichiers
-    if (function_exists('posix_getpwuid')) {
-        $owner_info = posix_getpwuid(fileowner($script_actuel));
-        $resultats['proprietaire_script'] = $owner_info['name'];
-    } else {
-        $resultats['proprietaire_script'] = 'Fonction posix_getpwuid non disponible';
-    }
-    
-    return $resultats;
+    return $diagnostic;
 }
 
 function creer_htaccess() {
-    $htaccess_content = <<<EOT
+    $contenu = <<<EOT
 # Activer le moteur de réécriture
 RewriteEngine On
 
-# Configuration explicite pour exécuter PHP
-<Files *.php>
-    SetHandler application/x-httpd-php
-</Files>
+# Rediriger HTTP vers HTTPS (commenter si non applicable)
+# RewriteCond %{HTTPS} off
+# RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
 
-# Désactiver toutes les limites qui pourraient bloquer PHP
-<IfModule mod_php.c>
-    php_flag engine on
+# Forcer l'utilisation de l'interpréteur PHP
+AddType application/x-httpd-php .php
+<FilesMatch "\\.php$">
+    SetHandler application/x-httpd-php
+</FilesMatch>
+
+# Pour les fichiers CSS
+AddType text/css .css
+<FilesMatch "\\.css$">
+    ForceType text/css
+</FilesMatch>
+
+# Pour les fichiers JavaScript
+AddType application/javascript .js .mjs
+<FilesMatch "\\.(js|mjs)$">
+    ForceType application/javascript
+</FilesMatch>
+
+# Configuration API REST
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    
+    # Redirection de l'index.php vers index.html
+    RewriteCond %{THE_REQUEST} ^[A-Z]{3,9}\\ /index\\.php [NC]
+    RewriteRule ^index\\.php$ / [R=301,L]
+    
+    # Traiter toutes les requêtes qui ne correspondent pas à un fichier réel
+    # via l'API ou le router front-end
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteRule ^api/(.*)$ api/index.php [L]
+    RewriteRule ^(.*)$ index.html [L]
 </IfModule>
 
-# Rediriger toutes les requêtes vers index.html sauf pour PHP et fichiers existants
-RewriteCond %{REQUEST_FILENAME} !\.php$
-RewriteCond %{REQUEST_FILENAME} !-f
-RewriteCond %{REQUEST_FILENAME} !-d
-RewriteRule ^(?!api/)(.*)$ /index.html [L]
+# Protection des fichiers sensibles
+<FilesMatch "^\\.(htaccess|htpasswd|user\\.ini|php\\.ini)$">
+    Order Allow,Deny
+    Deny from all
+</FilesMatch>
 
-# Configuration explicite des types MIME
-AddType text/css .css
-AddType application/javascript .js
-AddType application/javascript .mjs
-AddType image/svg+xml .svg
+# Désactiver l'affichage du contenu des répertoires
+Options -Indexes
 EOT;
 
-    return file_put_contents('.htaccess', $htaccess_content);
+    return file_put_contents(".htaccess", $contenu) !== false;
 }
 
 function creer_user_ini() {
-    $user_ini_content = <<<EOT
+    $contenu = <<<EOT
 ; Configuration PHP pour Infomaniak
-display_errors = On
+display_errors = Off
 log_errors = On
-error_reporting = E_ALL
-short_open_tag = On
-max_execution_time = 300
+error_reporting = E_ALL & ~E_DEPRECATED & ~E_STRICT
+max_execution_time = 120
 memory_limit = 256M
 upload_max_filesize = 64M
 post_max_size = 64M
+default_charset = "UTF-8"
 EOT;
 
-    return file_put_contents('.user.ini', $user_ini_content);
+    return file_put_contents(".user.ini", $contenu) !== false;
 }
 
 function creer_phpinfo() {
-    $phpinfo_content = <<<EOT
+    $contenu = <<<EOT
 <?php
-// Afficher les informations complètes sur PHP
+// Afficher les informations détaillées sur PHP
+header('Content-Type: text/html; charset=utf-8');
 phpinfo();
 ?>
 EOT;
 
-    return file_put_contents('phpinfo-complet.php', $phpinfo_content);
+    return file_put_contents("phpinfo-complet.php", $contenu) !== false;
 }
 
 function creer_test_minimal() {
-    $test_minimal = <<<EOT
-<?php echo 'PHP fonctionne!'; ?>
+    $contenu = <<<EOT
+<?php
+header('Content-Type: text/plain');
+echo "PHP fonctionne!";
+?>
 EOT;
 
-    return file_put_contents('php-test-minimal.php', $test_minimal);
+    return file_put_contents("php-test-minimal.php", $contenu) !== false;
 }
 
 // Effectuer le diagnostic
@@ -167,8 +166,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-// S'assurer que les fichiers de test existent
-if (!file_exists('test-php-execution.php')) {
+// S'assurer que les fichiers critiques existent
+if (!file_exists("test-php-execution.php")) {
     $test_php_content = <<<EOT
 <?php
 header("Content-Type: text/html; charset=utf-8");
@@ -179,9 +178,12 @@ echo "<p>Version PHP: " . phpversion() . "</p>";
 echo "<p>Extensions chargées: " . implode(", ", array_slice(get_loaded_extensions(), 0, 10)) . "...</p>";
 ?>
 EOT;
-    file_put_contents('test-php-execution.php', $test_php_content);
+    file_put_contents("test-php-execution.php", $test_php_content);
     $actions_effectuees[] = "Fichier test-php-execution.php créé (manquant)";
 }
+
+// Vider le tampon de sortie pour éviter les erreurs "headers already sent"
+ob_end_flush();
 ?>
 
 <!DOCTYPE html>
@@ -208,18 +210,14 @@ EOT;
     
     <div class="section">
         <h2>Diagnostic du système</h2>
-        <p><strong>Version PHP:</strong> <?php echo $diagnostic['version_php']; ?></p>
-        <p><strong>Mode d'exécution (SAPI):</strong> <?php echo $diagnostic['sapi']; ?></p>
-        <p><strong>Permissions de ce script:</strong> <?php echo $diagnostic['permissions_script_actuel']; ?></p>
-        <p><strong>Propriétaire du script:</strong> <?php echo $diagnostic['proprietaire_script']; ?></p>
+        <p><strong>Version PHP:</strong> <?php echo $diagnostic["version_php"]; ?></p>
+        <p><strong>Mode d'exécution (SAPI):</strong> <?php echo $diagnostic["sapi"]; ?></p>
+        <p><strong>Permissions de ce script:</strong> <?php echo $diagnostic["permission_script"]; ?></p>
+        <p><strong>Propriétaire du script:</strong> <?php echo $diagnostic["owner"]; ?></p>
         
         <h3>Fichiers de configuration</h3>
-        <p><strong>.htaccess:</strong> <?php echo $diagnostic['htaccess_existe'] ? 
-            'Existe (permissions: ' . $diagnostic['htaccess_permissions'] . ')' : 
-            '<span class="warning">Manquant</span>'; ?></p>
-        <p><strong>.user.ini:</strong> <?php echo $diagnostic['user_ini_existe'] ? 
-            'Existe (permissions: ' . $diagnostic['user_ini_permissions'] . ')' : 
-            '<span class="warning">Manquant</span>'; ?></p>
+        <p><strong>.htaccess:</strong> <?php echo $diagnostic["htaccess_exists"] ? "Existe (permissions: {$diagnostic["htaccess_permissions"]})" : "Manquant"; ?></p>
+        <p><strong>.user.ini:</strong> <?php echo $diagnostic["user_ini_exists"] ? "Existe (permissions: {$diagnostic["user_ini_permissions"]})" : "Manquant"; ?></p>
     </div>
     
     <div class="section">
@@ -229,16 +227,16 @@ EOT;
             echo '<div style="background: #d4edda; padding: 10px; margin-bottom: 15px; border-radius: 5px;">';
             echo '<h3 style="color: #155724;">Actions réalisées :</h3><ul>';
             foreach ($actions_effectuees as $action) {
-                echo '<li>' . $action . '</li>';
+                echo "<li>$action</li>";
             }
             echo '</ul></div>';
         }
         
         if (!empty($erreurs)) {
             echo '<div style="background: #f8d7da; padding: 10px; margin-bottom: 15px; border-radius: 5px;">';
-            echo '<h3 style="color: #721c24;">Erreurs :</h3><ul>';
+            echo '<h3 style="color: #721c24;">Erreurs rencontrées :</h3><ul>';
             foreach ($erreurs as $erreur) {
-                echo '<li>' . $erreur . '</li>';
+                echo "<li>$erreur</li>";
             }
             echo '</ul></div>';
         }
