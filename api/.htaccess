@@ -1,13 +1,13 @@
 
+# Configuration pour le dossier API sur Infomaniak
+
 # Activer la réécriture d'URL
 RewriteEngine On
 
 # Définir les types MIME corrects
 AddType application/javascript .js
-AddType application/javascript .mjs
-AddType application/javascript .es.js
-AddType text/css .css
 AddType application/json .json
+AddType text/css .css
 
 # Gérer les requêtes OPTIONS pour CORS
 RewriteCond %{REQUEST_METHOD} OPTIONS
@@ -15,25 +15,27 @@ RewriteRule ^(.*)$ $1 [R=200,L]
 
 # Configuration CORS et types MIME
 <IfModule mod_headers.c>
-    # Force le bon type MIME pour les JavaScript modules
-    <FilesMatch "\.(m?js|es\.js)$">
+    # Force le bon type MIME pour les JavaScript
+    <FilesMatch "\.js$">
         Header set Content-Type "application/javascript"
         Header set X-Content-Type-Options "nosniff"
     </FilesMatch>
     
+    # Configuration CORS
     Header set Access-Control-Allow-Origin "*"
     Header set Access-Control-Allow-Methods "GET, POST, OPTIONS, PUT, DELETE"
     Header set Access-Control-Allow-Headers "Content-Type, Authorization, X-Requested-With"
     
-    # Eviter la mise en cache
+    # Éviter la mise en cache des réponses API
     Header set Cache-Control "no-cache, no-store, must-revalidate"
     Header set Pragma "no-cache"
     Header set Expires 0
 </IfModule>
 
 # Permettre l'accès direct aux fichiers PHP spécifiques
-RewriteCond %{REQUEST_FILENAME} -f
-RewriteRule \.(php)$ - [L]
+<FilesMatch "^(phpinfo|db-test|check|phpinfo-test|diagnostic)\.php$">
+    # Aucune réécriture pour ces fichiers
+</FilesMatch>
 
 # Rediriger toutes les requêtes vers l'index.php sauf pour les fichiers existants
 RewriteCond %{REQUEST_FILENAME} !-f

@@ -55,15 +55,26 @@ header('Content-Type: text/html; charset=utf-8');
         $clientDirExists = is_dir($clientDir);
         echo "<p>Répertoire du client ($clientDir): " . ($clientDirExists ? '<span class="success">Existe</span>' : '<span class="error">N\'existe pas</span>') . "</p>";
         
-        // Vérifier le répertoire des sites
-        $sitesDir = '/home/clients/df8dceff557ccc0605d45e1581aa661b/sites';
-        $sitesDirExists = is_dir($sitesDir);
-        echo "<p>Répertoire des sites ($sitesDir): " . ($sitesDirExists ? '<span class="success">Existe</span>' : '<span class="error">N\'existe pas</span>') . "</p>";
+        // Vérifier tous les chemins possibles pour le site
+        $possiblePaths = [
+            '/home/clients/df8dceff557ccc0605d45e1581aa661b/sites/qualiopi.ch',
+            '/sites/qualiopi.ch',
+            '/home/clients/df8dceff557ccc0605d45e1581aa661b/qualiopi.ch',
+            '/home/clients/df8dceff557ccc0605d45e1581aa661b/web/qualiopi.ch'
+        ];
         
-        // Vérifier le répertoire du domaine
-        $domainDir = '/home/clients/df8dceff557ccc0605d45e1581aa661b/sites/qualiopi.ch';
-        $domainDirExists = is_dir($domainDir);
-        echo "<p>Répertoire du domaine ($domainDir): " . ($domainDirExists ? '<span class="success">Existe</span>' : '<span class="error">N\'existe pas</span>') . "</p>";
+        echo "<h3>Chemins possibles pour le site:</h3>";
+        echo "<table>";
+        echo "<tr><th>Chemin</th><th>Existe</th></tr>";
+        
+        foreach ($possiblePaths as $path) {
+            echo "<tr>";
+            echo "<td class='monospace'>$path</td>";
+            echo "<td>" . (is_dir($path) ? '<span class="success">Oui</span>' : '<span class="error">Non</span>') . "</td>";
+            echo "</tr>";
+        }
+        
+        echo "</table>";
         
         // Vérifier les dossiers importants du domaine
         $importantFolders = [
@@ -153,14 +164,16 @@ header('Content-Type: text/html; charset=utf-8');
         <p>Basé sur les résultats ci-dessus, voici les recommandations:</p>
         
         <ol>
-            <li>Assurez-vous que votre fichier .htaccess contient des règles de réécriture spécifiques pour Infomaniak.</li>
-            <li>Vérifiez que le fichier env.php dans api/config/ est correctement configuré avec les chemins Infomaniak.</li>
-            <li>Si le répertoire des sites n'est pas accessible, contactez le support Infomaniak pour vérifier la configuration.</li>
-            <li>Assurez-vous que le workflow GitHub Actions déploie tous les fichiers nécessaires dans la structure correcte.</li>
+            <li>Utilisez les URLs absolues pour le déploiement sur Infomaniak.</li>
+            <li>Si vous avez des problèmes avec les chemins, utilisez les chemins relatifs.</li>
+            <li>Si le PHP ne s'exécute pas, vérifiez les permissions des fichiers et le fonctionnement PHP sur votre hébergement.</li>
+            <li>Vérifiez la configuration de la base de données pour vous assurer qu'elle utilise les bons paramètres Infomaniak.</li>
         </ol>
         
         <p>
-            <a href="deploy-check.php" style="display: inline-block; background-color: #3b82f6; color: white; padding: 10px 20px; text-decoration: none; border-radius: 4px; margin-right: 10px;">Lancer le diagnostic complet</a>
+            <a href="php-test.php" style="display: inline-block; background-color: #3b82f6; color: white; padding: 10px 20px; text-decoration: none; border-radius: 4px; margin-right: 10px;">Tester PHP</a>
+            <a href="phpinfo.php" style="display: inline-block; background-color: #10b981; color: white; padding: 10px 20px; text-decoration: none; border-radius: 4px; margin-right: 10px;">phpinfo()</a>
+            <a href="api/db-test.php" style="display: inline-block; background-color: #6366f1; color: white; padding: 10px 20px; text-decoration: none; border-radius: 4px; margin-right: 10px;">Tester DB</a>
             <a href="index.html" style="display: inline-block; background-color: #4b5563; color: white; padding: 10px 20px; text-decoration: none; border-radius: 4px;">Retour à l'accueil</a>
         </p>
     </div>
