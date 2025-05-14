@@ -167,8 +167,7 @@ require_number = true
 require_special = false
 max_login_attempts = 5
 lockout_time = 30  ; minutes
-session_timeout = 120  ; minutes
-" > deploy/users.ini
+session_timeout = 120  ; minutes" > deploy/users.ini
           echo "Fichier users.ini créé manuellement"
         else
           cp users.ini deploy/ || echo "Fichier users.ini non trouvé"
