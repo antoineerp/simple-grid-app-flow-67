@@ -34,7 +34,8 @@ header("Content-Type: text/html; charset=utf-8");
         "test-php-execution.php" => "Test d'exécution PHP",
         "force-php-execution.php" => "Test forcé d'exécution PHP",
         "web-php-test.php" => "Test PHP web",
-        "api/.htaccess" => "Configuration API"
+        "api/.htaccess" => "Configuration API",
+        "emergency-php-fix.php" => "Script de réparation d'urgence"
     ];
     
     $missing_files = [];
@@ -98,7 +99,7 @@ header("Content-Type: text/html; charset=utf-8");
         </table>
         
         <div class="info">
-            <p><strong>Solution:</strong> Relancez le workflow de déploiement GitHub ou créez manuellement les fichiers manquants.</p>
+            <p><strong>Solution:</strong> Si vous voyez cette page, exécutez le fichier emergency-php-fix.php pour créer les fichiers manquants.</p>
         </div>
     <?php endif; ?>
 </body>

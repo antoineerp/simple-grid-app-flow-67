@@ -1,5 +1,8 @@
 
 <?php
+// Assurez-vous qu'il n'y a aucun espace ou sortie avant cette ligne
+// Supprimer les BOM (Byte Order Mark) si présent et autres caractères invisibles
+ob_start(); // Démarrer la mise en tampon de sortie
 header('Content-Type: text/html; charset=utf-8');
 
 function diagnostiquer_probleme_php() {
@@ -125,6 +128,60 @@ EOT;
 
 // Effectuer le diagnostic
 $diagnostic = diagnostiquer_probleme_php();
+
+// Traitement des actions
+$actions_effectuees = [];
+$erreurs = [];
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (isset($_POST['fix_htaccess'])) {
+        if (creer_htaccess()) {
+            $actions_effectuees[] = "Fichier .htaccess créé ou mis à jour";
+        } else {
+            $erreurs[] = "Impossible de créer ou mettre à jour le fichier .htaccess";
+        }
+    }
+    
+    if (isset($_POST['fix_user_ini'])) {
+        if (creer_user_ini()) {
+            $actions_effectuees[] = "Fichier .user.ini créé ou mis à jour";
+        } else {
+            $erreurs[] = "Impossible de créer ou mettre à jour le fichier .user.ini";
+        }
+    }
+    
+    if (isset($_POST['create_phpinfo'])) {
+        if (creer_phpinfo()) {
+            $actions_effectuees[] = "Fichier phpinfo-complet.php créé";
+        } else {
+            $erreurs[] = "Impossible de créer le fichier phpinfo-complet.php";
+        }
+    }
+    
+    if (isset($_POST['create_test_minimal'])) {
+        if (creer_test_minimal()) {
+            $actions_effectuees[] = "Fichier php-test-minimal.php créé";
+        } else {
+            $erreurs[] = "Impossible de créer le fichier php-test-minimal.php";
+        }
+    }
+}
+
+// S'assurer que les fichiers de test existent
+if (!file_exists('test-php-execution.php')) {
+    $test_php_content = <<<EOT
+<?php
+header("Content-Type: text/html; charset=utf-8");
+echo "<h1>Test d'exécution PHP</h1>";
+echo "<p>Si vous voyez ce message, PHP fonctionne correctement via le web.</p>";
+echo "<p>Date et heure: " . date("Y-m-d H:i:s") . "</p>";
+echo "<p>Version PHP: " . phpversion() . "</p>";
+echo "<p>Extensions chargées: " . implode(", ", array_slice(get_loaded_extensions(), 0, 10)) . "...</p>";
+?>
+EOT;
+    file_put_contents('test-php-execution.php', $test_php_content);
+    $actions_effectuees[] = "Fichier test-php-execution.php créé (manquant)";
+}
 ?>
 
 <!DOCTYPE html>
@@ -168,41 +225,6 @@ $diagnostic = diagnostiquer_probleme_php();
     <div class="section">
         <h2>Actions de réparation</h2>
         <?php
-        $actions_effectuees = [];
-        $erreurs = [];
-        
-        if (isset($_POST['fix_htaccess'])) {
-            if (creer_htaccess()) {
-                $actions_effectuees[] = "Fichier .htaccess créé ou mis à jour";
-            } else {
-                $erreurs[] = "Impossible de créer ou mettre à jour le fichier .htaccess";
-            }
-        }
-        
-        if (isset($_POST['fix_user_ini'])) {
-            if (creer_user_ini()) {
-                $actions_effectuees[] = "Fichier .user.ini créé ou mis à jour";
-            } else {
-                $erreurs[] = "Impossible de créer ou mettre à jour le fichier .user.ini";
-            }
-        }
-        
-        if (isset($_POST['create_phpinfo'])) {
-            if (creer_phpinfo()) {
-                $actions_effectuees[] = "Fichier phpinfo-complet.php créé";
-            } else {
-                $erreurs[] = "Impossible de créer le fichier phpinfo-complet.php";
-            }
-        }
-        
-        if (isset($_POST['create_test_minimal'])) {
-            if (creer_test_minimal()) {
-                $actions_effectuees[] = "Fichier php-test-minimal.php créé";
-            } else {
-                $erreurs[] = "Impossible de créer le fichier php-test-minimal.php";
-            }
-        }
-        
         if (!empty($actions_effectuees)) {
             echo '<div style="background: #d4edda; padding: 10px; margin-bottom: 15px; border-radius: 5px;">';
             echo '<h3 style="color: #155724;">Actions réalisées :</h3><ul>';
