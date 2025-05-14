@@ -1,124 +1,77 @@
 
 #!/bin/bash
-# Script de diagnostic amélioré pour exécution via SSH
+# Script de diagnostic spécifique pour l'hébergement Infomaniak
 
 echo "==========================================="
-echo "Diagnostic SSH avancé pour FormaCert - $(date)"
+echo "Diagnostic Infomaniak - $(date)"
 echo "==========================================="
 
-# Définir le chemin de base correct pour Infomaniak
-BASE_PATH="/home/clients/df8dceff557ccc0605d45e1581aa661b/sites/qualiopi.ch"
-echo "Utilisation du chemin de base: $BASE_PATH"
-echo "Chemin actuel: $(pwd)"
+# Vérifier les chemins spécifiques à Infomaniak
+echo -e "\n== Chemins Infomaniak =="
+infomaniak_paths=(
+  "/home/clients/"
+  "/sites/"
+  "/tmp/"
+  "/var/log/"
+)
 
-# Se déplacer dans le répertoire de l'application si nécessaire
-if [ "$(pwd)" != "$BASE_PATH" ]; then
-    echo "Changement vers le répertoire $BASE_PATH pour le diagnostic..."
-    cd "$BASE_PATH" || echo "⚠️ Impossible d'accéder au répertoire $BASE_PATH"
-    echo "Nouveau répertoire courant: $(pwd)"
-fi
-
-# Vérifier la structure des dossiers
-echo -e "\n== Structure des dossiers =="
-for dir in "." "assets" "api" "api/config" "api/controllers" "api/models" "public" "public/lovable-uploads"
-do
-  if [ -d "$dir" ]; then
-    file_count=$(find "$dir" -type f | wc -l)
-    echo "✓ $dir: Existe ($file_count fichiers)"
-    ls -la "$dir" | head -n 10
+for path in "${infomaniak_paths[@]}"; do
+  if [ -d "$path" ]; then
+    echo "✓ $path: Existe"
+    ls -la "$path" 2>/dev/null | head -n 3 || echo "  (Accès refusé)"
   else
-    echo "✗ $dir: MANQUANT"
+    echo "✗ $path: N'existe pas"
   fi
 done
 
-# Vérifier les fichiers PHP clés
-echo -e "\n== Fichiers PHP clés =="
-for file in "index.php" "phpinfo.php" "php-debug.php" "api/index.php" "api/phpinfo.php" "api/direct-db-test.php" "api/db-test.php"
-do
-  if [ -f "$file" ]; then
-    size=$(du -h "$file" | cut -f1)
-    perms=$(ls -la "$file" | awk '{print $1}')
-    owner=$(ls -la "$file" | awk '{print $3":"$4}')
-    echo "✓ $file: Existe (taille: $size, permissions: $perms, propriétaire: $owner)"
-  else
-    echo "✗ $file: MANQUANT"
-  fi
-done
+# Vérifier les logs d'erreur Apache/PHP
+echo -e "\n== Logs d'erreur =="
+log_paths=(
+  "./api/php_errors.log"
+  "./php_errors.log"
+  "/tmp/php-errors.log"
+)
 
-# Vérifier la configuration PHP
-echo -e "\n== Configuration PHP =="
-for file in ".user.ini" "api/.user.ini" "api/php.ini"
-do
-  if [ -f "$file" ]; then
-    echo "✓ $file: Existe"
-    echo "   Contenu:"
-    cat "$file" | grep -E 'display_errors|error_log|log_errors|upload_max|memory_limit|date.timezone' | sed 's/^/   /'
-  else
-    echo "✗ $file: MANQUANT"
-  fi
-done
-
-# Vérifier les chemins d'accès
-echo -e "\n== Chemins d'accès =="
-echo "Chemin actuel: $(pwd)"
-echo "Utilisateur: $(whoami)"
-echo "Groupe: $(id -gn)"
-
-# Tester l'exécution PHP en ligne de commande
-echo -e "\n== Test PHP CLI =="
-if command -v php >/dev/null 2>&1; then
-  php_version=$(php -v | head -n 1)
-  echo "PHP CLI disponible: $php_version"
-  
-  # Créer un script PHP temporaire pour tester l'exécution
-  echo "<?php echo 'Test PHP CLI: OK (' . date('Y-m-d H:i:s') . ')'; ?>" > php_test_cli.php
-  php_result=$(php php_test_cli.php 2>&1)
-  echo "Résultat test PHP: $php_result"
-  rm php_test_cli.php
-else
-  echo "PHP CLI non disponible ou non dans le PATH"
-fi
-
-# Vérifier la configuration de la base de données
-echo -e "\n== Configuration de la base de données =="
-if [ -f "api/config/db_config.json" ]; then
-  echo "Fichier db_config.json trouvé"
-  # Afficher le contenu sans le mot de passe
-  cat api/config/db_config.json | sed 's/"password": "[^"]*"/"password": "******"/g'
-else
-  echo "Fichier db_config.json NON trouvé"
-fi
-
-# Vérifier la présence des logs d'erreur
-echo -e "\n== Logs d'erreur PHP =="
-for log in "api/php_errors.log" "php_errors.log" "/tmp/php-errors.log" "/var/log/apache2/error.log" "/var/log/httpd/error_log"
-do
+for log in "${log_paths[@]}"; do
   if [ -f "$log" ]; then
-    echo "✓ Log trouvé: $log (dernières 5 lignes)"
-    tail -n 5 "$log" | sed 's/^/   /'
-  fi
-done
-
-# Vérifier les routes et la configuration .htaccess
-echo -e "\n== Configuration des routes =="
-for htaccess in ".htaccess" "api/.htaccess"
-do
-  if [ -f "$htaccess" ]; then
-    echo "✓ $htaccess trouvé"
-    cat "$htaccess" | grep -E 'RewriteRule|RewriteCond|RewriteEngine|php_value' | head -n 10 | sed 's/^/   /'
+    echo "✓ Log trouvé: $log (dernières lignes)"
+    tail -n 10 "$log" | sed 's/^/  /'
   else
-    echo "✗ $htaccess MANQUANT"
+    echo "✗ Log non trouvé: $log"
   fi
 done
 
-# Tester la résolution de connexion à la base de données
-echo -e "\n== Test de connexion à la base de données =="
-if [ -f "api/config/db_config.json" ]; then
-  db_host=$(cat api/config/db_config.json | grep -o '"host": "[^"]*"' | cut -d'"' -f4)
-  echo "Test de ping vers $db_host:"
-  ping -c 3 $db_host 2>&1
+# Vérifier les processus PHP en cours
+echo -e "\n== Processus PHP =="
+ps aux | grep -E 'php|apache|httpd' | grep -v grep || echo "Aucun processus PHP/Apache trouvé"
+
+# Vérifier la mémoire et l'espace disque
+echo -e "\n== Ressources système =="
+echo "Mémoire:"
+free -h || echo "Commande 'free' non disponible"
+
+echo -e "\nEspace disque:"
+df -h | grep -E '/$|/home' || echo "Commande 'df' non disponible"
+
+# Vérifier la connectivité à la base de données
+echo -e "\n== Test connectivité MySQL =="
+if [ -f "./api/config/db_config.json" ]; then
+  db_host=$(cat ./api/config/db_config.json | grep -o '"host": "[^"]*"' | cut -d'"' -f4)
+  echo "Host: $db_host"
+  
+  # Test ping
+  ping -c 3 $db_host || echo "Ping vers $db_host échoué"
+  
+  # Test telnet
+  echo "Test telnet vers $db_host:3306..."
+  (echo > /dev/tcp/$db_host/3306) >/dev/null 2>&1
+  if [ $? -eq 0 ]; then
+    echo "✓ Port MySQL accessible"
+  else
+    echo "✗ Port MySQL inaccessible"
+  fi
 else
-  echo "Impossible de tester la connexion (fichier de config absent)"
+  echo "Fichier de configuration de base de données non trouvé"
 fi
 
-echo -e "\nDiagnostic terminé"
+echo -e "\nDiagnostic Infomaniak terminé"
