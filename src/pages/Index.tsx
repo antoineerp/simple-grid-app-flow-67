@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import Logo from '@/components/auth/Logo';
 import LoginForm from '@/components/auth/LoginForm';
@@ -66,13 +67,6 @@ const Index = () => {
                     <strong>Conseil:</strong> {apiDetails.tip}
                   </div>
                 )}
-                
-                {apiMessage.includes('PHP') && (
-                  <div className="mt-2 p-2 bg-orange-100 rounded">
-                    <strong>Problème détecté:</strong> Votre serveur semble renvoyer le code PHP au lieu de l'exécuter.
-                    Vérifiez que PHP est correctement configuré sur votre serveur.
-                  </div>
-                )}
               </div>
               
               <Button 
@@ -108,12 +102,6 @@ const Index = () => {
               </a>
             )}
           </div>
-          
-          {apiStatus === 'error' && (
-            <div className="mt-2 text-xs text-red-500">
-              Pour résoudre ce problème, vérifiez que votre serveur exécute correctement PHP.
-            </div>
-          )}
         </div>
       </div>
       

@@ -23,8 +23,8 @@ export async function testApiConnection(): Promise<{ success: boolean; message: 
   try {
     console.log(`Test de connexion à l'API: ${getFullApiUrl()}`);
     
-    // Pour le test direct, utiliser info.php qui renvoie l'état du serveur
-    const response = await fetch(`${getApiUrl()}/info.php`, {
+    // Créer un nouveau fichier info.php pour le test de connectivité
+    const response = await fetch(`${getApiUrl()}/diagnose-connection.php`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -33,6 +33,30 @@ export async function testApiConnection(): Promise<{ success: boolean; message: 
     });
     
     console.log('Réponse du test API:', response.status, response.statusText);
+    
+    if (!response.ok) {
+      // Si l'API renvoie une erreur, essayer une requête alternative vers un autre point de terminaison
+      console.log("Tentative avec un point de terminaison alternatif...");
+      const fallbackResponse = await fetch(`${getApiUrl()}/db-info.php`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache, no-store, must-revalidate'
+        }
+      });
+      
+      if (fallbackResponse.ok) {
+        console.info("Connexion alternative réussie");
+        const data = await fallbackResponse.json();
+        return {
+          success: true,
+          message: "Connexion API établie via un point de terminaison alternatif",
+          details: data
+        };
+      }
+      
+      throw new Error(`Erreur HTTP: ${response.status}`);
+    }
     
     const responseText = await response.text();
     
