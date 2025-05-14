@@ -1,4 +1,3 @@
-
 <?php
 // Script de diagnostic complet pour la configuration Apache et l'exécution PHP
 // Exécuter uniquement via SSH avec: php apache-php-diagnostic.php

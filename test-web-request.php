@@ -1,4 +1,3 @@
-
 <?php
 // Script pour tester une requête web et analyser les en-têtes HTTP
 // Exécutez-le uniquement en SSH: php test-web-request.php
