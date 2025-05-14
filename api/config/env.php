@@ -4,10 +4,7 @@
 define('DB_HOST', 'p71x6d.myd.infomaniak.com');
 define('DB_NAME', 'p71x6d_richard');
 define('DB_USER', 'p71x6d_richard');
-define('DB_PASS', ''); // Mot de passe supprimé pour des raisons de sécurité
-
-// Définir manuellement le mot de passe sur votre serveur de production
-// en modifiant ce fichier directement sur le serveur
+define('DB_PASS', 'Trottinette43!');
 
 // Fonction d'aide pour récupérer les variables d'environnement
 function get_env($key, $default = null) {

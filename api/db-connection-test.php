@@ -19,8 +19,8 @@ error_log("=== EXÉCUTION DE db-connection-test.php ===");
 try {
     // Tester la connexion PDO directement
     $host = "p71x6d.myd.infomaniak.com";
-    $dbname = "p71x6d_system";
-    $username = "p71x6d_system";
+    $dbname = "p71x6d_richard";
+    $username = "p71x6d_richard";
     $password = "Trottinette43!";
     
     $dsn = "mysql:host={$host};dbname={$dbname};charset=utf8mb4";

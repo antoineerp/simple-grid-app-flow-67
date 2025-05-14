@@ -22,8 +22,8 @@ ini_set('error_log', __DIR__ . '/connection_diagnostic_errors.log');
 // Configuration standard utilisée partout dans l'application
 $db_config = [
     'host' => 'p71x6d.myd.infomaniak.com',
-    'db_name' => 'p71x6d_system',
-    'username' => 'p71x6d_system',
+    'db_name' => 'p71x6d_richard',
+    'username' => 'p71x6d_richard',
     'password' => 'Trottinette43!'
 ];
 

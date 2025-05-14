@@ -43,10 +43,10 @@ function testConnection($host, $dbname, $username, $password) {
 
 // Configurations des bases de données disponibles
 $databases = [
-    'system' => [
+    'richard' => [
         'host' => 'p71x6d.myd.infomaniak.com',
-        'db_name' => 'p71x6d_system',
-        'username' => 'p71x6d_system',
+        'db_name' => 'p71x6d_richard',
+        'username' => 'p71x6d_richard',
         'password' => 'Trottinette43!'
     ]
 ];

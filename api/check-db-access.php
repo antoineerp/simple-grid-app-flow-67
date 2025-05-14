@@ -50,16 +50,10 @@ function testDatabase($host, $db_name, $username, $password) {
 
 // Configurer les bases de données à tester
 $databases = [
-    'system' => [
+    'richard' => [
         'host' => 'p71x6d.myd.infomaniak.com',
-        'db_name' => 'p71x6d_system',
-        'username' => 'p71x6d_system',
-        'password' => 'Trottinette43!' // À modifier avec votre mot de passe réel
-    ],
-    'qualiflow' => [
-        'host' => 'p71x6d.myd.infomaniak.com',
-        'db_name' => 'p71x6d_qualiflow',
-        'username' => 'p71x6d_qualiflow',
+        'db_name' => 'p71x6d_richard',
+        'username' => 'p71x6d_richard',
         'password' => 'Trottinette43!' // À modifier avec votre mot de passe réel
     ]
 ];

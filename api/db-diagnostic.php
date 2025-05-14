@@ -42,8 +42,8 @@ try {
     // Configuration directe pour le PDO Test (unique et fiable)
     $pdo_config = [
         'host' => 'p71x6d.myd.infomaniak.com',
-        'db_name' => 'p71x6d_system',
-        'username' => 'p71x6d_system',
+        'db_name' => 'p71x6d_richard',
+        'username' => 'p71x6d_richard',
         'password' => 'Trottinette43!'
     ];
     
