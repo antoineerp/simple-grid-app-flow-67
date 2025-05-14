@@ -1,4 +1,5 @@
-ame: Deploy to Infomaniak
+
+name: Deploy to Infomaniak
 
 on:
   push:
