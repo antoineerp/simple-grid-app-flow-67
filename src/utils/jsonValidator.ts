@@ -13,6 +13,32 @@ interface JsonValidationResult<T = any> {
 }
 
 /**
+ * Tente d'extraire du JSON valide à partir d'une réponse potentiellement corrompue
+ * @param responseText - Le texte de la réponse à analyser
+ * @returns Un objet indiquant si une extraction a réussi et les données extraites
+ */
+export const extractValidJson = <T = any>(responseText: string): { extracted: boolean; data: T | null } => {
+  try {
+    // Essayer de trouver du JSON dans la réponse
+    const jsonMatch = responseText.match(/(\{.*\}|\[.*\])/s);
+    if (jsonMatch && jsonMatch[0]) {
+      const possibleJson = jsonMatch[0];
+      try {
+        const parsedData = JSON.parse(possibleJson) as T;
+        return { extracted: true, data: parsedData };
+      } catch {
+        // Si le JSON extrait n'est pas valide, retourner échec
+        return { extracted: false, data: null };
+      }
+    }
+    return { extracted: false, data: null };
+  } catch (error) {
+    console.error("Erreur lors de la tentative d'extraction JSON:", error);
+    return { extracted: false, data: null };
+  }
+};
+
+/**
  * Valide et analyse une réponse JSON
  * @param responseText - Le texte de la réponse à analyser
  * @returns Un objet contenant le statut de validation, les données et l'erreur éventuelle
