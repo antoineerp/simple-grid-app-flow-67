@@ -97,8 +97,32 @@ header('Content-Type: text/html; charset=utf-8');
                 // Vérifier si le dossier .github existe
                 if (!is_dir('./.github')) {
                     echo "<p>Dossier .github: <span class='error'>Non trouvé</span></p>";
+                    
+                    // Créer la structure des dossiers
+                    if (!mkdir('./.github/workflows', 0755, true)) {
+                        echo "<p><span class='error'>Impossible de créer les dossiers .github/workflows</span></p>";
+                    } else {
+                        echo "<p><span class='success'>Dossiers .github/workflows créés avec succès</span></p>";
+                        
+                        // Créer un exemple de fichier workflow
+                        $example_workflow = "name: Deploy to Infomaniak\n\non:\n  push:\n    branches: [ main ]\n  workflow_dispatch:\n\njobs:\n  deploy:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v3\n      - name: Test\n        run: echo \"Exemple de workflow\"";
+                        
+                        if (file_put_contents($workflow_file, $example_workflow)) {
+                            echo "<p><span class='success'>Fichier exemple de workflow créé</span></p>";
+                            echo "<p>Veuillez rafraîchir cette page pour voir les détails.</p>";
+                        } else {
+                            echo "<p><span class='error'>Impossible de créer le fichier exemple de workflow</span></p>";
+                        }
+                    }
                 } elseif (!is_dir('./.github/workflows')) {
                     echo "<p>Dossier .github trouvé mais sous-dossier workflows: <span class='error'>Non trouvé</span></p>";
+                    
+                    // Créer le sous-dossier workflows
+                    if (!mkdir('./.github/workflows', 0755, true)) {
+                        echo "<p><span class='error'>Impossible de créer le dossier .github/workflows</span></p>";
+                    } else {
+                        echo "<p><span class='success'>Dossier .github/workflows créé avec succès</span></p>";
+                    }
                 } else {
                     echo "<p>Structure des dossiers correcte, mais fichier deploy.yml: <span class='error'>Non trouvé</span></p>";
                     $files = scandir('./.github/workflows');
@@ -153,3 +177,4 @@ https://api.github.com/repos/VOTRE_NOM/VOTRE_REPO/actions/workflows/deploy.yml/d
     </div>
 </body>
 </html>
+<?php ob_end_flush(); ?>

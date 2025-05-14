@@ -77,38 +77,36 @@ jobs:
         echo "Copie des fichiers de configuration..."
         mkdir -p deploy/api/config
         
-        # Méthode fiable pour créer les fichiers de configuration
+        # Utilisation d'une méthode fiable pour créer les fichiers PHP (éviter les heredoc)
+        mkdir -p deploy/api/config
+        
         # Création de env.php
-        cat > deploy/api/config/env.php << 'EOF'
-<?php
-// Configuration des variables d'environnement pour Infomaniak
-define('DB_HOST', 'p71x6d.myd.infomaniak.com');
-define('DB_NAME', 'p71x6d_richard');
-define('DB_USER', 'p71x6d_richard');
-define('DB_PASS', 'Trottinette43!');
-define('API_BASE_URL', '/api');
-define('APP_ENV', 'production');
-
-// Fonction d'aide pour récupérer les variables d'environnement
-function get_env($key, $default = null) {
-    $const_name = strtoupper($key);
-    if (defined($const_name)) {
-        return constant($const_name);
-    }
-    return $default;
-}
-?>
-EOF
+        echo "<?php" > deploy/api/config/env.php
+        echo "// Configuration des variables d'environnement pour Infomaniak" >> deploy/api/config/env.php
+        echo "define('DB_HOST', 'p71x6d.myd.infomaniak.com');" >> deploy/api/config/env.php
+        echo "define('DB_NAME', 'p71x6d_richard');" >> deploy/api/config/env.php
+        echo "define('DB_USER', 'p71x6d_richard');" >> deploy/api/config/env.php
+        echo "define('DB_PASS', 'Trottinette43!');" >> deploy/api/config/env.php
+        echo "define('API_BASE_URL', '/api');" >> deploy/api/config/env.php
+        echo "define('APP_ENV', 'production');" >> deploy/api/config/env.php
+        echo "" >> deploy/api/config/env.php
+        echo "// Fonction d'aide pour récupérer les variables d'environnement" >> deploy/api/config/env.php
+        echo "function get_env(\$key, \$default = null) {" >> deploy/api/config/env.php
+        echo "    \$const_name = strtoupper(\$key);" >> deploy/api/config/env.php
+        echo "    if (defined(\$const_name)) {" >> deploy/api/config/env.php
+        echo "        return constant(\$const_name);" >> deploy/api/config/env.php
+        echo "    }" >> deploy/api/config/env.php
+        echo "    return \$default;" >> deploy/api/config/env.php
+        echo "}" >> deploy/api/config/env.php
+        echo "?>" >> deploy/api/config/env.php
         
         # Création de db_config.json
-        cat > deploy/api/config/db_config.json << 'EOF'
-{
-    "host": "p71x6d.myd.infomaniak.com",
-    "db_name": "p71x6d_richard",
-    "username": "p71x6d_richard",
-    "password": "Trottinette43!"
-}
-EOF
+        echo '{' > deploy/api/config/db_config.json
+        echo '    "host": "p71x6d.myd.infomaniak.com",' >> deploy/api/config/db_config.json
+        echo '    "db_name": "p71x6d_richard",' >> deploy/api/config/db_config.json
+        echo '    "username": "p71x6d_richard",' >> deploy/api/config/db_config.json
+        echo '    "password": "Trottinette43!"' >> deploy/api/config/db_config.json
+        echo '}' >> deploy/api/config/db_config.json
         
         # Copie des autres fichiers de configuration
         cp api/config/DatabaseConfig.php deploy/api/config/ || echo "Fichier DatabaseConfig.php non trouvé"
@@ -117,36 +115,33 @@ EOF
         cp api/config/database.php deploy/api/config/ || echo "Fichier database.php non trouvé"
         
         # Création d'un fichier .htaccess pour les assets
-        cat > deploy/assets/.htaccess << 'EOF'
-# Configurer les types MIME corrects pour les assets
-AddType text/css .css
-AddType application/javascript .js
-AddType application/javascript .mjs
-AddType image/svg+xml .svg
-AddType font/ttf .ttf
-AddType font/woff .woff
-AddType font/woff2 .woff2
-
-# Force le type MIME pour CSS
-<FilesMatch "\.css$">
-    ForceType text/css
-    Header set Content-Type "text/css; charset=utf-8"
-</FilesMatch>
-
-# Force le type MIME pour JavaScript
-<FilesMatch "\.js$">
-    ForceType application/javascript
-    Header set Content-Type "application/javascript; charset=utf-8"
-</FilesMatch>
-
-# Activer la mise en cache
-<IfModule mod_expires.c>
-  ExpiresActive On
-  ExpiresByType text/css "access plus 1 week"
-  ExpiresByType application/javascript "access plus 1 week"
-</IfModule>
-EOF
-        chmod 644 deploy/assets/.htaccess
+        echo "# Configurer les types MIME corrects pour les assets" > deploy/assets/.htaccess
+        echo "AddType text/css .css" >> deploy/assets/.htaccess
+        echo "AddType application/javascript .js" >> deploy/assets/.htaccess
+        echo "AddType application/javascript .mjs" >> deploy/assets/.htaccess
+        echo "AddType image/svg+xml .svg" >> deploy/assets/.htaccess
+        echo "AddType font/ttf .ttf" >> deploy/assets/.htaccess
+        echo "AddType font/woff .woff" >> deploy/assets/.htaccess
+        echo "AddType font/woff2 .woff2" >> deploy/assets/.htaccess
+        echo "" >> deploy/assets/.htaccess
+        echo "# Force le type MIME pour CSS" >> deploy/assets/.htaccess
+        echo "<FilesMatch \"\.css$\">" >> deploy/assets/.htaccess
+        echo "    ForceType text/css" >> deploy/assets/.htaccess
+        echo "    Header set Content-Type \"text/css; charset=utf-8\"" >> deploy/assets/.htaccess
+        echo "</FilesMatch>" >> deploy/assets/.htaccess
+        echo "" >> deploy/assets/.htaccess
+        echo "# Force le type MIME pour JavaScript" >> deploy/assets/.htaccess
+        echo "<FilesMatch \"\.js$\">" >> deploy/assets/.htaccess
+        echo "    ForceType application/javascript" >> deploy/assets/.htaccess
+        echo "    Header set Content-Type \"application/javascript; charset=utf-8\"" >> deploy/assets/.htaccess
+        echo "</FilesMatch>" >> deploy/assets/.htaccess
+        echo "" >> deploy/assets/.htaccess
+        echo "# Activer la mise en cache" >> deploy/assets/.htaccess
+        echo "<IfModule mod_expires.c>" >> deploy/assets/.htaccess
+        echo "  ExpiresActive On" >> deploy/assets/.htaccess
+        echo "  ExpiresByType text/css \"access plus 1 week\"" >> deploy/assets/.htaccess
+        echo "  ExpiresByType application/javascript \"access plus 1 week\"" >> deploy/assets/.htaccess
+        echo "</IfModule>" >> deploy/assets/.htaccess
         
         # Copie explicite des fichiers API
         if [ -d "api" ]; then
@@ -164,535 +159,30 @@ EOF
           echo "Dossier uploads non trouvé"
         fi
         
-        # Création directe des fichiers de diagnostic PHP critiques
+        # Création des fichiers de diagnostic PHP
         # Fichier test-php-execution.php
-        cat > deploy/test-php-execution.php << 'EOF'
-<?php
-header("Content-Type: text/html; charset=utf-8");
-echo "<h1>Test d'exécution PHP</h1>";
-echo "<p>Si vous voyez ce message, PHP fonctionne correctement via le web.</p>";
-echo "<p>Date et heure: " . date("Y-m-d H:i:s") . "</p>";
-echo "<p>Version PHP: " . phpversion() . "</p>";
-echo "<p>Extensions chargées: " . implode(", ", array_slice(get_loaded_extensions(), 0, 10)) . "...</p>";
-?>
-EOF
+        echo "<?php" > deploy/test-php-execution.php
+        echo "header(\"Content-Type: text/html; charset=utf-8\");" >> deploy/test-php-execution.php
+        echo "echo \"<h1>Test d'exécution PHP</h1>\";" >> deploy/test-php-execution.php
+        echo "echo \"<p>Si vous voyez ce message, PHP fonctionne correctement via le web.</p>\";" >> deploy/test-php-execution.php
+        echo "echo \"<p>Date et heure: \" . date(\"Y-m-d H:i:s\") . \"</p>\";" >> deploy/test-php-execution.php
+        echo "echo \"<p>Version PHP: \" . phpversion() . \"</p>\";" >> deploy/test-php-execution.php
+        echo "echo \"<p>Extensions chargées: \" . implode(\", \", array_slice(get_loaded_extensions(), 0, 10)) . \"...</p>\";" >> deploy/test-php-execution.php
+        echo "?>" >> deploy/test-php-execution.php
         chmod 644 deploy/test-php-execution.php
         
-        # Fichier force-php-execution.php
-        cat > deploy/force-php-execution.php << 'EOF'
-<?php
-// Ce script tente de contacter directement le moteur PHP
-header("Content-Type: text/plain");
-
-echo "=== TEST FORCÉ D'EXÉCUTION PHP ===\n\n";
-
-// Informations de base
-echo "Date et heure: " . date("Y-m-d H:i:s") . "\n";
-echo "Version PHP: " . phpversion() . "\n";
-echo "SAPI: " . php_sapi_name() . "\n\n";
-
-// Vérifier la configuration d'Apache
-echo "=== CONFIGURATION APACHE ===\n";
-if (function_exists("apache_get_modules")) {
-    echo "Modules Apache chargés: " . implode(", ", array_slice(apache_get_modules(), 0, 10)) . "...\n";
-    echo "php_module ou php7_module présent: " . 
-        (in_array("mod_php", apache_get_modules()) || in_array("mod_php7", apache_get_modules()) ? "OUI" : "NON") . "\n";
-} else {
-    echo "Fonction apache_get_modules() non disponible - PHP probablement exécuté en mode CGI/FastCGI.\n";
-}
-
-// Vérifier les directives PHP importantes
-echo "\n=== DIRECTIVES PHP IMPORTANTES ===\n";
-$important_directives = ["display_errors", "error_reporting", "log_errors", "error_log", "upload_max_filesize", "post_max_size"];
-foreach ($important_directives as $directive) {
-    echo "$directive: " . ini_get($directive) . "\n";
-}
-
-// Information sur le PATH et l'environnement
-echo "\n=== VARIABLES D'ENVIRONNEMENT ===\n";
-echo "PATH: " . getenv("PATH") . "\n";
-echo "DOCUMENT_ROOT: " . $_SERVER["DOCUMENT_ROOT"] . "\n";
-echo "SCRIPT_FILENAME: " . $_SERVER["SCRIPT_FILENAME"] . "\n";
-echo "USER: " . (function_exists("posix_getpwuid") ? posix_getpwuid(posix_geteuid())["name"] : "(non disponible)") . "\n";
-
-// Tester l'écriture de fichier
-echo "\n=== TEST D'ÉCRITURE DE FICHIER ===\n";
-$test_file = "php-write-test-" . time() . ".txt";
-$write_result = @file_put_contents($test_file, "Test d'écriture");
-if ($write_result !== false) {
-    echo "✓ Écriture de fichier réussie ($test_file créé)\n";
-    @unlink($test_file); // Supprimer le fichier de test
-} else {
-    echo "✗ Échec de l'écriture de fichier\n";
-}
-
-echo "\n=== FIN DU TEST ===\n";
-?>
-EOF
-        chmod 644 deploy/force-php-execution.php
+        # Fichier phpinfo.php
+        echo "<?php phpinfo(); ?>" > deploy/phpinfo.php
+        chmod 644 deploy/phpinfo.php
         
-        # Fichier web-php-test.php (simple)
-        cat > deploy/web-php-test.php << 'EOF'
-<?php phpinfo(); ?>
-EOF
-        chmod 644 deploy/web-php-test.php
-        
-        # Fichier check-build-status.php
-        cat > deploy/check-build-status.php << 'EOF'
-<?php
-header("Content-Type: text/html; charset=utf-8");
-?>
-<!DOCTYPE html>
-<html>
-<head>
-    <title>État du déploiement</title>
-    <style>
-        body { font-family: Arial, sans-serif; max-width: 800px; margin: 20px auto; line-height: 1.6; }
-        .success { color: green; background-color: #f0fff0; padding: 5px; border-left: 3px solid green; }
-        .error { color: red; background-color: #fff0f0; padding: 5px; border-left: 3px solid red; }
-        .info { background-color: #f8f9fa; padding: 10px; margin: 10px 0; border-radius: 4px; }
-        code { background-color: #f0f0f0; padding: 2px 4px; border-radius: 3px; font-family: monospace; }
-        table { border-collapse: collapse; width: 100%; margin: 10px 0; }
-        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-        th { background-color: #f2f2f2; }
-        tr:nth-child(even) { background-color: #f9f9f9; }
-    </style>
-</head>
-<body>
-    <h1>Vérification de l'état du déploiement</h1>
-    
-    <div class="info">
-        <p>Cette page vérifie que tous les fichiers importants ont été correctement déployés.</p>
-    </div>
-    
-    <?php
-    // Liste des fichiers critiques à vérifier
-    $critical_files = [
-        ".htaccess" => "Configuration du serveur web",
-        ".user.ini" => "Configuration PHP",
-        "phpinfo.php" => "Diagnostic PHP",
-        "test-php-execution.php" => "Test d'exécution PHP",
-        "force-php-execution.php" => "Test forcé d'exécution PHP",
-        "web-php-test.php" => "Test PHP web",
-        "api/.htaccess" => "Configuration API",
-        "emergency-php-fix.php" => "Script de réparation d'urgence"
-    ];
-    
-    $missing_files = [];
-    $existing_files = [];
-    
-    foreach ($critical_files as $file => $description) {
-        if (file_exists($file)) {
-            $existing_files[$file] = [
-                "description" => $description,
-                "size" => filesize($file),
-                "modified" => date("Y-m-d H:i:s", filemtime($file))
-            ];
-        } else {
-            $missing_files[$file] = $description;
-        }
-    }
-    ?>
-    
-    <h2>Résumé</h2>
-    <?php if (empty($missing_files)): ?>
-        <p class="success">✅ Tous les fichiers critiques ont été correctement déployés.</p>
-    <?php else: ?>
-        <p class="error">❌ Certains fichiers critiques sont manquants.</p>
-    <?php endif; ?>
-    
-    <h2>Détails des fichiers</h2>
-    
-    <?php if (!empty($existing_files)): ?>
-        <h3>Fichiers existants</h3>
-        <table>
-            <tr>
-                <th>Fichier</th>
-                <th>Description</th>
-                <th>Taille</th>
-                <th>Dernière modification</th>
-            </tr>
-            <?php foreach ($existing_files as $file => $info): ?>
-            <tr>
-                <td><code><?php echo htmlspecialchars($file); ?></code></td>
-                <td><?php echo htmlspecialchars($info["description"]); ?></td>
-                <td><?php echo $info["size"]; ?> octets</td>
-                <td><?php echo $info["modified"]; ?></td>
-            </tr>
-            <?php endforeach; ?>
-        </table>
-    <?php endif; ?>
-    
-    <?php if (!empty($missing_files)): ?>
-        <h3>Fichiers manquants</h3>
-        <table>
-            <tr>
-                <th>Fichier</th>
-                <th>Description</th>
-            </tr>
-            <?php foreach ($missing_files as $file => $description): ?>
-            <tr>
-                <td><code><?php echo htmlspecialchars($file); ?></code></td>
-                <td><?php echo htmlspecialchars($description); ?></td>
-            </tr>
-            <?php endforeach; ?>
-        </table>
-        
-        <div class="info">
-            <p><strong>Solution:</strong> Si vous voyez cette page, exécutez le fichier emergency-php-fix.php pour créer les fichiers manquants.</p>
-        </div>
-    <?php endif; ?>
+        # Fichier index.php
+        echo "<?php" > deploy/index.php
+        echo "// Redirection vers index.html" >> deploy/index.php
+        echo "header('Location: index.html');" >> deploy/index.php
+        echo "exit;" >> deploy/index.php
+        echo "?>" >> deploy/index.php
+        chmod 644 deploy/index.php
 
-    <h2>Liens utiles</h2>
-    <ul>
-        <li><a href="phpinfo.php">Informations PHP</a></li>
-        <li><a href="test-php-execution.php">Test d'exécution PHP</a></li>
-        <li><a href="emergency-php-fix.php">Script de réparation d'urgence</a></li>
-        <li><a href="index.html">Application principale</a></li>
-    </ul>
-</body>
-</html>
-EOF
-        chmod 644 deploy/check-build-status.php
-        
-        # Création du script emergency-php-fix.php
-        cat > deploy/emergency-php-fix.php << 'EOF'
-<?php
-// Assurez-vous qu'il n'y a aucun espace ou sortie avant cette ligne
-ob_start(); // Démarrer la mise en tampon de sortie
-header("Content-Type: text/html; charset=utf-8");
-
-// Fonctions de diagnostic et réparation
-function diagnostiquer_probleme_php() {
-    $diagnostic = [];
-    
-    // Version PHP
-    $diagnostic["version_php"] = phpversion();
-    $diagnostic["sapi"] = php_sapi_name();
-    
-    // Permissions
-    $diagnostic["permission_script"] = sprintf("%o", fileperms(__FILE__) & 0777);
-    $diagnostic["owner"] = function_exists("posix_getpwuid") ? posix_getpwuid(fileowner(__FILE__))["name"] : "inconnu";
-    
-    // Fichiers de configuration
-    $diagnostic["htaccess_exists"] = file_exists(".htaccess");
-    if ($diagnostic["htaccess_exists"]) {
-        $diagnostic["htaccess_permissions"] = sprintf("%o", fileperms(".htaccess") & 0777);
-    }
-    
-    $diagnostic["user_ini_exists"] = file_exists(".user.ini");
-    if ($diagnostic["user_ini_exists"]) {
-        $diagnostic["user_ini_permissions"] = sprintf("%o", fileperms(".user.ini") & 0777);
-    }
-    
-    return $diagnostic;
-}
-
-function creer_htaccess() {
-    $contenu = <<<EOT
-# Activer le moteur de réécriture
-RewriteEngine On
-
-# Rediriger HTTP vers HTTPS (commenter si non applicable)
-# RewriteCond %{HTTPS} off
-# RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
-
-# Forcer l'utilisation de l'interpréteur PHP
-AddType application/x-httpd-php .php
-<FilesMatch "\\.php$">
-    SetHandler application/x-httpd-php
-</FilesMatch>
-
-# Pour les fichiers CSS
-AddType text/css .css
-<FilesMatch "\\.css$">
-    ForceType text/css
-</FilesMatch>
-
-# Pour les fichiers JavaScript
-AddType application/javascript .js .mjs
-<FilesMatch "\\.(js|mjs)$">
-    ForceType application/javascript
-</FilesMatch>
-
-# Configuration API REST
-<IfModule mod_rewrite.c>
-    RewriteEngine On
-    
-    # Redirection de l'index.php vers index.html
-    RewriteCond %{THE_REQUEST} ^[A-Z]{3,9}\\ /index\\.php [NC]
-    RewriteRule ^index\\.php$ / [R=301,L]
-    
-    # Traiter toutes les requêtes qui ne correspondent pas à un fichier réel
-    # via l'API ou le router front-end
-    RewriteCond %{REQUEST_FILENAME} !-f
-    RewriteCond %{REQUEST_FILENAME} !-d
-    RewriteRule ^api/(.*)$ api/index.php [L]
-    RewriteRule ^(.*)$ index.html [L]
-</IfModule>
-
-# Protection des fichiers sensibles
-<FilesMatch "^\\.(htaccess|htpasswd|user\\.ini|php\\.ini)$">
-    Order Allow,Deny
-    Deny from all
-</FilesMatch>
-
-# Désactiver l'affichage du contenu des répertoires
-Options -Indexes
-EOT;
-
-    return file_put_contents(".htaccess", $contenu) !== false;
-}
-
-function creer_user_ini() {
-    $contenu = <<<EOT
-; Configuration PHP pour Infomaniak
-display_errors = Off
-log_errors = On
-error_reporting = E_ALL & ~E_DEPRECATED & ~E_STRICT
-max_execution_time = 120
-memory_limit = 256M
-upload_max_filesize = 64M
-post_max_size = 64M
-default_charset = "UTF-8"
-EOT;
-
-    return file_put_contents(".user.ini", $contenu) !== false;
-}
-
-function creer_phpinfo() {
-    $contenu = <<<EOT
-<?php
-// Afficher les informations détaillées sur PHP
-header('Content-Type: text/html; charset=utf-8');
-phpinfo();
-?>
-EOT;
-
-    return file_put_contents("phpinfo-complet.php", $contenu) !== false;
-}
-
-function creer_test_minimal() {
-    $contenu = <<<EOT
-<?php
-header('Content-Type: text/plain');
-echo "PHP fonctionne!";
-?>
-EOT;
-
-    return file_put_contents("php-test-minimal.php", $contenu) !== false;
-}
-
-// Effectuer le diagnostic
-$diagnostic = diagnostiquer_probleme_php();
-
-// Traitement des actions
-$actions_effectuees = [];
-$erreurs = [];
-
-// Vérifier si c'est un accès web ou ligne de commande
-$is_cli = (php_sapi_name() === 'cli');
-$is_post_request = !$is_cli && isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] === 'POST';
-
-// Gestion des actions en fonction du contexte
-if ($is_cli) {
-    // Mode CLI: créer automatiquement tous les fichiers
-    if (creer_htaccess()) {
-        $actions_effectuees[] = "Fichier .htaccess créé ou mis à jour";
-    } else {
-        $erreurs[] = "Impossible de créer ou mettre à jour le fichier .htaccess";
-    }
-    
-    if (creer_user_ini()) {
-        $actions_effectuees[] = "Fichier .user.ini créé ou mis à jour";
-    } else {
-        $erreurs[] = "Impossible de créer ou mettre à jour le fichier .user.ini";
-    }
-    
-    if (creer_phpinfo()) {
-        $actions_effectuees[] = "Fichier phpinfo-complet.php créé";
-    } else {
-        $erreurs[] = "Impossible de créer le fichier phpinfo-complet.php";
-    }
-    
-    if (creer_test_minimal()) {
-        $actions_effectuees[] = "Fichier php-test-minimal.php créé";
-    } else {
-        $erreurs[] = "Impossible de créer le fichier php-test-minimal.php";
-    }
-} elseif ($is_post_request) {
-    // Mode web avec formulaire POST
-    if (isset($_POST['fix_htaccess'])) {
-        if (creer_htaccess()) {
-            $actions_effectuees[] = "Fichier .htaccess créé ou mis à jour";
-        } else {
-            $erreurs[] = "Impossible de créer ou mettre à jour le fichier .htaccess";
-        }
-    }
-    
-    if (isset($_POST['fix_user_ini'])) {
-        if (creer_user_ini()) {
-            $actions_effectuees[] = "Fichier .user.ini créé ou mis à jour";
-        } else {
-            $erreurs[] = "Impossible de créer ou mettre à jour le fichier .user.ini";
-        }
-    }
-    
-    if (isset($_POST['create_phpinfo'])) {
-        if (creer_phpinfo()) {
-            $actions_effectuees[] = "Fichier phpinfo-complet.php créé";
-        } else {
-            $erreurs[] = "Impossible de créer le fichier phpinfo-complet.php";
-        }
-    }
-    
-    if (isset($_POST['create_test_minimal'])) {
-        if (creer_test_minimal()) {
-            $actions_effectuees[] = "Fichier php-test-minimal.php créé";
-        } else {
-            $erreurs[] = "Impossible de créer le fichier php-test-minimal.php";
-        }
-    }
-}
-
-// S'assurer que les fichiers critiques existent toujours
-if (!file_exists("test-php-execution.php")) {
-    $test_php_content = <<<EOT
-<?php
-header("Content-Type: text/html; charset=utf-8");
-echo "<h1>Test d'exécution PHP</h1>";
-echo "<p>Si vous voyez ce message, PHP fonctionne correctement via le web.</p>";
-echo "<p>Date et heure: " . date("Y-m-d H:i:s") . "</p>";
-echo "<p>Version PHP: " . phpversion() . "</p>";
-echo "<p>Extensions chargées: " . implode(", ", array_slice(get_loaded_extensions(), 0, 10)) . "...</p>";
-?>
-EOT;
-    file_put_contents("test-php-execution.php", $test_php_content);
-    $actions_effectuees[] = "Fichier test-php-execution.php créé (manquant)";
-}
-
-// Vider le tampon de sortie pour éviter les erreurs "headers already sent"
-ob_end_flush();
-
-// Si mode CLI, afficher directement les résultats
-if ($is_cli) {
-    echo "=== RÉPARATION D'URGENCE PHP ===\n\n";
-    echo "Version PHP: " . $diagnostic["version_php"] . "\n";
-    echo "Mode d'exécution: " . $diagnostic["sapi"] . "\n\n";
-    
-    echo "=== ACTIONS RÉALISÉES ===\n";
-    foreach ($actions_effectuees as $action) {
-        echo "✓ $action\n";
-    }
-    
-    if (!empty($erreurs)) {
-        echo "\n=== ERREURS RENCONTRÉES ===\n";
-        foreach ($erreurs as $erreur) {
-            echo "✗ $erreur\n";
-        }
-    }
-    
-    echo "\nFichiers créés avec succès. Vous pouvez maintenant accéder à ces fichiers via votre navigateur.\n";
-    exit;
-}
-?>
-
-<!DOCTYPE html>
-<html lang="fr">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Réparation d'urgence PHP</title>
-    <style>
-        body { font-family: Arial, sans-serif; line-height: 1.6; max-width: 900px; margin: 0 auto; padding: 20px; }
-        h1, h2 { color: #333; }
-        .section { margin-bottom: 30px; border: 1px solid #ddd; padding: 15px; border-radius: 5px; }
-        .success { color: green; font-weight: bold; }
-        .warning { color: orange; font-weight: bold; }
-        .error { color: red; font-weight: bold; }
-        code { background: #f4f4f4; padding: 2px 5px; border-radius: 3px; }
-        pre { background: #f4f4f4; padding: 10px; border-radius: 5px; overflow-x: auto; }
-        .actions { margin-top: 20px; }
-        .button { display: inline-block; background: #4CAF50; color: white; padding: 10px 15px; text-decoration: none; border-radius: 5px; margin: 5px; }
-    </style>
-</head>
-<body>
-    <h1>Réparation d'urgence PHP sur Infomaniak</h1>
-    
-    <div class="section">
-        <h2>Diagnostic du système</h2>
-        <p><strong>Version PHP:</strong> <?php echo $diagnostic["version_php"]; ?></p>
-        <p><strong>Mode d'exécution (SAPI):</strong> <?php echo $diagnostic["sapi"]; ?></p>
-        <p><strong>Permissions de ce script:</strong> <?php echo $diagnostic["permission_script"]; ?></p>
-        <p><strong>Propriétaire du script:</strong> <?php echo $diagnostic["owner"]; ?></p>
-        
-        <h3>Fichiers de configuration</h3>
-        <p><strong>.htaccess:</strong> <?php echo $diagnostic["htaccess_exists"] ? "Existe (permissions: {$diagnostic["htaccess_permissions"]})" : "Manquant"; ?></p>
-        <p><strong>.user.ini:</strong> <?php echo $diagnostic["user_ini_exists"] ? "Existe (permissions: {$diagnostic["user_ini_permissions"]})" : "Manquant"; ?></p>
-    </div>
-    
-    <div class="section">
-        <h2>Actions de réparation</h2>
-        <?php
-        if (!empty($actions_effectuees)) {
-            echo '<div style="background: #d4edda; padding: 10px; margin-bottom: 15px; border-radius: 5px;">';
-            echo '<h3 style="color: #155724;">Actions réalisées :</h3><ul>';
-            foreach ($actions_effectuees as $action) {
-                echo "<li>$action</li>";
-            }
-            echo '</ul></div>';
-        }
-        
-        if (!empty($erreurs)) {
-            echo '<div style="background: #f8d7da; padding: 10px; margin-bottom: 15px; border-radius: 5px;">';
-            echo '<h3 style="color: #721c24;">Erreurs rencontrées :</h3><ul>';
-            foreach ($erreurs as $erreur) {
-                echo "<li>$erreur</li>";
-            }
-            echo '</ul></div>';
-        }
-        ?>
-        
-        <form method="post">
-            <p>Sélectionnez les actions à effectuer :</p>
-            <div class="actions">
-                <button type="submit" name="fix_htaccess" class="button">Créer/Corriger .htaccess</button>
-                <button type="submit" name="fix_user_ini" class="button">Créer/Corriger .user.ini</button>
-                <button type="submit" name="create_phpinfo" class="button">Créer phpinfo-complet.php</button>
-                <button type="submit" name="create_test_minimal" class="button">Créer test PHP minimal</button>
-            </div>
-        </form>
-    </div>
-    
-    <div class="section">
-        <h2>Conseils pour Infomaniak</h2>
-        <ol>
-            <li>Assurez-vous que PHP est activé pour votre hébergement dans l'interface Infomaniak.</li>
-            <li>Si les fichiers PHP ne s'exécutent toujours pas, contactez le support Infomaniak.</li>
-            <li>Vérifiez les droits d'accès des répertoires (755) et fichiers (644).</li>
-            <li>Pour les utilisateurs avancés, vérifiez si FPM est correctement configuré.</li>
-        </ol>
-    </div>
-    
-    <div class="section">
-        <h2>Tests après réparation</h2>
-        <p>Après avoir appliqué les corrections, testez avec ces liens :</p>
-        <ul>
-            <li><a href="php-test-minimal.php" target="_blank">Test PHP minimal</a> (devrait simplement afficher "PHP fonctionne!")</li>
-            <li><a href="phpinfo-complet.php" target="_blank">PHPInfo complet</a> (informations détaillées sur PHP)</li>
-            <li><a href="test-php-execution.php" target="_blank">Test d'exécution PHP</a> (test plus complet)</li>
-        </ul>
-    </div>
-</body>
-</html>
-EOF
-        chmod 644 deploy/emergency-php-fix.php
-        
-        # Copie des fichiers PHP essentiels
-        echo "Copie des scripts de diagnostic..."
-        cp phpinfo.php deploy/ || echo "Fichier phpinfo.php non trouvé"
-        cp index.php deploy/ || echo "Fichier index.php non trouvé"
-        
         # Structure du dossier de déploiement
         echo "Structure du dossier de déploiement:"
         find deploy -type f -name "*.php" | sort
