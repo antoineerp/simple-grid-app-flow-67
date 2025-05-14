@@ -184,10 +184,9 @@ jobs:
         cp force-php-execution.php deploy/ || echo "Fichier force-php-execution.php non trouvé"
         cp web-php-test.php deploy/ || echo "Fichier web-php-test.php non trouvé"
         
-        # Si les fichiers de diagnostic n'existent pas dans le dépôt, les créer directement
-        if [ ! -f "deploy/test-php-execution.php" ]; then
-          echo "Création directe du fichier test-php-execution.php..."
-          echo '<?php
+        # Création explicite des fichiers de test PHP manquants
+        # Création de test-php-execution.php
+        echo '<?php
 header("Content-Type: text/html; charset=utf-8");
 echo "<h1>Test d'\''exécution PHP</h1>";
 echo "<p>Si vous voyez ce message, PHP fonctionne correctement via le web.</p>";
@@ -195,13 +194,11 @@ echo "<p>Date et heure: " . date("Y-m-d H:i:s") . "</p>";
 echo "<p>Version PHP: " . phpversion() . "</p>";
 echo "<p>Extensions chargées: " . implode(", ", array_slice(get_loaded_extensions(), 0, 10)) . "...</p>";
 ?>' > deploy/test-php-execution.php
-          chmod 644 deploy/test-php-execution.php
-          echo "Fichier test-php-execution.php créé directement"
-        fi
+        chmod 644 deploy/test-php-execution.php
+        echo "Fichier test-php-execution.php créé directement"
         
-        if [ ! -f "deploy/force-php-execution.php" ]; then
-          echo "Création directe du fichier force-php-execution.php..."
-          echo '<?php
+        # Création de force-php-execution.php
+        echo '<?php
 // Ce script tentera de contacter directement le moteur PHP
 header("Content-Type: text/plain");
 
@@ -249,13 +246,11 @@ if ($write_result !== false) {
 
 echo "\n=== FIN DU TEST ===\n";
 ?>' > deploy/force-php-execution.php
-          chmod 644 deploy/force-php-execution.php
-          echo "Fichier force-php-execution.php créé directement"
-        fi
+        chmod 644 deploy/force-php-execution.php
+        echo "Fichier force-php-execution.php créé directement"
         
-        if [ ! -f "deploy/check-build-status.php" ]; then
-          echo "Création directe du fichier check-build-status.php..."
-          echo '<?php
+        # Création de check-build-status.php
+        echo '<?php
 header("Content-Type: text/html; charset=utf-8");
 ?>
 <!DOCTYPE html>
@@ -359,13 +354,11 @@ header("Content-Type: text/html; charset=utf-8");
     <?php endif; ?>
 </body>
 </html>' > deploy/check-build-status.php
-          chmod 644 deploy/check-build-status.php
-          echo "Fichier check-build-status.php créé directement"
-        fi
+        chmod 644 deploy/check-build-status.php
+        echo "Fichier check-build-status.php créé directement"
         
-        if [ ! -f "deploy/verify-php-ssh.sh" ]; then
-          echo "Création directe du fichier verify-php-ssh.sh..."
-          echo '#!/bin/bash
+        # Création de verify-php-ssh.sh
+        echo '#!/bin/bash
 # Script pour vérifier la configuration PHP d'\''un hébergement Infomaniak via SSH
 # À exécuter directement sur le serveur après avoir uploadé le fichier via SSH
 
@@ -435,9 +428,8 @@ echo
 echo "== Test terminé =="
 echo "Si PHP CLI fonctionne mais que les scripts PHP ne s'\''exécutent pas via le web,"
 echo "cela peut être dû à une configuration du serveur web ou aux droits d'\''accès."' > deploy/verify-php-ssh.sh
-          chmod 755 deploy/verify-php-ssh.sh
-          echo "Fichier verify-php-ssh.sh créé directement"
-        fi
+        chmod 755 deploy/verify-php-ssh.sh
+        echo "Fichier verify-php-ssh.sh créé directement"
 
         # Créer des fichiers de test supplémentaires
         echo '<?php phpinfo(); ?>' > deploy/web-php-test.php
