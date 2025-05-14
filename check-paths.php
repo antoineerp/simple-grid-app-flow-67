@@ -50,8 +50,8 @@ foreach ($directories as $dir => $desc) {
         
         // Vérifier les permissions
         $perms = substr(sprintf('%o', fileperms($dir)), -4);
-        $owner = posix_getpwuid(fileowner($dir))['name'] ?? 'unknown';
-        $group = posix_getgrgid(filegroup($dir))['name'] ?? 'unknown';
+        $owner = function_exists('posix_getpwuid') ? posix_getpwuid(fileowner($dir))['name'] ?? 'unknown' : 'unknown';
+        $group = function_exists('posix_getgrgid') ? posix_getgrgid(filegroup($dir))['name'] ?? 'unknown' : 'unknown';
         echo "  • Permissions: $perms (propriétaire: $owner, groupe: $group)\n";
     } else {
         echo "✗ $dir: N'existe pas ($desc)\n";
@@ -74,8 +74,8 @@ foreach ($files as $file => $desc) {
     if (file_exists($file)) {
         $size = filesize($file);
         $perms = substr(sprintf('%o', fileperms($file)), -4);
-        $owner = posix_getpwuid(fileowner($file))['name'] ?? 'unknown';
-        $group = posix_getgrgid(filegroup($file))['name'] ?? 'unknown';
+        $owner = function_exists('posix_getpwuid') ? posix_getpwuid(fileowner($file))['name'] ?? 'unknown' : 'unknown';
+        $group = function_exists('posix_getgrgid') ? posix_getgrgid(filegroup($file))['name'] ?? 'unknown' : 'unknown';
         echo "✓ $file: Existe ($desc, taille: $size octets)\n";
         echo "  • Permissions: $perms (propriétaire: $owner, groupe: $group)\n";
     } else {
