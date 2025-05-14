@@ -1,34 +1,32 @@
 
 <?php
-header('Content-Type: application/json; charset=utf-8');
+// Ce script crée un fichier CSS de test dans le dossier assets
 
 if (isset($_POST['create_css'])) {
-    // Créer le dossier assets s'il n'existe pas
+    // Contenu du fichier CSS de test
+    $css_content = "#test-css-element {
+    color: blue;
+    background-color: #e0f7fa;
+    padding: 15px;
+    border: 2px solid #4fc3f7;
+    border-radius: 5px;
+    font-weight: bold;
+    text-align: center;
+    margin-top: 10px;
+}";
+
+    // S'assurer que le dossier assets existe
     if (!is_dir('assets')) {
         mkdir('assets', 0755, true);
     }
-    
-    // Contenu du CSS de test
-    $cssContent = <<<CSS
-/* Fichier CSS de test pour vérifier les types MIME */
-#test-css-element {
-    background-color: #e3f2fd;
-    border: 2px solid #2196f3;
-    padding: 15px;
-    margin: 20px 0;
-    font-weight: bold;
-    color: #0d47a1;
-    text-align: center;
-}
-CSS;
-    
-    // Écrire le fichier
-    if (file_put_contents('assets/test-style.css', $cssContent) !== false) {
-        echo json_encode(['success' => true, 'message' => 'Fichier CSS de test créé avec succès']);
+
+    // Écrire le fichier CSS
+    if (file_put_contents('assets/test-style.css', $css_content)) {
+        echo json_encode(['success' => true, 'message' => 'Fichier CSS créé avec succès']);
     } else {
-        echo json_encode(['success' => false, 'message' => 'Impossible de créer le fichier CSS de test']);
+        echo json_encode(['success' => false, 'message' => 'Erreur lors de la création du fichier CSS']);
     }
 } else {
-    echo json_encode(['success' => false, 'message' => 'Requête invalide']);
+    echo json_encode(['success' => false, 'message' => 'Requête non valide']);
 }
 ?>

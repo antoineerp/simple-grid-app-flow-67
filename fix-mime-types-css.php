@@ -14,6 +14,7 @@ header('Content-Type: text/html; charset=utf-8');
         pre { background: #f5f5f5; padding: 10px; border-radius: 5px; overflow-x: auto; }
         .section { margin-bottom: 30px; padding: 15px; border: 1px solid #ddd; border-radius: 4px; }
         .fix-button { padding: 10px 15px; background-color: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        .detail-box { background-color: #f9f9f9; padding: 10px; border-radius: 4px; margin: 10px 0; }
     </style>
 </head>
 <body>
@@ -121,9 +122,9 @@ AddType text/css .css
     Header set Content-Type \"application/javascript; charset=utf-8\"
 </FilesMatch>
 
-# En-têtes de cache pour les assets
-<FilesMatch \"\.(js|mjs|css)$\">
-    Header set Cache-Control \"max-age=31536000, public\"
+# En-têtes de cache pour les assets - éviter must-revalidate
+<FilesMatch \"\.(js|mjs|css|jpg|jpeg|png|gif|svg)$\">
+    Header set Cache-Control \"public, max-age=31536000\"
 </FilesMatch>
 
 # Autoriser l'accès aux fichiers
@@ -131,6 +132,9 @@ AddType text/css .css
     Order Allow,Deny
     Allow from all
 </Files>
+
+# Ajouter l'en-tête X-Content-Type-Options
+Header set X-Content-Type-Options \"nosniff\"
 ";
             
             if (file_put_contents('assets/.htaccess', $htaccessContent) !== false) {
@@ -146,10 +150,24 @@ AddType text/css .css
                 
                 // Ajouter la configuration MIME type si elle n'existe pas déjà
                 if (strpos($rootHtaccess, 'ForceType text/css') === false) {
+                    // Améliorer les directives pour le type MIME
                     $mimeConfig = "\n# Forcer explicitement le type MIME pour CSS
 <FilesMatch \"\.css$\">
     ForceType text/css
     Header set Content-Type \"text/css; charset=utf-8\"
+</FilesMatch>
+
+<FilesMatch \"\.js$\">
+    ForceType application/javascript
+    Header set Content-Type \"application/javascript; charset=utf-8\"
+</FilesMatch>
+
+# Explicitement définir les types MIME dans les en-têtes
+<FilesMatch \"\.css$\">
+    Header set Content-Type \"text/css; charset=utf-8\"
+</FilesMatch>
+<FilesMatch \"\.js$\">
+    Header set Content-Type \"application/javascript; charset=utf-8\"
 </FilesMatch>\n";
                     
                     // Insérer après la section des types MIME
@@ -170,8 +188,22 @@ AddType text/css .css
                     echo "<p><span class='success'>Le fichier .htaccess racine contient déjà la configuration MIME pour CSS</span></p>";
                 }
             }
+
+            // Créer un fichier test_style.css dans le dossier assets s'il n'existe pas
+            if (!file_exists('assets/test-style.css')) {
+                $testCssContent = "#test-css-element {\n    color: blue;\n    background-color: #e0f7fa;\n    padding: 15px;\n    border: 2px solid #4fc3f7;\n    border-radius: 5px;\n    font-weight: bold;\n    text-align: center;\n    margin-top: 10px;\n}";
+                
+                // S'assurer que le dossier assets existe
+                if (!is_dir('assets')) {
+                    mkdir('assets', 0755, true);
+                }
+                
+                file_put_contents('assets/test-style.css', $testCssContent);
+                echo "<p><span class='success'>Fichier CSS de test créé dans assets/test-style.css</span></p>";
+            }
             
             echo "<p>Veuillez vider le cache de votre navigateur et rafraîchir la page pour voir les changements.</p>";
+            echo "<p><a href='" . $_SERVER['PHP_SELF'] . "' class='fix-button'>Rafraîchir cette page</a></p>";
         }
         ?>
         
@@ -241,6 +273,36 @@ AddType text/css .css
             <li>Essayez de reconstruire votre application React avec <code>npm run build</code> puis redéployez.</li>
             <li>Vérifiez les logs d'erreur de votre serveur web pour plus d'informations sur d'éventuelles erreurs.</li>
         </ol>
+    </div>
+
+    <div class="section">
+        <h2>Vérification de l'index.html</h2>
+        <?php
+        if (file_exists('index.html')) {
+            $indexContent = file_get_contents('index.html');
+            echo "<p><span class='success'>Le fichier index.html existe</span></p>";
+            
+            // Vérifier si le fichier CSS est correctement référencé
+            $hasStylesheetLink = preg_match('/<link[^>]*rel=["\']stylesheet["\'][^>]*href=["\'][^"\']*\.css["\'][^>]*>/i', $indexContent);
+            echo "<p>Référence à une feuille de style CSS : " . ($hasStylesheetLink ? "<span class='success'>Trouvée</span>" : "<span class='error'>Non trouvée</span>") . "</p>";
+            
+            if ($hasStylesheetLink) {
+                preg_match_all('/<link[^>]*rel=["\']stylesheet["\'][^>]*href=["\']([^"\']*\.css)["\'][^>]*>/i', $indexContent, $matches);
+                echo "<p>Chemins CSS trouvés :</p><ul>";
+                foreach ($matches[1] as $cssPath) {
+                    echo "<li>$cssPath</li>";
+                }
+                echo "</ul>";
+            } else {
+                echo "<div class='detail-box'>";
+                echo "<p><strong>Conseil:</strong> Assurez-vous que votre fichier index.html contient une référence vers un fichier CSS, comme :</p>";
+                echo "<pre>&lt;link rel=\"stylesheet\" href=\"/assets/index.css\" type=\"text/css\" /&gt;</pre>";
+                echo "</div>";
+            }
+        } else {
+            echo "<p><span class='error'>Le fichier index.html n'existe pas dans le répertoire courant</span></p>";
+        }
+        ?>
     </div>
 </body>
 </html>
