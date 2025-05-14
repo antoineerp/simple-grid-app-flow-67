@@ -133,54 +133,13 @@ header('Content-Type: text/html; charset=utf-8');
     <div class="section">
         <h2>Actions recommandées</h2>
         <?php
-        // Créer un script mkdir si nécessaire
-        $mkdir_script = 'mkdir_script.sh';
-        $mkdir_content = '#!/bin/bash
-# Script pour créer les dossiers nécessaires sur Infomaniak
-
-echo "Création des dossiers nécessaires pour le projet..."
-
-# Création des dossiers principaux et sous-dossiers
-mkdir -p api/config
-mkdir -p api/controllers
-mkdir -p api/models
-mkdir -p api/middleware
-mkdir -p assets
-mkdir -p public/lovable-uploads
-
-# Définir les permissions appropriées
-chmod 755 api
-chmod 755 api/config
-chmod 755 api/controllers
-chmod 755 api/models
-chmod 755 api/middleware
-chmod 755 assets
-chmod 755 public
-chmod 755 public/lovable-uploads
-
-echo "✅ Dossiers créés avec succès"
-';
-        
-        if (!file_exists($mkdir_script)) {
-            if (file_put_contents($mkdir_script, $mkdir_content)) {
-                chmod($mkdir_script, 0755);
-                echo "<p class='success'>Script $mkdir_script créé avec succès</p>";
-                echo "<p>Vous pouvez exécuter ce script pour créer les dossiers nécessaires:</p>";
-                echo "<code>chmod +x $mkdir_script<br>.$mkdir_script</code>";
-            } else {
-                echo "<p class='error'>Impossible de créer le script $mkdir_script</p>";
-            }
-        } else {
-            echo "<p>Le script $mkdir_script existe déjà. Vous pouvez l'exécuter pour créer les dossiers nécessaires.</p>";
-        }
-        
         // Proposer de corriger les chemins dans le fichier htaccess
         if (file_exists('.htaccess')) {
             echo "<p><a href='fix-htaccess.php' style='display:inline-block; background:#4CAF50; color:white; padding:10px 15px; text-decoration:none; border-radius:5px;'>Corriger les chemins dans .htaccess</a></p>";
         }
         
-        // Proposer de mettre à jour/créer le fichier api/.htaccess
-        echo "<p><a href='create-api-htaccess.php' style='display:inline-block; background:#2196F3; color:white; padding:10px 15px; text-decoration:none; border-radius:5px;'>Créer/Mettre à jour api/.htaccess</a></p>";
+        // Proposer d'accéder à l'index.html directement
+        echo "<p><a href='index.html' style='display:inline-block; background:#2196F3; color:white; padding:10px 15px; text-decoration:none; border-radius:5px;'>Accéder à l'application</a></p>";
         ?>
     </div>
 </body>

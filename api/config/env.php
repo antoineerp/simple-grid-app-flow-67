@@ -16,4 +16,11 @@ function get_env($key, $default = null) {
     }
     return $default;
 }
+
+// Alias pour compatibilité avec différentes syntaxes
+if (!function_exists('env')) {
+    function env($key, $default = null) {
+        return get_env($key, $default);
+    }
+}
 ?>

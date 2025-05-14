@@ -64,7 +64,7 @@ Header set Content-Security-Policy "default-src 'self'; script-src 'self' 'unsaf
 </FilesMatch>
 
 # Permettre l'accès direct aux scripts de diagnostic
-<FilesMatch "^(phpinfo|php-test|infomaniak-fix|path-fix|check-paths|deploy-on-infomaniak|user-diagnostic|diagnose-infomaniak)\.php$">
+<FilesMatch "^(phpinfo|fix-htaccess|check-infomaniak|infomaniak-fix|deploy-on-infomaniak)\.php$">
     # Aucune réécriture pour ces fichiers
 </FilesMatch>
 
@@ -83,15 +83,6 @@ RewriteRule ^api/([^/]+)$ api/$1.php [QSA,L]
 
 # Règle pour autres requêtes API
 RewriteRule ^api/(.*)$ api/$1 [QSA,L]
-
-# Permettre l'accès direct aux fichiers de diagnostic
-RewriteRule ^phpinfo\.php$ - [L]
-RewriteRule ^php-test\.php$ - [L]
-RewriteRule ^infomaniak-fix\.php$ - [L]
-RewriteRule ^path-fix\.php$ - [L]
-RewriteRule ^user-diagnostic\.php$ - [L]
-RewriteRule ^deploy-on-infomaniak\.php$ - [L]
-RewriteRule ^diagnose-infomaniak\.php$ - [L]
 
 # Permettre l'accès direct aux assets dans leur dossier
 RewriteCond %{REQUEST_URI} ^/assets/
