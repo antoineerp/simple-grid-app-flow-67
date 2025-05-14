@@ -1,3 +1,4 @@
+
 #!/bin/bash
 # Script de vérification de l'exécution PHP via SSH sur Infomaniak
 
