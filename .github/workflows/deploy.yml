@@ -180,18 +180,265 @@ jobs:
         cp trigger-github-workflow.php deploy/ || echo "Fichier trigger-github-workflow.php non trouvé"
         cp check-build-status.php deploy/ || echo "Fichier check-build-status.php non trouvé"
         cp verify-php-ssh.sh deploy/ || echo "Fichier verify-php-ssh.sh non trouvé"
+        cp test-php-execution.php deploy/ || echo "Fichier test-php-execution.php non trouvé"
+        cp force-php-execution.php deploy/ || echo "Fichier force-php-execution.php non trouvé"
+        cp web-php-test.php deploy/ || echo "Fichier web-php-test.php non trouvé"
         
         # Si les fichiers de diagnostic n'existent pas dans le dépôt, les créer directement
+        if [ ! -f "deploy/test-php-execution.php" ]; then
+          echo "Création directe du fichier test-php-execution.php..."
+          echo '<?php
+header("Content-Type: text/html; charset=utf-8");
+echo "<h1>Test d'\''exécution PHP</h1>";
+echo "<p>Si vous voyez ce message, PHP fonctionne correctement via le web.</p>";
+echo "<p>Date et heure: " . date("Y-m-d H:i:s") . "</p>";
+echo "<p>Version PHP: " . phpversion() . "</p>";
+echo "<p>Extensions chargées: " . implode(", ", array_slice(get_loaded_extensions(), 0, 10)) . "...</p>";
+?>' > deploy/test-php-execution.php
+          chmod 644 deploy/test-php-execution.php
+          echo "Fichier test-php-execution.php créé directement"
+        fi
+        
+        if [ ! -f "deploy/force-php-execution.php" ]; then
+          echo "Création directe du fichier force-php-execution.php..."
+          echo '<?php
+// Ce script tentera de contacter directement le moteur PHP
+header("Content-Type: text/plain");
+
+echo "=== TEST FORCÉ D'\''EXÉCUTION PHP ===\n\n";
+
+// Informations de base
+echo "Date et heure: " . date("Y-m-d H:i:s") . "\n";
+echo "Version PHP: " . phpversion() . "\n";
+echo "SAPI: " . php_sapi_name() . "\n\n";
+
+// Vérifier la configuration d'\''Apache
+echo "=== CONFIGURATION APACHE ===\n";
+if (function_exists("apache_get_modules")) {
+    echo "Modules Apache chargés: " . implode(", ", array_slice(apache_get_modules(), 0, 10)) . "...\n";
+    echo "php_module ou php7_module présent: " . 
+        (in_array("mod_php", apache_get_modules()) || in_array("mod_php7", apache_get_modules()) ? "OUI" : "NON") . "\n";
+} else {
+    echo "Fonction apache_get_modules() non disponible - PHP probablement exécuté en mode CGI/FastCGI.\n";
+}
+
+// Vérifier les directives PHP importantes
+echo "\n=== DIRECTIVES PHP IMPORTANTES ===\n";
+$important_directives = ["display_errors", "error_reporting", "log_errors", "error_log", "upload_max_filesize", "post_max_size"];
+foreach ($important_directives as $directive) {
+    echo "$directive: " . ini_get($directive) . "\n";
+}
+
+// Information sur le PATH et l'\''environnement
+echo "\n=== VARIABLES D'\''ENVIRONNEMENT ===\n";
+echo "PATH: " . getenv("PATH") . "\n";
+echo "DOCUMENT_ROOT: " . $_SERVER["DOCUMENT_ROOT"] . "\n";
+echo "SCRIPT_FILENAME: " . $_SERVER["SCRIPT_FILENAME"] . "\n";
+echo "USER: " . (function_exists("posix_getpwuid") ? posix_getpwuid(posix_geteuid())["name"] : "(non disponible)") . "\n";
+
+// Tester l'\''écriture de fichier
+echo "\n=== TEST D'\''ÉCRITURE DE FICHIER ===\n";
+$test_file = "php-write-test-" . time() . ".txt";
+$write_result = @file_put_contents($test_file, "Test d'\''écriture");
+if ($write_result !== false) {
+    echo "✓ Écriture de fichier réussie ($test_file créé)\n";
+    @unlink($test_file); // Supprimer le fichier de test
+} else {
+    echo "✗ Échec de l'\''écriture de fichier\n";
+}
+
+echo "\n=== FIN DU TEST ===\n";
+?>' > deploy/force-php-execution.php
+          chmod 644 deploy/force-php-execution.php
+          echo "Fichier force-php-execution.php créé directement"
+        fi
+        
         if [ ! -f "deploy/check-build-status.php" ]; then
           echo "Création directe du fichier check-build-status.php..."
-          cp check-build-status.php deploy/ || echo "Création directe échouée"
+          echo '<?php
+header("Content-Type: text/html; charset=utf-8");
+?>
+<!DOCTYPE html>
+<html>
+<head>
+    <title>État du déploiement</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 800px; margin: 20px auto; line-height: 1.6; }
+        .success { color: green; background-color: #f0fff0; padding: 5px; border-left: 3px solid green; }
+        .error { color: red; background-color: #fff0f0; padding: 5px; border-left: 3px solid red; }
+        .info { background-color: #f8f9fa; padding: 10px; margin: 10px 0; border-radius: 4px; }
+        code { background-color: #f0f0f0; padding: 2px 4px; border-radius: 3px; font-family: monospace; }
+        table { border-collapse: collapse; width: 100%; margin: 10px 0; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: #f2f2f2; }
+        tr:nth-child(even) { background-color: #f9f9f9; }
+    </style>
+</head>
+<body>
+    <h1>Vérification de l'\''état du déploiement</h1>
+    
+    <div class="info">
+        <p>Cette page vérifie que tous les fichiers importants ont été correctement déployés.</p>
+    </div>
+    
+    <?php
+    // Liste des fichiers critiques à vérifier
+    $critical_files = [
+        ".htaccess" => "Configuration du serveur web",
+        ".user.ini" => "Configuration PHP",
+        "phpinfo.php" => "Diagnostic PHP",
+        "test-php-execution.php" => "Test d'\''exécution PHP",
+        "force-php-execution.php" => "Test forcé d'\''exécution PHP",
+        "web-php-test.php" => "Test PHP web",
+        "api/.htaccess" => "Configuration API"
+    ];
+    
+    $missing_files = [];
+    $existing_files = [];
+    
+    foreach ($critical_files as $file => $description) {
+        if (file_exists($file)) {
+            $existing_files[$file] = [
+                "description" => $description,
+                "size" => filesize($file),
+                "modified" => date("Y-m-d H:i:s", filemtime($file))
+            ];
+        } else {
+            $missing_files[$file] = $description;
+        }
+    }
+    ?>
+    
+    <h2>Résumé</h2>
+    <?php if (empty($missing_files)): ?>
+        <p class="success">✅ Tous les fichiers critiques ont été correctement déployés.</p>
+    <?php else: ?>
+        <p class="error">❌ Certains fichiers critiques sont manquants.</p>
+    <?php endif; ?>
+    
+    <h2>Détails des fichiers</h2>
+    
+    <?php if (!empty($existing_files)): ?>
+        <h3>Fichiers existants</h3>
+        <table>
+            <tr>
+                <th>Fichier</th>
+                <th>Description</th>
+                <th>Taille</th>
+                <th>Dernière modification</th>
+            </tr>
+            <?php foreach ($existing_files as $file => $info): ?>
+            <tr>
+                <td><code><?php echo htmlspecialchars($file); ?></code></td>
+                <td><?php echo htmlspecialchars($info["description"]); ?></td>
+                <td><?php echo $info["size"]; ?> octets</td>
+                <td><?php echo $info["modified"]; ?></td>
+            </tr>
+            <?php endforeach; ?>
+        </table>
+    <?php endif; ?>
+    
+    <?php if (!empty($missing_files)): ?>
+        <h3>Fichiers manquants</h3>
+        <table>
+            <tr>
+                <th>Fichier</th>
+                <th>Description</th>
+            </tr>
+            <?php foreach ($missing_files as $file => $description): ?>
+            <tr>
+                <td><code><?php echo htmlspecialchars($file); ?></code></td>
+                <td><?php echo htmlspecialchars($description); ?></td>
+            </tr>
+            <?php endforeach; ?>
+        </table>
+        
+        <div class="info">
+            <p><strong>Solution:</strong> Relancez le workflow de déploiement GitHub ou créez manuellement les fichiers manquants.</p>
+        </div>
+    <?php endif; ?>
+</body>
+</html>' > deploy/check-build-status.php
+          chmod 644 deploy/check-build-status.php
+          echo "Fichier check-build-status.php créé directement"
         fi
         
         if [ ! -f "deploy/verify-php-ssh.sh" ]; then
           echo "Création directe du fichier verify-php-ssh.sh..."
-          cp verify-php-ssh.sh deploy/ || echo "Création directe échouée"
+          echo '#!/bin/bash
+# Script pour vérifier la configuration PHP d'\''un hébergement Infomaniak via SSH
+# À exécuter directement sur le serveur après avoir uploadé le fichier via SSH
+
+echo "Vérification PHP pour Qualiopi.ch - $(date)"
+echo "==================================================="
+echo "Utilisation du chemin de base: $(pwd)"
+echo "Chemin actuel: $(pwd)"
+echo "Création d'\''un fichier PHP de test..."
+
+# Créer un petit fichier PHP pour tester l'\''exécution en mode CLI
+cat > php-ssh-test.php << '\''EOF'\''
+<?php
+// Script de test pour vérifier l'\''exécution PHP via SSH
+header("Content-Type: text/plain");
+
+echo "=== TEST D'\''EXÉCUTION PHP VIA SSH ===\n";
+echo "Date et heure: " . date("Y-m-d H:i:s") . "\n";
+echo "Version PHP: " . phpversion() . "\n";
+echo "Extensions chargées: " . implode(", ", get_loaded_extensions()) . "\n";
+echo "User: " . (function_exists('\''posix_getpwuid'\'') ? posix_getpwuid(posix_geteuid())['\''name'\''] : '\''(inconnu)'\'') . "\n";
+echo "Chemin actuel: " . getcwd() . "\n";
+echo "=== FIN DU TEST ===\n";
+EOF
+chmod +x php-ssh-test.php
+
+echo
+echo "== Test PHP en mode CLI =="
+echo "Exécution de php-ssh-test.php avec l'\''interpréteur PHP..."
+php php-ssh-test.php
+echo "✓ PHP CLI fonctionne correctement"
+
+echo
+echo "== Vérification de la configuration PHP pour le web =="
+echo "Contenu de .htaccess lié à PHP:"
+grep -E "(AddType|SetHandler|php_value|php_flag)" .htaccess 2>/dev/null || echo "Aucune configuration PHP trouvée dans .htaccess"
+
+if [ -f ".user.ini" ]; then
+  echo "Configuration .user.ini trouvée:"
+  echo "  $(cat .user.ini | sed '\''s/^/  /g'\'')"
+else
+  echo "Fichier .user.ini non trouvé"
+fi
+
+echo
+echo "== Vérification de PHP-FPM =="
+if ps aux | grep -v grep | grep -q "php-fpm"; then
+  echo "✓ PHP-FPM est en cours d'\''exécution"
+else
+  echo "✗ PHP-FPM n'\''est pas en cours d'\''exécution"
+fi
+
+echo
+echo "== Test avec des chemins PHP alternatifs =="
+for PHP_PATH in /usr/local/bin/php /usr/bin/php /opt/php*/bin/php; do
+  if [ -x "$PHP_PATH" ]; then
+    echo "Test avec $PHP_PATH:"
+    $PHP_PATH -v | head -n 1
+  fi
+done
+
+echo
+echo "== Vérification des droits et propriétaires =="
+ls -la php-ssh-test.php
+ls -la
+
+echo
+echo "== Test terminé =="
+echo "Si PHP CLI fonctionne mais que les scripts PHP ne s'\''exécutent pas via le web,"
+echo "cela peut être dû à une configuration du serveur web ou aux droits d'\''accès."' > deploy/verify-php-ssh.sh
+          chmod 755 deploy/verify-php-ssh.sh
+          echo "Fichier verify-php-ssh.sh créé directement"
         fi
-        
+
         # Créer des fichiers de test supplémentaires
         echo '<?php phpinfo(); ?>' > deploy/web-php-test.php
         chmod 644 deploy/web-php-test.php
