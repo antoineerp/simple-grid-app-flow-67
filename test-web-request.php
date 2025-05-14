@@ -1,3 +1,4 @@
+
 <?php
 // Script pour tester une requête web et analyser les en-têtes HTTP
 // Exécutez-le uniquement en SSH: php test-web-request.php
@@ -135,5 +136,4 @@ try {
 // Nettoyage
 @unlink($test_filename);
 echo "\n=== TEST TERMINÉ ===\n";
-
 ?>
