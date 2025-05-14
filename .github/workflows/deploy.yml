@@ -135,6 +135,7 @@ EOL
         cp test-users.php deploy/ || echo "Fichier test-users.php non trouvé"
         cp verify-users.php deploy/ || echo "Fichier verify-users.php non trouvé"
         cp user-diagnostic.php deploy/ || echo "Fichier user-diagnostic.php non trouvé"
+        cp check-github-workflow.php deploy/ || echo "Fichier check-github-workflow.php non trouvé"
         
         # Copie des scripts bash et leur rendre exécutable
         echo "Copie des scripts bash..."
