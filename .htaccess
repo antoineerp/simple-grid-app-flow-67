@@ -2,7 +2,8 @@
 # Activer le moteur de réécriture
 RewriteEngine On
 
-# Force l'interprétation des fichiers .php par le moteur PHP
+# Configuration PHP correcte (sans conflits)
+AddHandler application/x-httpd-php .php
 AddType application/x-httpd-php .php
 <FilesMatch "\.php$">
     SetHandler application/x-httpd-php
@@ -38,8 +39,3 @@ Options -Indexes
 <IfModule mod_headers.c>
     Header set X-Content-Type-Options "nosniff"
 </IfModule>
-
-# Force PHP pour tous les fichiers .php
-<Files *.php>
-    SetHandler application/x-httpd-php
-</Files>
