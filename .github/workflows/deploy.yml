@@ -53,12 +53,18 @@ jobs:
         mkdir -p deploy/api/utils
         mkdir -p deploy/public/lovable-uploads
         mkdir -p deploy/.github/workflows
+        mkdir -p deploy/dist
+
+        # Copie du dossier dist complet (AJOUT IMPORTANT)
+        cp -r dist/* deploy/dist/
+        echo "Copie du dossier dist vers deploy/dist"
 
         # Copie des fichiers compilés directement dans assets
         cp -r dist/assets/* deploy/assets/
         
         # Copie des autres fichiers nécessaires
         cp dist/index.html deploy/
+        cp index.php deploy/
         cp .htaccess deploy/ || echo "Fichier .htaccess non trouvé"
         
         # Création du fichier .user.ini à la racine (IMPORTANT)
@@ -71,14 +77,6 @@ jobs:
         echo "upload_max_filesize = 64M" >> deploy/.user.ini
         echo "post_max_size = 64M" >> deploy/.user.ini
         chmod 644 deploy/.user.ini
-        echo "Fichier .user.ini créé à la racine du déploiement"
-        
-        # Copie des fichiers de configuration
-        echo "Copie des fichiers de configuration..."
-        mkdir -p deploy/api/config
-        
-        # Utilisation d'une méthode fiable pour créer les fichiers PHP (éviter les heredoc)
-        mkdir -p deploy/api/config
         
         # Création de env.php
         echo "<?php" > deploy/api/config/env.php
@@ -143,10 +141,56 @@ jobs:
         echo "  ExpiresByType application/javascript \"access plus 1 week\"" >> deploy/assets/.htaccess
         echo "</IfModule>" >> deploy/assets/.htaccess
         
+        # Création d'un fichier .htaccess explicite pour l'API
+        echo "# Activer la réécriture d'URL" > deploy/api/.htaccess
+        echo "RewriteEngine On" >> deploy/api/.htaccess
+        echo "" >> deploy/api/.htaccess
+        echo "# Définir les types MIME corrects" >> deploy/api/.htaccess
+        echo "AddType application/javascript .js" >> deploy/api/.htaccess
+        echo "AddType application/javascript .mjs" >> deploy/api/.htaccess
+        echo "AddType application/javascript .es.js" >> deploy/api/.htaccess
+        echo "AddType text/css .css" >> deploy/api/.htaccess
+        echo "AddType application/json .json" >> deploy/api/.htaccess
+        echo "" >> deploy/api/.htaccess
+        echo "# Gérer les requêtes OPTIONS pour CORS" >> deploy/api/.htaccess
+        echo "RewriteCond %{REQUEST_METHOD} OPTIONS" >> deploy/api/.htaccess
+        echo "RewriteRule ^(.*)$ \$1 [R=200,L]" >> deploy/api/.htaccess
+        echo "" >> deploy/api/.htaccess
+        echo "# Configuration CORS et types MIME" >> deploy/api/.htaccess
+        echo "<IfModule mod_headers.c>" >> deploy/api/.htaccess
+        echo "    # Force le bon type MIME pour les JavaScript modules" >> deploy/api/.htaccess
+        echo "    <FilesMatch \"\.(m?js|es\.js)$\">" >> deploy/api/.htaccess
+        echo "        Header set Content-Type \"application/javascript\"" >> deploy/api/.htaccess
+        echo "        Header set X-Content-Type-Options \"nosniff\"" >> deploy/api/.htaccess
+        echo "    </FilesMatch>" >> deploy/api/.htaccess
+        echo "    " >> deploy/api/.htaccess
+        echo "    Header set Access-Control-Allow-Origin \"*\"" >> deploy/api/.htaccess
+        echo "    Header set Access-Control-Allow-Methods \"GET, POST, OPTIONS, PUT, DELETE\"" >> deploy/api/.htaccess
+        echo "    Header set Access-Control-Allow-Headers \"Content-Type, Authorization, X-Requested-With\"" >> deploy/api/.htaccess
+        echo "    " >> deploy/api/.htaccess
+        echo "    # Eviter la mise en cache" >> deploy/api/.htaccess
+        echo "    Header set Cache-Control \"no-cache, no-store, must-revalidate\"" >> deploy/api/.htaccess
+        echo "    Header set Pragma \"no-cache\"" >> deploy/api/.htaccess
+        echo "    Header set Expires 0" >> deploy/api/.htaccess
+        echo "</IfModule>" >> deploy/api/.htaccess
+        echo "" >> deploy/api/.htaccess
+        echo "# Permettre l'accès direct aux fichiers PHP spécifiques" >> deploy/api/.htaccess
+        echo "RewriteCond %{REQUEST_FILENAME} -f" >> deploy/api/.htaccess
+        echo "RewriteRule \.(php)$ - [L]" >> deploy/api/.htaccess
+        echo "" >> deploy/api/.htaccess
+        echo "# Rediriger toutes les requêtes vers l'index.php sauf pour les fichiers existants" >> deploy/api/.htaccess
+        echo "RewriteCond %{REQUEST_FILENAME} !-f" >> deploy/api/.htaccess
+        echo "RewriteCond %{REQUEST_FILENAME} !-d" >> deploy/api/.htaccess
+        echo "RewriteRule ^(.*)$ index.php [QSA,L]" >> deploy/api/.htaccess
+        
         # Copie explicite des fichiers API
         if [ -d "api" ]; then
           echo "Copie des fichiers API..."
-          cp -r api/* deploy/api/
+          find api -name "*.php" -type f | while read file; do
+            dir=$(dirname "$file")
+            mkdir -p "deploy/$dir"
+            cp "$file" "deploy/$file"
+          done
         else
           echo "Dossier API non trouvé"
         fi
@@ -175,18 +219,44 @@ jobs:
         echo "<?php phpinfo(); ?>" > deploy/phpinfo.php
         chmod 644 deploy/phpinfo.php
         
-        # Fichier index.php
-        echo "<?php" > deploy/index.php
-        echo "// Redirection vers index.html" >> deploy/index.php
-        echo "header('Location: index.html');" >> deploy/index.php
-        echo "exit;" >> deploy/index.php
-        echo "?>" >> deploy/index.php
-        chmod 644 deploy/index.php
+        # Fichier de vérification du déploiement
+        echo "<?php" > deploy/check-deployment-issues.php
+        echo "// Éviter l'erreur \"headers already sent\"" >> deploy/check-deployment-issues.php
+        echo "ob_start();" >> deploy/check-deployment-issues.php
+        echo "header('Content-Type: text/html; charset=utf-8');" >> deploy/check-deployment-issues.php
+        echo "?>" >> deploy/check-deployment-issues.php
+        echo "<!DOCTYPE html>" >> deploy/check-deployment-issues.php
+        echo "<html>" >> deploy/check-deployment-issues.php
+        echo "<head>" >> deploy/check-deployment-issues.php
+        echo "    <title>Vérification du déploiement</title>" >> deploy/check-deployment-issues.php
+        echo "    <style>" >> deploy/check-deployment-issues.php
+        echo "        body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }" >> deploy/check-deployment-issues.php
+        echo "        .success { color: green; font-weight: bold; }" >> deploy/check-deployment-issues.php
+        echo "        .error { color: red; font-weight: bold; }" >> deploy/check-deployment-issues.php
+        echo "    </style>" >> deploy/check-deployment-issues.php
+        echo "</head>" >> deploy/check-deployment-issues.php
+        echo "<body>" >> deploy/check-deployment-issues.php
+        echo "    <h1>Diagnostic du déploiement</h1>" >> deploy/check-deployment-issues.php
+        echo "    <p>Date: <?php echo date('Y-m-d H:i:s'); ?></p>" >> deploy/check-deployment-issues.php
+        echo "    <h2>Structure des dossiers</h2>" >> deploy/check-deployment-issues.php
+        echo "    <p>Dossier dist: <?php echo is_dir('dist') ? '<span class=\"success\">Existe</span>' : '<span class=\"error\">N\'existe pas</span>'; ?></p>" >> deploy/check-deployment-issues.php
+        echo "    <p>Dossier assets: <?php echo is_dir('assets') ? '<span class=\"success\">Existe</span>' : '<span class=\"error\">N\'existe pas</span>'; ?></p>" >> deploy/check-deployment-issues.php
+        echo "    <p>Dossier api: <?php echo is_dir('api') ? '<span class=\"success\">Existe</span>' : '<span class=\"error\">N\'existe pas</span>'; ?></p>" >> deploy/check-deployment-issues.php
+        echo "    <h2>Fichiers clés</h2>" >> deploy/check-deployment-issues.php
+        echo "    <p>index.html: <?php echo file_exists('index.html') ? '<span class=\"success\">Existe</span>' : '<span class=\"error\">N\'existe pas</span>'; ?></p>" >> deploy/check-deployment-issues.php
+        echo "    <p>index.php: <?php echo file_exists('index.php') ? '<span class=\"success\">Existe</span>' : '<span class=\"error\">N\'existe pas</span>'; ?></p>" >> deploy/check-deployment-issues.php
+        echo "    <p>.htaccess: <?php echo file_exists('.htaccess') ? '<span class=\"success\">Existe</span>' : '<span class=\"error\">N\'existe pas</span>'; ?></p>" >> deploy/check-deployment-issues.php
+        echo "    <h2>Déploiement réussi</h2>" >> deploy/check-deployment-issues.php
+        echo "    <p>Ce fichier a été déployé par le workflow GitHub Actions le <?php echo date('Y-m-d H:i:s'); ?></p>" >> deploy/check-deployment-issues.php
+        echo "</body>" >> deploy/check-deployment-issues.php
+        echo "</html>" >> deploy/check-deployment-issues.php
+        echo "<?php ob_end_flush(); ?>" >> deploy/check-deployment-issues.php
+        chmod 644 deploy/check-deployment-issues.php
 
         # Structure du dossier de déploiement
         echo "Structure du dossier de déploiement:"
         find deploy -type f -name "*.php" | sort
-        find deploy -type f -name "*.sh" | sort
+        find deploy -type f -name "*.html" | sort
 
     - name: Sync to Infomaniak server
       uses: SamKirkland/FTP-Deploy-Action@v4.3.4
@@ -202,13 +272,11 @@ jobs:
           **/.git*/**
           **/node_modules/**
           README.md
-          dist/**
-          package.json
-          package-lock.json
         log-level: verbose
         timeout: 120000
 
     - name: Clean up
       run: |
         rm -rf deploy
-        rm -rf dist
+        # Ne pas supprimer dist pour que les fichiers restent disponibles
+        # rm -rf dist

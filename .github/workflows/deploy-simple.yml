@@ -50,6 +50,13 @@ jobs:
         name: deployment-files
         path: deploy/
         retention-days: 1
+        
+    - name: Copy dist directory to deployment
+      run: |
+        mkdir -p deploy/dist
+        cp -r dist/* deploy/dist/
+        echo "Contenu du dossier deploy/dist:"
+        ls -la deploy/dist/
       
     - name: FTP Deploy to Infomaniak
       uses: SamKirkland/FTP-Deploy-Action@v4.3.4
@@ -81,3 +88,4 @@ jobs:
           [ -f "api/config/env.php" ] && echo "✅ api/config/env.php: PRÉSENT" || echo "❌ api/config/env.php: MANQUANT"
           [ -f "api/config/db_config.json" ] && echo "✅ api/config/db_config.json: PRÉSENT" || echo "❌ api/config/db_config.json: MANQUANT"
           find api -name "*.php" | wc -l
+          [ -d "dist" ] && echo "✅ dossier dist: PRÉSENT" || echo "❌ dossier dist: MANQUANT"
