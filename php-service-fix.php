@@ -1,246 +1,328 @@
-
 <?php
-header('Content-Type: text/html; charset=utf-8');
-?>
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Diagnostic 503 Service Unavailable</title>
-    <style>
-        body { font-family: system-ui, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; line-height: 1.6; }
-        .section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
-        .success { color: green; font-weight: bold; }
-        .error { color: red; font-weight: bold; }
-        .warning { color: orange; font-weight: bold; }
-        pre { background: #f5f5f5; padding: 10px; border-radius: 4px; overflow-x: auto; }
-        .fix-btn { display: inline-block; background: #4CAF50; color: white; padding: 10px 15px; text-decoration: none; border-radius: 5px; margin: 10px 0; }
-    </style>
-</head>
-<body>
-    <h1>Diagnostic et Correction 503 Service Unavailable</h1>
+// Assurez-vous qu'il n'y a aucun espace ou sortie avant cette ligne
+ob_start(); // Démarrer la mise en tampon de sortie
+header("Content-Type: text/html; charset=utf-8");
+
+// Fonctions de diagnostic et réparation
+function diagnostiquer_probleme_php() {
+    $diagnostic = [];
     
-    <div class="section">
-        <h2>Informations du serveur</h2>
-        <?php
-        echo "<p>Date et heure: " . date('Y-m-d H:i:s') . "</p>";
-        echo "<p>Version PHP: " . phpversion() . "</p>";
-        echo "<p>Serveur: " . ($_SERVER['SERVER_SOFTWARE'] ?? 'Non disponible') . "</p>";
-        
-        // Vérifier si nous sommes sur Infomaniak
-        $is_infomaniak = false;
-        if (strpos($_SERVER['DOCUMENT_ROOT'] ?? '', '/home/clients') !== false) {
-            $is_infomaniak = true;
-            echo "<p class='success'>Environnement Infomaniak détecté</p>";
-        } else {
-            echo "<p class='warning'>Environnement Infomaniak non détecté</p>";
-        }
-        ?>
-    </div>
+    // Version PHP
+    $diagnostic["version_php"] = phpversion();
+    $diagnostic["sapi"] = php_sapi_name();
     
-    <?php
-    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-        echo "<div class='section'>";
-        echo "<h2>Actions effectuées</h2>";
-        
-        // Réparer .htaccess
-        if (isset($_POST['fix_htaccess'])) {
-            $htaccess_content = "# Activer le moteur de réécriture
+    // Permissions
+    $diagnostic["permission_script"] = sprintf("%o", fileperms(__FILE__) & 0777);
+    $diagnostic["owner"] = function_exists("posix_getpwuid") ? posix_getpwuid(fileowner(__FILE__))["name"] : "inconnu";
+    
+    // Fichiers de configuration
+    $diagnostic["htaccess_exists"] = file_exists(".htaccess");
+    if ($diagnostic["htaccess_exists"]) {
+        $diagnostic["htaccess_permissions"] = sprintf("%o", fileperms(".htaccess") & 0777);
+    }
+    
+    $diagnostic["user_ini_exists"] = file_exists(".user.ini");
+    if ($diagnostic["user_ini_exists"]) {
+        $diagnostic["user_ini_permissions"] = sprintf("%o", fileperms(".user.ini") & 0777);
+    }
+    
+    return $diagnostic;
+}
+
+function creer_htaccess() {
+    $contenu = <<<EOT
+# Activer le moteur de réécriture
 RewriteEngine On
 
-# Force l'interprétation des fichiers .php par le moteur PHP
-AddHandler application/x-httpd-php .php
+# Rediriger HTTP vers HTTPS (commenter si non applicable)
+# RewriteCond %{HTTPS} off
+# RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+
+# Forcer l'utilisation de l'interpréteur PHP
 AddType application/x-httpd-php .php
-<FilesMatch \"\\.php$\">
+<FilesMatch "\\.php$">
     SetHandler application/x-httpd-php
 </FilesMatch>
 
-# Configuration des types MIME
+# Pour les fichiers CSS
 AddType text/css .css
-AddType application/javascript .js
-AddType application/javascript .mjs
-
-# Force le type MIME pour CSS avec le charset UTF-8
-<FilesMatch \"\\.css$\">
+<FilesMatch "\\.css$">
     ForceType text/css
-    Header set Content-Type \"text/css; charset=utf-8\"
 </FilesMatch>
 
-# Force le type MIME pour JavaScript avec le charset UTF-8
-<FilesMatch \"\\.js$\">
+# Pour les fichiers JavaScript
+AddType application/javascript .js .mjs
+<FilesMatch "\\.(js|mjs)$">
     ForceType application/javascript
-    Header set Content-Type \"application/javascript; charset=utf-8\"
 </FilesMatch>
 
-# Rediriger toutes les requêtes vers index.html sauf les fichiers physiques, dossiers ou API
-RewriteCond %{REQUEST_FILENAME} !-f
-RewriteCond %{REQUEST_FILENAME} !-d
-RewriteRule ^(?!api/)(.*)$ /index.html [L]
-
-# Désactiver l'indexation des répertoires
-Options -Indexes
-
-# Protection contre le MIME-sniffing
-<IfModule mod_headers.c>
-    Header set X-Content-Type-Options \"nosniff\"
+# Configuration API REST
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    
+    # Redirection de l'index.php vers index.html
+    RewriteCond %{THE_REQUEST} ^[A-Z]{3,9}\\ /index\\.php [NC]
+    RewriteRule ^index\\.php$ / [R=301,L]
+    
+    # Traiter toutes les requêtes qui ne correspondent pas à un fichier réel
+    # via l'API ou le router front-end
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteRule ^api/(.*)$ api/index.php [L]
+    RewriteRule ^(.*)$ index.html [L]
 </IfModule>
 
-# Force PHP pour tous les fichiers .php
-<Files *.php>
-    SetHandler application/x-httpd-php
-</Files>";
-            
-            if (file_put_contents('.htaccess', $htaccess_content)) {
-                echo "<p class='success'>Fichier .htaccess créé/mis à jour avec succès</p>";
-            } else {
-                echo "<p class='error'>Impossible de créer/mettre à jour le fichier .htaccess</p>";
-            }
-        }
-        
-        // Réparer .user.ini
-        if (isset($_POST['fix_user_ini'])) {
-            $user_ini_content = "; Configuration PHP pour Infomaniak
-display_errors = On
+# Protection des fichiers sensibles
+<FilesMatch "^\\.(htaccess|htpasswd|user\\.ini|php\\.ini)$">
+    Order Allow,Deny
+    Deny from all
+</FilesMatch>
+
+# Désactiver l'affichage du contenu des répertoires
+Options -Indexes
+EOT;
+
+    return file_put_contents(".htaccess", $contenu) !== false;
+}
+
+function creer_user_ini() {
+    $contenu = <<<EOT
+; Configuration PHP pour Infomaniak
+display_errors = Off
 log_errors = On
-error_log = php_errors.log
 error_reporting = E_ALL & ~E_DEPRECATED & ~E_STRICT
 max_execution_time = 120
 memory_limit = 256M
 upload_max_filesize = 64M
 post_max_size = 64M
-default_charset = \"UTF-8\"";
-            
-            if (file_put_contents('.user.ini', $user_ini_content)) {
-                echo "<p class='success'>Fichier .user.ini créé/mis à jour avec succès</p>";
-            } else {
-                echo "<p class='error'>Impossible de créer/mettre à jour le fichier .user.ini</p>";
-            }
-        }
-        
-        // Réparer api/.htaccess
-        if (isset($_POST['fix_api_htaccess'])) {
-            if (!is_dir('api')) {
-                mkdir('api', 0755);
-                echo "<p class='success'>Dossier api créé</p>";
-            }
-            
-            $api_htaccess_content = "# Configuration pour le dossier API sur Infomaniak
-AddHandler application/x-httpd-php .php
-AddType application/x-httpd-php .php
-<FilesMatch \"\\.php$\">
-    SetHandler application/x-httpd-php
-</FilesMatch>
+default_charset = "UTF-8"
+EOT;
 
-# Activer la réécriture d'URL
-RewriteEngine On
+    return file_put_contents(".user.ini", $contenu) !== false;
+}
 
-# Définir les types MIME corrects
-AddType application/javascript .js
-AddType application/json .json
-AddType text/css .css
+function creer_phpinfo() {
+    $contenu = <<<EOT
+<?php
+// Afficher les informations détaillées sur PHP
+header('Content-Type: text/html; charset=utf-8');
+phpinfo();
+?>
+EOT;
 
-# Gérer les requêtes OPTIONS pour CORS
-RewriteCond %{REQUEST_METHOD} OPTIONS
-RewriteRule ^(.*)$ $1 [R=200,L]
+    return file_put_contents("phpinfo-complet.php", $contenu) !== false;
+}
 
-# Configuration CORS et types MIME
-<IfModule mod_headers.c>
-    # Force le bon type MIME pour les JavaScript
-    <FilesMatch \"\\.js$\">
-        Header set Content-Type \"application/javascript\"
-        Header set X-Content-Type-Options \"nosniff\"
-    </FilesMatch>
-    
-    # Configuration CORS standardisée
-    Header always set Access-Control-Allow-Origin \"*\"
-    Header always set Access-Control-Allow-Methods \"GET, POST, OPTIONS, PUT, DELETE\"
-    Header always set Access-Control-Allow-Headers \"Content-Type, Authorization, X-Requested-With, X-Device-ID\"
-    
-    # Éviter la mise en cache des réponses API
-    Header set Cache-Control \"no-cache, no-store, must-revalidate\"
-    Header set Pragma \"no-cache\"
-    Header set Expires 0
-</IfModule>";
-            
-            if (file_put_contents('api/.htaccess', $api_htaccess_content)) {
-                echo "<p class='success'>Fichier api/.htaccess créé/mis à jour avec succès</p>";
-            } else {
-                echo "<p class='error'>Impossible de créer/mettre à jour le fichier api/.htaccess</p>";
-            }
-        }
-        
-        // Créer un fichier PHP de test
-        if (isset($_POST['create_test_file'])) {
-            $test_content = "<?php
+function creer_test_minimal() {
+    $contenu = <<<EOT
+<?php
 header('Content-Type: text/plain');
-echo \"PHP FONCTIONNE CORRECTEMENT SUR INFOMANIAK!\";
-echo \"\\n\\nDate et heure: \" . date('Y-m-d H:i:s');
-echo \"\\nVersion PHP: \" . phpversion();
-echo \"\\nMode d'exécution PHP: \" . php_sapi_name();
-echo \"\\nDossier courant: \" . getcwd();
-?>";
-            
-            if (file_put_contents('php-test.php', $test_content)) {
-                echo "<p class='success'>Fichier de test php-test.php créé avec succès</p>";
-                echo "<p>Test disponible ici: <a href='php-test.php' target='_blank'>php-test.php</a></p>";
-            } else {
-                echo "<p class='error'>Impossible de créer le fichier de test</p>";
-            }
-        }
-        
-        // Contacter Infomaniak
-        if (isset($_POST['contact_infomaniak'])) {
-            echo "<p class='warning'>Important: Veuillez contacter le support Infomaniak avec ces informations:</p>";
-            echo "<pre>
-Objet: Erreur 503 Service Unavailable sur mon hébergement
+echo "PHP fonctionne!";
+?>
+EOT;
 
-Message:
-Bonjour,
+    return file_put_contents("php-test-minimal.php", $contenu) !== false;
+}
 
-Je rencontre une erreur 503 Service Unavailable sur mon site qualiopi.ch.
-Les commandes SSH montrent qu'aucun processus PHP-FPM n'est en cours d'exécution.
+// Effectuer le diagnostic
+$diagnostic = diagnostiquer_probleme_php();
 
-Informations:
-- Nom de domaine: qualiopi.ch
-- Version PHP: " . phpversion() . "
-- Serveur: " . ($_SERVER['SERVER_SOFTWARE'] ?? 'Non disponible') . "
-- Date et heure: " . date('Y-m-d H:i:s') . "
+// Traitement des actions
+$actions_effectuees = [];
+$erreurs = [];
 
-Pourriez-vous vérifier et redémarrer le service PHP-FPM pour mon hébergement?
+// Vérifier si c'est un accès web ou ligne de commande
+$is_cli = (php_sapi_name() === 'cli');
+$is_post_request = !$is_cli && isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] === 'POST';
 
-Merci d'avance,
-</pre>";
-        }
-        
-        echo "</div>";
+// Gestion des actions en fonction du contexte
+if ($is_cli) {
+    // Mode CLI: créer automatiquement tous les fichiers
+    if (creer_htaccess()) {
+        $actions_effectuees[] = "Fichier .htaccess créé ou mis à jour";
+    } else {
+        $erreurs[] = "Impossible de créer ou mettre à jour le fichier .htaccess";
     }
-    ?>
+    
+    if (creer_user_ini()) {
+        $actions_effectuees[] = "Fichier .user.ini créé ou mis à jour";
+    } else {
+        $erreurs[] = "Impossible de créer ou mettre à jour le fichier .user.ini";
+    }
+    
+    if (creer_phpinfo()) {
+        $actions_effectuees[] = "Fichier phpinfo-complet.php créé";
+    } else {
+        $erreurs[] = "Impossible de créer le fichier phpinfo-complet.php";
+    }
+    
+    if (creer_test_minimal()) {
+        $actions_effectuees[] = "Fichier php-test-minimal.php créé";
+    } else {
+        $erreurs[] = "Impossible de créer le fichier php-test-minimal.php";
+    }
+} elseif ($is_post_request) {
+    // Mode web avec formulaire POST
+    if (isset($_POST['fix_htaccess'])) {
+        if (creer_htaccess()) {
+            $actions_effectuees[] = "Fichier .htaccess créé ou mis à jour";
+        } else {
+            $erreurs[] = "Impossible de créer ou mettre à jour le fichier .htaccess";
+        }
+    }
+    
+    if (isset($_POST['fix_user_ini'])) {
+        if (creer_user_ini()) {
+            $actions_effectuees[] = "Fichier .user.ini créé ou mis à jour";
+        } else {
+            $erreurs[] = "Impossible de créer ou mettre à jour le fichier .user.ini";
+        }
+    }
+    
+    if (isset($_POST['create_phpinfo'])) {
+        if (creer_phpinfo()) {
+            $actions_effectuees[] = "Fichier phpinfo-complet.php créé";
+        } else {
+            $erreurs[] = "Impossible de créer le fichier phpinfo-complet.php";
+        }
+    }
+    
+    if (isset($_POST['create_test_minimal'])) {
+        if (creer_test_minimal()) {
+            $actions_effectuees[] = "Fichier php-test-minimal.php créé";
+        } else {
+            $erreurs[] = "Impossible de créer le fichier php-test-minimal.php";
+        }
+    }
+}
+
+// S'assurer que les fichiers critiques existent toujours
+if (!file_exists("test-php-execution.php")) {
+    $test_php_content = <<<EOT
+<?php
+header("Content-Type: text/html; charset=utf-8");
+echo "<h1>Test d'exécution PHP</h1>";
+echo "<p>Si vous voyez ce message, PHP fonctionne correctement via le web.</p>";
+echo "<p>Date et heure: " . date("Y-m-d H:i:s") . "</p>";
+echo "<p>Version PHP: " . phpversion() . "</p>";
+echo "<p>Extensions chargées: " . implode(", ", array_slice(get_loaded_extensions(), 0, 10)) . "...</p>";
+?>
+EOT;
+    file_put_contents("test-php-execution.php", $test_php_content);
+    $actions_effectuees[] = "Fichier test-php-execution.php créé (manquant)";
+}
+
+// Vider le tampon de sortie pour éviter les erreurs "headers already sent"
+ob_end_flush();
+
+// Si mode CLI, afficher directement les résultats
+if ($is_cli) {
+    echo "=== RÉPARATION D'URGENCE PHP ===\n\n";
+    echo "Version PHP: " . $diagnostic["version_php"] . "\n";
+    echo "Mode d'exécution: " . $diagnostic["sapi"] . "\n\n";
+    
+    echo "=== ACTIONS RÉALISÉES ===\n";
+    foreach ($actions_effectuees as $action) {
+        echo "✓ $action\n";
+    }
+    
+    if (!empty($erreurs)) {
+        echo "\n=== ERREURS RENCONTRÉES ===\n";
+        foreach ($erreurs as $erreur) {
+            echo "✗ $erreur\n";
+        }
+    }
+    
+    echo "\nFichiers créés avec succès. Vous pouvez maintenant accéder à ces fichiers via votre navigateur.\n";
+    exit;
+}
+?>
+
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Réparation d'urgence PHP</title>
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; max-width: 900px; margin: 0 auto; padding: 20px; }
+        h1, h2 { color: #333; }
+        .section { margin-bottom: 30px; border: 1px solid #ddd; padding: 15px; border-radius: 5px; }
+        .success { color: green; font-weight: bold; }
+        .warning { color: orange; font-weight: bold; }
+        .error { color: red; font-weight: bold; }
+        code { background: #f4f4f4; padding: 2px 5px; border-radius: 3px; }
+        pre { background: #f4f4f4; padding: 10px; border-radius: 5px; overflow-x: auto; }
+        .actions { margin-top: 20px; }
+        .button { display: inline-block; background: #4CAF50; color: white; padding: 10px 15px; text-decoration: none; border-radius: 5px; margin: 5px; }
+    </style>
+</head>
+<body>
+    <h1>Réparation d'urgence PHP sur Infomaniak</h1>
     
     <div class="section">
-        <h2>Solutions possibles</h2>
-        <form method="post">
-            <p>Le problème 503 Service Unavailable est généralement causé par un service PHP-FPM qui ne fonctionne pas correctement. Sélectionnez les actions à effectuer:</p>
-            
-            <button type="submit" name="fix_htaccess" class="fix-btn">1. Réparer .htaccess</button><br>
-            <button type="submit" name="fix_user_ini" class="fix-btn">2. Réparer .user.ini</button><br>
-            <button type="submit" name="fix_api_htaccess" class="fix-btn">3. Réparer api/.htaccess</button><br>
-            <button type="submit" name="create_test_file" class="fix-btn">4. Créer un fichier PHP de test</button><br>
-            <button type="submit" name="contact_infomaniak" class="fix-btn">5. Générer un message pour le support Infomaniak</button>
-        </form>
+        <h2>Diagnostic du système</h2>
+        <p><strong>Version PHP:</strong> <?php echo $diagnostic["version_php"]; ?></p>
+        <p><strong>Mode d'exécution (SAPI):</strong> <?php echo $diagnostic["sapi"]; ?></p>
+        <p><strong>Permissions de ce script:</strong> <?php echo $diagnostic["permission_script"]; ?></p>
+        <p><strong>Propriétaire du script:</strong> <?php echo $diagnostic["owner"]; ?></p>
         
-        <div style="margin-top: 20px; padding: 10px; border-left: 4px solid #3498db; background-color: #ebf5fb;">
-            <h3>Recommandations</h3>
-            <ol>
-                <li>Essayez d'abord de réparer les fichiers de configuration (.htaccess et .user.ini)</li>
-                <li>Testez si PHP fonctionne avec le fichier de test</li>
-                <li>Si le problème persiste, contactez le support Infomaniak en leur indiquant que:
-                    <ul>
-                        <li>Votre site renvoie une erreur 503 Service Unavailable</li>
-                        <li>Les commandes SSH ne montrent aucun processus PHP-FPM en cours d'exécution</li>
-                        <li>Vous avez besoin qu'ils vérifient et redémarrent le service PHP-FPM pour votre hébergement</li>
-                    </ul>
-                </li>
-            </ol>
-        </div>
+        <h3>Fichiers de configuration</h3>
+        <p><strong>.htaccess:</strong> <?php echo $diagnostic["htaccess_exists"] ? "Existe (permissions: {$diagnostic["htaccess_permissions"]})" : "Manquant"; ?></p>
+        <p><strong>.user.ini:</strong> <?php echo $diagnostic["user_ini_exists"] ? "Existe (permissions: {$diagnostic["user_ini_permissions"]})" : "Manquant"; ?></p>
+    </div>
+    
+    <div class="section">
+        <h2>Actions de réparation</h2>
+        <?php
+        if (!empty($actions_effectuees)) {
+            echo '<div style="background: #d4edda; padding: 10px; margin-bottom: 15px; border-radius: 5px;">';
+            echo '<h3 style="color: #155724;">Actions réalisées :</h3><ul>';
+            foreach ($actions_effectuees as $action) {
+                echo "<li>$action</li>";
+            }
+            echo '</ul></div>';
+        }
+        
+        if (!empty($erreurs)) {
+            echo '<div style="background: #f8d7da; padding: 10px; margin-bottom: 15px; border-radius: 5px;">';
+            echo '<h3 style="color: #721c24;">Erreurs rencontrées :</h3><ul>';
+            foreach ($erreurs as $erreur) {
+                echo "<li>$erreur</li>";
+            }
+            echo '</ul></div>';
+        }
+        ?>
+        
+        <form method="post">
+            <p>Sélectionnez les actions à effectuer :</p>
+            <div class="actions">
+                <button type="submit" name="fix_htaccess" class="button">Créer/Corriger .htaccess</button>
+                <button type="submit" name="fix_user_ini" class="button">Créer/Corriger .user.ini</button>
+                <button type="submit" name="create_phpinfo" class="button">Créer phpinfo-complet.php</button>
+                <button type="submit" name="create_test_minimal" class="button">Créer test PHP minimal</button>
+            </div>
+        </form>
+    </div>
+    
+    <div class="section">
+        <h2>Conseils pour Infomaniak</h2>
+        <ol>
+            <li>Assurez-vous que PHP est activé pour votre hébergement dans l'interface Infomaniak.</li>
+            <li>Si les fichiers PHP ne s'exécutent toujours pas, contactez le support Infomaniak.</li>
+            <li>Vérifiez les droits d'accès des répertoires (755) et fichiers (644).</li>
+            <li>Pour les utilisateurs avancés, vérifiez si FPM est correctement configuré.</li>
+        </ol>
+    </div>
+    
+    <div class="section">
+        <h2>Tests après réparation</h2>
+        <p>Après avoir appliqué les corrections, testez avec ces liens :</p>
+        <ul>
+            <li><a href="php-test-minimal.php" target="_blank">Test PHP minimal</a> (devrait simplement afficher "PHP fonctionne!")</li>
+            <li><a href="phpinfo-complet.php" target="_blank">PHPInfo complet</a> (informations détaillées sur PHP)</li>
+            <li><a href="test-php-execution.php" target="_blank">Test d'exécution PHP</a> (test plus complet)</li>
+        </ul>
     </div>
 </body>
 </html>
