@@ -1,11 +1,10 @@
-
 import React, { useState, useEffect } from 'react';
 import Logo from '@/components/auth/Logo';
 import LoginForm from '@/components/auth/LoginForm';
 import { getApiUrl, getFullApiUrl, testApiConnection } from '@/config/apiConfig';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { AlertCircle, ExternalLink, Server, RefreshCw, Bug, Tool } from 'lucide-react';
+import { AlertCircle, ExternalLink, Server, RefreshCw, Bug, Wrench } from 'lucide-react';
 import { runApiDiagnostic } from '@/utils/apiDiagnostic';
 
 const Index = () => {
@@ -145,7 +144,7 @@ const Index = () => {
                 
                 <a href="/api-diagnostic.html" target="_blank" rel="noopener noreferrer">
                   <Button variant="secondary" size="sm">
-                    <Tool className="h-3 w-3 mr-1" />
+                    <Wrench className="h-3 w-3 mr-1" />
                     Outil de réparation
                   </Button>
                 </a>
