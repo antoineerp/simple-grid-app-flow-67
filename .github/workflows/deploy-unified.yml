@@ -1,0 +1,217 @@
+
+name: Unified Deploy to Infomaniak
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: 'Raison du déploiement manuel'
+        required: false
+        default: 'Déploiement manuel'
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '20'
+        
+    - name: Install Dependencies
+      run: npm install --legacy-peer-deps
+      
+    - name: Build React App
+      run: npm run build
+      
+    - name: Debug build output
+      run: |
+        echo "============== Debugging build output =============="
+        ls -la dist/
+        ls -la dist/assets/ || echo "Dossier assets non trouvé"
+        
+    - name: Prepare deployment files
+      run: |
+        # Création des dossiers nécessaires
+        mkdir -p deploy/assets
+        mkdir -p deploy/api/config
+        mkdir -p deploy/api/controllers
+        mkdir -p deploy/api/models
+        mkdir -p deploy/api/middleware
+        mkdir -p deploy/api/operations
+        mkdir -p deploy/api/utils
+        mkdir -p deploy/api/services
+        mkdir -p deploy/api/documentation
+        mkdir -p deploy/public/lovable-uploads
+        mkdir -p deploy/.github/workflows
+        
+        # Copie des fichiers compilés
+        cp -r dist/* deploy/
+        
+        # Copie des fichiers PHP critiques
+        echo "Copie des fichiers PHP et de configuration..."
+        cp index.php deploy/ || echo "index.php non trouvé"
+        cp phpinfo.php deploy/ || echo "phpinfo.php non trouvé"
+        cp php-test-minimal.php deploy/ || echo "php-test-minimal.php non trouvé"
+        cp emergency-deploy-fix.php deploy/ || echo "emergency-deploy-fix.php non trouvé"
+        cp deploy-on-infomaniak.php deploy/ || echo "deploy-on-infomaniak.php non trouvé"
+        
+        # Création du fichier README dans le dossier documentation
+        echo "# Documentation API" > deploy/api/documentation/README.md
+        echo "Ce dossier contient la documentation de l'API." >> deploy/api/documentation/README.md
+        
+        # Copie des fichiers .htaccess
+        cp .htaccess deploy/ || echo ".htaccess racine non trouvé"
+        
+        # S'assurer que le fichier .htaccess de l'API existe
+        if [ -f "api/.htaccess" ]; then
+          mkdir -p deploy/api
+          cp api/.htaccess deploy/api/
+          echo "✅ api/.htaccess copié"
+        else
+          echo "Création du fichier .htaccess pour l'API..."
+          mkdir -p deploy/api
+          cat > deploy/api/.htaccess <<'EOF'
+# Activer la réécriture d'URL
+RewriteEngine On
+
+# Définir les types MIME corrects
+AddType application/javascript .js
+AddType application/javascript .mjs
+AddType application/javascript .es.js
+AddType text/css .css
+AddType application/json .json
+
+# Gérer les requêtes OPTIONS pour CORS
+RewriteCond %{REQUEST_METHOD} OPTIONS
+RewriteRule ^(.*)$ $1 [R=200,L]
+
+# Configuration CORS et types MIME
+<IfModule mod_headers.c>
+    # Force le bon type MIME pour les JavaScript modules
+    <FilesMatch "\.(m?js|es\.js)$">
+        Header set Content-Type "application/javascript"
+        Header set X-Content-Type-Options "nosniff"
+    </FilesMatch>
+    
+    Header set Access-Control-Allow-Origin "*"
+    Header set Access-Control-Allow-Methods "GET, POST, OPTIONS, PUT, DELETE"
+    Header set Access-Control-Allow-Headers "Content-Type, Authorization, X-Requested-With"
+    
+    # Eviter la mise en cache
+    Header set Cache-Control "no-cache, no-store, must-revalidate"
+    Header set Pragma "no-cache"
+    Header set Expires 0
+</IfModule>
+
+# Permettre l'accès direct aux fichiers PHP spécifiques
+RewriteCond %{REQUEST_FILENAME} -f
+RewriteRule \.(php)$ - [L]
+
+# Rediriger toutes les requêtes vers l'index.php sauf pour les fichiers existants
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^(.*)$ index.php [QSA,L]
+EOF
+          echo "✅ api/.htaccess créé"
+        fi
+        
+        # Copie des fichiers .user.ini
+        cp .user.ini deploy/ || echo ".user.ini racine non trouvé"
+        
+        # Copie des fichiers PHP de l'API
+        if [ -d "api" ]; then
+          echo "Copie des fichiers PHP de l'API..."
+          find api -name "*.php" -type f | while read file; do
+            dir=$(dirname "$file")
+            mkdir -p "deploy/$dir"
+            cp "$file" "deploy/$file"
+            echo "Copié: $file"
+          done
+          echo "✅ Fichiers PHP de l'API copiés"
+        else
+          echo "Dossier API non trouvé"
+        fi
+        
+        # Configuration API
+        mkdir -p deploy/api/config
+        
+        # Création de env.php
+        echo "<?php" > deploy/api/config/env.php
+        echo "// Configuration des variables d'environnement pour Infomaniak" >> deploy/api/config/env.php
+        echo "define(\"DB_HOST\", \"p71x6d.myd.infomaniak.com\");" >> deploy/api/config/env.php
+        echo "define(\"DB_NAME\", \"p71x6d_richard\");" >> deploy/api/config/env.php
+        echo "define(\"DB_USER\", \"p71x6d_richard\");" >> deploy/api/config/env.php
+        echo "define(\"DB_PASS\", \"Trottinette43!\");" >> deploy/api/config/env.php
+        echo "define(\"API_BASE_URL\", \"/api\");" >> deploy/api/config/env.php
+        echo "define(\"APP_ENV\", \"production\");" >> deploy/api/config/env.php
+        echo "" >> deploy/api/config/env.php
+        echo "// Fonction d'aide pour récupérer les variables d'environnement" >> deploy/api/config/env.php
+        echo "function get_env(\$key, \$default = null) {" >> deploy/api/config/env.php
+        echo "    \$const_name = strtoupper(\$key);" >> deploy/api/config/env.php
+        echo "    if (defined(\$const_name)) {" >> deploy/api/config/env.php
+        echo "        return constant(\$const_name);" >> deploy/api/config/env.php
+        echo "    }" >> deploy/api/config/env.php
+        echo "    return \$default;" >> deploy/api/config/env.php
+        echo "}" >> deploy/api/config/env.php
+        echo "?>" >> deploy/api/config/env.php
+        
+        # Configuration db_config.json
+        echo '{
+            "host": "p71x6d.myd.infomaniak.com",
+            "db_name": "p71x6d_richard",
+            "username": "p71x6d_richard",
+            "password": "Trottinette43!"
+        }' > deploy/api/config/db_config.json
+        
+        # Copie des uploads si existants
+        if [ -d "public/lovable-uploads" ]; then
+          echo "Copie des fichiers uploads..."
+          cp -r public/lovable-uploads/* deploy/public/lovable-uploads/ 2>/dev/null || echo "Aucun upload à copier"
+        fi
+        
+        # Vérification des fichiers critiques
+        echo ""
+        echo "=== Vérification des fichiers critiques ==="
+        for file in "deploy/.htaccess" "deploy/api/.htaccess" "deploy/index.php" "deploy/api/config/env.php" "deploy/api/config/db_config.json" "deploy/api/documentation"; do
+          if [ -e "$file" ]; then
+            echo "✅ $file: PRÉSENT"
+          else
+            echo "❌ $file: MANQUANT"
+          fi
+        done
+        
+        # Permissions
+        find deploy -type d -exec chmod 755 {} \;
+        find deploy -type f -exec chmod 644 {} \;
+        
+        echo "Contenu du dossier de déploiement:"
+        find deploy -type f | sort | head -20
+
+    - name: FTP Deploy to Infomaniak
+      uses: SamKirkland/FTP-Deploy-Action@v4.3.4
+      with:
+        server: ${{ secrets.FTP_SERVER }}
+        username: ${{ secrets.FTP_USERNAME }}
+        password: ${{ secrets.FTP_PASSWORD }}
+        local-dir: ./deploy/
+        server-dir: /sites/qualiopi.ch/
+        dangerous-clean-slate: false
+        exclude: |
+          **/.git*
+          **/.git*/**
+          **/node_modules/**
+          README.md
+        log-level: verbose
+        timeout: 120000
+        
+    - name: Clean up
+      run: rm -rf deploy
