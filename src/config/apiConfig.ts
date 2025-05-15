@@ -40,12 +40,14 @@ export function getFullApiUrl(): string {
 // Diagnostic de l'API simple
 export async function testApiConnection(): Promise<{ success: boolean; message: string; details?: any }> {
   try {
-    console.log(`Test de connexion à l'API: ${getFullApiUrl()}`);
-    const response = await fetch(`${getApiUrl()}`, {
+    // Tester avec le nouveau fichier CGI test
+    console.log(`Test de connexion à l'API: ${getFullApiUrl()}/cgi-test.php`);
+    const response = await fetch(`${getApiUrl()}/cgi-test.php`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
-        'Cache-Control': 'no-cache, no-store, must-revalidate'
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache'
       }
     });
     
@@ -54,9 +56,63 @@ export async function testApiConnection(): Promise<{ success: boolean; message: 
     
     const responseText = await response.text();
     
+    if (!responseText || responseText.trim() === '') {
+      console.warn('Réponse vide reçue du serveur');
+      return {
+        success: false,
+        message: 'Le serveur a renvoyé une réponse vide',
+        details: {
+          status: response.status,
+          statusText: response.statusText
+        }
+      };
+    }
+    
+    // Vérifier si la réponse contient du code PHP non exécuté
+    if (responseText.includes('<?php') || responseText.includes('<?=')) {
+      console.error('Le code PHP n\'est pas exécuté', responseText.substring(0, 200));
+      return {
+        success: false,
+        message: 'Le serveur renvoie le code PHP au lieu de l\'exécuter. Vérifiez votre configuration CGI/FastCGI.',
+        details: {
+          responseText: responseText.substring(0, 300),
+          tip: 'Assurez-vous que le module PHP est activé sur votre serveur et que .htaccess est correctement configuré.'
+        }
+      };
+    }
+    
+    // Vérifier si la réponse contient du HTML au lieu du JSON
+    if (responseText.includes('<!DOCTYPE') || responseText.includes('<html')) {
+      console.error('Réponse HTML reçue au lieu de JSON', responseText.substring(0, 200));
+      return {
+        success: false,
+        message: 'Le serveur a renvoyé une page HTML au lieu de JSON.',
+        details: {
+          responseText: responseText.substring(0, 300),
+          tip: 'Vérifiez votre configuration .htaccess et assurez-vous que le module PHP est correctement configuré.'
+        }
+      };
+    }
+    
     // Essayer de parser la réponse comme JSON
     try {
       const data = JSON.parse(responseText);
+      
+      // Vérifier si nous avons une réponse de succès du test CGI
+      if (data && data.status === 'success' && data.message) {
+        let executionMode = data.php_info?.execution_mode || 'Non détecté';
+        
+        return {
+          success: true,
+          message: `API connectée: ${data.message}`,
+          details: {
+            php_version: data.php_info?.php_version,
+            sapi_name: data.php_info?.sapi_name,
+            execution_mode: executionMode
+          }
+        };
+      }
+      
       return {
         success: true,
         message: data.message || 'API connectée',

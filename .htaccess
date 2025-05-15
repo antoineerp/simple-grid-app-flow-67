@@ -29,10 +29,16 @@ AddType image/svg+xml .svg
     Allow from all
 </FilesMatch>
 
-# Forcer l'exécution des fichiers PHP dans le dossier API
+# Forcer l'exécution des fichiers PHP avec CGI/FastCGI
 <FilesMatch "\.php$">
     SetHandler application/x-httpd-php
 </FilesMatch>
+
+# CGI/FastCGI configuration alternatives
+<IfModule mod_fcgid.c>
+    AddHandler fcgid-script .php
+    FcgidWrapper /usr/local/bin/php-cgi .php
+</IfModule>
 
 # Traitement des ressources statiques
 RewriteCond %{REQUEST_URI} ^/lovable-uploads/

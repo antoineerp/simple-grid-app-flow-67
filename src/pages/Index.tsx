@@ -5,7 +5,7 @@ import LoginForm from '@/components/auth/LoginForm';
 import { getApiUrl, getFullApiUrl, testApiConnection } from '@/config/apiConfig';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { AlertCircle, ExternalLink, Server, RefreshCw } from 'lucide-react';
+import { AlertCircle, ExternalLink, Server, RefreshCw, FileCode } from 'lucide-react';
 
 const Index = () => {
   const [apiStatus, setApiStatus] = useState<'loading' | 'success' | 'error'>('loading');
@@ -71,24 +71,50 @@ const Index = () => {
                 {apiMessage.includes('PHP') && (
                   <div className="mt-2 p-2 bg-orange-100 rounded">
                     <strong>Problème détecté:</strong> Votre serveur semble renvoyer le code PHP au lieu de l'exécuter.
-                    Vérifiez que PHP est correctement configuré sur votre serveur.
+                    Vérifiez que PHP est correctement configuré sur votre serveur avec CGI/FastCGI.
                   </div>
                 )}
               </div>
               
-              <Button 
-                variant="outline" 
-                size="sm" 
-                className="mt-2" 
-                onClick={() => {
-                  setIsRetesting(true);
-                  checkApi();
-                }}
-                disabled={isRetesting}
-              >
-                <RefreshCw className={`h-3 w-3 mr-1 ${isRetesting ? 'animate-spin' : ''}`} />
-                {isRetesting ? 'Test en cours...' : 'Tester à nouveau'}
-              </Button>
+              <div className="mt-4 space-y-2">
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="w-full" 
+                  onClick={() => {
+                    setIsRetesting(true);
+                    checkApi();
+                  }}
+                  disabled={isRetesting}
+                >
+                  <RefreshCw className={`h-3 w-3 mr-1 ${isRetesting ? 'animate-spin' : ''}`} />
+                  {isRetesting ? 'Test en cours...' : 'Tester à nouveau'}
+                </Button>
+                
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="w-full"
+                  onClick={() => {
+                    window.open(`${getApiUrl()}/cgi-test.php`, '_blank');
+                  }}
+                >
+                  <FileCode className="h-3 w-3 mr-1" />
+                  Tester CGI/FastCGI
+                </Button>
+                
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="w-full"
+                  onClick={() => {
+                    window.open(`${getApiUrl()}/phpinfo.php`, '_blank');
+                  }}
+                >
+                  <Server className="h-3 w-3 mr-1" />
+                  Voir phpinfo()
+                </Button>
+              </div>
             </AlertDescription>
           </Alert>
         )}
@@ -112,7 +138,15 @@ const Index = () => {
           
           {apiStatus === 'error' && (
             <div className="mt-2 text-xs text-red-500">
-              Pour résoudre ce problème, vérifiez que votre serveur exécute correctement PHP.
+              Pour résoudre ce problème, vérifiez que votre serveur exécute correctement PHP avec CGI/FastCGI.
+            </div>
+          )}
+          
+          {apiStatus === 'success' && apiDetails && (
+            <div className="mt-2 text-xs text-green-600">
+              {apiDetails.php_version && <div>PHP v{apiDetails.php_version}</div>}
+              {apiDetails.execution_mode && <div>Mode: {apiDetails.execution_mode}</div>}
+              {apiDetails.sapi_name && <div>SAPI: {apiDetails.sapi_name}</div>}
             </div>
           )}
         </div>
