@@ -1,0 +1,270 @@
+
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Diagnostic API PHP</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f7f9;
+        }
+        .container {
+            background-color: white;
+            border-radius: 8px;
+            padding: 25px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #2c3e50;
+            margin-top: 0;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 5px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .status {
+            margin: 20px 0;
+            padding: 15px;
+            border-radius: 4px;
+        }
+        .success {
+            background-color: #e7f9e7;
+            border-left: 5px solid #4CAF50;
+            color: #2e7d32;
+        }
+        .error {
+            background-color: #ffebee;
+            border-left: 5px solid #f44336;
+            color: #c62828;
+        }
+        .warning {
+            background-color: #fff8e1;
+            border-left: 5px solid #ffc107;
+            color: #ff8f00;
+        }
+        .details {
+            background-color: #f5f5f5;
+            padding: 15px;
+            border-radius: 4px;
+            margin-top: 20px;
+            font-family: monospace;
+            overflow-x: auto;
+        }
+        .hidden {
+            display: none;
+        }
+        .mb-20 {
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Diagnostic de l'API PHP</h1>
+        
+        <p>Cet outil permet de diagnostiquer et réparer les problèmes courants avec l'API PHP, notamment le fichier <code>env.php</code> manquant.</p>
+        
+        <div class="mb-20">
+            <button id="runDiagnostic">Exécuter le diagnostic</button>
+            <button id="fixEnv" class="hidden">Réparer le fichier env.php</button>
+            <button id="openPhpInfo">Voir phpinfo()</button>
+        </div>
+        
+        <div id="status" class="status hidden"></div>
+        
+        <div id="details" class="details hidden"></div>
+    </div>
+    
+    <script>
+        // Constantes
+        const API_BASE_URL = window.location.hostname.includes('localhost') || 
+                             window.location.hostname.includes('127.0.0.1') 
+                             ? 'http://localhost:8080/api' 
+                             : '/api';
+        
+        // Éléments DOM
+        const runDiagnosticButton = document.getElementById('runDiagnostic');
+        const fixEnvButton = document.getElementById('fixEnv');
+        const openPhpInfoButton = document.getElementById('openPhpInfo');
+        const statusDiv = document.getElementById('status');
+        const detailsDiv = document.getElementById('details');
+        
+        // Fonctions
+        function setStatus(message, type) {
+            statusDiv.textContent = message;
+            statusDiv.className = `status ${type}`;
+            statusDiv.classList.remove('hidden');
+        }
+        
+        function setDetails(content) {
+            detailsDiv.innerHTML = content;
+            detailsDiv.classList.remove('hidden');
+        }
+        
+        async function runDiagnostic() {
+            try {
+                setStatus('Exécution du diagnostic...', 'warning');
+                
+                // Vérifier si PHP s'exécute correctement
+                const response = await fetch(`${API_BASE_URL}/check-php-execution.php`, { 
+                    cache: 'no-store'
+                });
+                
+                const text = await response.text();
+                
+                // Vérifier si la réponse est du PHP brut
+                if (text.trim().startsWith('<?php')) {
+                    setStatus('ERREUR: Le serveur renvoie du code PHP au lieu de l\'exécuter.', 'error');
+                    setDetails(`
+                        <h3>Problème détecté</h3>
+                        <p>Votre serveur web n'exécute pas les fichiers PHP mais les renvoie comme du texte brut. Causes possibles:</p>
+                        <ul>
+                            <li>PHP n'est pas installé sur le serveur</li>
+                            <li>PHP est installé mais n'est pas configuré correctement</li>
+                            <li>Le module PHP n'est pas activé dans le serveur web</li>
+                        </ul>
+                        <h3>Solution</h3>
+                        <p>Contactez votre hébergeur pour vérifier la configuration PHP.</p>
+                        <h3>Début de la réponse brute reçue:</h3>
+                        <pre>${text.substring(0, 300)}...</pre>
+                    `);
+                    fixEnvButton.classList.add('hidden');
+                    return;
+                }
+                
+                // Tenter de parser la réponse comme du JSON
+                try {
+                    const data = JSON.parse(text);
+                    
+                    if (data.success) {
+                        if (data.env_status.created) {
+                            setStatus('Diagnostic terminé: Le fichier env.php a été créé automatiquement.', 'success');
+                        } else if (data.env_status.exists) {
+                            setStatus('Diagnostic terminé: Le fichier env.php existe et semble correct.', 'success');
+                        } else {
+                            setStatus('Diagnostic terminé: PHP fonctionne mais le fichier env.php est manquant.', 'warning');
+                            fixEnvButton.classList.remove('hidden');
+                        }
+                        
+                        setDetails(`
+                            <h3>Détails du diagnostic</h3>
+                            <ul>
+                                <li><strong>Version PHP:</strong> ${data.php_version}</li>
+                                <li><strong>Serveur:</strong> ${data.server_software}</li>
+                                <li><strong>Fichier env.php:</strong> ${data.env_status.exists ? 'Présent' : 'Manquant'}</li>
+                                <li><strong>Chemin env.php:</strong> ${data.env_status.path || 'N/A'}</li>
+                                <li><strong>Contenu correct:</strong> ${data.env_status.content_ok ? 'Oui' : 'Non'}</li>
+                                <li><strong>Dossier config:</strong> ${data.config_dir.exists ? 'Existe' : 'Manquant'}</li>
+                            </ul>
+                            <p>Diagnostic effectué le ${data.timestamp}</p>
+                        `);
+                    } else {
+                        setStatus('Diagnostic terminé avec des erreurs', 'error');
+                        setDetails(`
+                            <h3>Erreurs détectées</h3>
+                            <pre>${JSON.stringify(data, null, 2)}</pre>
+                        `);
+                        fixEnvButton.classList.remove('hidden');
+                    }
+                } catch (parseError) {
+                    setStatus('ERREUR: Impossible de parser la réponse du serveur', 'error');
+                    setDetails(`
+                        <h3>Erreur de parsing</h3>
+                        <p>${parseError.message}</p>
+                        <h3>Réponse brute reçue:</h3>
+                        <pre>${text.substring(0, 300)}...</pre>
+                    `);
+                    fixEnvButton.classList.remove('hidden');
+                }
+            } catch (error) {
+                setStatus(`ERREUR: ${error.message}`, 'error');
+                setDetails(`
+                    <h3>Détails de l'erreur</h3>
+                    <pre>${error.stack}</pre>
+                `);
+                fixEnvButton.classList.remove('hidden');
+            }
+        }
+        
+        async function fixEnv() {
+            try {
+                setStatus('Tentative de réparation du fichier env.php...', 'warning');
+                
+                const response = await fetch(`${API_BASE_URL}/fix-env.php`, {
+                    cache: 'no-store'
+                });
+                
+                const text = await response.text();
+                
+                try {
+                    const data = JSON.parse(text);
+                    
+                    if (data.success) {
+                        setStatus('Le fichier env.php a été réparé avec succès!', 'success');
+                        setDetails(`
+                            <h3>Détails de la réparation</h3>
+                            <p>Le fichier env.php a été créé aux emplacements suivants:</p>
+                            <ul>
+                                ${Object.entries(data.results).map(([key, val]) => 
+                                    `<li>${key}: ${val.created ? '✅ Créé' : '❌ Échec'}</li>`
+                                ).join('')}
+                            </ul>
+                            <p>Opération effectuée le ${data.timestamp}</p>
+                        `);
+                    } else {
+                        setStatus('Échec de la réparation du fichier env.php', 'error');
+                        setDetails(`
+                            <h3>Détails de l'erreur</h3>
+                            <pre>${JSON.stringify(data, null, 2)}</pre>
+                        `);
+                    }
+                    
+                    // Exécuter un nouveau diagnostic après la réparation
+                    setTimeout(runDiagnostic, 2000);
+                    
+                } catch (parseError) {
+                    setStatus('ERREUR: Impossible de parser la réponse du serveur', 'error');
+                    setDetails(`
+                        <h3>Erreur de parsing</h3>
+                        <p>${parseError.message}</p>
+                        <h3>Réponse brute reçue:</h3>
+                        <pre>${text.substring(0, 300)}...</pre>
+                    `);
+                }
+            } catch (error) {
+                setStatus(`ERREUR: ${error.message}`, 'error');
+                setDetails(`
+                    <h3>Détails de l'erreur</h3>
+                    <pre>${error.stack}</pre>
+                `);
+            }
+        }
+        
+        // Événements
+        runDiagnosticButton.addEventListener('click', runDiagnostic);
+        fixEnvButton.addEventListener('click', fixEnv);
+        openPhpInfoButton.addEventListener('click', () => {
+            window.open(`${API_BASE_URL}/phpinfo.php`, '_blank');
+        });
+        
+        // Exécuter le diagnostic au chargement de la page
+        document.addEventListener('DOMContentLoaded', runDiagnostic);
+    </script>
+</body>
+</html>
