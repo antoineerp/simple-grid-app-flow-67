@@ -13,6 +13,7 @@ AddType application/x-httpd-php .php
 AddType text/css .css
 AddType application/javascript .js
 AddType application/javascript .mjs
+AddType application/javascript .es.js
 AddType image/svg+xml .svg
 
 # Force le type MIME pour CSS avec le charset UTF-8
@@ -22,7 +23,7 @@ AddType image/svg+xml .svg
 </FilesMatch>
 
 # Force le type MIME pour JavaScript avec le charset UTF-8
-<FilesMatch "\.js$">
+<FilesMatch "\.(js|mjs|es\.js)$">
     ForceType application/javascript
     Header set Content-Type "application/javascript; charset=utf-8"
 </FilesMatch>
