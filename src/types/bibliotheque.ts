@@ -1,14 +1,7 @@
 
-export interface Document {
-  id: string;
-  name: string;
-  link: string | null;
-  groupId?: string;
-}
+// Ce fichier est déprécié et est maintenu pour la compatibilité
+// Veuillez utiliser les types définis dans bibliotheque.d.ts à la place
 
-export interface DocumentGroup {
-  id: string;
-  name: string;
-  expanded: boolean;
-  items: Document[];
-}
+import { Document, DocumentGroup } from './bibliotheque.d';
+
+export type { Document, DocumentGroup };

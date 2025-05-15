@@ -17,6 +17,3 @@ AddType text/css .css
     Order Allow,Deny
     Allow from all
 </Files>
-
-# Empêcher toute redirection à l'intérieur du dossier assets
-RewriteRule ^ - [L]

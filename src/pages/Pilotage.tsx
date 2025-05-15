@@ -11,19 +11,9 @@ import DocumentDialog from '@/components/pilotage/DocumentDialog';
 import ExigenceSummary from '@/components/pilotage/ExigenceSummary';
 import DocumentSummary from '@/components/pilotage/DocumentSummary';
 import ResponsabilityMatrix from '@/components/pilotage/ResponsabilityMatrix';
-import SyncStatusIndicator from '@/components/common/SyncStatusIndicator';
-import { useGlobalSync } from '@/hooks/useGlobalSync';
 
 const Pilotage = () => {
   const { toast } = useToast();
-  const { 
-    syncWithServer, 
-    isOnline, 
-    isSyncing, 
-    lastSynced, 
-    hasUnsyncedData 
-  } = useGlobalSync();
-  
   const {
     documents,
     isDialogOpen,
@@ -46,29 +36,10 @@ const Pilotage = () => {
     });
   };
 
-  const handleSyncClick = async () => {
-    const success = await syncWithServer();
-    if (success) {
-      toast({
-        title: "Synchronisation réussie",
-        description: "Toutes les données ont été synchronisées avec le serveur",
-      });
-    }
-  };
-
   return (
     <MembresProvider>
       <div className="p-8">
-        <div className="mb-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-          <PilotageHeader onExport={handleExportPdf} />
-          <SyncStatusIndicator
-            isOnline={isOnline}
-            isSyncing={isSyncing}
-            lastSynced={lastSynced}
-            hasUnsyncedData={hasUnsyncedData}
-            onSync={handleSyncClick}
-          />
-        </div>
+        <PilotageHeader onExport={handleExportPdf} />
 
         <PilotageDocumentsTable 
           documents={documents}

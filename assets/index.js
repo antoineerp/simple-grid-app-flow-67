@@ -1,4 +1,4 @@
 
 // Fichier pont pour la compatibilité avec les scripts de diagnostic
-// Ce fichier charge le fichier principal généré par Vite
+// Ce fichier ne contient aucune référence au localStorage
 import './main-CJp6prML.js';

@@ -1,208 +1,74 @@
 
 <?php
-// Inclure notre fichier de configuration d'environnement s'il n'est pas déjà inclus
+// Inclure notre fichier de configuration d'environnement
 if (!function_exists('env')) {
     require_once '../config/env.php';
 }
 
-// Activer la journalisation des erreurs
-ini_set('display_errors', 1);
-error_reporting(E_ALL);
-
-// Déterminer l'environnement
-$environment = env('APP_ENV', 'development');
-
-// Configuration des en-têtes CORS selon l'environnement
-$allowedOrigins = [
-    'development' => env('ALLOWED_ORIGIN_DEV', 'http://localhost:8080'),
-    'production' => env('ALLOWED_ORIGIN_PROD', 'https://www.qualiopi.ch')
-];
-
-$allowedOrigin = $allowedOrigins[$environment];
-
-// Obtenir l'origine de la requête
-$origin = isset($_SERVER['HTTP_ORIGIN']) ? $_SERVER['HTTP_ORIGIN'] : '';
-
-// Autoriser toutes les origines en mode développement
-if ($environment === 'development') {
-    header("Access-Control-Allow-Origin: *");
-} else if ($origin === $allowedOrigin) {
-    header("Access-Control-Allow-Origin: $origin");
-} else {
-    header("Access-Control-Allow-Origin: " . $allowedOrigins['production']);
-}
-
-// Autres en-têtes CORS
+// Configuration des en-têtes CORS
 header("Content-Type: application/json; charset=UTF-8");
+header("Access-Control-Allow-Origin: *");
 header("Access-Control-Allow-Methods: GET, OPTIONS");
-header("Access-Control-Max-Age: 3600");
-header("Access-Control-Allow-Headers: Content-Type, Access-Control-Allow-Headers, Authorization, X-Requested-With");
+header("Access-Control-Allow-Headers: Content-Type, Authorization");
 
 // Si c'est une requête OPTIONS (preflight), nous la terminons ici
 if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
-    header("HTTP/1.1 200 OK");
+    http_response_code(200);
+    echo json_encode(['status' => 200, 'message' => 'Preflight OK']);
     exit;
 }
 
-// Journaliser l'exécution
-error_log("=== EXÉCUTION DE DATABASE TEST CONTROLLER ===");
-error_log("Méthode: " . $_SERVER['REQUEST_METHOD'] . " - URI: " . $_SERVER['REQUEST_URI']);
+// Activer la journalisation des erreurs
+error_reporting(E_ALL);
+ini_set('display_errors', 0);
+ini_set('log_errors', 1);
+ini_set('error_log', __DIR__ . '/../logs/database_test_errors.log');
 
-try {
-    // Inclure les fichiers nécessaires
-    require_once '../config/database.php';
-    require_once '../utils/ResponseHandler.php';
-    
-    // Vérifier si middleware/Auth.php existe
-    if (file_exists('../middleware/Auth.php')) {
-        include_once '../middleware/Auth.php';
+// Fonction pour tester la connexion à la base de données
+function testDatabaseConnection() {
+    try {
+        // Configuration de connexion standard
+        $host = "p71x6d.myd.infomaniak.com";
+        $dbname = "p71x6d_system";
+        $username = "p71x6d_system";
+        $password = "Trottinette43!";
         
-        // Récupérer les en-têtes pour l'authentification
-        $allHeaders = apache_request_headers();
+        // Créer une connexion PDO directe
+        $dsn = "mysql:host={$host};dbname={$dbname};charset=utf8mb4";
+        $options = [
+            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+            PDO::ATTR_EMULATE_PREPARES => false,
+        ];
         
-        // Vérifier si la classe Auth existe
-        if (class_exists('Auth')) {
-            $auth = new Auth($allHeaders);
-            
-            // Vérifier si l'utilisateur est authentifié
-            $userData = $auth->isAuth();
-            
-            // Si l'utilisateur n'est pas authentifié
-            if (!$userData) {
-                http_response_code(401);
-                echo json_encode(["message" => "Accès non autorisé", "status" => "error"], JSON_UNESCAPED_UNICODE);
-                exit;
-            }
-            
-            // Vérifier si l'utilisateur est administrateur
-            if ($userData['data']['role'] !== 'administrateur' && $userData['data']['role'] !== 'admin') {
-                http_response_code(403);
-                echo json_encode(["message" => "Permission refusée", "status" => "error"], JSON_UNESCAPED_UNICODE);
-                exit;
-            }
-        } else {
-            error_log("La classe Auth n'existe pas");
-        }
-    } else {
-        error_log("Le fichier middleware/Auth.php n'existe pas, authentification ignorée");
+        $pdo = new PDO($dsn, $username, $password, $options);
+        
+        // Exécuter une requête simple pour vérifier la connexion
+        $stmt = $pdo->query("SELECT VERSION() as version");
+        $result = $stmt->fetch();
+        
+        // Récupérer des informations supplémentaires sur la base de données
+        $tableQuery = $pdo->query("SHOW TABLES");
+        $tables = $tableQuery->fetchAll(PDO::FETCH_COLUMN);
+        
+        return [
+            'success' => true,
+            'message' => 'Connexion à la base de données réussie',
+            'version' => $result['version'],
+            'tables_count' => count($tables),
+            'tables' => $tables
+        ];
+    } catch (PDOException $e) {
+        error_log("Erreur de connexion PDO: " . $e->getMessage());
+        return [
+            'success' => false,
+            'message' => 'Erreur de connexion à la base de données',
+            'error' => $e->getMessage()
+        ];
     }
-    
-    // Détermininer la méthode de requête
-    $method = $_SERVER['REQUEST_METHOD'];
-    
-    if ($method === 'GET' || $method === 'POST') {
-        // Utiliser ResponseHandler pour vérifier la connexion à la base de données
-        $dbStatus = ResponseHandler::databaseStatus();
-        
-        if ($dbStatus['is_connected']) {
-            // La connexion est établie
-            // Instancier également la base de données pour des informations supplémentaires
-            $database = new Database();
-            $conn = $database->getConnection(false);
-            
-            try {
-                // Collecter des informations supplémentaires sur la base de données
-                $info = $dbStatus['connection_info'];
-                
-                // Obtenir la liste des tables
-                $tables = [];
-                if ($database->is_connected) {
-                    $tablesStmt = $conn->query("SHOW TABLES");
-                    $tables = $tablesStmt->fetchAll(PDO::FETCH_COLUMN);
-                }
-                
-                // Calculer la taille de la base de données
-                $sizeInfo = ['size' => '0 MB'];
-                if ($database->is_connected) {
-                    try {
-                        $sizeStmt = $conn->query("
-                            SELECT 
-                                SUM(data_length + index_length) as size
-                            FROM 
-                                information_schema.TABLES 
-                            WHERE 
-                                table_schema = '" . $database->db_name . "'
-                        ");
-                        $sizeData = $sizeStmt->fetch(PDO::FETCH_ASSOC);
-                        // Convertir la taille en MB
-                        $sizeMB = round(($sizeData['size'] ?? 0) / (1024 * 1024), 2) . ' MB';
-                        $sizeInfo['size'] = $sizeMB;
-                    } catch (PDOException $e) {
-                        $sizeInfo['error'] = $e->getMessage();
-                    }
-                }
-                
-                // Obtenir des informations sur l'encodage
-                $encodingInfo = ['encoding' => 'utf8mb4', 'collation' => 'utf8mb4_unicode_ci'];
-                if ($database->is_connected) {
-                    try {
-                        $encodingStmt = $conn->query("
-                            SELECT default_character_set_name, default_collation_name
-                            FROM information_schema.SCHEMATA
-                            WHERE schema_name = '" . $database->db_name . "'
-                        ");
-                        $encodingData = $encodingStmt->fetch(PDO::FETCH_ASSOC);
-                        $encodingInfo['encoding'] = $encodingData['default_character_set_name'] ?? 'utf8mb4';
-                        $encodingInfo['collation'] = $encodingData['default_collation_name'] ?? 'utf8mb4_unicode_ci';
-                    } catch (PDOException $e) {
-                        $encodingInfo['error'] = $e->getMessage();
-                    }
-                }
-                
-                // Journaliser le résultat
-                error_log("Connexion à la base de données réussie, informations récupérées");
-                
-                // La connexion est établie et la requête a fonctionné
-                http_response_code(200);
-                echo json_encode([
-                    "message" => "Connexion réussie à la base de données",
-                    "status" => "success",
-                    "info" => [
-                        "database_name" => $info['database'],
-                        "host" => $info['host'],
-                        "user" => $info['user'],
-                        "tables" => $tables,
-                        "table_count" => count($tables),
-                        "size" => $sizeInfo['size'],
-                        "encoding" => $encodingInfo['encoding'],
-                        "collation" => $encodingInfo['collation']
-                    ]
-                ], JSON_UNESCAPED_UNICODE);
-            } catch (Exception $e) {
-                // La connexion est établie mais il y a un problème avec les requêtes supplémentaires
-                error_log("Erreur lors de la collecte d'informations: " . $e->getMessage());
-                http_response_code(200);
-                echo json_encode([
-                    "message" => "Connexion réussie à la base de données, mais erreur lors de la collecte d'informations",
-                    "status" => "warning",
-                    "info" => [
-                        "database_name" => $dbStatus['connection_info']['database'] ?? 'inconnu',
-                        "host" => $dbStatus['connection_info']['host'] ?? 'inconnu',
-                        "error_details" => $e->getMessage()
-                    ]
-                ], JSON_UNESCAPED_UNICODE);
-            }
-        } else {
-            // La connexion a échoué
-            error_log("Échec de la connexion à la base de données: " . ($dbStatus['error'] ?? "Raison inconnue"));
-            http_response_code(500);
-            echo json_encode([
-                "message" => "Échec de la connexion à la base de données",
-                "error" => $dbStatus['error'] ?? "Raison inconnue",
-                "status" => "error"
-            ], JSON_UNESCAPED_UNICODE);
-        }
-    } else {
-        http_response_code(405);
-        echo json_encode(["message" => "Méthode non autorisée", "status" => "error"], JSON_UNESCAPED_UNICODE);
-    }
-} catch (Exception $e) {
-    error_log("Exception générale dans DatabaseTestController: " . $e->getMessage());
-    http_response_code(500);
-    echo json_encode([
-        "message" => "Erreur interne du serveur",
-        "error" => $e->getMessage(),
-        "status" => "error"
-    ], JSON_UNESCAPED_UNICODE);
 }
+
+// Exécuter le test de connexion et retourner le résultat
+$result = testDatabaseConnection();
+echo json_encode($result, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
 ?>

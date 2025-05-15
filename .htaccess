@@ -29,25 +29,21 @@ AddType image/svg+xml .svg
     Allow from all
 </FilesMatch>
 
-# Forcer l'exécution des fichiers PHP avec CGI/FastCGI
-<FilesMatch "\.php$">
-    SetHandler application/x-httpd-php
-</FilesMatch>
-
-# CGI/FastCGI configuration alternatives
-<IfModule mod_fcgid.c>
-    AddHandler fcgid-script .php
-    FcgidWrapper /usr/local/bin/php-cgi .php
-</IfModule>
-
 # Traitement des ressources statiques
 RewriteCond %{REQUEST_URI} ^/lovable-uploads/
 RewriteRule ^lovable-uploads/(.*)$ public/lovable-uploads/$1 [L]
 
-# ATTENTION: Correction des règles qui causaient une boucle infinie
+# Règle spécifique pour rediriger /api vers le dossier api/index.php
+RewriteRule ^api$ api/index.php [L]
 
-# Règle spécifique pour l'API - NE PAS rediriger vers index.php
-RewriteRule ^api(/.*)?$ - [L]
+# Règle pour traiter les requêtes d'API avec des sous-chemins directs
+RewriteRule ^api/([^/]+)\.php$ api/$1.php [QSA,L]
+
+# Règle pour traiter les requêtes d'API avec des sous-chemins
+RewriteRule ^api/([^/]+)$ api/$1.php [QSA,L]
+
+# Règle pour autres requêtes API
+RewriteRule ^api/(.*)$ api/$1 [QSA,L]
 
 # Permettre l'accès direct aux assets dans leur dossier
 RewriteCond %{REQUEST_URI} ^/assets/
@@ -62,7 +58,7 @@ RewriteRule ^ - [L]
 # Rediriger toutes les autres requêtes vers index.html pour React Router
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
-RewriteCond %{REQUEST_URI} !^/api(/.*)?$
+RewriteCond %{REQUEST_URI} !^/api/
 RewriteRule ^(.*)$ index.html [QSA,L]
 
 # Configuration de sécurité et CORS
@@ -74,14 +70,7 @@ RewriteRule ^(.*)$ index.html [QSA,L]
         Header set Expires "0"
         Header set Access-Control-Allow-Origin "*"
         Header set Access-Control-Allow-Methods "GET, OPTIONS"
-        Header set Access-Control-Allow-Headers "Content-Type, Authorization"
-    </FilesMatch>
-    
-    # Headers pour les fichiers PHP
-    <FilesMatch "\.php$">
-        Header set Access-Control-Allow-Origin "*"
-        Header set Access-Control-Allow-Methods "GET, POST, OPTIONS, PUT, DELETE"
-        Header set Access-Control-Allow-Headers "Content-Type, Authorization, X-Requested-With"
+        Header set Access-Control-Allow-Headers "Content-Type"
     </FilesMatch>
 </IfModule>
 

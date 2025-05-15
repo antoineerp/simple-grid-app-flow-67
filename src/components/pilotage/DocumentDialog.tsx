@@ -10,13 +10,19 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { PilotageDocument } from './types';
+
+interface Document {
+  id: number;
+  ordre: number;
+  nom: string;
+  lien: string | null;
+}
 
 interface DocumentDialogProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
-  currentDocument: PilotageDocument | null;
-  onInputChange: (field: string, value: any) => void;
+  currentDocument: Document;
+  onInputChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onSave: () => void;
   isEditing: boolean;
 }
@@ -29,13 +35,6 @@ const DocumentDialog: React.FC<DocumentDialogProps> = ({
   onSave,
   isEditing
 }) => {
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    onInputChange(name, value);
-  };
-
-  if (!currentDocument) return null;
-
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent>
@@ -56,7 +55,7 @@ const DocumentDialog: React.FC<DocumentDialogProps> = ({
               type="number"
               className="col-span-3"
               value={currentDocument.ordre}
-              onChange={handleChange}
+              onChange={onInputChange}
             />
           </div>
           
@@ -69,7 +68,7 @@ const DocumentDialog: React.FC<DocumentDialogProps> = ({
               name="nom"
               className="col-span-3"
               value={currentDocument.nom}
-              onChange={handleChange}
+              onChange={onInputChange}
             />
           </div>
           
@@ -82,7 +81,7 @@ const DocumentDialog: React.FC<DocumentDialogProps> = ({
               name="lien"
               className="col-span-3"
               value={currentDocument.lien || ''}
-              onChange={handleChange}
+              onChange={onInputChange}
               placeholder="Laisser vide si aucun lien"
             />
           </div>

@@ -2,26 +2,10 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
+import { componentTagger } from "lovable-tagger";
 
-// Only import the componentTagger in development, and only if Node.js version is compatible
-const getDevPlugins = (mode: string) => {
-  const plugins = [];
-  
-  // Only use componentTagger in development mode
-  if (mode === 'development') {
-    try {
-      // Dynamically import to avoid import errors in production or with older Node.js
-      const { componentTagger } = require("lovable-tagger");
-      plugins.push(componentTagger());
-    } catch (error) {
-      console.warn("WARNING: componentTagger plugin could not be loaded. This is expected in production or with Node.js < 18.");
-    }
-  }
-  
-  return plugins;
-};
-
-export default defineConfig(({ mode }: { mode: string }) => {
+// Configuration pour Vite (compatible avec v5 et v6)
+export default defineConfig(({ mode }) => {
   // Configuration spécifique pour Infomaniak
   const isInfomaniak = process.env.VITE_HOSTING === 'infomaniak' || process.env.NODE_ENV === 'production';
   const basePath = isInfomaniak ? '/' : '/';
@@ -37,11 +21,13 @@ export default defineConfig(({ mode }: { mode: string }) => {
     },
     plugins: [
       react(),
-      ...(getDevPlugins(mode)),
-    ],
+      mode === 'development' && componentTagger(),
+    ].filter(Boolean),
     resolve: {
       alias: {
         "@": path.resolve(__dirname, "./src"),
+        "jspdf": path.resolve(__dirname, "node_modules/jspdf/dist/jspdf.es.min.js"),
+        "jspdf-autotable": path.resolve(__dirname, "node_modules/jspdf-autotable/dist/jspdf.plugin.autotable.js")
       },
     },
     build: {
@@ -67,9 +53,15 @@ export default defineConfig(({ mode }: { mode: string }) => {
           chunkFileNames: 'assets/[name].[hash].js',
           entryFileNames: 'assets/[name].[hash].js',
         },
+        // Configuration explicite des dépendances externes pour éviter les erreurs de compilation
+        external: []
       }
     },
     publicDir: 'public',
     base: basePath,
+    optimizeDeps: {
+      // Inclure jspdf et jspdf-autotable pour s'assurer qu'ils sont correctement traités
+      include: ['jspdf', 'jspdf-autotable']
+    }
   };
 });
