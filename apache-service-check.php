@@ -1,5 +1,7 @@
 
 <?php
+// Assurez-vous qu'il n'y a aucun espace ou sortie avant cette ligne
+ob_start(); // Démarrer la mise en tampon de sortie 
 header('Content-Type: text/html; charset=utf-8');
 ?>
 <!DOCTYPE html>
