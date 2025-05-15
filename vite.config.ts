@@ -40,7 +40,7 @@ export default defineConfig(({ mode }) => {
           main: path.resolve(__dirname, 'index.html'),
         },
         output: {
-          // Configuration spécifique pour Infomaniak
+          // Configurer les noms de fichiers pour qu'ils soient cohérents
           assetFileNames: (assetInfo) => {
             if (!assetInfo.name) {
               return 'assets/[name].[hash].[ext]';
@@ -52,16 +52,17 @@ export default defineConfig(({ mode }) => {
           },
           chunkFileNames: 'assets/[name].[hash].js',
           entryFileNames: 'assets/[name].[hash].js',
-        },
-        // Configuration explicite des dépendances externes pour éviter les erreurs de compilation
-        external: []
+          manualChunks: {
+            react: ['react', 'react-dom'],
+            ui: ['@radix-ui/react-dialog', '@radix-ui/react-toast', '@radix-ui/react-tooltip']
+          }
+        }
       }
+    },
+    optimizeDeps: {
+      include: ['react', 'react-dom', 'react-router-dom', 'jspdf', 'jspdf-autotable']
     },
     publicDir: 'public',
     base: basePath,
-    optimizeDeps: {
-      // Inclure jspdf et jspdf-autotable pour s'assurer qu'ils sont correctement traités
-      include: ['jspdf', 'jspdf-autotable']
-    }
   };
 });

@@ -1,13 +1,6 @@
 
-# Activer le moteur de réécriture
+# Activation du moteur de réécriture
 RewriteEngine On
-
-# Configuration PHP correcte (sans conflits)
-AddHandler application/x-httpd-php .php
-AddType application/x-httpd-php .php
-<FilesMatch "\.php$">
-    SetHandler application/x-httpd-php
-</FilesMatch>
 
 # Configuration des types MIME
 AddType text/css .css
@@ -15,35 +8,49 @@ AddType application/javascript .js
 AddType application/javascript .mjs
 AddType application/javascript .es.js
 AddType image/svg+xml .svg
+AddType font/ttf .ttf
+AddType font/woff .woff
+AddType font/woff2 .woff2
 
-# Force le type MIME pour CSS avec le charset UTF-8
+# Force le type MIME pour CSS de manière explicite
 <FilesMatch "\.css$">
     ForceType text/css
     Header set Content-Type "text/css; charset=utf-8"
+    Header set X-Content-Type-Options "nosniff"
 </FilesMatch>
 
-# Force le type MIME pour JavaScript avec le charset UTF-8
+# Force le type MIME pour JavaScript de manière explicite
 <FilesMatch "\.(js|mjs|es\.js)$">
     ForceType application/javascript
     Header set Content-Type "application/javascript; charset=utf-8"
+    Header set X-Content-Type-Options "nosniff"
 </FilesMatch>
 
-# Protection CORS pour l'API
-<FilesMatch "^api.*\.php$">
+# Activer la mise en cache
+<IfModule mod_expires.c>
+  ExpiresActive On
+  ExpiresByType text/css "access plus 1 week"
+  ExpiresByType application/javascript "access plus 1 week"
+  ExpiresByType image/svg+xml "access plus 1 week"
+  ExpiresByType font/ttf "access plus 1 month"
+  ExpiresByType font/woff "access plus 1 month"
+  ExpiresByType font/woff2 "access plus 1 month"
+</IfModule>
+
+# Autoriser l'accès depuis toutes les origines pour les assets
+<IfModule mod_headers.c>
     Header set Access-Control-Allow-Origin "*"
-    Header set Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS"
-    Header set Access-Control-Allow-Headers "Content-Type, Authorization, X-Requested-With"
-</FilesMatch>
+</IfModule>
 
-# Rediriger toutes les requêtes vers index.html sauf les fichiers physiques, dossiers ou API
-RewriteCond %{REQUEST_FILENAME} !-f
-RewriteCond %{REQUEST_FILENAME} !-d
-RewriteRule ^(?!api/)(.*)$ /index.html [L]
-
-# Désactiver l'indexation des répertoires
+# Ne pas indexer les répertoires
 Options -Indexes
 
-# Protection contre le MIME-sniffing
-<IfModule mod_headers.c>
-    Header set X-Content-Type-Options "nosniff"
+# Règles de réécriture pour SPA
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteBase /
+  RewriteRule ^index\.html$ - [L]
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteCond %{REQUEST_FILENAME} !-d
+  RewriteRule . /index.html [L]
 </IfModule>
