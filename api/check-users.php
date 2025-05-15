@@ -1,4 +1,3 @@
-
 <?php
 // Forcer l'output buffering pour éviter tout output avant les headers
 ob_start();
@@ -32,7 +31,7 @@ if (ob_get_level()) ob_clean();
 try {
     // Tester la connexion PDO directement sans passer par notre classe Database
     $host = "p71x6d.myd.infomaniak.com";
-    $dbname = "p71x6d_system";
+    $dbname = "p71x6d_richard";
     
     // Utiliser l'identifiant technique spécifié s'il est fourni et valide
     if (!empty($source) && $source !== 'default' && strpos($source, 'p71x6d_') === 0) {
@@ -40,9 +39,9 @@ try {
         $password = "Trottinette43!";
         error_log("Utilisation de l'identifiant technique fourni: " . $username);
     } else {
-        $username = "p71x6d_system";
+        $username = "p71x6d_richard";
         $password = "Trottinette43!";
-        error_log("Utilisation de l'identifiant par défaut: p71x6d_system");
+        error_log("Utilisation de l'identifiant par défaut: p71x6d_richard");
     }
     
     $dsn = "mysql:host={$host};dbname={$dbname};charset=utf8mb4";

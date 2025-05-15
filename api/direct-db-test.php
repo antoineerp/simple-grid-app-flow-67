@@ -13,8 +13,8 @@ error_log("=== DÉBUT DU TEST DE CONNEXION À LA BASE DE DONNÉES ===");
 try {
     // Configuration de la base de données (constante et fiable)
     $host = "p71x6d.myd.infomaniak.com";
-    $dbname = "p71x6d_system";
-    $username = "p71x6d_system";
+    $dbname = "p71x6d_richard";
+    $username = "p71x6d_richard";
     $password = "Trottinette43!";
     
     // Récupérer des informations sur le serveur

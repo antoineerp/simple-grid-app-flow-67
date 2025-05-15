@@ -42,14 +42,14 @@ export const getCurrentUser = (): string | null => {
   }
   
   // Valeur par défaut pour les opérations sans authentification
-  return 'p71x6d_system';
+  return 'p71x6d_richard';
 };
 
 // Fonction pour définir l'utilisateur actuel
 export const setCurrentUser = (userId: string): void => {
   if (!userId || typeof userId !== 'string' || !userId.startsWith('p71x6d_')) {
     console.error(`Tentative d'utilisation d'un identifiant technique invalide: ${userId}`);
-    userId = 'p71x6d_system';
+    userId = 'p71x6d_richard';
   }
   
   currentDatabaseUser = userId;
@@ -139,7 +139,7 @@ export const getDatabaseConnectionCurrentUser = (): string | null => {
   }
   
   // Si rien n'est trouvé, utiliser l'utilisateur par défaut
-  return 'p71x6d_system';
+  return 'p71x6d_richard';
 };
 
 // Interface pour les informations de base de données
@@ -227,7 +227,7 @@ export const getDatabaseInfo = async (): Promise<DatabaseInfo> => {
     // Extraire et formater les informations de la base de données
     const dbInfo: DatabaseInfo = {
       host: data.database_info?.host || "p71x6d.myd.infomaniak.com",
-      database: data.database_info?.database || "p71x6d_system",
+      database: data.database_info?.database || "p71x6d_richard",
       size: '0 MB',
       tables: data.records ? data.records.length : 0,
       lastBackup: new Date().toISOString().split('T')[0] + ' 00:00:00',
@@ -296,6 +296,6 @@ export const initializeCurrentUser = (): void => {
   }
   
   // Si aucun utilisateur n'est trouvé, utiliser la valeur par défaut
-  setCurrentUser('p71x6d_system');
-  console.log(`Utilisateur initialisé avec la valeur par défaut: p71x6d_system`);
+  setCurrentUser('p71x6d_richard');
+  console.log(`Utilisateur initialisé avec la valeur par défaut: p71x6d_richard`);
 };

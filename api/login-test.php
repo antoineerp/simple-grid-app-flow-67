@@ -50,8 +50,8 @@ error_log("Tentative de connexion pour: " . $username);
 try {
     // Configuration de la base de données
     $host = "p71x6d.myd.infomaniak.com";
-    $dbname = "p71x6d_system";
-    $db_username = "p71x6d_system";
+    $dbname = "p71x6d_richard";
+    $db_username = "p71x6d_richard";
     $db_password = "Trottinette43!";
     
     // Connexion à la base de données

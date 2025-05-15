@@ -26,13 +26,13 @@ try {
     if (ob_get_level()) ob_clean();
     
     // Récupérer l'ID utilisateur depuis les paramètres GET
-    $userId = isset($_GET['userId']) ? $_GET['userId'] : 'p71x6d_system';
+    $userId = isset($_GET['userId']) ? $_GET['userId'] : 'p71x6d_richard';
     error_log("UserId reçu: " . $userId);
     
-    // Configuration de la connexion à la base de données (factice pour le moment)
+    // Configuration de la connexion à la base de données
     $host = "p71x6d.myd.infomaniak.com";
-    $dbname = "p71x6d_system";
-    $username = "p71x6d_system";
+    $dbname = "p71x6d_richard";
+    $username = "p71x6d_richard";
     $password = "Trottinette43!";
     
     // Simuler des données pour le test
