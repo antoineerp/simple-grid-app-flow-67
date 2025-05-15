@@ -1,186 +1,194 @@
-import { useState, useCallback, useRef } from 'react';
-import { Document as BibliothequeDocument, DocumentGroup } from '@/types/bibliotheque';
-import { Document as SystemDocument } from '@/types/documents';
-import { syncService } from '@/services/sync/syncService';
-import { useNetworkStatus } from '@/hooks/useNetworkStatus';
-import { useSync } from '@/hooks/useSync';
-import { toast } from '@/components/ui/use-toast';
+import { useState, useEffect } from 'react';
+import { useMutation } from '@tanstack/react-query';
+import { useSyncContext } from '@/features/sync/hooks/useSyncContext';
+import { SyncService } from '@/services/sync/SyncService'; // Corrigé la casse pour correspondre au fichier réel
+import { DatabaseHelper } from '@/services/sync/DatabaseHelper';
+import { useMembresContext } from '@/contexts/MembresContext';
+import { BibliothequeDocument, BibliothequeGroup } from '@/types/bibliotheque';
 
-// Helper function to convert between document types
-const convertSystemToBibliothequeDoc = (doc: SystemDocument): BibliothequeDocument => ({
-  id: doc.id,
-  name: doc.nom || '',
-  link: doc.fichier_path,
-  groupId: doc.groupId,
-  userId: doc.userId || 'system' // Ensure userId is set
-});
+// Types pour les états de synchronisation
+interface SyncState {
+  isLoading: boolean;
+  isSyncing: boolean;
+  lastSynced: string | null;
+  error: string | null;
+}
 
-const convertBibliothequeToSystemDoc = (doc: BibliothequeDocument): SystemDocument => ({
-  id: doc.id,
-  nom: doc.name || '',
-  fichier_path: doc.link,
-  groupId: doc.groupId,
-  responsabilites: { r: [], a: [], c: [], i: [] },
-  etat: null,
-  date_creation: new Date(),
-  date_modification: new Date()
-});
+// Interface pour les mutations de la bibliothèque
+interface BibliothequeOperations {
+  createGroup: (group: Partial<BibliothequeGroup>) => Promise<BibliothequeGroup>;
+  updateGroup: (group: BibliothequeGroup) => Promise<BibliothequeGroup>;
+  deleteGroup: (groupId: string) => Promise<void>;
+  createDocument: (document: Partial<BibliothequeDocument>) => Promise<BibliothequeDocument>;
+  updateDocument: (document: BibliothequeDocument) => Promise<BibliothequeDocument>;
+  deleteDocument: (documentId: string) => Promise<void>;
+}
 
 export const useBibliothequeSync = () => {
-  const [lastSynced, setLastSynced] = useState<Date | null>(null);
-  const { isOnline } = useNetworkStatus();
-  const { isSyncing, syncFailed, syncAndProcess } = useSync('collaboration');
-  const syncTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const pendingSyncRef = useRef<boolean>(false);
-  
-  // Fonction pour charger les documents depuis le serveur
-  const loadFromServer = useCallback(async (userId?: string): Promise<BibliothequeDocument[]> => {
-    if (!isOnline) {
-      console.log('Mode hors ligne - chargement des documents locaux');
-      try {
-        // UNIQUEMENT chercher sous le nouveau nom (collaboration)
-        const localData = localStorage.getItem(`collaboration_${userId || 'default'}`);
-        
-        if (localData) {
-          const localDocs = JSON.parse(localData);
-          return localDocs.map(convertSystemToBibliothequeDoc);
-        }
-      } catch (e) {
-        console.error('Erreur lors du chargement des documents locaux:', e);
-      }
-      return [];
-    }
-    
+  const [syncState, setSyncState] = useState<SyncState>({
+    isLoading: false,
+    isSyncing: false,
+    lastSynced: null,
+    error: null
+  });
+  const [isInitialized, setIsInitialized] = useState(false);
+  const [groups, setGroups] = useState<BibliothequeGroup[]>([]);
+  const [documents, setDocuments] = useState<BibliothequeDocument[]>([]);
+  const { syncContext, isSyncEnabled } = useSyncContext();
+  const { addMembres } = useMembresContext();
+
+  const TABLE_NAME = 'bibliotheque';
+  const syncService = new SyncService(syncContext);
+  const dbHelper = new DatabaseHelper(syncContext);
+
+  // Fonction pour charger les données
+  const fetchData = async () => {
+    setSyncState(prev => ({ ...prev, isLoading: true, error: null }));
     try {
-      // Utiliser le service central pour charger les données
-      const documents = await syncService.loadDataFromServer<SystemDocument>('collaboration', userId);
-      const lastSyncTime = syncService.getLastSynced('collaboration');
-      if (lastSyncTime) {
-        setLastSynced(lastSyncTime);
-      } else {
-        setLastSynced(new Date());
-      }
-      return documents.map(convertSystemToBibliothequeDoc);
+      // Remplaçons loadDataFromServer par les appels appropriés
+      await syncService.syncTable(TABLE_NAME);
+      
+      // Récupérer les groupes et documents de la base de données
+      const fetchedGroups = await dbHelper.getAll<BibliothequeGroup>(`${TABLE_NAME}_groups`);
+      const fetchedDocuments = await dbHelper.getAll<BibliothequeDocument>(`${TABLE_NAME}_documents`);
+      
+      // Mettre à jour l'état
+      setGroups(fetchedGroups);
+      setDocuments(fetchedDocuments);
+      
+      // Au lieu de getLastSynced, nous allons utiliser la date actuelle
+      const now = new Date().toISOString();
+      setSyncState(prev => ({ 
+        ...prev, 
+        isLoading: false, 
+        lastSynced: now 
+      }));
+      
+      setIsInitialized(true);
+      return { groups: fetchedGroups, documents: fetchedDocuments };
     } catch (error) {
-      console.error('Erreur lors du chargement des documents:', error);
-      toast({
-        variant: "destructive",
-        title: "Erreur",
-        description: "Impossible de charger les documents du serveur. Mode hors-ligne activé.",
-      });
-      
-      // En cas d'erreur, chargement des documents locaux comme solution de secours
-      try {
-        // UNIQUEMENT chercher sous le nouveau nom (collaboration)
-        const localData = localStorage.getItem(`collaboration_${userId || 'default'}`);
-        
-        if (localData) {
-          const localDocs = JSON.parse(localData);
-          return localDocs.map(convertSystemToBibliothequeDoc);
-        }
-      } catch (e) {
-        console.error('Erreur lors du chargement des documents locaux:', e);
-      }
-      return [];
+      console.error('Erreur lors du chargement des données de la bibliothèque:', error);
+      setSyncState(prev => ({
+        ...prev,
+        isLoading: false,
+        error: error instanceof Error ? error.message : 'Erreur inconnue'
+      }));
+      return { groups: [], documents: [] };
     }
-  }, [isOnline]);
-  
-  // Fonction pour synchroniser avec délai (debounce)
-  const debounceSyncWithServer = useCallback((
-    documents: BibliothequeDocument[], 
-    groups: DocumentGroup[], 
-    userId?: string
-  ) => {
-    // Toujours sauvegarder localement immédiatement
-    const systemDocs = documents.map(convertBibliothequeToSystemDoc);
-    localStorage.setItem(`collaboration_${userId || 'default'}`, JSON.stringify(systemDocs));
-    localStorage.setItem(`collaboration_groups_${userId || 'default'}`, JSON.stringify(groups));
-    
-    // Marquer qu'une synchronisation est en attente
-    pendingSyncRef.current = true;
-    
-    // Si un timeout est déjà en cours, l'annuler
-    if (syncTimeoutRef.current) {
-      clearTimeout(syncTimeoutRef.current);
+  };
+
+  // Mutation pour synchroniser les données
+  const syncMutation = useMutation({
+    mutationFn: fetchData,
+    onSuccess: () => {
+      console.log('Données de la bibliothèque synchronisées avec succès');
+    },
+    onError: (error) => {
+      console.error('Erreur lors de la synchronisation des données de la bibliothèque:', error);
     }
-    
-    // Programmer une nouvelle synchronisation après 10 secondes
-    syncTimeoutRef.current = setTimeout(() => {
-      if (pendingSyncRef.current && isOnline) {
-        // Exécuter la synchronisation
-        syncWithServer(documents, groups, userId, "auto").catch(err => {
-          console.error("Erreur lors de la synchronisation différée:", err);
-        });
-        pendingSyncRef.current = false;
-      }
-      syncTimeoutRef.current = null;
-    }, 10000); // 10 secondes de délai
-    
-    return true;
-  }, [isOnline]);
-  
-  // Fonction principale de synchronisation
-  const syncWithServer = useCallback(async (
-    documents: BibliothequeDocument[], 
-    groups: DocumentGroup[], 
-    userId?: string, 
-    trigger: "auto" | "manual" | "initial" = "manual"
-  ): Promise<boolean> => {
-    if (!isOnline) {
-      // Mode hors ligne - enregistrement local uniquement
-      const systemDocs = documents.map(convertBibliothequeToSystemDoc);
-      localStorage.setItem(`collaboration_${userId || 'default'}`, JSON.stringify(systemDocs));
-      localStorage.setItem(`collaboration_groups_${userId || 'default'}`, JSON.stringify(groups));
-      
-      if (trigger !== "auto") {
-        toast({
-          variant: "destructive",
-          title: "Mode hors ligne",
-          description: "Les modifications ont été enregistrées localement uniquement.",
-        });
-      }
-      
-      return false;
+  });
+
+  // Initialiser les données au chargement du composant
+  useEffect(() => {
+    if (!isInitialized && isSyncEnabled) {
+      fetchData();
     }
+  }, [isInitialized, isSyncEnabled]);
+
+  // Fonction pour forcer une synchronisation
+  const forceSync = async () => {
+    if (syncMutation.isPending) return;
     
+    setSyncState(prev => ({ ...prev, isSyncing: true }));
     try {
-      // Toujours enregistrer localement d'abord pour éviter la perte de données
-      const systemDocs = documents.map(convertBibliothequeToSystemDoc);
-      localStorage.setItem(`collaboration_${userId || 'default'}`, JSON.stringify(systemDocs));
-      localStorage.setItem(`collaboration_groups_${userId || 'default'}`, JSON.stringify(groups));
-      
-      // Utiliser le service central pour la synchronisation avec la table "collaboration"
-      const result = await syncAndProcess(systemDocs, trigger);
-      
-      if (result.success) {
-        const lastSyncTime = syncService.getLastSynced('collaboration');
-        if (lastSyncTime) {
-          setLastSynced(lastSyncTime);
-        } else {
-          setLastSynced(new Date());
-        }
-        
-        // Réinitialiser l'indicateur de synchronisation en attente
-        pendingSyncRef.current = false;
-        
-        return true;
-      }
-      
-      return false;
+      await syncMutation.mutateAsync();
+      setSyncState(prev => ({ ...prev, isSyncing: false }));
     } catch (error) {
-      console.error('Erreur lors de la synchronisation:', error);
-      // L'erreur est déjà gérée dans le hook useSync
-      return false;
+      setSyncState(prev => ({ 
+        ...prev, 
+        isSyncing: false, 
+        error: error instanceof Error ? error.message : 'Erreur inconnue'
+      }));
     }
-  }, [isOnline, syncAndProcess]);
-  
+  };
+
+  // Opérations CRUD
+  const operations: BibliothequeOperations = {
+    createGroup: async (group) => {
+      try {
+        const newGroup = await dbHelper.add<BibliothequeGroup>(`${TABLE_NAME}_groups`, { ...group, id: crypto.randomUUID() } as BibliothequeGroup);
+        setGroups(prev => [...prev, newGroup]);
+        return newGroup;
+      } catch (error) {
+        console.error('Erreur lors de la création du groupe:', error);
+        throw error;
+      }
+    },
+    updateGroup: async (group) => {
+      try {
+        const updatedGroup = await dbHelper.update<BibliothequeGroup>(`${TABLE_NAME}_groups`, group);
+        setGroups(prev => prev.map(g => g.id === group.id ? group : g));
+        return updatedGroup;
+      } catch (error) {
+        console.error('Erreur lors de la mise à jour du groupe:', error);
+        throw error;
+      }
+    },
+    deleteGroup: async (groupId) => {
+      try {
+        await dbHelper.remove<BibliothequeGroup>(`${TABLE_NAME}_groups`, groupId);
+        setGroups(prev => prev.filter(g => g.id !== groupId));
+      } catch (error) {
+        console.error('Erreur lors de la suppression du groupe:', error);
+        throw error;
+      }
+    },
+    createDocument: async (document) => {
+      try {
+        const newDocument = await dbHelper.add<BibliothequeDocument>(`${TABLE_NAME}_documents`, { ...document, id: crypto.randomUUID() } as BibliothequeDocument);
+        setDocuments(prev => [...prev, newDocument]);
+        return newDocument;
+      } catch (error) {
+        console.error('Erreur lors de la création du document:', error);
+        throw error;
+      }
+    },
+    updateDocument: async (document) => {
+      try {
+        const updatedDocument = await dbHelper.update<BibliothequeDocument>(`${TABLE_NAME}_documents`, document);
+        setDocuments(prev => prev.map(d => d.id === document.id ? document : d));
+        return updatedDocument;
+      } catch (error) {
+        console.error('Erreur lors de la mise à jour du document:', error);
+        throw error;
+      }
+    },
+    deleteDocument: async (documentId) => {
+      try {
+        await dbHelper.remove<BibliothequeDocument>(`${TABLE_NAME}_documents`, documentId);
+        setDocuments(prev => prev.filter(d => d.id !== documentId));
+      } catch (error) {
+        console.error('Erreur lors de la suppression du document:', error);
+        throw error;
+      }
+    }
+  };
+
+  // État de synchronisation pour l'interface utilisateur
+  const syncInfo = {
+    isLoading: syncState.isLoading || syncMutation.isPending,
+    isSyncing: syncState.isSyncing,
+    // Au lieu de getLastSynced, nous utilisons l'état local lastSynced
+    lastSynced: syncState.lastSynced,
+    error: syncState.error || syncMutation.error,
+    forceSync
+  };
+
   return {
-    syncWithServer,
-    debounceSyncWithServer, 
-    loadFromServer,
-    isSyncing,
-    isOnline,
-    lastSynced,
-    syncFailed
+    groups,
+    documents,
+    syncInfo,
+    operations,
+    isInitialized
   };
 };

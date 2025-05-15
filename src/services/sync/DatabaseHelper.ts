@@ -1,179 +1,78 @@
 
-import { getApiUrl } from '@/config/apiConfig';
-import { getCurrentUser } from '@/services/core/databaseConnectionService';
-import { toast } from '@/components/ui/use-toast';
-
-export interface DatabaseUpdateResult {
-  success: boolean;
-  message: string;
-  tables_created?: string[];
-  tables_updated?: string[];
-  error_type?: string;
-  timestamp?: string;
-}
+import { SyncContext } from '@/features/sync/types/syncTypes';
 
 export class DatabaseHelper {
-  private static instance: DatabaseHelper;
-  private lastUpdateCheck: Record<string, Date> = {};
-  
-  private constructor() {
-    console.log('DatabaseHelper initialisé');
+  private syncContext: SyncContext;
+
+  constructor(syncContext: SyncContext) {
+    this.syncContext = syncContext;
   }
-  
-  public static getInstance(): DatabaseHelper {
-    if (!DatabaseHelper.instance) {
-      DatabaseHelper.instance = new DatabaseHelper();
-    }
-    return DatabaseHelper.instance;
-  }
-  
-  /**
-   * Vérifie et met à jour la structure de la base de données
-   * @param userId ID utilisateur (optionnel)
-   * @param showToast Afficher les notifications toast (optionnel)
-   */
-  public async updateDatabaseStructure(
-    userId?: string, 
-    showToast: boolean = true
-  ): Promise<DatabaseUpdateResult> {
+
+  // Méthode pour récupérer tous les éléments d'une table
+  async getAll<T>(tableName: string): Promise<T[]> {
     try {
-      const currentUser = userId || getCurrentUser() || 'p71x6d_system';
-      const API_URL = getApiUrl();
-      const safeUserId = encodeURIComponent(currentUser);
+      console.log(`Récupération des données de la table: ${tableName}`);
       
-      console.log(`Demande de mise à jour de la structure pour l'utilisateur ${safeUserId}`);
-      
-      // Tentative avec l'URL principale
-      let response;
-      try {
-        response = await fetch(`${API_URL}/db-update.php?userId=${safeUserId}`, {
-          method: 'GET',
-          headers: {
-            'Cache-Control': 'no-cache, no-store, must-revalidate'
-          }
-        });
-      } catch (primaryError) {
-        console.warn("Erreur avec l'URL principale:", primaryError);
-        
-        // Tentative avec l'URL alternative
-        try {
-          const alternativeUrl = `/sites/qualiopi.ch/api/db-update.php`;
-          console.log(`Tentative avec URL alternative: ${alternativeUrl}`);
-          
-          response = await fetch(`${alternativeUrl}?userId=${safeUserId}`, {
-            method: 'GET',
-            headers: {
-              'Cache-Control': 'no-cache, no-store, must-revalidate'
-            }
-          });
-        } catch (altError) {
-          console.error("Erreur avec l'URL alternative:", altError);
-          throw new Error(`Erreur de connexion: ${primaryError}`);
-        }
-      }
-      
-      if (!response.ok) {
-        throw new Error(`Erreur HTTP: ${response.status}`);
-      }
-      
-      const result = await response.json();
-      
-      // Enregistrer la date de mise à jour
-      this.lastUpdateCheck[currentUser] = new Date();
-      
-      // Notification de succès
-      if (showToast && result.success) {
-        const createdCount = result.tables_created?.length || 0;
-        const updatedCount = result.tables_updated?.length || 0;
-        
-        toast({
-          title: "Mise à jour de la structure",
-          description: `${createdCount} table(s) créée(s) et ${updatedCount} table(s) mise(s) à jour`,
-        });
-      }
-      
-      return result;
+      // Utiliser le contexte de synchronisation pour accéder au stockage
+      const data = await this.syncContext.storage.getItems<T>(tableName);
+      return data || [];
     } catch (error) {
-      console.error("Erreur lors de la mise à jour de la structure:", error);
-      
-      if (showToast) {
-        toast({
-          variant: "destructive",
-          title: "Erreur de mise à jour",
-          description: error instanceof Error ? error.message : "Erreur inconnue"
-        });
-      }
-      
-      return {
-        success: false,
-        message: error instanceof Error ? error.message : "Erreur inconnue"
-      };
+      console.error(`Erreur lors de la récupération des données de ${tableName}:`, error);
+      return [];
     }
   }
-  
-  /**
-   * Vérifie si une table existe et contient les bonnes colonnes
-   * @param tableName Nom de la table
-   * @param userId ID utilisateur (optionnel)
-   * @param force Forcer la mise à jour (optionnel)
-   */
-  public async validateTable(
-    tableName: string, 
-    userId?: string,
-    force: boolean = false
-  ): Promise<boolean> {
+
+  // Méthode pour récupérer un élément par ID
+  async getById<T extends { id: string }>(tableName: string, id: string): Promise<T | null> {
     try {
-      const currentUser = userId || getCurrentUser() || 'p71x6d_system';
-      
-      // Vérifier si on a déjà fait une mise à jour récemment (moins d'une minute)
-      const lastUpdate = this.lastUpdateCheck[currentUser];
-      const now = new Date();
-      
-      if (!force && lastUpdate && (now.getTime() - lastUpdate.getTime() < 60000)) {
-        console.log(`Validation de table ignorée pour ${tableName}, dernière vérification récente`);
-        return true;
-      }
-      
-      // Mettre à jour la structure
-      const updateResult = await this.updateDatabaseStructure(currentUser, false);
-      
-      if (updateResult.success) {
-        const tableFullName = `${tableName}_${currentUser}`;
-        
-        // Vérifier si la table a été créée ou mise à jour
-        const createdTables = updateResult.tables_created || [];
-        const updatedTables = updateResult.tables_updated || [];
-        
-        if (createdTables.includes(tableFullName) || updatedTables.includes(tableFullName)) {
-          console.log(`Table ${tableFullName} validée avec succès`);
-          return true;
-        }
-        
-        // Si la table n'est pas mentionnée, c'est qu'elle existait déjà et n'a pas eu besoin de mise à jour
-        return true;
-      }
-      
-      // Afficher une notification si la validation échoue
-      toast({
-        title: "Validation de structure",
-        description: updateResult.message || `Erreur de validation pour la table ${tableName}`,
-        variant: "destructive"
-      });
-      
-      return false;
+      const items = await this.getAll<T>(tableName);
+      return items.find(item => item.id === id) || null;
     } catch (error) {
-      console.error("Erreur lors de la validation de la table:", error);
-      return false;
+      console.error(`Erreur lors de la récupération de l'élément ${id} de ${tableName}:`, error);
+      return null;
     }
   }
-  
-  /**
-   * Force une mise à jour de toutes les tables
-   */
-  public async forceUpdateAllTables(): Promise<DatabaseUpdateResult> {
-    return this.updateDatabaseStructure(undefined, true);
+
+  // Méthode pour ajouter un élément
+  async add<T extends { id: string }>(tableName: string, item: T): Promise<T> {
+    try {
+      const items = await this.getAll<T>(tableName);
+      const newItems = [...items, item];
+      await this.syncContext.storage.setItems(tableName, newItems);
+      return item;
+    } catch (error) {
+      console.error(`Erreur lors de l'ajout d'un élément à ${tableName}:`, error);
+      throw error;
+    }
+  }
+
+  // Méthode pour mettre à jour un élément
+  async update<T extends { id: string }>(tableName: string, item: T): Promise<T> {
+    try {
+      const items = await this.getAll<T>(tableName);
+      const index = items.findIndex(i => i.id === item.id);
+      if (index === -1) {
+        throw new Error(`Élément avec l'ID ${item.id} non trouvé dans ${tableName}`);
+      }
+      const newItems = [...items];
+      newItems[index] = item;
+      await this.syncContext.storage.setItems(tableName, newItems);
+      return item;
+    } catch (error) {
+      console.error(`Erreur lors de la mise à jour de l'élément dans ${tableName}:`, error);
+      throw error;
+    }
+  }
+
+  // Méthode pour supprimer un élément
+  async remove<T extends { id: string }>(tableName: string, id: string): Promise<void> {
+    try {
+      const items = await this.getAll<T>(tableName);
+      const newItems = items.filter(item => item.id !== id);
+      await this.syncContext.storage.setItems(tableName, newItems);
+    } catch (error) {
+      console.error(`Erreur lors de la suppression de l'élément de ${tableName}:`, error);
+      throw error;
+    }
   }
 }
-
-// Export d'une instance singleton
-export const databaseHelper = DatabaseHelper.getInstance();
