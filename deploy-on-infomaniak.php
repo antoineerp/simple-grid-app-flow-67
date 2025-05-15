@@ -5,161 +5,85 @@ header('Content-Type: text/html; charset=utf-8');
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Déploiement manuel sur Infomaniak</title>
+    <title>Déploiement Infomaniak</title>
     <style>
-        body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; line-height: 1.6; }
-        h1, h2 { color: #333; }
-        .section { margin-bottom: 20px; border: 1px solid #ddd; padding: 15px; border-radius: 5px; }
-        .success { color: green; font-weight: bold; }
-        .error { color: red; font-weight: bold; }
-        pre { background: #f5f5f5; padding: 10px; border-radius: 5px; overflow-x: auto; }
-        code { background: #f5f5f5; padding: 2px 4px; border-radius: 3px; }
+        body { font-family: Arial, sans-serif; margin: 20px; line-height: 1.6; }
+        .container { max-width: 800px; margin: 0 auto; }
+        .card { border: 1px solid #ddd; border-radius: 8px; padding: 20px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .button { 
+            background-color: #4CAF50; 
+            color: white; 
+            padding: 10px 20px; 
+            border: none; 
+            border-radius: 4px; 
+            cursor: pointer; 
+            font-size: 16px; 
+            text-decoration: none;
+            display: inline-block;
+            margin: 5px;
+        }
+        .button.blue { background-color: #2196F3; }
+        .button.red { background-color: #f44336; }
+        .success { color: green; padding: 10px; background-color: #f0fff0; border-left: 4px solid green; }
+        .error { color: red; padding: 10px; background-color: #fff0f0; border-left: 4px solid red; }
+        pre { background-color: #f5f5f5; padding: 15px; border-radius: 4px; overflow-x: auto; }
     </style>
 </head>
 <body>
-    <h1>Déploiement manuel sur Infomaniak</h1>
-    
-    <div class="section">
-        <h2>Étape 1: Vérification des chemins</h2>
-        <?php
-        echo "<p>Document Root: " . $_SERVER['DOCUMENT_ROOT'] . "</p>";
-        echo "<p>Répertoire courant: " . getcwd() . "</p>";
+    <div class="container">
+        <h1>Déploiement Infomaniak</h1>
         
-        // Vérifier les chemins Infomaniak
-        $client_path = '/home/clients/df8dceff557ccc0605d45e1581aa661b';
-        $site_path = '/sites/qualiopi.ch';
-        
-        echo "<p>Chemin client Infomaniak: " . (is_dir($client_path) ? '<span class="success">Existe</span>' : '<span class="error">N\'existe pas</span>') . "</p>";
-        echo "<p>Chemin site (absolu): " . (is_dir($site_path) ? '<span class="success">Existe</span>' : '<span class="error">N\'existe pas</span>') . "</p>";
-        ?>
-    </div>
-    
-    <div class="section">
-        <h2>Étape 2: Création/mise à jour du fichier index.php</h2>
-        <?php
-        $index_php_content = '<?php
-// Redirection vers le script de déploiement
-header(\'Location: deploy-on-infomaniak.php\');
-exit;
-?>
-';
-        
-        if (file_put_contents('index.php', $index_php_content)) {
-            echo "<p class='success'>Fichier index.php créé avec succès</p>";
-        } else {
-            echo "<p class='error'>Impossible de créer le fichier index.php</p>";
-        }
-        ?>
-    </div>
-    
-    <div class="section">
-        <h2>Étape 3: Vérification des fichiers essentiels</h2>
-        <?php
-        $essential_files = [
-            'index.html' => 'Page principale',
-            'assets/index.js' => 'JavaScript principal',
-            'api/index.php' => 'Point d\'entrée API',
-            'api/phpinfo.php' => 'Informations PHP API',
-            'phpinfo.php' => 'Informations PHP',
-            '.htaccess' => 'Configuration Apache'
-        ];
-        
-        echo "<table border='1' cellpadding='5' style='border-collapse: collapse; width: 100%;'>";
-        echo "<tr><th>Fichier</th><th>Description</th><th>Statut</th></tr>";
-        
-        foreach ($essential_files as $file => $desc) {
-            echo "<tr>";
-            echo "<td>$file</td>";
-            echo "<td>$desc</td>";
-            echo "<td>";
-            if (file_exists($file)) {
-                echo "<span class='success'>Existe</span> (" . filesize($file) . " octets)";
-            } else {
-                echo "<span class='error'>N'existe pas</span>";
-            }
-            echo "</td></tr>";
-        }
-        
-        echo "</table>";
-        ?>
-    </div>
-    
-    <div class="section">
-        <h2>Étape 4: Vérification de la configuration API</h2>
-        <?php
-        $api_config_file = 'api/config/db_config.json';
-        
-        if (file_exists($api_config_file)) {
-            echo "<p class='success'>Fichier de configuration API trouvé</p>";
-            
-            $config = json_decode(file_get_contents($api_config_file), true);
-            if ($config && isset($config['host'])) {
-                echo "<p>Configuration pour l'hôte: " . $config['host'] . "</p>";
-                
-                if ($config['host'] === 'p71x6d.myd.infomaniak.com') {
-                    echo "<p class='success'>Configuration correcte pour Infomaniak</p>";
-                } else {
-                    echo "<p class='error'>La configuration ne correspond pas à Infomaniak</p>";
-                    
-                    // Mise à jour de la configuration
-                    $config['host'] = 'p71x6d.myd.infomaniak.com';
-                    $config['db_name'] = 'p71x6d_richard';
-                    $config['username'] = 'p71x6d_richard';
-                    $config['password'] = 'Trottinette43!';
-                    
-                    if (file_put_contents($api_config_file, json_encode($config, JSON_PRETTY_PRINT))) {
-                        echo "<p class='success'>Configuration mise à jour pour Infomaniak</p>";
-                    } else {
-                        echo "<p class='error'>Impossible de mettre à jour la configuration</p>";
-                    }
-                }
-            } else {
-                echo "<p class='error'>Fichier de configuration invalide</p>";
-            }
-        } else {
-            echo "<p class='error'>Fichier de configuration API non trouvé</p>";
-            
-            // Création du répertoire si nécessaire
-            if (!is_dir('api/config')) {
-                mkdir('api/config', 0755, true);
-                echo "<p>Répertoire api/config créé</p>";
-            }
-            
-            // Création du fichier de configuration
-            $config = [
-                'host' => 'p71x6d.myd.infomaniak.com',
-                'db_name' => 'p71x6d_richard',
-                'username' => 'p71x6d_richard',
-                'password' => 'Trottinette43!'
+        <div class="card">
+            <h2>1. Vérification des fichiers critiques</h2>
+            <?php
+            $critical_files = [
+                '.htaccess' => 'Configuration Apache principale',
+                '.user.ini' => 'Configuration PHP',
+                'api/.htaccess' => 'Configuration API',
+                'assets/.htaccess' => 'Configuration des assets',
+                'index.php' => 'Redirection vers index.html',
+                'phpinfo.php' => 'Test PHP Info'
             ];
             
-            if (file_put_contents($api_config_file, json_encode($config, JSON_PRETTY_PRINT))) {
-                echo "<p class='success'>Fichier de configuration API créé</p>";
-            } else {
-                echo "<p class='error'>Impossible de créer le fichier de configuration API</p>";
+            $all_ok = true;
+            echo "<ul>";
+            foreach ($critical_files as $file => $description) {
+                if (file_exists($file)) {
+                    echo "<li><strong>$file</strong>: <span style='color:green'>OK</span> - $description</li>";
+                } else {
+                    echo "<li><strong>$file</strong>: <span style='color:red'>MANQUANT</span> - $description</li>";
+                    $all_ok = false;
+                }
             }
-        }
-        ?>
-    </div>
-    
-    <div class="section">
-        <h2>Étape 5: Test de l'exécution PHP</h2>
-        <p>Vérifiez que PHP s'exécute correctement en accédant à ces fichiers:</p>
-        <ul>
-            <li><a href="phpinfo.php" target="_blank">phpinfo.php</a> - Informations PHP</li>
-            <li><a href="api/phpinfo.php" target="_blank">api/phpinfo.php</a> - Informations PHP (dossier API)</li>
-            <li><a href="php-test.php" target="_blank">php-test.php</a> - Test simple PHP</li>
-        </ul>
-    </div>
-    
-    <div class="section">
-        <h2>Étape 6: Actions</h2>
-        <p>Voici les actions recommandées:</p>
-        <ol>
-            <li>Vérifiez que PHP s'exécute correctement en accédant aux liens ci-dessus</li>
-            <li>Vérifiez la connexion à la base de données en accédant à <a href="api/db-test.php" target="_blank">api/db-test.php</a></li>
-            <li>Accédez à l'application principale via <a href="index.html">index.html</a></li>
-        </ol>
+            echo "</ul>";
+            
+            if (!$all_ok) {
+                echo "<p><a href='infomaniak-php-fix.php' class='button'>Corriger les fichiers manquants</a></p>";
+            } else {
+                echo "<p class='success'>Tous les fichiers critiques sont présents!</p>";
+            }
+            ?>
+        </div>
+        
+        <div class="card">
+            <h2>2. Options de déploiement</h2>
+            <p>Choisissez une méthode de déploiement:</p>
+            
+            <a href="trigger-github-workflow.php" class="button">Déployer via GitHub Actions</a>
+            <a href="check-github-workflow.php" class="button blue">Vérifier le workflow GitHub</a>
+            <a href="fix-workflow-yaml.php" class="button">Corriger YAML Workflow</a>
+            <a href="php-test-minimal.php" class="button blue">Test PHP minimal</a>
+        </div>
+        
+        <div class="card">
+            <h2>3. Diagnostic et corrections</h2>
+            <div style="display: flex; flex-wrap: wrap;">
+                <a href="fix-infomaniak-assets.php" class="button">Corriger les assets</a>
+                <a href="api/diagnose-assets-paths.php" class="button">Diagnostiquer les chemins assets</a>
+                <a href="fix-htaccess.php" class="button">Corriger .htaccess</a>
+                <a href="deploy-fix-php.php" class="button blue">Corriger déploiement PHP</a>
+            </div>
+        </div>
     </div>
 </body>
 </html>
