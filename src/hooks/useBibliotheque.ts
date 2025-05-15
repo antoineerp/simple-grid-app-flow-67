@@ -1,6 +1,6 @@
 
 import { useState, useEffect, useCallback } from 'react';
-import { BibliothequeDocument, BibliothequeFolder } from '@/types/bibliotheque';
+import { BibliothequeDocument, BibliothequeFolder, Document, DocumentGroup } from '@/types/bibliotheque';
 import { useToast } from "@/hooks/use-toast";
 import { useSyncContext } from '@/context/SyncContext';
 import { startEntitySync } from '@/services/sync';
@@ -13,6 +13,12 @@ const initialState = {
   searchTerm: '',
   currentFolder: null as BibliothequeFolder | null,
   breadcrumbs: [] as BibliothequeFolder[],
+  groups: [] as DocumentGroup[],
+  isSyncing: false,
+  syncFailed: false,
+  lastSynced: null as Date | null,
+  isOnline: true,
+  currentUser: localStorage.getItem('userId') || "1",
 };
 
 /**
@@ -32,10 +38,10 @@ export const useBibliotheque = () => {
         
         // Données fictives
         const mockDocuments: BibliothequeDocument[] = [
-          { id: '1', name: 'Rapport annuel.pdf', type: 'pdf', size: 1250000, createdAt: new Date('2023-01-15'), updatedAt: new Date('2023-01-15'), folderId: '1', tags: ['rapport', 'annuel'] },
-          { id: '2', name: 'Procédure qualité.docx', type: 'docx', size: 450000, createdAt: new Date('2023-02-20'), updatedAt: new Date('2023-03-10'), folderId: '1', tags: ['procédure', 'qualité'] },
-          { id: '3', name: 'Plan stratégique.pptx', type: 'pptx', size: 2800000, createdAt: new Date('2023-03-05'), updatedAt: new Date('2023-03-05'), folderId: '2', tags: ['plan', 'stratégie'] },
-          { id: '4', name: 'Budget prévisionnel.xlsx', type: 'xlsx', size: 850000, createdAt: new Date('2023-02-28'), updatedAt: new Date('2023-04-10'), folderId: null, tags: ['budget', 'finance'] },
+          { id: '1', name: 'Rapport annuel.pdf', titre: 'Rapport annuel', type: 'pdf', size: 1250000, createdAt: new Date('2023-01-15'), updatedAt: new Date('2023-01-15'), folderId: '1', tags: ['rapport', 'annuel'] },
+          { id: '2', name: 'Procédure qualité.docx', titre: 'Procédure qualité', type: 'docx', size: 450000, createdAt: new Date('2023-02-20'), updatedAt: new Date('2023-03-10'), folderId: '1', tags: ['procédure', 'qualité'] },
+          { id: '3', name: 'Plan stratégique.pptx', titre: 'Plan stratégique', type: 'pptx', size: 2800000, createdAt: new Date('2023-03-05'), updatedAt: new Date('2023-03-05'), folderId: '2', tags: ['plan', 'stratégie'] },
+          { id: '4', name: 'Budget prévisionnel.xlsx', titre: 'Budget prévisionnel', type: 'xlsx', size: 850000, createdAt: new Date('2023-02-28'), updatedAt: new Date('2023-04-10'), folderId: null, tags: ['budget', 'finance'] },
         ];
         
         const mockFolders: BibliothequeFolder[] = [
@@ -44,10 +50,16 @@ export const useBibliotheque = () => {
           { id: '3', name: 'Archives', parentId: '1' },
         ];
         
+        const mockGroups: DocumentGroup[] = [
+          { id: '1', name: 'Documents organisationnels', expanded: false, items: [], userId: initialState.currentUser },
+          { id: '2', name: 'Documents administratifs', expanded: false, items: [], userId: initialState.currentUser },
+        ];
+        
         setState(prev => ({
           ...prev,
           documents: mockDocuments,
           folders: mockFolders,
+          groups: mockGroups,
           isLoading: false
         }));
       } catch (error) {
@@ -69,10 +81,11 @@ export const useBibliotheque = () => {
 
   // Synchroniser avec le serveur
   const synchronize = useCallback(async () => {
-    if (syncStatus.isSyncing) return;
+    if (state.isSyncing) return;
     
     try {
       // Indiquer que la synchronisation commence
+      setState(prev => ({ ...prev, isSyncing: true }));
       startSync('bibliotheque');
       
       // Appel à l'API de synchronisation
@@ -87,7 +100,14 @@ export const useBibliotheque = () => {
           description: "Les documents ont été synchronisés avec succès.",
         });
         
-        // Recharger les données
+        setState(prev => ({
+          ...prev,
+          isSyncing: false,
+          syncFailed: false,
+          lastSynced: new Date()
+        }));
+        
+        // Recharger les données après synchronisation
         setState(prev => ({
           ...prev,
           isLoading: true
@@ -109,8 +129,19 @@ export const useBibliotheque = () => {
         description: "Impossible de synchroniser les documents.",
         variant: "destructive",
       });
+      setState(prev => ({
+        ...prev,
+        isSyncing: false,
+        syncFailed: true
+      }));
     }
-  }, [syncStatus.isSyncing, startSync, endSync, toast]);
+  }, [state.isSyncing, startSync, endSync, toast]);
+
+  // Synchroniser avec le serveur (version pour Collaboration)
+  const syncWithServer = useCallback(async (documents: Document[] = [], groups: DocumentGroup[] = []) => {
+    // Utilise la même logique que synchronize
+    return synchronize();
+  }, [synchronize]);
 
   // Rechercher des documents
   const searchDocuments = useCallback((searchTerm: string) => {
@@ -289,6 +320,88 @@ export const useBibliotheque = () => {
     }
   }, [state.currentFolder, toast, startSync, endSync]);
 
+  // Méthodes pour la compatibilité avec Collaboration.tsx
+  const handleToggleGroup = useCallback((groupId: string) => {
+    setState(prev => ({
+      ...prev,
+      groups: prev.groups.map(group => 
+        group.id === groupId ? { ...group, expanded: !group.expanded } : group
+      )
+    }));
+  }, []);
+
+  const handleEditDocument = useCallback((document: Document) => {
+    const index = state.documents.findIndex(doc => doc.id === document.id);
+    if (index !== -1) {
+      setState(prev => {
+        const updatedDocs = [...prev.documents];
+        updatedDocs[index] = { ...prev.documents[index], ...document };
+        return { ...prev, documents: updatedDocs };
+      });
+    }
+    return true;
+  }, [state.documents]);
+
+  const handleDeleteDocument = useCallback((documentId: string) => {
+    return deleteDocument(documentId);
+  }, [deleteDocument]);
+
+  const handleEditGroup = useCallback((group: DocumentGroup) => {
+    const index = state.groups.findIndex(g => g.id === group.id);
+    if (index !== -1) {
+      setState(prev => {
+        const updatedGroups = [...prev.groups];
+        updatedGroups[index] = { ...group };
+        return { ...prev, groups: updatedGroups };
+      });
+    }
+    return true;
+  }, [state.groups]);
+
+  const handleDeleteGroup = useCallback((groupId: string) => {
+    setState(prev => ({
+      ...prev,
+      groups: prev.groups.filter(group => group.id !== groupId)
+    }));
+    return true;
+  }, []);
+
+  const handleAddGroup = useCallback((group: DocumentGroup) => {
+    setState(prev => ({
+      ...prev,
+      groups: [...prev.groups, group]
+    }));
+    return true;
+  }, []);
+
+  const handleAddDocument = useCallback((document: Document) => {
+    // Si le document a un groupId, l'ajouter aux items du groupe
+    if (document.groupId) {
+      setState(prev => ({
+        ...prev,
+        groups: prev.groups.map(group => 
+          group.id === document.groupId 
+            ? { ...group, items: [...group.items, document] } 
+            : group
+        )
+      }));
+    } else {
+      // Sinon l'ajouter directement à la liste des documents
+      const bibiDocument: BibliothequeDocument = {
+        id: document.id,
+        name: document.name,
+        link: document.link,
+        groupe_id: document.groupId
+      };
+      
+      setState(prev => ({
+        ...prev,
+        documents: [...prev.documents, bibiDocument]
+      }));
+    }
+    return true;
+  }, []);
+
   return {
     ...state,
     filteredDocuments: filteredDocuments(),
@@ -296,8 +409,16 @@ export const useBibliotheque = () => {
     searchDocuments,
     navigateToFolder,
     synchronize,
+    syncWithServer,
     addDocument,
     deleteDocument,
-    createFolder
+    createFolder,
+    handleToggleGroup,
+    handleEditDocument,
+    handleDeleteDocument,
+    handleEditGroup,
+    handleDeleteGroup,
+    handleAddGroup,
+    handleAddDocument
   };
 };

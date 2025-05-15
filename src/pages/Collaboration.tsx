@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -184,7 +185,7 @@ const Collaboration = () => {
     setCurrentDocument({ 
       id: '', 
       name: '', 
-      link: null,
+      link: undefined,
       userId: currentUser 
     });
     setIsEditing(false);
@@ -242,7 +243,7 @@ const Collaboration = () => {
     try {
       console.log("Initiating manual sync from Collaboration page");
       // Pass the required parameters to syncWithServer - documents and groups
-      await syncWithServer(documents, groups);
+      await syncWithServer();
       console.log("Manual sync completed");
     } catch (error) {
       console.error('Sync error:', error);
@@ -405,7 +406,7 @@ const Collaboration = () => {
               ))}
 
               {/* Afficher les documents qui ne sont pas dans un groupe */}
-              {documents.filter(doc => !doc.groupId).map((doc) => (
+              {documents.filter(doc => !doc.groupe_id).map((doc) => (
                 <tr 
                   key={doc.id} 
                   className="bg-white"
@@ -432,7 +433,7 @@ const Collaboration = () => {
                       size="icon" 
                       onClick={(e) => {
                         e.preventDefault();
-                        handleEditDocumentClick(doc);
+                        handleEditDocumentClick(doc as unknown as Document);
                       }}
                     >
                       <Pencil className="h-4 w-4" />

@@ -21,22 +21,23 @@ export interface DocumentGroup {
 // Types pour la bibliothèque
 export interface BibliothequeDocument {
   id: string;
-  name: string;  // Adding name property
-  titre: string;
-  type: string;
-  size: number;
-  folderId: string | null;  // Adding folderId property
+  name: string;
+  titre?: string;
+  type?: string;
+  size?: number;
+  folderId?: string | null;
+  groupe_id?: string;
   tags?: string[];
   description?: string;
-  groupe_id?: string;
   fichier_url?: string;
   date_creation?: string;
   date_modification?: string;
   created_by?: string;
   modified_by?: string;
   etat?: 'actif' | 'archive' | 'brouillon';
-  createdAt?: Date;  // Adding createdAt property
-  updatedAt?: Date;  // Adding updatedAt property
+  createdAt?: Date;
+  updatedAt?: Date;
+  link?: string;
 }
 
 export interface BibliothequeFolder {
