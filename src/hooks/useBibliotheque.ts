@@ -38,10 +38,58 @@ export const useBibliotheque = () => {
         
         // Données fictives
         const mockDocuments: BibliothequeDocument[] = [
-          { id: '1', name: 'Rapport annuel.pdf', titre: 'Rapport annuel', type: 'pdf', size: 1250000, createdAt: new Date('2023-01-15'), updatedAt: new Date('2023-01-15'), folderId: '1', tags: ['rapport', 'annuel'] },
-          { id: '2', name: 'Procédure qualité.docx', titre: 'Procédure qualité', type: 'docx', size: 450000, createdAt: new Date('2023-02-20'), updatedAt: new Date('2023-03-10'), folderId: '1', tags: ['procédure', 'qualité'] },
-          { id: '3', name: 'Plan stratégique.pptx', titre: 'Plan stratégique', type: 'pptx', size: 2800000, createdAt: new Date('2023-03-05'), updatedAt: new Date('2023-03-05'), folderId: '2', tags: ['plan', 'stratégie'] },
-          { id: '4', name: 'Budget prévisionnel.xlsx', titre: 'Budget prévisionnel', type: 'xlsx', size: 850000, createdAt: new Date('2023-02-28'), updatedAt: new Date('2023-04-10'), folderId: null, tags: ['budget', 'finance'] },
+          { 
+            id: '1', 
+            name: 'Rapport annuel.pdf', 
+            titre: 'Rapport annuel', 
+            type: 'pdf', 
+            size: 1250000, 
+            createdAt: new Date('2023-01-15'), 
+            updatedAt: new Date('2023-01-15'), 
+            folderId: '1', 
+            tags: ['rapport', 'annuel'],
+            date_creation: '2023-01-15',
+            date_modification: '2023-01-15'
+          },
+          { 
+            id: '2', 
+            name: 'Procédure qualité.docx', 
+            titre: 'Procédure qualité', 
+            type: 'docx', 
+            size: 450000, 
+            createdAt: new Date('2023-02-20'), 
+            updatedAt: new Date('2023-03-10'), 
+            folderId: '1', 
+            tags: ['procédure', 'qualité'],
+            date_creation: '2023-02-20',
+            date_modification: '2023-03-10'
+          },
+          { 
+            id: '3', 
+            name: 'Plan stratégique.pptx', 
+            titre: 'Plan stratégique', 
+            type: 'pptx', 
+            size: 2800000, 
+            createdAt: new Date('2023-03-05'), 
+            updatedAt: new Date('2023-03-05'), 
+            folderId: '2', 
+            tags: ['plan', 'stratégie'],
+            date_creation: '2023-03-05',
+            date_modification: '2023-03-05'
+          },
+          { 
+            id: '4', 
+            name: 'Budget prévisionnel.xlsx', 
+            titre: 'Budget prévisionnel', 
+            type: 'xlsx', 
+            size: 850000, 
+            createdAt: new Date('2023-02-28'), 
+            updatedAt: new Date('2023-04-10'), 
+            folderId: null, 
+            tags: ['budget', 'finance'],
+            date_creation: '2023-02-28',
+            date_modification: '2023-04-10'
+          },
         ];
         
         const mockFolders: BibliothequeFolder[] = [
@@ -213,11 +261,15 @@ export const useBibliotheque = () => {
       // Simulation d'ajout à l'API
       await new Promise(resolve => setTimeout(resolve, 1000));
       
+      const now = new Date();
+      
       const newDocument: BibliothequeDocument = {
         ...document,
         id: Math.random().toString(36).substring(2, 9),
-        createdAt: new Date(),
-        updatedAt: new Date(),
+        createdAt: now,
+        updatedAt: now,
+        date_creation: now.toISOString().split('T')[0],
+        date_modification: now.toISOString().split('T')[0],
         folderId: state.currentFolder?.id || null,
       };
       
@@ -387,11 +439,19 @@ export const useBibliotheque = () => {
       }));
     } else {
       // Sinon l'ajouter directement à la liste des documents
+      const now = new Date();
       const bibiDocument: BibliothequeDocument = {
         id: document.id,
         name: document.name,
         link: document.link,
-        groupe_id: document.groupId
+        groupe_id: document.groupId,
+        userId: document.userId,
+        date_creation: document.date_creation ? 
+          (typeof document.date_creation === 'string' ? document.date_creation : document.date_creation.toISOString().split('T')[0]) : 
+          now.toISOString().split('T')[0],
+        date_modification: document.date_modification ? 
+          (typeof document.date_modification === 'string' ? document.date_modification : document.date_modification.toISOString().split('T')[0]) : 
+          now.toISOString().split('T')[0]
       };
       
       setState(prev => ({

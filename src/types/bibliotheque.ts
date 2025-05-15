@@ -30,14 +30,15 @@ export interface BibliothequeDocument {
   tags?: string[];
   description?: string;
   fichier_url?: string;
-  date_creation?: string;
-  date_modification?: string;
+  date_creation?: string | Date; // Modified to accept both string and Date types
+  date_modification?: string | Date; // Modified to accept both string and Date types
   created_by?: string;
   modified_by?: string;
   etat?: 'actif' | 'archive' | 'brouillon';
   createdAt?: Date;
   updatedAt?: Date;
   link?: string;
+  userId?: string; // Added to match with Document interface
 }
 
 export interface BibliothequeFolder {
