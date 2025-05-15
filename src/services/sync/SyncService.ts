@@ -1,32 +1,45 @@
-import { SyncContext } from '@/features/sync/types/syncTypes';
-import { DatabaseHelper } from './DatabaseHelper';
 
-export class SyncService {
-  private syncContext: SyncContext;
-  private dbHelper: DatabaseHelper;
-
-  constructor(syncContext: SyncContext) {
-    this.syncContext = syncContext;
-    this.dbHelper = new DatabaseHelper(syncContext);
-  }
-
-  // Méthode pour synchroniser une table
-  async syncTable(tableName: string): Promise<void> {
-    try {
-      console.log(`Synchronisation de la table: ${tableName}`);
-      
-      // Ici, implémenter la logique de synchronisation avec le serveur
-      // Par exemple, récupérer les données du serveur et les stocker localement
-      
-      // Simuler une attente de réseau
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      console.log(`Synchronisation de ${tableName} terminée`);
-    } catch (error) {
-      console.error(`Erreur lors de la synchronisation de ${tableName}:`, error);
-      throw error;
-    }
-  }
-  
-  // Autres méthodes de synchronisation...
+/**
+ * Interface pour le service de synchronisation
+ */
+export interface SyncService {
+  syncTable: (tableName: string) => Promise<{ success: boolean; message?: string }>;
+  fetchData: <T>(tableName: string) => Promise<T[] | null>;
+  isSyncing: (tableName: string) => boolean;
+  markAsSynced: (tableName: string) => void;
+  registerSyncListener: (tableName: string, callback: () => void) => void;
+  unregisterSyncListener: (tableName: string, callback: () => void) => void;
 }
+
+/**
+ * Instance du service de synchronisation
+ */
+export const syncService: SyncService = {
+  syncTable: async (tableName: string) => {
+    // Implémentation simplifiée
+    console.log(`Synchronisation de la table: ${tableName}`);
+    return { success: true };
+  },
+  
+  fetchData: async <T>(tableName: string) => {
+    // Implémentation simplifiée
+    console.log(`Récupération des données de la table: ${tableName}`);
+    return [] as T[];
+  },
+  
+  isSyncing: (tableName: string) => {
+    return false;
+  },
+  
+  markAsSynced: (tableName: string) => {
+    console.log(`Table marquée comme synchronisée: ${tableName}`);
+  },
+  
+  registerSyncListener: (tableName: string, callback: () => void) => {
+    console.log(`Enregistrement d'un écouteur pour: ${tableName}`);
+  },
+  
+  unregisterSyncListener: (tableName: string, callback: () => void) => {
+    console.log(`Désenregistrement d'un écouteur pour: ${tableName}`);
+  }
+};

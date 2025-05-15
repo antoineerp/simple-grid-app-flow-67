@@ -1,7 +1,43 @@
 
-// Ce fichier est déprécié et est maintenu pour la compatibilité
-// Veuillez utiliser les types définis dans bibliotheque.d.ts à la place
+/**
+ * Types pour la bibliothèque de documents
+ */
 
-import { Document, DocumentGroup } from './bibliotheque.d';
+export interface BibliothequeDocument {
+  id: string;
+  titre: string;
+  description?: string;
+  groupe_id?: string;
+  fichier_url?: string;
+  date_creation?: string;
+  date_modification?: string;
+  created_by?: string;
+  modified_by?: string;
+  etat?: 'actif' | 'archive' | 'brouillon';
+  tags?: string[];
+}
 
-export type { Document, DocumentGroup };
+export interface BibliothequeGroup {
+  id: string;
+  nom: string;
+  description?: string;
+  ordre?: number;
+  parent_id?: string;
+  couleur?: string;
+}
+
+export interface BibliothequeStats {
+  totalDocuments: number;
+  totalGroups: number;
+  documentsParGroupe: { [groupId: string]: number };
+  documentsPourcentage: number;
+}
+
+export interface BibliothequeSearchOptions {
+  term?: string;
+  groupe?: string;
+  etat?: 'actif' | 'archive' | 'brouillon';
+  tags?: string[];
+  dateDebut?: string;
+  dateFin?: string;
+}

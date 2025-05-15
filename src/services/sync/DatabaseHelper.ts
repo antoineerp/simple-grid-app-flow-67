@@ -1,78 +1,99 @@
 
-import { SyncContext } from '@/features/sync/types/syncTypes';
+/**
+ * Helper pour les opérations de base de données
+ */
 
+// Interface pour les options de connexion à la base de données
+export interface DbConnectionOptions {
+  serverUrl: string;
+  databaseName: string;
+  useSSL?: boolean;
+  timeout?: number;
+}
+
+// Interface pour un enregistrement générique
+export interface DbRecord {
+  id: string;
+  [key: string]: any;
+}
+
+// Classe d'aide pour les opérations de base de données
 export class DatabaseHelper {
-  private syncContext: SyncContext;
+  private connectionOptions: DbConnectionOptions;
+  private isConnected: boolean = false;
 
-  constructor(syncContext: SyncContext) {
-    this.syncContext = syncContext;
+  constructor(options: DbConnectionOptions) {
+    this.connectionOptions = options;
   }
 
-  // Méthode pour récupérer tous les éléments d'une table
-  async getAll<T>(tableName: string): Promise<T[]> {
+  /**
+   * Établir une connexion à la base de données
+   */
+  async connect(): Promise<boolean> {
     try {
-      console.log(`Récupération des données de la table: ${tableName}`);
-      
-      // Utiliser le contexte de synchronisation pour accéder au stockage
-      const data = await this.syncContext.storage.getItems<T>(tableName);
-      return data || [];
+      console.log(`Connexion à la base de données: ${this.connectionOptions.databaseName}`);
+      // Simulation de connexion réussie
+      this.isConnected = true;
+      return true;
     } catch (error) {
-      console.error(`Erreur lors de la récupération des données de ${tableName}:`, error);
-      return [];
+      console.error("Erreur de connexion à la base de données:", error);
+      this.isConnected = false;
+      return false;
     }
   }
 
-  // Méthode pour récupérer un élément par ID
-  async getById<T extends { id: string }>(tableName: string, id: string): Promise<T | null> {
-    try {
-      const items = await this.getAll<T>(tableName);
-      return items.find(item => item.id === id) || null;
-    } catch (error) {
-      console.error(`Erreur lors de la récupération de l'élément ${id} de ${tableName}:`, error);
-      return null;
+  /**
+   * Fermer la connexion à la base de données
+   */
+  async disconnect(): Promise<void> {
+    if (this.isConnected) {
+      console.log("Fermeture de la connexion à la base de données");
+      this.isConnected = false;
     }
   }
 
-  // Méthode pour ajouter un élément
-  async add<T extends { id: string }>(tableName: string, item: T): Promise<T> {
-    try {
-      const items = await this.getAll<T>(tableName);
-      const newItems = [...items, item];
-      await this.syncContext.storage.setItems(tableName, newItems);
-      return item;
-    } catch (error) {
-      console.error(`Erreur lors de l'ajout d'un élément à ${tableName}:`, error);
-      throw error;
-    }
+  /**
+   * Vérifier si la connexion est établie
+   */
+  isConnectedToDatabase(): boolean {
+    return this.isConnected;
   }
 
-  // Méthode pour mettre à jour un élément
-  async update<T extends { id: string }>(tableName: string, item: T): Promise<T> {
-    try {
-      const items = await this.getAll<T>(tableName);
-      const index = items.findIndex(i => i.id === item.id);
-      if (index === -1) {
-        throw new Error(`Élément avec l'ID ${item.id} non trouvé dans ${tableName}`);
-      }
-      const newItems = [...items];
-      newItems[index] = item;
-      await this.syncContext.storage.setItems(tableName, newItems);
-      return item;
-    } catch (error) {
-      console.error(`Erreur lors de la mise à jour de l'élément dans ${tableName}:`, error);
-      throw error;
+  /**
+   * Exécuter une requête sur la base de données
+   */
+  async executeQuery<T>(query: string, params: any[] = []): Promise<T[]> {
+    if (!this.isConnected) {
+      throw new Error("Non connecté à la base de données");
     }
+
+    console.log(`Exécution de la requête: ${query}`);
+    console.log("Avec les paramètres:", params);
+
+    // Simulation de résultats
+    return [] as T[];
   }
 
-  // Méthode pour supprimer un élément
-  async remove<T extends { id: string }>(tableName: string, id: string): Promise<void> {
-    try {
-      const items = await this.getAll<T>(tableName);
-      const newItems = items.filter(item => item.id !== id);
-      await this.syncContext.storage.setItems(tableName, newItems);
-    } catch (error) {
-      console.error(`Erreur lors de la suppression de l'élément de ${tableName}:`, error);
-      throw error;
+  /**
+   * Récupérer des enregistrements d'une table
+   */
+  async getRecords<T extends DbRecord>(tableName: string, filter?: any): Promise<T[]> {
+    if (!this.isConnected) {
+      await this.connect();
     }
+
+    console.log(`Récupération des enregistrements de la table: ${tableName}`);
+    console.log("Avec le filtre:", filter || "aucun");
+
+    // Simulation de récupération de données
+    return [] as T[];
   }
 }
+
+// Exporter une instance par défaut
+export const dbHelper = new DatabaseHelper({
+  serverUrl: window.location.origin + '/api',
+  databaseName: 'qualiopi',
+  useSSL: window.location.protocol === 'https:',
+  timeout: 30000
+});

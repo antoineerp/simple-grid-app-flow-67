@@ -1,41 +1,63 @@
 
-export interface SyncContext {
-  storage: {
-    getItems: <T>(key: string) => Promise<T[]>;
-    setItems: <T>(key: string, items: T[]) => Promise<void>;
-    getItem: <T>(key: string) => Promise<T | null>;
-    setItem: <T>(key: string, item: T) => Promise<void>;
-    removeItem: (key: string) => Promise<void>;
-  };
-  network: {
-    isOnline: boolean;
-    fetchWithAuth: (url: string, options?: RequestInit) => Promise<Response>;
-  };
-  user: {
-    id: string | null;
-    token: string | null;
-  };
-}
-
+/**
+ * Options pour la synchronisation
+ */
 export interface SyncOptions {
   autoSync?: boolean;
   syncInterval?: number;
-  retryAttempts?: number;
+  retryOnFailure?: boolean;
+  maxRetries?: number;
 }
 
-export interface SyncJob {
-  id: string;
-  table: string;
-  action: 'create' | 'update' | 'delete';
-  data: any;
-  timestamp: number;
-  status: 'pending' | 'processing' | 'completed' | 'failed';
-  attempts: number;
-}
-
+/**
+ * État de synchronisation d'une table
+ */
 export interface SyncState {
   isSyncing: boolean;
   lastSynced: string | null;
   pendingOperations: number;
   error: string | null;
+  syncFailed?: boolean;
+  pendingSync?: boolean;
+  dataChanged?: boolean;
+}
+
+/**
+ * Résultat d'une opération de synchronisation
+ */
+export interface SyncOperationResult {
+  success: boolean;
+  message?: string;
+  error?: string;
+}
+
+/**
+ * Statut du moniteur de synchronisation
+ */
+export enum SyncMonitorStatus {
+  IDLE = 'idle',
+  SYNCING = 'syncing',
+  SUCCESS = 'success',
+  ERROR = 'error'
+}
+
+/**
+ * Type d'opération de synchronisation
+ */
+export enum SyncOperationType {
+  CREATE = 'create',
+  UPDATE = 'update',
+  DELETE = 'delete',
+  SYNC = 'sync'
+}
+
+/**
+ * Configuration d'une table pour la synchronisation
+ */
+export interface SyncTableConfig {
+  tableName: string;
+  endpoint: string;
+  primaryKey: string;
+  trackChanges?: boolean;
+  autoSync?: boolean;
 }

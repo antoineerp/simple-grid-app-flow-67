@@ -1,130 +1,109 @@
 
-import React, { useState, useEffect } from 'react';
-import { useSyncContext } from '../hooks/useSyncContext';
+import React from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { useSyncContext } from '../hooks/useSyncContext';
 import { Button } from '@/components/ui/button';
-import { 
-  AlertCircle, 
-  CheckCircle, 
-  Cloud, 
-  CloudOff, 
-  RefreshCw,
-  X, 
-  ChevronDown, 
-  ChevronUp,
-  Activity
-} from 'lucide-react';
+import { RefreshCw, AlertTriangle, Check, Wifi, WifiOff } from 'lucide-react';
 
-interface SyncDebuggerProps {
-  enabled?: boolean;
-}
+/**
+ * Composant pour déboguer l'état de synchronisation
+ */
+const SyncDebugger: React.FC = () => {
+  const { syncState, isSyncEnabled, isOnline, performGlobalSync, lastGlobalSync } = useSyncContext();
 
-const SyncDebugger: React.FC<SyncDebuggerProps> = ({ enabled = false }) => {
-  const [isOpen, setIsOpen] = useState(false);
-  const { syncStates, isOnline, monitorStatus, forceProcessQueue } = useSyncContext();
-  const [syncStats, setSyncStats] = useState({
-    pendingCount: 0,
-    failedCount: 0,
-    syncingCount: 0
-  });
-  
-  // Ne rien afficher si désactivé
-  if (!enabled) return null;
-  
-  // Calculer les statistiques à partir des états
-  useEffect(() => {
-    const pendingCount = Object.values(syncStates).filter(s => s.pendingSync).length;
-    const failedCount = Object.values(syncStates).filter(s => s.syncFailed).length;
-    const syncingCount = Object.values(syncStates).filter(s => s.isSyncing).length;
+  const getStatusBadge = (tableName: string) => {
+    const state = syncState[tableName];
     
-    setSyncStats({
-      pendingCount,
-      failedCount,
-      syncingCount
-    });
-  }, [syncStates]);
-  
+    if (!state) {
+      return <Badge variant="outline">Non enregistré</Badge>;
+    }
+    
+    if (state.isSyncing) {
+      return <Badge className="bg-blue-500">Synchronisation...</Badge>;
+    }
+    
+    if (state.error) {
+      return <Badge variant="destructive">Erreur</Badge>;
+    }
+    
+    if (state.syncFailed) {
+      return <Badge variant="destructive">Échec</Badge>;
+    }
+    
+    if (state.pendingSync) {
+      return <Badge variant="warning">En attente</Badge>;
+    }
+    
+    return <Badge variant="success">Synchronisé</Badge>;
+  };
+
   return (
-    <div className="fixed bottom-2 right-2 z-50 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
-      {/* Barre de titre toujours visible */}
-      <div 
-        className="flex items-center justify-between p-2 bg-gray-100 dark:bg-gray-700 cursor-pointer"
-        onClick={() => setIsOpen(!isOpen)}
-      >
-        <div className="flex items-center space-x-2">
-          <Activity className="h-4 w-4" />
-          <span className="text-sm font-medium">Sync Debug</span>
-          {syncStats.syncingCount > 0 && (
-            <RefreshCw className="h-3 w-3 animate-spin text-blue-500" />
-          )}
-        </div>
-        <div className="flex items-center space-x-2">
-          {isOnline ? (
-            <Cloud className="h-3 w-3 text-green-500" />
-          ) : (
-            <CloudOff className="h-3 w-3 text-red-500" />
-          )}
-          {isOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
-        </div>
-      </div>
+    <Card className="shadow-md">
+      <CardHeader className="pb-2">
+        <CardTitle className="flex justify-between items-center">
+          <span>État de synchronisation</span>
+          <div className="flex items-center space-x-2">
+            {isOnline ? 
+              <Badge variant="outline" className="bg-green-100 text-green-800 flex items-center">
+                <Wifi className="h-3 w-3 mr-1" /> En ligne
+              </Badge> :
+              <Badge variant="outline" className="bg-red-100 text-red-800 flex items-center">
+                <WifiOff className="h-3 w-3 mr-1" /> Hors ligne
+              </Badge>
+            }
+            
+            <Badge variant={isSyncEnabled ? "success" : "secondary"}>
+              {isSyncEnabled ? "Synchronisation activée" : "Synchronisation désactivée"}
+            </Badge>
+          </div>
+        </CardTitle>
+      </CardHeader>
       
-      {/* Contenu détaillé */}
-      {isOpen && (
-        <div className="p-2 text-xs space-y-2">
-          <div className="flex justify-between items-center">
-            <div>
-              <Badge variant={isOnline ? "outline" : "destructive"} className="text-xs">
-                {isOnline ? "Online" : "Offline"}
-              </Badge>
-              <Badge variant="outline" className="ml-1 text-xs">
-                Health: {monitorStatus.health}
-              </Badge>
-            </div>
-            <Button 
-              size="sm" 
-              variant="ghost" 
-              className="h-6 px-2"
-              onClick={() => forceProcessQueue()}
-            >
-              <RefreshCw className="h-3 w-3 mr-1" />
-              Force
-            </Button>
-          </div>
-          
-          <div className="grid grid-cols-3 gap-1 text-center">
-            <div className={`p-1 rounded ${syncStats.syncingCount > 0 ? 'bg-blue-100' : 'bg-gray-100'}`}>
-              <div className="font-medium">{syncStats.syncingCount}</div>
-              <div className="text-[10px]">Syncing</div>
-            </div>
-            <div className={`p-1 rounded ${syncStats.pendingCount > 0 ? 'bg-yellow-100' : 'bg-gray-100'}`}>
-              <div className="font-medium">{syncStats.pendingCount}</div>
-              <div className="text-[10px]">Pending</div>
-            </div>
-            <div className={`p-1 rounded ${syncStats.failedCount > 0 ? 'bg-red-100' : 'bg-gray-100'}`}>
-              <div className="font-medium">{syncStats.failedCount}</div>
-              <div className="text-[10px]">Failed</div>
-            </div>
-          </div>
-          
-          <div className="text-[10px] text-gray-500">
-            Recent: {monitorStatus.stats.success} success, {monitorStatus.stats.failure} failed
-          </div>
-          
-          <div className="max-h-40 overflow-auto">
-            {monitorStatus.recentAttempts.slice(0, 5).map((attempt, idx) => (
-              <div key={idx} className="text-[10px] flex items-center">
-                {attempt.success ? (
-                  <CheckCircle className="h-2 w-2 text-green-500 mr-1 flex-shrink-0" />
-                ) : (
-                  <AlertCircle className="h-2 w-2 text-red-500 mr-1 flex-shrink-0" />
-                )}
-                <span className="truncate">{attempt.tableName}</span>
-              </div>
-            ))}
+      <CardContent>
+        <div className="mb-4">
+          <div className="text-sm text-gray-500 mb-1">Dernière synchronisation globale:</div>
+          <div className="font-semibold">
+            {lastGlobalSync ? new Date(lastGlobalSync).toLocaleString() : "Jamais"}
           </div>
         </div>
-      )}
-    </div>
+        
+        <div className="space-y-2">
+          {Object.keys(syncState).map((tableName) => (
+            <div key={tableName} className="flex justify-between items-center border-b pb-2">
+              <div>
+                <div className="font-medium">{tableName}</div>
+                <div className="text-xs text-gray-500">
+                  {syncState[tableName].lastSynced ? 
+                    `Dernière sync: ${new Date(syncState[tableName].lastSynced).toLocaleString()}` : 
+                    "Jamais synchronisé"}
+                </div>
+                {syncState[tableName].error && (
+                  <div className="text-xs text-red-500 mt-1">
+                    {syncState[tableName].error}
+                  </div>
+                )}
+              </div>
+              
+              <div className="flex items-center space-x-2">
+                {getStatusBadge(tableName)}
+              </div>
+            </div>
+          ))}
+        </div>
+        
+        <Button 
+          variant="outline" 
+          size="sm" 
+          className="w-full mt-4"
+          onClick={performGlobalSync}
+          disabled={!isSyncEnabled || !isOnline}
+        >
+          <RefreshCw className="h-4 w-4 mr-2" />
+          Synchroniser toutes les tables
+        </Button>
+      </CardContent>
+    </Card>
   );
 };
 
