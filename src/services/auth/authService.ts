@@ -4,6 +4,7 @@
  */
 
 import { getApiUrl } from '@/config/apiConfig';
+import { User } from '@/types/auth';
 
 // Types pour l'authentification
 export interface AuthCredentials {
@@ -14,83 +15,141 @@ export interface AuthCredentials {
 export interface AuthResponse {
   success: boolean;
   token?: string;
-  user?: any;
+  user?: User;
   message?: string;
 }
+
+// Variable pour stocker l'utilisateur actuel
+let currentUser: User | null = null;
+
+/**
+ * Obtient l'utilisateur actuellement connecté
+ */
+export const getCurrentUser = (): User | null => {
+  // Si l'utilisateur est déjà défini, le retourner
+  if (currentUser) {
+    return currentUser;
+  }
+  
+  // Essayer de charger l'utilisateur depuis le stockage
+  try {
+    const userStr = localStorage.getItem('currentUser');
+    if (userStr) {
+      currentUser = JSON.parse(userStr);
+    }
+  } catch (error) {
+    console.error('Erreur lors de la récupération de l\'utilisateur:', error);
+  }
+  
+  return currentUser;
+};
+
+/**
+ * Vérifie si l'utilisateur est connecté
+ */
+export const getIsLoggedIn = (): boolean => {
+  return !!getAuthToken() && !!getCurrentUser();
+};
+
+/**
+ * Obtient le token d'authentification
+ */
+export const getAuthToken = (): string | null => {
+  return localStorage.getItem('authToken') || sessionStorage.getItem('authToken');
+};
+
+/**
+ * Connexion utilisateur
+ */
+export const login = async (username: string, password: string): Promise<AuthResponse> => {
+  try {
+    const response = await fetch(`${getApiUrl()}/auth.php`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ email: username, password }),
+      credentials: 'include'
+    });
+
+    if (!response.ok) {
+      throw new Error(`Erreur HTTP: ${response.status}`);
+    }
+
+    const data = await response.json();
+    
+    if (data.success && data.token) {
+      // Stocker le token
+      localStorage.setItem('authToken', data.token);
+      sessionStorage.setItem('authToken', data.token);
+      
+      // Stocker les données utilisateur
+      if (data.user) {
+        localStorage.setItem('currentUser', JSON.stringify(data.user));
+        currentUser = data.user;
+        
+        // Stocker le rôle pour les vérifications de permissions
+        if (data.user.role) {
+          localStorage.setItem('userRole', data.user.role);
+        }
+      }
+    }
+    
+    return data;
+  } catch (error) {
+    console.error('Erreur d\'authentification:', error);
+    return {
+      success: false,
+      message: error instanceof Error ? error.message : 'Erreur inconnue'
+    };
+  }
+};
+
+/**
+ * Déconnexion utilisateur
+ */
+export const logout = async (): Promise<boolean> => {
+  try {
+    // Appel au serveur pour la déconnexion
+    const response = await fetch(`${getApiUrl()}/logout.php`, {
+      method: 'POST',
+      credentials: 'include'
+    });
+
+    // Nettoyage local même si la déconnexion serveur échoue
+    localStorage.removeItem('authToken');
+    sessionStorage.removeItem('authToken');
+    localStorage.removeItem('currentUser');
+    localStorage.removeItem('userRole');
+    currentUser = null;
+    
+    // Rediriger vers la page d'accueil
+    window.location.href = '/';
+    
+    return true;
+  } catch (error) {
+    console.error('Erreur de déconnexion:', error);
+    
+    // Nettoyage local même en cas d'erreur
+    localStorage.removeItem('authToken');
+    sessionStorage.removeItem('authToken');
+    localStorage.removeItem('currentUser');
+    localStorage.removeItem('userRole');
+    currentUser = null;
+    
+    return false;
+  }
+};
 
 /**
  * Service d'authentification
  */
 export const authService = {
-  /**
-   * Authentifie un utilisateur
-   * @param credentials Identifiants
-   * @returns Réponse d'authentification
-   */
-  login: async (credentials: AuthCredentials): Promise<AuthResponse> => {
-    try {
-      const response = await fetch(`${getApiUrl()}/auth.php`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(credentials),
-        credentials: 'include'
-      });
-
-      if (!response.ok) {
-        throw new Error(`Erreur HTTP: ${response.status}`);
-      }
-
-      const data = await response.json();
-      return data;
-    } catch (error) {
-      console.error('Erreur d\'authentification:', error);
-      return {
-        success: false,
-        message: error instanceof Error ? error.message : 'Erreur inconnue'
-      };
-    }
-  },
-
-  /**
-   * Déconnecte l'utilisateur
-   */
-  logout: async (): Promise<boolean> => {
-    try {
-      const response = await fetch(`${getApiUrl()}/logout.php`, {
-        method: 'POST',
-        credentials: 'include'
-      });
-
-      if (!response.ok) {
-        throw new Error(`Erreur HTTP: ${response.status}`);
-      }
-
-      // Supprimer le token du localStorage
-      localStorage.removeItem('auth_token');
-      sessionStorage.removeItem('auth_token');
-
-      return true;
-    } catch (error) {
-      console.error('Erreur de déconnexion:', error);
-      return false;
-    }
-  },
-
-  /**
-   * Vérifie si l'utilisateur est authentifié
-   */
-  isAuthenticated: (): boolean => {
-    const token = localStorage.getItem('auth_token') || sessionStorage.getItem('auth_token');
-    return !!token;
-  },
-
-  /**
-   * Obtient les en-têtes d'authentification
-   */
+  login,
+  logout,
+  isAuthenticated: getIsLoggedIn,
   getAuthHeaders: (): Record<string, string> => {
-    const token = localStorage.getItem('auth_token') || sessionStorage.getItem('auth_token');
+    const token = getAuthToken();
     return token ? { 'Authorization': `Bearer ${token}` } : {};
   }
 };

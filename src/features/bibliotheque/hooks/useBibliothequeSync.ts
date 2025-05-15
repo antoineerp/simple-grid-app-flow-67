@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef } from 'react';
 import { Document as BibliothequeDocument, DocumentGroup } from '@/types/bibliotheque';
 import { Document as SystemDocument } from '@/types/documents';
-import { syncService } from '@/services/sync/SyncService';
+import { syncService } from '@/services/sync/syncService';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { useSync } from '@/hooks/useSync';
 import { toast } from '@/components/ui/use-toast';
@@ -176,7 +176,7 @@ export const useBibliothequeSync = () => {
   
   return {
     syncWithServer,
-    debounceSyncWithServer, // Nouvelle fonction pour la synchronisation différée
+    debounceSyncWithServer, 
     loadFromServer,
     isSyncing,
     isOnline,

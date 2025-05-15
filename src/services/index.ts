@@ -19,18 +19,18 @@ export interface Utilisateur {
 
 // Explicitement renommer les exports de getCurrentUser pour éviter l'ambiguïté
 export { 
-  getCurrentUser as getDatabaseConnectionCurrentUser 
-} from './core/databaseConnectionService';
-
-export { 
-  getCurrentUser as getAuthCurrentUser 
-} from './auth/authService';
-
-// Re-export other functions from databaseConnectionService
-export {
+  getCurrentUser as getDatabaseConnectionCurrentUser,
   connectAsUser,
   getLastConnectionError,
   disconnectUser,
   testDatabaseConnection,
   getDatabaseInfo
 } from './core/databaseConnectionService';
+
+export { 
+  getCurrentUser as getAuthCurrentUser,
+  getIsLoggedIn,
+  getAuthToken,
+  login,
+  logout
+} from './auth/authService';
