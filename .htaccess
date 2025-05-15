@@ -29,20 +29,29 @@ AddType image/svg+xml .svg
     Allow from all
 </FilesMatch>
 
+# Forcer l'exécution des fichiers PHP dans le dossier API
+<FilesMatch "\.php$">
+    SetHandler application/x-httpd-php
+</FilesMatch>
+
 # Traitement des ressources statiques
 RewriteCond %{REQUEST_URI} ^/lovable-uploads/
 RewriteRule ^lovable-uploads/(.*)$ public/lovable-uploads/$1 [L]
 
 # Règle spécifique pour rediriger /api vers le dossier api/index.php
+RewriteCond %{REQUEST_URI} ^/api$
 RewriteRule ^api$ api/index.php [L]
 
 # Règle pour traiter les requêtes d'API avec des sous-chemins directs
+RewriteCond %{REQUEST_URI} ^/api/([^/]+)\.php$
 RewriteRule ^api/([^/]+)\.php$ api/$1.php [QSA,L]
 
 # Règle pour traiter les requêtes d'API avec des sous-chemins
+RewriteCond %{REQUEST_URI} ^/api/([^/]+)$
 RewriteRule ^api/([^/]+)$ api/$1.php [QSA,L]
 
 # Règle pour autres requêtes API
+RewriteCond %{REQUEST_URI} ^/api/(.*)$
 RewriteRule ^api/(.*)$ api/$1 [QSA,L]
 
 # Permettre l'accès direct aux assets dans leur dossier
@@ -70,7 +79,14 @@ RewriteRule ^(.*)$ index.html [QSA,L]
         Header set Expires "0"
         Header set Access-Control-Allow-Origin "*"
         Header set Access-Control-Allow-Methods "GET, OPTIONS"
-        Header set Access-Control-Allow-Headers "Content-Type"
+        Header set Access-Control-Allow-Headers "Content-Type, Authorization"
+    </FilesMatch>
+    
+    # Headers pour les fichiers PHP
+    <FilesMatch "\.php$">
+        Header set Access-Control-Allow-Origin "*"
+        Header set Access-Control-Allow-Methods "GET, POST, OPTIONS, PUT, DELETE"
+        Header set Access-Control-Allow-Headers "Content-Type, Authorization, X-Requested-With"
     </FilesMatch>
 </IfModule>
 
