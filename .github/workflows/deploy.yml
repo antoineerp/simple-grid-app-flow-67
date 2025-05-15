@@ -20,10 +20,12 @@ jobs:
         node-version: '20'
         
     - name: Install Dependencies
-      run: npm install --legacy-peer-deps
+      run: npm install
       
     - name: Build React App
       run: npm run build
+      env:
+        NODE_OPTIONS: --max-old-space-size=4096
       
     - name: Debug build output
       run: |
@@ -32,69 +34,76 @@ jobs:
         ls -la dist/
         echo "Liste des fichiers assets:"
         ls -la dist/assets/ || echo "Dossier assets non trouvé"
+        echo "Contenu de index.html:"
+        cat dist/index.html || echo "index.html non trouvé"
 
-    - name: Prepare deployment directory
+    - name: Create complete directory structure
       run: |
-        # Création des dossiers nécessaires
-        mkdir -p deploy/assets
-        mkdir -p deploy/api
-        mkdir -p deploy/api/config
-        mkdir -p deploy/api/services
-        mkdir -p deploy/api/controllers
-        mkdir -p deploy/api/models
-        mkdir -p deploy/api/models/traits
-        mkdir -p deploy/api/middleware
-        mkdir -p deploy/api/operations
-        mkdir -p deploy/api/utils
-        mkdir -p deploy/public/lovable-uploads
+        echo "Creating all necessary directories..."
+        mkdir -p dist/api/config
+        mkdir -p dist/api/controllers
+        mkdir -p dist/api/middleware
+        mkdir -p dist/api/models
+        mkdir -p dist/api/utils
+        mkdir -p dist/public/lovable-uploads
         
-        # Copie des fichiers compilés directement dans assets
-        cp -r dist/assets/* deploy/assets/
+        # Ajout du fichier .htaccess à la racine
+        cp -v .htaccess dist/ || echo "Attention: .htaccess non trouvé dans la racine"
         
-        # Copie des autres fichiers nécessaires
-        cp dist/index.html deploy/
-        cp .htaccess deploy/ || echo "Fichier .htaccess non trouvé"
-        
-        # Copie des fichiers de l'API
-        if [ -d "api" ]; then
-          echo "Copie des fichiers API..."
-          cp -r api/* deploy/api/
-        else
-          echo "Dossier API non trouvé"
-        fi
-        
-        # Copie des uploads si existants
-        if [ -d "public/lovable-uploads" ]; then
-          echo "Copie des uploads..."
-          cp -r public/lovable-uploads/* deploy/public/lovable-uploads/ || echo "Copie des uploads échouée"
-        else
-          echo "Dossier uploads non trouvé"
-        fi
-        
-        echo "Structure du dossier de déploiement:"
-        find deploy -type f | sort
+        # Copier les fichiers PHP d'utilitaires et de test
+        find . -name "*.php" -not -path "./dist/*" -not -path "./vendor/*" -exec cp -v --parents {} dist/ \; || echo "Attention: problème lors de la copie des fichiers PHP"
 
-    - name: Sync to Infomaniak server
-      uses: SamKirkland/FTP-Deploy-Action@v4.3.4
+    - name: Copy API files with explicit paths
+      run: |
+        echo "Copying API files with detailed logging..."
+        
+        # Copier tous les fichiers PHP de l'API, y compris les tests
+        cd api
+        find . -type f -name "*.php" -exec cp -v --parents {} ../dist/api/ \; || echo "Erreur lors de la copie des fichiers PHP"
+        find . -type f -name ".htaccess" -exec cp -v --parents {} ../dist/api/ \; || echo "Erreur lors de la copie des .htaccess"
+        find . -type f -name ".user.ini" -exec cp -v --parents {} ../dist/api/ \; || echo "Erreur lors de la copie des .user.ini"
+        cd ..
+        
+    - name: Check structure before deployment
+      run: |
+        echo "Verifying structure before deployment:"
+        echo "Root files:"
+        ls -la dist/
+        echo "API files:"
+        ls -la dist/api/
+        echo "API config files:"
+        ls -la dist/api/config/
+        echo "Public files:"
+        ls -la dist/public/ || echo "No public folder"
+    
+    - name: Try SFTP deployment first
+      id: sftp-deploy
+      uses: wlixcc/SFTP-Deploy-Action@v1.2.4
+      continue-on-error: true  # Continue even if this step fails
       with:
         server: ${{ secrets.FTP_SERVER }}
         username: ${{ secrets.FTP_USERNAME }}
         password: ${{ secrets.FTP_PASSWORD }}
-        local-dir: ./deploy/
+        port: 22
+        local_path: './dist/'
+        remote_path: '/sites/qualiopi.ch/'
+    
+    - name: Deploy using FTP if SFTP failed
+      if: steps.sftp-deploy.outcome == 'failure'
+      uses: SamKirkland/FTP-Deploy-Action@4.3.3
+      with:
+        server: ${{ secrets.FTP_SERVER }}
+        username: ${{ secrets.FTP_USERNAME }}
+        password: ${{ secrets.FTP_PASSWORD }}
+        local-dir: ./dist/
         server-dir: /sites/qualiopi.ch/
         dangerous-clean-slate: false
-        exclude: |
-          **/.git*
-          **/.git*/**
-          **/node_modules/**
-          README.md
-          dist/**
-          package.json
-          package-lock.json
-        log-level: verbose
         timeout: 120000
-
-    - name: Clean up
+        protocol: ftp  # Explicitly setting FTP protocol
+    
+    - name: Post-deployment verification
       run: |
-        rm -rf deploy
-        rm -rf dist
+        echo "Déploiement terminé. Vérifiez les logs pour toute erreur."
+        echo "Exécutez fix-assets-runtime.php sur votre serveur pour vérifier l'état du déploiement."
+        echo "URL: https://qualiopi.ch/fix-assets-runtime.php"
+        echo "Vérifiez également: https://qualiopi.ch/fix-index-references.php"

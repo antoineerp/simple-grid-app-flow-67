@@ -1,12 +1,29 @@
 
 // Configuration de l'API
-const apiUrl = getApiBaseUrl();
+let apiUrl = '/api';
+let isCustomUrl = false;
 
-// Fonction pour déterminer l'URL de base de l'API en fonction de l'environnement
-function getApiBaseUrl(): string {
-  // Toujours utiliser le chemin relatif pour la production et le développement
-  return '/api';
+// Détection automatique de l'environnement
+function detectEnvironment() {
+  const hostname = window.location.hostname;
+  const isInfomaniak = hostname.includes('myd.infomaniak.com') || hostname.includes('qualiopi.ch');
+  
+  console.log('Détection d\'environnement - Hostname:', hostname);
+  console.log('Détection d\'environnement - Est Infomaniak:', isInfomaniak);
+  
+  if (isInfomaniak) {
+    // Configuration pour Infomaniak - utiliser le chemin relatif au domaine
+    apiUrl = '/api';
+    console.log('Environnement Infomaniak détecté - API URL:', apiUrl);
+  } else {
+    // Pour l'environnement de développement ou preview Lovable
+    apiUrl = '/api';
+    console.log('Environnement de développement détecté - API URL:', apiUrl);
+  }
 }
+
+// Forcer une détection initiale
+detectEnvironment();
 
 // Obtenir l'URL de l'API
 export function getApiUrl(): string {
@@ -15,16 +32,16 @@ export function getApiUrl(): string {
 
 // Obtenir l'URL complète de l'API (avec le hostname)
 export function getFullApiUrl(): string {
-  return `${window.location.protocol}//${window.location.host}${apiUrl}`;
+  return apiUrl.startsWith('http') 
+    ? apiUrl 
+    : `${window.location.protocol}//${window.location.host}${apiUrl}`;
 }
 
 // Diagnostic de l'API simple
 export async function testApiConnection(): Promise<{ success: boolean; message: string; details?: any }> {
   try {
     console.log(`Test de connexion à l'API: ${getFullApiUrl()}`);
-    
-    // Créer un nouveau fichier info.php pour le test de connectivité
-    const response = await fetch(`${getApiUrl()}/diagnose-connection.php`, {
+    const response = await fetch(`${getApiUrl()}`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -33,33 +50,11 @@ export async function testApiConnection(): Promise<{ success: boolean; message: 
     });
     
     console.log('Réponse du test API:', response.status, response.statusText);
-    
-    if (!response.ok) {
-      // Si l'API renvoie une erreur, essayer une requête alternative vers un autre point de terminaison
-      console.log("Tentative avec un point de terminaison alternatif...");
-      const fallbackResponse = await fetch(`${getApiUrl()}/db-info.php`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          'Cache-Control': 'no-cache, no-store, must-revalidate'
-        }
-      });
-      
-      if (fallbackResponse.ok) {
-        console.info("Connexion alternative réussie");
-        const data = await fallbackResponse.json();
-        return {
-          success: true,
-          message: "Connexion API établie via un point de terminaison alternatif",
-          details: data
-        };
-      }
-      
-      throw new Error(`Erreur HTTP: ${response.status}`);
-    }
+    console.log('Headers:', [...response.headers.entries()]);
     
     const responseText = await response.text();
     
+    // Essayer de parser la réponse comme JSON
     try {
       const data = JSON.parse(responseText);
       return {
@@ -85,6 +80,25 @@ export async function testApiConnection(): Promise<{ success: boolean; message: 
       details: { error }
     };
   }
+}
+
+// Définir une URL personnalisée pour l'API
+export function setCustomApiUrl(url: string): void {
+  apiUrl = url;
+  isCustomUrl = true;
+  console.log('URL API personnalisée définie:', url);
+}
+
+// Réinitialiser l'URL de l'API à sa valeur par défaut
+export function resetToDefaultApiUrl(): void {
+  detectEnvironment();
+  isCustomUrl = false;
+  console.log('URL API réinitialisée à la valeur par défaut:', apiUrl);
+}
+
+// Vérifier si une URL personnalisée est utilisée
+export function isUsingCustomApiUrl(): boolean {
+  return isCustomUrl;
 }
 
 // Fonction utilitaire pour les requêtes fetch avec gestion d'erreur

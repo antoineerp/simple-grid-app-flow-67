@@ -37,20 +37,33 @@ export const useDragAndDrop = (
     e.preventDefault();
     e.currentTarget.classList.remove('border-dashed', 'border-2', 'border-primary');
     
-    if (!draggedItem) return;
+    const data = JSON.parse(e.dataTransfer.getData('text/plain'));
+    const { id: sourceId, groupId: sourceGroupId } = data;
     
-    const { id: sourceId, groupId: sourceGroupId } = draggedItem;
+    if (sourceId === targetId) return;
     
-    if (sourceId === targetId && sourceGroupId === targetGroupId) return;
-    
-    // Trouver les index pour la réorganisation
-    const allDocs = [...documents];
-    
-    const sourceIndex = allDocs.findIndex(d => d.id === sourceId);
-    const targetIndex = allDocs.findIndex(d => d.id === targetId);
-    
+    let sourceIndex = -1;
+    let targetIndex = -1;
+
+    // Calculate sourceIndex
+    if (sourceGroupId) {
+      const groupStartIndex = documents.filter(d => !d.groupId).length;
+      sourceIndex = groupStartIndex + documents.filter(d => d.groupId === sourceGroupId)
+        .findIndex(d => d.id === sourceId);
+    } else {
+      sourceIndex = documents.filter(d => !d.groupId).findIndex(d => d.id === sourceId);
+    }
+
+    // Calculate targetIndex
+    if (targetGroupId) {
+      const groupStartIndex = documents.filter(d => !d.groupId).length;
+      targetIndex = groupStartIndex + documents.filter(d => d.groupId === targetGroupId)
+        .findIndex(d => d.id === targetId);
+    } else {
+      targetIndex = documents.filter(d => !d.groupId).findIndex(d => d.id === targetId);
+    }
+
     if (sourceIndex !== -1 && targetIndex !== -1) {
-      console.log(`Déplacement du document ${sourceId} vers ${targetId} (groupe: ${targetGroupId || 'aucun'})`);
       onReorder(sourceIndex, targetIndex, targetGroupId);
     }
     
@@ -66,26 +79,24 @@ export const useDragAndDrop = (
     e.preventDefault();
     e.currentTarget.classList.remove('border-dashed', 'border-2', 'border-primary');
     
-    if (!draggedItem) return;
-    
-    const { id: sourceId, groupId: sourceGroupId } = draggedItem;
-    
-    if (sourceGroupId === groupId) return;
-    
-    // Trouver le document qui est en train d'être déplacé
-    const sourceDocument = documents.find(d => d.id === sourceId);
-    
-    if (sourceDocument) {
-      const sourceIndex = documents.findIndex(d => d.id === sourceId);
+    try {
+      const data = JSON.parse(e.dataTransfer.getData('text/plain'));
       
-      // Obtenir la dernière position dans le groupe cible
-      const targetGroupDocs = documents.filter(d => d.groupId === groupId);
-      const targetIndex = targetGroupDocs.length > 0 ? 
-        documents.indexOf(targetGroupDocs[targetGroupDocs.length - 1]) + 1 : 
-        documents.length;
-      
-      console.log(`Déplacement du document ${sourceId} vers le groupe ${groupId} (index: ${targetIndex})`);
-      onReorder(sourceIndex, targetIndex, groupId);
+      if (data.id) {
+        const sourceId = data.id;
+        const sourceGroupId = data.groupId;
+        
+        if (sourceGroupId === groupId) return;
+        
+        const sourceIndex = documents.findIndex(d => d.id === sourceId);
+        const targetIndex = documents.filter(d => d.groupId === groupId).length;
+        
+        if (sourceIndex !== -1) {
+          onReorder(sourceIndex, targetIndex, groupId);
+        }
+      }
+    } catch (error) {
+      console.error("Erreur lors du drop:", error);
     }
     
     setDraggedItem(null);

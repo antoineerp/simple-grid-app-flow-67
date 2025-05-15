@@ -1,12 +1,14 @@
 
-// Re-export functions from document service files with explicit naming to avoid conflicts
-export { calculateDocumentStats } from './documentStatsService';
-export { loadDocumentsFromServer, syncDocumentsWithServer } from './documentSyncService';
-
-// Export other functions from documentService that don't conflict
+// Export all document services with explicit naming to avoid conflicts
 export { 
-  // We don't re-export functions that would cause conflicts
-  // calculateDocumentStats,  <- This would conflict
-  // loadDocumentsFromServer, <- This would conflict 
-  // syncDocumentsWithServer  <- This would conflict
-} from './documentService';
+  loadDocumentsFromStorage,
+  saveDocumentsToStorage
+} from './documentsService';
+
+// Rename the calculateDocumentStats from documentsService to avoid conflict
+export { 
+  calculateDocumentStats as calculateDocumentStatsLegacy 
+} from './documentsService';
+
+// Export the primary calculateDocumentStats from documentStatsService
+export { calculateDocumentStats } from './documentStatsService';

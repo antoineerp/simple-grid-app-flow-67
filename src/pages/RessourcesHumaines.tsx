@@ -1,5 +1,6 @@
-import React, { useEffect, useCallback } from 'react';
-import { FileText, UserPlus, RefreshCw } from 'lucide-react';
+
+import React, { useEffect } from 'react';
+import { FileText, UserPlus, CloudSun } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import {
   Dialog,
@@ -14,42 +15,10 @@ import MemberList from '@/components/ressources-humaines/MemberList';
 import MemberForm from '@/components/ressources-humaines/MemberForm';
 import { Membre } from '@/types/membres';
 import { exportAllCollaborateursToPdf } from '@/services/collaborateurExport';
-import { useSyncContext } from '@/hooks/useSyncContext';
 
 const RessourcesHumaines = () => {
   const { toast } = useToast();
-  const { 
-    membres, 
-    setMembres, 
-    isLoading,
-    refreshMembres
-  } = useMembres();
-  
-  // Configurer la synchronisation avec des paramètres optimisés
-  const { 
-    syncTable,
-    isOnline
-  } = useSyncContext();
-  
-  // Create local implementation for missing functions
-  const syncWithServer = useCallback(async (data: any, additionalData?: any, userId?: string) => {
-    try {
-      console.log(`RessourcesHumaines: Manually syncing data`);
-      return await syncTable('ressourceshumaines', data);
-    } catch (error) {
-      console.error('RessourcesHumaines: Sync error:', error);
-      return false;
-    }
-  }, [syncTable]);
-  
-  const notifyChanges = useCallback(() => {
-    console.log('RessourcesHumaines: Notifying data changes');
-    
-    // Dispatch an event that can be caught by other components
-    window.dispatchEvent(new CustomEvent('ressourceshumaines-data-changed', {
-      detail: { timestamp: Date.now() }
-    }));
-  }, []);
+  const { membres, setMembres } = useMembres();
   
   const [isDialogOpen, setIsDialogOpen] = React.useState(false);
   const [currentMembre, setCurrentMembre] = React.useState<Membre>({
@@ -62,29 +31,9 @@ const RessourcesHumaines = () => {
     mot_de_passe: '' 
   });
   const [isEditing, setIsEditing] = React.useState(false);
-  const [refreshing, setRefreshing] = React.useState(false);
+  const [isLoading, setIsLoading] = React.useState(false);
 
-  // Synchroniser immédiatement à chaque changement de membres
-  useEffect(() => {
-    if (membres.length > 0 && !isLoading) {
-      console.log("RessourcesHumaines: Synchronisation automatique des membres après changement", membres.length);
-      notifyChanges();
-    }
-  }, [membres, notifyChanges, isLoading]);
-  
-  // Forcer une synchronisation au chargement de la page
-  useEffect(() => {
-    const syncOnLoad = async () => {
-      if (membres.length > 0 && isOnline) {
-        console.log("RessourcesHumaines: Forcer la synchronisation au chargement de la page");
-        // Pass the membres data to syncWithServer
-        await syncWithServer(membres);
-      }
-    };
-    
-    syncOnLoad().catch(err => console.error("Erreur de synchronisation initiale:", err));
-  }, []);
-
+  // Handler for edit action
   const handleEdit = (id: string) => {
     const membre = membres.find(m => m.id === id);
     if (membre) {
@@ -94,24 +43,21 @@ const RessourcesHumaines = () => {
     }
   };
 
+  // Handler for delete action
   const handleDelete = (id: string) => {
-    const updatedMembres = membres.filter(membre => membre.id !== id);
-    setMembres(updatedMembres);
-    
+    setMembres(prev => prev.filter(membre => membre.id !== id));
     toast({
       title: "Suppression",
       description: `Le membre ${id} a été supprimé`,
     });
-    
-    // Force une notification de changement immédiat
-    notifyChanges();
   };
 
+  // Handler for adding a new member
   const handleAddMember = () => {
-    // Générer un ID plus unique avec un préfixe pour éviter les collisions
-    const timestamp = new Date().getTime();
-    const randomSuffix = Math.floor(Math.random() * 1000);
-    const newId = `mem-${timestamp}-${randomSuffix}`;
+    // Generate a new ID for the new member - convert to string
+    const newId = membres.length > 0 
+      ? String(Math.max(...membres.map(membre => parseInt(membre.id))) + 1)
+      : '1';
     
     setCurrentMembre({
       id: newId,
@@ -126,10 +72,13 @@ const RessourcesHumaines = () => {
     setIsDialogOpen(true);
   };
 
+  // Handler for export function
   const handleExportMember = (id: string) => {
+    // Implementation for export functionality
     console.log(`Exporting member with id: ${id}`);
   };
 
+  // Handler for input changes in the form
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setCurrentMembre({
@@ -138,6 +87,7 @@ const RessourcesHumaines = () => {
     });
   };
 
+  // Handler for saving member (add or update)
   const handleSaveMember = () => {
     if (currentMembre.nom.trim() === '' || currentMembre.prenom.trim() === '') {
       toast({
@@ -148,32 +98,34 @@ const RessourcesHumaines = () => {
       return;
     }
 
+    // Calculate initials if not provided
     if (currentMembre.initiales.trim() === '') {
       const initiales = `${currentMembre.prenom.charAt(0)}${currentMembre.nom.charAt(0)}`;
       currentMembre.initiales = initiales.toUpperCase();
     }
 
-    const updatedMembres = isEditing
-      ? membres.map(membre => membre.id === currentMembre.id ? currentMembre : membre)
-      : [...membres, currentMembre];
-
-    setMembres(updatedMembres);
-    
-    toast({
-      title: isEditing ? "Modification" : "Ajout",
-      description: `Le membre ${currentMembre.nom} ${currentMembre.prenom} a été ${isEditing ? 'modifié' : 'ajouté'}`,
-    });
+    if (isEditing) {
+      // Update existing member
+      setMembres(prev => 
+        prev.map(membre => membre.id === currentMembre.id ? currentMembre : membre)
+      );
+      toast({
+        title: "Modification",
+        description: `Le membre ${currentMembre.id} a été modifié`,
+      });
+    } else {
+      // Add new member
+      setMembres(prev => [...prev, currentMembre]);
+      toast({
+        title: "Ajout",
+        description: `Le membre ${currentMembre.id} a été ajouté`,
+      });
+    }
     
     setIsDialogOpen(false);
-    
-    // Synchroniser immédiatement après la sauvegarde
-    setTimeout(() => {
-      notifyChanges();
-      // Pass the updated membres data to syncWithServer
-      syncWithServer(updatedMembres).catch(err => console.error("Erreur de synchronisation après sauvegarde:", err));
-    }, 100);
   };
 
+  // Handler for exporting all members to PDF
   const handleExportAllToPdf = () => {
     try {
       exportAllCollaborateursToPdf(membres);
@@ -190,44 +142,14 @@ const RessourcesHumaines = () => {
       });
     }
   };
-  
-  // Fonction pour rafraîchir manuellement la liste des membres
-  const handleRefresh = async () => {
-    setRefreshing(true);
-    try {
-      await refreshMembres();
-      toast({
-        title: "Rafraîchissement",
-        description: "La liste des membres a été mise à jour",
-      });
-    } catch (error) {
-      console.error("Erreur lors du rafraîchissement:", error);
-      toast({
-        title: "Erreur",
-        description: "Impossible de rafraîchir la liste des membres",
-        variant: "destructive",
-      });
-    } finally {
-      setRefreshing(false);
-    }
-  };
 
   return (
-    <div className="p-8 w-full">
+    <div className="p-8">
       <div className="flex items-center justify-between mb-2">
         <div>
           <h1 className="text-3xl font-bold text-app-blue">Ressources Humaines</h1>
         </div>
         <div className="flex space-x-2">
-          <Button
-            onClick={handleRefresh}
-            variant="outline"
-            size="icon"
-            disabled={refreshing}
-            title="Rafraîchir la liste"
-          >
-            <RefreshCw className={`h-5 w-5 ${refreshing ? 'animate-spin' : ''}`} />
-          </Button>
           <button 
             onClick={handleExportAllToPdf}
             className="text-red-600 p-2 rounded-md hover:bg-red-50 transition-colors"
@@ -238,7 +160,7 @@ const RessourcesHumaines = () => {
         </div>
       </div>
 
-      {isLoading || refreshing ? (
+      {isLoading ? (
         <div className="bg-white rounded-md shadow p-8 text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-app-blue mx-auto"></div>
           <p className="mt-4 text-gray-600">Chargement des données...</p>
@@ -271,6 +193,7 @@ const RessourcesHumaines = () => {
             </Button>
           </div>
 
+          {/* Modal pour ajouter/modifier un membre */}
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogContent>
               <DialogHeader>

@@ -1,203 +1,84 @@
 
-import React, { useEffect, useState } from 'react';
-import DocumentTable from '@/components/documents/DocumentTable';
+import React from 'react';
+import { FileText, FolderPlus, CloudSun } from 'lucide-react';
+import { MembresProvider } from '@/contexts/MembresContext';
+import DocumentForm from '@/components/gestion-documentaire/DocumentForm';
+import DocumentStatusDisplay from '@/components/gestion-documentaire/DocumentStats';
+import DocumentTable from '@/components/gestion-documentaire/DocumentTable';
+import { DocumentGroupDialog } from '@/components/gestion-documentaire/DocumentGroupDialog';
 import { useDocuments } from '@/hooks/useDocuments';
-import { getDatabaseConnectionCurrentUser } from '@/services/core/databaseConnectionService';
-import { Button } from '@/components/ui/button';
-import { Plus, FileText, RefreshCw, FolderPlus, Save, Check, AlertTriangle } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
-import SyncHealthIndicator from '@/components/common/SyncHealthIndicator';
+import { exportDocumentsToPdf } from '@/services/pdfExport';
+import { useToast } from "@/hooks/use-toast";
+import { Button } from "@/components/ui/button";
 
-const GestionDocumentaire = () => {
-  const { 
-    documents, 
-    groups, 
-    handleEdit, 
-    handleDelete, 
-    handleReorder, 
-    handleToggleGroup, 
-    handleEditGroup, 
-    handleDeleteGroup, 
-    handleResponsabiliteChange, 
-    handleAtteinteChange, 
-    handleExclusionChange, 
-    handleAddDocument, 
-    handleAddGroup,
-    handleGroupReorder,
-    forceReload,
+const GestionDocumentaireContent = () => {
+  const {
+    documents,
+    groups,
+    stats,
+    editingDocument,
+    editingGroup,
+    dialogOpen,
+    groupDialogOpen,
     isSyncing,
-    syncWithServer,
-    lastSynced
+    isOnline,
+    lastSynced,
+    setDialogOpen,
+    setGroupDialogOpen,
+    handleResponsabiliteChange,
+    handleAtteinteChange,
+    handleExclusionChange,
+    handleEdit,
+    handleSaveDocument,
+    handleDelete,
+    handleAddDocument,
+    handleReorder,
+    handleAddGroup,
+    handleEditGroup,
+    handleSaveGroup,
+    handleDeleteGroup,
+    handleGroupReorder,
+    handleToggleGroup,
+    syncWithServer
   } = useDocuments();
   
-  const [currentUser, setCurrentUser] = useState<string>(getDatabaseConnectionCurrentUser() || 'default');
-  const [saveSuccess, setSaveSuccess] = useState<boolean | null>(null);
   const { toast } = useToast();
-  
-  // Écouter les changements d'utilisateur
-  useEffect(() => {
-    const handleUserChange = (event: Event) => {
-      const customEvent = event as CustomEvent;
-      if (customEvent.detail?.user) {
-        setCurrentUser(customEvent.detail.user);
-        console.log(`GestionDocumentaire: Changement d'utilisateur - ${customEvent.detail.user}`);
-      }
-    };
-    
-    window.addEventListener('database-user-changed', handleUserChange);
-    
-    return () => {
-      window.removeEventListener('database-user-changed', handleUserChange);
-    };
-  }, []);
 
-  // Synchronisation automatique périodique
-  useEffect(() => {
-    // Synchroniser automatiquement toutes les 2 minutes si des documents existent
-    if (documents.length > 0) {
-      const autoSyncTimer = setInterval(() => {
-        if (!isSyncing) {
-          console.log("Synchronisation automatique programmée");
-          syncWithServer().catch(err => {
-            console.error("Erreur lors de la synchronisation automatique:", err);
-          });
-        }
-      }, 120000); // Toutes les 2 minutes
-      
-      return () => clearInterval(autoSyncTimer);
-    }
-  }, [documents, isSyncing, syncWithServer]);
-
-  // Effet pour sauvegarder avant de quitter la page
-  useEffect(() => {
-    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
-      // Vérifier s'il y a des documents non synchronisés
-      if (documents.length > 0 && !lastSynced) {
-        // Message personnalisé (ne fonctionne pas sur tous les navigateurs)
-        const message = "Vos modifications n'ont pas été sauvegardées. Voulez-vous vraiment quitter la page?";
-        event.returnValue = message; // Standard
-        return message; // Pour les navigateurs plus anciens
-      }
-    };
-    
-    window.addEventListener('beforeunload', handleBeforeUnload);
-    
-    return () => {
-      window.removeEventListener('beforeunload', handleBeforeUnload);
-    };
-  }, [documents, lastSynced]);
-
-  // Sauvegarde automatique lors des modifications
-  useEffect(() => {
-    if (documents.length > 0) {
-      // Initialiser la synchronisation après le chargement initial
-      const timer = setTimeout(() => {
-        if (!isSyncing) {
-          console.log("Synchronisation automatique initiale");
-          syncWithServer().catch(err => {
-            console.error("Erreur lors de la synchronisation automatique initiale:", err);
-          });
-        }
-      }, 5000); // 5 secondes après le chargement
-      
-      return () => clearTimeout(timer);
-    }
-  }, [documents, isSyncing, syncWithServer]);
-
-  const handleRefresh = () => {
-    forceReload();
-  };
-
-  const handleSaveManually = async () => {
-    try {
-      // Montrer l'état de sauvegarde en cours
-      setSaveSuccess(null);
-      
-      // Forcer une synchronisation
-      const result = await syncWithServer();
-      
-      // Montrer le résultat
-      setSaveSuccess(result);
-      
-      // Afficher un toast avec le résultat
-      if (result) {
-        toast({
-          title: "Sauvegarde réussie",
-          description: "Vos documents ont été sauvegardés avec succès sur le serveur Infomaniak et seront disponibles lors de votre prochaine connexion.",
-          variant: "default"
-        });
-      } else {
-        toast({
-          title: "Échec de la sauvegarde",
-          description: "Vos documents sont sauvegardés localement mais la synchronisation avec le serveur Infomaniak a échoué.",
-          variant: "destructive"
-        });
-      }
-      
-      // Réinitialiser l'indicateur après 3 secondes
-      setTimeout(() => {
-        setSaveSuccess(null);
-      }, 3000);
-    } catch (error) {
-      console.error("Erreur lors de la sauvegarde manuelle:", error);
-      setSaveSuccess(false);
-      toast({
-        title: "Erreur",
-        description: "Une erreur s'est produite lors de la sauvegarde sur le serveur Infomaniak.",
-        variant: "destructive"
-      });
-    }
+  const handleExportPdf = () => {
+    exportDocumentsToPdf(documents, groups);
+    toast({
+      title: "Export PDF réussi",
+      description: "Le document a été généré et téléchargé",
+    });
   };
 
   return (
-    <div className="container mx-auto py-6 px-4">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">Gestion Documentaire</h1>
-        <div className="flex items-center space-x-2">
-          <Button
-            onClick={handleSaveManually}
-            variant="outline"
-            size="sm"
-            className="flex items-center"
+    <div className="p-8">
+      <div className="flex items-center justify-between mb-2">
+        <div>
+          <h1 className="text-3xl font-bold text-app-blue">Gestion Documentaire</h1>
+        </div>
+        <div className="flex space-x-2">
+          <button 
+            onClick={syncWithServer}
+            className="text-blue-600 p-2 rounded-md hover:bg-blue-50 transition-colors flex items-center"
+            title="Synchroniser avec le serveur"
             disabled={isSyncing}
           >
-            {saveSuccess === null ? (
-              <>
-                <Save className="h-4 w-4 mr-1" />
-                Sauvegarder
-              </>
-            ) : saveSuccess ? (
-              <>
-                <Check className="h-4 w-4 mr-1 text-green-500" />
-                Sauvegardé
-              </>
-            ) : (
-              <>
-                <Save className="h-4 w-4 mr-1 text-red-500" />
-                Réessayer
-              </>
-            )}
-          </Button>
-          <Button
-            onClick={handleRefresh}
-            variant="outline"
-            size="sm"
-            className="flex items-center"
-            disabled={isSyncing}
+            <CloudSun className={`h-6 w-6 stroke-[1.5] ${isSyncing ? 'animate-spin' : ''}`} />
+          </button>
+          <button 
+            onClick={handleExportPdf}
+            className="text-red-600 p-2 rounded-md hover:bg-red-50 transition-colors"
+            title="Exporter en PDF"
           >
-            <RefreshCw className={`h-4 w-4 mr-1 ${isSyncing ? 'animate-spin' : ''}`} />
-            Actualiser
-          </Button>
+            <FileText className="h-6 w-6 stroke-[1.5]" />
+          </button>
         </div>
       </div>
-      
-      {lastSynced && (
-        <div className="text-sm text-gray-500 mb-4">
-          Dernière synchronisation: {new Date(lastSynced).toLocaleString()}
-          <span className="ml-2 text-green-600">(Sauvegarde automatique activée)</span>
-        </div>
-      )}
-      
+
+      <DocumentStatusDisplay stats={stats} />
+
       <DocumentTable 
         documents={documents}
         groups={groups}
@@ -212,29 +93,47 @@ const GestionDocumentaire = () => {
         onEditGroup={handleEditGroup}
         onDeleteGroup={handleDeleteGroup}
       />
-      
-      <div className="mt-4 flex justify-end space-x-2">
-        <Button
-          onClick={handleAddGroup}
+
+      <div className="flex justify-end mt-4 space-x-2">
+        <Button 
           variant="outline"
-          className="flex items-center hover:bg-gray-100 transition-colors"
+          onClick={handleAddGroup}
+          className="hover:bg-gray-100 transition-colors mr-2"
+          title="Nouveau groupe"
         >
-          <FolderPlus className="h-4 w-4 mr-2" />
+          <FolderPlus className="h-5 w-5 mr-2" />
           Nouveau groupe
         </Button>
-        <Button
+        <Button 
+          variant="default"
           onClick={handleAddDocument}
-          className="flex items-center bg-app-blue hover:bg-app-blue/90"
         >
-          <Plus className="h-4 w-4 mr-1" />
-          Ajouter un document
+          Nouveau document
         </Button>
       </div>
-      
-      {/* Ajout de l'indicateur de santé de synchronisation */}
-      <SyncHealthIndicator />
+
+      <DocumentForm 
+        document={editingDocument}
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        onSave={handleSaveDocument}
+      />
+
+      <DocumentGroupDialog
+        group={editingGroup}
+        open={groupDialogOpen}
+        onOpenChange={setGroupDialogOpen}
+        onSave={handleSaveGroup}
+        isEditing={!!editingGroup}
+      />
     </div>
   );
 };
+
+const GestionDocumentaire = () => (
+  <MembresProvider>
+    <GestionDocumentaireContent />
+  </MembresProvider>
+);
 
 export default GestionDocumentaire;

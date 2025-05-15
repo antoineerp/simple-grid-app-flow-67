@@ -14,5 +14,16 @@ export interface JsonTestResult {
   success: boolean;
   response?: any;
   error?: Error | string | unknown;
-  warning?: string;
+  message?: string;
+  details?: {
+    tip?: string;
+    error_code?: string;
+    server_info?: string;
+  };
+}
+
+export interface ApiStatus {
+  status: 'loading' | 'success' | 'error';
+  message: string;
+  details?: any;
 }

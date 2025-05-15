@@ -44,6 +44,29 @@ RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^(.*)$ index.php [QSA,L]
 
+# Définir les types MIME corrects
+AddType application/javascript .js
+AddType application/javascript .mjs
+AddType text/css .css
+AddType application/json .json
+
+# Définir les en-têtes CORS
+<IfModule mod_headers.c>
+    # Force le bon type MIME pour les JavaScript modules
+    <FilesMatch "\.m?js$">
+        Header set Content-Type "application/javascript"
+    </FilesMatch>
+    
+    Header set Access-Control-Allow-Origin "*"
+    Header set Access-Control-Allow-Methods "GET, POST, OPTIONS, PUT, DELETE"
+    Header set Access-Control-Allow-Headers "Content-Type, Authorization, X-Requested-With"
+    
+    # Eviter la mise en cache
+    Header set Cache-Control "no-cache, no-store, must-revalidate"
+    Header set Pragma "no-cache"
+    Header set Expires 0
+</IfModule>
+
 # Forcer PHP à utiliser le bon encodage
 <IfModule mod_php.c>
     php_value default_charset "UTF-8"

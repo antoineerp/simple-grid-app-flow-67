@@ -1,4 +1,3 @@
-
 <?php
 require_once dirname(__FILE__) . '/BaseModel.php';
 require_once dirname(__FILE__) . '/traits/TableManager.php';
@@ -88,12 +87,6 @@ class User extends BaseModel {
         $identifiant = $this->cleanUTF8($this->sanitizeInput($identifiant));
         $this->createTableIfNotExists();
         
-        // Vérifier le format de l'identifiant
-        if (empty($identifiant) || strpos($identifiant, 'p71x6d_') !== 0) {
-            error_log("Identifiant technique invalide: {$identifiant}");
-            return false;
-        }
-        
         $query = "SELECT * FROM " . $this->table_name . " WHERE identifiant_technique = ? LIMIT 0,1";
         $stmt = $this->conn->prepare($query);
         $stmt->bindParam(1, $identifiant);
@@ -118,19 +111,6 @@ class User extends BaseModel {
         $stmt->execute();
         
         if ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
-            // Vérifier et corriger l'identifiant technique si nécessaire
-            if (empty($row['identifiant_technique']) || strpos($row['identifiant_technique'], 'p71x6d_') !== 0) {
-                $identifiant_technique = 'p71x6d_' . preg_replace('/[^a-z0-9]/', '', strtolower($row['nom']));
-                
-                // Mettre à jour l'utilisateur dans la base de données
-                $update = $this->conn->prepare("UPDATE " . $this->table_name . " SET identifiant_technique = ? WHERE id = ?");
-                $update->execute([$identifiant_technique, $row['id']]);
-                
-                error_log("Identifiant technique corrigé pour l'utilisateur {$row['id']}: {$identifiant_technique}");
-                
-                $row['identifiant_technique'] = $identifiant_technique;
-            }
-            
             foreach ($row as $key => $value) {
                 $this->$key = $value;
             }
@@ -145,22 +125,7 @@ class User extends BaseModel {
             $stmt = $this->conn->prepare($query);
             $stmt->bindParam(":id", $id);
             $stmt->execute();
-            $user = $stmt->fetch(PDO::FETCH_ASSOC);
-            
-            // Vérifier et corriger l'identifiant technique si nécessaire
-            if ($user && (empty($user['identifiant_technique']) || strpos($user['identifiant_technique'], 'p71x6d_') !== 0)) {
-                $identifiant_technique = 'p71x6d_' . preg_replace('/[^a-z0-9]/', '', strtolower($user['nom']));
-                
-                // Mettre à jour l'utilisateur dans la base de données
-                $update = $this->conn->prepare("UPDATE " . $this->table_name . " SET identifiant_technique = ? WHERE id = ?");
-                $update->execute([$identifiant_technique, $user['id']]);
-                
-                error_log("Identifiant technique corrigé pour l'utilisateur {$user['id']}: {$identifiant_technique}");
-                
-                $user['identifiant_technique'] = $identifiant_technique;
-            }
-            
-            return $user;
+            return $stmt->fetch(PDO::FETCH_ASSOC);
         } catch (PDOException $e) {
             error_log("Erreur lors de la recherche par ID: " . $e->getMessage());
             return null;
@@ -184,22 +149,7 @@ class User extends BaseModel {
             $query = "SELECT * FROM " . $this->table_name . " WHERE role = 'gestionnaire' LIMIT 1";
             $stmt = $this->conn->prepare($query);
             $stmt->execute();
-            $manager = $stmt->fetch(PDO::FETCH_ASSOC);
-            
-            // Vérifier et corriger l'identifiant technique si nécessaire
-            if ($manager && (empty($manager['identifiant_technique']) || strpos($manager['identifiant_technique'], 'p71x6d_') !== 0)) {
-                $identifiant_technique = 'p71x6d_' . preg_replace('/[^a-z0-9]/', '', strtolower($manager['nom']));
-                
-                // Mettre à jour l'utilisateur dans la base de données
-                $update = $this->conn->prepare("UPDATE " . $this->table_name . " SET identifiant_technique = ? WHERE id = ?");
-                $update->execute([$identifiant_technique, $manager['id']]);
-                
-                error_log("Identifiant technique corrigé pour le gestionnaire {$manager['id']}: {$identifiant_technique}");
-                
-                $manager['identifiant_technique'] = $identifiant_technique;
-            }
-            
-            return $manager;
+            return $stmt->fetch(PDO::FETCH_ASSOC);
         } catch (PDOException $e) {
             error_log("Erreur lors de la récupération du gestionnaire: " . $e->getMessage());
             return null;
@@ -209,13 +159,6 @@ class User extends BaseModel {
     public function initializeUserDataFromManager($userId) {
         try {
             error_log("Initialisation des données pour l'utilisateur: $userId");
-            
-            // Vérifier le format de l'identifiant utilisateur
-            if (empty($userId) || strpos($userId, 'p71x6d_') !== 0) {
-                error_log("Format d'identifiant utilisateur invalide: $userId");
-                return false;
-            }
-            
             $manager = $this->getManager();
             if (!$manager) {
                 error_log("Aucun gestionnaire trouvé pour initialiser les données utilisateur");

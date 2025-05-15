@@ -1,332 +1,295 @@
-
 import { useState, useEffect, useCallback } from 'react';
+import { v4 as uuidv4 } from 'uuid';
 import { Document, DocumentGroup } from '@/types/bibliotheque';
-import { useToast } from '@/hooks/use-toast';
-import { useSyncContext } from '@/hooks/useSyncContext';
-import { getCurrentUser } from '@/services/auth/authService';
-import { useGlobalSync } from '@/contexts/GlobalSyncContext';
-import { getDatabaseConnectionCurrentUser } from '@/services/core/databaseConnectionService';
+import { useToast } from "@/hooks/use-toast";
+import {
+  loadBibliothequeFromStorage,
+  saveBibliothequeToStorage
+} from '@/services/bibliotheque/bibliothequeService';
+import { useGlobalSync } from '@/hooks/useGlobalSync';
 
 export const useBibliotheque = () => {
+  const { toast } = useToast();
   const [documents, setDocuments] = useState<Document[]>([]);
   const [groups, setGroups] = useState<DocumentGroup[]>([]);
-  const [isDialogOpen, setIsDialogOpen] = useState<boolean>(false);
-  const [isGroupDialogOpen, setIsGroupDialogOpen] = useState<boolean>(false);
-  const [isEditing, setIsEditing] = useState<boolean>(false);
-  const [currentDocument, setCurrentDocument] = useState<Document>({
-    id: "",
-    name: "",
-    link: "",
-    groupId: undefined
-  });
-  const [currentGroup, setCurrentGroup] = useState<DocumentGroup>({
-    id: "",
-    name: "",
-    expanded: false,
-    items: []
-  });
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isGroupDialogOpen, setIsGroupDialogOpen] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [currentDocument, setCurrentDocument] = useState<Document>({ id: '', name: '', link: '' });
+  const [currentGroup, setCurrentGroup] = useState<DocumentGroup>({ id: '', name: '', expanded: false, items: [] });
+  const [draggedItem, setDraggedItem] = useState<{ id: string | null, groupId: string | null }>({ id: null, groupId: null });
   
-  const { toast } = useToast();
-  
-  // S'assurer que currentUser est toujours une chaîne
-  const [currentUser, setCurrentUser] = useState<string>(() => {
-    const dbUser = getDatabaseConnectionCurrentUser();
-    if (dbUser) return dbUser;
-    
-    const authUser = getCurrentUser();
-    if (authUser && typeof authUser === 'object' && 'identifiant_technique' in authUser) {
-      return String(authUser.identifiant_technique);
-    }
-    
-    return 'default';
-  });
-  
-  // Use the GlobalSync context
-  const { syncTable, syncAll, isOnline } = useGlobalSync();
-  const { syncStates } = useGlobalSync();
-  
-  // Récupérer l'état de synchronisation spécifique pour 'collaboration'
-  const collaborationSyncState = syncStates['collaboration'] || { 
-    isSyncing: false, 
-    lastSynced: null,
-    syncFailed: false 
-  };
-  
-  // Déstructurer l'état de synchronisation pour faciliter l'accès
-  const { isSyncing, lastSynced, syncFailed } = collaborationSyncState;
-  
-  // Create local implementation for missing functions
-  const syncWithServer = useCallback(async (documents: Document[], groups: DocumentGroup[], userId?: string) => {
-    try {
-      console.log(`useBibliotheque: Manually syncing ${documents.length} documents`);
-      return await syncTable('collaboration', documents);
-    } catch (error) {
-      console.error('useBibliotheque: Sync error:', error);
-      return false;
-    }
-  }, [syncTable]);
-  
-  const notifyChanges = useCallback(() => {
-    console.log('useBibliotheque: Notifying data changes');
-    
-    // Dispatch an event that can be caught by other components
-    window.dispatchEvent(new CustomEvent('collaboration-data-changed', {
-      detail: { timestamp: Date.now() }
-    }));
-  }, []);
-  
-  // Écouter les changements d'utilisateur de base de données
+  const currentUser = localStorage.getItem('currentUser') || 'default';
+  const { 
+    appData,
+    saveData,
+    syncWithServer,
+    isSyncing,
+    isOnline,
+    lastSynced,
+    hasUnsyncedData
+  } = useGlobalSync();
+
   useEffect(() => {
-    const handleUserChange = (event: Event) => {
-      const customEvent = event as CustomEvent;
-      if (customEvent.detail?.user) {
-        const newUser = customEvent.detail.user;
-        console.log(`useBibliotheque: Changement d'utilisateur détecté - ${newUser}`);
-        setCurrentUser(newUser);
-        
-        // Vider les données actuelles
-        setDocuments([]);
-        setGroups([]);
-        
-        // Charger les données du nouvel utilisateur
-        loadLocalData(newUser);
-      }
+    const { documents: loadedDocuments, groups: loadedGroups } = loadBibliothequeFromStorage(currentUser);
+    setDocuments(loadedDocuments);
+    setGroups(loadedGroups);
+    
+    const handleBibliothequeUpdate = () => {
+      const { documents: updatedDocuments, groups: updatedGroups } = loadBibliothequeFromStorage(currentUser);
+      setDocuments(updatedDocuments);
+      setGroups(updatedGroups);
     };
     
-    window.addEventListener('database-user-changed', handleUserChange);
+    window.addEventListener('bibliothequeUpdate', handleBibliothequeUpdate);
     
     return () => {
-      window.removeEventListener('database-user-changed', handleUserChange);
+      window.removeEventListener('bibliothequeUpdate', handleBibliothequeUpdate);
     };
-  }, []);
-  
-  // Fonction pour charger les données locales
-  const loadLocalData = useCallback((userId: string) => {
-    try {
-      console.log(`useBibliotheque: Chargement des données pour l'utilisateur ${userId}`);
-      
-      // Mise à jour pour vérifier aussi les données sous l'ancien nom
-      let docsData = localStorage.getItem(`collaboration_${userId}`);
-      if (!docsData) {
-        docsData = localStorage.getItem('collaboration');
-        if (!docsData) {
-          docsData = localStorage.getItem(`bibliotheque_${userId}`);
-          if (!docsData) {
-            docsData = localStorage.getItem('bibliotheque');
-          }
-        }
-        
-        // Si trouvé sous l'ancien nom, migrer vers le nouveau
-        if (docsData) {
-          localStorage.setItem(`collaboration_${userId}`, docsData);
-        }
-      }
-      
-      let groupsData = localStorage.getItem(`collaboration_groups_${userId}`);
-      if (!groupsData) {
-        groupsData = localStorage.getItem('collaboration_groups');
-        if (!groupsData) {
-          groupsData = localStorage.getItem(`bibliotheque_groups_${userId}`);
-          if (!groupsData) {
-            groupsData = localStorage.getItem('bibliotheque_groups');
-          }
-        }
-        
-        // Si trouvé sous l'ancien nom, migrer vers le nouveau
-        if (groupsData) {
-          localStorage.setItem(`collaboration_groups_${userId}`, groupsData);
-        }
-      }
-      
-      if (docsData) {
-        const parsedDocs = JSON.parse(docsData);
-        // Ensure all documents have userId
-        const docsWithUser = parsedDocs.map((doc: Document) => ({
-          ...doc,
-          userId: doc.userId || userId
-        }));
-        setDocuments(docsWithUser);
-        console.log(`Chargé ${docsWithUser.length} documents pour l'utilisateur ${userId}`);
-      }
-      
-      if (groupsData) {
-        const parsedGroups = JSON.parse(groupsData);
-        // Ensure all groups have userId
-        const groupsWithUser = parsedGroups.map((group: DocumentGroup) => ({
-          ...group,
-          userId: group.userId || userId
-        }));
-        setGroups(groupsWithUser);
-        console.log(`Chargé ${groupsWithUser.length} groupes pour l'utilisateur ${userId}`);
-      }
-    } catch (error) {
-      console.error("Erreur lors du chargement des données locales:", error);
-    }
-  }, []);
-  
-  // Charger les données locales au démarrage
-  useEffect(() => {
-    loadLocalData(currentUser);
+  }, [currentUser]);
+
+  const saveToStorage = useCallback((newDocuments: Document[], newGroups: DocumentGroup[]) => {
+    saveBibliothequeToStorage(newDocuments, newGroups, currentUser);
     
-    // Initial sync when component mounts
-    if (isOnline) {
-      setTimeout(() => {
-        handleSyncDocuments().catch(console.error);
-      }, 1000);
-    }
-  }, [currentUser, isOnline, loadLocalData]);
-  
-  // Sauvegarder les documents localement quand ils changent
-  useEffect(() => {
-    if (documents.length > 0) {
-      // Make sure all documents have a userId
-      const docsWithUser = documents.map(doc => ({
-        ...doc,
-        userId: doc.userId || currentUser
-      }));
-      
-      // Mise à jour pour utiliser le nouveau nom de stockage avec l'ID utilisateur
-      localStorage.setItem(`collaboration_${currentUser}`, JSON.stringify(docsWithUser));
-      notifyChanges();
-      console.log(`Sauvegardé ${docsWithUser.length} documents pour l'utilisateur ${currentUser}`);
-      
-      // Sync with server (debounced)
-      if (isOnline) {
-        const timer = setTimeout(() => {
-          syncTable('collaboration', docsWithUser).catch(console.error);
-        }, 2000);
-        
-        return () => clearTimeout(timer);
+    // Mettre à jour les données globales
+    saveData({
+      ...appData,
+      bibliotheque: {
+        documents: newDocuments,
+        groups: newGroups
       }
-    }
-  }, [documents, notifyChanges, currentUser, syncTable, isOnline]);
-  
-  // Sauvegarder les groupes localement quand ils changent
-  useEffect(() => {
-    if (groups.length > 0) {
-      // Make sure all groups have a userId
-      const groupsWithUser = groups.map(group => ({
-        ...group,
-        userId: group.userId || currentUser
-      }));
-      
-      // Mise à jour pour utiliser le nouveau nom de stockage avec l'ID utilisateur
-      localStorage.setItem(`collaboration_groups_${currentUser}`, JSON.stringify(groupsWithUser));
-      notifyChanges();
-      console.log(`Sauvegardé ${groupsWithUser.length} groupes pour l'utilisateur ${currentUser}`);
-      
-      // Sync with server (debounced)
-      if (isOnline) {
-        const timer = setTimeout(() => {
-          syncTable('collaboration_groups', groupsWithUser).catch(console.error);
-        }, 2000);
-        
-        return () => clearTimeout(timer);
-      }
-    }
-  }, [groups, notifyChanges, currentUser, syncTable, isOnline]);
-  
-  // Fonctions pour gérer les documents
-  const handleAddDocument = useCallback((doc: Document) => {
-    setDocuments((prevDocs) => [
-      ...prevDocs,
-      { ...doc, userId: currentUser }
-    ]);
-  }, [currentUser]);
-  
-  const handleUpdateDocument = useCallback((doc: Document) => {
-    setDocuments((prevDocs) =>
-      prevDocs.map((d) => (d.id === doc.id ? { ...doc, userId: doc.userId || currentUser } : d))
-    );
-  }, [currentUser]);
-  
-  const handleDeleteDocument = useCallback((id: string) => {
-    setDocuments((prevDocs) => prevDocs.filter((d) => d.id !== id));
-  }, []);
+    });
+  }, [currentUser, appData, saveData]);
 
-  // Fonctions pour gérer les documents - pour la compatibilité avec Collaboration.tsx
-  const handleEditDocument = useCallback((doc: Document) => {
-    setDocuments((prevDocs) =>
-      prevDocs.map((d) => (d.id === doc.id ? { ...doc, userId: doc.userId || currentUser } : d))
-    );
-  }, [currentUser]);
-  
-  // Fonctions pour gérer les groupes
-  const handleAddGroup = useCallback((group: DocumentGroup) => {
-    setGroups((prevGroups) => [
-      ...prevGroups, 
-      { ...group, userId: currentUser }
-    ]);
-  }, [currentUser]);
-  
-  const handleUpdateGroup = useCallback((group: DocumentGroup) => {
-    setGroups((prevGroups) =>
-      prevGroups.map((g) => (g.id === group.id ? { ...group, userId: group.userId || currentUser } : g))
-    );
-  }, [currentUser]);
-  
-  const handleDeleteGroup = useCallback((id: string) => {
-    // Mettre à jour les documents qui étaient dans ce groupe
-    setDocuments((prevDocs) =>
-      prevDocs.map((d) => (d.groupId === id ? { ...d, groupId: undefined } : d))
-    );
-    
-    // Supprimer le groupe
-    setGroups((prevGroups) => prevGroups.filter((g) => g.id !== id));
-  }, []);
-
-  // Fonctions pour gérer les groupes - pour la compatibilité avec Collaboration.tsx
-  const handleEditGroup = useCallback((group: DocumentGroup) => {
-    setGroups((prevGroups) =>
-      prevGroups.map((g) => (g.id === group.id ? { ...group, userId: group.userId || currentUser } : g))
-    );
-  }, [currentUser]);
-
-  const handleToggleGroup = useCallback((id: string) => {
-    setGroups(prevGroups => 
-      prevGroups.map(group => 
-        group.id === id ? { ...group, expanded: !group.expanded } : group
-      )
-    );
-  }, []);
-  
-  // Fonction de synchronisation manuelle
-  const handleSyncDocuments = async (): Promise<void> => {
-    try {
-      // Ajouter des logs pour déboguer la synchronisation
-      console.log("Début de la synchronisation des documents de collaboration");
-      console.log(`Documents à synchroniser pour l'utilisateur ${currentUser}:`, documents);
-      console.log(`Groupes à synchroniser pour l'utilisateur ${currentUser}:`, groups);
-      
-      // Synchroniser les documents
-      await syncTable('collaboration', documents.map(doc => ({
-        ...doc,
-        userId: doc.userId || currentUser
-      })));
-      
-      // Synchroniser les groupes
-      await syncTable('collaboration_groups', groups.map(group => ({
-        ...group,
-        userId: group.userId || currentUser
-      })));
-      
-      // Forcer la synchronisation des groupes également
-      const syncEvent = new CustomEvent('force-sync-required', {
-        detail: {
-          timestamp: Date.now(),
-          tables: ['collaboration', 'collaboration_groups']
-        }
-      });
-      window.dispatchEvent(syncEvent);
-      
-      console.log("Fin de la synchronisation des documents de collaboration");
-      return Promise.resolve();
-    } catch (error) {
-      console.error("Erreur lors de la synchronisation des documents:", error);
-      return Promise.reject(error);
-    }
+  const handleEditDocument = (document: Document) => {
+    setCurrentDocument(document);
+    setIsEditing(true);
+    setIsDialogOpen(true);
   };
-  
+
+  const handleDeleteDocument = (id: string) => {
+    const updatedDocuments = documents.filter(doc => doc.id !== id);
+    setDocuments(updatedDocuments);
+    saveToStorage(updatedDocuments, groups);
+    toast({
+      title: "Document supprimé",
+      description: "Le document a été supprimé avec succès",
+    });
+  };
+
+  const handleAddDocument = () => {
+    setCurrentDocument({ id: '', name: '', link: '' });
+    setIsEditing(false);
+    setIsDialogOpen(true);
+  };
+
+  const handleDocumentInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setCurrentDocument(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleSaveDocument = () => {
+    if (!currentDocument.name) {
+      toast({
+        title: "Erreur",
+        description: "Le nom du document est obligatoire",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const docToSave = { ...currentDocument };
+
+    if (isEditing) {
+      const updatedDocuments = documents.map(doc =>
+        doc.id === docToSave.id ? docToSave : doc
+      );
+      setDocuments(updatedDocuments);
+      saveToStorage(updatedDocuments, groups);
+      toast({
+        title: "Document mis à jour",
+        description: "Le document a été mis à jour avec succès",
+      });
+    } else {
+      const newDocument = { ...docToSave, id: uuidv4() };
+      const updatedDocuments = [...documents, newDocument];
+      setDocuments(updatedDocuments);
+      saveToStorage(updatedDocuments, groups);
+      toast({
+        title: "Document ajouté",
+        description: "Le document a été ajouté avec succès",
+      });
+    }
+
+    setIsDialogOpen(false);
+    setCurrentDocument({ id: '', name: '', link: '' });
+  };
+
+  const handleEditGroup = (group: DocumentGroup) => {
+    setCurrentGroup(group);
+    setIsEditing(true);
+    setIsGroupDialogOpen(true);
+  };
+
+  const handleDeleteGroup = (id: string) => {
+    const updatedGroups = groups.filter(group => group.id !== id);
+    setGroups(updatedGroups);
+    
+    // Supprimer les groupId des documents associés
+    const updatedDocuments = documents.map(doc =>
+      doc.groupId === id ? { ...doc, groupId: undefined } : doc
+    );
+    setDocuments(updatedDocuments);
+    
+    saveToStorage(updatedDocuments, updatedGroups);
+    toast({
+      title: "Groupe supprimé",
+      description: "Le groupe a été supprimé avec succès",
+    });
+  };
+
+  const handleAddGroup = () => {
+    setCurrentGroup({ id: '', name: '', expanded: false, items: [] });
+    setIsEditing(false);
+    setIsGroupDialogOpen(true);
+  };
+
+  const handleGroupInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setCurrentGroup(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleSaveGroup = () => {
+    if (!currentGroup.name) {
+      toast({
+        title: "Erreur",
+        description: "Le nom du groupe est obligatoire",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const groupToSave = { ...currentGroup };
+
+    if (isEditing) {
+      const updatedGroups = groups.map(group =>
+        group.id === groupToSave.id ? { ...groupToSave, items: group.items } : group
+      );
+      setGroups(updatedGroups);
+      saveToStorage(documents, updatedGroups);
+      toast({
+        title: "Groupe mis à jour",
+        description: "Le groupe a été mis à jour avec succès",
+      });
+    } else {
+      const newGroup = { ...groupToSave, id: uuidv4(), items: [] };
+      const updatedGroups = [...groups, newGroup];
+      setGroups(updatedGroups);
+      saveToStorage(documents, updatedGroups);
+      toast({
+        title: "Groupe ajouté",
+        description: "Le groupe a été ajouté avec succès",
+      });
+    }
+
+    setIsGroupDialogOpen(false);
+    setCurrentGroup({ id: '', name: '', expanded: false, items: [] });
+  };
+
+  const handleDrop = (targetId: string, targetGroupId?: string) => {
+    if (!draggedItem.id) return;
+    
+    const sourceId = draggedItem.id;
+    const sourceGroupId = draggedItem.groupId;
+    
+    setDocuments(prevDocuments => {
+      // 1. Retirer l'élément de sa position actuelle
+      let itemToMove: Document | undefined;
+      let updatedSourceDocuments = [...prevDocuments];
+      
+      if (sourceGroupId) {
+        // L'élément vient d'un groupe
+        const sourceGroup = groups.find(group => group.id === sourceGroupId);
+        if (sourceGroup) {
+          itemToMove = sourceGroup.items.find(item => item.id === sourceId);
+          
+          // Retirer l'élément du groupe source
+          const updatedGroups = groups.map(group => {
+            if (group.id === sourceGroupId) {
+              return {
+                ...group,
+                items: group.items.filter(item => item.id !== sourceId)
+              };
+            }
+            return group;
+          });
+          setGroups(updatedGroups);
+        }
+      } else {
+        // L'élément vient de la liste des documents non groupés
+        itemToMove = prevDocuments.find(doc => doc.id === sourceId);
+        updatedSourceDocuments = prevDocuments.filter(doc => doc.id !== sourceId);
+      }
+      
+      if (!itemToMove) return prevDocuments;
+      
+      // 2. Ajouter l'élément à sa nouvelle position
+      itemToMove = { ...itemToMove, groupId: targetGroupId };
+      let updatedTargetDocuments = [...updatedSourceDocuments];
+      
+      if (targetGroupId) {
+        // L'élément va dans un groupe
+        const updatedGroups = groups.map(group => {
+          if (group.id === targetGroupId) {
+            return {
+              ...group,
+              items: [...group.items, itemToMove].sort((a, b) => (a.name || '').localeCompare(b.name || ''))
+            };
+          }
+          return group;
+        });
+        setGroups(updatedGroups);
+      } else {
+        // L'élément va dans la liste des documents non groupés
+        updatedTargetDocuments = [...updatedSourceDocuments, itemToMove].sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+      }
+      
+      saveToStorage(updatedTargetDocuments, groups);
+      return updatedTargetDocuments;
+    });
+  };
+
+  const handleGroupDrop = (targetGroupId: string) => {
+    if (!draggedItem.id) return;
+    
+    const sourceId = draggedItem.id;
+    
+    setGroups(prevGroups => {
+      // 1. Retirer le groupe de sa position actuelle
+      const groupToMove = groups.find(group => group.id === sourceId);
+      if (!groupToMove) return prevGroups;
+      
+      const updatedSourceGroups = prevGroups.filter(group => group.id !== sourceId);
+      
+      // 2. Trouver le groupe cible et insérer le groupe déplacé
+      const targetIndex = updatedSourceGroups.findIndex(group => group.id === targetGroupId);
+      if (targetIndex === -1) return prevGroups;
+      
+      updatedSourceGroups.splice(targetIndex + 1, 0, groupToMove);
+      
+      saveToStorage(documents, updatedSourceGroups);
+      return updatedSourceGroups;
+    });
+  };
+
+  const toggleGroup = (groupId: string) => {
+    const updatedGroups = groups.map(group =>
+      group.id === groupId ? { ...group, expanded: !group.expanded } : group
+    );
+    setGroups(updatedGroups);
+    saveToStorage(documents, updatedGroups);
+  };
+
   return {
     documents,
     groups,
@@ -335,27 +298,26 @@ export const useBibliotheque = () => {
     isEditing,
     currentDocument,
     currentGroup,
-    setIsDialogOpen,
-    setIsGroupDialogOpen,
-    setIsEditing,
-    setCurrentDocument,
-    setCurrentGroup,
-    handleAddDocument,
-    handleUpdateDocument,
-    handleDeleteDocument,
-    handleAddGroup,
-    handleUpdateGroup,
-    handleDeleteGroup,
-    handleSyncDocuments,
-    // Ajouter ces méthodes pour la compatibilité avec Collaboration.tsx
-    handleEditDocument,
-    handleEditGroup,
-    handleToggleGroup,
-    syncWithServer,
     isSyncing,
     isOnline,
     lastSynced,
-    syncFailed,
-    currentUser
+    hasUnsyncedData,
+    setIsDialogOpen,
+    setIsGroupDialogOpen,
+    handleEditDocument,
+    handleDeleteDocument,
+    handleAddDocument,
+    handleDocumentInputChange,
+    handleSaveDocument,
+    handleEditGroup,
+    handleDeleteGroup,
+    handleAddGroup,
+    handleGroupInputChange,
+    handleSaveGroup,
+    handleDrop,
+    handleGroupDrop,
+    toggleGroup,
+    setDraggedItem,
+    syncWithServer
   };
 };

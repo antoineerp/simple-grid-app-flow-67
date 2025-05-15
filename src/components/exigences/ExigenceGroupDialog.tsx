@@ -17,7 +17,7 @@ interface ExigenceGroupDialogProps {
   group: ExigenceGroup | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSave: (group: ExigenceGroup, isEditing: boolean) => void;
+  onSave: (group: ExigenceGroup) => void;
   isEditing: boolean;
 }
 
@@ -45,7 +45,7 @@ export const ExigenceGroupDialog = ({
       expanded: group?.expanded || false,
       items: group?.items || []
     };
-    onSave(updatedGroup, isEditing);
+    onSave(updatedGroup);
     onOpenChange(false);
   };
 

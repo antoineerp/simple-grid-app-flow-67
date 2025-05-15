@@ -19,17 +19,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
 // Journaliser l'appel
 error_log("API users.php - Méthode: " . $_SERVER['REQUEST_METHOD'] . " - Requête: " . $_SERVER['REQUEST_URI']);
 
-// Fonction pour générer un ID court et unique
-function generateShortId() {
-    // Format: USR-XXXX où X est un caractère alphanumérique
-    $chars = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-    $id = 'USR-';
-    for ($i = 0; $i < 4; $i++) {
-        $id .= $chars[rand(0, strlen($chars) - 1)];
-    }
-    return $id;
-}
-
 // Configuration de la base de données
 $host = "p71x6d.myd.infomaniak.com";
 $dbname = "p71x6d_system";
@@ -126,10 +115,17 @@ try {
                 exit;
             }
             
-            // Remplacer la génération d'UUID par notre nouvelle fonction
+            // Generate UUID for ID if not provided or empty
             if (!isset($data['id']) || empty(trim($data['id']))) {
-                $data['id'] = generateShortId();
-                error_log("ID court généré: " . $data['id']);
+                $data['id'] = sprintf(
+                    '%04x%04x-%04x-%04x-%04x-%04x%04x%04x',
+                    mt_rand(0, 0xffff), mt_rand(0, 0xffff),
+                    mt_rand(0, 0xffff),
+                    mt_rand(0, 0x0fff) | 0x4000,
+                    mt_rand(0, 0x3fff) | 0x8000,
+                    mt_rand(0, 0xffff), mt_rand(0, 0xffff), mt_rand(0, 0xffff)
+                );
+                error_log("UUID généré pour l'ID: " . $data['id']);
             }
             
             // Générer un identifiant technique si non fourni
