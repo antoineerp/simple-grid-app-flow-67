@@ -1,95 +1,168 @@
 
 #!/bin/bash
-# Script de diagnostic spécifique pour l'hébergement Infomaniak
+# Script de diagnostic et correction pour les fichiers PHP sur Infomaniak
+# Exécuter via SSH: bash diagnose-infomaniak.sh
 
-echo "==========================================="
-echo "Diagnostic Infomaniak - $(date)"
-echo "==========================================="
+echo "==================================================="
+echo "Diagnostic PHP sur Infomaniak - $(date)"
+echo "==================================================="
 
-# Configuration de la connexion MySQL
-DB_HOST="p71x6d.myd.infomaniak.com"
-DB_NAME="p71x6d_richard"
-DB_USER="p71x6d_richard"
-DB_PASSWORD="Trottinette43!"
+# Vérifier l'emplacement
+CURRENT_PATH=$(pwd)
+echo "Chemin actuel: $CURRENT_PATH"
 
-# Vérifier si mysql est disponible
-if ! command -v mysql &> /dev/null; then
-    echo "ERROR: Client MySQL non disponible. Installation requise."
-    exit 1
-fi
+# Vérifier les fichiers PHP essentiels
+echo -e "\n--- Fichiers PHP essentiels ---"
+for file in index.php api/index.php api/config/env.php api/config/db_config.json; do
+  if [ -f "$file" ]; then
+    echo "✓ $file: EXISTE ($(stat -c %s "$file" 2>/dev/null || ls -l "$file" | awk '{print $5}') octets)"
+  else
+    echo "✗ $file: MANQUANT"
+  fi
+done
 
-# Créer un fichier temporaire pour le diagnostic SQL
-TEMP_SQL=$(mktemp)
-cat > $TEMP_SQL << 'EOF'
--- Vérifier les informations de la base de données
-SELECT 
-    VERSION() AS mysql_version,
-    DATABASE() AS current_database,
-    USER() AS current_user;
+# Vérifier la structure des dossiers API
+echo -e "\n--- Structure des dossiers API ---"
+for dir in api api/config api/controllers api/models api/utils; do
+  if [ -d "$dir" ]; then
+    echo "✓ $dir: EXISTE ($(ls -la "$dir" | wc -l) éléments)"
+  else
+    echo "✗ $dir: MANQUANT"
+    mkdir -p "$dir"
+    echo "  → Dossier $dir créé"
+  fi
+done
 
--- Vérifier les tables existantes
-SHOW TABLES;
-
--- Vérifier la structure de la table utilisateurs si elle existe
-SELECT COUNT(*) INTO @table_exists FROM information_schema.TABLES 
-WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'utilisateurs';
-
-SELECT IF(@table_exists > 0, 'La table utilisateurs existe', 'La table utilisateurs n\'existe pas') AS user_table_status;
-
--- Si la table utilisateurs existe, vérifier sa structure
-SELECT IF(@table_exists > 0, 
-    (SELECT GROUP_CONCAT(COLUMN_NAME) FROM information_schema.COLUMNS 
-     WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'utilisateurs'),
-    'Table non disponible') AS utilisateurs_columns;
-
--- Vérifier l'encodage de la base de données
-SELECT 
-    DEFAULT_CHARACTER_SET_NAME AS charset,
-    DEFAULT_COLLATION_NAME AS collation
-FROM 
-    information_schema.SCHEMATA 
-WHERE 
-    SCHEMA_NAME = DATABASE();
-EOF
-
-echo -e "\n== Test de connexion MySQL =="
-echo "Connexion à $DB_HOST avec l'utilisateur $DB_USER..."
-
-# Exécuter le diagnostic SQL et capturer la sortie
-MYSQL_RESULT=$(mysql -h "$DB_HOST" -u "$DB_USER" -p"$DB_PASSWORD" "$DB_NAME" < "$TEMP_SQL" 2>&1)
-MYSQL_STATUS=$?
-
-# Vérifier si la commande a réussi
-if [ $MYSQL_STATUS -eq 0 ]; then
-    echo "✓ Connexion MySQL réussie"
-    echo -e "\nRésultats du diagnostic SQL:"
-    echo "$MYSQL_RESULT" | sed 's/^/  /'
+# Tester le workflow de GitHub Actions
+echo -e "\n--- Configuration du déploiement GitHub ---"
+if [ -f ".github/workflows/deploy.yml" ]; then
+  echo "✓ Fichier workflow GitHub trouvé"
+  
+  # Vérifier si le workflow exclut les fichiers PHP
+  if grep -q "exclude:" ".github/workflows/deploy.yml" && grep -q "\*.php" ".github/workflows/deploy.yml"; then
+    echo "⚠️ ATTENTION: Le workflow semble exclure les fichiers PHP"
+    echo "  Voici les lignes concernées:"
+    grep -A 5 "exclude:" ".github/workflows/deploy.yml"
+  fi
 else
-    echo "✗ Échec de la connexion MySQL: $MYSQL_RESULT"
+  echo "✗ Fichier workflow GitHub non trouvé"
 fi
 
-# Supprimer le fichier temporaire
-rm -f "$TEMP_SQL"
-
-# Vérifier les problèmes de fichiers CSS
-echo -e "\n== Vérification des problèmes CSS =="
-# Obtenir le chemin du site
-SITE_PATH="/home/clients/df8dceff557ccc0605d45e1581aa661b/sites/qualiopi.ch"
-
-echo "Vérification des fichiers .htaccess pour les directives MIME..."
-if [ -f "$SITE_PATH/.htaccess" ]; then
-    echo "Contenu de .htaccess principal:"
-    grep -i "AddType\|ForceType\|content-type" "$SITE_PATH/.htaccess" || echo "  Aucune directive MIME trouvée"
+# Créer le fichier index.php si nécessaire
+if [ ! -f "index.php" ]; then
+  echo -e "\n--- Création du fichier index.php ---"
+  echo "<?php
+// Redirection vers index.html
+header('Location: index.html');
+exit;
+?>" > index.php
+  echo "✓ Fichier index.php créé"
+else
+  echo -e "\n--- Le fichier index.php existe déjà ---"
 fi
 
-if [ -f "$SITE_PATH/assets/.htaccess" ]; then
-    echo "Contenu de assets/.htaccess:"
-    grep -i "AddType\|ForceType\|content-type" "$SITE_PATH/assets/.htaccess" || echo "  Aucune directive MIME trouvée"
+# Créer un fichier env.php minimal si nécessaire
+if [ ! -f "api/config/env.php" ]; then
+  echo -e "\n--- Création du fichier env.php ---"
+  mkdir -p api/config
+  echo "<?php
+// Configuration des variables d'environnement pour Infomaniak
+define(\"DB_HOST\", \"p71x6d.myd.infomaniak.com\");
+define(\"DB_NAME\", \"p71x6d_richard\");
+define(\"DB_USER\", \"p71x6d_richard\");
+define(\"DB_PASS\", \"Trottinette43!\");
+define(\"API_BASE_URL\", \"/api\");
+define(\"APP_ENV\", \"production\");
+
+// Fonction d'aide pour récupérer les variables d'environnement
+function get_env(\$key, \$default = null) {
+    \$const_name = strtoupper(\$key);
+    if (defined(\$const_name)) {
+        return constant(\$const_name);
+    }
+    return \$default;
+}
+?>" > api/config/env.php
+  echo "✓ Fichier api/config/env.php créé"
+else
+  echo -e "\n--- Le fichier env.php existe déjà ---"
 fi
 
-echo -e "\nSolution pour les problèmes CSS:"
-echo "Créez ou modifiez le fichier assets/.htaccess avec:"
-echo "AddType text/css .css"
-echo "AddType application/javascript .js"
+# Créer un .htaccess pour l'API si nécessaire
+if [ ! -f "api/.htaccess" ]; then
+  echo -e "\n--- Création de api/.htaccess ---"
+  echo "# Configuration pour le dossier API
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    
+    # Traiter les fichiers PHP directement
+    RewriteCond %{REQUEST_FILENAME} -f
+    RewriteRule \.(php)$ - [L]
+    
+    # Rediriger les autres requêtes vers index.php
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteRule ^(.*)$ index.php [QSA,L]
+</IfModule>
 
-echo -e "\nDiagnostic terminé."
+# Configuration CORS
+<IfModule mod_headers.c>
+    Header set Access-Control-Allow-Origin \"*\"
+    Header set Access-Control-Allow-Methods \"GET, POST, OPTIONS, PUT, DELETE\"
+    Header set Access-Control-Allow-Headers \"Content-Type, Authorization, X-Requested-With\"
+</IfModule>
+
+# Configuration des types MIME
+AddType application/json .json
+AddType application/javascript .js
+AddType text/css .css" > api/.htaccess
+  echo "✓ Fichier api/.htaccess créé"
+else
+  echo -e "\n--- Le fichier api/.htaccess existe déjà ---"
+fi
+
+# Créer un fichier simple pour tester MySQL via SSH
+echo -e "\n--- Création d'un script de test MySQL ---"
+cat > test-mysql-ssh.sh << 'EOL'
+#!/bin/bash
+# Test de connexion MySQL via SSH
+DB_HOST="p71x6d.myd.infomaniak.com"
+DB_USER="p71x6d_richard"
+DB_PASS="Trottinette43!"
+DB_NAME="p71x6d_richard"
+
+echo "=== Test de connexion MySQL via SSH ==="
+echo "Tentative de connexion à $DB_HOST avec l'utilisateur $DB_USER..."
+
+# Utilisation de l'option -e pour exécuter une commande
+mysql -h "$DB_HOST" -u "$DB_USER" -p"$DB_PASS" "$DB_NAME" -e "SHOW TABLES;" 2> /dev/null
+
+if [ $? -eq 0 ]; then
+  echo "✅ Connexion MySQL réussie!"
+  echo "Tables disponibles:"
+  mysql -h "$DB_HOST" -u "$DB_USER" -p"$DB_PASS" "$DB_NAME" -e "SHOW TABLES;"
+else
+  echo "❌ Échec de la connexion MySQL."
+  echo "Vérifiez les paramètres de connexion et assurez-vous que votre adresse IP est autorisée."
+fi
+EOL
+
+chmod +x test-mysql-ssh.sh
+echo "✓ Script test-mysql-ssh.sh créé. Exécutez-le avec: bash test-mysql-ssh.sh"
+
+# Instructions finales
+echo -e "\n==================================================="
+echo "INSTRUCTIONS POUR RÉSOUDRE LES PROBLÈMES DE DÉPLOIEMENT:"
+echo "==================================================="
+echo "1. MODIFIEZ LE FICHIER DE WORKFLOW GITHUB:"
+echo "   - Assurez-vous que 'exclude:' NE CONTIENT PAS '*.php'"
+echo "   - Ajoutez une étape pour copier explicitement tous les fichiers PHP"
+echo ""
+echo "2. VÉRIFIEZ LA CONNEXION MYSQL:"
+echo "   - Exécutez: bash test-mysql-ssh.sh"
+echo ""
+echo "3. POUR UN DÉPLOIEMENT MANUEL SSH:"
+echo "   - Utilisez: scp -r api/* user@votre-serveur:/path/to/site/api/"
+echo ""
+echo "Les fichiers essentiels ont été créés ou vérifiés."
+echo "==================================================="
