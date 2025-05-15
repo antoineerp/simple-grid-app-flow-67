@@ -1,45 +1,40 @@
 
 /**
- * Interface pour le service de synchronisation
+ * Service principal de synchronisation
  */
-export interface SyncService {
-  syncTable: (tableName: string) => Promise<{ success: boolean; message?: string }>;
-  fetchData: <T>(tableName: string) => Promise<T[] | null>;
-  isSyncing: (tableName: string) => boolean;
-  markAsSynced: (tableName: string) => void;
-  registerSyncListener: (tableName: string, callback: () => void) => void;
-  unregisterSyncListener: (tableName: string, callback: () => void) => void;
+
+class SyncService {
+  private static instance: SyncService;
+  private isInitialized = false;
+  
+  private constructor() {
+    // Initialisation
+  }
+  
+  public static getInstance(): SyncService {
+    if (!SyncService.instance) {
+      SyncService.instance = new SyncService();
+    }
+    return SyncService.instance;
+  }
+  
+  public init(): void {
+    if (this.isInitialized) {
+      return;
+    }
+    
+    console.log("Initialisation du service de synchronisation");
+    this.isInitialized = true;
+  }
+  
+  public async syncTable(tableName: string, data?: any[]): Promise<{success: boolean}> {
+    console.log(`SyncService: Synchro de ${tableName} avec ${data?.length || 0} enregistrements`);
+    
+    // Simuler une synchronisation réussie
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    return { success: true };
+  }
 }
 
-/**
- * Instance du service de synchronisation
- */
-export const syncService: SyncService = {
-  syncTable: async (tableName: string) => {
-    // Implémentation simplifiée
-    console.log(`Synchronisation de la table: ${tableName}`);
-    return { success: true };
-  },
-  
-  fetchData: async <T>(tableName: string) => {
-    // Implémentation simplifiée
-    console.log(`Récupération des données de la table: ${tableName}`);
-    return [] as T[];
-  },
-  
-  isSyncing: (tableName: string) => {
-    return false;
-  },
-  
-  markAsSynced: (tableName: string) => {
-    console.log(`Table marquée comme synchronisée: ${tableName}`);
-  },
-  
-  registerSyncListener: (tableName: string, callback: () => void) => {
-    console.log(`Enregistrement d'un écouteur pour: ${tableName}`);
-  },
-  
-  unregisterSyncListener: (tableName: string, callback: () => void) => {
-    console.log(`Désenregistrement d'un écouteur pour: ${tableName}`);
-  }
-};
+export default SyncService.getInstance();

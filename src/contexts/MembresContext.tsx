@@ -1,18 +1,9 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-
-// Types pour les membres
-interface Membre {
-  id: string;
-  nom: string;
-  prenom: string;
-  email: string;
-  role?: string;
-  departement?: string;
-}
+import { Membre } from '@/types/membres';
 
 // Type pour le contexte
-interface MembresContextType {
+export interface MembresContextType {
   membres: Membre[];
   isLoading: boolean;
   error: string | null;
@@ -20,6 +11,9 @@ interface MembresContextType {
   updateMembre: (id: string, membre: Membre) => void;
   deleteMembre: (id: string) => void;
   refreshMembres: () => void;
+  syncMembres: () => Promise<boolean>;
+  lastSynced: Date | null;
+  syncFailed: boolean;
 }
 
 // Création du contexte
@@ -30,6 +24,8 @@ export const MembresProvider: React.FC<{children: ReactNode}> = ({ children }) =
   const [membres, setMembres] = useState<Membre[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  const [lastSynced, setLastSynced] = useState<Date | null>(null);
+  const [syncFailed, setSyncFailed] = useState<boolean>(false);
 
   // Charger les membres au montage du composant
   useEffect(() => {
@@ -43,11 +39,40 @@ export const MembresProvider: React.FC<{children: ReactNode}> = ({ children }) =
     
     try {
       // Simuler un appel API avec des données statiques pour l'instant
-      // Dans une implémentation réelle, remplacer par un appel API
-      const data = [
-        { id: "1", nom: "Dupont", prenom: "Jean", email: "jean.dupont@example.com", role: "Directeur", departement: "Direction" },
-        { id: "2", nom: "Martin", prenom: "Sophie", email: "sophie.martin@example.com", role: "Responsable RH", departement: "RH" },
-        { id: "3", nom: "Bernard", prenom: "Pierre", email: "pierre.bernard@example.com", role: "Formateur", departement: "Formation" },
+      const data: Membre[] = [
+        { 
+          id: "1", 
+          nom: "Dupont", 
+          prenom: "Jean", 
+          email: "jean.dupont@example.com", 
+          role: "Directeur", 
+          departement: "Direction",
+          fonction: "Directeur général",
+          initiales: "JD",
+          date_creation: new Date("2023-01-15")
+        },
+        { 
+          id: "2", 
+          nom: "Martin", 
+          prenom: "Sophie", 
+          email: "sophie.martin@example.com", 
+          role: "Responsable RH", 
+          departement: "RH",
+          fonction: "Responsable des ressources humaines",
+          initiales: "SM",
+          date_creation: new Date("2023-02-20")
+        },
+        { 
+          id: "3", 
+          nom: "Bernard", 
+          prenom: "Pierre", 
+          email: "pierre.bernard@example.com", 
+          role: "Formateur", 
+          departement: "Formation",
+          fonction: "Formateur principal",
+          initiales: "PB",
+          date_creation: new Date("2023-03-10")
+        },
       ];
       
       // Simuler un délai réseau
@@ -57,6 +82,26 @@ export const MembresProvider: React.FC<{children: ReactNode}> = ({ children }) =
     } catch (err) {
       console.error("Erreur lors du chargement des membres:", err);
       setError("Impossible de charger les membres");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Fonction pour synchroniser les membres
+  const syncMembres = async (): Promise<boolean> => {
+    setIsLoading(true);
+    setSyncFailed(false);
+    
+    try {
+      // Simuler une synchronisation avec le serveur
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      setLastSynced(new Date());
+      return true;
+    } catch (error) {
+      console.error("Erreur lors de la synchronisation des membres:", error);
+      setSyncFailed(true);
+      return false;
     } finally {
       setIsLoading(false);
     }
@@ -90,7 +135,10 @@ export const MembresProvider: React.FC<{children: ReactNode}> = ({ children }) =
         addMembre, 
         updateMembre, 
         deleteMembre, 
-        refreshMembres 
+        refreshMembres,
+        syncMembres,
+        lastSynced,
+        syncFailed
       }}
     >
       {children}
@@ -108,6 +156,3 @@ export const useMembres = () => {
   
   return context;
 };
-
-// Export par défaut au cas où
-export default { MembresProvider, useMembres };

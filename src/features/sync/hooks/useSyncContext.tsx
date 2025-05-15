@@ -1,282 +1,276 @@
 
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { useNetworkStatus } from '@/hooks/useNetworkStatus';
-import { syncService } from '@/services/sync';
-import { useToast } from '@/hooks/use-toast';
+import { createContext, useContext, useState, useEffect, ReactNode, useMemo } from 'react';
+import { toast } from '@/components/ui/use-toast';
+import { SyncMonitorStatus } from '../types/syncTypes';
 
-// Types pour la synchronisation
-export interface SyncOptions {
-  autoSync?: boolean;
-  syncInterval?: number;
-  retryOnFailure?: boolean;
-  maxRetries?: number;
+// Types pour le contexte de synchronisation
+export interface SyncContextType {
+  syncAll: () => Promise<Record<string, boolean>>;
+  forceProcessQueue: () => Promise<void>;
+  forceSync: (tableId: string) => Promise<boolean>;
+  registerSyncFunction: (key: string, syncFn: () => Promise<boolean>) => void;
+  unregisterSyncFunction: (key: string) => void;
+  getSyncState: (tableId?: string) => SyncState;
+  isInitialized: () => boolean;
+  isSyncEnabled: () => boolean;
+  isOnline: boolean;
+  syncStates: Record<string, TableSyncState>;
 }
 
 export interface SyncState {
   isSyncing: boolean;
-  lastSynced: string | null;
-  pendingOperations: number;
+  lastSynced: Date | null;
   error: string | null;
-  syncFailed?: boolean;
-  pendingSync?: boolean;
-  dataChanged?: boolean;
 }
 
-export interface SyncOperationResult {
-  success: boolean;
-  message?: string;
-  error?: string;
+export interface TableSyncState {
+  isSyncing: boolean;
+  lastSynced: Date | null;
+  syncFailed: boolean;
+  errorMessage?: string;
 }
 
-export enum SyncMonitorStatus {
-  IDLE = 'idle',
-  SYNCING = 'syncing',
-  SUCCESS = 'success',
-  ERROR = 'error'
-}
+// Contexte de synchronisation
+const SyncContext = createContext<SyncContextType | undefined>(undefined);
 
-export interface SyncContextType {
-  isSyncEnabled: boolean;
-  toggleSync: () => void;
-  syncState: Record<string, SyncState>;
-  syncTable: (tableName: string) => Promise<SyncOperationResult>;
-  registerTable: (tableName: string) => void;
-  unregisterTable: (tableName: string) => void;
-  getSyncState: (tableName: string) => SyncState | null;
-  resetSyncErrors: () => void;
-  isOnline: boolean;
-  performGlobalSync: () => Promise<boolean>;
-  lastGlobalSync: string | null;
-}
-
-// Valeur par défaut pour le contexte
-const defaultSyncContext: SyncContextType = {
-  isSyncEnabled: true,
-  toggleSync: () => {},
-  syncState: {},
-  syncTable: async () => ({ success: false }),
-  registerTable: () => {},
-  unregisterTable: () => {},
-  getSyncState: () => null,
-  resetSyncErrors: () => {},
+// État global pour la synchronisation
+const globalSyncState = {
   isOnline: true,
-  performGlobalSync: async () => false,
-  lastGlobalSync: null
+  isSyncEnabled: true,
+  initialized: false,
+  syncFunctions: new Map<string, () => Promise<boolean>>(),
+  tableSyncStates: {} as Record<string, TableSyncState>
 };
 
-// Créer le contexte
-const SyncContext = createContext<SyncContextType>(defaultSyncContext);
+// Provider de synchronisation
+export const SyncProvider: React.FC<{children: ReactNode}> = ({ children }) => {
+  const [isOnline, setIsOnline] = useState<boolean>(true);
+  const [syncStates, setSyncStates] = useState<Record<string, TableSyncState>>({});
 
-// Hook pour utiliser le contexte
-export const useSyncContext = () => useContext(SyncContext);
-
-// Provider pour le contexte
-export const SyncProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [isSyncEnabled, setIsSyncEnabled] = useState<boolean>(true);
-  const [syncState, setSyncState] = useState<Record<string, SyncState>>({});
-  const [lastGlobalSync, setLastGlobalSync] = useState<string | null>(null);
-  const isOnline = useNetworkStatus();
-  const { toast } = useToast();
-
-  // Fonction pour basculer la synchronisation
-  const toggleSync = useCallback(() => {
-    setIsSyncEnabled(prev => !prev);
+  // Détecter l'état de la connexion
+  useEffect(() => {
+    const handleOnline = () => {
+      setIsOnline(true);
+      // Déclencher un événement personnalisé lorsque la connectivité est restaurée
+      window.dispatchEvent(new CustomEvent('connectivity-restored'));
+    };
+    
+    const handleOffline = () => {
+      setIsOnline(false);
+    };
+    
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    
+    // Initialiser l'état
+    globalSyncState.initialized = true;
+    setIsOnline(navigator.onLine);
+    
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
   }, []);
 
-  // Fonction pour enregistrer une table
-  const registerTable = useCallback((tableName: string) => {
-    setSyncState(prev => {
-      if (prev[tableName]) {
-        return prev;
+  // Mettre à jour l'état global quand l'état local change
+  useEffect(() => {
+    globalSyncState.isOnline = isOnline;
+    globalSyncState.tableSyncStates = syncStates;
+  }, [isOnline, syncStates]);
+
+  // Enregistrer une fonction de synchronisation
+  const registerSyncFunction = (key: string, syncFn: () => Promise<boolean>) => {
+    globalSyncState.syncFunctions.set(key, syncFn);
+    
+    // Initialiser l'état de synchronisation si nécessaire
+    setSyncStates(prev => {
+      if (!prev[key]) {
+        return {
+          ...prev,
+          [key]: {
+            isSyncing: false,
+            lastSynced: null,
+            syncFailed: false
+          }
+        };
       }
-      
-      return {
-        ...prev,
-        [tableName]: {
-          isSyncing: false,
-          lastSynced: null,
-          pendingOperations: 0,
-          error: null,
-          syncFailed: false,
-          pendingSync: false,
-          dataChanged: false
-        }
-      };
+      return prev;
     });
-  }, []);
+    
+    console.log(`SyncContext: Fonction de synchronisation enregistrée: ${key}`);
+  };
 
-  // Fonction pour désinscrire une table
-  const unregisterTable = useCallback((tableName: string) => {
-    setSyncState(prev => {
-      const newState = { ...prev };
-      delete newState[tableName];
-      return newState;
-    });
-  }, []);
+  // Désenregistrer une fonction de synchronisation
+  const unregisterSyncFunction = (key: string) => {
+    globalSyncState.syncFunctions.delete(key);
+    console.log(`SyncContext: Fonction de synchronisation supprimée: ${key}`);
+  };
 
-  // Fonction pour synchroniser une table
-  const syncTable = useCallback(async (tableName: string): Promise<SyncOperationResult> => {
-    if (!isSyncEnabled || !isOnline) {
-      return { 
-        success: false, 
-        message: !isSyncEnabled 
-          ? "La synchronisation est désactivée" 
-          : "Aucune connexion réseau" 
-      };
+  // Synchroniser une table spécifique
+  const forceSync = async (tableId: string): Promise<boolean> => {
+    if (!globalSyncState.syncFunctions.has(tableId)) {
+      console.error(`SyncContext: Aucune fonction de synchronisation pour: ${tableId}`);
+      return false;
     }
-
-    // Vérifier si la table est enregistrée
-    if (!syncState[tableName]) {
-      registerTable(tableName);
-    }
-
-    // Mettre à jour l'état de la synchronisation
-    setSyncState(prev => ({
+    
+    // Mettre à jour l'état
+    setSyncStates(prev => ({
       ...prev,
-      [tableName]: {
-        ...prev[tableName],
+      [tableId]: {
+        ...(prev[tableId] || { lastSynced: null }),
         isSyncing: true,
-        error: null,
         syncFailed: false
       }
     }));
-
+    
     try {
-      // Effectuer la synchronisation
-      const result = await syncService.syncTable(tableName);
+      const syncFn = globalSyncState.syncFunctions.get(tableId)!;
+      const result = await syncFn();
       
-      // Mettre à jour l'état après la synchronisation
-      setSyncState(prev => ({
+      // Mettre à jour l'état
+      setSyncStates(prev => ({
         ...prev,
-        [tableName]: {
-          ...prev[tableName],
+        [tableId]: {
           isSyncing: false,
-          lastSynced: new Date().toISOString(),
-          pendingOperations: 0,
-          error: null,
-          syncFailed: false,
-          pendingSync: false,
-          dataChanged: true
+          lastSynced: new Date(),
+          syncFailed: !result,
+          errorMessage: result ? undefined : "Échec de la synchronisation"
         }
       }));
       
-      return { success: true };
+      return result;
     } catch (error) {
-      // Gérer les erreurs
-      const errorMessage = error instanceof Error ? error.message : "Erreur inconnue";
+      console.error(`SyncContext: Erreur lors de la synchronisation de ${tableId}:`, error);
       
-      setSyncState(prev => ({
+      // Mettre à jour l'état
+      setSyncStates(prev => ({
         ...prev,
-        [tableName]: {
-          ...prev[tableName],
+        [tableId]: {
           isSyncing: false,
-          error: errorMessage,
-          syncFailed: true
+          lastSynced: prev[tableId]?.lastSynced || null,
+          syncFailed: true,
+          errorMessage: error instanceof Error ? error.message : String(error)
         }
       }));
       
-      return { 
-        success: false, 
-        error: errorMessage 
-      };
-    }
-  }, [isSyncEnabled, isOnline, registerTable, syncState]);
-
-  // Fonction pour obtenir l'état de synchronisation d'une table
-  const getSyncState = useCallback((tableName: string): SyncState | null => {
-    return syncState[tableName] || null;
-  }, [syncState]);
-
-  // Fonction pour réinitialiser les erreurs de synchronisation
-  const resetSyncErrors = useCallback(() => {
-    setSyncState(prev => {
-      const newState = { ...prev };
-      
-      Object.keys(newState).forEach(tableName => {
-        newState[tableName] = {
-          ...newState[tableName],
-          error: null,
-          syncFailed: false
-        };
-      });
-      
-      return newState;
-    });
-  }, []);
-
-  // Fonction pour effectuer une synchronisation globale
-  const performGlobalSync = useCallback(async (): Promise<boolean> => {
-    if (!isSyncEnabled || !isOnline) {
-      toast({
-        title: "Synchronisation impossible",
-        description: !isSyncEnabled 
-          ? "La synchronisation est désactivée" 
-          : "Aucune connexion réseau",
-        variant: "destructive"
-      });
       return false;
     }
-
-    try {
-      // Synchroniser toutes les tables enregistrées
-      const tables = Object.keys(syncState);
-      let hasErrors = false;
-      
-      for (const tableName of tables) {
-        const result = await syncTable(tableName);
-        if (!result.success) {
-          hasErrors = true;
-        }
-      }
-      
-      // Mettre à jour la date de dernière synchronisation globale
-      setLastGlobalSync(new Date().toISOString());
-      
-      if (hasErrors) {
-        toast({
-          title: "Synchronisation partielle",
-          description: "Certaines tables n'ont pas pu être synchronisées",
-          variant: "warning"
-        });
-      } else {
-        toast({
-          title: "Synchronisation réussie",
-          description: "Toutes les données ont été synchronisées",
-        });
-      }
-      
-      return !hasErrors;
-    } catch (error) {
-      toast({
-        title: "Erreur de synchronisation",
-        description: "Une erreur est survenue lors de la synchronisation",
-        variant: "destructive"
-      });
-      
-      return false;
-    }
-  }, [isSyncEnabled, isOnline, syncState, syncTable, toast]);
-
-  // Valeur du contexte
-  const contextValue: SyncContextType = {
-    isSyncEnabled,
-    toggleSync,
-    syncState,
-    syncTable,
-    registerTable,
-    unregisterTable,
-    getSyncState,
-    resetSyncErrors,
-    isOnline,
-    performGlobalSync,
-    lastGlobalSync
   };
 
+  // Synchroniser toutes les tables
+  const syncAll = async (): Promise<Record<string, boolean>> => {
+    if (!isOnline) {
+      toast({
+        title: "Hors ligne",
+        description: "Impossible de synchroniser en mode hors ligne",
+        variant: "destructive"
+      });
+      return {};
+    }
+    
+    console.log("SyncContext: Début de la synchronisation globale...");
+    
+    const results: Record<string, boolean> = {};
+    const tables = Array.from(globalSyncState.syncFunctions.keys());
+    
+    for (const tableId of tables) {
+      results[tableId] = await forceSync(tableId);
+    }
+    
+    const allSuccess = Object.values(results).every(success => success);
+    
+    toast({
+      title: allSuccess ? "Synchronisation réussie" : "Synchronisation partiellement échouée",
+      description: allSuccess 
+        ? "Toutes les données ont été synchronisées avec succès"
+        : "Certaines tables n'ont pas pu être synchronisées",
+      variant: allSuccess ? "default" : "destructive"
+    });
+    
+    return results;
+  };
+
+  // Force le traitement de la file d'attente des opérations de synchronisation
+  const forceProcessQueue = async (): Promise<void> => {
+    console.log("SyncContext: Traitement forcé de la file d'attente de synchronisation");
+    // Dans cette implémentation simple, nous ne faisons rien de particulier
+  };
+
+  // Obtenir l'état de synchronisation
+  const getSyncState = (tableId?: string): SyncState => {
+    if (tableId) {
+      const tableState = syncStates[tableId];
+      
+      if (tableState) {
+        return {
+          isSyncing: tableState.isSyncing,
+          lastSynced: tableState.lastSynced,
+          error: tableState.syncFailed ? (tableState.errorMessage || "Erreur inconnue") : null
+        };
+      }
+    }
+    
+    // État global
+    return {
+      isSyncing: Object.values(syncStates).some(state => state.isSyncing),
+      lastSynced: getLatestSyncDate(syncStates),
+      error: Object.values(syncStates).some(state => state.syncFailed) ? "Une ou plusieurs synchronisations ont échoué" : null
+    };
+  };
+
+  // Vérifier si le contexte est initialisé
+  const isInitialized = (): boolean => {
+    return globalSyncState.initialized;
+  };
+
+  // Vérifier si la synchronisation est activée
+  const isSyncEnabled = (): boolean => {
+    return globalSyncState.isSyncEnabled;
+  };
+
+  // Valeur du contexte
+  const value = useMemo<SyncContextType>(() => ({
+    syncAll,
+    forceProcessQueue,
+    forceSync,
+    registerSyncFunction,
+    unregisterSyncFunction,
+    getSyncState,
+    isInitialized,
+    isSyncEnabled,
+    isOnline,
+    syncStates
+  }), [isOnline, syncStates]);
+
   return (
-    <SyncContext.Provider value={contextValue}>
+    <SyncContext.Provider value={value}>
       {children}
     </SyncContext.Provider>
   );
 };
 
-export default SyncContext;
+// Hook personnalisé pour utiliser le contexte de synchronisation
+export const useSyncContext = (): SyncContextType => {
+  const context = useContext(SyncContext);
+  
+  if (context === undefined) {
+    throw new Error('useSyncContext must be used within a SyncProvider');
+  }
+  
+  return context;
+};
+
+// Utilitaire pour obtenir la date de dernière synchronisation la plus récente
+const getLatestSyncDate = (syncStates: Record<string, TableSyncState>): Date | null => {
+  let latestDate: Date | null = null;
+  
+  Object.values(syncStates).forEach(state => {
+    if (state.lastSynced && (!latestDate || state.lastSynced > latestDate)) {
+      latestDate = state.lastSynced;
+    }
+  });
+  
+  return latestDate;
+};
+
+export default { SyncProvider, useSyncContext };

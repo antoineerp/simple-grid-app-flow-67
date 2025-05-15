@@ -3,15 +3,22 @@ export interface Membre {
   id: string;
   nom: string;
   prenom: string;
-  email?: string;
-  telephone?: string;
-  fonction: string;
-  organisation?: string;
-  notes?: string;
-  initiales: string;
-  date_creation: Date;
-  identifiant_technique?: string;
+  email: string;
   role?: string;
-  mot_de_passe?: string;
-  userId?: string; // Ajout de la propriété userId qui peut être optionnelle
+  departement?: string;
+  fonction?: string;
+  initiales?: string;
+  date_creation?: Date;
+  telephone?: string;
+  adresse?: string;
+  code_postal?: string;
+  ville?: string;
+  pays?: string;
+  actif?: boolean;
+}
+
+export interface MembresStats {
+  total: number;
+  parDepartement: { [departement: string]: number };
+  parRole: { [role: string]: number };
 }

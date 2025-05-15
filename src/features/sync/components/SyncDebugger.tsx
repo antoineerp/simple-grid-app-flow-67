@@ -11,7 +11,7 @@ const SyncDebugger: React.FC<SyncDebuggerProps> = ({ enabled = false }) => {
 
   return (
     <div className="fixed bottom-4 right-4 w-80 z-50 bg-background border shadow-md rounded-lg p-3">
-      <Alert variant="outline">
+      <Alert>
         <AlertTitle>Débogage de synchronisation</AlertTitle>
         <AlertDescription>
           Mode débogage actif. Les informations de synchronisation apparaîtront ici.

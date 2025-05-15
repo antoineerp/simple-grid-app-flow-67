@@ -7,7 +7,7 @@ import SyncDebugger from '@/features/sync/components/SyncDebugger';
 const enableDebugging = import.meta.env.DEV;
 
 const GlobalSyncManager: React.FC = () => {
-  const { syncAll, isOnline, forceProcessQueue } = useSyncContext();
+  const { syncAll, forceProcessQueue, isOnline } = useSyncContext();
   const [initialSyncDone, setInitialSyncDone] = useState(false);
   const mountedRef = useRef<boolean>(false);
   const initRef = useRef<boolean>(false);

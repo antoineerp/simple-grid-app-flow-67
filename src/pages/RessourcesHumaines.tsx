@@ -1,117 +1,159 @@
 
-import React, { useEffect } from 'react';
-import { Card } from "@/components/ui/card";
-import { MembresTable } from '@/components/ressources/MembresTable';
-import { useMembres } from '@/contexts/MembresContext';
+import React, { useState } from 'react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { RefreshCw, PlusCircle, Trash2, Users } from 'lucide-react';
+import { MembresProvider, useMembres } from '@/contexts/MembresContext';
+import MembresTable from '@/components/ressources/MembresTable';
 import MembresToolbar from '@/components/ressources/MembresToolbar';
-import { PageHeader } from '@/components/ui/page-header';
-import { Users } from 'lucide-react';
-import { useSyncContext } from '@/hooks/useSyncContext';
-import { useToast } from '@/hooks/use-toast';
-import { useNetworkStatus } from '@/hooks/useNetworkStatus';
+import { Membre } from '@/types/membres';
+import { toast } from '@/components/ui/use-toast';
+import { useNavigate } from 'react-router-dom';
 
-const RessourcesHumaines: React.FC = () => {
-  const { toast } = useToast();
-  const { membres, lastSynced, isLoading, error, refreshMembres, syncFailed } = useMembres();
-  const syncContext = useSyncContext();
-  const { isOnline } = useNetworkStatus();
+const RessourcesHumainesContent: React.FC = () => {
+  const navigate = useNavigate();
+  const { 
+    membres, 
+    isLoading, 
+    error, 
+    refreshMembres,
+    syncMembres,
+    lastSynced,
+    syncFailed
+  } = useMembres();
+  
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedDept, setSelectedDept] = useState<string | null>(null);
 
-  // Enregistrement de la fonction de synchronisation au montage du composant
-  useEffect(() => {
-    if (syncContext.isInitialized()) {
-      const syncMembresFunction = async () => {
-        console.log("RessourcesHumaines: Synchronisation des membres demandée");
-        try {
-          // Utiliser refreshMembres au lieu de syncMembres directement
-          await refreshMembres();
-          return true;
-        } catch (error) {
-          console.error("Erreur lors de la synchronisation des membres:", error);
-          return false;
-        }
-      };
-
-      // Enregistrer la fonction de synchronisation
-      syncContext.registerSyncFunction('membres', syncMembresFunction);
-      console.log("RessourcesHumaines: Fonction de synchronisation des membres enregistrée");
+  // Filtrer les membres
+  const filteredMembres = membres.filter(membre => {
+    // Filtre par recherche
+    const matchesSearch = !searchTerm || 
+      membre.nom?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      membre.prenom?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      membre.email?.toLowerCase().includes(searchTerm.toLowerCase());
       
-      // Synchronisation initiale si nécessaire
-      if (isOnline && (!lastSynced || syncFailed)) {
-        console.log("RessourcesHumaines: Synchronisation initiale des membres");
-        syncContext.syncAll().catch(error => {
-          console.error("Erreur lors de la synchronisation initiale:", error);
-        });
-      }
-    } else {
-      console.error("RessourcesHumaines: Le contexte de synchronisation n'est pas initialisé");
-    }
+    // Filtre par département
+    const matchesDept = !selectedDept || membre.departement === selectedDept;
     
-    // Nettoyage au démontage
-    return () => {
-      if (syncContext.isInitialized()) {
-        syncContext.unregisterSyncFunction('membres');
-        console.log("RessourcesHumaines: Fonction de synchronisation des membres désenregistrée");
-      }
-    };
-  }, [syncContext, refreshMembres, lastSynced, syncFailed, isOnline]);
+    return matchesSearch && matchesDept;
+  });
 
-  const handleSyncClick = async () => {
+  // Liste des départements uniques
+  const departments = [...new Set(membres.map(m => m.departement).filter(Boolean))];
+
+  // Gérer la synchronisation
+  const handleSync = async () => {
     try {
-      if (syncContext.isInitialized()) {
-        toast({ title: "Synchronisation", description: "Synchronisation en cours..." });
-        const success = await syncContext.syncAll();
-        if (success) {
-          toast({ 
-            title: "Synchronisation terminée", 
-            description: "Les données ont été synchronisées avec succès" 
-          });
-        } else {
-          toast({ 
-            title: "Synchronisation incomplète", 
-            description: "Certaines données n'ont pas pu être synchronisées", 
-            variant: "destructive" 
-          });
-        }
+      const success = await syncMembres();
+      if (success) {
+        toast({
+          title: "Synchronisation réussie",
+          description: "Les données des membres ont été synchronisées avec succès.",
+        });
       } else {
-        toast({ 
-          title: "Erreur", 
-          description: "Le système de synchronisation n'est pas disponible", 
-          variant: "destructive" 
+        toast({
+          variant: "destructive",
+          title: "Échec de la synchronisation",
+          description: "Une erreur s'est produite lors de la synchronisation des membres.",
         });
       }
     } catch (error) {
-      console.error("Erreur lors de la synchronisation:", error);
-      toast({ 
-        title: "Erreur de synchronisation", 
-        description: error instanceof Error ? error.message : "Erreur inconnue", 
-        variant: "destructive" 
+      toast({
+        variant: "destructive",
+        title: "Erreur",
+        description: "Une erreur inattendue s'est produite.",
       });
     }
   };
 
-  // Convertir l'erreur en string pour éviter l'erreur de type
-  const errorMessage = error ? (error instanceof Error ? error.message : String(error)) : null;
-
   return (
-    <div className="container mx-auto py-6 space-y-6">
-      <PageHeader
-        title="Gestion des Ressources Humaines"
-        description="Gérez les membres de votre équipe"
-        icon={<Users className="h-6 w-6" />}
-      />
+    <div className="container mx-auto p-4">
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-bold">Ressources Humaines</h1>
+        
+        <div className="flex space-x-2">
+          <Button variant="outline" size="sm" onClick={handleSync} disabled={isLoading}>
+            <RefreshCw className="w-4 h-4 mr-2" />
+            Synchroniser
+          </Button>
+          
+          <Button variant="default" size="sm" onClick={() => navigate('/rh/nouveau-membre')}>
+            <PlusCircle className="w-4 h-4 mr-2" />
+            Nouveau membre
+          </Button>
+        </div>
+      </div>
       
-      <MembresToolbar 
-        onSync={handleSyncClick} 
-        lastSynced={lastSynced} 
-        isLoading={isLoading} 
-        error={errorMessage}
-      />
-      
-      <Card>
-        <MembresTable membres={membres} isLoading={isLoading} />
+      {/* Carte d'information */}
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle className="flex items-center">
+            <Users className="mr-2" />
+            Membres de l'équipe
+          </CardTitle>
+          <CardDescription>
+            {membres.length} membres au total
+            {lastSynced && (
+              <span className="text-xs block text-muted-foreground">
+                Dernière synchronisation: {lastSynced.toLocaleString()} 
+                {syncFailed && <span className="text-red-500"> (Échec)</span>}
+              </span>
+            )}
+          </CardDescription>
+        </CardHeader>
+        
+        <CardContent>
+          {/* Barre d'outils pour la recherche et le filtrage */}
+          <MembresToolbar
+            searchTerm={searchTerm}
+            onSearchChange={setSearchTerm}
+            departments={departments}
+            selectedDepartment={selectedDept}
+            onDepartmentChange={setSelectedDept}
+          />
+        </CardContent>
+        
+        <CardContent>
+          {error ? (
+            <div className="text-red-500 p-4 bg-red-50 rounded-md">
+              Erreur: {error}
+            </div>
+          ) : (
+            <MembresTable
+              membres={filteredMembres}
+              isLoading={isLoading}
+              onDelete={(membre) => {
+                // Logique de suppression
+                toast({
+                  title: "Membre supprimé",
+                  description: `${membre.prenom} ${membre.nom} a été supprimé.`,
+                });
+              }}
+            />
+          )}
+        </CardContent>
+        
+        <CardFooter className="flex justify-between">
+          <Button variant="outline" size="sm" onClick={refreshMembres}>
+            Rafraîchir les données
+          </Button>
+          
+          <Button variant="ghost" size="sm">
+            <Trash2 className="w-4 h-4 mr-2" />
+            Supprimer la sélection
+          </Button>
+        </CardFooter>
       </Card>
     </div>
   );
 };
+
+// Composant principal avec le provider
+const RessourcesHumaines: React.FC = () => (
+  <MembresProvider>
+    <RessourcesHumainesContent />
+  </MembresProvider>
+);
 
 export default RessourcesHumaines;

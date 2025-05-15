@@ -1,8 +1,24 @@
 
-/**
- * Types pour la bibliothèque de documents
- */
+// Types pour la bibliothèque de documents
+export interface Document {
+  id: string;
+  name: string;
+  link?: string;
+  groupId?: string;
+  userId: string;
+  date_creation?: Date;
+  date_modification?: Date;
+}
 
+export interface DocumentGroup {
+  id: string;
+  name: string;
+  expanded: boolean;
+  items: Document[];
+  userId: string;
+}
+
+// Types pour la bibliothèque
 export interface BibliothequeDocument {
   id: string;
   titre: string;
