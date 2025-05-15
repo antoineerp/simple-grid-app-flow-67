@@ -1,63 +1,43 @@
 
 /**
- * Options pour la synchronisation
+ * Types pour le système de synchronisation
  */
-export interface SyncOptions {
-  autoSync?: boolean;
-  syncInterval?: number;
-  retryOnFailure?: boolean;
-  maxRetries?: number;
-}
 
-/**
- * État de synchronisation d'une table
- */
-export interface SyncState {
-  isSyncing: boolean;
-  lastSynced: string | null;
-  pendingOperations: number;
-  error: string | null;
-  syncFailed?: boolean;
-  pendingSync?: boolean;
-  dataChanged?: boolean;
-}
-
-/**
- * Résultat d'une opération de synchronisation
- */
-export interface SyncOperationResult {
-  success: boolean;
-  message?: string;
-  error?: string;
-}
-
-/**
- * Statut du moniteur de synchronisation
- */
 export enum SyncMonitorStatus {
   IDLE = 'idle',
   SYNCING = 'syncing',
   SUCCESS = 'success',
-  ERROR = 'error'
+  ERROR = 'error',
+  OFFLINE = 'offline'
 }
 
-/**
- * Type d'opération de synchronisation
- */
-export enum SyncOperationType {
-  CREATE = 'create',
-  UPDATE = 'update',
-  DELETE = 'delete',
-  SYNC = 'sync'
+export interface SyncOperationResult {
+  success: boolean;
+  timestamp?: Date;
+  message?: string;
+  data?: any;
 }
 
-/**
- * Configuration d'une table pour la synchronisation
- */
-export interface SyncTableConfig {
-  tableName: string;
-  endpoint: string;
-  primaryKey: string;
-  trackChanges?: boolean;
-  autoSync?: boolean;
+export interface SyncOptions {
+  forceSync?: boolean;
+  silentMode?: boolean;
+  priority?: 'high' | 'normal' | 'low';
+  timeout?: number;
+}
+
+export interface SyncState {
+  isSyncing: boolean;
+  lastSynced: Date | null;
+  error: string | null;
+}
+
+export interface SyncContextType {
+  registerSyncFunction: (key: string, syncFn: () => Promise<boolean>) => void;
+  unregisterSyncFunction: (key: string) => void;
+  syncAll: () => Promise<boolean>;
+  getSyncState: () => SyncState;
+  isInitialized: () => boolean;
+  isSyncEnabled: () => boolean;
+  forceProcessQueue: () => Promise<void>;
+  isOnline: boolean;
 }

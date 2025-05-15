@@ -1,6 +1,6 @@
 
 /**
- * Interface simple de synchronisation sans dépendances externes
+ * Interface de synchronisation complète
  */
 
 interface SyncState {
@@ -15,7 +15,8 @@ const globalSyncState = {
   lastSynced: null,
   error: null,
   syncFunctions: new Map<string, () => Promise<boolean>>(),
-  initialized: false
+  initialized: false,
+  isSyncEnabled: true // Ajout de l'option pour activer/désactiver la synchronisation
 };
 
 export const useSyncContext = () => {
@@ -77,6 +78,13 @@ export const useSyncContext = () => {
     }
   };
 
+  // Force le traitement de la file d'attente des opérations de synchronisation
+  const forceProcessQueue = async (): Promise<void> => {
+    console.log("SyncContext: Traitement forcé de la file d'attente de synchronisation");
+    // Dans cette implémentation simple, nous ne faisons rien de particulier
+    // Cette fonction pourrait être implémentée pour traiter une file d'attente d'opérations
+  };
+
   // Obtenir l'état actuel de la synchronisation
   const getSyncState = (): SyncState => {
     return {
@@ -91,12 +99,23 @@ export const useSyncContext = () => {
     return globalSyncState.initialized;
   };
 
+  // Vérifier si la synchronisation est activée
+  const isSyncEnabled = (): boolean => {
+    return globalSyncState.isSyncEnabled;
+  };
+
+  // État de la connexion (en ligne / hors ligne)
+  const isOnline = true; // Simplification - dans un cas réel, utilisez navigator.onLine ou une détection plus robuste
+
   return {
     registerSyncFunction,
     unregisterSyncFunction,
     syncAll,
     getSyncState,
-    isInitialized
+    isInitialized,
+    isSyncEnabled,
+    forceProcessQueue,
+    isOnline
   };
 };
 

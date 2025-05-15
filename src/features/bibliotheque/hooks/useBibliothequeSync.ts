@@ -3,7 +3,6 @@ import { useState, useEffect, useCallback } from 'react';
 import { useSyncContext } from '@/hooks/useSyncContext';
 import { syncService } from '@/services/sync';
 import { useToast } from '@/hooks/use-toast';
-import { MembresProvider } from '@/contexts/MembresContext';
 
 // Types pour les documents et groupes de la bibliothèque
 interface BibliothequeDocument {
@@ -32,7 +31,7 @@ export const useBibliothequeSync = () => {
   
   // Récupérer le contexte de synchronisation
   const syncContext = useSyncContext();
-  const isSyncEnabled = syncContext?.isSyncEnabled || false;
+  const isSyncEnabled = syncContext?.isSyncEnabled();
 
   // Fonction pour charger les données
   const fetchData = useCallback(async () => {

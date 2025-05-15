@@ -3,8 +3,13 @@
  * Main export file for sync functionality
  */
 
-// Export types
-export * from './types/syncTypes';
+// Export types (sans ambiguïté)
+export { 
+  SyncMonitorStatus,
+  SyncOperationResult,
+  SyncOptions, 
+  SyncState 
+} from './types/syncTypes';
 
 // Export hooks
 export * from './hooks/useSyncContext';

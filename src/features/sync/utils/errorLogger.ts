@@ -1,55 +1,29 @@
 
 /**
- * Utility for error logging and management
+ * Utilitaire de journalisation des erreurs de synchronisation
  */
 
-// Correctly type errorLogs in the global Window interface
-declare global {
-  interface Window {
-    errorLogs?: string[]; // Make it optional with ? modifier
-  }
-}
+let isInitialized = false;
 
-// Initialize error logs on the window object
-export const initializeErrorLogging = (): void => {
-  if (typeof window !== 'undefined') {
-    // Create an array for error logs if it doesn't already exist
-    if (!window.errorLogs) {
-      window.errorLogs = [];
-    }
-    
-    // Override console.error to capture authentication errors
-    const originalError = console.error;
-    console.error = function() {
-      // Store the error in our log
-      if (window.errorLogs) {
-        window.errorLogs.unshift(Array.from(arguments).join(' '));
-        // Trim the log to prevent memory issues
-        if (window.errorLogs.length > 100) {
-          window.errorLogs = window.errorLogs.slice(0, 100);
-        }
-      }
-      // Call the original console.error
-      return originalError.apply(console, arguments);
-    };
-  }
-};
-
-// Check if there's an authentication error in recent logs
-export const hasAuthenticationError = (): boolean => {
-  if (typeof window === 'undefined' || !window.errorLogs) return false;
+export const initializeErrorLogging = () => {
+  if (isInitialized) return;
   
-  return window.errorLogs.some(log => 
-    typeof log === 'string' && 
-    (log.includes('authentifi') || 
-     log.includes('auth') || 
-     log.includes('token') || 
-     log.includes('permission'))
-  );
+  console.log("Initialisation du système de journalisation des erreurs de synchronisation");
+  
+  // Écouter les événements non gérés pour les journaliser
+  window.addEventListener('unhandledrejection', (event) => {
+    console.error("Erreur non gérée dans une promesse de synchronisation:", event.reason);
+  });
+  
+  isInitialized = true;
 };
 
-// Get all recent errors
-export const getRecentErrors = (): string[] => {
-  if (typeof window === 'undefined') return [];
-  return window.errorLogs || [];
+export const logSyncError = (component: string, error: unknown) => {
+  const errorMessage = error instanceof Error ? error.message : String(error);
+  console.error(`[SYNC ERROR] ${component}: ${errorMessage}`);
+  
+  // Dans un environnement de production, vous pourriez envoyer ces erreurs à un service de surveillance
+  if (import.meta.env.PROD) {
+    // Exemple: sendToMonitoringService('sync-error', { component, error: errorMessage });
+  }
 };
