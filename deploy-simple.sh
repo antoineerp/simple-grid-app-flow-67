@@ -15,6 +15,7 @@ mkdir -p deploy/api/models
 mkdir -p deploy/api/middleware
 mkdir -p deploy/api/operations
 mkdir -p deploy/api/utils
+mkdir -p deploy/api/documentation
 mkdir -p deploy/public/lovable-uploads
 mkdir -p deploy/.github/workflows
 
@@ -149,6 +150,16 @@ else
   echo "ERREUR: Dossier API non trouvé!"
 fi
 
+# Créer un fichier README dans le dossier documentation
+echo "Création du fichier README dans api/documentation..."
+mkdir -p deploy/api/documentation
+cat > deploy/api/documentation/README.md <<'EOL'
+# Documentation API
+
+Ce dossier contient la documentation de l'API.
+EOL
+echo "✅ Fichier README.md créé dans api/documentation"
+
 # Copie des uploads
 if [ -d "public/lovable-uploads" ]; then
   echo "Copie des uploads..."
@@ -201,3 +212,4 @@ fi
 echo ""
 echo "=== Structure du déploiement ==="
 find deploy -type f | sort
+
