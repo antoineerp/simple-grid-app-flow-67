@@ -44,21 +44,10 @@ AddType image/svg+xml .svg
 RewriteCond %{REQUEST_URI} ^/lovable-uploads/
 RewriteRule ^lovable-uploads/(.*)$ public/lovable-uploads/$1 [L]
 
-# Règle spécifique pour rediriger /api vers le dossier api/index.php
-RewriteCond %{REQUEST_URI} ^/api$
-RewriteRule ^api$ api/index.php [L]
+# ATTENTION: Correction des règles qui causaient une boucle infinie
 
-# Règle pour traiter les requêtes d'API avec des sous-chemins directs
-RewriteCond %{REQUEST_URI} ^/api/([^/]+)\.php$
-RewriteRule ^api/([^/]+)\.php$ api/$1.php [QSA,L]
-
-# Règle pour traiter les requêtes d'API avec des sous-chemins
-RewriteCond %{REQUEST_URI} ^/api/([^/]+)$
-RewriteRule ^api/([^/]+)$ api/$1.php [QSA,L]
-
-# Règle pour autres requêtes API
-RewriteCond %{REQUEST_URI} ^/api/(.*)$
-RewriteRule ^api/(.*)$ api/$1 [QSA,L]
+# Règle spécifique pour l'API - NE PAS rediriger vers index.php
+RewriteRule ^api(/.*)?$ - [L]
 
 # Permettre l'accès direct aux assets dans leur dossier
 RewriteCond %{REQUEST_URI} ^/assets/
@@ -73,7 +62,7 @@ RewriteRule ^ - [L]
 # Rediriger toutes les autres requêtes vers index.html pour React Router
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
-RewriteCond %{REQUEST_URI} !^/api/
+RewriteCond %{REQUEST_URI} !^/api(/.*)?$
 RewriteRule ^(.*)$ index.html [QSA,L]
 
 # Configuration de sécurité et CORS
