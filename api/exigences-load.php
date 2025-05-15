@@ -3,29 +3,23 @@
 // Force output buffering to prevent output before headers
 ob_start();
 
-// Fichier pour charger les données des exigences depuis le serveur
-header("Content-Type: application/json; charset=UTF-8");
-header("Access-Control-Allow-Origin: *");
-header("Access-Control-Allow-Methods: GET, OPTIONS");
-header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With");
-header("Cache-Control: no-cache, no-store, must-revalidate");
+// Initialiser la gestion de synchronisation
+require_once 'services/DataSyncService.php';
+require_once 'services/RequestHandler.php';
 
-// Journalisation
-error_log("=== DEBUT DE L'EXÉCUTION DE exigences-load.php ===");
-error_log("Méthode: " . $_SERVER['REQUEST_METHOD'] . " - URI: " . $_SERVER['REQUEST_URI']);
+// Créer le service de synchronisation
+$service = new DataSyncService('exigences');
 
-// Gestion des requêtes OPTIONS (preflight)
-if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
-    http_response_code(200);
-    echo json_encode(['status' => 'success', 'message' => 'Preflight OK']);
+// Définir les en-têtes standard
+RequestHandler::setStandardHeaders("GET, OPTIONS");
+RequestHandler::handleOptionsRequest();
+
+// Vérifier la méthode
+if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
+    http_response_code(405);
+    echo json_encode(['success' => false, 'message' => 'Méthode non autorisée. Utilisez GET.']);
     exit;
 }
-
-// Configuration de la base de données
-$host = "p71x6d.myd.infomaniak.com";
-$dbname = "p71x6d_richard";
-$username = "p71x6d_richard";
-$password = "Trottinette43!";
 
 try {
     // Nettoyer le buffer
@@ -35,58 +29,70 @@ try {
     $userId = "";
     
     if (isset($_GET['userId']) && !empty($_GET['userId'])) {
-        $userId = $_GET['userId'];
-        // Vérifier si c'est un objet JSON sérialisé
-        if (strpos($userId, '[object Object]') !== false || $userId === '[object Object]') {
-            error_log("UserId invalide (object détecté): {$userId}");
-            $userId = 'p71x6d_system';  // Utiliser une valeur par défaut
-            error_log("Utilisation de l'ID par défaut: {$userId}");
-        }
+        $userId = RequestHandler::sanitizeUserId($_GET['userId']);
     } else {
         error_log("UserId manquant dans la requête");
-        $userId = 'p71x6d_system';  // Utiliser une valeur par défaut
-        error_log("Utilisation de l'ID par défaut: {$userId}");
+        throw new Exception("UserId manquant");
     }
     
-    error_log("Chargement des exigences pour l'utilisateur: {$userId}");
+    // Récupérer l'ID de l'appareil s'il est fourni
+    $deviceId = isset($_GET['deviceId']) ? $_GET['deviceId'] : 'unknown';
     
-    // S'assurer que userId est une chaîne valide pour les noms de table
-    $safeUserId = preg_replace('/[^a-zA-Z0-9_]/', '_', $userId);
-    error_log("ID utilisateur normalisé pour les tables: {$safeUserId}");
+    error_log("Chargement des exigences pour l'utilisateur: {$userId} depuis l'appareil: {$deviceId}");
     
     // Connexion à la base de données
-    try {
-        $pdo = new PDO("mysql:host={$host};dbname={$dbname};charset=utf8mb4", $username, $password, [
-            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-            PDO::ATTR_EMULATE_PREPARES => false,
-        ]);
-        error_log("Connexion à la base de données réussie");
-    } catch (PDOException $pdoError) {
-        error_log("Erreur de connexion à la base de données: " . $pdoError->getMessage());
-        throw new Exception("Erreur de connexion à la base de données: " . $pdoError->getMessage());
+    if (!$service->connectToDatabase()) {
+        throw new Exception("Impossible de se connecter à la base de données");
     }
     
     // Nom des tables spécifiques à l'utilisateur
-    $exigencesTableName = "exigences_" . $safeUserId;
-    $groupsTableName = "exigence_groups_" . $safeUserId;
+    $exigencesTableName = "exigences_" . preg_replace('/[^a-zA-Z0-9_]/', '_', $userId);
+    $groupsTableName = "exigence_groups_" . preg_replace('/[^a-zA-Z0-9_]/', '_', $userId);
     error_log("Tables à consulter: {$exigencesTableName}, {$groupsTableName}");
+    
+    // Obtenir une référence PDO
+    $pdo = $service->getPdo();
     
     // Vérifier si les tables existent
     $exigencesTableExists = false;
     $groupsTableExists = false;
     
-    // CORRECTION: Utiliser information_schema pour vérifier l'existence des tables, plutôt que SHOW TABLES LIKE
+    // Utiliser information_schema pour vérifier l'existence des tables
+    $dbName = $pdo->query("SELECT DATABASE()")->fetchColumn();
     $tableExistsQuery = "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = ? AND table_name = ?";
     $stmt = $pdo->prepare($tableExistsQuery);
     
     // Vérifier la table des exigences
-    $stmt->execute([$dbname, $exigencesTableName]);
+    $stmt->execute([$dbName, $exigencesTableName]);
     $exigencesTableExists = (int)$stmt->fetchColumn() > 0;
     
     // Vérifier la table des groupes
-    $stmt->execute([$dbname, $groupsTableName]);
+    $stmt->execute([$dbName, $groupsTableName]);
     $groupsTableExists = (int)$stmt->fetchColumn() > 0;
+    
+    // Enregistrer cette requête de chargement
+    try {
+        // Créer la table d'historique si elle n'existe pas
+        $pdo->exec("CREATE TABLE IF NOT EXISTS `sync_history` (
+            `id` INT AUTO_INCREMENT PRIMARY KEY,
+            `table_name` VARCHAR(100) NOT NULL,
+            `user_id` VARCHAR(50) NOT NULL,
+            `device_id` VARCHAR(100) NOT NULL,
+            `record_count` INT NOT NULL,
+            `operation` VARCHAR(50) DEFAULT 'sync',
+            `sync_timestamp` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            INDEX `idx_user_device` (`user_id`, `device_id`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+        
+        // Insérer l'enregistrement de chargement
+        $stmt = $pdo->prepare("INSERT INTO `sync_history` 
+                              (table_name, user_id, device_id, record_count, operation, sync_timestamp) 
+                              VALUES (?, ?, ?, 0, 'load', NOW())");
+        $stmt->execute(['exigences', $userId, $deviceId]);
+    } catch (Exception $e) {
+        // Continuer même si l'enregistrement échoue
+        error_log("Erreur lors de l'enregistrement de l'historique de chargement: " . $e->getMessage());
+    }
     
     // Initialiser les résultats
     $exigences = [];
@@ -94,10 +100,11 @@ try {
     
     // Récupérer les exigences si la table existe
     if ($exigencesTableExists) {
-        $query = "SELECT * FROM `{$exigencesTableName}` ORDER BY id";
+        $query = "SELECT * FROM `{$exigencesTableName}` WHERE userId = ? ORDER BY id";
         error_log("Exécution de la requête: {$query}");
-        $stmt = $pdo->query($query);
-        $exigences = $stmt->fetchAll();
+        $stmt = $pdo->prepare($query);
+        $stmt->execute([$userId]);
+        $exigences = $stmt->fetchAll(PDO::FETCH_ASSOC);
         
         // Formater les données pour le client
         foreach ($exigences as &$exigence) {
@@ -125,6 +132,11 @@ try {
             if (isset($exigence['exclusion'])) {
                 $exigence['exclusion'] = (bool)$exigence['exclusion'];
             }
+            
+            // S'assurer que chaque exigence a un userId
+            if (!isset($exigence['userId'])) {
+                $exigence['userId'] = $userId;
+            }
         }
     } else {
         // Créer la table si elle n'existe pas
@@ -136,7 +148,9 @@ try {
             `atteinte` ENUM('NC', 'PC', 'C') NULL,
             `date_creation` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
             `date_modification` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-            `groupId` VARCHAR(36) NULL
+            `groupId` VARCHAR(36) NULL,
+            `userId` VARCHAR(50) NOT NULL,
+            `last_sync_device` VARCHAR(100) NULL
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci";
         
         $pdo->exec($createExigencesTable);
@@ -145,10 +159,11 @@ try {
     
     // Récupérer les groupes si la table existe
     if ($groupsTableExists) {
-        $query = "SELECT * FROM `{$groupsTableName}` ORDER BY id";
+        $query = "SELECT * FROM `{$groupsTableName}` WHERE userId = ? ORDER BY id";
         error_log("Exécution de la requête: {$query}");
-        $stmt = $pdo->query($query);
-        $groups = $stmt->fetchAll();
+        $stmt = $pdo->prepare($query);
+        $stmt->execute([$userId]);
+        $groups = $stmt->fetchAll(PDO::FETCH_ASSOC);
         
         // Formater les données pour le client
         foreach ($groups as &$group) {
@@ -156,13 +171,22 @@ try {
             if (isset($group['expanded'])) {
                 $group['expanded'] = (bool)$group['expanded'];
             }
+            
+            // S'assurer que chaque groupe a un userId
+            if (!isset($group['userId'])) {
+                $group['userId'] = $userId;
+            }
         }
     } else {
         // Créer la table si elle n'existe pas
         $createGroupsTable = "CREATE TABLE IF NOT EXISTS `{$groupsTableName}` (
             `id` VARCHAR(36) NOT NULL PRIMARY KEY,
             `name` VARCHAR(255) NOT NULL,
-            `expanded` TINYINT(1) DEFAULT 1
+            `expanded` TINYINT(1) DEFAULT 1,
+            `userId` VARCHAR(50) NOT NULL,
+            `last_sync_device` VARCHAR(100) NULL,
+            `date_creation` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            `date_modification` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci";
         
         $pdo->exec($createGroupsTable);
@@ -177,7 +201,9 @@ try {
         'count' => [
             'exigences' => count($exigences),
             'groups' => count($groups)
-        ]
+        ],
+        'timestamp' => date('c'),
+        'deviceId' => $deviceId
     ]);
     
 } catch (PDOException $e) {
@@ -195,6 +221,10 @@ try {
         'message' => $e->getMessage()
     ]);
 } finally {
+    if (isset($service)) {
+        $service->finalize();
+    }
+    
     error_log("=== FIN DE L'EXÉCUTION DE exigences-load.php ===");
     if (ob_get_level()) ob_end_flush();
 }

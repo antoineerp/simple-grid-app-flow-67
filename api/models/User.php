@@ -225,8 +225,12 @@ class User extends BaseModel {
             $managerIdentifiant = $manager['identifiant_technique'];
             error_log("Gestionnaire trouvé: $managerIdentifiant");
             
-            $this->copyUserData('documents', $managerIdentifiant, $userId);
-            $this->copyUserData('exigences', $managerIdentifiant, $userId);
+            // Créer ou mettre à jour les tables pour le nouvel utilisateur
+            $this->createUserTables($userId);
+            
+            // Copier les données du gestionnaire vers le nouvel utilisateur
+            $this->copyDataFromManagerToUser($managerIdentifiant, $userId);
+            
             return true;
         } catch (Exception $e) {
             error_log("Erreur lors de l'initialisation des données utilisateur: " . $e->getMessage());
@@ -234,18 +238,110 @@ class User extends BaseModel {
         }
     }
 
-    private function copyUserData($dataType, $sourceUserId, $targetUserId) {
-        error_log("Copie des données $dataType de $sourceUserId vers $targetUserId");
-        // Implémentation simulée - à adapter selon votre structure de données
+    private function createUserTables($userId) {
         try {
-            // Vérifiez si la table existe, sinon la créer
-            $tableName = $dataType . '_' . str_replace('-', '_', $targetUserId);
-            error_log("Préparation de la table: $tableName");
+            // Appel à db-update.php pour créer les tables utilisateur
+            $apiUrl = '/api/db-update.php?userId=' . urlencode($userId);
             
-            // Simule une copie de données
+            // Utiliser cURL pour l'appel interne
+            $ch = curl_init('http://localhost' . $apiUrl);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            $response = curl_exec($ch);
+            curl_close($ch);
+            
+            error_log("Résultat de la création des tables: " . $response);
             return true;
         } catch (Exception $e) {
-            error_log("Erreur lors de la copie des données $dataType: " . $e->getMessage());
+            error_log("Erreur lors de la création des tables utilisateur: " . $e->getMessage());
+            return false;
+        }
+    }
+
+    private function copyDataFromManagerToUser($managerIdentifiant, $userId) {
+        error_log("Copie des données de $managerIdentifiant vers $userId");
+        
+        try {
+            // Tableaux à copier entre utilisateurs
+            $tablesToCopy = ['bibliotheque', 'exigences', 'membres', 'documents', 'pilotage'];
+            
+            foreach ($tablesToCopy as $baseTableName) {
+                // Noms des tables source et destination
+                $sourceTable = "{$baseTableName}_{$managerIdentifiant}";
+                $destTable = "{$baseTableName}_{$userId}";
+                
+                // Vérifier si la table source existe
+                $checkSourceQuery = "SELECT COUNT(*) FROM information_schema.tables 
+                                     WHERE table_schema = DATABASE() 
+                                     AND table_name = :tableName";
+                $stmt = $this->conn->prepare($checkSourceQuery);
+                $stmt->bindParam(':tableName', $sourceTable);
+                $stmt->execute();
+                
+                if ($stmt->fetchColumn() == 0) {
+                    error_log("Table source {$sourceTable} n'existe pas, aucune copie effectuée");
+                    continue;
+                }
+                
+                // Vérifier si la table destination existe
+                $stmt->bindParam(':tableName', $destTable);
+                $stmt->execute();
+                
+                if ($stmt->fetchColumn() == 0) {
+                    error_log("Table destination {$destTable} n'existe pas, création requise");
+                    continue;
+                }
+                
+                // Récupérer les données de la table source
+                $selectQuery = "SELECT * FROM `{$sourceTable}`";
+                $selectStmt = $this->conn->prepare($selectQuery);
+                $selectStmt->execute();
+                $rows = $selectStmt->fetchAll(PDO::FETCH_ASSOC);
+                
+                if (count($rows) > 0) {
+                    error_log("Copie de " . count($rows) . " enregistrements de {$sourceTable} vers {$destTable}");
+                    
+                    // Pour chaque enregistrement, insérer dans la table destination avec le nouvel userId
+                    foreach ($rows as $row) {
+                        // Remplacer l'userId par celui du nouvel utilisateur
+                        $row['userId'] = $userId;
+                        
+                        // Générer la requête d'insertion
+                        $columns = array_keys($row);
+                        $placeholders = array_map(function($col) { return ":{$col}"; }, $columns);
+                        
+                        $insertQuery = "INSERT INTO `{$destTable}` (`" . implode("`, `", $columns) . "`) 
+                                       VALUES (" . implode(", ", $placeholders) . ")
+                                       ON DUPLICATE KEY UPDATE ";
+                        
+                        // Génération de la partie UPDATE de la requête
+                        $updates = [];
+                        foreach ($columns as $col) {
+                            if ($col != 'id') { // Ne pas mettre à jour la clé primaire
+                                $updates[] = "`{$col}` = :{$col}";
+                            }
+                        }
+                        $insertQuery .= implode(", ", $updates);
+                        
+                        // Exécuter la requête
+                        $insertStmt = $this->conn->prepare($insertQuery);
+                        foreach ($row as $col => $val) {
+                            $insertStmt->bindValue(":{$col}", $val);
+                        }
+                        $insertStmt->execute();
+                    }
+                    
+                    error_log("Copie des données de {$sourceTable} vers {$destTable} terminée");
+                } else {
+                    error_log("Aucune donnée à copier depuis {$sourceTable}");
+                }
+            }
+            
+            return true;
+        } catch (PDOException $e) {
+            error_log("Erreur PDO lors de la copie des données: " . $e->getMessage());
+            return false;
+        } catch (Exception $e) {
+            error_log("Erreur lors de la copie des données: " . $e->getMessage());
             return false;
         }
     }

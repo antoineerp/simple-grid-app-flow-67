@@ -1,0 +1,21 @@
+
+/* Fichier CSS de test pour vérifier le chargement des styles */
+.css-test-element {
+    color: blue;
+    background-color: #e0f7fa;
+    padding: 15px;
+    border: 2px solid #4fc3f7;
+    border-radius: 5px;
+    font-weight: bold;
+    text-align: center;
+    margin-top: 10px;
+}
+
+.test-successful {
+    background-color: #e8f5e9;
+    border: 2px solid #66bb6a;
+    color: #2e7d32;
+    padding: 10px;
+    margin-top: 10px;
+    border-radius: 4px;
+}

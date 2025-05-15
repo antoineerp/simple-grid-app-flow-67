@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { Toaster } from '@/components/ui/toaster';
@@ -11,10 +12,12 @@ import GestionDocumentaire from '@/pages/GestionDocumentaire';
 import RessourcesHumaines from '@/pages/RessourcesHumaines';
 import Administration from '@/pages/Administration';
 import Collaboration from '@/pages/Collaboration';
+import DatabaseCheckPage from '@/pages/DatabaseCheckPage';
 import { getIsLoggedIn, getCurrentUser } from '@/services/auth/authService';
 import { MembresProvider } from '@/contexts/MembresContext';
 import { initializeSyncStorageCleaner } from './utils/syncStorageCleaner';
 import { Loader2 } from 'lucide-react';
+import SyncHealthIndicator from './components/common/SyncHealthIndicator';
 
 // Composant de route protégée avec gestion des erreurs améliorée
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
@@ -125,62 +128,79 @@ function App() {
   }
   
   return (
-    <Router>
-      <TooltipProvider>
-        <MembresProvider>
-          <Routes>
-            {/* Route publique */}
-            <Route path="/" element={<Index />} />
-            
-            {/* Routes protégées dans le Layout */}
-            <Route path="/" element={<Layout />}>
-              <Route path="pilotage" element={
-                <ProtectedRoute>
-                  <Pilotage />
-                </ProtectedRoute>
-              } />
-              <Route path="db-admin" element={
-                <ProtectedRoute>
-                  <DbAdmin />
-                </ProtectedRoute>
-              } />
+    <div className="app">
+      <Router>
+        <TooltipProvider>
+          <MembresProvider>
+            <Routes>
+              {/* Route publique */}
+              <Route path="/" element={<Index />} />
               
-              {/* Routes vers les pages réelles au lieu des placeholders */}
-              <Route path="exigences" element={
-                <ProtectedRoute>
-                  <Exigences />
-                </ProtectedRoute>
-              } />
-              <Route path="gestion-documentaire" element={
-                <ProtectedRoute>
-                  <GestionDocumentaire />
-                </ProtectedRoute>
-              } />
-              <Route path="ressources-humaines" element={
-                <ProtectedRoute>
-                  <RessourcesHumaines />
-                </ProtectedRoute>
-              } />
-              <Route path="collaboration" element={
-                <ProtectedRoute>
-                  <Collaboration />
-                </ProtectedRoute>
-              } />
-              <Route path="administration" element={
-                <ProtectedRoute>
-                  <Administration />
-                </ProtectedRoute>
-              } />
-            </Route>
-            
-            {/* Redirection pour les routes inconnues */}
-            <Route path="*" element={<Navigate to="/" />} />
-          </Routes>
-          <Toaster />
-          <RouteTracker />
-        </MembresProvider>
-      </TooltipProvider>
-    </Router>
+              {/* Routes protégées dans le Layout */}
+              <Route path="/" element={<Layout />}>
+                <Route path="pilotage" element={
+                  <ProtectedRoute>
+                    <Pilotage />
+                  </ProtectedRoute>
+                } />
+                
+                <Route path="db-admin" element={
+                  <ProtectedRoute>
+                    <DbAdmin />
+                  </ProtectedRoute>
+                } />
+                
+                {/* Nouvelle route pour la page de vérification de base de données */}
+                <Route path="database-check" element={
+                  <ProtectedRoute>
+                    <DatabaseCheckPage />
+                  </ProtectedRoute>
+                } />
+                
+                {/* Routes vers les pages réelles */}
+                <Route path="exigences" element={
+                  <ProtectedRoute>
+                    <Exigences />
+                  </ProtectedRoute>
+                } />
+                
+                <Route path="gestion-documentaire" element={
+                  <ProtectedRoute>
+                    <GestionDocumentaire />
+                  </ProtectedRoute>
+                } />
+                
+                <Route path="ressources-humaines" element={
+                  <ProtectedRoute>
+                    <RessourcesHumaines />
+                  </ProtectedRoute>
+                } />
+                
+                <Route path="collaboration" element={
+                  <ProtectedRoute>
+                    <Collaboration />
+                  </ProtectedRoute>
+                } />
+                
+                <Route path="administration" element={
+                  <ProtectedRoute>
+                    <Administration />
+                  </ProtectedRoute>
+                } />
+              </Route>
+              
+              {/* Redirection pour les routes inconnues */}
+              <Route path="*" element={<Navigate to="/" />} />
+            </Routes>
+            <Toaster />
+            <RouteTracker />
+          </MembresProvider>
+        </TooltipProvider>
+      </Router>
+      
+      {/* Ajouter l'indicateur de santé des synchronisations */}
+      <SyncHealthIndicator position="bottom-right" />
+    </div>
   );
 }
 

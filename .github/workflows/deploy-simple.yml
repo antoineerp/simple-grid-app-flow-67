@@ -1,0 +1,83 @@
+
+name: Simple Deploy to Infomaniak
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: 'Raison du déploiement manuel'
+        required: false
+        default: 'Déploiement manuel'
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18'
+        
+    - name: Install Dependencies
+      run: npm install --legacy-peer-deps
+      
+    - name: Build React App
+      run: npm run build
+      
+    - name: Debug build output
+      run: |
+        echo "============== Debugging build output =============="
+        echo "Liste des fichiers générés:"
+        ls -la dist/
+        ls -la dist/assets/ || echo "Dossier assets non trouvé"
+        
+    - name: Execute deployment script
+      run: |
+        chmod +x deploy-simple.sh
+        ./deploy-simple.sh
+        
+    - name: Upload deployment artifact
+      uses: actions/upload-artifact@v2
+      with:
+        name: deployment-files
+        path: deploy/
+        retention-days: 1
+      
+    - name: FTP Deploy to Infomaniak
+      uses: SamKirkland/FTP-Deploy-Action@v4.3.4
+      with:
+        server: ${{ secrets.FTP_SERVER }}
+        username: ${{ secrets.FTP_USERNAME }}
+        password: ${{ secrets.FTP_PASSWORD }}
+        local-dir: ./deploy/
+        server-dir: /sites/qualiopi.ch/
+        dangerous-clean-slate: false
+        exclude: |
+          **/.git*
+          **/.git*/**
+          **/node_modules/**
+          README.md
+        log-level: verbose
+        timeout: 120000
+        
+    - name: Verify critical files after deployment
+      uses: appleboy/ssh-action@master
+      with:
+        host: ${{ secrets.FTP_SERVER }}
+        username: ${{ secrets.FTP_USERNAME }}
+        password: ${{ secrets.FTP_PASSWORD }}
+        script: |
+          cd /sites/qualiopi.ch/
+          echo "=== Vérification post-déploiement ==="
+          [ -f "api/.htaccess" ] && echo "✅ api/.htaccess: PRÉSENT" || echo "❌ api/.htaccess: MANQUANT"
+          [ -f "api/config/env.php" ] && echo "✅ api/config/env.php: PRÉSENT" || echo "❌ api/config/env.php: MANQUANT"
+          [ -f "api/config/db_config.json" ] && echo "✅ api/config/db_config.json: PRÉSENT" || echo "❌ api/config/db_config.json: MANQUANT"
+          find api -name "*.php" | wc -l

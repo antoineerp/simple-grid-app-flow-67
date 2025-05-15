@@ -1,15 +1,34 @@
 
 import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import DocumentTable from '@/components/documents/DocumentTable';
 import { useDocuments } from '@/hooks/useDocuments';
 import { getDatabaseConnectionCurrentUser } from '@/services/core/databaseConnectionService';
-import { MembresProvider } from '@/contexts/MembresContext';
+import { Button } from '@/components/ui/button';
+import { Plus, FileText, RefreshCw, FolderPlus } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 
 const GestionDocumentaire = () => {
-  const navigate = useNavigate();
-  const { documents, groups, handleEdit, handleDelete, handleReorder, handleToggleGroup, handleEditGroup, handleDeleteGroup, handleResponsabiliteChange, handleAtteinteChange, handleExclusionChange, handleAddDocument, handleAddGroup, handleGroupReorder } = useDocuments();
+  const { 
+    documents, 
+    groups, 
+    handleEdit, 
+    handleDelete, 
+    handleReorder, 
+    handleToggleGroup, 
+    handleEditGroup, 
+    handleDeleteGroup, 
+    handleResponsabiliteChange, 
+    handleAtteinteChange, 
+    handleExclusionChange, 
+    handleAddDocument, 
+    handleAddGroup,
+    handleGroupReorder,
+    forceReload,
+    isSyncing
+  } = useDocuments();
+  
   const [currentUser, setCurrentUser] = useState<string>(getDatabaseConnectionCurrentUser() || 'default');
+  const { toast } = useToast();
   
   // Écouter les changements d'utilisateur
   useEffect(() => {
@@ -28,10 +47,24 @@ const GestionDocumentaire = () => {
     };
   }, []);
 
+  const handleRefresh = () => {
+    forceReload();
+  };
+
   return (
     <div className="container mx-auto py-6 px-4">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold">Gestion Documentaire</h1>
+        {/* Bouton de synchronisation masqué mais fonctionnel */}
+        <Button
+          onClick={handleRefresh}
+          variant="outline"
+          size="sm"
+          className="ml-2 hidden"
+        >
+          <RefreshCw className={`h-4 w-4 mr-1 ${isSyncing ? 'animate-spin' : ''}`} />
+          Actualiser
+        </Button>
       </div>
       
       <DocumentTable 
@@ -50,18 +83,21 @@ const GestionDocumentaire = () => {
       />
       
       <div className="mt-4 flex justify-end space-x-2">
-        <button
-          onClick={handleAddDocument}
-          className="bg-app-blue hover:bg-blue-600 text-white px-4 py-2 rounded"
-        >
-          Ajouter un document
-        </button>
-        <button
+        <Button
           onClick={handleAddGroup}
-          className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded"
+          variant="outline"
+          className="flex items-center hover:bg-gray-100 transition-colors"
         >
-          Ajouter un groupe
-        </button>
+          <FolderPlus className="h-4 w-4 mr-2" />
+          Nouveau groupe
+        </Button>
+        <Button
+          onClick={handleAddDocument}
+          className="flex items-center bg-app-blue hover:bg-app-blue/90"
+        >
+          <Plus className="h-4 w-4 mr-1" />
+          Ajouter un document
+        </Button>
       </div>
     </div>
   );

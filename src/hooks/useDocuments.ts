@@ -11,8 +11,16 @@ import { useGlobalData } from '@/contexts/GlobalDataContext';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { 
   loadDocumentsFromServer, 
-  syncDocumentsWithServer 
+  syncDocumentsWithServer,
+  getLocalDocuments
 } from '@/services/documents/documentSyncService';
+import {
+  saveLocalData,
+  loadLocalData
+} from '@/features/sync/utils/syncStorageManager';
+
+// Clé pour stocker l'état global dans sessionStorage (persistance entre les pages)
+const SESSION_STORAGE_KEY = 'documents_page_state';
 
 export const useDocuments = () => {
   const { toast } = useToast();
@@ -42,9 +50,19 @@ export const useDocuments = () => {
   // Utiliser le hook de synchronisation central
   const { syncAndProcess } = useSync('documents');
 
+  // Calculer les statistiques lorsque les documents changent
   useEffect(() => {
     setStats(calculateDocumentStats(documents));
-  }, [documents]);
+    
+    // AMÉLIORATION: Utiliser le système de stockage centralisé pour sauvegarder
+    if (documents.length > 0) {
+      const currentUser = getCurrentUser() || 'default';
+      saveLocalData('documents', documents, currentUser);
+      saveLocalData('document_groups', groups, currentUser);
+      
+      console.log(`${documents.length} documents sauvegardés dans le stockage local`);
+    }
+  }, [documents, groups]);
 
   // Charger les documents au démarrage
   useEffect(() => {
@@ -52,19 +70,51 @@ export const useDocuments = () => {
       const loadInitialData = async () => {
         setIsSyncing(true);
         try {
-          console.log("Chargement initial des documents");
-          const loadedDocs = await loadDocumentsFromServer();
-          if (loadedDocs && loadedDocs.length > 0) {
-            console.log(`${loadedDocs.length} documents chargés depuis le serveur`);
-            setDocuments(loadedDocs);
-          } else {
-            console.log("Aucun document chargé depuis le serveur");
+          // Charger d'abord les documents locaux pour affichage immédiat
+          const currentUser = getCurrentUser() || 'default';
+          let localDocs = loadLocalData<Document>('documents', currentUser);
+          
+          // Si aucun document n'est trouvé avec le nouveau système, essayer l'ancien
+          if (localDocs.length === 0) {
+            localDocs = getLocalDocuments();
           }
-          setLastSynced(new Date());
-          setSyncFailed(false);
+          
+          if (localDocs.length > 0) {
+            console.log(`${localDocs.length} documents chargés depuis le stockage local`);
+            setDocuments(localDocs);
+            
+            // Charger également les groupes
+            const localGroups = loadLocalData<DocumentGroup>('document_groups', currentUser);
+            if (localGroups.length > 0) {
+              console.log(`${localGroups.length} groupes chargés depuis le stockage local`);
+              setGroups(localGroups);
+            }
+          }
+          
+          // Ensuite, essayer de charger depuis le serveur si en ligne
+          if (isOnline) {
+            console.log("Chargement initial des documents depuis le serveur");
+            const loadedDocs = await loadDocumentsFromServer();
+            if (loadedDocs && loadedDocs.length > 0) {
+              console.log(`${loadedDocs.length} documents chargés depuis le serveur`);
+              setDocuments(loadedDocs);
+            } else {
+              console.log("Aucun document chargé depuis le serveur");
+            }
+            setLastSynced(new Date());
+            setSyncFailed(false);
+          } else {
+            console.log("Mode hors ligne, utilisation des documents locaux uniquement");
+          }
         } catch (error) {
           console.error("Erreur lors du chargement initial des documents:", error);
           setSyncFailed(true);
+          
+          toast({
+            variant: "destructive",
+            title: "Erreur de chargement",
+            description: "Une erreur est survenue lors du chargement des documents. Mode hors-ligne activé.",
+          });
         } finally {
           setIsSyncing(false);
           setInitialLoadDone(true);
@@ -73,7 +123,7 @@ export const useDocuments = () => {
       
       loadInitialData();
     }
-  }, [initialLoadDone]);
+  }, [initialLoadDone, isOnline, setDocuments, setGroups, setIsSyncing, setLastSynced, setSyncFailed, toast]);
 
   const syncWithServer = async (): Promise<boolean> => {
     try {
@@ -123,6 +173,11 @@ export const useDocuments = () => {
 
       setDocuments((prev) => prev.map((doc) => (doc.id === newDoc.id ? newDoc : doc)));
 
+      // AMÉLIORATION: Sauvegarde locale immédiate ET lancement de la synchronisation
+      const currentUser = getCurrentUser() || 'default';
+      const allDocs = documents.map(doc => doc.id === newDoc.id ? newDoc : doc);
+      saveLocalData('documents', allDocs, currentUser);
+      
       syncWithServer().catch(error => {
         console.error("Erreur lors de la synchronisation après mise à jour:", error);
       });
@@ -132,12 +187,12 @@ export const useDocuments = () => {
         description: `Le document ${newDoc.id} a été mis à jour avec succès`,
       });
     },
-    [toast, setDocuments]
+    [documents, setDocuments, toast]
   );
 
   const handleAddDocument = useCallback(() => {
     const maxId = documents.length > 0 
-      ? Math.max(...documents.map(d => parseInt(d.id)))
+      ? Math.max(...documents.map(d => parseInt(d.id.toString())))
       : 0;
     
     const newId = (maxId + 1).toString();
@@ -151,7 +206,12 @@ export const useDocuments = () => {
       date_modification: new Date()
     };
     
-    setDocuments(prev => [...prev, newDocument]);
+    const updatedDocuments = [...documents, newDocument];
+    setDocuments(updatedDocuments);
+    
+    // AMÉLIORATION: Sauvegarde locale immédiate
+    const currentUser = getCurrentUser() || 'default';
+    saveLocalData('documents', updatedDocuments, currentUser);
     
     syncWithServer().catch(error => {
       console.error("Erreur lors de la synchronisation après ajout:", error);
@@ -161,7 +221,7 @@ export const useDocuments = () => {
       title: "Nouveau document",
       description: `Le document ${newId} a été ajouté`,
     });
-  }, [documents, toast, setDocuments]);
+  }, [documents, toast, setDocuments, syncWithServer]);
 
   const handleReorder = useCallback((startIndex: number, endIndex: number, targetGroupId?: string) => {
     setDocuments(prev => {
@@ -181,6 +241,10 @@ export const useDocuments = () => {
       // Log pour le débogage
       console.log(`Document ${removed.id} déplacé: groupId=${removed.groupId || 'aucun'}`);
       
+      // AMÉLIORATION: Sauvegarde locale immédiate
+      const currentUser = getCurrentUser() || 'default';
+      saveLocalData('documents', result, currentUser);
+      
       // Synchroniser les changements
       syncWithServer().catch(error => {
         console.error("Erreur lors de la synchronisation après réorganisation:", error);
@@ -188,7 +252,7 @@ export const useDocuments = () => {
       
       return result;
     });
-  }, [setDocuments]);
+  }, [setDocuments, syncWithServer]);
 
   const handleAddGroup = useCallback(() => {
     setEditingGroup(null);
@@ -224,7 +288,7 @@ export const useDocuments = () => {
     } finally {
       setIsSyncing(false);
     }
-  }, []);
+  }, [setDocuments, setIsSyncing, setLastSynced, setSyncFailed, toast]);
 
   return {
     documents,

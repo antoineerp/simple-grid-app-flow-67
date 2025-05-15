@@ -1,6 +1,7 @@
+
 import { getApiUrl } from '@/config/apiConfig';
 import { getAuthHeaders } from '../auth/authService';
-import { useToast } from '@/hooks/use-toast';
+import { toast } from '@/hooks/use-toast';
 
 interface CreateUserData {
   nom: string;
@@ -101,6 +102,9 @@ export const createUser = async (userData: CreateUserData) => {
           window.location.reload();
         }, 2000);
         
+        // Initialiser les tables de l'utilisateur
+        await initializeUserTables(identifiantTechnique);
+        
         return {
           success: true,
           identifiant_technique: identifiantTechnique,
@@ -121,8 +125,11 @@ export const createUser = async (userData: CreateUserData) => {
         throw new Error(responseData.message || `Erreur ${response.status}: ${response.statusText}`);
       }
       
+      // Initialiser les tables de l'utilisateur
+      await initializeUserTables(identifiantTechnique);
+      
       // Force un rechargement de l'application après création
-      console.log("Rechargement forcé dans 2 secondes pour refléter la cr��tion de l'utilisateur");
+      console.log("Rechargement forcé dans 2 secondes pour refléter la création de l'utilisateur");
       setTimeout(() => {
         window.location.reload();
       }, 2000);
@@ -143,6 +150,9 @@ export const createUser = async (userData: CreateUserData) => {
       
       // Si la réponse semble être un succès malgré le format incorrect
       if (response.ok || response.status === 201) {
+        // Initialiser les tables de l'utilisateur
+        await initializeUserTables(identifiantTechnique);
+        
         // Force un rechargement de l'application après création
         console.log("Rechargement forcé dans 2 secondes pour refléter la création de l'utilisateur");
         setTimeout(() => {
@@ -170,6 +180,9 @@ export const createUser = async (userData: CreateUserData) => {
         identifiant_technique: identifiantTechnique
       });
       
+      // Initialiser les tables de l'utilisateur
+      await initializeUserTables(identifiantTechnique);
+      
       // Force un rechargement de la page après un court délai
       console.log("Rechargement forcé dans 2 secondes suite à la création via diagnostic");
       setTimeout(() => {
@@ -183,6 +196,50 @@ export const createUser = async (userData: CreateUserData) => {
     }
   }
 };
+
+// Initialise les tables pour un nouvel utilisateur
+async function initializeUserTables(userId: string) {
+  try {
+    console.log(`Initialisation des tables pour l'utilisateur: ${userId}`);
+    const apiUrl = getApiUrl();
+    
+    // 1. Créer les tables de base pour l'utilisateur
+    const dbUpdateUrl = `${apiUrl}/db-update.php?userId=${encodeURIComponent(userId)}`;
+    const dbUpdateResponse = await fetch(dbUpdateUrl, {
+      method: 'GET',
+      headers: { 'Cache-Control': 'no-cache' }
+    });
+    
+    if (!dbUpdateResponse.ok) {
+      console.error(`Erreur lors de la création des tables: ${dbUpdateResponse.status}`);
+    } else {
+      console.log("Tables de base créées avec succès");
+    }
+    
+    // 2. Importer les données du gestionnaire
+    const importUrl = `${apiUrl}/manager-import?userId=${encodeURIComponent(userId)}`;
+    const importResponse = await fetch(importUrl, {
+      method: 'POST',
+      headers: {
+        ...getAuthHeaders(),
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ targetUser: userId })
+    });
+    
+    if (!importResponse.ok) {
+      console.warn(`Import des données du gestionnaire non réussi: ${importResponse.status}`);
+    } else {
+      console.log("Données importées du gestionnaire avec succès");
+    }
+    
+    return true;
+  } catch (error) {
+    console.error("Erreur lors de l'initialisation des tables utilisateur:", error);
+    // Ne pas faire échouer la création d'utilisateur si l'initialisation des tables échoue
+    return false;
+  }
+}
 
 // Fonction pour générer un UUID conforme au format varchar(36)
 function generateUUID() {

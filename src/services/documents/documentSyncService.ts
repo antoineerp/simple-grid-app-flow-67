@@ -4,6 +4,13 @@ import { getApiUrl } from '@/config/apiConfig';
 import { getAuthHeaders } from '@/services/auth/authService';
 import { getCurrentUser } from '@/services/core/databaseConnectionService';
 import { toast } from '@/components/ui/use-toast';
+import { 
+  saveLocalData, 
+  loadLocalData, 
+  markPendingSync, 
+  clearPendingSync, 
+  hasLocalData 
+} from '@/features/sync/utils/syncStorageManager';
 
 /**
  * Chargement des documents depuis le serveur pour un utilisateur spécifique
@@ -12,6 +19,15 @@ import { toast } from '@/components/ui/use-toast';
 export const loadDocumentsFromServer = async (userId: string | null = null): Promise<Document[]> => {
   const currentUser = userId || getCurrentUser() || 'p71x6d_system';
   console.log(`Chargement des documents pour l'utilisateur ${currentUser} (priorité serveur)`);
+  
+  let documents: Document[] = [];
+  
+  // Essayer d'abord de récupérer depuis le stockage local (pour éviter les pertes de données)
+  const localDocuments = getLocalDocuments(userId);
+  if (localDocuments.length > 0) {
+    console.log(`${localDocuments.length} documents trouvés dans le stockage local`);
+    documents = localDocuments;
+  }
   
   // Tentative de chargement depuis le serveur
   try {
@@ -35,21 +51,27 @@ export const loadDocumentsFromServer = async (userId: string | null = null): Pro
     const result = await response.json();
     console.log("Documents chargés depuis le serveur:", result);
     
-    let documents: Document[] = [];
+    let serverDocuments: Document[] = [];
     
     if (result.success && Array.isArray(result.documents)) {
-      documents = result.documents;
+      serverDocuments = result.documents;
     } else if (Array.isArray(result)) {
-      documents = result;
+      serverDocuments = result;
     } else if (result.records && Array.isArray(result.records)) {
-      documents = result.records;
+      serverDocuments = result.records;
     } else {
       console.warn("Format de réponse non reconnu pour les documents");
       throw new Error("Format de réponse non reconnu");
     }
     
-    // Sauvegarder localement pour accès hors ligne
-    localStorage.setItem(`documents_${currentUser}`, JSON.stringify(documents));
+    // Fusionner les documents locaux et ceux du serveur si nécessaire
+    if (serverDocuments.length > 0) {
+      documents = mergeDocuments(localDocuments, serverDocuments);
+    }
+    
+    // AMÉLIORATION: Sauvegarder dans les deux systèmes de stockage pour accès hors ligne
+    saveLocalData('documents', documents, currentUser);
+    
     console.log(`${documents.length} documents sauvegardés localement pour accès hors ligne`);
     
     // Informer l'utilisateur que les données ont été chargées depuis le serveur
@@ -80,21 +102,27 @@ export const loadDocumentsFromServer = async (userId: string | null = null): Pro
       const result = await response.json();
       console.log("Documents chargés depuis le serveur (URL alternative):", result);
       
-      let documents: Document[] = [];
+      let serverDocuments: Document[] = [];
       
       if (result.success && Array.isArray(result.documents)) {
-        documents = result.documents;
+        serverDocuments = result.documents;
       } else if (Array.isArray(result)) {
-        documents = result;
+        serverDocuments = result;
       } else if (result.records && Array.isArray(result.records)) {
-        documents = result.records;
+        serverDocuments = result.records;
       } else {
         console.warn("Format de réponse alternative non reconnu pour les documents");
         throw new Error("Format de réponse alternative non reconnu");
       }
       
-      // Sauvegarder localement pour accès hors ligne
-      localStorage.setItem(`documents_${currentUser}`, JSON.stringify(documents));
+      // Fusionner les documents locaux et ceux du serveur si nécessaire
+      if (serverDocuments.length > 0) {
+        documents = mergeDocuments(localDocuments, serverDocuments);
+      }
+      
+      // AMÉLIORATION: Sauvegarder dans les deux systèmes de stockage pour accès hors ligne
+      saveLocalData('documents', documents, currentUser);
+      
       console.log(`${documents.length} documents sauvegardés localement pour accès hors ligne (source: URL alternative)`);
       
       toast({
@@ -106,14 +134,14 @@ export const loadDocumentsFromServer = async (userId: string | null = null): Pro
     } catch (secondError) {
       console.error("Toutes les tentatives de chargement depuis le serveur ont échoué:", secondError);
       
-      // En dernier recours, essayer de charger depuis le stockage local
+      // En dernier recours, retourner les documents locaux
       toast({
         variant: "destructive",
         title: "Erreur de chargement",
         description: "Impossible de charger les documents depuis le serveur. Mode hors-ligne activé.",
       });
       
-      return getLocalDocuments(userId);
+      return localDocuments;
     }
   }
 };
@@ -131,6 +159,13 @@ export const syncDocumentsWithServer = async (documents: Document[], userId: str
     ...doc,
     id: doc.id || crypto.randomUUID()
   }));
+  
+  // AMÉLIORATION: Sauvegarder localement IMMÉDIATEMENT pour éviter les pertes de données
+  saveLocalData('documents', validDocuments, currentUser);
+  console.log(`Documents sauvegardés localement en priorité pour éviter les pertes`);
+  
+  // Marquer comme en attente de synchronisation
+  markPendingSync('documents');
   
   try {
     // Construire l'URL
@@ -162,14 +197,13 @@ export const syncDocumentsWithServer = async (documents: Document[], userId: str
     console.log("Résultat de la synchronisation des documents:", result);
     
     if (result.success === true) {
-      // Sauvegarder localement également pour le mode hors ligne
-      localStorage.setItem(`documents_${currentUser}`, JSON.stringify(validDocuments));
-      
       // Enregistrer la date de la dernière synchronisation réussie
-      localStorage.setItem(`last_synced_documents`, new Date().toISOString());
+      const timestamp = new Date().toISOString();
+      localStorage.setItem(`last_synced_documents`, timestamp);
+      sessionStorage.setItem(`last_synced_documents`, timestamp);
       
       // Supprimer tout marqueur de synchronisation en attente
-      localStorage.removeItem(`sync_pending_documents`);
+      clearPendingSync('documents');
       
       toast({
         title: "Synchronisation réussie",
@@ -207,14 +241,13 @@ export const syncDocumentsWithServer = async (documents: Document[], userId: str
       console.log("Résultat de la synchronisation des documents (URL alternative):", result);
       
       if (result.success === true) {
-        // Sauvegarder localement également pour le mode hors ligne
-        localStorage.setItem(`documents_${currentUser}`, JSON.stringify(validDocuments));
-        
         // Enregistrer la date de la dernière synchronisation réussie
-        localStorage.setItem(`last_synced_documents`, new Date().toISOString());
+        const timestamp = new Date().toISOString();
+        localStorage.setItem(`last_synced_documents`, timestamp);
+        sessionStorage.setItem(`last_synced_documents`, timestamp);
         
         // Supprimer tout marqueur de synchronisation en attente
-        localStorage.removeItem(`sync_pending_documents`);
+        clearPendingSync('documents');
         
         toast({
           title: "Synchronisation réussie",
@@ -227,11 +260,8 @@ export const syncDocumentsWithServer = async (documents: Document[], userId: str
     } catch (secondError) {
       console.error("Toutes les tentatives de synchronisation vers le serveur ont échoué:", secondError);
       
-      // Enregistrer localement comme solution de secours
-      localStorage.setItem(`documents_${currentUser}`, JSON.stringify(validDocuments));
-      
       // Marquer comme en attente de synchronisation pour une tentative ultérieure
-      localStorage.setItem(`sync_pending_documents`, new Date().toISOString());
+      markPendingSync('documents');
       
       toast({
         variant: "destructive",
@@ -249,12 +279,28 @@ export const syncDocumentsWithServer = async (documents: Document[], userId: str
  */
 export const getLocalDocuments = (userId: string | null = null): Document[] => {
   const currentUser = userId || getCurrentUser() || 'p71x6d_system';
+  
+  // AMÉLIORATION: Utiliser le système de stockage centralisé
+  const localDocs = loadLocalData<Document>('documents', currentUser);
+  
+  if (localDocs.length > 0) {
+    console.log(`${localDocs.length} documents chargés depuis le stockage local`);
+    return localDocs;
+  }
+  
+  // Rétrocompatibilité : vérifier aussi l'ancien emplacement de stockage
   const storedData = localStorage.getItem(`documents_${currentUser}`);
   
   if (storedData) {
     try {
       const docs = JSON.parse(storedData);
-      console.log(`${docs.length} documents chargés depuis le stockage local (mode hors ligne)`);
+      console.log(`${docs.length} documents chargés depuis l'ancien emplacement de stockage local`);
+      
+      // Migrer les données vers le nouveau système
+      if (docs.length > 0) {
+        saveLocalData('documents', docs, currentUser);
+      }
+      
       return docs;
     } catch (e) {
       console.error('Erreur lors de la lecture des documents locaux:', e);
@@ -278,13 +324,15 @@ export const forceFullSync = async (userId: string | null = null): Promise<boole
     
     // Ensuite, s'assurer qu'elles sont bien enregistrées localement
     const currentUser = userId || getCurrentUser() || 'p71x6d_system';
-    localStorage.setItem(`documents_${currentUser}`, JSON.stringify(documents));
+    saveLocalData('documents', documents, currentUser);
     
     // Supprimer tout marqueur de synchronisation en attente
-    localStorage.removeItem(`sync_pending_documents`);
+    clearPendingSync('documents');
     
     // Enregistrer la date de la dernière synchronisation réussie
-    localStorage.setItem(`last_synced_documents`, new Date().toISOString());
+    const timestamp = new Date().toISOString();
+    localStorage.setItem(`last_synced_documents`, timestamp);
+    sessionStorage.setItem(`last_synced_documents`, timestamp);
     
     toast({
       title: "Synchronisation forcée réussie",
@@ -304,3 +352,57 @@ export const forceFullSync = async (userId: string | null = null): Promise<boole
     return false;
   }
 };
+
+/**
+ * Fusionne les documents locaux avec les documents du serveur
+ * Stratégie: conserve les modifications locales plus récentes
+ */
+function mergeDocuments(localDocs: Document[], serverDocs: Document[]): Document[] {
+  if (!localDocs || localDocs.length === 0) return serverDocs;
+  if (!serverDocs || serverDocs.length === 0) return localDocs;
+  
+  // Créer une map des documents locaux pour accès rapide
+  const localDocsMap = new Map<string, Document>();
+  localDocs.forEach(doc => {
+    localDocsMap.set(doc.id, doc);
+  });
+  
+  // Fusionner les documents
+  const mergedDocs: Document[] = [];
+  
+  // Traiter les documents du serveur
+  serverDocs.forEach(serverDoc => {
+    const localDoc = localDocsMap.get(serverDoc.id);
+    
+    // Si le document existe localement
+    if (localDoc) {
+      // Comparer les dates de modification si disponibles
+      const serverModDate = serverDoc.date_modification ? new Date(serverDoc.date_modification) : null;
+      const localModDate = localDoc.date_modification ? new Date(localDoc.date_modification) : null;
+      
+      // Privilégier la version la plus récente
+      if (localModDate && serverModDate && localModDate > serverModDate) {
+        mergedDocs.push(localDoc);
+        console.log(`Document ${localDoc.id} : version locale plus récente conservée`);
+      } else {
+        mergedDocs.push(serverDoc);
+        console.log(`Document ${serverDoc.id} : version serveur conservée`);
+      }
+      
+      // Supprimer de la map locale pour ne pas le traiter à nouveau
+      localDocsMap.delete(serverDoc.id);
+    } else {
+      // Document existe seulement sur le serveur
+      mergedDocs.push(serverDoc);
+    }
+  });
+  
+  // Ajouter les documents qui existent uniquement en local
+  localDocsMap.forEach(localOnlyDoc => {
+    mergedDocs.push(localOnlyDoc);
+    console.log(`Document ${localOnlyDoc.id} : existe uniquement en local, ajouté à la fusion`);
+  });
+  
+  console.log(`Fusion des documents : ${localDocs.length} locaux + ${serverDocs.length} serveur = ${mergedDocs.length} fusionnés`);
+  return mergedDocs;
+}

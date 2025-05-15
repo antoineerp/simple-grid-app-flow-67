@@ -1,148 +1,103 @@
 
 import { useState, useCallback, useEffect } from 'react';
-import { syncService, DataTable, SyncResult } from '@/services/sync/SyncService';
-import { useToast } from '@/components/ui/use-toast';
-import { useNetworkStatus } from '@/hooks/useNetworkStatus';
-import { useGlobalSync } from '@/contexts/GlobalSyncContext';
+import { useSyncContext } from '@/contexts/SyncContext';
+import { toast } from '@/components/ui/use-toast';
 
-export interface SyncState {
-  isSyncing: boolean;
-  lastSynced: Date | null;
-  syncFailed: boolean;
-  syncAndProcess: <T>(tableName: string, data: T[], trigger?: "auto" | "manual" | "initial") => Promise<SyncResult>;
-  resetSyncStatus: () => void;
-  isOnline: boolean;
-}
-
-/**
- * Hook pour gérer la synchronisation de données avec le serveur Infomaniak
- */
-export const useSync = (tableName: string): SyncState => {
-  const { syncTable, syncStates, isOnline } = useGlobalSync();
-  const [lastSynced, setLastSynced] = useState<Date | null>(syncService.getLastSynced(tableName));
-  const { toast } = useToast();
+export function useSync(tableName: string) {
+  const syncContext = useSyncContext();
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [syncFailed, setSyncFailed] = useState(false);
+  const [lastSynced, setLastSynced] = useState<Date | null>(null);
   
-  // Obtenir l'état de synchronisation à partir du contexte global
-  const syncState = syncStates[tableName] || { 
-    isSyncing: false, 
-    lastSynced: null, 
-    syncFailed: false 
-  };
-  const isSyncing = syncState.isSyncing;
-  const syncFailed = syncState.syncFailed;
-  
-  // Mise à jour de l'état de synchronisation local à partir du contexte global
   useEffect(() => {
-    if (syncState.lastSynced && (!lastSynced || syncState.lastSynced > lastSynced)) {
-      setLastSynced(syncState.lastSynced);
+    // Initialiser avec les données du contexte
+    if (syncContext.isInitialized()) {
+      setLastSynced(syncContext.getLastSynced(tableName));
+      const error = syncContext.getSyncError(tableName);
+      setSyncFailed(!!error);
     }
-  }, [syncState, lastSynced]);
-  
-  // Fonction pour synchroniser les données et gérer les erreurs
-  const syncAndProcess = useCallback(async <T>(
-    tableName: string, 
+  }, [syncContext, tableName]);
+
+  const syncAndProcess = useCallback(async <T extends {}>(
     data: T[],
-    trigger: "auto" | "manual" | "initial" = "auto"
-  ): Promise<SyncResult> => {
-    if (!isOnline) {
-      console.log(`useSync: Tentative de synchronisation de ${tableName} en mode hors ligne`);
-      const result: SyncResult = {
-        success: false,
-        message: "Mode hors ligne - Données sauvegardées localement"
-      };
-      
-      if (trigger !== "auto") {
-        toast({
-          title: "Mode hors ligne",
-          description: "La synchronisation avec Infomaniak n'est pas disponible en mode hors ligne. Les données sont sauvegardées localement.",
-          variant: "destructive"
-        });
-      }
-      
-      return result;
-    }
-    
-    console.log(`useSync: Synchronisation de ${tableName} (déclencheur: ${trigger})`);
-    
-    // Si déjà en cours de synchronisation, éviter les appels redondants
-    if (isSyncing) {
-      return {
-        success: false,
-        message: "Synchronisation déjà en cours"
-      };
-    }
+    trigger: "auto" | "manual" | "initial" = "manual"
+  ) => {
+    setIsSyncing(true);
+    setSyncFailed(false);
     
     try {
-      // Si ce n'est pas une synchronisation automatique, afficher un toast
-      if (trigger !== "auto") {
-        toast({
-          title: "Synchronisation en cours",
-          description: "Veuillez patienter pendant la synchronisation avec Infomaniak..."
-        });
-      }
+      // Synchroniser les données
+      const success = await syncContext.syncData<T>(tableName, data);
       
-      // Appeler directement le service de synchronisation global
-      const result = await syncTable(tableName, data);
-      
-      if (result) {
-        setLastSynced(new Date());
+      if (success) {
+        const newLastSynced = syncContext.getLastSynced(tableName);
+        setLastSynced(newLastSynced);
         
-        // Pour les synchronisations manuelles et initiales, afficher un toast de succès
-        if (trigger !== "auto") {
+        if (trigger === "manual") {
           toast({
             title: "Synchronisation réussie",
-            description: `${tableName} synchronisé avec succès avec Infomaniak`,
+            description: `Données ${tableName} synchronisées avec succès.`
           });
         }
         
-        return {
-          success: true,
-          message: `${tableName} synchronisé avec succès avec Infomaniak`
-        };
+        return { success: true, timestamp: newLastSynced };
       } else {
-        if (trigger !== "auto") {
+        setSyncFailed(true);
+        
+        if (trigger === "manual") {
           toast({
             title: "Échec de la synchronisation",
-            description: "Une erreur est survenue lors de la synchronisation avec Infomaniak. Les données sont sauvegardées localement.",
+            description: syncContext.getSyncError(tableName) || "Une erreur s'est produite",
             variant: "destructive"
           });
         }
         
-        return {
-          success: false,
-          message: "Échec de la synchronisation avec Infomaniak. Données sauvegardées localement."
-        };
+        return { success: false, error: syncContext.getSyncError(tableName) };
       }
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "Erreur inconnue";
+      setSyncFailed(true);
       
-      if (trigger !== "auto") {
+      if (trigger === "manual") {
         toast({
           title: "Erreur de synchronisation",
-          description: `${errorMessage}. Les données sont sauvegardées localement.`,
+          description: error instanceof Error ? error.message : "Une erreur s'est produite",
           variant: "destructive"
         });
       }
       
       return {
         success: false,
-        message: errorMessage
+        error: error instanceof Error ? error.message : "Une erreur s'est produite"
       };
+    } finally {
+      setIsSyncing(false);
     }
-  }, [isOnline, tableName, toast, syncTable, isSyncing]);
-  
-  // Réinitialiser l'état de synchronisation
-  const resetSyncStatus = useCallback(() => {
-    // Cette fonction n'est plus nécessaire avec le contexte global,
-    // mais est conservée pour la compatibilité avec le code existant
-  }, []);
-  
+  }, [syncContext, tableName]);
+
+  const loadData = useCallback(async <T extends {}>(): Promise<T[]> => {
+    setIsSyncing(true);
+    setSyncFailed(false);
+    
+    try {
+      const result = await syncContext.loadData<T>(tableName);
+      const newLastSynced = syncContext.getLastSynced(tableName);
+      setLastSynced(newLastSynced);
+      return result;
+    } catch (error) {
+      setSyncFailed(true);
+      throw error;
+    } finally {
+      setIsSyncing(false);
+    }
+  }, [syncContext, tableName]);
+
   return {
+    syncAndProcess,
+    loadData,
     isSyncing,
+    isOnline: syncContext.isOnline,
     lastSynced,
     syncFailed,
-    syncAndProcess,
-    resetSyncStatus,
-    isOnline
+    syncError: syncContext.getSyncError(tableName)
   };
-};
+}

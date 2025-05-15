@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Document, DocumentGroup } from '@/types/bibliotheque';
 import { useToast } from '@/hooks/use-toast';
-import { useSyncContext } from '@/hooks/useSyncContext';
 import { getCurrentUser } from '@/services/auth/authService';
 import { useGlobalSync } from '@/contexts/GlobalSyncContext';
 import { getDatabaseConnectionCurrentUser } from '@/services/core/databaseConnectionService';
@@ -12,20 +11,6 @@ export const useBibliotheque = () => {
   const [isDialogOpen, setIsDialogOpen] = useState<boolean>(false);
   const [isGroupDialogOpen, setIsGroupDialogOpen] = useState<boolean>(false);
   const [isEditing, setIsEditing] = useState<boolean>(false);
-  const [currentDocument, setCurrentDocument] = useState<Document>({
-    id: "",
-    name: "",
-    link: "",
-    groupId: undefined
-  });
-  const [currentGroup, setCurrentGroup] = useState<DocumentGroup>({
-    id: "",
-    name: "",
-    expanded: false,
-    items: []
-  });
-  
-  const { toast } = useToast();
   
   // S'assurer que currentUser est toujours une chaîne
   const [currentUser, setCurrentUser] = useState<string>(() => {
@@ -40,6 +25,24 @@ export const useBibliotheque = () => {
     return 'default';
   });
   
+  const [currentDocument, setCurrentDocument] = useState<Document>({
+    id: "",
+    name: "",
+    link: "",
+    groupId: undefined,
+    userId: currentUser
+  });
+  
+  const [currentGroup, setCurrentGroup] = useState<DocumentGroup>({
+    id: "",
+    name: "",
+    expanded: false,
+    items: [],
+    userId: currentUser
+  });
+  
+  const { toast } = useToast();
+  
   // Use the GlobalSync context
   const { syncTable, syncAll, isOnline } = useGlobalSync();
   const { syncStates } = useGlobalSync();
@@ -53,12 +56,32 @@ export const useBibliotheque = () => {
   
   // Déstructurer l'état de synchronisation pour faciliter l'accès
   const { isSyncing, lastSynced, syncFailed } = collaborationSyncState;
+
+  // Make sure to update the userId when the current user changes
+  useEffect(() => {
+    setCurrentDocument(prev => ({...prev, userId: currentUser}));
+    setCurrentGroup(prev => ({...prev, userId: currentUser}));
+  }, [currentUser]);
   
-  // Utiliser le hook useSyncContext pour la synchronisation
-  const { 
-    syncWithServer, 
-    notifyChanges 
-  } = useSyncContext('collaboration', documents, { autoSync: true });
+  // Create local implementation for missing functions
+  const syncWithServer = useCallback(async (documents: Document[], groups: DocumentGroup[], userId?: string) => {
+    try {
+      console.log(`useBibliotheque: Manually syncing ${documents.length} documents`);
+      return await syncTable('collaboration', documents);
+    } catch (error) {
+      console.error('useBibliotheque: Sync error:', error);
+      return false;
+    }
+  }, [syncTable]);
+  
+  const notifyChanges = useCallback(() => {
+    console.log('useBibliotheque: Notifying data changes');
+    
+    // Dispatch an event that can be caught by other components
+    window.dispatchEvent(new CustomEvent('collaboration-data-changed', {
+      detail: { timestamp: Date.now() }
+    }));
+  }, []);
   
   // Écouter les changements d'utilisateur de base de données
   useEffect(() => {

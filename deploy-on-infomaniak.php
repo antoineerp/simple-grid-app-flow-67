@@ -1,245 +1,165 @@
+
 <?php
 header('Content-Type: text/html; charset=utf-8');
-// Fonction pour vérifier que les secrets GitHub sont configurés
-function checkGitHubSecrets() {
-    $owner = 'antoineerp';
-    $repo = 'simple-grid-app-flow-67';
-    
-    $secretsConfigured = false;
-    $secretsMessage = "Impossible de vérifier les secrets GitHub";
-    
-    return [
-        'configured' => $secretsConfigured,
-        'message' => $secretsMessage
-    ];
-}
-
-// Obtenir le statut actuel des secrets
-$secretsStatus = checkGitHubSecrets();
 ?>
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Déploiement Manuel sur Infomaniak</title>
+    <title>Déploiement manuel sur Infomaniak</title>
     <style>
-        body { font-family: Arial, sans-serif; margin: 20px; line-height: 1.6; }
-        .container { max-width: 800px; margin: 0 auto; }
-        .card { border: 1px solid #ddd; border-radius: 8px; padding: 20px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-        .button { 
-            background-color: #4CAF50; 
-            color: white; 
-            padding: 10px 20px; 
-            border: none; 
-            border-radius: 4px; 
-            cursor: pointer; 
-            font-size: 16px; 
-            text-decoration: none;
-            display: inline-block;
-        }
-        .button:hover { background-color: #45a049; }
-        .button.secondary {
-            background-color: #6c757d;
-        }
-        .button.secondary:hover {
-            background-color: #5a6268;
-        }
-        .info { background-color: #f8f9fa; padding: 15px; border-left: 4px solid #17a2b8; margin: 10px 0; }
-        .warning { background-color: #fff3cd; padding: 15px; border-left: 4px solid #ffc107; margin: 10px 0; }
-        .success { color: green; }
-        .error { color: red; }
-        .steps { background-color: #f9f9f9; padding: 15px; border-radius: 4px; margin-bottom: 15px; }
-        .steps ol { margin-left: 20px; padding-left: 0; }
-        .steps li { margin-bottom: 10px; }
-        img.screenshot { max-width: 100%; border: 1px solid #ddd; margin: 10px 0; border-radius: 4px; }
-        .highlight { background-color: #ffffcc; padding: 2px 5px; border-radius: 3px; }
+        body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; line-height: 1.6; }
+        h1, h2 { color: #333; }
+        .section { margin-bottom: 20px; border: 1px solid #ddd; padding: 15px; border-radius: 5px; }
+        .success { color: green; font-weight: bold; }
+        .error { color: red; font-weight: bold; }
+        pre { background: #f5f5f5; padding: 10px; border-radius: 5px; overflow-x: auto; }
+        code { background: #f5f5f5; padding: 2px 4px; border-radius: 3px; }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1>Déploiement Manuel sur Infomaniak</h1>
+    <h1>Déploiement manuel sur Infomaniak</h1>
+    
+    <div class="section">
+        <h2>Étape 1: Vérification des chemins</h2>
+        <?php
+        echo "<p>Document Root: " . $_SERVER['DOCUMENT_ROOT'] . "</p>";
+        echo "<p>Répertoire courant: " . getcwd() . "</p>";
         
-        <div class="card">
-            <h2>Checklist Complète de Déploiement</h2>
-            
-            <div class="steps">
-                <h3>1. Préparation Locale</h3>
-                <pre><code>
-# Vérification de la branche
-git checkout main
-
-# Mise à jour du dépôt
-git pull origin main
-
-# Installation des dépendances
-npm install
-
-# Nettoyage du cache
-npm cache clean --force
-rm -rf node_modules/.cache
-
-# Construction du projet
-npm run build
-                </code></pre>
-            </div>
-
-            <div class="steps">
-                <h3>2. Vérification du Build (Important)</h3>
-                <ol>
-                    <li>Vérifiez le dossier <code>dist/</code> :
-                        <ul>
-                            <li>✓ index.html</li>
-                            <li>✓ .htaccess</li>
-                            <li>✓ dossier assets/ avec les fichiers JS/CSS</li>
-                            <li>✓ dossier api/ avec tous les sous-dossiers :
-                                <ul>
-                                    <li>config/</li>
-                                    <li>controllers/</li>
-                                    <li>middleware/</li>
-                                    <li>models/</li>
-                                    <li>utils/</li>
-                                </ul>
-                            </li>
-                            <li>✓ dossier public/ avec lovable-uploads/</li>
-                        </ul>
-                    </li>
-                    <li>Vérifiez la présence des fichiers critiques dans api/ :
-                        <ul>
-                            <li>.htaccess</li>
-                            <li>.user.ini</li>
-                            <li>index.php</li>
-                            <li>auth.php</li>
-                            <li>test.php</li>
-                        </ul>
-                    </li>
-                </ol>
-            </div>
-
-            <div class="steps">
-                <h3>3. Commandes de Validation</h3>
-                <pre><code>
-# Vérification des fichiers modifiés
-git status
-
-# Si tout est correct, commit des changements
-git add .
-git commit -m "Build de production - Déploiement complet"
-git push origin main
-                </code></pre>
-            </div>
-
-            <div class="steps">
-                <h3>4. Déclenchement du Workflow GitHub</h3>
-                <?php
-                $owner = 'antoineerp';
-                $repo = 'simple-grid-app-flow-67';
-                $workflow_id = 'deploy.yml';
-                $github_actions_url = "https://github.com/$owner/$repo/actions/workflows/$workflow_id";
-                echo "<p><a href='$github_actions_url' target='_blank' class='button'>Lancer le Workflow GitHub</a></p>";
-                ?>
-            </div>
-
-            <div class="steps">
-                <h3>5. Vérification Post-Déploiement</h3>
-                <ol>
-                    <li>Attendez la fin du workflow GitHub (~5 minutes)</li>
-                    <li>Utilisez les outils de diagnostic :
-                        <p>
-                            <a href="deploy-check.php" target="_blank" class="button">Diagnostic Complet</a>
-                            <a href="verify-deploy.php" target="_blank" class="button secondary">Vérification Alternative</a>
-                        </p>
-                    </li>
-                    <li>Vérifiez les points suivants sur le site :
-                        <ul>
-                            <li>Chargement de la page d'accueil</li>
-                            <li>Connexion à l'application</li>
-                            <li>Accès à l'API</li>
-                            <li>Chargement des assets</li>
-                            <li>Fonctionnement du routing</li>
-                        </ul>
-                    </li>
-                </ol>
-            </div>
-        </div>
-
-        <div class="card">
-            <h2>Instructions pour Déployer</h2>
-            <p>Cette page vous guide pour déclencher manuellement un déploiement via GitHub Actions vers Infomaniak.</p>
-            
-            <div class="info">
-                <p><strong>Note:</strong> Pour que ce déploiement fonctionne, les secrets GitHub suivants doivent être configurés :</p>
-                <ul>
-                    <li>FTP_SERVER - Serveur FTP d'Infomaniak</li>
-                    <li>FTP_USERNAME - Nom d'utilisateur FTP</li>
-                    <li>FTP_PASSWORD - Mot de passe FTP</li>
-                </ul>
-            </div>
-        </div>
-
-        <div class="card">
-            <h2>Processus de Déploiement en 3 Étapes</h2>
-            
-            <div class="steps">
-                <h3>Étape 1: Aller à la page Actions de GitHub</h3>
-                <p>Cliquez sur le bouton ci-dessous pour ouvrir directement la page des Actions GitHub :</p>
-                <?php
-                // URL de l'API GitHub pour déclencher le workflow
-                $owner = 'antoineerp';  // Remplacez par le propriétaire du dépôt
-                $repo = 'simple-grid-app-flow-67';  // Remplacez par le nom du dépôt
-                $workflow_id = 'deploy.yml';  // ID du workflow à déclencher
-                
-                $github_actions_url = "https://github.com/$owner/$repo/actions/workflows/$workflow_id";
-                
-                echo "<p><a href='$github_actions_url' target='_blank' class='button'>Ouvrir GitHub Actions</a></p>";
-                ?>
-            </div>
-            
-            <div class="steps">
-                <h3>Étape 2: Lancer le workflow</h3>
-                <ol>
-                    <li>Sur la page GitHub Actions, cliquez sur le bouton <span class="highlight">"Run workflow"</span> à droite <strong>(IMPORTANT!)</strong></li>
-                    <li>Assurez-vous que la branche <span class="highlight">"main"</span> est sélectionnée</li>
-                    <li>Cliquez sur le bouton <span class="highlight">"Run workflow"</span> vert pour démarrer le déploiement</li>
-                </ol>
-                <div class="warning">
-                    <p><strong>Attention!</strong> Vous devez explicitement cliquer sur le bouton "Run workflow" sur la page GitHub. L'ouverture de la page ne déclenche pas automatiquement le déploiement.</p>
-                </div>
-            </div>
-            
-            <div class="steps">
-                <h3>Étape 3: Vérifier le déploiement</h3>
-                <ol>
-                    <li>Attendez que le workflow se termine (généralement 2-5 minutes)</li>
-                    <li>Une fois terminé, vérifiez que le statut est <span class="success">vert</span> (succès)</li>
-                    <li>Utilisez l'outil de diagnostic ci-dessous pour confirmer que le déploiement est correct</li>
-                </ol>
-            </div>
-        </div>
+        // Vérifier les chemins Infomaniak
+        $client_path = '/home/clients/df8dceff557ccc0605d45e1581aa661b';
+        $site_path = '/sites/qualiopi.ch';
         
-        <div class="card">
-            <h2>Suivi et Vérification</h2>
-            <?php
-            $actions_url = "https://github.com/$owner/$repo/actions";
-            echo "<p>Vous pouvez suivre l'état des déploiements sur la <a href='$actions_url' target='_blank'>page Actions de GitHub</a>.</p>";
-            ?>
+        echo "<p>Chemin client Infomaniak: " . (is_dir($client_path) ? '<span class="success">Existe</span>' : '<span class="error">N\'existe pas</span>') . "</p>";
+        echo "<p>Chemin site (absolu): " . (is_dir($site_path) ? '<span class="success">Existe</span>' : '<span class="error">N\'existe pas</span>') . "</p>";
+        ?>
+    </div>
+    
+    <div class="section">
+        <h2>Étape 2: Création/mise à jour du fichier index.php</h2>
+        <?php
+        $index_php_content = '<?php
+// Redirection vers le script de déploiement
+header(\'Location: deploy-on-infomaniak.php\');
+exit;
+?>
+';
+        
+        if (file_put_contents('index.php', $index_php_content)) {
+            echo "<p class='success'>Fichier index.php créé avec succès</p>";
+        } else {
+            echo "<p class='error'>Impossible de créer le fichier index.php</p>";
+        }
+        ?>
+    </div>
+    
+    <div class="section">
+        <h2>Étape 3: Vérification des fichiers essentiels</h2>
+        <?php
+        $essential_files = [
+            'index.html' => 'Page principale',
+            'assets/index.js' => 'JavaScript principal',
+            'api/index.php' => 'Point d\'entrée API',
+            'api/phpinfo.php' => 'Informations PHP API',
+            'phpinfo.php' => 'Informations PHP',
+            '.htaccess' => 'Configuration Apache'
+        ];
+        
+        echo "<table border='1' cellpadding='5' style='border-collapse: collapse; width: 100%;'>";
+        echo "<tr><th>Fichier</th><th>Description</th><th>Statut</th></tr>";
+        
+        foreach ($essential_files as $file => $desc) {
+            echo "<tr>";
+            echo "<td>$file</td>";
+            echo "<td>$desc</td>";
+            echo "<td>";
+            if (file_exists($file)) {
+                echo "<span class='success'>Existe</span> (" . filesize($file) . " octets)";
+            } else {
+                echo "<span class='error'>N'existe pas</span>";
+            }
+            echo "</td></tr>";
+        }
+        
+        echo "</table>";
+        ?>
+    </div>
+    
+    <div class="section">
+        <h2>Étape 4: Vérification de la configuration API</h2>
+        <?php
+        $api_config_file = 'api/config/db_config.json';
+        
+        if (file_exists($api_config_file)) {
+            echo "<p class='success'>Fichier de configuration API trouvé</p>";
             
-            <p>Une fois le déploiement terminé, vérifiez votre site à l'adresse :</p>
-            <p><a href="https://qualiopi.ch/" target="_blank" class="button">Visiter le site</a></p>
+            $config = json_decode(file_get_contents($api_config_file), true);
+            if ($config && isset($config['host'])) {
+                echo "<p>Configuration pour l'hôte: " . $config['host'] . "</p>";
+                
+                if ($config['host'] === 'p71x6d.myd.infomaniak.com') {
+                    echo "<p class='success'>Configuration correcte pour Infomaniak</p>";
+                } else {
+                    echo "<p class='error'>La configuration ne correspond pas à Infomaniak</p>";
+                    
+                    // Mise à jour de la configuration
+                    $config['host'] = 'p71x6d.myd.infomaniak.com';
+                    $config['db_name'] = 'p71x6d_richard';
+                    $config['username'] = 'p71x6d_richard';
+                    $config['password'] = 'Trottinette43!';
+                    
+                    if (file_put_contents($api_config_file, json_encode($config, JSON_PRETTY_PRINT))) {
+                        echo "<p class='success'>Configuration mise à jour pour Infomaniak</p>";
+                    } else {
+                        echo "<p class='error'>Impossible de mettre à jour la configuration</p>";
+                    }
+                }
+            } else {
+                echo "<p class='error'>Fichier de configuration invalide</p>";
+            }
+        } else {
+            echo "<p class='error'>Fichier de configuration API non trouvé</p>";
             
-            <h3>Diagnostic du Déploiement</h3>
-            <p>Pour vérifier que votre déploiement a réussi, utilisez notre outil de diagnostic :</p>
-            <p>
-                <a href="deploy-check.php" target="_blank" class="button">Vérifier le déploiement</a>
-                <a href="verify-deploy.php" target="_blank" class="button secondary">Vérification alternative</a>
-            </p>
+            // Création du répertoire si nécessaire
+            if (!is_dir('api/config')) {
+                mkdir('api/config', 0755, true);
+                echo "<p>Répertoire api/config créé</p>";
+            }
             
-            <h3>Problèmes de déploiement fréquents</h3>
-            <ul>
-                <li><strong>Erreur 500</strong> - Vérifiez les logs d'erreur Apache et l'accès aux fichiers</li>
-                <li><strong>Redirections infinies</strong> - Problème probable avec les règles .htaccess</li>
-                <li><strong>Fichiers manquants</strong> - Vérifiez la structure du build dans GitHub Actions</li>
-                <li><strong>Page blanche</strong> - Vérifiez les erreurs JavaScript dans la console du navigateur</li>
-            </ul>
-        </div>
+            // Création du fichier de configuration
+            $config = [
+                'host' => 'p71x6d.myd.infomaniak.com',
+                'db_name' => 'p71x6d_richard',
+                'username' => 'p71x6d_richard',
+                'password' => 'Trottinette43!'
+            ];
+            
+            if (file_put_contents($api_config_file, json_encode($config, JSON_PRETTY_PRINT))) {
+                echo "<p class='success'>Fichier de configuration API créé</p>";
+            } else {
+                echo "<p class='error'>Impossible de créer le fichier de configuration API</p>";
+            }
+        }
+        ?>
+    </div>
+    
+    <div class="section">
+        <h2>Étape 5: Test de l'exécution PHP</h2>
+        <p>Vérifiez que PHP s'exécute correctement en accédant à ces fichiers:</p>
+        <ul>
+            <li><a href="phpinfo.php" target="_blank">phpinfo.php</a> - Informations PHP</li>
+            <li><a href="api/phpinfo.php" target="_blank">api/phpinfo.php</a> - Informations PHP (dossier API)</li>
+            <li><a href="php-test.php" target="_blank">php-test.php</a> - Test simple PHP</li>
+        </ul>
+    </div>
+    
+    <div class="section">
+        <h2>Étape 6: Actions</h2>
+        <p>Voici les actions recommandées:</p>
+        <ol>
+            <li>Vérifiez que PHP s'exécute correctement en accédant aux liens ci-dessus</li>
+            <li>Vérifiez la connexion à la base de données en accédant à <a href="api/db-test.php" target="_blank">api/db-test.php</a></li>
+            <li>Accédez à l'application principale via <a href="index.html">index.html</a></li>
+        </ol>
     </div>
 </body>
 </html>

@@ -1,0 +1,29 @@
+
+# Exemple de fichier .htaccess pour protéger les informations sensibles
+
+# Bloquer l'accès direct aux fichiers de configuration
+<FilesMatch "^(db_config\.json|.*\.ini|env\.php)$">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+
+# Protéger le dossier de configuration
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    
+    # Permettre l'accès aux scripts de diagnostic
+    RewriteRule ^infomaniak-db-diagnostic\.php$ - [L]
+    
+    # Rediriger tout accès direct aux fichiers JSON vers l'index
+    RewriteRule ^api/config/.*\.json$ /index.html [R=301,L]
+    
+    # Protéger le dossier api/config
+    RewriteRule ^api/config/$ /index.html [R=301,L]
+</IfModule>
+
+# Définir des règles spécifiques pour le dossier api/config
+<Directory "/path/to/your/api/config">
+    Options -Indexes
+    AllowOverride All
+    Require all denied
+</Directory>

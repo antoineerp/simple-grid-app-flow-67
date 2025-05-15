@@ -24,10 +24,21 @@ export const BibliothequeHeader: React.FC<BibliothequeHeaderProps> = ({
     <div className="mb-6">
       <div className="flex justify-between items-center mb-2">
         <h1 className="text-3xl font-bold text-app-blue">Bibliothèque de documents</h1>
+        
+        {/* Bouton de synchronisation invisible mais fonctionnel */}
+        <Button
+          onClick={onSync}
+          variant="outline"
+          size="sm"
+          className="hidden"
+        >
+          <RefreshCw className={`h-4 w-4 mr-1 ${isSyncing ? 'animate-spin' : ''}`} />
+          Actualiser
+        </Button>
       </div>
       
-      {/* Only show the SyncIndicator if there's an error or we're offline */}
-      <div className="mb-4">
+      {/* Indicateur de synchronisation invisible */}
+      <div className="mb-4 hidden">
         <SyncIndicator
           isSyncing={isSyncing}
           isOnline={isOnline}
@@ -35,6 +46,7 @@ export const BibliothequeHeader: React.FC<BibliothequeHeaderProps> = ({
           lastSynced={lastSynced}
           onSync={onSync}
           showOnlyErrors={true}
+          tableName="bibliotheque"
         />
       </div>
     </div>
