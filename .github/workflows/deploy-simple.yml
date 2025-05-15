@@ -1,4 +1,3 @@
-
 name: Simple Deploy to Infomaniak
 
 on:
@@ -19,6 +18,8 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v3
       with:
+        repository: antoineerp/qualiopi-ch
+        token: ${{ secrets.GITHUB_TOKEN }}
         fetch-depth: 0
 
     - name: Setup Node.js
@@ -97,4 +98,3 @@ jobs:
           [ -d "api/documentation" ] && echo "✅ api/documentation: PRÉSENT" || echo "❌ api/documentation: MANQUANT"
           find api -name "*.php" | wc -l
           [ -d "dist" ] && echo "✅ dossier dist: PRÉSENT" || echo "❌ dossier dist: MANQUANT"
-

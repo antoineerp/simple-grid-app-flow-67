@@ -8,9 +8,10 @@ import { Skeleton } from "@/components/ui/skeleton";
 interface MembresTableProps {
   membres: Membre[];
   isLoading: boolean;
+  onDelete?: (membre: any) => void;
 }
 
-export const MembresTable: React.FC<MembresTableProps> = ({ membres, isLoading }) => {
+export const MembresTable: React.FC<MembresTableProps> = ({ membres, isLoading, onDelete }) => {
   const handleEdit = (id: string) => {
     console.log('Edit membre:', id);
     // Logique d'édition à implémenter
@@ -18,7 +19,12 @@ export const MembresTable: React.FC<MembresTableProps> = ({ membres, isLoading }
 
   const handleDelete = (id: string) => {
     console.log('Delete membre:', id);
-    // Logique de suppression à implémenter
+    if (onDelete) {
+      const membre = membres.find(m => m.id === id);
+      if (membre) {
+        onDelete(membre);
+      }
+    }
   };
 
   if (isLoading) {

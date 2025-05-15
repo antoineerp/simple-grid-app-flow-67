@@ -2,6 +2,8 @@
 /**
  * Service for syncing data with the server
  */
+import { syncService } from './syncServiceImpl';
+
 export const triggerSync = async (tableName: string): Promise<boolean> => {
   try {
     console.log(`Syncing table ${tableName}...`);
@@ -18,3 +20,6 @@ export const triggerSync = async (tableName: string): Promise<boolean> => {
 export const triggerTableSync = async (tableName: string): Promise<boolean> => {
   return triggerSync(tableName);
 };
+
+// Réexporter syncService depuis syncServiceImpl pour compatibilité
+export { syncService } from './syncServiceImpl';

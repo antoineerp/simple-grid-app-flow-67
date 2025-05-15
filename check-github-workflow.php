@@ -105,7 +105,7 @@ header('Content-Type: text/html; charset=utf-8');
                         echo "<p><span class='success'>Dossiers .github/workflows créés avec succès</span></p>";
                         
                         // Créer un exemple de fichier workflow
-                        $example_workflow = "name: Deploy to Infomaniak\n\non:\n  push:\n    branches: [ main ]\n  workflow_dispatch:\n\njobs:\n  deploy:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v3\n      - name: Test\n        run: echo \"Exemple de workflow\"";
+                        $example_workflow = "name: Deploy to Infomaniak\n\non:\n  push:\n    branches: [ main ]\n  workflow_dispatch:\n\njobs:\n  deploy:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v3\n      with:\n        repository: antoineerp/qualiopi-ch\n        token: \${{ secrets.GITHUB_TOKEN }}\n      - name: Test\n        run: echo \"Exemple de workflow\"";
                         
                         if (file_put_contents($workflow_file, $example_workflow)) {
                             echo "<p><span class='success'>Fichier exemple de workflow créé</span></p>";
@@ -167,7 +167,7 @@ git push origin main</pre></li>
                     <pre>curl -X POST \
 -H "Accept: application/vnd.github.v3+json" \
 -H "Authorization: token VOTRE_TOKEN" \
-https://api.github.com/repos/VOTRE_NOM/VOTRE_REPO/actions/workflows/deploy.yml/dispatches \
+https://api.github.com/repos/antoineerp/qualiopi-ch/actions/workflows/deploy.yml/dispatches \
 -d '{"ref":"main"}'</pre></li>
                 </ul>
             </div>

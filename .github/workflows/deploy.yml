@@ -1,4 +1,3 @@
-
 name: Deploy to Infomaniak
 
 on:
@@ -18,6 +17,9 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v3
+      with:
+        repository: antoineerp/qualiopi-ch
+        token: ${{ secrets.GITHUB_TOKEN }}
 
     - name: Setup Node.js
       uses: actions/setup-node@v3
@@ -278,5 +280,5 @@ jobs:
     - name: Clean up
       run: |
         rm -rf deploy
-        # Ne pas supprimer dist pour que les fichiers restent disponibles
-        # rm -rf dist
+
+</edits_to_apply>

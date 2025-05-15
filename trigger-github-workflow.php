@@ -4,7 +4,7 @@ header('Content-Type: text/html; charset=utf-8');
 
 $token = '';  // À remplir avec votre token GitHub
 $owner = 'antoineerp';
-$repo = 'simple-grid-app-flow-67';
+$repo = 'qualiopi-ch';
 $workflow_file = 'deploy.yml';
 $ref = 'main';
 
@@ -158,7 +158,7 @@ if (!empty($token)) {
             <ol>
                 <li>Allez sur <a href="https://github.com/settings/tokens" target="_blank">https://github.com/settings/tokens</a></li>
                 <li>Cliquez sur "Generate new token" puis "Generate new token (classic)"</li>
-                <li>Donnez un nom à votre token (ex: "Déploiement FormaCert")</li>
+                <li>Donnez un nom à votre token (ex: "Déploiement Qualiopi CH")</li>
                 <li>Sélectionnez les scopes: <code>repo</code> (tous) et <code>workflow</code></li>
                 <li>Cliquez sur "Generate token" en bas de la page</li>
                 <li>Copiez le token généré et utilisez-le dans le formulaire ci-dessus</li>
@@ -176,7 +176,7 @@ if (!empty($token)) {
             <pre>curl -X POST \
 -H "Accept: application/vnd.github.v3+json" \
 -H "Authorization: token VOTRE_TOKEN_GITHUB" \
-https://api.github.com/repos/antoineerp/simple-grid-app-flow-67/actions/workflows/deploy.yml/dispatches \
+https://api.github.com/repos/antoineerp/qualiopi-ch/actions/workflows/deploy.yml/dispatches \
 -d '{"ref":"main"}'</pre>
             
             <h3>Via un commit vide</h3>
