@@ -9,13 +9,13 @@ AddType font/ttf .ttf
 AddType font/woff .woff
 AddType font/woff2 .woff2
 
-# Force le type MIME pour CSS
+# Force le type MIME pour CSS de manière explicite
 <FilesMatch "\.css$">
     ForceType text/css
     Header set Content-Type "text/css; charset=utf-8"
 </FilesMatch>
 
-# Force le type MIME pour JavaScript
+# Force le type MIME pour JavaScript de manière explicite
 <FilesMatch "\.js$">
     ForceType application/javascript
     Header set Content-Type "application/javascript; charset=utf-8"
@@ -30,4 +30,18 @@ AddType font/woff2 .woff2
   ExpiresByType font/ttf "access plus 1 month"
   ExpiresByType font/woff "access plus 1 month"
   ExpiresByType font/woff2 "access plus 1 month"
+</IfModule>
+
+# Désactiver la mise en cache pendant le développement
+# Décommenter pour désactiver la mise en cache
+# <IfModule mod_headers.c>
+#   Header set Cache-Control "no-cache, no-store, must-revalidate"
+#   Header set Pragma "no-cache"
+#   Header set Expires 0
+# </IfModule>
+
+# Autoriser l'accès depuis toutes les origines pour les assets
+<IfModule mod_headers.c>
+    Header set Access-Control-Allow-Origin "*"
+    Header set X-Content-Type-Options "nosniff"
 </IfModule>
