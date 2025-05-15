@@ -21,7 +21,12 @@ export interface DocumentGroup {
 // Types pour la bibliothèque
 export interface BibliothequeDocument {
   id: string;
+  name: string;  // Adding name property
   titre: string;
+  type: string;
+  size: number;
+  folderId: string | null;  // Adding folderId property
+  tags?: string[];
   description?: string;
   groupe_id?: string;
   fichier_url?: string;
@@ -30,7 +35,14 @@ export interface BibliothequeDocument {
   created_by?: string;
   modified_by?: string;
   etat?: 'actif' | 'archive' | 'brouillon';
-  tags?: string[];
+  createdAt?: Date;  // Adding createdAt property
+  updatedAt?: Date;  // Adding updatedAt property
+}
+
+export interface BibliothequeFolder {
+  id: string;
+  name: string;
+  parentId: string | null;
 }
 
 export interface BibliothequeGroup {

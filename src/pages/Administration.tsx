@@ -14,7 +14,7 @@ import { hasPermission, UserRole } from '@/types/roles';
 import UserDiagnostic from '@/components/admin/UserDiagnostic';
 import ManagerDataImport from '@/components/admin/ManagerDataImport';
 import { UserManager } from '@/services/users/userManager';
-import { SyncDiagnosticPanel } from '@/components/diagnostics/SyncDiagnosticPanel';
+import SyncDiagnosticPanel from '@/components/diagnostics/SyncDiagnosticPanel';
 import DbConnectionTest from "@/components/DbConnectionTest";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import { getCurrentUser } from '@/services/auth/authService';

@@ -4,6 +4,7 @@
  */
 
 import { toast } from "@/hooks/use-toast";
+import { triggerSync, triggerSyncAll } from './triggerSync';
 
 /**
  * Déclenche une synchronisation pour un type d'entité spécifique
@@ -44,5 +45,26 @@ export const getSyncStatus = async (entityType: string) => {
       lastSync: null,
       status: "error"
     };
+  }
+};
+
+// Export needed functions from triggerSync.ts
+export { triggerSync, triggerSyncAll };
+
+// Add the triggerTableSync function
+export const triggerTableSync = async (tableName: string): Promise<boolean> => {
+  return triggerSync(tableName);
+};
+
+// Add syncService object for compatibility
+export const syncService = {
+  syncTable: async (tableName: string) => {
+    try {
+      const result = await triggerSync(tableName);
+      return { success: result };
+    } catch (error) {
+      console.error(`Error syncing table ${tableName}:`, error);
+      return { success: false, error };
+    }
   }
 };

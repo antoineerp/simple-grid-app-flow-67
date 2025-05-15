@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -17,7 +16,11 @@ interface EntitySyncStatus {
   error?: string;
 }
 
-const SyncDiagnosticPanel: React.FC = () => {
+interface SyncDiagnosticPanelProps {
+  onClose?: () => void;
+}
+
+const SyncDiagnosticPanel: React.FC<SyncDiagnosticPanelProps> = ({ onClose }) => {
   const { syncStatus, startSync, endSync } = useSyncContext();
   const [entityStatuses, setEntityStatuses] = useState<EntitySyncStatus[]>([
     { entity: 'membres', lastSync: null, status: 'pending' },
