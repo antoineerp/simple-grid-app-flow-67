@@ -1,28 +1,48 @@
 
 import React from 'react';
-import SyncToolbar from '@/components/common/SyncToolbar';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dispatch, SetStateAction } from 'react';
 
 interface MembresToolbarProps {
-  onSync: () => void;
-  lastSynced: Date | null;
-  isLoading: boolean;
-  error: string | null;
+  searchTerm: string;
+  onSearchChange: Dispatch<SetStateAction<string>>;
+  departments: string[];
+  selectedDepartment: string | null;
+  onDepartmentChange: Dispatch<SetStateAction<string | null>>;
 }
 
 const MembresToolbar: React.FC<MembresToolbarProps> = ({ 
-  onSync, 
-  lastSynced, 
-  isLoading, 
-  error 
+  searchTerm, 
+  onSearchChange, 
+  departments, 
+  selectedDepartment, 
+  onDepartmentChange 
 }) => {
   return (
-    <SyncToolbar
-      onSync={onSync}
-      lastSynced={lastSynced}
-      isLoading={isLoading}
-      error={error}
-      tableName="membres"
-    />
+    <div className="flex flex-col gap-4 mb-6 sm:flex-row sm:items-center sm:justify-between">
+      <Input
+        placeholder="Rechercher un membre..."
+        value={searchTerm}
+        onChange={(e) => onSearchChange(e.target.value)}
+        className="max-w-sm"
+      />
+      
+      <Select
+        value={selectedDepartment || ""}
+        onValueChange={(value) => onDepartmentChange(value || null)}
+      >
+        <SelectTrigger className="w-[180px]">
+          <SelectValue placeholder="Département" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="">Tous les départements</SelectItem>
+          {departments.map((dept) => (
+            <SelectItem key={dept} value={dept}>{dept}</SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
   );
 };
 

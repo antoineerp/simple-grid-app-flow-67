@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { RefreshCw, PlusCircle, Trash2, Users } from 'lucide-react';
 import { MembresProvider, useMembres } from '@/contexts/MembresContext';
-import MembresTable from '@/components/ressources/MembresTable';
+import { MembresTable } from '@/components/ressources/MembresTable';
 import MembresToolbar from '@/components/ressources/MembresToolbar';
 import { Membre } from '@/types/membres';
 import { toast } from '@/components/ui/use-toast';

@@ -1,28 +1,20 @@
 
-// Services de synchronisation centralisés
-
-// Import et réexportation des services
-import { default as SyncService } from './SyncService';
-import { triggerSync } from './triggerSync';
-
-// Export des types comme type pour éviter les erreurs isolatedModules
-export type { DataTable, SyncResult } from './syncServiceImpl';
-
-// Export des services
-export { SyncService, triggerSync };
-
-// Export d'un service par défaut pour la compatibilité
-export const syncService = {
-  syncTable: async (tableName: string, data?: any[]) => {
-    console.log("Service de synchronisation appelé pour", tableName);
-    return { success: true };
-  },
-  
-  fetchData: async <T>(tableName: string): Promise<T[]> => {
-    console.log("Chargement des données pour", tableName);
-    return [] as T[];
+/**
+ * Service for syncing data with the server
+ */
+export const triggerSync = async (tableName: string): Promise<boolean> => {
+  try {
+    console.log(`Syncing table ${tableName}...`);
+    // In a real application, this would make an API call to sync data
+    await new Promise(resolve => setTimeout(resolve, 500)); // Simulate network delay
+    console.log(`Sync complete for ${tableName}`);
+    return true;
+  } catch (error) {
+    console.error(`Error syncing ${tableName}:`, error);
+    return false;
   }
 };
 
-// Export du DatabaseHelper par défaut
-export * from './DatabaseHelper';
+export const triggerTableSync = async (tableName: string): Promise<boolean> => {
+  return triggerSync(tableName);
+};

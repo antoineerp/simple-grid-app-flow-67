@@ -1,76 +1,51 @@
 
 import React from 'react';
-import { Pencil, Trash, FileDown } from 'lucide-react';
 import { Membre } from '@/types/membres';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
+import { Edit, Trash2 } from "lucide-react";
 
 interface MemberListProps {
   membres: Membre[];
   onEdit: (id: string) => void;
   onDelete: (id: string) => void;
-  onExport?: (id: string) => void; // Rendre optionnel
 }
 
-const MemberList = ({ membres, onEdit, onDelete, onExport }: MemberListProps) => {
+const MemberList: React.FC<MemberListProps> = ({ membres, onEdit, onDelete }) => {
   return (
-    <table className="w-full">
-      <thead>
-        <tr className="bg-app-light-blue text-left">
-          <th className="py-3 px-4 text-app-blue font-medium text-sm">Nom</th>
-          <th className="py-3 px-4 text-app-blue font-medium text-sm">Prénom</th>
-          <th className="py-3 px-4 text-app-blue font-medium text-sm">Fonction</th>
-          <th className="py-3 px-4 text-app-blue font-medium text-sm">Initiales</th>
-          <th className="py-3 px-4 text-app-blue font-medium text-sm text-right">Actions</th>
-        </tr>
-      </thead>
-      <tbody>
-        {membres.map((membre) => (
-          <tr key={membre.id} className="border-b hover:bg-gray-50">
-            <td className="py-3 px-4 text-sm">{membre.nom}</td>
-            <td className="py-3 px-4 text-sm">{membre.prenom}</td>
-            <td className="py-3 px-4 text-sm">{membre.fonction}</td>
-            <td className="py-3 px-4 text-sm">{membre.initiales}</td>
-            <td className="py-3 px-4 text-right flex justify-end gap-2">
-              {onExport && (
-                <Button 
-                  size="icon"
-                  variant="ghost"
-                  className="text-gray-600 hover:text-app-blue h-8 w-8"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onExport(membre.id);
-                  }}
-                >
-                  <FileDown className="h-4 w-4" />
+    <div className="w-full">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Nom</TableHead>
+            <TableHead>Prénom</TableHead>
+            <TableHead>Email</TableHead>
+            <TableHead>Département</TableHead>
+            <TableHead>Fonction</TableHead>
+            <TableHead className="text-right">Actions</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {membres.map((membre) => (
+            <TableRow key={membre.id}>
+              <TableCell>{membre.nom}</TableCell>
+              <TableCell>{membre.prenom}</TableCell>
+              <TableCell>{membre.email}</TableCell>
+              <TableCell>{membre.departement || '-'}</TableCell>
+              <TableCell>{membre.fonction || '-'}</TableCell>
+              <TableCell className="flex justify-end space-x-2">
+                <Button variant="ghost" size="sm" onClick={() => onEdit(membre.id)}>
+                  <Edit className="h-4 w-4" />
                 </Button>
-              )}
-              <Button 
-                size="icon"
-                variant="ghost"
-                className="text-gray-600 hover:text-app-blue h-8 w-8"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onEdit(membre.id);
-                }}
-              >
-                <Pencil className="h-4 w-4" />
-              </Button>
-              <Button 
-                size="icon"
-                variant="ghost"
-                className="text-gray-600 hover:text-red-500 h-8 w-8"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onDelete(membre.id);
-                }}
-              >
-                <Trash className="h-4 w-4" />
-              </Button>
-            </td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
+                <Button variant="ghost" size="sm" onClick={() => onDelete(membre.id)}>
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </div>
   );
 };
 
