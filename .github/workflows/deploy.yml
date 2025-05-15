@@ -280,5 +280,3 @@ jobs:
     - name: Clean up
       run: |
         rm -rf deploy
-
-</edits_to_apply>

@@ -1,465 +1,287 @@
+
 import React, { useState, useEffect } from 'react';
-import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
-import { Loader2, CheckCircle, XCircle, AlertTriangle, RefreshCw, Database } from 'lucide-react';
-import { useGlobalSync } from '@/contexts/GlobalSyncContext';
-import { triggerSync } from '@/services/sync/triggerSync';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { AlertCircle, ArrowDownUp, CheckCircle, Clock, RefreshCcw, XCircle } from "lucide-react";
+import { useSyncContext } from '@/context/SyncContext';
+import { startEntitySync, getSyncStatus } from '@/services/sync';
+import { Separator } from '@/components/ui/separator';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Progress } from '@/components/ui/progress';
-import { Badge } from '@/components/ui/badge';
-import { toast } from '@/components/ui/use-toast';
 
-interface SyncDiagnosticPanelProps {
-  onClose?: () => void;
+interface EntitySyncStatus {
+  entity: string;
+  lastSync: Date | null;
+  status: 'success' | 'error' | 'pending' | 'syncing';
+  error?: string;
 }
 
-interface SyncInfo {
-  tableName: string;
-  lastSynced: Date | null;
-  syncFailed: boolean;
-  localCount: number;
-  pendingSync: boolean;
-  status: 'ok' | 'warning' | 'error' | 'unknown';
-  message: string;
-}
+const SyncDiagnosticPanel: React.FC = () => {
+  const { syncStatus, startSync, endSync } = useSyncContext();
+  const [entityStatuses, setEntityStatuses] = useState<EntitySyncStatus[]>([
+    { entity: 'membres', lastSync: null, status: 'pending' },
+    { entity: 'documents', lastSync: null, status: 'pending' },
+    { entity: 'formations', lastSync: null, status: 'pending' },
+    { entity: 'evaluations', lastSync: null, status: 'pending' }
+  ]);
+  const [loading, setLoading] = useState(false);
+  const [syncProgress, setSyncProgress] = useState(0);
 
-export const SyncDiagnosticPanel: React.FC<SyncDiagnosticPanelProps> = ({ onClose = () => {} }) => {
-  const { syncStates, isOnline, syncAll, syncTable } = useGlobalSync();
-  const [syncInfos, setSyncInfos] = useState<SyncInfo[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isForcingSyncAll, setIsForcingSyncAll] = useState(false);
-  const [progress, setProgress] = useState(0);
-  
-  // Fonction pour scanner les données et collecter les informations de synchronisation
-  const scanSyncData = async () => {
-    setIsLoading(true);
-    setProgress(10);
-    
-    try {
-      const tables = [
-        'documents', 'exigences', 'membres', 'collaboration',
-        'configuration', 'formations', 'ressourcesHumaines'
-      ];
-      
-      const infos: SyncInfo[] = [];
-      
-      // Analyser chaque table connue
-      for (let i = 0; i < tables.length; i++) {
-        const tableName = tables[i];
-        setProgress(10 + (i * 80 / tables.length));
-        
-        // Récupérer l'état de synchronisation depuis le contexte global
-        const syncState = syncStates[tableName];
-        
-        // Vérifier si des données locales existent
-        const localStorageKeys = Object.keys(localStorage).filter(key => 
-          key.startsWith(`${tableName}_`) && 
-          !key.includes('last_synced') &&
-          !key.includes('sync_states') &&
-          !key.includes('sync_pending') &&
-          !key.includes('sync_in_progress')
-        );
-        
-        // Compter les entrées locales
-        let localCount = 0;
-        for (const key of localStorageKeys) {
-          try {
-            const data = JSON.parse(localStorage.getItem(key) || '[]');
-            if (Array.isArray(data)) {
-              localCount += data.length;
-            }
-          } catch (e) {
-            console.error(`Erreur lors de la lecture de ${key}:`, e);
-          }
-        }
-        
-        // Vérifier si une synchronisation est en attente
-        const pendingSync = localStorage.getItem(`sync_pending_${tableName}`) !== null;
-        
-        // Déterminer le statut
-        let status: 'ok' | 'warning' | 'error' | 'unknown' = 'unknown';
-        let message = "Statut inconnu";
-        
-        if (syncState) {
-          if (syncState.syncFailed) {
-            status = 'error';
-            message = "La dernière synchronisation avec Infomaniak a échoué";
-          } else if (!syncState.lastSynced) {
-            status = 'warning';
-            message = "Jamais synchronisé avec Infomaniak";
-          } else if (pendingSync) {
-            status = 'warning';
-            message = "Modifications en attente de synchronisation avec Infomaniak";
-          } else {
-            status = 'ok';
-            message = "Synchronisé avec Infomaniak";
-          }
-        } else if (localCount > 0) {
-          status = 'warning';
-          message = "Données locales présentes, mais état de synchronisation inconnu";
-        } else {
-          status = 'unknown';
-          message = "Aucune donnée locale ou état de synchronisation";
-        }
-        
-        infos.push({
-          tableName,
-          lastSynced: syncState?.lastSynced || null,
-          syncFailed: syncState?.syncFailed || false,
-          localCount,
-          pendingSync,
-          status,
-          message
-        });
-      }
-      
-      setProgress(100);
-      setSyncInfos(infos);
-    } catch (error) {
-      console.error("Erreur lors de l'analyse des données de synchronisation:", error);
-      toast({
-        variant: "destructive",
-        title: "Erreur de diagnostic",
-        description: "Impossible d'analyser l'état de synchronisation. Veuillez réessayer."
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-  
-  // Fonction pour forcer la synchronisation de toutes les tables
-  const handleForceSyncAll = async () => {
-    if (!isOnline) {
-      toast({
-        variant: "destructive",
-        title: "Mode hors ligne",
-        description: "La synchronisation avec Infomaniak n'est pas disponible en mode hors ligne."
-      });
-      return;
-    }
-    
-    setIsForcingSyncAll(true);
-    
-    try {
-      const results = await syncAll();
-      
-      const successCount = Object.values(results).filter(r => r).length;
-      const totalCount = Object.keys(results).length;
-      
-      if (totalCount === 0) {
-        toast({
-          title: "Aucune synchronisation nécessaire",
-          description: "Aucune table n'avait besoin d'être synchronisée avec Infomaniak."
-        });
-      } else if (successCount === totalCount) {
-        toast({
-          title: "Synchronisation complète réussie",
-          description: `${successCount} tables ont été synchronisées avec succès avec Infomaniak.`
-        });
-      } else {
-        toast({
-          variant: "destructive",
-          title: "Synchronisation partielle",
-          description: `${successCount}/${totalCount} tables ont été synchronisées avec Infomaniak.`
-        });
-      }
-      
-      // Mettre à jour les informations
-      await scanSyncData();
-    } catch (error) {
-      console.error("Erreur lors de la synchronisation forcée:", error);
-      toast({
-        variant: "destructive",
-        title: "Erreur de synchronisation",
-        description: "Une erreur est survenue lors de la synchronisation avec Infomaniak."
-      });
-    } finally {
-      setIsForcingSyncAll(false);
-    }
-  };
-  
-  // Fonction pour réparer les synchronisations bloquées
-  const handleRepairBlockedSync = () => {
-    try {
-      const pendingSyncKeys = Object.keys(localStorage).filter(key => 
-        key.startsWith('sync_in_progress_')
-      );
-      
-      if (pendingSyncKeys.length === 0) {
-        toast({
-          title: "Aucune réparation nécessaire",
-          description: "Aucune synchronisation bloquée détectée."
-        });
-        return;
-      }
-      
-      // Supprimer les indicateurs de synchronisation en cours
-      pendingSyncKeys.forEach(key => {
-        localStorage.removeItem(key);
-      });
-      
-      toast({
-        title: "Réparation effectuée",
-        description: `${pendingSyncKeys.length} synchronisations bloquées ont été réparées. Vous pouvez maintenant réessayer.`
-      });
-      
-      // Mettre à jour les informations
-      scanSyncData();
-    } catch (error) {
-      console.error("Erreur lors de la réparation des synchronisations bloquées:", error);
-      toast({
-        variant: "destructive",
-        title: "Erreur de réparation",
-        description: "Une erreur est survenue lors de la réparation des synchronisations bloquées."
-      });
-    }
-  };
-  
-  // Fonction pour forcer la synchronisation d'une table spécifique
-  const handleForceSync = async (tableName: string) => {
-    if (!isOnline) {
-      toast({
-        variant: "destructive",
-        title: "Mode hors ligne",
-        description: "La synchronisation avec Infomaniak n'est pas disponible en mode hors ligne."
-      });
-      return;
-    }
-    
-    try {
-      // Trouver les données locales pour la table
-      const localStorageKeys = Object.keys(localStorage).filter(key => 
-        key.startsWith(`${tableName}_`) && 
-        !key.includes('last_synced') &&
-        !key.includes('sync_states') &&
-        !key.includes('sync_pending') &&
-        !key.includes('sync_in_progress')
-      );
-      
-      let data: any[] = [];
-      
-      if (localStorageKeys.length > 0) {
-        // Utiliser les premières données trouvées
-        try {
-          data = JSON.parse(localStorage.getItem(localStorageKeys[0]) || '[]');
-          if (!Array.isArray(data)) {
-            data = [];
-          }
-        } catch (e) {
-          console.error(`Erreur lors de la lecture de ${localStorageKeys[0]}:`, e);
-          data = [];
-        }
-      }
-      
-      if (data.length === 0) {
-        toast({
-          variant: "destructive",
-          title: "Aucune donnée locale",
-          description: `Aucune donnée locale trouvée pour ${tableName}. Impossible de forcer la synchronisation.`
-        });
-        return;
-      }
-      
-      toast({
-        title: "Synchronisation en cours",
-        description: `Tentative de synchronisation de ${tableName} avec Infomaniak...`
-      });
-      
-      // Forcer la synchronisation
-      const result = await syncTable(tableName, data);
-      
-      if (result) {
-        toast({
-          title: "Synchronisation réussie",
-          description: `${tableName} a été synchronisé avec succès avec Infomaniak.`
-        });
-      } else {
-        toast({
-          variant: "destructive",
-          title: "Échec de la synchronisation",
-          description: `La synchronisation de ${tableName} avec Infomaniak a échoué.`
-        });
-      }
-      
-      // Mettre à jour les informations
-      await scanSyncData();
-    } catch (error) {
-      console.error(`Erreur lors de la synchronisation forcée de ${tableName}:`, error);
-      toast({
-        variant: "destructive",
-        title: "Erreur de synchronisation",
-        description: `Une erreur est survenue lors de la synchronisation de ${tableName} avec Infomaniak.`
-      });
-    }
-  };
-  
-  // Charger les informations de synchronisation au démarrage
+  // Charger le statut initial des entités
   useEffect(() => {
-    scanSyncData();
+    const loadEntityStatuses = async () => {
+      const updatedStatuses = [...entityStatuses];
+      
+      for (let i = 0; i < updatedStatuses.length; i++) {
+        try {
+          const status = await getSyncStatus(updatedStatuses[i].entity);
+          updatedStatuses[i] = {
+            ...updatedStatuses[i],
+            lastSync: status.lastSync,
+            status: status.status === 'success' ? 'success' : 'error'
+          };
+        } catch (error) {
+          console.error(`Error fetching sync status for ${updatedStatuses[i].entity}:`, error);
+        }
+      }
+      
+      setEntityStatuses(updatedStatuses);
+    };
+    
+    loadEntityStatuses();
   }, []);
-  
+
+  // Simuler une synchronisation complète
+  const handleSyncAll = async () => {
+    setLoading(true);
+    startSync('all');
+    setSyncProgress(0);
+    
+    // Mettre à jour le statut de toutes les entités à "syncing"
+    setEntityStatuses(prev => 
+      prev.map(status => ({ ...status, status: 'syncing' }))
+    );
+
+    // Synchroniser chaque entité une par une
+    for (let i = 0; i < entityStatuses.length; i++) {
+      const entity = entityStatuses[i];
+      
+      // Mettre à jour la progression
+      setSyncProgress(Math.round((i / entityStatuses.length) * 100));
+      
+      try {
+        // Synchroniser l'entité
+        const success = await startEntitySync(entity.entity);
+        
+        // Mettre à jour le statut de l'entité
+        setEntityStatuses(prev => {
+          const updated = [...prev];
+          updated[i] = {
+            ...updated[i],
+            status: success ? 'success' : 'error',
+            lastSync: success ? new Date() : updated[i].lastSync
+          };
+          return updated;
+        });
+        
+        // Attendre un peu pour la simulation
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      } catch (error) {
+        console.error(`Error syncing ${entity.entity}:`, error);
+        setEntityStatuses(prev => {
+          const updated = [...prev];
+          updated[i] = {
+            ...updated[i],
+            status: 'error',
+            error: 'Échec de la connexion'
+          };
+          return updated;
+        });
+      }
+    }
+    
+    // Terminer la synchronisation
+    setSyncProgress(100);
+    const allSuccess = entityStatuses.every(entity => entity.status === 'success');
+    endSync('all', allSuccess);
+    
+    setLoading(false);
+  };
+
+  // Synchroniser une entité spécifique
+  const handleSyncEntity = async (entity: string, index: number) => {
+    // Mettre à jour le statut de l'entité à "syncing"
+    setEntityStatuses(prev => {
+      const updated = [...prev];
+      updated[index] = { ...updated[index], status: 'syncing' };
+      return updated;
+    });
+    
+    startSync(entity);
+    
+    try {
+      // Synchroniser l'entité
+      const success = await startEntitySync(entity);
+      
+      // Mettre à jour le statut de l'entité
+      setEntityStatuses(prev => {
+        const updated = [...prev];
+        updated[index] = {
+          ...updated[index],
+          status: success ? 'success' : 'error',
+          lastSync: success ? new Date() : updated[index].lastSync
+        };
+        return updated;
+      });
+      
+      endSync(entity, success);
+    } catch (error) {
+      console.error(`Error syncing ${entity}:`, error);
+      setEntityStatuses(prev => {
+        const updated = [...prev];
+        updated[index] = {
+          ...updated[index],
+          status: 'error',
+          error: 'Échec de la connexion'
+        };
+        return updated;
+      });
+      
+      endSync(entity, false, 'Échec de la connexion');
+    }
+  };
+
+  // Formatter la date de dernière synchronisation
+  const formatLastSync = (date: Date | null) => {
+    if (!date) return 'Jamais';
+    return date.toLocaleString('fr-FR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
+  // Rendre un badge en fonction du statut de synchronisation
+  const renderStatusBadge = (status: EntitySyncStatus['status']) => {
+    switch (status) {
+      case 'success':
+        return <Badge variant="outline" className="bg-green-50 text-green-700"><CheckCircle className="w-3 h-3 mr-1" /> Synchronisé</Badge>;
+      case 'error':
+        return <Badge variant="outline" className="bg-red-50 text-red-700"><XCircle className="w-3 h-3 mr-1" /> Échec</Badge>;
+      case 'syncing':
+        return <Badge variant="outline" className="bg-yellow-50 text-yellow-700 animate-pulse"><ArrowDownUp className="w-3 h-3 mr-1" /> En cours</Badge>;
+      default:
+        return <Badge variant="outline" className="bg-gray-50 text-gray-700"><Clock className="w-3 h-3 mr-1" /> En attente</Badge>;
+    }
+  };
+
   return (
-    <div className="space-y-4">
-      {/* État de la connexion */}
-      <Alert variant={isOnline ? "default" : "destructive"}>
-        <Database className="h-4 w-4" />
-        <AlertTitle>{isOnline ? "Connecté à Infomaniak" : "Déconnecté d'Infomaniak"}</AlertTitle>
-        <AlertDescription>
-          {isOnline 
-            ? "La synchronisation avec Infomaniak est disponible." 
-            : "La synchronisation avec Infomaniak n'est pas disponible en mode hors ligne."}
-        </AlertDescription>
-      </Alert>
-      
-      {/* Actions de diagnostic */}
-      <div className="flex flex-wrap gap-2">
-        <Button
-          variant="outline"
-          onClick={scanSyncData}
-          disabled={isLoading}
-          className="gap-2"
-        >
-          {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-          Analyser l'état de synchronisation
-        </Button>
+    <Card className="w-full">
+      <CardHeader>
+        <CardTitle className="text-xl flex items-center">
+          <RefreshCcw className="mr-2 h-5 w-5" />
+          Diagnostic de synchronisation
+        </CardTitle>
+        <CardDescription>
+          Vérifiez l'état de synchronisation entre l'application et le serveur
+        </CardDescription>
         
-        <Button
-          variant="default"
-          onClick={handleForceSyncAll}
-          disabled={!isOnline || isForcingSyncAll}
-          className="gap-2"
+        {syncStatus.isSyncing && (
+          <div className="mt-2">
+            <Progress value={syncProgress} className="h-2" />
+            <p className="text-xs text-muted-foreground mt-1">Synchronisation en cours: {syncProgress}%</p>
+          </div>
+        )}
+      </CardHeader>
+      
+      <CardContent>
+        <div className="space-y-4">
+          {/* Statut global de synchronisation */}
+          <div className="flex items-center justify-between p-4 bg-muted rounded-md">
+            <div>
+              <p className="font-semibold">Statut global:</p>
+              <p className="text-sm text-muted-foreground">
+                {syncStatus.lastSynced 
+                  ? `Dernière synchronisation: ${new Date(syncStatus.lastSynced).toLocaleString('fr-FR')}`
+                  : "Jamais synchronisé"}
+              </p>
+            </div>
+            
+            {syncStatus.syncFailed ? (
+              <Badge variant="outline" className="bg-red-50 text-red-700">
+                <AlertCircle className="w-4 h-4 mr-1" /> Problèmes détectés
+              </Badge>
+            ) : syncStatus.isSyncing ? (
+              <Badge variant="outline" className="bg-yellow-50 text-yellow-700 animate-pulse">
+                <ArrowDownUp className="w-4 h-4 mr-1" /> Synchronisation en cours
+              </Badge>
+            ) : (
+              <Badge variant="outline" className="bg-green-50 text-green-700">
+                <CheckCircle className="w-4 h-4 mr-1" /> Système opérationnel
+              </Badge>
+            )}
+          </div>
+          
+          <Separator />
+          
+          {/* Liste des entités à synchroniser */}
+          <Accordion type="single" collapsible className="w-full">
+            {entityStatuses.map((entity, index) => (
+              <AccordionItem value={entity.entity} key={entity.entity}>
+                <AccordionTrigger className="py-2 hover:no-underline">
+                  <div className="flex items-center justify-between w-full pr-4">
+                    <span className="capitalize">{entity.entity}</span>
+                    <div className="flex items-center gap-2">
+                      {renderStatusBadge(entity.status)}
+                    </div>
+                  </div>
+                </AccordionTrigger>
+                <AccordionContent>
+                  <div className="px-4 py-2 space-y-2">
+                    <div className="flex justify-between items-center text-sm">
+                      <span>Dernière synchronisation:</span>
+                      <span>{formatLastSync(entity.lastSync)}</span>
+                    </div>
+                    
+                    {entity.error && (
+                      <div className="text-sm text-red-600">
+                        <span>Erreur: {entity.error}</span>
+                      </div>
+                    )}
+                    
+                    <Button 
+                      size="sm" 
+                      variant="outline" 
+                      className="w-full mt-2"
+                      onClick={() => handleSyncEntity(entity.entity, index)}
+                      disabled={entity.status === 'syncing' || syncStatus.isSyncing}
+                    >
+                      <RefreshCcw className="w-3 h-3 mr-1" />
+                      Synchroniser {entity.entity}
+                    </Button>
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+            ))}
+          </Accordion>
+        </div>
+      </CardContent>
+      
+      <CardFooter>
+        <Button 
+          className="w-full" 
+          onClick={handleSyncAll}
+          disabled={loading || syncStatus.isSyncing}
         >
-          {isForcingSyncAll ? <Loader2 className="h-4 w-4 animate-spin" /> : <Database className="h-4 w-4" />}
-          Forcer la synchronisation complète
+          <RefreshCcw className="w-4 h-4 mr-2" />
+          Synchroniser toutes les entités
         </Button>
-        
-        <Button
-          variant="secondary"
-          onClick={handleRepairBlockedSync}
-          className="gap-2"
-        >
-          <AlertTriangle className="h-4 w-4" />
-          Réparer les synchronisations bloquées
-        </Button>
-      </div>
-      
-      {isLoading && (
-        <div className="py-4">
-          <p className="text-sm text-muted-foreground mb-2">Analyse en cours...</p>
-          <Progress value={progress} className="h-2" />
-        </div>
-      )}
-      
-      {/* Liste des tables et leur état de synchronisation */}
-      {!isLoading && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-          {syncInfos.map((info) => (
-            <Card key={info.tableName} className="p-4 relative">
-              <div className="flex justify-between items-start mb-2">
-                <div>
-                  <h3 className="font-medium">{info.tableName}</h3>
-                  <p className="text-sm text-muted-foreground mt-1">{info.message}</p>
-                </div>
-                <Badge 
-                  variant={
-                    info.status === 'ok' ? 'default' : 
-                    info.status === 'warning' ? 'secondary' : 
-                    info.status === 'error' ? 'destructive' : 
-                    'outline'
-                  }
-                >
-                  {info.status === 'ok' && 'Synchronisé'}
-                  {info.status === 'warning' && 'Attention'}
-                  {info.status === 'error' && 'Échec'}
-                  {info.status === 'unknown' && 'Inconnu'}
-                </Badge>
-              </div>
-              
-              <div className="grid grid-cols-2 gap-2 text-sm mb-3">
-                <div>
-                  <span className="text-muted-foreground">Dernière sync:</span>{' '}
-                  {info.lastSynced ? new Date(info.lastSynced).toLocaleString() : 'Jamais'}
-                </div>
-                <div>
-                  <span className="text-muted-foreground">Données locales:</span>{' '}
-                  {info.localCount} éléments
-                </div>
-                <div>
-                  <span className="text-muted-foreground">Sync en attente:</span>{' '}
-                  {info.pendingSync ? 'Oui' : 'Non'}
-                </div>
-                <div>
-                  <span className="text-muted-foreground">Échec de sync:</span>{' '}
-                  {info.syncFailed ? 'Oui' : 'Non'}
-                </div>
-              </div>
-              
-              <Button 
-                onClick={() => handleForceSync(info.tableName)}
-                disabled={!isOnline || info.localCount === 0}
-                variant="outline" 
-                size="sm"
-                className="w-full"
-              >
-                Forcer la synchronisation
-              </Button>
-            </Card>
-          ))}
-        </div>
-      )}
-      
-      {/* Bouton de fermeture - seulement si onClose est fourni comme une fonction personnalisée */}
-      {onClose !== undefined && (
-        <div className="flex justify-end mt-4">
-          <Button onClick={onClose}>Fermer</Button>
-        </div>
-      )}
-    </div>
+      </CardFooter>
+    </Card>
   );
 };
 
-export const scanSyncData = async () => {
-  try {
-    const tables = [
-      'documents', 'exigences', 'membres', 'collaboration',
-      'configuration', 'formations', 'ressourcesHumaines'
-    ];
-    
-    const infos = [];
-    
-    // Analyser chaque table connue
-    for (const tableName of tables) {
-      // Vérifier si des données locales existent
-      const localStorageKeys = Object.keys(localStorage).filter(key => 
-        key.startsWith(`${tableName}_`) && 
-        !key.includes('last_synced') &&
-        !key.includes('sync_states') &&
-        !key.includes('sync_pending') &&
-        !key.includes('sync_in_progress')
-      );
-      
-      // Compter les entrées locales
-      let localCount = 0;
-      for (const key of localStorageKeys) {
-        try {
-          const data = JSON.parse(localStorage.getItem(key) || '[]');
-          if (Array.isArray(data)) {
-            localCount += data.length;
-          }
-        } catch (e) {
-          console.error(`Erreur lors de la lecture de ${key}:`, e);
-        }
-      }
-      
-      infos.push({
-        tableName,
-        localCount
-      });
-    }
-    
-    return infos;
-  } catch (error) {
-    console.error("Erreur lors de l'analyse des données de synchronisation:", error);
-    return [];
-  }
-};
+export default SyncDiagnosticPanel;

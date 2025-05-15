@@ -1,109 +1,63 @@
 
 import React from 'react';
-import { useGlobalSync } from '@/contexts/GlobalSyncContext';
-import { Button } from '@/components/ui/button';
-import { RefreshCw, Wifi, WifiOff, Clock } from 'lucide-react';
-import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
-import { ForceSyncButton } from './ForceSyncButton';
+import { useSyncContext } from '@/context/SyncContext';
+import { Badge } from '@/components/ui/badge';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { ArrowDownUp, Check, XCircle } from 'lucide-react';
+import { formatDistanceToNow } from 'date-fns';
+import { fr } from 'date-fns/locale';
 
-export const SyncStatus: React.FC = () => {
-  const { syncStates, isOnline, syncAll } = useGlobalSync();
+const SyncStatus: React.FC = () => {
+  const { syncStatus } = useSyncContext();
   
-  // Déterminer s'il y a des synchronisations en cours
-  const activeSyncs = Object.values(syncStates).filter(state => state.isSyncing);
-  const isSyncing = activeSyncs.length > 0;
-  
-  // Déterminer la date de dernière synchronisation
-  const getLatestSyncDate = (): Date | null => {
-    let latestDate: Date | null = null;
-    
-    Object.values(syncStates).forEach(state => {
-      if (state.lastSynced && (!latestDate || state.lastSynced > latestDate)) {
-        latestDate = state.lastSynced;
-      }
-    });
-    
-    return latestDate;
-  };
-  
-  const lastSynced = getLatestSyncDate();
-  
-  // Formater la date de dernière synchronisation
-  const formatLastSynced = (date: Date | null): string => {
-    if (!date) return "Jamais";
-    
-    const now = new Date();
-    const diff = now.getTime() - date.getTime();
-    
-    // Si moins d'une minute
-    if (diff < 60000) {
-      return "À l'instant";
-    }
-    
-    // Si moins d'une heure
-    if (diff < 3600000) {
-      const minutes = Math.floor(diff / 60000);
-      return `Il y a ${minutes} min`;
-    }
-    
-    // Si moins d'un jour
-    if (diff < 86400000) {
-      const hours = Math.floor(diff / 3600000);
-      return `Il y a ${hours}h`;
-    }
-    
-    // Si plus d'un jour
-    const days = Math.floor(diff / 86400000);
-    return `Il y a ${days}j`;
-  };
-  
-  const getStatusColor = (): string => {
-    if (!isOnline) return "text-red-500";
-    
-    // Vérifier si une synchronisation a échoué
-    const hasSyncFailed = Object.values(syncStates).some(state => state.syncFailed);
-    if (hasSyncFailed) return "text-amber-500";
-    
-    return "text-green-500";
-  };
-  
+  if (syncStatus.isSyncing) {
+    return (
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Badge variant="outline" className="bg-yellow-50 text-yellow-700 animate-pulse">
+            <ArrowDownUp className="w-3 h-3 mr-1" /> Synchronisation...
+          </Badge>
+        </TooltipTrigger>
+        <TooltipContent>
+          <p>Synchronisation en cours...</p>
+        </TooltipContent>
+      </Tooltip>
+    );
+  }
+
+  if (syncStatus.syncFailed) {
+    return (
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Badge variant="outline" className="bg-red-50 text-red-700">
+            <XCircle className="w-3 h-3 mr-1" /> Échec de synchronisation
+          </Badge>
+        </TooltipTrigger>
+        <TooltipContent>
+          <p>La dernière synchronisation a échoué</p>
+          {syncStatus.error && <p>{syncStatus.error}</p>}
+        </TooltipContent>
+      </Tooltip>
+    );
+  }
+
   return (
-    <div className="flex items-center gap-2">
-      <TooltipProvider>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <div className={`flex items-center gap-1 px-2 py-1 text-xs ${getStatusColor()}`}>
-              {isOnline ? (
-                <Wifi className="h-3 w-3" />
-              ) : (
-                <WifiOff className="h-3 w-3" />
-              )}
-              <span>{isOnline ? "En ligne" : "Hors ligne"}</span>
-            </div>
-          </TooltipTrigger>
-          <TooltipContent>
-            {isOnline 
-              ? "Connecté à Internet - Synchronisation base de données Infomaniak activée" 
-              : "Déconnecté - Mode hors ligne (données stockées localement)"}
-          </TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
-      
-      <TooltipProvider>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <div className="flex items-center gap-1 px-2 py-1 text-xs">
-              <Clock className="h-3 w-3" />
-              <span>{formatLastSynced(lastSynced)}</span>
-            </div>
-          </TooltipTrigger>
-          <TooltipContent>
-            Dernière synchronisation avec Infomaniak: {lastSynced ? lastSynced.toLocaleString() : "Jamais"}
-          </TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
-      
-      <ForceSyncButton showLabel={true} />
-    </div>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Badge variant="outline" className="bg-green-50 text-green-700">
+          <Check className="w-3 h-3 mr-1" /> 
+          {syncStatus.lastSynced 
+            ? `Synchronisé ${formatDistanceToNow(new Date(syncStatus.lastSynced), { addSuffix: true, locale: fr })}`
+            : "Jamais synchronisé"}
+        </Badge>
+      </TooltipTrigger>
+      <TooltipContent>
+        {syncStatus.lastSynced 
+          ? `Dernière synchronisation: ${new Date(syncStatus.lastSynced).toLocaleString()}`
+          : "L'application n'a jamais été synchronisée"}
+      </TooltipContent>
+    </Tooltip>
   );
 };
+
+export default SyncStatus;
