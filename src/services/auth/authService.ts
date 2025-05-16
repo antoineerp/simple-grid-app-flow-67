@@ -1,5 +1,5 @@
 
-import jwtDecode from 'jwt-decode';
+import { jwtDecode } from 'jwt-decode';
 import { User } from '@/types/auth';
 
 // Récupérer le token JWT du stockage

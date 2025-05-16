@@ -13,7 +13,7 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { Badge } from "@/components/ui/badge";
-import { Utilisateur } from '@/services';
+import { Utilisateur } from '@/types/user';
 
 interface User {
   id: number;

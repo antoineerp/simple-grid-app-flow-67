@@ -1,7 +1,8 @@
-
 import { getApiUrl } from '@/config/apiConfig';
 import { getAuthHeaders } from '../auth/authService';
-import { Utilisateur } from '@/services';
+import { getDatabaseConnectionCurrentUser } from '../core/databaseConnectionService';
+import { getDeviceId } from '../core/userService';
+import { Utilisateur } from '@/types/user';
 
 // Un cache simple pour les utilisateurs
 let userCache: Utilisateur[] | null = null;

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -15,7 +14,8 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { adminImportFromManager } from '@/services/core/userInitializationService';
 import { getApiUrl } from '@/config/apiConfig';
 import { getAuthHeaders } from '@/services/auth/authService';
-import { clearUsersCache, type Utilisateur } from '@/services';
+import { clearUsersCache } from '@/services';
+import { Utilisateur } from '@/types/user';
 
 interface UserManagementProps {
   currentDatabaseUser: string | null;

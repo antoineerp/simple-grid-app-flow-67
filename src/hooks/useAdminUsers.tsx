@@ -1,10 +1,10 @@
-
 import { useState, useEffect, useCallback } from 'react';
-import { connectAsUser, testDatabaseConnection, Utilisateur } from '@/services';
+import { connectAsUser, testDatabaseConnection } from '@/services';
 import { useToast } from "@/hooks/use-toast";
 import { hasPermission, UserRole } from '@/types/roles';
 import { getDatabaseConnectionCurrentUser } from '@/services/core/databaseConnectionService';
 import { UserManager } from '@/services/users/userManager';
+import { Utilisateur } from '@/types/user';
 
 export const useAdminUsers = () => {
   const { toast } = useToast();

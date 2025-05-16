@@ -1,18 +1,32 @@
 
 // Re-export services for easier imports
+
+// Export user types
+export type { Utilisateur } from '../types/user';
+
+// Core services exports
 export * from './core/databaseConnectionService';
 export * from './core/databaseAutoDetectService';
 export * from './core/syncService';
 export * from './core/userInitializationService';
-export * from './core/userManager';
-export * from './core/userService';
 
-// Documents services
-export * from './documents';
-export * from './documents/documentService';
-export * from './documents/documentStatsService';
-export * from './documents/documentSyncService';
-export * from './documents/documentsService';
+// User services - careful with naming to avoid duplicates
+export { 
+  clearUsersCache,
+  synchronizeUsers,
+} from './users/userManager';
+
+export {
+  getDeviceId,
+  getCurrentUserId as getUserServiceCurrentId
+} from './core/userService';
+
+// Documents services - avoid duplicate exports
+export {
+  calculateDocumentStats,
+  loadDocumentsFromServer, 
+  syncDocumentsWithServer
+} from './documents';
 
 // Auth services
 export {
@@ -43,16 +57,12 @@ export * from './pilotageExport';
 export * from './pdfExport';
 export * from './pdfManager';
 
-// Sync services
-export * from './sync';
+// Sync services - prevent duplicate exports
+export { triggerSync, triggerSyncAll } from './sync';
 export * from './sync/DatabaseHelper';
 export * from './sync/SyncService';
 export * from './sync/DataSyncManager';
 export * from './sync/syncServiceImpl';
-export * from './sync/triggerSync';
 
-// User services
-export * from './users/userService';
-export * from './users/userManager';
-export * from './users/createUserService';
-export * from './users/membresService';
+// UserManager specific exports to avoid duplicates
+export { getUtilisateurs } from './core/userManager';
