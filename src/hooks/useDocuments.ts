@@ -116,82 +116,42 @@ export const useDocuments = () => {
 
   // Handle creating/editing group
   const handleEditGroup = (group: DocumentGroup) => {
-    handleSaveGroup(group, true);
-  };
-  
-  // Handle adding a new document
-  const handleAddDocument = () => {
-    const userId = getCurrentUserId() || '';
-    const newDoc: Document = {
-      id: uuidv4(),
-      nom: 'Nouveau document',
-      fichier_path: null,
-      responsabilites: {
-        r: [],
-        a: [],
-        c: [],
-        i: []
-      },
-      etat: null,
-      date_creation: new Date(),
-      date_modification: new Date(),
-      userId: userId
-    };
+    // Find if group already exists
+    const existingIndex = groups.findIndex(g => g.id === group.id);
     
-    setDocuments(prev => [...prev, newDoc]);
-    setSelectedDocument(newDoc);
-    
-    toast({
-      title: "Document créé",
-      description: "Un nouveau document a été créé",
-    });
-  };
-
-  // Handle adding a new group
-  const handleAddGroup = () => {
-    const userId = getCurrentUserId() || '';
-    const newGroup: DocumentGroup = {
-      id: uuidv4(),
-      name: 'Nouveau groupe',
-      expanded: true,
-      items: [],
-      userId: userId
-    };
-    
-    setGroups(prev => [...prev, newGroup]);
-    
-    toast({
-      title: "Groupe créé",
-      description: "Un nouveau groupe a été créé",
-    });
+    if (existingIndex >= 0) {
+      // Update existing group
+      setGroups(prev => {
+        const updated = [...prev];
+        updated[existingIndex] = { ...updated[existingIndex], ...group };
+        return updated;
+      });
+    } else {
+      // Create new group
+      setGroups(prev => [...prev, { ...group, id: group.id || uuidv4() }]);
+    }
   };
 
   return {
     documents,
     groups,
     selectedDocument,
-    selectDocument,
-    syncStatus,
-    startSync,
-    endSync,
     loading,
     error,
-    handleEdit,
-    handleDelete,
-    handleReorder,
-    handleToggleGroup,
-    handleEditGroup,
-    handleDeleteGroup,
+    syncStatus,
+    selectDocument,
     handleResponsabiliteChange,
     handleAtteinteChange,
     handleExclusionChange,
-    handleAddDocument,
-    handleAddGroup,
+    handleDelete,
+    handleEdit,
+    handleReorder,
     handleGroupReorder,
+    handleToggleGroup,
+    handleSaveGroup,
+    handleDeleteGroup,
+    handleEditGroup,
     forceReload,
-    isSyncing,
-    syncAndProcess
+    isSyncing
   };
 };
-
-export default useDocuments;

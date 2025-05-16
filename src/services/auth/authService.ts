@@ -182,6 +182,24 @@ export const getCurrentUser = (): User | null => {
   }
 };
 
+// Fonction pour obtenir l'ID de l'utilisateur actuel
+export const getCurrentUserId = (): string | null => {
+  const user = getCurrentUser();
+  return user ? user.id : null;
+};
+
+// Fonction pour obtenir le nom de l'utilisateur actuel
+export const getCurrentUserName = (): string | null => {
+  const user = getCurrentUser();
+  return user ? `${user.prenom} ${user.nom}` : null;
+};
+
+// Fonction pour vérifier si l'utilisateur est administrateur
+export const isAdmin = (): boolean => {
+  const user = getCurrentUser();
+  return user ? user.role === 'admin' : false;
+};
+
 // Déconnexion de l'utilisateur
 export const logout = (): void => {
   localStorage.removeItem('authToken');
@@ -283,7 +301,7 @@ export const validateAndFixToken = (token: string): string | null => {
 };
 
 // Fonction principale d'authentification 
-const authenticateUser = async (email: string, password: string, rememberMe: boolean = false): Promise<any> => {
+export const authenticateUser = async (email: string, password: string, rememberMe: boolean = false): Promise<any> => {
   // Mode debug pour Infomaniak
   const isInfomaniak = window.location.hostname.includes('myd.infomaniak.com') || 
                        window.location.hostname.includes('qualiopi.ch');
