@@ -2,15 +2,12 @@
 import React, { useEffect, useState } from 'react';
 import DocumentTable from '@/components/documents/DocumentTable';
 import { useDocuments } from '@/hooks/useDocuments';
-import { getDatabaseConnectionCurrentUser } from '@/services/core/databaseConnectionService';
 import { Button } from '@/components/ui/button';
 import { Plus, FolderPlus } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { Document } from '@/types/documents';
 
 const GestionDocumentaire = () => {
   const { toast } = useToast();
-  const [currentUser, setCurrentUser] = useState<string>(getDatabaseConnectionCurrentUser() || 'default');
   
   // Initialize with empty arrays to prevent null reference errors
   const { 
@@ -27,9 +24,7 @@ const GestionDocumentaire = () => {
     handleExclusionChange, 
     handleAddDocument, 
     handleAddGroup,
-    handleGroupReorder,
-    forceReload,
-    isSyncing
+    handleGroupReorder
   } = useDocuments() || {
     documents: [],
     groups: [],
@@ -45,26 +40,7 @@ const GestionDocumentaire = () => {
     handleAddDocument: () => {},
     handleAddGroup: () => {},
     handleGroupReorder: () => {},
-    forceReload: () => Promise.resolve(false),
-    isSyncing: false
   };
-  
-  // Écouter les changements d'utilisateur
-  useEffect(() => {
-    const handleUserChange = (event: Event) => {
-      const customEvent = event as CustomEvent;
-      if (customEvent.detail?.user) {
-        setCurrentUser(customEvent.detail.user);
-        console.log(`GestionDocumentaire: Changement d'utilisateur - ${customEvent.detail.user}`);
-      }
-    };
-    
-    window.addEventListener('database-user-changed', handleUserChange);
-    
-    return () => {
-      window.removeEventListener('database-user-changed', handleUserChange);
-    };
-  }, []);
 
   return (
     <div className="container mx-auto py-6 px-4">
@@ -73,8 +49,8 @@ const GestionDocumentaire = () => {
       </div>
       
       <DocumentTable 
-        documents={documents}
-        groups={groups}
+        documents={documents || []}
+        groups={groups || []}
         onResponsabiliteChange={handleResponsabiliteChange}
         onAtteinteChange={handleAtteinteChange}
         onExclusionChange={handleExclusionChange}

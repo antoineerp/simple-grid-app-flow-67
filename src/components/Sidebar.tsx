@@ -81,16 +81,10 @@ const Sidebar = () => {
         {isAdmin && (
           <div className="mt-4 pt-4 border-t border-gray-200">
             <SidebarNavItem
-              to="/admin"
+              to="/administration"
               icon={Settings}
               label="Administration"
             />
-            <Link 
-              to="/admin"
-              className="flex items-center text-sm text-gray-600 py-2 px-4 pl-10 hover:bg-blue-50 hover:text-blue-700 rounded-md transition-colors"
-            >
-              Gestion des utilisateurs
-            </Link>
           </div>
         )}
         

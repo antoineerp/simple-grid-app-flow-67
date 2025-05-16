@@ -1,21 +1,24 @@
 
-import React, { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import React, { useState, useEffect } from 'react';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import SyncDiagnosticPanel from '@/components/diagnostics/SyncDiagnosticPanel';
 import { useAuth } from '@/hooks/useAuth';
 import { Navigate } from 'react-router-dom';
 import { UserCog, Settings, Database, Users } from 'lucide-react';
-import { Link } from 'react-router-dom';
 import UserManagement from '@/components/admin/UserManagement';
+import DatabaseInfo from '@/components/admin/DatabaseInfo';
+import DatabaseConnectionForm from '@/components/admin/DatabaseConnectionForm';
+import DatabaseDiagnostic from '@/components/admin/DatabaseDiagnostic';
 import { getDatabaseConnectionCurrentUser } from '@/services/core/databaseConnectionService';
 
 const Administration: React.FC = () => {
   const { user, isLoading } = useAuth();
   const [activeTab, setActiveTab] = useState('users');
   const [currentDatabaseUser, setCurrentDatabaseUser] = useState<string | null>(getDatabaseConnectionCurrentUser());
-
+  const [showConnectionForm, setShowConnectionForm] = useState<boolean>(false);
+  
   // Rediriger si l'utilisateur n'est pas admin
   if (!isLoading && (!user || (user.role !== 'admin' && user.role !== 'administrateur'))) {
     return <Navigate to="/" replace />;
@@ -32,6 +35,11 @@ const Administration: React.FC = () => {
 
   const handleUserConnect = (identifiant: string) => {
     setCurrentDatabaseUser(identifiant);
+  };
+  
+  const handleConfigurationSaved = () => {
+    // Recharger la page pour appliquer les nouvelles configurations
+    window.location.reload();
   };
 
   return (
@@ -50,9 +58,9 @@ const Administration: React.FC = () => {
             <Settings className="mr-2 h-4 w-4" />
             Système
           </TabsTrigger>
-          <TabsTrigger value="data">
+          <TabsTrigger value="database">
             <Database className="mr-2 h-4 w-4" />
-            Données
+            Base de données
           </TabsTrigger>
         </TabsList>
         
@@ -101,37 +109,38 @@ const Administration: React.FC = () => {
           <SyncDiagnosticPanel />
         </TabsContent>
         
-        <TabsContent value="data" className="space-y-4">
+        <TabsContent value="database" className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>Gestion des données</CardTitle>
+              <CardTitle>Configuration de la Base de Données</CardTitle>
+              <CardDescription>
+                Gérez la connexion à votre base de données MySQL Infomaniak
+              </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="grid gap-4">
-                <div>
-                  <h3 className="text-lg font-medium">Tables</h3>
-                  <p className="text-sm text-gray-500">
-                    Table principale: utilisateurs
-                  </p>
-                </div>
-                
-                <div>
-                  <h3 className="text-lg font-medium">Actions sur les données</h3>
-                  <div className="flex flex-wrap gap-2 mt-2">
-                    <Button variant="outline" size="sm">
-                      Vérifier l'intégrité
-                    </Button>
-                    <Button variant="outline" size="sm">
-                      Exporter les données
-                    </Button>
-                    <Button variant="destructive" size="sm">
-                      Réinitialiser la base
-                    </Button>
-                  </div>
-                </div>
-              </div>
+              <p className="mb-4">
+                {showConnectionForm ? (
+                  "Modifiez les paramètres de connexion à la base de données ci-dessous:"
+                ) : (
+                  "Pour configurer la connexion à la base de données, vous devez spécifier les informations de connexion MySQL fournies par Infomaniak."
+                )}
+              </p>
+              
+              {showConnectionForm ? (
+                <DatabaseConnectionForm onConfigurationSaved={handleConfigurationSaved} />
+              ) : (
+                <Button
+                  onClick={() => setShowConnectionForm(true)}
+                  className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+                >
+                  Configurer la connexion à la base de données
+                </Button>
+              )}
             </CardContent>
           </Card>
+          
+          <DatabaseInfo />
+          <DatabaseDiagnostic />
         </TabsContent>
       </Tabs>
     </div>

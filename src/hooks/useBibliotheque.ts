@@ -1,6 +1,6 @@
 
 import { useState, useEffect } from 'react';
-import { useSyncContext } from '@/contexts/SyncContext';
+import { useGlobalSync } from '@/contexts/GlobalSyncContext';
 import { useToast } from '@/hooks/use-toast';
 import { getCurrentUser } from '@/services/auth/authService';
 
@@ -23,35 +23,17 @@ export function useBibliotheque() {
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
   
-  // Get sync context or use fallback
-  let syncContext;
+  // Utiliser le contexte de synchronisation globale
+  let globalSync;
   try {
-    syncContext = useSyncContext();
+    globalSync = useGlobalSync();
   } catch (e) {
-    console.warn("SyncContext not available, using fallback");
+    console.warn("GlobalSyncContext not available, using fallback");
   }
   
-  const isOnline = navigator.onLine;
-  const isSyncing = false; // Nous ne montrons pas l'état de synchronisation
+  const isOnline = globalSync?.isOnline ?? navigator.onLine;
+  const isSyncing = globalSync?.isSyncing('bibliotheque') ?? false;
   
-  // Créer des wrappers pour les méthodes manquantes
-  const startSync = () => {
-    // Utiliser le contexte si disponible, sinon ne rien faire
-    if (syncContext && typeof syncContext.registerTableForSync === 'function') {
-      syncContext.registerTableForSync('bibliotheque');
-    } else {
-      // Simplement loguer, ne pas montrer à l'utilisateur
-      console.log("Synchronisation démarrée (silencieusement)");
-    }
-  };
-  
-  const endSync = (err?: string | null) => {
-    // Ne fait rien, car nous ne voulons pas montrer les informations de synchronisation
-    if (err) {
-      console.error("Erreur de synchronisation (silencieuse):", err);
-    }
-  };
-
   // Charger les données au montage du composant
   useEffect(() => {
     const loadData = async () => {
@@ -59,7 +41,10 @@ export function useBibliotheque() {
       setError(null);
       
       try {
-        startSync();
+        // Informer de la synchronisation (si possible)
+        if (globalSync) {
+          globalSync.syncTable('bibliotheque').catch(console.error);
+        }
         
         // Récupérer l'ID de l'utilisateur actuel pour garantir l'isolation des données
         const currentUser = getCurrentUser();
@@ -71,36 +56,27 @@ export function useBibliotheque() {
         const userId = currentUser.id;
         console.log("Chargement des données de la bibliothèque pour l'utilisateur:", userId);
         
-        // Essayer d'utiliser le contexte de synchronisation si disponible
-        let data = [];
-        if (syncContext && typeof syncContext.loadData === 'function') {
-          // Fix for the TypeScript error - remove type argument
-          data = await syncContext.loadData('bibliotheque');
-        } else {
-          // Fallback - essayer de charger depuis localStorage
-          try {
-            const storedData = localStorage.getItem(`bibliotheque_${userId}`);
-            if (storedData) {
-              data = JSON.parse(storedData);
-            }
-          } catch (storageErr) {
-            console.error("Erreur lors du chargement des données locales:", storageErr);
-          }
+        // Charger depuis localStorage (fallback)
+        try {
+          const storedData = localStorage.getItem(`bibliotheque_${userId}`);
+          const data = storedData ? JSON.parse(storedData) : [];
+          
+          // Convertir les dates de chaîne à objet Date
+          const formattedData = data.map((item: any) => ({
+            ...item,
+            date_creation: item.date_creation instanceof Date ? item.date_creation : new Date(item.date_creation),
+            date_modification: item.date_modification instanceof Date ? item.date_modification : new Date(item.date_modification)
+          }));
+          
+          setItems(formattedData);
+        } catch (storageErr) {
+          console.error("Erreur lors du chargement des données locales:", storageErr);
+          throw storageErr;
         }
         
-        // Convertir les dates de chaîne à objet Date
-        const formattedData = data.map(item => ({
-          ...item,
-          date_creation: item.date_creation instanceof Date ? item.date_creation : new Date(item.date_creation),
-          date_modification: item.date_modification instanceof Date ? item.date_modification : new Date(item.date_modification)
-        }));
-        
-        setItems(formattedData);
-        endSync(); // Fin de synchronisation sans erreur
       } catch (err) {
         const message = err instanceof Error ? err.message : "Erreur inconnue";
         setError(message);
-        endSync(message); // Fin de synchronisation avec erreur
         
         toast({
           title: "Erreur de chargement",
@@ -119,41 +95,38 @@ export function useBibliotheque() {
   const saveData = async (newItems: BibliothequeItem[]): Promise<boolean> => {
     try {
       setLoading(true);
-      startSync();
       
       let result = false;
       
-      // Utiliser le contexte de synchronisation si disponible
-      if (syncContext && typeof syncContext.syncData === 'function') {
-        result = await syncContext.syncData('bibliotheque', newItems);
+      // Sauvegarder dans localStorage
+      const currentUser = getCurrentUser();
+      if (currentUser && currentUser.id) {
+        localStorage.setItem(`bibliotheque_${currentUser.id}`, JSON.stringify(newItems));
+        result = true;
       } else {
-        // Fallback - sauvegarder dans localStorage
-        const currentUser = getCurrentUser();
-        if (currentUser && currentUser.id) {
-          localStorage.setItem(`bibliotheque_${currentUser.id}`, JSON.stringify(newItems));
-          result = true;
-        } else {
-          throw new Error("Utilisateur non authentifié");
-        }
+        throw new Error("Utilisateur non authentifié");
       }
       
       if (result) {
         setItems(newItems);
-        endSync();
+        
+        // Synchroniser via le contexte global si disponible
+        if (globalSync) {
+          globalSync.syncTable('bibliotheque').catch(console.error);
+        }
         
         toast({
-          title: "Synchronisation réussie",
+          title: "Sauvegarde réussie",
           description: "Les données de la bibliothèque ont été sauvegardées",
         });
         
         return true;
       } else {
-        throw new Error("Échec de la synchronisation");
+        throw new Error("Échec de la sauvegarde");
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : "Erreur inconnue";
       setError(message);
-      endSync(message);
       
       toast({
         title: "Erreur de sauvegarde",
