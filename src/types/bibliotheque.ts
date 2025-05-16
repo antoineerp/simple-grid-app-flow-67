@@ -9,6 +9,7 @@ export interface Document {
   dateModification?: Date;
   groupId?: string;
   userId: string;
+  type?: string; // Ajout pour compatibilité avec le code existant
 }
 
 export interface DocumentGroup {

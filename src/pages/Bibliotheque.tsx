@@ -7,23 +7,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import DocumentForm from '@/components/bibliotheque/DocumentForm';
 import GroupForm from '@/components/bibliotheque/GroupForm';
 import { v4 as uuidv4 } from 'uuid';
-
-// Types pour la bibliothèque
-interface Document {
-  id: string;
-  name: string;
-  link?: string;
-  type: string;
-  groupId?: string;
-  description?: string;
-}
-
-interface DocumentGroup {
-  id: string;
-  name: string;
-  expanded: boolean;
-  items: Document[];
-}
+import { Document, DocumentGroup } from '@/types/bibliotheque';
+import { useAuth } from '@/hooks/useAuth';
 
 const Bibliotheque: React.FC = () => {
   const [documents, setDocuments] = useState<Document[]>([]);
@@ -36,19 +21,33 @@ const Bibliotheque: React.FC = () => {
   const [isEditingGroup, setIsEditingGroup] = useState(false);
   
   const { toast } = useToast();
+  const { getUserId } = useAuth();
+  const userId = getUserId() || 'default';
   
   useEffect(() => {
     // Données d'exemple pour la démonstration
     setGroups([
-      { id: 'group1', name: 'Documents organisationnels', expanded: false, items: [] },
-      { id: 'group2', name: 'Documents administratifs', expanded: false, items: [] },
+      { id: 'group1', name: 'Documents organisationnels', expanded: false, items: [], userId },
+      { id: 'group2', name: 'Documents administratifs', expanded: false, items: [], userId },
     ]);
     
     setDocuments([
-      { id: 'doc1', name: 'Organigramme', type: 'document', groupId: undefined, link: 'https://example.com/organigramme' },
-      { id: 'doc2', name: 'Administration', type: 'document', groupId: undefined, link: 'https://example.com/administration' },
+      { 
+        id: 'doc1', 
+        name: 'Organigramme', 
+        link: 'https://example.com/organigramme', 
+        userId,
+        type: 'document' 
+      },
+      { 
+        id: 'doc2', 
+        name: 'Administration', 
+        link: 'https://example.com/administration', 
+        userId,
+        type: 'document' 
+      },
     ]);
-  }, []);
+  }, [userId]);
   
   // Gestion des documents
   const handleAddDocument = () => {
@@ -56,7 +55,7 @@ const Bibliotheque: React.FC = () => {
       id: uuidv4(),
       name: '',
       type: 'document',
-      groupId: undefined,
+      userId,
     });
     setIsEditingDocument(false);
     setIsDocumentDialogOpen(true);
@@ -105,6 +104,7 @@ const Bibliotheque: React.FC = () => {
       name: '',
       expanded: false,
       items: [],
+      userId,
     });
     setIsEditingGroup(false);
     setIsGroupDialogOpen(true);

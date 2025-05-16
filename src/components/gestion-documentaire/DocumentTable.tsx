@@ -10,6 +10,9 @@ import DocumentGroupComponent from './table/DocumentGroup';
 interface DocumentTableProps {
   documents: Document[];
   groups: DocumentGroupType[];
+  ungroupedDocuments: Document[];
+  groupsWithItems: (DocumentGroupType & { items: Document[] })[];
+  draggedItem: any;
   onResponsabiliteChange: (id: string, type: 'r' | 'a' | 'c' | 'i', values: string[]) => void;
   onAtteinteChange: (id: string, atteinte: 'NC' | 'PC' | 'C' | null) => void;
   onExclusionChange: (id: string) => void;
@@ -20,38 +23,34 @@ interface DocumentTableProps {
   onToggleGroup: (id: string) => void;
   onEditGroup: (group: DocumentGroupType) => void;
   onDeleteGroup: (id: string) => void;
+  onDocumentDragStart: (e: React.DragEvent<HTMLTableRowElement>, id: string, groupId?: string) => void;
+  onDocumentDragOver: (e: React.DragEvent<HTMLTableRowElement>) => void;
+  onDocumentDragLeave: (e: React.DragEvent<HTMLTableRowElement>) => void;
+  onDocumentDrop: (e: React.DragEvent<HTMLTableRowElement>, id: string, groupId?: string) => void;
+  onDocumentDragEnd: (e: React.DragEvent<HTMLTableRowElement>) => void;
+  onGroupDragStart: (e: React.DragEvent<HTMLTableRowElement>, groupId: string) => void;
+  onGroupDrop: (e: React.DragEvent<HTMLTableRowElement>, groupId: string) => void;
 }
 
 const DocumentTable: React.FC<DocumentTableProps> = ({
-  documents,
-  groups,
+  ungroupedDocuments,
+  groupsWithItems,
   onResponsabiliteChange,
   onAtteinteChange,
   onExclusionChange,
   onEdit,
   onDelete,
-  onReorder,
-  onGroupReorder,
   onToggleGroup,
   onEditGroup,
   onDeleteGroup,
-  ...otherProps
+  onDocumentDragStart,
+  onDocumentDragOver,
+  onDocumentDragLeave,
+  onDocumentDrop,
+  onDocumentDragEnd,
+  onGroupDragStart,
+  onGroupDrop
 }) => {
-  // Filtrer les documents qui n'appartiennent à aucun groupe
-  const ungroupedDocuments = documents.filter(d => !d.groupId);
-  
-  // Pour chaque groupe, ajouter les documents correspondants
-  const groupsWithItems = groups.map(group => {
-    // Trouver tous les documents appartenant à ce groupe
-    const groupItems = documents.filter(doc => doc.groupId === group.id);
-    
-    // Retourner le groupe avec ses documents
-    return {
-      ...group,
-      items: groupItems
-    };
-  });
-
   return (
     <div className="bg-white rounded-md shadow overflow-hidden">
       <Table>
@@ -70,7 +69,13 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
               onToggleGroup={onToggleGroup}
               onEditGroup={onEditGroup}
               onDeleteGroup={onDeleteGroup}
-              {...otherProps}
+              onDragStart={onDocumentDragStart}
+              onDragOver={onDocumentDragOver}
+              onDragLeave={onDocumentDragLeave}
+              onDrop={onDocumentDrop}
+              onDragEnd={onDocumentDragEnd}
+              onGroupDragStart={onGroupDragStart}
+              onGroupDrop={onGroupDrop}
             />
           ))}
         </TableBody>
@@ -85,7 +90,11 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
               onExclusionChange={onExclusionChange}
               onEdit={onEdit}
               onDelete={onDelete}
-              {...otherProps}
+              onDragStart={onDocumentDragStart}
+              onDragOver={onDocumentDragOver}
+              onDragLeave={onDocumentDragLeave}
+              onDrop={onDocumentDrop}
+              onDragEnd={onDocumentDragEnd}
             />
           ))}
         </TableBody>

@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { DocumentGroup } from '@/types/bibliotheque';
+import { useAuth } from '@/hooks/useAuth';
 
 interface GroupFormProps {
   group: DocumentGroup;
@@ -20,19 +21,24 @@ const GroupForm: React.FC<GroupFormProps> = ({
   onCancel,
   onDelete
 }) => {
+  const { getUserId } = useAuth();
+  const userId = getUserId() || 'default';
+  
   const [formData, setFormData] = React.useState<DocumentGroup>({
     ...group,
     expanded: group.expanded || false,
-    items: group.items || []
+    items: group.items || [],
+    userId: group.userId || userId
   });
 
   React.useEffect(() => {
     setFormData({
       ...group,
       expanded: group.expanded || false,
-      items: group.items || []
+      items: group.items || [],
+      userId: group.userId || userId
     });
-  }, [group]);
+  }, [group, userId]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
