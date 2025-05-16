@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from 'react';
 import { useSync } from './useSync';
 import { Document, DocumentGroup } from '@/types/documents';
@@ -136,12 +135,12 @@ export const useDocuments = () => {
   const handleAddDocument = useCallback(() => {
     const newDoc: Document = {
       id: uuidv4(),
-      title: "Nouveau document",
-      description: "",
-      date: new Date().toISOString().split('T')[0],
-      responsabilite: [],
-      atteinte: 0,
-      exclusion: false,
+      nom: "Nouveau document", // Changed from title to nom
+      fichier_path: null, // Added instead of description
+      responsabilites: { r: [], a: [], c: [], i: [] }, // Added instead of responsabilite
+      etat: null, // Added instead of atteinte
+      date_creation: new Date(), // Added instead of date
+      date_modification: new Date(), // Added
       userId: getCurrentUserId() || ''
     };
     
