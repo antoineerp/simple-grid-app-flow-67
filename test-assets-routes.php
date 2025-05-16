@@ -1,0 +1,342 @@
+
+<?php
+header('Content-Type: text/html; charset=utf-8');
+?>
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test des Routes CSS et JS</title>
+    <style>
+        body { font-family: system-ui, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; line-height: 1.6; }
+        .success { color: green; font-weight: bold; }
+        .error { color: red; font-weight: bold; }
+        .warning { color: orange; font-weight: bold; }
+        .section { margin-bottom: 30px; border: 1px solid #ddd; padding: 15px; border-radius: 5px; }
+        pre { background: #f5f5f5; padding: 10px; border-radius: 5px; overflow-x: auto; }
+        .info { background-color: #f0f8ff; padding: 10px; border-radius: 5px; margin-bottom: 10px; }
+        .fix-button { background: #4CAF50; color: white; border: none; padding: 10px 15px; border-radius: 4px; cursor: pointer; }
+        table { width: 100%; border-collapse: collapse; margin: 10px 0; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: #f2f2f2; }
+    </style>
+</head>
+<body>
+    <h1>Test des Routes pour les fichiers CSS et JS</h1>
+    
+    <div class="section">
+        <h2>Analyse de index.html</h2>
+        <?php
+        // Vérifie le contenu de index.html
+        if (file_exists('index.html')) {
+            $content = file_get_contents('index.html');
+            echo "<div class='info'>Fichier index.html trouvé.</div>";
+            
+            // Analyse les références CSS
+            preg_match_all('/<link[^>]*href=["\']([^"\']*\.css)["\']/i', $content, $cssMatches);
+            
+            // Analyse les références JS
+            preg_match_all('/<script[^>]*src=["\']([^"\']*\.js)["\']/i', $content, $jsMatches);
+            
+            echo "<h3>Références CSS trouvées:</h3>";
+            if (!empty($cssMatches[1])) {
+                echo "<ul>";
+                foreach ($cssMatches[1] as $cssPath) {
+                    echo "<li>$cssPath";
+                    $fullPath = $_SERVER['DOCUMENT_ROOT'] . $cssPath;
+                    if (file_exists($fullPath)) {
+                        echo " <span class='success'>(Fichier existant)</span>";
+                    } else {
+                        echo " <span class='error'>(Fichier introuvable)</span>";
+                    }
+                    echo "</li>";
+                }
+                echo "</ul>";
+            } else {
+                echo "<p class='warning'>Aucune référence CSS trouvée dans index.html</p>";
+            }
+            
+            echo "<h3>Références JavaScript trouvées:</h3>";
+            if (!empty($jsMatches[1])) {
+                echo "<ul>";
+                foreach ($jsMatches[1] as $jsPath) {
+                    echo "<li>$jsPath";
+                    $fullPath = $_SERVER['DOCUMENT_ROOT'] . $jsPath;
+                    if (file_exists($fullPath)) {
+                        echo " <span class='success'>(Fichier existant)</span>";
+                    } else {
+                        echo " <span class='error'>(Fichier introuvable)</span>";
+                    }
+                    echo "</li>";
+                }
+                echo "</ul>";
+            } else {
+                echo "<p class='warning'>Aucune référence JavaScript trouvée dans index.html</p>";
+            }
+        } else {
+            echo "<p class='error'>Fichier index.html introuvable!</p>";
+        }
+        ?>
+    </div>
+    
+    <div class="section">
+        <h2>Scan du dossier assets</h2>
+        <?php
+        // Cherche les fichiers CSS et JS dans le dossier assets
+        $assetsDir = $_SERVER['DOCUMENT_ROOT'] . '/assets';
+        $alternateAssetsDir = './assets';
+        
+        function scanForAssets($dir, $label) {
+            if (is_dir($dir)) {
+                echo "<h3>Fichiers dans $label:</h3>";
+                
+                $jsFiles = glob("$dir/*.js");
+                $cssFiles = glob("$dir/*.css");
+                
+                echo "<table>";
+                echo "<tr><th>Type</th><th>Nom du fichier</th><th>Taille</th><th>Dernière modification</th></tr>";
+                
+                // Liste des fichiers JS
+                foreach ($jsFiles as $file) {
+                    $filename = basename($file);
+                    $size = filesize($file);
+                    $lastModified = date("Y-m-d H:i:s", filemtime($file));
+                    echo "<tr><td>JS</td><td>$filename</td><td>$size octets</td><td>$lastModified</td></tr>";
+                }
+                
+                // Liste des fichiers CSS
+                foreach ($cssFiles as $file) {
+                    $filename = basename($file);
+                    $size = filesize($file);
+                    $lastModified = date("Y-m-d H:i:s", filemtime($file));
+                    echo "<tr><td>CSS</td><td>$filename</td><td>$size octets</td><td>$lastModified</td></tr>";
+                }
+                
+                echo "</table>";
+                
+                return count($jsFiles) + count($cssFiles);
+            } else {
+                echo "<p class='warning'>Le dossier $label n'existe pas.</p>";
+                return 0;
+            }
+        }
+        
+        $assetCount = scanForAssets($assetsDir, "assets (chemin absolu)");
+        
+        if ($assetCount == 0) {
+            scanForAssets($alternateAssetsDir, "assets (chemin relatif)");
+        }
+        ?>
+    </div>
+    
+    <div class="section">
+        <h2>Test d'accès HTTP</h2>
+        <?php
+        // Test d'accès HTTP aux fichiers
+        function testFileAccess($url) {
+            $ch = curl_init($url);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_HEADER, true);
+            curl_setopt($ch, CURLOPT_NOBODY, true);
+            curl_setopt($ch, CURLOPT_TIMEOUT, 5);
+            curl_exec($ch);
+            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            $contentType = curl_getinfo($ch, CURLINFO_CONTENT_TYPE);
+            $size = curl_getinfo($ch, CURLINFO_CONTENT_LENGTH_DOWNLOAD);
+            curl_close($ch);
+            
+            return [
+                'httpCode' => $httpCode,
+                'contentType' => $contentType,
+                'size' => $size
+            ];
+        }
+        
+        // Trouver les fichiers à tester
+        $baseUrl = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http") . "://$_SERVER[HTTP_HOST]";
+        $filesToTest = [];
+        
+        // Ajouter les fichiers de index.html
+        if (isset($cssMatches[1]) && !empty($cssMatches[1])) {
+            foreach ($cssMatches[1] as $path) {
+                $filesToTest[] = ['path' => $path, 'type' => 'CSS', 'source' => 'index.html'];
+            }
+        }
+        
+        if (isset($jsMatches[1]) && !empty($jsMatches[1])) {
+            foreach ($jsMatches[1] as $path) {
+                $filesToTest[] = ['path' => $path, 'type' => 'JavaScript', 'source' => 'index.html'];
+            }
+        }
+        
+        // Ajouter quelques fichiers du dossier assets
+        if (is_dir($assetsDir)) {
+            $jsFiles = glob("$assetsDir/*.js");
+            $cssFiles = glob("$assetsDir/*.css");
+            
+            if (!empty($jsFiles)) {
+                $filesToTest[] = [
+                    'path' => '/assets/' . basename($jsFiles[0]), 
+                    'type' => 'JavaScript', 
+                    'source' => 'assets directory'
+                ];
+            }
+            
+            if (!empty($cssFiles)) {
+                $filesToTest[] = [
+                    'path' => '/assets/' . basename($cssFiles[0]), 
+                    'type' => 'CSS', 
+                    'source' => 'assets directory'
+                ];
+            }
+        } else if (is_dir($alternateAssetsDir)) {
+            $jsFiles = glob("$alternateAssetsDir/*.js");
+            $cssFiles = glob("$alternateAssetsDir/*.css");
+            
+            if (!empty($jsFiles)) {
+                $filesToTest[] = [
+                    'path' => '/assets/' . basename($jsFiles[0]), 
+                    'type' => 'JavaScript', 
+                    'source' => 'assets directory (relative)'
+                ];
+            }
+            
+            if (!empty($cssFiles)) {
+                $filesToTest[] = [
+                    'path' => '/assets/' . basename($cssFiles[0]), 
+                    'type' => 'CSS', 
+                    'source' => 'assets directory (relative)'
+                ];
+            }
+        }
+        
+        // Effectuer les tests HTTP
+        if (!empty($filesToTest)) {
+            echo "<h3>Résultats des tests d'accès HTTP:</h3>";
+            echo "<table>";
+            echo "<tr><th>Type</th><th>Chemin</th><th>Source</th><th>Code HTTP</th><th>Type MIME</th><th>Taille</th></tr>";
+            
+            foreach ($filesToTest as $file) {
+                $url = $baseUrl . $file['path'];
+                $result = testFileAccess($url);
+                
+                $statusClass = ($result['httpCode'] >= 200 && $result['httpCode'] < 300) ? 'success' : 'error';
+                $mimeClass = 'info';
+                
+                if ($result['httpCode'] >= 200 && $result['httpCode'] < 300) {
+                    if ($file['type'] == 'CSS' && strpos($result['contentType'], 'css') === false) {
+                        $mimeClass = 'error';
+                    } else if ($file['type'] == 'JavaScript' && strpos($result['contentType'], 'javascript') === false) {
+                        $mimeClass = 'error';
+                    }
+                }
+                
+                echo "<tr>";
+                echo "<td>{$file['type']}</td>";
+                echo "<td>{$file['path']}</td>";
+                echo "<td>{$file['source']}</td>";
+                echo "<td class='$statusClass'>{$result['httpCode']}</td>";
+                echo "<td class='$mimeClass'>{$result['contentType']}</td>";
+                echo "<td>" . ($result['size'] > 0 ? $result['size'] . " octets" : "Inconnu") . "</td>";
+                echo "</tr>";
+            }
+            
+            echo "</table>";
+        } else {
+            echo "<p class='warning'>Aucun fichier à tester.</p>";
+        }
+        ?>
+    </div>
+    
+    <div class="section">
+        <h2>Vérification de la configuration MIME</h2>
+        <?php
+        // Vérifier la configuration MIME dans .htaccess
+        $htaccessPaths = ['./.htaccess', './assets/.htaccess'];
+        $mimeConfigFound = false;
+        
+        foreach ($htaccessPaths as $path) {
+            if (file_exists($path)) {
+                $htaccess = file_get_contents($path);
+                echo "<h3>Configuration MIME dans $path:</h3>";
+                
+                $hasJsMime = preg_match('/AddType\s+application\/javascript\s+\.js/i', $htaccess);
+                $hasCssMime = preg_match('/AddType\s+text\/css\s+\.css/i', $htaccess);
+                $hasJsForce = preg_match('/ForceType\s+application\/javascript/i', $htaccess);
+                $hasCssForce = preg_match('/ForceType\s+text\/css/i', $htaccess);
+                
+                echo "<ul>";
+                echo "<li>Définition du type MIME JS: " . ($hasJsMime ? "<span class='success'>Présente</span>" : "<span class='warning'>Absente</span>") . "</li>";
+                echo "<li>Définition du type MIME CSS: " . ($hasCssMime ? "<span class='success'>Présente</span>" : "<span class='warning'>Absente</span>") . "</li>";
+                echo "<li>Force du type MIME JS: " . ($hasJsForce ? "<span class='success'>Présente</span>" : "<span class='warning'>Absente</span>") . "</li>";
+                echo "<li>Force du type MIME CSS: " . ($hasCssForce ? "<span class='success'>Présente</span>" : "<span class='warning'>Absente</span>") . "</li>";
+                echo "</ul>";
+                
+                if ($hasJsMime && $hasCssMime) {
+                    $mimeConfigFound = true;
+                }
+            }
+        }
+        
+        if (!$mimeConfigFound) {
+            echo "<p class='warning'>Aucune configuration MIME complète trouvée dans les fichiers .htaccess.</p>";
+            echo "<p>Vous pourriez avoir besoin d'ajouter les directives suivantes:</p>";
+            echo "<pre>
+# Configuration des types MIME
+AddType application/javascript .js
+AddType application/javascript .mjs
+AddType text/css .css
+
+# Force le type MIME pour CSS et JS
+&lt;FilesMatch \"\.css$\"&gt;
+    ForceType text/css
+    Header set Content-Type \"text/css; charset=utf-8\"
+&lt;/FilesMatch&gt;
+
+&lt;FilesMatch \"\.js$\"&gt;
+    ForceType application/javascript
+    Header set Content-Type \"application/javascript; charset=utf-8\"
+&lt;/FilesMatch&gt;
+</pre>";
+        }
+        ?>
+    </div>
+    
+    <div class="section">
+        <h2>Solutions possibles</h2>
+        
+        <h3>Si vos fichiers CSS ne sont pas chargés correctement:</h3>
+        <ol>
+            <li>Vérifiez que les fichiers existent bien dans le dossier assets</li>
+            <li>Assurez-vous que index.html référence les bons chemins</li>
+            <li>Ajoutez les types MIME corrects dans .htaccess</li>
+            <li>Vérifiez que le serveur web permet l'accès aux fichiers statiques</li>
+        </ol>
+        
+        <h3>Pour les noms de fichiers hachés:</h3>
+        <ol>
+            <li>Si vous utilisez Vite, vérifiez la configuration de build dans vite.config.ts</li>
+            <li>Assurez-vous que les fichiers de builds sont bien copiés dans le dossier assets</li>
+            <li>Utilisez le script fix-index-html.php pour mettre à jour automatiquement les références</li>
+        </ol>
+        
+        <form method="post" action="fix-mime-types-css.php">
+            <button type="submit" class="fix-button">Corriger les types MIME CSS</button>
+        </form>
+        <br>
+        <form method="post" action="fix-index-assets.php">
+            <button type="submit" class="fix-button">Mettre à jour les références dans index.html</button>
+        </form>
+    </div>
+    
+    <div class="section">
+        <h2>Liens utiles</h2>
+        <ul>
+            <li><a href="fix-mime-types-css.php">Correction des types MIME pour CSS</a></li>
+            <li><a href="fix-index-assets.php">Mise à jour des références dans index.html</a></li>
+            <li><a href="copy-assets.php">Copie des assets de build vers le dossier assets</a></li>
+            <li><a href="test-url-rewrite.php">Test des règles de réécriture</a></li>
+            <li><a href="php-execution-test.php">Test d'exécution PHP</a></li>
+        </ul>
+    </div>
+</body>
+</html>
