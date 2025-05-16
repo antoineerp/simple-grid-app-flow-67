@@ -1,103 +1,69 @@
 
-import { useState, useCallback, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useSyncContext } from '@/contexts/SyncContext';
-import { toast } from '@/components/ui/use-toast';
+import { getCurrentUser } from '@/services/auth/authService';
 
-export function useSync(tableName: string) {
+export const useSync = (tableName: string) => {
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
   const syncContext = useSyncContext();
-  const [isSyncing, setIsSyncing] = useState(false);
-  const [syncFailed, setSyncFailed] = useState(false);
-  const [lastSynced, setLastSynced] = useState<Date | null>(null);
   
-  useEffect(() => {
-    // Initialiser avec les données du contexte
-    if (syncContext.isInitialized()) {
-      setLastSynced(syncContext.getLastSynced(tableName));
-      const error = syncContext.getSyncError(tableName);
-      setSyncFailed(!!error);
-    }
-  }, [syncContext, tableName]);
-
-  const syncAndProcess = useCallback(async <T extends {}>(
-    data: T[],
-    trigger: "auto" | "manual" | "initial" = "manual"
-  ) => {
-    setIsSyncing(true);
-    setSyncFailed(false);
-    
-    try {
-      // Synchroniser les données
-      const success = await syncContext.syncData<T>(tableName, data);
-      
-      if (success) {
-        const newLastSynced = syncContext.getLastSynced(tableName);
-        setLastSynced(newLastSynced);
-        
-        if (trigger === "manual") {
-          toast({
-            title: "Synchronisation réussie",
-            description: `Données ${tableName} synchronisées avec succès.`
-          });
-        }
-        
-        return { success: true, timestamp: newLastSynced };
-      } else {
-        setSyncFailed(true);
-        
-        if (trigger === "manual") {
-          toast({
-            title: "Échec de la synchronisation",
-            description: syncContext.getSyncError(tableName) || "Une erreur s'est produite",
-            variant: "destructive"
-          });
-        }
-        
-        return { success: false, error: syncContext.getSyncError(tableName) };
-      }
-    } catch (error) {
-      setSyncFailed(true);
-      
-      if (trigger === "manual") {
-        toast({
-          title: "Erreur de synchronisation",
-          description: error instanceof Error ? error.message : "Une erreur s'est produite",
-          variant: "destructive"
-        });
-      }
-      
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : "Une erreur s'est produite"
-      };
-    } finally {
-      setIsSyncing(false);
-    }
-  }, [syncContext, tableName]);
-
-  const loadData = useCallback(async <T extends {}>(): Promise<T[]> => {
-    setIsSyncing(true);
-    setSyncFailed(false);
-    
-    try {
-      const result = await syncContext.loadData<T>(tableName);
-      const newLastSynced = syncContext.getLastSynced(tableName);
-      setLastSynced(newLastSynced);
-      return result;
-    } catch (error) {
-      setSyncFailed(true);
-      throw error;
-    } finally {
-      setIsSyncing(false);
-    }
-  }, [syncContext, tableName]);
-
-  return {
-    syncAndProcess,
-    loadData,
+  const {
+    isOnline,
     isSyncing,
-    isOnline: syncContext.isOnline,
     lastSynced,
-    syncFailed,
-    syncError: syncContext.getSyncError(tableName)
+    syncErrors,
+    isInitialized
+  } = syncContext;
+  
+  const syncStatus = {
+    isOnline,
+    isSyncing: isSyncing[tableName] || false,
+    lastSynced: lastSynced[tableName] || null,
+    syncError: syncErrors[tableName] || null,
+    isInitialized: isInitialized[tableName] || false
   };
-}
+  
+  const startSync = () => syncContext.startSync(tableName);
+  const endSync = (err?: string | null) => syncContext.endSync(tableName, err);
+  
+  // Charger les données initiales
+  useEffect(() => {
+    const initializeData = async () => {
+      if (!isInitialized[tableName]) {
+        try {
+          const user = getCurrentUser();
+          if (!user) {
+            console.error("Utilisateur non authentifié");
+            return;
+          }
+          
+          setLoading(true);
+          startSync();
+          
+          await syncContext.loadData(tableName);
+          
+          setLoading(false);
+          setError(null);
+        } catch (err) {
+          setLoading(false);
+          const message = err instanceof Error ? err.message : "Erreur inconnue";
+          setError(message);
+          console.error(`Erreur lors de l'initialisation de ${tableName}:`, err);
+        }
+      }
+    };
+    
+    initializeData();
+  }, [tableName, isInitialized, syncContext]);
+  
+  return {
+    syncStatus,
+    startSync,
+    endSync,
+    loading,
+    error
+  };
+};
+
+export default useSync;

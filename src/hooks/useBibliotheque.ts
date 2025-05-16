@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { useSyncContext } from '@/contexts/SyncContext';
 import { useToast } from '@/hooks/use-toast';
-import { getCurrentUser } from '@/services/core/databaseConnectionService';
+import { getCurrentUser } from '@/services/auth/authService';
 
 // Types pour les documents de bibliothèque
 interface BibliothequeItem {
@@ -42,11 +42,11 @@ export function useBibliotheque() {
         // Récupérer l'ID de l'utilisateur actuel pour garantir l'isolation des données
         const currentUser = getCurrentUser();
         
-        if (!currentUser || !currentUser.identifiant_technique) {
+        if (!currentUser || !currentUser.id) {
           throw new Error("Utilisateur non authentifié");
         }
         
-        const userId = currentUser.identifiant_technique;
+        const userId = currentUser.id;
         console.log("Chargement des données de la bibliothèque pour l'utilisateur:", userId);
         
         // Charger les données depuis le serveur en utilisant loadData du contexte

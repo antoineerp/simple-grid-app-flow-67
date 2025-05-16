@@ -1,67 +1,80 @@
 
-import React, { createContext, useState, useContext, useEffect, ReactNode } from 'react';
-import { getApiUrl } from '@/config/apiConfig';
-import { getAuthHeaders } from '@/services/auth/authService';
-import { useToast } from '@/hooks/use-toast';
-import { getCurrentUser } from '@/services/core/databaseConnectionService';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { getCurrentUser } from '@/services/auth/authService';
 
-export interface SyncContextProps {
+interface SyncContextProps {
   isOnline: boolean;
   isSyncing: Record<string, boolean>;
   lastSynced: Record<string, Date | null>;
   syncErrors: Record<string, string | null>;
-  startSync: (tableName: string) => void;
-  endSync: (tableName: string, error?: string | null) => void;
   syncData: <T>(tableName: string, data: T[]) => Promise<boolean>;
   loadData: <T>(tableName: string) => Promise<T[]>;
-  getSyncError: (tableName: string) => string | null;
+  startSync: (tableName: string) => void;
+  endSync: (tableName: string, error?: string | null) => void;
   getLastSynced: (tableName: string) => Date | null;
+  getSyncError: (tableName: string) => string | null;
+  isInitialized: Record<string, boolean>;
+  clearSyncErrors: () => void;
+  forceSyncAll: () => Promise<void>;
 }
 
-const SyncContext = createContext<SyncContextProps | null>(null);
+const SyncContext = createContext<SyncContextProps | undefined>(undefined);
 
 export const useSyncContext = (): SyncContextProps => {
   const context = useContext(SyncContext);
   if (!context) {
-    throw new Error('useSyncContext doit être utilisé dans un SyncProvider');
+    throw new Error('useSyncContext must be used within a SyncProvider');
   }
   return context;
 };
 
 interface SyncProviderProps {
-  children: ReactNode;
-  initialSyncInterval?: number;
+  children: React.ReactNode;
 }
 
-export const SyncProvider: React.FC<SyncProviderProps> = ({ 
-  children, 
-  initialSyncInterval = 10000 
-}) => {
+export const SyncProvider: React.FC<SyncProviderProps> = ({ children }) => {
   const [isOnline, setIsOnline] = useState<boolean>(navigator.onLine);
-  const [isSyncing, setIsSyncing] = useState<Record<string, boolean>>({});
-  const [syncErrors, setSyncErrors] = useState<Record<string, string | null>>({});
-  const [lastSynced, setLastSynced] = useState<Record<string, Date | null>>({});
-  const [isMounted, setIsMounted] = useState(false);
-  const { toast } = useToast();
+  const [isSyncing, setIsSyncing] = useState<Record<string, boolean>>({
+    documents: false,
+    exigences: false,
+    membres: false,
+    bibliotheque: false,
+    'test_table': false,
+    'collaboration': false,
+    'collaboration_groups': false
+  });
+  const [lastSynced, setLastSynced] = useState<Record<string, Date | null>>({
+    documents: null,
+    exigences: null,
+    membres: null,
+    bibliotheque: null,
+    'test_table': null,
+    'collaboration': null,
+    'collaboration_groups': null
+  });
+  const [syncErrors, setSyncErrors] = useState<Record<string, string | null>>({
+    documents: null,
+    exigences: null,
+    membres: null,
+    bibliotheque: null,
+    'test_table': null,
+    'collaboration': null,
+    'collaboration_groups': null
+  });
+  const [isInitialized, setIsInitialized] = useState<Record<string, boolean>>({
+    documents: false,
+    exigences: false,
+    membres: false,
+    bibliotheque: false,
+    'test_table': false,
+    'collaboration': false,
+    'collaboration_groups': false
+  });
 
-  // Mettre à jour l'état de connexion
+  // Écouteurs pour les événements de connexion
   useEffect(() => {
-    const handleOnline = () => {
-      setIsOnline(true);
-      toast({
-        title: "Connexion rétablie",
-        description: "Vous êtes maintenant connecté à Internet",
-      });
-    };
-
-    const handleOffline = () => {
-      setIsOnline(false);
-      toast({
-        title: "Connexion perdue",
-        description: "Vous êtes actuellement hors ligne",
-        variant: "destructive"
-      });
-    };
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
 
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
@@ -70,188 +83,200 @@ export const SyncProvider: React.FC<SyncProviderProps> = ({
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
     };
-  }, [toast]);
-
-  // Marquer le montage du composant
-  useEffect(() => {
-    setIsMounted(true);
-    console.info("SyncProvider monté");
-    return () => {
-      setIsMounted(false);
-      console.info("SyncProvider démonté");
-    };
   }, []);
 
-  // Synchroniser périodiquement
-  useEffect(() => {
-    console.info("Timer de synchronisation configuré pour", initialSyncInterval / 1000, "secondes");
-    const interval = setInterval(() => {
-      // Pas de sync automatique pour l'instant, juste pour être sûr de ne pas perturber les données
-    }, initialSyncInterval);
+  // Démarrer la synchronisation pour une table
+  const startSync = useCallback((tableName: string): void => {
+    setIsSyncing(prev => ({ ...prev, [tableName]: true }));
+  }, []);
 
-    return () => clearInterval(interval);
-  }, [initialSyncInterval]);
-
-  const startSync = (tableName: string) => {
-    setIsSyncing(prev => ({
-      ...prev,
-      [tableName]: true
-    }));
-  };
-
-  const endSync = (tableName: string, error?: string | null) => {
-    setIsSyncing(prev => ({
-      ...prev,
-      [tableName]: false
-    }));
-
-    if (error) {
-      setSyncErrors(prev => ({
-        ...prev,
-        [tableName]: error
-      }));
+  // Terminer la synchronisation pour une table
+  const endSync = useCallback((tableName: string, error?: string | null): void => {
+    setIsSyncing(prev => ({ ...prev, [tableName]: false }));
+    if (!error) {
+      setLastSynced(prev => ({ ...prev, [tableName]: new Date() }));
+      setSyncErrors(prev => ({ ...prev, [tableName]: null }));
     } else {
-      setSyncErrors(prev => ({
-        ...prev,
-        [tableName]: null
-      }));
-      setLastSynced(prev => ({
-        ...prev,
-        [tableName]: new Date()
-      }));
+      setSyncErrors(prev => ({ ...prev, [tableName]: error }));
     }
-  };
+  }, []);
 
-  const syncData = async <T,>(tableName: string, data: T[]): Promise<boolean> => {
+  // Charger les données depuis le serveur
+  const loadData = useCallback(async <T,>(tableName: string): Promise<T[]> => {
     if (!isOnline) {
-      toast({
-        title: "Hors ligne",
-        description: "Impossible de synchroniser en mode hors ligne",
-        variant: "destructive"
-      });
-      return false;
+      const localData = localStorage.getItem(`${tableName}_data`);
+      if (localData) {
+        return JSON.parse(localData) as T[];
+      }
+      return [];
     }
 
     startSync(tableName);
 
     try {
-      const currentUser = getCurrentUser();
-      
-      if (!currentUser || !currentUser.identifiant_technique) {
+      const user = getCurrentUser();
+      if (!user) {
         throw new Error("Utilisateur non authentifié");
       }
 
-      const apiUrl = getApiUrl();
-      const response = await fetch(`${apiUrl}/${tableName}-sync.php`, {
+      const userId = user.id;
+      
+      // URL de l'API basée sur l'environnement (local, production, etc.)
+      const apiUrl = import.meta.env.VITE_API_URL || '/api';
+      const endpoint = `${apiUrl}/${tableName}-load.php`;
+
+      const response = await fetch(endpoint, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...getAuthHeaders()
         },
         body: JSON.stringify({
-          userId: currentUser.identifiant_technique,
-          [tableName]: data
-        })
+          user_id: userId
+        }),
       });
 
       if (!response.ok) {
-        throw new Error(`Erreur HTTP ${response.status}`);
+        const errorText = await response.text();
+        throw new Error(`Erreur HTTP ${response.status}: ${errorText}`);
       }
 
-      const result = await response.json();
+      const data = await response.json();
       
-      if (!result.success) {
-        throw new Error(result.message || "Échec de synchronisation");
-      }
-
+      // Stocker en local pour l'utilisation hors ligne
+      localStorage.setItem(`${tableName}_data`, JSON.stringify(data));
+      
+      // Marquer la table comme initialisée
+      setIsInitialized(prev => ({ ...prev, [tableName]: true }));
+      
       endSync(tableName);
-      return true;
+      return data as T[];
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Erreur inconnue";
-      endSync(tableName, message);
+      console.error(`Erreur lors du chargement des données de ${tableName}:`, error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      endSync(tableName, errorMessage);
       
-      toast({
-        title: "Erreur de synchronisation",
-        description: `Impossible de synchroniser ${tableName}: ${message}`,
-        variant: "destructive"
-      });
-
-      return false;
+      // Utiliser les données en cache en cas d'erreur
+      const localData = localStorage.getItem(`${tableName}_data`);
+      if (localData) {
+        return JSON.parse(localData) as T[];
+      }
+      
+      throw error;
     }
-  };
+  }, [isOnline, startSync, endSync]);
 
-  const loadData = async <T,>(tableName: string): Promise<T[]> => {
+  // Synchroniser les données avec le serveur
+  const syncData = useCallback(async <T,>(tableName: string, data: T[]): Promise<boolean> => {
+    // Toujours enregistrer localement, que l'utilisateur soit en ligne ou non
+    localStorage.setItem(`${tableName}_data`, JSON.stringify(data));
+
+    // Si hors ligne, retourner vrai mais ne pas synchroniser avec le serveur
     if (!isOnline) {
-      throw new Error("Impossible de charger les données en mode hors ligne");
+      return true;
     }
 
     startSync(tableName);
 
     try {
-      const currentUser = getCurrentUser();
-      
-      if (!currentUser || !currentUser.identifiant_technique) {
+      const user = getCurrentUser();
+      if (!user) {
         throw new Error("Utilisateur non authentifié");
       }
 
-      const apiUrl = getApiUrl();
-      const response = await fetch(`${apiUrl}/${tableName}-get.php?userId=${encodeURIComponent(currentUser.identifiant_technique)}`, {
-        method: 'GET',
+      const userId = user.id;
+      
+      // URL de l'API basée sur l'environnement
+      const apiUrl = import.meta.env.VITE_API_URL || '/api';
+      const endpoint = `${apiUrl}/${tableName}-sync.php`;
+
+      const response = await fetch(endpoint, {
+        method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...getAuthHeaders()
-        }
+        },
+        body: JSON.stringify({
+          user_id: userId,
+          data: data
+        }),
       });
 
       if (!response.ok) {
-        throw new Error(`Erreur HTTP ${response.status}`);
+        const errorText = await response.text();
+        throw new Error(`Erreur HTTP ${response.status}: ${errorText}`);
       }
 
       const result = await response.json();
       
-      if (!result.success) {
-        throw new Error(result.message || "Échec de chargement");
+      if (result.success) {
+        endSync(tableName);
+        return true;
+      } else {
+        throw new Error(result.message || "Échec de la synchronisation");
       }
-
-      endSync(tableName);
-      return result.data || [];
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Erreur inconnue";
-      endSync(tableName, message);
-      throw error;
+      console.error(`Erreur lors de la synchronisation des données de ${tableName}:`, error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      endSync(tableName, errorMessage);
+      return false;
     }
-  };
+  }, [isOnline, startSync, endSync]);
 
-  const getSyncError = (tableName: string): string | null => {
-    return syncErrors[tableName] || null;
-  };
-
-  const getLastSynced = (tableName: string): Date | null => {
+  // Récupérer la dernière date de synchronisation pour une table
+  const getLastSynced = useCallback((tableName: string): Date | null => {
     return lastSynced[tableName] || null;
-  };
+  }, [lastSynced]);
 
-  const value: SyncContextProps = {
+  // Récupérer l'erreur de synchronisation pour une table
+  const getSyncError = useCallback((tableName: string): string | null => {
+    return syncErrors[tableName] || null;
+  }, [syncErrors]);
+
+  // Effacer toutes les erreurs de synchronisation
+  const clearSyncErrors = useCallback((): void => {
+    setSyncErrors({
+      documents: null,
+      exigences: null,
+      membres: null,
+      bibliotheque: null,
+      'test_table': null,
+      'collaboration': null,
+      'collaboration_groups': null
+    });
+  }, []);
+
+  // Forcer la synchronisation de toutes les tables
+  const forceSyncAll = useCallback(async (): Promise<void> => {
+    for (const table of Object.keys(isSyncing)) {
+      try {
+        const localData = localStorage.getItem(`${table}_data`);
+        if (localData) {
+          const data = JSON.parse(localData);
+          await syncData(table, data);
+        } else {
+          // Si pas de données locales, charger depuis le serveur
+          await loadData(table);
+        }
+      } catch (error) {
+        console.error(`Erreur lors de la synchronisation forcée de ${table}:`, error);
+      }
+    }
+  }, [isSyncing, syncData, loadData]);
+
+  const value = {
     isOnline,
     isSyncing,
     lastSynced,
     syncErrors,
-    startSync,
-    endSync,
     syncData,
     loadData,
+    startSync,
+    endSync,
+    getLastSynced,
     getSyncError,
-    getLastSynced
+    isInitialized,
+    clearSyncErrors,
+    forceSyncAll
   };
 
-  console.info("SyncProvider rendu avec état:", {
-    isSyncing: Object.values(isSyncing).some(v => v),
-    lastSynced: Object.values(lastSynced).find(v => v !== null),
-    syncFailed: Object.values(syncErrors).some(v => v !== null)
-  }, "Provider monté:", isMounted);
-
-  return (
-    <SyncContext.Provider value={value}>
-      {children}
-    </SyncContext.Provider>
-  );
+  return <SyncContext.Provider value={value}>{children}</SyncContext.Provider>;
 };

@@ -57,7 +57,7 @@ export const logout = (): void => {
   localStorage.removeItem('currentUser');
   
   // Redirection vers la page de connexion
-  window.location.href = '/login';
+  window.location.href = '/';
 };
 
 // En-têtes d'autorisation pour les requêtes API
@@ -81,6 +81,16 @@ export const hasRole = (role: string | string[]): boolean => {
   }
   
   return user.role === role;
+};
+
+// Fonction pour vérifier si l'utilisateur est connecté
+export const getIsLoggedIn = (): boolean => {
+  return isAuthenticated() && !!getCurrentUser();
+};
+
+// Authentifier un utilisateur avec email/mot de passe
+export const login = async (email: string, password: string, rememberMe: boolean = false): Promise<any> => {
+  return await authenticateUser(email, password, rememberMe);
 };
 
 // Authentifier un utilisateur avec email/mot de passe
