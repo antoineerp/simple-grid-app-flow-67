@@ -60,8 +60,8 @@ export * from './pdfManager';
 // Sync services - named exports to avoid duplicates
 export { triggerSync, triggerSyncAll } from './sync';
 export * from './sync/DatabaseHelper';
-export { DataSyncManager } from './sync/DataSyncManager';
-export { syncServiceImpl } from './sync/syncServiceImpl';
+export { dataSyncManager } from './sync/DataSyncManager';
+export { syncService } from './sync/syncServiceImpl';
 
 // UserManager specific exports to avoid duplicates
 export { getUtilisateurs } from './core/userManager';
