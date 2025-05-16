@@ -37,4 +37,4 @@ export const navigationItems: NavItem[] = [
   }
 ];
 
-// L'élément Administration a été retiré de la liste principale
+// L'élément Administration est géré séparément dans Sidebar.tsx pour plus de flexibilité

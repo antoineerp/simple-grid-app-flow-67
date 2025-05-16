@@ -1,9 +1,11 @@
 
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import SidebarNavItem from './sidebar/SidebarNavItem';
 import { navigationItems } from './sidebar/sidebarConfig';
 import { hasPermission } from '@/types/roles';
 import { getCurrentUser } from '@/services/auth/authService';
+import { Settings } from 'lucide-react';
 
 const Sidebar = () => {
   const [sidebarImageUrl, setSidebarImageUrl] = useState('');
@@ -11,6 +13,7 @@ const Sidebar = () => {
   const [imageError, setImageError] = useState(false);
   const user = getCurrentUser();
   const userRole = (user?.role || 'utilisateur');
+  const isAdmin = hasPermission(userRole as any, 'accessAdminPanel');
   
   useEffect(() => {
     try {
@@ -73,6 +76,23 @@ const Sidebar = () => {
             label={item.label}
           />
         ))}
+        
+        {/* Ajout du bouton d'administration si l'utilisateur a les droits */}
+        {isAdmin && (
+          <div className="mt-4 pt-4 border-t border-gray-200">
+            <SidebarNavItem
+              to="/admin"
+              icon={Settings}
+              label="Administration"
+            />
+            <Link 
+              to="/admin/users" 
+              className="flex items-center text-sm text-gray-600 py-2 px-4 pl-10 hover:bg-blue-50 hover:text-blue-700 rounded-md transition-colors"
+            >
+              Gestion des utilisateurs
+            </Link>
+          </div>
+        )}
         
         <div className="mt-auto pt-8 flex items-center justify-center">
           {!imageError && sidebarImageUrl ? (

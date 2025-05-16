@@ -13,6 +13,7 @@ import AdminPage from './pages/Admin';
 import Exigences from './pages/Exigences';
 import Collaboration from './pages/Collaboration';
 import NotFound from './pages/NotFound';
+import UserManagement from './pages/UserManagement';
 
 // Import des composants de context additionnels
 import { ToastProvider } from './components/ui/toast';
@@ -24,7 +25,7 @@ function App() {
         <Router>
           <Routes>
             <Route path="/" element={<Layout />}>
-              <Route index element={<RessourcesHumaines />} />
+              <Route index element={<Pilotage />} />
               <Route path="/pilotage" element={<Pilotage />} />
               <Route path="/documents" element={<GestionDocumentaire />} />
               <Route path="/gestion-documentaire" element={<GestionDocumentaire />} />
@@ -32,6 +33,7 @@ function App() {
               <Route path="/exigences" element={<Exigences />} />
               <Route path="/collaboration" element={<Collaboration />} />
               <Route path="/admin" element={<AdminPage />} />
+              <Route path="/admin/users" element={<UserManagement />} />
               <Route path="/db-test" element={<DbTest />} />
               <Route path="*" element={<NotFound />} />
             </Route>
