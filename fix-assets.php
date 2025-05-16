@@ -14,6 +14,10 @@ header('Content-Type: text/html; charset=utf-8');
         .section { margin-bottom: 30px; border: 1px solid #ddd; padding: 15px; border-radius: 5px; }
         pre { background: #f5f5f5; padding: 10px; border-radius: 5px; overflow-x: auto; }
         button { background: #4CAF50; color: white; border: none; padding: 10px 15px; border-radius: 4px; cursor: pointer; }
+        table { border-collapse: collapse; width: 100%; }
+        table, th, td { border: 1px solid #ddd; }
+        th, td { padding: 8px; text-align: left; }
+        th { background-color: #f2f2f2; }
     </style>
 </head>
 <body>
@@ -41,64 +45,149 @@ header('Content-Type: text/html; charset=utf-8');
             echo "</p>";
         }
         
-        // Vérifier les assets JS
-        $js_files = [];
-        if (is_dir('./dist/assets')) {
-            $js_files = glob('./dist/assets/*.js');
-        }
-        
-        echo "<p>Fichiers JavaScript dans dist/assets: ";
-        if (!empty($js_files)) {
-            echo "<span class='success'>" . count($js_files) . " fichiers trouvés</span>";
-            echo "<ul>";
-            foreach ($js_files as $file) {
-                echo "<li>" . basename($file) . "</li>";
+        // Fonction pour obtenir tous les fichiers JS et CSS, y compris dans les sous-dossiers
+        function getFilesRecursively($dir, $extension) {
+            $result = [];
+            if (is_dir($dir)) {
+                $files = glob("$dir/*.$extension");
+                $result = array_merge($result, $files);
+                
+                // Recherche dans les sous-dossiers
+                $subDirs = glob("$dir/*", GLOB_ONLYDIR);
+                foreach ($subDirs as $subDir) {
+                    $subFiles = getFilesRecursively($subDir, $extension);
+                    $result = array_merge($result, $subFiles);
+                }
             }
-            echo "</ul>";
-        } else {
-            echo "<span class='error'>Aucun fichier trouvé</span>";
-        }
-        echo "</p>";
-        
-        // Vérifier les assets CSS
-        $css_files = [];
-        if (is_dir('./dist/assets')) {
-            $css_files = glob('./dist/assets/*.css');
+            return $result;
         }
         
-        echo "<p>Fichiers CSS dans dist/assets: ";
-        if (!empty($css_files)) {
-            echo "<span class='success'>" . count($css_files) . " fichiers trouvés</span>";
-            echo "<ul>";
-            foreach ($css_files as $file) {
-                echo "<li>" . basename($file) . "</li>";
+        // Vérifier les assets JS dans dist et assets
+        $js_dist_files = getFilesRecursively('./dist', 'js');
+        $js_assets_files = getFilesRecursively('./assets', 'js');
+        
+        // Vérifier les assets CSS dans dist et assets
+        $css_dist_files = getFilesRecursively('./dist', 'css');
+        $css_assets_files = getFilesRecursively('./assets', 'css');
+        
+        // Afficher les fichiers JS dans dist
+        echo "<h3>Fichiers JavaScript dans dist:</h3>";
+        if (!empty($js_dist_files)) {
+            echo "<table>";
+            echo "<tr><th>Fichier</th><th>Taille</th></tr>";
+            foreach ($js_dist_files as $file) {
+                echo "<tr>";
+                echo "<td>" . basename($file) . "</td>";
+                echo "<td>" . number_format(filesize($file) / 1024, 2) . " KB</td>";
+                echo "</tr>";
             }
-            echo "</ul>";
+            echo "</table>";
         } else {
-            echo "<span class='error'>Aucun fichier trouvé</span>";
+            echo "<p><span class='error'>Aucun fichier JavaScript trouvé dans dist</span></p>";
         }
-        echo "</p>";
+        
+        // Afficher les fichiers CSS dans dist
+        echo "<h3>Fichiers CSS dans dist:</h3>";
+        if (!empty($css_dist_files)) {
+            echo "<table>";
+            echo "<tr><th>Fichier</th><th>Taille</th></tr>";
+            foreach ($css_dist_files as $file) {
+                echo "<tr>";
+                echo "<td>" . basename($file) . "</td>";
+                echo "<td>" . number_format(filesize($file) / 1024, 2) . " KB</td>";
+                echo "</tr>";
+            }
+            echo "</table>";
+        } else {
+            echo "<p><span class='error'>Aucun fichier CSS trouvé dans dist</span></p>";
+        }
         
         // Vérifier index.html
         $index_path = './index.html';
-        echo "<p>Fichier index.html: ";
+        echo "<h3>Analyse de index.html:</h3>";
         if (file_exists($index_path)) {
-            echo "<span class='success'>EXISTE</span>";
+            echo "<p><span class='success'>Le fichier index.html existe</span></p>";
             $index_content = file_get_contents($index_path);
             
-            // Vérifier si index.html fait référence à un fichier JavaScript dans assets
-            $has_js_ref = preg_match('/<script[^>]*src=["\'][^"\']*\/assets\/[^"\']*\.js["\'][^>]*>/i', $index_content);
-            echo "<br>Référence à un fichier JS dans /assets/: ";
-            echo $has_js_ref ? "<span class='success'>OUI</span>" : "<span class='error'>NON</span>";
+            // Trouver toutes les références de script
+            preg_match_all('/<script[^>]*src=["\']([^"\']*)["\'][^>]*>/i', $index_content, $script_matches);
+            $script_refs = $script_matches[1];
             
-            // Vérifier si index.html fait référence à un fichier CSS dans assets
-            $has_css_ref = preg_match('/<link[^>]*href=["\'][^"\']*\/assets\/[^"\']*\.css["\'][^>]*>/i', $index_content);
-            echo "<br>Référence à un fichier CSS dans /assets/: ";
-            echo $has_css_ref ? "<span class='success'>OUI</span>" : "<span class='error'>NON</span>";
+            // Trouver toutes les références de feuille de style
+            preg_match_all('/<link[^>]*href=["\']([^"\']*)["\'][^>]*rel=["\']stylesheet["\'][^>]*>/i', $index_content, $style_matches1);
+            preg_match_all('/<link[^>]*rel=["\']stylesheet["\'][^>]*href=["\']([^"\']*)["\'][^>]*>/i', $index_content, $style_matches2);
+            $style_refs = array_merge($style_matches1[1], $style_matches2[1]);
+            
+            echo "<h4>Scripts référencés:</h4>";
+            echo "<ul>";
+            foreach ($script_refs as $ref) {
+                echo "<li>" . htmlspecialchars($ref) . "</li>";
+            }
+            echo "</ul>";
+            
+            echo "<h4>Styles référencés:</h4>";
+            echo "<ul>";
+            foreach ($style_refs as $ref) {
+                echo "<li>" . htmlspecialchars($ref) . "</li>";
+            }
+            echo "</ul>";
+            
+            // Vérifier si les fichiers principaux de dist sont référencés
+            $main_js_dist = null;
+            foreach ($js_dist_files as $js_file) {
+                if (preg_match('/main\.[a-zA-Z0-9]+\.js$/', $js_file)) {
+                    $main_js_dist = $js_file;
+                    break;
+                }
+            }
+            
+            $main_css_dist = null;
+            foreach ($css_dist_files as $css_file) {
+                if (preg_match('/index\.[a-zA-Z0-9]+\.css$/', $css_file) || preg_match('/main\.[a-zA-Z0-9]+\.css$/', $css_file)) {
+                    $main_css_dist = $css_file;
+                    break;
+                }
+            }
+            
+            if ($main_js_dist) {
+                $main_js_basename = basename($main_js_dist);
+                $main_js_referenced = false;
+                foreach ($script_refs as $ref) {
+                    if (strpos($ref, $main_js_basename) !== false) {
+                        $main_js_referenced = true;
+                        break;
+                    }
+                }
+                echo "<p>Fichier JavaScript principal (main.*.js): <strong>" . $main_js_basename . "</strong> - ";
+                echo $main_js_referenced ? 
+                    "<span class='success'>Correctement référencé dans index.html</span>" : 
+                    "<span class='error'>Non référencé dans index.html</span>";
+                echo "</p>";
+            } else {
+                echo "<p><span class='error'>Aucun fichier JavaScript principal (main.*.js) trouvé dans dist</span></p>";
+            }
+            
+            if ($main_css_dist) {
+                $main_css_basename = basename($main_css_dist);
+                $main_css_referenced = false;
+                foreach ($style_refs as $ref) {
+                    if (strpos($ref, $main_css_basename) !== false) {
+                        $main_css_referenced = true;
+                        break;
+                    }
+                }
+                echo "<p>Fichier CSS principal: <strong>" . $main_css_basename . "</strong> - ";
+                echo $main_css_referenced ? 
+                    "<span class='success'>Correctement référencé dans index.html</span>" : 
+                    "<span class='error'>Non référencé dans index.html</span>";
+                echo "</p>";
+            } else {
+                echo "<p><span class='error'>Aucun fichier CSS principal (index.*.css ou main.*.css) trouvé dans dist</span></p>";
+            }
+            
         } else {
-            echo "<span class='error'>N'EXISTE PAS</span>";
+            echo "<p><span class='error'>Le fichier index.html est introuvable</span></p>";
         }
-        echo "</p>";
         ?>
     </div>
     
@@ -115,6 +204,8 @@ header('Content-Type: text/html; charset=utf-8');
                 } else {
                     echo "<p>Création du dossier assets: <span class='error'>ÉCHEC</span></p>";
                 }
+            } else {
+                echo "<p>Le dossier assets existe déjà: <span class='success'>OK</span></p>";
             }
             
             // 2. Copier les fichiers de dist/assets vers assets
@@ -122,72 +213,115 @@ header('Content-Type: text/html; charset=utf-8');
             $copied_css = 0;
             
             if (is_dir('./dist/assets')) {
-                // Copier les fichiers JS
-                foreach ($js_files as $file) {
-                    $dest = './assets/' . basename($file);
-                    if (copy($file, $dest)) {
-                        $copied_js++;
+                // Fonction récursive pour copier tous les fichiers
+                function copyFilesRecursively($src, $dst, $fileTypes = []) {
+                    $count = 0;
+                    if (is_dir($src)) {
+                        if (!is_dir($dst)) {
+                            mkdir($dst, 0755, true);
+                        }
+                        
+                        $files = scandir($src);
+                        foreach ($files as $file) {
+                            if ($file != "." && $file != "..") {
+                                $srcPath = $src . '/' . $file;
+                                $dstPath = $dst . '/' . $file;
+                                
+                                if (is_dir($srcPath)) {
+                                    $count += copyFilesRecursively($srcPath, $dstPath, $fileTypes);
+                                } else {
+                                    $ext = pathinfo($file, PATHINFO_EXTENSION);
+                                    if (empty($fileTypes) || in_array($ext, $fileTypes)) {
+                                        if (copy($srcPath, $dstPath)) {
+                                            $count++;
+                                        }
+                                    }
+                                }
+                            }
+                        }
                     }
+                    return $count;
                 }
+                
+                // Copier tous les fichiers JS
+                $copied_js = copyFilesRecursively('./dist/assets', './assets', ['js']);
                 echo "<p>Fichiers JavaScript copiés: <span class='success'>$copied_js</span></p>";
                 
-                // Copier les fichiers CSS
-                foreach ($css_files as $file) {
-                    $dest = './assets/' . basename($file);
-                    if (copy($file, $dest)) {
-                        $copied_css++;
-                    }
-                }
+                // Copier tous les fichiers CSS
+                $copied_css = copyFilesRecursively('./dist/assets', './assets', ['css']);
                 echo "<p>Fichiers CSS copiés: <span class='success'>$copied_css</span></p>";
+                
+                // Copier tous les autres fichiers (images, polices, etc.)
+                $copied_other = copyFilesRecursively('./dist/assets', './assets', ['svg', 'png', 'jpg', 'jpeg', 'gif', 'woff', 'woff2', 'ttf', 'eot']);
+                echo "<p>Autres fichiers copiés (images, polices): <span class='success'>$copied_other</span></p>";
+            } else {
+                // Si le dossier dist/assets n'existe pas, essayer dist directement
+                if (is_dir('./dist')) {
+                    $copied_js = copyFilesRecursively('./dist', './assets', ['js']);
+                    echo "<p>Fichiers JavaScript copiés depuis dist: <span class='success'>$copied_js</span></p>";
+                    
+                    $copied_css = copyFilesRecursively('./dist', './assets', ['css']);
+                    echo "<p>Fichiers CSS copiés depuis dist: <span class='success'>$copied_css</span></p>";
+                } else {
+                    echo "<p>Dossier dist introuvable: <span class='error'>ÉCHEC</span></p>";
+                }
             }
             
-            // 3. Mettre à jour index.html pour référencer les fichiers
+            // 3. Trouver les fichiers principaux à référencer
+            $main_js = '';
+            $js_files = getFilesRecursively('./assets', 'js');
+            foreach ($js_files as $file) {
+                if (preg_match('/main\.[a-zA-Z0-9_-]+\.js$/', $file)) {
+                    $main_js = str_replace('./', '/', $file);
+                    break;
+                }
+            }
+            
+            $main_css = '';
+            $css_files = getFilesRecursively('./assets', 'css');
+            foreach ($css_files as $file) {
+                if (preg_match('/index\.[a-zA-Z0-9_-]+\.css$/', $file) || preg_match('/main\.[a-zA-Z0-9_-]+\.css$/', $file)) {
+                    $main_css = str_replace('./', '/', $file);
+                    break;
+                }
+            }
+            
+            // 4. Mettre à jour index.html pour référencer les fichiers
             if (file_exists($index_path)) {
                 $updated = false;
                 $backup_created = false;
                 $index_content = file_get_contents($index_path);
                 $new_content = $index_content;
                 
-                // Trouver le fichier main.js principal
-                $main_js = '';
-                $main_js_files = glob('./assets/main.*.js');
-                if (!empty($main_js_files)) {
-                    $main_js = '/assets/' . basename($main_js_files[0]);
+                if (!$backup_created) {
+                    copy($index_path, $index_path . '.bak-' . date('YmdHis'));
+                    $backup_created = true;
+                    echo "<p>Sauvegarde de index.html créée: <span class='success'>OK</span></p>";
                 }
                 
-                // Trouver le fichier CSS principal
-                $main_css = '';
-                $main_css_files = glob('./assets/index*.css');
-                if (!empty($main_css_files)) {
-                    $main_css = '/assets/' . basename($main_css_files[0]);
-                } else {
-                    $main_css_files = glob('./assets/style*.css');
-                    if (!empty($main_css_files)) {
-                        $main_css = '/assets/' . basename($main_css_files[0]);
-                    }
-                }
-                
-                // Mettre à jour le lien vers le fichier JS
+                // Mettre à jour le lien vers le fichier JS principal
                 if (!empty($main_js)) {
-                    // S'il y a déjà un script pour un module, le mettre à jour
-                    if (preg_match('/<script[^>]*type=["\']module["\'][^>]*src=["\'][^"\']*["\'][^>]*>/i', $new_content)) {
-                        $new_content = preg_replace(
-                            '/<script[^>]*type=["\']module["\'][^>]*src=["\'][^"\']*["\'][^>]*>/i',
-                            '<script type="module" src="' . $main_js . '">',
-                            $new_content
-                        );
-                        $updated = true;
-                    }
-                    // Sinon, chercher la référence à /src/main.tsx
-                    else if (strpos($new_content, 'src="/src/main.tsx"') !== false) {
+                    // Rechercher un script src qui pointe vers src/main.tsx
+                    if (strpos($new_content, 'src="/src/main.tsx"') !== false) {
                         $new_content = str_replace(
                             'src="/src/main.tsx"',
                             'src="' . $main_js . '"',
                             $new_content
                         );
                         $updated = true;
+                        echo "<p>Référence au fichier JavaScript principal mise à jour: <span class='success'>$main_js</span></p>";
+                    } 
+                    // Rechercher un script de type module
+                    else if (preg_match('/<script[^>]*type=["\']module["\'][^>]*src=["\'][^"\']*["\'][^>]*>/i', $new_content)) {
+                        $new_content = preg_replace(
+                            '/<script[^>]*type=["\']module["\'][^>]*src=["\'][^"\']*["\'][^>]*>/i',
+                            '<script type="module" src="' . $main_js . '">',
+                            $new_content
+                        );
+                        $updated = true;
+                        echo "<p>Référence au fichier JavaScript principal (module) mise à jour: <span class='success'>$main_js</span></p>";
                     }
-                    // Si aucun n'est trouvé, ajouter un nouveau script avant la fermeture de body
+                    // Sinon, ajouter un nouveau script à la fin de body
                     else {
                         $new_content = str_replace(
                             '</body>',
@@ -195,21 +329,31 @@ header('Content-Type: text/html; charset=utf-8');
                             $new_content
                         );
                         $updated = true;
+                        echo "<p>Ajout d'une nouvelle référence au fichier JavaScript principal: <span class='success'>$main_js</span></p>";
                     }
+                } else {
+                    echo "<p>Aucun fichier JavaScript principal trouvé à référencer: <span class='warning'>ATTENTION</span></p>";
                 }
                 
-                // Mettre à jour le lien vers le fichier CSS
+                // Mettre à jour le lien vers le fichier CSS principal
                 if (!empty($main_css)) {
-                    // S'il y a déjà un lien CSS, le mettre à jour
-                    if (preg_match('/<link[^>]*rel=["\']stylesheet["\'][^>]*>/i', $new_content)) {
+                    // Rechercher une balise link pour une feuille de style
+                    if (preg_match('/<link[^>]*href=["\'][^"\']*["\'][^>]*rel=["\']stylesheet["\'][^>]*>/i', $new_content) || 
+                        preg_match('/<link[^>]*rel=["\']stylesheet["\'][^>]*href=["\'][^"\']*["\'][^>]*>/i', $new_content)) {
                         $new_content = preg_replace(
-                            '/<link[^>]*rel=["\']stylesheet["\'][^>]*>/i',
+                            '/<link[^>]*href=["\'][^"\']*["\'][^>]*rel=["\']stylesheet["\'][^>]*>/i',
+                            '<link rel="stylesheet" href="' . $main_css . '">',
+                            $new_content
+                        );
+                        $new_content = preg_replace(
+                            '/<link[^>]*rel=["\']stylesheet["\'][^>]*href=["\'][^"\']*["\'][^>]*>/i',
                             '<link rel="stylesheet" href="' . $main_css . '">',
                             $new_content
                         );
                         $updated = true;
+                        echo "<p>Référence au fichier CSS principal mise à jour: <span class='success'>$main_css</span></p>";
                     }
-                    // Sinon, ajouter un nouveau lien avant la fermeture de head
+                    // Sinon, ajouter une nouvelle balise link dans head
                     else {
                         $new_content = str_replace(
                             '</head>',
@@ -217,33 +361,58 @@ header('Content-Type: text/html; charset=utf-8');
                             $new_content
                         );
                         $updated = true;
+                        echo "<p>Ajout d'une nouvelle référence au fichier CSS principal: <span class='success'>$main_css</span></p>";
                     }
+                } else {
+                    echo "<p>Aucun fichier CSS principal trouvé à référencer: <span class='warning'>ATTENTION</span></p>";
                 }
                 
-                // Si des modifications ont été apportées, créer une sauvegarde et enregistrer
+                // Enregistrer les modifications
                 if ($updated) {
-                    // Créer une sauvegarde
-                    if (!$backup_created) {
-                        copy($index_path, $index_path . '.bak');
-                        $backup_created = true;
-                    }
-                    
-                    // Enregistrer les modifications
                     if (file_put_contents($index_path, $new_content)) {
                         echo "<p>Mise à jour de index.html: <span class='success'>OK</span></p>";
-                        echo "<p>Une sauvegarde a été créée: index.html.bak</p>";
-                        if (!empty($main_js)) {
-                            echo "<p>Fichier JS référencé: <span class='success'>$main_js</span></p>";
-                        }
-                        if (!empty($main_css)) {
-                            echo "<p>Fichier CSS référencé: <span class='success'>$main_css</span></p>";
-                        }
                     } else {
                         echo "<p>Mise à jour de index.html: <span class='error'>ÉCHEC (erreur d'écriture)</span></p>";
                     }
                 } else {
-                    echo "<p>Mise à jour de index.html: <span class='warning'>Aucune modification nécessaire</span></p>";
+                    echo "<p>Aucune mise à jour nécessaire pour index.html: <span class='warning'>ATTENTION</span></p>";
                 }
+                
+                // Créer un fichier .htaccess pour les assets si nécessaire
+                $htaccess_path = './assets/.htaccess';
+                if (!file_exists($htaccess_path)) {
+                    $htaccess_content = <<<EOT
+# Définition des types MIME pour les assets
+AddType application/javascript .js
+AddType application/javascript .mjs
+AddType text/css .css
+
+# Force les types MIME corrects
+<FilesMatch "\.js$">
+    ForceType application/javascript
+    Header set Content-Type "application/javascript; charset=utf-8"
+    Header set X-Content-Type-Options "nosniff"
+</FilesMatch>
+
+<FilesMatch "\.css$">
+    ForceType text/css
+    Header set Content-Type "text/css; charset=utf-8"
+    Header set X-Content-Type-Options "nosniff"
+</FilesMatch>
+
+# Cache control
+<FilesMatch "\.(js|css|jpg|jpeg|png|gif|ico|svg|woff|woff2|ttf|eot)$">
+    Header set Cache-Control "max-age=31536000, public"
+</FilesMatch>
+EOT;
+                    if (file_put_contents($htaccess_path, $htaccess_content)) {
+                        echo "<p>Création du fichier .htaccess pour les assets: <span class='success'>OK</span></p>";
+                    } else {
+                        echo "<p>Création du fichier .htaccess pour les assets: <span class='error'>ÉCHEC</span></p>";
+                    }
+                }
+            } else {
+                echo "<p>Fichier index.html introuvable: <span class='error'>ÉCHEC</span></p>";
             }
         } else {
             ?>
@@ -253,6 +422,7 @@ header('Content-Type: text/html; charset=utf-8');
                     <li>Créer le dossier <code>assets</code> à la racine s'il n'existe pas</li>
                     <li>Copier tous les fichiers JS/CSS de <code>dist/assets</code> vers <code>assets</code></li>
                     <li>Mettre à jour <code>index.html</code> pour référencer les fichiers compilés</li>
+                    <li>Créer un fichier <code>.htaccess</code> dans le dossier <code>assets</code> pour configurer les types MIME</li>
                 </ol>
                 <input type="hidden" name="fix_assets" value="1">
                 <button type="submit">Exécuter la correction</button>
@@ -268,48 +438,83 @@ header('Content-Type: text/html; charset=utf-8');
             <p>Vérification après correction:</p>
             <?php
             // Vérifier les fichiers dans assets
-            $new_js_files = glob('./assets/*.js');
-            $new_css_files = glob('./assets/*.css');
+            $new_js_files = getFilesRecursively('./assets', 'js');
+            $new_css_files = getFilesRecursively('./assets', 'css');
             
-            echo "<p>Fichiers JavaScript dans assets: ";
+            echo "<h3>Fichiers JavaScript dans assets après correction:</h3>";
             if (!empty($new_js_files)) {
-                echo "<span class='success'>" . count($new_js_files) . " fichiers</span>";
-                echo "<ul>";
+                echo "<table>";
+                echo "<tr><th>Fichier</th><th>Taille</th></tr>";
                 foreach ($new_js_files as $file) {
-                    echo "<li>" . basename($file) . "</li>";
+                    echo "<tr>";
+                    echo "<td>" . basename($file) . "</td>";
+                    echo "<td>" . number_format(filesize($file) / 1024, 2) . " KB</td>";
+                    echo "</tr>";
                 }
-                echo "</ul>";
+                echo "</table>";
             } else {
-                echo "<span class='error'>Aucun fichier</span>";
+                echo "<p><span class='error'>Aucun fichier JavaScript trouvé dans assets</span></p>";
             }
-            echo "</p>";
             
-            echo "<p>Fichiers CSS dans assets: ";
+            echo "<h3>Fichiers CSS dans assets après correction:</h3>";
             if (!empty($new_css_files)) {
-                echo "<span class='success'>" . count($new_css_files) . " fichiers</span>";
-                echo "<ul>";
+                echo "<table>";
+                echo "<tr><th>Fichier</th><th>Taille</th></tr>";
                 foreach ($new_css_files as $file) {
-                    echo "<li>" . basename($file) . "</li>";
+                    echo "<tr>";
+                    echo "<td>" . basename($file) . "</td>";
+                    echo "<td>" . number_format(filesize($file) / 1024, 2) . " KB</td>";
+                    echo "</tr>";
                 }
-                echo "</ul>";
+                echo "</table>";
             } else {
-                echo "<span class='error'>Aucun fichier</span>";
+                echo "<p><span class='error'>Aucun fichier CSS trouvé dans assets</span></p>";
             }
-            echo "</p>";
             
             // Vérifier les références dans index.html
             if (file_exists($index_path)) {
                 $current_content = file_get_contents($index_path);
                 
-                $has_js_ref = preg_match('/<script[^>]*src=["\'][^"\']*\/assets\/[^"\']*\.js["\'][^>]*>/i', $current_content);
-                echo "<p>Référence à un fichier JS dans /assets/: ";
-                echo $has_js_ref ? "<span class='success'>OUI</span>" : "<span class='error'>NON</span>";
-                echo "</p>";
+                // Trouver toutes les références de script
+                preg_match_all('/<script[^>]*src=["\']([^"\']*)["\'][^>]*>/i', $current_content, $script_matches);
+                $script_refs = $script_matches[1];
                 
-                $has_css_ref = preg_match('/<link[^>]*href=["\'][^"\']*\/assets\/[^"\']*\.css["\'][^>]*>/i', $current_content);
-                echo "<p>Référence à un fichier CSS dans /assets/: ";
-                echo $has_css_ref ? "<span class='success'>OUI</span>" : "<span class='error'>NON</span>";
-                echo "</p>";
+                // Trouver toutes les références de feuille de style
+                preg_match_all('/<link[^>]*href=["\']([^"\']*)["\'][^>]*rel=["\']stylesheet["\'][^>]*>/i', $current_content, $style_matches1);
+                preg_match_all('/<link[^>]*rel=["\']stylesheet["\'][^>]*href=["\']([^"\']*)["\'][^>]*>/i', $current_content, $style_matches2);
+                $style_refs = array_merge($style_matches1[1], $style_matches2[1]);
+                
+                echo "<h3>Références dans index.html après correction:</h3>";
+                
+                echo "<h4>Scripts référencés:</h4>";
+                echo "<ul>";
+                foreach ($script_refs as $ref) {
+                    $js_ref_found = false;
+                    foreach ($new_js_files as $js_file) {
+                        if (strpos($ref, basename($js_file)) !== false) {
+                            $js_ref_found = true;
+                            break;
+                        }
+                    }
+                    $class = $js_ref_found ? 'success' : 'error';
+                    echo "<li class='$class'>" . htmlspecialchars($ref) . ($js_ref_found ? " ✓" : " ✗") . "</li>";
+                }
+                echo "</ul>";
+                
+                echo "<h4>Styles référencés:</h4>";
+                echo "<ul>";
+                foreach ($style_refs as $ref) {
+                    $css_ref_found = false;
+                    foreach ($new_css_files as $css_file) {
+                        if (strpos($ref, basename($css_file)) !== false) {
+                            $css_ref_found = true;
+                            break;
+                        }
+                    }
+                    $class = $css_ref_found ? 'success' : 'error';
+                    echo "<li class='$class'>" . htmlspecialchars($ref) . ($css_ref_found ? " ✓" : " ✗") . "</li>";
+                }
+                echo "</ul>";
             }
             ?>
             <h3>Contenu de index.html après mise à jour:</h3>
@@ -324,9 +529,11 @@ header('Content-Type: text/html; charset=utf-8');
             <li>Assurez-vous que <code>npm run build</code> a bien été exécuté pour générer les fichiers dans <code>dist/assets</code></li>
             <li>Vérifiez que les fichiers compilés contiennent un hachage (par exemple, <code>main.GxNrB2FB.js</code>)</li>
             <li>Modifiez manuellement <code>index.html</code> pour référencer ces fichiers avec les bons chemins:
-                <pre>&lt;script type="module" src="/assets/main.GxNrB2FB.js"&gt;&lt;/script&gt;</pre>
+                <pre>&lt;script type="module" src="/assets/main.XXXX.js"&gt;&lt;/script&gt;</pre>
             </li>
+            <li>Si plusieurs fichiers JavaScript principaux existent, assurez-vous de les inclure tous dans le bon ordre</li>
             <li>Assurez-vous que le serveur est configuré pour servir correctement les fichiers statiques du dossier <code>assets</code></li>
+            <li>Si vous avez des problèmes avec les types MIME, vérifiez que le fichier <code>.htaccess</code> est correctement configuré dans le dossier <code>assets</code></li>
         </ol>
     </div>
     
