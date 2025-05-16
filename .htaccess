@@ -9,7 +9,7 @@ Options +FollowSymLinks
 # Définir le point d'entrée principal
 DirectoryIndex index.html index.php
 
-# Définir les types MIME corrects
+# Définir les types MIME corrects - TRÈS IMPORTANT POUR LES MODULES JS
 AddType application/javascript .js
 AddType application/javascript .mjs
 AddType application/javascript .es.js
@@ -17,9 +17,17 @@ AddType text/css .css
 AddType application/json .json
 AddType image/svg+xml .svg
 
-# Configuration spécifique pour les modules ES
+# Force le type MIME pour JavaScript - CRUCIAL pour les modules ES
 <FilesMatch "\.(m?js|es\.js)$">
-    Header set Content-Type "application/javascript"
+    ForceType application/javascript
+    Header set Content-Type "application/javascript; charset=utf-8"
+    Header set X-Content-Type-Options "nosniff"
+</FilesMatch>
+
+# Force le type MIME pour CSS
+<FilesMatch "\.css$">
+    ForceType text/css
+    Header set Content-Type "text/css; charset=utf-8"
     Header set X-Content-Type-Options "nosniff"
 </FilesMatch>
 

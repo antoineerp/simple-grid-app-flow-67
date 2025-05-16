@@ -1,6 +1,5 @@
 
-# Configuration spécifique pour les assets
-# Configurer les types MIME corrects
+# Configuration des types MIME pour les assets
 AddType text/css .css
 AddType application/javascript .js
 AddType application/javascript .mjs
@@ -10,36 +9,26 @@ AddType font/ttf .ttf
 AddType font/woff .woff
 AddType font/woff2 .woff2
 
-# Force le type MIME pour CSS de manière explicite
+# Force le type MIME pour CSS
 <FilesMatch "\.css$">
     ForceType text/css
     Header set Content-Type "text/css; charset=utf-8"
+    Header set X-Content-Type-Options "nosniff"
 </FilesMatch>
 
-# Force le type MIME pour JavaScript de manière explicite
+# Force le type MIME pour JavaScript
 <FilesMatch "\.(js|mjs|es\.js)$">
     ForceType application/javascript
     Header set Content-Type "application/javascript; charset=utf-8"
+    Header set X-Content-Type-Options "nosniff"
 </FilesMatch>
 
-# Activer la mise en cache
-<IfModule mod_expires.c>
-  ExpiresActive On
-  ExpiresByType text/css "access plus 1 week"
-  ExpiresByType application/javascript "access plus 1 week"
-  ExpiresByType image/svg+xml "access plus 1 week"
-  ExpiresByType font/ttf "access plus 1 month"
-  ExpiresByType font/woff "access plus 1 month"
-  ExpiresByType font/woff2 "access plus 1 month"
-</IfModule>
-
 # Désactiver la mise en cache pendant le développement
-# Décommenter pour désactiver la mise en cache
-# <IfModule mod_headers.c>
-#   Header set Cache-Control "no-cache, no-store, must-revalidate"
-#   Header set Pragma "no-cache"
-#   Header set Expires 0
-# </IfModule>
+<IfModule mod_headers.c>
+    Header set Cache-Control "no-cache, no-store, must-revalidate"
+    Header set Pragma "no-cache"
+    Header set Expires 0
+</IfModule>
 
 # Autoriser l'accès depuis toutes les origines pour les assets
 <IfModule mod_headers.c>
