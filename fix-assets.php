@@ -1,4 +1,3 @@
-
 <?php
 header('Content-Type: text/html; charset=utf-8');
 ?>
@@ -267,6 +266,20 @@ header('Content-Type: text/html; charset=utf-8');
                 }
             }
             
+            // Vérifier si un fichier CSS a été trouvé, sinon créer un fichier index.css
+            $css_files = getFilesRecursively('./assets', 'css');
+            if (empty($css_files)) {
+                // Aucun CSS trouvé, créer un fichier index.css basique
+                $css_content = file_get_contents('./src/index.css');
+                if (!$css_content) {
+                    // Si src/index.css n'existe pas, créer un CSS basique
+                    $css_content = "/* CSS généré automatiquement */\nbody { font-family: Arial, sans-serif; margin: 0; padding: 0; }\n";
+                }
+                file_put_contents('./assets/index.css', $css_content);
+                echo "<p>Création d'un fichier CSS basique: <span class='success'>assets/index.css</span></p>";
+                $css_files[] = './assets/index.css';
+            }
+            
             // 3. Trouver les fichiers principaux à référencer
             $main_js = '';
             $js_files = getFilesRecursively('./assets', 'js');
@@ -278,7 +291,6 @@ header('Content-Type: text/html; charset=utf-8');
             }
             
             $main_css = '';
-            $css_files = getFilesRecursively('./assets', 'css');
             foreach ($css_files as $file) {
                 if (preg_match('/index\.[a-zA-Z0-9_-]+\.css$/', $file) || preg_match('/main\.[a-zA-Z0-9_-]+\.css$/', $file)) {
                     $main_css = str_replace('./', '/', $file);
@@ -286,15 +298,21 @@ header('Content-Type: text/html; charset=utf-8');
                 }
             }
             
+            // Si aucun CSS principal trouvé, utiliser le premier CSS disponible
+            if (empty($main_css) && !empty($css_files)) {
+                $main_css = str_replace('./', '/', $css_files[0]);
+                echo "<p>Utilisation du premier fichier CSS disponible: <span class='success'>" . basename($main_css) . "</span></p>";
+            }
+            
             // 4. Mettre à jour index.html pour référencer les fichiers
-            if (file_exists($index_path)) {
+            if (file_exists('./index.html')) {
                 $updated = false;
                 $backup_created = false;
-                $index_content = file_get_contents($index_path);
+                $index_content = file_get_contents('./index.html');
                 $new_content = $index_content;
                 
                 if (!$backup_created) {
-                    copy($index_path, $index_path . '.bak-' . date('YmdHis'));
+                    copy('./index.html', './index.html.bak-' . date('YmdHis'));
                     $backup_created = true;
                     echo "<p>Sauvegarde de index.html créée: <span class='success'>OK</span></p>";
                 }
@@ -365,11 +383,28 @@ header('Content-Type: text/html; charset=utf-8');
                     }
                 } else {
                     echo "<p>Aucun fichier CSS principal trouvé à référencer: <span class='warning'>ATTENTION</span></p>";
+                    
+                    // Créer un fichier CSS basique si aucun n'a été trouvé
+                    if (empty($css_files)) {
+                        $basic_css_path = './assets/index.css';
+                        $basic_css_content = "/* CSS généré automatiquement */\nbody { font-family: Arial, sans-serif; margin: 0; padding: 0; }\n";
+                        file_put_contents($basic_css_path, $basic_css_content);
+                        echo "<p>Création d'un fichier CSS basique: <span class='success'>assets/index.css</span></p>";
+                        
+                        // Ajouter une référence à ce fichier CSS
+                        $new_content = str_replace(
+                            '</head>',
+                            '  <link rel="stylesheet" href="/assets/index.css">' . "\n</head>",
+                            $new_content
+                        );
+                        $updated = true;
+                        echo "<p>Ajout d'une référence au fichier CSS basique: <span class='success'>/assets/index.css</span></p>";
+                    }
                 }
                 
                 // Enregistrer les modifications
                 if ($updated) {
-                    if (file_put_contents($index_path, $new_content)) {
+                    if (file_put_contents('./index.html', $new_content)) {
                         echo "<p>Mise à jour de index.html: <span class='success'>OK</span></p>";
                     } else {
                         echo "<p>Mise à jour de index.html: <span class='error'>ÉCHEC (erreur d'écriture)</span></p>";
@@ -414,6 +449,29 @@ EOT;
             } else {
                 echo "<p>Fichier index.html introuvable: <span class='error'>ÉCHEC</span></p>";
             }
+            
+            // 5. Si aucun CSS n'a été trouvé, copier src/index.css dans assets
+            if (empty($css_files) && file_exists('./src/index.css')) {
+                if (copy('./src/index.css', './assets/index.css')) {
+                    echo "<p>Copie de src/index.css vers assets/index.css: <span class='success'>OK</span></p>";
+                    
+                    // Mettre à jour index.html pour référencer ce CSS
+                    if (file_exists('./index.html')) {
+                        $index_content = file_get_contents('./index.html');
+                        if (strpos($index_content, '/assets/index.css') === false) {
+                            $index_content = str_replace(
+                                '</head>',
+                                '  <link rel="stylesheet" href="/assets/index.css">' . "\n</head>",
+                                $index_content
+                            );
+                            file_put_contents('./index.html', $index_content);
+                            echo "<p>Ajout d'une référence à index.css dans index.html: <span class='success'>OK</span></p>";
+                        }
+                    }
+                } else {
+                    echo "<p>Copie de src/index.css vers assets/index.css: <span class='error'>ÉCHEC</span></p>";
+                }
+            }
         } else {
             ?>
             <form method="post">
@@ -421,6 +479,7 @@ EOT;
                 <ol>
                     <li>Créer le dossier <code>assets</code> à la racine s'il n'existe pas</li>
                     <li>Copier tous les fichiers JS/CSS de <code>dist/assets</code> vers <code>assets</code></li>
+                    <li>Si aucun fichier CSS n'est trouvé, copier <code>src/index.css</code> ou créer un CSS basique</li>
                     <li>Mettre à jour <code>index.html</code> pour référencer les fichiers compilés</li>
                     <li>Créer un fichier <code>.htaccess</code> dans le dossier <code>assets</code> pour configurer les types MIME</li>
                 </ol>
@@ -472,8 +531,8 @@ EOT;
             }
             
             // Vérifier les références dans index.html
-            if (file_exists($index_path)) {
-                $current_content = file_get_contents($index_path);
+            if (file_exists('./index.html')) {
+                $current_content = file_get_contents('./index.html');
                 
                 // Trouver toutes les références de script
                 preg_match_all('/<script[^>]*src=["\']([^"\']*)["\'][^>]*>/i', $current_content, $script_matches);
@@ -518,7 +577,7 @@ EOT;
             }
             ?>
             <h3>Contenu de index.html après mise à jour:</h3>
-            <pre><?php echo htmlspecialchars(file_get_contents($index_path)); ?></pre>
+            <pre><?php echo htmlspecialchars(file_get_contents('./index.html')); ?></pre>
         <?php endif; ?>
     </div>
     
@@ -528,12 +587,10 @@ EOT;
         <ol>
             <li>Assurez-vous que <code>npm run build</code> a bien été exécuté pour générer les fichiers dans <code>dist/assets</code></li>
             <li>Vérifiez que les fichiers compilés contiennent un hachage (par exemple, <code>main.GxNrB2FB.js</code>)</li>
-            <li>Modifiez manuellement <code>index.html</code> pour référencer ces fichiers avec les bons chemins:
-                <pre>&lt;script type="module" src="/assets/main.XXXX.js"&gt;&lt;/script&gt;</pre>
-            </li>
-            <li>Si plusieurs fichiers JavaScript principaux existent, assurez-vous de les inclure tous dans le bon ordre</li>
-            <li>Assurez-vous que le serveur est configuré pour servir correctement les fichiers statiques du dossier <code>assets</code></li>
-            <li>Si vous avez des problèmes avec les types MIME, vérifiez que le fichier <code>.htaccess</code> est correctement configuré dans le dossier <code>assets</code></li>
+            <li>Si aucun fichier CSS n'est généré dans le build, vérifiez que votre configuration Vite importe correctement le CSS:</li>
+            <li>Dans <code>src/main.tsx</code> ou <code>src/main.jsx</code>, assurez-vous d'avoir une ligne comme <code>import './index.css'</code></li>
+            <li>Si vous avez des styles globaux, créez manuellement un fichier <code>assets/index.css</code> et référencez-le dans <code>index.html</code></li>
+            <li>Vérifiez votre configuration dans <code>vite.config.ts</code> pour vous assurer que les styles CSS sont correctement extraits lors du build</li>
         </ol>
     </div>
     
