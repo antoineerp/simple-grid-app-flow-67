@@ -2,7 +2,6 @@
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Upload } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 
 interface LogoSelectorProps {
@@ -20,19 +19,28 @@ const LogoSelector: React.FC<LogoSelectorProps> = ({ currentLogo, onLogoChange }
 
   // Initialiser les chemins d'accès aux logos
   useEffect(() => {
-    const isLovableEnv = window.location.hostname.includes('lovableproject.com');
-    const prefix = isLovableEnv ? "/public" : "";
-    
-    // Logo principal FormaCert
-    const mainLogo = `${prefix}/lovable-uploads/4c7adb52-3da0-4757-acbf-50a1eb1d4bf5.png`;
-    setFallbackLogo(mainLogo);
-    
-    // Logos prédéfinis
-    setPredefinedLogos([
-      mainLogo,
-      `${prefix}/lovable-uploads/4425c340-2ce3-416b-abc9-b75906ca8705.png`,
-      `${prefix}/lovable-uploads/aba57440-1db2-49ba-8273-c60d6a77b6ee.png`,
-    ]);
+    try {
+      // Détection plus robuste de l'environnement
+      const isLovableEnv = window.location.hostname.includes('lovable');
+      const isDevelopment = process.env.NODE_ENV === 'development';
+      const prefix = isLovableEnv ? "/public" : "";
+      
+      // Logo principal FormaCert
+      const mainLogo = `${prefix}/lovable-uploads/4c7adb52-3da0-4757-acbf-50a1eb1d4bf5.png`;
+      setFallbackLogo(mainLogo);
+      
+      // Logos prédéfinis
+      const logos = [
+        mainLogo,
+        `${prefix}/lovable-uploads/4425c340-2ce3-416b-abc9-b75906ca8705.png`,
+        `${prefix}/lovable-uploads/aba57440-1db2-49ba-8273-c60d6a77b6ee.png`,
+      ];
+      
+      setPredefinedLogos(logos);
+      console.log("LogoSelector - Logos prédéfinis:", logos);
+    } catch (error) {
+      console.error("LogoSelector - Erreur d'initialisation:", error);
+    }
   }, []);
 
   // Ajuster le chemin du logo actuel si nécessaire
@@ -87,7 +95,14 @@ const LogoSelector: React.FC<LogoSelectorProps> = ({ currentLogo, onLogoChange }
                 className="h-12"
                 onError={(e) => {
                   console.error("Failed to load logo:", logo);
-                  e.currentTarget.src = fallbackLogo;
+                  // Si un logo échoue, essayons la version sans /public/ ou avec /public/
+                  if (logo.includes('/public/')) {
+                    e.currentTarget.src = logo.replace('/public', '');
+                  } else if (window.location.hostname.includes('lovable')) {
+                    e.currentTarget.src = `/public${logo}`;
+                  } else {
+                    e.currentTarget.src = fallbackLogo;
+                  }
                 }}
               />
             </div>

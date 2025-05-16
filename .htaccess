@@ -50,10 +50,12 @@ AddType image/svg+xml .svg
 
 # Traitement des ressources statiques
 RewriteCond %{REQUEST_URI} ^/lovable-uploads/
+RewriteCond %{REQUEST_FILENAME} !-f
 RewriteRule ^lovable-uploads/(.*)$ public/lovable-uploads/$1 [L]
 
 # Pour Lovable environment
 RewriteCond %{REQUEST_URI} ^/public/lovable-uploads/
+RewriteCond %{REQUEST_FILENAME} !-f
 RewriteRule ^public/lovable-uploads/(.*)$ public/lovable-uploads/$1 [L]
 
 # TRÈS IMPORTANT: Règles spécifiques pour les fichiers PHP de l'API

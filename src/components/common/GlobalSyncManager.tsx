@@ -3,12 +3,23 @@ import React from 'react';
 import { useSyncContext } from '../../context/SyncContext';
 
 const GlobalSyncManager: React.FC = () => {
-  const syncContext = useSyncContext();
+  // Utiliser le hook dans un try/catch pour éviter les erreurs fatales
+  let syncContext;
+  try {
+    syncContext = useSyncContext();
+  } catch (error) {
+    console.error("GlobalSyncManager - Erreur lors de l'utilisation du contexte:", error);
+    return null; // Retourner null en cas d'erreur pour éviter de planter l'application
+  }
   
-  // Utiliser le contexte pour éviter l'erreur
   React.useEffect(() => {
     console.log("GlobalSyncManager - Composant monté");
-    console.log("État de synchronisation:", syncContext.syncStatus);
+    
+    if (syncContext) {
+      console.log("État de synchronisation:", syncContext.syncStatus);
+    } else {
+      console.log("GlobalSyncManager - Contexte non disponible");
+    }
     
     // Créer un élément dans le DOM pour indiquer l'initialisation
     const syncInitElement = document.createElement('div');

@@ -14,12 +14,17 @@ const Sidebar = () => {
   
   useEffect(() => {
     try {
-      // Vérifier si nous sommes dans l'environnement Lovable
-      const isLovableEnv = window.location.hostname.includes('lovableproject.com');
+      // Détection d'environnement plus robuste
+      const isLovableEnv = window.location.hostname.includes('lovable');
+      const isDevelopment = process.env.NODE_ENV === 'development';
+      
+      // Utiliser un préfixe conditionnel basé sur l'environnement
       const prefix = isLovableEnv ? "/public" : "";
       
       // Image par défaut avec gestion de l'environnement
-      const defaultImage = `${prefix}/lovable-uploads/swiss-army-knife-logo.png`;
+      const defaultImage = isDevelopment 
+        ? "/lovable-uploads/swiss-army-knife-logo.png"
+        : `${prefix}/lovable-uploads/swiss-army-knife-logo.png`;
       
       // Récupérer les données du localStorage ou utiliser les valeurs par défaut
       const storedImageUrl = localStorage.getItem('sidebarImageUrl');
@@ -46,13 +51,15 @@ const Sidebar = () => {
     console.error("Sidebar image failed to load:", sidebarImageUrl);
     setImageError(true);
     
-    // Essayer un autre chemin comme alternative
-    const isLovableEnv = window.location.hostname.includes('lovableproject.com');
-    const fallbackImage = isLovableEnv 
-      ? "/public/lovable-uploads/swiss-army-knife-logo.png"
-      : "/lovable-uploads/swiss-army-knife-logo.png";
-      
-    setSidebarImageUrl(fallbackImage);
+    // Essayer plusieurs chemins alternatifs
+    const isLovableEnv = window.location.hostname.includes('lovable');
+    const fallbackImages = [
+      isLovableEnv ? "/public/lovable-uploads/swiss-army-knife-logo.png" : "/lovable-uploads/swiss-army-knife-logo.png",
+      isLovableEnv ? "/public/lovable-uploads/4c7adb52-3da0-4757-acbf-50a1eb1d4bf5.png" : "/lovable-uploads/4c7adb52-3da0-4757-acbf-50a1eb1d4bf5.png"
+    ];
+    
+    // Essayer le premier chemin alternatif
+    setSidebarImageUrl(fallbackImages[0]);
   };
 
   return (

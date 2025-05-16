@@ -3,10 +3,10 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Index from './pages/Index';
 import Layout from './components/layout/Layout';
-import { SyncProvider } from './contexts/SyncContext';
-import { GlobalSyncProvider } from './contexts/GlobalSyncContext';
 import { Toaster } from './components/ui/toaster';
 import GlobalSyncManager from './components/common/GlobalSyncManager';
+import { SyncProvider } from './contexts/SyncContext';
+import { GlobalSyncProvider } from './contexts/GlobalSyncContext';
 
 const App = () => {
   console.log("Application starting...");
@@ -23,8 +23,8 @@ const App = () => {
             <Route path="/*" element={<Layout />} />
           </Routes>
           <GlobalSyncManager />
+          <Toaster />
         </Router>
-        <Toaster />
       </GlobalSyncProvider>
     </SyncProvider>
   );

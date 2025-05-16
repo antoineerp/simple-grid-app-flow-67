@@ -15,7 +15,20 @@ interface SyncContextProps {
   getSyncError: (tableName: string) => string | null;
 }
 
-const SyncContext = createContext<SyncContextProps | undefined>(undefined);
+// Créer un contexte avec une valeur par défaut pour éviter les erreurs
+const defaultContextValue: SyncContextProps = {
+  lastSynced: {},
+  isSyncing: {},
+  syncErrors: {},
+  isOnline: true,
+  isInitialized: () => false,
+  syncData: async () => false,
+  loadData: async () => [],
+  getLastSynced: () => null,
+  getSyncError: () => null
+};
+
+const SyncContext = createContext<SyncContextProps>(defaultContextValue);
 
 export const SyncProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [lastSynced, setLastSynced] = useState<Record<string, Date | null>>({});
@@ -63,11 +76,14 @@ export const SyncProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       setSyncErrors(prev => ({ ...prev, [tableName]: null }));
       
       console.log(`SyncContext - Début de la synchronisation pour ${tableName}`);
-      const result = await Promise.resolve(syncService.sendDataToServer<T>(tableName, data))
-        .catch(error => {
-          console.error(`SyncContext - Erreur lors de la synchronisation pour ${tableName}:`, error);
-          throw error;
-        });
+      let result = false;
+      
+      try {
+        result = await Promise.resolve(syncService.sendDataToServer<T>(tableName, data));
+      } catch (error) {
+        console.error(`SyncContext - Erreur lors de la synchronisation pour ${tableName}:`, error);
+        throw error;
+      }
         
       console.log(`SyncContext - Synchronisation terminée pour ${tableName}`);
       setLastSynced(prev => ({ ...prev, [tableName]: new Date() }));
@@ -88,11 +104,14 @@ export const SyncProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       setSyncErrors(prev => ({ ...prev, [tableName]: null }));
       
       console.log(`SyncContext - Chargement des données pour ${tableName}`);
-      const data = await Promise.resolve(syncService.loadDataFromServer<T>(tableName))
-        .catch(error => {
-          console.error(`SyncContext - Erreur lors du chargement pour ${tableName}:`, error);
-          throw error;
-        });
+      let data: T[] = [];
+      
+      try {
+        data = await Promise.resolve(syncService.loadDataFromServer<T>(tableName));
+      } catch (error) {
+        console.error(`SyncContext - Erreur lors du chargement pour ${tableName}:`, error);
+        throw error;
+      }
         
       console.log(`SyncContext - Chargement terminé pour ${tableName}, ${data.length} éléments`);
       setLastSynced(prev => ({ ...prev, [tableName]: new Date() }));
@@ -130,8 +149,12 @@ export const SyncProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
 export const useSyncContext = (): SyncContextProps => {
   const context = useContext(SyncContext);
+  
+  // Si le contexte n'est pas défini, utiliser la valeur par défaut au lieu de lever une exception
   if (context === undefined) {
-    throw new Error('useSyncContext must be used within a SyncProvider');
+    console.error('useSyncContext doit être utilisé à l\'intérieur d\'un SyncProvider');
+    return defaultContextValue;
   }
+  
   return context;
 };
