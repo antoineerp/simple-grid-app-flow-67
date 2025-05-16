@@ -58,32 +58,6 @@ RewriteCond %{REQUEST_URI} ^/public/lovable-uploads/
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteRule ^public/lovable-uploads/(.*)$ public/lovable-uploads/$1 [L]
 
-# TRÈS IMPORTANT: Règles spécifiques pour les fichiers PHP de l'API
-# La règle générale doit être placée APRÈS les règles spécifiques
-
-# Blocage d'accès à login-test.php pour raisons de sécurité
-RewriteRule ^api/login-test(\.php)?/?$ - [F,L]
-
-# Règles directes pour les fichiers PHP spécifiques dans le dossier api
-RewriteRule ^api/check-users/?$ api/check-users.php [L]
-RewriteRule ^api/users/?$ api/users.php [L]
-RewriteRule ^api/login/?$ api/auth.php [L]
-
-# Règles pour les autres scripts d'API spécifiques
-RewriteRule ^api/global-sync/?$ api/sync-devices.php [L]
-RewriteRule ^api/global-load/?$ api/global-load.php [L]
-RewriteRule ^api/error-log/?$ api/error-log.php [L]
-RewriteRule ^api/auth/?$ api/auth.php [L]
-
-# Règle générique pour l'API - À placer APRÈS les règles spécifiques
-RewriteRule ^api/?$ api/index.php [L]
-
-# Règle pour traiter les requêtes d'API avec des sous-chemins - À placer APRÈS les règles spécifiques
-RewriteRule ^api/([^/]+)/?$ api/$1.php [QSA,L]
-
-# Règle pour autres requêtes API
-RewriteRule ^api/(.*)$ api/$1 [QSA,L]
-
 # Permettre l'accès direct aux assets dans leur dossier
 RewriteCond %{REQUEST_URI} ^/assets/
 RewriteCond %{REQUEST_FILENAME} -f
@@ -100,30 +74,16 @@ RewriteCond %{REQUEST_FILENAME} !-d
 RewriteCond %{REQUEST_URI} !^/api/
 RewriteRule ^(.*)$ index.html [QSA,L]
 
-# Configuration de sécurité et CORS
+# Configuration de sécurité
 <IfModule mod_headers.c>
     # Headers pour les assets statiques
     <FilesMatch "\.(js|mjs|es\.js|css|json)$">
         Header set Cache-Control "no-cache, no-store, must-revalidate"
         Header set Pragma "no-cache"
         Header set Expires "0"
-        Header set Access-Control-Allow-Origin "*"
-        Header set Access-Control-Allow-Methods "GET, OPTIONS"
-        Header set Access-Control-Allow-Headers "Content-Type, Authorization"
     </FilesMatch>
 </IfModule>
 
 # Gestion des erreurs personnalisée
 ErrorDocument 404 /index.html
 ErrorDocument 500 /index.html
-
-# PHP Settings
-<IfModule mod_php.c>
-    php_flag display_errors off
-    php_value error_log "api/php_errors.log"
-    php_flag log_errors on
-    php_value upload_max_filesize "10M"
-    php_value post_max_size "12M"
-    php_value memory_limit "256M"
-    php_value max_execution_time 300
-</IfModule>
