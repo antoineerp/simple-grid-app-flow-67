@@ -2,6 +2,7 @@
 import React from 'react';
 import { User, UserPlus } from 'lucide-react';
 import { useMembres } from '@/contexts/MembresContext';
+import { Membre } from '@/types/membres';
 import {
   Popover,
   PopoverContent,
@@ -14,7 +15,15 @@ interface ResponsableSelectorProps {
   type: 'r' | 'a' | 'c' | 'i';
 }
 
-const defaultMembres = [
+// Define the local interface for default membres
+interface DefaultMembre {
+  id: string;
+  prenom: string;
+  nom: string;
+  initiales: string;
+}
+
+const defaultMembres: DefaultMembre[] = [
   { id: '1', prenom: 'Jean', nom: 'Dupont', initiales: 'JD' },
   { id: '2', prenom: 'Marie', nom: 'Martin', initiales: 'MM' },
   { id: '3', prenom: 'Pierre', nom: 'Bernard', initiales: 'PB' },
@@ -23,13 +32,28 @@ const defaultMembres = [
 
 const ResponsableSelector = ({ selectedInitiales, onChange, type }: ResponsableSelectorProps) => {
   // Récupérer les membres du contexte s'il est disponible, sinon utiliser les valeurs par défaut
-  let membres = defaultMembres;
+  let membres: (Membre | DefaultMembre)[] = defaultMembres;
   let contextAvailable = false;
   
   try {
     const membresContext = useMembres();
     if (membresContext && membresContext.membres && membresContext.membres.length > 0) {
-      membres = membresContext.membres;
+      // Ensure all members have initiales - either use the existing one or generate one
+      const membresWithInitiales = membresContext.membres.map(membre => {
+        if (membre.initiales) {
+          return membre;
+        } else {
+          // Generate initiales from first letter of first name and last name
+          const firstInitial = membre.prenom.charAt(0);
+          const lastInitial = membre.nom.charAt(0);
+          return {
+            ...membre,
+            initiales: firstInitial + lastInitial
+          };
+        }
+      });
+      
+      membres = membresWithInitiales;
       contextAvailable = true;
     }
   } catch (error) {
@@ -74,14 +98,14 @@ const ResponsableSelector = ({ selectedInitiales, onChange, type }: ResponsableS
             <div 
               key={membre.id} 
               className="flex items-center justify-between p-1.5 hover:bg-gray-100 cursor-pointer rounded"
-              onClick={() => handleToggleMembre(membre.initiales)}
+              onClick={() => handleToggleMembre(membre.initiales as string)}
             >
               <div className="flex items-center gap-2">
                 <User className="h-4 w-4 text-gray-500" />
                 <span>{membre.prenom} {membre.nom}</span>
               </div>
               <span className={`text-xs font-medium px-1.5 py-0.5 rounded ${
-                selectedInitiales.includes(membre.initiales) 
+                selectedInitiales.includes(membre.initiales as string) 
                   ? 'bg-app-blue text-white' 
                   : 'bg-gray-200 text-gray-700'
               }`}>
