@@ -11,9 +11,15 @@ const Sidebar = () => {
   const [sidebarImageUrl, setSidebarImageUrl] = useState('');
   const [sidebarLinkUrl, setSidebarLinkUrl] = useState('');
   const [imageError, setImageError] = useState(false);
+  
+  // Obtenir les informations utilisateur depuis le token JWT
   const user = getCurrentUser();
-  const userRole = (user?.role || 'utilisateur');
-  const isAdmin = hasPermission(userRole as any, 'accessAdminPanel');
+  // Utiliser le rôle stocké dans localStorage ou celui de l'utilisateur courant
+  const userRole = (user?.role || localStorage.getItem('userRole') || 'utilisateur') as any;
+  console.log("Sidebar: rôle utilisateur détecté:", userRole);
+  
+  const isAdmin = hasPermission(userRole, 'accessAdminPanel');
+  console.log("Sidebar: permission d'accès à l'administration:", isAdmin);
   
   useEffect(() => {
     try {

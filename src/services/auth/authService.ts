@@ -144,21 +144,49 @@ export const getCurrentUser = (): User | null => {
     
     // Vérifier si le token contient les informations de l'utilisateur au bon format
     if (decodedToken.user) {
-      return decodedToken.user as User;
+      const user = decodedToken.user as User;
+      
+      // Stocker le rôle de l'utilisateur dans localStorage pour accès facile
+      if (user.role) {
+        localStorage.setItem('userRole', user.role);
+      }
+      
+      return user;
     } else if (decodedToken.data && decodedToken.data.user) {
       // Format alternatif possible
-      return decodedToken.data.user as User;
+      const user = decodedToken.data.user as User;
+      
+      // Stocker le rôle de l'utilisateur dans localStorage pour accès facile
+      if (user.role) {
+        localStorage.setItem('userRole', user.role);
+      }
+      
+      return user;
     } else {
       // Essayer d'utiliser le decodedToken directement (format utilisé par certains backends)
       if (decodedToken.email || decodedToken.id || decodedToken.nom) {
-        return decodedToken as User;
+        const user = decodedToken as User;
+        
+        // Stocker le rôle de l'utilisateur dans localStorage pour accès facile
+        if (user.role) {
+          localStorage.setItem('userRole', user.role);
+        }
+        
+        return user;
       }
       
       // Essayer de récupérer l'utilisateur à partir du localStorage
       const localUser = localStorage.getItem('currentUser');
       if (localUser) {
         try {
-          return JSON.parse(localUser) as User;
+          const user = JSON.parse(localUser) as User;
+          
+          // Stocker le rôle de l'utilisateur dans localStorage pour accès facile
+          if (user.role) {
+            localStorage.setItem('userRole', user.role);
+          }
+          
+          return user;
         } catch (e) {
           console.error("Erreur lors du parsing de l'utilisateur depuis localStorage:", e);
         }
@@ -173,7 +201,14 @@ export const getCurrentUser = (): User | null => {
     try {
       const localUser = localStorage.getItem('currentUser');
       if (localUser) {
-        return JSON.parse(localUser) as User;
+        const user = JSON.parse(localUser) as User;
+        
+        // Stocker le rôle de l'utilisateur dans localStorage pour accès facile
+        if (user.role) {
+          localStorage.setItem('userRole', user.role);
+        }
+        
+        return user;
       }
     } catch (e) {
       console.error("Erreur lors du parsing de l'utilisateur depuis localStorage:", e);
