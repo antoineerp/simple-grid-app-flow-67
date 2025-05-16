@@ -1,51 +1,28 @@
 
-# Configuration pour le dossier API sur Infomaniak
-
-# Configuration PHP correcte (sans conflits)
-AddHandler application/x-httpd-php .php
-AddType application/x-httpd-php .php
-<FilesMatch "\.php$">
-    SetHandler application/x-httpd-php
-</FilesMatch>
-
-# Activer la réécriture d'URL
-RewriteEngine On
-
-# Définir les types MIME corrects
-AddType application/javascript .js
-AddType application/json .json
-AddType text/css .css
+# Permettre l'accès depuis n'importe quelle origine
+Header set Access-Control-Allow-Origin "*"
+Header set Access-Control-Allow-Methods "GET, POST, OPTIONS, DELETE, PUT"
+Header set Access-Control-Allow-Headers "Content-Type, Authorization, Accept, X-Requested-With, x-device-id, x-token"
+Header set Access-Control-Max-Age "1728000"
 
 # Gérer les requêtes OPTIONS pour CORS
+RewriteEngine On
 RewriteCond %{REQUEST_METHOD} OPTIONS
 RewriteRule ^(.*)$ $1 [R=200,L]
 
-# Configuration CORS et types MIME
-<IfModule mod_headers.c>
-    # Force le bon type MIME pour les JavaScript
-    <FilesMatch "\.js$">
-        Header set Content-Type "application/javascript"
-        Header set X-Content-Type-Options "nosniff"
-    </FilesMatch>
-    
-    # Configuration CORS standardisée
-    Header always set Access-Control-Allow-Origin "*"
-    Header always set Access-Control-Allow-Methods "GET, POST, OPTIONS, PUT, DELETE"
-    Header always set Access-Control-Allow-Headers "Content-Type, Authorization, X-Requested-With, X-Device-ID"
-    Header always set Access-Control-Max-Age "3600"
-    
-    # Éviter la mise en cache des réponses API
-    Header set Cache-Control "no-cache, no-store, must-revalidate"
+# Désactiver le cache pour les réponses API
+<FilesMatch "\.(php)$">
+    Header set Cache-Control "no-store, no-cache, must-revalidate, max-age=0"
     Header set Pragma "no-cache"
-    Header set Expires 0
-</IfModule>
-
-# Permettre l'accès direct aux fichiers PHP spécifiques
-<FilesMatch "^(phpinfo|db-test|check|phpinfo-test|diagnostic|testdb|test|cors-diagnostic)\.php$">
-    # Aucune réécriture pour ces fichiers
 </FilesMatch>
 
-# Rediriger toutes les requêtes vers l'index.php sauf pour les fichiers existants
-RewriteCond %{REQUEST_FILENAME} !-f
-RewriteCond %{REQUEST_FILENAME} !-d
-RewriteRule ^(.*)$ index.php [QSA,L]
+# Force les types MIME corrects
+<FilesMatch "\.js$">
+    ForceType application/javascript
+    Header set Content-Type "application/javascript; charset=utf-8"
+</FilesMatch>
+
+<FilesMatch "\.css$">
+    ForceType text/css
+    Header set Content-Type "text/css; charset=utf-8"
+</FilesMatch>
