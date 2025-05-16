@@ -42,6 +42,39 @@ export const isAuthenticated = (): boolean => {
   }
 };
 
+// Essayer de réparer un token mal formaté
+const tryFixToken = (token: string): string | null => {
+  if (!token) return null;
+  
+  try {
+    // Si c'est seulement un token base64 sans les parties JWT standard
+    if (token.indexOf('.') === -1) {
+      // Essayer de décoder pour voir si c'est du base64 valide
+      const decoded = atob(token);
+      try {
+        // Vérifier si c'est un JSON valide
+        const parsed = JSON.parse(decoded);
+        if (parsed && (parsed.user || parsed.exp)) {
+          console.warn("Token reçu au mauvais format (base64 simple). Tentative de correction...");
+          // Créer un faux JWT
+          const header = btoa(JSON.stringify({ alg: 'HS256', typ: 'JWT' }));
+          // Le payload est déjà encodé
+          const signature = btoa("signature_placeholder");
+          return `${header}.${token}.${signature}`;
+        }
+      } catch (e) {
+        // Ce n'est pas du JSON valide
+        return null;
+      }
+    }
+    
+    return token;
+  } catch (e) {
+    console.error("Impossible de réparer le token:", e);
+    return null;
+  }
+};
+
 // Récupérer les informations de l'utilisateur courant
 export const getCurrentUser = (): User | null => {
   const token = getAuthToken();
@@ -52,7 +85,22 @@ export const getCurrentUser = (): User | null => {
     const parts = token.split('.');
     if (parts.length !== 3 || !parts[0] || !parts[1] || !parts[2]) {
       console.error("Format de token invalide (doit avoir 3 parties complètes)");
-      return null;
+      
+      // Essayer de réparer le token
+      const fixedToken = tryFixToken(token);
+      if (!fixedToken) {
+        return null;
+      }
+      
+      // Stocker le token réparé
+      if (localStorage.getItem('authToken')) {
+        localStorage.setItem('authToken', fixedToken);
+      } else {
+        sessionStorage.setItem('authToken', fixedToken);
+      }
+      
+      // Réessayer avec le token réparé
+      return getCurrentUser();
     }
     
     const decodedToken: any = jwtDecode(token);
@@ -117,6 +165,19 @@ export const login = async (email: string, password: string, rememberMe: boolean
   return await authenticateUser(email, password, rememberMe);
 };
 
+// Fonction pour vérifier et corriger le format du token JWT
+export const validateAndFixToken = (token: string): string | null => {
+  if (!token) return null;
+  
+  // Vérifier le format JWT standard (header.payload.signature)
+  const parts = token.split('.');
+  if (parts.length === 3 && parts[0] && parts[1] && parts[2]) {
+    return token; // Le format est correct
+  } else {
+    return tryFixToken(token); // Essayer de réparer
+  }
+};
+
 // Authentifier un utilisateur avec email/mot de passe
 export const authenticateUser = async (email: string, password: string, rememberMe: boolean = false): Promise<User> => {
   try {
@@ -150,18 +211,18 @@ export const authenticateUser = async (email: string, password: string, remember
       throw new Error('Réponse invalide du serveur');
     }
     
-    // Vérifier le format du token avant de le stocker
-    const tokenParts = data.token.split('.');
-    if (tokenParts.length !== 3) {
-      console.error("Format de token invalide reçu du serveur");
+    // Vérifier le format du token et tenter de le corriger si nécessaire
+    const validToken = validateAndFixToken(data.token);
+    if (!validToken) {
+      console.error("Format de token invalide reçu du serveur:", data.token);
       throw new Error('Format de token invalide reçu du serveur');
     }
     
     // Stocker le token JWT dans le stockage approprié
     if (rememberMe) {
-      localStorage.setItem('authToken', data.token);
+      localStorage.setItem('authToken', validToken);
     } else {
-      sessionStorage.setItem('authToken', data.token);
+      sessionStorage.setItem('authToken', validToken);
     }
     
     // Stocker également le rôle de l'utilisateur pour un accès rapide

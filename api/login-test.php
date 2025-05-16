@@ -47,6 +47,11 @@ $password = $data['password'];
 
 error_log("Tentative de connexion pour: " . $username);
 
+// Fonction pour encoder en URL safe base64
+function base64url_encode($data) {
+    return rtrim(strtr(base64_encode($data), '+/', '-_'), '=');
+}
+
 try {
     // Configuration de la base de données
     $host = "p71x6d.myd.infomaniak.com";
@@ -146,12 +151,25 @@ try {
         if ($valid_password) {
             error_log("Authentification réussie pour l'utilisateur");
             
-            // Génération du token
-            $token = base64_encode(json_encode([
-                'user' => $user['identifiant_technique'],
-                'role' => $user['role'],
+            // Génération du token JWT standard
+            $header = base64url_encode(json_encode(['alg' => 'HS256', 'typ' => 'JWT']));
+            $payload = base64url_encode(json_encode([
+                'user' => [
+                    'id' => $user['id'],
+                    'username' => $user['email'],
+                    'identifiant_technique' => $user['identifiant_technique'],
+                    'email' => $user['email'],
+                    'role' => $user['role'],
+                    'nom' => $user['nom'],
+                    'prenom' => $user['prenom']
+                ],
                 'exp' => time() + 3600
             ]));
+            $secret = 'your_jwt_secret_key_here';
+            $signature = base64url_encode(hash_hmac('sha256', "$header.$payload", $secret, true));
+            $token = "$header.$payload.$signature";
+            
+            error_log("Token JWT généré pour {$user['email']}: $header.$payload.[signature]");
             
             // Réponse réussie
             http_response_code(200);
@@ -187,12 +205,25 @@ try {
             
             $userId = $pdo->lastInsertId();
             
-            // Génération du token
-            $token = base64_encode(json_encode([
-                'user' => 'p71x6d_cirier',
-                'role' => 'admin',
+            // Génération du token JWT standard
+            $header = base64url_encode(json_encode(['alg' => 'HS256', 'typ' => 'JWT']));
+            $payload = base64url_encode(json_encode([
+                'user' => [
+                    'id' => $userId,
+                    'username' => 'antcirier@gmail.com',
+                    'identifiant_technique' => 'p71x6d_cirier',
+                    'email' => 'antcirier@gmail.com',
+                    'role' => 'admin',
+                    'nom' => 'Cirier',
+                    'prenom' => 'Antoine'
+                ],
                 'exp' => time() + 3600
             ]));
+            $secret = 'your_jwt_secret_key_here';
+            $signature = base64url_encode(hash_hmac('sha256', "$header.$payload", $secret, true));
+            $token = "$header.$payload.$signature";
+            
+            error_log("Token JWT généré pour antcirier@gmail.com: $header.$payload.[signature]");
             
             // Réponse réussie
             http_response_code(200);

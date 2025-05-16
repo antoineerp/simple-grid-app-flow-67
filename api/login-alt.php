@@ -49,6 +49,11 @@ if (!$user_email || !$user_password) {
     exit;
 }
 
+// Fonction pour encoder en URL safe base64
+function base64url_encode($data) {
+    return rtrim(strtr(base64_encode($data), '+/', '-_'), '=');
+}
+
 // Vérification spéciale pour antcirier@gmail.com
 if ($user_email === 'antcirier@gmail.com' && 
     ($user_password === 'password123' || $user_password === 'Password123!' || $user_password === 'Trottinette43!')) {
@@ -58,8 +63,9 @@ if ($user_email === 'antcirier@gmail.com' &&
     // Identifiant technique standardisé
     $identifiant_technique = 'p71x6d_cirier';
     
-    // Générer un token simple
-    $token = base64_encode(json_encode([
+    // Générer un token JWT standard (header.payload.signature)
+    $header = base64url_encode(json_encode(['alg' => 'HS256', 'typ' => 'JWT']));
+    $payload = base64url_encode(json_encode([
         'user' => [
             'id' => '999',
             'username' => $user_email,
@@ -71,6 +77,12 @@ if ($user_email === 'antcirier@gmail.com' &&
         ],
         'exp' => time() + 3600
     ]));
+    $secret = 'your_jwt_secret_key_here';
+    $signature = base64url_encode(hash_hmac('sha256', "$header.$payload", $secret, true));
+    $token = "$header.$payload.$signature";
+    
+    // Journaliser le token généré (partie publique seulement)
+    error_log("Token JWT généré pour antcirier@gmail.com: $header.$payload.[signature]");
     
     // Envoyer la réponse
     echo json_encode([
@@ -114,8 +126,9 @@ try {
         }
         
         if ($valid_password) {
-            // Générer un token simple
-            $token = base64_encode(json_encode([
+            // Générer un token JWT standard (header.payload.signature)
+            $header = base64url_encode(json_encode(['alg' => 'HS256', 'typ' => 'JWT']));
+            $payload = base64url_encode(json_encode([
                 'user' => [
                     'id' => $user['id'],
                     'username' => $user['email'],
@@ -127,6 +140,12 @@ try {
                 ],
                 'exp' => time() + 3600
             ]));
+            $secret = 'your_jwt_secret_key_here';
+            $signature = base64url_encode(hash_hmac('sha256', "$header.$payload", $secret, true));
+            $token = "$header.$payload.$signature";
+            
+            // Journaliser le token généré (partie publique seulement)
+            error_log("Token JWT généré pour {$user['email']}: $header.$payload.[signature]");
             
             echo json_encode([
                 'success' => true,

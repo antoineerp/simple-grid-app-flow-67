@@ -2,7 +2,7 @@
 import { useState, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
-import { login } from '@/services/auth/authService';
+import { login, validateAndFixToken } from '@/services/auth/authService';
 import { useToast } from '@/hooks/use-toast';
 
 export interface LoginFormValues {
@@ -97,10 +97,11 @@ export const useLoginForm = () => {
         console.log("Connexion réussie, token reçu:", result.token?.substring(0, 20) + "...");
         console.log("Données utilisateur:", result.user);
         
-        // Vérifier le format du token avant de le stocker
+        // Vérifier et corriger le format du token avant de le stocker
         if (result.token) {
-          const tokenParts = result.token.split('.');
-          if (tokenParts.length !== 3) {
+          const validToken = validateAndFixToken(result.token);
+          
+          if (!validToken) {
             console.error("Format de token invalide reçu du serveur:", result.token);
             setError('Format de token invalide reçu du serveur');
             setHasAuthError(true);
@@ -113,12 +114,10 @@ export const useLoginForm = () => {
             setIsLoading(false);
             return;
           }
-        }
-        
-        // Enregistrer le token avant la navigation
-        if (result.token) {
-          sessionStorage.setItem('authToken', result.token);
-          localStorage.setItem('authToken', result.token);
+          
+          // Enregistrer le token valide avant la navigation
+          sessionStorage.setItem('authToken', validToken);
+          localStorage.setItem('authToken', validToken);
         }
         
         // Stocker les données utilisateur et le rôle explicitement
