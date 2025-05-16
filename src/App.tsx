@@ -11,6 +11,10 @@ const Index = React.lazy(() => import('@/pages/Index'));
 const Pilotage = React.lazy(() => import('@/pages/Pilotage'));
 const GestionDocumentaire = React.lazy(() => import('@/pages/GestionDocumentaire'));
 const NotFound = React.lazy(() => import('@/pages/NotFound'));
+const Bibliotheque = React.lazy(() => import('@/pages/Bibliotheque'));
+const Exigences = React.lazy(() => import('@/pages/Exigences'));
+const RessourcesHumaines = React.lazy(() => import('@/pages/RessourcesHumaines'));
+const Collaboration = React.lazy(() => import('@/pages/Collaboration'));
 
 function App() {
   return (
@@ -27,6 +31,10 @@ function App() {
             <Route element={<ProtectedLayout />}>
               <Route path="/pilotage" element={<Pilotage />} />
               <Route path="/gestion-documentaire" element={<GestionDocumentaire />} />
+              <Route path="/bibliotheque" element={<Bibliotheque />} />
+              <Route path="/exigences" element={<Exigences />} />
+              <Route path="/ressources-humaines" element={<RessourcesHumaines />} />
+              <Route path="/collaboration" element={<Collaboration />} />
             </Route>
             
             {/* Catch all */}

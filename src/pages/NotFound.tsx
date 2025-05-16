@@ -17,6 +17,7 @@ const NotFound = () => {
       <div className="text-center">
         <h1 className="text-4xl font-bold mb-4 text-app-blue">404</h1>
         <p className="text-xl text-gray-600 mb-4">Page non trouvée</p>
+        <p className="text-gray-500 mb-6">Le chemin "{location.pathname}" n'existe pas.</p>
         <Link to="/" className="text-app-blue hover:underline">
           Retour à l'accueil
         </Link>

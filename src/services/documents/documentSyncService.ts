@@ -1,4 +1,3 @@
-
 import { Document } from '@/types/documents';
 import { getApiUrl } from '@/config/apiConfig';
 import { getAuthHeaders } from '@/services/auth/authService';
@@ -12,95 +11,54 @@ import {
   hasLocalData 
 } from '@/features/sync/utils/syncStorageManager';
 
+// Garde un suivi des requêtes récentes pour éviter les duplications
+const recentRequests = new Map<string, number>();
+const REQUEST_THROTTLE_MS = 5000; // 5 secondes entre les requêtes
+
 /**
  * Chargement des documents depuis le serveur pour un utilisateur spécifique
  * Priorise toujours la base de données Infomaniak
  */
 export const loadDocumentsFromServer = async (userId: string | null = null): Promise<Document[]> => {
   const currentUser = userId || getCurrentUser() || 'p71x6d_system';
-  console.log(`Chargement des documents pour l'utilisateur ${currentUser} (priorité serveur)`);
+  const requestKey = `documents_load_${currentUser}`;
   
-  let documents: Document[] = [];
+  // Vérifier si une requête similaire a été faite récemment
+  const now = Date.now();
+  const lastRequest = recentRequests.get(requestKey) || 0;
+  
+  if (now - lastRequest < REQUEST_THROTTLE_MS) {
+    console.log(`Requête ignorée (throttle: ${now - lastRequest}ms) - Utilisation du cache local`);
+    // Si oui, retourner les données du cache local pour éviter les requêtes multiples
+    return getLocalDocuments(userId);
+  }
+  
+  // Marquer cette requête comme la plus récente
+  recentRequests.set(requestKey, now);
   
   // Essayer d'abord de récupérer depuis le stockage local (pour éviter les pertes de données)
   const localDocuments = getLocalDocuments(userId);
-  if (localDocuments.length > 0) {
-    console.log(`${localDocuments.length} documents trouvés dans le stockage local`);
-    documents = localDocuments;
-  }
   
-  // Tentative de chargement depuis le serveur
-  try {
-    // Construire l'URL
-    const API_URL = getApiUrl();
-    const endpoint = `${API_URL}/documents-load.php`;
-    
-    console.log(`Tentative de chargement depuis: ${endpoint}`);
-    
-    // Première tentative - URL standard avec méthode GET au lieu de POST
-    const response = await fetch(`${endpoint}?userId=${currentUser}`, {
-      method: 'GET', // Modifié de POST à GET
-      headers: getAuthHeaders(),
-      cache: 'no-store'
-    });
-    
-    if (!response.ok) {
-      throw new Error(`Erreur HTTP ${response.status}: ${response.statusText}`);
-    }
-    
-    const result = await response.json();
-    console.log("Documents chargés depuis le serveur:", result);
-    
-    let serverDocuments: Document[] = [];
-    
-    if (result.success && Array.isArray(result.documents)) {
-      serverDocuments = result.documents;
-    } else if (Array.isArray(result)) {
-      serverDocuments = result;
-    } else if (result.records && Array.isArray(result.records)) {
-      serverDocuments = result.records;
-    } else {
-      console.warn("Format de réponse non reconnu pour les documents");
-      throw new Error("Format de réponse non reconnu");
-    }
-    
-    // Fusionner les documents locaux et ceux du serveur si nécessaire
-    if (serverDocuments.length > 0) {
-      documents = mergeDocuments(localDocuments, serverDocuments);
-    }
-    
-    // AMÉLIORATION: Sauvegarder dans les deux systèmes de stockage pour accès hors ligne
-    saveLocalData('documents', documents, currentUser);
-    
-    console.log(`${documents.length} documents sauvegardés localement pour accès hors ligne`);
-    
-    // Informer l'utilisateur que les données ont été chargées depuis le serveur
-    toast({
-      title: "Données synchronisées",
-      description: `${documents.length} documents chargés depuis le serveur Infomaniak`,
-    });
-    
-    return documents;
-  } catch (firstError) {
-    console.warn("Première tentative de chargement échouée:", firstError);
-    
-    // Deuxième tentative - URL alternative avec méthode GET au lieu de POST
+  // Tentative de chargement depuis le serveur seulement si en ligne
+  if (navigator.onLine) {
     try {
-      const apiAltUrl = `/sites/qualiopi.ch/api`;
-      console.log("Tentative avec URL alternative:", apiAltUrl);
+      // Construire l'URL
+      const API_URL = getApiUrl();
+      const endpoint = `${API_URL}/documents-load.php`;
       
-      const response = await fetch(`${apiAltUrl}/documents-load.php?userId=${currentUser}`, {
-        method: 'GET', // Modifié de POST à GET
+      // Utiliser GET avec l'userId en paramètre d'URL
+      const response = await fetch(`${endpoint}?userId=${currentUser}`, {
+        method: 'GET',
         headers: getAuthHeaders(),
         cache: 'no-store'
       });
       
       if (!response.ok) {
-        throw new Error(`Erreur HTTP alternative ${response.status}: ${response.statusText}`);
+        const errorText = await response.text();
+        throw new Error(`Erreur HTTP ${response.status}: ${errorText}`);
       }
       
       const result = await response.json();
-      console.log("Documents chargés depuis le serveur (URL alternative):", result);
       
       let serverDocuments: Document[] = [];
       
@@ -111,39 +69,66 @@ export const loadDocumentsFromServer = async (userId: string | null = null): Pro
       } else if (result.records && Array.isArray(result.records)) {
         serverDocuments = result.records;
       } else {
-        console.warn("Format de réponse alternative non reconnu pour les documents");
-        throw new Error("Format de réponse alternative non reconnu");
+        throw new Error("Format de réponse non reconnu");
       }
       
       // Fusionner les documents locaux et ceux du serveur si nécessaire
-      if (serverDocuments.length > 0) {
-        documents = mergeDocuments(localDocuments, serverDocuments);
+      const mergedDocuments = serverDocuments.length > 0 
+        ? mergeDocuments(localDocuments, serverDocuments) 
+        : localDocuments;
+      
+      // Sauvegarder dans les deux systèmes de stockage pour accès hors ligne
+      saveLocalData('documents', mergedDocuments, currentUser);
+      
+      return mergedDocuments;
+    } catch (firstError) {
+      console.warn("Première tentative de chargement échouée:", firstError);
+      
+      // Deuxième tentative - URL alternative
+      try {
+        const apiAltUrl = `/sites/qualiopi.ch/api`;
+        
+        const response = await fetch(`${apiAltUrl}/documents-load.php?userId=${currentUser}`, {
+          method: 'GET',
+          headers: getAuthHeaders(),
+          cache: 'no-store'
+        });
+        
+        if (!response.ok) {
+          throw new Error(`Erreur HTTP alternative ${response.status}: ${response.statusText}`);
+        }
+        
+        const result = await response.json();
+        
+        let serverDocuments: Document[] = [];
+        
+        if (result.success && Array.isArray(result.documents)) {
+          serverDocuments = result.documents;
+        } else if (Array.isArray(result)) {
+          serverDocuments = result;
+        } else if (result.records && Array.isArray(result.records)) {
+          serverDocuments = result.records;
+        } else {
+          throw new Error("Format de réponse alternative non reconnu");
+        }
+        
+        // Fusionner les documents locaux et ceux du serveur si nécessaire
+        const mergedDocuments = serverDocuments.length > 0 
+          ? mergeDocuments(localDocuments, serverDocuments) 
+          : localDocuments;
+        
+        // Sauvegarder pour accès hors ligne
+        saveLocalData('documents', mergedDocuments, currentUser);
+        
+        return mergedDocuments;
+      } catch (secondError) {
+        console.error("Toutes les tentatives de chargement depuis le serveur ont échoué:", secondError);
       }
-      
-      // AMÉLIORATION: Sauvegarder dans les deux systèmes de stockage pour accès hors ligne
-      saveLocalData('documents', documents, currentUser);
-      
-      console.log(`${documents.length} documents sauvegardés localement pour accès hors ligne (source: URL alternative)`);
-      
-      toast({
-        title: "Données synchronisées",
-        description: `${documents.length} documents chargés depuis le serveur Infomaniak (URL alternative)`,
-      });
-      
-      return documents;
-    } catch (secondError) {
-      console.error("Toutes les tentatives de chargement depuis le serveur ont échoué:", secondError);
-      
-      // En dernier recours, retourner les documents locaux
-      toast({
-        variant: "destructive",
-        title: "Erreur de chargement",
-        description: "Impossible de charger les documents depuis le serveur. Mode hors-ligne activé.",
-      });
-      
-      return localDocuments;
     }
   }
+  
+  // Retourner les documents locaux si hors ligne ou en cas d'erreur
+  return localDocuments;
 };
 
 /**

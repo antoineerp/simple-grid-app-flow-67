@@ -1,9 +1,8 @@
 
 import React from 'react';
 
-// Hidden sync indicator as requested
+// Composant invisible pour les indicateurs de synchronisation
 const SyncIndicator = () => {
-  // Return null to make the component invisible
   return null;
 };
 

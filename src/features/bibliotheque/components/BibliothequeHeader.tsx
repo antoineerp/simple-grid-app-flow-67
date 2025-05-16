@@ -3,7 +3,6 @@ import React from 'react';
 import { CloudSun, RefreshCw } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import SyncIndicator from '@/components/common/SyncIndicator';
 
 interface BibliothequeHeaderProps {
   onSync: () => Promise<void>;
@@ -37,18 +36,7 @@ export const BibliothequeHeader: React.FC<BibliothequeHeaderProps> = ({
         </Button>
       </div>
       
-      {/* Indicateur de synchronisation invisible */}
-      <div className="mb-4 hidden">
-        <SyncIndicator
-          isSyncing={isSyncing}
-          isOnline={isOnline}
-          syncFailed={syncFailed}
-          lastSynced={lastSynced}
-          onSync={onSync}
-          showOnlyErrors={true}
-          tableName="bibliotheque"
-        />
-      </div>
+      {/* Indicateur de synchronisation est maintenant complètement supprimé */}
     </div>
   );
 };

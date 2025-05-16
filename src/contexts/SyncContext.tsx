@@ -1,335 +1,412 @@
 
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { getCurrentUser } from '@/services/auth/authService';
+import { getApiUrl } from '@/config/apiConfig';
+import { useToast } from '@/hooks/use-toast';
 
 interface SyncContextProps {
-  isOnline: boolean;
-  isSyncing: Record<string, boolean>;
-  lastSynced: Record<string, Date | null>;
-  syncErrors: Record<string, string | null>;
+  isSyncing: boolean;
+  lastSynced: Date | null;
+  syncFailed: boolean;
+  syncAll: () => Promise<boolean>;
   syncData: <T>(tableName: string, data: T[]) => Promise<boolean>;
   loadData: <T>(tableName: string) => Promise<T[]>;
-  startSync: (tableName: string) => void;
-  endSync: (tableName: string, error?: string | null) => void;
   getLastSynced: (tableName: string) => Date | null;
   getSyncError: (tableName: string) => string | null;
-  isInitialized: Record<string, boolean>;
-  clearSyncErrors: () => void;
-  forceSyncAll: () => Promise<void>;
+  isInitialized: () => boolean;
+  isOnline: boolean;
+  setSyncInterval: (seconds: number) => void;
+  registerTableForSync: (tableName: string) => void;
 }
 
 const SyncContext = createContext<SyncContextProps | undefined>(undefined);
 
-export const useSyncContext = (): SyncContextProps => {
-  const context = useContext(SyncContext);
-  if (!context) {
-    throw new Error('useSyncContext must be used within a SyncProvider');
-  }
-  return context;
-};
-
-interface SyncProviderProps {
-  children: React.ReactNode;
+interface SyncTableState {
+  data: any[];
+  lastSynced: Date | null;
+  error: string | null;
+  isSyncing: boolean;
+  lastRequestTime?: number;
 }
 
-export const SyncProvider: React.FC<SyncProviderProps> = ({ children }) => {
-  const [isOnline, setIsOnline] = useState<boolean>(navigator.onLine);
-  const [isSyncing, setIsSyncing] = useState<Record<string, boolean>>({
-    documents: false,
-    exigences: false,
-    membres: false,
-    bibliotheque: false,
-    'test_table': false,
-    'collaboration': false,
-    'collaboration_groups': false
-  });
-  const [lastSynced, setLastSynced] = useState<Record<string, Date | null>>({
-    documents: null,
-    exigences: null,
-    membres: null,
-    bibliotheque: null,
-    'test_table': null,
-    'collaboration': null,
-    'collaboration_groups': null
-  });
-  const [syncErrors, setSyncErrors] = useState<Record<string, string | null>>({
-    documents: null,
-    exigences: null,
-    membres: null,
-    bibliotheque: null,
-    'test_table': null,
-    'collaboration': null,
-    'collaboration_groups': null
-  });
-  const [isInitialized, setIsInitialized] = useState<Record<string, boolean>>({
-    documents: false,
-    exigences: false,
-    membres: false,
-    bibliotheque: false,
-    'test_table': false,
-    'collaboration': false,
-    'collaboration_groups': false
-  });
-  
-  // Track last sync time to prevent excessive syncing
-  const [lastSyncAttemptTime, setLastSyncAttemptTime] = useState<Record<string, number>>({});
+interface SyncProviderProps {
+  children: ReactNode;
+  initialSyncInterval?: number;
+}
 
-  // Écouteurs pour les événements de connexion
+export const SyncProvider: React.FC<SyncProviderProps> = ({ 
+  children, 
+  initialSyncInterval = 10 // Par défaut, synchroniser toutes les 10 secondes
+}) => {
+  const { toast } = useToast();
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [lastSynced, setLastSynced] = useState<Date | null>(null);
+  const [syncFailed, setSyncFailed] = useState(false);
+  const [isProviderMounted, setIsProviderMounted] = useState(false);
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [syncInterval, setSyncIntervalState] = useState(initialSyncInterval);
+  const [syncTimer, setSyncTimer] = useState<NodeJS.Timeout | null>(null);
+  const [tablesToSync, setTablesToSync] = useState<Set<string>>(new Set());
+  
+  // État de synchronisation pour chaque table
+  const [tableStates, setTableStates] = useState<Record<string, SyncTableState>>({});
+  
+  // Détecter l'état de la connexion
   useEffect(() => {
     const handleOnline = () => setIsOnline(true);
     const handleOffline = () => setIsOnline(false);
-
+    
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
-
+    
     return () => {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
     };
   }, []);
-
-  // Démarrer la synchronisation pour une table, avec protection contre les boucles
-  const startSync = useCallback((tableName: string): void => {
-    const now = Date.now();
-    const lastAttempt = lastSyncAttemptTime[tableName] || 0;
+  
+  // Initialiser le provider
+  useEffect(() => {
+    console.log("SyncProvider monté");
+    setIsProviderMounted(true);
     
-    // Minimum 5 seconds between sync attempts for the same table
-    if (now - lastAttempt < 5000) {
-      console.log(`Sync throttled for ${tableName}, last attempt ${(now - lastAttempt)/1000}s ago`);
-      return;
-    }
-    
-    setLastSyncAttemptTime(prev => ({ ...prev, [tableName]: now }));
-    setIsSyncing(prev => ({ ...prev, [tableName]: true }));
-  }, [lastSyncAttemptTime]);
-
-  // Terminer la synchronisation pour une table
-  const endSync = useCallback((tableName: string, error?: string | null): void => {
-    setIsSyncing(prev => ({ ...prev, [tableName]: false }));
-    if (!error) {
-      setLastSynced(prev => ({ ...prev, [tableName]: new Date() }));
-      setSyncErrors(prev => ({ ...prev, [tableName]: null }));
-    } else {
-      setSyncErrors(prev => ({ ...prev, [tableName]: error }));
-    }
-  }, []);
-
-  // Charger les données depuis le serveur
-  const loadData = useCallback(async <T,>(tableName: string): Promise<T[]> => {
-    if (!isOnline) {
-      const localData = localStorage.getItem(`${tableName}_data`);
-      if (localData) {
-        return JSON.parse(localData) as T[];
-      }
-      return [];
-    }
-
-    // Throttle check - prevent excessive API calls
-    const now = Date.now();
-    const lastAttempt = lastSyncAttemptTime[tableName] || 0;
-    if (now - lastAttempt < 5000) {
-      console.log(`Load throttled for ${tableName}, using cached data`);
-      const localData = localStorage.getItem(`${tableName}_data`);
-      if (localData) {
-        return JSON.parse(localData) as T[];
-      }
-    }
-    
-    startSync(tableName);
-
+    // Charger l'état depuis localStorage
     try {
-      const user = getCurrentUser();
-      if (!user) {
-        throw new Error("Utilisateur non authentifié");
+      const savedState = localStorage.getItem('syncProviderState');
+      if (savedState) {
+        const parsedState = JSON.parse(savedState);
+        setTableStates(parsedState.tableStates || {});
+        setLastSynced(parsedState.lastSynced ? new Date(parsedState.lastSynced) : null);
       }
-
-      const userId = user.id;
-      
-      // URL de l'API basée sur l'environnement (local, production, etc.)
-      const apiUrl = import.meta.env.VITE_API_URL || '/api';
-      const endpoint = `${apiUrl}/${tableName}-load.php`;
-
-      // Utiliser GET au lieu de POST
-      const response = await fetch(`${endpoint}?user_id=${userId}`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        }
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Erreur HTTP ${response.status}: ${errorText}`);
-      }
-
-      const data = await response.json();
-      
-      // Stocker en local pour l'utilisation hors ligne
-      localStorage.setItem(`${tableName}_data`, JSON.stringify(data));
-      
-      // Marquer la table comme initialisée
-      setIsInitialized(prev => ({ ...prev, [tableName]: true }));
-      
-      endSync(tableName);
-      return data as T[];
     } catch (error) {
-      console.error(`Erreur lors du chargement des données de ${tableName}:`, error);
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      endSync(tableName, errorMessage);
-      
-      // Utiliser les données en cache en cas d'erreur
-      const localData = localStorage.getItem(`${tableName}_data`);
-      if (localData) {
-        return JSON.parse(localData) as T[];
-      }
-      
-      throw error;
-    }
-  }, [isOnline, startSync, endSync, lastSyncAttemptTime]);
-
-  // Synchroniser les données avec le serveur
-  const syncData = useCallback(async <T,>(tableName: string, data: T[]): Promise<boolean> => {
-    // Toujours enregistrer localement, que l'utilisateur soit en ligne ou non
-    localStorage.setItem(`${tableName}_data`, JSON.stringify(data));
-
-    // Si hors ligne, retourner vrai mais ne pas synchroniser avec le serveur
-    if (!isOnline) {
-      return true;
+      console.error("Erreur lors du chargement de l'état de synchronisation:", error);
     }
     
-    // Throttle syncing to prevent excessive API calls
-    const now = Date.now();
-    const lastAttempt = lastSyncAttemptTime[tableName] || 0;
-    if (now - lastAttempt < 10000) { // 10 seconds minimum between syncs
-      console.log(`Sync throttled for ${tableName}, last attempt ${(now - lastAttempt)/1000}s ago`);
-      return true; // Return success but don't actually sync
-    }
-
-    startSync(tableName);
-
-    try {
-      const user = getCurrentUser();
-      if (!user) {
-        throw new Error("Utilisateur non authentifié");
+    return () => {
+      if (syncTimer) {
+        clearInterval(syncTimer);
       }
-
-      const userId = user.id;
+    };
+  }, []);
+  
+  // Configurer le timer de synchronisation
+  useEffect(() => {
+    // Nettoyer un timer existant si présent
+    if (syncTimer) {
+      clearInterval(syncTimer);
+      setSyncTimer(null);
+    }
+    
+    if (syncInterval > 0) {
+      const timer = setInterval(() => {
+        if (isOnline && !isSyncing && tablesToSync.size > 0) {
+          syncAllData();
+        }
+      }, syncInterval * 1000);
       
-      // URL de l'API basée sur l'environnement
-      const apiUrl = import.meta.env.VITE_API_URL || '/api';
-      const endpoint = `${apiUrl}/${tableName}-sync.php`;
-
-      const response = await fetch(endpoint, {
+      setSyncTimer(timer);
+      
+      return () => {
+        clearInterval(timer);
+      };
+    }
+  }, [syncInterval, isOnline, isSyncing, tablesToSync]);
+  
+  // Sauvegarder l'état dans localStorage quand il change
+  useEffect(() => {
+    try {
+      if (isProviderMounted) {
+        localStorage.setItem('syncProviderState', JSON.stringify({
+          tableStates,
+          lastSynced: lastSynced?.toISOString(),
+          syncFailed
+        }));
+      }
+    } catch (error) {
+      console.error("Erreur lors de la sauvegarde de l'état de synchronisation:", error);
+    }
+  }, [tableStates, lastSynced, syncFailed, isProviderMounted]);
+  
+  // Gérer l'enregistrement d'une table pour la synchronisation
+  const registerTableForSync = useCallback((tableName: string) => {
+    setTablesToSync(prev => {
+      const newSet = new Set(prev);
+      newSet.add(tableName);
+      return newSet;
+    });
+    
+    if (!tableStates[tableName]) {
+      setTableStates(prev => ({
+        ...prev,
+        [tableName]: {
+          data: [],
+          lastSynced: null,
+          error: null,
+          isSyncing: false
+        }
+      }));
+    }
+  }, [tableStates]);
+  
+  // Synchroniser toutes les tables enregistrées
+  const syncAllData = useCallback(async () => {
+    if (isSyncing || !isOnline) return false;
+    
+    setIsSyncing(true);
+    let allSuccess = true;
+    
+    try {
+      for (const tableName of tablesToSync) {
+        // Récupérer les données actuelles
+        const currentState = tableStates[tableName];
+        if (!currentState) continue;
+        
+        try {
+          setTableStates(prev => ({
+            ...prev,
+            [tableName]: { ...prev[tableName], isSyncing: true }
+          }));
+          
+          await syncTableData(tableName, currentState.data);
+        } catch (error) {
+          allSuccess = false;
+          console.error(`Erreur lors de la synchronisation de ${tableName}:`, error);
+          
+          setTableStates(prev => ({
+            ...prev,
+            [tableName]: { 
+              ...prev[tableName], 
+              error: error instanceof Error ? error.message : "Erreur inconnue",
+              isSyncing: false
+            }
+          }));
+        }
+      }
+      
+      const now = new Date();
+      setLastSynced(now);
+      setSyncFailed(!allSuccess);
+      
+      return allSuccess;
+    } catch (error) {
+      console.error("Erreur lors de la synchronisation globale:", error);
+      setSyncFailed(true);
+      return false;
+    } finally {
+      setIsSyncing(false);
+    }
+  }, [isSyncing, isOnline, tablesToSync, tableStates]);
+  
+  // Synchroniser une table spécifique
+  const syncTableData = useCallback(async <T,>(tableName: string, data: T[]): Promise<boolean> => {
+    if (!isOnline) return false;
+    
+    try {
+      // Récupérer l'utilisateur actuel
+      const currentUser = getCurrentUser();
+      const userId = currentUser?.identifiant_technique || 'p71x6d_system';
+      
+      // Obtenir l'URL de l'API
+      const apiUrl = getApiUrl();
+      const url = `${apiUrl}/${tableName}-sync.php`;
+      
+      // Envoyer les données au serveur
+      const response = await fetch(url, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache'
         },
         body: JSON.stringify({
-          user_id: userId,
-          data: data
-        }),
+          userId,
+          [tableName]: data
+        })
       });
-
+      
       if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Erreur HTTP ${response.status}: ${errorText}`);
+        throw new Error(`Erreur HTTP: ${response.status}`);
       }
-
+      
       const result = await response.json();
       
-      if (result.success) {
-        endSync(tableName);
-        return true;
-      } else {
+      if (!result.success) {
         throw new Error(result.message || "Échec de la synchronisation");
       }
+      
+      // Mettre à jour l'état
+      const now = new Date();
+      setTableStates(prev => ({
+        ...prev,
+        [tableName]: {
+          ...prev[tableName],
+          data,
+          lastSynced: now,
+          error: null,
+          isSyncing: false
+        }
+      }));
+      
+      return true;
     } catch (error) {
-      console.error(`Erreur lors de la synchronisation des données de ${tableName}:`, error);
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      endSync(tableName, errorMessage);
+      console.error(`Erreur lors de la synchronisation de ${tableName}:`, error);
+      
+      setTableStates(prev => ({
+        ...prev,
+        [tableName]: {
+          ...prev[tableName],
+          error: error instanceof Error ? error.message : "Erreur inconnue",
+          isSyncing: false
+        }
+      }));
+      
       return false;
     }
-  }, [isOnline, startSync, endSync, lastSyncAttemptTime]);
-
-  // Récupérer la dernière date de synchronisation pour une table
-  const getLastSynced = useCallback((tableName: string): Date | null => {
-    return lastSynced[tableName] || null;
-  }, [lastSynced]);
-
-  // Récupérer l'erreur de synchronisation pour une table
-  const getSyncError = useCallback((tableName: string): string | null => {
-    return syncErrors[tableName] || null;
-  }, [syncErrors]);
-
-  // Effacer toutes les erreurs de synchronisation
-  const clearSyncErrors = useCallback((): void => {
-    setSyncErrors({
-      documents: null,
-      exigences: null,
-      membres: null,
-      bibliotheque: null,
-      'test_table': null,
-      'collaboration': null,
-      'collaboration_groups': null
-    });
-  }, []);
-
-  // Forcer la synchronisation de toutes les tables
-  const forceSyncAll = useCallback(async (): Promise<void> => {
-    for (const table of Object.keys(isSyncing)) {
-      try {
-        const localData = localStorage.getItem(`${table}_data`);
-        if (localData) {
-          const data = JSON.parse(localData);
-          await syncData(table, data);
-        } else {
-          // Si pas de données locales, charger depuis le serveur
-          await loadData(table);
+  }, [isOnline]);
+  
+  // Charger les données d'une table
+  const loadTableData = useCallback(async <T,>(tableName: string): Promise<T[]> => {
+    try {
+      // Anti-doublon: vérifier si une requête est déjà en cours ou a été faite récemment
+      const currentState = tableStates[tableName];
+      const now = Date.now();
+      if (currentState?.lastRequestTime && now - currentState.lastRequestTime < 5000) {
+        console.log(`Requête pour ${tableName} ignorée (throttle: ${now - currentState.lastRequestTime}ms)`);
+        
+        // Si des données existent déjà, les retourner
+        const localStorageKey = `${tableName}_data`;
+        const storedData = localStorage.getItem(localStorageKey);
+        if (storedData) {
+          return JSON.parse(storedData);
         }
-      } catch (error) {
-        console.error(`Erreur lors de la synchronisation forcée de ${table}:`, error);
       }
-    }
-  }, [isSyncing, syncData, loadData]);
-
-  // Configurer un minuteur pour synchroniser périodiquement toutes les 10 secondes
-  useEffect(() => {
-    // Only sync if online
-    if (!isOnline) return;
-    
-    const syncTimer = setInterval(() => {
-      // Check if any tables need syncing
-      Object.keys(isSyncing).forEach(table => {
-        const localData = localStorage.getItem(`${table}_data`);
-        if (localData) {
-          try {
-            const data = JSON.parse(localData);
-            syncData(table, data).catch(console.error);
-          } catch (error) {
-            console.error(`Erreur lors de la synchronisation périodique de ${table}:`, error);
-          }
+      
+      // Marquer le moment de la requête
+      setTableStates(prev => ({
+        ...prev,
+        [tableName]: {
+          ...prev[tableName],
+          lastRequestTime: now
         }
-      });
-    }, 10000); // Sync every 10 seconds
-    
-    return () => clearInterval(syncTimer);
-  }, [isOnline, isSyncing, syncData]);
-
-  const value = {
-    isOnline,
+      }));
+      
+      // Récupérer l'utilisateur actuel
+      const currentUser = getCurrentUser();
+      const userId = currentUser?.identifiant_technique || 'p71x6d_system';
+      
+      // Essayer de charger depuis localStorage d'abord
+      const localStorageKey = `${tableName}_${userId}`;
+      const storedData = localStorage.getItem(localStorageKey);
+      let data: T[] = [];
+      
+      if (storedData) {
+        try {
+          data = JSON.parse(storedData);
+        } catch (e) {
+          console.error(`Erreur lors du parsing des données locales pour ${tableName}:`, e);
+        }
+      }
+      
+      // Si en ligne, essayer aussi de charger depuis le serveur
+      if (isOnline) {
+        try {
+          const apiUrl = getApiUrl();
+          const url = `${apiUrl}/${tableName}-load.php?userId=${encodeURIComponent(userId)}`;
+          
+          const response = await fetch(url, {
+            method: 'GET',
+            headers: {
+              'Cache-Control': 'no-cache'
+            }
+          });
+          
+          if (response.ok) {
+            const result = await response.json();
+            
+            if (result.success && Array.isArray(result[tableName])) {
+              // Mettre à jour les données avec celles du serveur
+              data = result[tableName];
+              
+              // Sauvegarder dans localStorage
+              localStorage.setItem(localStorageKey, JSON.stringify(data));
+              
+              // Mettre à jour l'état
+              const now = new Date();
+              setTableStates(prev => ({
+                ...prev,
+                [tableName]: {
+                  ...prev[tableName],
+                  data,
+                  lastSynced: now,
+                  error: null,
+                  isSyncing: false
+                }
+              }));
+            }
+          }
+        } catch (error) {
+          console.warn(`Échec du chargement en ligne pour ${tableName}, utilisation des données locales:`, error);
+        }
+      }
+      
+      return data;
+    } catch (error) {
+      console.error(`Erreur lors du chargement des données pour ${tableName}:`, error);
+      throw error;
+    }
+  }, [isOnline, tableStates]);
+  
+  // Configuration de l'intervalle de synchronisation
+  const setSyncInterval = useCallback((seconds: number) => {
+    if (seconds >= 0) {
+      setSyncIntervalState(seconds);
+    }
+  }, []);
+  
+  // Obtenir la dernière synchronisation pour une table
+  const getLastSynced = useCallback((tableName: string): Date | null => {
+    return tableStates[tableName]?.lastSynced || null;
+  }, [tableStates]);
+  
+  // Obtenir l'erreur de synchronisation pour une table
+  const getSyncError = useCallback((tableName: string): string | null => {
+    return tableStates[tableName]?.error || null;
+  }, [tableStates]);
+  
+  // Vérifier si le contexte est initialisé
+  const isInitialized = useCallback((): boolean => {
+    return isProviderMounted;
+  }, [isProviderMounted]);
+  
+  // Exposer les fonctions et l'état via le contexte
+  const value: SyncContextProps = {
     isSyncing,
     lastSynced,
-    syncErrors,
-    syncData,
-    loadData,
-    startSync,
-    endSync,
+    syncFailed,
+    syncAll: syncAllData,
+    syncData: syncTableData,
+    loadData: loadTableData,
     getLastSynced,
     getSyncError,
     isInitialized,
-    clearSyncErrors,
-    forceSyncAll
+    isOnline,
+    setSyncInterval,
+    registerTableForSync
   };
+  
+  return (
+    <SyncContext.Provider value={value}>
+      {children}
+    </SyncContext.Provider>
+  );
+};
 
-  return <SyncContext.Provider value={value}>{children}</SyncContext.Provider>;
+// Hook pour utiliser le contexte
+export const useSyncContext = () => {
+  const context = useContext(SyncContext);
+  
+  if (context === undefined) {
+    throw new Error('useSyncContext doit être utilisé à l\'intérieur d\'un SyncProvider');
+  }
+  
+  return context;
 };
