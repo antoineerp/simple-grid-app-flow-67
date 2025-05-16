@@ -1,3 +1,4 @@
+
 // Ce fichier est conservé pour la compatibilité avec le code existant
 // mais délègue maintenant ses fonctionnalités au nouveau UserManager
 import { getUtilisateurs as getUsersFromManager } from './userManager';
