@@ -20,11 +20,9 @@ const ProtectedLayout: React.FC = () => {
     checkAuth();
   }, [navigate]);
 
-  return (
-    <Layout>
-      <Outlet />
-    </Layout>
-  );
+  // The Layout component already contains an Outlet component based on its implementation
+  // So we should use it directly without passing children
+  return <Layout />;
 };
 
 export default ProtectedLayout;
