@@ -1,0 +1,799 @@
+{
+    "description": "DO NOT DELETE THIS FILE. This file is used to keep track of which files have been synced in the most recent deployment. If you delete this file a resync will need to be done (which can take a while) - read more: https://github.com/SamKirkland/FTP-Deploy-Action",
+    "version": "1.0.0",
+    "generatedTime": 1746695004419,
+    "data": [
+        {
+            "type": "file",
+            "name": ".htaccess",
+            "size": 3542,
+            "hash": "47dfb166f1a0517a3d30e97ce3e940094798fa7c0152a1ecb50cb9087ccd4dce"
+        },
+        {
+            "type": "folder",
+            "name": "api"
+        },
+        {
+            "type": "folder",
+            "name": "assets"
+        },
+        {
+            "type": "file",
+            "name": "check-assets-deployment.php",
+            "size": 9252,
+            "hash": "8842ea252713afda79140cdee01be6f61e967f58aab9e3a01110c50c9e568393"
+        },
+        {
+            "type": "file",
+            "name": "check-assets.php",
+            "size": 8543,
+            "hash": "74ff7cf9142731078464dd0df4955ded46c217f65fe8193d0f8d0318429ea03a"
+        },
+        {
+            "type": "file",
+            "name": "copy-assets.php",
+            "size": 10615,
+            "hash": "e7a2fb13967a889deed65e6c3e058c0f2628c792c6b0a60a9953a2fbc47460cb"
+        },
+        {
+            "type": "file",
+            "name": "deploy-check.php",
+            "size": 7441,
+            "hash": "4661fba64de19619a90f0434454101038745cf609b0851c2c89538d211a221b0"
+        },
+        {
+            "type": "file",
+            "name": "deploy-on-infomaniak.php",
+            "size": 10635,
+            "hash": "afb978b87b0058b2e57e1e96647b3916cabb5303cef910081c732b83555b5556"
+        },
+        {
+            "type": "file",
+            "name": "favicon.ico",
+            "size": 1150,
+            "hash": "9f081d20c7c14cd4d08271b728d7c62b997d894150915760c222f01285f923ba"
+        },
+        {
+            "type": "file",
+            "name": "fix-assets-runtime.php",
+            "size": 7620,
+            "hash": "d29101fdfb0a2938b62ef36447805d3c5816c915300b601cd66d3b0d94d72a2f"
+        },
+        {
+            "type": "file",
+            "name": "fix-directory-structure.php",
+            "size": 6314,
+            "hash": "da38cb6479b908a161fd18dcbcaf1b954e56313204ac7ab0d153c2b4997db93f"
+        },
+        {
+            "type": "file",
+            "name": "fix-index-references.php",
+            "size": 6367,
+            "hash": "eba9e327addf4c25e073ddfcd4df0f4501ec308ba7e7e141c78786dde9d059e3"
+        },
+        {
+            "type": "file",
+            "name": "fix-infomaniak-assets.php",
+            "size": 9688,
+            "hash": "45a062f2757343be42711784b9cf870f328deb488241368ed834f221bc91d5ce"
+        },
+        {
+            "type": "file",
+            "name": "fix-mime-types.php",
+            "size": 5168,
+            "hash": "921b8f6d515dba335651a1174b46212233458a951eb23607df1ebd96f916fa5e"
+        },
+        {
+            "type": "file",
+            "name": "ftp-connection-test.php",
+            "size": 6186,
+            "hash": "932f3314d9d3c1d0774b59e0350147af2a28c48e31882ed61bfab0578e9ea3eb"
+        },
+        {
+            "type": "file",
+            "name": "index-validator.php",
+            "size": 1712,
+            "hash": "189e5856f36ba3e693c5a54632269afa837f4b73512ee021c218cc0c562157cd"
+        },
+        {
+            "type": "file",
+            "name": "index.html",
+            "size": 1352,
+            "hash": "fd536a8f045819d34a6c88c48a67349a3bc62b33f98178060e5bf57cf8795482"
+        },
+        {
+            "type": "file",
+            "name": "infomaniak-paths-check.php",
+            "size": 8786,
+            "hash": "1410a9b2e0a1a2d9ef1797d2e75e37f3a0fb9a76151eaa1d5a174f7a475d46da"
+        },
+        {
+            "type": "folder",
+            "name": "lovable-uploads"
+        },
+        {
+            "type": "file",
+            "name": "placeholder.svg",
+            "size": 3253,
+            "hash": "64badf7aabda0b9630b87020ffb6095cb858ccbcf66b355c2aa08b1063954d3b"
+        },
+        {
+            "type": "folder",
+            "name": "public"
+        },
+        {
+            "type": "file",
+            "name": "robots.txt",
+            "size": 160,
+            "hash": "a3d27b3ca5ce32341fa9f96f01169b521b1657c05d1860c45d1e53a6258e9e8b"
+        },
+        {
+            "type": "file",
+            "name": "sftp-connection-test.php",
+            "size": 21221,
+            "hash": "98343b678c36697054578d5f34ffc7e37d10a0bb8e86643fb844947e35d7878f"
+        },
+        {
+            "type": "file",
+            "name": "test-ftp.php",
+            "size": 27862,
+            "hash": "286f1479b54087c923cfb333c20da40e717ca1f8a0f6fe154a57ab96e15f9f19"
+        },
+        {
+            "type": "file",
+            "name": "utils-assets.php",
+            "size": 812,
+            "hash": "5830049a74caae3e146ec9e7b4213a35fdb27c4253b90d7459c300a35015da85"
+        },
+        {
+            "type": "file",
+            "name": "utils-directory.php",
+            "size": 888,
+            "hash": "697857cb83c5df4a760e695313217839f8c57254890f4ae830be71ad6a985e9d"
+        },
+        {
+            "type": "file",
+            "name": "verify-deploy.php",
+            "size": 12610,
+            "hash": "d2170d3237d7bfec13f554f42fc8820765390151ef20224bb02bdbe77117f55e"
+        },
+        {
+            "type": "file",
+            "name": "api/.htaccess",
+            "size": 2015,
+            "hash": "df3e9f91f184a118d753f68bbc9ac02d106d692a3b180f209a462411d2677efc"
+        },
+        {
+            "type": "file",
+            "name": "api/.user.ini",
+            "size": 810,
+            "hash": "570c18b6ab74071ab01d07311b9f18d69efce257f416967eb991259eaec3836c"
+        },
+        {
+            "type": "folder",
+            "name": "api/admin"
+        },
+        {
+            "type": "file",
+            "name": "api/assets-check.php",
+            "size": 1878,
+            "hash": "55a80ceb1ee303b07dc28411047049786ded299c8bf3e62cc7d31aae5d63f71f"
+        },
+        {
+            "type": "file",
+            "name": "api/auth.php",
+            "size": 2691,
+            "hash": "5227a5351d9da6987cd49789228960cac5b503aafcd66f8ccd5363b2a1b96201"
+        },
+        {
+            "type": "file",
+            "name": "api/bibliotheque-load.php",
+            "size": 2248,
+            "hash": "3c3f5017df1793ba6d92d58ab5299538fcf5f1524d0df8f585acdcccba25b0d6"
+        },
+        {
+            "type": "file",
+            "name": "api/bibliotheque-sync.php",
+            "size": 2732,
+            "hash": "d5e32d45f8651b019b850aa4c275200daa0d1222b5e141ba41349ed7e22fb920"
+        },
+        {
+            "type": "file",
+            "name": "api/check-rewrite-rules.php",
+            "size": 4559,
+            "hash": "0b8ac0abf7eec5635cca60d155fb44bf91392f1c5dd8d3bf2b5af3269e114efb"
+        },
+        {
+            "type": "file",
+            "name": "api/check-users.php",
+            "size": 3172,
+            "hash": "e7d18f3a93d4e653bda8f23c6e115c70a9aab21c1af4d52fa45316cfebabbcca"
+        },
+        {
+            "type": "file",
+            "name": "api/clear-log.php",
+            "size": 1485,
+            "hash": "1cbf88b4b18a1ea1373bcec641d8b935128311b75191092c9f8350c8f1e27f02"
+        },
+        {
+            "type": "folder",
+            "name": "api/config"
+        },
+        {
+            "type": "file",
+            "name": "api/config-test.php",
+            "size": 970,
+            "hash": "46f5cf5db0b3d1f4bf8cf07b3672f88d130ee7c2205b36baea08c1c61eda7cdc"
+        },
+        {
+            "type": "file",
+            "name": "api/config.php",
+            "size": 7389,
+            "hash": "7823ff42c867cf78232ffd15c75aa82e9fbed789ce1ba3c5ac08b7baaf172edf"
+        },
+        {
+            "type": "folder",
+            "name": "api/controllers"
+        },
+        {
+            "type": "file",
+            "name": "api/database-config.php",
+            "size": 4009,
+            "hash": "34ce1d1a1e559b20b035e51fe166b2a9f561441f36505cb0237cb0f8a9d3b30a"
+        },
+        {
+            "type": "file",
+            "name": "api/database-diagnostic.php",
+            "size": 4511,
+            "hash": "e1e08db61751d8d508ec84af398dad78321a820d1929e9e03815c0bd9239a9bc"
+        },
+        {
+            "type": "file",
+            "name": "api/database-diagnostics.php",
+            "size": 6331,
+            "hash": "230ac76ec4f02b745075adf8462bca50dc14abb3c3676a29cef92f8867e21864"
+        },
+        {
+            "type": "file",
+            "name": "api/database-test.php",
+            "size": 5704,
+            "hash": "717a258ade74691e08bd99b799efe443e58fa2b904bd8128863775076b88fed5"
+        },
+        {
+            "type": "file",
+            "name": "api/db-connection-test.php",
+            "size": 2899,
+            "hash": "7eb8a4839c140303d58898a17a7c38267ee8e7e57e80eb67da3fc258dfa96246"
+        },
+        {
+            "type": "file",
+            "name": "api/db-diagnostic.php",
+            "size": 7822,
+            "hash": "fa7c912414674b601eaa7a48dfd5de9332c253fc85b929413c7d6df7233fbdb4"
+        },
+        {
+            "type": "file",
+            "name": "api/db-info.php",
+            "size": 4273,
+            "hash": "e0d9f27bb244dce99aca377ee4dcf9de0a458551601be8d645e0a3c5e2207154"
+        },
+        {
+            "type": "file",
+            "name": "api/db-test.php",
+            "size": 2079,
+            "hash": "e331d00bade867145be8885ce4c5d79aa77003247fdffbd8aa137d2dc268e8c0"
+        },
+        {
+            "type": "file",
+            "name": "api/diagnose-assets-paths.php",
+            "size": 6977,
+            "hash": "c791c8114311da0faa7a9ffef8677917fa11f64555f95d39f7936939d97a0fff"
+        },
+        {
+            "type": "file",
+            "name": "api/diagnose-assets.php",
+            "size": 4059,
+            "hash": "f513a0202b78da7f4c357ca3d485e87088f4502e4f76c63208a0e343763d5a68"
+        },
+        {
+            "type": "file",
+            "name": "api/diagnose-connection.php",
+            "size": 7292,
+            "hash": "dff9fad7be4cf6f3d6edec1d98cf94f79715bc794c600485f802a501567fb3b1"
+        },
+        {
+            "type": "file",
+            "name": "api/diagnose.php",
+            "size": 3816,
+            "hash": "a856a90036b67bd458358d879ddcf540f280660b1be37bc6802d32b9626fbc20"
+        },
+        {
+            "type": "file",
+            "name": "api/diagnostic-complet.php",
+            "size": 10623,
+            "hash": "09a1953df923431e3c3a90a8dba5bd5bb79ac2cb15989dacc745d98e82d9ea57"
+        },
+        {
+            "type": "file",
+            "name": "api/diagnostic.php",
+            "size": 3877,
+            "hash": "8c2aed7599acbc7ccec95f7007666d534d2f610400a8a71b3b6d447f1401c2c5"
+        },
+        {
+            "type": "file",
+            "name": "api/direct-db-test.php",
+            "size": 2168,
+            "hash": "2fff8d9e981e42e06573bc366ac4e911745428b8833a4fea6db715bafbacb715"
+        },
+        {
+            "type": "file",
+            "name": "api/documents-load.php",
+            "size": 5429,
+            "hash": "dfe262279cf29e55753b4e96fdc10ca67c825cdf361936665393ba57dca0cd9d"
+        },
+        {
+            "type": "file",
+            "name": "api/documents-sync.php",
+            "size": 2788,
+            "hash": "417dad8de8c1792d018f57295241d50d0ffacd44af9c104d4a6f8f10f3eeb06f"
+        },
+        {
+            "type": "file",
+            "name": "api/error-log.php",
+            "size": 1954,
+            "hash": "5f9369d997434a29e776ba1795c1415abe7667a6d765e7644fc368a1cce6fd4b"
+        },
+        {
+            "type": "file",
+            "name": "api/exigences-load.php",
+            "size": 5363,
+            "hash": "7fb74c00ed041b19690caa7049372c1b1acb36841ee2fa933c746389c9996d45"
+        },
+        {
+            "type": "file",
+            "name": "api/exigences-sync.php",
+            "size": 1624,
+            "hash": "e574d27faf04146fdaf8ddb36b67e89e91dd10e659d12c73060180585f7854b1"
+        },
+        {
+            "type": "file",
+            "name": "api/fix-users-roles.php",
+            "size": 848,
+            "hash": "fb6b2093e2eb2765cddfe9466507c21010b997b0568fc3508e874234a86c3a91"
+        },
+        {
+            "type": "file",
+            "name": "api/global-load.php",
+            "size": 6532,
+            "hash": "1a913e48a56d53306cf15c5f9cc144f601707ecf0d42b1e883f491b84f773818"
+        },
+        {
+            "type": "file",
+            "name": "api/global-sync.php",
+            "size": 5966,
+            "hash": "b86bdb2ddc71537a7134aec6bedd6854c07e8de95cc27de38a4f3bb306f626b7"
+        },
+        {
+            "type": "file",
+            "name": "api/index.php",
+            "size": 2303,
+            "hash": "0c46421b40ffa6e7fedc522013ef7c5084d5637545e635904e150a39434d148a"
+        },
+        {
+            "type": "file",
+            "name": "api/info.php",
+            "size": 77,
+            "hash": "0a39496d6bcea6c3b3b62f1bf987acfd8e3ffaff57f461b98c8b456fbd2b0f67"
+        },
+        {
+            "type": "file",
+            "name": "api/json-test.php",
+            "size": 2326,
+            "hash": "89f2879cc7d7d096afa94ac7f5618d8742b80cd6ce34531098e2aefbbe461688"
+        },
+        {
+            "type": "file",
+            "name": "api/login-test.php",
+            "size": 16122,
+            "hash": "eedf083dbc3f58a95baaba4037f7ab60ae59be99af676a148aee20359c001176"
+        },
+        {
+            "type": "file",
+            "name": "api/membres-load.php",
+            "size": 3535,
+            "hash": "d24022993d376fba43dc1fc6db54020324befaafe0b596b8a743071ed20e5918"
+        },
+        {
+            "type": "file",
+            "name": "api/membres-sync.php",
+            "size": 5367,
+            "hash": "aaec8a496dcb33d5fca93903f54ad7e034992988e131b4f07d6fc8872fac0ca9"
+        },
+        {
+            "type": "folder",
+            "name": "api/middleware"
+        },
+        {
+            "type": "folder",
+            "name": "api/models"
+        },
+        {
+            "type": "folder",
+            "name": "api/operations"
+        },
+        {
+            "type": "file",
+            "name": "api/phpinfo-test.php",
+            "size": 720,
+            "hash": "4c443593eee5b5a20868f3c9e5336705954fd20d343070360d29facbef7efff3"
+        },
+        {
+            "type": "file",
+            "name": "api/phpinfo.php",
+            "size": 2482,
+            "hash": "f8de6fd7bfaebbac4cf05bb28920766c04f622d261fd87c92875989c74f427b0"
+        },
+        {
+            "type": "file",
+            "name": "api/pilotage-load.php",
+            "size": 5359,
+            "hash": "a23122f4335996d19cb68f19232606ac60a4e8e054a2124a40e3b407eb8a3f7d"
+        },
+        {
+            "type": "file",
+            "name": "api/pilotage-sync.php",
+            "size": 5819,
+            "hash": "a55b2f9c21478ae9de0c02a0106b2506f4e50687d94c69c7caa9e77832ef2b6b"
+        },
+        {
+            "type": "file",
+            "name": "api/remove-users-constraints.php",
+            "size": 8789,
+            "hash": "7416c376b32773d48ec9fd2ce848fdf4c4756771fb7f2ce5b3e6096170ed90f4"
+        },
+        {
+            "type": "file",
+            "name": "api/server-status.php",
+            "size": 2555,
+            "hash": "6b64548c5293b2e4e4f9fb4e5e9c0faaaa94d1ee489a98fe2f6c10230c7f1cb7"
+        },
+        {
+            "type": "file",
+            "name": "api/simple-json-test.php",
+            "size": 874,
+            "hash": "fba0164304e3d0114914dbc927b17f7ef3ea549b1c72fb79358e77ddd8d48824"
+        },
+        {
+            "type": "file",
+            "name": "api/test-500.php",
+            "size": 687,
+            "hash": "130b77b80a199465c502b485350e4aff48dbaec4be70082eed3a499810a9baaf"
+        },
+        {
+            "type": "file",
+            "name": "api/test-auth.php",
+            "size": 4641,
+            "hash": "a0e354eb58c0fc3bee1162d45077200a77ce16ffd463f35147c06efd31015b86"
+        },
+        {
+            "type": "file",
+            "name": "api/test-create-user.php",
+            "size": 11664,
+            "hash": "b459e8dad964f97ca65b7614077b778803917130cc4debf9c625ab132e7c7447"
+        },
+        {
+            "type": "file",
+            "name": "api/test.php",
+            "size": 481,
+            "hash": "149337c9997cd65f80653e2480d6e7b25f314f5778be83fa46bced40264eee95"
+        },
+        {
+            "type": "file",
+            "name": "api/user-diagnostic.php",
+            "size": 2744,
+            "hash": "7ca68347b69e310f84c905e6af9a0c0c59cd04a1f767638866d33a6b51bf2a86"
+        },
+        {
+            "type": "file",
+            "name": "api/users.php",
+            "size": 19557,
+            "hash": "9c7f728301bd5ec9615f6ecdff01f74c716aced4639d32898f076272429997f6"
+        },
+        {
+            "type": "folder",
+            "name": "api/utils"
+        },
+        {
+            "type": "file",
+            "name": "assets/html2canvas.esm.CBrSDip1.js",
+            "size": 202301,
+            "hash": "b4f3add809a6d59f46260e8fd56cab240f3153def977386b230a839e8cb0b281"
+        },
+        {
+            "type": "file",
+            "name": "assets/index.es.C09yeBFR.js",
+            "size": 150018,
+            "hash": "659a50963c1b134a0af42680eb793f284aab4fa852be62d0a8bd061dd73e6da0"
+        },
+        {
+            "type": "file",
+            "name": "assets/main.K1TzFvCC.js",
+            "size": 1560830,
+            "hash": "88f3d277209405d8e1ad769c5dcf4f88e367295aafb5adf24208e870f72417e8"
+        },
+        {
+            "type": "file",
+            "name": "assets/main.css",
+            "size": 68248,
+            "hash": "d2e7d575c1b78203fd075d4c6d3e5d5845e3005c457bd15c98ecb7c9353d5b50"
+        },
+        {
+            "type": "file",
+            "name": "assets/purify.es.CF4_YkFU.js",
+            "size": 21859,
+            "hash": "14d472478e765d98b4a087bb4436587de89ec8f1dd28019cf070e29b675b744f"
+        },
+        {
+            "type": "file",
+            "name": "lovable-uploads/1c6b80c6-6e45-4f6e-ab03-b7a474bd674c.png",
+            "size": 7173,
+            "hash": "cdb0f694a013deacdbe91d84c3d5bf55857f5bf9d0942396119829141da6eb30"
+        },
+        {
+            "type": "file",
+            "name": "lovable-uploads/4425c340-2ce3-416b-abc9-b75906ca8705.png",
+            "size": 7173,
+            "hash": "cdb0f694a013deacdbe91d84c3d5bf55857f5bf9d0942396119829141da6eb30"
+        },
+        {
+            "type": "file",
+            "name": "lovable-uploads/4c7adb52-3da0-4757-acbf-50a1eb1d4bf5.png",
+            "size": 7173,
+            "hash": "cdb0f694a013deacdbe91d84c3d5bf55857f5bf9d0942396119829141da6eb30"
+        },
+        {
+            "type": "file",
+            "name": "lovable-uploads/aba57440-1db2-49ba-8273-c60d6a77b6ee.png",
+            "size": 7173,
+            "hash": "cdb0f694a013deacdbe91d84c3d5bf55857f5bf9d0942396119829141da6eb30"
+        },
+        {
+            "type": "file",
+            "name": "lovable-uploads/ae8b819c-8d4d-4435-9e64-898ed7510077.png",
+            "size": 170557,
+            "hash": "23612f436c79fc24ef47181a46980a15cc2c58f68ca0939b15ffb79b2a6314a8"
+        },
+        {
+            "type": "file",
+            "name": "lovable-uploads/dc7ee49f-a088-465d-b6f2-f61dd9714254.png",
+            "size": 170557,
+            "hash": "23612f436c79fc24ef47181a46980a15cc2c58f68ca0939b15ffb79b2a6314a8"
+        },
+        {
+            "type": "file",
+            "name": "lovable-uploads/dcc732be-ae86-404b-bad6-740fee728aaf.png",
+            "size": 170557,
+            "hash": "23612f436c79fc24ef47181a46980a15cc2c58f68ca0939b15ffb79b2a6314a8"
+        },
+        {
+            "type": "file",
+            "name": "lovable-uploads/fa423773-b335-4b1a-8ba6-56b7a83123e3.png",
+            "size": 170557,
+            "hash": "23612f436c79fc24ef47181a46980a15cc2c58f68ca0939b15ffb79b2a6314a8"
+        },
+        {
+            "type": "file",
+            "name": "lovable-uploads/formacert-logo.png",
+            "size": 71,
+            "hash": "19f922a25d09cf169c661c5a53baae172062b09feb7f2f938d68d000ab37febd"
+        },
+        {
+            "type": "file",
+            "name": "lovable-uploads/swiss-army-knife-logo.png",
+            "size": 66,
+            "hash": "286084aca6b7e3dd3861dbbf9b94c5f0057e84378337d3d9cc635aa6a6fe322b"
+        },
+        {
+            "type": "folder",
+            "name": "public/lovable-uploads"
+        },
+        {
+            "type": "file",
+            "name": "api/admin/check-tables.php",
+            "size": 6477,
+            "hash": "3b8f98e09644263013b2c150ad7b63d584e3bf8d7bc2f1b2096caf0c91743232"
+        },
+        {
+            "type": "file",
+            "name": "api/config/database.php",
+            "size": 10365,
+            "hash": "fa731aef9228bd35678b6df7c0bc6dd816d968291e864f55747895ac3d7a063e"
+        },
+        {
+            "type": "file",
+            "name": "api/config/env.example.php",
+            "size": 840,
+            "hash": "8e7ada5f65ca07bbc49f888747169ec3e46717a90304a2632bceeb953f9544b0"
+        },
+        {
+            "type": "file",
+            "name": "api/config/env.php",
+            "size": 7949,
+            "hash": "16bcbec377b9ddfb35baea84adfe53ab8571792a62d2b89ca61c3c710a324662"
+        },
+        {
+            "type": "file",
+            "name": "api/config/index.php",
+            "size": 768,
+            "hash": "fab21b38a315c6cde162a363e0609a08ffc75775db1163c51ec728efd14909ee"
+        },
+        {
+            "type": "file",
+            "name": "api/controllers/AuthController.php",
+            "size": 13426,
+            "hash": "fd3c1e7f12ebc8f8356255021321da3e7e8d8a322b595dfdcb0642d1ddb8bc4a"
+        },
+        {
+            "type": "file",
+            "name": "api/controllers/ConfigController.php",
+            "size": 7195,
+            "hash": "8a637252961d80f2d0c725d5acd613362d49c8c980fc140188fffcadf938e427"
+        },
+        {
+            "type": "file",
+            "name": "api/controllers/DatabaseConfigController.php",
+            "size": 7573,
+            "hash": "36105dfbb4c8ea72b350822043fb316cf5318408e8b6eb988b8da8484bf57be4"
+        },
+        {
+            "type": "file",
+            "name": "api/controllers/DatabaseTestController.php",
+            "size": 9048,
+            "hash": "bdf450ba6ef62d6e7d7eeb14ff1289b5a320c94d32e20831165980243873b0e9"
+        },
+        {
+            "type": "file",
+            "name": "api/controllers/UsersController.php",
+            "size": 13917,
+            "hash": "7c2887e31d3c59a2758bbeaef060806c77a12a39be2ee2946453ca23565e7210"
+        },
+        {
+            "type": "file",
+            "name": "api/middleware/ApiResponseFormatter.php",
+            "size": 2331,
+            "hash": "b4d3fb373cb8f97f30e6dc2ce69ffa5df025a210085c2350179ac419b779b5c3"
+        },
+        {
+            "type": "file",
+            "name": "api/middleware/Auth.php",
+            "size": 2979,
+            "hash": "f6b186ad579c3fb57a71a6fa73b477016b8e530129a1f54232b2dab4dd9bad50"
+        },
+        {
+            "type": "file",
+            "name": "api/middleware/RequestHandler.php",
+            "size": 2254,
+            "hash": "7786da62d7fef5f147972559b0b3f847b40d312b4649e28afbefc072c8c1737a"
+        },
+        {
+            "type": "file",
+            "name": "api/middleware/ResponseHandler.php",
+            "size": 992,
+            "hash": "2dc140b3a6979d25fc29bf274157235a83109bf39d7783b778f4c714055e8d82"
+        },
+        {
+            "type": "file",
+            "name": "api/models/BaseModel.php",
+            "size": 1016,
+            "hash": "5b7d91aa0c437828d765ae1e2416781fc732735b1daf51589b235c4ff3696b71"
+        },
+        {
+            "type": "file",
+            "name": "api/models/User.php",
+            "size": 7197,
+            "hash": "649a74363ed9923f1c001c24436c6a57ff8c98b712ad54d244ee55b215f6732c"
+        },
+        {
+            "type": "folder",
+            "name": "api/models/traits"
+        },
+        {
+            "type": "file",
+            "name": "api/operations/BaseOperations.php",
+            "size": 808,
+            "hash": "246deafb5c23144c976fb2125a3802cb4b8e4f61bdd25138168b9f27abd3659a"
+        },
+        {
+            "type": "file",
+            "name": "api/operations/UserOperations.php",
+            "size": 10395,
+            "hash": "5a0e741db303c147727ca83b35033a5cc49277d8540878029f0ab11685cf617e"
+        },
+        {
+            "type": "folder",
+            "name": "api/operations/users"
+        },
+        {
+            "type": "folder",
+            "name": "api/utils/DatabaseDiagnostics"
+        },
+        {
+            "type": "file",
+            "name": "api/utils/HttpErrorHandler.php",
+            "size": 446,
+            "hash": "1f343cd44bb040a3d0a8b17e5d769768aa49f7e4d348424ecf467128c5c91a7e"
+        },
+        {
+            "type": "file",
+            "name": "api/utils/JwtHandler.php",
+            "size": 2170,
+            "hash": "82571cba6c72bd0022964f417cc01b354247fdfa3fe41f9d242e829bb73f84e5"
+        },
+        {
+            "type": "file",
+            "name": "api/utils/ResponseHandler.php",
+            "size": 746,
+            "hash": "a185b7e1a1e63d443c7adf531a7a9f559e5288ca183ded93cdd181f794ee45d7"
+        },
+        {
+            "type": "file",
+            "name": "api/models/traits/TableManager.php",
+            "size": 2083,
+            "hash": "74700eda7dcc15ba3fb01a2cc57efb48d05a6255c8a226d2659733774ab79067"
+        },
+        {
+            "type": "file",
+            "name": "api/models/traits/UserQueries.php",
+            "size": 8382,
+            "hash": "b76421e7dc1a436d5c65b5eee6ebc35b00d0346a62cc7526e2e321c7b3d439ae"
+        },
+        {
+            "type": "file",
+            "name": "api/models/traits/UserValidator.php",
+            "size": 686,
+            "hash": "c71090b1f2d671e7534a6e46909ee1f6b1e4f9d13d61c000b7fca75e0efe7145"
+        },
+        {
+            "type": "file",
+            "name": "api/operations/users/DeleteOperations.php",
+            "size": 2315,
+            "hash": "b0f9c3555e58655848937b8aadf266e1b2c79a7df7f2006b89e2f42b5012bcfd"
+        },
+        {
+            "type": "file",
+            "name": "api/operations/users/GetOperations.php",
+            "size": 3932,
+            "hash": "580fc54f63fef9648373cd60b5b42ce512de3dfac12807e05098b67f923940a4"
+        },
+        {
+            "type": "file",
+            "name": "api/operations/users/PostOperations.php",
+            "size": 8554,
+            "hash": "afc5aa8843d8c6d4684a0d2468da1c47c359dcad97157227543204a6b30643c9"
+        },
+        {
+            "type": "file",
+            "name": "api/operations/users/PutOperations.php",
+            "size": 2999,
+            "hash": "2d1c13c75df85299293ab4ab3455fcb91fab7aa3d181b826035f6a56fe6dbfee"
+        },
+        {
+            "type": "file",
+            "name": "api/utils/DatabaseDiagnostics/ConfigTester.php",
+            "size": 1692,
+            "hash": "b4317f403989515956f00568f8bc06dd6a7addc02179a82c90d530a53fa35477"
+        },
+        {
+            "type": "file",
+            "name": "api/utils/DatabaseDiagnostics/ConsistencyChecker.php",
+            "size": 2361,
+            "hash": "0e90748984a23e2e93c016b4691f91eb7e5edcde3ea37d1a23b4bcceef23128b"
+        },
+        {
+            "type": "file",
+            "name": "api/utils/DatabaseDiagnostics/PdoTester.php",
+            "size": 2828,
+            "hash": "935d57aa3fc90d8ba136da9c12b864c426cfc5f79faa8e6085c9a4ab7c1a79c3"
+        }
+    ]
+}

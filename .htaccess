@@ -1,56 +1,104 @@
 
-# Activation du moteur de réécriture
+# Activer le moteur de réécriture
 RewriteEngine On
 
-# Configuration des types MIME
-AddType text/css .css
+# Configuration spécifique pour Infomaniak
+Options -MultiViews
+Options +FollowSymLinks
+
+# Définir le point d'entrée principal
+DirectoryIndex index.html index.php
+
+# Définir les types MIME corrects
 AddType application/javascript .js
 AddType application/javascript .mjs
 AddType application/javascript .es.js
+AddType text/css .css
+AddType application/json .json
 AddType image/svg+xml .svg
-AddType font/ttf .ttf
-AddType font/woff .woff
-AddType font/woff2 .woff2
 
-# Force le type MIME pour CSS de manière explicite
-<FilesMatch "\.css$">
-    ForceType text/css
-    Header set Content-Type "text/css; charset=utf-8"
+# Configuration spécifique pour les modules ES
+<FilesMatch "\.(m?js|es\.js)$">
+    Header set Content-Type "application/javascript"
     Header set X-Content-Type-Options "nosniff"
 </FilesMatch>
 
-# Force le type MIME pour JavaScript de manière explicite
-<FilesMatch "\.(js|mjs|es\.js)$">
-    ForceType application/javascript
-    Header set Content-Type "application/javascript; charset=utf-8"
-    Header set X-Content-Type-Options "nosniff"
+# Permettre l'accès aux assets
+<FilesMatch "\.(js|mjs|es\.js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot|map|tsx?)$">
+    Order Allow,Deny
+    Allow from all
 </FilesMatch>
 
-# Activer la mise en cache
-<IfModule mod_expires.c>
-  ExpiresActive On
-  ExpiresByType text/css "access plus 1 week"
-  ExpiresByType application/javascript "access plus 1 week"
-  ExpiresByType image/svg+xml "access plus 1 week"
-  ExpiresByType font/ttf "access plus 1 month"
-  ExpiresByType font/woff "access plus 1 month"
-  ExpiresByType font/woff2 "access plus 1 month"
-</IfModule>
+# Traitement des ressources statiques
+RewriteCond %{REQUEST_URI} ^/lovable-uploads/
+RewriteRule ^lovable-uploads/(.*)$ public/lovable-uploads/$1 [L]
 
-# Autoriser l'accès depuis toutes les origines pour les assets
+# TRÈS IMPORTANT: Règles spécifiques pour les fichiers PHP de l'API
+# La règle générale doit être placée APRÈS les règles spécifiques
+
+# Règles directes pour les fichiers PHP spécifiques dans le dossier api
+RewriteRule ^api/check-users/?$ api/check-users.php [L]
+RewriteRule ^api/users/?$ api/users.php [L]
+RewriteRule ^api/login/?$ api/login.php [L]
+
+# Désactiver l'accès direct à login-test.php pour raisons de sécurité
+RewriteRule ^api/login-test(\.php)?/?$ - [F,L]
+
+# Règles pour les autres scripts d'API spécifiques
+RewriteRule ^api/global-sync/?$ api/global-sync.php [L]
+RewriteRule ^api/global-load/?$ api/global-load.php [L]
+RewriteRule ^api/error-log/?$ api/error-log.php [L]
+RewriteRule ^api/auth/?$ api/auth.php [L]
+
+# Règle générique pour l'API - À placer APRÈS les règles spécifiques
+RewriteRule ^api/?$ api/index.php [L]
+
+# Règle pour traiter les requêtes d'API avec des sous-chemins - À placer APRÈS les règles spécifiques
+RewriteRule ^api/([^/]+)/?$ api/$1.php [QSA,L]
+
+# Règle pour autres requêtes API
+RewriteRule ^api/(.*)$ api/$1 [QSA,L]
+
+# Permettre l'accès direct aux assets dans leur dossier
+RewriteCond %{REQUEST_URI} ^/assets/
+RewriteCond %{REQUEST_FILENAME} -f
+RewriteRule ^ - [L]
+
+# Permettre l'accès direct aux autres ressources statiques
+RewriteCond %{REQUEST_URI} \.(js|mjs|es\.js|css|png|jpe?g|gif|svg|ico|webp|woff2?|ttf|eot|map|tsx?)$
+RewriteCond %{REQUEST_FILENAME} -f
+RewriteRule ^ - [L]
+
+# Rediriger toutes les autres requêtes vers index.html pour React Router
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteCond %{REQUEST_URI} !^/api/
+RewriteRule ^(.*)$ index.html [QSA,L]
+
+# Configuration de sécurité et CORS
 <IfModule mod_headers.c>
-    Header set Access-Control-Allow-Origin "*"
+    # Headers pour les assets statiques
+    <FilesMatch "\.(js|mjs|es\.js|css|json)$">
+        Header set Cache-Control "no-cache, no-store, must-revalidate"
+        Header set Pragma "no-cache"
+        Header set Expires "0"
+        Header set Access-Control-Allow-Origin "*"
+        Header set Access-Control-Allow-Methods "GET, OPTIONS"
+        Header set Access-Control-Allow-Headers "Content-Type"
+    </FilesMatch>
 </IfModule>
 
-# Ne pas indexer les répertoires
-Options -Indexes
+# Gestion des erreurs personnalisée
+ErrorDocument 404 /index.html
+ErrorDocument 500 /index.html
 
-# Règles de réécriture pour SPA
-<IfModule mod_rewrite.c>
-  RewriteEngine On
-  RewriteBase /
-  RewriteRule ^index\.html$ - [L]
-  RewriteCond %{REQUEST_FILENAME} !-f
-  RewriteCond %{REQUEST_FILENAME} !-d
-  RewriteRule . /index.html [L]
+# PHP Settings
+<IfModule mod_php.c>
+    php_flag display_errors off
+    php_value error_log "api/php_errors.log"
+    php_flag log_errors on
+    php_value upload_max_filesize "10M"
+    php_value post_max_size "12M"
+    php_value memory_limit "256M"
+    php_value max_execution_time 300
 </IfModule>
