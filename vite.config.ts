@@ -57,14 +57,8 @@ export default defineConfig(({ mode }) => {
             ui: ['@radix-ui/react-dialog', '@radix-ui/react-toast', '@radix-ui/react-tooltip']
           }
         },
-        // Fix for external dependencies - properly handle external scripts
-        external: [
-          '/assets/hashed-file-loader.js',
-          '/assets/gptengineer.js',
-          '/assets/main.js',
-          '/assets/main.BARYCRGM.js',
-          'https://cdn.gpteng.co/gptengineer.js'
-        ]
+        // Correction des références externes - utiliser un tableau vide ou des patterns globaux
+        external: []
       }
     },
     optimizeDeps: {
