@@ -16,21 +16,25 @@ interface ResponsableSelectorProps {
 
 const defaultMembres = [
   { id: '1', prenom: 'Jean', nom: 'Dupont', initiales: 'JD' },
-  { id: '2', prenom: 'Marie', nom: 'Martin', initiales: 'MM' }
+  { id: '2', prenom: 'Marie', nom: 'Martin', initiales: 'MM' },
+  { id: '3', prenom: 'Pierre', nom: 'Bernard', initiales: 'PB' },
+  { id: '4', prenom: 'Sophie', nom: 'Petit', initiales: 'SP' },
 ];
 
 const ResponsableSelector = ({ selectedInitiales, onChange, type }: ResponsableSelectorProps) => {
   // Récupérer les membres du contexte s'il est disponible, sinon utiliser les valeurs par défaut
-  let membres;
+  let membres = defaultMembres;
+  let contextAvailable = false;
   
   try {
     const membresContext = useMembres();
-    membres = membresContext?.membres && membresContext.membres.length > 0 
-      ? membresContext.membres 
-      : defaultMembres;
+    if (membresContext && membresContext.membres && membresContext.membres.length > 0) {
+      membres = membresContext.membres;
+      contextAvailable = true;
+    }
   } catch (error) {
     console.warn("Contexte MembresProvider non disponible, utilisation des membres par défaut");
-    membres = defaultMembres;
+    // Déjà initialisé avec defaultMembres
   }
 
   const handleToggleMembre = (initiales: string) => {
@@ -61,6 +65,9 @@ const ResponsableSelector = ({ selectedInitiales, onChange, type }: ResponsableS
       <PopoverContent className="w-48 p-2">
         <div className="text-sm font-medium mb-2">
           {type === 'r' ? 'Responsable' : type === 'a' ? 'Approbateur' : type === 'c' ? 'Consulté' : 'Informé'}
+          {!contextAvailable && (
+            <span className="text-xs text-amber-500 ml-1">(mode hors ligne)</span>
+          )}
         </div>
         <div className="max-h-48 overflow-y-auto">
           {membres.map((membre) => (

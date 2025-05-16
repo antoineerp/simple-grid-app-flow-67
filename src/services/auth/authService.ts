@@ -21,6 +21,12 @@ export const isAuthenticated = (): boolean => {
       return false;
     }
     
+    // Vérifier que chaque partie n'est pas vide
+    if (!parts[0] || !parts[1] || !parts[2]) {
+      console.error("Format de token invalide (parties manquantes ou vides)");
+      return false;
+    }
+    
     const decodedToken: any = jwtDecode(token);
     // Vérifier si le token est expiré
     const currentTime = Date.now() / 1000;
@@ -44,8 +50,8 @@ export const getCurrentUser = (): User | null => {
   try {
     // Vérifie que le token a le bon format avant de le décoder
     const parts = token.split('.');
-    if (parts.length !== 3) {
-      console.error("Format de token invalide (doit avoir 3 parties)");
+    if (parts.length !== 3 || !parts[0] || !parts[1] || !parts[2]) {
+      console.error("Format de token invalide (doit avoir 3 parties complètes)");
       return null;
     }
     
@@ -54,6 +60,9 @@ export const getCurrentUser = (): User | null => {
     // Vérifier si le token contient les informations de l'utilisateur au bon format
     if (decodedToken.user) {
       return decodedToken.user as User;
+    } else if (decodedToken.data && decodedToken.data.user) {
+      // Format alternatif possible
+      return decodedToken.data.user as User;
     } else {
       // En-têtes d'autorisation pour les requêtes API
       return decodedToken as User;
@@ -69,6 +78,7 @@ export const logout = (): void => {
   localStorage.removeItem('authToken');
   sessionStorage.removeItem('authToken');
   localStorage.removeItem('currentUser');
+  localStorage.removeItem('userRole');
   
   // Redirection vers la page de connexion
   window.location.href = '/';
@@ -140,11 +150,23 @@ export const authenticateUser = async (email: string, password: string, remember
       throw new Error('Réponse invalide du serveur');
     }
     
+    // Vérifier le format du token avant de le stocker
+    const tokenParts = data.token.split('.');
+    if (tokenParts.length !== 3) {
+      console.error("Format de token invalide reçu du serveur");
+      throw new Error('Format de token invalide reçu du serveur');
+    }
+    
     // Stocker le token JWT dans le stockage approprié
     if (rememberMe) {
       localStorage.setItem('authToken', data.token);
     } else {
       sessionStorage.setItem('authToken', data.token);
+    }
+    
+    // Stocker également le rôle de l'utilisateur pour un accès rapide
+    if (data.user && data.user.role) {
+      localStorage.setItem('userRole', data.user.role);
     }
     
     // Retourner les informations de l'utilisateur

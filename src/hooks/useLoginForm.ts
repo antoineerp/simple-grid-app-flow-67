@@ -92,13 +92,34 @@ export const useLoginForm = () => {
         }
       }
       
-      if (result.success || (result.token && !result.message?.includes('Erreur'))) {
+      // Vérifier si la réponse indique un succès
+      if ((result && result.success) || (result && result.token && !result.message?.includes('Erreur'))) {
         console.log("Connexion réussie, token reçu:", result.token?.substring(0, 20) + "...");
         console.log("Données utilisateur:", result.user);
         
+        // Vérifier le format du token avant de le stocker
+        if (result.token) {
+          const tokenParts = result.token.split('.');
+          if (tokenParts.length !== 3) {
+            console.error("Format de token invalide reçu du serveur:", result.token);
+            setError('Format de token invalide reçu du serveur');
+            setHasAuthError(true);
+            
+            toast({
+              title: "Erreur de connexion",
+              description: "Format de token invalide reçu du serveur",
+              variant: "destructive",
+            });
+            setIsLoading(false);
+            return;
+          }
+        }
+        
         // Enregistrer le token avant la navigation
-        sessionStorage.setItem('authToken', result.token);
-        localStorage.setItem('authToken', result.token);
+        if (result.token) {
+          sessionStorage.setItem('authToken', result.token);
+          localStorage.setItem('authToken', result.token);
+        }
         
         // Stocker les données utilisateur et le rôle explicitement
         if (result.user) {
@@ -132,12 +153,12 @@ export const useLoginForm = () => {
           window.location.href = '/pilotage';
         }
       } else {
-        console.error("Échec de connexion:", result.message);
-        setError(result.message || 'Échec de la connexion');
+        console.error("Échec de connexion:", result?.message || "Raison inconnue");
+        setError(result?.message || 'Échec de la connexion');
         
-        if (result.message?.includes('base de données') || result.message?.includes('database')) {
+        if (result?.message?.includes('base de données') || result?.message?.includes('database')) {
           setHasDbError(true);
-        } else if (result.message?.includes('serveur') || result.message?.includes('server') || result.message?.includes('env.php')) {
+        } else if (result?.message?.includes('serveur') || result?.message?.includes('server') || result?.message?.includes('env.php')) {
           setHasServerError(true);
         } else {
           setHasAuthError(true);
@@ -145,7 +166,7 @@ export const useLoginForm = () => {
         
         toast({
           title: "Erreur de connexion",
-          description: result.message || "Identifiants invalides",
+          description: result?.message || "Identifiants invalides",
           variant: "destructive",
         });
       }
