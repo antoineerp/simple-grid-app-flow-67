@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { getCurrentUser } from '@/services/auth/authService';
 
@@ -69,6 +70,9 @@ export const SyncProvider: React.FC<SyncProviderProps> = ({ children }) => {
     'collaboration': false,
     'collaboration_groups': false
   });
+  
+  // Track last sync time to prevent excessive syncing
+  const [lastSyncAttemptTime, setLastSyncAttemptTime] = useState<Record<string, number>>({});
 
   // Écouteurs pour les événements de connexion
   useEffect(() => {
@@ -84,10 +88,20 @@ export const SyncProvider: React.FC<SyncProviderProps> = ({ children }) => {
     };
   }, []);
 
-  // Démarrer la synchronisation pour une table
+  // Démarrer la synchronisation pour une table, avec protection contre les boucles
   const startSync = useCallback((tableName: string): void => {
+    const now = Date.now();
+    const lastAttempt = lastSyncAttemptTime[tableName] || 0;
+    
+    // Minimum 5 seconds between sync attempts for the same table
+    if (now - lastAttempt < 5000) {
+      console.log(`Sync throttled for ${tableName}, last attempt ${(now - lastAttempt)/1000}s ago`);
+      return;
+    }
+    
+    setLastSyncAttemptTime(prev => ({ ...prev, [tableName]: now }));
     setIsSyncing(prev => ({ ...prev, [tableName]: true }));
-  }, []);
+  }, [lastSyncAttemptTime]);
 
   // Terminer la synchronisation pour une table
   const endSync = useCallback((tableName: string, error?: string | null): void => {
@@ -110,6 +124,17 @@ export const SyncProvider: React.FC<SyncProviderProps> = ({ children }) => {
       return [];
     }
 
+    // Throttle check - prevent excessive API calls
+    const now = Date.now();
+    const lastAttempt = lastSyncAttemptTime[tableName] || 0;
+    if (now - lastAttempt < 5000) {
+      console.log(`Load throttled for ${tableName}, using cached data`);
+      const localData = localStorage.getItem(`${tableName}_data`);
+      if (localData) {
+        return JSON.parse(localData) as T[];
+      }
+    }
+    
     startSync(tableName);
 
     try {
@@ -160,7 +185,7 @@ export const SyncProvider: React.FC<SyncProviderProps> = ({ children }) => {
       
       throw error;
     }
-  }, [isOnline, startSync, endSync]);
+  }, [isOnline, startSync, endSync, lastSyncAttemptTime]);
 
   // Synchroniser les données avec le serveur
   const syncData = useCallback(async <T,>(tableName: string, data: T[]): Promise<boolean> => {
@@ -170,6 +195,14 @@ export const SyncProvider: React.FC<SyncProviderProps> = ({ children }) => {
     // Si hors ligne, retourner vrai mais ne pas synchroniser avec le serveur
     if (!isOnline) {
       return true;
+    }
+    
+    // Throttle syncing to prevent excessive API calls
+    const now = Date.now();
+    const lastAttempt = lastSyncAttemptTime[tableName] || 0;
+    if (now - lastAttempt < 10000) { // 10 seconds minimum between syncs
+      console.log(`Sync throttled for ${tableName}, last attempt ${(now - lastAttempt)/1000}s ago`);
+      return true; // Return success but don't actually sync
     }
 
     startSync(tableName);
@@ -216,7 +249,7 @@ export const SyncProvider: React.FC<SyncProviderProps> = ({ children }) => {
       endSync(tableName, errorMessage);
       return false;
     }
-  }, [isOnline, startSync, endSync]);
+  }, [isOnline, startSync, endSync, lastSyncAttemptTime]);
 
   // Récupérer la dernière date de synchronisation pour une table
   const getLastSynced = useCallback((tableName: string): Date | null => {
@@ -258,6 +291,29 @@ export const SyncProvider: React.FC<SyncProviderProps> = ({ children }) => {
       }
     }
   }, [isSyncing, syncData, loadData]);
+
+  // Configurer un minuteur pour synchroniser périodiquement toutes les 10 secondes
+  useEffect(() => {
+    // Only sync if online
+    if (!isOnline) return;
+    
+    const syncTimer = setInterval(() => {
+      // Check if any tables need syncing
+      Object.keys(isSyncing).forEach(table => {
+        const localData = localStorage.getItem(`${table}_data`);
+        if (localData) {
+          try {
+            const data = JSON.parse(localData);
+            syncData(table, data).catch(console.error);
+          } catch (error) {
+            console.error(`Erreur lors de la synchronisation périodique de ${table}:`, error);
+          }
+        }
+      });
+    }, 10000); // Sync every 10 seconds
+    
+    return () => clearInterval(syncTimer);
+  }, [isOnline, isSyncing, syncData]);
 
   const value = {
     isOnline,
