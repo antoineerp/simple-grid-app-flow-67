@@ -16,18 +16,28 @@ const LogoSelector: React.FC<LogoSelectorProps> = ({ currentLogo, onLogoChange }
   const [imageError, setImageError] = useState(false);
   const { toast } = useToast();
 
-  // Logo principal FormaCert
-  const mainLogo = "/lovable-uploads/4c7adb52-3da0-4757-acbf-50a1eb1d4bf5.png";
+  // Check if we're in the Lovable environment
+  const isLovableEnvironment = window.location.hostname.includes('lovableproject.com');
   
-  // Logos prédéfinis avec fallbacks
+  // Logo principal FormaCert with environment check
+  const mainLogo = isLovableEnvironment ? 
+    "/public/lovable-uploads/4c7adb52-3da0-4757-acbf-50a1eb1d4bf5.png" : 
+    "/lovable-uploads/4c7adb52-3da0-4757-acbf-50a1eb1d4bf5.png";
+  
+  // Logos prédéfinis with environment check
   const predefinedLogos = [
     mainLogo,
-    "/lovable-uploads/4425c340-2ce3-416b-abc9-b75906ca8705.png",
-    "/lovable-uploads/aba57440-1db2-49ba-8273-c60d6a77b6ee.png",
+    isLovableEnvironment ? "/public/lovable-uploads/4425c340-2ce3-416b-abc9-b75906ca8705.png" : "/lovable-uploads/4425c340-2ce3-416b-abc9-b75906ca8705.png",
+    isLovableEnvironment ? "/public/lovable-uploads/aba57440-1db2-49ba-8273-c60d6a77b6ee.png" : "/lovable-uploads/aba57440-1db2-49ba-8273-c60d6a77b6ee.png",
   ];
 
   // Fallback logo
   const fallbackLogo = mainLogo;
+
+  // Adjust currentLogo path if needed
+  const adjustedCurrentLogo = imageError ? fallbackLogo : 
+    (isLovableEnvironment && !currentLogo.includes('/public/') ? 
+     `/public${currentLogo}` : currentLogo);
 
   const handleLogoSelect = (logo: string) => {
     setSelectedLogo(logo);
@@ -54,7 +64,7 @@ const LogoSelector: React.FC<LogoSelectorProps> = ({ currentLogo, onLogoChange }
       <DialogTrigger asChild>
         <button className="hover:opacity-80 focus:outline-none">
           <img 
-            src={imageError ? fallbackLogo : currentLogo}
+            src={adjustedCurrentLogo}
             alt="Logo" 
             className="h-10"
             onError={handleImageError}

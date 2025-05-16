@@ -24,7 +24,14 @@ import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 const Header = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const [logo, setLogo] = useState("/lovable-uploads/4c7adb52-3da0-4757-acbf-50a1eb1d4bf5.png");
+  
+  // Check if we're in the Lovable environment to adjust paths
+  const isLovableEnvironment = window.location.hostname.includes('lovableproject.com');
+  const defaultLogoPath = isLovableEnvironment ? 
+    "/public/lovable-uploads/4c7adb52-3da0-4757-acbf-50a1eb1d4bf5.png" : 
+    "/lovable-uploads/4c7adb52-3da0-4757-acbf-50a1eb1d4bf5.png";
+    
+  const [logo, setLogo] = useState(defaultLogoPath);
   const [currentDatabaseUser, setCurrentDatabaseUser] = useState<string | null>(getDatabaseUser());
   const { isOnline } = useNetworkStatus();
   
@@ -43,6 +50,12 @@ const Header = () => {
         setCurrentDatabaseUser(dbUser);
       }
     };
+    
+    // Load logo from local storage if available
+    const savedLogo = localStorage.getItem('selectedLogo');
+    if (savedLogo) {
+      setLogo(savedLogo);
+    }
     
     const interval = setInterval(checkDatabaseUser, 2000);
     
@@ -75,6 +88,7 @@ const Header = () => {
 
   const handleLogoChange = (newLogo: string) => {
     setLogo(newLogo);
+    localStorage.setItem('selectedLogo', newLogo);
   };
 
   const canAccessAdminPanel = hasPermission(userRole, 'accessAdminPanel');

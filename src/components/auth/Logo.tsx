@@ -4,13 +4,18 @@ import React, { useState } from 'react';
 const Logo = () => {
   const [imageError, setImageError] = useState(false);
   const logoPath = "/lovable-uploads/4c7adb52-3da0-4757-acbf-50a1eb1d4bf5.png";
+  // Fallback to text if image fails to load
   const fallbackText = "FormaCert";
+
+  // Check if we're in the Lovable environment
+  const isLovableEnvironment = window.location.hostname.includes('lovableproject.com');
+  const adjustedLogoPath = isLovableEnvironment ? `public${logoPath}` : logoPath;
 
   return (
     <div className="flex flex-col items-center justify-center mb-8">
       {!imageError ? (
         <img 
-          src={logoPath}
+          src={adjustedLogoPath}
           alt="Formacert Logo" 
           className="h-24 mb-4"
           onError={() => {

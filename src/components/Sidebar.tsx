@@ -6,10 +6,22 @@ import { hasPermission } from '@/types/roles';
 import { getCurrentUser } from '@/services/auth/authService';
 
 const Sidebar = () => {
-  const sidebarImageUrl = localStorage.getItem('sidebarImageUrl') || '/lovable-uploads/swiss-army-knife-logo.png';
+  // Check if we're in the Lovable environment
+  const isLovableEnvironment = window.location.hostname.includes('lovableproject.com');
+  const defaultImagePath = isLovableEnvironment ? 
+    "/public/lovable-uploads/swiss-army-knife-logo.png" : 
+    "/lovable-uploads/swiss-army-knife-logo.png";
+    
+  const sidebarImageUrl = localStorage.getItem('sidebarImageUrl') || defaultImagePath;
   const sidebarLinkUrl = localStorage.getItem('sidebarLinkUrl') || '';
   const user = getCurrentUser();
   const userRole = (user?.role || 'utilisateur');
+
+  // Handle image error
+  const handleImageError = (e: React.SyntheticEvent<HTMLImageElement>) => {
+    console.log("Sidebar image failed to load:", sidebarImageUrl);
+    e.currentTarget.src = defaultImagePath;
+  };
 
   return (
     <aside className="w-64 bg-gray-50 border-r min-h-screen">
@@ -30,6 +42,7 @@ const Sidebar = () => {
                 src={sidebarImageUrl}
                 alt="Logo personnalisé"
                 className="w-24 h-auto opacity-90 transition-all duration-200"
+                onError={handleImageError}
               />
             </a>
           ) : (
@@ -37,6 +50,7 @@ const Sidebar = () => {
               src={sidebarImageUrl}
               alt="Logo personnalisé"
               className="w-24 h-auto opacity-90 transition-all duration-200"
+              onError={handleImageError}
             />
           )}
         </div>

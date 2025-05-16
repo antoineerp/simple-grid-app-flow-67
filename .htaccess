@@ -41,6 +41,10 @@ AddType image/svg+xml .svg
 RewriteCond %{REQUEST_URI} ^/lovable-uploads/
 RewriteRule ^lovable-uploads/(.*)$ public/lovable-uploads/$1 [L]
 
+# Pour Lovable environment
+RewriteCond %{REQUEST_URI} ^/public/lovable-uploads/
+RewriteRule ^public/lovable-uploads/(.*)$ public/lovable-uploads/$1 [L]
+
 # TRÈS IMPORTANT: Règles spécifiques pour les fichiers PHP de l'API
 # La règle générale doit être placée APRÈS les règles spécifiques
 
