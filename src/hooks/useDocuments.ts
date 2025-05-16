@@ -161,7 +161,7 @@ export const useDocuments = () => {
     const updatedDocs = documents.map(doc => {
       if (doc.id === id) {
         // Utiliser etat='EX' pour marquer l'exclusion au lieu de isExcluded
-        const newEtat = doc.etat === 'EX' ? null : 'EX';
+        const newEtat = doc.etat === 'EX' ? null : 'EX' as const;
         return { ...doc, etat: newEtat };
       }
       return doc;
