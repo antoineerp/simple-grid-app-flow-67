@@ -4,7 +4,7 @@ import DocumentTable from '@/components/documents/DocumentTable';
 import { useDocuments } from '@/hooks/useDocuments';
 import { getDatabaseConnectionCurrentUser } from '@/services/core/databaseConnectionService';
 import { Button } from '@/components/ui/button';
-import { Plus, FileText, RefreshCw, FolderPlus } from 'lucide-react';
+import { Plus, FolderPlus } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Document } from '@/types/documents';
 
@@ -66,24 +66,10 @@ const GestionDocumentaire = () => {
     };
   }, []);
 
-  const handleRefresh = () => {
-    forceReload();
-  };
-
   return (
     <div className="container mx-auto py-6 px-4">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold">Gestion Documentaire</h1>
-        {/* Bouton de synchronisation masqué mais fonctionnel */}
-        <Button
-          onClick={handleRefresh}
-          variant="outline"
-          size="sm"
-          className="ml-2 hidden"
-        >
-          <RefreshCw className={`h-4 w-4 mr-1 ${isSyncing ? 'animate-spin' : ''}`} />
-          Actualiser
-        </Button>
       </div>
       
       <DocumentTable 

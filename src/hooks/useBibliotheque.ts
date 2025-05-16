@@ -74,7 +74,8 @@ export function useBibliotheque() {
         // Essayer d'utiliser le contexte de synchronisation si disponible
         let data = [];
         if (syncContext && typeof syncContext.loadData === 'function') {
-          data = await syncContext.loadData<BibliothequeItem>('bibliotheque');
+          // Fix for the TypeScript error - remove type argument
+          data = await syncContext.loadData('bibliotheque');
         } else {
           // Fallback - essayer de charger depuis localStorage
           try {
