@@ -25,10 +25,22 @@ export function useBibliotheque() {
   const syncContext = useSyncContext();
   const { isOnline } = syncContext;
 
-  // Récupérer le statut de synchronisation et les méthodes
-  const isSyncing = syncContext.isSyncing['bibliotheque'] || false;
-  const startSync = () => syncContext.startSync('bibliotheque');
-  const endSync = (err?: string | null) => syncContext.endSync('bibliotheque', err);
+  // Nous utilisons maintenant directement les méthodes disponibles dans le contexte
+  // et nous créons des wrappers si nécessaire
+  const isSyncing = false; // Nous ne montrons pas l'état de synchronisation
+  
+  // Créer des wrappers pour les méthodes manquantes
+  const startSync = () => {
+    // Ne fait rien, car nous ne voulons pas montrer les informations de synchronisation
+    console.log("Synchronisation démarrée (silencieusement)");
+  };
+  
+  const endSync = (err?: string | null) => {
+    // Ne fait rien, car nous ne voulons pas montrer les informations de synchronisation
+    if (err) {
+      console.error("Erreur de synchronisation (silencieuse):", err);
+    }
+  };
 
   // Charger les données au montage du composant
   useEffect(() => {

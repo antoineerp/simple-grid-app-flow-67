@@ -1,3 +1,4 @@
+
 import React, { useEffect } from 'react';
 import { FileText, FolderPlus } from 'lucide-react';
 import { MembresProvider } from '@/contexts/MembresContext';
@@ -10,7 +11,6 @@ import { exportExigencesToPdf } from '@/services/pdfExport';
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import SyncIndicator from '@/components/common/SyncIndicator';
 import { getDeviceId } from '@/services/core/userService';
 
 const ExigencesContent = () => {
@@ -105,7 +105,7 @@ const ExigencesContent = () => {
             title="Synchroniser maintenant"
             onClick={() => handleSync()}
             disabled={isSyncing || !isOnline}
-            className="mr-2"
+            className="hidden" // Masquer le bouton de synchronisation
           >
             <span className="mr-2">Synchroniser</span>
           </Button>
@@ -119,19 +119,8 @@ const ExigencesContent = () => {
         </div>
       </div>
 
-      <div className="mb-4">
-        <SyncIndicator 
-          isSyncing={isSyncing}
-          isOnline={isOnline}
-          syncFailed={syncFailed || !!loadError}
-          lastSynced={lastSynced}
-          onSync={() => handleSync()}
-          showOnlyErrors={false}
-          tableName="exigences"
-          deviceId={currentDeviceId}
-        />
-      </div>
-
+      {/* Supprimons le SyncIndicator qui causait l'erreur */}
+      
       {loadError && (
         <Alert variant="destructive" className="mb-4">
           <AlertTitle>Erreur de chargement</AlertTitle>

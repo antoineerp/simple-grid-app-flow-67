@@ -1,8 +1,8 @@
 
 import React from 'react';
 
-// Hidden data sync status as requested
-const DataSyncStatus = () => {
+// Composant invisible pour respecter la demande de masquer les informations de synchronisation
+const DataSyncStatus: React.FC<any> = () => {
   return null;
 };
 

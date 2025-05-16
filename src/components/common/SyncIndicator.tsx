@@ -2,7 +2,8 @@
 import React from 'react';
 
 // Composant invisible pour les indicateurs de synchronisation
-const SyncIndicator = () => {
+// Accepte toutes les props mais ne les utilise pas et ne rend rien
+const SyncIndicator: React.FC<any> = () => {
   return null;
 };
 

@@ -2,7 +2,7 @@
 import React from 'react';
 
 // Composant complètement invisible, accepte toutes les props mais ne les utilise pas
-const SyncIndicator: React.FC<React.ComponentProps<any>> = () => {
+const SyncIndicator: React.FC<any> = () => {
   return null;
 };
 
