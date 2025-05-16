@@ -68,12 +68,13 @@ export const useDocuments = () => {
           a: doc.responsabilites?.a || [],
           c: doc.responsabilites?.c || [],
           i: doc.responsabilites?.i || []
-        }
-      }));
+        },
+        // Ensure etat is one of the allowed values
+        etat: doc.etat as 'NC' | 'PC' | 'C' | 'EX' | null
+      })) as Document[];
       
-      // Cast is needed to satisfy TypeScript since we know our data structure matches Document
-      await syncDocuments(validatedDocs as Document[], newGroups);
-      setDocuments(validatedDocs as Document[]);
+      await syncDocuments(validatedDocs, newGroups);
+      setDocuments(validatedDocs);
       setGroups(newGroups);
       return true;
     } catch (error) {
