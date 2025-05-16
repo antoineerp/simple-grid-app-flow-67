@@ -151,7 +151,7 @@ export const useDocuments = () => {
   
   const handleAtteinteChange = useCallback((id: string, atteinte: 'NC' | 'PC' | 'C' | null) => {
     const updatedDocs = documents.map(doc => 
-      doc.id === id ? { ...doc, atteinte } : doc
+      doc.id === id ? { ...doc, etat: atteinte } : doc
     );
     
     saveData(updatedDocs, groups);
@@ -160,7 +160,7 @@ export const useDocuments = () => {
   const handleExclusionChange = useCallback((id: string) => {
     const updatedDocs = documents.map(doc => {
       if (doc.id === id) {
-        return { ...doc, isExcluded: !doc.isExcluded };
+        return { ...doc, excluded: !doc.excluded };
       }
       return doc;
     });
@@ -170,19 +170,24 @@ export const useDocuments = () => {
   
   // Ajout de documents et groupes
   const handleAddDocument = useCallback(() => {
+    const currentUser = getCurrentUser();
+    const userId = currentUser?.identifiant_technique || 'system';
+    
     const newDocument: Document = {
       id: uuidv4(),
-      name: 'Nouveau document',
-      type: 'procedure',
-      code: '',
-      atteinte: null,
-      isExcluded: false,
+      nom: 'Nouveau document',
+      fichier_path: null,
+      etat: null,
+      excluded: false,
       responsabilites: {
         r: [],
         a: [],
         c: [],
         i: []
-      }
+      },
+      date_creation: new Date(),
+      date_modification: new Date(),
+      userId
     };
     
     const newDocs = [...documents, newDocument];
@@ -193,10 +198,15 @@ export const useDocuments = () => {
   }, [documents, groups, saveData, toast]);
   
   const handleAddGroup = useCallback(() => {
+    const currentUser = getCurrentUser();
+    const userId = currentUser?.identifiant_technique || 'system';
+    
     const newGroup: DocumentGroup = {
       id: uuidv4(),
       name: 'Nouveau groupe',
-      expanded: true
+      expanded: true,
+      items: [],
+      userId
     };
     
     const newGroups = [...groups, newGroup];
