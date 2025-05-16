@@ -132,6 +132,50 @@ export const useDocuments = () => {
     }
   };
 
+  // Handle adding a new document
+  const handleAddDocument = useCallback(() => {
+    const newDoc: Document = {
+      id: uuidv4(),
+      title: "Nouveau document",
+      description: "",
+      date: new Date().toISOString().split('T')[0],
+      responsabilite: [],
+      atteinte: 0,
+      exclusion: false,
+      userId: getCurrentUserId() || ''
+    };
+    
+    setDocuments(prev => [...prev, newDoc]);
+    setSelectedDocument(newDoc);
+    
+    toast({
+      title: "Document créé",
+      description: "Un nouveau document a été créé"
+    });
+    
+    return newDoc;
+  }, [toast]);
+
+  // Handle adding a new group
+  const handleAddGroup = useCallback(() => {
+    const newGroup: DocumentGroup = {
+      id: uuidv4(),
+      name: "Nouveau groupe",
+      expanded: true,
+      items: [],
+      userId: getCurrentUserId() || ''
+    };
+    
+    setGroups(prev => [...prev, newGroup]);
+    
+    toast({
+      title: "Groupe créé",
+      description: "Un nouveau groupe a été créé"
+    });
+    
+    return newGroup;
+  }, [toast]);
+
   return {
     documents,
     groups,
@@ -151,6 +195,8 @@ export const useDocuments = () => {
     handleSaveGroup,
     handleDeleteGroup,
     handleEditGroup,
+    handleAddDocument,
+    handleAddGroup,
     forceReload,
     isSyncing
   };
