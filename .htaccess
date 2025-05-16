@@ -36,16 +36,16 @@ RewriteRule ^lovable-uploads/(.*)$ public/lovable-uploads/$1 [L]
 # TRÈS IMPORTANT: Règles spécifiques pour les fichiers PHP de l'API
 # La règle générale doit être placée APRÈS les règles spécifiques
 
+# Blocage d'accès à login-test.php pour raisons de sécurité
+RewriteRule ^api/login-test(\.php)?/?$ - [F,L]
+
 # Règles directes pour les fichiers PHP spécifiques dans le dossier api
 RewriteRule ^api/check-users/?$ api/check-users.php [L]
 RewriteRule ^api/users/?$ api/users.php [L]
-RewriteRule ^api/login/?$ api/login.php [L]
-
-# Désactiver l'accès direct à login-test.php pour raisons de sécurité
-RewriteRule ^api/login-test(\.php)?/?$ - [F,L]
+RewriteRule ^api/login/?$ api/auth.php [L]
 
 # Règles pour les autres scripts d'API spécifiques
-RewriteRule ^api/global-sync/?$ api/global-sync.php [L]
+RewriteRule ^api/global-sync/?$ api/sync-devices.php [L]
 RewriteRule ^api/global-load/?$ api/global-load.php [L]
 RewriteRule ^api/error-log/?$ api/error-log.php [L]
 RewriteRule ^api/auth/?$ api/auth.php [L]

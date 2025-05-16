@@ -7,7 +7,7 @@
 const syncService = {
   syncTable: async (tableName: string, data?: any[]): Promise<{success: boolean}> => {
     console.log(`Simulation de synchronisation de la table ${tableName}`, data);
-    // Simuler un délai réseau
+    // Simuler un délai réseau et succès
     await new Promise(resolve => setTimeout(resolve, 500));
     return { success: true };
   },
@@ -23,7 +23,8 @@ export const syncTable = async (tableName: string, data: any[] = []): Promise<bo
   console.log(`Synchronisation de la table ${tableName} avec ${data.length} enregistrements`);
   
   try {
-    // Si des données sont fournies, nous les synchronisons
+    // Mode hors ligne - simulation locale au lieu d'appels API qui échouent
+    console.log("Mode hors ligne activé - Simulation de synchronisation");
     const result = await syncService.syncTable(tableName, data);
     return result.success;
   } catch (error) {
@@ -34,6 +35,8 @@ export const syncTable = async (tableName: string, data: any[] = []): Promise<bo
 
 export const fetchSyncedData = async <T>(tableName: string): Promise<T[] | null> => {
   try {
+    // Mode hors ligne - simulation locale au lieu d'appels API qui échouent
+    console.log("Mode hors ligne activé - Simulation de chargement de données");
     return await syncService.fetchData<T>(tableName);
   } catch (error) {
     console.error(`Erreur lors du chargement des données synchronisées pour ${tableName}:`, error);
@@ -42,6 +45,6 @@ export const fetchSyncedData = async <T>(tableName: string): Promise<T[] | null>
 };
 
 export const initSync = () => {
-  console.log("Initialisation des services de synchronisation");
+  console.log("Initialisation des services de synchronisation en mode hors ligne");
   // Code d'initialisation ici
 };

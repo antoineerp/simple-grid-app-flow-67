@@ -37,13 +37,20 @@ export const buildApiUrl = (endpoint: string): string => {
  */
 export const fetchWithErrorHandling = async (url: string, options: RequestInit = {}): Promise<any> => {
   try {
+    // Ajouter un timeout de 10 secondes pour éviter les attentes infinies
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
+    
     const response = await fetch(url, {
       ...options,
       headers: {
         'Content-Type': 'application/json',
         ...(options.headers || {})
-      }
+      },
+      signal: controller.signal
     });
+    
+    clearTimeout(timeoutId);
     
     if (!response.ok) {
       throw new Error(`Erreur HTTP: ${response.status}`);
@@ -77,7 +84,7 @@ export const testApiConnection = async () => {
 };
 
 // Délai maximal pour les requêtes API (en ms)
-export const API_TIMEOUT = 15000;
+export const API_TIMEOUT = 10000;
 
 // Statut de l'API (pour les tests)
 export const API_STATUS = {

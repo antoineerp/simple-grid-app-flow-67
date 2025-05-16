@@ -63,6 +63,7 @@ export const getAuthToken = (): string | null => {
  */
 export const login = async (username: string, password: string): Promise<AuthResponse> => {
   try {
+    // Utiliser auth.php au lieu de login-test.php
     const response = await fetch(`${getApiUrl()}/auth.php`, {
       method: 'POST',
       headers: {
