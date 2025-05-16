@@ -1,9 +1,11 @@
 
 import React from 'react';
 import { Membre } from '@/types/membres';
-import MemberList from '@/components/ressources-humaines/MemberList';
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Edit, Trash2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import DataTable, { Column } from '@/components/common/DataTable';
 
 interface MembresTableProps {
   membres: Membre[];
@@ -27,6 +29,49 @@ export const MembresTable: React.FC<MembresTableProps> = ({ membres, isLoading, 
     }
   };
 
+  const columns: Column<Membre>[] = [
+    {
+      key: 'nom',
+      header: 'Nom',
+      cell: (membre) => membre.nom
+    },
+    {
+      key: 'prenom',
+      header: 'Prénom',
+      cell: (membre) => membre.prenom
+    },
+    {
+      key: 'email',
+      header: 'Email',
+      cell: (membre) => membre.email
+    },
+    {
+      key: 'departement',
+      header: 'Département',
+      cell: (membre) => membre.departement || '-'
+    },
+    {
+      key: 'fonction',
+      header: 'Fonction',
+      cell: (membre) => membre.fonction || '-'
+    },
+    {
+      key: 'actions',
+      header: 'Actions',
+      className: 'text-right',
+      cell: (membre) => (
+        <div className="flex justify-end space-x-2">
+          <Button variant="ghost" size="sm" onClick={() => handleEdit(membre.id)}>
+            <Edit className="h-4 w-4" />
+          </Button>
+          <Button variant="ghost" size="sm" onClick={() => handleDelete(membre.id)}>
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </div>
+      )
+    }
+  ];
+
   if (isLoading) {
     return (
       <Card>
@@ -43,17 +88,16 @@ export const MembresTable: React.FC<MembresTableProps> = ({ membres, isLoading, 
 
   return (
     <CardContent className="p-0">
-      {membres.length > 0 ? (
-        <MemberList 
-          membres={membres} 
-          onEdit={handleEdit} 
-          onDelete={handleDelete} 
-        />
-      ) : (
-        <div className="text-center p-8">
-          <p className="text-muted-foreground">Aucun membre trouvé</p>
-        </div>
-      )}
+      <DataTable
+        data={membres}
+        columns={columns}
+        isLoading={isLoading}
+        emptyState={
+          <div className="text-center p-8">
+            <p className="text-muted-foreground">Aucun membre trouvé</p>
+          </div>
+        }
+      />
     </CardContent>
   );
 };

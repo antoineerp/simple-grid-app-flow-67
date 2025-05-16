@@ -1,11 +1,11 @@
 
 import React from 'react';
-import { Table, TableBody } from "@/components/ui/table";
-import { Document } from '@/types/documents';
-import type { DocumentGroup as DocumentGroupType } from '@/types/documents';
+import { Document, DocumentGroup as DocumentGroupType } from '@/types/documents';
 import DocumentTableHeader from '@/components/gestion-documentaire/table/TableHeader';
-import DocumentRow from '@/components/gestion-documentaire/table/DocumentRow';
 import DocumentGroupComponent from '@/components/gestion-documentaire/table/DocumentGroup';
+import DataTable from '@/components/common/DataTable';
+import { TableBody } from "@/components/ui/table";
+import DocumentRow from '@/components/gestion-documentaire/table/DocumentRow';
 import { useDragAndDrop } from '@/components/gestion-documentaire/table/useDragAndDrop';
 
 interface DocumentTableProps {
@@ -67,55 +67,59 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
     e.currentTarget.classList.add('opacity-50');
   };
 
+  // Utilisation du composant DataTable avec un rendu personnalisé
   return (
-    <div className="bg-white rounded-md shadow overflow-hidden">
-      <Table>
-        <DocumentTableHeader />
-        
-        <TableBody>
-          {groupsWithItems.map((group) => (
-            <DocumentGroupComponent
-              key={group.id}
-              group={group}
-              onResponsabiliteChange={onResponsabiliteChange}
-              onAtteinteChange={onAtteinteChange}
-              onExclusionChange={onExclusionChange}
-              onEdit={onEdit}
-              onDelete={onDelete}
-              onToggleGroup={onToggleGroup}
-              onEditGroup={onEditGroup}
-              onDeleteGroup={onDeleteGroup}
-              onDragStart={handleDragStart}
-              onDragOver={handleDragOver}
-              onDragLeave={handleDragLeave}
-              onDrop={handleDrop}
-              onDragEnd={handleDragEnd}
-              onGroupDragStart={handleGroupDragStart}
-              onGroupDrop={handleGroupDrop}
-            />
-          ))}
-        </TableBody>
-        
-        <TableBody>
-          {ungroupedDocuments.map((doc) => (
-            <DocumentRow
-              key={doc.id}
-              doc={doc}
-              onResponsabiliteChange={onResponsabiliteChange}
-              onAtteinteChange={onAtteinteChange}
-              onExclusionChange={onExclusionChange}
-              onEdit={onEdit}
-              onDelete={onDelete}
-              onDragStart={handleDragStart}
-              onDragOver={handleDragOver}
-              onDragLeave={handleDragLeave}
-              onDrop={handleDrop}
-              onDragEnd={handleDragEnd}
-            />
-          ))}
-        </TableBody>
-      </Table>
-    </div>
+    <DataTable
+      data={[]} // Les données sont gérées différemment ici
+      columns={[]} // Les colonnes sont définies dans DocumentTableHeader
+      renderHeader={() => <DocumentTableHeader />}
+      renderCustomBody={() => (
+        <>
+          <TableBody>
+            {groupsWithItems.map((group) => (
+              <DocumentGroupComponent
+                key={group.id}
+                group={group}
+                onResponsabiliteChange={onResponsabiliteChange}
+                onAtteinteChange={onAtteinteChange}
+                onExclusionChange={onExclusionChange}
+                onEdit={onEdit}
+                onDelete={onDelete}
+                onToggleGroup={onToggleGroup}
+                onEditGroup={onEditGroup}
+                onDeleteGroup={onDeleteGroup}
+                onDragStart={handleDragStart}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+                onDragEnd={handleDragEnd}
+                onGroupDragStart={handleGroupDragStart}
+                onGroupDrop={handleGroupDrop}
+              />
+            ))}
+          </TableBody>
+          
+          <TableBody>
+            {ungroupedDocuments.map((doc) => (
+              <DocumentRow
+                key={doc.id}
+                doc={doc}
+                onResponsabiliteChange={onResponsabiliteChange}
+                onAtteinteChange={onAtteinteChange}
+                onExclusionChange={onExclusionChange}
+                onEdit={onEdit}
+                onDelete={onDelete}
+                onDragStart={handleDragStart}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+                onDragEnd={handleDragEnd}
+              />
+            ))}
+          </TableBody>
+        </>
+      )}
+    />
   );
 };
 

@@ -1,15 +1,11 @@
 
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import DocumentTable from '@/components/documents/DocumentTable';
 import { useDocuments } from '@/hooks/useDocuments';
 import { Button } from '@/components/ui/button';
 import { Plus, FolderPlus } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
 
 const GestionDocumentaire = () => {
-  const { toast } = useToast();
-  
-  // Initialize with empty arrays to prevent null reference errors
   const { 
     documents = [], 
     groups = [], 
@@ -25,22 +21,7 @@ const GestionDocumentaire = () => {
     handleAddDocument, 
     handleAddGroup,
     handleGroupReorder
-  } = useDocuments() || {
-    documents: [],
-    groups: [],
-    handleEdit: () => {},
-    handleDelete: () => {},
-    handleReorder: () => {},
-    handleToggleGroup: () => {},
-    handleEditGroup: () => {},
-    handleDeleteGroup: () => {},
-    handleResponsabiliteChange: () => {},
-    handleAtteinteChange: () => {},
-    handleExclusionChange: () => {},
-    handleAddDocument: () => {},
-    handleAddGroup: () => {},
-    handleGroupReorder: () => {},
-  };
+  } = useDocuments();
 
   return (
     <div className="container mx-auto py-6 px-4">
@@ -49,8 +30,8 @@ const GestionDocumentaire = () => {
       </div>
       
       <DocumentTable 
-        documents={documents || []}
-        groups={groups || []}
+        documents={documents}
+        groups={groups}
         onResponsabiliteChange={handleResponsabiliteChange}
         onAtteinteChange={handleAtteinteChange}
         onExclusionChange={handleExclusionChange}
