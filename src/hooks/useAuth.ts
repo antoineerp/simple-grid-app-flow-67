@@ -8,7 +8,7 @@ export const useAuth = () => {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const loadUser = () => {
+    const loadUser = async () => {
       try {
         const currentUser = getCurrentUser();
         setUser(currentUser);
@@ -26,9 +26,16 @@ export const useAuth = () => {
             localStorage.removeItem('isAdministrator');
           }
         }
+
+        // Stocker également l'identifiant utilisateur pour garantir l'isolation des données
+        if (currentUser?.id) {
+          localStorage.setItem('currentUserId', currentUser.id);
+          console.log(`Utilisateur identifié: ${currentUser.id} (${currentUser?.prenom} ${currentUser?.nom})`);
+        }
       } catch (error) {
         console.error("Error loading user:", error);
         setUser(null); // S'assurer que l'utilisateur est null en cas d'erreur
+        localStorage.removeItem('currentUserId');
       } finally {
         setIsLoading(false);
       }
@@ -43,7 +50,7 @@ export const useAuth = () => {
   };
 
   const getUserId = (): string | undefined => {
-    return user?.id;
+    return user?.id || localStorage.getItem('currentUserId') || undefined;
   };
 
   const getRole = (): string | undefined => {
@@ -63,6 +70,7 @@ export const useAuth = () => {
     // This will be implemented through the authService
     localStorage.removeItem('userRole');
     localStorage.removeItem('isAdministrator');
+    localStorage.removeItem('currentUserId');
     window.location.href = '/';
   };
 

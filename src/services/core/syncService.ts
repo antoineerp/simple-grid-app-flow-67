@@ -76,14 +76,20 @@ class GlobalSyncService {
 
   // Charger les données depuis le serveur
   public async loadDataFromServer<T>(tableName: string, userId?: string): Promise<T[]> {
-    const currentUser = userId || getCurrentUserId();
+    const currentUser = userId || getCurrentUserId() || localStorage.getItem('currentUserId');
     const deviceId = getDeviceId();
     const API_URL = getApiUrl();
     
     if (!API_URL) {
       throw new Error("URL de l'API non configurée");
     }
+
+    if (!currentUser) {
+      console.error("Aucun utilisateur identifié pour la synchronisation");
+      throw new Error("Utilisateur non identifié");
+    }
     
+    console.log(`Chargement des données ${tableName} pour l'utilisateur: ${currentUser}`);
     this.markSyncStart(tableName);
     
     try {
@@ -93,6 +99,7 @@ class GlobalSyncService {
           ...getAuthHeaders(),
           'Accept': 'application/json',
           'X-Device-ID': deviceId,
+          'X-User-ID': currentUser,
           'Cache-Control': 'no-cache'
         }
       });
@@ -126,14 +133,20 @@ class GlobalSyncService {
 
   // Envoyer des données au serveur
   public async sendDataToServer<T>(tableName: string, data: T[], userId?: string): Promise<boolean> {
-    const currentUser = userId || getCurrentUserId();
+    const currentUser = userId || getCurrentUserId() || localStorage.getItem('currentUserId');
     const deviceId = getDeviceId();
     const API_URL = getApiUrl();
     
     if (!API_URL) {
       throw new Error("URL de l'API non configurée");
     }
+
+    if (!currentUser) {
+      console.error("Aucun utilisateur identifié pour la synchronisation");
+      throw new Error("Utilisateur non identifié");
+    }
     
+    console.log(`Envoi de données ${tableName} pour l'utilisateur: ${currentUser} (${data.length} éléments)`);
     this.markSyncStart(tableName);
     
     try {
@@ -142,7 +155,8 @@ class GlobalSyncService {
         headers: {
           ...getAuthHeaders(),
           'Content-Type': 'application/json',
-          'X-Device-ID': deviceId
+          'X-Device-ID': deviceId,
+          'X-User-ID': currentUser
         },
         body: JSON.stringify({
           userId: currentUser,
@@ -162,6 +176,7 @@ class GlobalSyncService {
       }
       
       this.markSyncEnd(tableName);
+      console.log(`Données ${tableName} synchronisées avec succès pour l'utilisateur ${currentUser}`);
       return true;
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : 'Erreur inconnue';

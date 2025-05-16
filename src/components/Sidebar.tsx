@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom';
 import SidebarNavItem from './sidebar/SidebarNavItem';
 import { navigationItems } from './sidebar/sidebarConfig';
 import { hasPermission } from '@/types/roles';
-import { getCurrentUser } from '@/services/auth/authService';
+import { useAuth } from '@/hooks/useAuth';
 import { Settings } from 'lucide-react';
 
 const Sidebar = () => {
@@ -12,16 +12,8 @@ const Sidebar = () => {
   const [sidebarLinkUrl, setSidebarLinkUrl] = useState('');
   const [imageError, setImageError] = useState(false);
   
-  // Obtenir les informations utilisateur depuis le token JWT
-  const user = getCurrentUser();
-  // Utiliser le rôle stocké dans localStorage ou celui de l'utilisateur courant
-  const userRole = (user?.role || localStorage.getItem('userRole') || 'utilisateur') as any;
-  console.log("Sidebar: rôle utilisateur détecté:", userRole);
-  
-  // Vérifier explicitement les rôles admin et administrateur pour l'accès au panneau d'administration
-  const isAdmin = userRole === 'admin' || userRole === 'administrateur' || 
-                  hasPermission(userRole, 'accessAdminPanel');
-  console.log("Sidebar: permission d'accès à l'administration:", isAdmin);
+  // Utiliser le hook d'authentification pour obtenir les informations de l'utilisateur
+  const { isAdmin } = useAuth();
   
   useEffect(() => {
     try {
@@ -73,6 +65,8 @@ const Sidebar = () => {
     setSidebarImageUrl(fallbackImages[0]);
   };
 
+  console.log("Sidebar: État admin:", isAdmin());
+
   return (
     <aside className="w-64 bg-gray-50 border-r min-h-screen">
       <nav className="flex flex-col p-4">
@@ -86,7 +80,7 @@ const Sidebar = () => {
         ))}
         
         {/* Ajout du bouton d'administration si l'utilisateur a les droits */}
-        {isAdmin && (
+        {isAdmin() && (
           <div className="mt-4 pt-4 border-t border-gray-200">
             <SidebarNavItem
               to="/administration"
