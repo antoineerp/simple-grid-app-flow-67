@@ -3,12 +3,12 @@
 
 export interface Document {
   id: string;
-  nom: string;
-  lien: string | null;
-  dateAjout: Date;
-  dateModification: Date;
+  name: string; // Changed from nom to name for consistency
+  link?: string | null; // Changed from lien to link for consistency
+  dateAjout?: Date;
+  dateModification?: Date;
   groupId?: string;
-  userId?: string;
+  userId: string;
 }
 
 export interface DocumentGroup {
@@ -16,4 +16,5 @@ export interface DocumentGroup {
   name: string;
   expanded: boolean;
   items: Document[]; // Propriété requise pour tous les groupes
+  userId: string;
 }
