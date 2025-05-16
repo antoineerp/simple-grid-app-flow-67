@@ -20,7 +20,8 @@ function findHashedFiles($directory = './assets') {
         $filename = basename($file);
         // Détection de hachage par présence d'un pattern comme 'XXXX.js' ou '.XXXX.js'
         if (preg_match('/\.[A-Za-z0-9]{8,}\.js$/', $filename) || 
-            preg_match('/[A-Za-z0-9]{8,}\.js$/', $filename)) {
+            preg_match('/[A-Za-z0-9]{8,}\.js$/', $filename) ||
+            strpos($filename, 'main-') === 0) {
             $result['js'][] = $filename;
         }
     }
@@ -30,17 +31,14 @@ function findHashedFiles($directory = './assets') {
     foreach ($css_files as $file) {
         $filename = basename($file);
         if (preg_match('/\.[A-Za-z0-9]{8,}\.css$/', $filename) || 
-            preg_match('/[A-Za-z0-9]{8,}\.css$/', $filename)) {
+            preg_match('/[A-Za-z0-9]{8,}\.css$/', $filename) ||
+            strpos($filename, 'main-') === 0 ||
+            $filename === 'main.12345678.css') {
             $result['css'][] = $filename;
         }
     }
     
     return $result;
-}
-
-// Fonction pour vérifier si un fichier est référencé dans index.html
-function isFileReferenced($content, $filename) {
-    return strpos($content, $filename) !== false;
 }
 
 // Fonction pour trouver le fichier principal (main ou index)
@@ -50,7 +48,7 @@ function findMainFiles($hashedFiles) {
     
     // Chercher le fichier JavaScript principal
     foreach ($hashedFiles['js'] as $file) {
-        if (strpos($file, 'main.') === 0) {
+        if (strpos($file, 'main.') === 0 || strpos($file, 'main-') === 0) {
             $main_js = $file;
             break;
         } else if (strpos($file, 'index.') === 0) {
@@ -60,12 +58,21 @@ function findMainFiles($hashedFiles) {
     
     // Chercher le fichier CSS principal
     foreach ($hashedFiles['css'] as $file) {
-        if (strpos($file, 'main.') === 0) {
+        if (strpos($file, 'main.') === 0 || strpos($file, 'main-') === 0) {
             $main_css = $file;
             break;
         } else if (strpos($file, 'index.') === 0) {
             $main_css = $file;
         }
+    }
+    
+    // Si aucun fichier principal n'est trouvé, utiliser le premier de la liste
+    if (!$main_js && !empty($hashedFiles['js'])) {
+        $main_js = $hashedFiles['js'][0];
+    }
+    
+    if (!$main_css && !empty($hashedFiles['css'])) {
+        $main_css = $hashedFiles['css'][0];
     }
     
     return [$main_js, $main_css];
