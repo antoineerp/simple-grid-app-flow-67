@@ -14,6 +14,13 @@ export const isAuthenticated = (): boolean => {
   if (!token) return false;
 
   try {
+    // Vérifie que le token a le bon format avant de le décoder
+    const parts = token.split('.');
+    if (parts.length !== 3) {
+      console.error("Format de token invalide (doit avoir 3 parties)");
+      return false;
+    }
+    
     const decodedToken: any = jwtDecode(token);
     // Vérifier si le token est expiré
     const currentTime = Date.now() / 1000;
@@ -35,6 +42,13 @@ export const getCurrentUser = (): User | null => {
   if (!token) return null;
 
   try {
+    // Vérifie que le token a le bon format avant de le décoder
+    const parts = token.split('.');
+    if (parts.length !== 3) {
+      console.error("Format de token invalide (doit avoir 3 parties)");
+      return null;
+    }
+    
     const decodedToken: any = jwtDecode(token);
     
     // Vérifier si le token contient les informations de l'utilisateur au bon format
@@ -120,6 +134,11 @@ export const authenticateUser = async (email: string, password: string, remember
     
     // Traiter la réponse
     const data = await response.json();
+    
+    // Vérifier que la réponse contient les données nécessaires
+    if (!data || !data.token) {
+      throw new Error('Réponse invalide du serveur');
+    }
     
     // Stocker le token JWT dans le stockage approprié
     if (rememberMe) {

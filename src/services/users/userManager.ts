@@ -11,6 +11,40 @@ let lastFetchTime: number = 0;
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
 /**
+ * Class UserManager pour gérer les opérations liées aux utilisateurs
+ */
+export class UserManager {
+  /**
+   * Récupère la liste des utilisateurs depuis l'API
+   */
+  static async getUtilisateurs(forceRefresh: boolean = false): Promise<Utilisateur[]> {
+    // Si forceRefresh est true ou si le cache n'est pas disponible ou expiré
+    if (forceRefresh || !userCache || (Date.now() - lastFetchTime > CACHE_DURATION)) {
+      return refreshUtilisateurs();
+    }
+    
+    console.log("Utilisation du cache pour getUtilisateurs");
+    return userCache;
+  }
+  
+  /**
+   * Vide le cache des utilisateurs
+   */
+  static clearCache(): void {
+    userCache = null;
+    lastFetchTime = 0;
+    console.log("Cache des utilisateurs vidé");
+  }
+  
+  /**
+   * Synchronise les utilisateurs (force un rechargement)
+   */
+  static async synchronizeUsers(): Promise<Utilisateur[]> {
+    return refreshUtilisateurs();
+  }
+}
+
+/**
  * Récupère la liste des utilisateurs depuis l'API
  */
 export const getUtilisateurs = async (): Promise<Utilisateur[]> => {
