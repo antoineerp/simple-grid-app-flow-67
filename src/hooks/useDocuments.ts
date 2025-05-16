@@ -69,10 +69,11 @@ export const useDocuments = () => {
           c: doc.responsabilites?.c || [],
           i: doc.responsabilites?.i || []
         }
-      })) as Document[];
+      }));
       
-      await syncDocuments(validatedDocs, newGroups);
-      setDocuments(validatedDocs);
+      // Cast is needed to satisfy TypeScript since we know our data structure matches Document
+      await syncDocuments(validatedDocs as Document[], newGroups);
+      setDocuments(validatedDocs as Document[]);
       setGroups(newGroups);
       return true;
     } catch (error) {
@@ -180,9 +181,14 @@ export const useDocuments = () => {
   }, [documents, groups, saveData]);
   
   const handleExclusionChange = useCallback((id: string) => {
+    // In documents.ts there's no 'excluded' but there's 'etat' that can be 'EX'
     const updatedDocs = documents.map(doc => {
       if (doc.id === id) {
-        return { ...doc, excluded: !doc.excluded };
+        // Toggle between 'EX' (excluded) and null (not excluded)
+        return { 
+          ...doc, 
+          etat: doc.etat === 'EX' ? null : 'EX' 
+        };
       }
       return doc;
     });
@@ -200,7 +206,6 @@ export const useDocuments = () => {
       nom: 'Nouveau document',
       fichier_path: null,
       etat: null,
-      excluded: false,
       responsabilites: {
         r: [],
         a: [],
@@ -209,7 +214,7 @@ export const useDocuments = () => {
       },
       date_creation: new Date(),
       date_modification: new Date(),
-      userId: userId
+      userId
     };
     
     const newDocs = [...documents, newDocument];
@@ -228,7 +233,7 @@ export const useDocuments = () => {
       name: 'Nouveau groupe',
       expanded: true,
       items: [],
-      userId: userId
+      userId
     };
     
     const newGroups = [...groups, newGroup];
