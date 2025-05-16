@@ -3,8 +3,11 @@
  * Configuration centralisée de l'API
  */
 
+// URL de base de l'API pour l'environnement de production
+const PROD_API_URL = 'https://qualiopi.ch/api';
+
 // URL de base de l'API
-const API_BASE_URL = 'https://qualiopi.ch/api';
+const API_BASE_URL = PROD_API_URL;
 
 /**
  * Obtient l'URL de l'API
@@ -37,18 +40,23 @@ export const buildApiUrl = (endpoint: string): string => {
  */
 export const fetchWithErrorHandling = async (url: string, options: RequestInit = {}): Promise<any> => {
   try {
-    // Ajouter un timeout de 10 secondes pour éviter les attentes infinies
+    // Ajouter un timeout de 15 secondes pour éviter les attentes infinies
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 10000);
+    const timeoutId = setTimeout(() => controller.abort(), 15000);
     
     console.log(`Requête API vers: ${url}`);
     
+    // S'assurer que les en-têtes appropriés sont toujours inclus
+    const headers = {
+      'Content-Type': 'application/json',
+      'Cache-Control': 'no-cache, no-store, must-revalidate',
+      'Pragma': 'no-cache',
+      ...(options.headers || {})
+    };
+    
     const response = await fetch(url, {
       ...options,
-      headers: {
-        'Content-Type': 'application/json',
-        ...(options.headers || {})
-      },
+      headers,
       signal: controller.signal
     });
     
@@ -71,7 +79,8 @@ export const fetchWithErrorHandling = async (url: string, options: RequestInit =
  */
 export const testApiConnection = async () => {
   try {
-    const response = await fetchWithErrorHandling(`${API_BASE_URL}/check.php`);
+    // Utiliser check-db-connection.php qui vérifie directement la connexion à la base de données Infomaniak
+    const response = await fetchWithErrorHandling(`${API_BASE_URL}/check-db-connection.php`);
     return {
       success: true,
       message: response.message || "API accessible",
@@ -87,7 +96,7 @@ export const testApiConnection = async () => {
 };
 
 // Délai maximal pour les requêtes API (en ms)
-export const API_TIMEOUT = 10000;
+export const API_TIMEOUT = 15000;
 
 // Statut de l'API (pour les tests)
 export const API_STATUS = {

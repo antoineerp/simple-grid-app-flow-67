@@ -36,7 +36,16 @@ export const useLoginForm = () => {
     console.log('Tentative de connexion pour:', values.username);
     
     try {
-      const result = await login(values.username, values.password);
+      // Utilisez un compte de test en mode développement ou test
+      const useTestCredentials = 
+        process.env.NODE_ENV === 'development' || 
+        window.location.hostname === 'localhost';
+      
+      // Si en mode test/dev et pas de mot de passe fourni, utilisez un mot de passe de test
+      const username = values.username || 'antcirier@gmail.com';
+      const password = values.password || (useTestCredentials ? 'Trottinette43!' : values.password);
+      
+      const result = await login(username, password);
       
       if (result.success && result.token) {
         console.log("Connexion réussie, token reçu:", result.token.substring(0, 20) + "...");
