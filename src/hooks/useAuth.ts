@@ -15,15 +15,15 @@ export const useAuth = () => {
         
         // Stocker le rôle dans localStorage pour accès facile
         if (currentUser?.role) {
-          localStorage.setItem('userRole', currentUser.role);
-          
-          // Pour la compatibilité, si le rôle est 'admin', également stocker 'administrateur'
-          if (currentUser.role === 'admin') {
-            localStorage.setItem('userRole', 'administrateur');
-          }
-          // Et vice versa
-          if (currentUser.role === 'administrateur') {
-            localStorage.setItem('userRole', 'administrateur');
+          // Pour la compatibilité, normaliser les rôles admin/administrateur
+          if (currentUser.role === 'admin' || currentUser.role === 'administrateur') {
+            // Toujours stocker les deux versions pour assurer la compatibilité
+            localStorage.setItem('userRole', currentUser.role);
+            // Assurer que le code qui vérifie spécifiquement 'admin' ou 'administrateur' fonctionne
+            localStorage.setItem('isAdministrator', 'true');
+          } else {
+            localStorage.setItem('userRole', currentUser.role);
+            localStorage.removeItem('isAdministrator');
           }
         }
       } catch (error) {
@@ -50,12 +50,19 @@ export const useAuth = () => {
     return user?.role || localStorage.getItem('userRole') || undefined;
   };
 
+  const isAdmin = (): boolean => {
+    const role = getRole();
+    return role === 'admin' || role === 'administrateur' || localStorage.getItem('isAdministrator') === 'true';
+  };
+
   const getUserName = (): string => {
     return user ? `${user.prenom || ''} ${user.nom || ''}`.trim() : '';
   };
 
   const logout = () => {
     // This will be implemented through the authService
+    localStorage.removeItem('userRole');
+    localStorage.removeItem('isAdministrator');
     window.location.href = '/';
   };
 
@@ -65,6 +72,7 @@ export const useAuth = () => {
     isAuthenticated,
     getUserId,
     getRole,
+    isAdmin,
     getUserName,
     logout
   };
