@@ -102,7 +102,7 @@ $webhookExists = file_exists('github-webhook.php');
                 <pre><?php echo htmlspecialchars(implode("\n", $lastLogs)); ?></pre>
             <?php endif; ?>
             
-            <p><a href="github-webhook.php" class="button">Configurer le Webhook</a></p>
+            <p><a href="github-manual-sync.php" class="button">Synchronisation Manuelle</a></p>
         </div>
         
         <div class="card">
