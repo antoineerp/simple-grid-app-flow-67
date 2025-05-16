@@ -137,7 +137,7 @@ export const useDocuments = () => {
     const updatedDocs = documents.map(doc => {
       if (doc.id === id) {
         // Créer une copie des responsabilités actuelles
-        const newResponsabilites = { ...doc.responsabilites || {} };
+        const newResponsabilites = { ...doc.responsabilites || { r: [], a: [], c: [], i: [] }};
         // Mettre à jour le type spécifique
         newResponsabilites[type] = values;
         
@@ -151,7 +151,7 @@ export const useDocuments = () => {
   
   const handleAtteinteChange = useCallback((id: string, atteinte: 'NC' | 'PC' | 'C' | null) => {
     const updatedDocs = documents.map(doc => 
-      doc.id === id ? { ...doc, atteinte } : doc
+      doc.id === id ? { ...doc, etat: atteinte } : doc
     );
     
     saveData(updatedDocs, groups);
@@ -160,7 +160,9 @@ export const useDocuments = () => {
   const handleExclusionChange = useCallback((id: string) => {
     const updatedDocs = documents.map(doc => {
       if (doc.id === id) {
-        return { ...doc, isExcluded: !doc.isExcluded };
+        // Utiliser etat='EX' pour marquer l'exclusion au lieu de isExcluded
+        const newEtat = doc.etat === 'EX' ? null : 'EX';
+        return { ...doc, etat: newEtat };
       }
       return doc;
     });
@@ -172,17 +174,17 @@ export const useDocuments = () => {
   const handleAddDocument = useCallback(() => {
     const newDocument: Document = {
       id: uuidv4(),
-      name: 'Nouveau document',
-      type: 'procedure',
-      code: '',
-      atteinte: null,
-      isExcluded: false,
+      nom: 'Nouveau document',
+      fichier_path: null,
+      etat: null,
       responsabilites: {
         r: [],
         a: [],
         c: [],
         i: []
-      }
+      },
+      date_creation: new Date(),
+      date_modification: new Date()
     };
     
     const newDocs = [...documents, newDocument];
@@ -196,7 +198,8 @@ export const useDocuments = () => {
     const newGroup: DocumentGroup = {
       id: uuidv4(),
       name: 'Nouveau groupe',
-      expanded: true
+      expanded: true,
+      items: [] // Ajout de la propriété items requise
     };
     
     const newGroups = [...groups, newGroup];
