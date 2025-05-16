@@ -1,3 +1,4 @@
+
 name: Unified Deploy to Infomaniak
 
 on:
@@ -18,7 +19,6 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v3
       with:
-        repository: antoineerp/qualiopi-ch
         token: ${{ secrets.GITHUB_TOKEN }}
         fetch-depth: 0
 
@@ -64,6 +64,18 @@ jobs:
         cp php-test-minimal.php deploy/ || echo "php-test-minimal.php non trouvé"
         cp emergency-deploy-fix.php deploy/ || echo "emergency-deploy-fix.php non trouvé"
         cp deploy-on-infomaniak.php deploy/ || echo "deploy-on-infomaniak.php non trouvé"
+        cp fix-workflow-yaml.php deploy/ || echo "fix-workflow-yaml.php non trouvé"
+        cp check-github-workflow.php deploy/ || echo "check-github-workflow.php non trouvé"
+        
+        # Copie des fichiers de synchronisation
+        cp src/features/sync/utils/syncOperations.ts deploy/src/features/sync/utils/ || mkdir -p deploy/src/features/sync/utils/ && cp src/features/sync/utils/syncOperations.ts deploy/src/features/sync/utils/ || echo "syncOperations.ts non trouvé"
+        cp src/hooks/useApiConfig.tsx deploy/src/hooks/ || mkdir -p deploy/src/hooks/ && cp src/hooks/useApiConfig.tsx deploy/src/hooks/ || echo "useApiConfig.tsx non trouvé"
+        cp src/services/core/databaseAutoDetectService.ts deploy/src/services/core/ || mkdir -p deploy/src/services/core/ && cp src/services/core/databaseAutoDetectService.ts deploy/src/services/core/ || echo "databaseAutoDetectService.ts non trouvé"
+        cp src/services/config/appConfigService.ts deploy/src/services/config/ || mkdir -p deploy/src/services/config/ && cp src/services/config/appConfigService.ts deploy/src/services/config/ || echo "appConfigService.ts non trouvé"
+        cp api/sync-devices.php deploy/api/ || echo "sync-devices.php non trouvé"
+        
+        # Copie des fichiers de workflow GitHub
+        cp -r .github/workflows/* deploy/.github/workflows/ || echo "Fichiers workflow GitHub non trouvés"
         
         # Création du fichier README dans le dossier documentation
         echo "# Documentation API" > deploy/api/documentation/README.md
