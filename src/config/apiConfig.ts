@@ -51,6 +51,7 @@ export const fetchWithErrorHandling = async (url: string, options: RequestInit =
       'Content-Type': 'application/json',
       'Cache-Control': 'no-cache, no-store, must-revalidate',
       'Pragma': 'no-cache',
+      'Accept': 'application/json',
       ...(options.headers || {})
     };
     
@@ -102,7 +103,8 @@ export const testApiConnection = async () => {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json',
-            'Cache-Control': 'no-cache'
+            'Cache-Control': 'no-cache',
+            'Accept': 'application/json'
           },
           mode: 'cors'
         });
