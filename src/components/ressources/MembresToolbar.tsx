@@ -29,14 +29,14 @@ const MembresToolbar: React.FC<MembresToolbarProps> = ({
       />
       
       <Select
-        value={selectedDepartment || ""}
-        onValueChange={(value) => onDepartmentChange(value || null)}
+        value={selectedDepartment || "all"}
+        onValueChange={(value) => onDepartmentChange(value === "all" ? null : value)}
       >
         <SelectTrigger className="w-[180px]">
           <SelectValue placeholder="Département" />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="">Tous les départements</SelectItem>
+          <SelectItem value="all">Tous les départements</SelectItem>
           {departments.map((dept) => (
             <SelectItem key={dept} value={dept}>{dept}</SelectItem>
           ))}
