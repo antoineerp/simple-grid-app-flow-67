@@ -53,9 +53,14 @@ jobs:
         mkdir -p deploy/api/documentation
         mkdir -p deploy/public/lovable-uploads
         mkdir -p deploy/.github/workflows
+        mkdir -p deploy/dist  # Ajout explicite du dossier dist
         
         # Copie des fichiers compilés
         cp -r dist/* deploy/
+        
+        # Copie explicite du dossier dist complet
+        cp -r dist/* deploy/dist/
+        echo "✅ Dossier dist copié intégralement vers deploy/dist"
         
         # Copie des fichiers PHP critiques
         echo "Copie des fichiers PHP et de configuration..."
@@ -194,7 +199,7 @@ EOF
         # Vérification des fichiers critiques
         echo ""
         echo "=== Vérification des fichiers critiques ==="
-        for file in "deploy/.htaccess" "deploy/api/.htaccess" "deploy/index.php" "deploy/api/config/env.php" "deploy/api/config/db_config.json" "deploy/api/documentation"; do
+        for file in "deploy/.htaccess" "deploy/api/.htaccess" "deploy/index.php" "deploy/api/config/env.php" "deploy/api/config/db_config.json" "deploy/api/documentation" "deploy/dist"; do
           if [ -e "$file" ]; then
             echo "✅ $file: PRÉSENT"
           else
@@ -208,6 +213,15 @@ EOF
         
         echo "Contenu du dossier de déploiement:"
         find deploy -type f | sort | head -20
+        
+        # Vérification spécifique du dossier dist
+        if [ -d "deploy/dist" ]; then
+          echo "Contenu du dossier dist déployé:"
+          ls -la deploy/dist/
+          echo "Nombre de fichiers dans dist: $(find deploy/dist -type f | wc -l)"
+        else
+          echo "❌ ERREUR: Le dossier dist n'a pas été créé correctement"
+        fi
 
     - name: FTP Deploy to Infomaniak
       uses: SamKirkland/FTP-Deploy-Action@v4.3.4

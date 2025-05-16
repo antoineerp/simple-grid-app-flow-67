@@ -52,9 +52,12 @@ jobs:
         path: deploy/
         retention-days: 1
         
-    - name: Copy dist directory to deployment
+    - name: Create required directories and copy dist
       run: |
+        # Création explicite du dossier dist
         mkdir -p deploy/dist
+        
+        # Copie du contenu du dossier dist
         cp -r dist/* deploy/dist/
         echo "Contenu du dossier deploy/dist:"
         ls -la deploy/dist/
@@ -134,3 +137,4 @@ jobs:
           [ -d "api/documentation" ] && echo "✅ api/documentation: PRÉSENT" || echo "❌ api/documentation: MANQUANT"
           find api -name "*.php" | wc -l
           [ -d "dist" ] && echo "✅ dossier dist: PRÉSENT" || echo "❌ dossier dist: MANQUANT"
+          echo "Nombre de fichiers dans dist: $(find dist -type f | wc -l)"
