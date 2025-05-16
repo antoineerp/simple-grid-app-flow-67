@@ -369,6 +369,28 @@ AddType text/css .css
     </div>
     
     <div class="section">
+        <h2>Gestion des CDN et Ressources Externes</h2>
+        
+        <h3>Script externe détecté: gptengineer.js</h3>
+        <p class="info">Votre site utilise un script externe hébergé sur cdn.gpteng.co. Pour assurer la disponibilité en cas de problème avec le CDN:</p>
+        
+        <form method="post" action="update-script-references.php">
+            <input type="hidden" name="external_url" value="https://cdn.gpteng.co/gptengineer.js">
+            <input type="hidden" name="local_path" value="/assets/gptengineer.js">
+            <button type="submit" class="fix-button">Configurer un fallback pour gptengineer.js</button>
+        </form>
+        
+        <div class="info" style="margin-top: 10px;">
+            <p>Cette action va:</p>
+            <ul>
+                <li>Conserver le script CDN principal</li>
+                <li>Ajouter une version locale comme solution de secours</li>
+                <li>Créer une sauvegarde d\'index.html avant modification</li>
+            </ul>
+        </div>
+    </div>
+    
+    <div class="section">
         <h2>Solutions possibles</h2>
         
         <h3>Si vos fichiers CSS ne sont pas chargés correctement:</h3>

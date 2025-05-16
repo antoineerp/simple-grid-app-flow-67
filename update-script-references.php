@@ -28,11 +28,27 @@ if ($content === false) {
     die("Impossible de lire le contenu du fichier index.html");
 }
 
-// Remplace la référence externe par la référence locale
+// Remplace la référence externe par la référence locale avec un commentaire pour le fallback
 $pattern = '/<script[^>]*src=["\']' . preg_quote($externalUrl, '/') . '["\'](.*?)><\/script>/i';
 $replacement = '<script src="' . $localPath . '"$1></script><!-- Fallback local pour ' . $externalUrl . ' -->';
 
 $newContent = preg_replace($pattern, $replacement, $content);
+
+// Vérifie si une modification a été effectuée
+if ($newContent == $content) {
+    // Si aucune correspondance exacte n'a été trouvée, essayons une approche plus générique
+    // pour détecter tout script qui contient le domaine (par exemple cdn.gpteng.co)
+    $domain = parse_url($externalUrl, PHP_URL_HOST);
+    $pattern = '/<script[^>]*src=["\'][^"\']*' . preg_quote($domain, '/') . '[^"\']*["\'](.*?)><\/script>/i';
+    $newContent = preg_replace($pattern, $replacement, $content);
+    
+    // Si toujours pas de modification, ajoutons simplement le script de fallback après le script original
+    if ($newContent == $content) {
+        $pattern = '/<script[^>]*src=["\'][^"\']*' . preg_quote($domain, '/') . '[^"\']*["\'](.*?)><\/script>/i';
+        $replacement = '$0' . PHP_EOL . '  <script src="' . $localPath . '"$1></script><!-- Fallback local pour ' . $externalUrl . ' -->';
+        $newContent = preg_replace($pattern, $replacement, $content);
+    }
+}
 
 // Vérifie si une modification a été effectuée
 if ($newContent == $content) {
