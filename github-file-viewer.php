@@ -32,11 +32,23 @@ function getFileFromGithub($owner, $repo, $path, $branch = 'main', $token = '') 
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
     curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
-    curl_setopt($ch, CURLOPT_USERAGENT, 'PHP File Viewer');
+    curl_setopt($ch, CURLOPT_USERAGENT, 'PHP GitHub File Viewer v1.0');
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 30);
     
     $content = curl_exec($ch);
     $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     $content_type = curl_getinfo($ch, CURLINFO_CONTENT_TYPE);
+    
+    if (curl_errno($ch)) {
+        $error = curl_error($ch);
+        curl_close($ch);
+        return [
+            'success' => false,
+            'message' => "Erreur cURL: $error",
+            'content' => null
+        ];
+    }
     
     curl_close($ch);
     
@@ -110,6 +122,24 @@ function createOrUpdateLocalFile($path, $content) {
     ];
 }
 
+// Configuration du token GitHub depuis un formulaire
+if (isset($_POST['set_token']) && !empty($_POST['github_token'])) {
+    $github_token = trim($_POST['github_token']);
+    // Stocker temporairement le token dans la session
+    session_start();
+    $_SESSION['github_token'] = $github_token;
+    
+    // Rediriger pour éviter la resoumission du formulaire
+    header('Location: ' . $_SERVER['PHP_SELF'] . (isset($_GET['file']) ? '?file=' . urlencode($_GET['file']) : ''));
+    exit;
+}
+
+// Récupérer le token depuis la session si disponible
+session_start();
+if (empty($github_token) && isset($_SESSION['github_token'])) {
+    $github_token = $_SESSION['github_token'];
+}
+
 // Récupère un fichier spécifique si demandé via GET
 $selected_file = isset($_GET['file']) ? $_GET['file'] : null;
 $github_result = null;
@@ -150,10 +180,23 @@ function listFilesFromGithub($owner, $repo, $path = '', $branch = 'main', $token
     $ch = curl_init($url);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
-    curl_setopt($ch, CURLOPT_USERAGENT, 'PHP File Lister');
+    curl_setopt($ch, CURLOPT_USERAGENT, 'PHP GitHub File Lister v1.0');
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 30);
     
     $content = curl_exec($ch);
     $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    
+    if (curl_errno($ch)) {
+        $error = curl_error($ch);
+        curl_close($ch);
+        return [
+            'success' => false,
+            'message' => "Erreur cURL: $error",
+            'files' => []
+        ];
+    }
+    
     curl_close($ch);
     
     if ($http_code !== 200) {
@@ -226,28 +269,95 @@ if (isset($_GET['search']) && !empty($_GET['search'])) {
     
     $headers = ['Accept: application/vnd.github.v3+json'];
     if (!empty($github_token)) {
-        $headers[] = "Authorization: token $github_token";
+        $headers[] = "Authorization: token $token";
     }
     
     $ch = curl_init($search_url);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
-    curl_setopt($ch, CURLOPT_USERAGENT, 'PHP File Search');
+    curl_setopt($ch, CURLOPT_USERAGENT, 'PHP GitHub File Search v1.0');
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 30);
     
     $content = curl_exec($ch);
     $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    curl_close($ch);
     
-    if ($http_code === 200) {
-        $search_data = json_decode($content, true);
-        if (isset($search_data['items']) && is_array($search_data['items'])) {
-            foreach ($search_data['items'] as $item) {
-                $search_results[] = [
-                    'path' => $item['path'],
-                    'name' => basename($item['path']),
-                    'url' => $item['html_url']
-                ];
+    if (curl_errno($ch)) {
+        curl_close($ch);
+        $search_results = [];
+    } else {
+        curl_close($ch);
+        
+        if ($http_code === 200) {
+            $search_data = json_decode($content, true);
+            if (isset($search_data['items']) && is_array($search_data['items'])) {
+                foreach ($search_data['items'] as $item) {
+                    $search_results[] = [
+                        'path' => $item['path'],
+                        'name' => basename($item['path']),
+                        'url' => $item['html_url']
+                    ];
+                }
             }
+        }
+    }
+}
+
+// Test de connectivité GitHub
+$connectivity_test = [
+    'success' => false,
+    'message' => 'Test de connectivité non effectué'
+];
+
+if (isset($_POST['test_connection']) || empty($github_files)) {
+    $test_url = "https://api.github.com/repos/$owner/$repo";
+    $headers = ['Accept: application/vnd.github.v3+json'];
+    
+    if (!empty($github_token)) {
+        $headers[] = "Authorization: token $github_token";
+    }
+    
+    $ch = curl_init($test_url);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+    curl_setopt($ch, CURLOPT_USERAGENT, 'PHP GitHub Connectivity Test v1.0');
+    curl_setopt($ch, CURLOPT_NOBODY, true);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 10);
+    
+    curl_exec($ch);
+    $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    
+    if (curl_errno($ch)) {
+        $error = curl_error($ch);
+        curl_close($ch);
+        $connectivity_test = [
+            'success' => false,
+            'message' => "Erreur de connexion: $error"
+        ];
+    } else {
+        curl_close($ch);
+        
+        if ($http_code >= 200 && $http_code < 300) {
+            $connectivity_test = [
+                'success' => true,
+                'message' => "Connexion à GitHub établie avec succès (HTTP $http_code)"
+            ];
+        } else if ($http_code == 401) {
+            $connectivity_test = [
+                'success' => false,
+                'message' => "Erreur d'authentification (HTTP 401). Veuillez vérifier votre token GitHub."
+            ];
+        } else if ($http_code == 404) {
+            $connectivity_test = [
+                'success' => false,
+                'message' => "Dépôt non trouvé (HTTP 404). Veuillez vérifier le propriétaire et le nom du dépôt."
+            ];
+        } else {
+            $connectivity_test = [
+                'success' => false,
+                'message' => "Erreur de connexion à GitHub (HTTP $http_code)"
+            ];
         }
     }
 }
@@ -290,6 +400,7 @@ if (isset($_GET['search']) && !empty($_GET['search'])) {
         }
         .button-secondary { background-color: #2196F3; }
         .button-warning { background-color: #FF9800; }
+        .button-danger { background-color: #F44336; }
         .file-view { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 20px; }
         .file-content { 
             border: 1px solid #ddd; 
@@ -318,6 +429,28 @@ if (isset($_GET['search']) && !empty($_GET['search'])) {
         }
         .notification-success { background-color: #e8f5e9; border-left: 4px solid #4CAF50; }
         .notification-error { background-color: #ffebee; border-left: 4px solid #f44336; }
+        .config-form {
+            background-color: #f9f9f9;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+            border: 1px solid #ddd;
+        }
+        .form-group {
+            margin-bottom: 10px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        .form-group input {
+            padding: 8px;
+            width: 100%;
+            box-sizing: border-box;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
         @media (max-width: 768px) {
             .file-card { width: 100%; }
             .file-view { grid-template-columns: 1fr; }
@@ -331,12 +464,45 @@ if (isset($_GET['search']) && !empty($_GET['search'])) {
             <p>Comparez les fichiers entre votre dépôt GitHub et votre environnement local</p>
         </div>
         
+        <!-- Notification de connectivité -->
+        <?php if (isset($connectivity_test)): ?>
+            <div class="notification <?php echo $connectivity_test['success'] ? 'notification-success' : 'notification-error'; ?>">
+                <strong>Test de connectivité GitHub:</strong> <?php echo $connectivity_test['message']; ?>
+            </div>
+        <?php endif; ?>
+        
         <!-- Notification de synchronisation -->
         <?php if ($sync_result): ?>
             <div class="notification <?php echo $sync_result['success'] ? 'notification-success' : 'notification-error'; ?>">
                 <?php echo $sync_result['message']; ?>
             </div>
         <?php endif; ?>
+        
+        <!-- Configuration GitHub -->
+        <div class="config-form">
+            <h2>Configuration GitHub</h2>
+            <form method="post" action="<?php echo $_SERVER['PHP_SELF']; ?>">
+                <div class="form-group">
+                    <label for="owner">Propriétaire du dépôt:</label>
+                    <input type="text" id="owner" name="owner" value="<?php echo htmlspecialchars($owner); ?>" required>
+                </div>
+                <div class="form-group">
+                    <label for="repo">Nom du dépôt:</label>
+                    <input type="text" id="repo" name="repo" value="<?php echo htmlspecialchars($repo); ?>" required>
+                </div>
+                <div class="form-group">
+                    <label for="branch">Branche:</label>
+                    <input type="text" id="branch" name="branch" value="<?php echo htmlspecialchars($branch); ?>" required>
+                </div>
+                <div class="form-group">
+                    <label for="github_token">Token GitHub (facultatif mais recommandé):</label>
+                    <input type="password" id="github_token" name="github_token" value="<?php echo !empty($github_token) ? '••••••••••••••••' : ''; ?>" placeholder="Entrez votre token GitHub personnel">
+                    <p><small>Un token personnel GitHub augmente les limites de taux d'API et permet d'accéder aux dépôts privés.</small></p>
+                </div>
+                <button type="submit" name="set_token" class="button">Appliquer la configuration</button>
+                <button type="submit" name="test_connection" class="button button-secondary">Tester la connexion</button>
+            </form>
+        </div>
         
         <!-- Formulaire de recherche -->
         <form method="GET" class="search-form">
@@ -398,21 +564,23 @@ if (isset($_GET['search']) && !empty($_GET['search'])) {
                 <?php foreach ($github_files as $file): ?>
                     <?php
                     $class = '';
-                    if ($file['exists_locally'] && $file['exists_on_github']) {
-                        $class = 'exists-both';
-                        $status = 'Présent dans les deux';
-                    } elseif ($file['exists_on_github']) {
-                        $class = 'exists-github-only';
-                        $status = 'Présent uniquement sur GitHub';
-                    } elseif ($file['exists_locally']) {
-                        $class = 'exists-local-only';
-                        $status = 'Présent uniquement en local';
+                    if (isset($file['exists_locally']) && isset($file['exists_on_github'])) {
+                        if ($file['exists_locally'] && $file['exists_on_github']) {
+                            $class = 'exists-both';
+                            $status = 'Présent dans les deux';
+                        } elseif ($file['exists_on_github']) {
+                            $class = 'exists-github-only';
+                            $status = 'Présent uniquement sur GitHub';
+                        } elseif ($file['exists_locally']) {
+                            $class = 'exists-local-only';
+                            $status = 'Présent uniquement en local';
+                        }
                     }
                     ?>
                     <div class="file-card <?php echo $class; ?>">
                         <h3><?php echo htmlspecialchars(basename($file['path'])); ?></h3>
                         <p><?php echo htmlspecialchars($file['path']); ?></p>
-                        <p><strong>Statut:</strong> <?php echo $status; ?></p>
+                        <p><strong>Statut:</strong> <?php echo isset($status) ? $status : 'Inconnu'; ?></p>
                         <a href="?file=<?php echo urlencode($file['path']); ?>" class="button">Comparer</a>
                     </div>
                 <?php endforeach; ?>
@@ -429,7 +597,7 @@ if (isset($_GET['search']) && !empty($_GET['search'])) {
                             <?php echo htmlspecialchars($github_result['content']); ?>
                         <?php else: ?>
                             <p class="error">Impossible de récupérer le fichier depuis GitHub.</p>
-                            <?php if ($github_result): ?>
+                            <?php if (isset($github_result['message'])): ?>
                                 <p><?php echo htmlspecialchars($github_result['message']); ?></p>
                             <?php endif; ?>
                         <?php endif; ?>
@@ -442,7 +610,7 @@ if (isset($_GET['search']) && !empty($_GET['search'])) {
                             <?php echo htmlspecialchars($local_result['content']); ?>
                         <?php else: ?>
                             <p class="error">Impossible de récupérer le fichier local.</p>
-                            <?php if ($local_result): ?>
+                            <?php if (isset($local_result['message'])): ?>
                                 <p><?php echo htmlspecialchars($local_result['message']); ?></p>
                             <?php endif; ?>
                         <?php endif; ?>
@@ -464,15 +632,11 @@ if (isset($_GET['search']) && !empty($_GET['search'])) {
         <?php endif; ?>
         
         <div class="file-info">
-            <h3>Configuration</h3>
-            <p>Dépôt GitHub: <strong><?php echo htmlspecialchars("$owner/$repo"); ?></strong></p>
-            <p>Branche: <strong><?php echo htmlspecialchars($branch); ?></strong></p>
-            <p>Token GitHub: <strong><?php echo !empty($github_token) ? 'Configuré' : 'Non configuré'; ?></strong></p>
+            <h3>Actions</h3>
             <p>
-                <a href="https://github.com/<?php echo urlencode($owner); ?>/<?php echo urlencode($repo); ?>" 
-                   class="button button-secondary" target="_blank">
-                    Visiter le dépôt GitHub
-                </a>
+                <a href="fix-index-html.php" class="button button-secondary">Corriger les références index.html</a>
+                <a href="test-assets-routes.php" class="button button-secondary">Vérifier routes CSS/JS</a>
+                <a href="fix-htaccess.php" class="button button-secondary">Corriger .htaccess</a>
             </p>
         </div>
     </div>
