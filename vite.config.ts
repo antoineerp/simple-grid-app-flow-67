@@ -56,7 +56,9 @@ export default defineConfig(({ mode }) => {
             react: ['react', 'react-dom'],
             ui: ['@radix-ui/react-dialog', '@radix-ui/react-toast', '@radix-ui/react-tooltip']
           }
-        }
+        },
+        // Fix for external dependencies - removing incorrect external configuration
+        external: [] // Empty array instead of string patterns that might cause issues
       }
     },
     optimizeDeps: {
