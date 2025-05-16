@@ -2,6 +2,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { syncService } from '@/services/core/syncService';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
+import { getCurrentUser } from '@/services/core/databaseConnectionService';
 
 interface SyncContextProps {
   lastSynced: Record<string, Date | null>;
@@ -13,6 +14,14 @@ interface SyncContextProps {
   loadData: <T>(tableName: string) => Promise<T[]>;
   getLastSynced: (tableName: string) => Date | null;
   getSyncError: (tableName: string) => string | null;
+  // Ajout des propriétés manquantes qui causaient des erreurs
+  syncStatus: {
+    isSyncing: boolean;
+    lastSynced: Date | null;
+    error: string | null;
+  };
+  startSync: (tableName: string) => void;
+  endSync: (tableName: string, error?: string | null) => void;
 }
 
 // Créer un contexte avec une valeur par défaut pour éviter les erreurs
@@ -25,7 +34,15 @@ const defaultContextValue: SyncContextProps = {
   syncData: async () => false,
   loadData: async () => [],
   getLastSynced: () => null,
-  getSyncError: () => null
+  getSyncError: () => null,
+  // Valeurs par défaut pour les nouvelles propriétés
+  syncStatus: {
+    isSyncing: false,
+    lastSynced: null,
+    error: null
+  },
+  startSync: () => {},
+  endSync: () => {}
 };
 
 const SyncContext = createContext<SyncContextProps>(defaultContextValue);
@@ -36,6 +53,11 @@ export const SyncProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [syncErrors, setSyncErrors] = useState<Record<string, string | null>>({});
   const [initialized, setInitialized] = useState(false);
   const { isOnline } = useNetworkStatus();
+  const [globalSyncStatus, setGlobalSyncStatus] = useState({
+    isSyncing: false,
+    lastSynced: null as Date | null,
+    error: null as string | null
+  });
 
   useEffect(() => {
     // Initialiser l'état avec les données du service
@@ -70,61 +92,99 @@ export const SyncProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   }, []);
 
+  const startSync = (tableName: string) => {
+    setIsSyncing(prev => ({ ...prev, [tableName]: true }));
+    setGlobalSyncStatus(prev => ({ ...prev, isSyncing: true }));
+  };
+
+  const endSync = (tableName: string, error: string | null = null) => {
+    setIsSyncing(prev => ({ ...prev, [tableName]: false }));
+    setSyncErrors(prev => ({ ...prev, [tableName]: error }));
+    
+    if (!error) {
+      const now = new Date();
+      setLastSynced(prev => ({ ...prev, [tableName]: now }));
+      setGlobalSyncStatus(prev => ({ ...prev, lastSynced: now, isSyncing: false, error: null }));
+    } else {
+      setGlobalSyncStatus(prev => ({ ...prev, isSyncing: false, error }));
+    }
+  };
+
   const syncData = async <T extends {}>(tableName: string, data: T[]): Promise<boolean> => {
     try {
-      setIsSyncing(prev => ({ ...prev, [tableName]: true }));
+      startSync(tableName);
       setSyncErrors(prev => ({ ...prev, [tableName]: null }));
       
       console.log(`SyncContext - Début de la synchronisation pour ${tableName}`);
       let result = false;
       
+      // Récupérer l'identifiant de l'utilisateur actuel pour garantir l'isolation des données
+      const currentUser = getCurrentUser();
+      const userId = currentUser?.identifiant_technique;
+      
+      if (!userId) {
+        throw new Error("Utilisateur non authentifié");
+      }
+      
       try {
-        result = await Promise.resolve(syncService.sendDataToServer<T>(tableName, data));
+        // Passer l'ID utilisateur pour assurer l'isolation des données
+        result = await Promise.resolve(syncService.sendDataToServer<T>(tableName, data, userId));
       } catch (error) {
         console.error(`SyncContext - Erreur lors de la synchronisation pour ${tableName}:`, error);
         throw error;
       }
         
       console.log(`SyncContext - Synchronisation terminée pour ${tableName}`);
-      setLastSynced(prev => ({ ...prev, [tableName]: new Date() }));
+      const now = new Date();
+      setLastSynced(prev => ({ ...prev, [tableName]: now }));
+      endSync(tableName);
       return result;
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : 'Erreur inconnue';
       console.error(`SyncContext - Erreur capturée pour ${tableName}:`, errorMsg);
       setSyncErrors(prev => ({ ...prev, [tableName]: errorMsg }));
+      endSync(tableName, errorMsg);
       return false;
-    } finally {
-      setIsSyncing(prev => ({ ...prev, [tableName]: false }));
     }
   };
 
   const loadData = async <T extends {}>(tableName: string): Promise<T[]> => {
     try {
-      setIsSyncing(prev => ({ ...prev, [tableName]: true }));
+      startSync(tableName);
       setSyncErrors(prev => ({ ...prev, [tableName]: null }));
       
-      console.log(`SyncContext - Chargement des données pour ${tableName}`);
+      // Récupérer l'identifiant de l'utilisateur actuel pour garantir l'isolation des données
+      const currentUser = getCurrentUser();
+      const userId = currentUser?.identifiant_technique;
+      
+      if (!userId) {
+        throw new Error("Utilisateur non authentifié");
+      }
+      
+      console.log(`SyncContext - Chargement des données pour ${tableName} (utilisateur: ${userId})`);
       let data: T[] = [];
       
       try {
-        data = await Promise.resolve(syncService.loadDataFromServer<T>(tableName));
+        // Passer l'ID utilisateur pour assurer l'isolation des données
+        data = await Promise.resolve(syncService.loadDataFromServer<T>(tableName, userId));
       } catch (error) {
         console.error(`SyncContext - Erreur lors du chargement pour ${tableName}:`, error);
         throw error;
       }
         
       console.log(`SyncContext - Chargement terminé pour ${tableName}, ${data.length} éléments`);
-      setLastSynced(prev => ({ ...prev, [tableName]: new Date() }));
+      const now = new Date();
+      setLastSynced(prev => ({ ...prev, [tableName]: now }));
+      endSync(tableName);
       return data;
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : 'Erreur inconnue';
       console.error(`SyncContext - Erreur capturée lors du chargement pour ${tableName}:`, errorMsg);
       setSyncErrors(prev => ({ ...prev, [tableName]: errorMsg }));
+      endSync(tableName, errorMsg);
       
       // En cas d'erreur, retournons un tableau vide plutôt que de lever une exception
       return [] as T[];
-    } finally {
-      setIsSyncing(prev => ({ ...prev, [tableName]: false }));
     }
   };
 
@@ -137,7 +197,10 @@ export const SyncProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     syncData,
     loadData,
     getLastSynced: (tableName: string) => lastSynced[tableName] || null,
-    getSyncError: (tableName: string) => syncErrors[tableName] || null
+    getSyncError: (tableName: string) => syncErrors[tableName] || null,
+    syncStatus: globalSyncStatus,
+    startSync,
+    endSync
   };
 
   return (

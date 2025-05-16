@@ -2,7 +2,6 @@
 import { getApiUrl } from '@/config/apiConfig';
 import { getAuthHeaders } from '../auth/authService';
 import { getDatabaseConnectionCurrentUser } from './databaseConnectionService';
-import { Utilisateur } from '@/services';
 import { toast } from '@/components/ui/use-toast';
 
 // Liste des tables à initialiser pour chaque utilisateur
@@ -57,11 +56,15 @@ export const initializeUserTables = async (userId: string): Promise<boolean> => 
     const API_URL = getApiUrl();
     let allSuccess = true;
     
-    // 1. Créer les tables de base pour l'utilisateur
+    // 1. Créer les tables de base pour l'utilisateur avec un suffixe spécifique à l'utilisateur
+    // pour garantir l'isolation complète des données
     const dbUpdateUrl = `${API_URL}/db-update.php?userId=${encodeURIComponent(userId)}`;
     const dbUpdateResponse = await fetch(dbUpdateUrl, {
       method: 'GET',
-      headers: { 'Cache-Control': 'no-cache' }
+      headers: { 
+        'Cache-Control': 'no-cache',
+        ...getAuthHeaders()
+      }
     });
     
     if (!dbUpdateResponse.ok) {
@@ -87,7 +90,7 @@ export const initializeUserTables = async (userId: string): Promise<boolean> => 
       }
     }
     
-    // 3. Importer les données du gestionnaire
+    // 3. Importer les données du gestionnaire (ou de l'administrateur si pas de gestionnaire)
     try {
       const importUrl = `${API_URL}/manager-import`;
       const importResponse = await fetch(importUrl, {
@@ -96,7 +99,10 @@ export const initializeUserTables = async (userId: string): Promise<boolean> => 
           ...getAuthHeaders(),
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ targetUser: userId })
+        body: JSON.stringify({ 
+          targetUser: userId,
+          ensureIsolation: true // Nouveau paramètre pour garantir l'isolation des données
+        })
       });
       
       if (!importResponse.ok) {
@@ -110,7 +116,7 @@ export const initializeUserTables = async (userId: string): Promise<boolean> => 
       allSuccess = false;
     }
     
-    // 4. Synchroniser l'état entre appareils
+    // 4. Synchroniser l'état entre appareils (mais uniquement pour cet utilisateur spécifique)
     try {
       const syncUrl = `${API_URL}/sync-devices.php?userId=${encodeURIComponent(userId)}`;
       const syncResponse = await fetch(syncUrl, {
@@ -142,7 +148,7 @@ async function initializeTable(tableName: string, userId: string): Promise<boole
     const API_URL = getApiUrl();
     const tableInitUrl = `${API_URL}/${tableName}-sync.php`;
     
-    // Créer une structure de données vide pour initialiser la table
+    // Créer une structure de données vide pour initialiser la table spécifique à l'utilisateur
     const emptyData = {
       userId,
       [tableName]: []
@@ -152,7 +158,8 @@ async function initializeTable(tableName: string, userId: string): Promise<boole
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Cache-Control': 'no-cache'
+        'Cache-Control': 'no-cache',
+        ...getAuthHeaders() // Inclure l'authentification pour restreindre l'accès
       },
       body: JSON.stringify(emptyData)
     });
@@ -177,7 +184,10 @@ export const checkUserTablesInitialized = async (userId: string): Promise<boolea
     
     const response = await fetch(checkUrl, {
       method: 'GET',
-      headers: { 'Cache-Control': 'no-cache' }
+      headers: { 
+        'Cache-Control': 'no-cache',
+        ...getAuthHeaders() // Ajout de l'authentification pour sécuriser l'accès
+      }
     });
     
     if (!response.ok) {
