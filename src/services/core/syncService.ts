@@ -7,6 +7,7 @@ class GlobalSyncService {
   private lastSyncTimes: Record<string, Date> = {};
   private syncErrors: Record<string, string | null> = {};
   private isSyncing: Record<string, boolean> = {};
+  private forceRefresh: boolean = false;
 
   constructor() {
     // Charger les dernières synchronisations depuis le localStorage
@@ -37,6 +38,11 @@ class GlobalSyncService {
   // Récupérer la dernière erreur de synchronisation
   public getLastError(tableName: string): string | null {
     return this.syncErrors[tableName] || null;
+  }
+
+  // Forcer une synchronisation complète
+  public setForceRefresh(force: boolean): void {
+    this.forceRefresh = force;
   }
 
   // Marquer le début d'une synchronisation
@@ -93,7 +99,12 @@ class GlobalSyncService {
     this.markSyncStart(tableName);
     
     try {
-      const response = await fetch(`${API_URL}/${tableName}-load.php?userId=${currentUser}&deviceId=${deviceId}`, {
+      // Ajout d'un paramètre force_refresh pour forcer le rechargement complet
+      const url = this.forceRefresh 
+        ? `${API_URL}/${tableName}-load.php?userId=${currentUser}&deviceId=${deviceId}&force_refresh=1` 
+        : `${API_URL}/${tableName}-load.php?userId=${currentUser}&deviceId=${deviceId}`;
+      
+      const response = await fetch(url, {
         method: 'GET',
         headers: {
           ...getAuthHeaders(),
@@ -128,6 +139,9 @@ class GlobalSyncService {
       const errorMsg = error instanceof Error ? error.message : 'Erreur inconnue';
       this.markSyncEnd(tableName, errorMsg);
       throw error;
+    } finally {
+      // Réinitialiser le flag de forceRefresh après utilisation
+      this.forceRefresh = false;
     }
   }
 
@@ -182,6 +196,24 @@ class GlobalSyncService {
       const errorMsg = error instanceof Error ? error.message : 'Erreur inconnue';
       this.markSyncEnd(tableName, errorMsg);
       throw error;
+    }
+  }
+
+  // Méthode pour synchroniser une table (charger et envoyer)
+  public async syncTable(tableName: string, dataToSync?: any[], userId?: string): Promise<{success: boolean, message?: string}> {
+    try {
+      // Si des données sont fournies, les envoyer d'abord
+      if (dataToSync && dataToSync.length > 0) {
+        await this.sendDataToServer(tableName, dataToSync, userId);
+      }
+      
+      // Ensuite charger les données à jour
+      await this.loadDataFromServer(tableName, userId);
+      
+      return { success: true };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Erreur inconnue';
+      return { success: false, message };
     }
   }
 }
