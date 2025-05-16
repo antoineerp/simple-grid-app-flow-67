@@ -57,8 +57,17 @@ export default defineConfig(({ mode }) => {
             ui: ['@radix-ui/react-dialog', '@radix-ui/react-toast', '@radix-ui/react-tooltip']
           }
         },
-        // Correction des références externes - utiliser un tableau vide ou des patterns globaux
-        external: []
+        // Définir explicitement les fichiers à traiter comme externes pour éviter les erreurs
+        external: [
+          // Fichiers de assets qui doivent être traités comme externes
+          '/assets/gptengineer.js',
+          '/assets/main.js',
+          '/assets/hashed-file-loader.js',
+          // Motif pour les fichiers avec hash
+          '/assets/*.js',
+          // Ressources CDN
+          'https://cdn.gpteng.co/gptengineer.js'
+        ]
       }
     },
     optimizeDeps: {
