@@ -1,66 +1,73 @@
 
 import React from 'react';
-import DocumentTable from '@/components/documents/DocumentTable';
 import { useDocuments } from '@/hooks/useDocuments';
 import { Button } from '@/components/ui/button';
-import { Plus, FolderPlus } from 'lucide-react';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { Plus } from 'lucide-react';
+import DocumentTableWrapper from '@/components/gestion-documentaire/DocumentTableWrapper';
 
-const GestionDocumentaire = () => {
-  const { 
-    documents = [], 
-    groups = [], 
-    handleEdit, 
-    handleDelete, 
-    handleReorder, 
-    handleToggleGroup, 
-    handleEditGroup, 
-    handleDeleteGroup, 
-    handleResponsabiliteChange, 
-    handleAtteinteChange, 
-    handleExclusionChange, 
-    handleAddDocument, 
-    handleAddGroup,
-    handleGroupReorder
+const GestionDocumentaire: React.FC = () => {
+  const {
+    documents,
+    groups,
+    loading,
+    handleEdit,
+    handleDelete,
+    handleReorder,
+    handleToggleGroup,
+    handleEditGroup,
+    handleDeleteGroup,
+    handleGroupReorder,
+    handleResponsabiliteChange,
+    handleAtteinteChange,
+    handleExclusionChange,
+    handleAddDocument,
+    handleAddGroup
   } = useDocuments();
 
   return (
-    <div className="container mx-auto py-6 px-4">
-      <div className="flex justify-between items-center mb-6">
+    <div className="container py-6 space-y-6">
+      <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold">Gestion Documentaire</h1>
+        <div className="flex space-x-2">
+          <Button onClick={handleAddDocument} className="flex items-center space-x-1">
+            <Plus className="h-4 w-4" />
+            <span>Ajouter un document</span>
+          </Button>
+          <Button onClick={handleAddGroup} variant="outline" className="flex items-center space-x-1">
+            <Plus className="h-4 w-4" />
+            <span>Ajouter un groupe</span>
+          </Button>
+        </div>
       </div>
       
-      <DocumentTable 
-        documents={documents}
-        groups={groups}
-        onResponsabiliteChange={handleResponsabiliteChange}
-        onAtteinteChange={handleAtteinteChange}
-        onExclusionChange={handleExclusionChange}
-        onEdit={handleEdit}
-        onDelete={handleDelete}
-        onReorder={handleReorder}
-        onGroupReorder={handleGroupReorder}
-        onToggleGroup={handleToggleGroup}
-        onEditGroup={handleEditGroup}
-        onDeleteGroup={handleDeleteGroup}
-      />
-      
-      <div className="mt-4 flex justify-end space-x-2">
-        <Button
-          onClick={handleAddGroup}
-          variant="outline"
-          className="flex items-center hover:bg-gray-100 transition-colors"
-        >
-          <FolderPlus className="h-4 w-4 mr-2" />
-          Nouveau groupe
-        </Button>
-        <Button
-          onClick={handleAddDocument}
-          className="flex items-center bg-app-blue hover:bg-app-blue/90"
-        >
-          <Plus className="h-4 w-4 mr-1" />
-          Ajouter un document
-        </Button>
-      </div>
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle>Documents</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {loading ? (
+            <div className="flex justify-center items-center p-8">
+              <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-gray-900"></div>
+            </div>
+          ) : (
+            <DocumentTableWrapper
+              documents={documents}
+              groups={groups}
+              onResponsabiliteChange={handleResponsabiliteChange}
+              onAtteinteChange={handleAtteinteChange}
+              onExclusionChange={handleExclusionChange}
+              onEdit={handleEdit}
+              onDelete={handleDelete}
+              onReorder={handleReorder}
+              onGroupReorder={handleGroupReorder}
+              onToggleGroup={handleToggleGroup}
+              onEditGroup={handleEditGroup}
+              onDeleteGroup={handleDeleteGroup}
+            />
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 };
