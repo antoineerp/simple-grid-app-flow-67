@@ -1,96 +1,92 @@
 
 <?php
 header('Content-Type: text/html; charset=utf-8');
-
-// Fonction pour désactiver un workflow
-function disableWorkflow($path) {
-    if (file_exists($path)) {
-        $newPath = $path . '.disabled';
-        if (rename($path, $newPath)) {
-            return true;
-        }
-    }
-    return false;
-}
-
-// Traitement du formulaire
-$message = '';
-$error = '';
-$success = false;
-
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['disable_workflows'])) {
-    $workflows = [
-        '.github/workflows/deploy.yml',
-        '.github/workflows/deploy-simple.yml',
-        '.github/workflows/deploy-optimized.yml'
-    ];
-    
-    $disabledCount = 0;
-    foreach ($workflows as $workflow) {
-        if (disableWorkflow($workflow)) {
-            $disabledCount++;
-        }
-    }
-    
-    if ($disabledCount > 0) {
-        $success = true;
-        $message = "$disabledCount workflow(s) ont été désactivés avec succès.";
-    } else {
-        $error = "Aucun workflow n'a pu être désactivé. Ils sont peut-être déjà désactivés ou introuvables.";
-    }
-}
 ?>
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Désactivation des anciens workflows</title>
+    <title>Désactiver les anciens workflows GitHub</title>
     <style>
         body { font-family: Arial, sans-serif; margin: 20px; line-height: 1.6; }
         .container { max-width: 800px; margin: 0 auto; }
         .card { border: 1px solid #ddd; border-radius: 8px; padding: 20px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-        .success { color: green; padding: 10px; background-color: #d4edda; border-radius: 5px; }
-        .error { color: red; padding: 10px; background-color: #f8d7da; border-radius: 5px; }
-        .button { 
-            background-color: #dc3545; 
-            color: white; 
-            padding: 10px 20px; 
-            border: none; 
-            border-radius: 4px; 
-            cursor: pointer; 
-            font-size: 16px;
-            text-decoration: none;
-            display: inline-block;
-        }
-        .button.green { background-color: #28a745; }
+        .button { background-color: #4CAF50; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; }
+        .button:hover { background-color: #45a049; }
+        .log { background-color: #f5f5f5; padding: 10px; border-radius: 4px; font-family: monospace; overflow-x: auto; margin: 10px 0; }
+        .success { color: green; }
+        .warning { color: orange; }
+        .error { color: red; }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>Désactivation des anciens workflows GitHub</h1>
-        
         <div class="card">
-            <h2>Désactiver les workflows obsolètes</h2>
+            <?php
+            $workflowDir = './.github/workflows';
+            $keepActive = 'deploy-unified';
+            $log = [];
+            $success = false;
             
-            <?php if ($message): ?>
-                <div class="success"><?php echo $message; ?></div>
+            if (!is_dir($workflowDir)) {
+                $log[] = "<span class='error'>Erreur : Le dossier $workflowDir n'existe pas.</span>";
+            } else {
+                $totalFiles = count(glob("$workflowDir/*.yml"));
+                $log[] = "Nombre total de workflows trouvés : $totalFiles";
+                
+                // Désactiver les anciens workflows
+                $files = glob("$workflowDir/*.yml");
+                foreach ($files as $workflow) {
+                    $filename = basename($workflow, '.yml');
+                    
+                    if ($filename !== $keepActive) {
+                        $disabledFile = "$workflow.disabled";
+                        
+                        if (!file_exists($disabledFile)) {
+                            if (rename($workflow, $disabledFile)) {
+                                $log[] = "Désactivation du workflow : <b>$filename.yml</b>";
+                            } else {
+                                $log[] = "<span class='error'>Erreur lors de la désactivation de $filename.yml</span>";
+                            }
+                        } else {
+                            $log[] = "<span class='warning'>Le workflow $filename.yml est déjà désactivé.</span>";
+                        }
+                    } else {
+                        $log[] = "<span class='success'>Conservation du workflow actif : $filename.yml</span>";
+                    }
+                }
+                
+                $activeFiles = count(glob("$workflowDir/*.yml"));
+                $disabledFiles = count(glob("$workflowDir/*.yml.disabled"));
+                
+                $log[] = "<br><b>Résumé :</b>";
+                $log[] = "Workflows actifs : $activeFiles";
+                $log[] = "Workflows désactivés : $disabledFiles";
+                
+                if (file_exists("$workflowDir/$keepActive.yml")) {
+                    $log[] = "<br><span class='success'>✅ Le workflow unifié $keepActive.yml est prêt à être utilisé.</span>";
+                    $success = true;
+                } else {
+                    $log[] = "<br><span class='error'>❌ ERREUR : Le workflow unifié $keepActive.yml n'a pas été trouvé ou n'est pas actif.</span>";
+                    $log[] = "<span class='error'>Vérifiez que le fichier existe dans le dossier $workflowDir</span>";
+                }
+            }
+            ?>
+            
+            <h2>Résultat de l'opération</h2>
+            <div class="log">
+                <?php foreach ($log as $line): ?>
+                    <?php echo $line; ?><br>
+                <?php endforeach; ?>
+            </div>
+            
+            <?php if ($success): ?>
+            <div>
+                <p><b>Prochaine étape :</b> Maintenant que seul le workflow unifié est actif, vous pouvez le déclencher manuellement depuis GitHub Actions ou avec un nouveau commit.</p>
+            </div>
             <?php endif; ?>
             
-            <?php if ($error): ?>
-                <div class="error"><?php echo $error; ?></div>
-            <?php endif; ?>
-            
-            <p>Cette action va désactiver tous les anciens workflows de déploiement (deploy.yml, deploy-simple.yml, deploy-optimized.yml) en les renommant avec une extension .disabled</p>
-            <p>Seul le workflow unifié (deploy-unified.yml) restera actif.</p>
-            
-            <?php if (!$success): ?>
-            <form method="post">
-                <p><button type="submit" name="disable_workflows" class="button">Désactiver les anciens workflows</button></p>
-            </form>
-            <?php else: ?>
-                <p><a href="check-workflows.php" class="button green">Vérifier l'état des workflows</a></p>
-            <?php endif; ?>
-            
-            <p><a href="deploy-on-infomaniak.php">Retour à la page de déploiement</a></p>
+            <p><a href="deploy-on-infomaniak.php" class="button">Retour à la page de déploiement</a></p>
         </div>
     </div>
 </body>

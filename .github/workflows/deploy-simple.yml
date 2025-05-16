@@ -1,3 +1,4 @@
+
 name: Simple Deploy to Infomaniak
 
 on:
@@ -18,7 +19,6 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v3
       with:
-        repository: antoineerp/qualiopi-ch
         token: ${{ secrets.GITHUB_TOKEN }}
         fetch-depth: 0
 
