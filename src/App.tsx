@@ -4,16 +4,14 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Layout from './components/layout/Layout';
 import { SyncProvider } from './context/SyncContext';
 
-// Import des pages principales
-import HomePage from './pages/HomePage';
-import PilotagePage from './pages/PilotagePage';
-import DocumentsPage from './pages/DocumentsPage';
-import CollaborationPage from './pages/CollaborationPage';
-import BibliothequePages from './pages/BibliothequePages';
-import AuditsPage from './pages/AuditsPage';
-import ProfilePage from './pages/ProfilePage';
-import NotFoundPage from './pages/NotFoundPage';
-import SignInPage from './pages/SignInPage';
+// Import des pages principales disponibles
+import RessourcesHumaines from './pages/RessourcesHumaines';
+import Pilotage from './pages/Pilotage';
+import GestionDocumentaire from './pages/GestionDocumentaire';
+import DbTest from './pages/DbTest';
+import AdminPage from './pages/Admin';
+import Exigences from './pages/Exigences';
+import NotFound from './pages/NotFound';
 
 // Import des composants de context additionnels
 import { ToastProvider } from './components/ui/toast';
@@ -24,16 +22,14 @@ function App() {
       <ToastProvider>
         <Router>
           <Routes>
-            <Route path="/" element={<SignInPage />} />
             <Route path="/" element={<Layout />}>
-              <Route path="/home" element={<HomePage />} />
-              <Route path="/pilotage" element={<PilotagePage />} />
-              <Route path="/documents" element={<DocumentsPage />} />
-              <Route path="/collaboration" element={<CollaborationPage />} />
-              <Route path="/bibliotheque" element={<BibliothequePages />} />
-              <Route path="/audits" element={<AuditsPage />} />
-              <Route path="/profile" element={<ProfilePage />} />
-              <Route path="*" element={<NotFoundPage />} />
+              <Route index element={<RessourcesHumaines />} />
+              <Route path="/pilotage" element={<Pilotage />} />
+              <Route path="/documents" element={<GestionDocumentaire />} />
+              <Route path="/exigences" element={<Exigences />} />
+              <Route path="/admin" element={<AdminPage />} />
+              <Route path="/db-test" element={<DbTest />} />
+              <Route path="*" element={<NotFound />} />
             </Route>
           </Routes>
         </Router>
