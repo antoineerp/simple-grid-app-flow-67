@@ -14,7 +14,7 @@ class DatabaseConfig {
     }
 
     private function loadDefaultConfig() {
-        // Utiliser les valeurs de Richard par défaut
+        // Utiliser les valeurs d'Infomaniak par défaut
         $this->host = "p71x6d.myd.infomaniak.com";
         $this->db_name = "p71x6d_richard";
         $this->username = "p71x6d_richard";
@@ -28,22 +28,17 @@ class DatabaseConfig {
                 $config = json_decode($jsonContent, true);
                 
                 if (json_last_error() === JSON_ERROR_NONE) {
-                    // Vérification renforcée: rejeter explicitement localhost et n'accepter que infomaniak
+                    // Ignorer les configurations pour localhost ou non-Infomaniak
                     if (isset($config['host']) && 
-                        strpos($config['host'], 'infomaniak') !== false && 
-                        strpos($config['host'], 'localhost') === false) {
+                        strpos($config['host'], 'infomaniak') !== false) {
                         $this->host = $config['host'];
                     }
                     
-                    if (isset($config['db_name']) && $config['db_name'] === 'p71x6d_richard') {
-                        $this->db_name = $config['db_name'];
-                    }
+                    // Forcer p71x6d_richard pour la production
+                    $this->db_name = "p71x6d_richard";
+                    $this->username = "p71x6d_richard";
                     
-                    if (isset($config['username']) && $config['username'] === 'p71x6d_richard') {
-                        $this->username = $config['username'];
-                    }
-                    
-                    if (isset($config['password'])) {
+                    if (isset($config['password']) && $config['password'] !== "********") {
                         $this->password = $config['password'];
                     }
                 }
@@ -54,7 +49,7 @@ class DatabaseConfig {
     }
 
     public function saveConfig() {
-        // Forcer p71x6d_richard uniquement
+        // Forcer p71x6d_richard uniquement pour la production
         $this->db_name = 'p71x6d_richard';
         $this->username = 'p71x6d_richard';
         
@@ -87,20 +82,15 @@ class DatabaseConfig {
     }
 
     public function updateConfig($host, $db_name, $username, $password) {
-        // Vérification renforcée pour rejeter explicitement localhost
-        if (strpos($host, 'localhost') !== false) {
+        // Ne permettre que les hôtes Infomaniak
+        if (strpos($host, 'infomaniak') !== false) {
+            $this->host = $host;
+        } else {
             // Forcer l'utilisation d'Infomaniak
             $this->host = "p71x6d.myd.infomaniak.com";
         }
-        // Vérifier que le nouvel hôte contient "infomaniak"
-        else if (strpos($host, 'infomaniak') !== false) {
-            $this->host = $host;
-        } else {
-            // Forcer l'utilisation d'Infomaniak par défaut
-            $this->host = "p71x6d.myd.infomaniak.com";
-        }
         
-        // Forcer p71x6d_richard uniquement
+        // Forcer p71x6d_richard uniquement pour la production
         $this->db_name = 'p71x6d_richard';
         $this->username = 'p71x6d_richard';
         

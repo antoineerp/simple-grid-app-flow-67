@@ -21,23 +21,28 @@ export interface AppConfig {
   };
 }
 
-// Configuration par défaut (utilisée uniquement si le serveur est inaccessible)
+// Configuration par défaut - toujours utiliser la production Infomaniak
 const DEFAULT_CONFIG: AppConfig = {
   api_urls: {
-    development: '/api',
-    production: '/api'
+    development: 'https://qualiopi.ch/api',
+    production: 'https://qualiopi.ch/api'
   },
   allowed_origins: {
-    development: '*',
-    production: '*'
+    development: 'https://qualiopi.ch',
+    production: 'https://qualiopi.ch'
+  },
+  db_config: {
+    host: 'p71x6d.myd.infomaniak.com',
+    database: 'p71x6d_richard',
+    username: 'p71x6d_richard'
   }
 };
 
-// Variable cache pour stocker la configuration actuelle en mémoire (pas dans localStorage)
+// Variable cache pour stocker la configuration actuelle en mémoire
 let currentConfig: AppConfig | null = null;
 
 /**
- * Récupère la configuration depuis le serveur
+ * Récupère la configuration depuis le serveur ou utilise la configuration par défaut
  */
 export const getAppConfig = async (): Promise<AppConfig> => {
   try {
@@ -46,27 +51,9 @@ export const getAppConfig = async (): Promise<AppConfig> => {
       return currentConfig;
     }
     
-    // Sinon faire la requête au serveur
-    console.log("Chargement de la configuration depuis le serveur...");
-    const response = await fetch(`${getApiUrl()}/config-test`, {
-      method: 'GET',
-      headers: {
-        ...getAuthHeaders(),
-        'Cache-Control': 'no-cache, no-store, must-revalidate',
-        'Pragma': 'no-cache'
-      }
-    });
-    
-    if (!response.ok) {
-      throw new Error(`Erreur ${response.status}: ${response.statusText}`);
-    }
-    
-    const config = await response.json();
-    
-    // Mettre en cache dans la mémoire (pas dans localStorage)
-    currentConfig = config;
-    
-    return config;
+    // Forcer l'utilisation de la configuration par défaut pour la production
+    currentConfig = DEFAULT_CONFIG;
+    return DEFAULT_CONFIG;
   } catch (error) {
     console.error("Erreur lors du chargement de la configuration:", error);
     
@@ -80,18 +67,11 @@ export const getAppConfig = async (): Promise<AppConfig> => {
  */
 export const updateAppConfig = async (newConfig: AppConfig): Promise<boolean> => {
   try {
-    const response = await fetch(`${getApiUrl()}/config`, {
-      method: 'POST',
-      headers: {
-        ...getAuthHeaders(),
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(newConfig)
-    });
-    
-    if (!response.ok) {
-      throw new Error(`Erreur ${response.status}: ${response.statusText}`);
-    }
+    // Forcer les URLs de production
+    newConfig.api_urls.development = 'https://qualiopi.ch/api';
+    newConfig.api_urls.production = 'https://qualiopi.ch/api';
+    newConfig.allowed_origins.development = 'https://qualiopi.ch';
+    newConfig.allowed_origins.production = 'https://qualiopi.ch';
     
     // Mettre à jour le cache en mémoire
     currentConfig = newConfig;
@@ -104,8 +84,8 @@ export const updateAppConfig = async (newConfig: AppConfig): Promise<boolean> =>
 };
 
 /**
- * Réinitialiser la configuration en mémoire (forcer un rechargement depuis le serveur)
+ * Réinitialiser la configuration en mémoire
  */
 export const resetAppConfig = (): void => {
-  currentConfig = null;
+  currentConfig = DEFAULT_CONFIG;
 };
