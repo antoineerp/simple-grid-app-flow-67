@@ -1,35 +1,28 @@
-
-export interface Responsabilites {
-  r: string[];
-  a: string[];
-  c: string[];
-  i: string[];
+export interface ExigenceGroup {
+  id: string;
+  name: string;
+  expanded: boolean;
+  items: Exigence[];
+  userId: string; // Added userId field
 }
 
 export interface Exigence {
   id: string;
   nom: string;
-  description?: string;
-  critere?: string;
+  responsabilites: {
+    r: string[];
+    a: string[];
+    c: string[];
+    i: string[];
+  };
   exclusion: boolean;
   atteinte: 'NC' | 'PC' | 'C' | null;
-  responsabilites: Responsabilites;
+  date_creation: Date;
+  date_modification: Date;
   groupId?: string;
-  // Add missing properties that are being used in components
-  userId?: string;
-  date_creation?: Date;
-  date_modification?: Date;
+  userId: string; // Added userId field
 }
 
-export interface ExigenceGroup {
-  id: string;
-  name: string;
-  expanded: boolean;
-  items: Exigence[]; // Cette propriété est requise
-  userId?: string; // Adding userId that's being used in components
-}
-
-// Add ExigenceStats interface that's referenced in several files
 export interface ExigenceStats {
   exclusion: number;
   nonConforme: number;

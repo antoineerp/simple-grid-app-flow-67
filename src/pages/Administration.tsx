@@ -19,19 +19,8 @@ const Administration: React.FC = () => {
   const [currentDatabaseUser, setCurrentDatabaseUser] = useState<string | null>(getDatabaseConnectionCurrentUser());
   const [showConnectionForm, setShowConnectionForm] = useState<boolean>(false);
   
-  // Récupérer le rôle depuis le localStorage également
-  const userRole = user?.role || localStorage.getItem('userRole');
-  
-  // Vérifier à la fois 'admin' et 'administrateur' pour la compatibilité
-  const isAdmin = userRole === 'admin' || userRole === 'administrateur';
-  
-  console.log("Administration: User:", user);
-  console.log("Administration: Rôle récupéré:", userRole);
-  console.log("Administration: isAdmin:", isAdmin);
-  
   // Rediriger si l'utilisateur n'est pas admin
-  if (!isLoading && !isAdmin) {
-    console.log("Redirection: utilisateur non administrateur");
+  if (!isLoading && (!user || (user.role !== 'admin' && user.role !== 'administrateur'))) {
     return <Navigate to="/" replace />;
   }
 

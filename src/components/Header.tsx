@@ -38,13 +38,8 @@ const Header = () => {
   // Obtenir les informations utilisateur depuis le token JWT
   const user = getCurrentUser();
   // Utiliser le rôle stocké dans localStorage ou celui de l'utilisateur courant
-  const userRole = (user?.role || localStorage.getItem('userRole') || 'utilisateur') as UserRole;
+  const userRole = (localStorage.getItem('userRole') || user?.role || 'utilisateur') as UserRole;
   console.log("Header: rôle utilisateur détecté:", userRole);
-  
-  // Vérifier explicitement les rôles admin et administrateur
-  const canAccessAdminPanel = userRole === 'admin' || userRole === 'administrateur' || 
-                              hasPermission(userRole, 'accessAdminPanel');
-  console.log("Header: permission d'accès à l'administration:", canAccessAdminPanel);
   
   const userDisplayName = user ? `${user.prenom || ''} ${user.nom || ''}`.trim() : 'Utilisateur';
 
@@ -96,6 +91,9 @@ const Header = () => {
     localStorage.setItem('selectedLogo', newLogo);
   };
 
+  const canAccessAdminPanel = hasPermission(userRole, 'accessAdminPanel');
+  console.log("Header: permission d'accès à l'administration:", canAccessAdminPanel);
+
   return (
     <header className="w-full border-b bg-white">
       <div className="flex items-center justify-between h-14 px-4">
@@ -123,7 +121,7 @@ const Header = () => {
               <div className="flex items-center space-x-2 cursor-pointer rounded-md px-2 py-1 hover:bg-gray-100">
                 <Avatar className="h-8 w-8">
                   <AvatarFallback className="bg-app-blue text-white">
-                    {userRole === 'administrateur' || userRole === 'admin' ? 'AD' : userRole === 'gestionnaire' ? 'GE' : 'UT'}
+                    {userRole === 'administrateur' ? 'AD' : userRole === 'gestionnaire' ? 'GE' : 'UT'}
                   </AvatarFallback>
                 </Avatar>
                 <div>

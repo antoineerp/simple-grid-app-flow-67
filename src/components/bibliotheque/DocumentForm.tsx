@@ -5,7 +5,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Document, DocumentGroup } from '@/types/bibliotheque';
-import { useAuth } from '@/hooks/useAuth';
 
 interface DocumentFormProps {
   document: Document;
@@ -25,16 +24,10 @@ const DocumentForm: React.FC<DocumentFormProps> = ({
   onDelete
 }) => {
   const [formData, setFormData] = React.useState<Document>(document);
-  const { getUserId } = useAuth();
-  const userId = getUserId() || 'default';
 
   React.useEffect(() => {
-    setFormData({
-      ...document,
-      userId: document.userId || userId,
-      type: document.type || 'document'
-    });
-  }, [document, userId]);
+    setFormData(document);
+  }, [document]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;

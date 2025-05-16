@@ -4,16 +4,16 @@ import { Link } from 'react-router-dom';
 import SidebarNavItem from './sidebar/SidebarNavItem';
 import { navigationItems } from './sidebar/sidebarConfig';
 import { hasPermission } from '@/types/roles';
-import { useAuth } from '@/hooks/useAuth';
+import { getCurrentUser } from '@/services/auth/authService';
 import { Settings } from 'lucide-react';
 
 const Sidebar = () => {
   const [sidebarImageUrl, setSidebarImageUrl] = useState('');
   const [sidebarLinkUrl, setSidebarLinkUrl] = useState('');
   const [imageError, setImageError] = useState(false);
-  
-  // Utiliser le hook d'authentification pour obtenir les informations de l'utilisateur
-  const { isAdmin } = useAuth();
+  const user = getCurrentUser();
+  const userRole = (user?.role || 'utilisateur');
+  const isAdmin = hasPermission(userRole as any, 'accessAdminPanel');
   
   useEffect(() => {
     try {
@@ -65,8 +65,6 @@ const Sidebar = () => {
     setSidebarImageUrl(fallbackImages[0]);
   };
 
-  console.log("Sidebar: État admin:", isAdmin());
-
   return (
     <aside className="w-64 bg-gray-50 border-r min-h-screen">
       <nav className="flex flex-col p-4">
@@ -80,7 +78,7 @@ const Sidebar = () => {
         ))}
         
         {/* Ajout du bouton d'administration si l'utilisateur a les droits */}
-        {isAdmin() && (
+        {isAdmin && (
           <div className="mt-4 pt-4 border-t border-gray-200">
             <SidebarNavItem
               to="/administration"

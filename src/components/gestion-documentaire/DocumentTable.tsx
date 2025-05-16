@@ -6,13 +6,11 @@ import type { DocumentGroup as DocumentGroupType } from '@/types/documents';
 import DocumentTableHeader from './table/TableHeader';
 import DocumentRow from './table/DocumentRow';
 import DocumentGroupComponent from './table/DocumentGroup';
+import { useDragAndDrop } from './table/useDragAndDrop';
 
 interface DocumentTableProps {
   documents: Document[];
   groups: DocumentGroupType[];
-  ungroupedDocuments: Document[];
-  groupsWithItems: (DocumentGroupType & { items: Document[] })[];
-  draggedItem: any;
   onResponsabiliteChange: (id: string, type: 'r' | 'a' | 'c' | 'i', values: string[]) => void;
   onAtteinteChange: (id: string, atteinte: 'NC' | 'PC' | 'C' | null) => void;
   onExclusionChange: (id: string) => void;
@@ -23,34 +21,52 @@ interface DocumentTableProps {
   onToggleGroup: (id: string) => void;
   onEditGroup: (group: DocumentGroupType) => void;
   onDeleteGroup: (id: string) => void;
-  onDocumentDragStart: (e: React.DragEvent<HTMLTableRowElement>, id: string, groupId?: string) => void;
-  onDocumentDragOver: (e: React.DragEvent<HTMLTableRowElement>) => void;
-  onDocumentDragLeave: (e: React.DragEvent<HTMLTableRowElement>) => void;
-  onDocumentDrop: (e: React.DragEvent<HTMLTableRowElement>, id: string, groupId?: string) => void;
-  onDocumentDragEnd: (e: React.DragEvent<HTMLTableRowElement>) => void;
-  onGroupDragStart: (e: React.DragEvent<HTMLTableRowElement>, groupId: string) => void;
-  onGroupDrop: (e: React.DragEvent<HTMLTableRowElement>, groupId: string) => void;
 }
 
 const DocumentTable: React.FC<DocumentTableProps> = ({
-  ungroupedDocuments,
-  groupsWithItems,
+  documents,
+  groups,
   onResponsabiliteChange,
   onAtteinteChange,
   onExclusionChange,
   onEdit,
   onDelete,
+  onReorder,
+  onGroupReorder,
   onToggleGroup,
   onEditGroup,
-  onDeleteGroup,
-  onDocumentDragStart,
-  onDocumentDragOver,
-  onDocumentDragLeave,
-  onDocumentDrop,
-  onDocumentDragEnd,
-  onGroupDragStart,
-  onGroupDrop
+  onDeleteGroup
 }) => {
+  // Filtrer les documents qui n'appartiennent à aucun groupe
+  const ungroupedDocuments = documents.filter(d => !d.groupId);
+  
+  // Pour chaque groupe, ajouter les documents correspondants
+  const groupsWithItems = groups.map(group => {
+    // Trouver tous les documents appartenant à ce groupe
+    const groupItems = documents.filter(doc => doc.groupId === group.id);
+    
+    // Retourner le groupe avec ses documents
+    return {
+      ...group,
+      items: groupItems
+    };
+  });
+  
+  const {
+    draggedItem,
+    handleDragStart,
+    handleDragOver,
+    handleDragLeave,
+    handleDrop,
+    handleDragEnd,
+    handleGroupDrop
+  } = useDragAndDrop(documents, onReorder);
+
+  const handleGroupDragStart = (e: React.DragEvent<HTMLTableRowElement>, groupId: string) => {
+    e.dataTransfer.setData('text/plain', JSON.stringify({ groupId }));
+    e.currentTarget.classList.add('opacity-50');
+  };
+
   return (
     <div className="bg-white rounded-md shadow overflow-hidden">
       <Table>
@@ -69,13 +85,13 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
               onToggleGroup={onToggleGroup}
               onEditGroup={onEditGroup}
               onDeleteGroup={onDeleteGroup}
-              onDragStart={onDocumentDragStart}
-              onDragOver={onDocumentDragOver}
-              onDragLeave={onDocumentDragLeave}
-              onDrop={onDocumentDrop}
-              onDragEnd={onDocumentDragEnd}
-              onGroupDragStart={onGroupDragStart}
-              onGroupDrop={onGroupDrop}
+              onDragStart={handleDragStart}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+              onDragEnd={handleDragEnd}
+              onGroupDragStart={handleGroupDragStart}
+              onGroupDrop={handleGroupDrop}
             />
           ))}
         </TableBody>
@@ -90,11 +106,11 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
               onExclusionChange={onExclusionChange}
               onEdit={onEdit}
               onDelete={onDelete}
-              onDragStart={onDocumentDragStart}
-              onDragOver={onDocumentDragOver}
-              onDragLeave={onDocumentDragLeave}
-              onDrop={onDocumentDrop}
-              onDragEnd={onDocumentDragEnd}
+              onDragStart={handleDragStart}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+              onDragEnd={handleDragEnd}
             />
           ))}
         </TableBody>
