@@ -1,35 +1,45 @@
 
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import Index from './pages/Index';
 import Layout from './components/layout/Layout';
-import { Toaster } from './components/ui/toaster';
-import GlobalSyncManager from './components/common/GlobalSyncManager';
-import { SyncProvider } from './contexts/SyncContext';
-import { GlobalSyncProvider } from './contexts/GlobalSyncContext';
+import { SyncProvider } from './context/SyncContext';
 
-const App = () => {
-  console.log("Application starting...");
-  console.log("React version:", React.version);
-  console.log("Environment:", process.env.NODE_ENV);
-  console.log("Root element found, mounting React application");
-  
+// Import des pages principales
+import HomePage from './pages/HomePage';
+import PilotagePage from './pages/PilotagePage';
+import DocumentsPage from './pages/DocumentsPage';
+import CollaborationPage from './pages/CollaborationPage';
+import BibliothequePages from './pages/BibliothequePages';
+import AuditsPage from './pages/AuditsPage';
+import ProfilePage from './pages/ProfilePage';
+import NotFoundPage from './pages/NotFoundPage';
+import SignInPage from './pages/SignInPage';
+
+// Import des composants de context additionnels
+import { ToastProvider } from './components/ui/toast';
+
+function App() {
   return (
     <SyncProvider>
-      <GlobalSyncProvider>
+      <ToastProvider>
         <Router>
           <Routes>
-            <Route path="/" element={<Index />} />
-            <Route path="/*" element={<Layout />} />
+            <Route path="/" element={<SignInPage />} />
+            <Route path="/" element={<Layout />}>
+              <Route path="/home" element={<HomePage />} />
+              <Route path="/pilotage" element={<PilotagePage />} />
+              <Route path="/documents" element={<DocumentsPage />} />
+              <Route path="/collaboration" element={<CollaborationPage />} />
+              <Route path="/bibliotheque" element={<BibliothequePages />} />
+              <Route path="/audits" element={<AuditsPage />} />
+              <Route path="/profile" element={<ProfilePage />} />
+              <Route path="*" element={<NotFoundPage />} />
+            </Route>
           </Routes>
-          <GlobalSyncManager />
-          <Toaster />
         </Router>
-      </GlobalSyncProvider>
+      </ToastProvider>
     </SyncProvider>
   );
-};
-
-console.log("App component mounted successfully");
+}
 
 export default App;

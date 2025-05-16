@@ -24,12 +24,15 @@
   <!-- Script de détection des fichiers hachés -->
   <script src="/assets/hashed-file-loader.js"></script>
   
-  <!-- Force MIME Type for JavaScript -->
+  <!-- MIME Type for JavaScript -->
   <script nomodule src="/assets/gptengineer.js"></script>
   <script src="https://cdn.gpteng.co/gptengineer.js" type="module"></script>
   
-  <!-- Version moderne avec modules ES6 -->
+  <!-- Script principal avec modules ES6 -->
   <script type="module" src="/assets/main.BARYCRGM.js"></script>
+  
+  <!-- Script de secours sans module ES6 -->
+  <script nomodule src="/assets/main.js"></script>
   
   <!-- Script de secours en cas d'échec du chargement du module -->
   <script>

@@ -21,19 +21,14 @@ const defaultSyncStatus: SyncStatus = {
   syncFailed: false,
 };
 
-const SyncContext = createContext<SyncContextType | undefined>(undefined);
+// Créer le contexte avec une valeur par défaut pour éviter les erreurs
+const SyncContext = createContext<SyncContextType | null>(null);
 
 export const useSyncContext = () => {
   const context = useContext(SyncContext);
-  if (!context) {
+  if (context === null) {
     console.error("useSyncContext doit être utilisé à l'intérieur d'un SyncProvider");
-    // Renvoyer une valeur par défaut pour éviter l'arrêt de l'application
-    return {
-      syncStatus: defaultSyncStatus,
-      setSyncStatus: () => {},
-      startSync: () => {},
-      endSync: () => {}
-    };
+    throw new Error("useSyncContext doit être utilisé à l'intérieur d'un SyncProvider");
   }
   return context;
 };
@@ -71,7 +66,7 @@ export const SyncProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
   };
   
-  const contextValue = {
+  const contextValue: SyncContextType = {
     syncStatus, 
     setSyncStatus, 
     startSync, 
