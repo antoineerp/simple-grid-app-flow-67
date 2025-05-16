@@ -117,3 +117,83 @@ export const login = async (username: string, password: string): Promise<any> =>
   
   return data;
 };
+
+// Fonction d'authentification alternative avec données d'utilisateur préexistantes
+export const authenticateUser = async (userData: any): Promise<any> => {
+  if (userData && userData.token) {
+    const validToken = validateAndFixToken(userData.token);
+    
+    if (validToken) {
+      localStorage.setItem('authToken', validToken);
+      sessionStorage.setItem('authToken', validToken);
+    } else {
+      throw new Error("Format de token invalide");
+    }
+  }
+  
+  if (userData && userData.user) {
+    localStorage.setItem('currentUser', JSON.stringify(userData.user));
+  }
+  
+  return userData;
+};
+
+// Fonction de déconnexion
+export const logout = (): void => {
+  // Supprimer le token et les données utilisateur du stockage local
+  localStorage.removeItem('authToken');
+  localStorage.removeItem('currentUser');
+  localStorage.removeItem('userRole');
+  localStorage.removeItem('isAdministrator');
+  localStorage.removeItem('currentUserId');
+  sessionStorage.removeItem('authToken');
+  
+  // Rediriger vers la page de connexion
+  window.location.href = '/';
+};
+
+// Vérifier si l'utilisateur est connecté
+export const isAuthenticated = (): boolean => {
+  const token = getAuthToken();
+  const user = getCurrentUser();
+  return !!token && !!user;
+};
+
+// Vérifier si l'utilisateur est administrateur
+export const isAdmin = (): boolean => {
+  const user = getCurrentUser();
+  const role = user?.role || localStorage.getItem('userRole');
+  return role === 'admin' || role === 'administrateur' || localStorage.getItem('isAdministrator') === 'true';
+};
+
+// Récupérer l'identifiant de l'utilisateur courant
+export const getCurrentUserId = (): string | undefined => {
+  const user = getCurrentUser();
+  return user?.id || localStorage.getItem('currentUserId') || undefined;
+};
+
+// Récupérer le nom complet de l'utilisateur courant
+export const getCurrentUserName = (): string => {
+  const user = getCurrentUser();
+  return user ? `${user.prenom || ''} ${user.nom || ''}`.trim() : '';
+};
+
+// Vérifier si l'utilisateur est connecté (alias de isAuthenticated pour compatibilité)
+export const getIsLoggedIn = (): boolean => {
+  return isAuthenticated();
+};
+
+// Vérifier si l'utilisateur a un rôle spécifique
+export const hasRole = (role: string): boolean => {
+  const user = getCurrentUser();
+  const userRole = user?.role || localStorage.getItem('userRole');
+  
+  if (!userRole) return false;
+  
+  // Normaliser les rôles admin et administrateur
+  if (role === 'admin' || role === 'administrateur') {
+    return userRole === 'admin' || userRole === 'administrateur';
+  }
+  
+  return userRole === role;
+};
