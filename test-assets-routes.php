@@ -1,6 +1,9 @@
-
 <?php
 header('Content-Type: text/html; charset=utf-8');
+// Inclure les utilitaires si disponibles
+if (file_exists('utils-assets.php')) {
+    include_once 'utils-assets.php';
+}
 ?>
 <!DOCTYPE html>
 <html>
@@ -43,11 +46,17 @@ header('Content-Type: text/html; charset=utf-8');
                 echo "<ul>";
                 foreach ($cssMatches[1] as $cssPath) {
                     echo "<li>$cssPath";
-                    $fullPath = $_SERVER['DOCUMENT_ROOT'] . $cssPath;
-                    if (file_exists($fullPath)) {
-                        echo " <span class='success'>(Fichier existant)</span>";
+                    
+                    // Vérifier si le chemin est externe (commence par http ou //)
+                    if (preg_match('/^(https?:)?\/\//', $cssPath)) {
+                        echo " <span class='info'>(Ressource externe)</span>";
                     } else {
-                        echo " <span class='error'>(Fichier introuvable)</span>";
+                        $fullPath = $_SERVER['DOCUMENT_ROOT'] . $cssPath;
+                        if (file_exists($fullPath)) {
+                            echo " <span class='success'>(Fichier existant)</span>";
+                        } else {
+                            echo " <span class='error'>(Fichier introuvable)</span>";
+                        }
                     }
                     echo "</li>";
                 }
@@ -61,11 +70,17 @@ header('Content-Type: text/html; charset=utf-8');
                 echo "<ul>";
                 foreach ($jsMatches[1] as $jsPath) {
                     echo "<li>$jsPath";
-                    $fullPath = $_SERVER['DOCUMENT_ROOT'] . $jsPath;
-                    if (file_exists($fullPath)) {
-                        echo " <span class='success'>(Fichier existant)</span>";
+                    
+                    // Vérifier si le chemin est externe (commence par http ou //)
+                    if (preg_match('/^(https?:)?\/\//', $jsPath)) {
+                        echo " <span class='info'>(Ressource externe)</span>";
                     } else {
-                        echo " <span class='error'>(Fichier introuvable)</span>";
+                        $fullPath = $_SERVER['DOCUMENT_ROOT'] . $jsPath;
+                        if (file_exists($fullPath)) {
+                            echo " <span class='success'>(Fichier existant)</span>";
+                        } else {
+                            echo " <span class='error'>(Fichier introuvable)</span>";
+                        }
                     }
                     echo "</li>";
                 }
@@ -139,16 +154,20 @@ header('Content-Type: text/html; charset=utf-8');
             curl_setopt($ch, CURLOPT_HEADER, true);
             curl_setopt($ch, CURLOPT_NOBODY, true);
             curl_setopt($ch, CURLOPT_TIMEOUT, 5);
+            curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false); // Désactiver la vérification SSL pour les tests
             curl_exec($ch);
             $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
             $contentType = curl_getinfo($ch, CURLINFO_CONTENT_TYPE);
             $size = curl_getinfo($ch, CURLINFO_CONTENT_LENGTH_DOWNLOAD);
+            $error = curl_error($ch);
             curl_close($ch);
             
             return [
                 'httpCode' => $httpCode,
                 'contentType' => $contentType,
-                'size' => $size
+                'size' => $size,
+                'error' => $error
             ];
         }
         
@@ -170,15 +189,21 @@ header('Content-Type: text/html; charset=utf-8');
         }
         
         // Ajouter quelques fichiers du dossier assets
-        if (is_dir($assetsDir)) {
-            $jsFiles = glob("$assetsDir/*.js");
-            $cssFiles = glob("$assetsDir/*.css");
+        $assetsDir = $_SERVER['DOCUMENT_ROOT'] . '/assets';
+        $alternateAssetsDir = './assets';
+        
+        // Fonction pour ajouter des exemples de fichiers
+        function addSampleFiles($dir, $source, &$filesToTest) {
+            if (!is_dir($dir)) return;
+            
+            $jsFiles = glob("$dir/*.js");
+            $cssFiles = glob("$dir/*.css");
             
             if (!empty($jsFiles)) {
                 $filesToTest[] = [
                     'path' => '/assets/' . basename($jsFiles[0]), 
                     'type' => 'JavaScript', 
-                    'source' => 'assets directory'
+                    'source' => $source
                 ];
             }
             
@@ -186,38 +211,24 @@ header('Content-Type: text/html; charset=utf-8');
                 $filesToTest[] = [
                     'path' => '/assets/' . basename($cssFiles[0]), 
                     'type' => 'CSS', 
-                    'source' => 'assets directory'
+                    'source' => $source
                 ];
             }
-        } else if (is_dir($alternateAssetsDir)) {
-            $jsFiles = glob("$alternateAssetsDir/*.js");
-            $cssFiles = glob("$alternateAssetsDir/*.css");
-            
-            if (!empty($jsFiles)) {
-                $filesToTest[] = [
-                    'path' => '/assets/' . basename($jsFiles[0]), 
-                    'type' => 'JavaScript', 
-                    'source' => 'assets directory (relative)'
-                ];
-            }
-            
-            if (!empty($cssFiles)) {
-                $filesToTest[] = [
-                    'path' => '/assets/' . basename($cssFiles[0]), 
-                    'type' => 'CSS', 
-                    'source' => 'assets directory (relative)'
-                ];
-            }
+        }
+        
+        addSampleFiles($assetsDir, 'assets directory', $filesToTest);
+        if (count($filesToTest) < 3) {
+            addSampleFiles($alternateAssetsDir, 'assets directory (relative)', $filesToTest);
         }
         
         // Effectuer les tests HTTP
         if (!empty($filesToTest)) {
             echo "<h3>Résultats des tests d'accès HTTP:</h3>";
             echo "<table>";
-            echo "<tr><th>Type</th><th>Chemin</th><th>Source</th><th>Code HTTP</th><th>Type MIME</th><th>Taille</th></tr>";
+            echo "<tr><th>Type</th><th>Chemin</th><th>Source</th><th>Code HTTP</th><th>Type MIME</th><th>Taille</th><th>Erreur</th></tr>";
             
             foreach ($filesToTest as $file) {
-                $url = $baseUrl . $file['path'];
+                $url = preg_match('/^(https?:)?\/\//', $file['path']) ? $file['path'] : $baseUrl . $file['path'];
                 $result = testFileAccess($url);
                 
                 $statusClass = ($result['httpCode'] >= 200 && $result['httpCode'] < 300) ? 'success' : 'error';
@@ -238,6 +249,7 @@ header('Content-Type: text/html; charset=utf-8');
                 echo "<td class='$statusClass'>{$result['httpCode']}</td>";
                 echo "<td class='$mimeClass'>{$result['contentType']}</td>";
                 echo "<td>" . ($result['size'] > 0 ? $result['size'] . " octets" : "Inconnu") . "</td>";
+                echo "<td>" . ($result['error'] ? "<span class='error'>{$result['error']}</span>" : "") . "</td>";
                 echo "</tr>";
             }
             
@@ -584,14 +596,10 @@ echo "<pre>" . htmlspecialchars($content) . "</pre>";
         <ul>
             <li><a href="check-js-mime.php">Test des types MIME JavaScript</a></li>
             <li><a href="fix-index-html.php">Mise à jour des références dans index.html</a></li>
-            <li><a href="fix-mime-types-css.php">Correction des types MIME pour CSS</a></li>
-            <li><a href="copy-assets.php">Copie des assets de build vers le dossier assets</a></li>
-            <li><a href="fix-paths.php">Correction des chemins</a></li>
+            <li><a href="github-connectivity-test.php">Test de connectivité GitHub</a></li>
+            <li><a href="update-github-workflow.php">Gérer les Workflows GitHub</a></li>
             <li><a href="phpinfo.php">Informations PHP</a></li>
-            <li><a href="check-assets.php">Vérification des assets</a></li>
-            <li><a href="test-url-rewrite.php">Test des règles de réécriture</a></li>
         </ul>
     </div>
 </body>
 </html>
-
