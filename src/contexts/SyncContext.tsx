@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { getCurrentUser } from '@/services/auth/authService';
 
@@ -125,14 +124,12 @@ export const SyncProvider: React.FC<SyncProviderProps> = ({ children }) => {
       const apiUrl = import.meta.env.VITE_API_URL || '/api';
       const endpoint = `${apiUrl}/${tableName}-load.php`;
 
-      const response = await fetch(endpoint, {
-        method: 'POST',
+      // Utiliser GET au lieu de POST
+      const response = await fetch(`${endpoint}?user_id=${userId}`, {
+        method: 'GET',
         headers: {
           'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          user_id: userId
-        }),
+        }
       });
 
       if (!response.ok) {

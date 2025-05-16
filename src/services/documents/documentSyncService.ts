@@ -37,9 +37,9 @@ export const loadDocumentsFromServer = async (userId: string | null = null): Pro
     
     console.log(`Tentative de chargement depuis: ${endpoint}`);
     
-    // Première tentative - URL standard
+    // Première tentative - URL standard avec méthode GET au lieu de POST
     const response = await fetch(`${endpoint}?userId=${currentUser}`, {
-      method: 'GET',
+      method: 'GET', // Modifié de POST à GET
       headers: getAuthHeaders(),
       cache: 'no-store'
     });
@@ -84,13 +84,13 @@ export const loadDocumentsFromServer = async (userId: string | null = null): Pro
   } catch (firstError) {
     console.warn("Première tentative de chargement échouée:", firstError);
     
-    // Deuxième tentative - URL alternative
+    // Deuxième tentative - URL alternative avec méthode GET au lieu de POST
     try {
       const apiAltUrl = `/sites/qualiopi.ch/api`;
       console.log("Tentative avec URL alternative:", apiAltUrl);
       
       const response = await fetch(`${apiAltUrl}/documents-load.php?userId=${currentUser}`, {
-        method: 'GET',
+        method: 'GET', // Modifié de POST à GET
         headers: getAuthHeaders(),
         cache: 'no-store'
       });
