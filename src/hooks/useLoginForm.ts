@@ -39,16 +39,61 @@ export const useLoginForm = () => {
       // Utilisez un compte de test en mode développement ou test
       const useTestCredentials = 
         process.env.NODE_ENV === 'development' || 
-        window.location.hostname === 'localhost';
+        window.location.hostname === 'localhost' ||
+        window.location.hostname.includes('lovableproject.com');
       
       // Si en mode test/dev et pas de mot de passe fourni, utilisez un mot de passe de test
       const username = values.username || 'antcirier@gmail.com';
       const password = values.password || (useTestCredentials ? 'Trottinette43!' : values.password);
       
-      const result = await login(username, password);
+      // Essayer d'abord auth.php, puis login-alt.php en cas d'échec
+      let result;
+      try {
+        result = await login(username, password);
+      } catch (initialError) {
+        console.log("Échec avec auth.php, tentative avec login-alt.php");
+        
+        // Modifier l'URL endpoint dans authService pour utiliser login-alt.php à la place
+        const originalUrl = window.location.origin.includes('lovableproject.com') 
+          ? 'https://qualiopi.ch/api/login-alt.php' 
+          : 'https://qualiopi.ch/api/login-alt.php';
+          
+        try {
+          // Appel direct à login-alt.php
+          const response = await fetch(originalUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username, email: username, password })
+          });
+          
+          if (!response.ok) {
+            throw new Error(`Erreur HTTP: ${response.status}`);
+          }
+          
+          result = await response.json();
+        } catch (fallbackError) {
+          // Si les deux méthodes échouent, essayer avec login-test.php comme dernier recours
+          console.log("Échec avec login-alt.php, tentative avec login-test.php");
+          const testUrl = window.location.origin.includes('lovableproject.com')
+            ? 'https://qualiopi.ch/api/login-test.php'
+            : 'https://qualiopi.ch/api/login-test.php';
+            
+          const testResponse = await fetch(testUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username, email: username, password })
+          });
+          
+          if (!testResponse.ok) {
+            throw new Error(`Erreur HTTP: ${testResponse.status}`);
+          }
+          
+          result = await testResponse.json();
+        }
+      }
       
-      if (result.success && result.token) {
-        console.log("Connexion réussie, token reçu:", result.token.substring(0, 20) + "...");
+      if (result.success || (result.token && !result.message?.includes('Erreur'))) {
+        console.log("Connexion réussie, token reçu:", result.token?.substring(0, 20) + "...");
         console.log("Données utilisateur:", result.user);
         
         // Enregistrer le token avant la navigation

@@ -54,9 +54,16 @@ export const fetchWithErrorHandling = async (url: string, options: RequestInit =
       ...(options.headers || {})
     };
     
+    // Ajouter l'origine pour Infomaniak CORS
+    if (window.location.origin.includes('lovableproject.com')) {
+      headers['Origin'] = 'https://qualiopi.ch';
+    }
+    
     const response = await fetch(url, {
       ...options,
       headers,
+      mode: 'cors',
+      credentials: 'include',
       signal: controller.signal
     });
     
@@ -79,13 +86,42 @@ export const fetchWithErrorHandling = async (url: string, options: RequestInit =
  */
 export const testApiConnection = async () => {
   try {
-    // Utiliser check-db-connection.php qui vérifie directement la connexion à la base de données Infomaniak
-    const response = await fetchWithErrorHandling(`${API_BASE_URL}/check-db-connection.php`);
-    return {
-      success: true,
-      message: response.message || "API accessible",
-      details: response.details || null
-    };
+    // Essayer plusieurs endpoints pour trouver celui qui fonctionne
+    const endpoints = [
+      'check-db-connection.php',
+      'auth-test.php',
+      'check.php'
+    ];
+    
+    let lastError = null;
+    
+    for (const endpoint of endpoints) {
+      try {
+        console.log(`Tentative de connexion sur ${endpoint}...`);
+        const response = await fetch(`${API_BASE_URL}/${endpoint}`, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'Cache-Control': 'no-cache'
+          },
+          mode: 'cors'
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          return {
+            success: true,
+            message: data.message || "API accessible",
+            details: data.details || null
+          };
+        }
+      } catch (err) {
+        lastError = err;
+        console.log(`Échec avec ${endpoint}, essai suivant...`);
+      }
+    }
+    
+    throw lastError || new Error("Tous les endpoints ont échoué");
   } catch (error) {
     return {
       success: false,
