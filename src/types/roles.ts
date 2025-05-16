@@ -1,5 +1,5 @@
 
-export type UserRole = 'administrateur' | 'utilisateur' | 'gestionnaire';
+export type UserRole = 'administrateur' | 'admin' | 'utilisateur' | 'gestionnaire';
 
 export interface RolePermissions {
   viewPages: string[];
@@ -11,6 +11,12 @@ export interface RolePermissions {
 
 export const ROLE_PERMISSIONS: Record<UserRole, RolePermissions> = {
   administrateur: {
+    viewPages: ['*'],
+    editTables: ['*'],
+    createUsers: true,
+    accessAdminPanel: true
+  },
+  admin: {
     viewPages: ['*'],
     editTables: ['*'],
     createUsers: true,
@@ -46,6 +52,11 @@ export const ROLE_PERMISSIONS: Record<UserRole, RolePermissions> = {
 };
 
 export function hasPermission(role: UserRole, permission: keyof RolePermissions, context?: string): boolean {
+  // Si c'est admin ou administrateur, accorder automatiquement l'accès au panneau d'administration
+  if ((role === 'admin' || role === 'administrateur') && permission === 'accessAdminPanel') {
+    return true;
+  }
+  
   if (!role || !ROLE_PERMISSIONS[role]) {
     return false;
   }

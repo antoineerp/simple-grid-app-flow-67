@@ -18,7 +18,9 @@ const Sidebar = () => {
   const userRole = (user?.role || localStorage.getItem('userRole') || 'utilisateur') as any;
   console.log("Sidebar: rôle utilisateur détecté:", userRole);
   
-  const isAdmin = hasPermission(userRole, 'accessAdminPanel');
+  // Vérifier explicitement les rôles admin et administrateur pour l'accès au panneau d'administration
+  const isAdmin = userRole === 'admin' || userRole === 'administrateur' || 
+                  hasPermission(userRole, 'accessAdminPanel');
   console.log("Sidebar: permission d'accès à l'administration:", isAdmin);
   
   useEffect(() => {

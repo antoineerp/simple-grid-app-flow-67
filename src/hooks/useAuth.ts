@@ -16,6 +16,15 @@ export const useAuth = () => {
         // Stocker le rôle dans localStorage pour accès facile
         if (currentUser?.role) {
           localStorage.setItem('userRole', currentUser.role);
+          
+          // Pour la compatibilité, si le rôle est 'admin', également stocker 'administrateur'
+          if (currentUser.role === 'admin') {
+            localStorage.setItem('userRole', 'administrateur');
+          }
+          // Et vice versa
+          if (currentUser.role === 'administrateur') {
+            localStorage.setItem('userRole', 'administrateur');
+          }
         }
       } catch (error) {
         console.error("Error loading user:", error);
@@ -38,7 +47,7 @@ export const useAuth = () => {
   };
 
   const getRole = (): string | undefined => {
-    return user?.role;
+    return user?.role || localStorage.getItem('userRole') || undefined;
   };
 
   const getUserName = (): string => {
