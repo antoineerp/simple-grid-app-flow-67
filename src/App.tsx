@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import Layout from './components/layout/Layout';
 import { SyncProvider } from './context/SyncContext';
 
@@ -14,9 +14,23 @@ import Exigences from './pages/Exigences';
 import Collaboration from './pages/Collaboration';
 import NotFound from './pages/NotFound';
 import UserManagement from './pages/UserManagement';
+import Index from './pages/Index';
 
 // Import des composants de context additionnels
 import { ToastProvider } from './components/ui/toast';
+import { getIsLoggedIn } from './services/auth/authService';
+
+// Composant pour les redirections conditionnelles
+const AuthRoute = ({ children }: { children: React.ReactNode }) => {
+  const isLoggedIn = getIsLoggedIn();
+  
+  if (!isLoggedIn) {
+    console.log("Utilisateur non authentifié, redirection vers la page d'accueil");
+    return <Navigate to="/" replace />;
+  }
+  
+  return <>{children}</>;
+};
 
 function App() {
   return (
@@ -24,8 +38,11 @@ function App() {
       <ToastProvider>
         <Router>
           <Routes>
-            <Route path="/" element={<Layout />}>
-              <Route index element={<Pilotage />} />
+            {/* Page d'accueil/connexion - route racine */}
+            <Route path="/" element={<Index />} />
+            
+            {/* Routes protégées dans le Layout */}
+            <Route path="/" element={<AuthRoute><Layout /></AuthRoute>}>
               <Route path="/pilotage" element={<Pilotage />} />
               <Route path="/documents" element={<GestionDocumentaire />} />
               <Route path="/gestion-documentaire" element={<GestionDocumentaire />} />

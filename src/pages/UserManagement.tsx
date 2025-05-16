@@ -1,19 +1,61 @@
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useAdminUsers } from '@/hooks/useAdminUsers';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { RefreshCw, UserPlus, User, Shield, Info } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import CreateUserDialog from '@/components/users/CreateUserDialog';
+import { initializeUserTables } from '@/services/core/userInitializationService';
 
 const UserManagement = () => {
   const { utilisateurs, loading, error, loadUtilisateurs, handleConnectAsUser, retryCount } = useAdminUsers();
   const { toast } = useToast();
+  const [isCreateUserDialogOpen, setIsCreateUserDialogOpen] = useState(false);
 
   useEffect(() => {
     loadUtilisateurs();
   }, [loadUtilisateurs]);
+
+  const handleUserCreated = () => {
+    toast({
+      title: "Utilisateur créé",
+      description: "L'utilisateur a été créé avec succès et ses tables ont été initialisées."
+    });
+    loadUtilisateurs(); // Recharger la liste après création
+  };
+
+  const handleInitializeUserTables = async (userId: string) => {
+    try {
+      toast({
+        title: "Initialisation en cours",
+        description: "Préparation des données pour cet utilisateur..."
+      });
+
+      const success = await initializeUserTables(userId);
+      
+      if (success) {
+        toast({
+          title: "Initialisation réussie",
+          description: "Les tables de l'utilisateur ont été créées avec succès."
+        });
+      } else {
+        toast({
+          title: "Initialisation partielle",
+          description: "Certaines tables n'ont pas pu être créées. L'utilisateur peut rencontrer des problèmes.",
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      console.error("Erreur lors de l'initialisation des tables:", error);
+      toast({
+        title: "Échec de l'initialisation",
+        description: "Une erreur est survenue lors de la création des tables utilisateur.",
+        variant: "destructive"
+      });
+    }
+  };
 
   return (
     <div className="container mx-auto p-6">
@@ -30,7 +72,7 @@ const UserManagement = () => {
             Actualiser
           </Button>
           
-          <Button>
+          <Button onClick={() => setIsCreateUserDialogOpen(true)}>
             <UserPlus className="mr-2 h-4 w-4" />
             Nouvel utilisateur
           </Button>
@@ -103,6 +145,14 @@ const UserManagement = () => {
                           </Button>
                           <Button 
                             variant="ghost" 
+                            size="sm"
+                            onClick={() => handleInitializeUserTables(user.identifiant_technique)}
+                            title="Initialiser les tables"
+                          >
+                            Initialiser les tables
+                          </Button>
+                          <Button 
+                            variant="ghost" 
                             size="icon"
                             title="Détails"
                           >
@@ -118,6 +168,13 @@ const UserManagement = () => {
           )}
         </CardContent>
       </Card>
+
+      <CreateUserDialog 
+        open={isCreateUserDialogOpen}
+        onClose={() => setIsCreateUserDialogOpen(false)}
+        onUserCreated={handleUserCreated}
+        onUserConnect={handleConnectAsUser}
+      />
     </div>
   );
 };
