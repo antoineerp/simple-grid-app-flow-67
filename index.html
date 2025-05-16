@@ -10,17 +10,38 @@
   <link rel="icon" type="image/x-icon" href="/favicon.ico" />
   <!-- Force MIME Type for CSS -->
   <link rel="stylesheet" href="/assets/main.css" type="text/css" />
-  <!-- Utilisation du CSS le plus récent -->
   <link rel="stylesheet" href="/assets/index.css" type="text/css" />
 </head>
 <body>
-  <div id="root"></div>
+  <div id="root">
+    <!-- Contenu de chargement initial pour éviter la page blanche -->
+    <div style="display: flex; justify-content: center; align-items: center; height: 100vh; flex-direction: column;">
+      <img src="/public/lovable-uploads/formacert-logo.png" alt="FormaCert" style="max-width: 200px; margin-bottom: 20px;" />
+      <p>Chargement de l'application...</p>
+    </div>
+  </div>
+  
   <!-- Force MIME Type for JavaScript -->
+  <script nomodule src="/assets/gptengineer.js"></script>
   <script src="https://cdn.gpteng.co/gptengineer.js" type="module"></script>
-  <script src="/assets/gptengineer.js" nomodule></script>
-  <!-- Utilisation du JS le plus récent -->
+  
+  <!-- Version moderne avec modules ES6 -->
   <script type="module" src="/assets/main.BARYCRGM.js"></script>
-  <!-- Fallback pour les navigateurs qui ne supportent pas les modules -->
-  <script nomodule src="/assets/main.js"></script>
+  
+  <!-- Script de secours en cas d'échec du chargement du module -->
+  <script>
+    window.addEventListener('error', function(e) {
+      // Détecter les erreurs liées au chargement des modules
+      if (e.filename && e.filename.includes('main.BARYCRGM.js')) {
+        console.error('Erreur de chargement du module ES6, chargement du fallback');
+        var fallbackScript = document.createElement('script');
+        fallbackScript.src = '/assets/main.js';
+        fallbackScript.onerror = function() {
+          document.getElementById('root').innerHTML = '<div style="text-align:center; padding:2rem;"><h1>Erreur de chargement</h1><p>Impossible de charger les ressources JavaScript.</p></div>';
+        };
+        document.body.appendChild(fallbackScript);
+      }
+    }, true);
+  </script>
 </body>
 </html>
