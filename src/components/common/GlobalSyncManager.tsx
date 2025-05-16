@@ -1,10 +1,14 @@
 
 import React from 'react';
+import { useSyncContext } from '../../context/SyncContext';
 
 const GlobalSyncManager: React.FC = () => {
-  // Simplified version that doesn't cause errors
+  const syncContext = useSyncContext();
+  
+  // Utiliser le contexte pour éviter l'erreur
   React.useEffect(() => {
     console.log("GlobalSyncManager - Composant monté");
+    console.log("État de synchronisation:", syncContext.syncStatus);
     
     // Créer un élément dans le DOM pour indiquer l'initialisation
     const syncInitElement = document.createElement('div');
@@ -21,7 +25,7 @@ const GlobalSyncManager: React.FC = () => {
         document.body.removeChild(element);
       }
     };
-  }, []);
+  }, [syncContext]);
   
   // Rendered component doesn't need to display anything
   return null;

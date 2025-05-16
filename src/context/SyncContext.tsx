@@ -1,5 +1,5 @@
 
-import React, { createContext, useContext, useState } from 'react';
+import React, { createContext, useContext, useState, useEffect } from 'react';
 
 export interface SyncStatus {
   isSyncing: boolean;
@@ -21,23 +21,36 @@ const defaultSyncStatus: SyncStatus = {
   syncFailed: false,
 };
 
-const SyncContext = createContext<SyncContextType>({
-  syncStatus: defaultSyncStatus,
-  setSyncStatus: () => {},
-  startSync: () => {},
-  endSync: () => {},
-});
+const SyncContext = createContext<SyncContextType | undefined>(undefined);
 
 export const useSyncContext = () => {
   const context = useContext(SyncContext);
   if (!context) {
-    throw new Error('useSyncContext must be used within a SyncProvider');
+    console.error("useSyncContext doit être utilisé à l'intérieur d'un SyncProvider");
+    // Renvoyer une valeur par défaut pour éviter l'arrêt de l'application
+    return {
+      syncStatus: defaultSyncStatus,
+      setSyncStatus: () => {},
+      startSync: () => {},
+      endSync: () => {}
+    };
   }
   return context;
 };
 
 export const SyncProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [syncStatus, setSyncStatus] = useState<SyncStatus>(defaultSyncStatus);
+  const [isProviderMounted, setIsProviderMounted] = useState(false);
+  
+  useEffect(() => {
+    console.log("SyncProvider monté");
+    setIsProviderMounted(true);
+    
+    return () => {
+      console.log("SyncProvider démonté");
+      setIsProviderMounted(false);
+    };
+  }, []);
 
   const startSync = (entityType: string) => {
     console.log(`Starting sync for: ${entityType}`);
@@ -57,9 +70,18 @@ export const SyncProvider: React.FC<{ children: React.ReactNode }> = ({ children
       error: error,
     });
   };
+  
+  const contextValue = {
+    syncStatus, 
+    setSyncStatus, 
+    startSync, 
+    endSync
+  };
+  
+  console.log("SyncProvider rendu avec état:", syncStatus, "Provider monté:", isProviderMounted);
 
   return (
-    <SyncContext.Provider value={{ syncStatus, setSyncStatus, startSync, endSync }}>
+    <SyncContext.Provider value={contextValue}>
       {children}
     </SyncContext.Provider>
   );

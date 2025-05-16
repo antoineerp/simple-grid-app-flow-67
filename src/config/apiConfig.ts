@@ -44,7 +44,7 @@ export const fetchWithErrorHandling = async (url: string, options: RequestInit =
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 15000);
     
-    console.log(`Requête API vers: ${url}`);
+    console.log(`Requête API vers: ${url}`, options);
     
     // S'assurer que les en-têtes appropriés sont toujours inclus
     const headers = {
@@ -56,7 +56,7 @@ export const fetchWithErrorHandling = async (url: string, options: RequestInit =
     };
     
     // Ajouter l'origine pour Infomaniak CORS
-    if (window.location.origin.includes('lovableproject.com')) {
+    if (window.location.origin.includes('lovableproject.com') || window.location.origin.includes('qualiopi.ch')) {
       headers['Origin'] = 'https://qualiopi.ch';
     }
     
@@ -70,12 +70,43 @@ export const fetchWithErrorHandling = async (url: string, options: RequestInit =
     
     clearTimeout(timeoutId);
     
+    // Log détaillé de la réponse pour le débogage
+    console.log(`Réponse de ${url}:`, {
+      status: response.status,
+      statusText: response.statusText,
+      headers: Object.fromEntries([...response.headers.entries()])
+    });
+    
     if (!response.ok) {
       console.error(`Erreur HTTP: ${response.status} ${response.statusText}`);
+      
+      // Tenter de lire le corps de la réponse d'erreur pour plus de détails
+      try {
+        const errorBody = await response.text();
+        console.error("Détails de l'erreur:", errorBody);
+      } catch (readError) {
+        console.error("Impossible de lire les détails de l'erreur");
+      }
+      
       throw new Error(`Erreur HTTP: ${response.status}`);
     }
     
-    return await response.json();
+    // Pour les réponses vides (204 No Content)
+    if (response.status === 204) {
+      return { success: true };
+    }
+    
+    // Tente de parser la réponse comme JSON
+    try {
+      const data = await response.json();
+      return data;
+    } catch (jsonError) {
+      console.error("Erreur de parsing JSON:", jsonError);
+      // Si ce n'est pas du JSON, retourner le texte brut
+      const textData = await response.text();
+      console.log("Réponse texte:", textData);
+      return { rawText: textData };
+    }
   } catch (error) {
     console.error("Erreur de requête:", error);
     throw error;
@@ -109,6 +140,11 @@ export const testApiConnection = async () => {
           mode: 'cors'
         });
         
+        console.log(`Réponse de ${endpoint}:`, {
+          status: response.status,
+          statusText: response.statusText
+        });
+        
         if (response.ok) {
           const data = await response.json();
           return {
@@ -125,6 +161,7 @@ export const testApiConnection = async () => {
     
     throw lastError || new Error("Tous les endpoints ont échoué");
   } catch (error) {
+    console.error("Erreur de test de connexion:", error);
     return {
       success: false,
       message: error instanceof Error ? error.message : "Erreur de connexion à l'API",
