@@ -47,17 +47,11 @@ function exception_handler($exception) {
 set_exception_handler('exception_handler');
 
 try {
-    // Chargement des configurations d'environnement
-    if (file_exists(__DIR__ . '/config/env.php')) {
-        require_once __DIR__ . '/config/env.php';
-    } else {
-        error_log("Le fichier env.php est manquant, utilisation des valeurs par défaut");
-        // Valeurs par défaut si le fichier env.php n'est pas trouvé
-        define('DB_HOST', 'p71x6d.myd.infomaniak.com');
-        define('DB_NAME', 'p71x6d_richard');
-        define('DB_USER', 'p71x6d_richard');
-        define('DB_PASS', 'Trottinette43!');
-    }
+    // TOUJOURS définir les constantes correctes pour Infomaniak
+    define('DB_HOST', 'p71x6d.myd.infomaniak.com');
+    define('DB_NAME', 'p71x6d_richard');
+    define('DB_USER', 'p71x6d_richard');
+    define('DB_PASS', 'Trottinette43!');
 
     // Récupérer les données POST
     $json_input = file_get_contents("php://input");
@@ -101,15 +95,15 @@ try {
         
         // Se connecter directement avec PDO pour plus de fiabilité
         try {
-            // Connexion directe à la base
-            $dsn = "mysql:host=" . DB_HOST . ";dbname=" . DB_NAME . ";charset=utf8mb4";
+            // Connexion DIRECTE avec les identifiants Infomaniak
+            $dsn = "mysql:host=p71x6d.myd.infomaniak.com;dbname=p71x6d_richard;charset=utf8mb4";
             $options = [
                 PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
                 PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
                 PDO::ATTR_EMULATE_PREPARES => false,
             ];
             
-            $pdo = new PDO($dsn, DB_USER, DB_PASS, $options);
+            $pdo = new PDO($dsn, 'p71x6d_richard', 'Trottinette43!', $options);
             error_log("Connexion à la base de données réussie");
             
             // Rechercher l'utilisateur par email

@@ -9,12 +9,13 @@ class DatabaseConfig {
 
     public function __construct() {
         $this->configFile = __DIR__ . '/db_config.json';
-        $this->loadDefaultConfig();
+        $this->loadInfomaniakConfig();
+        // Nous chargeons toujours la configuration JSON, mais elle sera écrasée par les valeurs Infomaniak
         $this->loadConfigFile();
     }
 
-    private function loadDefaultConfig() {
-        // Utiliser les valeurs d'Infomaniak par défaut
+    private function loadInfomaniakConfig() {
+        // Toujours utiliser les valeurs d'Infomaniak pour la production
         $this->host = "p71x6d.myd.infomaniak.com";
         $this->db_name = "p71x6d_richard";
         $this->username = "p71x6d_richard";
@@ -28,30 +29,31 @@ class DatabaseConfig {
                 $config = json_decode($jsonContent, true);
                 
                 if (json_last_error() === JSON_ERROR_NONE) {
-                    // Ignorer les configurations pour localhost ou non-Infomaniak
-                    if (isset($config['host']) && 
+                    // Nous ignorons les configurations pour localhost ou non-Infomaniak
+                    // Les informations Infomaniak sont prioritaires
+                    if (isset($config['password']) && $config['password'] !== "********" && 
                         strpos($config['host'], 'infomaniak') !== false) {
-                        $this->host = $config['host'];
-                    }
-                    
-                    // Forcer p71x6d_richard pour la production
-                    $this->db_name = "p71x6d_richard";
-                    $this->username = "p71x6d_richard";
-                    
-                    if (isset($config['password']) && $config['password'] !== "********") {
                         $this->password = $config['password'];
                     }
                 }
             } catch (Exception $e) {
                 error_log("Error loading database configuration: " . $e->getMessage());
+                // En cas d'erreur, nous conservons les valeurs d'Infomaniak
             }
         }
+        
+        // Force toujours les bonnes valeurs Infomaniak, peu importe ce qui a été chargé
+        $this->host = "p71x6d.myd.infomaniak.com";
+        $this->db_name = "p71x6d_richard";
+        $this->username = "p71x6d_richard";
     }
 
     public function saveConfig() {
-        // Forcer p71x6d_richard uniquement pour la production
+        // Forcer les valeurs Infomaniak
+        $this->host = 'p71x6d.myd.infomaniak.com';
         $this->db_name = 'p71x6d_richard';
         $this->username = 'p71x6d_richard';
+        $this->password = 'Trottinette43!';
         
         $config = [
             'host' => $this->host,
@@ -82,22 +84,14 @@ class DatabaseConfig {
     }
 
     public function updateConfig($host, $db_name, $username, $password) {
-        // Ne permettre que les hôtes Infomaniak
-        if (strpos($host, 'infomaniak') !== false) {
-            $this->host = $host;
-        } else {
-            // Forcer l'utilisation d'Infomaniak
-            $this->host = "p71x6d.myd.infomaniak.com";
-        }
+        // Ne jamais permettre la mise à jour vers des valeurs non Infomaniak
+        // Forcer l'utilisation d'Infomaniak
+        $this->host = "p71x6d.myd.infomaniak.com";
         
-        // Forcer p71x6d_richard uniquement pour la production
+        // Forcer les valeurs correctes
         $this->db_name = 'p71x6d_richard';
         $this->username = 'p71x6d_richard';
-        
-        // Le mot de passe n'est mis à jour que s'il est fourni et n'est pas masqué
-        if ($password && $password !== '********') {
-            $this->password = $password;
-        }
+        $this->password = 'Trottinette43!';
         
         return $this->saveConfig();
     }

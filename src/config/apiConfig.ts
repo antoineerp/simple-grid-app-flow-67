@@ -41,6 +41,8 @@ export const fetchWithErrorHandling = async (url: string, options: RequestInit =
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 10000);
     
+    console.log(`Requête API vers: ${url}`);
+    
     const response = await fetch(url, {
       ...options,
       headers: {
@@ -53,6 +55,7 @@ export const fetchWithErrorHandling = async (url: string, options: RequestInit =
     clearTimeout(timeoutId);
     
     if (!response.ok) {
+      console.error(`Erreur HTTP: ${response.status} ${response.statusText}`);
       throw new Error(`Erreur HTTP: ${response.status}`);
     }
     
