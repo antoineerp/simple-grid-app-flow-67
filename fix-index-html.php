@@ -37,7 +37,7 @@ $updated = false;
 if ($jsFile) {
     $jsPath = str_replace('./', '/', $jsFile);
     $newContent = preg_replace(
-        '/<script[^>]*src=["\'](\.\/|\/)?src\/[^"\']*\.tsx?["\'][^>]*>/',
+        '/<script[^>]*src=["\'](\.\/)?\/?src\/[^"\']*\.tsx?["\'][^>]*>/',
         '<script type="module" src="' . $jsPath . '">',
         $content
     );
@@ -53,7 +53,7 @@ if ($jsFile) {
 if ($cssFile) {
     $cssPath = str_replace('./', '/', $cssFile);
     $newContent = preg_replace(
-        '/<link[^>]*href=["\'](\.\/|\/)?src\/[^"\']*\.css["\'][^>]*>/',
+        '/<link[^>]*href=["\'](\.\/)?\/?src\/[^"\']*\.css["\'][^>]*>/',
         '<link rel="stylesheet" href="' . $cssPath . '">',
         $content
     );
