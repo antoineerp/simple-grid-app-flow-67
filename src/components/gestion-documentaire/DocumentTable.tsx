@@ -6,7 +6,6 @@ import type { DocumentGroup as DocumentGroupType } from '@/types/documents';
 import DocumentTableHeader from './table/TableHeader';
 import DocumentRow from './table/DocumentRow';
 import DocumentGroupComponent from './table/DocumentGroup';
-import { useDragAndDrop } from './table/useDragAndDrop';
 
 interface DocumentTableProps {
   documents: Document[];
@@ -35,7 +34,8 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
   onGroupReorder,
   onToggleGroup,
   onEditGroup,
-  onDeleteGroup
+  onDeleteGroup,
+  ...otherProps
 }) => {
   // Filtrer les documents qui n'appartiennent à aucun groupe
   const ungroupedDocuments = documents.filter(d => !d.groupId);
@@ -51,21 +51,6 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
       items: groupItems
     };
   });
-  
-  const {
-    draggedItem,
-    handleDragStart,
-    handleDragOver,
-    handleDragLeave,
-    handleDrop,
-    handleDragEnd,
-    handleGroupDrop
-  } = useDragAndDrop(documents, onReorder);
-
-  const handleGroupDragStart = (e: React.DragEvent<HTMLTableRowElement>, groupId: string) => {
-    e.dataTransfer.setData('text/plain', JSON.stringify({ groupId }));
-    e.currentTarget.classList.add('opacity-50');
-  };
 
   return (
     <div className="bg-white rounded-md shadow overflow-hidden">
@@ -85,13 +70,7 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
               onToggleGroup={onToggleGroup}
               onEditGroup={onEditGroup}
               onDeleteGroup={onDeleteGroup}
-              onDragStart={handleDragStart}
-              onDragOver={handleDragOver}
-              onDragLeave={handleDragLeave}
-              onDrop={handleDrop}
-              onDragEnd={handleDragEnd}
-              onGroupDragStart={handleGroupDragStart}
-              onGroupDrop={handleGroupDrop}
+              {...otherProps}
             />
           ))}
         </TableBody>
@@ -106,11 +85,7 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
               onExclusionChange={onExclusionChange}
               onEdit={onEdit}
               onDelete={onDelete}
-              onDragStart={handleDragStart}
-              onDragOver={handleDragOver}
-              onDragLeave={handleDragLeave}
-              onDrop={handleDrop}
-              onDragEnd={handleDragEnd}
+              {...otherProps}
             />
           ))}
         </TableBody>

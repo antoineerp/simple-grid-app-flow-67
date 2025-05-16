@@ -101,6 +101,7 @@ export const useAuth = () => {
     
     // Nettoyer le localStorage
     localStorage.removeItem('authToken');
+    localStorage.removeItem('currentUser');
     localStorage.removeItem('userRole');
     localStorage.removeItem('isAdministrator');
     localStorage.removeItem('currentUserId');
