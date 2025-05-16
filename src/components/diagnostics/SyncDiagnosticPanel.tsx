@@ -16,7 +16,7 @@ const SyncDiagnosticPanel: React.FC<SyncDiagnosticPanelProps> = ({ onForceSync }
     lastSynced, 
     isSyncing,
     syncErrors,
-    syncAll
+    syncData
   } = useSyncContext();
 
   // Déterminer le statut global
@@ -28,8 +28,15 @@ const SyncDiagnosticPanel: React.FC<SyncDiagnosticPanelProps> = ({ onForceSync }
   const handleForceSync = async () => {
     if (onForceSync) {
       await onForceSync();
-    } else {
-      await syncAll();
+    } else if (syncData) {
+      // Synchroniser toutes les tables
+      for (const table of Object.keys(isSyncing)) {
+        try {
+          await syncData(table, []);
+        } catch (error) {
+          console.error(`Erreur lors de la synchronisation de ${table}:`, error);
+        }
+      }
     }
   };
 
@@ -82,7 +89,7 @@ const SyncDiagnosticPanel: React.FC<SyncDiagnosticPanelProps> = ({ onForceSync }
                 <div className="flex items-center space-x-2">
                   <span className="font-mono">{table}</span>
                   {isSyncing[table] && <RefreshCcw className="h-3 w-3 animate-spin text-blue-500" />}
-                  {syncErrors[table] && <XCircle className="h-3 w-3 text-red-500" title={syncErrors[table] || ''} />}
+                  {syncErrors[table] && <XCircle className="h-3 w-3 text-red-500" aria-label={syncErrors[table] || ''} />}
                 </div>
                 <span className="text-xs text-gray-400">
                   {time ? time.toLocaleTimeString() : "Jamais"}

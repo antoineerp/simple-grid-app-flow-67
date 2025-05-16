@@ -41,12 +41,12 @@ export function useBibliotheque() {
         
         // Récupérer l'ID de l'utilisateur actuel pour garantir l'isolation des données
         const currentUser = getCurrentUser();
-        const userId = currentUser?.identifiant_technique;
         
-        if (!userId) {
+        if (!currentUser || !currentUser.identifiant_technique) {
           throw new Error("Utilisateur non authentifié");
         }
         
+        const userId = currentUser.identifiant_technique;
         console.log("Chargement des données de la bibliothèque pour l'utilisateur:", userId);
         
         // Charger les données depuis le serveur en utilisant loadData du contexte

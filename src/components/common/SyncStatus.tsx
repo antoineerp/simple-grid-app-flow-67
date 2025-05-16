@@ -27,12 +27,12 @@ const SyncStatus: React.FC<SyncStatusProps> = ({ tableName }) => {
 
   return (
     <div className="flex items-center space-x-2 text-xs">
-      <div className={`h-2 w-2 rounded-full ${isOnline ? 'bg-green-500' : 'bg-red-500'}`} 
-           title={isOnline ? 'En ligne' : 'Hors ligne'} />
+      <div className={`h-2 w-2 rounded-full ${isOnline ? 'bg-green-500' : 'bg-red-500'}`}
+           aria-label={isOnline ? 'En ligne' : 'Hors ligne'} />
       
       <RefreshCcw 
         className={`h-3 w-3 ${isSyncing ? 'animate-spin text-blue-500' : hasError ? 'text-red-500' : 'text-gray-400'}`}
-        title={isSyncing ? 'Synchronisation en cours' : hasError ? 'Erreur de synchronisation' : 'Aucune synchronisation en cours'} 
+        aria-label={isSyncing ? 'Synchronisation en cours' : hasError ? 'Erreur de synchronisation' : 'Aucune synchronisation en cours'} 
       />
       
       {lastSyncTime && (

@@ -1,204 +1,145 @@
 
-/**
- * Service d'authentification centralisé
- */
-
-import { getApiUrl, getFullApiUrl } from '@/config/apiConfig';
+import jwtDecode from 'jwt-decode';
 import { User } from '@/types/auth';
 
-// Types pour l'authentification
-export interface AuthCredentials {
-  email: string;
-  password: string;
-}
-
-export interface AuthResponse {
-  success: boolean;
-  token?: string;
-  user?: User;
-  message?: string;
-}
-
-// Variable pour stocker l'utilisateur actuel
-let currentUser: User | null = null;
-
-/**
- * Obtient l'utilisateur actuellement connecté
- */
-export const getCurrentUser = (): User | null => {
-  // Si l'utilisateur est déjà défini, le retourner
-  if (currentUser) {
-    return currentUser;
-  }
-  
-  // Essayer de charger l'utilisateur depuis le stockage
-  try {
-    const userStr = localStorage.getItem('currentUser');
-    if (userStr) {
-      currentUser = JSON.parse(userStr);
-    }
-  } catch (error) {
-    console.error('Erreur lors de la récupération de l\'utilisateur:', error);
-  }
-  
-  return currentUser;
-};
-
-/**
- * Vérifie si l'utilisateur est connecté
- */
-export const getIsLoggedIn = (): boolean => {
-  return !!getAuthToken() && !!getCurrentUser();
-};
-
-/**
- * Obtient le token d'authentification
- */
+// Récupérer le token JWT du stockage
 export const getAuthToken = (): string | null => {
-  return localStorage.getItem('authToken') || sessionStorage.getItem('authToken');
+  const token = localStorage.getItem('authToken') || sessionStorage.getItem('authToken');
+  return token;
 };
 
-/**
- * Connexion utilisateur
- */
-export const login = async (username: string, password: string): Promise<AuthResponse> => {
+// Vérifier si l'utilisateur est authentifié
+export const isAuthenticated = (): boolean => {
+  const token = getAuthToken();
+  if (!token) return false;
+
   try {
-    console.log("Tentative de connexion à l'API:", getFullApiUrl() + "/auth.php");
-    console.log("Identifiants (email):", username);
-    
-    // Assurer que nous appelons le bon endpoint d'authentification
-    const response = await fetch(`${getFullApiUrl()}/auth.php`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Cache-Control': 'no-cache',
-        'Pragma': 'no-cache'
-      },
-      body: JSON.stringify({ 
-        email: username, 
-        username: username, // Envoyer les deux pour compatibilité
-        password 
-      }),
-      credentials: 'include'
-    });
-
-    console.log("Réponse statut:", response.status);
-    
-    if (!response.ok) {
-      const errorMessage = `Erreur HTTP: ${response.status}`;
-      console.error(errorMessage);
-      
-      // Essayons avec l'ancien endpoint en fallback
-      if (response.status === 401) {
-        console.log("Tentative avec endpoint alternatif (controllers/AuthController.php)");
-        const altResponse = await fetch(`${getFullApiUrl()}/controllers/AuthController.php`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Cache-Control': 'no-cache'
-          },
-          body: JSON.stringify({ 
-            email: username, 
-            username: username, 
-            password 
-          })
-        });
-        
-        if (altResponse.ok) {
-          const altData = await altResponse.json();
-          console.log("Réponse alternative:", altData);
-          return processLoginResponse(altData);
-        }
-      }
-      
-      throw new Error(errorMessage);
+    const decodedToken: any = jwtDecode(token);
+    // Vérifier si le token est expiré
+    const currentTime = Date.now() / 1000;
+    if (decodedToken.exp && decodedToken.exp < currentTime) {
+      // Token expiré, nettoyer les données d'authentification
+      logout();
+      return false;
     }
-
-    const data = await response.json();
-    console.log("Données de réponse:", data);
-    
-    return processLoginResponse(data);
-  } catch (error) {
-    console.error('Erreur d\'authentification:', error);
-    return {
-      success: false,
-      message: error instanceof Error ? error.message : 'Erreur inconnue'
-    };
-  }
-};
-
-/**
- * Traite la réponse d'authentification
- */
-const processLoginResponse = (data: any): AuthResponse => {
-  if (data.success && data.token) {
-    // Stocker le token
-    localStorage.setItem('authToken', data.token);
-    sessionStorage.setItem('authToken', data.token);
-    
-    // Stocker les données utilisateur
-    if (data.user) {
-      localStorage.setItem('currentUser', JSON.stringify(data.user));
-      currentUser = data.user;
-      
-      // Stocker le rôle pour les vérifications de permissions
-      if (data.user.role) {
-        localStorage.setItem('userRole', data.user.role);
-      }
-    }
-  }
-  
-  return data;
-};
-
-/**
- * Déconnexion utilisateur
- */
-export const logout = async (): Promise<boolean> => {
-  try {
-    // Appel au serveur pour la déconnexion
-    const response = await fetch(`${getApiUrl()}/logout.php`, {
-      method: 'POST',
-      credentials: 'include'
-    });
-
-    // Nettoyage local même si la déconnexion serveur échoue
-    localStorage.removeItem('authToken');
-    sessionStorage.removeItem('authToken');
-    localStorage.removeItem('currentUser');
-    localStorage.removeItem('userRole');
-    currentUser = null;
-    
-    // Rediriger vers la page d'accueil
-    window.location.href = '/';
-    
     return true;
   } catch (error) {
-    console.error('Erreur de déconnexion:', error);
-    
-    // Nettoyage local même en cas d'erreur
-    localStorage.removeItem('authToken');
-    sessionStorage.removeItem('authToken');
-    localStorage.removeItem('currentUser');
-    localStorage.removeItem('userRole');
-    currentUser = null;
-    
+    console.error("Erreur lors de la vérification du token:", error);
     return false;
   }
 };
 
-/**
- * Service d'authentification
- */
-export const authService = {
-  login,
-  logout,
-  isAuthenticated: getIsLoggedIn,
-  getAuthHeaders: (): Record<string, string> => {
-    const token = getAuthToken();
-    return token ? { 'Authorization': `Bearer ${token}` } : {};
+// Récupérer les informations de l'utilisateur courant
+export const getCurrentUser = (): User | null => {
+  const token = getAuthToken();
+  if (!token) return null;
+
+  try {
+    const decodedToken: any = jwtDecode(token);
+    
+    // Vérifier si le token contient les informations de l'utilisateur au bon format
+    if (decodedToken.user) {
+      return decodedToken.user as User;
+    } else {
+      // En-têtes d'autorisation pour les requêtes API
+      return decodedToken as User;
+    }
+  } catch (error) {
+    console.error("Erreur lors du décodage du token:", error);
+    return null;
   }
 };
 
-// Export de la fonction getAuthHeaders pour une utilisation simple
-export const getAuthHeaders = authService.getAuthHeaders;
+// Déconnexion de l'utilisateur
+export const logout = (): void => {
+  localStorage.removeItem('authToken');
+  sessionStorage.removeItem('authToken');
+  localStorage.removeItem('currentUser');
+  
+  // Redirection vers la page de connexion
+  window.location.href = '/login';
+};
+
+// En-têtes d'autorisation pour les requêtes API
+export const getAuthHeaders = (): Record<string, string> => {
+  const token = getAuthToken();
+  if (!token) return {};
+
+  return {
+    'Authorization': `Bearer ${token}`,
+    'x-token': token
+  };
+};
+
+// Vérifie si l'utilisateur a un rôle spécifique
+export const hasRole = (role: string | string[]): boolean => {
+  const user = getCurrentUser();
+  if (!user || !user.role) return false;
+  
+  if (Array.isArray(role)) {
+    return role.includes(user.role);
+  }
+  
+  return user.role === role;
+};
+
+// Authentifier un utilisateur avec email/mot de passe
+export const authenticateUser = async (email: string, password: string, rememberMe: boolean = false): Promise<User> => {
+  try {
+    // Définir l'URL de l'API
+    const apiUrl = import.meta.env.VITE_API_URL || '/api';
+    
+    // Envoyer la demande d'authentification
+    const response = await fetch(`${apiUrl}/auth`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        username: email,
+        password: password,
+        rememberMe: rememberMe
+      }),
+    });
+    
+    // Vérifier si la réponse est OK
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || 'Erreur d\'authentification');
+    }
+    
+    // Traiter la réponse
+    const data = await response.json();
+    
+    // Stocker le token JWT dans le stockage approprié
+    if (rememberMe) {
+      localStorage.setItem('authToken', data.token);
+    } else {
+      sessionStorage.setItem('authToken', data.token);
+    }
+    
+    // Retourner les informations de l'utilisateur
+    return data.user;
+  } catch (error) {
+    console.error('Erreur lors de l\'authentification:', error);
+    throw error;
+  }
+};
+
+// Récupérer l'ID de l'utilisateur courant
+export const getCurrentUserId = (): string | undefined => {
+  const user = getCurrentUser();
+  return user?.id;
+};
+
+// Récupérer le nom complet de l'utilisateur courant
+export const getCurrentUserName = (): string => {
+  const user = getCurrentUser();
+  if (!user) return '';
+  return `${user.prenom || ''} ${user.nom || ''}`.trim();
+};
+
+// Vérifier si l'utilisateur est administrateur
+export const isAdmin = (): boolean => {
+  return hasRole(['administrateur', 'admin']);
+};

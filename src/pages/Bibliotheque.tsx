@@ -1,325 +1,167 @@
-import React, { useState } from 'react';
-import { 
-  Plus, 
-  FolderPlus, 
-  FileText, 
-  Folder, 
-  Search,
-  FolderOpen
-} from 'lucide-react';
-import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { 
-  Dialog, 
-  DialogContent, 
-  DialogHeader, 
-  DialogTitle 
-} from "@/components/ui/dialog";
-import { useBibliotheque } from "@/hooks/useBibliotheque";
-import { BibliothequeDocument, BibliothequeFolder } from "@/types/bibliotheque";
-import SyncIndicator from "@/components/common/SyncIndicator";
+
+import React from 'react';
+import { useBibliotheque } from '@/hooks/useBibliotheque';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { RefreshCw, PlusCircle, Search } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Skeleton } from '@/components/ui/skeleton';
 
 const Bibliotheque: React.FC = () => {
-  const { 
-    documents,
-    isLoading,
-    searchTerm,
-    filteredDocuments,
-    currentSubFolders,
-    searchDocuments,
-    navigateToFolder,
-    synchronize,
-    addDocument,
-    deleteDocument,
-    createFolder,
-    currentFolder,
-    breadcrumbs
+  const {
+    items,
+    loading,
+    error,
+    isSyncing,
+    isOnline,
+    addItem,
+    updateItem,
+    deleteItem
   } = useBibliotheque();
-  
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [isGroupDialogOpen, setIsGroupDialogOpen] = useState(false);
-  const [isEditing, setIsEditing] = useState(false);
-  const [currentDocument, setCurrentDocument] = useState<BibliothequeDocument | null>(null);
-  const [currentGroup, setCurrentGroup] = useState<any>(null);
-  
-  // Mock functions to match existing component code
-  const handleAddDocument = (doc: any) => {
-    return addDocument(doc);
-  };
-  
-  const handleUpdateDocument = (doc: any) => {
-    console.log("Updating document:", doc);
-    return Promise.resolve(true);
-  };
-  
-  const handleDeleteDocument = (id: string) => {
-    return deleteDocument(id);
-  };
-  
-  const handleAddGroup = (group: any) => {
-    return createFolder(group.name);
-  };
-  
-  const handleUpdateGroup = (group: any) => {
-    console.log("Updating group:", group);
-    return Promise.resolve(true);
-  };
-  
-  const handleDeleteGroup = (id: string) => {
-    console.log("Deleting group:", id);
-    return Promise.resolve(true);
-  };
-  
-  const handleSyncDocuments = () => {
-    return synchronize();
-  };
-  
-  // Mock values for compatibility
-  const isSyncing = isLoading;
-  const isOnline = true;
-  const lastSynced = new Date();
-  const syncFailed = false;
-  const currentUser = localStorage.getItem('userId') || "1";
-  const groups = currentSubFolders;
-  
-  // Fonction pour ouvrir/fermer un groupe
-  const toggleGroup = (groupId: string) => {
-    // setOpenGroups(prev => ({
-    //   ...prev,
-    //   [groupId]: !prev[groupId]
-    // }));
-  };
-  
-  // Fonction pour créer un nouveau document
-  const handleNewDocument = () => {
-    // setCurrentDocument({
-    //   id: `doc-${Date.now()}`,
-    //   name: "",
-    //   link: "",
-    //   groupId: undefined,
-    //   userId: currentUser
-    // });
-    setIsEditing(false);
-    setIsDialogOpen(true);
-  };
-  
-  // Fonction pour créer un nouveau groupe
-  const handleNewGroup = () => {
-    // setCurrentGroup({
-    //   id: `group-${Date.now()}`,
-    //   name: "",
-    //   expanded: false,
-    //   items: [],
-    //   userId: currentUser
-    // });
-    setIsEditing(false);
-    setIsGroupDialogOpen(true);
-  };
-  
-  // Fonction pour éditer un document existant
-  const handleEditDocument = (doc: BibliothequeDocument) => {
-    // setCurrentDocument({ ...doc });
-    setIsEditing(true);
-    setIsDialogOpen(true);
-  };
-  
-  // Fonction pour éditer un groupe existant
-  const handleEditGroup = (group: BibliothequeFolder) => {
-    // setCurrentGroup({ ...group });
-    setIsEditing(true);
-    setIsGroupDialogOpen(true);
-  };
-  
-  // Fonction pour gérer le drag and drop
-  const handleDragEnd = (result: any) => {
-    // À implémenter si nécessaire
-  };
-  
-  const [searchTermState, setSearchTerm] = useState("");
 
-  // Filtrer les documents en fonction du terme de recherche
-  const filteredDocumentsMemo = React.useMemo(() => {
-    if (!searchTermState.trim()) return documents;
+  const [searchTerm, setSearchTerm] = React.useState('');
+  
+  // Filtrer les éléments en fonction du terme de recherche
+  const filteredItems = React.useMemo(() => {
+    if (!searchTerm.trim()) return items;
     
-    const term = searchTermState.toLowerCase();
-    return documents.filter(doc => 
-      doc.name.toLowerCase().includes(term)
+    return items.filter(item => 
+      item.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (item.description && item.description.toLowerCase().includes(searchTerm.toLowerCase()))
     );
-  }, [documents, searchTermState]);
-  
-  const [openGroups, setOpenGroups] = React.useState<Record<string, boolean>>({});
-  
+  }, [items, searchTerm]);
+
+  const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchTerm(e.target.value);
+  };
+
+  const handleAddItem = async () => {
+    const title = prompt("Titre du document:");
+    if (!title) return;
+    
+    const description = prompt("Description (optionnel):");
+    
+    await addItem({
+      title,
+      description: description || undefined,
+      author: "Utilisateur actuel"
+    });
+  };
+
   return (
-    <div className="p-8 w-full">
+    <div className="container mx-auto p-6">
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold text-app-blue">Bibliothèque de documents</h1>
+        <h1 className="text-2xl font-bold">Bibliothèque</h1>
+        
         <div className="flex space-x-2">
-          <Button variant="outline" onClick={handleNewGroup}>
-            <FolderPlus className="mr-2 h-4 w-4" />
-            Nouveau groupe
-          </Button>
-          <Button onClick={handleNewDocument}>
-            <Plus className="mr-2 h-4 w-4" />
-            Nouveau document
+          <div className="relative">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
+            <Input
+              type="search"
+              placeholder="Rechercher..."
+              className="pl-8 w-[200px]"
+              value={searchTerm}
+              onChange={handleSearch}
+            />
+          </div>
+          
+          <Button onClick={handleAddItem}>
+            <PlusCircle className="mr-2 h-4 w-4" />
+            Ajouter
           </Button>
         </div>
       </div>
-      
-      <div className="mb-4">
-        <SyncIndicator
-          isSyncing={isSyncing}
-          isOnline={isOnline}
-          syncFailed={syncFailed}
-          lastSynced={lastSynced}
-          onSync={handleSyncDocuments}
-          tableName="bibliotheque"
-        />
-      </div>
-      
-      <div className="mb-4">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-          <Input
-            className="pl-10"
-            placeholder="Rechercher un document..."
-            value={searchTermState}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
+
+      {error && (
+        <div className="bg-red-50 p-4 rounded-md text-red-600 mb-4">
+          <p className="font-medium">Erreur</p>
+          <p className="text-sm">{error}</p>
         </div>
-      </div>
-      
-      <DragDropContext onDragEnd={handleDragEnd}>
-        <div className="bg-white rounded-lg shadow">
-          <Droppable droppableId="documents">
-            {(provided) => (
-              <div {...provided.droppableProps} ref={provided.innerRef}>
-                {/* Documents sans groupe */}
-                <div className="p-4 border-b">
-                  <h2 className="font-medium mb-2">Documents non classés</h2>
-                  <div className="space-y-2">
-                    {filteredDocumentsMemo
-                      .filter(doc => !doc.groupe_id)
-                      .map((doc, index) => (
-                        <Draggable key={doc.id} draggableId={doc.id} index={index}>
-                          {(provided) => (
-                            <div
-                              ref={provided.innerRef}
-                              {...provided.draggableProps}
-                              {...provided.dragHandleProps}
-                              className="flex items-center p-2 hover:bg-gray-50 rounded-md cursor-pointer"
-                              onClick={() => handleEditDocument(doc)}
-                            >
-                              <FileText className="mr-2 h-4 w-4 text-gray-500" />
-                              <span>{doc.name}</span>
-                            </div>
-                          )}
-                        </Draggable>
-                      ))}
-                  </div>
+      )}
+
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        {loading ? (
+          // Afficher des squelettes pendant le chargement
+          Array.from({ length: 6 }).map((_, index) => (
+            <Card key={index} className="overflow-hidden">
+              <CardHeader className="pb-0">
+                <Skeleton className="h-5 w-3/4 mb-2" />
+                <Skeleton className="h-4 w-1/2" />
+              </CardHeader>
+              <CardContent>
+                <Skeleton className="h-20 w-full mt-4" />
+                <div className="flex justify-between mt-4">
+                  <Skeleton className="h-4 w-1/4" />
+                  <Skeleton className="h-4 w-1/4" />
                 </div>
+              </CardContent>
+            </Card>
+          ))
+        ) : filteredItems.length === 0 ? (
+          <div className="col-span-full flex flex-col items-center justify-center py-12 text-gray-500">
+            <p className="mb-2">Aucun document trouvé</p>
+            <Button variant="outline" onClick={handleAddItem}>
+              <PlusCircle className="mr-2 h-4 w-4" />
+              Ajouter un document
+            </Button>
+          </div>
+        ) : (
+          filteredItems.map(item => (
+            <Card key={item.id} className="overflow-hidden">
+              <CardHeader>
+                <CardTitle className="text-lg">{item.title}</CardTitle>
+                <p className="text-xs text-gray-500">
+                  {item.author && <>Par {item.author} • </>}
+                  {item.date_creation.toLocaleDateString()}
+                </p>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-gray-600 line-clamp-3">
+                  {item.description || "Aucune description"}
+                </p>
                 
-                {/* Groupes et leurs documents */}
-                {groups.map(group => {
-                  const groupDocs = filteredDocumentsMemo.filter(doc => doc.groupe_id === group.id);
-                  const isOpen = openGroups[group.id] || false;
-                  
-                  return (
-                    <div key={group.id} className="p-4 border-b">
-                      <div 
-                        className="flex items-center justify-between mb-2 cursor-pointer"
-                        onClick={() => toggleGroup(group.id)}
-                      >
-                        <div className="flex items-center">
-                          {isOpen ? 
-                            <FolderOpen className="mr-2 h-4 w-4 text-app-blue" /> : 
-                            <Folder className="mr-2 h-4 w-4 text-app-blue" />
-                          }
-                          <h2 className="font-medium">{group.name}</h2>
-                          <span className="ml-2 text-xs text-gray-500">
-                            ({groupDocs.length})
-                          </span>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <Button 
-                            variant="ghost" 
-                            size="sm" 
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleEditGroup(group);
-                            }}
-                          >
-                            Éditer
-                          </Button>
-                        </div>
-                      </div>
-                      
-                      {isOpen && (
-                        <div className="space-y-2 ml-6 mt-2">
-                          {groupDocs.map((doc, index) => (
-                            <Draggable key={doc.id} draggableId={doc.id} index={index}>
-                              {(provided) => (
-                                <div
-                                  ref={provided.innerRef}
-                                  {...provided.draggableProps}
-                                  {...provided.dragHandleProps}
-                                  className="flex items-center p-2 hover:bg-gray-50 rounded-md cursor-pointer"
-                                  onClick={() => handleEditDocument(doc)}
-                                >
-                                  <FileText className="mr-2 h-4 w-4 text-gray-500" />
-                                  <span>{doc.name}</span>
-                                </div>
-                              )}
-                            </Draggable>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-                {provided.placeholder}
-              </div>
-            )}
-          </Droppable>
+                <div className="flex justify-between mt-4">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      const newTitle = prompt("Nouveau titre:", item.title);
+                      if (newTitle) updateItem(item.id, { title: newTitle });
+                    }}
+                  >
+                    Éditer
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-red-600 hover:text-red-700"
+                    onClick={() => {
+                      if (confirm("Êtes-vous sûr de vouloir supprimer cet élément ?")) {
+                        deleteItem(item.id);
+                      }
+                    }}
+                  >
+                    Supprimer
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          ))
+        )}
+      </div>
+      
+      {isSyncing && (
+        <div className="fixed bottom-4 right-4 bg-blue-500 text-white px-3 py-2 rounded-md shadow flex items-center">
+          <RefreshCw className="animate-spin h-4 w-4 mr-2" />
+          <span>Synchronisation...</span>
         </div>
-      </DragDropContext>
+      )}
       
-      {/* Dialog for document form */}
-      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>
-              {isEditing ? "Modifier le document" : "Ajouter un document"}
-            </DialogTitle>
-          </DialogHeader>
-          {/*<DocumentForm
-            document={currentDocument}
-            isEditing={isEditing}
-            groups={groups}
-            onSave={isEditing ? handleUpdateDocument : handleAddDocument}
-            onCancel={() => setIsDialogOpen(false)}
-            onDelete={isEditing ? handleDeleteDocument : undefined}
-          />*/}
-        </DialogContent>
-      </Dialog>
-      
-      {/* Dialog for group form */}
-      <Dialog open={isGroupDialogOpen} onOpenChange={setIsGroupDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>
-              {isEditing ? "Modifier le groupe" : "Ajouter un groupe"}
-            </DialogTitle>
-          </DialogHeader>
-          {/*<GroupForm
-            group={currentGroup}
-            isEditing={isEditing}
-            onSave={isEditing ? handleUpdateGroup : handleAddGroup}
-            onCancel={() => setIsGroupDialogOpen(false)}
-            onDelete={isEditing ? handleDeleteGroup : undefined}
-          />*/}
-        </DialogContent>
-      </Dialog>
+      {!isOnline && (
+        <div className="fixed bottom-4 right-4 bg-yellow-500 text-white px-3 py-2 rounded-md shadow flex items-center">
+          <span>Mode hors ligne</span>
+        </div>
+      )}
     </div>
   );
 };

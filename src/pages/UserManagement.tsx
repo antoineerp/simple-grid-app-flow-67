@@ -178,17 +178,17 @@ const UserManagement = () => {
                         {user.identifiant_technique && (
                           <div className="flex items-center">
                             {tableInitStatus[user.identifiant_technique] === true && (
-                              <Badge className="bg-green-100 text-green-800 border-green-300">
+                              <Badge variant="green" className="text-xs">
                                 Initialisées
                               </Badge>
                             )}
                             {tableInitStatus[user.identifiant_technique] === false && (
-                              <Badge className="bg-red-100 text-red-800 border-red-300">
+                              <Badge variant="red" className="text-xs">
                                 Non initialisées
                               </Badge>
                             )}
                             {tableInitStatus[user.identifiant_technique] === null && (
-                              <Badge className="bg-gray-100 text-gray-800 border-gray-300">
+                              <Badge variant="gray" className="text-xs">
                                 Statut inconnu
                               </Badge>
                             )}
@@ -244,11 +244,26 @@ const UserManagement = () => {
   );
 };
 
-// Ajout du composant Badge manquant
-const Badge = ({ className, children }: { className?: string, children: React.ReactNode }) => (
-  <span className={`px-2 py-1 rounded text-xs font-medium ${className || ''}`}>
-    {children}
-  </span>
-);
+// Ajout du composant Badge
+interface BadgeProps {
+  children: React.ReactNode;
+  variant?: "default" | "green" | "red" | "gray";
+  className?: string;
+}
+
+const Badge: React.FC<BadgeProps> = ({ children, variant = "default", className = "" }) => {
+  const variantClasses = {
+    default: "bg-blue-100 text-blue-800 border-blue-300",
+    green: "bg-green-100 text-green-800 border-green-300",
+    red: "bg-red-100 text-red-800 border-red-300",
+    gray: "bg-gray-100 text-gray-800 border-gray-300"
+  };
+
+  return (
+    <span className={`px-2 py-1 rounded border text-xs font-medium ${variantClasses[variant]} ${className}`}>
+      {children}
+    </span>
+  );
+};
 
 export default UserManagement;
