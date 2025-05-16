@@ -24,6 +24,13 @@ AddType image/svg+xml .svg
     Header set X-Content-Type-Options "nosniff"
 </FilesMatch>
 
+# Force le type MIME pour les fichiers JS hachés
+<FilesMatch "\.([A-Za-z0-9]{8,})\.js$">
+    ForceType application/javascript
+    Header set Content-Type "application/javascript; charset=utf-8"
+    Header set X-Content-Type-Options "nosniff"
+</FilesMatch>
+
 # Force le type MIME pour CSS
 <FilesMatch "\.css$">
     ForceType text/css
