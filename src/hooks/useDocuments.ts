@@ -30,14 +30,15 @@ export const useDocuments = () => {
         const grps = savedGroups ? JSON.parse(savedGroups) : [];
         
         // Ensure all documents have required fields for responsabilites
-        const validatedDocs = docs.map((doc: any) => ({
+        const validatedDocs = docs.map((doc: any): Document => ({
           ...doc,
           responsabilites: {
             r: doc.responsabilites?.r || [],
             a: doc.responsabilites?.a || [],
             c: doc.responsabilites?.c || [],
             i: doc.responsabilites?.i || []
-          }
+          },
+          etat: doc.etat as 'NC' | 'PC' | 'C' | 'EX' | null
         }));
         
         setDocuments(validatedDocs);
@@ -61,7 +62,7 @@ export const useDocuments = () => {
   const saveData = useCallback(async (newDocs: Document[], newGroups: DocumentGroup[]) => {
     try {
       // Ensure all documents have proper responsabilites structure before saving
-      const validatedDocs = newDocs.map(doc => ({
+      const validatedDocs: Document[] = newDocs.map(doc => ({
         ...doc,
         responsabilites: {
           r: doc.responsabilites?.r || [],
@@ -69,9 +70,8 @@ export const useDocuments = () => {
           c: doc.responsabilites?.c || [],
           i: doc.responsabilites?.i || []
         },
-        // Ensure etat is one of the allowed values
         etat: doc.etat as 'NC' | 'PC' | 'C' | 'EX' | null
-      })) as Document[];
+      }));
       
       await syncDocuments(validatedDocs, newGroups);
       setDocuments(validatedDocs);
@@ -161,7 +161,7 @@ export const useDocuments = () => {
     const updatedDocs = documents.map(doc => {
       if (doc.id === id) {
         // Créer une copie des responsabilités actuelles
-        const newResponsabilites = { ...doc.responsabilites || {} };
+        const newResponsabilites = { ...doc.responsabilites };
         // Mettre à jour le type spécifique
         newResponsabilites[type] = values;
         
@@ -188,7 +188,7 @@ export const useDocuments = () => {
         // Toggle between 'EX' (excluded) and null (not excluded)
         return { 
           ...doc, 
-          etat: doc.etat === 'EX' ? null : 'EX' 
+          etat: doc.etat === 'EX' ? null : 'EX' as const
         };
       }
       return doc;
