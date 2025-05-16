@@ -29,7 +29,18 @@ export const useDocuments = () => {
         const docs = savedDocs ? JSON.parse(savedDocs) : [];
         const grps = savedGroups ? JSON.parse(savedGroups) : [];
         
-        setDocuments(docs);
+        // Ensure all documents have required fields for responsabilites
+        const validatedDocs = docs.map((doc: any) => ({
+          ...doc,
+          responsabilites: {
+            r: doc.responsabilites?.r || [],
+            a: doc.responsabilites?.a || [],
+            c: doc.responsabilites?.c || [],
+            i: doc.responsabilites?.i || []
+          }
+        }));
+        
+        setDocuments(validatedDocs);
         setGroups(grps);
       } catch (error) {
         console.error('Erreur lors du chargement des documents', error);
@@ -49,8 +60,19 @@ export const useDocuments = () => {
   // Sauvegarde des données
   const saveData = useCallback(async (newDocs: Document[], newGroups: DocumentGroup[]) => {
     try {
-      await syncDocuments(newDocs, newGroups);
-      setDocuments(newDocs);
+      // Ensure all documents have proper responsabilites structure before saving
+      const validatedDocs = newDocs.map(doc => ({
+        ...doc,
+        responsabilites: {
+          r: doc.responsabilites?.r || [],
+          a: doc.responsabilites?.a || [],
+          c: doc.responsabilites?.c || [],
+          i: doc.responsabilites?.i || []
+        }
+      })) as Document[];
+      
+      await syncDocuments(validatedDocs, newGroups);
+      setDocuments(validatedDocs);
       setGroups(newGroups);
       return true;
     } catch (error) {
@@ -187,7 +209,7 @@ export const useDocuments = () => {
       },
       date_creation: new Date(),
       date_modification: new Date(),
-      userId
+      userId: userId
     };
     
     const newDocs = [...documents, newDocument];
@@ -206,7 +228,7 @@ export const useDocuments = () => {
       name: 'Nouveau groupe',
       expanded: true,
       items: [],
-      userId
+      userId: userId
     };
     
     const newGroups = [...groups, newGroup];
