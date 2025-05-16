@@ -26,34 +26,55 @@ export const SyncProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   useEffect(() => {
     // Initialiser l'état avec les données du service
-    const tables = ['membres', 'exigences', 'documents', 'collaboration', 'audits'];
-    const syncState: Record<string, Date | null> = {};
-    const syncingState: Record<string, boolean> = {};
-    const errorsState: Record<string, string | null> = {};
-    
-    tables.forEach(table => {
-      syncState[table] = syncService.getLastSynced(table);
-      syncingState[table] = syncService.isSyncingTable(table);
-      errorsState[table] = syncService.getLastError(table);
-    });
-    
-    setLastSynced(syncState);
-    setIsSyncing(syncingState);
-    setSyncErrors(errorsState);
-    setInitialized(true);
+    try {
+      console.log("SyncContext - Initialisation du contexte");
+      const tables = ['membres', 'exigences', 'documents', 'collaboration', 'audits'];
+      const syncState: Record<string, Date | null> = {};
+      const syncingState: Record<string, boolean> = {};
+      const errorsState: Record<string, string | null> = {};
+      
+      tables.forEach(table => {
+        try {
+          syncState[table] = syncService.getLastSynced(table);
+          syncingState[table] = syncService.isSyncingTable(table);
+          errorsState[table] = syncService.getLastError(table);
+        } catch (e) {
+          console.error(`SyncContext - Erreur lors de l'initialisation pour table ${table}:`, e);
+          syncState[table] = null;
+          syncingState[table] = false;
+          errorsState[table] = e instanceof Error ? e.message : "Erreur inconnue";
+        }
+      });
+      
+      setLastSynced(syncState);
+      setIsSyncing(syncingState);
+      setSyncErrors(errorsState);
+      console.log("SyncContext - Initialisation terminée");
+    } catch (e) {
+      console.error("SyncContext - Erreur générale d'initialisation:", e);
+    } finally {
+      setInitialized(true);
+    }
   }, []);
 
   const syncData = async <T extends {}>(tableName: string, data: T[]): Promise<boolean> => {
-    setIsSyncing(prev => ({ ...prev, [tableName]: true }));
-    setSyncErrors(prev => ({ ...prev, [tableName]: null }));
-    
     try {
-      const result = await syncService.sendDataToServer<T>(tableName, data);
-      setLastSynced(prev => ({ ...prev, [tableName]: new Date() }));
+      setIsSyncing(prev => ({ ...prev, [tableName]: true }));
       setSyncErrors(prev => ({ ...prev, [tableName]: null }));
+      
+      console.log(`SyncContext - Début de la synchronisation pour ${tableName}`);
+      const result = await Promise.resolve(syncService.sendDataToServer<T>(tableName, data))
+        .catch(error => {
+          console.error(`SyncContext - Erreur lors de la synchronisation pour ${tableName}:`, error);
+          throw error;
+        });
+        
+      console.log(`SyncContext - Synchronisation terminée pour ${tableName}`);
+      setLastSynced(prev => ({ ...prev, [tableName]: new Date() }));
       return result;
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : 'Erreur inconnue';
+      console.error(`SyncContext - Erreur capturée pour ${tableName}:`, errorMsg);
       setSyncErrors(prev => ({ ...prev, [tableName]: errorMsg }));
       return false;
     } finally {
@@ -62,18 +83,27 @@ export const SyncProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   const loadData = async <T extends {}>(tableName: string): Promise<T[]> => {
-    setIsSyncing(prev => ({ ...prev, [tableName]: true }));
-    setSyncErrors(prev => ({ ...prev, [tableName]: null }));
-    
     try {
-      const data = await syncService.loadDataFromServer<T>(tableName);
-      setLastSynced(prev => ({ ...prev, [tableName]: new Date() }));
+      setIsSyncing(prev => ({ ...prev, [tableName]: true }));
       setSyncErrors(prev => ({ ...prev, [tableName]: null }));
+      
+      console.log(`SyncContext - Chargement des données pour ${tableName}`);
+      const data = await Promise.resolve(syncService.loadDataFromServer<T>(tableName))
+        .catch(error => {
+          console.error(`SyncContext - Erreur lors du chargement pour ${tableName}:`, error);
+          throw error;
+        });
+        
+      console.log(`SyncContext - Chargement terminé pour ${tableName}, ${data.length} éléments`);
+      setLastSynced(prev => ({ ...prev, [tableName]: new Date() }));
       return data;
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : 'Erreur inconnue';
+      console.error(`SyncContext - Erreur capturée lors du chargement pour ${tableName}:`, errorMsg);
       setSyncErrors(prev => ({ ...prev, [tableName]: errorMsg }));
-      throw error;
+      
+      // En cas d'erreur, retournons un tableau vide plutôt que de lever une exception
+      return [] as T[];
     } finally {
       setIsSyncing(prev => ({ ...prev, [tableName]: false }));
     }

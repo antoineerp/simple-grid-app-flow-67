@@ -1,26 +1,33 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 const Logo = () => {
   const [imageError, setImageError] = useState(false);
-  const logoPath = "/lovable-uploads/4c7adb52-3da0-4757-acbf-50a1eb1d4bf5.png";
-  // Fallback to text if image fails to load
+  const [logoPath, setLogoPath] = useState("/lovable-uploads/4c7adb52-3da0-4757-acbf-50a1eb1d4bf5.png");
   const fallbackText = "FormaCert";
-
-  // Check if we're in the Lovable environment
-  const isLovableEnvironment = window.location.hostname.includes('lovableproject.com');
-  const adjustedLogoPath = isLovableEnvironment ? `public${logoPath}` : logoPath;
+  
+  // Détecter l'environnement au chargement
+  useEffect(() => {
+    const isLovableEnv = window.location.hostname.includes('lovableproject.com');
+    const baseLogoPath = "/lovable-uploads/4c7adb52-3da0-4757-acbf-50a1eb1d4bf5.png";
+    setLogoPath(isLovableEnv ? `/public${baseLogoPath}` : baseLogoPath);
+  }, []);
 
   return (
     <div className="flex flex-col items-center justify-center mb-8">
       {!imageError ? (
         <img 
-          src={adjustedLogoPath}
+          src={logoPath}
           alt="Formacert Logo" 
           className="h-24 mb-4"
-          onError={() => {
-            console.log("Logo image failed to load, showing text instead");
-            setImageError(true);
+          onError={(e) => {
+            console.error("Logo image failed to load:", logoPath);
+            // Tenter avec un autre chemin si le premier échoue
+            if (!logoPath.includes('/public/') && !window.location.hostname.includes('lovableproject.com')) {
+              e.currentTarget.src = `/public${logoPath}`;
+            } else {
+              setImageError(true);
+            }
           }}
         />
       ) : (

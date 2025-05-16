@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Upload } from 'lucide-react';
@@ -15,29 +15,28 @@ const LogoSelector: React.FC<LogoSelectorProps> = ({ currentLogo, onLogoChange }
   const [selectedLogo, setSelectedLogo] = useState(currentLogo);
   const [imageError, setImageError] = useState(false);
   const { toast } = useToast();
+  const [predefinedLogos, setPredefinedLogos] = useState<string[]>([]);
+  const [fallbackLogo, setFallbackLogo] = useState("/lovable-uploads/4c7adb52-3da0-4757-acbf-50a1eb1d4bf5.png");
 
-  // Check if we're in the Lovable environment
-  const isLovableEnvironment = window.location.hostname.includes('lovableproject.com');
-  
-  // Logo principal FormaCert with environment check
-  const mainLogo = isLovableEnvironment ? 
-    "/public/lovable-uploads/4c7adb52-3da0-4757-acbf-50a1eb1d4bf5.png" : 
-    "/lovable-uploads/4c7adb52-3da0-4757-acbf-50a1eb1d4bf5.png";
-  
-  // Logos prédéfinis with environment check
-  const predefinedLogos = [
-    mainLogo,
-    isLovableEnvironment ? "/public/lovable-uploads/4425c340-2ce3-416b-abc9-b75906ca8705.png" : "/lovable-uploads/4425c340-2ce3-416b-abc9-b75906ca8705.png",
-    isLovableEnvironment ? "/public/lovable-uploads/aba57440-1db2-49ba-8273-c60d6a77b6ee.png" : "/lovable-uploads/aba57440-1db2-49ba-8273-c60d6a77b6ee.png",
-  ];
+  // Initialiser les chemins d'accès aux logos
+  useEffect(() => {
+    const isLovableEnv = window.location.hostname.includes('lovableproject.com');
+    const prefix = isLovableEnv ? "/public" : "";
+    
+    // Logo principal FormaCert
+    const mainLogo = `${prefix}/lovable-uploads/4c7adb52-3da0-4757-acbf-50a1eb1d4bf5.png`;
+    setFallbackLogo(mainLogo);
+    
+    // Logos prédéfinis
+    setPredefinedLogos([
+      mainLogo,
+      `${prefix}/lovable-uploads/4425c340-2ce3-416b-abc9-b75906ca8705.png`,
+      `${prefix}/lovable-uploads/aba57440-1db2-49ba-8273-c60d6a77b6ee.png`,
+    ]);
+  }, []);
 
-  // Fallback logo
-  const fallbackLogo = mainLogo;
-
-  // Adjust currentLogo path if needed
-  const adjustedCurrentLogo = imageError ? fallbackLogo : 
-    (isLovableEnvironment && !currentLogo.includes('/public/') ? 
-     `/public${currentLogo}` : currentLogo);
+  // Ajuster le chemin du logo actuel si nécessaire
+  const adjustedCurrentLogo = imageError ? fallbackLogo : selectedLogo;
 
   const handleLogoSelect = (logo: string) => {
     setSelectedLogo(logo);
@@ -45,7 +44,7 @@ const LogoSelector: React.FC<LogoSelectorProps> = ({ currentLogo, onLogoChange }
   };
 
   const handleImageError = () => {
-    console.error("Logo image failed to load:", currentLogo);
+    console.error("Logo image failed to load:", selectedLogo);
     setImageError(true);
   };
 
