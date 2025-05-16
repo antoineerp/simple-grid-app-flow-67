@@ -8,10 +8,13 @@ import { useAuth } from '@/hooks/useAuth';
 import { Navigate } from 'react-router-dom';
 import { UserCog, Settings, Database, Users } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import UserManagement from '@/components/admin/UserManagement';
+import { getDatabaseConnectionCurrentUser } from '@/services/core/databaseConnectionService';
 
 const Administration: React.FC = () => {
   const { user, isLoading } = useAuth();
-  const [activeTab, setActiveTab] = useState('system');
+  const [activeTab, setActiveTab] = useState('users');
+  const [currentDatabaseUser, setCurrentDatabaseUser] = useState<string | null>(getDatabaseConnectionCurrentUser());
 
   // Rediriger si l'utilisateur n'est pas admin
   if (!isLoading && (!user || (user.role !== 'admin' && user.role !== 'administrateur'))) {
@@ -27,23 +30,22 @@ const Administration: React.FC = () => {
     );
   }
 
+  const handleUserConnect = (identifiant: string) => {
+    setCurrentDatabaseUser(identifiant);
+  };
+
   return (
     <div className="container mx-auto p-6">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold">Administration du système</h1>
-        
-        <div className="flex space-x-2">
-          <Button variant="outline" asChild>
-            <Link to="/user-management">
-              <Users className="mr-2 h-4 w-4" />
-              Gestion des utilisateurs
-            </Link>
-          </Button>
-        </div>
       </div>
 
       <Tabs defaultValue={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="users">
+            <Users className="mr-2 h-4 w-4" />
+            Utilisateurs
+          </TabsTrigger>
           <TabsTrigger value="system">
             <Settings className="mr-2 h-4 w-4" />
             Système
@@ -52,11 +54,14 @@ const Administration: React.FC = () => {
             <Database className="mr-2 h-4 w-4" />
             Données
           </TabsTrigger>
-          <TabsTrigger value="users">
-            <UserCog className="mr-2 h-4 w-4" />
-            Accès
-          </TabsTrigger>
         </TabsList>
+        
+        <TabsContent value="users" className="space-y-4">
+          <UserManagement 
+            currentDatabaseUser={currentDatabaseUser} 
+            onUserConnect={handleUserConnect} 
+          />
+        </TabsContent>
         
         <TabsContent value="system" className="space-y-4">
           <Card>
@@ -121,43 +126,6 @@ const Administration: React.FC = () => {
                     </Button>
                     <Button variant="destructive" size="sm">
                       Réinitialiser la base
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-        
-        <TabsContent value="users" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Gestion des accès</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid gap-4">
-                <div>
-                  <h3 className="text-lg font-medium">Rôles système</h3>
-                  <p className="text-sm text-gray-500">
-                    Les rôles système définissent les permissions des utilisateurs.
-                  </p>
-                  <div className="mt-2">
-                    <p><strong>Administrateur:</strong> Accès complet à toutes les fonctionnalités.</p>
-                    <p><strong>Gestionnaire:</strong> Peut gérer les utilisateurs et leur contenu.</p>
-                    <p><strong>Utilisateur:</strong> Accès limité à son propre contenu.</p>
-                  </div>
-                </div>
-                
-                <div>
-                  <h3 className="text-lg font-medium">Actions d'administration</h3>
-                  <div className="flex flex-wrap gap-2 mt-2">
-                    <Button variant="default" size="sm" asChild>
-                      <Link to="/user-management">
-                        Gérer les utilisateurs
-                      </Link>
-                    </Button>
-                    <Button variant="outline" size="sm">
-                      Journal d'activité
                     </Button>
                   </div>
                 </div>

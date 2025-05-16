@@ -6,7 +6,6 @@ import DatabaseInfo from '@/components/admin/DatabaseInfo';
 import DatabaseConnectionForm from '@/components/admin/DatabaseConnectionForm';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { getDatabaseConnectionCurrentUser } from '@/services';
-import DashboardLayout from '@/components/layouts/DashboardLayout';
 
 const AdminPage = () => {
   const [currentDatabaseUser, setCurrentDatabaseUser] = useState<string | null>(null);
@@ -30,7 +29,7 @@ const AdminPage = () => {
     <div className="container mx-auto px-4 py-6">
       <h1 className="text-2xl font-bold mb-6">Administration</h1>
       
-      <Tabs defaultValue="database">
+      <Tabs defaultValue="users">
         <TabsList className="mb-6">
           <TabsTrigger value="users">Utilisateurs</TabsTrigger>
           <TabsTrigger value="database">Base de données</TabsTrigger>

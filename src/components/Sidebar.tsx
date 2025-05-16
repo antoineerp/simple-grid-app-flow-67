@@ -86,7 +86,7 @@ const Sidebar = () => {
               label="Administration"
             />
             <Link 
-              to="/admin/users" 
+              to="/admin"
               className="flex items-center text-sm text-gray-600 py-2 px-4 pl-10 hover:bg-blue-50 hover:text-blue-700 rounded-md transition-colors"
             >
               Gestion des utilisateurs
