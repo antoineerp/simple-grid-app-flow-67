@@ -1,247 +1,335 @@
 
 <?php
 header('Content-Type: text/html; charset=utf-8');
-
-function findLatestAsset($pattern) {
-    $files = glob($pattern);
-    if (empty($files)) {
-        return null;
-    }
-    
-    // Sort by modification time (newest first)
-    usort($files, function($a, $b) {
-        return filemtime($b) - filemtime($a);
-    });
-    
-    return $files[0];
-}
-
-function detectEnvironment() {
-    $isProduction = false;
-    $host = $_SERVER['HTTP_HOST'] ?? '';
-    
-    if ($host === 'qualiopi.ch' || strpos($host, '.qualiopi.ch') !== false || 
-        strpos($host, '.infomaniak.') !== false) {
-        $isProduction = true;
-    }
-    
-    return [
-        'isProduction' => $isProduction,
-        'host' => $host
-    ];
-}
-
-// Vérifier si le script a été exécuté après une action
-$updated = false;
-$message = '';
-$error = '';
-
-if (isset($_POST['fix_assets'])) {
-    try {
-        // Rechercher les derniers fichiers de build
-        $jsFile = findLatestAsset('./assets/main-*.js') ?: findLatestAsset('./assets/*.js');
-        $cssFile = findLatestAsset('./assets/index-*.css') ?: findLatestAsset('./assets/*.css');
-        
-        if (!$jsFile && !$cssFile) {
-            throw new Exception("Aucun fichier assets trouvé. Exécutez d'abord 'npm run build'.");
-        }
-        
-        // Lire le contenu de index.html
-        $indexPath = './index.html';
-        if (!file_exists($indexPath)) {
-            throw new Exception("Le fichier index.html n'existe pas.");
-        }
-        
-        // Créer une sauvegarde
-        copy($indexPath, $indexPath . '.bak');
-        
-        // Lire le contenu
-        $content = file_get_contents($indexPath);
-        
-        // Remplacer les références aux fichiers JS et CSS
-        if ($jsFile) {
-            $jsPath = '/' . str_replace('./', '', $jsFile);
-            // Remplacer le script src existant ou ajouter un nouveau
-            if (preg_match('/<script[^>]*src=["\'](\/|\.\/)?assets\/[^"\']*\.js["\'][^>]*><\/script>/', $content)) {
-                $content = preg_replace(
-                    '/<script[^>]*src=["\'](\/|\.\/)?assets\/[^"\']*\.js["\'][^>]*><\/script>/',
-                    '<script type="module" src="' . $jsPath . '"></script>',
-                    $content
-                );
-            } elseif (preg_match('/<script[^>]*src=["\'](\/|\.\/)?src\/[^"\']*\.tsx?["\'][^>]*>/', $content)) {
-                $content = preg_replace(
-                    '/<script[^>]*src=["\'](\/|\.\/)?src\/[^"\']*\.tsx?["\'][^>]*>/',
-                    '<script type="module" src="' . $jsPath . '">',
-                    $content
-                );
-            } else {
-                // Ajouter avant la fermeture du body
-                $content = preg_replace(
-                    '/<\/body>/',
-                    '  <script type="module" src="' . $jsPath . '"></script>' . PHP_EOL . '</body>',
-                    $content
-                );
-            }
-        }
-        
-        if ($cssFile) {
-            $cssPath = '/' . str_replace('./', '', $cssFile);
-            // Remplacer le lien CSS existant ou ajouter un nouveau
-            if (preg_match('/<link[^>]*href=["\'](\/|\.\/)?assets\/[^"\']*\.css["\'][^>]*>/', $content)) {
-                $content = preg_replace(
-                    '/<link[^>]*href=["\'](\/|\.\/)?assets\/[^"\']*\.css["\'][^>]*>/',
-                    '<link rel="stylesheet" href="' . $cssPath . '">',
-                    $content
-                );
-            } elseif (preg_match('/<link[^>]*href=["\'](\/|\.\/)?src\/[^"\']*\.css["\'][^>]*>/', $content)) {
-                $content = preg_replace(
-                    '/<link[^>]*href=["\'](\/|\.\/)?src\/[^"\']*\.css["\'][^>]*>/',
-                    '<link rel="stylesheet" href="' . $cssPath . '">',
-                    $content
-                );
-            } else {
-                // Ajouter avant la fermeture du head
-                $content = preg_replace(
-                    '/<\/head>/',
-                    '  <link rel="stylesheet" href="' . $cssPath . '">' . PHP_EOL . '</head>',
-                    $content
-                );
-            }
-        }
-        
-        // S'assurer que le script GPT Engineer est présent
-        if (!strpos($content, 'cdn.gpteng.co/gptengineer.js')) {
-            $content = preg_replace(
-                '/<\/body>/',
-                '  <script src="https://cdn.gpteng.co/gptengineer.js" type="module"></script>' . PHP_EOL . '</body>',
-                $content
-            );
-        }
-        
-        // Écrire le contenu mis à jour
-        file_put_contents($indexPath, $content);
-        
-        $updated = true;
-        $message = "Index.html mis à jour avec succès pour utiliser " . 
-            ($jsFile ? basename($jsFile) : "aucun JS") . " et " . 
-            ($cssFile ? basename($cssFile) : "aucun CSS");
-            
-    } catch (Exception $e) {
-        $error = $e->getMessage();
-    }
-}
-
-// Détecter l'environnement
-$env = detectEnvironment();
 ?>
-
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Correction des Assets - FormaCert</title>
+    <title>Correction de la structure des assets</title>
     <style>
-        body { font-family: Arial, sans-serif; line-height: 1.6; max-width: 800px; margin: 0 auto; padding: 20px; }
-        h1, h2 { color: #2c5282; }
-        .container { background-color: #f7fafc; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-        .success { color: #2f855a; background-color: #c6f6d5; padding: 10px; border-radius: 4px; }
-        .error { color: #c53030; background-color: #fed7d7; padding: 10px; border-radius: 4px; }
-        pre { background-color: #edf2f7; padding: 15px; border-radius: 4px; overflow-x: auto; }
-        button { background-color: #4299e1; color: white; border: none; padding: 12px 20px; border-radius: 4px; cursor: pointer; font-size: 16px; }
-        button:hover { background-color: #3182ce; }
-        .asset-list { margin-top: 20px; }
-        .asset-item { background-color: #edf2f7; padding: 10px; margin-bottom: 5px; border-radius: 4px; }
-        .asset-name { font-weight: bold; }
-        .section { margin-bottom: 30px; }
-        .env-info { background-color: #ebf4ff; padding: 10px; margin-bottom: 20px; border-radius: 4px; }
+        body { font-family: Arial, sans-serif; margin: 20px; line-height: 1.6; }
+        .success { color: green; font-weight: bold; }
+        .error { color: red; font-weight: bold; }
+        .warning { color: orange; font-weight: bold; }
+        .section { margin-bottom: 30px; border: 1px solid #ddd; padding: 15px; border-radius: 5px; }
+        pre { background: #f5f5f5; padding: 10px; border-radius: 5px; overflow-x: auto; }
+        button { background: #4CAF50; color: white; border: none; padding: 10px 15px; border-radius: 4px; cursor: pointer; }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1>Correction des Assets FormaCert</h1>
+    <h1>Correction de la structure des assets</h1>
+    
+    <div class="section">
+        <h2>1. Analyse de la structure actuelle</h2>
+        <?php
+        // Vérifier les répertoires clés
+        $directories = [
+            './' => 'Répertoire racine',
+            './dist' => 'Dossier de build',
+            './dist/assets' => 'Assets générés',
+            './assets' => 'Dossier assets cible'
+        ];
         
-        <div class="env-info">
-            <h3>Environnement</h3>
-            <p>Hôte: <?php echo htmlspecialchars($env['host']); ?></p>
-            <p>Type: <?php echo $env['isProduction'] ? 'Production' : 'Développement'; ?></p>
-        </div>
+        foreach ($directories as $dir => $label) {
+            echo "<p>$label ($dir): ";
+            if (is_dir($dir)) {
+                $files = glob($dir . '/*');
+                echo "<span class='success'>EXISTE</span> (" . count($files) . " fichiers)";
+            } else {
+                echo "<span class='error'>N'EXISTE PAS</span>";
+            }
+            echo "</p>";
+        }
         
-        <?php if ($updated): ?>
-            <div class="success">
-                <p><?php echo htmlspecialchars($message); ?></p>
-            </div>
-        <?php endif; ?>
+        // Vérifier les assets JS
+        $js_files = [];
+        if (is_dir('./dist/assets')) {
+            $js_files = glob('./dist/assets/*.js');
+        }
         
-        <?php if ($error): ?>
-            <div class="error">
-                <p><?php echo htmlspecialchars($error); ?></p>
-            </div>
-        <?php endif; ?>
+        echo "<p>Fichiers JavaScript dans dist/assets: ";
+        if (!empty($js_files)) {
+            echo "<span class='success'>" . count($js_files) . " fichiers trouvés</span>";
+            echo "<ul>";
+            foreach ($js_files as $file) {
+                echo "<li>" . basename($file) . "</li>";
+            }
+            echo "</ul>";
+        } else {
+            echo "<span class='error'>Aucun fichier trouvé</span>";
+        }
+        echo "</p>";
         
-        <div class="section">
-            <h2>1. Fichiers assets disponibles</h2>
-            <div class="asset-list">
-                <?php
-                $jsFiles = glob('./assets/*.js');
-                $cssFiles = glob('./assets/*.css');
-                
-                if (empty($jsFiles) && empty($cssFiles)): 
-                ?>
-                    <p class="error">Aucun fichier assets trouvé. Exécutez d'abord <code>npm run build</code>.</p>
-                <?php else: ?>
-                    <h3>Fichiers JavaScript:</h3>
-                    <?php 
-                    if (empty($jsFiles)) {
-                        echo "<p>Aucun fichier JavaScript trouvé.</p>";
-                    } else {
-                        foreach ($jsFiles as $file) {
-                            echo '<div class="asset-item">';
-                            echo '<span class="asset-name">' . basename($file) . '</span> - ' . 
-                                 round(filesize($file) / 1024, 2) . ' KB (modifié le ' . date('Y-m-d H:i', filemtime($file)) . ')';
-                            echo '</div>';
-                        }
-                    }
-                    ?>
-                    
-                    <h3>Fichiers CSS:</h3>
-                    <?php 
-                    if (empty($cssFiles)) {
-                        echo "<p>Aucun fichier CSS trouvé.</p>";
-                    } else {
-                        foreach ($cssFiles as $file) {
-                            echo '<div class="asset-item">';
-                            echo '<span class="asset-name">' . basename($file) . '</span> - ' . 
-                                 round(filesize($file) / 1024, 2) . ' KB (modifié le ' . date('Y-m-d H:i', filemtime($file)) . ')';
-                            echo '</div>';
-                        }
-                    }
-                    ?>
-                <?php endif; ?>
-            </div>
-        </div>
+        // Vérifier les assets CSS
+        $css_files = [];
+        if (is_dir('./dist/assets')) {
+            $css_files = glob('./dist/assets/*.css');
+        }
         
-        <div class="section">
-            <h2>2. Mettre à jour index.html</h2>
-            <?php if (file_exists('./index.html')): ?>
-                <p>Le fichier index.html existe et a été modifié le <?php echo date('Y-m-d H:i', filemtime('./index.html')); ?>.</p>
-                
-                <form method="post" action="">
-                    <input type="hidden" name="fix_assets" value="1">
-                    <button type="submit">Mettre à jour index.html avec les derniers assets</button>
-                </form>
-            <?php else: ?>
-                <p class="error">Le fichier index.html n'existe pas.</p>
-            <?php endif; ?>
-        </div>
+        echo "<p>Fichiers CSS dans dist/assets: ";
+        if (!empty($css_files)) {
+            echo "<span class='success'>" . count($css_files) . " fichiers trouvés</span>";
+            echo "<ul>";
+            foreach ($css_files as $file) {
+                echo "<li>" . basename($file) . "</li>";
+            }
+            echo "</ul>";
+        } else {
+            echo "<span class='error'>Aucun fichier trouvé</span>";
+        }
+        echo "</p>";
         
-        <div class="section">
-            <h2>3. Instructions</h2>
-            <ol>
-                <li>Exécutez <code>npm run build</code> pour générer les fichiers assets</li>
-                <li>Rafraîchissez cette page pour voir les fichiers générés</li>
-                <li>Cliquez sur "Mettre à jour index.html" pour mettre à jour les références</li>
-                <li>Testez l'application pour vérifier que tout fonctionne correctement</li>
-            </ol>
-        </div>
+        // Vérifier index.html
+        $index_path = './index.html';
+        echo "<p>Fichier index.html: ";
+        if (file_exists($index_path)) {
+            echo "<span class='success'>EXISTE</span>";
+            $index_content = file_get_contents($index_path);
+            
+            // Vérifier si index.html fait référence à un fichier JavaScript dans assets
+            $has_js_ref = preg_match('/<script[^>]*src=["\'][^"\']*\/assets\/[^"\']*\.js["\'][^>]*>/i', $index_content);
+            echo "<br>Référence à un fichier JS dans /assets/: ";
+            echo $has_js_ref ? "<span class='success'>OUI</span>" : "<span class='error'>NON</span>";
+            
+            // Vérifier si index.html fait référence à un fichier CSS dans assets
+            $has_css_ref = preg_match('/<link[^>]*href=["\'][^"\']*\/assets\/[^"\']*\.css["\'][^>]*>/i', $index_content);
+            echo "<br>Référence à un fichier CSS dans /assets/: ";
+            echo $has_css_ref ? "<span class='success'>OUI</span>" : "<span class='error'>NON</span>";
+        } else {
+            echo "<span class='error'>N'EXISTE PAS</span>";
+        }
+        echo "</p>";
+        ?>
     </div>
+    
+    <div class="section">
+        <h2>2. Correction de la structure</h2>
+        <?php
+        if (isset($_POST['fix_assets'])) {
+            echo "<h3>Actions effectuées:</h3>";
+            
+            // 1. Créer le dossier assets s'il n'existe pas
+            if (!is_dir('./assets')) {
+                if (mkdir('./assets', 0755, true)) {
+                    echo "<p>Création du dossier assets: <span class='success'>OK</span></p>";
+                } else {
+                    echo "<p>Création du dossier assets: <span class='error'>ÉCHEC</span></p>";
+                }
+            }
+            
+            // 2. Copier les fichiers de dist/assets vers assets
+            $copied_js = 0;
+            $copied_css = 0;
+            
+            if (is_dir('./dist/assets')) {
+                // Copier les fichiers JS
+                foreach ($js_files as $file) {
+                    $dest = './assets/' . basename($file);
+                    if (copy($file, $dest)) {
+                        $copied_js++;
+                    }
+                }
+                echo "<p>Fichiers JavaScript copiés: <span class='success'>$copied_js</span></p>";
+                
+                // Copier les fichiers CSS
+                foreach ($css_files as $file) {
+                    $dest = './assets/' . basename($file);
+                    if (copy($file, $dest)) {
+                        $copied_css++;
+                    }
+                }
+                echo "<p>Fichiers CSS copiés: <span class='success'>$copied_css</span></p>";
+            }
+            
+            // 3. Mettre à jour index.html pour référencer les fichiers
+            if (file_exists($index_path)) {
+                $updated = false;
+                $backup_created = false;
+                $index_content = file_get_contents($index_path);
+                $new_content = $index_content;
+                
+                // Trouver le fichier main.js principal
+                $main_js = '';
+                $main_js_files = glob('./assets/main.*.js');
+                if (!empty($main_js_files)) {
+                    $main_js = '/assets/' . basename($main_js_files[0]);
+                }
+                
+                // Trouver le fichier CSS principal
+                $main_css = '';
+                $main_css_files = glob('./assets/index*.css');
+                if (!empty($main_css_files)) {
+                    $main_css = '/assets/' . basename($main_css_files[0]);
+                } else {
+                    $main_css_files = glob('./assets/style*.css');
+                    if (!empty($main_css_files)) {
+                        $main_css = '/assets/' . basename($main_css_files[0]);
+                    }
+                }
+                
+                // Mettre à jour le lien vers le fichier JS
+                if (!empty($main_js)) {
+                    // S'il y a déjà un script pour un module, le mettre à jour
+                    if (preg_match('/<script[^>]*type=["\']module["\'][^>]*src=["\'][^"\']*["\'][^>]*>/i', $new_content)) {
+                        $new_content = preg_replace(
+                            '/<script[^>]*type=["\']module["\'][^>]*src=["\'][^"\']*["\'][^>]*>/i',
+                            '<script type="module" src="' . $main_js . '">',
+                            $new_content
+                        );
+                        $updated = true;
+                    }
+                    // Sinon, chercher la référence à /src/main.tsx
+                    else if (strpos($new_content, 'src="/src/main.tsx"') !== false) {
+                        $new_content = str_replace(
+                            'src="/src/main.tsx"',
+                            'src="' . $main_js . '"',
+                            $new_content
+                        );
+                        $updated = true;
+                    }
+                    // Si aucun n'est trouvé, ajouter un nouveau script avant la fermeture de body
+                    else {
+                        $new_content = str_replace(
+                            '</body>',
+                            '  <script type="module" src="' . $main_js . '"></script>' . "\n</body>",
+                            $new_content
+                        );
+                        $updated = true;
+                    }
+                }
+                
+                // Mettre à jour le lien vers le fichier CSS
+                if (!empty($main_css)) {
+                    // S'il y a déjà un lien CSS, le mettre à jour
+                    if (preg_match('/<link[^>]*rel=["\']stylesheet["\'][^>]*>/i', $new_content)) {
+                        $new_content = preg_replace(
+                            '/<link[^>]*rel=["\']stylesheet["\'][^>]*>/i',
+                            '<link rel="stylesheet" href="' . $main_css . '">',
+                            $new_content
+                        );
+                        $updated = true;
+                    }
+                    // Sinon, ajouter un nouveau lien avant la fermeture de head
+                    else {
+                        $new_content = str_replace(
+                            '</head>',
+                            '  <link rel="stylesheet" href="' . $main_css . '">' . "\n</head>",
+                            $new_content
+                        );
+                        $updated = true;
+                    }
+                }
+                
+                // Si des modifications ont été apportées, créer une sauvegarde et enregistrer
+                if ($updated) {
+                    // Créer une sauvegarde
+                    if (!$backup_created) {
+                        copy($index_path, $index_path . '.bak');
+                        $backup_created = true;
+                    }
+                    
+                    // Enregistrer les modifications
+                    if (file_put_contents($index_path, $new_content)) {
+                        echo "<p>Mise à jour de index.html: <span class='success'>OK</span></p>";
+                        echo "<p>Une sauvegarde a été créée: index.html.bak</p>";
+                        if (!empty($main_js)) {
+                            echo "<p>Fichier JS référencé: <span class='success'>$main_js</span></p>";
+                        }
+                        if (!empty($main_css)) {
+                            echo "<p>Fichier CSS référencé: <span class='success'>$main_css</span></p>";
+                        }
+                    } else {
+                        echo "<p>Mise à jour de index.html: <span class='error'>ÉCHEC (erreur d'écriture)</span></p>";
+                    }
+                } else {
+                    echo "<p>Mise à jour de index.html: <span class='warning'>Aucune modification nécessaire</span></p>";
+                }
+            }
+        } else {
+            ?>
+            <form method="post">
+                <p>Ce script va effectuer les actions suivantes:</p>
+                <ol>
+                    <li>Créer le dossier <code>assets</code> à la racine s'il n'existe pas</li>
+                    <li>Copier tous les fichiers JS/CSS de <code>dist/assets</code> vers <code>assets</code></li>
+                    <li>Mettre à jour <code>index.html</code> pour référencer les fichiers compilés</li>
+                </ol>
+                <input type="hidden" name="fix_assets" value="1">
+                <button type="submit">Exécuter la correction</button>
+            </form>
+            <?php
+        }
+        ?>
+    </div>
+    
+    <div class="section">
+        <h2>3. Vérification</h2>
+        <?php if (isset($_POST['fix_assets'])): ?>
+            <p>Vérification après correction:</p>
+            <?php
+            // Vérifier les fichiers dans assets
+            $new_js_files = glob('./assets/*.js');
+            $new_css_files = glob('./assets/*.css');
+            
+            echo "<p>Fichiers JavaScript dans assets: ";
+            if (!empty($new_js_files)) {
+                echo "<span class='success'>" . count($new_js_files) . " fichiers</span>";
+                echo "<ul>";
+                foreach ($new_js_files as $file) {
+                    echo "<li>" . basename($file) . "</li>";
+                }
+                echo "</ul>";
+            } else {
+                echo "<span class='error'>Aucun fichier</span>";
+            }
+            echo "</p>";
+            
+            echo "<p>Fichiers CSS dans assets: ";
+            if (!empty($new_css_files)) {
+                echo "<span class='success'>" . count($new_css_files) . " fichiers</span>";
+                echo "<ul>";
+                foreach ($new_css_files as $file) {
+                    echo "<li>" . basename($file) . "</li>";
+                }
+                echo "</ul>";
+            } else {
+                echo "<span class='error'>Aucun fichier</span>";
+            }
+            echo "</p>";
+            
+            // Vérifier les références dans index.html
+            if (file_exists($index_path)) {
+                $current_content = file_get_contents($index_path);
+                
+                $has_js_ref = preg_match('/<script[^>]*src=["\'][^"\']*\/assets\/[^"\']*\.js["\'][^>]*>/i', $current_content);
+                echo "<p>Référence à un fichier JS dans /assets/: ";
+                echo $has_js_ref ? "<span class='success'>OUI</span>" : "<span class='error'>NON</span>";
+                echo "</p>";
+                
+                $has_css_ref = preg_match('/<link[^>]*href=["\'][^"\']*\/assets\/[^"\']*\.css["\'][^>]*>/i', $current_content);
+                echo "<p>Référence à un fichier CSS dans /assets/: ";
+                echo $has_css_ref ? "<span class='success'>OUI</span>" : "<span class='error'>NON</span>";
+                echo "</p>";
+            }
+            ?>
+            <h3>Contenu de index.html après mise à jour:</h3>
+            <pre><?php echo htmlspecialchars(file_get_contents($index_path)); ?></pre>
+        <?php endif; ?>
+    </div>
+    
+    <div class="section">
+        <h2>4. Instructions manuelles supplémentaires</h2>
+        <p>Si le script n'a pas pu résoudre tous les problèmes, voici des étapes manuelles à suivre:</p>
+        <ol>
+            <li>Assurez-vous que <code>npm run build</code> a bien été exécuté pour générer les fichiers dans <code>dist/assets</code></li>
+            <li>Vérifiez que les fichiers compilés contiennent un hachage (par exemple, <code>main.GxNrB2FB.js</code>)</li>
+            <li>Modifiez manuellement <code>index.html</code> pour référencer ces fichiers avec les bons chemins:
+                <pre>&lt;script type="module" src="/assets/main.GxNrB2FB.js"&gt;&lt;/script&gt;</pre>
+            </li>
+            <li>Assurez-vous que le serveur est configuré pour servir correctement les fichiers statiques du dossier <code>assets</code></li>
+        </ol>
+    </div>
+    
+    <p><a href="index.html">Retour à l'application</a></p>
 </body>
 </html>
