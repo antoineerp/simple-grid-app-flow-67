@@ -6,30 +6,60 @@ import { getCurrentUser } from '@/services/auth/authService';
 export const useSync = (tableName: string) => {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-  const syncContext = useSyncContext();
+  const [fallbackSyncState, setFallbackSyncState] = useState({
+    isOnline: navigator.onLine,
+    isSyncing: false,
+    lastSynced: null,
+    syncError: null,
+    isInitialized: false
+  });
+  
+  // Try to get the sync context, but provide a fallback if it's not available
+  let syncContext;
+  try {
+    syncContext = useSyncContext();
+  } catch (err) {
+    console.warn(`SyncContext not available for ${tableName}, using fallback state`);
+    // Continue with the fallback state
+  }
   
   const {
-    isOnline,
-    isSyncing,
-    lastSynced,
-    syncErrors,
-    isInitialized
-  } = syncContext;
+    isOnline = fallbackSyncState.isOnline,
+    isSyncing = {},
+    lastSynced = {},
+    syncErrors = {},
+    isInitialized = {}
+  } = syncContext || {};
   
   const syncStatus = {
     isOnline,
-    isSyncing: isSyncing[tableName] || false,
-    lastSynced: lastSynced[tableName] || null,
-    syncError: syncErrors[tableName] || null,
-    isInitialized: isInitialized[tableName] || false
+    isSyncing: isSyncing[tableName] || fallbackSyncState.isSyncing,
+    lastSynced: lastSynced[tableName] || fallbackSyncState.lastSynced,
+    syncError: syncErrors[tableName] || fallbackSyncState.syncError,
+    isInitialized: isInitialized[tableName] || fallbackSyncState.isInitialized
   };
   
-  const startSync = () => syncContext.startSync(tableName);
-  const endSync = (err?: string | null) => syncContext.endSync(tableName, err);
+  // Create no-op functions if context is not available
+  const startSync = syncContext 
+    ? () => syncContext.startSync(tableName)
+    : () => { console.warn('SyncContext not available, cannot start sync'); };
+    
+  const endSync = syncContext 
+    ? (err?: string | null) => syncContext.endSync(tableName, err)
+    : (err?: string | null) => { 
+        console.warn('SyncContext not available, cannot end sync'); 
+        if (err) setError(err);
+      };
   
   // Charger les données initiales
   useEffect(() => {
     const initializeData = async () => {
+      if (!syncContext) {
+        console.warn(`SyncContext not available for ${tableName}, skipping initialization`);
+        setLoading(false);
+        return;
+      }
+      
       if (!isInitialized[tableName]) {
         try {
           const user = getCurrentUser();
@@ -56,6 +86,20 @@ export const useSync = (tableName: string) => {
     
     initializeData();
   }, [tableName, isInitialized, syncContext]);
+  
+  // Update online status in the fallback state
+  useEffect(() => {
+    const handleOnline = () => setFallbackSyncState(prev => ({ ...prev, isOnline: true }));
+    const handleOffline = () => setFallbackSyncState(prev => ({ ...prev, isOnline: false }));
+    
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
   
   return {
     syncStatus,

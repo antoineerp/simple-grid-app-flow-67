@@ -46,55 +46,62 @@ export const useLoginForm = () => {
       const username = values.username || 'antcirier@gmail.com';
       const password = values.password || (useTestCredentials ? 'Trottinette43!' : values.password);
       
-      // Essayer d'abord auth.php, puis login-alt.php en cas d'échec
       let result;
+      let tokenSource = 'auth.php';
+      
+      // Essayer d'abord auth.php
       try {
+        console.log("Tentative avec auth.php");
         result = await login(username, password);
       } catch (initialError) {
         console.log("Échec avec auth.php, tentative avec login-alt.php");
+        tokenSource = 'login-alt.php';
         
-        // Modifier l'URL endpoint dans authService pour utiliser login-alt.php à la place
-        const originalUrl = window.location.origin.includes('lovableproject.com') 
-          ? 'https://qualiopi.ch/api/login-alt.php' 
-          : 'https://qualiopi.ch/api/login-alt.php';
-          
+        // Essayer login-alt.php
+        const altApiUrl = import.meta.env.VITE_API_URL || '/api';
+        const altEndpoint = `${altApiUrl}/login-alt.php`;
+        
         try {
           // Appel direct à login-alt.php
-          const response = await fetch(originalUrl, {
+          const response = await fetch(altEndpoint, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ username, email: username, password })
           });
           
           if (!response.ok) {
-            throw new Error(`Erreur HTTP: ${response.status}`);
+            const errorText = await response.text();
+            throw new Error(`Erreur HTTP ${response.status}: ${errorText}`);
           }
           
           result = await response.json();
-        } catch (fallbackError) {
-          // Si les deux méthodes échouent, essayer avec login-test.php comme dernier recours
-          console.log("Échec avec login-alt.php, tentative avec login-test.php");
-          const testUrl = window.location.origin.includes('lovableproject.com')
-            ? 'https://qualiopi.ch/api/login-test.php'
-            : 'https://qualiopi.ch/api/login-test.php';
+        } catch (altError) {
+          console.log("Échec avec login-alt.php, tentative avec controllers/AuthController.php");
+          tokenSource = 'AuthController.php';
+          
+          // Essayer controllers/AuthController.php comme dernier recours
+          const authControllerUrl = window.location.origin.includes('lovableproject.com')
+            ? 'https://qualiopi.ch/api/controllers/AuthController.php'
+            : 'https://qualiopi.ch/api/controllers/AuthController.php';
             
-          const testResponse = await fetch(testUrl, {
+          const controllerResponse = await fetch(authControllerUrl, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ username, email: username, password })
           });
           
-          if (!testResponse.ok) {
-            throw new Error(`Erreur HTTP: ${testResponse.status}`);
+          if (!controllerResponse.ok) {
+            const errorText = await controllerResponse.text();
+            throw new Error(`Erreur HTTP ${controllerResponse.status}: ${errorText}`);
           }
           
-          result = await testResponse.json();
+          result = await controllerResponse.json();
         }
       }
       
       // Vérifier si la réponse indique un succès
       if ((result && result.success) || (result && result.token && !result.message?.includes('Erreur'))) {
-        console.log("Connexion réussie, token reçu:", result.token?.substring(0, 20) + "...");
+        console.log(`Connexion réussie via ${tokenSource}, token reçu:`, result.token?.substring(0, 20) + "...");
         console.log("Données utilisateur:", result.user);
         
         // Vérifier et corriger le format du token avant de le stocker
@@ -118,6 +125,9 @@ export const useLoginForm = () => {
           // Enregistrer le token valide avant la navigation
           sessionStorage.setItem('authToken', validToken);
           localStorage.setItem('authToken', validToken);
+          
+          // Log le token stocké pour débogage
+          console.log("Token stocké:", validToken.substring(0, 20) + "...");
         }
         
         // Stocker les données utilisateur et le rôle explicitement

@@ -1,63 +1,41 @@
 
-import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import Layout from './components/layout/Layout';
-import { SyncProvider } from './context/SyncContext';
+import React, { Suspense } from 'react';
+import { BrowserRouter, Route, Routes } from 'react-router-dom';
+import { Toaster } from '@/components/ui/toaster';
+import ProtectedLayout from '@/layouts/ProtectedLayout';
+import PublicLayout from '@/layouts/PublicLayout';
+import AppProviders from '@/providers/AppProviders';
 
-// Import des pages principales disponibles
-import RessourcesHumaines from './pages/RessourcesHumaines';
-import Pilotage from './pages/Pilotage';
-import GestionDocumentaire from './pages/GestionDocumentaire';
-import DbTest from './pages/DbTest';
-import AdminPage from './pages/Admin';
-import Exigences from './pages/Exigences';
-import Collaboration from './pages/Collaboration';
-import NotFound from './pages/NotFound';
-import UserManagement from './pages/UserManagement';
-import Index from './pages/Index';
-
-// Import des composants de context additionnels
-import { ToastProvider } from './components/ui/toast';
-import { getIsLoggedIn } from './services/auth/authService';
-
-// Composant pour les redirections conditionnelles
-const AuthRoute = ({ children }: { children: React.ReactNode }) => {
-  const isLoggedIn = getIsLoggedIn();
-  
-  if (!isLoggedIn) {
-    console.log("Utilisateur non authentifié, redirection vers la page d'accueil");
-    return <Navigate to="/" replace />;
-  }
-  
-  return <>{children}</>;
-};
+// Lazy load pages for better performance
+const Index = React.lazy(() => import('@/pages/Index'));
+const Pilotage = React.lazy(() => import('@/pages/Pilotage'));
+const GestionDocumentaire = React.lazy(() => import('@/pages/GestionDocumentaire'));
+const NotFound = React.lazy(() => import('@/pages/NotFound'));
 
 function App() {
   return (
-    <SyncProvider>
-      <ToastProvider>
-        <Router>
+    <AppProviders>
+      <BrowserRouter>
+        <Suspense fallback={<div>Chargement...</div>}>
           <Routes>
-            {/* Page d'accueil/connexion - route racine */}
-            <Route path="/" element={<Index />} />
-            
-            {/* Routes protégées dans le Layout */}
-            <Route path="/" element={<AuthRoute><Layout /></AuthRoute>}>
-              <Route path="/pilotage" element={<Pilotage />} />
-              <Route path="/documents" element={<GestionDocumentaire />} />
-              <Route path="/gestion-documentaire" element={<GestionDocumentaire />} />
-              <Route path="/ressources-humaines" element={<RessourcesHumaines />} />
-              <Route path="/exigences" element={<Exigences />} />
-              <Route path="/collaboration" element={<Collaboration />} />
-              <Route path="/admin" element={<AdminPage />} />
-              <Route path="/admin/users" element={<UserManagement />} />
-              <Route path="/db-test" element={<DbTest />} />
-              <Route path="*" element={<NotFound />} />
+            {/* Public routes */}
+            <Route element={<PublicLayout />}>
+              <Route path="/" element={<Index />} />
             </Route>
+            
+            {/* Protected routes */}
+            <Route element={<ProtectedLayout />}>
+              <Route path="/pilotage" element={<Pilotage />} />
+              <Route path="/gestion-documentaire" element={<GestionDocumentaire />} />
+            </Route>
+            
+            {/* Catch all */}
+            <Route path="*" element={<NotFound />} />
           </Routes>
-        </Router>
-      </ToastProvider>
-    </SyncProvider>
+        </Suspense>
+        <Toaster />
+      </BrowserRouter>
+    </AppProviders>
   );
 }
 

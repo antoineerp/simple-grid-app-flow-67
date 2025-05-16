@@ -51,6 +51,11 @@ try {
         throw new Exception("Erreur de décodage JSON: " . json_last_error_msg());
     }
 
+    // Fonction pour encoder en URL safe base64
+    function base64url_encode($data) {
+        return rtrim(strtr(base64_encode($data), '+/', '-_'), '=');
+    }
+
     // Vérifier si les données sont présentes
     if(!empty($data->username) && !empty($data->password)) {
         $username = $data->username;
@@ -67,8 +72,9 @@ try {
             // Identifiant technique standardisé
             $identifiant_technique = 'p71x6d_cirier';
             
-            // Générer un token simple
-            $token = base64_encode(json_encode([
+            // Générer un token JWT standard (header.payload.signature)
+            $header = base64url_encode(json_encode(['alg' => 'HS256', 'typ' => 'JWT']));
+            $payload = base64url_encode(json_encode([
                 'user' => [
                     'id' => '999',
                     'username' => $username,
@@ -80,6 +86,9 @@ try {
                 ],
                 'exp' => time() + 3600
             ]));
+            $secret = 'your_jwt_secret_key_here';
+            $signature = base64url_encode(hash_hmac('sha256', "$header.$payload", $secret, true));
+            $token = "$header.$payload.$signature";
             
             // Envoyer la réponse
             echo json_encode([
@@ -136,8 +145,9 @@ try {
                         $user['identifiant_technique'] = $identifiant_technique;
                     }
                     
-                    // Générer un token simple
-                    $token = base64_encode(json_encode([
+                    // Générer un token JWT standard (header.payload.signature)
+                    $header = base64url_encode(json_encode(['alg' => 'HS256', 'typ' => 'JWT']));
+                    $payload = base64url_encode(json_encode([
                         'user' => [
                             'id' => $user['id'],
                             'username' => $user['email'],
@@ -149,6 +159,9 @@ try {
                         ],
                         'exp' => time() + 3600
                     ]));
+                    $secret = 'your_jwt_secret_key_here';
+                    $signature = base64url_encode(hash_hmac('sha256', "$header.$payload", $secret, true));
+                    $token = "$header.$payload.$signature";
                     
                     // Envoyer la réponse
                     echo json_encode([
@@ -183,8 +196,9 @@ try {
                         
                         $userId = $db->lastInsertId();
                         
-                        // Générer le token
-                        $token = base64_encode(json_encode([
+                        // Générer le token JWT standard
+                        $header = base64url_encode(json_encode(['alg' => 'HS256', 'typ' => 'JWT']));
+                        $payload = base64url_encode(json_encode([
                             'user' => [
                                 'id' => $userId,
                                 'username' => 'antcirier@gmail.com',
@@ -196,6 +210,9 @@ try {
                             ],
                             'exp' => time() + 3600
                         ]));
+                        $secret = 'your_jwt_secret_key_here';
+                        $signature = base64url_encode(hash_hmac('sha256', "$header.$payload", $secret, true));
+                        $token = "$header.$payload.$signature";
                         
                         // Envoyer la réponse
                         echo json_encode([

@@ -1,4 +1,3 @@
-
 import { jwtDecode } from 'jwt-decode';
 import { User } from '@/types/auth';
 
@@ -49,22 +48,59 @@ const tryFixToken = (token: string): string | null => {
   try {
     // Si c'est seulement un token base64 sans les parties JWT standard
     if (token.indexOf('.') === -1) {
+      console.warn("Token reçu au mauvais format (sans séparateurs). Tentative de correction...");
+      
       // Essayer de décoder pour voir si c'est du base64 valide
-      const decoded = atob(token);
       try {
-        // Vérifier si c'est un JSON valide
-        const parsed = JSON.parse(decoded);
-        if (parsed && (parsed.user || parsed.exp)) {
-          console.warn("Token reçu au mauvais format (base64 simple). Tentative de correction...");
-          // Créer un faux JWT
-          const header = btoa(JSON.stringify({ alg: 'HS256', typ: 'JWT' }));
-          // Le payload est déjà encodé
-          const signature = btoa("signature_placeholder");
-          return `${header}.${token}.${signature}`;
+        // Ajouter le padding si nécessaire
+        const paddedToken = token.padEnd(token.length + ((4 - (token.length % 4)) % 4), '=');
+        const decoded = atob(paddedToken);
+        try {
+          // Vérifier si c'est un JSON valide
+          const parsed = JSON.parse(decoded);
+          if (parsed && (parsed.user || parsed.exp)) {
+            // Créer un JWT avec le payload existant
+            const header = btoa(JSON.stringify({ alg: 'HS256', typ: 'JWT' }))
+              .replace(/\+/g, '-')
+              .replace(/\//g, '_')
+              .replace(/=+$/, '');
+              
+            // Le payload est déjà encodé (c'est le token original)
+            const signature = btoa("signature_placeholder")
+              .replace(/\+/g, '-')
+              .replace(/\//g, '_')
+              .replace(/=+$/, '');
+              
+            return `${header}.${token.replace(/=+$/, '')}.${signature}`;
+          }
+        } catch (e) {
+          console.error("Impossible de parser le payload JSON:", e);
+          // Ce n'est pas du JSON valide
+          return null;
         }
       } catch (e) {
-        // Ce n'est pas du JSON valide
+        console.error("Impossible de décoder le token base64:", e);
         return null;
+      }
+    } else if (token.split('.').length !== 3) {
+      // Si le token a des séparateurs mais pas exactement 3 parties
+      console.warn("Token JWT mal formé (nombre de parties incorrect). Tentative de correction...");
+      
+      // On prend le payload s'il existe
+      const parts = token.split('.');
+      if (parts.length > 1 && parts[1]) {
+        // Créer un nouveau JWT avec header et signature
+        const header = btoa(JSON.stringify({ alg: 'HS256', typ: 'JWT' }))
+          .replace(/\+/g, '-')
+          .replace(/\//g, '_')
+          .replace(/=+$/, '');
+          
+        const signature = btoa("signature_placeholder")
+          .replace(/\+/g, '-')
+          .replace(/\//g, '_')
+          .replace(/=+$/, '');
+          
+        return `${header}.${parts[1]}.${signature}`;
       }
     }
     
@@ -174,6 +210,7 @@ export const validateAndFixToken = (token: string): string | null => {
   if (parts.length === 3 && parts[0] && parts[1] && parts[2]) {
     return token; // Le format est correct
   } else {
+    console.warn(`Token mal formaté reçu: ${token.substring(0, 20)}...`);
     return tryFixToken(token); // Essayer de réparer
   }
 };
