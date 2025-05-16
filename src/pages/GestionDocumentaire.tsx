@@ -6,11 +6,16 @@ import { getDatabaseConnectionCurrentUser } from '@/services/core/databaseConnec
 import { Button } from '@/components/ui/button';
 import { Plus, FileText, RefreshCw, FolderPlus } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { Document } from '@/types/documents';
 
 const GestionDocumentaire = () => {
+  const { toast } = useToast();
+  const [currentUser, setCurrentUser] = useState<string>(getDatabaseConnectionCurrentUser() || 'default');
+  
+  // Initialize with empty arrays to prevent null reference errors
   const { 
-    documents, 
-    groups, 
+    documents = [], 
+    groups = [], 
     handleEdit, 
     handleDelete, 
     handleReorder, 
@@ -25,10 +30,24 @@ const GestionDocumentaire = () => {
     handleGroupReorder,
     forceReload,
     isSyncing
-  } = useDocuments();
-  
-  const [currentUser, setCurrentUser] = useState<string>(getDatabaseConnectionCurrentUser() || 'default');
-  const { toast } = useToast();
+  } = useDocuments() || {
+    documents: [],
+    groups: [],
+    handleEdit: () => {},
+    handleDelete: () => {},
+    handleReorder: () => {},
+    handleToggleGroup: () => {},
+    handleEditGroup: () => {},
+    handleDeleteGroup: () => {},
+    handleResponsabiliteChange: () => {},
+    handleAtteinteChange: () => {},
+    handleExclusionChange: () => {},
+    handleAddDocument: () => {},
+    handleAddGroup: () => {},
+    handleGroupReorder: () => {},
+    forceReload: () => Promise.resolve(false),
+    isSyncing: false
+  };
   
   // Écouter les changements d'utilisateur
   useEffect(() => {

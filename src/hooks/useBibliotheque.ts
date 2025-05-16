@@ -22,17 +22,27 @@ export function useBibliotheque() {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
-  const syncContext = useSyncContext();
-  const { isOnline } = syncContext;
-
-  // Nous utilisons maintenant directement les méthodes disponibles dans le contexte
-  // et nous créons des wrappers si nécessaire
+  
+  // Get sync context or use fallback
+  let syncContext;
+  try {
+    syncContext = useSyncContext();
+  } catch (e) {
+    console.warn("SyncContext not available, using fallback");
+  }
+  
+  const isOnline = navigator.onLine;
   const isSyncing = false; // Nous ne montrons pas l'état de synchronisation
   
   // Créer des wrappers pour les méthodes manquantes
   const startSync = () => {
-    // Ne fait rien, car nous ne voulons pas montrer les informations de synchronisation
-    console.log("Synchronisation démarrée (silencieusement)");
+    // Utiliser le contexte si disponible, sinon ne rien faire
+    if (syncContext && typeof syncContext.registerTableForSync === 'function') {
+      syncContext.registerTableForSync('bibliotheque');
+    } else {
+      // Simplement loguer, ne pas montrer à l'utilisateur
+      console.log("Synchronisation démarrée (silencieusement)");
+    }
   };
   
   const endSync = (err?: string | null) => {
@@ -61,8 +71,21 @@ export function useBibliotheque() {
         const userId = currentUser.id;
         console.log("Chargement des données de la bibliothèque pour l'utilisateur:", userId);
         
-        // Charger les données depuis le serveur en utilisant loadData du contexte
-        const data = await syncContext.loadData<BibliothequeItem>('bibliotheque');
+        // Essayer d'utiliser le contexte de synchronisation si disponible
+        let data = [];
+        if (syncContext && typeof syncContext.loadData === 'function') {
+          data = await syncContext.loadData<BibliothequeItem>('bibliotheque');
+        } else {
+          // Fallback - essayer de charger depuis localStorage
+          try {
+            const storedData = localStorage.getItem(`bibliotheque_${userId}`);
+            if (storedData) {
+              data = JSON.parse(storedData);
+            }
+          } catch (storageErr) {
+            console.error("Erreur lors du chargement des données locales:", storageErr);
+          }
+        }
         
         // Convertir les dates de chaîne à objet Date
         const formattedData = data.map(item => ({
@@ -97,7 +120,21 @@ export function useBibliotheque() {
       setLoading(true);
       startSync();
       
-      const result = await syncContext.syncData('bibliotheque', newItems);
+      let result = false;
+      
+      // Utiliser le contexte de synchronisation si disponible
+      if (syncContext && typeof syncContext.syncData === 'function') {
+        result = await syncContext.syncData('bibliotheque', newItems);
+      } else {
+        // Fallback - sauvegarder dans localStorage
+        const currentUser = getCurrentUser();
+        if (currentUser && currentUser.id) {
+          localStorage.setItem(`bibliotheque_${currentUser.id}`, JSON.stringify(newItems));
+          result = true;
+        } else {
+          throw new Error("Utilisateur non authentifié");
+        }
+      }
       
       if (result) {
         setItems(newItems);

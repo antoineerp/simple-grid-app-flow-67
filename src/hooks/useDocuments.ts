@@ -1,5 +1,5 @@
+
 import { useState, useEffect, useCallback } from 'react';
-import { useSync } from './useSync';
 import { Document, DocumentGroup } from '@/types/documents';
 import { useToast } from './use-toast';
 import { v4 as uuidv4 } from 'uuid';
@@ -7,14 +7,28 @@ import { useDocumentMutations } from '@/features/documents/hooks/useDocumentMuta
 import { useDocumentGroups } from '@/features/documents/hooks/useDocumentGroups';
 import { useDocumentSync } from '@/features/documents/hooks/useDocumentSync';
 import { getCurrentUserId } from '@/services/auth/authService';
+import { useSyncContext } from '@/contexts/SyncContext';
 
 export const useDocuments = () => {
   const [documents, setDocuments] = useState<Document[]>([]);
   const [groups, setGroups] = useState<DocumentGroup[]>([]);
   const [selectedDocument, setSelectedDocument] = useState<Document | null>(null);
-  const { syncStatus, startSync, endSync, loading, error } = useSync('documents');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
-  const { syncWithServer, loadFromServer, isSyncing } = useDocumentSync();
+  
+  // Use the centralized sync context
+  let syncContext;
+  try {
+    syncContext = useSyncContext();
+  } catch (e) {
+    console.warn("SyncContext not available in useDocuments, fallback to local implementation");
+  }
+  
+  // Set up local sync state in case the context isn't available
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [lastSynced, setLastSynced] = useState<Date | null>(null);
+  const isOnline = navigator.onLine;
   
   // Document mutations
   const {
@@ -31,33 +45,46 @@ export const useDocuments = () => {
     handleSaveGroup,
     handleDeleteGroup
   } = useDocumentGroups(groups, setGroups);
-
-  // Function to synchronize and process documents
-  const syncAndProcess = useCallback(async () => {
-    startSync();
+  
+  // Unified load method for documents - used initially and for refreshes
+  const loadDocuments = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    setIsSyncing(true);
+    
     try {
       // Get current user ID
       const userId = getCurrentUserId() || '';
       
-      // Load documents from server (or local storage if offline)
-      const loadedDocuments = await loadFromServer(userId);
+      // Try to load from local storage first
+      let localDocs: Document[] = [];
+      try {
+        const storedData = localStorage.getItem(`documents_${userId}`);
+        if (storedData) {
+          localDocs = JSON.parse(storedData);
+          console.log(`Loaded ${localDocs.length} documents from local storage`);
+        }
+      } catch (localErr) {
+        console.error("Error loading documents from local storage:", localErr);
+      }
       
-      if (loadedDocuments) {
-        setDocuments(loadedDocuments);
+      // Set initial data from local storage to prevent blank page
+      if (localDocs.length > 0) {
+        setDocuments(localDocs);
         
-        // Extract groups from documents
+        // Extract groups
         const documentGroups: DocumentGroup[] = [];
         const groupIds = new Set<string>();
         
-        loadedDocuments.forEach(doc => {
+        localDocs.forEach(doc => {
           if (doc.groupId && !groupIds.has(doc.groupId)) {
             groupIds.add(doc.groupId);
             documentGroups.push({
               id: doc.groupId,
-              name: doc.groupId, // Default name is the ID
+              name: doc.groupId,
               expanded: true,
               items: [],
-              userId: userId
+              userId
             });
           }
         });
@@ -65,19 +92,65 @@ export const useDocuments = () => {
         setGroups(documentGroups);
       }
       
-      endSync();
+      // Only try to load from server if we're online
+      if (navigator.onLine) {
+        // Use the sync context if available
+        if (syncContext) {
+          // Register for sync without modifying data
+          syncContext.registerTableForSync?.('documents');
+          
+          // Request load via sync context
+          await syncContext.loadData?.('documents');
+          setLastSynced(new Date());
+        } else {
+          // Fallback to direct API call if context not available
+          const { loadFromServer } = useDocumentSync();
+          const docs = await loadFromServer(userId);
+          
+          if (docs) {
+            setDocuments(docs);
+            
+            // Extract groups
+            const documentGroups: DocumentGroup[] = [];
+            const groupIds = new Set<string>();
+            
+            docs.forEach(doc => {
+              if (doc.groupId && !groupIds.has(doc.groupId)) {
+                groupIds.add(doc.groupId);
+                documentGroups.push({
+                  id: doc.groupId,
+                  name: doc.groupId,
+                  expanded: true,
+                  items: [],
+                  userId
+                });
+              }
+            });
+            
+            setGroups(documentGroups);
+            
+            // Save to localStorage
+            localStorage.setItem(`documents_${userId}`, JSON.stringify(docs));
+          }
+        }
+      }
+      
       return true;
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Unknown error';
-      endSync(errorMessage);
+      setError(errorMessage);
+      console.error("Error loading documents:", errorMessage);
       return false;
+    } finally {
+      setLoading(false);
+      setIsSyncing(false);
     }
-  }, [startSync, endSync, loadFromServer]);
+  }, [syncContext]);
 
   // Load initial data
   useEffect(() => {
-    syncAndProcess();
-  }, [syncAndProcess]);
+    loadDocuments();
+  }, [loadDocuments]);
 
   // Select a document
   const selectDocument = (id: string) => {
@@ -87,7 +160,7 @@ export const useDocuments = () => {
   
   // Force reload data
   const forceReload = async () => {
-    return await syncAndProcess();
+    return await loadDocuments();
   };
 
   // Handle document editing
@@ -95,7 +168,6 @@ export const useDocuments = () => {
     const document = documents.find(doc => doc.id === id);
     if (document) {
       setSelectedDocument(document);
-      // Additional logic for editing could be added here
     }
   };
 
@@ -135,12 +207,12 @@ export const useDocuments = () => {
   const handleAddDocument = useCallback(() => {
     const newDoc: Document = {
       id: uuidv4(),
-      nom: "Nouveau document", // Changed from title to nom
-      fichier_path: null, // Added instead of description
-      responsabilites: { r: [], a: [], c: [], i: [] }, // Added instead of responsabilite
-      etat: null, // Added instead of atteinte
-      date_creation: new Date(), // Added instead of date
-      date_modification: new Date(), // Added
+      nom: "Nouveau document",
+      fichier_path: null,
+      responsabilites: { r: [], a: [], c: [], i: [] },
+      etat: null,
+      date_creation: new Date(),
+      date_modification: new Date(),
       userId: getCurrentUserId() || ''
     };
     
@@ -181,7 +253,7 @@ export const useDocuments = () => {
     selectedDocument,
     loading,
     error,
-    syncStatus,
+    lastSynced,
     selectDocument,
     handleResponsabiliteChange,
     handleAtteinteChange,
