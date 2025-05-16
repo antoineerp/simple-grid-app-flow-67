@@ -22,14 +22,14 @@
   </div>
   
   <!-- Script de détection des fichiers hachés -->
-  <script src="/assets/hashed-file-loader.js"></script>
+  <script src="/assets/hashed-file-loader.js" type="module"></script>
   
   <!-- MIME Type for JavaScript -->
   <script nomodule src="/assets/gptengineer.js"></script>
   <script src="https://cdn.gpteng.co/gptengineer.js" type="module"></script>
   
   <!-- Script principal avec modules ES6 -->
-  <script type="module" src="/assets/main.BARYCRGM.js"></script>
+  <script type="module" src="/src/main.tsx"></script>
   
   <!-- Script de secours sans module ES6 -->
   <script nomodule src="/assets/main.js"></script>
@@ -38,7 +38,7 @@
   <script>
     window.addEventListener('error', function(e) {
       // Détecter les erreurs liées au chargement des modules
-      if (e.filename && e.filename.includes('main.BARYCRGM.js')) {
+      if (e.filename && e.filename.includes('main.')) {
         console.error('Erreur de chargement du module ES6, chargement du fallback');
         var fallbackScript = document.createElement('script');
         fallbackScript.src = '/assets/main.js';
