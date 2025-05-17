@@ -135,3 +135,4 @@ jobs:
           find api -name "*.php" | wc -l
           [ -d "assets" ] && echo "✅ dossier assets: PRÉSENT" || echo "❌ dossier assets: MANQUANT"
           [ -f "index.html" ] && echo "✅ fichier index.html: PRÉSENT" || echo "❌ fichier index.html: MANQUANT"
+

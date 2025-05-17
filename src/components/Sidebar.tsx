@@ -81,9 +81,14 @@ const Sidebar = () => {
         {isAdmin && (
           <div className="mt-4 pt-4 border-t border-gray-200">
             <SidebarNavItem
-              to="/admin"
+              to="/administration"
               icon={Settings}
               label="Administration"
+            />
+            <SidebarNavItem
+              to="/admin"
+              icon={Settings}
+              label="Admin"
             />
             <Link 
               to="/admin/users" 

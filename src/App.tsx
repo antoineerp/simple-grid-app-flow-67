@@ -16,6 +16,7 @@ const Exigences = React.lazy(() => import('@/pages/Exigences'));
 const RessourcesHumaines = React.lazy(() => import('@/pages/RessourcesHumaines'));
 const Collaboration = React.lazy(() => import('@/pages/Collaboration'));
 const Administration = React.lazy(() => import('@/pages/Administration'));
+const Admin = React.lazy(() => import('@/pages/Admin'));
 
 function App() {
   return (
@@ -37,6 +38,8 @@ function App() {
               <Route path="/ressources-humaines" element={<RessourcesHumaines />} />
               <Route path="/collaboration" element={<Collaboration />} />
               <Route path="/administration" element={<Administration />} />
+              <Route path="/admin" element={<Admin />} />
+              <Route path="/admin/users" element={<Admin />} />
             </Route>
             
             {/* Catch all */}
