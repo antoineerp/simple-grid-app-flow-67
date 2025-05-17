@@ -1,16 +1,17 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { Membre } from '@/types/membres';
+import { getMembres, refreshMembres, createMembre, updateMembre, deleteMembre, syncMembres } from '@/services/membres/membresService';
 
 // Type pour le contexte
 export interface MembresContextType {
   membres: Membre[];
   isLoading: boolean;
   error: string | null;
-  addMembre: (membre: Membre) => void;
-  updateMembre: (id: string, membre: Membre) => void;
-  deleteMembre: (id: string) => void;
-  refreshMembres: () => void;
+  addMembre: (membre: Omit<Membre, 'id'>) => Promise<Membre>;
+  updateMembre: (id: string, membre: Partial<Membre>) => Promise<Membre>;
+  deleteMembre: (id: string) => Promise<boolean>;
+  refreshMembres: () => Promise<void>;
   syncMembres: () => Promise<boolean>;
   lastSynced: Date | null;
   syncFailed: boolean;
@@ -22,62 +23,23 @@ const MembresContext = createContext<MembresContextType | undefined>(undefined);
 // Provider component
 export const MembresProvider: React.FC<{children: ReactNode}> = ({ children }) => {
   const [membres, setMembres] = useState<Membre[]>([]);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [lastSynced, setLastSynced] = useState<Date | null>(null);
   const [syncFailed, setSyncFailed] = useState<boolean>(false);
 
   // Charger les membres au montage du composant
   useEffect(() => {
-    refreshMembres();
+    loadMembres();
   }, []);
 
   // Fonction pour charger les membres
-  const refreshMembres = async () => {
+  const loadMembres = async () => {
     setIsLoading(true);
     setError(null);
     
     try {
-      // Simuler un appel API avec des données statiques pour l'instant
-      const data: Membre[] = [
-        { 
-          id: "1", 
-          nom: "Dupont", 
-          prenom: "Jean", 
-          email: "jean.dupont@example.com", 
-          role: "Directeur", 
-          departement: "Direction",
-          fonction: "Directeur général",
-          initiales: "JD",
-          date_creation: new Date("2023-01-15")
-        },
-        { 
-          id: "2", 
-          nom: "Martin", 
-          prenom: "Sophie", 
-          email: "sophie.martin@example.com", 
-          role: "Responsable RH", 
-          departement: "RH",
-          fonction: "Responsable des ressources humaines",
-          initiales: "SM",
-          date_creation: new Date("2023-02-20")
-        },
-        { 
-          id: "3", 
-          nom: "Bernard", 
-          prenom: "Pierre", 
-          email: "pierre.bernard@example.com", 
-          role: "Formateur", 
-          departement: "Formation",
-          fonction: "Formateur principal",
-          initiales: "PB",
-          date_creation: new Date("2023-03-10")
-        },
-      ];
-      
-      // Simuler un délai réseau
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
+      const data = await getMembres();
       setMembres(data);
     } catch (err) {
       console.error("Erreur lors du chargement des membres:", err);
@@ -87,17 +49,38 @@ export const MembresProvider: React.FC<{children: ReactNode}> = ({ children }) =
     }
   };
 
+  // Fonction pour rafraîchir les membres
+  const handleRefreshMembres = async () => {
+    setIsLoading(true);
+    setError(null);
+    
+    try {
+      const data = await refreshMembres();
+      setMembres(data);
+    } catch (err) {
+      console.error("Erreur lors du rafraîchissement des membres:", err);
+      setError("Impossible de rafraîchir les membres");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   // Fonction pour synchroniser les membres
-  const syncMembres = async (): Promise<boolean> => {
+  const handleSyncMembres = async (): Promise<boolean> => {
     setIsLoading(true);
     setSyncFailed(false);
     
     try {
-      // Simuler une synchronisation avec le serveur
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Synchroniser avec le serveur
+      const success = await syncMembres();
       
-      setLastSynced(new Date());
-      return true;
+      if (success) {
+        setLastSynced(new Date());
+      } else {
+        setSyncFailed(true);
+      }
+      
+      return success;
     } catch (error) {
       console.error("Erreur lors de la synchronisation des membres:", error);
       setSyncFailed(true);
@@ -108,22 +91,28 @@ export const MembresProvider: React.FC<{children: ReactNode}> = ({ children }) =
   };
 
   // Fonction pour ajouter un membre
-  const addMembre = (membre: Membre) => {
-    setMembres(prevMembres => [...prevMembres, membre]);
+  const handleAddMembre = async (membre: Omit<Membre, 'id'>): Promise<Membre> => {
+    const newMembre = await createMembre(membre);
+    setMembres(prevMembres => [...prevMembres, newMembre]);
+    return newMembre;
   };
 
   // Fonction pour mettre à jour un membre
-  const updateMembre = (id: string, membre: Membre) => {
+  const handleUpdateMembre = async (id: string, membre: Partial<Membre>): Promise<Membre> => {
+    const updatedMembre = await updateMembre(id, membre);
     setMembres(prevMembres => 
-      prevMembres.map(m => m.id === id ? membre : m)
+      prevMembres.map(m => m.id === id ? updatedMembre : m)
     );
+    return updatedMembre;
   };
 
   // Fonction pour supprimer un membre
-  const deleteMembre = (id: string) => {
-    setMembres(prevMembres => 
-      prevMembres.filter(m => m.id !== id)
-    );
+  const handleDeleteMembre = async (id: string): Promise<boolean> => {
+    const success = await deleteMembre(id);
+    if (success) {
+      setMembres(prevMembres => prevMembres.filter(m => m.id !== id));
+    }
+    return success;
   };
 
   return (
@@ -132,11 +121,11 @@ export const MembresProvider: React.FC<{children: ReactNode}> = ({ children }) =
         membres, 
         isLoading, 
         error, 
-        addMembre, 
-        updateMembre, 
-        deleteMembre, 
-        refreshMembres,
-        syncMembres,
+        addMembre: handleAddMembre, 
+        updateMembre: handleUpdateMembre, 
+        deleteMembre: handleDeleteMembre, 
+        refreshMembres: handleRefreshMembres,
+        syncMembres: handleSyncMembres,
         lastSynced,
         syncFailed
       }}
