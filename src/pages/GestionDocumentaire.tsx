@@ -1,34 +1,35 @@
 
 import React, { useEffect, useState } from 'react';
-import DocumentTable from '@/components/documents/DocumentTable';
+import DocumentTable from '@/components/gestion-documentaire/table/DocumentTable';
 import { useDocuments } from '@/hooks/useDocuments';
 import { getDatabaseConnectionCurrentUser } from '@/services/core/databaseConnectionService';
 import { Button } from '@/components/ui/button';
-import { Plus, FileText, RefreshCw, FolderPlus } from 'lucide-react';
+import { Plus, RefreshCw, FolderPlus } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { Document, DocumentGroup } from '@/types/documents';
 
 const GestionDocumentaire = () => {
-  const { 
-    documents, 
-    groups, 
-    handleEdit, 
-    handleDelete, 
-    handleReorder, 
-    handleToggleGroup, 
-    handleEditGroup, 
-    handleDeleteGroup, 
-    handleResponsabiliteChange, 
-    handleAtteinteChange, 
-    handleExclusionChange, 
-    handleAddDocument, 
-    handleAddGroup,
-    handleGroupReorder,
-    forceReload,
-    isSyncing
-  } = useDocuments();
-  
-  const [currentUser, setCurrentUser] = useState<string>(getDatabaseConnectionCurrentUser() || 'default');
   const { toast } = useToast();
+  const [currentUser, setCurrentUser] = useState<string>(getDatabaseConnectionCurrentUser() || 'default');
+  
+  // Initialiser avec des valeurs par défaut pour éviter les erreurs null
+  const [documents, setDocuments] = useState<Document[]>([]);
+  const [groups, setGroups] = useState<DocumentGroup[]>([]);
+  const [isSyncing, setIsSyncing] = useState(false);
+  
+  // Utiliser le hook useDocuments de manière sécurisée
+  const documentHook = useDocuments();
+  
+  // Charger les données depuis le hook de manière sécurisée
+  useEffect(() => {
+    if (documentHook && documentHook.documents) {
+      setDocuments(documentHook.documents);
+    }
+    
+    if (documentHook && documentHook.groups) {
+      setGroups(documentHook.groups);
+    }
+  }, [documentHook]);
   
   // Écouter les changements d'utilisateur
   useEffect(() => {
@@ -47,20 +48,96 @@ const GestionDocumentaire = () => {
     };
   }, []);
 
+  const handleResponsabiliteChange = (id: string, type: 'r' | 'a' | 'c' | 'i', values: string[]) => {
+    if (documentHook && documentHook.handleResponsabiliteChange) {
+      documentHook.handleResponsabiliteChange(id, type, values);
+    }
+  };
+
+  const handleAtteinteChange = (id: string, atteinte: 'NC' | 'PC' | 'C' | null) => {
+    if (documentHook && documentHook.handleAtteinteChange) {
+      documentHook.handleAtteinteChange(id, atteinte);
+    }
+  };
+
+  const handleExclusionChange = (id: string) => {
+    if (documentHook && documentHook.handleExclusionChange) {
+      documentHook.handleExclusionChange(id);
+    }
+  };
+
+  const handleEdit = (id: string) => {
+    if (documentHook && documentHook.handleEdit) {
+      documentHook.handleEdit(id);
+    }
+  };
+
+  const handleDelete = (id: string) => {
+    if (documentHook && documentHook.handleDelete) {
+      documentHook.handleDelete(id);
+    }
+  };
+
+  const handleReorder = (startIndex: number, endIndex: number, targetGroupId?: string) => {
+    if (documentHook && documentHook.handleReorder) {
+      documentHook.handleReorder(startIndex, endIndex, targetGroupId);
+    }
+  };
+
+  const handleGroupReorder = (startIndex: number, endIndex: number) => {
+    if (documentHook && documentHook.handleGroupReorder) {
+      documentHook.handleGroupReorder(startIndex, endIndex);
+    }
+  };
+
+  const handleToggleGroup = (id: string) => {
+    if (documentHook && documentHook.handleToggleGroup) {
+      documentHook.handleToggleGroup(id);
+    }
+  };
+
+  const handleEditGroup = (group: DocumentGroup) => {
+    if (documentHook && documentHook.handleEditGroup) {
+      documentHook.handleEditGroup(group);
+    }
+  };
+
+  const handleDeleteGroup = (id: string) => {
+    if (documentHook && documentHook.handleDeleteGroup) {
+      documentHook.handleDeleteGroup(id);
+    }
+  };
+
+  const handleAddDocument = () => {
+    if (documentHook && documentHook.handleAddDocument) {
+      documentHook.handleAddDocument();
+    }
+  };
+
+  const handleAddGroup = () => {
+    if (documentHook && documentHook.handleAddGroup) {
+      documentHook.handleAddGroup();
+    }
+  };
+
   const handleRefresh = () => {
-    forceReload();
+    if (documentHook && documentHook.forceReload) {
+      setIsSyncing(true);
+      documentHook.forceReload().finally(() => {
+        setIsSyncing(false);
+      });
+    }
   };
 
   return (
     <div className="container mx-auto py-6 px-4">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold">Gestion Documentaire</h1>
-        {/* Bouton de synchronisation masqué mais fonctionnel */}
         <Button
           onClick={handleRefresh}
           variant="outline"
           size="sm"
-          className="ml-2 hidden"
+          className="ml-2"
         >
           <RefreshCw className={`h-4 w-4 mr-1 ${isSyncing ? 'animate-spin' : ''}`} />
           Actualiser

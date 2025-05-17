@@ -3,7 +3,6 @@ import React from 'react';
 import { 
   Home, 
   FileText, 
-  BookOpen, 
   Briefcase, 
   Users, 
   CheckSquare,
@@ -25,11 +24,6 @@ export const navigationItems = [
     path: '/gestion-documentaire',
     icon: FileText,
     label: 'Gestion documentaire'
-  },
-  {
-    path: '/bibliotheque',
-    icon: BookOpen,
-    label: 'Bibliothèque'
   },
   {
     path: '/exigences',

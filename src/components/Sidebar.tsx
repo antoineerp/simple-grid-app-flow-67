@@ -1,19 +1,24 @@
 
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import SidebarNavItem from './sidebar/SidebarNavItem';
 import { navigationItems } from './sidebar/sidebarConfig';
 import { hasPermission } from '@/types/roles';
 import { getCurrentUser } from '@/services/auth/authService';
-import { Settings } from 'lucide-react';
+import { Settings, Users } from 'lucide-react';
 
 const Sidebar = () => {
   const [sidebarImageUrl, setSidebarImageUrl] = useState('');
   const [sidebarLinkUrl, setSidebarLinkUrl] = useState('');
   const [imageError, setImageError] = useState(false);
+  const location = useLocation();
+  
+  // S'assurer que nous obtenons correctement les informations d'utilisateur
   const user = getCurrentUser();
   const userRole = (user?.role || 'utilisateur');
   const isAdmin = hasPermission(userRole as any, 'accessAdminPanel');
+  
+  console.log("Sidebar - User info:", { userRole, isAdmin });
   
   useEffect(() => {
     try {
@@ -74,28 +79,31 @@ const Sidebar = () => {
             to={item.path}
             icon={item.icon}
             label={item.label}
+            active={location.pathname === item.path}
           />
         ))}
         
-        {/* Ajout du bouton d'administration si l'utilisateur a les droits */}
+        {/* Ajout explicite du bouton d'administration si l'utilisateur a les droits */}
         {isAdmin && (
           <div className="mt-4 pt-4 border-t border-gray-200">
             <SidebarNavItem
               to="/administration"
               icon={Settings}
               label="Administration"
+              active={location.pathname === '/administration'}
             />
             <SidebarNavItem
               to="/admin"
               icon={Settings}
               label="Admin"
+              active={location.pathname === '/admin'}
             />
-            <Link 
-              to="/admin/users" 
-              className="flex items-center text-sm text-gray-600 py-2 px-4 pl-10 hover:bg-blue-50 hover:text-blue-700 rounded-md transition-colors"
-            >
-              Gestion des utilisateurs
-            </Link>
+            <SidebarNavItem
+              to="/admin/users"
+              icon={Users}
+              label="Gestion des utilisateurs"
+              active={location.pathname === '/admin/users'}
+            />
           </div>
         )}
         

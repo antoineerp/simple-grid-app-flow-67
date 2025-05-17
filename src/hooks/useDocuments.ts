@@ -1,11 +1,9 @@
+
 import { useState, useEffect, useCallback } from 'react';
 import { useSync } from './useSync';
 import { Document, DocumentGroup } from '@/types/documents';
 import { useToast } from './use-toast';
 import { v4 as uuidv4 } from 'uuid';
-import { useDocumentMutations } from '@/features/documents/hooks/useDocumentMutations';
-import { useDocumentGroups } from '@/features/documents/hooks/useDocumentGroups';
-import { useDocumentSync } from '@/features/documents/hooks/useDocumentSync';
 import { getCurrentUserId } from '@/services/auth/authService';
 
 export const useDocuments = () => {
@@ -14,80 +12,108 @@ export const useDocuments = () => {
   const [selectedDocument, setSelectedDocument] = useState<Document | null>(null);
   const { syncStatus, startSync, endSync, loading, error } = useSync('documents');
   const { toast } = useToast();
-  const { syncWithServer, loadFromServer, isSyncing } = useDocumentSync();
+  const [isSyncing, setIsSyncing] = useState(false);
   
-  // Document mutations
-  const {
-    handleResponsabiliteChange,
-    handleAtteinteChange,
-    handleExclusionChange,
-    handleDelete
-  } = useDocumentMutations(documents, setDocuments);
-  
-  // Group mutations
-  const {
-    handleGroupReorder,
-    handleToggleGroup,
-    handleSaveGroup,
-    handleDeleteGroup
-  } = useDocumentGroups(groups, setGroups);
-
-  // Function to synchronize and process documents
-  const syncAndProcess = useCallback(async () => {
-    startSync();
+  // Fonction de chargement des documents sécurisée
+  const loadDocuments = useCallback(async () => {
     try {
-      // Get current user ID
-      const userId = getCurrentUserId() || '';
+      startSync();
+      setIsSyncing(true);
       
-      // Load documents from server (or local storage if offline)
-      const loadedDocuments = await loadFromServer(userId);
+      // Simulation de chargement des documents (à remplacer par votre logique réelle)
+      const loadedDocuments = localStorage.getItem('documents');
+      const parsedDocuments = loadedDocuments ? JSON.parse(loadedDocuments) : [];
       
-      if (loadedDocuments) {
-        setDocuments(loadedDocuments);
-        
-        // Extract groups from documents
-        const documentGroups: DocumentGroup[] = [];
-        const groupIds = new Set<string>();
-        
-        loadedDocuments.forEach(doc => {
-          if (doc.groupId && !groupIds.has(doc.groupId)) {
-            groupIds.add(doc.groupId);
-            documentGroups.push({
-              id: doc.groupId,
-              name: doc.groupId, // Default name is the ID
-              expanded: true,
-              items: [],
-              userId: userId
-            });
-          }
-        });
-        
-        setGroups(documentGroups);
-      }
+      // Assurez-vous que parsedDocuments est un tableau
+      const safeDocuments = Array.isArray(parsedDocuments) ? parsedDocuments : [];
+      
+      setDocuments(safeDocuments);
+      
+      // Extraire les groupes
+      const documentGroups: DocumentGroup[] = [];
+      const groupIds = new Set<string>();
+      
+      safeDocuments.forEach(doc => {
+        if (doc.groupId && !groupIds.has(doc.groupId)) {
+          groupIds.add(doc.groupId);
+          documentGroups.push({
+            id: doc.groupId,
+            name: doc.groupId, // Default name is the ID
+            expanded: true,
+            items: [],
+            userId: getCurrentUserId() || ''
+          });
+        }
+      });
+      
+      setGroups(documentGroups);
       
       endSync();
       return true;
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Unknown error';
       endSync(errorMessage);
+      console.error("Erreur lors du chargement des documents:", errorMessage);
       return false;
+    } finally {
+      setIsSyncing(false);
     }
-  }, [startSync, endSync, loadFromServer]);
+  }, [startSync, endSync]);
 
   // Load initial data
   useEffect(() => {
-    syncAndProcess();
-  }, [syncAndProcess]);
+    loadDocuments();
+  }, [loadDocuments]);
 
-  // Select a document
-  const selectDocument = (id: string) => {
-    const document = documents.find(doc => doc.id === id);
-    setSelectedDocument(document || null);
-  };
-  
-  // Force reload data
+  // Fonction pour forcer le rechargement
   const forceReload = async () => {
-    return await syncAndProcess();
+    return await loadDocuments();
+  };
+
+  // Handle document mutations
+  const handleResponsabiliteChange = (id: string, type: 'r' | 'a' | 'c' | 'i', values: string[]) => {
+    setDocuments(prevDocs => 
+      prevDocs.map(doc => 
+        doc.id === id 
+          ? {
+              ...doc,
+              responsabilites: {
+                ...doc.responsabilites || { r: [], a: [], c: [], i: [] },
+                [type]: values
+              }
+            }
+          : doc
+      )
+    );
+  };
+
+  const handleAtteinteChange = (id: string, atteinte: 'NC' | 'PC' | 'C' | null) => {
+    setDocuments(prevDocs => 
+      prevDocs.map(doc => 
+        doc.id === id 
+          ? { ...doc, etat: atteinte || undefined }
+          : doc
+      )
+    );
+  };
+
+  const handleExclusionChange = (id: string) => {
+    setDocuments(prevDocs => 
+      prevDocs.map(doc => 
+        doc.id === id 
+          ? { ...doc, etat: doc.etat === 'EX' ? null : 'EX' }
+          : doc
+      )
+    );
+  };
+
+  const handleDelete = (id: string) => {
+    setDocuments(prevDocs => prevDocs.filter(doc => doc.id !== id));
+    
+    toast({
+      title: "Document supprimé",
+      description: "Le document a été supprimé"
+    });
   };
 
   // Handle document editing
@@ -95,7 +121,6 @@ export const useDocuments = () => {
     const document = documents.find(doc => doc.id === id);
     if (document) {
       setSelectedDocument(document);
-      // Additional logic for editing could be added here
     }
   };
 
@@ -111,6 +136,27 @@ export const useDocuments = () => {
       result.splice(endIndex, 0, updatedDoc);
       return result;
     });
+  }, []);
+
+  // Handle group reordering
+  const handleGroupReorder = useCallback((startIndex: number, endIndex: number) => {
+    setGroups(prev => {
+      const result = Array.from(prev);
+      const [removed] = result.splice(startIndex, 1);
+      result.splice(endIndex, 0, removed);
+      return result;
+    });
+  }, []);
+
+  // Handle toggling group expansion
+  const handleToggleGroup = useCallback((id: string) => {
+    setGroups(prev => 
+      prev.map(group => 
+        group.id === id 
+          ? { ...group, expanded: !group.expanded }
+          : group
+      )
+    );
   }, []);
 
   // Handle creating/editing group
@@ -131,16 +177,37 @@ export const useDocuments = () => {
     }
   };
 
+  // Handle deleting a group
+  const handleDeleteGroup = (id: string) => {
+    // Remove the group
+    setGroups(prev => prev.filter(group => group.id !== id));
+    
+    // Update documents that were in this group to have no group
+    setDocuments(prev => 
+      prev.map(doc => 
+        doc.groupId === id 
+          ? { ...doc, groupId: undefined }
+          : doc
+      )
+    );
+    
+    toast({
+      title: "Groupe supprimé",
+      description: "Le groupe et ses associations ont été supprimés"
+    });
+  };
+
   // Handle adding a new document
   const handleAddDocument = useCallback(() => {
+    const now = new Date();
     const newDoc: Document = {
       id: uuidv4(),
-      nom: "Nouveau document", // Changed from title to nom
-      fichier_path: null, // Added instead of description
-      responsabilites: { r: [], a: [], c: [], i: [] }, // Added instead of responsabilite
-      etat: null, // Added instead of atteinte
-      date_creation: new Date(), // Added instead of date
-      date_modification: new Date(), // Added
+      nom: "Nouveau document",
+      fichier_path: null,
+      responsabilites: { r: [], a: [], c: [], i: [] },
+      etat: null,
+      date_creation: now,
+      date_modification: now,
       userId: getCurrentUserId() || ''
     };
     
@@ -182,7 +249,11 @@ export const useDocuments = () => {
     loading,
     error,
     syncStatus,
-    selectDocument,
+    isSyncing,
+    selectDocument: (id: string) => {
+      const document = documents.find(doc => doc.id === id);
+      setSelectedDocument(document || null);
+    },
     handleResponsabiliteChange,
     handleAtteinteChange,
     handleExclusionChange,
@@ -191,12 +262,10 @@ export const useDocuments = () => {
     handleReorder,
     handleGroupReorder,
     handleToggleGroup,
-    handleSaveGroup,
-    handleDeleteGroup,
     handleEditGroup,
+    handleDeleteGroup,
     handleAddDocument,
     handleAddGroup,
-    forceReload,
-    isSyncing
+    forceReload
   };
 };
