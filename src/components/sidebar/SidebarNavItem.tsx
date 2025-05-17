@@ -7,15 +7,16 @@ interface SidebarNavItemProps {
   to: string;
   icon: LucideIcon;
   label: string;
+  active?: boolean; // Ajout de la propriété active comme optionnelle
 }
 
-const SidebarNavItem = ({ to, icon: Icon, label }: SidebarNavItemProps) => {
+const SidebarNavItem = ({ to, icon: Icon, label, active }: SidebarNavItemProps) => {
   return (
     <NavLink 
       to={to} 
       className={({ isActive }) => `
         flex items-center p-3 mb-1 rounded hover:bg-app-light-blue
-        ${isActive ? 'active-sidebar-item' : ''}
+        ${active || isActive ? 'active-sidebar-item' : ''}
       `}
     >
       <Icon className="mr-3 h-5 w-5" />

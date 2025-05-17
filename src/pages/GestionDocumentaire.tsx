@@ -1,6 +1,5 @@
-
 import React, { useEffect, useState } from 'react';
-import DocumentTable from '@/components/gestion-documentaire/table/DocumentTable';
+import DocumentTable from '@/components/gestion-documentaire/DocumentTable';
 import { useDocuments } from '@/hooks/useDocuments';
 import { getDatabaseConnectionCurrentUser } from '@/services/core/databaseConnectionService';
 import { Button } from '@/components/ui/button';
