@@ -33,6 +33,12 @@ AddType application/json .json
     Header set X-Content-Type-Options "nosniff"
 </FilesMatch>
 
+# Protéger les fichiers YAML de GitHub Actions
+<FilesMatch "\.yml$">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+
 # Gérer le routage SPA - toutes les routes non-fichiers vers index.html
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
