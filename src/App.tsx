@@ -47,7 +47,7 @@ function App() {
               {/* Public route */}
               <Route path="/" element={<Index />} />
               
-              {/* Protected routes */}
+              {/* Protected routes using element prop directly */}
               <Route path="/pilotage" element={
                 <RequireAuth>
                   <Layout>
@@ -126,7 +126,7 @@ function App() {
 }
 
 // Wrap component with auth protection
-function RequireAuth({ children, adminOnly = false }: RequireAuthProps) {
+const RequireAuth: React.FC<RequireAuthProps> = ({ children, adminOnly = false }) => {
   const isLoggedIn = getIsLoggedIn();
   const currentUser = getCurrentUser();
   const isAdmin = currentUser?.role === 'admin';
@@ -140,6 +140,6 @@ function RequireAuth({ children, adminOnly = false }: RequireAuthProps) {
   }
 
   return <>{children}</>;
-}
+};
 
 export default App;
