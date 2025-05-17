@@ -26,7 +26,7 @@ const defaultDocuments: Document[] = [
 export const usePilotageDocuments = () => {
   const { toast } = useToast();
   const currentUser = getCurrentUserId();
-  const isAntcirier = currentUser?.email === 'antcirier@gmail.com';
+  const isAntcirier = currentUser === 'p71x6d_cirier';
   
   // Initialiser avec les données de test appropriées
   const [documents, setDocuments] = useState<Document[]>(

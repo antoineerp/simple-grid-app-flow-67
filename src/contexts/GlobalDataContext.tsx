@@ -32,7 +32,7 @@ const testDataForAntcirier = {
       nom: "Procédure Qualité", 
       fichier_path: "procedure_qualite.pdf",
       responsabilites: { r: [], a: [], c: [], i: [] },
-      etat: "C", 
+      etat: "C" as const, 
       date_creation: now,
       date_modification: now,
       userId: "p71x6d_cirier" 
@@ -42,7 +42,7 @@ const testDataForAntcirier = {
       nom: "Plan de formation", 
       fichier_path: "plan_formation.docx",
       responsabilites: { r: [], a: [], c: [], i: [] },
-      etat: "PC", 
+      etat: "PC" as const, 
       date_creation: now,
       date_modification: now,
       userId: "p71x6d_cirier"
@@ -52,7 +52,7 @@ const testDataForAntcirier = {
       nom: "Manuel d'utilisation", 
       fichier_path: "manuel.pdf",
       responsabilites: { r: [], a: [], c: [], i: [] },
-      etat: "NC", 
+      etat: "NC" as const, 
       date_creation: now,
       date_modification: now,
       userId: "p71x6d_cirier"
