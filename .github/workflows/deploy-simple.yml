@@ -101,6 +101,16 @@ jobs:
         echo '    "username": "p71x6d_richard",' >> deploy/api/config/db_config.json
         echo '    "password": "Trottinette43!"' >> deploy/api/config/db_config.json
         echo '}' >> deploy/api/config/db_config.json
+        
+        # Copy our new asset reference fixing tools
+        cp fix-asset-references.php deploy/
+        cp update-deployment.php deploy/
+        
+        # Create a post-deploy script that will run automatically
+        echo "<?php" > deploy/post-deploy-fix.php
+        echo "// Automatically fix asset references after deployment" >> deploy/post-deploy-fix.php
+        echo "include_once 'fix-asset-references.php';" >> deploy/post-deploy-fix.php
+        echo "?>" >> deploy/post-deploy-fix.php
       
     - name: FTP Deploy to Infomaniak
       uses: SamKirkland/FTP-Deploy-Action@v4.3.4
@@ -135,4 +145,10 @@ jobs:
           find api -name "*.php" | wc -l
           [ -d "assets" ] && echo "✅ dossier assets: PRÉSENT" || echo "❌ dossier assets: MANQUANT"
           [ -f "index.html" ] && echo "✅ fichier index.html: PRÉSENT" || echo "❌ fichier index.html: MANQUANT"
+          [ -f "fix-asset-references.php" ] && echo "✅ fix-asset-references.php: PRÉSENT" || echo "❌ fix-asset-references.php: MANQUANT"
+          [ -f "post-deploy-fix.php" ] && echo "✅ post-deploy-fix.php: PRÉSENT" || echo "❌ post-deploy-fix.php: MANQUANT"
+          
+          # Execute the post-deployment fix
+          echo "=== Exécution du script de correction post-déploiement ==="
+          php post-deploy-fix.php || echo "❌ Erreur lors de l'exécution du script post-deploy-fix.php"
 
