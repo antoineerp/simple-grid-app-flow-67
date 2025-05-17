@@ -12,25 +12,35 @@ export interface MembresContextType {
   updateMembre: (id: string, membre: Partial<Membre>) => Promise<Membre>;
   deleteMembre: (id: string) => Promise<boolean>;
   refreshMembres: () => Promise<void>;
-  syncMembres: () => Promise<boolean>;
-  lastSynced: Date | null;
-  syncFailed: boolean;
 }
 
 // Création du contexte
 const MembresContext = createContext<MembresContextType | undefined>(undefined);
+
+// Configuration de la synchronisation globale
+const GLOBAL_SYNC_INTERVAL = 10000; // 10 secondes
 
 // Provider component
 export const MembresProvider: React.FC<{children: ReactNode}> = ({ children }) => {
   const [membres, setMembres] = useState<Membre[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-  const [lastSynced, setLastSynced] = useState<Date | null>(null);
-  const [syncFailed, setSyncFailed] = useState<boolean>(false);
-
+  
   // Charger les membres au montage du composant
   useEffect(() => {
     loadMembres();
+
+    // Configurer la synchronisation globale
+    const syncInterval = setInterval(() => {
+      // Synchronisation silencieuse en arrière-plan
+      syncMembres().catch(err => {
+        console.error("Erreur de synchronisation en arrière-plan:", err);
+      });
+    }, GLOBAL_SYNC_INTERVAL);
+
+    return () => {
+      clearInterval(syncInterval);
+    };
   }, []);
 
   // Fonction pour charger les membres
@@ -60,31 +70,6 @@ export const MembresProvider: React.FC<{children: ReactNode}> = ({ children }) =
     } catch (err) {
       console.error("Erreur lors du rafraîchissement des membres:", err);
       setError("Impossible de rafraîchir les membres");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Fonction pour synchroniser les membres
-  const handleSyncMembres = async (): Promise<boolean> => {
-    setIsLoading(true);
-    setSyncFailed(false);
-    
-    try {
-      // Synchroniser avec le serveur
-      const success = await syncMembres();
-      
-      if (success) {
-        setLastSynced(new Date());
-      } else {
-        setSyncFailed(true);
-      }
-      
-      return success;
-    } catch (error) {
-      console.error("Erreur lors de la synchronisation des membres:", error);
-      setSyncFailed(true);
-      return false;
     } finally {
       setIsLoading(false);
     }
@@ -124,10 +109,7 @@ export const MembresProvider: React.FC<{children: ReactNode}> = ({ children }) =
         addMembre: handleAddMembre, 
         updateMembre: handleUpdateMembre, 
         deleteMembre: handleDeleteMembre, 
-        refreshMembres: handleRefreshMembres,
-        syncMembres: handleSyncMembres,
-        lastSynced,
-        syncFailed
+        refreshMembres: handleRefreshMembres
       }}
     >
       {children}

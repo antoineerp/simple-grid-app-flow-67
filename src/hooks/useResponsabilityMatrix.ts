@@ -112,13 +112,11 @@ export const useResponsabilityMatrix = () => {
     // Écouter les mises à jour des exigences, documents et membres
     window.addEventListener('exigenceUpdate', calculateResponsabilites);
     window.addEventListener('documentUpdate', calculateResponsabilites);
-    window.addEventListener('storage', calculateResponsabilites);
     
     // Nettoyer les event listeners
     return () => {
       window.removeEventListener('exigenceUpdate', calculateResponsabilites);
       window.removeEventListener('documentUpdate', calculateResponsabilites);
-      window.removeEventListener('storage', calculateResponsabilites);
     };
   }, [membres, userId]);
 
