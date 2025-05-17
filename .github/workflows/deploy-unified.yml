@@ -102,7 +102,7 @@ jobs:
         echo "Configuration de l'API..."
         
         # Création du fichier .htaccess pour l'API
-        cat > deploy/api/.htaccess <<'EOL'
+        cat > deploy/api/.htaccess << 'EOL'
 # Activer la réécriture d'URL
 RewriteEngine On
 
@@ -146,7 +146,7 @@ RewriteRule ^(.*)$ index.php [QSA,L]
 EOL
         
         # Création du fichier de configuration DB
-        cat > deploy/api/config/db_config.json <<'EOL'
+        cat > deploy/api/config/db_config.json << 'EOL'
 {
     "host": "p71x6d.myd.infomaniak.com",
     "db_name": "p71x6d_richard",
@@ -156,24 +156,27 @@ EOL
 EOL
         
         # Création du fichier env.php
-        echo "<?php
+        mkdir -p deploy/api/config
+        cat > deploy/api/config/env.php << 'EOL'
+<?php
 // Configuration des variables d'environnement pour Infomaniak
-define(\"DB_HOST\", \"p71x6d.myd.infomaniak.com\");
-define(\"DB_NAME\", \"p71x6d_richard\");
-define(\"DB_USER\", \"p71x6d_richard\");
-define(\"DB_PASS\", \"Trottinette43!\");
-define(\"API_BASE_URL\", \"/api\");
-define(\"APP_ENV\", \"production\");
+define("DB_HOST", "p71x6d.myd.infomaniak.com");
+define("DB_NAME", "p71x6d_richard");
+define("DB_USER", "p71x6d_richard");
+define("DB_PASS", "Trottinette43!");
+define("API_BASE_URL", "/api");
+define("APP_ENV", "production");
 
 // Fonction d'aide pour récupérer les variables d'environnement
-function get_env(\$key, \$default = null) {
-    \$const_name = strtoupper(\$key);
-    if (defined(\$const_name)) {
-        return constant(\$const_name);
+function get_env($key, $default = null) {
+    $const_name = strtoupper($key);
+    if (defined($const_name)) {
+        return constant($const_name);
     }
-    return \$default;
+    return $default;
 }
-?>" > deploy/api/config/env.php
+?>
+EOL
         
         # Copie des fichiers PHP de l'API
         if [ -d "api" ]; then
@@ -198,7 +201,7 @@ function get_env(\$key, \$default = null) {
         fi
         
         # Créer un fichier README dans le dossier documentation
-        cat > deploy/api/documentation/README.md <<'EOL'
+        cat > deploy/api/documentation/README.md << 'EOL'
 # Documentation API
 
 Ce dossier contient la documentation de l'API.
@@ -247,3 +250,15 @@ EOL
         local-dir: ./deploy/
         server-dir: ./
         dangerous-clean-slate: false
+        
+    - name: Execute post-deployment CSS check
+      uses: appleboy/ssh-action@master
+      with:
+        host: ${{ secrets.FTP_SERVER }}
+        username: ${{ secrets.FTP_USERNAME }}
+        password: ${{ secrets.FTP_PASSWORD }}
+        script: |
+          cd /sites/qualiopi.ch/
+          echo "=== Post-deployment CSS check ==="
+          php fix-css-deployment.php || echo "❌ Error running fix-css-deployment.php"
+          echo "=== CSS check completed ==="
