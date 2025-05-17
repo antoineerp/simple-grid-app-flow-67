@@ -40,7 +40,8 @@ export const usePilotageDocuments = () => {
     id: 0,
     ordre: 0,
     nom: '',
-    lien: null
+    lien: null,
+    userId: undefined
   });
 
   // Effect pour mettre à jour les documents quand l'utilisateur change
@@ -53,17 +54,13 @@ export const usePilotageDocuments = () => {
       ? Math.max(...documents.map(doc => doc.ordre)) + 1 
       : 1;
     
-    const newDocument = {
+    const newDocument: Document = {
       id: 0,
       ordre: nextOrdre,
       nom: '',
-      lien: null
+      lien: null,
+      userId: isAntcirier ? 'p71x6d_cirier' : undefined
     };
-    
-    // Add userId for antcirier
-    if (isAntcirier) {
-      newDocument.userId = 'p71x6d_cirier';
-    }
     
     setCurrentDocument(newDocument);
     setIsEditing(false);
@@ -115,16 +112,12 @@ export const usePilotageDocuments = () => {
         ? Math.max(...documents.map(doc => doc.id)) + 1 
         : 1;
       
-      // Préparer le nouveau document avec un ID
-      const newDoc = { 
+      // Créer une copie complète avec l'ID et s'assurer que userId est défini
+      const newDoc: Document = { 
         ...currentDocument, 
-        id: newId 
+        id: newId,
+        userId: isAntcirier ? 'p71x6d_cirier' : currentDocument.userId
       };
-      
-      // Ajouter userId pour antcirier
-      if (isAntcirier && !newDoc.userId) {
-        newDoc.userId = 'p71x6d_cirier';
-      }
       
       setDocuments([...documents, newDoc]);
       toast({
