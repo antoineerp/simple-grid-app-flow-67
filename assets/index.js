@@ -1,8 +1,8 @@
 
 // Point d'entrée pour les assets
 // Ce fichier sert de pont vers les scripts principaux de l'application
-import React from '/node_modules/react/index.js';
-import { createRoot } from '/node_modules/react-dom/client.js';
+import React from 'react';
+import { createRoot } from 'react-dom/client';
 import App from '../src/App';
 import '../src/index.css';
 

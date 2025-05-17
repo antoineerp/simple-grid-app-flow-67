@@ -11,19 +11,13 @@
   <!-- Force MIME Type for CSS -->
   <link rel="stylesheet" href="/assets/main.css" type="text/css" />
   
-  <!-- Références dynamiques aux fichiers CSS hachés -->
-  <link rel="preload" href="/assets/Index.3xTXvUq6.js" as="script" />
-  <link rel="preload" href="/assets/NotFound.Bp73Qj9p.js" as="script" />
-  <link rel="preload" href="/assets/Pilotage.DEp91rkJ.js" as="script" />
-  <link rel="preload" href="/assets/GestionDocumentaire.Dq9P5jBp.js" as="script" />
-  <link rel="preload" href="/assets/Collaboration.DTv-hklu.js" as="script" />
-  <link rel="preload" href="/assets/html2canvas.esm.CBrSDip1.js" as="script" />
-  <link rel="preload" href="/assets/index.es.BwjoA6bv.js" as="script" />
-  <link rel="preload" href="/assets/index.es.Bx7TRNMB.js" as="script" />
+  <!-- Références dynamiques aux fichiers CSS -->
+  <link rel="stylesheet" href="/assets/index.css" type="text/css" />
+  
+  <!-- Préchargement des scripts principaux -->
+  <link rel="preload" href="/assets/index.js" as="script" />
   <link rel="preload" href="/assets/react.DRd396Ms.js" as="script" />
-  <link rel="preload" href="/assets/ui.HRNEv55n.js" as="script" />
   <link rel="preload" href="/assets/main.CyAZZjgK.js" as="script" />
-  <link rel="preload" href="/assets/purify.es.Bf0oSh3b.js" as="script" />
 </head>
 <body>
   <div id="root">
@@ -34,17 +28,14 @@
     </div>
   </div>
   
-  <!-- Script de détection des fichiers hachés -->
-  <script src="/assets/hashed-file-loader.js" type="module"></script>
-  
   <!-- Script principal avec modules ES6 -->
-  <script type="module" src="/assets/main.js"></script>
+  <script type="module" src="/assets/index.js"></script>
   
   <!-- Script de secours en cas d'échec du chargement du module -->
   <script>
     window.addEventListener('error', function(e) {
       // Détecter les erreurs liées au chargement des modules
-      if (e.filename && e.filename.includes('main.')) {
+      if (e.filename && e.filename.includes('index.')) {
         console.error('Erreur de chargement du module ES6, chargement du fallback');
         var fallbackScript = document.createElement('script');
         fallbackScript.src = '/assets/main.js';
