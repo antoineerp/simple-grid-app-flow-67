@@ -1,14 +1,16 @@
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import DocumentTable from '@/components/documents/DocumentTable';
 import { useDocuments } from '@/hooks/useDocuments';
+import { getDatabaseConnectionCurrentUser } from '@/services/core/databaseConnectionService';
 import { Button } from '@/components/ui/button';
-import { Plus, FolderPlus } from 'lucide-react';
+import { Plus, FileText, RefreshCw, FolderPlus } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 
 const GestionDocumentaire = () => {
   const { 
-    documents = [], 
-    groups = [], 
+    documents, 
+    groups, 
     handleEdit, 
     handleDelete, 
     handleReorder, 
@@ -20,13 +22,49 @@ const GestionDocumentaire = () => {
     handleExclusionChange, 
     handleAddDocument, 
     handleAddGroup,
-    handleGroupReorder
+    handleGroupReorder,
+    forceReload,
+    isSyncing
   } = useDocuments();
+  
+  const [currentUser, setCurrentUser] = useState<string>(getDatabaseConnectionCurrentUser() || 'default');
+  const { toast } = useToast();
+  
+  // Écouter les changements d'utilisateur
+  useEffect(() => {
+    const handleUserChange = (event: Event) => {
+      const customEvent = event as CustomEvent;
+      if (customEvent.detail?.user) {
+        setCurrentUser(customEvent.detail.user);
+        console.log(`GestionDocumentaire: Changement d'utilisateur - ${customEvent.detail.user}`);
+      }
+    };
+    
+    window.addEventListener('database-user-changed', handleUserChange);
+    
+    return () => {
+      window.removeEventListener('database-user-changed', handleUserChange);
+    };
+  }, []);
+
+  const handleRefresh = () => {
+    forceReload();
+  };
 
   return (
     <div className="container mx-auto py-6 px-4">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold">Gestion Documentaire</h1>
+        {/* Bouton de synchronisation masqué mais fonctionnel */}
+        <Button
+          onClick={handleRefresh}
+          variant="outline"
+          size="sm"
+          className="ml-2 hidden"
+        >
+          <RefreshCw className={`h-4 w-4 mr-1 ${isSyncing ? 'animate-spin' : ''}`} />
+          Actualiser
+        </Button>
       </div>
       
       <DocumentTable 

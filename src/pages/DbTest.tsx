@@ -18,6 +18,11 @@ export default function DbTest() {
     syncData, 
     loadData, 
     saveLocalData,
+    refreshStatus,
+    status,
+    lastSynced,
+    lastError,
+    pendingChanges,
     isOnline
   } = useDataSync<TestData>('test_table');
 
@@ -69,8 +74,8 @@ export default function DbTest() {
                   <Save className="mr-2 h-4 w-4" />
                   Ajouter une donnée
                 </Button>
-                <Button onClick={handleSync}>
-                  <RefreshCw className="mr-2 h-4 w-4" />
+                <Button onClick={handleSync} disabled={!isOnline || status === 'syncing'}>
+                  <RefreshCw className={`mr-2 h-4 w-4 ${status === 'syncing' ? 'animate-spin' : ''}`} />
                   Synchroniser
                 </Button>
               </div>

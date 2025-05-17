@@ -5,7 +5,7 @@ import SidebarNavItem from './sidebar/SidebarNavItem';
 import { navigationItems } from './sidebar/sidebarConfig';
 import { hasPermission } from '@/types/roles';
 import { getCurrentUser } from '@/services/auth/authService';
-import { Settings, Database, ServerCrash } from 'lucide-react';
+import { Settings } from 'lucide-react';
 
 const Sidebar = () => {
   const [sidebarImageUrl, setSidebarImageUrl] = useState('');
@@ -81,20 +81,16 @@ const Sidebar = () => {
         {isAdmin && (
           <div className="mt-4 pt-4 border-t border-gray-200">
             <SidebarNavItem
-              to="/administration"
+              to="/admin"
               icon={Settings}
               label="Administration"
             />
-            <SidebarNavItem
-              to="/db-admin"
-              icon={Database}
-              label="Tests Base de données"
-            />
-            <SidebarNavItem
-              to="/server-test"
-              icon={ServerCrash}
-              label="Tests Serveur"
-            />
+            <Link 
+              to="/admin/users" 
+              className="flex items-center text-sm text-gray-600 py-2 px-4 pl-10 hover:bg-blue-50 hover:text-blue-700 rounded-md transition-colors"
+            >
+              Gestion des utilisateurs
+            </Link>
           </div>
         )}
         

@@ -2,11 +2,14 @@
 import React, { useState } from 'react';
 import { Document, DocumentGroup } from '@/types/bibliotheque';
 import {
+  Table,
   TableBody,
+  TableHead,
+  TableHeader,
+  TableRow,
 } from "@/components/ui/table";
 import { BibliothequeGroup } from './BibliothequeGroup';
 import { BibliothequeDocumentRow } from './BibliothequeDocumentRow';
-import DataTable from '@/components/common/DataTable';
 
 interface BibliothequeTableProps {
   documents: Document[];
@@ -161,20 +164,16 @@ export const BibliothequeTable: React.FC<BibliothequeTableProps> = ({
   };
 
   return (
-    <DataTable
-      data={[]} // Les données sont gérées différemment ici
-      columns={[]}
-      renderHeader={() => (
-        <thead className="bg-app-light-blue">
-          <tr>
-            <th className="w-10"></th>
-            <th className="py-3 px-4 text-app-blue font-semibold">Nom du document</th>
-            <th className="py-3 px-4 text-app-blue font-semibold">Lien</th>
-            <th className="py-3 px-4 text-app-blue font-semibold text-right">Actions</th>
-          </tr>
-        </thead>
-      )}
-      renderCustomBody={() => (
+    <div className="bg-white rounded-md shadow overflow-hidden">
+      <Table>
+        <TableHeader>
+          <TableRow className="bg-app-light-blue">
+            <TableHead className="w-10"></TableHead>
+            <TableHead className="py-3 px-4 text-app-blue font-semibold">Nom du document</TableHead>
+            <TableHead className="py-3 px-4 text-app-blue font-semibold">Lien</TableHead>
+            <TableHead className="py-3 px-4 text-app-blue font-semibold text-right">Actions</TableHead>
+          </TableRow>
+        </TableHeader>
         <TableBody>
           {groups.map(group => (
             <BibliothequeGroup
@@ -207,7 +206,7 @@ export const BibliothequeTable: React.FC<BibliothequeTableProps> = ({
             />
           ))}
         </TableBody>
-      )}
-    />
+      </Table>
+    </div>
   );
 };

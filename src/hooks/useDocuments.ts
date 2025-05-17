@@ -1,264 +1,202 @@
-
 import { useState, useEffect, useCallback } from 'react';
-import { v4 as uuidv4 } from 'uuid';
+import { useSync } from './useSync';
 import { Document, DocumentGroup } from '@/types/documents';
-import { useToast } from '@/hooks/use-toast';
-import { getCurrentUser } from '@/services/auth/authService';
-
-// Service de synchronisation simulé pour l'exemple
-const syncDocuments = async (docs: Document[], groups: DocumentGroup[]) => {
-  localStorage.setItem('documents', JSON.stringify(docs));
-  localStorage.setItem('documentGroups', JSON.stringify(groups));
-  return { success: true };
-};
+import { useToast } from './use-toast';
+import { v4 as uuidv4 } from 'uuid';
+import { useDocumentMutations } from '@/features/documents/hooks/useDocumentMutations';
+import { useDocumentGroups } from '@/features/documents/hooks/useDocumentGroups';
+import { useDocumentSync } from '@/features/documents/hooks/useDocumentSync';
+import { getCurrentUserId } from '@/services/auth/authService';
 
 export const useDocuments = () => {
   const [documents, setDocuments] = useState<Document[]>([]);
   const [groups, setGroups] = useState<DocumentGroup[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [selectedDocument, setSelectedDocument] = useState<Document | null>(null);
+  const { syncStatus, startSync, endSync, loading, error } = useSync('documents');
   const { toast } = useToast();
+  const { syncWithServer, loadFromServer, isSyncing } = useDocumentSync();
   
-  // Chargement initial des données
-  useEffect(() => {
-    const loadData = async () => {
-      try {
-        // Simuler le chargement depuis une API
-        const savedDocs = localStorage.getItem('documents');
-        const savedGroups = localStorage.getItem('documentGroups');
-        
-        const docs = savedDocs ? JSON.parse(savedDocs) : [];
-        const grps = savedGroups ? JSON.parse(savedGroups) : [];
-        
-        // Ensure all documents have required fields for responsabilites
-        const validatedDocs = docs.map((doc: any): Document => ({
-          ...doc,
-          responsabilites: {
-            r: doc.responsabilites?.r || [],
-            a: doc.responsabilites?.a || [],
-            c: doc.responsabilites?.c || [],
-            i: doc.responsabilites?.i || []
-          },
-          etat: doc.etat as 'NC' | 'PC' | 'C' | 'EX' | null
-        }));
-        
-        setDocuments(validatedDocs);
-        setGroups(grps);
-      } catch (error) {
-        console.error('Erreur lors du chargement des documents', error);
-        toast({
-          title: "Erreur",
-          description: "Impossible de charger les documents",
-          variant: "destructive",
-        });
-      } finally {
-        setLoading(false);
-      }
-    };
-    
-    loadData();
-  }, [toast]);
-  
-  // Sauvegarde des données
-  const saveData = useCallback(async (newDocs: Document[], newGroups: DocumentGroup[]) => {
-    try {
-      // Ensure all documents have proper responsabilites structure before saving
-      const validatedDocs: Document[] = newDocs.map(doc => ({
-        ...doc,
-        responsabilites: {
-          r: doc.responsabilites?.r || [],
-          a: doc.responsabilites?.a || [],
-          c: doc.responsabilites?.c || [],
-          i: doc.responsabilites?.i || []
-        },
-        etat: doc.etat as 'NC' | 'PC' | 'C' | 'EX' | null
-      }));
-      
-      await syncDocuments(validatedDocs, newGroups);
-      setDocuments(validatedDocs);
-      setGroups(newGroups);
-      return true;
-    } catch (error) {
-      console.error('Erreur lors de la sauvegarde des documents', error);
-      toast({
-        title: "Erreur",
-        description: "Impossible de sauvegarder les modifications",
-        variant: "destructive",
-      });
-      return false;
-    }
-  }, [toast]);
-  
-  // Gestion des documents
-  const handleEdit = useCallback((id: string) => {
-    // Implémentation à faire
-    console.log('Éditer document', id);
-  }, []);
-  
-  const handleDelete = useCallback((id: string) => {
-    const newDocs = documents.filter(doc => doc.id !== id);
-    saveData(newDocs, groups);
-    toast({
-      description: "Document supprimé",
-    });
-  }, [documents, groups, saveData, toast]);
-  
-  const handleReorder = useCallback((startIndex: number, endIndex: number, targetGroupId?: string) => {
-    // Copie des documents pour manipulation
-    const updatedDocs = [...documents];
-    
-    // Document à déplacer
-    const [movedDoc] = updatedDocs.splice(startIndex, 1);
-    
-    // Si un groupe cible est spécifié, mettre à jour le groupId du document
-    if (targetGroupId !== undefined) {
-      movedDoc.groupId = targetGroupId || null;
-    }
-    
-    // Réinsérer le document à la nouvelle position
-    updatedDocs.splice(endIndex, 0, movedDoc);
-    
-    saveData(updatedDocs, groups);
-  }, [documents, groups, saveData]);
-  
-  // Gestion des groupes
-  const handleToggleGroup = useCallback((id: string) => {
-    const updatedGroups = groups.map(group => 
-      group.id === id ? { ...group, expanded: !group.expanded } : group
-    );
-    setGroups(updatedGroups);
-    saveData(documents, updatedGroups);
-  }, [documents, groups, saveData]);
-  
-  const handleEditGroup = useCallback((group: DocumentGroup) => {
-    // Implémentation à faire
-    console.log('Éditer groupe', group);
-  }, []);
-  
-  const handleDeleteGroup = useCallback((id: string) => {
-    // Supprimer le groupe
-    const newGroups = groups.filter(group => group.id !== id);
-    
-    // Pour les documents de ce groupe, enlever la référence au groupe
-    const newDocs = documents.map(doc => 
-      doc.groupId === id ? { ...doc, groupId: null } : doc
-    );
-    
-    saveData(newDocs, newGroups);
-    toast({
-      description: "Groupe supprimé",
-    });
-  }, [documents, groups, saveData, toast]);
-  
-  const handleGroupReorder = useCallback((startIndex: number, endIndex: number) => {
-    const updatedGroups = [...groups];
-    const [movedGroup] = updatedGroups.splice(startIndex, 1);
-    updatedGroups.splice(endIndex, 0, movedGroup);
-    saveData(documents, updatedGroups);
-  }, [documents, groups, saveData]);
-  
-  // Gestion des responsabilités et autres propriétés
-  const handleResponsabiliteChange = useCallback((id: string, type: 'r' | 'a' | 'c' | 'i', values: string[]) => {
-    const updatedDocs = documents.map(doc => {
-      if (doc.id === id) {
-        // Créer une copie des responsabilités actuelles
-        const newResponsabilites = { ...doc.responsabilites };
-        // Mettre à jour le type spécifique
-        newResponsabilites[type] = values;
-        
-        return { ...doc, responsabilites: newResponsabilites };
-      }
-      return doc;
-    });
-    
-    saveData(updatedDocs, groups);
-  }, [documents, groups, saveData]);
-  
-  const handleAtteinteChange = useCallback((id: string, atteinte: 'NC' | 'PC' | 'C' | null) => {
-    const updatedDocs = documents.map(doc => 
-      doc.id === id ? { ...doc, etat: atteinte } : doc
-    );
-    
-    saveData(updatedDocs, groups);
-  }, [documents, groups, saveData]);
-  
-  const handleExclusionChange = useCallback((id: string) => {
-    // In documents.ts there's no 'excluded' but there's 'etat' that can be 'EX'
-    const updatedDocs = documents.map(doc => {
-      if (doc.id === id) {
-        // Toggle between 'EX' (excluded) and null (not excluded)
-        return { 
-          ...doc, 
-          etat: doc.etat === 'EX' ? null : 'EX' as const
-        };
-      }
-      return doc;
-    });
-    
-    saveData(updatedDocs, groups);
-  }, [documents, groups, saveData]);
-  
-  // Ajout de documents et groupes
-  const handleAddDocument = useCallback(() => {
-    const currentUser = getCurrentUser();
-    const userId = currentUser?.identifiant_technique || 'system';
-    
-    const newDocument: Document = {
-      id: uuidv4(),
-      nom: 'Nouveau document',
-      fichier_path: null,
-      etat: null,
-      responsabilites: {
-        r: [],
-        a: [],
-        c: [],
-        i: []
-      },
-      date_creation: new Date(),
-      date_modification: new Date(),
-      userId
-    };
-    
-    const newDocs = [...documents, newDocument];
-    saveData(newDocs, groups);
-    toast({
-      description: "Nouveau document ajouté",
-    });
-  }, [documents, groups, saveData, toast]);
-  
-  const handleAddGroup = useCallback(() => {
-    const currentUser = getCurrentUser();
-    const userId = currentUser?.identifiant_technique || 'system';
-    
-    const newGroup: DocumentGroup = {
-      id: uuidv4(),
-      name: 'Nouveau groupe',
-      expanded: true,
-      items: [],
-      userId
-    };
-    
-    const newGroups = [...groups, newGroup];
-    saveData(documents, newGroups);
-    toast({
-      description: "Nouveau groupe ajouté",
-    });
-  }, [documents, groups, saveData, toast]);
-  
-  return {
-    documents,
-    groups,
-    loading,
-    handleEdit,
-    handleDelete,
-    handleReorder,
-    handleToggleGroup,
-    handleEditGroup,
-    handleDeleteGroup,
-    handleGroupReorder,
+  // Document mutations
+  const {
     handleResponsabiliteChange,
     handleAtteinteChange,
     handleExclusionChange,
+    handleDelete
+  } = useDocumentMutations(documents, setDocuments);
+  
+  // Group mutations
+  const {
+    handleGroupReorder,
+    handleToggleGroup,
+    handleSaveGroup,
+    handleDeleteGroup
+  } = useDocumentGroups(groups, setGroups);
+
+  // Function to synchronize and process documents
+  const syncAndProcess = useCallback(async () => {
+    startSync();
+    try {
+      // Get current user ID
+      const userId = getCurrentUserId() || '';
+      
+      // Load documents from server (or local storage if offline)
+      const loadedDocuments = await loadFromServer(userId);
+      
+      if (loadedDocuments) {
+        setDocuments(loadedDocuments);
+        
+        // Extract groups from documents
+        const documentGroups: DocumentGroup[] = [];
+        const groupIds = new Set<string>();
+        
+        loadedDocuments.forEach(doc => {
+          if (doc.groupId && !groupIds.has(doc.groupId)) {
+            groupIds.add(doc.groupId);
+            documentGroups.push({
+              id: doc.groupId,
+              name: doc.groupId, // Default name is the ID
+              expanded: true,
+              items: [],
+              userId: userId
+            });
+          }
+        });
+        
+        setGroups(documentGroups);
+      }
+      
+      endSync();
+      return true;
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+      endSync(errorMessage);
+      return false;
+    }
+  }, [startSync, endSync, loadFromServer]);
+
+  // Load initial data
+  useEffect(() => {
+    syncAndProcess();
+  }, [syncAndProcess]);
+
+  // Select a document
+  const selectDocument = (id: string) => {
+    const document = documents.find(doc => doc.id === id);
+    setSelectedDocument(document || null);
+  };
+  
+  // Force reload data
+  const forceReload = async () => {
+    return await syncAndProcess();
+  };
+
+  // Handle document editing
+  const handleEdit = (id: string) => {
+    const document = documents.find(doc => doc.id === id);
+    if (document) {
+      setSelectedDocument(document);
+      // Additional logic for editing could be added here
+    }
+  };
+
+  // Handle document reordering
+  const handleReorder = useCallback((startIndex: number, endIndex: number, targetGroupId?: string) => {
+    setDocuments(prev => {
+      const result = Array.from(prev);
+      const [removed] = result.splice(startIndex, 1);
+      
+      // If target group is provided, update the document's group
+      const updatedDoc = targetGroupId !== undefined ? { ...removed, groupId: targetGroupId === 'none' ? undefined : targetGroupId } : removed;
+      
+      result.splice(endIndex, 0, updatedDoc);
+      return result;
+    });
+  }, []);
+
+  // Handle creating/editing group
+  const handleEditGroup = (group: DocumentGroup) => {
+    // Find if group already exists
+    const existingIndex = groups.findIndex(g => g.id === group.id);
+    
+    if (existingIndex >= 0) {
+      // Update existing group
+      setGroups(prev => {
+        const updated = [...prev];
+        updated[existingIndex] = { ...updated[existingIndex], ...group };
+        return updated;
+      });
+    } else {
+      // Create new group
+      setGroups(prev => [...prev, { ...group, id: group.id || uuidv4() }]);
+    }
+  };
+
+  // Handle adding a new document
+  const handleAddDocument = useCallback(() => {
+    const newDoc: Document = {
+      id: uuidv4(),
+      nom: "Nouveau document", // Changed from title to nom
+      fichier_path: null, // Added instead of description
+      responsabilites: { r: [], a: [], c: [], i: [] }, // Added instead of responsabilite
+      etat: null, // Added instead of atteinte
+      date_creation: new Date(), // Added instead of date
+      date_modification: new Date(), // Added
+      userId: getCurrentUserId() || ''
+    };
+    
+    setDocuments(prev => [...prev, newDoc]);
+    setSelectedDocument(newDoc);
+    
+    toast({
+      title: "Document créé",
+      description: "Un nouveau document a été créé"
+    });
+    
+    return newDoc;
+  }, [toast]);
+
+  // Handle adding a new group
+  const handleAddGroup = useCallback(() => {
+    const newGroup: DocumentGroup = {
+      id: uuidv4(),
+      name: "Nouveau groupe",
+      expanded: true,
+      items: [],
+      userId: getCurrentUserId() || ''
+    };
+    
+    setGroups(prev => [...prev, newGroup]);
+    
+    toast({
+      title: "Groupe créé",
+      description: "Un nouveau groupe a été créé"
+    });
+    
+    return newGroup;
+  }, [toast]);
+
+  return {
+    documents,
+    groups,
+    selectedDocument,
+    loading,
+    error,
+    syncStatus,
+    selectDocument,
+    handleResponsabiliteChange,
+    handleAtteinteChange,
+    handleExclusionChange,
+    handleDelete,
+    handleEdit,
+    handleReorder,
+    handleGroupReorder,
+    handleToggleGroup,
+    handleSaveGroup,
+    handleDeleteGroup,
+    handleEditGroup,
     handleAddDocument,
-    handleAddGroup
+    handleAddGroup,
+    forceReload,
+    isSyncing
   };
 };

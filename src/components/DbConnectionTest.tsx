@@ -1,286 +1,120 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Loader2, Database, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { toast } from "@/components/ui/use-toast";
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { getApiUrl } from '@/config/apiConfig';
+import { Loader2, AlertTriangle, CheckCircle } from 'lucide-react';
 
-interface DbConfig {
-  host: string;
-  db_name: string;
-  username: string;
-  password: string;
-}
-
-interface TestResult {
-  name: string;
-  status: 'pending' | 'success' | 'error' | 'warning';
-  message: string;
-}
-
-const DbConnectionTest: React.FC = () => {
-  const [config, setConfig] = useState<DbConfig>({
-    host: 'p71x6d.myd.infomaniak.com',
-    db_name: 'p71x6d_richard',
-    username: 'p71x6d_richard',
-    password: ''
-  });
-  const [results, setResults] = useState<TestResult[]>([]);
-  const [isTesting, setIsTesting] = useState(false);
-  const [showConfig, setShowConfig] = useState(false);
-
-  useEffect(() => {
-    // Charger la configuration depuis localStorage s'il existe
-    const savedConfig = localStorage.getItem('dbConfig');
-    if (savedConfig) {
-      try {
-        const parsedConfig = JSON.parse(savedConfig);
-        setConfig(parsedConfig);
-      } catch (e) {
-        console.error("Erreur lors du chargement de la configuration de la base de données:", e);
-      }
-    }
+export default function DbConnectionTest() {
+  const [testResult, setTestResult] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  
+  const runDbTest = async () => {
+    setIsLoading(true);
+    setErrorMessage(null);
     
-    // Tester la connexion au chargement du composant
-    testConnection();
-  }, []);
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setConfig(prev => {
-      const newConfig = { ...prev, [name]: value };
-      // Sauvegarder dans localStorage
-      localStorage.setItem('dbConfig', JSON.stringify(newConfig));
-      return newConfig;
-    });
-  };
-
-  const testConnection = async () => {
-    setIsTesting(true);
-    setResults([
-      { name: 'Vérification de la connexion', status: 'pending', message: 'Test en cours...' }
-    ]);
-
     try {
-      // Test de connexion à la base de données
-      const response = await fetch('/api/db-connection-test.php', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(config),
-      });
-
-      const data = await response.json();
+      const API_URL = getApiUrl();
+      // Utiliser uniquement l'endpoint direct qui est fiable
+      const testEndpoint = `${API_URL}/direct-db-test.php`;
+      console.log(`Exécution du test de connexion à: ${testEndpoint}`);
       
-      if (data.success) {
-        setResults([
-          { name: 'Connexion à la base de données', status: 'success', message: data.message || 'Connexion réussie' }
-        ]);
-        
-        // Tester maintenant la structure des tables
-        await testTables();
-      } else {
-        setResults([
-          { name: 'Connexion à la base de données', status: 'error', message: data.message || 'Erreur de connexion' }
-        ]);
+      const response = await fetch(testEndpoint, {
+        method: 'GET',
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate'
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Erreur HTTP: ${response.status}`);
       }
+      
+      const result = await response.json();
+      console.log("Résultat du test de connexion:", result);
+      setTestResult(result);
+      
+      // Vérifier si la connexion à la base de données est réussie
+      const isConnected = result.database && result.database.connected === true;
+      
+      if (!isConnected) {
+        const dbError = result.database?.error || "Échec de connexion sans message d'erreur";
+        setErrorMessage(`Échec de la connexion à la base de données: ${dbError}`);
+      }
+      
     } catch (error) {
-      setResults([
-        { name: 'Connexion à la base de données', status: 'error', message: `Erreur: ${error instanceof Error ? error.message : String(error)}` }
-      ]);
+      console.error("Erreur lors du test de connexion:", error);
+      setErrorMessage(error instanceof Error ? error.message : "Erreur inconnue");
     } finally {
-      setIsTesting(false);
+      setIsLoading(false);
     }
   };
-
-  const testTables = async () => {
-    try {
-      const response = await fetch('/api/check-tables.php');
-      const data = await response.json();
-      
-      if (data.success) {
-        setResults(prev => [...prev, 
-          { name: 'Structure des tables', status: 'success', message: `${data.tables_count} tables trouvées` }
-        ]);
-      } else {
-        setResults(prev => [...prev, 
-          { name: 'Structure des tables', status: 'warning', message: data.message || 'Problème avec les tables' }
-        ]);
-      }
-    } catch (error) {
-      setResults(prev => [...prev, 
-        { name: 'Structure des tables', status: 'error', message: `Erreur lors de la vérification des tables: ${error instanceof Error ? error.message : String(error)}` }
-      ]);
-    }
-  };
-
-  const saveConfig = async () => {
-    try {
-      const response = await fetch('/api/update-db-credentials.php', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(config),
-      });
-
-      const data = await response.json();
-      
-      if (data.success) {
-        toast({
-          title: "Configuration sauvegardée",
-          description: "La configuration de la base de données a été mise à jour",
-        });
-      } else {
-        toast({
-          title: "Erreur",
-          description: data.message || "Impossible de sauvegarder la configuration",
-          variant: "destructive",
-        });
-      }
-    } catch (error) {
-      toast({
-        title: "Erreur",
-        description: `Erreur lors de la sauvegarde: ${error instanceof Error ? error.message : String(error)}`,
-        variant: "destructive",
-      });
-    }
-  };
-
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'pending':
-        return <Loader2 className="h-4 w-4 animate-spin text-blue-500" />;
-      case 'success':
-        return <CheckCircle className="h-4 w-4 text-green-500" />;
-      case 'error':
-        return <XCircle className="h-4 w-4 text-red-500" />;
-      case 'warning':
-        return <AlertCircle className="h-4 w-4 text-amber-500" />;
-      default:
-        return null;
-    }
-  };
-
+  
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold">Test de Connexion à la Base de Données</h2>
-        <div className="flex space-x-2">
-          <Button
-            variant="outline"
-            onClick={() => setShowConfig(!showConfig)}
-          >
-            {showConfig ? "Masquer la configuration" : "Afficher la configuration"}
-          </Button>
-          <Button 
-            onClick={testConnection}
-            disabled={isTesting}
-          >
-            {isTesting ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Test en cours
-              </>
-            ) : 'Tester la connexion'}
-          </Button>
+    <Card>
+      <CardHeader>
+        <CardTitle>Test de connexion à la base de données</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-4">
+          <div className="flex justify-between">
+            <Button onClick={runDbTest} disabled={isLoading}>
+              {isLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Test en cours...
+                </>
+              ) : "Tester la connexion"}
+            </Button>
+            <Button onClick={() => window.location.href = '/db-admin'} variant="outline">
+              Administration BDD
+            </Button>
+          </div>
+          
+          {errorMessage && (
+            <div className="p-4 border border-red-300 bg-red-50 text-red-800 rounded-md flex items-start">
+              <AlertTriangle className="h-5 w-5 mr-2 flex-shrink-0 text-red-600" />
+              <div>
+                <p className="font-semibold">Erreur:</p>
+                <p>{errorMessage}</p>
+              </div>
+            </div>
+          )}
+          
+          {testResult && !errorMessage && (
+            <div className="p-4 border bg-green-50 border-green-200 rounded-md flex items-start">
+              <CheckCircle className="h-5 w-5 mr-2 flex-shrink-0 text-green-600" />
+              <div>
+                <p className="font-semibold text-green-800">Connexion réussie!</p>
+                <p className="text-green-700">
+                  {testResult.database?.version ? 
+                    `MySQL version: ${testResult.database.version}` : 
+                    'Base de données connectée'}
+                </p>
+                {testResult.database?.tables_count && (
+                  <p className="text-green-700 mt-1">
+                    {testResult.database.tables_count} tables trouvées
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
+          
+          {testResult && (
+            <div className="p-4 border bg-gray-50 rounded-md">
+              <h3 className="font-semibold mb-2">Détails du test:</h3>
+              <pre className="whitespace-pre-wrap bg-gray-100 p-3 rounded text-sm max-h-60 overflow-auto">
+                {JSON.stringify(testResult, null, 2)}
+              </pre>
+            </div>
+          )}
+          
+          <div className="text-sm text-gray-500 mt-4">
+            <p>Cette page permet de tester directement la connexion à la base de données MySQL.</p>
+          </div>
         </div>
-      </div>
-
-      {showConfig && (
-        <Card className="mb-6">
-          <CardHeader>
-            <CardTitle className="flex items-center">
-              <Database className="mr-2 h-5 w-5" />
-              Configuration de la Base de Données
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="host">Hôte</Label>
-                <Input
-                  id="host"
-                  name="host"
-                  value={config.host}
-                  onChange={handleChange}
-                  placeholder="Nom d'hôte MySQL"
-                />
-              </div>
-              <div>
-                <Label htmlFor="db_name">Nom de la base de données</Label>
-                <Input
-                  id="db_name"
-                  name="db_name"
-                  value={config.db_name}
-                  onChange={handleChange}
-                  placeholder="Nom de la base de données"
-                />
-              </div>
-              <div>
-                <Label htmlFor="username">Utilisateur</Label>
-                <Input
-                  id="username"
-                  name="username"
-                  value={config.username}
-                  onChange={handleChange}
-                  placeholder="Nom d'utilisateur"
-                />
-              </div>
-              <div>
-                <Label htmlFor="password">Mot de passe</Label>
-                <Input
-                  id="password"
-                  name="password"
-                  type="password"
-                  value={config.password}
-                  onChange={handleChange}
-                  placeholder="Mot de passe"
-                />
-              </div>
-            </div>
-            <div className="mt-4 flex justify-end">
-              <Button onClick={saveConfig}>
-                Sauvegarder la configuration
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {results.map((result, index) => (
-        <Card key={index} className={`${
-          result.status === 'success' ? 'border-green-200 bg-green-50' : 
-          result.status === 'error' ? 'border-red-200 bg-red-50' : 
-          result.status === 'warning' ? 'border-amber-200 bg-amber-50' : 
-          'border-blue-200 bg-blue-50'
-        }`}>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base font-medium flex items-center">
-              {getStatusIcon(result.status)}
-              <span className="ml-2">{result.name}</span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="pt-0">
-            <p className="text-sm">{result.message}</p>
-          </CardContent>
-        </Card>
-      ))}
-
-      {results.some(r => r.status === 'error') && (
-        <Alert variant="destructive">
-          <AlertTitle>Problèmes de connexion détectés</AlertTitle>
-          <AlertDescription>
-            Vérifiez les paramètres de connexion à votre base de données et assurez-vous que votre serveur MySQL est en cours d'exécution.
-          </AlertDescription>
-        </Alert>
-      )}
-    </div>
+      </CardContent>
+    </Card>
   );
-};
-
-export default DbConnectionTest;
+}
