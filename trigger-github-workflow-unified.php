@@ -54,12 +54,19 @@ header('Content-Type: text/html; charset=utf-8');
             
             foreach ($workflow_paths as $path) {
                 if (file_exists($path)) {
-                    $found_workflows[$path] = [
-                        'path' => $path,
-                        'last_modified' => date("Y-m-d H:i:s", filemtime($path)),
-                        'size' => filesize($path),
-                        'id' => basename($path), // L'ID à utiliser pour l'API GitHub
-                    ];
+                    $size = filesize($path);
+                    // Ignorer les fichiers vides
+                    if ($size > 0) {
+                        $found_workflows[$path] = [
+                            'path' => $path,
+                            'last_modified' => date("Y-m-d H:i:s", filemtime($path)),
+                            'size' => $size,
+                            'id' => basename($path), // L'ID à utiliser pour l'API GitHub
+                        ];
+                    } else {
+                        // Ajouter un avertissement pour les fichiers vides
+                        echo "<div class='warning'>Fichier vide trouvé: " . htmlspecialchars($path) . "</div>";
+                    }
                 }
             }
             
@@ -80,7 +87,7 @@ header('Content-Type: text/html; charset=utf-8');
                 }
                 echo "</ul>";
             } else {
-                echo "<div class='warning'>Aucun fichier de workflow trouvé localement!</div>";
+                echo "<div class='warning'>Aucun fichier de workflow valide trouvé localement!</div>";
                 echo "<p>Les chemins suivants ont été vérifiés:</p><ul>";
                 foreach ($workflow_paths as $path) {
                     echo "<li>" . htmlspecialchars($path) . "</li>";
@@ -105,56 +112,108 @@ header('Content-Type: text/html; charset=utf-8');
                 if (empty($token)) {
                     echo "<div class='error'>Veuillez fournir un token GitHub.</div>";
                 } else {
-                    // Vérifier si le workflow existe sur GitHub avant d'essayer de le déclencher
-                    // URL pour vérifier l'existence du workflow
-                    $check_url = "https://api.github.com/repos/{$repo_owner}/{$repo_name}/actions/workflows";
+                    // Vérifier d'abord les workflows disponibles sur GitHub
+                    $workflows_url = "https://api.github.com/repos/{$repo_owner}/{$repo_name}/actions/workflows";
                     
-                    $ch_check = curl_init($check_url);
-                    curl_setopt($ch_check, CURLOPT_RETURNTRANSFER, true);
-                    curl_setopt($ch_check, CURLOPT_HTTPHEADER, [
+                    $ch_workflows = curl_init($workflows_url);
+                    curl_setopt($ch_workflows, CURLOPT_RETURNTRANSFER, true);
+                    curl_setopt($ch_workflows, CURLOPT_HTTPHEADER, [
                         'Authorization: token ' . $token,
                         'User-Agent: PHP-Trigger-Workflow',
                         'Accept: application/vnd.github.v3+json'
                     ]);
                     
-                    $check_result = curl_exec($ch_check);
-                    $check_status = curl_getinfo($ch_check, CURLINFO_HTTP_CODE);
-                    curl_close($ch_check);
+                    $workflows_result = curl_exec($ch_workflows);
+                    $workflows_status = curl_getinfo($ch_workflows, CURLINFO_HTTP_CODE);
+                    curl_close($ch_workflows);
                     
-                    $workflow_found = false;
-                    $available_workflows = [];
+                    // Affichage de la liste des workflows disponibles
+                    echo "<div class='debug-info'>";
+                    echo "<h3>Vérification des workflows disponibles sur GitHub:</h3>";
                     
-                    if ($check_status == 200) {
-                        $workflows_data = json_decode($check_result, true);
-                        if (isset($workflows_data['workflows']) && is_array($workflows_data['workflows'])) {
+                    if ($workflows_status == 200) {
+                        $workflows_data = json_decode($workflows_result, true);
+                        
+                        if (isset($workflows_data['workflows']) && !empty($workflows_data['workflows'])) {
+                            $available_workflows = [];
+                            $workflow_found = false;
+                            $valid_workflow_id = null;
+                            
+                            echo "<p>Workflows disponibles sur GitHub:</p>";
+                            echo "<ul>";
+                            
                             foreach ($workflows_data['workflows'] as $workflow) {
+                                echo "<li>";
+                                echo "<strong>" . htmlspecialchars($workflow['name']) . "</strong> - ";
+                                echo "ID: " . $workflow['id'] . ", ";
+                                echo "Path: " . htmlspecialchars($workflow['path']) . ", ";
+                                echo "State: " . $workflow['state'];
+                                echo "</li>";
+                                
                                 $available_workflows[] = [
                                     'id' => $workflow['id'],
                                     'name' => $workflow['name'],
                                     'path' => $workflow['path'],
-                                    'state' => $workflow['state']
+                                    'state' => $workflow['state'],
+                                    'filename' => basename($workflow['path'])
                                 ];
                                 
-                                // Vérifier si le workflow demandé existe
+                                // Vérifier si c'est le workflow demandé par l'ID de fichier
                                 if (basename($workflow['path']) === $workflow_id) {
                                     $workflow_found = true;
+                                    $valid_workflow_id = $workflow['id']; // Utiliser l'ID numérique
                                 }
                             }
+                            
+                            echo "</ul>";
+                            
+                            if ($workflow_found) {
+                                // Décider quel ID utiliser pour déclencher le workflow
+                                // Option 1: Utiliser le chemin du fichier (comme avant)
+                                $trigger_id = $workflow_id;
+                                
+                                // Option 2: Utiliser l'ID numérique (peut être plus fiable dans certains cas)
+                                // $trigger_id = $valid_workflow_id;
+                                
+                                echo "<div class='success'>Workflow trouvé! Tentative de déclenchement...</div>";
+                            } else {
+                                echo "<div class='warning'>Workflow '{$workflow_id}' non trouvé dans la liste. Essayez un des workflows listés ci-dessus.</div>";
+                                
+                                // Suggestion d'un workflow à utiliser
+                                if (!empty($available_workflows)) {
+                                    $suggested_workflow = null;
+                                    
+                                    // D'abord, chercher 'deploy' dans le nom
+                                    foreach ($available_workflows as $wf) {
+                                        if (stripos($wf['name'], 'deploy') !== false || stripos($wf['path'], 'deploy') !== false) {
+                                            $suggested_workflow = $wf;
+                                            break;
+                                        }
+                                    }
+                                    
+                                    // Si rien trouvé, prendre le premier
+                                    if (!$suggested_workflow) {
+                                        $suggested_workflow = $available_workflows[0];
+                                    }
+                                    
+                                    echo "<p>Suggestion: Essayez d'utiliser le workflow <strong>" . htmlspecialchars($suggested_workflow['name']) . "</strong> (ID de fichier: " . htmlspecialchars($suggested_workflow['filename']) . ")</p>";
+                                }
+                            }
+                        } else {
+                            echo "<p>Aucun workflow trouvé dans le dépôt.</p>";
                         }
+                    } else {
+                        echo "<p>Erreur lors de la récupération des workflows (Code: {$workflows_status})</p>";
+                        echo "<pre>" . htmlspecialchars($workflows_result) . "</pre>";
                     }
                     
-                    if (!$workflow_found && !empty($available_workflows)) {
-                        echo "<div class='error'>Workflow '{$workflow_id}' non trouvé sur GitHub.</div>";
-                        echo "<div class='debug-info'>";
-                        echo "<h3>Workflows disponibles sur GitHub:</h3>";
-                        echo "<ul>";
-                        foreach ($available_workflows as $wf) {
-                            echo "<li><strong>{$wf['name']}</strong> (ID: {$wf['id']}, Chemin: {$wf['path']}, État: {$wf['state']})</li>";
-                        }
-                        echo "</ul>";
-                        echo "<p>Essayez de sélectionner l'un des workflows ci-dessus.</p>";
-                        echo "</div>";
-                    } else {
+                    echo "</div>";
+                    
+                    // Continuer avec la tentative de déclenchement si on a trouvé un workflow ou si l'utilisateur insiste
+                    if ($workflows_status != 200 || 
+                        (isset($workflow_found) && $workflow_found) || 
+                        isset($_POST['force_trigger'])) {
+                        
                         // URL de l'API GitHub pour déclencher un workflow
                         $url = "https://api.github.com/repos/{$repo_owner}/{$repo_name}/actions/workflows/{$workflow_id}/dispatches";
                         
@@ -211,14 +270,26 @@ header('Content-Type: text/html; charset=utf-8');
                             echo "<h3>Suggestions de dépannage:</h3>";
                             echo "<ul>";
                             if ($status_code == 404) {
-                                echo "<li>Vérifiez que le workflow existe bien dans le dépôt GitHub et qu'il est au bon emplacement (.github/workflows/).</li>";
+                                echo "<li>Vérifiez si le nom de fichier du workflow est correct. Essayez d'utiliser un des workflows listés ci-dessus.</li>";
+                                echo "<li>Vérifiez que les workflows sont correctement configurés dans le dépôt GitHub.</li>";
                                 echo "<li>Assurez-vous que le token GitHub a les permissions nécessaires (workflow, repo).</li>";
-                                echo "<li>Vérifiez que le nom du dépôt et du propriétaire sont corrects.</li>";
-                                echo "<li>Essayez avec un autre ID de workflow parmi ceux listés ci-dessus.</li>";
+                                echo "<li>Si vous avez récemment modifié le workflow, attendez quelques minutes pour que GitHub le reconnaisse.</li>";
+                                
+                                echo "<form method='post'>";
+                                echo "<input type='hidden' name='repo_owner' value='" . htmlspecialchars($repo_owner) . "'>";
+                                echo "<input type='hidden' name='repo_name' value='" . htmlspecialchars($repo_name) . "'>";
+                                echo "<input type='hidden' name='workflow_id' value='" . htmlspecialchars($workflow_id) . "'>";
+                                echo "<input type='hidden' name='branch' value='" . htmlspecialchars($branch) . "'>";
+                                echo "<input type='hidden' name='github_token' value='" . htmlspecialchars($token) . "'>";
+                                echo "<input type='hidden' name='force_trigger' value='1'>";
+                                echo "<button type='submit' name='trigger_workflow' class='button'>Forcer le déclenchement quand même</button>";
+                                echo "</form>";
                             } elseif ($status_code == 401) {
                                 echo "<li>Votre token GitHub est invalide ou a expiré. Générez un nouveau token.</li>";
                             } elseif ($status_code == 403) {
                                 echo "<li>Votre token n'a pas les permissions nécessaires. Assurez-vous qu'il a les scopes 'workflow' et 'repo'.</li>";
+                            } elseif ($status_code == 422) {
+                                echo "<li>Problème avec la référence (branche). Vérifiez que la branche '{$branch}' existe.</li>";
                             }
                             echo "</ul>";
                             echo "</div>";
@@ -243,18 +314,32 @@ header('Content-Type: text/html; charset=utf-8');
                     <label for="workflow_id">ID du workflow:</label>
                     <select id="workflow_id" name="workflow_id" class="input-field" required>
                         <?php
-                        // Remplir le sélecteur avec les workflows trouvés localement ou connus sur GitHub
-                        if (!empty($found_workflows)) {
+                        // Liste des IDs de workflow couramment utilisés
+                        $common_workflows = [
+                            'deploy.yml' => 'deploy.yml (workflow standard)',
+                            'deploy-unified.yml' => 'deploy-unified.yml (workflow unifié)',
+                            'main.yml' => 'main.yml (workflow principal)'
+                        ];
+                        
+                        // Ajouter les workflows trouvés localement
+                        foreach ($found_workflows as $path => $info) {
+                            $filename = basename($path);
+                            $selected = ($filename === 'deploy.yml') ? 'selected' : '';
+                            echo "<option value='{$filename}' {$selected}>{$filename} (trouvé localement)</option>";
+                        }
+                        
+                        // Ajouter les workflows communs qui ne sont pas déjà listés
+                        foreach ($common_workflows as $id => $label) {
+                            $already_listed = false;
                             foreach ($found_workflows as $path => $info) {
-                                $filename = basename($path);
-                                $selected = ($filename === 'deploy.yml') ? 'selected' : '';
-                                echo "<option value='{$filename}' {$selected}>{$filename} (trouvé localement)</option>";
+                                if (basename($path) === $id) {
+                                    $already_listed = true;
+                                    break;
+                                }
                             }
-                        } else {
-                            // Utiliser les IDs connus pour GitHub
-                            foreach ($github_workflows as $id) {
-                                $selected = ($id === 'deploy.yml') ? 'selected' : '';
-                                echo "<option value='{$id}' {$selected}>{$id}</option>";
+                            
+                            if (!$already_listed) {
+                                echo "<option value='{$id}'>{$label}</option>";
                             }
                         }
                         ?>
