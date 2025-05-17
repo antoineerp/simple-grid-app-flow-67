@@ -1,3 +1,4 @@
+
 <?php
 // Script pour diagnostiquer et corriger les problèmes d'exécution PHP via le web
 // Uniquement pour SSH - exécutez avec: php fix-php-web-execution.php
