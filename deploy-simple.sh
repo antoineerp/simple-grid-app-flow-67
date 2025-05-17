@@ -6,6 +6,18 @@
 echo "=== Déploiement simple vers Infomaniak ==="
 echo "Date: $(date)"
 
+# Construction du projet si le dossier dist n'existe pas
+if [ ! -d "dist" ]; then
+  echo "Le dossier dist n'existe pas. Construction du projet..."
+  npm run build
+  if [ ! -d "dist" ]; then
+    echo "ERREUR: La construction du projet a échoué. Dossier dist non créé."
+    exit 1
+  else
+    echo "✅ Construction du projet réussie"
+  fi
+fi
+
 # Création des dossiers nécessaires
 echo "Création des dossiers de base..."
 mkdir -p deploy/assets
@@ -212,4 +224,3 @@ fi
 echo ""
 echo "=== Structure du déploiement ==="
 find deploy -type f | sort
-

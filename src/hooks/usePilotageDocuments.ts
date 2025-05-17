@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { useToast } from "@/hooks/use-toast";
 import { getCurrentUserId } from '@/services/core/userService';
@@ -19,8 +20,8 @@ const antcirierDocuments: Document[] = [
 ];
 
 const defaultDocuments: Document[] = [
-  { id: 1, ordre: 1, nom: 'Document test 1', lien: null },
-  { id: 2, ordre: 2, nom: 'Document test 2', lien: 'document-test.pdf' },
+  { id: 1, ordre: 1, nom: 'Document test 1', lien: null, userId: undefined },
+  { id: 2, ordre: 2, nom: 'Document test 2', lien: 'document-test.pdf', userId: undefined },
 ];
 
 export const usePilotageDocuments = () => {
