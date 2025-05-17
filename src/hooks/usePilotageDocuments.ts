@@ -1,22 +1,38 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useToast } from "@/hooks/use-toast";
+import { getCurrentUser } from '@/services/auth/authService';
 
 interface Document {
   id: number;
   ordre: number;
   nom: string;
   lien: string | null;
+  userId?: string;
 }
+
+// Test data sets
+const antcirierDocuments: Document[] = [
+  { id: 1, ordre: 1, nom: 'Politique qualité', lien: 'politique-qualite.pdf', userId: 'p71x6d_cirier' },
+  { id: 2, ordre: 2, nom: 'Manuel qualité', lien: 'manuel-qualite.pdf', userId: 'p71x6d_cirier' },
+  { id: 3, ordre: 3, nom: 'Plan d\'action', lien: null, userId: 'p71x6d_cirier' },
+  { id: 4, ordre: 4, nom: 'Analyse des risques', lien: 'analyse-risques.xlsx', userId: 'p71x6d_cirier' },
+];
+
+const defaultDocuments: Document[] = [
+  { id: 1, ordre: 1, nom: 'Document test 1', lien: null },
+  { id: 2, ordre: 2, nom: 'Document test 2', lien: 'document-test.pdf' },
+];
 
 export const usePilotageDocuments = () => {
   const { toast } = useToast();
-  const [documents, setDocuments] = useState<Document[]>([
-    { id: 1, ordre: 1, nom: 'Charte institutionnelle', lien: 'Voir le document' },
-    { id: 2, ordre: 2, nom: 'Objectifs stratégiques', lien: null },
-    { id: 3, ordre: 3, nom: 'Objectifs opérationnels', lien: 'Voir le document' },
-    { id: 4, ordre: 4, nom: 'Risques', lien: null },
-  ]);
+  const currentUser = getCurrentUser();
+  const isAntcirier = currentUser?.email === 'antcirier@gmail.com';
+  
+  // Initialiser avec les données de test appropriées
+  const [documents, setDocuments] = useState<Document[]>(
+    isAntcirier ? antcirierDocuments : defaultDocuments
+  );
 
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -27,17 +43,29 @@ export const usePilotageDocuments = () => {
     lien: null
   });
 
+  // Effect pour mettre à jour les documents quand l'utilisateur change
+  useEffect(() => {
+    setDocuments(isAntcirier ? antcirierDocuments : defaultDocuments);
+  }, [isAntcirier]);
+
   const handleAddDocument = () => {
     const nextOrdre = documents.length > 0 
       ? Math.max(...documents.map(doc => doc.ordre)) + 1 
       : 1;
     
-    setCurrentDocument({
+    const newDocument = {
       id: 0,
       ordre: nextOrdre,
       nom: '',
       lien: null
-    });
+    };
+    
+    // Add userId for antcirier
+    if (isAntcirier) {
+      newDocument.userId = 'p71x6d_cirier';
+    }
+    
+    setCurrentDocument(newDocument);
     setIsEditing(false);
     setIsDialogOpen(true);
   };
@@ -87,7 +115,18 @@ export const usePilotageDocuments = () => {
         ? Math.max(...documents.map(doc => doc.id)) + 1 
         : 1;
       
-      setDocuments([...documents, { ...currentDocument, id: newId }]);
+      // Préparer le nouveau document avec un ID
+      const newDoc = { 
+        ...currentDocument, 
+        id: newId 
+      };
+      
+      // Ajouter userId pour antcirier
+      if (isAntcirier && !newDoc.userId) {
+        newDoc.userId = 'p71x6d_cirier';
+      }
+      
+      setDocuments([...documents, newDoc]);
       toast({
         title: "Document ajouté",
         description: "Le nouveau document a été ajouté avec succès",

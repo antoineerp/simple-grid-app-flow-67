@@ -4,6 +4,119 @@ import { Membre } from '@/types/membres';
 import { Document, DocumentGroup } from '@/types/documents';
 import { getCurrentUser } from '@/services/auth/authService';
 
+// Test data for antcirier@gmail.com
+const testDataForAntcirier = {
+  membres: [
+    { 
+      id: "ac-mem1", 
+      nom: "Dupont", 
+      prenom: "Jean", 
+      email: "jean.dupont@formacert.fr", 
+      fonction: "Formateur principal",
+      userId: "p71x6d_cirier"
+    },
+    { 
+      id: "ac-mem2", 
+      nom: "Martin", 
+      prenom: "Sophie", 
+      email: "sophie.martin@formacert.fr", 
+      fonction: "Responsable qualité",
+      userId: "p71x6d_cirier"
+    }
+  ],
+  documents: [
+    { 
+      id: "ac-doc1", 
+      nom: "Procédure Qualité", 
+      description: "Documentation des processus qualité", 
+      etat: "C", 
+      fichier: "procedure_qualite.pdf",
+      userId: "p71x6d_cirier" 
+    },
+    { 
+      id: "ac-doc2", 
+      nom: "Plan de formation", 
+      description: "Planification des formations", 
+      etat: "PC", 
+      fichier: "plan_formation.docx",
+      userId: "p71x6d_cirier"
+    },
+    { 
+      id: "ac-doc3", 
+      nom: "Manuel d'utilisation", 
+      description: "Guide pour les utilisateurs", 
+      etat: "NC", 
+      fichier: "manuel.pdf",
+      userId: "p71x6d_cirier"
+    }
+  ],
+  documentGroups: [
+    {
+      id: "ac-grp1",
+      nom: "Documents qualité",
+      description: "Tous les documents liés à la qualité",
+      userId: "p71x6d_cirier"
+    },
+    {
+      id: "ac-grp2",
+      nom: "Documents formation",
+      description: "Documents utilisés pour les formations",
+      userId: "p71x6d_cirier"
+    }
+  ],
+  bibliothequeDocuments: [
+    {
+      id: "ac-bibdoc1",
+      titre: "Référentiel Qualiopi",
+      description: "Référentiel national qualité",
+      groupeId: "ac-bibgrp1",
+      fichier: "referentiel_qualiopi.pdf",
+      userId: "p71x6d_cirier"
+    },
+    {
+      id: "ac-bibdoc2",
+      titre: "Guide d'audit",
+      description: "Guide pour réaliser l'audit interne",
+      groupeId: "ac-bibgrp1",
+      fichier: "guide_audit.pdf",
+      userId: "p71x6d_cirier"
+    },
+    {
+      id: "ac-bibdoc3",
+      titre: "Support Formation",
+      description: "Support pour les formations Qualiopi",
+      groupeId: "ac-bibgrp2",
+      fichier: "support_formation.pptx",
+      userId: "p71x6d_cirier"
+    }
+  ],
+  bibliothequeGroups: [
+    {
+      id: "ac-bibgrp1",
+      nom: "Référentiels",
+      description: "Documents de référence",
+      ordre: 1,
+      userId: "p71x6d_cirier"
+    },
+    {
+      id: "ac-bibgrp2",
+      nom: "Formations",
+      description: "Supports de formation",
+      ordre: 2,
+      userId: "p71x6d_cirier"
+    }
+  ]
+};
+
+// Default test data
+const defaultTestData = {
+  membres: [],
+  documents: [],
+  documentGroups: [],
+  bibliothequeDocuments: [],
+  bibliothequeGroups: []
+};
+
 interface GlobalDataContextType {
   // Membres (collaborateurs)
   membres: Membre[];
@@ -49,18 +162,21 @@ export const useGlobalData = () => {
 // Provider du contexte
 export const GlobalDataProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   // Obtenir l'identifiant utilisateur actuel
-  const currentUser = getCurrentUser() || 'p71x6d_system';
-  const storagePrefix = `global_data_${currentUser}`;
+  const currentUser = getCurrentUser();
+  const storagePrefix = `global_data_${currentUser?.id || 'default'}`;
+  
+  // Déterminer si nous utilisons les données de test pour antcirier
+  const useAntcirierData = currentUser?.email === 'antcirier@gmail.com';
   
   // États pour les différents types de données
-  const [membres, setMembres] = useState<Membre[]>([]);
-  const [documents, setDocuments] = useState<Document[]>([]);
-  const [documentGroups, setDocumentGroups] = useState<DocumentGroup[]>([]);
-  const [bibliothequeDocuments, setBibliothequeDocuments] = useState<any[]>([]);
-  const [bibliothequeGroups, setBibliothequeGroups] = useState<any[]>([]);
+  const [membres, setMembres] = useState<Membre[]>(useAntcirierData ? testDataForAntcirier.membres : []);
+  const [documents, setDocuments] = useState<Document[]>(useAntcirierData ? testDataForAntcirier.documents : []);
+  const [documentGroups, setDocumentGroups] = useState<DocumentGroup[]>(useAntcirierData ? testDataForAntcirier.documentGroups : []);
+  const [bibliothequeDocuments, setBibliothequeDocuments] = useState<any[]>(useAntcirierData ? testDataForAntcirier.bibliothequeDocuments : []);
+  const [bibliothequeGroups, setBibliothequeGroups] = useState<any[]>(useAntcirierData ? testDataForAntcirier.bibliothequeGroups : []);
   
   // États pour la synchronisation
-  const [lastSynced, setLastSynced] = useState<Date | null>(null);
+  const [lastSynced, setLastSynced] = useState<Date | null>(new Date());
   const [syncFailed, setSyncFailed] = useState<boolean>(false);
   const [isSyncing, setIsSyncing] = useState<boolean>(false);
   
@@ -88,37 +204,42 @@ export const GlobalDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   // Charger toutes les données depuis le localStorage
   const loadFromLocalStorage = () => {
     try {
-      // Charger les membres
+      // Si nous utilisons les données de test pour antcirier, on les utilise directement
+      if (useAntcirierData) {
+        setMembres(testDataForAntcirier.membres);
+        setDocuments(testDataForAntcirier.documents);
+        setDocumentGroups(testDataForAntcirier.documentGroups);
+        setBibliothequeDocuments(testDataForAntcirier.bibliothequeDocuments);
+        setBibliothequeGroups(testDataForAntcirier.bibliothequeGroups);
+        return;
+      }
+      
+      // Sinon, charger depuis localStorage
       const storedMembres = localStorage.getItem(`${storagePrefix}_membres`);
       if (storedMembres) {
         setMembres(JSON.parse(storedMembres));
       }
       
-      // Charger les documents
       const storedDocuments = localStorage.getItem(`${storagePrefix}_documents`);
       if (storedDocuments) {
         setDocuments(JSON.parse(storedDocuments));
       }
       
-      // Charger les groupes de documents
       const storedDocumentGroups = localStorage.getItem(`${storagePrefix}_document_groups`);
       if (storedDocumentGroups) {
         setDocumentGroups(JSON.parse(storedDocumentGroups));
       }
       
-      // Charger les documents de la bibliothèque
       const storedBibliothequeDocuments = localStorage.getItem(`${storagePrefix}_bibliotheque_documents`);
       if (storedBibliothequeDocuments) {
         setBibliothequeDocuments(JSON.parse(storedBibliothequeDocuments));
       }
       
-      // Charger les groupes de la bibliothèque
       const storedBibliothequeGroups = localStorage.getItem(`${storagePrefix}_bibliotheque_groups`);
       if (storedBibliothequeGroups) {
         setBibliothequeGroups(JSON.parse(storedBibliothequeGroups));
       }
       
-      // Charger l'état de synchronisation
       const storedLastSynced = localStorage.getItem(`${storagePrefix}_last_synced`);
       if (storedLastSynced) {
         setLastSynced(new Date(storedLastSynced));
