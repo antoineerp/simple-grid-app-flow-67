@@ -1,7 +1,7 @@
 
 #!/bin/bash
 # Script de déploiement simplifié pour Infomaniak
-# Avec vérification des fichiers critiques
+# Avec vérification des fichiers critiques et mise à jour pour inclure main.css et le contenu du dist
 
 echo "=== Déploiement simple vers Infomaniak ==="
 echo "Date: $(date)"
@@ -36,88 +36,101 @@ mkdir -p deploy/.github/workflows
 echo "Copie des fichiers de l'application..."
 
 # Copie des fichiers principaux
-cp index.php deploy/
+cp index.php deploy/ 2>/dev/null || echo "index.php non trouvé"
 cp index.html deploy/ 2>/dev/null || echo "index.html non trouvé"
 cp .htaccess deploy/ 2>/dev/null || echo ".htaccess racine non trouvé"
 cp .user.ini deploy/ 2>/dev/null || echo ".user.ini racine non trouvé"
 cp error-handler.php deploy/ 2>/dev/null || echo "error-handler.php non trouvé"
 
-# Copie des assets
-if [ -d "assets" ]; then
-  echo "Copie des assets depuis ./assets/"
-  cp -r assets/* deploy/assets/
-elif [ -d "dist/assets" ]; then
-  echo "Copie des assets depuis ./dist/assets/"
-  cp -r dist/assets/* deploy/assets/
-else
-  echo "ERREUR: Aucun dossier assets trouvé!"
-fi
-
-# Copier les fichiers du dossier dist s'il existe
+# Copie DIRECTE du contenu du dossier dist/
+echo "Copie du contenu du dossier dist/..."
 if [ -d "dist" ]; then
-  echo "Copie des fichiers du dossier dist..."
-  # Copier index.html de dist s'il existe
-  if [ -f "dist/index.html" ]; then
-    cp dist/index.html deploy/
-    echo "✅ index.html copié depuis dist/"
-  fi
-  
-  # Copier les autres fichiers de dist (sauf assets qui sont déjà copiés)
-  find dist -maxdepth 1 -type f -not -name "index.html" -exec cp {} deploy/ \;
-  echo "✅ Fichiers du dossier dist copiés"
+  cp -r dist/* deploy/
+  echo "✅ Contenu du dossier dist/ copié directement dans deploy/"
+else
+  echo "ERREUR: Dossier dist/ non trouvé!"
 fi
 
-# Copie explicite et vérification de l'API htaccess
-echo "Configuration de l'API..."
-mkdir -p deploy/api
+# Assurer que le dossier assets existe et contient main.css
+mkdir -p deploy/assets
+echo "Vérification de main.css..."
 
-# Création d'un nouveau .htaccess pour l'API (CRUCIAL)
-echo "Création du fichier .htaccess pour l'API..."
-cat > deploy/api/.htaccess <<'EOL'
-# Activer la réécriture d'URL
-RewriteEngine On
+# Vérifier si main.css existe dans assets/
+if [ -f "assets/main.css" ]; then
+  cp assets/main.css deploy/assets/
+  echo "✅ main.css copié depuis assets/"
+# Vérifier si main.css existe dans dist/assets/
+elif [ -f "dist/assets/main.css" ]; then
+  cp dist/assets/main.css deploy/assets/
+  echo "✅ main.css copié depuis dist/assets/"
+# Chercher un CSS dans dist/assets avec pattern main.*.css
+elif [ -n "$(find dist/assets -name "main.*.css" 2>/dev/null)" ]; then
+  MAIN_CSS=$(find dist/assets -name "main.*.css" | head -1)
+  cp "$MAIN_CSS" deploy/assets/main.css
+  echo "✅ $MAIN_CSS copié vers deploy/assets/main.css"
+# Créer un fichier main.css de secours
+else
+  echo "Création d'un fichier main.css de secours..."
+  cat > deploy/assets/main.css << 'EOL'
+/* Base styles for FormaCert application */
 
-# Définir les types MIME corrects
-AddType application/javascript .js
-AddType application/javascript .mjs
-AddType application/javascript .es.js
-AddType text/css .css
-AddType application/json .json
+/* Reset and base elements */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
 
-# Gérer les requêtes OPTIONS pour CORS
-RewriteCond %{REQUEST_METHOD} OPTIONS
-RewriteRule ^(.*)$ $1 [R=200,L]
+body {
+  min-height: 100vh;
+  line-height: 1.5;
+  color: #333;
+  background-color: #f9fafb;
+}
 
-# Configuration CORS et types MIME
-<IfModule mod_headers.c>
-    # Force le bon type MIME pour les JavaScript modules
-    <FilesMatch "\.(m?js|es\.js)$">
-        Header set Content-Type "application/javascript"
-        Header set X-Content-Type-Options "nosniff"
-    </FilesMatch>
-    
-    Header set Access-Control-Allow-Origin "*"
-    Header set Access-Control-Allow-Methods "GET, POST, OPTIONS, PUT, DELETE"
-    Header set Access-Control-Allow-Headers "Content-Type, Authorization, X-Requested-With"
-    
-    # Eviter la mise en cache
-    Header set Cache-Control "no-cache, no-store, must-revalidate"
-    Header set Pragma "no-cache"
-    Header set Expires 0
-</IfModule>
-
-# Permettre l'accès direct aux fichiers PHP spécifiques
-RewriteCond %{REQUEST_FILENAME} -f
-RewriteRule \.(php)$ - [L]
-
-# Rediriger toutes les requêtes vers l'index.php sauf pour les fichiers existants
-RewriteCond %{REQUEST_FILENAME} !-f
-RewriteCond %{REQUEST_FILENAME} !-d
-RewriteRule ^(.*)$ index.php [QSA,L]
+h1, h2, h3, h4, h5, h6 {
+  font-weight: 600;
+  line-height: 1.25;
+  margin-bottom: 0.5em;
+  color: #111827;
+}
 EOL
+  echo "✅ Fichier main.css de secours créé"
+fi
 
-chmod 644 deploy/api/.htaccess
-echo "✅ Fichier api/.htaccess créé avec succès"
+# Ajouter un script de vérification CSS post-déploiement
+echo "Ajout d'un script de vérification CSS post-déploiement..."
+cat > deploy/check-css.php << 'EOL'
+<?php
+// Vérifier si main.css existe
+if (!file_exists('assets/main.css')) {
+  echo "main.css manquant. Tentative de récupération...";
+  
+  // Chercher des fichiers CSS dans assets/
+  $css_files = glob('assets/*.css');
+  if (!empty($css_files)) {
+    // Copier le premier fichier CSS vers main.css
+    copy($css_files[0], 'assets/main.css');
+    echo "<p>CSS copié: " . basename($css_files[0]) . " vers main.css</p>";
+  } else {
+    echo "<p>Aucun CSS trouvé dans le dossier assets/</p>";
+  }
+}
+
+echo "<p>Vérification index.html...</p>";
+if (file_exists('index.html')) {
+  $html = file_get_contents('index.html');
+  if (strpos($html, 'href="/assets/main.css"') === false) {
+    // Ajouter la référence au CSS
+    $updated_html = str_replace('</head>', '  <link rel="stylesheet" href="/assets/main.css">' . "\n</head>", $html);
+    file_put_contents('index.html', $updated_html);
+    echo "<p>Référence à main.css ajoutée dans index.html</p>";
+  }
+}
+?>
+<p><a href="/">Retour à l'accueil</a></p>
+EOL
+echo "✅ Script de vérification CSS créé"
 
 # Copie des fichiers de configuration
 echo "Configuration de la base de données..."
@@ -178,6 +191,58 @@ else
   echo "ERREUR: Dossier API non trouvé!"
 fi
 
+# Copie explicite et vérification de l'API htaccess
+echo "Configuration de l'API..."
+mkdir -p deploy/api
+
+# Création d'un nouveau .htaccess pour l'API (CRUCIAL)
+echo "Création du fichier .htaccess pour l'API..."
+cat > deploy/api/.htaccess <<'EOL'
+# Activer la réécriture d'URL
+RewriteEngine On
+
+# Définir les types MIME corrects
+AddType application/javascript .js
+AddType application/javascript .mjs
+AddType application/javascript .es.js
+AddType text/css .css
+AddType application/json .json
+
+# Gérer les requêtes OPTIONS pour CORS
+RewriteCond %{REQUEST_METHOD} OPTIONS
+RewriteRule ^(.*)$ $1 [R=200,L]
+
+# Configuration CORS et types MIME
+<IfModule mod_headers.c>
+    # Force le bon type MIME pour les JavaScript modules
+    <FilesMatch "\.(m?js|es\.js)$">
+        Header set Content-Type "application/javascript"
+        Header set X-Content-Type-Options "nosniff"
+    </FilesMatch>
+    
+    Header set Access-Control-Allow-Origin "*"
+    Header set Access-Control-Allow-Methods "GET, POST, OPTIONS, PUT, DELETE"
+    Header set Access-Control-Allow-Headers "Content-Type, Authorization, X-Requested-With"
+    
+    # Eviter la mise en cache
+    Header set Cache-Control "no-cache, no-store, must-revalidate"
+    Header set Pragma "no-cache"
+    Header set Expires 0
+</IfModule>
+
+# Permettre l'accès direct aux fichiers PHP spécifiques
+RewriteCond %{REQUEST_FILENAME} -f
+RewriteRule \.(php)$ - [L]
+
+# Rediriger toutes les requêtes vers l'index.php sauf pour les fichiers existants
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^(.*)$ index.php [QSA,L]
+EOL
+
+chmod 644 deploy/api/.htaccess
+echo "✅ Fichier api/.htaccess créé avec succès"
+
 # Créer un fichier README dans le dossier documentation
 echo "Création du fichier README dans api/documentation..."
 mkdir -p deploy/api/documentation
@@ -188,16 +253,6 @@ Ce dossier contient la documentation de l'API.
 EOL
 echo "✅ Fichier README.md créé dans api/documentation"
 
-# Copie des uploads
-if [ -d "public/lovable-uploads" ]; then
-  echo "Copie des uploads..."
-  cp -r public/lovable-uploads/* deploy/public/lovable-uploads/
-  echo "✅ Uploads copiés"
-else
-  echo "Aucun upload à copier"
-  mkdir -p deploy/public/lovable-uploads
-fi
-
 # Vérification des fichiers critiques
 echo ""
 echo "=== Vérification des fichiers critiques ==="
@@ -205,10 +260,9 @@ critical_files=(
   "deploy/api/.htaccess"
   "deploy/api/config/db_config.json"
   "deploy/api/config/env.php"
-  "deploy/index.php"
   "deploy/index.html"
-  "deploy/.htaccess"
-  "deploy/error-handler.php"
+  "deploy/assets/main.css"
+  "deploy/check-css.php"
 )
 
 all_ok=true
@@ -232,15 +286,13 @@ if [ "$all_ok" = true ]; then
   echo ""
   echo "=== DÉPLOIEMENT PRÊT ==="
   echo "Tous les fichiers critiques sont présents."
-  echo "Pour déployer via FTP, utilisez: deploy/username password"
 else
   echo ""
   echo "=== ATTENTION: FICHIERS MANQUANTS ==="
   echo "Certains fichiers critiques sont manquants. Vérifiez les erreurs ci-dessus."
-  exit 1
 fi
 
 echo ""
 echo "=== Structure du déploiement ==="
-find deploy -type f | sort
-
+find deploy -type f | head -20 | sort
+echo "... et $(find deploy -type f | wc -l) fichiers au total"

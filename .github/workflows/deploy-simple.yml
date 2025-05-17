@@ -39,6 +39,7 @@ jobs:
         echo "Liste des fichiers générés:"
         ls -la dist/
         ls -la dist/assets/ || echo "Dossier assets non trouvé"
+        find dist -name "*.css" | grep -i main || echo "Aucun fichier main CSS trouvé dans dist"
         
     - name: Execute deployment script
       run: |
@@ -51,66 +52,6 @@ jobs:
         name: deployment-files
         path: deploy/
         retention-days: 1
-        
-    - name: Copy dist directory to deployment
-      run: |
-        mkdir -p deploy/dist
-        cp -r dist/* deploy/
-        echo "Contenu du dossier deploy après copie du dist:"
-        ls -la deploy/
-      
-    - name: Create required directories to prevent FTP errors
-      run: |
-        mkdir -p deploy/api/documentation
-        echo "# API Documentation" > deploy/api/documentation/README.md
-        echo "Vérification des répertoires créés:"
-        ls -la deploy/api/
-        
-        # Création du fichier env.php avec les informations correctes
-        mkdir -p deploy/api/config
-        echo "<?php" > deploy/api/config/env.php
-        echo "// Configuration des variables d'environnement pour Infomaniak" >> deploy/api/config/env.php
-        echo "define('DB_HOST', 'p71x6d.myd.infomaniak.com');" >> deploy/api/config/env.php
-        echo "define('DB_NAME', 'p71x6d_richard');" >> deploy/api/config/env.php
-        echo "define('DB_USER', 'p71x6d_richard');" >> deploy/api/config/env.php
-        echo "define('DB_PASS', 'Trottinette43!');" >> deploy/api/config/env.php
-        echo "define('API_BASE_URL', '/api');" >> deploy/api/config/env.php
-        echo "define('APP_ENV', 'production');" >> deploy/api/config/env.php
-        echo "" >> deploy/api/config/env.php
-        echo "// Fonction d'aide pour récupérer les variables d'environnement" >> deploy/api/config/env.php
-        echo "function get_env(\$key, \$default = null) {" >> deploy/api/config/env.php
-        echo "    \$const_name = strtoupper(\$key);" >> deploy/api/config/env.php
-        echo "    if (defined(\$const_name)) {" >> deploy/api/config/env.php
-        echo "        return constant(\$const_name);" >> deploy/api/config/env.php
-        echo "    }" >> deploy/api/config/env.php
-        echo "    return \$default;" >> deploy/api/config/env.php
-        echo "}" >> deploy/api/config/env.php
-        echo "" >> deploy/api/config/env.php
-        echo "// Alias pour compatibilité avec différentes syntaxes" >> deploy/api/config/env.php
-        echo "if (!function_exists('env')) {" >> deploy/api/config/env.php
-        echo "    function env(\$key, \$default = null) {" >> deploy/api/config/env.php
-        echo "        return get_env(\$key, \$default);" >> deploy/api/config/env.php
-        echo "    }" >> deploy/api/config/env.php
-        echo "}" >> deploy/api/config/env.php
-        echo "?>" >> deploy/api/config/env.php
-        
-        # Création de db_config.json
-        echo '{' > deploy/api/config/db_config.json
-        echo '    "host": "p71x6d.myd.infomaniak.com",' >> deploy/api/config/db_config.json
-        echo '    "db_name": "p71x6d_richard",' >> deploy/api/config/db_config.json
-        echo '    "username": "p71x6d_richard",' >> deploy/api/config/db_config.json
-        echo '    "password": "Trottinette43!"' >> deploy/api/config/db_config.json
-        echo '}' >> deploy/api/config/db_config.json
-        
-        # Copy our new asset reference fixing tools
-        cp fix-asset-references.php deploy/
-        cp update-deployment.php deploy/
-        
-        # Create a post-deploy script that will run automatically
-        echo "<?php" > deploy/post-deploy-fix.php
-        echo "// Automatically fix asset references after deployment" >> deploy/post-deploy-fix.php
-        echo "include_once 'fix-asset-references.php';" >> deploy/post-deploy-fix.php
-        echo "?>" >> deploy/post-deploy-fix.php
       
     - name: FTP Deploy to Infomaniak
       uses: SamKirkland/FTP-Deploy-Action@v4.3.4
@@ -129,7 +70,7 @@ jobs:
         log-level: verbose
         timeout: 120000
         
-    - name: Verify critical files after deployment
+    - name: Verify css and critical files after deployment
       uses: appleboy/ssh-action@master
       with:
         host: ${{ secrets.FTP_SERVER }}
@@ -138,16 +79,11 @@ jobs:
         script: |
           cd /sites/qualiopi.ch/
           echo "=== Vérification post-déploiement ==="
+          [ -f "assets/main.css" ] && echo "✅ assets/main.css: PRÉSENT" || echo "❌ assets/main.css: MANQUANT"
+          [ -f "index.html" ] && echo "✅ index.html: PRÉSENT" || echo "❌ index.html: MANQUANT"
           [ -f "api/.htaccess" ] && echo "✅ api/.htaccess: PRÉSENT" || echo "❌ api/.htaccess: MANQUANT"
           [ -f "api/config/env.php" ] && echo "✅ api/config/env.php: PRÉSENT" || echo "❌ api/config/env.php: MANQUANT"
-          [ -f "api/config/db_config.json" ] && echo "✅ api/config/db_config.json: PRÉSENT" || echo "❌ api/config/db_config.json: MANQUANT"
-          [ -d "api/documentation" ] && echo "✅ api/documentation: PRÉSENT" || echo "❌ api/documentation: MANQUANT"
-          find api -name "*.php" | wc -l
-          [ -d "assets" ] && echo "✅ dossier assets: PRÉSENT" || echo "❌ dossier assets: MANQUANT"
-          [ -f "index.html" ] && echo "✅ fichier index.html: PRÉSENT" || echo "❌ fichier index.html: MANQUANT"
-          [ -f "fix-asset-references.php" ] && echo "✅ fix-asset-references.php: PRÉSENT" || echo "❌ fix-asset-references.php: MANQUANT"
-          [ -f "post-deploy-fix.php" ] && echo "✅ post-deploy-fix.php: PRÉSENT" || echo "❌ post-deploy-fix.php: MANQUANT"
           
-          # Execute the post-deployment fix
-          echo "=== Exécution du script de correction post-déploiement ==="
-          php post-deploy-fix.php || echo "❌ Erreur lors de l'exécution du script post-deploy-fix.php"
+          # Exécuter le script de vérification CSS
+          echo "=== Exécution du script de vérification CSS ==="
+          php check-css.php
