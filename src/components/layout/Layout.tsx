@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { Toaster } from "@/components/ui/toaster";
@@ -10,7 +9,11 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 import { Loader2, AlertCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
-const Layout = () => {
+interface LayoutProps {
+  children?: React.ReactNode;
+}
+
+const Layout: React.FC<LayoutProps> = ({ children }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const { toast } = useToast();
@@ -162,7 +165,7 @@ const Layout = () => {
             <Sidebar />
             <main className="flex-1 overflow-auto bg-slate-50 w-full">
               <div data-testid="layout-content">
-                <Outlet />
+                {children || <Outlet />}
               </div>
             </main>
           </div>

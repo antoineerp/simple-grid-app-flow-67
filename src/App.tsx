@@ -67,71 +67,39 @@ function App() {
               {/* Public route */}
               <Route path="/" element={<Index />} />
               
-              {/* Protected routes using the Layout wrapper inside ProtectedRoute */}
+              {/* Protected routes using the Layout wrapper */}
               <Route path="/pilotage" element={
-                <ProtectedRoute element={
-                  <Layout>
-                    <Pilotage />
-                  </Layout>
-                } />
+                <ProtectedRoute element={<Layout><Pilotage /></Layout>} />
               } />
               
               <Route path="/gestion-documentaire" element={
-                <ProtectedRoute element={
-                  <Layout>
-                    <GestionDocumentaire />
-                  </Layout>
-                } />
+                <ProtectedRoute element={<Layout><GestionDocumentaire /></Layout>} />
               } />
               
               <Route path="/exigences" element={
-                <ProtectedRoute element={
-                  <Layout>
-                    <Exigences />
-                  </Layout>
-                } />
+                <ProtectedRoute element={<Layout><Exigences /></Layout>} />
               } />
               
               <Route path="/ressources-humaines" element={
-                <ProtectedRoute element={
-                  <Layout>
-                    <RessourcesHumaines />
-                  </Layout>
-                } />
+                <ProtectedRoute element={<Layout><RessourcesHumaines /></Layout>} />
               } />
               
               <Route path="/collaboration" element={
-                <ProtectedRoute element={
-                  <Layout>
-                    <Collaboration />
-                  </Layout>
-                } />
+                <ProtectedRoute element={<Layout><Collaboration /></Layout>} />
               } />
               
               <Route path="/administration" element={
-                <ProtectedRoute element={
-                  <Layout>
-                    <Administration />
-                  </Layout>
-                } />
+                <ProtectedRoute element={<Layout><Administration /></Layout>} />
               } />
               
               <Route path="/settings" element={<Navigate to="/administration" replace />} />
               
               <Route path="/db-admin" element={
-                <ProtectedRoute element={
-                  <Layout>
-                    <DbAdmin />
-                  </Layout>
-                } adminOnly />
+                <ProtectedRoute element={<Layout><DbAdmin /></Layout>} adminOnly />
               } />
               
               <Route path="/database-check" element={
-                <ProtectedRoute element={
-                  <Layout>
-                    <DatabaseCheckPage />
-                  </Layout>
-                } adminOnly />
+                <ProtectedRoute element={<Layout><DatabaseCheckPage /></Layout>} adminOnly />
               } />
               
               {/* Catch all */}
@@ -145,7 +113,7 @@ function App() {
   );
 }
 
-// Wrap component with auth protection
+// Original RequireAuth component kept for backward compatibility
 const RequireAuth: React.FC<RequireAuthProps> = ({ children, adminOnly = false }) => {
   const isLoggedIn = getIsLoggedIn();
   const currentUser = getCurrentUser();

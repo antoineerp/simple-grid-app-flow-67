@@ -80,7 +80,10 @@ const ProtectedLayout: React.FC = () => {
     </div>;
   }
 
-  return <Layout />;
+  // Le composant Layout accepte maintenant des enfants, donc on peut passer <Outlet />
+  return <Layout>
+    <Outlet />
+  </Layout>;
 };
 
 export default ProtectedLayout;
