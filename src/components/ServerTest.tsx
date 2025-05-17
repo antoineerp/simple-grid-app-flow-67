@@ -1,120 +1,195 @@
 
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Loader2, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { AlertCircle, CheckCircle, Server } from 'lucide-react';
-import { testApiConnection, getFullApiUrl } from '@/config/apiConfig';
-import { Utilisateur } from '@/types/user';
-import { UserManager } from '@/services/users/userManager';
+import { useToast } from '@/hooks/use-toast';
 
-const ServerTest = () => {
-  const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
-  const [message, setMessage] = useState<string>('');
-  const [users, setUsers] = useState<Utilisateur[]>([]);
-  
-  const handleTest = async () => {
-    try {
-      setStatus('loading');
-      setMessage('Test du serveur en cours...');
+interface TestResult {
+  name: string;
+  status: 'pending' | 'success' | 'error' | 'warning';
+  message: string;
+  duration?: number;
+}
+
+const ServerTest: React.FC = () => {
+  const [results, setResults] = useState<TestResult[]>([]);
+  const [isRunningTests, setIsRunningTests] = useState<boolean>(false);
+  const { toast } = useToast();
+
+  const testEndpoints = [
+    { name: "Test PHP Exécution", url: "/api/check-php-execution.php" },
+    { name: "Test Base de Données", url: "/api/check-db-connection.php" },
+    { name: "Test JSON API", url: "/api/json-test.php" },
+    { name: "Test Version PHP", url: "/api/phpinfo-test.php" },
+  ];
+
+  const runTests = async () => {
+    setIsRunningTests(true);
+    const newResults: TestResult[] = [];
+    
+    for (const endpoint of testEndpoints) {
+      const startTime = performance.now();
       
-      const result = await testApiConnection();
+      // Initialiser le résultat avec statut pending
+      newResults.push({
+        name: endpoint.name,
+        status: 'pending',
+        message: 'Test en cours...'
+      });
+      setResults([...newResults]);
       
-      if (result.success) {
-        setStatus('success');
-        setMessage(result.message || 'Connexion réussie au serveur');
+      try {
+        const response = await fetch(endpoint.url, {
+          method: 'GET',
+          headers: {
+            'Accept': 'application/json',
+            'Cache-Control': 'no-cache'
+          }
+        });
         
-        // Essayer de charger la liste des utilisateurs
-        try {
-          const data = await UserManager.getUtilisateurs(true);
-          setUsers(data || []);
-        } catch (userError) {
-          console.error("Impossible de charger les utilisateurs", userError);
+        const duration = Math.round(performance.now() - startTime);
+        
+        if (response.ok) {
+          try {
+            const data = await response.json();
+            const lastIndex = newResults.length - 1;
+            newResults[lastIndex] = {
+              name: endpoint.name,
+              status: data.success ? 'success' : 'error',
+              message: data.message || 'Test réussi sans message',
+              duration
+            };
+          } catch (jsonError) {
+            const text = await response.text();
+            const lastIndex = newResults.length - 1;
+            newResults[lastIndex] = {
+              name: endpoint.name,
+              status: 'warning',
+              message: `Réponse non-JSON: ${text.substring(0, 100)}...`,
+              duration
+            };
+          }
+        } else {
+          const lastIndex = newResults.length - 1;
+          newResults[lastIndex] = {
+            name: endpoint.name,
+            status: 'error',
+            message: `Erreur HTTP ${response.status}: ${response.statusText}`,
+            duration
+          };
         }
-      } else {
-        setStatus('error');
-        setMessage(result.message || 'Erreur lors de la connexion au serveur');
+      } catch (error) {
+        const duration = Math.round(performance.now() - startTime);
+        const lastIndex = newResults.length - 1;
+        newResults[lastIndex] = {
+          name: endpoint.name,
+          status: 'error',
+          message: `Erreur de connexion: ${error instanceof Error ? error.message : String(error)}`,
+          duration
+        };
       }
-    } catch (error) {
-      setStatus('error');
-      setMessage(error instanceof Error ? error.message : 'Erreur inconnue');
+      
+      setResults([...newResults]);
     }
+    
+    setIsRunningTests(false);
+    
+    toast({
+      title: "Tests serveur terminés",
+      description: `${newResults.filter(r => r.status === 'success').length} sur ${newResults.length} tests réussis`,
+      variant: newResults.every(r => r.status === 'success') ? "default" : "destructive"
+    });
   };
 
   useEffect(() => {
-    // Au chargement du composant, effectuer un test automatique
-    handleTest();
+    // Exécute les tests automatiquement au chargement du composant
+    runTests();
   }, []);
-  
+
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case 'pending':
+        return <Loader2 className="h-4 w-4 animate-spin text-blue-500" />;
+      case 'success':
+        return <CheckCircle className="h-4 w-4 text-green-500" />;
+      case 'error':
+        return <XCircle className="h-4 w-4 text-red-500" />;
+      case 'warning':
+        return <AlertCircle className="h-4 w-4 text-amber-500" />;
+      default:
+        return null;
+    }
+  };
+
   return (
-    <Card className="w-full max-w-lg mx-auto">
-      <CardHeader>
-        <CardTitle className="flex items-center">
-          <Server className="h-5 w-5 mr-2" />
-          Test de connexion au serveur
-        </CardTitle>
-      </CardHeader>
-      
-      <CardContent>
-        {status === 'loading' && (
-          <div className="flex items-center justify-center p-8">
-            <div className="animate-spin rounded-full h-8 w-8 border-4 border-primary border-t-transparent"></div>
-          </div>
-        )}
-        
-        {status === 'success' && (
-          <Alert variant="default" className="bg-green-50 border-green-200">
-            <CheckCircle className="h-5 w-5 text-green-600" />
-            <AlertTitle className="text-green-800">Connexion réussie</AlertTitle>
-            <AlertDescription className="text-green-700">
-              {message}
-              <div className="mt-2">
-                <span className="font-semibold">URL d'API:</span> {getFullApiUrl()}
-              </div>
-              {users.length > 0 && (
-                <div className="mt-4">
-                  <p className="font-semibold mb-1">{users.length} utilisateurs chargés:</p>
-                  <ul className="text-xs bg-white p-2 rounded max-h-32 overflow-y-auto border border-green-100">
-                    {users.map((user, index) => (
-                      <li key={user.id || index} className="border-b border-green-50 last:border-0 py-1">
-                        {user.prenom} {user.nom} - {user.email}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-            </AlertDescription>
-          </Alert>
-        )}
-        
-        {status === 'error' && (
-          <Alert variant="destructive">
-            <AlertCircle className="h-5 w-5" />
-            <AlertTitle>Erreur de connexion</AlertTitle>
-            <AlertDescription>
-              {message}
-              <div className="mt-2">
-                <span className="font-semibold">URL d'API:</span> {getFullApiUrl()}
-              </div>
-              <div className="mt-2 text-xs bg-red-50 p-2 rounded">
-                Vérifiez que le serveur est accessible et que la configuration de l'API est correcte.
-              </div>
-            </AlertDescription>
-          </Alert>
-        )}
-      </CardContent>
-      
-      <CardFooter>
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <h2 className="text-2xl font-bold">Tests de Connexion au Serveur</h2>
         <Button 
-          onClick={handleTest}
-          disabled={status === 'loading'}
-          variant="outline" 
-          className="w-full"
+          onClick={runTests}
+          disabled={isRunningTests}
         >
-          {status === 'loading' ? 'Test en cours...' : 'Tester à nouveau'}
+          {isRunningTests ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Test en cours
+            </>
+          ) : 'Relancer les tests'}
         </Button>
-      </CardFooter>
-    </Card>
+      </div>
+      
+      {results.length === 0 && isRunningTests && (
+        <Card>
+          <CardContent className="pt-6 flex justify-center">
+            <div className="flex items-center">
+              <Loader2 className="h-6 w-6 animate-spin mr-2" />
+              <span>Exécution des tests en cours...</span>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+      
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {results.map((result, index) => (
+          <Card key={index} className={`${
+            result.status === 'success' ? 'border-green-200 bg-green-50' : 
+            result.status === 'error' ? 'border-red-200 bg-red-50' : 
+            result.status === 'warning' ? 'border-amber-200 bg-amber-50' : 
+            'border-blue-200 bg-blue-50'
+          }`}>
+            <CardHeader className="pb-2">
+              <div className="flex justify-between items-center">
+                <CardTitle className="text-base font-medium flex items-center">
+                  {getStatusIcon(result.status)}
+                  <span className="ml-2">{result.name}</span>
+                </CardTitle>
+                {result.duration && (
+                  <span className="text-xs text-gray-500">
+                    {result.duration}ms
+                  </span>
+                )}
+              </div>
+            </CardHeader>
+            <CardContent className="pt-0">
+              <p className="text-sm whitespace-pre-wrap break-words">
+                {result.message}
+              </p>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+      
+      {results.some(r => r.status === 'error') && (
+        <Alert variant="destructive">
+          <AlertTitle>Problèmes détectés</AlertTitle>
+          <AlertDescription>
+            Certains tests ont échoué. Vérifiez la configuration de votre serveur et de votre base de données.
+          </AlertDescription>
+        </Alert>
+      )}
+    </div>
   );
 };
 
