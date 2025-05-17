@@ -151,4 +151,3 @@ jobs:
           # Execute the post-deployment fix
           echo "=== Exécution du script de correction post-déploiement ==="
           php post-deploy-fix.php || echo "❌ Erreur lors de l'exécution du script post-deploy-fix.php"
-

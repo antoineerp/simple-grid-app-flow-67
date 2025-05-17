@@ -1,21 +1,14 @@
 
-import React, { useState } from 'react';
+import React from 'react';
 import { Document, DocumentGroup } from '@/types/bibliotheque';
-import {
-  Table,
-  TableBody,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { BibliothequeGroup } from './BibliothequeGroup';
-import { BibliothequeDocumentRow } from './BibliothequeDocumentRow';
+import { Folder, File, Pencil, Trash, ChevronDown, ChevronRight } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 interface BibliothequeTableProps {
   documents: Document[];
   groups: DocumentGroup[];
-  onEdit: (document: Document | null, group?: DocumentGroup) => void;
-  onDelete: (id: string, isGroup?: boolean) => void;
+  onEdit: (document: Document, group?: DocumentGroup) => void;
+  onDelete: (id: string, isGroup: boolean) => void;
   onReorder: (startIndex: number, endIndex: number, targetGroupId?: string) => void;
   onGroupReorder: (startIndex: number, endIndex: number) => void;
   onToggleGroup: (id: string) => void;
@@ -30,183 +23,138 @@ export const BibliothequeTable: React.FC<BibliothequeTableProps> = ({
   onGroupReorder,
   onToggleGroup
 }) => {
-  const [draggedItem, setDraggedItem] = useState<{ id: string, groupId?: string } | null>(null);
-  const ungroupedDocuments = documents.filter(doc => !doc.groupId);
-
-  const handleDragStart = (e: React.DragEvent<HTMLTableRowElement>, id: string, groupId?: string) => {
-    setDraggedItem({ id, groupId });
-    e.dataTransfer.setData('text/plain', JSON.stringify({ id, groupId }));
-    e.currentTarget.classList.add('opacity-50');
-  };
-
-  const handleDragOver = (e: React.DragEvent<HTMLTableRowElement>) => {
-    e.preventDefault();
-    e.currentTarget.classList.add('border-dashed', 'border-2', 'border-primary');
-  };
-
-  const handleDragLeave = (e: React.DragEvent<HTMLTableRowElement>) => {
-    e.currentTarget.classList.remove('border-dashed', 'border-2', 'border-primary');
-  };
-
-  const handleDrop = (e: React.DragEvent<HTMLTableRowElement>, targetId: string, targetGroupId?: string) => {
-    e.preventDefault();
-    e.currentTarget.classList.remove('border-dashed', 'border-2', 'border-primary');
-    
-    if (!draggedItem) return;
-    
-    const { id: sourceId, groupId: sourceGroupId } = draggedItem;
-    if (sourceId === targetId) return;
-    
-    // Calculate indices
-    let sourceIndex = -1;
-    let targetIndex = -1;
-    
-    if (!sourceGroupId) {
-      sourceIndex = ungroupedDocuments.findIndex(d => d.id === sourceId);
-    } else {
-      const group = groups.find(g => g.id === sourceGroupId);
-      if (group) {
-        const groupDocs = documents.filter(d => d.groupId === sourceGroupId);
-        sourceIndex = ungroupedDocuments.length + 
-                      groups.slice(0, groups.findIndex(g => g.id === sourceGroupId))
-                        .reduce((acc, g) => acc + documents.filter(d => d.groupId === g.id).length, 0) + 
-                      groupDocs.findIndex(d => d.id === sourceId);
-      }
-    }
-    
-    if (!targetGroupId) {
-      targetIndex = ungroupedDocuments.findIndex(d => d.id === targetId);
-    } else {
-      const group = groups.find(g => g.id === targetGroupId);
-      if (group) {
-        const groupDocs = documents.filter(d => d.groupId === targetGroupId);
-        targetIndex = ungroupedDocuments.length + 
-                      groups.slice(0, groups.findIndex(g => g.id === targetGroupId))
-                        .reduce((acc, g) => acc + documents.filter(d => d.groupId === g.id).length, 0) + 
-                      groupDocs.findIndex(d => d.id === targetId);
-      }
-    }
-    
-    if (sourceIndex !== -1 && targetIndex !== -1) {
-      onReorder(sourceIndex, targetIndex, targetGroupId);
-    }
-    
-    setDraggedItem(null);
-  };
-
-  const handleGroupDrop = (e: React.DragEvent<HTMLTableRowElement>, groupId: string) => {
-    e.preventDefault();
-    e.currentTarget.classList.remove('border-dashed', 'border-2', 'border-primary');
-    
-    if (!draggedItem) return;
-    
-    const data = JSON.parse(e.dataTransfer.getData('text/plain'));
-    
-    // Handle dropping items into groups
-    if (data.id && !data.isGroup) {
-      const sourceId = data.id;
-      const sourceGroupId = data.groupId;
-      
-      if (sourceGroupId === groupId) return;
-      
-      let sourceIndex = -1;
-      
-      if (!sourceGroupId) {
-        sourceIndex = ungroupedDocuments.findIndex(d => d.id === sourceId);
-        if (sourceIndex !== -1) {
-          sourceIndex = sourceIndex;
-        }
-      } else {
-        const group = groups.find(g => g.id === sourceGroupId);
-        if (group) {
-          const groupDocs = documents.filter(d => d.groupId === sourceGroupId);
-          sourceIndex = ungroupedDocuments.length + 
-                        groups.slice(0, groups.findIndex(g => g.id === sourceGroupId))
-                          .reduce((acc, g) => acc + documents.filter(d => d.groupId === g.id).length, 0) + 
-                        groupDocs.findIndex(d => d.id === sourceId);
-        }
-      }
-      
-      const targetGroupDocs = documents.filter(d => d.groupId === groupId);
-      const targetIndex = ungroupedDocuments.length + 
-                        groups.slice(0, groups.findIndex(g => g.id === groupId))
-                          .reduce((acc, g) => acc + documents.filter(d => d.groupId === g.id).length, 0) + 
-                        targetGroupDocs.length;
-      
-      if (sourceIndex !== -1) {
-        onReorder(sourceIndex, targetIndex, groupId);
-      }
-    }
-    // Handle group reordering
-    else if (data.groupId) {
-      const sourceGroupId = data.groupId;
-      if (sourceGroupId === groupId) return;
-      
-      const sourceIndex = groups.findIndex(g => g.id === sourceGroupId);
-      const targetIndex = groups.findIndex(g => g.id === groupId);
-      
-      if (sourceIndex !== -1 && targetIndex !== -1) {
-        onGroupReorder(sourceIndex, targetIndex);
-      }
-    }
-    
-    setDraggedItem(null);
-  };
-
-  const handleDragEnd = (e: React.DragEvent<HTMLTableRowElement>) => {
-    e.currentTarget.classList.remove('opacity-50');
-    setDraggedItem(null);
-  };
-
-  const handleGroupDragStart = (e: React.DragEvent<HTMLTableRowElement>, groupId: string) => {
-    e.dataTransfer.setData('text/plain', JSON.stringify({ groupId, isGroup: true }));
-    e.currentTarget.classList.add('opacity-50');
-  };
-
   return (
-    <div className="bg-white rounded-md shadow overflow-hidden">
-      <Table>
-        <TableHeader>
-          <TableRow className="bg-app-light-blue">
-            <TableHead className="w-10"></TableHead>
-            <TableHead className="py-3 px-4 text-app-blue font-semibold">Nom du document</TableHead>
-            <TableHead className="py-3 px-4 text-app-blue font-semibold">Lien</TableHead>
-            <TableHead className="py-3 px-4 text-app-blue font-semibold text-right">Actions</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {groups.map(group => (
-            <BibliothequeGroup
-              key={group.id}
-              group={group}
-              onEdit={onEdit}
-              onDelete={onDelete}
-              onToggleGroup={onToggleGroup}
-              onDragStart={handleDragStart}
-              onDragOver={handleDragOver}
-              onDragLeave={handleDragLeave}
-              onDrop={handleDrop}
-              onDragEnd={handleDragEnd}
-              onGroupDragStart={handleGroupDragStart}
-              onGroupDrop={handleGroupDrop}
-            />
+    <div className="border rounded-md overflow-hidden">
+      <table className="min-w-full divide-y divide-gray-200">
+        <thead className="bg-gray-50">
+          <tr>
+            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Nom
+            </th>
+            <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Actions
+            </th>
+          </tr>
+        </thead>
+        <tbody className="bg-white divide-y divide-gray-200">
+          {/* Affichage des groupes */}
+          {groups.map((group) => (
+            <React.Fragment key={group.id}>
+              {/* Ligne du groupe */}
+              <tr className="hover:bg-gray-50">
+                <td className="px-4 py-3 flex items-center">
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="p-0 mr-2 h-6 w-6"
+                    onClick={() => onToggleGroup(group.id)}
+                  >
+                    {group.expanded ? (
+                      <ChevronDown className="h-4 w-4" />
+                    ) : (
+                      <ChevronRight className="h-4 w-4" />
+                    )}
+                  </Button>
+                  <Folder className="h-5 w-5 text-blue-600 mr-2" />
+                  <span className="font-medium">{group.name}</span>
+                </td>
+                <td className="px-4 py-3 text-right space-x-1">
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="h-8 w-8 p-0"
+                    onClick={() => onEdit(null as any, group)}
+                  >
+                    <Pencil className="h-4 w-4" />
+                    <span className="sr-only">Éditer</span>
+                  </Button>
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="h-8 w-8 p-0 text-red-600"
+                    onClick={() => onDelete(group.id, true)}
+                  >
+                    <Trash className="h-4 w-4" />
+                    <span className="sr-only">Supprimer</span>
+                  </Button>
+                </td>
+              </tr>
+              
+              {/* Documents du groupe si le groupe est déplié */}
+              {group.expanded && documents
+                .filter((doc) => doc.groupId === group.id)
+                .map((doc) => (
+                  <tr key={doc.id} className="hover:bg-gray-50 bg-gray-50/50">
+                    <td className="px-4 py-3 pl-12 flex items-center">
+                      <File className="h-5 w-5 text-gray-500 mr-2" />
+                      <span>{doc.name}</span>
+                    </td>
+                    <td className="px-4 py-3 text-right space-x-1">
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="h-8 w-8 p-0"
+                        onClick={() => onEdit(doc, group)}
+                      >
+                        <Pencil className="h-4 w-4" />
+                        <span className="sr-only">Éditer</span>
+                      </Button>
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="h-8 w-8 p-0 text-red-600"
+                        onClick={() => onDelete(doc.id, false)}
+                      >
+                        <Trash className="h-4 w-4" />
+                        <span className="sr-only">Supprimer</span>
+                      </Button>
+                    </td>
+                  </tr>
+                ))}
+            </React.Fragment>
           ))}
           
-          {ungroupedDocuments.map(doc => (
-            <BibliothequeDocumentRow
-              key={doc.id}
-              document={doc}
-              onEdit={onEdit}
-              onDelete={onDelete}
-              onDragStart={handleDragStart}
-              onDragOver={handleDragOver}
-              onDragLeave={handleDragLeave}
-              onDrop={handleDrop}
-              onDragEnd={handleDragEnd}
-            />
-          ))}
-        </TableBody>
-      </Table>
+          {/* Documents sans groupe */}
+          {documents
+            .filter((doc) => !doc.groupId)
+            .map((doc) => (
+              <tr key={doc.id} className="hover:bg-gray-50">
+                <td className="px-4 py-3 flex items-center">
+                  <File className="h-5 w-5 text-gray-500 mr-2" />
+                  <span>{doc.name}</span>
+                </td>
+                <td className="px-4 py-3 text-right space-x-1">
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="h-8 w-8 p-0"
+                    onClick={() => onEdit(doc)}
+                  >
+                    <Pencil className="h-4 w-4" />
+                    <span className="sr-only">Éditer</span>
+                  </Button>
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="h-8 w-8 p-0 text-red-600"
+                    onClick={() => onDelete(doc.id, false)}
+                  >
+                    <Trash className="h-4 w-4" />
+                    <span className="sr-only">Supprimer</span>
+                  </Button>
+                </td>
+              </tr>
+            ))}
+          
+          {documents.length === 0 && groups.length === 0 && (
+            <tr>
+              <td colSpan={2} className="px-4 py-3 text-center text-gray-500">
+                Aucun document ou groupe à afficher
+              </td>
+            </tr>
+          )}
+        </tbody>
+      </table>
     </div>
   );
 };

@@ -1,40 +1,49 @@
 
-import { BarChart2, FileCheck, FileText, Users, Handshake, Settings } from 'lucide-react';
-import { hasPermission, UserRole } from '@/types/roles';
+import React from 'react';
+import { 
+  Home, 
+  FileText, 
+  BookOpen, 
+  Briefcase, 
+  Users, 
+  CheckSquare,
+  FolderSync
+} from 'lucide-react';
 
-export interface NavItem {
-  path: string;
-  icon: typeof BarChart2;
-  label: string;
-  requiredPermission?: keyof typeof hasPermission;
-}
-
-export const navigationItems: NavItem[] = [
+export const navigationItems = [
   {
-    path: '/pilotage',
-    icon: BarChart2,
-    label: 'Pilotage'
+    path: '/',
+    icon: Home,
+    label: 'Accueil'
   },
   {
-    path: '/exigences',
-    icon: FileCheck,
-    label: 'Exigences'
+    path: '/pilotage',
+    icon: Briefcase,
+    label: 'Pilotage'
   },
   {
     path: '/gestion-documentaire',
     icon: FileText,
-    label: 'Gestion Documentaire'
+    label: 'Gestion documentaire'
+  },
+  {
+    path: '/bibliotheque',
+    icon: BookOpen,
+    label: 'Bibliothèque'
+  },
+  {
+    path: '/exigences',
+    icon: CheckSquare,
+    label: 'Exigences'
   },
   {
     path: '/ressources-humaines',
     icon: Users,
-    label: 'Ressources Humaines'
+    label: 'Ressources humaines'
   },
   {
     path: '/collaboration',
-    icon: Handshake,
+    icon: FolderSync,
     label: 'Collaboration'
   }
 ];
-
-// L'élément Administration est géré séparément dans Sidebar.tsx pour plus de flexibilité
