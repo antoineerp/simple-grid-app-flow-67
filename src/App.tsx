@@ -25,6 +25,12 @@ const NotFound = React.lazy(() => import('@/pages/NotFound'));
 // Initialize the sync storage cleaner
 initializeSyncStorageCleaner();
 
+// Define interface for RequireAuth component
+interface RequireAuthProps {
+  children: React.ReactNode;
+  adminOnly?: boolean;
+}
+
 function App() {
   return (
     <Router>
@@ -120,7 +126,7 @@ function App() {
 }
 
 // Wrap component with auth protection
-function RequireAuth({ children, adminOnly = false }) {
+function RequireAuth({ children, adminOnly = false }: RequireAuthProps) {
   const isLoggedIn = getIsLoggedIn();
   const currentUser = getCurrentUser();
   const isAdmin = currentUser?.role === 'admin';
@@ -133,7 +139,7 @@ function RequireAuth({ children, adminOnly = false }) {
     return <Navigate to="/pilotage" replace />;
   }
 
-  return children;
+  return <>{children}</>;
 }
 
 export default App;
