@@ -53,38 +53,33 @@ jobs:
         mkdir -p deploy/api/documentation
         mkdir -p deploy/public/lovable-uploads
         mkdir -p deploy/.github/workflows
-        mkdir -p deploy/dist  # Ajout explicite du dossier dist
         
-        # Copie des fichiers compilés
-        cp -r dist/* deploy/
-        
-        # Copie explicite du dossier dist complet
+        # IMPORTANT: Copie intégrale du dossier dist
+        echo "Copie du dossier dist complet..."
+        mkdir -p deploy/dist
         cp -r dist/* deploy/dist/
-        echo "✅ Dossier dist copié intégralement vers deploy/dist"
+        
+        # Copie des fichiers compilés à la racine aussi (double sécurité)
+        cp -r dist/* deploy/
+        echo "✅ Contenu du dossier dist copié à la racine et dans /dist"
+        
+        # Vérification explicite des fichiers CSS
+        echo "Vérification des fichiers CSS:"
+        find dist -name "*.css" | while read css_file; do
+          target_file="deploy/$css_file"
+          target_dir=$(dirname "$target_file")
+          mkdir -p "$target_dir"
+          cp "$css_file" "$target_file"
+          echo "✓ CSS copié: $css_file → $target_file"
+        done
         
         # Copie des fichiers PHP critiques
         echo "Copie des fichiers PHP et de configuration..."
         cp index.php deploy/ || echo "index.php non trouvé"
         cp phpinfo.php deploy/ || echo "phpinfo.php non trouvé"
         cp php-test-minimal.php deploy/ || echo "php-test-minimal.php non trouvé"
-        cp emergency-deploy-fix.php deploy/ || echo "emergency-deploy-fix.php non trouvé"
+        cp deployment-fix.php deploy/ || echo "deployment-fix.php non trouvé"
         cp deploy-on-infomaniak.php deploy/ || echo "deploy-on-infomaniak.php non trouvé"
-        cp fix-workflow-yaml.php deploy/ || echo "fix-workflow-yaml.php non trouvé"
-        cp check-github-workflow.php deploy/ || echo "check-github-workflow.php non trouvé"
-        
-        # Copie des fichiers de synchronisation
-        cp src/features/sync/utils/syncOperations.ts deploy/src/features/sync/utils/ || mkdir -p deploy/src/features/sync/utils/ && cp src/features/sync/utils/syncOperations.ts deploy/src/features/sync/utils/ || echo "syncOperations.ts non trouvé"
-        cp src/hooks/useApiConfig.tsx deploy/src/hooks/ || mkdir -p deploy/src/hooks/ && cp src/hooks/useApiConfig.tsx deploy/src/hooks/ || echo "useApiConfig.tsx non trouvé"
-        cp src/services/core/databaseAutoDetectService.ts deploy/src/services/core/ || mkdir -p deploy/src/services/core/ && cp src/services/core/databaseAutoDetectService.ts deploy/src/services/core/ || echo "databaseAutoDetectService.ts non trouvé"
-        cp src/services/config/appConfigService.ts deploy/src/services/config/ || mkdir -p deploy/src/services/config/ && cp src/services/config/appConfigService.ts deploy/src/services/config/ || echo "appConfigService.ts non trouvé"
-        cp api/sync-devices.php deploy/api/ || echo "sync-devices.php non trouvé"
-        
-        # Copie des fichiers de workflow GitHub
-        cp -r .github/workflows/* deploy/.github/workflows/ || echo "Fichiers workflow GitHub non trouvés"
-        
-        # Création du fichier README dans le dossier documentation
-        echo "# Documentation API" > deploy/api/documentation/README.md
-        echo "Ce dossier contient la documentation de l'API." >> deploy/api/documentation/README.md
         
         # Copie des fichiers .htaccess
         cp .htaccess deploy/ || echo ".htaccess racine non trouvé"
@@ -142,6 +137,38 @@ EOF
           echo "✅ api/.htaccess créé"
         fi
         
+        # Création d'un .htaccess spécifique pour le dossier dist
+        echo "Création du .htaccess pour le dossier dist..."
+        cat > deploy/dist/.htaccess <<'EOF'
+# Activer le module de réécriture d'URL
+RewriteEngine On
+
+# Définir les types MIME corrects pour les fichiers dans ce dossier
+AddType application/javascript .js
+AddType application/javascript .mjs
+AddType text/css .css
+AddType application/json .json
+
+# Force les types MIME corrects
+<FilesMatch "\.js$">
+    ForceType application/javascript
+    Header set Content-Type "application/javascript; charset=utf-8"
+</FilesMatch>
+
+<FilesMatch "\.css$">
+    ForceType text/css
+    Header set Content-Type "text/css; charset=utf-8"
+</FilesMatch>
+
+# Désactiver la mise en cache pour faciliter le développement
+<IfModule mod_headers.c>
+    Header set Cache-Control "no-cache, no-store, must-revalidate"
+    Header set Pragma "no-cache"
+    Header set Expires 0
+</IfModule>
+EOF
+        echo "✅ dist/.htaccess créé"
+        
         # Copie des fichiers .user.ini
         cp .user.ini deploy/ || echo ".user.ini racine non trouvé"
         
@@ -190,16 +217,10 @@ EOF
             "password": "Trottinette43!"
         }' > deploy/api/config/db_config.json
         
-        # Copie des uploads si existants
-        if [ -d "public/lovable-uploads" ]; then
-          echo "Copie des fichiers uploads..."
-          cp -r public/lovable-uploads/* deploy/public/lovable-uploads/ 2>/dev/null || echo "Aucun upload à copier"
-        fi
-        
         # Vérification des fichiers critiques
         echo ""
         echo "=== Vérification des fichiers critiques ==="
-        for file in "deploy/.htaccess" "deploy/api/.htaccess" "deploy/index.php" "deploy/api/config/env.php" "deploy/api/config/db_config.json" "deploy/api/documentation" "deploy/dist"; do
+        for file in "deploy/.htaccess" "deploy/api/.htaccess" "deploy/index.php" "deploy/api/config/env.php" "deploy/dist"; do
           if [ -e "$file" ]; then
             echo "✅ $file: PRÉSENT"
           else
@@ -207,21 +228,21 @@ EOF
           fi
         done
         
+        # Vérification spécifique des fichiers CSS
+        echo ""
+        echo "=== Vérification des fichiers CSS ==="
+        CSS_COUNT=$(find deploy/dist -name "*.css" | wc -l)
+        echo "Nombre de fichiers CSS dans dist: $CSS_COUNT"
+        if [ "$CSS_COUNT" -gt 0 ]; then
+          echo "✅ Fichiers CSS trouvés dans dist"
+          find deploy/dist -name "*.css" | head -3
+        else
+          echo "❌ ERREUR: Aucun fichier CSS trouvé dans dist"
+        fi
+        
         # Permissions
         find deploy -type d -exec chmod 755 {} \;
         find deploy -type f -exec chmod 644 {} \;
-        
-        echo "Contenu du dossier de déploiement:"
-        find deploy -type f | sort | head -20
-        
-        # Vérification spécifique du dossier dist
-        if [ -d "deploy/dist" ]; then
-          echo "Contenu du dossier dist déployé:"
-          ls -la deploy/dist/
-          echo "Nombre de fichiers dans dist: $(find deploy/dist -type f | wc -l)"
-        else
-          echo "❌ ERREUR: Le dossier dist n'a pas été créé correctement"
-        fi
 
     - name: FTP Deploy to Infomaniak
       uses: SamKirkland/FTP-Deploy-Action@v4.3.4
