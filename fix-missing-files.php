@@ -154,6 +154,13 @@ CSS;
             echo "<p>Création du fichier assets/index.css: <span class='error'>ÉCHEC</span></p>";
         }
         
+        // Créer également main.css
+        if (file_put_contents('assets/main.css', $css_content)) {
+            echo "<p>Création du fichier assets/main.css: <span class='success'>SUCCÈS</span></p>";
+        } else {
+            echo "<p>Création du fichier assets/main.css: <span class='error'>ÉCHEC</span></p>";
+        }
+        
         echo "</div>";
     }
     
@@ -186,6 +193,95 @@ CSS;
             }
         } else {
             echo "<p>Le fichier index.html n'existe pas</p>";
+            
+            // Créer un index.html minimal
+            $html_content = <<<HTML
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+  <meta name="description" content="Application de gestion de certification Qualiopi - FormaCert" />
+  <title>FormaCert - Qualité.cloud</title>
+  <link rel="icon" type="image/x-icon" href="/favicon.ico" />
+  <!-- Force MIME Type for CSS -->
+  <link rel="stylesheet" href="/assets/main.css" type="text/css" />
+  <link rel="stylesheet" href="/assets/index.css" type="text/css" />
+</head>
+<body>
+  <div id="root">
+    <!-- Contenu de chargement initial pour éviter la page blanche -->
+    <div style="display: flex; justify-content: center; align-items: center; height: 100vh; flex-direction: column;">
+      <h1>FormaCert</h1>
+      <p>Chargement de l'application...</p>
+    </div>
+  </div>
+  
+  <!-- Script de l'application -->
+  <script src="https://cdn.gpteng.co/gptengineer.js" type="module"></script>
+  <script src="/assets/index.js"></script>
+</body>
+</html>
+HTML;
+            
+            if (file_put_contents('index.html', $html_content)) {
+                echo "<p>Création du fichier index.html: <span class='success'>SUCCÈS</span></p>";
+            } else {
+                echo "<p>Création du fichier index.html: <span class='error'>ÉCHEC</span></p>";
+            }
+        }
+        
+        echo "</div>";
+    }
+
+    if (isset($_POST['create_js'])) {
+        echo "<div class='section'>";
+        echo "<h2>Création des fichiers JavaScript minimaux</h2>";
+        
+        // Créer le dossier assets s'il n'existe pas
+        if (!is_dir('assets')) {
+            if (mkdir('assets', 0755, true)) {
+                echo "<p>Création du dossier assets: <span class='success'>SUCCÈS</span></p>";
+            } else {
+                echo "<p>Création du dossier assets: <span class='error'>ÉCHEC</span></p>";
+            }
+        }
+        
+        // Créer un fichier JS minimal (index.js)
+        $js_content = <<<JS
+// Fichier JavaScript principal généré par fix-missing-files.php
+console.log('Application chargée avec succès');
+
+// Chargement de l'application
+window.addEventListener('DOMContentLoaded', function() {
+  const rootElement = document.getElementById('root');
+  if (rootElement) {
+    rootElement.innerHTML = '<div style="text-align: center; padding: 2rem;">' +
+      '<h1>FormaCert</h1>' +
+      '<p>Application chargée avec succès.</p>' +
+      '<p>Accédez à l\'application via les liens ci-dessous:</p>' +
+      '<ul style="list-style: none; padding: 0;">' +
+      '<li><a href="/">Accueil</a></li>' +
+      '<li><a href="/administration">Administration</a></li>' +
+      '<li><a href="/pilotage">Pilotage</a></li>' +
+      '</ul>' +
+      '</div>';
+  }
+});
+JS;
+
+        if (file_put_contents('assets/index.js', $js_content)) {
+            echo "<p>Création du fichier assets/index.js: <span class='success'>SUCCÈS</span></p>";
+        } else {
+            echo "<p>Création du fichier assets/index.js: <span class='error'>ÉCHEC</span></p>";
+        }
+        
+        // Créer également main.js
+        if (file_put_contents('assets/main.js', $js_content)) {
+            echo "<p>Création du fichier assets/main.js: <span class='success'>SUCCÈS</span></p>";
+        } else {
+            echo "<p>Création du fichier assets/main.js: <span class='error'>ÉCHEC</span></p>";
         }
         
         echo "</div>";
@@ -196,8 +292,9 @@ CSS;
         <h2>Actions de correction</h2>
         <form method="post">
             <p><button type="submit" name="create_dirs" class="button">Créer les dossiers manquants</button></p>
-            <p><button type="submit" name="create_css" class="button">Créer le fichier CSS minimal</button></p>
-            <p><button type="submit" name="update_index" class="button">Mettre à jour index.html</button></p>
+            <p><button type="submit" name="create_css" class="button">Créer les fichiers CSS minimaux</button></p>
+            <p><button type="submit" name="create_js" class="button">Créer les fichiers JS minimaux</button></p>
+            <p><button type="submit" name="update_index" class="button">Mettre à jour/créer index.html</button></p>
         </form>
     </div>
     
@@ -207,20 +304,19 @@ CSS;
             <li>Exécutez ce script et cliquez sur tous les boutons pour corriger les fichiers manquants</li>
             <li>Assurez-vous que le dossier <code>src</code> contient les fichiers sources de votre application</li>
             <li>Exécutez <code>npm run build</code> pour générer les fichiers compilés dans <code>dist</code></li>
-            <li>Utilisez <code>copy-assets.php</code> pour copier les assets de <code>dist/assets</code> vers <code>assets</code></li>
+            <li>Utilisez <code>fix-index-assets-simplified.php</code> pour mettre à jour les références aux assets dans index.html</li>
             <li>Vérifiez que <code>index.html</code> contient les bonnes références aux fichiers CSS et JavaScript</li>
-            <li>Déployez votre application en utilisant le workflow GitHub ou en transférant les fichiers manuellement</li>
         </ol>
     </div>
     
     <div class="section">
-        <h2>Pour un déploiement d'urgence</h2>
-        <p>Utilisez les scripts suivants pour un déploiement d'urgence:</p>
+        <h2>Vérifications supplémentaires</h2>
+        <p>Utilisez les scripts suivants pour des vérifications plus approfondies:</p>
         <ul>
-            <li><a href="emergency-php-fix.php">emergency-php-fix.php</a> - Crée les fichiers PHP essentiels</li>
-            <li><a href="fix-infomaniak-assets.php">fix-infomaniak-assets.php</a> - Corrige spécifiquement les problèmes d'assets sur Infomaniak</li>
+            <li><a href="check-build-status.php">Vérifier l'état du build</a> - Affiche l'état actuel des fichiers essentiels</li>
+            <li><a href="check-route-duplication.php">Vérifier les routes</a> - Vérifie les routes en double et les problèmes de liens</li>
+            <li><a href="fix-index-assets-simplified.php">Réparer les références aux assets</a> - Corrige les références CSS et JS dans index.html</li>
         </ul>
     </div>
 </body>
 </html>
-

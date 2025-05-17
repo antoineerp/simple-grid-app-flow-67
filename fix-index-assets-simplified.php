@@ -127,7 +127,7 @@ try {
         }
         ?></pre>
         
-        <p><a href="/">Retour à la page d'accueil</a> | <a href="verify-deployment.php">Vérifier le déploiement</a></p>
+        <p><a href="/">Retour à la page d'accueil</a> | <a href="check-build-status.php">Vérifier l'état du build</a> | <a href="pre-deploy-fix.php">Préparation au déploiement</a></p>
     </div>
 </body>
 </html>

@@ -296,8 +296,9 @@ $missingRoutes = checkRouteConsistency($routes, $navLinks);
     <?php endif; ?>
     
     <p>
-        <a href="/check-app-routes.php">Outil d'analyse de routes complet</a> | 
-        <a href="/verify-app-routes.php">Vérification détaillée des routes</a>
+        <a href="/check-build-status.php">Vérifier l'état du build</a> | 
+        <a href="/fix-missing-files.php">Corriger les fichiers manquants</a> |
+        <a href="/fix-index-assets-simplified.php">Réparer les références CSS/JS</a>
     </p>
 </body>
 </html>

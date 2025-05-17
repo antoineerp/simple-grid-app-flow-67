@@ -30,12 +30,12 @@ header("Content-Type: text/html; charset=utf-8");
     $critical_files = [
         ".htaccess" => "Configuration du serveur web",
         ".user.ini" => "Configuration PHP",
-        "phpinfo.php" => "Diagnostic PHP",
-        "test-php-execution.php" => "Test d'exécution PHP",
-        "force-php-execution.php" => "Test forcé d'exécution PHP",
-        "web-php-test.php" => "Test PHP web",
-        "api/.htaccess" => "Configuration API",
-        "emergency-php-fix.php" => "Script de réparation d'urgence"
+        "index.html" => "Page principale",
+        "assets/main.css" => "CSS principal",
+        "assets/index.css" => "CSS secondaire",
+        "assets/main.js" => "JavaScript principal",
+        "assets/index.js" => "JavaScript d'entrée",
+        "api/.htaccess" => "Configuration API"
     ];
     
     $missing_files = [];
@@ -99,16 +99,15 @@ header("Content-Type: text/html; charset=utf-8");
         </table>
         
         <div class="info">
-            <p><strong>Solution:</strong> Si vous voyez cette page, exécutez le fichier emergency-php-fix.php pour créer les fichiers manquants.</p>
+            <p><strong>Solution:</strong> Utilisez le fichier <a href="fix-missing-files.php">fix-missing-files.php</a> pour créer les fichiers manquants.</p>
         </div>
     <?php endif; ?>
 
     <h2>Liens utiles</h2>
     <ul>
-        <li><a href="phpinfo.php">Informations PHP</a></li>
-        <li><a href="test-php-execution.php">Test d'exécution PHP</a></li>
-        <li><a href="emergency-php-fix.php">Script de réparation d'urgence</a></li>
-        <li><a href="index.html">Application principale</a></li>
+        <li><a href="fix-missing-files.php">Corriger les fichiers manquants</a></li>
+        <li><a href="fix-index-assets-simplified.php">Réparer les références CSS/JS</a></li>
+        <li><a href="check-route-duplication.php">Vérifier les routes</a></li>
     </ul>
 </body>
 </html>
