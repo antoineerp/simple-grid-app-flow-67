@@ -1,158 +1,47 @@
 
 <?php
-header('Content-Type: text/html; charset=utf-8');
+// Script pour réparer les références aux assets dans index.html
 
-// Fonction pour trouver le dernier fichier JS/CSS avec un hachage
-function findLatestAsset($directory, $prefix, $extension) {
-    $pattern = $directory . '/' . $prefix . '*.' . $extension;
-    $files = glob($pattern);
-    
-    if (empty($files)) {
-        return null;
-    }
-    
-    // Trier par date de modification (le plus récent en premier)
-    usort($files, function($a, $b) {
-        return filemtime($b) - filemtime($a);
-    });
-    
-    return '/assets/' . basename($files[0]);
+// Vérifier si index.html existe
+if (!file_exists('index.html')) {
+    echo "Erreur: index.html non trouvé.";
+    exit;
 }
 
-// Chemins possibles pour les assets
-$possible_paths = [
-    './assets',
-    '/assets',
-    $_SERVER['DOCUMENT_ROOT'] . '/assets',
-    $_SERVER['DOCUMENT_ROOT'] . '/sites/qualiopi.ch/assets'
-];
+// Lire le contenu du fichier
+$html = file_get_contents('index.html');
+$modified = false;
 
-$main_js = null;
-$main_css = null;
-
-// Chercher les fichiers dans les différents chemins possibles
-foreach ($possible_paths as $path) {
-    if (is_dir($path)) {
-        if (!$main_js) {
-            $main_js = findLatestAsset($path, 'main-', 'js');
-        }
-        if (!$main_css) {
-            $main_css = findLatestAsset($path, 'index-', 'css');
-        }
-        if ($main_js && $main_css) {
-            break;
-        }
-    }
+// Vérifier et corriger les références aux fichiers CSS
+if (strpos($html, 'href="/assets/index.css"') === false && strpos($html, 'href="/assets/main.css"') === false) {
+    // Ajouter la référence au CSS si elle n'existe pas déjà
+    $html = str_replace('</head>', '  <link rel="stylesheet" href="/assets/main.css">' . "\n</head>", $html);
+    $modified = true;
+    echo "Référence à main.css ajoutée dans index.html<br>";
 }
 
-$indexPath = './index.html';
-$success = false;
-$message = '';
+// Vérifier et corriger les références aux fichiers JS
+if (strpos($html, 'src="/assets/index.js"') === false && strpos($html, 'src="/assets/main.js"') === false) {
+    // Rechercher la fin du body pour insérer un script de secours
+    $html = str_replace('</body>', '  <script src="/assets/main.js"></script>' . "\n</body>", $html);
+    $modified = true;
+    echo "Référence à main.js ajoutée dans index.html<br>";
+}
 
-if (file_exists($indexPath)) {
-    $content = file_get_contents($indexPath);
-    $original = $content;
-    
-    if ($main_js || $main_css) {
-        // Créer une sauvegarde
-        copy($indexPath, $indexPath . '.bak');
-        
-        if ($main_js) {
-            // Remplacer ou ajouter le JS
-            if (preg_match('/<script[^>]*src="[^"]*"[^>]*type="module"[^>]*>/', $content)) {
-                $content = preg_replace(
-                    '/<script[^>]*src="[^"]*"[^>]*type="module"[^>]*>/',
-                    '<script type="module" src="' . $main_js . '">',
-                    $content
-                );
-            } else {
-                $content = str_replace(
-                    '</body>',
-                    '    <script type="module" src="' . $main_js . '"></script>' . "\n  </body>",
-                    $content
-                );
-            }
-            
-            $message .= "Fichier JS trouvé et inséré: " . htmlspecialchars($main_js) . "<br>";
-        }
-        
-        if ($main_css) {
-            // Remplacer ou ajouter le CSS
-            if (preg_match('/<link[^>]*rel="stylesheet"[^>]*href="[^"]*"[^>]*>/', $content)) {
-                $content = preg_replace(
-                    '/<link[^>]*rel="stylesheet"[^>]*href="[^"]*"[^>]*>/',
-                    '<link rel="stylesheet" href="' . $main_css . '">',
-                    $content
-                );
-            } else {
-                $content = str_replace(
-                    '</head>',
-                    '    <link rel="stylesheet" href="' . $main_css . '">' . "\n  </head>",
-                    $content
-                );
-            }
-            
-            $message .= "Fichier CSS trouvé et inséré: " . htmlspecialchars($main_css) . "<br>";
-        }
-        
-        // Enregistrer si des modifications ont été faites
-        if ($content !== $original) {
-            file_put_contents($indexPath, $content);
-            $success = true;
-            $message .= "Les modifications ont été appliquées à index.html<br>";
-        } else {
-            $message = "Aucune modification nécessaire dans index.html<br>";
-        }
-    } else {
-        $message = "Aucun fichier JS/CSS principal trouvé dans les dossiers assets<br>";
-    }
+// Si des modifications ont été faites, enregistrer le fichier
+if ($modified) {
+    file_put_contents('index.html', $html);
+    echo "index.html a été mis à jour avec les bonnes références d'assets.";
 } else {
-    $message = "Fichier index.html non trouvé<br>";
+    echo "index.html semble déjà avoir les bonnes références d'assets.";
+}
+
+// Vérifier si les fichiers assets existent
+if (!file_exists('assets/main.css')) {
+    echo "<br>Attention: Le fichier assets/main.css n'existe pas!";
+}
+
+if (!file_exists('assets/main.js')) {
+    echo "<br>Attention: Le fichier assets/main.js n'existe pas!";
 }
 ?>
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Correction des assets dans index.html</title>
-    <style>
-        body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
-        .success { color: green; }
-        .error { color: red; }
-        .box { border: 1px solid #ddd; padding: 15px; margin: 15px 0; border-radius: 5px; }
-        pre { background: #f5f5f5; padding: 10px; overflow-x: auto; }
-    </style>
-</head>
-<body>
-    <h1>Correction des références aux assets dans index.html</h1>
-    
-    <div class="box">
-        <h2>Résultat</h2>
-        <p class="<?php echo $success ? 'success' : 'error'; ?>">
-            <?php echo $message; ?>
-        </p>
-    </div>
-    
-    <?php if ($success): ?>
-    <div class="box">
-        <h2>Nouveau contenu de index.html</h2>
-        <pre><?php echo htmlspecialchars($content); ?></pre>
-    </div>
-    <?php endif; ?>
-    
-    <div class="box">
-        <h2>Chemins des assets vérifiés</h2>
-        <ul>
-        <?php foreach($possible_paths as $path): ?>
-            <li>
-                <?php echo htmlspecialchars($path); ?>: 
-                <?php echo is_dir($path) ? '<span class="success">Existe</span>' : '<span class="error">N\'existe pas</span>'; ?>
-            </li>
-        <?php endforeach; ?>
-        </ul>
-    </div>
-    
-    <div class="box">
-        <p><a href="index.html">Retour à l'accueil</a></p>
-    </div>
-</body>
-</html>
