@@ -1,6 +1,6 @@
 
 import React, { Suspense } from 'react';
-import { BrowserRouter, Route, Routes } from 'react-router-dom';
+import { BrowserRouter, Route, Routes, Navigate } from 'react-router-dom';
 import { Toaster } from '@/components/ui/toaster';
 import ProtectedLayout from '@/layouts/ProtectedLayout';
 import PublicLayout from '@/layouts/PublicLayout';
@@ -32,7 +32,6 @@ function App() {
             <Route element={<ProtectedLayout />}>
               <Route path="/pilotage" element={<Pilotage />} />
               <Route path="/gestion-documentaire" element={<GestionDocumentaire />} />
-              {/* <Route path="/bibliotheque" element={<Bibliotheque />} */}
               <Route path="/exigences" element={<Exigences />} />
               <Route path="/ressources-humaines" element={<RessourcesHumaines />} />
               <Route path="/collaboration" element={<Collaboration />} />

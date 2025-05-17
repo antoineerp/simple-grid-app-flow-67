@@ -1,7 +1,6 @@
 
 import React from 'react';
 import { 
-  Home, 
   FileText, 
   Briefcase, 
   Users, 
@@ -10,11 +9,6 @@ import {
 } from 'lucide-react';
 
 export const navigationItems = [
-  {
-    path: '/',
-    icon: Home,
-    label: 'Accueil'
-  },
   {
     path: '/pilotage',
     icon: Briefcase,
