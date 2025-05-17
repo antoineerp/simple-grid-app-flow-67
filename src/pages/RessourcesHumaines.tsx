@@ -6,7 +6,6 @@ import { RefreshCw, PlusCircle, Trash2, Users } from 'lucide-react';
 import { MembresProvider, useMembres } from '@/contexts/MembresContext';
 import { MembresTable } from '@/components/ressources/MembresTable';
 import MembresToolbar from '@/components/ressources/MembresToolbar';
-import { Membre } from '@/types/membres';
 import { toast } from '@/components/ui/use-toast';
 import { useNavigate } from 'react-router-dom';
 
@@ -16,10 +15,7 @@ const RessourcesHumainesContent: React.FC = () => {
     membres, 
     isLoading, 
     error, 
-    refreshMembres,
-    syncMembres,
-    lastSynced,
-    syncFailed
+    refreshMembres
   } = useMembres();
   
   const [searchTerm, setSearchTerm] = useState('');
@@ -42,42 +38,12 @@ const RessourcesHumainesContent: React.FC = () => {
   // Liste des départements uniques
   const departments = [...new Set(membres.map(m => m.departement).filter(Boolean))];
 
-  // Gérer la synchronisation
-  const handleSync = async () => {
-    try {
-      const success = await syncMembres();
-      if (success) {
-        toast({
-          title: "Synchronisation réussie",
-          description: "Les données des membres ont été synchronisées avec succès.",
-        });
-      } else {
-        toast({
-          variant: "destructive",
-          title: "Échec de la synchronisation",
-          description: "Une erreur s'est produite lors de la synchronisation des membres.",
-        });
-      }
-    } catch (error) {
-      toast({
-        variant: "destructive",
-        title: "Erreur",
-        description: "Une erreur inattendue s'est produite.",
-      });
-    }
-  };
-
   return (
     <div className="container mx-auto p-4">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold">Ressources Humaines</h1>
         
         <div className="flex space-x-2">
-          <Button variant="outline" size="sm" onClick={handleSync} disabled={isLoading}>
-            <RefreshCw className="w-4 h-4 mr-2" />
-            Synchroniser
-          </Button>
-          
           <Button variant="default" size="sm" onClick={() => navigate('/rh/nouveau-membre')}>
             <PlusCircle className="w-4 h-4 mr-2" />
             Nouveau membre
@@ -94,12 +60,6 @@ const RessourcesHumainesContent: React.FC = () => {
           </CardTitle>
           <CardDescription>
             {membres.length} membres au total
-            {lastSynced && (
-              <span className="text-xs block text-muted-foreground">
-                Dernière synchronisation: {lastSynced.toLocaleString()} 
-                {syncFailed && <span className="text-red-500"> (Échec)</span>}
-              </span>
-            )}
           </CardDescription>
         </CardHeader>
         
@@ -124,7 +84,6 @@ const RessourcesHumainesContent: React.FC = () => {
               membres={filteredMembres}
               isLoading={isLoading}
               onDelete={(membre) => {
-                // Logique de suppression
                 toast({
                   title: "Membre supprimé",
                   description: `${membre.prenom} ${membre.nom} a été supprimé.`,
