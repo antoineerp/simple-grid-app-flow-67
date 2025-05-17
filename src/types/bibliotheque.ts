@@ -11,6 +11,6 @@ export interface DocumentGroup {
   id: string;
   name: string;
   expanded: boolean;
-  items: string[]; // IDs des documents dans ce groupe
+  items: string[]; // IDs of documents in this group
   userId: string;
 }

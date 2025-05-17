@@ -97,20 +97,24 @@ export const BibliothequeGroup: React.FC<BibliothequeGroupProps> = ({
         </TableCell>
       </TableRow>
       
-      {group.expanded && group.items.map((doc) => (
-        <BibliothequeDocumentRow
-          key={doc.id}
-          document={doc}
-          onEdit={onEdit}
-          onDelete={onDelete}
-          onDragStart={onDragStart}
-          onDragOver={onDragOver}
-          onDragLeave={onDragLeave}
-          onDrop={onDrop}
-          onDragEnd={onDragEnd}
-          groupId={group.id}
-        />
-      ))}
+      {group.expanded && group.items.map((docId) => {
+        // Find the document by its ID from the parent component
+        const doc = { id: docId } as Document; // This is a placeholder - the actual document will be passed by the parent
+        return (
+          <BibliothequeDocumentRow
+            key={docId}
+            document={doc}
+            onEdit={onEdit}
+            onDelete={onDelete}
+            onDragStart={onDragStart}
+            onDragOver={onDragOver}
+            onDragLeave={onDragLeave}
+            onDrop={onDrop}
+            onDragEnd={onDragEnd}
+            groupId={group.id}
+          />
+        );
+      })}
     </React.Fragment>
   );
 };

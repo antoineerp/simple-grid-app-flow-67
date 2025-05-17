@@ -5,8 +5,7 @@ import {
   DialogContent, 
   DialogHeader, 
   DialogTitle, 
-  DialogFooter,
-  DialogClose
+  DialogFooter
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -70,9 +69,7 @@ export const DocumentDialog: React.FC<DocumentDialogProps> = ({
         </div>
         
         <DialogFooter>
-          <DialogClose asChild>
-            <Button variant="outline" onClick={onClose}>Annuler</Button>
-          </DialogClose>
+          <Button variant="outline" onClick={onClose}>Annuler</Button>
           <Button onClick={onSave}>
             {isEditing ? "Enregistrer" : "Créer"}
           </Button>
