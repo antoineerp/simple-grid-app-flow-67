@@ -1,4 +1,3 @@
-
 <?php
 // Fonction pour analyser un fichier et extraire les composantes de routage
 function analyzeRouting($filePath) {
@@ -17,25 +16,64 @@ function analyzeRouting($filePath) {
         'lazyComponents' => []
     ];
     
-    // Extraire les routes - amélioration des regex pour capturer plus de formats
-    preg_match_all('/<Route[^>]*path=[\'"]([^\'"]*)[\'"][^>]*element={<?[^>]*(<|\{)([A-Za-z0-9_]+)(\}|\/?>)[^>]*}/', $content, $routeMatches);
-    if (!empty($routeMatches[1])) {
-        for ($i = 0; $i < count($routeMatches[1]); $i++) {
+    // Amélioration des regex pour détecter les routes avec différentes syntaxes
+    
+    // 1. Route basique avec élément: <Route path="/path" element={<Component />} />
+    preg_match_all('/<Route\s+[^>]*path=[\'"]([^\'"]*)[\'"]\s+[^>]*element=\{(?:<)?([A-Za-z0-9_]+)(?:\/?>)?\}\s*\/?>/', $content, $basicRoutes);
+    
+    // 2. Route avec élément et autres attributs dans n'importe quel ordre
+    preg_match_all('/<Route\s+[^>]*path=[\'"]([^\'"]*)[\'"][^>]*>/', $content, $pathRoutes);
+    
+    // 3. Route avec composants enfants
+    preg_match_all('/<Route\s+[^>]*path=[\'"]([^\'"]*)[\'"][^>]*>[\s\S]*?<\/Route>/', $content, $nestedRoutes);
+    
+    // Traiter les routes basiques
+    if (!empty($basicRoutes[1])) {
+        for ($i = 0; $i < count($basicRoutes[1]); $i++) {
             $result['routes'][] = [
-                'path' => $routeMatches[1][$i],
-                'component' => isset($routeMatches[3][$i]) ? $routeMatches[3][$i] : null
+                'path' => $basicRoutes[1][$i],
+                'component' => isset($basicRoutes[2][$i]) ? $basicRoutes[2][$i] : 'Unknown'
             ];
         }
     }
     
-    // Extraire les routes avec pattern alternatif
-    preg_match_all('/<Route\s+[^>]*path=[\'"]([^\'"]*)[\'"]\s+[^>]*element\s*=\s*{(?:<)?([A-Za-z0-9_]+)(?:\/?>)?}/', $content, $altRouteMatches);
-    if (!empty($altRouteMatches[1])) {
-        for ($i = 0; $i < count($altRouteMatches[1]); $i++) {
-            if (!in_array($altRouteMatches[1][$i], array_column($result['routes'], 'path'))) {
+    // Traiter les routes avec path uniquement
+    if (!empty($pathRoutes[1])) {
+        foreach ($pathRoutes[1] as $path) {
+            // Vérifier si cette route n'existe pas déjà
+            $exists = false;
+            foreach ($result['routes'] as $existingRoute) {
+                if ($existingRoute['path'] === $path) {
+                    $exists = true;
+                    break;
+                }
+            }
+            
+            if (!$exists) {
                 $result['routes'][] = [
-                    'path' => $altRouteMatches[1][$i],
-                    'component' => $altRouteMatches[2][$i]
+                    'path' => $path,
+                    'component' => 'Nested/Complex Route'
+                ];
+            }
+        }
+    }
+    
+    // Traiter les routes imbriquées
+    if (!empty($nestedRoutes[1])) {
+        foreach ($nestedRoutes[1] as $path) {
+            // Vérifier si cette route n'existe pas déjà
+            $exists = false;
+            foreach ($result['routes'] as $existingRoute) {
+                if ($existingRoute['path'] === $path) {
+                    $exists = true;
+                    break;
+                }
+            }
+            
+            if (!$exists) {
+                $result['routes'][] = [
+                    'path' => $path,
+                    'component' => 'Nested/Complex Route'
                 ];
             }
         }
