@@ -61,6 +61,7 @@ jobs:
         cp .htaccess deploy/ || echo ".htaccess non trouvé"
         cp .user.ini deploy/ || echo ".user.ini non trouvé"
         cp error-handler.php deploy/ || echo "error-handler.php non trouvé"
+        cp fix-css-deployment.php deploy/ || echo "fix-css-deployment.php non trouvé"
         
         # Copier les fichiers du dossier dist s'il existe
         if [ -d "dist" ]; then
@@ -73,12 +74,29 @@ jobs:
         if [ -d "dist/assets" ]; then
           echo "Copie des assets depuis dist/assets/"
           cp -r dist/assets/* deploy/assets/
+          # Assurer que main.css est présent
+          if [ ! -f "deploy/assets/main.css" ] && [ -f "assets/main.css" ]; then
+            echo "Copie de main.css depuis assets/"
+            cp assets/main.css deploy/assets/
+          fi
         elif [ -d "assets" ]; then
           echo "Copie des assets depuis assets/"
           cp -r assets/* deploy/assets/
         else
           echo "ERREUR: Aucun dossier assets trouvé!"
         fi
+        
+        # Créer un main.css de secours si nécessaire
+        if [ ! -f "deploy/assets/main.css" ]; then
+          echo "Création d'un fichier main.css de secours..."
+          echo "/* Fichier CSS de secours créé automatiquement */" > deploy/assets/main.css
+          echo "body { font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: #333; background-color: #f9fafb; margin: 0; padding: 0; }" >> deploy/assets/main.css
+          echo "#root { max-width: 1280px; margin: 0 auto; padding: 2rem; }" >> deploy/assets/main.css
+        fi
+        
+        # Vérifier que les CSS nécessaires sont présents
+        echo "=== Vérification des CSS ==="
+        ls -la deploy/assets/*.css || echo "Pas de fichiers CSS trouvés dans deploy/assets/"
         
         # Configuration de l'API
         echo "Configuration de l'API..."
@@ -195,6 +213,7 @@ EOL
           "deploy/index.php"
           "deploy/index.html"
           "deploy/.htaccess"
+          "deploy/assets/main.css"
         )
         
         all_ok=true
