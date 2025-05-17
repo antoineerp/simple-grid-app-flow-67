@@ -40,6 +40,8 @@ jobs:
         ls -la dist/
         ls -la dist/assets/ || echo "Dossier assets non trouvé"
         find dist -name "*.css" | grep -i main || echo "Aucun fichier main CSS trouvé dans dist"
+        find dist -name "*.js" | grep -i index || echo "Aucun fichier index JS trouvé dans dist"
+        find dist -name "*.js" | grep -i main || echo "Aucun fichier main JS trouvé dans dist"
         
     - name: Execute deployment script
       run: |
@@ -62,6 +64,56 @@ jobs:
         cp create-api-htaccess.php deploy/
         cp fix-css-deployment.php deploy/
         cp correct-htaccess-for-php.sh deploy/
+      
+    - name: Find and copy hashed files
+      run: |
+        echo "Finding and copying hashed files..."
+        mkdir -p deploy/assets
+        
+        # Copier tous les fichiers CSS et JS hachés de dist/assets vers deploy/assets
+        if [ -d "dist/assets" ]; then
+          echo "Copying all hashed files from dist/assets to deploy/assets..."
+          cp -r dist/assets/* deploy/assets/
+          echo "✅ Hashed files copied"
+          
+          # Créer des liens symboliques pour index.js et main.js vers les versions hachées
+          INDEX_JS=$(find dist/assets -name "index*.js" | head -1)
+          MAIN_JS=$(find dist/assets -name "main*.js" | head -1)
+          
+          if [ -n "$INDEX_JS" ]; then
+            echo "Found hashed index.js: $INDEX_JS"
+            cp "$INDEX_JS" deploy/assets/index.js
+            echo "✅ Created index.js link to hashed version"
+          fi
+          
+          if [ -n "$MAIN_JS" ]; then
+            echo "Found hashed main.js: $MAIN_JS"
+            cp "$MAIN_JS" deploy/assets/main.js
+            echo "✅ Created main.js link to hashed version"
+          fi
+          
+          # Faire de même pour les CSS
+          INDEX_CSS=$(find dist/assets -name "index*.css" | head -1)
+          MAIN_CSS=$(find dist/assets -name "main*.css" | head -1)
+          
+          if [ -n "$INDEX_CSS" ]; then
+            echo "Found hashed index.css: $INDEX_CSS"
+            cp "$INDEX_CSS" deploy/assets/index.css
+            echo "✅ Created index.css link to hashed version"
+          fi
+          
+          if [ -n "$MAIN_CSS" ]; then
+            echo "Found hashed main.css: $MAIN_CSS"
+            cp "$MAIN_CSS" deploy/assets/main.css
+            echo "✅ Created main.css link to hashed version"
+          fi
+        else
+          echo "⚠️ dist/assets not found"
+        fi
+        
+        # Vérification des assets copiés
+        echo "Assets copied to deploy/assets:"
+        ls -la deploy/assets/
       
     - name: FTP Deploy to Infomaniak
       uses: SamKirkland/FTP-Deploy-Action@v4.3.4
@@ -93,6 +145,13 @@ jobs:
           [ -f "index.html" ] && echo "✅ index.html: PRÉSENT" || echo "❌ index.html: MANQUANT"
           [ -f "api/.htaccess" ] && echo "✅ api/.htaccess: PRÉSENT" || echo "❌ api/.htaccess: MANQUANT"
           [ -f "api/config/env.php" ] && echo "✅ api/config/env.php: PRÉSENT" || echo "❌ api/config/env.php: MANQUANT"
+          [ -f "assets/index.js" ] && echo "✅ assets/index.js: PRÉSENT" || echo "❌ assets/index.js: MANQUANT"
+          [ -f "assets/main.js" ] && echo "✅ assets/main.js: PRÉSENT" || echo "❌ assets/main.js: MANQUANT"
+          
+          # Lister tous les fichiers hachés trouvés
+          echo "=== Fichiers hachés trouvés ==="
+          find assets -name "*.js" | grep -E '[a-zA-Z0-9]{8}\.' || echo "❌ Aucun fichier JS haché trouvé"
+          find assets -name "*.css" | grep -E '[a-zA-Z0-9]{8}\.' || echo "❌ Aucun fichier CSS haché trouvé"
           
           # Exécuter la réparation automatique des erreurs CORS
           php -f fix-cors.php
@@ -108,3 +167,6 @@ jobs:
           
           # Exécuter le script de diagnostic en arrière-plan
           php -f post-deploy-css-check.php
+          
+          # Vérifier et réparer les références d'assets dans index.html
+          php -f fix-index-assets.php
