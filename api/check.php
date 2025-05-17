@@ -1,10 +1,18 @@
 
 <?php
-// Point d'entrée pour vérifier l'état de l'API
+/**
+ * API de vérification de l'état du serveur
+ * Format standardisé pour toutes les API de l'application
+ */
+
+// En-têtes communs pour tous les endpoints API
 header('Content-Type: application/json; charset=utf-8');
 header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: GET, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type, Authorization');
+
+// Inclure la classe ResponseHandler
+require_once __DIR__ . '/utils/ResponseHandler.php';
 
 // Vérifier si la requête est OPTIONS (preflight CORS)
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
@@ -12,74 +20,54 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit;
 }
 
-// Vérifier que les fichiers API essentiels existent
-$apiFiles = [
-    'index.php',
-    'auth.php',
-    'login.php',
-    'auth-test.php',
-    'check-db-connection.php'
-];
+try {
+    // Vérifier que les fichiers API essentiels existent
+    $apiFiles = [
+        'index.php',
+        'auth.php',
+        'login.php',
+        'auth-test.php',
+        'check-db-connection.php',
+        'membres-load.php',
+        'membres-sync.php'
+    ];
 
-$missingFiles = [];
-foreach ($apiFiles as $file) {
-    if (!file_exists(__DIR__ . '/' . $file)) {
-        $missingFiles[] = $file;
+    $missingFiles = [];
+    foreach ($apiFiles as $file) {
+        if (!file_exists(__DIR__ . '/' . $file)) {
+            $missingFiles[] = $file;
+        }
     }
-}
 
-// Créer automatiquement le fichier env.php s'il n'existe pas
-if (!file_exists(__DIR__ . '/config/env.php') && file_exists(__DIR__ . '/config/env.example.php')) {
-    copy(__DIR__ . '/config/env.example.php', __DIR__ . '/config/env.php');
-    $envCreated = true;
-} else {
-    $envCreated = false;
-}
-
-// Créer le fichier .htaccess si nécessaire
-if (!file_exists(__DIR__ . '/.htaccess')) {
-    $htaccessContent = "
-# Active la réécriture d'URL
-RewriteEngine On
-
-# Gère les headers CORS
-<IfModule mod_headers.c>
-    Header set Access-Control-Allow-Origin \"*\"
-    Header set Access-Control-Allow-Methods \"GET, POST, PUT, DELETE, OPTIONS\"
-    Header set Access-Control-Allow-Headers \"Content-Type, Authorization\"
+    // Vérifier si le fichier env.php existe
+    $envExists = file_exists(__DIR__ . '/config/env.php');
     
-    # En cas de requête OPTIONS (CORS preflight), renvoyer un 200 OK
-    RewriteCond %{REQUEST_METHOD} OPTIONS
-    RewriteRule ^(.*)$ $1 [R=200,L]
-</IfModule>
+    // Vérifier si .htaccess existe
+    $htaccessExists = file_exists(__DIR__ . '/.htaccess');
 
-# Redirection vers index.php pour les requêtes non-existantes
-RewriteCond %{REQUEST_FILENAME} !-f
-RewriteCond %{REQUEST_FILENAME} !-d
-RewriteRule ^(.*)$ index.php [QSA,L]
-";
-    file_put_contents(__DIR__ . '/.htaccess', $htaccessContent);
-    $htaccessCreated = true;
-} else {
-    $htaccessCreated = false;
-}
-
-// Renvoyer une réponse de test
-echo json_encode([
-    'success' => true,
-    'message' => 'API PHP disponible',
-    'status' => 200,
-    'environment' => 'production',
-    'server_info' => [
-        'host' => $_SERVER['HTTP_HOST'] ?? 'unknown',
-        'uri' => $_SERVER['REQUEST_URI'] ?? '/',
-        'script' => $_SERVER['SCRIPT_NAME'] ?? '/api/check.php'
-    ],
-    'api_status' => [
+    // Détecter l'environnement
+    $isProduction = strpos($_SERVER['HTTP_HOST'] ?? '', 'qualiopi.ch') !== false;
+    $isStaging = strpos($_SERVER['HTTP_HOST'] ?? '', '.lovable.') !== false;
+    $environment = $isProduction ? 'production' : ($isStaging ? 'staging' : 'development');
+    
+    // Renvoyer une réponse standard de succès
+    ResponseHandler::success([
+        'api_status' => 'disponible',
+        'environment' => $environment,
         'missing_files' => $missingFiles,
-        'env_created' => $envCreated,
-        'htaccess_created' => $htaccessCreated,
-        'php_version' => phpversion()
-    ]
-]);
+        'env_exists' => $envExists,
+        'htaccess_exists' => $htaccessExists,
+        'server_info' => [
+            'host' => $_SERVER['HTTP_HOST'] ?? 'unknown',
+            'uri' => $_SERVER['REQUEST_URI'] ?? '/',
+            'php_version' => phpversion()
+        ]
+    ], 200, 'API PHP disponible');
+    
+} catch (Exception $e) {
+    ResponseHandler::error(
+        'Erreur lors de la vérification: ' . $e->getMessage(),
+        500
+    );
+}
 ?>

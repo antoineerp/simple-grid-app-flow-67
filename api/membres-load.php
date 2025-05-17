@@ -1,10 +1,18 @@
 
 <?php
-// Script pour charger les données des membres
+/**
+ * API de chargement des membres
+ * Format standardisé pour toutes les API de l'application
+ */
+
+// En-têtes communs pour tous les endpoints API
 header('Content-Type: application/json; charset=utf-8');
 header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: GET, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type, Authorization');
+header('Access-Control-Allow-Headers: Content-Type, Authorization, X-Device-ID');
+
+// Inclure la classe ResponseHandler
+require_once __DIR__ . '/utils/ResponseHandler.php';
 
 // Vérifier si la requête est OPTIONS (preflight CORS)
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
@@ -12,81 +20,72 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit;
 }
 
-// Récupérer les paramètres
-$userId = isset($_GET['userId']) ? $_GET['userId'] : null;
-$deviceId = isset($_GET['deviceId']) ? $_GET['deviceId'] : null;
+// Vérifier que la méthode HTTP est GET
+if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
+    ResponseHandler::error(
+        "Méthode non autorisée. Utilisez GET.",
+        405
+    );
+}
 
-// Vérifier que les paramètres nécessaires sont présents
+// Récupérer et valider les paramètres
+$userId = $_GET['userId'] ?? null;
+$deviceId = $_GET['deviceId'] ?? null;
+
 if (!$userId || !$deviceId) {
-    http_response_code(400);
-    echo json_encode([
-        'success' => false,
-        'message' => 'Paramètres manquants: userId et deviceId sont requis',
-        'status' => 400
+    ResponseHandler::error(
+        'Paramètres manquants. userId et deviceId sont requis.',
+        400
+    );
+}
+
+try {
+    // Données de test pour les membres
+    $membres = [
+        [
+            'id' => 'membre_test_1',
+            'nom' => 'Dupont',
+            'prenom' => 'Jean',
+            'fonction' => 'Directeur',
+            'initiales' => 'JD',
+            'email' => 'jean.dupont@example.com',
+            'telephone' => '+33 6 12 34 56 78',
+            'date_creation' => date('Y-m-d\TH:i:s\Z', strtotime('-10 days'))
+        ],
+        [
+            'id' => 'membre_test_2',
+            'nom' => 'Martin',
+            'prenom' => 'Sophie',
+            'fonction' => 'Responsable RH',
+            'initiales' => 'SM',
+            'email' => 'sophie.martin@example.com',
+            'telephone' => '+33 6 23 45 67 89',
+            'date_creation' => date('Y-m-d\TH:i:s\Z', strtotime('-5 days'))
+        ],
+        [
+            'id' => 'membre_test_3',
+            'nom' => 'Dubois',
+            'prenom' => 'Michel',
+            'fonction' => 'Responsable Qualité',
+            'initiales' => 'MD',
+            'email' => 'michel.dubois@example.com',
+            'telephone' => '+33 6 34 56 78 90',
+            'date_creation' => date('Y-m-d\TH:i:s\Z', strtotime('-2 days'))
+        ]
+    ];
+    
+    // Réponse standard de succès
+    ResponseHandler::success([
+        'membres' => $membres,
+        'count' => count($membres),
+        'userId' => $userId,
+        'deviceId' => $deviceId
     ]);
-    exit;
+    
+} catch (Exception $e) {
+    ResponseHandler::error(
+        'Erreur lors du chargement des membres: ' . $e->getMessage(),
+        500
+    );
 }
-
-// En production, ces données seraient récupérées depuis une base de données
-// Pour l'instant, nous renvoyons des données de test
-
-$membres = [
-    [
-        'id' => 'membre_test_1',
-        'nom' => 'Dupont',
-        'prenom' => 'Jean',
-        'fonction' => 'Directeur',
-        'initiales' => 'JD',
-        'email' => 'jean.dupont@example.com',
-        'telephone' => '+33 6 12 34 56 78',
-        'date_creation' => date('Y-m-d H:i:s', strtotime('-10 days'))
-    ],
-    [
-        'id' => 'membre_test_2',
-        'nom' => 'Martin',
-        'prenom' => 'Sophie',
-        'fonction' => 'Responsable RH',
-        'initiales' => 'SM',
-        'email' => 'sophie.martin@example.com',
-        'telephone' => '+33 6 23 45 67 89',
-        'date_creation' => date('Y-m-d H:i:s', strtotime('-5 days'))
-    ],
-    [
-        'id' => 'membre_test_3',
-        'nom' => 'Dubois',
-        'prenom' => 'Michel',
-        'fonction' => 'Responsable Qualité',
-        'initiales' => 'MD',
-        'email' => 'michel.dubois@example.com',
-        'telephone' => '+33 6 34 56 78 90',
-        'date_creation' => date('Y-m-d H:i:s', strtotime('-2 days'))
-    ]
-];
-
-// Enregistrer les informations de chargement (facultatif, pour le suivi)
-$dataDir = __DIR__ . '/data';
-if (!is_dir($dataDir)) {
-    mkdir($dataDir, 0755, true);
-}
-
-$loadInfo = [
-    'userId' => $userId,
-    'deviceId' => $deviceId,
-    'timestamp' => date('Y-m-d H:i:s'),
-    'ip' => $_SERVER['REMOTE_ADDR']
-];
-
-$filename = $dataDir . '/membres_load_' . $userId . '_' . date('Ymd_His') . '.json';
-file_put_contents($filename, json_encode($loadInfo, JSON_PRETTY_PRINT));
-
-// Renvoyer les données
-echo json_encode([
-    'success' => true,
-    'message' => 'Chargement des membres réussi',
-    'membres' => $membres,
-    'count' => count($membres),
-    'userId' => $userId,
-    'deviceId' => $deviceId,
-    'timestamp' => date('Y-m-d H:i:s')
-]);
 ?>
