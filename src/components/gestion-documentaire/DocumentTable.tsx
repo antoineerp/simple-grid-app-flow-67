@@ -63,7 +63,7 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
             {documents.map((doc, index) => (
               <tr key={doc.id}>
                 <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm font-medium text-gray-900">{doc.name}</div>
+                  <div className="text-sm font-medium text-gray-900">{doc.nom}</div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="text-sm text-gray-500">
@@ -73,7 +73,10 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
-                    Actif
+                    {doc.etat === 'NC' ? 'Non conforme' :
+                     doc.etat === 'PC' ? 'Partiellement conforme' :
+                     doc.etat === 'C' ? 'Conforme' :
+                     doc.etat === 'EX' ? 'Exclus' : 'Non défini'}
                   </span>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
