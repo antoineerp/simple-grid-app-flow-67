@@ -80,8 +80,6 @@ const ProtectedLayout: React.FC = () => {
     </div>;
   }
 
-  // The Layout component already contains an Outlet component based on its implementation
-  // So we should use it directly without passing children
   return <Layout />;
 };
 

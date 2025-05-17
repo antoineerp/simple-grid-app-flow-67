@@ -67,7 +67,7 @@ function App() {
               {/* Public route */}
               <Route path="/" element={<Index />} />
               
-              {/* Protected routes using the ProtectedRoute wrapper */}
+              {/* Protected routes using the Layout wrapper inside ProtectedRoute */}
               <Route path="/pilotage" element={
                 <ProtectedRoute element={
                   <Layout>
