@@ -8,6 +8,7 @@ import { PlusCircle, FolderPlus } from 'lucide-react';
 import { DocumentDialog } from '@/features/bibliotheque/components/DocumentDialog';
 import GroupDialog from '@/features/bibliotheque/components/GroupDialog';
 import { useToast } from '@/hooks/use-toast';
+import { v4 as uuidv4 } from 'uuid';
 
 const Collaboration = () => {
   const { toast } = useToast();
@@ -15,6 +16,19 @@ const Collaboration = () => {
   const [isGroupDialogOpen, setIsGroupDialogOpen] = useState(false);
   const [selectedDocument, setSelectedDocument] = useState<Document | null>(null);
   const [selectedGroup, setSelectedGroup] = useState<DocumentGroup | null>(null);
+  const [documentForm, setDocumentForm] = useState<Document>({
+    id: '',
+    name: '',
+    link: '',
+    userId: 'user1'
+  });
+  const [groupForm, setGroupForm] = useState<DocumentGroup>({
+    id: '',
+    name: '',
+    expanded: true,
+    items: [],
+    userId: 'user1'
+  });
   
   // Exemple de données pour la démo - dans un cas réel, ces données viendraient d'une API
   const [documents, setDocuments] = useState<Document[]>([
@@ -34,22 +48,37 @@ const Collaboration = () => {
   
   const handleAddDocument = () => {
     setSelectedDocument(null);
+    setDocumentForm({
+      id: uuidv4(),
+      name: '',
+      link: '',
+      userId: 'user1'
+    });
     setIsDocumentDialogOpen(true);
   };
   
   const handleAddGroup = () => {
     setSelectedGroup(null);
+    setGroupForm({
+      id: uuidv4(),
+      name: '',
+      expanded: true,
+      items: [],
+      userId: 'user1'
+    });
     setIsGroupDialogOpen(true);
   };
   
   const handleEditDocument = (document: Document, group?: DocumentGroup) => {
     setSelectedDocument(document);
+    setDocumentForm({ ...document });
     setSelectedGroup(group || null);
     setIsDocumentDialogOpen(true);
   };
   
   const handleEditGroup = (group: DocumentGroup) => {
     setSelectedGroup(group);
+    setGroupForm({ ...group });
     setIsGroupDialogOpen(true);
   };
   
@@ -72,11 +101,27 @@ const Collaboration = () => {
     });
   };
   
-  const handleSaveDocument = (document: Document) => {
+  const handleDocumentChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setDocumentForm(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+  
+  const handleGroupChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setGroupForm(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+  
+  const handleSaveDocument = () => {
     if (selectedDocument) {
       // Mise à jour d'un document existant
       setDocuments(documents.map(doc => 
-        doc.id === document.id ? document : doc
+        doc.id === documentForm.id ? documentForm : doc
       ));
       toast({
         title: "Document mis à jour",
@@ -84,7 +129,7 @@ const Collaboration = () => {
       });
     } else {
       // Ajout d'un nouveau document
-      setDocuments([...documents, document]);
+      setDocuments([...documents, documentForm]);
       toast({
         title: "Document créé",
         description: "Le document a été créé avec succès"
@@ -93,11 +138,11 @@ const Collaboration = () => {
     setIsDocumentDialogOpen(false);
   };
   
-  const handleSaveGroup = (group: DocumentGroup) => {
+  const handleSaveGroup = () => {
     if (selectedGroup) {
       // Mise à jour d'un groupe existant
       setGroups(groups.map(g => 
-        g.id === group.id ? group : g
+        g.id === groupForm.id ? groupForm : g
       ));
       toast({
         title: "Groupe mis à jour",
@@ -105,8 +150,8 @@ const Collaboration = () => {
       });
     } else {
       // Ajout d'un nouveau groupe
-      setGroups([...groups, group]);
-      setExpandedGroups({ ...expandedGroups, [group.id]: true });
+      setGroups([...groups, groupForm]);
+      setExpandedGroups({ ...expandedGroups, [groupForm.id]: true });
       toast({
         title: "Groupe créé",
         description: "Le groupe a été créé avec succès"
@@ -139,6 +184,14 @@ const Collaboration = () => {
       title: "Ordre modifié",
       description: "L'ordre des groupes a été modifié"
     });
+  };
+
+  const handleCloseDocumentDialog = () => {
+    setIsDocumentDialogOpen(false);
+  };
+  
+  const handleCloseGroupDialog = () => {
+    setIsGroupDialogOpen(false);
   };
 
   return (
@@ -183,18 +236,23 @@ const Collaboration = () => {
       </Card>
       
       <DocumentDialog 
-        open={isDocumentDialogOpen}
+        isOpen={isDocumentDialogOpen}
         onOpenChange={setIsDocumentDialogOpen}
-        document={selectedDocument}
+        onClose={handleCloseDocumentDialog}
+        document={documentForm}
+        isEditing={!!selectedDocument}
+        onChange={handleDocumentChange}
         onSave={handleSaveDocument}
-        groups={groups}
       />
       
       <GroupDialog
-        open={isGroupDialogOpen}
+        isOpen={isGroupDialogOpen}
         onOpenChange={setIsGroupDialogOpen}
-        group={selectedGroup}
+        onClose={handleCloseGroupDialog}
+        group={groupForm}
         onSave={handleSaveGroup}
+        onChange={handleGroupChange}
+        isEditing={!!selectedGroup}
       />
     </div>
   );
