@@ -102,7 +102,7 @@ jobs:
         echo "Configuration de l'API..."
         
         # Création du fichier .htaccess pour l'API
-        cat > deploy/api/.htaccess << 'EOL'
+        cat > deploy/api/.htaccess << 'EOF'
 # Activer la réécriture d'URL
 RewriteEngine On
 
@@ -143,21 +143,21 @@ RewriteRule \.(php)$ - [L]
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^(.*)$ index.php [QSA,L]
-EOL
+EOF
         
         # Création du fichier de configuration DB
-        cat > deploy/api/config/db_config.json << 'EOL'
+        cat > deploy/api/config/db_config.json << 'EOF'
 {
     "host": "p71x6d.myd.infomaniak.com",
     "db_name": "p71x6d_richard",
     "username": "p71x6d_richard",
     "password": "Trottinette43!"
 }
-EOL
+EOF
         
         # Création du fichier env.php
         mkdir -p deploy/api/config
-        cat > deploy/api/config/env.php << 'EOL'
+        cat > deploy/api/config/env.php << 'EOF'
 <?php
 // Configuration des variables d'environnement pour Infomaniak
 define("DB_HOST", "p71x6d.myd.infomaniak.com");
@@ -176,7 +176,7 @@ function get_env($key, $default = null) {
     return $default;
 }
 ?>
-EOL
+EOF
         
         # Copie des fichiers PHP de l'API
         if [ -d "api" ]; then
@@ -201,11 +201,11 @@ EOL
         fi
         
         # Créer un fichier README dans le dossier documentation
-        cat > deploy/api/documentation/README.md << 'EOL'
+        cat > deploy/api/documentation/README.md << 'EOF'
 # Documentation API
 
 Ce dossier contient la documentation de l'API.
-EOL
+EOF
         
         # Vérification des fichiers critiques
         echo "=== Vérification des fichiers critiques ==="
