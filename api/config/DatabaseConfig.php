@@ -48,23 +48,6 @@ class DatabaseConfig {
         $this->username = "p71x6d_richard";
     }
 
-    public function saveConfig() {
-        // Forcer les valeurs Infomaniak
-        $this->host = 'p71x6d.myd.infomaniak.com';
-        $this->db_name = 'p71x6d_richard';
-        $this->username = 'p71x6d_richard';
-        $this->password = 'Trottinette43!';
-        
-        $config = [
-            'host' => $this->host,
-            'db_name' => $this->db_name,
-            'username' => $this->username,
-            'password' => $this->password
-        ];
-        
-        return file_put_contents($this->configFile, json_encode($config, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
-    }
-
     public function getConfig() {
         return [
             'host' => $this->host,
@@ -94,5 +77,22 @@ class DatabaseConfig {
         $this->password = 'Trottinette43!';
         
         return $this->saveConfig();
+    }
+
+    public function saveConfig() {
+        // Forcer les valeurs Infomaniak
+        $this->host = 'p71x6d.myd.infomaniak.com';
+        $this->db_name = 'p71x6d_richard';
+        $this->username = 'p71x6d_richard';
+        $this->password = 'Trottinette43!';
+        
+        $config = [
+            'host' => $this->host,
+            'db_name' => $this->db_name,
+            'username' => $this->username,
+            'password' => $this->password
+        ];
+        
+        return file_put_contents($this->configFile, json_encode($config, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
     }
 }

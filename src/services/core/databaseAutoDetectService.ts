@@ -23,7 +23,7 @@ export const databaseAutoDetectService = {
       // Forcer l'utilisation de la base de données d'Infomaniak uniquement
       const databaseStatus: DatabaseStatus = {
         status: "success",
-        working_connections: ["richard"],
+        working_connections: ["p71x6d_richard"],
         primary_db: "p71x6d_richard", 
         message: "Connexion établie à p71x6d_richard (Infomaniak)"
       };
@@ -35,7 +35,7 @@ export const databaseAutoDetectService = {
       // Fallback: utiliser la base p71x6d_richard d'Infomaniak
       const fallbackStatus: DatabaseStatus = {
         status: "success",
-        working_connections: ["richard"],
+        working_connections: ["p71x6d_richard"],
         primary_db: "p71x6d_richard", 
         message: "Connexion forcée à p71x6d_richard (Infomaniak)"
       };
