@@ -34,107 +34,45 @@ header('Content-Type: text/html; charset=utf-8');
         <h1>Déclencher le workflow GitHub unifié</h1>
         
         <div class="card">
-            <h2>État du fichier de workflow</h2>
+            <h2>Workflows disponibles</h2>
             <?php
-            $workflow_file = './.github/workflows/deploy-unified.yml';
-            $workflow_file_root = './deploy-unified.yml';
-            $workflow_file_root_hidden = './.deploy-unified.yml';
+            // Liste des chemins possibles pour les fichiers de workflow
+            $workflow_paths = [
+                './.github/workflows/deploy-unified.yml',  // Chemin standard
+                './.github/workflows/deploy.yml',          // Workflow standard
+                './deploy-unified.yml',                    // À la racine (rapporté par l'utilisateur)
+                './.deploy-unified.yml',                   // Caché à la racine
+                './deploy.yml',                            // Alternative à la racine
+            ];
             
-            if (file_exists($workflow_file)) {
-                echo "<div class='success'>Le fichier de workflow a été trouvé dans .github/workflows.</div>";
-                echo "<p>Chemin: " . realpath($workflow_file) . "</p>";
-                echo "<p>Dernière modification: " . date("Y-m-d H:i:s", filemtime($workflow_file)) . "</p>";
-                
-                // Vérification basique de la syntaxe YAML
-                $content = file_get_contents($workflow_file);
-                $lines = explode("\n", $content);
-                $lineCount = count($lines);
-                
-                echo "<p>Le fichier contient {$lineCount} lignes.</p>";
-                
-                // Rechercher des problèmes de syntaxe communs
-                $potentialIssues = array();
-                
-                for ($i = 0; $i < $lineCount; $i++) {
-                    $lineNum = $i + 1;
-                    $line = trim($lines[$i]);
-                    
-                    // Vérifier les indentations incohérentes
-                    if (strpos($line, "\t") !== false) {
-                        $potentialIssues[] = "Ligne {$lineNum}: Mélange d'espaces et de tabulations";
-                    }
-                    
-                    // Vérifier les guillemets non fermés
-                    $singleQuotes = substr_count($line, "'") % 2;
-                    $doubleQuotes = substr_count($line, "\"") % 2;
-                    if ($singleQuotes !== 0 || $doubleQuotes !== 0) {
-                        // Ignorer certains cas spécifiques comme les regex
-                        if (strpos($line, "FilesMatch") === false) {
-                            $potentialIssues[] = "Ligne {$lineNum}: Possible problème de guillemets non fermés";
-                        }
-                    }
-                    
-                    // Problèmes spécifiques connus
-                    if ($lineNum == 97 || $lineNum == 96 || $lineNum == 98) {
-                        echo "<div class='warning'>Ligne {$lineNum}: <code>" . htmlspecialchars($line) . "</code></div>";
-                    }
+            $found_workflows = [];
+            
+            foreach ($workflow_paths as $path) {
+                if (file_exists($path)) {
+                    $found_workflows[$path] = [
+                        'path' => $path,
+                        'last_modified' => date("Y-m-d H:i:s", filemtime($path)),
+                        'size' => filesize($path),
+                    ];
                 }
-                
-                if (!empty($potentialIssues)) {
-                    echo "<div class='warning'><strong>Problèmes potentiels détectés:</strong><ul>";
-                    foreach ($potentialIssues as $issue) {
-                        echo "<li>{$issue}</li>";
-                    }
-                    echo "</ul></div>";
-                } else {
-                    echo "<div class='success'>Aucun problème syntaxique évident n'a été détecté.</div>";
+            }
+            
+            if (!empty($found_workflows)) {
+                echo "<div class='success'>Fichiers de workflow trouvés: " . count($found_workflows) . "</div>";
+                echo "<ul>";
+                foreach ($found_workflows as $path => $info) {
+                    echo "<li><strong>" . htmlspecialchars($path) . "</strong>";
+                    echo " - Dernière modification: " . $info['last_modified'];
+                    echo " - Taille: " . $info['size'] . " octets";
+                    echo "</li>";
                 }
-                
-                // Afficher les 5 lignes autour de la ligne 97 (problématique)
-                echo "<div class='debug-info'>";
-                echo "<h3>Contexte de la ligne 97:</h3>";
-                echo "<pre>";
-                $startLine = max(92, 1);
-                $endLine = min(102, $lineCount);
-                for ($i = $startLine - 1; $i < $endLine; $i++) {
-                    $lineNum = $i + 1;
-                    $highlight = ($lineNum >= 96 && $lineNum <= 98) ? "style='background-color:#fff3cd;'" : "";
-                    echo "<div {$highlight}><strong>{$lineNum}:</strong> " . htmlspecialchars($lines[$i]) . "</div>";
-                }
-                echo "</pre></div>";
-                
-            } elseif (file_exists($workflow_file_root)) {
-                echo "<div class='warning'>Le fichier de workflow a été trouvé à la racine, mais pas dans .github/workflows.</div>";
-                echo "<p>Il est recommandé de le déplacer dans le dossier .github/workflows/.</p>";
-                echo "<p>Dernière modification: " . date("Y-m-d H:i:s", filemtime($workflow_file_root)) . "</p>";
-                
-                // Créer le dossier .github/workflows si nécessaire
-                if (!is_dir('./.github/workflows')) {
-                    if (!is_dir('./.github')) {
-                        @mkdir('./.github');
-                    }
-                    @mkdir('./.github/workflows', 0755, true);
-                    
-                    if (is_dir('./.github/workflows')) {
-                        // Copier le fichier
-                        if (copy($workflow_file_root, $workflow_file)) {
-                            echo "<div class='success'>Le fichier a été automatiquement copié vers .github/workflows/</div>";
-                        } else {
-                            echo "<div class='error'>Impossible de copier le fichier vers .github/workflows/</div>";
-                        }
-                    } else {
-                        echo "<div class='error'>Impossible de créer le dossier .github/workflows/</div>";
-                    }
-                }
-            } elseif (file_exists($workflow_file_root_hidden)) {
-                echo "<div class='warning'>Le fichier de workflow a été trouvé à la racine (caché), mais pas dans .github/workflows.</div>";
-                echo "<p>Il est recommandé de le déplacer dans le dossier .github/workflows/.</p>";
+                echo "</ul>";
             } else {
-                echo "<div class='error'>Le fichier de workflow n'existe pas.</div>";
-                echo "<p>Assurez-vous que le fichier deploy-unified.yml est présent dans .github/workflows/</p>";
-                echo "<p>Chemins vérifiés:</p><ul>";
-                echo "<li>" . realpath('./') . "/.github/workflows/deploy-unified.yml</li>";
-                echo "<li>" . realpath('./') . "/deploy-unified.yml</li>";
+                echo "<div class='error'>Aucun fichier de workflow trouvé!</div>";
+                echo "<p>Les chemins suivants ont été vérifiés:</p><ul>";
+                foreach ($workflow_paths as $path) {
+                    echo "<li>" . htmlspecialchars($path) . "</li>";
+                }
                 echo "</ul>";
             }
             ?>
@@ -226,7 +164,21 @@ header('Content-Type: text/html; charset=utf-8');
                 
                 <div class="form-group">
                     <label for="workflow_id">ID du workflow:</label>
-                    <input type="text" id="workflow_id" name="workflow_id" class="input-field" value="deploy-unified.yml" required>
+                    <select id="workflow_id" name="workflow_id" class="input-field" required>
+                        <?php
+                        // Remplir le sélecteur avec les workflows trouvés
+                        if (!empty($found_workflows)) {
+                            foreach ($found_workflows as $path => $info) {
+                                $filename = basename($path);
+                                $selected = ($filename === 'deploy.yml') ? 'selected' : '';
+                                echo "<option value='{$filename}' {$selected}>{$filename} (OK)</option>";
+                            }
+                        } else {
+                            echo "<option value='deploy.yml'>deploy.yml (standard)</option>";
+                            echo "<option value='deploy-unified.yml'>deploy-unified.yml (unifié)</option>";
+                        }
+                        ?>
+                    </select>
                 </div>
                 
                 <div class="form-group">
