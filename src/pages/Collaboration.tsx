@@ -23,8 +23,8 @@ const Collaboration = () => {
   ]);
   
   const [groups, setGroups] = useState<DocumentGroup[]>([
-    { id: 'g1', name: 'Documents organisationnels', expanded: true },
-    { id: 'g2', name: 'Documents administratifs', expanded: true }
+    { id: 'g1', name: 'Documents organisationnels', expanded: true, items: [], userId: 'user1' },
+    { id: 'g2', name: 'Documents administratifs', expanded: true, items: [], userId: 'user1' }
   ]);
   
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({
