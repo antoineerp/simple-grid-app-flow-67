@@ -5,7 +5,7 @@ import { BibliothequeTable } from '@/features/bibliotheque/components/Bibliotheq
 import { Document, DocumentGroup } from '@/types/bibliotheque';
 import { Button } from '@/components/ui/button';
 import { PlusCircle, FolderPlus } from 'lucide-react';
-import DocumentDialog from '@/features/bibliotheque/components/DocumentDialog';
+import { DocumentDialog } from '@/features/bibliotheque/components/DocumentDialog';
 import GroupDialog from '@/features/bibliotheque/components/GroupDialog';
 import { useToast } from '@/hooks/use-toast';
 
@@ -23,8 +23,8 @@ const Collaboration = () => {
   ]);
   
   const [groups, setGroups] = useState<DocumentGroup[]>([
-    { id: 'g1', name: 'Documents organisationnels', isExpanded: true },
-    { id: 'g2', name: 'Documents administratifs', isExpanded: true }
+    { id: 'g1', name: 'Documents organisationnels', expanded: true },
+    { id: 'g2', name: 'Documents administratifs', expanded: true }
   ]);
   
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({
@@ -121,7 +121,7 @@ const Collaboration = () => {
       [id]: !expandedGroups[id]
     });
     setGroups(groups.map(group =>
-      group.id === id ? { ...group, isExpanded: !group.isExpanded } : group
+      group.id === id ? { ...group, expanded: !group.expanded } : group
     ));
   };
   

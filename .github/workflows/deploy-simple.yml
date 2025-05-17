@@ -55,9 +55,9 @@ jobs:
     - name: Copy dist directory to deployment
       run: |
         mkdir -p deploy/dist
-        cp -r dist/* deploy/dist/
-        echo "Contenu du dossier deploy/dist:"
-        ls -la deploy/dist/
+        cp -r dist/* deploy/
+        echo "Contenu du dossier deploy après copie du dist:"
+        ls -la deploy/
       
     - name: Create required directories to prevent FTP errors
       run: |
@@ -133,4 +133,5 @@ jobs:
           [ -f "api/config/db_config.json" ] && echo "✅ api/config/db_config.json: PRÉSENT" || echo "❌ api/config/db_config.json: MANQUANT"
           [ -d "api/documentation" ] && echo "✅ api/documentation: PRÉSENT" || echo "❌ api/documentation: MANQUANT"
           find api -name "*.php" | wc -l
-          [ -d "dist" ] && echo "✅ dossier dist: PRÉSENT" || echo "❌ dossier dist: MANQUANT"
+          [ -d "assets" ] && echo "✅ dossier assets: PRÉSENT" || echo "❌ dossier assets: MANQUANT"
+          [ -f "index.html" ] && echo "✅ fichier index.html: PRÉSENT" || echo "❌ fichier index.html: MANQUANT"
