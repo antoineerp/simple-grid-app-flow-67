@@ -31,6 +31,7 @@ mkdir -p deploy/api/documentation
 mkdir -p deploy/public/lovable-uploads
 mkdir -p deploy/public/error-pages
 mkdir -p deploy/.github/workflows
+mkdir -p deploy/api-tools
 
 # Copie des fichiers de l'application
 echo "Copie des fichiers de l'application..."
@@ -41,6 +42,17 @@ cp index.html deploy/ 2>/dev/null || echo "index.html non trouvé"
 cp .htaccess deploy/ 2>/dev/null || echo ".htaccess racine non trouvé"
 cp .user.ini deploy/ 2>/dev/null || echo ".user.ini racine non trouvé"
 cp error-handler.php deploy/ 2>/dev/null || echo "error-handler.php non trouvé"
+
+# Copie des scripts de correction et diagnostic
+cp pre-deploy-fix.php deploy/ || echo "pre-deploy-fix.php non trouvé"
+cp check-build-status.php deploy/ || echo "check-build-status.php non trouvé"
+cp fix-missing-files.php deploy/ || echo "fix-missing-files.php non trouvé"
+cp fix-index-assets-simplified.php deploy/ || echo "fix-index-assets-simplified.php non trouvé"
+cp check-route-duplication.php deploy/ || echo "check-route-duplication.php non trouvé"
+
+# Exécution du script de préparation
+echo "Exécution du script de préparation..."
+php -f pre-deploy-fix.php
 
 # Copie DIRECTE du contenu du dossier dist/
 echo "Copie du contenu du dossier dist/..."
@@ -253,6 +265,11 @@ Ce dossier contient la documentation de l'API.
 EOL
 echo "✅ Fichier README.md créé dans api/documentation"
 
+# Exécuter le script de correction d'index.html
+echo "Exécution de fix-index-assets-simplified.php..."
+php -f fix-index-assets-simplified.php
+echo "✅ fix-index-assets-simplified.php exécuté"
+
 # Vérification des fichiers critiques
 echo ""
 echo "=== Vérification des fichiers critiques ==="
@@ -263,6 +280,9 @@ critical_files=(
   "deploy/index.html"
   "deploy/assets/main.css"
   "deploy/check-css.php"
+  "deploy/pre-deploy-fix.php"
+  "deploy/fix-index-assets-simplified.php"
+  "deploy/check-build-status.php"
 )
 
 all_ok=true

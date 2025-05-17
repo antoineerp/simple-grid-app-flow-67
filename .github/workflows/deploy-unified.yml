@@ -46,6 +46,7 @@ jobs:
         mkdir -p deploy/api/documentation
         mkdir -p deploy/public/lovable-uploads
         mkdir -p deploy/public/error-pages
+        mkdir -p deploy/api-tools
         
         # Copie des fichiers principaux de l'application
         cp index.php deploy/ || echo "index.php non trouvé"
@@ -62,6 +63,14 @@ jobs:
         cp .user.ini deploy/ || echo ".user.ini non trouvé"
         cp error-handler.php deploy/ || echo "error-handler.php non trouvé"
         cp fix-css-deployment.php deploy/ || echo "fix-css-deployment.php non trouvé"
+        
+        # Copier les scripts de correction et diagnostic
+        cp pre-deploy-fix.php deploy/ || echo "pre-deploy-fix.php non trouvé"
+        cp check-build-status.php deploy/ || echo "check-build-status.php non trouvé"
+        cp fix-missing-files.php deploy/ || echo "fix-missing-files.php non trouvé"
+        cp fix-index-assets-simplified.php deploy/ || echo "fix-index-assets-simplified.php non trouvé"
+        cp check-route-duplication.php deploy/ || echo "check-route-duplication.php non trouvé"
+        cp check-workflows.php deploy/ || echo "check-workflows.php non trouvé"
         
         # Copier les fichiers du dossier dist s'il existe
         if [ -d "dist" ]; then
@@ -217,6 +226,11 @@ EOF
           "deploy/index.html"
           "deploy/.htaccess"
           "deploy/assets/main.css"
+          "deploy/pre-deploy-fix.php"
+          "deploy/check-build-status.php"
+          "deploy/fix-missing-files.php"
+          "deploy/fix-index-assets-simplified.php"
+          "deploy/check-route-duplication.php"
         )
         
         all_ok=true
@@ -241,6 +255,13 @@ EOF
           exit 1
         fi
     
+    # Cette partie est importante: exécuter le script de préparation avant de déployer
+    - name: Run pre-deployment fixes
+      run: |
+        cd deploy
+        php -f pre-deploy-fix.php
+        echo "✅ Scripts de pré-déploiement exécutés"
+    
     - name: Deploy via FTP
       uses: SamKirkland/FTP-Deploy-Action@4.3.3
       with:
@@ -251,7 +272,7 @@ EOF
         server-dir: ./
         dangerous-clean-slate: false
         
-    - name: Execute post-deployment CSS check
+    - name: Execute post-deployment checks
       uses: appleboy/ssh-action@master
       with:
         host: ${{ secrets.FTP_SERVER }}
@@ -259,6 +280,8 @@ EOF
         password: ${{ secrets.FTP_PASSWORD }}
         script: |
           cd /sites/qualiopi.ch/
-          echo "=== Post-deployment CSS check ==="
-          php fix-css-deployment.php || echo "❌ Error running fix-css-deployment.php"
-          echo "=== CSS check completed ==="
+          echo "=== Post-deployment checks ==="
+          php -f pre-deploy-fix.php || echo "❌ Error running pre-deploy-fix.php"
+          php -f fix-index-assets-simplified.php || echo "❌ Error running fix-index-assets-simplified.php"
+          php -f check-build-status.php || echo "❌ Error running check-build-status.php"
+          echo "=== Post-deployment checks completed ==="

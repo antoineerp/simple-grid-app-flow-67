@@ -42,6 +42,12 @@ jobs:
         find dist -name "*.css" | grep -i main || echo "Aucun fichier main CSS trouvé dans dist"
         find dist -name "*.js" | grep -i index || echo "Aucun fichier index JS trouvé dans dist"
         find dist -name "*.js" | grep -i main || echo "Aucun fichier main JS trouvé dans dist"
+      
+    - name: Create API directories and fix files
+      run: |
+        echo "Executing pre-deploy fixes..."
+        php -f pre-deploy-fix.php
+        echo "✅ Pre-deploy fixes completed"
         
     - name: Execute deployment script
       run: |
@@ -59,11 +65,11 @@ jobs:
       run: |
         echo "Creating API diagnostic tools..."
         mkdir -p deploy/api-tools
-        cp fix-cors.php deploy/
-        cp fix-htaccess.php deploy/
-        cp create-api-htaccess.php deploy/
-        cp fix-css-deployment.php deploy/
-        cp correct-htaccess-for-php.sh deploy/
+        cp fix-cors.php deploy/ || echo "fix-cors.php not found"
+        cp fix-htaccess.php deploy/ || echo "fix-htaccess.php not found" 
+        cp create-api-htaccess.php deploy/ || echo "create-api-htaccess.php not found"
+        cp fix-css-deployment.php deploy/ || echo "fix-css-deployment.php not found"
+        cp correct-htaccess-for-php.sh deploy/ || echo "correct-htaccess-for-php.sh not found"
       
     - name: Find and copy hashed files
       run: |
@@ -153,20 +159,23 @@ jobs:
           find assets -name "*.js" | grep -E '[a-zA-Z0-9]{8}\.' || echo "❌ Aucun fichier JS haché trouvé"
           find assets -name "*.css" | grep -E '[a-zA-Z0-9]{8}\.' || echo "❌ Aucun fichier CSS haché trouvé"
           
+          # Exécuter le script de préparation
+          php -f pre-deploy-fix.php || echo "❌ Error running pre-deploy-fix.php"
+          
           # Exécuter la réparation automatique des erreurs CORS
-          php -f fix-cors.php
+          php -f fix-cors.php || echo "❌ Error running fix-cors.php"
           
           # Corriger les problèmes de CSS si nécessaire
-          php -f fix-css-deployment.php
+          php -f fix-css-deployment.php || echo "❌ Error running fix-css-deployment.php"
           
           # Corriger les chemins dans .htaccess
-          php -f fix-htaccess.php
+          php -f fix-htaccess.php || echo "❌ Error running fix-htaccess.php"
           
           # Créer un fichier .htaccess pour l'API si nécessaire
-          [ -f "api/.htaccess" ] || php -f create-api-htaccess.php
+          [ -f "api/.htaccess" ] || php -f create-api-htaccess.php || echo "❌ Error creating API .htaccess"
           
           # Exécuter le script de diagnostic en arrière-plan
-          php -f post-deploy-css-check.php
+          php -f post-deploy-css-check.php || echo "❌ Error running post-deploy-css-check.php"
           
           # Vérifier et réparer les références d'assets dans index.html
-          php -f fix-index-assets.php
+          php -f fix-index-assets-simplified.php || echo "❌ Error running fix-index-assets-simplified.php"
