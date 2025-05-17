@@ -29,6 +29,7 @@ mkdir -p deploy/api/operations
 mkdir -p deploy/api/utils
 mkdir -p deploy/api/documentation
 mkdir -p deploy/public/lovable-uploads
+mkdir -p deploy/public/error-pages
 mkdir -p deploy/.github/workflows
 
 # Copie des fichiers de l'application
@@ -39,6 +40,7 @@ cp index.php deploy/
 cp index.html deploy/ 2>/dev/null || echo "index.html non trouvé"
 cp .htaccess deploy/ 2>/dev/null || echo ".htaccess racine non trouvé"
 cp .user.ini deploy/ 2>/dev/null || echo ".user.ini racine non trouvé"
+cp error-handler.php deploy/ 2>/dev/null || echo "error-handler.php non trouvé"
 
 # Copie des assets
 if [ -d "assets" ]; then
@@ -49,6 +51,20 @@ elif [ -d "dist/assets" ]; then
   cp -r dist/assets/* deploy/assets/
 else
   echo "ERREUR: Aucun dossier assets trouvé!"
+fi
+
+# Copier les fichiers du dossier dist s'il existe
+if [ -d "dist" ]; then
+  echo "Copie des fichiers du dossier dist..."
+  # Copier index.html de dist s'il existe
+  if [ -f "dist/index.html" ]; then
+    cp dist/index.html deploy/
+    echo "✅ index.html copié depuis dist/"
+  fi
+  
+  # Copier les autres fichiers de dist (sauf assets qui sont déjà copiés)
+  find dist -maxdepth 1 -type f -not -name "index.html" -exec cp {} deploy/ \;
+  echo "✅ Fichiers du dossier dist copiés"
 fi
 
 # Copie explicite et vérification de l'API htaccess
@@ -190,6 +206,9 @@ critical_files=(
   "deploy/api/config/db_config.json"
   "deploy/api/config/env.php"
   "deploy/index.php"
+  "deploy/index.html"
+  "deploy/.htaccess"
+  "deploy/error-handler.php"
 )
 
 all_ok=true
@@ -224,3 +243,4 @@ fi
 echo ""
 echo "=== Structure du déploiement ==="
 find deploy -type f | sort
+

@@ -45,6 +45,7 @@ jobs:
         mkdir -p deploy/api/utils
         mkdir -p deploy/api/documentation
         mkdir -p deploy/public/lovable-uploads
+        mkdir -p deploy/public/error-pages
         
         # Copie des fichiers principaux de l'application
         cp index.php deploy/ || echo "index.php non trouvé"
@@ -59,6 +60,14 @@ jobs:
         
         cp .htaccess deploy/ || echo ".htaccess non trouvé"
         cp .user.ini deploy/ || echo ".user.ini non trouvé"
+        cp error-handler.php deploy/ || echo "error-handler.php non trouvé"
+        
+        # Copier les fichiers du dossier dist s'il existe
+        if [ -d "dist" ]; then
+          echo "Copie des fichiers du dossier dist..."
+          # Copier tous les autres fichiers (sauf index.html déjà copié)
+          find dist -maxdepth 1 -type f -not -name "index.html" -exec cp {} deploy/ \;
+        fi
         
         # Copie des assets (priorité au dossier dist/assets)
         if [ -d "dist/assets" ]; then
@@ -184,6 +193,8 @@ EOL
           "deploy/api/config/db_config.json"
           "deploy/api/config/env.php"
           "deploy/index.php"
+          "deploy/index.html"
+          "deploy/.htaccess"
         )
         
         all_ok=true
