@@ -22,6 +22,16 @@ function extractRoutes($filePath) {
         }
     }
     
+    // Recherche des routes avec path="" et element={}
+    preg_match_all('/<Route\s+[^>]*path=["\']([^"\']*)["\'][^>]*element=/', $content, $elementMatches);
+    if (isset($elementMatches[1]) && count($elementMatches[1]) > 0) {
+        foreach ($elementMatches[1] as $route) {
+            if ($route !== '*' && $route !== '' && !in_array($route, $routes)) {
+                $routes[] = $route;
+            }
+        }
+    }
+    
     return $routes;
 }
 
@@ -59,6 +69,22 @@ function findDuplicates($array) {
     }
     
     return $duplicates;
+}
+
+// Normalisation des chemins de routes pour comparaison
+function normalizeRoutePath($path) {
+    // Enlever les slashes de début et de fin
+    $path = trim($path, '/');
+    
+    // Remplacer les tirets par des underscores pour la comparaison
+    $path = str_replace('-', '_', $path);
+    
+    return strtolower($path);
+}
+
+// Vérifier si deux routes sont équivalentes
+function routesAreEquivalent($route1, $route2) {
+    return normalizeRoutePath($route1) === normalizeRoutePath($route2);
 }
 
 // Analyse le fichier App.tsx principal pour les routes
@@ -185,10 +211,18 @@ if (count($links) > 0) {
                 $status = '';
                 
                 // Vérifier si le lien correspond à une route définie
-                if (in_array($link, $allRoutes)) {
+                $routeMatch = false;
+                foreach ($allRoutes as $route) {
+                    if ($link === $route || routesAreEquivalent($link, $route)) {
+                        $routeMatch = true;
+                        break;
+                    }
+                }
+                
+                if ($routeMatch) {
                     $class = 'valid-link';
                     $status = ' ✓';
-                } else if ($link[0] === '/' && !in_array($link, $allRoutes)) {
+                } else if ($link[0] === '/' && !$routeMatch) {
                     $class = 'invalid-link';
                     $status = ' ✗';
                 }
@@ -209,8 +243,33 @@ if (count($links) > 0) {
         }
     }
     
-    $missingRoutes = array_diff($allLinksFlat, $allRoutes);
-    $unusedRoutes = array_diff($allRoutes, $allLinksFlat);
+    $missingRoutes = [];
+    foreach ($allLinksFlat as $link) {
+        $hasEquivalent = false;
+        foreach ($allRoutes as $route) {
+            if ($link === $route || routesAreEquivalent($link, $route)) {
+                $hasEquivalent = true;
+                break;
+            }
+        }
+        if (!$hasEquivalent) {
+            $missingRoutes[] = $link;
+        }
+    }
+    
+    $unusedRoutes = [];
+    foreach ($allRoutes as $route) {
+        $hasEquivalent = false;
+        foreach ($allLinksFlat as $link) {
+            if ($route === $link || routesAreEquivalent($route, $link)) {
+                $hasEquivalent = true;
+                break;
+            }
+        }
+        if (!$hasEquivalent) {
+            $unusedRoutes[] = $route;
+        }
+    }
     
     if (count($missingRoutes) > 0) {
         echo "<h3>Liens sans route correspondante:</h3>";
@@ -229,6 +288,29 @@ if (count($links) > 0) {
         }
         echo "</ul>";
     }
+    
+    // Suggestions pour corriger les problèmes
+    echo "<h2>Suggestions d'amélioration</h2>";
+    
+    if (count($missingRoutes) > 0) {
+        echo "<h3>Routes à ajouter dans App.tsx:</h3>";
+        echo "<pre class='code-block'>";
+        foreach (array_unique($missingRoutes) as $route) {
+            echo "&lt;Route path=\"$route\" element={&lt;YourComponent /&gt;} /&gt;\n";
+        }
+        echo "</pre>";
+    }
+    
+    if (count($duplicates) > 0) {
+        echo "<h3>Routes en double à corriger:</h3>";
+        echo "<p>Les routes suivantes apparaissent plusieurs fois et devraient être unifiées:</p>";
+        echo "<ul>";
+        foreach ($duplicates as $route => $count) {
+            echo "<li>$route</li>";
+        }
+        echo "</ul>";
+    }
+    
 } else {
     echo "<p>Aucun lien trouvé dans les composants.</p>";
 }
@@ -277,5 +359,14 @@ if (count($links) > 0) {
         font-family: monospace;
         color: #666;
         font-size: 0.9em;
+    }
+    .code-block {
+        background-color: #f5f5f5;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        padding: 10px;
+        margin: 15px 0;
+        font-family: monospace;
+        white-space: pre-wrap;
     }
 </style>

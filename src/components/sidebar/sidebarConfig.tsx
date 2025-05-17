@@ -5,7 +5,8 @@ import {
   Briefcase, 
   Users, 
   CheckSquare,
-  FolderSync
+  FolderSync,
+  Settings
 } from 'lucide-react';
 
 export const navigationItems = [
@@ -33,5 +34,10 @@ export const navigationItems = [
     path: '/collaboration',
     icon: FolderSync,
     label: 'Collaboration'
+  },
+  {
+    path: '/administration',
+    icon: Settings,
+    label: 'Administration'
   }
 ];

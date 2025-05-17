@@ -16,6 +16,8 @@ const RessourcesHumaines = React.lazy(() => import('@/pages/RessourcesHumaines')
 const Collaboration = React.lazy(() => import('@/pages/Collaboration'));
 const Administration = React.lazy(() => import('@/pages/Administration'));
 const Admin = React.lazy(() => import('@/pages/Admin'));
+const DatabaseCheck = React.lazy(() => import('@/pages/DatabaseCheckPage'));
+const DbAdmin = React.lazy(() => import('@/pages/DbAdmin'));
 
 function App() {
   return (
@@ -38,6 +40,9 @@ function App() {
               <Route path="/administration" element={<Administration />} />
               <Route path="/admin" element={<Admin />} />
               <Route path="/admin/users" element={<Admin />} />
+              <Route path="/database-check" element={<DatabaseCheck />} />
+              <Route path="/db-admin" element={<DbAdmin />} />
+              <Route path="/settings" element={<Administration />} /> {/* Redirect /settings to /administration */}
             </Route>
             
             {/* Catch all */}
