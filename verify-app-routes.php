@@ -17,7 +17,7 @@ function analyzeRouting($filePath) {
         'lazyComponents' => []
     ];
     
-    // Extraire les routes
+    // Extraire les routes - amélioration des regex pour capturer plus de formats
     preg_match_all('/<Route[^>]*path=[\'"]([^\'"]*)[\'"][^>]*element={<?[^>]*(<|\{)([A-Za-z0-9_]+)(\}|\/?>)[^>]*}/', $content, $routeMatches);
     if (!empty($routeMatches[1])) {
         for ($i = 0; $i < count($routeMatches[1]); $i++) {
@@ -25,6 +25,19 @@ function analyzeRouting($filePath) {
                 'path' => $routeMatches[1][$i],
                 'component' => isset($routeMatches[3][$i]) ? $routeMatches[3][$i] : null
             ];
+        }
+    }
+    
+    // Extraire les routes avec pattern alternatif
+    preg_match_all('/<Route\s+[^>]*path=[\'"]([^\'"]*)[\'"]\s+[^>]*element\s*=\s*{(?:<)?([A-Za-z0-9_]+)(?:\/?>)?}/', $content, $altRouteMatches);
+    if (!empty($altRouteMatches[1])) {
+        for ($i = 0; $i < count($altRouteMatches[1]); $i++) {
+            if (!in_array($altRouteMatches[1][$i], array_column($result['routes'], 'path'))) {
+                $result['routes'][] = [
+                    'path' => $altRouteMatches[1][$i],
+                    'component' => $altRouteMatches[2][$i]
+                ];
+            }
         }
     }
     
@@ -112,6 +125,23 @@ function generateReport($analysis) {
                 padding: 2px 4px;
                 border-radius: 3px;
             }
+            .source-code {
+                font-family: monospace;
+                background-color: #f5f5f5;
+                padding: 15px;
+                border-radius: 5px;
+                white-space: pre-wrap;
+                overflow-x: auto;
+                font-size: 0.9em;
+                max-height: 300px;
+                overflow-y: auto;
+            }
+            .route-suggestion {
+                background-color: #e8f4fe;
+                border-left: 4px solid #0275d8;
+                padding: 10px 15px;
+                margin: 10px 0;
+            }
         </style>
     </head>
     <body>
@@ -121,6 +151,23 @@ function generateReport($analysis) {
             <div class="error"><?php echo $analysis['message']; ?></div>
         <?php else: ?>
             <h2>Structure de routage dans <?php echo basename($analysis['data']['file']); ?></h2>
+            
+            <?php
+            // Si très peu ou pas de routes trouvées, montrer les premiers 200 caractères du fichier
+            if (count($analysis['data']['routes']) < 2):
+                $content = file_get_contents($analysis['data']['file']);
+                $preview = substr($content, 0, 1000);
+            ?>
+                <div class="warning">
+                    <p>Peu ou pas de routes détectées. Voici un extrait du fichier pour vérification:</p>
+                    <div class="source-code"><?php echo htmlspecialchars($preview); ?>...</div>
+                </div>
+                
+                <div class="route-suggestion">
+                    <p><strong>Suggestion:</strong> Si votre application utilise bien React Router mais que les routes ne sont pas détectées, il est possible que la syntaxe utilisée soit différente. Vérifiez que les routes sont bien définies avec:</p>
+                    <div class="source-code">&lt;Route path="/chemin" element={&lt;Composant />} /&gt;</div>
+                </div>
+            <?php endif; ?>
             
             <h3>Routes définies</h3>
             <?php if (empty($analysis['data']['routes'])): ?>

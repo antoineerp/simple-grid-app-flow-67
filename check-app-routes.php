@@ -11,23 +11,32 @@ function extractRoutes($filePath) {
     $content = file_get_contents($filePath);
     $routes = [];
     
-    // Recherche des déclarations de route dans les fichiers React Router
-    preg_match_all('/<Route\s+[^>]*path=["\']([^"\']*)["\'][^>]*>/', $content, $matches);
+    // Motifs pour détecter différents formats de routes React Router
+    $patterns = [
+        // Format standard: <Route path="/path" element={<Component />} />
+        '/<Route[^>]*path=["\']([^"\']*)["\'][^>]*element={[^>]*(?:<|\{)([A-Za-z0-9_]+)(?:\}|\/?>)[^>]*}/', 
+        
+        // Format avec élément directement: <Route path="/path" element={Component} />
+        '/<Route[^>]*path=["\']([^"\']*)["\'][^>]*element=\{([A-Za-z0-9_]+)\}/', 
+        
+        // Format avec déclaration multi-lignes
+        '/<Route[^>]*\n\s*path=["\']([^"\']*)["\'][^>]*\n\s*element={[^>]*(?:<|\{)([A-Za-z0-9_]+)(?:\}|\/?>)[^>]*}/',
+        
+        // Routes avec pattern simple
+        '/<Route\s+[^>]*path=[\'"]([^\'"]*)[\'"]\s*[^>]*>/',
+        
+        // Routes nommées avec element={}
+        '/<Route\s+[^>]*path=[\'"]([^\'"]*)[\'"]\s+[^>]*element\s*=\s*{.*?}/'
+    ];
     
-    if (isset($matches[1]) && count($matches[1]) > 0) {
-        foreach ($matches[1] as $route) {
-            if ($route !== '*' && $route !== '') { // Ignorer les routes wildcard
-                $routes[] = $route;
-            }
-        }
-    }
-    
-    // Recherche des routes avec path="" et element={}
-    preg_match_all('/<Route\s+[^>]*path=["\']([^"\']*)["\'][^>]*element=/', $content, $elementMatches);
-    if (isset($elementMatches[1]) && count($elementMatches[1]) > 0) {
-        foreach ($elementMatches[1] as $route) {
-            if ($route !== '*' && $route !== '' && !in_array($route, $routes)) {
-                $routes[] = $route;
+    foreach ($patterns as $pattern) {
+        preg_match_all($pattern, $content, $matches);
+        
+        if (isset($matches[1]) && count($matches[1]) > 0) {
+            foreach ($matches[1] as $path) {
+                if ($path !== '*' && $path !== '' && !in_array($path, $routes)) {
+                    $routes[] = $path;
+                }
             }
         }
     }
@@ -97,23 +106,34 @@ echo "<h2>Routes dans App.tsx</h2>";
 if (isset($appRoutes['error'])) {
     echo "<p>Erreur: {$appRoutes['error']}</p>";
 } else {
-    echo "<ul>";
-    foreach ($appRoutes as $route) {
-        echo "<li>$route</li>";
-    }
-    echo "</ul>";
-    
-    // Vérifier les doublons dans App.tsx
-    $duplicates = findDuplicates($appRoutes);
-    if (count($duplicates) > 0) {
-        echo "<h3>Routes en double dans App.tsx:</h3>";
-        echo "<ul class='duplicates'>";
-        foreach ($duplicates as $route => $count) {
-            echo "<li>$route (apparaît $count fois)</li>";
+    if (empty($appRoutes)) {
+        echo "<div class='warning' style='color: #e67e22; background-color: #fef9e7; border-left: 4px solid #e67e22; padding: 10px;'>";
+        echo "<p>Aucune route trouvée dans App.tsx. Vérifiez que:</p>";
+        echo "<ul>";
+        echo "<li>Le fichier App.tsx contient bien des déclarations de routes React Router</li>";
+        echo "<li>Les routes sont au format &lt;Route path=\"/chemin\" element={&lt;Composant /&gt;} /&gt;</li>";
+        echo "</ul>";
+        echo "<p>Si votre fichier contient des routes mais qu'elles ne sont pas détectées, essayez notre analyseur plus complet: <a href='route-analyzer.php'>route-analyzer.php</a></p>";
+        echo "</div>";
+    } else {
+        echo "<ul>";
+        foreach ($appRoutes as $route) {
+            echo "<li>$route</li>";
         }
         echo "</ul>";
-    } else {
-        echo "<p>Aucune route en double trouvée dans App.tsx.</p>";
+        
+        // Vérifier les doublons dans App.tsx
+        $duplicates = findDuplicates($appRoutes);
+        if (count($duplicates) > 0) {
+            echo "<h3>Routes en double dans App.tsx:</h3>";
+            echo "<ul class='duplicates'>";
+            foreach ($duplicates as $route => $count) {
+                echo "<li>$route (apparaît $count fois)</li>";
+            }
+            echo "</ul>";
+        } else {
+            echo "<p>Aucune route en double trouvée dans App.tsx.</p>";
+        }
     }
 }
 
@@ -147,6 +167,10 @@ if (count($routesByFile) > 0) {
     }
 } else {
     echo "<p>Aucune autre route trouvée dans les fichiers du projet.</p>";
+    echo "<div class='suggestion' style='background-color: #eaf2f8; border-left: 4px solid #3498db; padding: 15px; margin: 15px 0;'>";
+    echo "<h4>Si vous pensez que votre application contient des routes mais qu'elles ne sont pas détectées:</h4>";
+    echo "<p>Essayez notre outil d'analyse approfondi: <a href='route-analyzer.php'>route-analyzer.php</a></p>";
+    echo "</div>";
 }
 
 // Vérifier les doublons dans toutes les routes
@@ -191,6 +215,16 @@ function findLinks($dir) {
                 $allLinks[$shortPath] = [];
             }
             $allLinks[$shortPath] = array_merge($allLinks[$shortPath], $navigates[1]);
+        }
+        
+        // Recherche de NavLink également utilisé dans React Router
+        preg_match_all('/<NavLink\s+[^>]*to=["\']([^"\']*)["\'][^>]*>/', $content, $navLinks);
+        if (isset($navLinks[1]) && count($navLinks[1]) > 0) {
+            $shortPath = str_replace($dir . '/', '', $file);
+            if (!isset($allLinks[$shortPath])) {
+                $allLinks[$shortPath] = [];
+            }
+            $allLinks[$shortPath] = array_merge($allLinks[$shortPath], $navLinks[1]);
         }
     }
     
@@ -314,6 +348,13 @@ if (count($links) > 0) {
 } else {
     echo "<p>Aucun lien trouvé dans les composants.</p>";
 }
+
+// Lien vers l'analyseur plus avancé
+echo "<hr>";
+echo "<div style='margin-top: 30px; text-align: center;'>";
+echo "<h3>Besoin d'une analyse plus détaillée?</h3>";
+echo "<p>Utilisez notre <a href='route-analyzer.php' style='font-weight:bold; color: #3498db;'>Analyseur avancé de routes</a> pour une analyse plus complète et des recommandations détaillées.</p>";
+echo "</div>";
 ?>
 
 <style>
@@ -368,5 +409,26 @@ if (count($links) > 0) {
         margin: 15px 0;
         font-family: monospace;
         white-space: pre-wrap;
+    }
+    .warning {
+        color: #e67e22;
+        background-color: #fef9e7;
+        border-left: 4px solid #e67e22;
+        padding: 10px;
+        margin: 15px 0;
+    }
+    .error {
+        color: #e74c3c;
+        background-color: #fdedec;
+        border-left: 4px solid #e74c3c;
+        padding: 10px;
+        margin: 15px 0;
+    }
+    .success {
+        color: #27ae60;
+        background-color: #eafaf1;
+        border-left: 4px solid #27ae60;
+        padding: 10px;
+        margin: 15px 0;
     }
 </style>
