@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
-import { ChevronDown, LogOut, Settings, Database } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { ChevronDown, LogOut, Settings, Database, ServerCrash } from 'lucide-react';
+import { useNavigate, Link } from 'react-router-dom';
 import { useToast } from "@/hooks/use-toast";
 import LogoSelector from './LogoSelector';
 import {
@@ -85,6 +85,24 @@ const Header = () => {
       window.location.href = '/administration';
     }
   };
+  
+  const handleDatabaseTestNavigation = () => {
+    try {
+      navigate('/db-admin');
+    } catch (error) {
+      console.error("Erreur lors de la navigation vers les tests DB:", error);
+      window.location.href = '/db-admin';
+    }
+  };
+  
+  const handleServerTestNavigation = () => {
+    try {
+      navigate('/server-test');
+    } catch (error) {
+      console.error("Erreur lors de la navigation vers les tests serveur:", error);
+      window.location.href = '/server-test';
+    }
+  };
 
   const handleLogoChange = (newLogo: string) => {
     setLogo(newLogo);
@@ -140,6 +158,16 @@ const Header = () => {
                   <DropdownMenuItem onClick={handleAdminNavigation}>
                     <Settings className="mr-2 h-4 w-4" />
                     <span>Administration</span>
+                  </DropdownMenuItem>
+                  
+                  <DropdownMenuItem onClick={handleDatabaseTestNavigation}>
+                    <Database className="mr-2 h-4 w-4" />
+                    <span>Tests Base de données</span>
+                  </DropdownMenuItem>
+                  
+                  <DropdownMenuItem onClick={handleServerTestNavigation}>
+                    <ServerCrash className="mr-2 h-4 w-4" />
+                    <span>Tests Serveur</span>
                   </DropdownMenuItem>
                 </DropdownMenuGroup>
               )}

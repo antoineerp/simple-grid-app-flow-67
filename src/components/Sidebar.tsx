@@ -5,7 +5,7 @@ import SidebarNavItem from './sidebar/SidebarNavItem';
 import { navigationItems } from './sidebar/sidebarConfig';
 import { hasPermission } from '@/types/roles';
 import { getCurrentUser } from '@/services/auth/authService';
-import { Settings } from 'lucide-react';
+import { Settings, Database, ServerCrash } from 'lucide-react';
 
 const Sidebar = () => {
   const [sidebarImageUrl, setSidebarImageUrl] = useState('');
@@ -84,6 +84,16 @@ const Sidebar = () => {
               to="/administration"
               icon={Settings}
               label="Administration"
+            />
+            <SidebarNavItem
+              to="/db-admin"
+              icon={Database}
+              label="Tests Base de données"
+            />
+            <SidebarNavItem
+              to="/server-test"
+              icon={ServerCrash}
+              label="Tests Serveur"
             />
           </div>
         )}

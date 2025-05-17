@@ -1,21 +1,21 @@
 
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import DbConnectionTest from '@/components/DbConnectionTest';
+import ServerTest from '@/components/ServerTest';
 
-const DbAdmin: React.FC = () => {
+const ServerTestPage: React.FC = () => {
   return (
     <div className="container mx-auto p-6">
       <Card className="mb-6">
         <CardHeader>
-          <CardTitle>Administration Base de Données</CardTitle>
+          <CardTitle>Test de connexion au serveur</CardTitle>
         </CardHeader>
         <CardContent>
-          <DbConnectionTest />
+          <ServerTest />
         </CardContent>
       </Card>
     </div>
   );
 };
 
-export default DbAdmin;
+export default ServerTestPage;

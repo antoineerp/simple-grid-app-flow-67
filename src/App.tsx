@@ -15,6 +15,10 @@ const Bibliotheque = React.lazy(() => import('@/pages/Bibliotheque'));
 const Exigences = React.lazy(() => import('@/pages/Exigences'));
 const RessourcesHumaines = React.lazy(() => import('@/pages/RessourcesHumaines'));
 const Collaboration = React.lazy(() => import('@/pages/Collaboration'));
+const Administration = React.lazy(() => import('@/pages/Administration'));
+const DbAdmin = React.lazy(() => import('@/pages/DbAdmin'));
+const ServerTest = React.lazy(() => import('@/pages/ServerTestPage'));
+const UserManagement = React.lazy(() => import('@/pages/UserManagement'));
 
 function App() {
   return (
@@ -35,6 +39,12 @@ function App() {
               <Route path="/exigences" element={<Exigences />} />
               <Route path="/ressources-humaines" element={<RessourcesHumaines />} />
               <Route path="/collaboration" element={<Collaboration />} />
+              
+              {/* Routes d'administration */}
+              <Route path="/administration" element={<Administration />} />
+              <Route path="/db-admin" element={<DbAdmin />} />
+              <Route path="/server-test" element={<ServerTest />} />
+              <Route path="/user-management" element={<UserManagement />} />
             </Route>
             
             {/* Catch all */}
