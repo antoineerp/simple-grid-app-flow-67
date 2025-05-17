@@ -10,7 +10,7 @@ import { Loader2 } from 'lucide-react';
 import Layout from '@/components/layout/Layout';
 import SyncHealthIndicator from './components/common/SyncHealthIndicator';
 
-// Lazy load pages for better performance
+// Lazy load pages pour améliorer les performances
 const Index = React.lazy(() => import('@/pages/Index'));
 const Pilotage = React.lazy(() => import('@/pages/Pilotage'));
 const GestionDocumentaire = React.lazy(() => import('@/pages/GestionDocumentaire'));
@@ -22,16 +22,12 @@ const DbAdmin = React.lazy(() => import('@/pages/DbAdmin'));
 const DatabaseCheckPage = React.lazy(() => import('@/pages/DatabaseCheckPage'));
 const NotFound = React.lazy(() => import('@/pages/NotFound'));
 
-// Initialize the sync storage cleaner
+// Initialiser le nettoyage du stockage de synchronisation
 initializeSyncStorageCleaner();
 
-// Define interface for RequireAuth component
-interface RequireAuthProps {
-  children: React.ReactNode;
-  adminOnly?: boolean;
-}
-
-// Create a wrapper component for protected routes
+/**
+ * Composant pour protéger les routes qui nécessitent une authentification
+ */
 const ProtectedRoute: React.FC<{ element: React.ReactNode; adminOnly?: boolean }> = ({ 
   element, 
   adminOnly = false 
@@ -64,10 +60,10 @@ function App() {
             </div>
           }>
             <Routes>
-              {/* Public route */}
+              {/* Route publique */}
               <Route path="/" element={<Index />} />
               
-              {/* Protected routes using the Layout wrapper */}
+              {/* Routes protégées avec wrapper Layout */}
               <Route path="/pilotage" element={
                 <ProtectedRoute element={<Layout><Pilotage /></Layout>} />
               } />
@@ -92,8 +88,10 @@ function App() {
                 <ProtectedRoute element={<Layout><Administration /></Layout>} />
               } />
               
+              {/* Redirection pour retrocompatibilité */}
               <Route path="/settings" element={<Navigate to="/administration" replace />} />
               
+              {/* Routes administrateur */}
               <Route path="/db-admin" element={
                 <ProtectedRoute element={<Layout><DbAdmin /></Layout>} adminOnly />
               } />
@@ -102,7 +100,7 @@ function App() {
                 <ProtectedRoute element={<Layout><DatabaseCheckPage /></Layout>} adminOnly />
               } />
               
-              {/* Catch all */}
+              {/* Capture de toutes les autres routes */}
               <Route path="*" element={<NotFound />} />
             </Routes>
           </Suspense>
@@ -112,22 +110,5 @@ function App() {
     </Router>
   );
 }
-
-// Original RequireAuth component kept for backward compatibility
-const RequireAuth: React.FC<RequireAuthProps> = ({ children, adminOnly = false }) => {
-  const isLoggedIn = getIsLoggedIn();
-  const currentUser = getCurrentUser();
-  const isAdmin = currentUser?.role === 'admin';
-
-  if (!isLoggedIn) {
-    return <Navigate to="/" replace />;
-  }
-
-  if (adminOnly && !isAdmin) {
-    return <Navigate to="/pilotage" replace />;
-  }
-
-  return <>{children}</>;
-};
 
 export default App;

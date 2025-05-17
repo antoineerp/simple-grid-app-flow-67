@@ -32,12 +32,14 @@ export const getMembres = async (): Promise<Membre[]> => {
       headers: {
         'Accept': 'application/json',
         'Cache-Control': 'no-cache'
-      }
+      },
+      // Ajouter un timeout pour éviter les attentes trop longues
+      signal: AbortSignal.timeout(5000) // 5 secondes de timeout
     });
 
     if (!response.ok) {
-      // En cas d'erreur, retourner les données du cache ou des données locales par défaut
       console.error(`Erreur HTTP: ${response.status}`);
+      // En cas d'erreur, retourner les données du cache ou des données locales par défaut
       return getLocalMembres();
     }
 
@@ -251,15 +253,23 @@ export const deleteMembre = async (id: string): Promise<boolean> => {
  */
 export const syncMembres = async (): Promise<boolean> => {
   try {
-    // Récupérer l'ID de l'utilisateur et de l'appareil
-    const userId = getCurrentUserId() || '999';
-    const deviceId = getDeviceId() || 'unknown_device';
-    const API_URL = getApiUrl() || window.location.origin + '/api';
-    
+    // Si pas de données à synchroniser, terminer sans erreur
     if (!membresCache || membresCache.length === 0) {
       console.log("Aucune donnée à synchroniser");
+      return true;
+    }
+    
+    // Récupérer l'ID de l'utilisateur et de l'appareil
+    const userId = getCurrentUserId();
+    const deviceId = getDeviceId();
+    
+    // Si des informations essentielles sont manquantes, signaler l'erreur mais ne pas faire échouer l'application
+    if (!userId || !deviceId) {
+      console.error("Informations manquantes pour la synchronisation");
       return false;
     }
+    
+    const API_URL = getApiUrl() || window.location.origin + '/api';
     
     console.log(`Synchronisation de ${membresCache.length} membres pour l'utilisateur ${userId}`);
     
@@ -270,29 +280,40 @@ export const syncMembres = async (): Promise<boolean> => {
       membres: membresCache
     };
     
-    // Envoyer les données au serveur
-    const response = await fetch(`${API_URL}/membres-sync.php`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-        'Cache-Control': 'no-cache'
-      },
-      body: JSON.stringify(syncData)
-    });
+    // Envoyer les données au serveur avec un timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 secondes timeout
     
-    if (!response.ok) {
-      throw new Error(`Erreur HTTP: ${response.status}`);
+    try {
+      const response = await fetch(`${API_URL}/membres-sync.php`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'Cache-Control': 'no-cache'
+        },
+        body: JSON.stringify(syncData),
+        signal: controller.signal
+      });
+      
+      clearTimeout(timeoutId);
+      
+      if (!response.ok) {
+        throw new Error(`Erreur HTTP: ${response.status}`);
+      }
+      
+      const result = await response.json();
+      
+      if (!result.success) {
+        throw new Error(result.message || "Erreur lors de la synchronisation");
+      }
+      
+      console.log("Synchronisation des membres réussie");
+      return true;
+    } catch (fetchError) {
+      clearTimeout(timeoutId);
+      throw fetchError;
     }
-    
-    const result = await response.json();
-    
-    if (!result.success) {
-      throw new Error(result.message || "Erreur lors de la synchronisation");
-    }
-    
-    console.log("Synchronisation des membres réussie");
-    return true;
   } catch (error) {
     // Ne pas faire échouer l'application si la synchronisation échoue
     console.error("Erreur lors de la synchronisation des membres:", error);
