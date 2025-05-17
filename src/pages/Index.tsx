@@ -58,14 +58,6 @@ const Index = () => {
       }
       
       setApiDetails(result.details || null);
-      
-      // Si le problème est lié à env.php, proposer un lien vers l'outil de diagnostic
-      if (!result.success && result.details?.envFileStatus === 'missing') {
-        setApiDetails({
-          ...result.details,
-          showDiagnosticLink: true
-        });
-      }
     } catch (error) {
       setApiStatus('error');
       setApiMessage(error instanceof Error ? error.message : 'Erreur du diagnostic');
@@ -81,8 +73,20 @@ const Index = () => {
                              hostname.includes('qualiopi.ch');
     setIsInfomaniak(infomaniakDetected);
     
-    checkApi();
-    setVersion(`1.0.8 - ${new Date().toLocaleDateString()}`);
+    // Faire plusieurs tentatives pour vérifier l'API
+    const checkApiWithRetry = async (retries = 3) => {
+      try {
+        await checkApi();
+      } catch (error) {
+        if (retries > 0) {
+          // Attendre avant de réessayer
+          setTimeout(() => checkApiWithRetry(retries - 1), 2000);
+        }
+      }
+    };
+    
+    checkApiWithRetry();
+    setVersion(`1.0.9 - ${new Date().toLocaleDateString()}`);
   }, []);
 
   return (
@@ -101,20 +105,6 @@ const Index = () => {
                 {apiDetails && apiDetails.tip && (
                   <div className="mt-1 p-2 bg-red-100 rounded">
                     <strong>Conseil:</strong> {apiDetails.tip}
-                  </div>
-                )}
-                
-                {apiMessage.includes('PHP') && (
-                  <div className="mt-2 p-2 bg-orange-100 rounded">
-                    <strong>Problème détecté:</strong> Votre serveur semble renvoyer le code PHP au lieu de l'exécuter.
-                    Vérifiez que PHP est correctement configuré sur votre serveur.
-                  </div>
-                )}
-                
-                {apiMessage.includes('env.php') && (
-                  <div className="mt-2 p-2 bg-orange-100 rounded">
-                    <strong>Problème détecté:</strong> Le fichier env.php est manquant.
-                    Utilisez l'outil de diagnostic pour le créer automatiquement.
                   </div>
                 )}
               </div>
@@ -143,10 +133,10 @@ const Index = () => {
                   {isRunningDiagnostic ? 'Diagnostic...' : 'Diagnostic avancé'}
                 </Button>
                 
-                <a href="/api-diagnostic.html" target="_blank" rel="noopener noreferrer">
+                <a href="/api-diagnostic.php" target="_blank" rel="noopener noreferrer">
                   <Button variant="secondary" size="sm">
                     <Wrench className="h-3 w-3 mr-1" />
-                    Outil de réparation
+                    Outil de diagnostic
                   </Button>
                 </a>
               </div>
@@ -159,23 +149,15 @@ const Index = () => {
         <div className="mt-6 text-xs text-gray-500 border-t pt-4">
           <div className="flex justify-between">
             <span>API: {apiStatus === 'loading' ? 'Vérification...' : apiStatus === 'success' ? '✅ Connectée' : '❌ Erreur'}</span>
-            {apiStatus === 'error' && (
-              <a 
-                href={`${getApiUrl()}/check.php`} 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="flex items-center text-blue-500 hover:underline"
-              >
-                Vérifier API <ExternalLink className="h-3 w-3 ml-1" />
-              </a>
-            )}
+            <a 
+              href="/api-diagnostic.php" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="flex items-center text-blue-500 hover:underline"
+            >
+              Diagnostic API <ExternalLink className="h-3 w-3 ml-1" />
+            </a>
           </div>
-          
-          {apiStatus === 'error' && (
-            <div className="mt-2 text-xs text-red-500">
-              Pour résoudre ce problème, utilisez l'outil de réparation ou vérifiez que votre serveur exécute correctement PHP.
-            </div>
-          )}
         </div>
       </div>
       

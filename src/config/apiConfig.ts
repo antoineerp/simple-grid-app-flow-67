@@ -56,9 +56,7 @@ export const fetchWithErrorHandling = async (url: string, options: RequestInit =
     };
     
     // Ajouter l'origine pour Infomaniak CORS
-    if (window.location.origin.includes('lovableproject.com') || window.location.origin.includes('qualiopi.ch')) {
-      headers['Origin'] = 'https://qualiopi.ch';
-    }
+    headers['Origin'] = window.location.origin;
     
     const response = await fetch(url, {
       ...options,
@@ -79,15 +77,6 @@ export const fetchWithErrorHandling = async (url: string, options: RequestInit =
     
     if (!response.ok) {
       console.error(`Erreur HTTP: ${response.status} ${response.statusText}`);
-      
-      // Tenter de lire le corps de la réponse d'erreur pour plus de détails
-      try {
-        const errorBody = await response.text();
-        console.error("Détails de l'erreur:", errorBody);
-      } catch (readError) {
-        console.error("Impossible de lire les détails de l'erreur");
-      }
-      
       throw new Error(`Erreur HTTP: ${response.status}`);
     }
     
@@ -120,9 +109,10 @@ export const testApiConnection = async () => {
   try {
     // Essayer plusieurs endpoints pour trouver celui qui fonctionne
     const endpoints = [
-      'check-db-connection.php',
-      'auth-test.php',
-      'check.php'
+      'check.php',
+      'test.php',
+      'index.php',
+      'auth-test.php'
     ];
     
     let lastError = null;
@@ -135,7 +125,8 @@ export const testApiConnection = async () => {
           headers: {
             'Content-Type': 'application/json',
             'Cache-Control': 'no-cache',
-            'Accept': 'application/json'
+            'Accept': 'application/json',
+            'Origin': window.location.origin
           },
           mode: 'cors'
         });

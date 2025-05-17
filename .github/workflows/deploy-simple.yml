@@ -53,6 +53,16 @@ jobs:
         path: deploy/
         retention-days: 1
       
+    - name: Create API diagnostic tools
+      run: |
+        echo "Creating API diagnostic tools..."
+        mkdir -p deploy/api-tools
+        cp fix-cors.php deploy/
+        cp fix-htaccess.php deploy/
+        cp create-api-htaccess.php deploy/
+        cp fix-css-deployment.php deploy/
+        cp correct-htaccess-for-php.sh deploy/
+      
     - name: FTP Deploy to Infomaniak
       uses: SamKirkland/FTP-Deploy-Action@v4.3.4
       with:
@@ -84,6 +94,17 @@ jobs:
           [ -f "api/.htaccess" ] && echo "✅ api/.htaccess: PRÉSENT" || echo "❌ api/.htaccess: MANQUANT"
           [ -f "api/config/env.php" ] && echo "✅ api/config/env.php: PRÉSENT" || echo "❌ api/config/env.php: MANQUANT"
           
-          # Exécuter le script de vérification CSS
-          echo "=== Exécution du script de vérification CSS ==="
-          php check-css.php
+          # Exécuter la réparation automatique des erreurs CORS
+          php -f fix-cors.php
+          
+          # Corriger les problèmes de CSS si nécessaire
+          php -f fix-css-deployment.php
+          
+          # Corriger les chemins dans .htaccess
+          php -f fix-htaccess.php
+          
+          # Créer un fichier .htaccess pour l'API si nécessaire
+          [ -f "api/.htaccess" ] || php -f create-api-htaccess.php
+          
+          # Exécuter le script de diagnostic en arrière-plan
+          php -f post-deploy-css-check.php
