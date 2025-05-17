@@ -1,12 +1,12 @@
-
 import { Membre } from '@/types/membres';
 import { triggerSync } from '@/services/sync';
-import { getCurrentUser } from '@/services/core/userService';
+import { getCurrentUserId } from '@/services/core/userService';
 
 // Get current user identifier for test data
 const getUserIdentifier = () => {
-  const currentUser = getCurrentUser();
-  return currentUser?.email === 'antcirier@gmail.com' ? 'antcirier' : 'default';
+  // Using user ID instead of email for test data identification
+  const currentUserId = getCurrentUserId();
+  return currentUserId === 'p71x6d_cirier' ? 'antcirier' : 'default';
 };
 
 // Test data map based on user email

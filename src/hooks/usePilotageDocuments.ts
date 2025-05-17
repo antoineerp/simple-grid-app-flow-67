@@ -1,7 +1,6 @@
-
 import { useState, useEffect } from 'react';
 import { useToast } from "@/hooks/use-toast";
-import { getCurrentUser } from '@/services/auth/authService';
+import { getCurrentUserId } from '@/services/core/userService';
 
 interface Document {
   id: number;
@@ -26,7 +25,7 @@ const defaultDocuments: Document[] = [
 
 export const usePilotageDocuments = () => {
   const { toast } = useToast();
-  const currentUser = getCurrentUser();
+  const currentUser = getCurrentUserId();
   const isAntcirier = currentUser?.email === 'antcirier@gmail.com';
   
   // Initialiser avec les données de test appropriées

@@ -1,8 +1,10 @@
-
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { Membre } from '@/types/membres';
 import { Document, DocumentGroup } from '@/types/documents';
-import { getCurrentUser } from '@/services/auth/authService';
+import { getCurrentUserId } from '@/services/core/userService';
+
+// Helper function to create the current date
+const now = new Date();
 
 // Test data for antcirier@gmail.com
 const testDataForAntcirier = {
@@ -28,39 +30,47 @@ const testDataForAntcirier = {
     { 
       id: "ac-doc1", 
       nom: "Procédure Qualité", 
-      description: "Documentation des processus qualité", 
+      fichier_path: "procedure_qualite.pdf",
+      responsabilites: { r: [], a: [], c: [], i: [] },
       etat: "C", 
-      fichier: "procedure_qualite.pdf",
+      date_creation: now,
+      date_modification: now,
       userId: "p71x6d_cirier" 
     },
     { 
       id: "ac-doc2", 
       nom: "Plan de formation", 
-      description: "Planification des formations", 
+      fichier_path: "plan_formation.docx",
+      responsabilites: { r: [], a: [], c: [], i: [] },
       etat: "PC", 
-      fichier: "plan_formation.docx",
+      date_creation: now,
+      date_modification: now,
       userId: "p71x6d_cirier"
     },
     { 
       id: "ac-doc3", 
       nom: "Manuel d'utilisation", 
-      description: "Guide pour les utilisateurs", 
+      fichier_path: "manuel.pdf",
+      responsabilites: { r: [], a: [], c: [], i: [] },
       etat: "NC", 
-      fichier: "manuel.pdf",
+      date_creation: now,
+      date_modification: now,
       userId: "p71x6d_cirier"
     }
   ],
   documentGroups: [
     {
       id: "ac-grp1",
-      nom: "Documents qualité",
-      description: "Tous les documents liés à la qualité",
+      name: "Documents qualité",
+      expanded: true,
+      items: [],
       userId: "p71x6d_cirier"
     },
     {
       id: "ac-grp2",
-      nom: "Documents formation",
-      description: "Documents utilisés pour les formations",
+      name: "Documents formation",
+      expanded: true,
+      items: [],
       userId: "p71x6d_cirier"
     }
   ],
@@ -162,11 +172,11 @@ export const useGlobalData = () => {
 // Provider du contexte
 export const GlobalDataProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   // Obtenir l'identifiant utilisateur actuel
-  const currentUser = getCurrentUser();
-  const storagePrefix = `global_data_${currentUser?.id || 'default'}`;
+  const currentUserId = getCurrentUserId();
+  const storagePrefix = `global_data_${currentUserId || 'default'}`;
   
   // Déterminer si nous utilisons les données de test pour antcirier
-  const useAntcirierData = currentUser?.email === 'antcirier@gmail.com';
+  const useAntcirierData = currentUserId === 'p71x6d_cirier';
   
   // États pour les différents types de données
   const [membres, setMembres] = useState<Membre[]>(useAntcirierData ? testDataForAntcirier.membres : []);
