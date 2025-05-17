@@ -31,6 +31,26 @@ interface RequireAuthProps {
   adminOnly?: boolean;
 }
 
+// Create a wrapper component for protected routes
+const ProtectedRoute: React.FC<{ element: React.ReactNode; adminOnly?: boolean }> = ({ 
+  element, 
+  adminOnly = false 
+}) => {
+  const isLoggedIn = getIsLoggedIn();
+  const currentUser = getCurrentUser();
+  const isAdmin = currentUser?.role === 'admin';
+
+  if (!isLoggedIn) {
+    return <Navigate to="/" replace />;
+  }
+
+  if (adminOnly && !isAdmin) {
+    return <Navigate to="/pilotage" replace />;
+  }
+
+  return <>{element}</>;
+};
+
 function App() {
   return (
     <Router>
@@ -47,71 +67,71 @@ function App() {
               {/* Public route */}
               <Route path="/" element={<Index />} />
               
-              {/* Protected routes using element prop directly */}
+              {/* Protected routes using the ProtectedRoute wrapper */}
               <Route path="/pilotage" element={
-                <RequireAuth>
+                <ProtectedRoute element={
                   <Layout>
                     <Pilotage />
                   </Layout>
-                </RequireAuth>
+                } />
               } />
               
               <Route path="/gestion-documentaire" element={
-                <RequireAuth>
+                <ProtectedRoute element={
                   <Layout>
                     <GestionDocumentaire />
                   </Layout>
-                </RequireAuth>
+                } />
               } />
               
               <Route path="/exigences" element={
-                <RequireAuth>
+                <ProtectedRoute element={
                   <Layout>
                     <Exigences />
                   </Layout>
-                </RequireAuth>
+                } />
               } />
               
               <Route path="/ressources-humaines" element={
-                <RequireAuth>
+                <ProtectedRoute element={
                   <Layout>
                     <RessourcesHumaines />
                   </Layout>
-                </RequireAuth>
+                } />
               } />
               
               <Route path="/collaboration" element={
-                <RequireAuth>
+                <ProtectedRoute element={
                   <Layout>
                     <Collaboration />
                   </Layout>
-                </RequireAuth>
+                } />
               } />
               
               <Route path="/administration" element={
-                <RequireAuth>
+                <ProtectedRoute element={
                   <Layout>
                     <Administration />
                   </Layout>
-                </RequireAuth>
+                } />
               } />
               
               <Route path="/settings" element={<Navigate to="/administration" replace />} />
               
               <Route path="/db-admin" element={
-                <RequireAuth adminOnly>
+                <ProtectedRoute element={
                   <Layout>
                     <DbAdmin />
                   </Layout>
-                </RequireAuth>
+                } adminOnly />
               } />
               
               <Route path="/database-check" element={
-                <RequireAuth adminOnly>
+                <ProtectedRoute element={
                   <Layout>
                     <DatabaseCheckPage />
                   </Layout>
-                </RequireAuth>
+                } adminOnly />
               } />
               
               {/* Catch all */}
