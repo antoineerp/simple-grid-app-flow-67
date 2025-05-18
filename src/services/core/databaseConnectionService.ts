@@ -1,8 +1,10 @@
 
 /**
  * Service de connexion à la base de données
- * Version simplifiée utilisant uniquement le serveur
+ * Version unifiée - Utilise uniquement des endpoints fiables
  */
+
+import { getApiUrl } from '@/config/apiConfig';
 
 // Variable pour stocker l'utilisateur courant
 let currentUser: string | null = null;
@@ -100,16 +102,38 @@ export const disconnectUser = (): void => {
 };
 
 /**
- * Tester la connexion à la base de données
+ * Tester la connexion à la base de données 
+ * ENDPOINT UNIFIÉ: Utilise uniquement test-db-connection.php qui fonctionne déjà
  */
 export const testDatabaseConnection = async (): Promise<{success: boolean, message: string}> => {
   try {
-    // Simuler un test de connexion réussi
-    return {
-      success: true,
-      message: "Connexion à la base de données réussie"
-    };
+    const API_URL = getApiUrl();
+    // Utiliser uniquement l'endpoint qui fonctionne déjà
+    const response = await fetch(`${API_URL}/test-db-connection.php`, {
+      method: 'GET',
+      headers: {
+        'Cache-Control': 'no-cache, no-store, must-revalidate'
+      }
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Erreur HTTP: ${response.status}`);
+    }
+    
+    const result = await response.json();
+    console.log("Résultat du test de connexion:", result);
+    
+    // Vérifier que le statut est positif
+    if (result.status === 'success') {
+      return {
+        success: true,
+        message: result.message || "Connexion à la base de données réussie"
+      };
+    } else {
+      throw new Error(result.message || "Échec de la connexion à la base de données");
+    }
   } catch (error) {
+    console.error("Erreur lors du test de connexion:", error);
     return {
       success: false,
       message: error instanceof Error ? error.message : "Erreur de connexion à la base de données"
@@ -119,13 +143,41 @@ export const testDatabaseConnection = async (): Promise<{success: boolean, messa
 
 /**
  * Obtenir des informations sur la base de données
+ * ENDPOINT UNIFIÉ: Utilise uniquement test-db-connection.php qui fonctionne déjà
  */
 export const getDatabaseInfo = async (): Promise<any> => {
-  return {
-    host: "Base de données distante",
-    version: "MySQL",
-    connected: true
-  };
+  try {
+    const API_URL = getApiUrl();
+    // Utiliser uniquement l'endpoint qui fonctionne déjà
+    const response = await fetch(`${API_URL}/test-db-connection.php`, {
+      method: 'GET',
+      headers: {
+        'Cache-Control': 'no-cache, no-store, must-revalidate'
+      }
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Erreur HTTP: ${response.status}`);
+    }
+    
+    const result = await response.json();
+    
+    // Formater les informations pour compatibilité avec l'interface DatabaseInfo
+    return {
+      host: result.database?.host || "Base de données distante",
+      database: result.database?.name || "N/A",
+      size: "N/A",
+      tables: result.tables?.utilisateurs_count || 0,
+      lastBackup: new Date().toISOString().split('T')[0] + ' 00:00:00',
+      status: result.status === 'success' ? 'Online' : 'Offline',
+      encoding: 'utf8mb4',
+      collation: 'utf8mb4_unicode_ci',
+      tableList: []
+    };
+  } catch (error) {
+    console.error("Erreur lors de la récupération des informations de la base de données:", error);
+    throw error;
+  }
 };
 
 /**

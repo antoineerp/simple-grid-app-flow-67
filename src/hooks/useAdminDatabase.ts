@@ -1,7 +1,6 @@
 
 import { useState, useCallback, useEffect } from 'react';
 import { getApiUrl } from '@/config/apiConfig';
-import { getAuthHeaders } from '@/services/auth/authService';
 import { useToast } from '@/hooks/use-toast';
 
 // Interface pour les informations de base de données
@@ -24,15 +23,15 @@ export const useAdminDatabase = () => {
   const [testingConnection, setTestingConnection] = useState<boolean>(false);
   const { toast } = useToast();
 
-  // Fonction pour charger les informations de la base de données (utiliser l'endpoint direct)
+  // Fonction pour charger les informations de la base de données
   const loadDatabaseInfo = useCallback(async () => {
     setLoading(true);
     setError(null);
     
     try {
       const API_URL = getApiUrl();
-      // Utiliser uniquement l'endpoint direct-db-test qui est fiable
-      const response = await fetch(`${API_URL}/direct-db-test.php`, {
+      // Utiliser uniquement l'endpoint unifié et fiable
+      const response = await fetch(`${API_URL}/test-db-connection.php`, {
         method: 'GET',
         headers: {
           'Cache-Control': 'no-cache, no-store, must-revalidate'
@@ -47,21 +46,21 @@ export const useAdminDatabase = () => {
       console.log("Informations de la base de données:", result);
       
       // Vérifier si la connexion à la base de données est réussie
-      if (!result.database || result.database.status === 'error') {
-        throw new Error(result.database?.error || "Échec de connexion à la base de données");
+      if (result.status !== 'success') {
+        throw new Error(result.message || "Échec de connexion à la base de données");
       }
       
       // Formater les données pour notre interface
       const info: DatabaseInfo = {
-        host: result.database.host || '',
-        database: result.database.database || '',
+        host: result.database?.host || '',
+        database: result.database?.name || '',
         size: '0 MB', // Valeur par défaut
-        tables: result.database.tables_count || 0,
+        tables: result.tables?.utilisateurs_count || 0,
         lastBackup: new Date().toISOString().split('T')[0] + ' 00:00:00', // Date du jour
-        status: result.database.connected ? 'Online' : 'Offline',
+        status: result.status === 'success' ? 'Online' : 'Offline',
         encoding: 'utf8mb4', // Valeur par défaut
         collation: 'utf8mb4_unicode_ci', // Valeur par défaut
-        tableList: result.database.tables || []
+        tableList: []
       };
       
       setDbInfo(info);
@@ -87,8 +86,8 @@ export const useAdminDatabase = () => {
     
     try {
       const API_URL = getApiUrl();
-      // Utiliser uniquement l'endpoint direct-db-test qui est fiable
-      const response = await fetch(`${API_URL}/direct-db-test.php`, {
+      // Utiliser uniquement l'endpoint unifié et fiable
+      const response = await fetch(`${API_URL}/test-db-connection.php`, {
         method: 'GET',
         headers: {
           'Cache-Control': 'no-cache, no-store, must-revalidate'
@@ -102,14 +101,13 @@ export const useAdminDatabase = () => {
       const result = await response.json();
       console.log("Résultat du test de connexion:", result);
       
-      // Vérifier si la connexion à la base de données est réussie
-      if (!result.database || !result.database.connected) {
-        throw new Error(result.database?.error || "Échec de connexion à la base de données");
+      if (result.status !== 'success') {
+        throw new Error(result.message || "Échec de connexion à la base de données");
       }
       
       toast({
         title: "Connexion réussie",
-        description: `Connexion établie à ${result.database.host || 'la base de données'}.`,
+        description: `Connexion établie à ${result.database?.host || 'la base de données'}.`,
       });
       
       // Recharger les informations après le test
