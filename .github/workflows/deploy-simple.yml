@@ -60,27 +60,119 @@ jobs:
         chmod +x deploy-simple.sh
         ./deploy-simple.sh
         
+    - name: Copy source files (ts, tsx) for debugging
+      run: |
+        echo "Copying source files (.ts, .tsx, etc.) for debugging..."
+        mkdir -p deploy/src
+        cp -r src/* deploy/src/
+        echo "✅ Source files copied"
+        
+    - name: Ensure api-tools directory exists with all required files
+      run: |
+        echo "Ensuring api-tools directory with all required files..."
+        mkdir -p deploy/api-tools
+        
+        # Copy all diagnostic tools
+        cp check-routes.php deploy/api-tools/ || echo "check-routes.php not found"
+        cp fix-routes.php deploy/api-tools/ || echo "fix-routes.php not found" 
+        cp check-route-duplication.php deploy/api-tools/ || echo "check-route-duplication.php not found"
+        cp fix-htaccess.php deploy/api-tools/ || echo "fix-htaccess.php not found"
+        cp verify-deployment.php deploy/ || echo "verify-deployment.php not found"
+        
+        # Creating fallback files if originals are missing
+        if [ ! -f "deploy/api-tools/check-route-duplication.php" ]; then
+          echo "Creating fallback check-route-duplication.php..."
+          cp check-route-duplication.php deploy/api-tools/ || echo "Could not copy check-route-duplication.php"
+          
+          # If copy fails, create the file directly
+          if [ ! -f "deploy/api-tools/check-route-duplication.php" ]; then
+            cat > deploy/api-tools/check-route-duplication.php << 'EOL'
+<?php
+header('Content-Type: text/html; charset=utf-8');
+echo "<h1>Vérification des routes</h1>";
+echo "<p>Ce script analyse les routes définies dans App.tsx et détecte les doublons.</p>";
+
+// Fonction pour analyser App.tsx
+function analyzeAppTsx() {
+    $filepath = "../src/App.tsx";
+    if (!file_exists($filepath)) {
+        return ['error' => "Fichier App.tsx introuvable dans " . realpath("../src")];
+    }
+    
+    $content = file_get_contents($filepath);
+    $routes = [];
+    
+    // Rechercher les routes
+    preg_match_all('/<Route\s+path=[\'"]([^\'"]*)[\'"]/', $content, $matches);
+    
+    if (!empty($matches[1])) {
+        foreach ($matches[1] as $route) {
+            if (!isset($routes[$route])) {
+                $routes[$route] = 1;
+            } else {
+                $routes[$route]++;
+            }
+        }
+    }
+    
+    return $routes;
+}
+
+$routes = analyzeAppTsx();
+if (isset($routes['error'])) {
+    echo "<p style='color: red;'>Erreur: " . htmlspecialchars($routes['error']) . "</p>";
+} else {
+    echo "<h2>Routes définies dans App.tsx</h2>";
+    echo "<table border='1' cellpadding='5'>";
+    echo "<tr><th>Route</th><th>Occurrences</th><th>Statut</th></tr>";
+    
+    foreach ($routes as $route => $count) {
+        echo "<tr>";
+        echo "<td>" . htmlspecialchars($route) . "</td>";
+        echo "<td>" . $count . "</td>";
+        if ($count > 1) {
+            echo "<td style='color: red; font-weight: bold;'>DOUBLON</td>";
+        } else {
+            echo "<td style='color: green;'>OK</td>";
+        }
+        echo "</tr>";
+    }
+    
+    echo "</table>";
+    
+    $duplicates = false;
+    foreach ($routes as $route => $count) {
+        if ($count > 1) {
+            $duplicates = true;
+            break;
+        }
+    }
+    
+    if ($duplicates) {
+        echo "<p style='color: red;'>⚠️ Des routes en double ont été détectées!</p>";
+        echo "<p><a href='fix-routes.php' style='color: blue;'>Cliquez ici pour corriger automatiquement</a></p>";
+    } else {
+        echo "<p style='color: green;'>✅ Aucune route en double détectée.</p>";
+    }
+}
+
+echo "<p><a href='/'>Retour à l'accueil</a></p>";
+?>
+EOL
+            echo "✅ Fallback check-route-duplication.php created"
+          fi
+        fi
+        
+        # Vérifier contenu du dossier avant déploiement
+        echo "Contenu du dossier api-tools avant déploiement:"
+        ls -la deploy/api-tools/
+        
     - name: Upload deployment artifact
       uses: actions/upload-artifact@v4
       with:
         name: deployment-files
         path: deploy/
         retention-days: 1
-      
-    - name: Create API diagnostic tools
-      run: |
-        echo "Creating API diagnostic tools..."
-        mkdir -p deploy/api-tools
-        cp check-routes.php deploy/api-tools/ || echo "check-routes.php not found"
-        cp fix-routes.php deploy/api-tools/ || echo "fix-routes.php not found" 
-        cp fix-htaccess.php deploy/api-tools/ || echo "fix-htaccess.php not found"
-        cp fix-css-deployment.php deploy/api-tools/ || echo "fix-css-deployment.php not found"
-        cp correct-htaccess-for-php.sh deploy/api-tools/ || echo "correct-htaccess-for-php.sh not found"
-        cp check-route-duplication.php deploy/api-tools/ || echo "check-route-duplication.php not found"
-        
-        # Vérifier contenu du dossier avant déploiement
-        echo "Contenu du dossier api-tools avant déploiement:"
-        ls -la deploy/api-tools/
       
     - name: Copy assets directory and essential files
       run: |
@@ -164,6 +256,39 @@ jobs:
         echo "Assets copied to deploy/assets:"
         ls -la deploy/assets/
       
+    - name: Copy .htaccess files and verify crucial files
+      run: |
+        echo "Copying .htaccess files..."
+        # Copier le fichier .htaccess de la racine s'il existe
+        if [ -f ".htaccess" ]; then
+          cp .htaccess deploy/
+          echo "✅ Root .htaccess copied"
+        fi
+        
+        # Copier le fichier .htaccess de l'API s'il existe
+        if [ -f "api/.htaccess" ]; then
+          mkdir -p deploy/api
+          cp api/.htaccess deploy/api/
+          echo "✅ API .htaccess copied"
+        fi
+        
+        # Copier le fichier .htaccess des assets s'il existe
+        if [ -f "assets/.htaccess" ]; then
+          mkdir -p deploy/assets
+          cp assets/.htaccess deploy/assets/
+          echo "✅ Assets .htaccess copied"
+        fi
+        
+        # Vérifier les fichiers cruciaux avant déploiement
+        echo "Final verification of crucial files:"
+        [ -f "deploy/index.html" ] && echo "✅ index.html: PRÉSENT" || echo "❌ index.html: MANQUANT"
+        [ -f "deploy/assets/index.js" ] && echo "✅ assets/index.js: PRÉSENT" || echo "❌ assets/index.js: MANQUANT" 
+        [ -f "deploy/assets/main.css" ] && echo "✅ assets/main.css: PRÉSENT" || echo "❌ assets/main.css: MANQUANT"
+        [ -d "deploy/api-tools" ] && echo "✅ api-tools directory: PRÉSENT" || echo "❌ api-tools directory: MANQUANT"
+        [ -f "deploy/api-tools/check-route-duplication.php" ] && echo "✅ check-route-duplication.php: PRÉSENT" || echo "❌ check-route-duplication.php: MANQUANT"
+        [ -f "deploy/api-tools/check-routes.php" ] && echo "✅ check-routes.php: PRÉSENT" || echo "❌ check-routes.php: MANQUANT"
+        find deploy/api-tools -type f | wc -l
+    
     - name: FTP Deploy to Infomaniak
       uses: SamKirkland/FTP-Deploy-Action@v4.3.4
       with:
@@ -198,32 +323,19 @@ jobs:
           [ -f "assets/main.js" ] && echo "✅ assets/main.js: PRÉSENT" || echo "❌ assets/main.js: MANQUANT"
           [ -d "api-tools" ] && echo "✅ api-tools directory: PRÉSENT" || echo "❌ api-tools directory: MANQUANT"
           [ -f "api-tools/check-routes.php" ] && echo "✅ api-tools/check-routes.php: PRÉSENT" || echo "❌ api-tools/check-routes.php: MANQUANT"
+          [ -f "api-tools/check-route-duplication.php" ] && echo "✅ api-tools/check-route-duplication.php: PRÉSENT" || echo "❌ api-tools/check-route-duplication.php: MANQUANT"
+          [ -f "src/App.tsx" ] && echo "✅ src/App.tsx: PRÉSENT" || echo "❌ src/App.tsx: MANQUANT"
           
           # Lister tous les fichiers hachés trouvés
           echo "=== Fichiers hachés trouvés ==="
           find assets -name "*.js" | grep -E '[a-zA-Z0-9]{8}\.' || echo "❌ Aucun fichier JS haché trouvé"
           find assets -name "*.css" | grep -E '[a-zA-Z0-9]{8}\.' || echo "❌ Aucun fichier CSS haché trouvé"
           
+          # Exécuter les scripts de diagnostic
+          php -f verify-deployment.php || echo "❌ Error running verify-deployment.php"
+          
           # Exécuter le script de préparation
           php -f pre-deploy-fix.php || echo "❌ Error running pre-deploy-fix.php"
           
-          # Exécuter la réparation automatique des erreurs CORS
-          php -f fix-cors.php || echo "❌ Error running fix-cors.php"
-          
-          # Corriger les problèmes de CSS si nécessaire
-          php -f fix-css-deployment.php || echo "❌ Error running fix-css-deployment.php"
-          
-          # Corriger les chemins dans .htaccess
-          php -f fix-htaccess.php || echo "❌ Error running fix-htaccess.php"
-          
-          # Créer un fichier .htaccess pour l'API si nécessaire
-          [ -f "api/.htaccess" ] || php -f create-api-htaccess.php || echo "❌ Error creating API .htaccess"
-          
-          # Exécuter le script de diagnostic en arrière-plan
-          php -f post-deploy-css-check.php || echo "❌ Error running post-deploy-css-check.php"
-          
-          # Vérifier et réparer les références d'assets dans index.html
-          php -f fix-index-assets-simplified.php || echo "❌ Error running fix-index-assets-simplified.php"
-          
           # Vérifier les routes en double s'il existe
-          [ -f "api-tools/check-routes.php" ] && php -f api-tools/check-routes.php || echo "❌ Error running check-routes.php"
+          [ -f "api-tools/check-route-duplication.php" ] && php -f api-tools/check-route-duplication.php || echo "❌ Error running check-route-duplication.php"
