@@ -71,6 +71,38 @@ jobs:
         cp fix-css-deployment.php deploy/ || echo "fix-css-deployment.php not found"
         cp correct-htaccess-for-php.sh deploy/ || echo "correct-htaccess-for-php.sh not found"
       
+    - name: Copy assets directory and essential files
+      run: |
+        echo "Copying assets directory and essential files..."
+        
+        # Copier tous les assets
+        if [ -d "assets" ]; then
+          echo "Copying all files from assets to deploy/assets..."
+          mkdir -p deploy/assets
+          cp -r assets/* deploy/assets/
+          echo "✅ Assets directory copied"
+        fi
+        
+        # Copier spécifiquement index.js s'il existe
+        if [ -f "assets/index.js" ]; then
+          echo "Ensuring index.js is copied to deploy/assets..."
+          mkdir -p deploy/assets
+          cp assets/index.js deploy/assets/
+          echo "✅ index.js copied"
+        fi
+        
+        # Copier également depuis dist/assets si disponible
+        if [ -d "dist/assets" ]; then
+          echo "Copying all files from dist/assets to deploy/assets..."
+          mkdir -p deploy/assets
+          cp -r dist/assets/* deploy/assets/
+          echo "✅ dist/assets directory copied"
+        fi
+        
+        # Vérification des fichiers critiques
+        echo "Checking for critical files in deploy/assets:"
+        ls -la deploy/assets/ || echo "⚠️ deploy/assets not available"
+      
     - name: Find and copy hashed files
       run: |
         echo "Finding and copying hashed files..."

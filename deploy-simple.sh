@@ -63,6 +63,16 @@ else
   echo "ERREUR: Dossier dist/ non trouvé!"
 fi
 
+# Copie COMPLÈTE du dossier assets/
+echo "Copie du dossier assets/..."
+if [ -d "assets" ]; then
+  mkdir -p deploy/assets
+  cp -r assets/* deploy/assets/
+  echo "✅ Contenu du dossier assets/ copié dans deploy/assets/"
+else
+  echo "AVERTISSEMENT: Dossier assets/ non trouvé en racine."
+fi
+
 # Assurer que le dossier assets existe et contient main.css
 mkdir -p deploy/assets
 echo "Vérification de main.css..."
@@ -108,6 +118,50 @@ h1, h2, h3, h4, h5, h6 {
 }
 EOL
   echo "✅ Fichier main.css de secours créé"
+fi
+
+# Vérifier spécifiquement index.js
+echo "Vérification de index.js..."
+
+# Vérifier si index.js existe dans assets/
+if [ -f "assets/index.js" ]; then
+  cp assets/index.js deploy/assets/
+  echo "✅ index.js copié depuis assets/"
+# Vérifier si index.js existe dans dist/assets/
+elif [ -f "dist/assets/index.js" ]; then
+  cp dist/assets/index.js deploy/assets/
+  echo "✅ index.js copié depuis dist/assets/"
+# Chercher un JS dans dist/assets avec pattern index.*.js
+elif [ -n "$(find dist/assets -name "index.*.js" 2>/dev/null)" ]; then
+  INDEX_JS=$(find dist/assets -name "index.*.js" | head -1)
+  cp "$INDEX_JS" deploy/assets/index.js
+  echo "✅ $INDEX_JS copié vers deploy/assets/index.js"
+# Créer un fichier index.js de secours
+else
+  echo "Création d'un fichier index.js de secours..."
+  cat > deploy/assets/index.js << 'EOL'
+// Script d'entrée de secours
+console.log("Chargement de l'application via index.js de secours");
+
+window.addEventListener('DOMContentLoaded', () => {
+  try {
+    console.log("Initialisation de l'application");
+    const rootElement = document.getElementById("root");
+    
+    if (rootElement) {
+      rootElement.innerHTML = `
+        <div style="text-align:center; margin-top:50px; font-family:sans-serif;">
+          <h1>Application FormaCert</h1>
+          <p>Chargement en mode de secours...</p>
+        </div>
+      `;
+    }
+  } catch (error) {
+    console.error("Erreur:", error);
+  }
+});
+EOL
+  echo "✅ Fichier index.js de secours créé"
 fi
 
 # Ajouter un script de vérification CSS post-déploiement
@@ -279,6 +333,7 @@ critical_files=(
   "deploy/api/config/env.php"
   "deploy/index.html"
   "deploy/assets/main.css"
+  "deploy/assets/index.js"
   "deploy/check-css.php"
   "deploy/pre-deploy-fix.php"
   "deploy/fix-index-assets-simplified.php"
