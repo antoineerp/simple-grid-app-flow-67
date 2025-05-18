@@ -30,6 +30,12 @@ jobs:
     - name: Install Dependencies
       run: npm install --legacy-peer-deps
       
+    - name: Check for duplicate routes
+      run: |
+        echo "Vérification des routes en double dans App.tsx..."
+        php -f check-routes.php || echo "Erreur d'exécution de check-routes.php"
+        echo "Note: Des routes en double peuvent causer des problèmes de navigation."
+      
     - name: Build React App
       run: npm run build
       
@@ -65,11 +71,13 @@ jobs:
       run: |
         echo "Creating API diagnostic tools..."
         mkdir -p deploy/api-tools
-        cp fix-cors.php deploy/ || echo "fix-cors.php not found"
-        cp fix-htaccess.php deploy/ || echo "fix-htaccess.php not found" 
-        cp create-api-htaccess.php deploy/ || echo "create-api-htaccess.php not found"
-        cp fix-css-deployment.php deploy/ || echo "fix-css-deployment.php not found"
-        cp correct-htaccess-for-php.sh deploy/ || echo "correct-htaccess-for-php.sh not found"
+        cp fix-cors.php deploy/api-tools/ || echo "fix-cors.php not found"
+        cp fix-htaccess.php deploy/api-tools/ || echo "fix-htaccess.php not found" 
+        cp create-api-htaccess.php deploy/api-tools/ || echo "create-api-htaccess.php not found"
+        cp fix-css-deployment.php deploy/api-tools/ || echo "fix-css-deployment.php not found"
+        cp correct-htaccess-for-php.sh deploy/api-tools/ || echo "correct-htaccess-for-php.sh not found"
+        cp check-routes.php deploy/api-tools/ || echo "check-routes.php not found"
+        cp fix-routes.php deploy/api-tools/ || echo "fix-routes.php not found"
       
     - name: Copy assets directory and essential files
       run: |
@@ -211,3 +219,6 @@ jobs:
           
           # Vérifier et réparer les références d'assets dans index.html
           php -f fix-index-assets-simplified.php || echo "❌ Error running fix-index-assets-simplified.php"
+          
+          # Vérifier les routes en double
+          php -f api-tools/check-routes.php || echo "❌ Error running check-routes.php"

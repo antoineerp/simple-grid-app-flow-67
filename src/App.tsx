@@ -60,10 +60,10 @@ function App() {
             </div>
           }>
             <Routes>
-              {/* Route publique */}
+              {/* Route publique - une seule définition */}
               <Route path="/" element={<Index />} />
               
-              {/* Routes protégées avec wrapper Layout */}
+              {/* Routes protégées avec wrapper Layout - une seule définition par route */}
               <Route path="/pilotage" element={
                 <ProtectedRoute element={<Layout><Pilotage /></Layout>} />
               } />
@@ -100,7 +100,7 @@ function App() {
                 <ProtectedRoute element={<Layout><DatabaseCheckPage /></Layout>} adminOnly />
               } />
               
-              {/* Capture de toutes les autres routes */}
+              {/* Capture de toutes les autres routes - une seule définition */}
               <Route path="*" element={<NotFound />} />
             </Routes>
           </Suspense>
