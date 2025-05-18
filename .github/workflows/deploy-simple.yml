@@ -71,13 +71,16 @@ jobs:
       run: |
         echo "Creating API diagnostic tools..."
         mkdir -p deploy/api-tools
-        cp fix-cors.php deploy/api-tools/ || echo "fix-cors.php not found"
-        cp fix-htaccess.php deploy/api-tools/ || echo "fix-htaccess.php not found" 
-        cp create-api-htaccess.php deploy/api-tools/ || echo "create-api-htaccess.php not found"
+        cp check-routes.php deploy/api-tools/ || echo "check-routes.php not found"
+        cp fix-routes.php deploy/api-tools/ || echo "fix-routes.php not found" 
+        cp fix-htaccess.php deploy/api-tools/ || echo "fix-htaccess.php not found"
         cp fix-css-deployment.php deploy/api-tools/ || echo "fix-css-deployment.php not found"
         cp correct-htaccess-for-php.sh deploy/api-tools/ || echo "correct-htaccess-for-php.sh not found"
-        cp check-routes.php deploy/api-tools/ || echo "check-routes.php not found"
-        cp fix-routes.php deploy/api-tools/ || echo "fix-routes.php not found"
+        cp check-route-duplication.php deploy/api-tools/ || echo "check-route-duplication.php not found"
+        
+        # Vérifier contenu du dossier avant déploiement
+        echo "Contenu du dossier api-tools avant déploiement:"
+        ls -la deploy/api-tools/
       
     - name: Copy assets directory and essential files
       run: |
@@ -193,6 +196,8 @@ jobs:
           [ -f "api/config/env.php" ] && echo "✅ api/config/env.php: PRÉSENT" || echo "❌ api/config/env.php: MANQUANT"
           [ -f "assets/index.js" ] && echo "✅ assets/index.js: PRÉSENT" || echo "❌ assets/index.js: MANQUANT"
           [ -f "assets/main.js" ] && echo "✅ assets/main.js: PRÉSENT" || echo "❌ assets/main.js: MANQUANT"
+          [ -d "api-tools" ] && echo "✅ api-tools directory: PRÉSENT" || echo "❌ api-tools directory: MANQUANT"
+          [ -f "api-tools/check-routes.php" ] && echo "✅ api-tools/check-routes.php: PRÉSENT" || echo "❌ api-tools/check-routes.php: MANQUANT"
           
           # Lister tous les fichiers hachés trouvés
           echo "=== Fichiers hachés trouvés ==="
@@ -220,5 +225,5 @@ jobs:
           # Vérifier et réparer les références d'assets dans index.html
           php -f fix-index-assets-simplified.php || echo "❌ Error running fix-index-assets-simplified.php"
           
-          # Vérifier les routes en double
-          php -f api-tools/check-routes.php || echo "❌ Error running check-routes.php"
+          # Vérifier les routes en double s'il existe
+          [ -f "api-tools/check-routes.php" ] && php -f api-tools/check-routes.php || echo "❌ Error running check-routes.php"

@@ -50,6 +50,12 @@ cp fix-missing-files.php deploy/ || echo "fix-missing-files.php non trouvé"
 cp fix-index-assets-simplified.php deploy/ || echo "fix-index-assets-simplified.php non trouvé"
 cp check-route-duplication.php deploy/ || echo "check-route-duplication.php non trouvé"
 
+# Copie spécifique des outils de diagnostic dans api-tools
+echo "Copie des outils de diagnostic dans api-tools..."
+cp check-routes.php deploy/api-tools/ 2>/dev/null || echo "check-routes.php non trouvé"
+cp fix-routes.php deploy/api-tools/ 2>/dev/null || echo "fix-routes.php non trouvé"
+cp check-route-duplication.php deploy/api-tools/ 2>/dev/null || echo "check-route-duplication.php non trouvé"
+
 # Exécution du script de préparation
 echo "Exécution du script de préparation..."
 php -f pre-deploy-fix.php
@@ -338,6 +344,7 @@ critical_files=(
   "deploy/pre-deploy-fix.php"
   "deploy/fix-index-assets-simplified.php"
   "deploy/check-build-status.php"
+  "deploy/api-tools/check-routes.php"
 )
 
 all_ok=true
