@@ -48,47 +48,8 @@ jobs:
         cp index.html deploy/ 2>/dev/null || cp dist/index.html deploy/ 2>/dev/null || echo "ERREUR: index.html non trouvé"
         cp .htaccess deploy/ 2>/dev/null || echo "Attention: .htaccess non trouvé"
         
-        # Copier les scripts utilitaires pour la création de la structure
+        # Copier le script de création de structure
         cp fix-directory-structure.php deploy/ 2>/dev/null || echo "Fichier fix-directory-structure.php non trouvé"
-        
-        # Créer un script PHP simple pour la création de la structure
-        cat > deploy/create_directories.php << 'EOF'
-<?php
-// Script de création de dossiers et fichiers
-$directories = [
-    './api',
-    './api/config',
-    './api/utils',
-    './api/documentation',
-    './api/admin',
-    './api/logs',
-    './assets',
-    './public',
-    './public/lovable-uploads'
-];
-
-foreach ($directories as $dir) {
-    if (!is_dir($dir)) {
-        mkdir($dir, 0755, true);
-        echo "Dossier créé: {$dir}\n";
-    }
-}
-
-// Créer un fichier .htaccess dans api/admin
-if (!file_exists('./api/admin/.htaccess')) {
-    file_put_contents('./api/admin/.htaccess', '# Fichier htaccess pour admin');
-    echo "Fichier api/admin/.htaccess créé\n";
-}
-
-// Créer README dans api/documentation
-if (!file_exists('./api/documentation/README.md')) {
-    file_put_contents('./api/documentation/README.md', "# Documentation API\n\nCe dossier contient la documentation de l'API FormaCert.");
-    echo "Fichier api/documentation/README.md créé\n";
-}
-
-echo "Configuration terminée! Tous les dossiers ont été créés.";
-?>
-EOF
         
         # Configuration de la base de données
         mkdir -p deploy/api/config
@@ -100,24 +61,24 @@ EOF
         }' > deploy/api/config/db_config.json
         
         # Configuration PHP
-        echo "<?php
+        echo '<?php
 // Configuration des variables d'environnement pour Infomaniak
-define(\"DB_HOST\", \"p71x6d.myd.infomaniak.com\");
-define(\"DB_NAME\", \"p71x6d_richard\");
-define(\"DB_USER\", \"p71x6d_richard\");
-define(\"DB_PASS\", \"Trottinette43!\");
-define(\"API_BASE_URL\", \"/api\");
-define(\"APP_ENV\", \"production\");
+define("DB_HOST", "p71x6d.myd.infomaniak.com");
+define("DB_NAME", "p71x6d_richard");
+define("DB_USER", "p71x6d_richard");
+define("DB_PASS", "Trottinette43!");
+define("API_BASE_URL", "/api");
+define("APP_ENV", "production");
 
 // Fonction d'aide pour récupérer les variables d'environnement
-function get_env(\$key, \$default = null) {
-    \$const_name = strtoupper(\$key);
-    if (defined(\$const_name)) {
-        return constant(\$const_name);
+function get_env($key, $default = null) {
+    $const_name = strtoupper($key);
+    if (defined($const_name)) {
+        return constant($const_name);
     }
-    return \$default;
+    return $default;
 }
-?>" > deploy/api/config/env.php
+?>' > deploy/api/config/env.php
         
         # Créer .htaccess pour l'API
         mkdir -p deploy/api
