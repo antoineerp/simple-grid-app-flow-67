@@ -48,7 +48,10 @@ jobs:
         cp index.html deploy/ 2>/dev/null || cp dist/index.html deploy/ 2>/dev/null || echo "ERREUR: index.html non trouvé"
         cp .htaccess deploy/ 2>/dev/null || echo "Attention: .htaccess non trouvé"
         
-        # Créer un script PHP simple qui va créer tous les dossiers sur le serveur
+        # Copier les scripts utilitaires pour la création de la structure
+        cp fix-directory-structure.php deploy/ 2>/dev/null || echo "Fichier fix-directory-structure.php non trouvé"
+        
+        # Créer un script PHP simple pour la création de la structure - PAS DE RÉFÉRENCE À API-TOOLS
         echo "<?php
         // Script de création de dossiers et fichiers
         \$directories = [
@@ -57,6 +60,7 @@ jobs:
             './api/utils',
             './api/documentation',
             './api/admin',
+            './api/logs',
             './assets',
             './public',
             './public/lovable-uploads'
@@ -146,6 +150,7 @@ RewriteRule ^(.*)$ index.php [QSA,L]" > deploy/api/.htaccess
           **/.git*
           **/.git*/**
           **/node_modules/**
+          **/api-tools/**
           README.md
         log-level: verbose
         timeout: 120000
