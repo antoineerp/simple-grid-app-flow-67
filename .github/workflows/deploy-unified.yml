@@ -37,45 +37,55 @@ jobs:
         echo "=== Déploiement Simplifié vers Infomaniak ==="
         echo "Date: $(date)"
         
-        # Création du dossier de déploiement sans sous-dossiers problématiques
+        # Création du dossier de déploiement
         mkdir -p deploy
         
-        # Copie DIRECTE du dossier dist complet
-        cp -r dist deploy/
-        echo "✅ Dossier dist/ copié entièrement"
-        
-        # Création EXPLICITE de TOUS les dossiers nécessaires avant le déploiement FTP
-        # IMPORTANT: Créer les dossiers avec un chemin relatif (sans le slash initial)
-        mkdir -p deploy/assets
-        mkdir -p deploy/api/config
-        mkdir -p deploy/api/utils
-        mkdir -p deploy/api/documentation
-        mkdir -p deploy/api/admin
-        mkdir -p deploy/public/lovable-uploads
-        
-        # Ajouter un fichier README dans api/documentation pour éviter les erreurs
-        echo "# Documentation API\n\nCe dossier contient la documentation de l'API FormaCert." > deploy/api/documentation/README.md
-        
-        # Créer un fichier .htaccess vide dans api/admin pour s'assurer que le dossier est créé
-        touch deploy/api/admin/.htaccess
+        # Copie DIRECTE du dossier dist
+        cp -r dist/* deploy/ 2>/dev/null || echo "Attention: Dossier dist non trouvé"
         
         # Copier les fichiers racine essentiels
-        cp index.php deploy/ 2>/dev/null || echo "index.php copié depuis dist/"
-        cp index.html deploy/ 2>/dev/null || cp dist/index.html deploy/ || echo "ERREUR: index.html non trouvé"
+        cp index.php deploy/ 2>/dev/null || echo "index.php introuvable dans racine"
+        cp index.html deploy/ 2>/dev/null || cp dist/index.html deploy/ 2>/dev/null || echo "ERREUR: index.html non trouvé"
         cp .htaccess deploy/ 2>/dev/null || echo "Attention: .htaccess non trouvé"
-        cp vite.config.ts deploy/ 2>/dev/null || echo "Attention: vite.config.ts non trouvé"
         
-        # Copier les assets vers le dossier assets (sauvegarde)
-        if [ -d "assets" ]; then
-          cp -r assets/* deploy/assets/ 2>/dev/null || echo "Aucun asset à copier depuis assets/"
-        fi
+        # Créer un script PHP simple qui va créer tous les dossiers sur le serveur
+        echo "<?php
+        // Script de création de dossiers et fichiers
+        \$directories = [
+            './api',
+            './api/config',
+            './api/utils',
+            './api/documentation',
+            './api/admin',
+            './assets',
+            './public',
+            './public/lovable-uploads'
+        ];
         
-        # Copier les assets du build également
-        if [ -d "dist/assets" ]; then
-          cp -r dist/assets/* deploy/assets/ 2>/dev/null || echo "Aucun asset à copier depuis dist/assets/"
-        fi
+        foreach (\$directories as \$dir) {
+            if (!is_dir(\$dir)) {
+                mkdir(\$dir, 0755, true);
+                echo \"Dossier créé: {\$dir}\\n\";
+            }
+        }
+        
+        // Créer un fichier .htaccess dans api/admin
+        if (!file_exists('./api/admin/.htaccess')) {
+            file_put_contents('./api/admin/.htaccess', '# Fichier htaccess pour admin');
+            echo \"Fichier api/admin/.htaccess créé\\n\";
+        }
+        
+        // Créer README dans api/documentation
+        if (!file_exists('./api/documentation/README.md')) {
+            file_put_contents('./api/documentation/README.md', \"# Documentation API\\n\\nCe dossier contient la documentation de l'API FormaCert.\");
+            echo \"Fichier api/documentation/README.md créé\\n\";
+        }
+        
+        echo \"Configuration terminée! Tous les dossiers ont été créés.\";
+        ?>" > deploy/create_directories.php
         
         # Configuration de la base de données
+        mkdir -p deploy/api/config
         echo '{
             "host": "p71x6d.myd.infomaniak.com",
             "db_name": "p71x6d_richard",
@@ -83,44 +93,45 @@ jobs:
             "password": "Trottinette43!"
         }' > deploy/api/config/db_config.json
         
-        # Configuration PHP - sans utiliser de heredoc pour éviter les problèmes YAML
-        echo "<?php" > deploy/api/config/env.php
-        echo "// Configuration des variables d'environnement pour Infomaniak" >> deploy/api/config/env.php
-        echo "define(\"DB_HOST\", \"p71x6d.myd.infomaniak.com\");" >> deploy/api/config/env.php
-        echo "define(\"DB_NAME\", \"p71x6d_richard\");" >> deploy/api/config/env.php
-        echo "define(\"DB_USER\", \"p71x6d_richard\");" >> deploy/api/config/env.php
-        echo "define(\"DB_PASS\", \"Trottinette43!\");" >> deploy/api/config/env.php
-        echo "define(\"API_BASE_URL\", \"/api\");" >> deploy/api/config/env.php
-        echo "define(\"APP_ENV\", \"production\");" >> deploy/api/config/env.php
-        echo "" >> deploy/api/config/env.php
-        echo "// Fonction d'aide pour récupérer les variables d'environnement" >> deploy/api/config/env.php
-        echo "function get_env(\$key, \$default = null) {" >> deploy/api/config/env.php
-        echo "    \$const_name = strtoupper(\$key);" >> deploy/api/config/env.php
-        echo "    if (defined(\$const_name)) {" >> deploy/api/config/env.php
-        echo "        return constant(\$const_name);" >> deploy/api/config/env.php
-        echo "    }" >> deploy/api/config/env.php
-        echo "    return \$default;" >> deploy/api/config/env.php
-        echo "}" >> deploy/api/config/env.php
-        echo "?>" >> deploy/api/config/env.php
+        # Configuration PHP
+        echo "<?php
+// Configuration des variables d'environnement pour Infomaniak
+define(\"DB_HOST\", \"p71x6d.myd.infomaniak.com\");
+define(\"DB_NAME\", \"p71x6d_richard\");
+define(\"DB_USER\", \"p71x6d_richard\");
+define(\"DB_PASS\", \"Trottinette43!\");
+define(\"API_BASE_URL\", \"/api\");
+define(\"APP_ENV\", \"production\");
+
+// Fonction d'aide pour récupérer les variables d'environnement
+function get_env(\$key, \$default = null) {
+    \$const_name = strtoupper(\$key);
+    if (defined(\$const_name)) {
+        return constant(\$const_name);
+    }
+    return \$default;
+}
+?>" > deploy/api/config/env.php
         
         # Créer .htaccess pour l'API
-        echo "# Activer la réécriture d'URL" > deploy/api/.htaccess
-        echo "RewriteEngine On" >> deploy/api/.htaccess
-        echo "" >> deploy/api/.htaccess
-        echo "# Configuration CORS" >> deploy/api/.htaccess
-        echo "Header set Access-Control-Allow-Origin \"*\"" >> deploy/api/.htaccess
-        echo "Header set Access-Control-Allow-Methods \"GET, POST, OPTIONS, PUT, DELETE\"" >> deploy/api/.htaccess
-        echo "Header set Access-Control-Allow-Headers \"Content-Type, Authorization, X-Requested-With\"" >> deploy/api/.htaccess
-        echo "" >> deploy/api/.htaccess
-        echo "# Rediriger toutes les requêtes vers index.php" >> deploy/api/.htaccess
-        echo "RewriteCond %{REQUEST_FILENAME} !-f" >> deploy/api/.htaccess
-        echo "RewriteCond %{REQUEST_FILENAME} !-d" >> deploy/api/.htaccess
-        echo "RewriteRule ^(.*)$ index.php [QSA,L]" >> deploy/api/.htaccess
+        mkdir -p deploy/api
+        echo "# Activer la réécriture d'URL
+RewriteEngine On
+
+# Configuration CORS
+Header set Access-Control-Allow-Origin \"*\"
+Header set Access-Control-Allow-Methods \"GET, POST, OPTIONS, PUT, DELETE\"
+Header set Access-Control-Allow-Headers \"Content-Type, Authorization, X-Requested-With\"
+
+# Rediriger toutes les requêtes vers index.php
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^(.*)$ index.php [QSA,L]" > deploy/api/.htaccess
         
-        # Liste la structure du dossier de déploiement
+        # Vérifier ce qui a été préparé
         echo ""
         echo "=== Structure du déploiement ==="
-        find deploy -type d | sort
+        find deploy -type f | sort
 
     - name: Synchronisation vers le serveur Infomaniak
       uses: SamKirkland/FTP-Deploy-Action@v4.3.4
@@ -136,7 +147,6 @@ jobs:
           **/.git*/**
           **/node_modules/**
           README.md
-          **/api-tools/**
         log-level: verbose
         timeout: 120000
 
