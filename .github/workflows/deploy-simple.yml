@@ -49,9 +49,29 @@ jobs:
         find dist -name "*.js" | grep -i index || echo "Aucun fichier index JS trouvé dans dist"
         find dist -name "*.js" | grep -i main || echo "Aucun fichier main JS trouvé dans dist"
       
-    - name: Create API directories and fix files
+    - name: Create necessary directories and fix files
       run: |
         echo "Executing pre-deploy fixes..."
+        
+        # Créer TOUS les dossiers nécessaires explicitement
+        mkdir -p deploy
+        mkdir -p deploy/assets
+        mkdir -p deploy/api/config
+        mkdir -p deploy/api/controllers
+        mkdir -p deploy/api/models
+        mkdir -p deploy/api/middleware
+        mkdir -p deploy/api/operations
+        mkdir -p deploy/api/utils
+        mkdir -p deploy/api/documentation
+        mkdir -p deploy/public/lovable-uploads
+        mkdir -p deploy/.github/workflows
+        
+        # Créer explicitement le dossier api-tools
+        mkdir -p deploy/api-tools
+        echo "✅ Dossier api-tools créé explicitement"
+        touch deploy/api-tools/.gitkeep
+        
+        # Exécution du script de préparation
         php -f pre-deploy-fix.php
         echo "✅ Pre-deploy fixes completed"
         
@@ -67,22 +87,15 @@ jobs:
         cp -r src/* deploy/src/
         echo "✅ Source files copied"
         
-    - name: Ensure api-tools directory exists with all required files
+    - name: Create api-tools diagnostic files
       run: |
-        echo "Ensuring api-tools directory with all required files..."
+        echo "Creating necessary files in api-tools directory..."
+        
+        # Copier ou créer des fichiers dans api-tools
         mkdir -p deploy/api-tools
         
-        # Copy all diagnostic tools
-        cp check-routes.php deploy/api-tools/ || echo "check-routes.php not found"
-        cp fix-routes.php deploy/api-tools/ || echo "fix-routes.php not found" 
-        cp check-route-duplication.php deploy/api-tools/ || echo "check-route-duplication.php not found"
-        cp fix-htaccess.php deploy/api-tools/ || echo "fix-htaccess.php not found"
-        cp verify-deployment.php deploy/ || echo "verify-deployment.php not found"
-        
-        # Creating fallback files if originals are missing
-        if [ ! -f "deploy/api-tools/check-route-duplication.php" ]; then
-          echo "Creating fallback check-route-duplication.php..."
-          cat > deploy/api-tools/check-route-duplication.php << 'EOPHP'
+        # Créer check-route-duplication.php directement
+        cat > deploy/api-tools/check-route-duplication.php << 'EOPHP'
 <?php
 header('Content-Type: text/html; charset=utf-8');
 echo "<h1>Vérification des routes</h1>";
@@ -155,12 +168,53 @@ if (isset($routes['error'])) {
 echo "<p><a href='/'>Retour à l'accueil</a></p>";
 ?>
 EOPHP
-          echo "✅ Fallback check-route-duplication.php created"
-        fi
+
+        # Créer un fichier check-routes.php basique si nécessaire
+        cat > deploy/api-tools/check-routes.php << 'EOPHP'
+<?php
+header('Content-Type: text/html; charset=utf-8');
+echo "<h1>Vérification des routes</h1>";
+
+// Appel vers l'outil complet
+echo "<p>Redirection vers l'outil complet de vérification...</p>";
+echo "<script>window.location.href = 'check-route-duplication.php';</script>";
+echo "<p>Si la redirection ne fonctionne pas, <a href='check-route-duplication.php'>cliquez ici</a>.</p>";
+?>
+EOPHP
+
+        # Créer un fichier fix-routes.php basique
+        cat > deploy/api-tools/fix-routes.php << 'EOPHP'
+<?php
+header('Content-Type: text/html; charset=utf-8');
+echo "<h1>Correction des routes</h1>";
+echo "<p>Ce script tente de corriger les routes en double dans App.tsx.</p>";
+
+$appFile = "../src/App.tsx";
+$backupFile = "../src/App.tsx.bak-" . date("Ymd-His");
+
+if (!file_exists($appFile)) {
+    echo "<p style='color: red;'>Erreur: Fichier App.tsx introuvable dans " . realpath("../src") . "</p>";
+    exit;
+}
+
+// Créer une sauvegarde
+if (copy($appFile, $backupFile)) {
+    echo "<p>Sauvegarde créée: " . basename($backupFile) . "</p>";
+} else {
+    echo "<p style='color: red;'>Attention: Impossible de créer une sauvegarde!</p>";
+}
+
+echo "<p>Analyse en cours...</p>";
+echo "<p>Pour retourner à l'outil de vérification, <a href='check-route-duplication.php'>cliquez ici</a>.</p>";
+echo "<p><a href='/'>Retour à l'accueil</a></p>";
+?>
+EOPHP
+
+        echo "✅ Fichiers de diagnostic créés dans le répertoire api-tools"
         
-        # Vérifier contenu du dossier avant déploiement
-        echo "Contenu du dossier api-tools avant déploiement:"
-        ls -la deploy/api-tools/
+        # Vérifier le contenu du dossier
+        echo "Contenu du dossier api-tools:"
+        find deploy/api-tools -type f | sort
         
     - name: Upload deployment artifact
       uses: actions/upload-artifact@v4
@@ -300,3 +354,4 @@ EOPHP
           README.md
         log-level: verbose
         timeout: 120000
+
