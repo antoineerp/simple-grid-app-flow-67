@@ -51,22 +51,9 @@ jobs:
         mkdir -p deploy/api/utils
         mkdir -p deploy/api/documentation
         mkdir -p deploy/public/lovable-uploads
-        mkdir -p deploy/api-tools
         
         # Ajouter un fichier README dans api/documentation pour éviter les erreurs
         echo "# Documentation API\n\nCe dossier contient la documentation de l'API FormaCert." > deploy/api/documentation/README.md
-        
-        # Création des fichiers essentiels dans api-tools
-        echo "<?php\n// Index pour api-tools\nheader('Content-Type: text/html; charset=utf-8');\necho '<h1>API Tools</h1>';\necho '<p>Outils de gestion API</p>';\n?>" > deploy/api-tools/index.php
-        echo "<?php\nheader('Content-Type: text/html; charset=utf-8');\necho \"<h1>Vérification des Routes</h1>\";\necho \"<p>Cet outil permet de vérifier les routes définies dans l'application.</p>\";\n?>" > deploy/api-tools/check-routes.php
-        echo "# API Tools" > deploy/api-tools/README.md
-        touch deploy/api-tools/.gitkeep
-        
-        # S'assurer que les dossiers sont correctement créés
-        echo "Vérification des dossiers créés:"
-        ls -la deploy/
-        ls -la deploy/api/
-        ls -la deploy/api-tools/
         
         # Copier les fichiers racine essentiels
         cp index.php deploy/ 2>/dev/null || echo "index.php copié depuis dist/"
@@ -145,6 +132,7 @@ jobs:
           **/.git*/**
           **/node_modules/**
           README.md
+          **/api-tools/**
         log-level: verbose
         timeout: 120000
 
