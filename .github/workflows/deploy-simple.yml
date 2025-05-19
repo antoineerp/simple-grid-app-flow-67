@@ -82,11 +82,7 @@ jobs:
         # Creating fallback files if originals are missing
         if [ ! -f "deploy/api-tools/check-route-duplication.php" ]; then
           echo "Creating fallback check-route-duplication.php..."
-          cp check-route-duplication.php deploy/api-tools/ || echo "Could not copy check-route-duplication.php"
-          
-          # If copy fails, create the file directly
-          if [ ! -f "deploy/api-tools/check-route-duplication.php" ]; then
-            cat > deploy/api-tools/check-route-duplication.php << 'EOL'
+          cat > deploy/api-tools/check-route-duplication.php << 'EOPHP'
 <?php
 header('Content-Type: text/html; charset=utf-8');
 echo "<h1>Vérification des routes</h1>";
@@ -158,9 +154,8 @@ if (isset($routes['error'])) {
 
 echo "<p><a href='/'>Retour à l'accueil</a></p>";
 ?>
-EOL
-            echo "✅ Fallback check-route-duplication.php created"
-          fi
+EOPHP
+          echo "✅ Fallback check-route-duplication.php created"
         fi
         
         # Vérifier contenu du dossier avant déploiement
@@ -305,37 +300,3 @@ EOL
           README.md
         log-level: verbose
         timeout: 120000
-        
-    - name: Verify css and critical files after deployment
-      uses: appleboy/ssh-action@master
-      with:
-        host: ${{ secrets.FTP_SERVER }}
-        username: ${{ secrets.FTP_USERNAME }}
-        password: ${{ secrets.FTP_PASSWORD }}
-        script: |
-          cd /sites/qualiopi.ch/
-          echo "=== Vérification post-déploiement ==="
-          [ -f "assets/main.css" ] && echo "✅ assets/main.css: PRÉSENT" || echo "❌ assets/main.css: MANQUANT"
-          [ -f "index.html" ] && echo "✅ index.html: PRÉSENT" || echo "❌ index.html: MANQUANT"
-          [ -f "api/.htaccess" ] && echo "✅ api/.htaccess: PRÉSENT" || echo "❌ api/.htaccess: MANQUANT"
-          [ -f "api/config/env.php" ] && echo "✅ api/config/env.php: PRÉSENT" || echo "❌ api/config/env.php: MANQUANT"
-          [ -f "assets/index.js" ] && echo "✅ assets/index.js: PRÉSENT" || echo "❌ assets/index.js: MANQUANT"
-          [ -f "assets/main.js" ] && echo "✅ assets/main.js: PRÉSENT" || echo "❌ assets/main.js: MANQUANT"
-          [ -d "api-tools" ] && echo "✅ api-tools directory: PRÉSENT" || echo "❌ api-tools directory: MANQUANT"
-          [ -f "api-tools/check-routes.php" ] && echo "✅ api-tools/check-routes.php: PRÉSENT" || echo "❌ api-tools/check-routes.php: MANQUANT"
-          [ -f "api-tools/check-route-duplication.php" ] && echo "✅ api-tools/check-route-duplication.php: PRÉSENT" || echo "❌ api-tools/check-route-duplication.php: MANQUANT"
-          [ -f "src/App.tsx" ] && echo "✅ src/App.tsx: PRÉSENT" || echo "❌ src/App.tsx: MANQUANT"
-          
-          # Lister tous les fichiers hachés trouvés
-          echo "=== Fichiers hachés trouvés ==="
-          find assets -name "*.js" | grep -E '[a-zA-Z0-9]{8}\.' || echo "❌ Aucun fichier JS haché trouvé"
-          find assets -name "*.css" | grep -E '[a-zA-Z0-9]{8}\.' || echo "❌ Aucun fichier CSS haché trouvé"
-          
-          # Exécuter les scripts de diagnostic
-          php -f verify-deployment.php || echo "❌ Error running verify-deployment.php"
-          
-          # Exécuter le script de préparation
-          php -f pre-deploy-fix.php || echo "❌ Error running pre-deploy-fix.php"
-          
-          # Vérifier les routes en double s'il existe
-          [ -f "api-tools/check-route-duplication.php" ] && php -f api-tools/check-route-duplication.php || echo "❌ Error running check-route-duplication.php"
