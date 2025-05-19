@@ -34,18 +34,25 @@
   <!-- Script principal avec modules ES6 -->
   <script type="module" src="/assets/index.js"></script>
   
-  <!-- Script de secours en cas d'échec du chargement du module -->
+  <!-- Script de secours en cas d'échec du chargement du module - DÉSACTIVÉ POUR FORCER L'UTILISATION DES VRAIES DONNÉES -->
   <script>
     window.addEventListener('error', function(e) {
       // Détecter les erreurs liées au chargement des modules
       if (e.filename && e.filename.includes('index.')) {
-        console.error('Erreur de chargement du module ES6, chargement du fallback');
-        var fallbackScript = document.createElement('script');
-        fallbackScript.src = '/assets/main.js';
-        fallbackScript.onerror = function() {
-          document.getElementById('root').innerHTML = '<div style="text-align:center; padding:2rem;"><h1>Erreur de chargement</h1><p>Impossible de charger les ressources JavaScript.</p></div>';
-        };
-        document.body.appendChild(fallbackScript);
+        console.error('Erreur de chargement du module ES6');
+        
+        // Afficher un message d'erreur au lieu de charger le fallback
+        document.getElementById('root').innerHTML = `
+          <div style="max-width: 600px; margin: 2rem auto; padding: 2rem; text-align: center; font-family: system-ui, sans-serif; border: 2px solid #f44336; border-radius: 8px;">
+            <h2 style="color: #f44336;">Erreur de connexion</h2>
+            <p>Impossible d'établir une connexion avec la base de données.</p>
+            <p style="font-weight: bold;">Le mode secours est désactivé - les vraies données sont nécessaires.</p>
+            <p>Message technique: ${e.message || 'Erreur de chargement du module'}</p>
+            <button onclick="window.location.reload()" style="background: #0057b7; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; margin-top: 1rem;">
+              Réessayer
+            </button>
+          </div>
+        `;
       }
     }, true);
   </script>

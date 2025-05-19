@@ -69,11 +69,15 @@ try {
 } catch (PDOException $e) {
     error_log("Erreur de connexion PDO: " . $e->getMessage());
     
-    http_response_code(500);
+    // Envoyer une erreur HTTP 503 (Service indisponible) au lieu de 500
+    // pour indiquer clairement que le problème est avec la base de données
+    http_response_code(503);
     echo json_encode([
         'status' => 'error',
         'message' => 'Échec de la connexion PDO directe',
-        'error' => $e->getMessage()
+        'error' => $e->getMessage(),
+        'solution' => 'Aucune solution de secours disponible - connexion requise',
+        'require_connection' => true
     ]);
     exit;
 } catch (Exception $e) {
@@ -83,7 +87,9 @@ try {
     echo json_encode([
         'status' => 'error',
         'message' => 'Erreur lors du test de connexion',
-        'error' => $e->getMessage()
+        'error' => $e->getMessage(),
+        'solution' => 'Aucune solution de secours disponible - connexion requise',
+        'require_connection' => true
     ]);
     exit;
 }
