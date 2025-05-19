@@ -37,7 +37,7 @@ jobs:
         echo "=== Déploiement Simplifié vers Infomaniak ==="
         echo "Date: $(date)"
         
-        # Création du dossier de déploiement
+        # Création du dossier de déploiement sans sous-dossiers problématiques
         mkdir -p deploy
         
         # Copie DIRECTE du dossier dist complet
@@ -45,34 +45,16 @@ jobs:
         echo "✅ Dossier dist/ copié entièrement"
         
         # Création des dossiers essentiels AVANT le déploiement FTP
+        # SUPPRESSION DE LA CRÉATION DU DOSSIER api-tools qui cause des problèmes
         mkdir -p deploy/assets
         mkdir -p deploy/api/config
         mkdir -p deploy/api/utils
-        mkdir -p deploy/api-tools
         mkdir -p deploy/public/lovable-uploads
         
         # S'assurer que les dossiers sont correctement créés
         echo "Vérification des dossiers créés:"
         ls -la deploy/
         ls -la deploy/api/
-        ls -la deploy/api-tools/
-        
-        # Créer le fichier .gitkeep dans api-tools pour préserver le dossier
-        touch deploy/api-tools/.gitkeep
-        
-        # Créer index.php dans api-tools
-        echo "<?php
-// Redirection vers la vérification des routes
-header('Location: check-routes.php');
-exit;
-?>" > deploy/api-tools/index.php
-        
-        # Créer check-routes.php
-        echo "<?php
-header('Content-Type: text/html; charset=utf-8');
-echo \"<h1>Vérification des Routes</h1>\";
-echo \"<p>Cet outil permet de vérifier les routes définies dans l'application.</p>\";
-?>" > deploy/api-tools/check-routes.php
         
         # Copier les fichiers racine essentiels
         cp index.php deploy/ 2>/dev/null || echo "index.php copié depuis dist/"
@@ -138,9 +120,6 @@ RewriteRule ^(.*)$ index.php [QSA,L]" > deploy/api/.htaccess
         critical_files=(
           "deploy/dist/index.html"
           "deploy/assets"
-          "deploy/api-tools/.gitkeep"
-          "deploy/api-tools/index.php"
-          "deploy/api-tools/check-routes.php"
           "deploy/api/config/db_config.json"
           "deploy/api/config/env.php"
           "deploy/api/.htaccess"
