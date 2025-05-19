@@ -66,14 +66,57 @@ jobs:
         mkdir -p deploy/public/lovable-uploads
         mkdir -p deploy/.github/workflows
         
-        # Créer explicitement le dossier api-tools
+        # Créer explicitement le dossier api-tools et vérifier qu'il existe
         mkdir -p deploy/api-tools
         echo "✅ Dossier api-tools créé explicitement"
         touch deploy/api-tools/.gitkeep
+        ls -la deploy/api-tools || echo "ERREUR: Le dossier api-tools n'a pas été créé correctement!"
         
         # Exécution du script de préparation
         php -f pre-deploy-fix.php
         echo "✅ Pre-deploy fixes completed"
+
+    - name: Create important api-tools files to avoid FTP errors
+      run: |
+        echo "Creating necessary files in api-tools directory to prevent FTP errors..."
+        
+        # Créer un fichier index.php dans api-tools
+        cat > deploy/api-tools/index.php << 'EOPHP'
+<?php
+// Redirection vers l'outil de vérification des routes
+header('Location: check-routes.php');
+exit;
+?>
+EOPHP
+
+        # Créer check-routes.php directement
+        cat > deploy/api-tools/check-routes.php << 'EOPHP'
+<?php
+header('Content-Type: text/html; charset=utf-8');
+echo "<h1>Vérification des routes</h1>";
+echo "<p>Ce script analyse les routes définies dans App.tsx et détecte les doublons.</p>";
+
+// Appel vers l'outil complet
+echo "<p>Redirection vers l'outil complet de vérification...</p>";
+echo "<script>window.location.href = 'check-route-duplication.php';</script>";
+echo "<p>Si la redirection ne fonctionne pas, <a href='check-route-duplication.php'>cliquez ici</a>.</p>";
+?>
+EOPHP
+
+        # Vérifier le contenu du dossier api-tools
+        echo "Contenu du dossier api-tools:"
+        ls -la deploy/api-tools/
+
+        # Test de création de fichier supplémentaire pour s'assurer que le dossier est accessible
+        echo "Test d'accès au dossier api-tools..."
+        touch deploy/api-tools/test-file.txt
+        echo "Ce fichier confirme que le dossier api-tools est accessible" > deploy/api-tools/test-file.txt
+        
+        if [ -f "deploy/api-tools/test-file.txt" ]; then
+          echo "✅ Test de création de fichier dans api-tools réussi"
+        else
+          echo "❌ ERREUR: Impossible de créer un fichier dans api-tools"
+        fi
         
     - name: Execute deployment script
       run: |
@@ -169,19 +212,6 @@ echo "<p><a href='/'>Retour à l'accueil</a></p>";
 ?>
 EOPHP
 
-        # Créer un fichier check-routes.php basique si nécessaire
-        cat > deploy/api-tools/check-routes.php << 'EOPHP'
-<?php
-header('Content-Type: text/html; charset=utf-8');
-echo "<h1>Vérification des routes</h1>";
-
-// Appel vers l'outil complet
-echo "<p>Redirection vers l'outil complet de vérification...</p>";
-echo "<script>window.location.href = 'check-route-duplication.php';</script>";
-echo "<p>Si la redirection ne fonctionne pas, <a href='check-route-duplication.php'>cliquez ici</a>.</p>";
-?>
-EOPHP
-
         # Créer un fichier fix-routes.php basique
         cat > deploy/api-tools/fix-routes.php << 'EOPHP'
 <?php
@@ -212,8 +242,8 @@ EOPHP
 
         echo "✅ Fichiers de diagnostic créés dans le répertoire api-tools"
         
-        # Vérifier le contenu du dossier
-        echo "Contenu du dossier api-tools:"
+        # Vérifier le contenu du dossier une dernière fois
+        echo "Contenu final du dossier api-tools:"
         find deploy/api-tools -type f | sort
         
     - name: Upload deployment artifact
@@ -354,4 +384,3 @@ EOPHP
           README.md
         log-level: verbose
         timeout: 120000
-
