@@ -51,7 +51,7 @@ jobs:
         # Copier les scripts utilitaires pour la création de la structure
         cp fix-directory-structure.php deploy/ 2>/dev/null || echo "Fichier fix-directory-structure.php non trouvé"
         
-        # Créer un script PHP simple pour la création de la structure - PAS DE RÉFÉRENCE À API-TOOLS
+        # Créer un script PHP simple pour la création de la structure - SANS AUCUNE RÉFÉRENCE À API-TOOLS
         echo "<?php
         // Script de création de dossiers et fichiers
         \$directories = [
