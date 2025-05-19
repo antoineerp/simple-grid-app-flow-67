@@ -5,7 +5,7 @@ header('Content-Type: text/html; charset=utf-8');
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Désactivation des anciens workflows GitHub</title>
+    <title>Nettoyage des workflows GitHub</title>
     <style>
         body { font-family: Arial, sans-serif; margin: 20px; line-height: 1.6; }
         .container { max-width: 800px; margin: 0 auto; }
@@ -18,112 +18,285 @@ header('Content-Type: text/html; charset=utf-8');
 </head>
 <body>
     <div class="container">
-        <h1>Désactivation des anciens workflows GitHub</h1>
+        <h1>Nettoyage des workflows GitHub</h1>
         
         <div class="card">
-            <h2>Workflows GitHub Actions</h2>
+            <h2>État actuel des workflows</h2>
             <?php
             $workflow_dir = './.github/workflows';
-            $unified_workflow = './.github/workflows/deploy-unified.yml';
-            $files = [];
-            $success_message = '';
-            $error_message = '';
+            $workflows = [];
             
-            if (is_dir($workflow_dir)) {
-                $files = scandir($workflow_dir);
-                $files = array_filter($files, function($file) use ($unified_workflow) {
-                    return pathinfo($file, PATHINFO_EXTENSION) === 'yml' && 
-                           "$workflow_dir/$file" !== $unified_workflow && 
-                           !str_ends_with($file, '.disabled.yml');
-                });
+            // Vérifier si le répertoire existe
+            if (!is_dir($workflow_dir)) {
+                echo "<div class='error'>Le répertoire des workflows n'existe pas. Création en cours...</div>";
+                mkdir($workflow_dir, 0755, true);
+                echo "<div class='success'>Répertoire créé avec succès!</div>";
             }
             
-            if (isset($_POST['disable_all'])) {
-                $success_count = 0;
-                $error_count = 0;
-                
-                foreach ($files as $file) {
-                    $file_path = "$workflow_dir/$file";
-                    $new_path = "$file_path.disabled";
-                    
-                    if (rename($file_path, $new_path)) {
-                        $success_count++;
-                    } else {
-                        $error_count++;
+            // Lister tous les workflows existants
+            if ($handle = opendir($workflow_dir)) {
+                echo "<h3>Workflows détectés:</h3><ul>";
+                while (false !== ($entry = readdir($handle))) {
+                    if ($entry != "." && $entry != ".." && pathinfo($entry, PATHINFO_EXTENSION) === 'yml') {
+                        echo "<li>$entry</li>";
+                        $workflows[] = $entry;
                     }
                 }
-                
-                if ($success_count > 0) {
-                    $success_message = "$success_count workflow(s) ont été désactivés avec succès.";
-                }
-                
-                if ($error_count > 0) {
-                    $error_message = "Impossible de désactiver $error_count workflow(s).";
-                }
-                
-                // Recharger la liste des fichiers
-                $files = scandir($workflow_dir);
-                $files = array_filter($files, function($file) use ($unified_workflow) {
-                    return pathinfo($file, PATHINFO_EXTENSION) === 'yml' && 
-                           "$workflow_dir/$file" !== $unified_workflow && 
-                           !str_ends_with($file, '.disabled.yml');
-                });
-            }
-            
-            if (isset($_POST['enable_unified'])) {
-                if (file_exists("$unified_workflow.disabled")) {
-                    if (rename("$unified_workflow.disabled", $unified_workflow)) {
-                        $success_message = "Le workflow unifié a été activé avec succès.";
-                    } else {
-                        $error_message = "Impossible d'activer le workflow unifié.";
-                    }
-                } elseif (!file_exists($unified_workflow)) {
-                    $error_message = "Le workflow unifié n'existe pas. Veuillez d'abord le créer.";
-                }
-            }
-            
-            if (!empty($success_message)) {
-                echo "<div class='success'>$success_message</div>";
-            }
-            
-            if (!empty($error_message)) {
-                echo "<div class='error'>$error_message</div>";
-            }
-            
-            // Vérifier si le workflow unifié existe
-            $unified_exists = file_exists($unified_workflow);
-            $unified_disabled = file_exists("$unified_workflow.disabled");
-            
-            if ($unified_exists) {
-                echo "<div class='success'>Le workflow unifié est actif.</div>";
-            } elseif ($unified_disabled) {
-                echo "<div class='warning'>Le workflow unifié est désactivé.</div>";
-                echo "<form method='post'>";
-                echo "<button type='submit' name='enable_unified'>Activer le workflow unifié</button>";
-                echo "</form>";
-            } else {
-                echo "<div class='error'>Le workflow unifié n'existe pas.</div>";
-                echo "<p>Utilisez le script <a href='verify-ssh-path.php'>verify-ssh-path.php</a> pour créer le workflow unifié.</p>";
-            }
-            
-            // Afficher les workflows actifs
-            if (!empty($files)) {
-                echo "<h3>Workflows actifs (hors workflow unifié):</h3>";
-                echo "<ul>";
-                foreach ($files as $file) {
-                    echo "<li><code>$file</code></li>";
-                }
+                closedir($handle);
                 echo "</ul>";
                 
-                echo "<form method='post'>";
-                echo "<button type='submit' name='disable_all'>Désactiver tous les anciens workflows</button>";
-                echo "</form>";
-                
-                echo "<p><strong>Note:</strong> La désactivation renomme les fichiers en ajoutant l'extension '.disabled' et ne les supprime pas.</p>";
-            } else {
-                echo "<div class='success'>Il n'y a pas d'autres workflows actifs que le workflow unifié.</div>";
+                if (empty($workflows)) {
+                    echo "<div class='warning'>Aucun workflow détecté.</div>";
+                }
             }
             ?>
+            
+            <h3>Actions disponibles</h3>
+            <form method="post">
+                <button type="submit" name="disable_all">Désactiver tous les anciens workflows</button>
+                <button type="submit" name="create_unified">Créer workflow unifié</button>
+            </form>
+            
+            <?php
+            // Traiter les actions
+            if (isset($_POST['disable_all']) && !empty($workflows)) {
+                echo "<div class='warning'>Désactivation des anciens workflows...</div>";
+                foreach ($workflows as $workflow) {
+                    // Ne pas désactiver le workflow unifié
+                    if ($workflow !== 'deploy-unified.yml') {
+                        $old_path = "$workflow_dir/$workflow";
+                        $new_path = "$workflow_dir/$workflow.disabled";
+                        if (rename($old_path, $new_path)) {
+                            echo "<div class='success'>Workflow '$workflow' désactivé.</div>";
+                        } else {
+                            echo "<div class='error'>Impossible de désactiver '$workflow'.</div>";
+                        }
+                    }
+                }
+            }
+            
+            if (isset($_POST['create_unified'])) {
+                echo "<div class='warning'>Création du workflow unifié...</div>";
+                
+                $unified_content = <<<EOT
+name: Déploiement Unifié vers Infomaniak
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: 'Raison du déploiement manuel'
+        required: false
+        default: 'Déploiement manuel'
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout du code source
+      uses: actions/checkout@v3
+      with:
+        token: \${{ secrets.GITHUB_TOKEN }}
+
+    - name: Configuration de Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '20'
+        
+    - name: Installation des dépendances
+      run: npm install --legacy-peer-deps
+      
+    - name: Construction de l'application React
+      run: npm run build
+      
+    - name: Préparation du déploiement (SIMPLIFIÉ)
+      run: |
+        echo "=== Déploiement Simplifié vers Infomaniak ==="
+        echo "Date: \$(date)"
+        
+        # Création du dossier de déploiement
+        mkdir -p deploy
+        
+        # Copie DIRECTE du dossier dist complet (CRUCIAL)
+        cp -r dist deploy/
+        echo "✅ Dossier dist/ copié entièrement"
+        
+        # Création des dossiers essentiels
+        mkdir -p deploy/assets
+        mkdir -p deploy/api/config
+        mkdir -p deploy/api/utils
+        mkdir -p deploy/api-tools
+        mkdir -p deploy/public/lovable-uploads
+        
+        # Créer le fichier .gitkeep dans api-tools pour s'assurer que le dossier existe
+        touch deploy/api-tools/.gitkeep
+        
+        # Créer index.php dans api-tools
+        cat > deploy/api-tools/index.php << 'EOF'
+<?php
+// Redirection vers la vérification des routes
+header('Location: check-routes.php');
+exit;
+?>
+EOF
+        
+        # Créer check-routes.php
+        cat > deploy/api-tools/check-routes.php << 'EOF'
+<?php
+header('Content-Type: text/html; charset=utf-8');
+echo "<h1>Vérification des Routes</h1>";
+echo "<p>Cet outil permet de vérifier les routes définies dans l'application.</p>";
+?>
+EOF
+        
+        # Copier les fichiers racine essentiels
+        cp index.php deploy/ 2>/dev/null || echo "index.php copié depuis dist/"
+        cp index.html deploy/ 2>/dev/null || cp dist/index.html deploy/ || echo "ERREUR: index.html non trouvé"
+        cp .htaccess deploy/ 2>/dev/null || echo "Attention: .htaccess non trouvé"
+        cp vite.config.ts deploy/ 2>/dev/null || echo "Attention: vite.config.ts non trouvé"
+        
+        # Copier les assets vers le dossier assets (sauvegarde)
+        if [ -d "assets" ]; then
+          cp -r assets/* deploy/assets/ 2>/dev/null || echo "Aucun asset à copier depuis assets/"
+        fi
+        
+        # Copier les assets du build également
+        if [ -d "dist/assets" ]; then
+          cp -r dist/assets/* deploy/assets/ 2>/dev/null || echo "Aucun asset à copier depuis dist/assets/"
+        fi
+        
+        # Configuration de la base de données
+        cat > deploy/api/config/db_config.json << 'EOF'
+{
+    "host": "p71x6d.myd.infomaniak.com",
+    "db_name": "p71x6d_richard",
+    "username": "p71x6d_richard",
+    "password": "Trottinette43!"
+}
+EOF
+        
+        # Configuration PHP
+        cat > deploy/api/config/env.php << 'EOF'
+<?php
+// Configuration des variables d'environnement pour Infomaniak
+define("DB_HOST", "p71x6d.myd.infomaniak.com");
+define("DB_NAME", "p71x6d_richard");
+define("DB_USER", "p71x6d_richard");
+define("DB_PASS", "Trottinette43!");
+define("API_BASE_URL", "/api");
+define("APP_ENV", "production");
+
+// Fonction d'aide pour récupérer les variables d'environnement
+function get_env(\$key, \$default = null) {
+    \$const_name = strtoupper(\$key);
+    if (defined(\$const_name)) {
+        return constant(\$const_name);
+    }
+    return \$default;
+}
+?>
+EOF
+        
+        # Créer .htaccess pour l'API
+        cat > deploy/api/.htaccess << 'EOF'
+# Activer la réécriture d'URL
+RewriteEngine On
+
+# Configuration CORS
+Header set Access-Control-Allow-Origin "*"
+Header set Access-Control-Allow-Methods "GET, POST, OPTIONS, PUT, DELETE"
+Header set Access-Control-Allow-Headers "Content-Type, Authorization, X-Requested-With"
+
+# Rediriger toutes les requêtes vers index.php
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^(.*)$ index.php [QSA,L]
+EOF
+        
+        # Vérifier les dossiers et fichiers critiques
+        echo ""
+        echo "=== Vérification des fichiers critiques ==="
+        critical_files=(
+          "deploy/dist/index.html"
+          "deploy/assets"
+          "deploy/api-tools/.gitkeep"
+          "deploy/api-tools/index.php"
+          "deploy/api-tools/check-routes.php"
+          "deploy/api/config/db_config.json"
+          "deploy/api/config/env.php"
+          "deploy/api/.htaccess"
+        )
+        
+        all_ok=true
+        for file in "\${critical_files[@]}"; do
+          if [ -e "\$file" ]; then
+            echo "✅ \$file: PRÉSENT"
+          else
+            echo "❌ \$file: MANQUANT"
+            all_ok=false
+          fi
+        done
+        
+        if [ "\$all_ok" = true ]; then
+          echo "Tous les fichiers critiques sont présents!"
+        else
+          echo "ATTENTION: Certains fichiers critiques sont manquants!"
+        fi
+        
+        # Liste la structure du dossier de déploiement
+        echo ""
+        echo "=== Structure du déploiement ==="
+        find deploy -type d | sort
+
+    - name: Synchronisation vers le serveur Infomaniak
+      uses: SamKirkland/FTP-Deploy-Action@v4.3.4
+      with:
+        server: \${{ secrets.FTP_SERVER }}
+        username: \${{ secrets.FTP_USERNAME }}
+        password: \${{ secrets.FTP_PASSWORD }}
+        local-dir: ./deploy/
+        server-dir: /sites/qualiopi.ch/
+        dangerous-clean-slate: false
+        exclude: |
+          **/.git*
+          **/.git*/**
+          **/node_modules/**
+          README.md
+        log-level: verbose
+        timeout: 120000
+
+    - name: Nettoyage
+      run: rm -rf deploy
+EOT;
+
+                $unified_path = "$workflow_dir/deploy-unified.yml";
+                if (file_put_contents($unified_path, $unified_content)) {
+                    echo "<div class='success'>Workflow unifié créé avec succès!</div>";
+                    echo "<p>Pour activer ce workflow, commettez et poussez ce fichier vers GitHub.</p>";
+                } else {
+                    echo "<div class='error'>Impossible de créer le workflow unifié.</div>";
+                }
+            }
+            ?>
+        </div>
+        
+        <div class="card">
+            <h2>Instructions pour utiliser le workflow unifié</h2>
+            <ol>
+                <li>Désactivez tous les anciens workflows en utilisant le bouton ci-dessus</li>
+                <li>Créez le workflow unifié en utilisant le bouton ci-dessus</li>
+                <li>Commettez et poussez les changements vers GitHub:
+                    <pre>
+git add .
+git commit -m "Mise à jour du workflow de déploiement"
+git push origin main</pre>
+                </li>
+                <li>Déclenchez manuellement le workflow depuis l'interface GitHub Actions ou attendez le prochain commit pour un déclenchement automatique</li>
+                <li>Vérifiez les logs de déploiement pour vous assurer que tous les fichiers sont correctement copiés</li>
+            </ol>
         </div>
     </div>
 </body>
