@@ -50,10 +50,14 @@ jobs:
         mkdir -p deploy/api/config
         mkdir -p deploy/api/utils
         mkdir -p deploy/api/documentation
+        mkdir -p deploy/api/admin
         mkdir -p deploy/public/lovable-uploads
         
         # Ajouter un fichier README dans api/documentation pour éviter les erreurs
         echo "# Documentation API\n\nCe dossier contient la documentation de l'API FormaCert." > deploy/api/documentation/README.md
+        
+        # Créer un fichier .htaccess vide dans api/admin pour s'assurer que le dossier est créé
+        touch deploy/api/admin/.htaccess
         
         # Copier les fichiers racine essentiels
         cp index.php deploy/ 2>/dev/null || echo "index.php copié depuis dist/"
