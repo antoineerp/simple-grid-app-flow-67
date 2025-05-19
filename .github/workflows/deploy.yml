@@ -89,6 +89,7 @@ jobs:
           **/node_modules/**
           **/api-tools/**
           **/api/admin/**
+          **/api/documentation/**
           README.md
           dist/**
           package.json
@@ -100,3 +101,4 @@ jobs:
       run: |
         rm -rf deploy
         rm -rf dist
+

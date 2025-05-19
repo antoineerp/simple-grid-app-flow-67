@@ -21,7 +21,8 @@ header('Content-Type: text/html; charset=utf-8');
     // Définir les dossiers à créer
     $directories = [
         '/sites/qualiopi.ch/api/admin',
-        '/sites/qualiopi.ch/api-tools'
+        '/sites/qualiopi.ch/api-tools',
+        '/sites/qualiopi.ch/api/documentation'
     ];
     
     echo "<h2>Tentative de création des dossiers</h2>";
@@ -101,3 +102,4 @@ header('Content-Type: text/html; charset=utf-8');
     </p>
 </body>
 </html>
+
