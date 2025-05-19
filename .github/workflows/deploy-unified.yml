@@ -61,14 +61,12 @@ jobs:
         echo "# API Tools" > deploy/api-tools/README.md
         touch deploy/api-tools/.gitkeep
         
-        # Créer le fichier check-routes.php dans api-tools
-        cat > deploy/api-tools/check-routes.php << 'EOL'
-<?php
-header('Content-Type: text/html; charset=utf-8');
-echo "<h1>Vérification des Routes</h1>";
-echo "<p>Cet outil permet de vérifier les routes définies dans l'application.</p>";
-?>
-EOL
+        # Créer le fichier check-routes.php dans api-tools sans utiliser heredoc (EOL)
+        echo "<?php" > deploy/api-tools/check-routes.php
+        echo "header('Content-Type: text/html; charset=utf-8');" >> deploy/api-tools/check-routes.php
+        echo "echo \"<h1>Vérification des Routes</h1>\";" >> deploy/api-tools/check-routes.php
+        echo "echo \"<p>Cet outil permet de vérifier les routes définies dans l'application.</p>\";" >> deploy/api-tools/check-routes.php
+        echo "?>" >> deploy/api-tools/check-routes.php
         
         # S'assurer que les dossiers sont correctement créés
         echo "Vérification des dossiers créés:"
