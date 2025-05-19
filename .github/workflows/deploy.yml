@@ -88,6 +88,7 @@ jobs:
           **/.git*/**
           **/node_modules/**
           **/api-tools/**
+          **/api/admin/**
           README.md
           dist/**
           package.json
