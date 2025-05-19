@@ -39,7 +39,7 @@ header('Content-Type: text/html; charset=utf-8');
             <h2>Validation du fichier de workflow</h2>
             
             <?php
-            $workflow_file = './.github/workflows/deploy.yml';
+            $workflow_file = './.github/workflows/deploy-unified.yml';
             
             if (file_exists($workflow_file)) {
                 echo "<p>Fichier de workflow trouvé: <span class='success'>" . basename($workflow_file) . "</span></p>";
@@ -71,7 +71,7 @@ header('Content-Type: text/html; charset=utf-8');
                     
                     for ($i = 0; $i < count($lines); $i++) {
                         $line = $lines[$i];
-                        if (strpos($line, "<<") !== false && strpos($line, "EOL") !== false) {
+                        if (strpos($line, "<<") !== false && strpos($line, "EOF") !== false) {
                             $has_heredoc = true;
                             $lineNum = $i + 1;
                             
@@ -79,7 +79,7 @@ header('Content-Type: text/html; charset=utf-8');
                             if ($i + 1 < count($lines)) {
                                 $nextLine = $lines[$i + 1];
                                 if (strpos($nextLine, "<?php") === 0 || strpos($nextLine, "{") === 0 || strpos($nextLine, ";") === 0) {
-                                    echo "<p><span class='warning'>Attention à la ligne $lineNum: Le délimiteur EOL devrait être suivi d'un saut de ligne.</span></p>";
+                                    echo "<p><span class='warning'>Attention à la ligne $lineNum: Le délimiteur EOF devrait être suivi d'un saut de ligne.</span></p>";
                                     $heredoc_errors[] = $lineNum;
                                 }
                             }
@@ -87,12 +87,12 @@ header('Content-Type: text/html; charset=utf-8');
                     }
                     
                     if ($has_heredoc && empty($heredoc_errors)) {
-                        echo "<p><span class='success'>Les blocs heredoc (EOL) semblent correctement formatés.</span></p>";
+                        echo "<p><span class='success'>Les blocs heredoc (EOF) semblent correctement formatés.</span></p>";
                     }
                 }
             } else {
                 echo "<p>Fichier de workflow: <span class='error'>Non trouvé</span></p>";
-                echo "<p>Chemin vérifié: " . realpath('./') . "/.github/workflows/deploy.yml</p>";
+                echo "<p>Chemin vérifié: " . realpath('./') . "/.github/workflows/deploy-unified.yml</p>";
                 
                 // Vérifier si le dossier .github existe
                 if (!is_dir('./.github')) {
@@ -124,7 +124,7 @@ header('Content-Type: text/html; charset=utf-8');
                         echo "<p><span class='success'>Dossier .github/workflows créé avec succès</span></p>";
                     }
                 } else {
-                    echo "<p>Structure des dossiers correcte, mais fichier deploy.yml: <span class='error'>Non trouvé</span></p>";
+                    echo "<p>Structure des dossiers correcte, mais fichier deploy-unified.yml: <span class='error'>Non trouvé</span></p>";
                     $files = scandir('./.github/workflows');
                     if (count($files) > 2) {  // Plus que "." et ".."
                         echo "<p>Fichiers trouvés dans ./.github/workflows:</p><ul>";
@@ -159,20 +159,15 @@ header('Content-Type: text/html; charset=utf-8');
                 <h3>2. Solutions pour déclencher le workflow</h3>
                 <p>Si le bouton "Run workflow" n'apparaît pas dans l'interface GitHub, essayez :</p>
                 <ul>
-                    <li><strong>Corriger la syntaxe YAML</strong> - Vérifiez que le fichier deploy.yml ne contient pas d'erreurs</li>
+                    <li><strong>Déclencher manuellement</strong> - Allez dans l'onglet "Actions" de votre dépôt GitHub, sélectionnez "Déploiement Unifié vers Infomaniak" dans la liste des workflows, puis cliquez sur "Run workflow"</li>
+                    <li><strong>Corriger la syntaxe YAML</strong> - Vérifiez que le fichier deploy-unified.yml ne contient pas d'erreurs</li>
                     <li><strong>Créer un commit vide</strong> - Exécutez ces commandes pour forcer un déploiement :
                     <pre>git commit --allow-empty -m "Force deployment"
 git push origin main</pre></li>
-                    <li><strong>Utiliser l'API GitHub</strong> - Si vous avez un token d'accès personnel GitHub :
-                    <pre>curl -X POST \
--H "Accept: application/vnd.github.v3+json" \
--H "Authorization: token VOTRE_TOKEN" \
-https://api.github.com/repos/antoineerp/qualiopi-ch/actions/workflows/deploy.yml/dispatches \
--d '{"ref":"main"}'</pre></li>
                 </ul>
             </div>
             
-            <p><a href="deploy-on-infomaniak.php" class="button">Retour à la page de déploiement</a></p>
+            <a href="javascript:history.back()" class="button">Retour à la page précédente</a>
         </div>
     </div>
 </body>
