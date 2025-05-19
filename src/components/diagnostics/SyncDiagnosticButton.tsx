@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { FileSearch } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import SyncDiagnosticPanel from './SyncDiagnosticPanel';
+import { SyncDiagnosticPanel } from './SyncDiagnosticPanel';
 import { TooltipProvider, Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { useGlobalSync } from '@/contexts/GlobalSyncContext';
 

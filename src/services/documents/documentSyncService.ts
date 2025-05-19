@@ -1,3 +1,4 @@
+
 import { Document } from '@/types/documents';
 import { getApiUrl } from '@/config/apiConfig';
 import { getAuthHeaders } from '@/services/auth/authService';
@@ -11,54 +12,118 @@ import {
   hasLocalData 
 } from '@/features/sync/utils/syncStorageManager';
 
-// Garde un suivi des requêtes récentes pour éviter les duplications
-const recentRequests = new Map<string, number>();
-const REQUEST_THROTTLE_MS = 5000; // 5 secondes entre les requêtes
-
 /**
  * Chargement des documents depuis le serveur pour un utilisateur spécifique
  * Priorise toujours la base de données Infomaniak
  */
 export const loadDocumentsFromServer = async (userId: string | null = null): Promise<Document[]> => {
   const currentUser = userId || getCurrentUser() || 'p71x6d_system';
-  const requestKey = `documents_load_${currentUser}`;
+  console.log(`Chargement des documents pour l'utilisateur ${currentUser} (priorité serveur)`);
   
-  // Vérifier si une requête similaire a été faite récemment
-  const now = Date.now();
-  const lastRequest = recentRequests.get(requestKey) || 0;
+  // Dispatch un événement pour le monitoring
+  window.dispatchEvent(new CustomEvent('syncStarted', { 
+    detail: { tableName: 'documents', operation: 'load' }
+  }));
   
-  if (now - lastRequest < REQUEST_THROTTLE_MS) {
-    console.log(`Requête ignorée (throttle: ${now - lastRequest}ms) - Utilisation du cache local`);
-    // Si oui, retourner les données du cache local pour éviter les requêtes multiples
-    return getLocalDocuments(userId);
-  }
-  
-  // Marquer cette requête comme la plus récente
-  recentRequests.set(requestKey, now);
+  let documents: Document[] = [];
   
   // Essayer d'abord de récupérer depuis le stockage local (pour éviter les pertes de données)
   const localDocuments = getLocalDocuments(userId);
+  if (localDocuments.length > 0) {
+    console.log(`${localDocuments.length} documents trouvés dans le stockage local`);
+    documents = localDocuments;
+  }
   
-  // Tentative de chargement depuis le serveur seulement si en ligne
-  if (navigator.onLine) {
-    try {
-      // Construire l'URL
-      const API_URL = getApiUrl();
-      const endpoint = `${API_URL}/documents-load.php`;
+  // Tentative de chargement depuis le serveur
+  try {
+    // Construire l'URL
+    const API_URL = getApiUrl();
+    const endpoint = `${API_URL}/documents-load.php`;
+    
+    console.log(`Tentative de chargement depuis: ${endpoint}`);
+    
+    // Première tentative - URL standard
+    const response = await fetch(`${endpoint}?userId=${currentUser}`, {
+      method: 'GET',
+      headers: {
+        ...getAuthHeaders(),
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0'
+      },
+      cache: 'no-store'
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Erreur HTTP ${response.status}: ${response.statusText}`);
+    }
+    
+    const result = await response.json();
+    console.log("Documents chargés depuis le serveur:", result);
+    
+    let serverDocuments: Document[] = [];
+    
+    if (result.success && Array.isArray(result.documents)) {
+      serverDocuments = result.documents;
+    } else if (Array.isArray(result)) {
+      serverDocuments = result;
+    } else if (result.records && Array.isArray(result.records)) {
+      serverDocuments = result.records;
+    } else {
+      console.warn("Format de réponse non reconnu pour les documents");
+      throw new Error("Format de réponse non reconnu");
+    }
+    
+    // Fusionner les documents locaux et ceux du serveur si nécessaire
+    if (serverDocuments.length > 0) {
+      documents = mergeDocuments(localDocuments, serverDocuments);
       
-      // Utiliser GET avec l'userId en paramètre d'URL
-      const response = await fetch(`${endpoint}?userId=${currentUser}`, {
+      // Dispatch un événement pour le monitoring
+      window.dispatchEvent(new CustomEvent('syncCompleted', { 
+        detail: { tableName: 'documents', count: documents.length }
+      }));
+    } else {
+      console.warn("Aucun document reçu du serveur");
+      
+      // Si le serveur ne renvoie aucun document mais que nous en avons en local,
+      // nous allons envoyer nos documents locaux au serveur
+      if (localDocuments.length > 0) {
+        console.log(`Envoi des ${localDocuments.length} documents locaux au serveur`);
+        await syncDocumentsWithServer(localDocuments);
+      }
+    }
+    
+    // AMÉLIORATION: Sauvegarder dans les deux systèmes de stockage pour accès hors ligne
+    saveLocalData('documents', documents, currentUser);
+    
+    console.log(`${documents.length} documents sauvegardés localement pour accès hors ligne`);
+    
+    return documents;
+  } catch (firstError) {
+    console.warn("Première tentative de chargement échouée:", firstError);
+    
+    // Deuxième tentative - URL alternative
+    try {
+      const apiAltUrl = `/sites/qualiopi.ch/api`;
+      console.log("Tentative avec URL alternative:", apiAltUrl);
+      
+      const response = await fetch(`${apiAltUrl}/documents-load.php?userId=${currentUser}`, {
         method: 'GET',
-        headers: getAuthHeaders(),
+        headers: {
+          ...getAuthHeaders(),
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0'
+        },
         cache: 'no-store'
       });
       
       if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Erreur HTTP ${response.status}: ${errorText}`);
+        throw new Error(`Erreur HTTP alternative ${response.status}: ${response.statusText}`);
       }
       
       const result = await response.json();
+      console.log("Documents chargés depuis le serveur (URL alternative):", result);
       
       let serverDocuments: Document[] = [];
       
@@ -69,66 +134,49 @@ export const loadDocumentsFromServer = async (userId: string | null = null): Pro
       } else if (result.records && Array.isArray(result.records)) {
         serverDocuments = result.records;
       } else {
-        throw new Error("Format de réponse non reconnu");
+        console.warn("Format de réponse alternative non reconnu pour les documents");
+        throw new Error("Format de réponse alternative non reconnu");
       }
       
       // Fusionner les documents locaux et ceux du serveur si nécessaire
-      const mergedDocuments = serverDocuments.length > 0 
-        ? mergeDocuments(localDocuments, serverDocuments) 
-        : localDocuments;
-      
-      // Sauvegarder dans les deux systèmes de stockage pour accès hors ligne
-      saveLocalData('documents', mergedDocuments, currentUser);
-      
-      return mergedDocuments;
-    } catch (firstError) {
-      console.warn("Première tentative de chargement échouée:", firstError);
-      
-      // Deuxième tentative - URL alternative
-      try {
-        const apiAltUrl = `/sites/qualiopi.ch/api`;
+      if (serverDocuments.length > 0) {
+        documents = mergeDocuments(localDocuments, serverDocuments);
         
-        const response = await fetch(`${apiAltUrl}/documents-load.php?userId=${currentUser}`, {
-          method: 'GET',
-          headers: getAuthHeaders(),
-          cache: 'no-store'
-        });
-        
-        if (!response.ok) {
-          throw new Error(`Erreur HTTP alternative ${response.status}: ${response.statusText}`);
+        // Dispatch un événement pour le monitoring
+        window.dispatchEvent(new CustomEvent('syncCompleted', { 
+          detail: { tableName: 'documents', count: documents.length }
+        }));
+      } else {
+        // Si le serveur ne renvoie aucun document mais que nous en avons en local,
+        // nous allons envoyer nos documents locaux au serveur
+        if (localDocuments.length > 0) {
+          console.log(`Envoi des ${localDocuments.length} documents locaux au serveur (alternative)`);
+          await syncDocumentsWithServer(localDocuments);
         }
-        
-        const result = await response.json();
-        
-        let serverDocuments: Document[] = [];
-        
-        if (result.success && Array.isArray(result.documents)) {
-          serverDocuments = result.documents;
-        } else if (Array.isArray(result)) {
-          serverDocuments = result;
-        } else if (result.records && Array.isArray(result.records)) {
-          serverDocuments = result.records;
-        } else {
-          throw new Error("Format de réponse alternative non reconnu");
-        }
-        
-        // Fusionner les documents locaux et ceux du serveur si nécessaire
-        const mergedDocuments = serverDocuments.length > 0 
-          ? mergeDocuments(localDocuments, serverDocuments) 
-          : localDocuments;
-        
-        // Sauvegarder pour accès hors ligne
-        saveLocalData('documents', mergedDocuments, currentUser);
-        
-        return mergedDocuments;
-      } catch (secondError) {
-        console.error("Toutes les tentatives de chargement depuis le serveur ont échoué:", secondError);
       }
+      
+      // AMÉLIORATION: Sauvegarder dans les deux systèmes de stockage pour accès hors ligne
+      saveLocalData('documents', documents, currentUser);
+      
+      console.log(`${documents.length} documents sauvegardés localement pour accès hors ligne (source: URL alternative)`);
+      
+      return documents;
+    } catch (secondError) {
+      console.error("Toutes les tentatives de chargement depuis le serveur ont échoué:", secondError);
+      
+      // Dispatch un événement pour le monitoring
+      window.dispatchEvent(new CustomEvent('syncFailed', { 
+        detail: { 
+          tableName: 'documents', 
+          operation: 'load',
+          error: secondError instanceof Error ? secondError.message : 'Erreur inconnue'
+        }
+      }));
+      
+      // En dernier recours, retourner les documents locaux
+      return localDocuments;
     }
   }
-  
-  // Retourner les documents locaux si hors ligne ou en cas d'erreur
-  return localDocuments;
 };
 
 /**
@@ -138,6 +186,18 @@ export const loadDocumentsFromServer = async (userId: string | null = null): Pro
 export const syncDocumentsWithServer = async (documents: Document[], userId: string | null = null): Promise<boolean> => {
   const currentUser = userId || getCurrentUser() || 'p71x6d_system';
   console.log(`Synchronisation des documents pour l'utilisateur ${currentUser} (priorité serveur)`);
+  
+  // Générer un ID d'opération unique pour le monitoring
+  const operationId = `documents_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+  
+  // Dispatch un événement pour le monitoring
+  window.dispatchEvent(new CustomEvent('syncStarted', { 
+    detail: { 
+      tableName: 'documents', 
+      operation: 'save',
+      operationId
+    }
+  }));
   
   // Assurer que les documents ont un ID valide
   const validDocuments = documents.map(doc => ({
@@ -164,7 +224,10 @@ export const syncDocumentsWithServer = async (documents: Document[], userId: str
       method: 'POST',
       headers: {
         ...getAuthHeaders(),
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0'
       },
       body: JSON.stringify({
         userId: currentUser,
@@ -190,10 +253,15 @@ export const syncDocumentsWithServer = async (documents: Document[], userId: str
       // Supprimer tout marqueur de synchronisation en attente
       clearPendingSync('documents');
       
-      toast({
-        title: "Synchronisation réussie",
-        description: "Les documents ont été synchronisés avec la base de données Infomaniak.",
-      });
+      // Dispatch un événement pour le monitoring
+      window.dispatchEvent(new CustomEvent('syncCompleted', { 
+        detail: { 
+          operationId,
+          tableName: 'documents', 
+          count: validDocuments.length
+        }
+      }));
+      
       return true;
     } else {
       throw new Error("La synchronisation a échoué: " + (result.message || "Raison inconnue"));
@@ -210,7 +278,10 @@ export const syncDocumentsWithServer = async (documents: Document[], userId: str
         method: 'POST',
         headers: {
           ...getAuthHeaders(),
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0'
         },
         body: JSON.stringify({
           userId: currentUser,
@@ -234,10 +305,15 @@ export const syncDocumentsWithServer = async (documents: Document[], userId: str
         // Supprimer tout marqueur de synchronisation en attente
         clearPendingSync('documents');
         
-        toast({
-          title: "Synchronisation réussie",
-          description: "Les documents ont été synchronisés avec la base de données Infomaniak (URL alternative).",
-        });
+        // Dispatch un événement pour le monitoring
+        window.dispatchEvent(new CustomEvent('syncCompleted', { 
+          detail: { 
+            operationId,
+            tableName: 'documents', 
+            count: validDocuments.length
+          }
+        }));
+        
         return true;
       } else {
         throw new Error("La synchronisation a échoué: " + (result.message || "Raison inconnue"));
@@ -245,14 +321,18 @@ export const syncDocumentsWithServer = async (documents: Document[], userId: str
     } catch (secondError) {
       console.error("Toutes les tentatives de synchronisation vers le serveur ont échoué:", secondError);
       
+      // Dispatch un événement pour le monitoring
+      window.dispatchEvent(new CustomEvent('syncFailed', { 
+        detail: { 
+          operationId,
+          tableName: 'documents', 
+          operation: 'save',
+          error: secondError instanceof Error ? secondError.message : 'Erreur inconnue'
+        }
+      }));
+      
       // Marquer comme en attente de synchronisation pour une tentative ultérieure
       markPendingSync('documents');
-      
-      toast({
-        variant: "destructive",
-        title: "Erreur de synchronisation",
-        description: "Les documents ont été sauvegardés localement, mais la synchronisation avec le serveur a échoué.",
-      });
       
       return false;
     }
@@ -266,14 +346,36 @@ export const getLocalDocuments = (userId: string | null = null): Document[] => {
   const currentUser = userId || getCurrentUser() || 'p71x6d_system';
   
   // AMÉLIORATION: Utiliser le système de stockage centralisé
+  // 1. D'abord vérifier dans sessionStorage (pour la persistance entre pages)
+  const sessionData = sessionStorage.getItem(`documents_page_state_${currentUser}`);
+  if (sessionData) {
+    try {
+      const parsedData = JSON.parse(sessionData);
+      if (parsedData.documents && parsedData.documents.length > 0) {
+        console.log(`${parsedData.documents.length} documents chargés depuis sessionStorage`);
+        return parsedData.documents;
+      }
+    } catch (e) {
+      console.error('Erreur lors du parsing des données de session:', e);
+    }
+  }
+  
+  // 2. Ensuite, vérifier dans le système de stockage centralisé
   const localDocs = loadLocalData<Document>('documents', currentUser);
   
   if (localDocs.length > 0) {
     console.log(`${localDocs.length} documents chargés depuis le stockage local`);
+    
+    // Sauvegarder également dans sessionStorage pour persistance entre pages
+    sessionStorage.setItem(`documents_page_state_${currentUser}`, JSON.stringify({
+      documents: localDocs,
+      timestamp: new Date().toISOString()
+    }));
+    
     return localDocs;
   }
   
-  // Rétrocompatibilité : vérifier aussi l'ancien emplacement de stockage
+  // 3. Rétrocompatibilité : vérifier aussi l'ancien emplacement de stockage
   const storedData = localStorage.getItem(`documents_${currentUser}`);
   
   if (storedData) {
@@ -284,16 +386,21 @@ export const getLocalDocuments = (userId: string | null = null): Document[] => {
       // Migrer les données vers le nouveau système
       if (docs.length > 0) {
         saveLocalData('documents', docs, currentUser);
+        
+        // Sauvegarder également dans sessionStorage pour persistance entre pages
+        sessionStorage.setItem(`documents_page_state_${currentUser}`, JSON.stringify({
+          documents: docs,
+          timestamp: new Date().toISOString()
+        }));
       }
       
       return docs;
     } catch (e) {
       console.error('Erreur lors de la lecture des documents locaux:', e);
     }
-  } else {
-    console.log('Aucun document trouvé dans le stockage local');
   }
   
+  console.log('Aucun document trouvé dans le stockage local');
   return [];
 };
 

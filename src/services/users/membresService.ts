@@ -1,152 +1,107 @@
+
 import { Membre } from '@/types/membres';
-import { triggerSync } from '@/services/sync';
-import { getCurrentUserId } from '@/services/core/userService';
+import { getApiUrl } from '@/config/apiConfig';
+import { getAuthHeaders } from '../auth/authService';
 
-// Get current user identifier for test data
-const getUserIdentifier = () => {
-  // Using user ID instead of email for test data identification
-  const currentUserId = getCurrentUserId();
-  return currentUserId === 'p71x6d_cirier' ? 'antcirier' : 'default';
-};
+// Cache pour les membres
+let membresCache: Membre[] | null = null;
+let lastFetchTimestamp: number | null = null;
+const CACHE_DURATION = 60000; // 1 minute de cache
 
-// Test data map based on user email
-const testDataByUser = {
-  antcirier: [
-    { 
-      id: "ac-user1", 
-      nom: "Dupont", 
-      prenom: "Jean", 
-      email: "jean.dupont@formacert.fr", 
-      role: "Formateur", 
-      departement: "Formation",
-      fonction: "Formateur principal",
-      userId: "p71x6d_cirier"
-    },
-    { 
-      id: "ac-user2", 
-      nom: "Martin", 
-      prenom: "Sophie", 
-      email: "sophie.martin@formacert.fr", 
-      role: "Responsable", 
-      departement: "Qualité",
-      fonction: "Responsable qualité",
-      userId: "p71x6d_cirier"
-    },
-    { 
-      id: "ac-user3", 
-      nom: "Blanc", 
-      prenom: "Thomas", 
-      email: "thomas.blanc@formacert.fr", 
-      role: "Assistant", 
-      departement: "Administration",
-      fonction: "Assistant administratif",
-      userId: "p71x6d_cirier"
-    },
-  ],
-  default: [
-    { 
-      id: "default-user1", 
-      nom: "Nom-Test", 
-      prenom: "Prénom-Test", 
-      email: "test@example.com", 
-      role: "Utilisateur", 
-      departement: "Test",
-      fonction: "Test"
-    },
-  ]
-};
-
-export const getMembres = async (): Promise<Membre[]> => {
-  // Simulate API call
-  await new Promise(resolve => setTimeout(resolve, 500));
-  const userIdentifier = getUserIdentifier();
-  return testDataByUser[userIdentifier] || testDataByUser.default;
-};
-
-export const refreshMembres = async (): Promise<Membre[]> => {
-  // Simulate refreshing data from server
-  await new Promise(resolve => setTimeout(resolve, 700));
-  const userIdentifier = getUserIdentifier();
-  return testDataByUser[userIdentifier] || testDataByUser.default;
-};
-
-export const getMembre = async (id: string): Promise<Membre | undefined> => {
-  // Simulate API call
-  await new Promise(resolve => setTimeout(resolve, 300));
-  const userIdentifier = getUserIdentifier();
-  const membres = testDataByUser[userIdentifier] || testDataByUser.default;
-  return membres.find(membre => membre.id === id);
-};
-
-export const createMembre = async (membre: Omit<Membre, 'id'>): Promise<Membre> => {
-  // Simulate API call
-  await new Promise(resolve => setTimeout(resolve, 500));
-  
-  // Generate a random ID with prefix based on user
-  const userIdentifier = getUserIdentifier();
-  const newId = userIdentifier === 'antcirier' ? 'ac-' : 'default-';
-  
-  // Generate the new member with ID and add user ID if it's antcirier
-  const newMembre = { 
-    ...membre, 
-    id: newId + Math.random().toString(36).substring(2, 11)
-  };
-  
-  if (userIdentifier === 'antcirier') {
-    newMembre.userId = "p71x6d_cirier";
+/**
+ * Service pour la gestion des membres (ressources humaines)
+ */
+export const getMembres = async (forceRefresh: boolean = false): Promise<Membre[]> => {
+  // Retourner les données du cache si disponibles et pas encore expirées
+  if (!forceRefresh && membresCache && lastFetchTimestamp && (Date.now() - lastFetchTimestamp < CACHE_DURATION)) {
+    console.log("Utilisation du cache pour les membres", membresCache.length);
+    return membresCache;
   }
-  
-  // Trigger sync with the server
-  await triggerSync("membres");
-  
-  return newMembre as Membre;
-};
 
-export const updateMembre = async (id: string, membre: Partial<Membre>): Promise<Membre> => {
-  // Simulate API call
-  await new Promise(resolve => setTimeout(resolve, 500));
-  
-  const userIdentifier = getUserIdentifier();
-  const membres = testDataByUser[userIdentifier] || testDataByUser.default;
-  const membreToUpdate = membres.find(m => m.id === id);
-  
-  if (!membreToUpdate) {
-    throw new Error(`Membre avec l'ID ${id} non trouvé`);
-  }
-  
-  // Create updated membre
-  const updatedMembre = { ...membreToUpdate, ...membre, id };
-  
-  // Trigger sync with the server
-  await triggerSync("membres");
-  
-  return updatedMembre;
-};
-
-export const deleteMembre = async (id: string): Promise<boolean> => {
-  // Simulate API call
-  await new Promise(resolve => setTimeout(resolve, 500));
-  
-  const userIdentifier = getUserIdentifier();
-  const membres = testDataByUser[userIdentifier] || testDataByUser.default;
-  const membreExists = membres.some(m => m.id === id);
-  
-  if (!membreExists) {
-    return false;
-  }
-  
-  // Trigger sync with the server
-  await triggerSync("membres");
-  
-  return true;
-};
-
-export const syncMembres = async (): Promise<boolean> => {
   try {
-    await triggerSync("membres");
-    return true;
+    const token = localStorage.getItem('authToken') || sessionStorage.getItem('authToken');
+    if (!token) {
+      throw new Error("Utilisateur non authentifié");
+    }
+
+    const API_URL = getApiUrl();
+    const userId = localStorage.getItem('userId') || sessionStorage.getItem('userId') || 'p71x6d_system';
+    console.log(`Chargement des membres pour l'utilisateur: ${userId}`);
+
+    const response = await fetch(`${API_URL}/membres-load.php?userId=${userId}`, {
+      method: 'GET',
+      headers: {
+        ...getAuthHeaders(),
+        'Accept': 'application/json',
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0'
+      },
+      cache: 'no-store'
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`Erreur HTTP ${response.status}: ${errorText}`);
+      throw new Error(`Erreur HTTP: ${response.status} - ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    console.log("Réponse brute de membres-load.php:", data);
+    
+    // Si les données sont vides, retourner un tableau vide
+    if (!data) {
+      return [];
+    }
+    
+    // Déterminer où se trouvent les données dans la réponse
+    let records: Membre[] = [];
+    
+    if (Array.isArray(data)) {
+      records = data;
+    } else if (data.records && Array.isArray(data.records)) {
+      records = data.records;
+    } else if (data.membres && Array.isArray(data.membres)) {
+      records = data.membres;
+    } else if (data.data && Array.isArray(data.data)) {
+      records = data.data;
+    } else {
+      console.warn("Format de réponse non reconnu pour les membres");
+      records = [];
+    }
+
+    // Mettre à jour le cache
+    membresCache = records;
+    lastFetchTimestamp = Date.now();
+    
+    // Sauvegarder en local également
+    localStorage.setItem(`membres_${userId}`, JSON.stringify(records));
+    
+    return records;
   } catch (error) {
-    console.error("Error syncing membres:", error);
-    return false;
+    console.error("Erreur lors de la récupération des membres:", error);
+    
+    // Essayer de récupérer depuis le stockage local
+    try {
+      const userId = localStorage.getItem('userId') || sessionStorage.getItem('userId') || 'p71x6d_system';
+      const localData = localStorage.getItem(`membres_${userId}`);
+      
+      if (localData) {
+        const parsedData = JSON.parse(localData);
+        console.log("Utilisation des données locales pour les membres");
+        return parsedData;
+      }
+    } catch (localError) {
+      console.error("Erreur lors de la lecture des données locales des membres:", localError);
+    }
+    
+    // En cas d'erreur, retourner un tableau vide pour éviter de bloquer l'UI
+    return [];
   }
+};
+
+export const clearMembresCache = (): void => {
+  membresCache = null;
+  lastFetchTimestamp = null;
+  console.log("Cache membres effacé");
 };

@@ -1,51 +1,36 @@
 
-// Ce fichier sert de point d'entrée pour tous les services
-// Exporter les services publiquement pour les autres modules
+// Re-export functions from other service files
+export * from './core/userInitializationService';
+export * from './documents';
+export * from './users/createUserService';
+export * from './users/userManager';
 
-// Services d'authentification
-export {
-  getAuthToken,
-  getCurrentUser,
-  getCurrentUserId,
-  getCurrentUserName,
-  isAuthenticated,
-  isAdmin,
-  login,
-  logout,
-  getAuthHeaders,
-  hasRole,
-  getIsLoggedIn,
-  validateAndFixToken,
-  authenticateUser
+// Export du type Utilisateur
+export interface Utilisateur {
+  id: number;
+  nom: string;
+  prenom: string;
+  email: string;
+  mot_de_passe: string;
+  identifiant_technique: string;
+  role: string;
+  date_creation: string;
+}
+
+// Explicitement renommer les exports de getCurrentUser pour éviter l'ambiguïté
+export { 
+  getCurrentUser as getDatabaseConnectionCurrentUser 
+} from './core/databaseConnectionService';
+
+export { 
+  getCurrentUser as getAuthCurrentUser 
 } from './auth/authService';
 
-// Export des services de gestion de la base de données
+// Re-export other functions from databaseConnectionService
 export {
-  getCurrentUser as getDatabaseConnectionCurrentUser,
-  setCurrentUser,
   connectAsUser,
   getLastConnectionError,
   disconnectUser,
   testDatabaseConnection,
-  getDatabaseInfo,
-  initializeCurrentUser
+  getDatabaseInfo
 } from './core/databaseConnectionService';
-
-// Export du service UserManager
-export {
-  clearUsersCache,
-  refreshUtilisateurs,
-  synchronizeUsers
-} from './users/userManager';
-
-// Export des services de synchronisation
-export {
-  startEntitySync,
-  getSyncStatus,
-  triggerSync,
-  triggerSyncAll,
-  triggerTableSync,
-  syncService
-} from './sync';
-
-// Autres services peuvent être importés et réexportés ici

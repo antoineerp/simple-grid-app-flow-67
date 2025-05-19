@@ -5,11 +5,6 @@ on:
   push:
     branches: [ main ]
   workflow_dispatch:
-    inputs:
-      reason:
-        description: 'Reason for manual deployment'
-        required: false
-        default: 'Manual deployment'
 
 jobs:
   build-and-deploy:
@@ -18,8 +13,6 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v3
-      with:
-        token: ${{ secrets.GITHUB_TOKEN }}
 
     - name: Setup Node.js
       uses: actions/setup-node@v3
@@ -39,7 +32,7 @@ jobs:
         ls -la dist/
         echo "Liste des fichiers assets:"
         ls -la dist/assets/ || echo "Dossier assets non trouvé"
-        
+
     - name: Prepare deployment directory
       run: |
         # Création des dossiers nécessaires
@@ -54,151 +47,18 @@ jobs:
         mkdir -p deploy/api/operations
         mkdir -p deploy/api/utils
         mkdir -p deploy/public/lovable-uploads
-        mkdir -p deploy/.github/workflows
-        mkdir -p deploy/dist
         
-        # Créer explicitement le dossier api-tools et vérifier qu'il existe
-        mkdir -p deploy/api-tools
-        echo "✅ Dossier api-tools créé explicitement"
-        touch deploy/api-tools/.gitkeep
-        ls -la deploy/api-tools || echo "ERREUR: Le dossier api-tools n'a pas été créé correctement!"
-
-        # Copie du dossier dist complet (AJOUT IMPORTANT)
-        cp -r dist/* deploy/dist/
-        echo "Copie du dossier dist vers deploy/dist"
-
         # Copie des fichiers compilés directement dans assets
         cp -r dist/assets/* deploy/assets/
         
         # Copie des autres fichiers nécessaires
         cp dist/index.html deploy/
-        cp index.php deploy/
         cp .htaccess deploy/ || echo "Fichier .htaccess non trouvé"
         
-        # Création du fichier .user.ini à la racine (IMPORTANT)
-        echo "; Configuration PHP pour Infomaniak" > deploy/.user.ini
-        echo "display_errors = Off" >> deploy/.user.ini
-        echo "log_errors = On" >> deploy/.user.ini
-        echo "error_reporting = E_ALL & ~E_DEPRECATED & ~E_STRICT" >> deploy/.user.ini
-        echo "max_execution_time = 120" >> deploy/.user.ini
-        echo "memory_limit = 256M" >> deploy/.user.ini
-        echo "upload_max_filesize = 64M" >> deploy/.user.ini
-        echo "post_max_size = 64M" >> deploy/.user.ini
-        chmod 644 deploy/.user.ini
-        
-        # Création de env.php
-        echo "<?php" > deploy/api/config/env.php
-        echo "// Configuration des variables d'environnement pour Infomaniak" >> deploy/api/config/env.php
-        echo "define('DB_HOST', 'p71x6d.myd.infomaniak.com');" >> deploy/api/config/env.php
-        echo "define('DB_NAME', 'p71x6d_richard');" >> deploy/api/config/env.php
-        echo "define('DB_USER', 'p71x6d_richard');" >> deploy/api/config/env.php
-        echo "define('DB_PASS', 'Trottinette43!');" >> deploy/api/config/env.php
-        echo "define('API_BASE_URL', '/api');" >> deploy/api/config/env.php
-        echo "define('APP_ENV', 'production');" >> deploy/api/config/env.php
-        echo "" >> deploy/api/config/env.php
-        echo "// Fonction d'aide pour récupérer les variables d'environnement" >> deploy/api/config/env.php
-        echo "function get_env(\$key, \$default = null) {" >> deploy/api/config/env.php
-        echo "    \$const_name = strtoupper(\$key);" >> deploy/api/config/env.php
-        echo "    if (defined(\$const_name)) {" >> deploy/api/config/env.php
-        echo "        return constant(\$const_name);" >> deploy/api/config/env.php
-        echo "    }" >> deploy/api/config/env.php
-        echo "    return \$default;" >> deploy/api/config/env.php
-        echo "}" >> deploy/api/config/env.php
-        echo "?>" >> deploy/api/config/env.php
-        
-        # Création de db_config.json
-        echo '{' > deploy/api/config/db_config.json
-        echo '    "host": "p71x6d.myd.infomaniak.com",' >> deploy/api/config/db_config.json
-        echo '    "db_name": "p71x6d_richard",' >> deploy/api/config/db_config.json
-        echo '    "username": "p71x6d_richard",' >> deploy/api/config/db_config.json
-        echo '    "password": "Trottinette43!"' >> deploy/api/config/db_config.json
-        echo '}' >> deploy/api/config/db_config.json
-        
-        # Copie des autres fichiers de configuration
-        cp api/config/DatabaseConfig.php deploy/api/config/ || echo "Fichier DatabaseConfig.php non trouvé"
-        cp api/config/DatabaseConnection.php deploy/api/config/ || echo "Fichier DatabaseConnection.php non trouvé"
-        cp api/config/DatabaseDiagnostics.php deploy/api/config/ || echo "Fichier DatabaseDiagnostics.php non trouvé"
-        cp api/config/database.php deploy/api/config/ || echo "Fichier database.php non trouvé"
-        
-        # Création d'un fichier .htaccess pour les assets
-        echo "# Configurer les types MIME corrects pour les assets" > deploy/assets/.htaccess
-        echo "AddType text/css .css" >> deploy/assets/.htaccess
-        echo "AddType application/javascript .js" >> deploy/assets/.htaccess
-        echo "AddType application/javascript .mjs" >> deploy/assets/.htaccess
-        echo "AddType image/svg+xml .svg" >> deploy/assets/.htaccess
-        echo "AddType font/ttf .ttf" >> deploy/assets/.htaccess
-        echo "AddType font/woff .woff" >> deploy/assets/.htaccess
-        echo "AddType font/woff2 .woff2" >> deploy/assets/.htaccess
-        echo "" >> deploy/assets/.htaccess
-        echo "# Force le type MIME pour CSS" >> deploy/assets/.htaccess
-        echo "<FilesMatch \"\.css$\">" >> deploy/assets/.htaccess
-        echo "    ForceType text/css" >> deploy/assets/.htaccess
-        echo "    Header set Content-Type \"text/css; charset=utf-8\"" >> deploy/assets/.htaccess
-        echo "</FilesMatch>" >> deploy/assets/.htaccess
-        echo "" >> deploy/assets/.htaccess
-        echo "# Force le type MIME pour JavaScript" >> deploy/assets/.htaccess
-        echo "<FilesMatch \"\.js$\">" >> deploy/assets/.htaccess
-        echo "    ForceType application/javascript" >> deploy/assets/.htaccess
-        echo "    Header set Content-Type \"application/javascript; charset=utf-8\"" >> deploy/assets/.htaccess
-        echo "</FilesMatch>" >> deploy/assets/.htaccess
-        echo "" >> deploy/assets/.htaccess
-        echo "# Activer la mise en cache" >> deploy/assets/.htaccess
-        echo "<IfModule mod_expires.c>" >> deploy/assets/.htaccess
-        echo "  ExpiresActive On" >> deploy/assets/.htaccess
-        echo "  ExpiresByType text/css \"access plus 1 week\"" >> deploy/assets/.htaccess
-        echo "  ExpiresByType application/javascript \"access plus 1 week\"" >> deploy/assets/.htaccess
-        echo "</IfModule>" >> deploy/assets/.htaccess
-        
-        # Création d'un fichier .htaccess explicite pour l'API
-        echo "# Activer la réécriture d'URL" > deploy/api/.htaccess
-        echo "RewriteEngine On" >> deploy/api/.htaccess
-        echo "" >> deploy/api/.htaccess
-        echo "# Définir les types MIME corrects" >> deploy/api/.htaccess
-        echo "AddType application/javascript .js" >> deploy/api/.htaccess
-        echo "AddType application/javascript .mjs" >> deploy/api/.htaccess
-        echo "AddType application/javascript .es.js" >> deploy/api/.htaccess
-        echo "AddType text/css .css" >> deploy/api/.htaccess
-        echo "AddType application/json .json" >> deploy/api/.htaccess
-        echo "" >> deploy/api/.htaccess
-        echo "# Gérer les requêtes OPTIONS pour CORS" >> deploy/api/.htaccess
-        echo "RewriteCond %{REQUEST_METHOD} OPTIONS" >> deploy/api/.htaccess
-        echo "RewriteRule ^(.*)$ \$1 [R=200,L]" >> deploy/api/.htaccess
-        echo "" >> deploy/api/.htaccess
-        echo "# Configuration CORS et types MIME" >> deploy/api/.htaccess
-        echo "<IfModule mod_headers.c>" >> deploy/api/.htaccess
-        echo "    # Force le bon type MIME pour les JavaScript modules" >> deploy/api/.htaccess
-        echo "    <FilesMatch \"\.(m?js|es\.js)$\">" >> deploy/api/.htaccess
-        echo "        Header set Content-Type \"application/javascript\"" >> deploy/api/.htaccess
-        echo "        Header set X-Content-Type-Options \"nosniff\"" >> deploy/api/.htaccess
-        echo "    </FilesMatch>" >> deploy/api/.htaccess
-        echo "    " >> deploy/api/.htaccess
-        echo "    Header set Access-Control-Allow-Origin \"*\"" >> deploy/api/.htaccess
-        echo "    Header set Access-Control-Allow-Methods \"GET, POST, OPTIONS, PUT, DELETE\"" >> deploy/api/.htaccess
-        echo "    Header set Access-Control-Allow-Headers \"Content-Type, Authorization, X-Requested-With\"" >> deploy/api/.htaccess
-        echo "    " >> deploy/api/.htaccess
-        echo "    # Eviter la mise en cache" >> deploy/api/.htaccess
-        echo "    Header set Cache-Control \"no-cache, no-store, must-revalidate\"" >> deploy/api/.htaccess
-        echo "    Header set Pragma \"no-cache\"" >> deploy/api/.htaccess
-        echo "    Header set Expires 0" >> deploy/api/.htaccess
-        echo "</IfModule>" >> deploy/api/.htaccess
-        echo "" >> deploy/api/.htaccess
-        echo "# Permettre l'accès direct aux fichiers PHP spécifiques" >> deploy/api/.htaccess
-        echo "RewriteCond %{REQUEST_FILENAME} -f" >> deploy/api/.htaccess
-        echo "RewriteRule \.(php)$ - [L]" >> deploy/api/.htaccess
-        echo "" >> deploy/api/.htaccess
-        echo "# Rediriger toutes les requêtes vers l'index.php sauf pour les fichiers existants" >> deploy/api/.htaccess
-        echo "RewriteCond %{REQUEST_FILENAME} !-f" >> deploy/api/.htaccess
-        echo "RewriteCond %{REQUEST_FILENAME} !-d" >> deploy/api/.htaccess
-        echo "RewriteRule ^(.*)$ index.php [QSA,L]" >> deploy/api/.htaccess
-        
-        # Copie explicite des fichiers API
+        # Copie des fichiers de l'API
         if [ -d "api" ]; then
           echo "Copie des fichiers API..."
-          find api -name "*.php" -type f | while read file; do
-            dir=$(dirname "$file")
-            mkdir -p "deploy/$dir"
-            cp "$file" "deploy/$file"
-          done
+          cp -r api/* deploy/api/
         else
           echo "Dossier API non trouvé"
         fi
@@ -206,173 +66,13 @@ jobs:
         # Copie des uploads si existants
         if [ -d "public/lovable-uploads" ]; then
           echo "Copie des uploads..."
-          cp -r public/lovable-uploads/* deploy/public/lovable-uploads/
+          cp -r public/lovable-uploads/* deploy/public/lovable-uploads/ || echo "Copie des uploads échouée"
         else
           echo "Dossier uploads non trouvé"
         fi
-
-    - name: Create important api-tools files to avoid FTP errors
-      run: |
-        echo "Creating necessary files in api-tools directory to prevent FTP errors..."
         
-        # Créer un fichier index.php dans api-tools
-        cat > deploy/api-tools/index.php << 'EOPHP'
-<?php
-// Redirection vers l'outil de vérification des routes
-header('Location: check-routes.php');
-exit;
-?>
-EOPHP
-
-        # Créer check-routes.php directement
-        cat > deploy/api-tools/check-routes.php << 'EOPHP'
-<?php
-header('Content-Type: text/html; charset=utf-8');
-echo "<h1>Vérification des routes</h1>";
-echo "<p>Ce script analyse les routes définies dans App.tsx et détecte les doublons.</p>";
-
-// Appel vers l'outil complet
-echo "<p>Redirection vers l'outil complet de vérification...</p>";
-echo "<script>window.location.href = 'check-route-duplication.php';</script>";
-echo "<p>Si la redirection ne fonctionne pas, <a href='check-route-duplication.php'>cliquez ici</a>.</p>";
-?>
-EOPHP
-
-        # Créer check-route-duplication.php directement
-        cat > deploy/api-tools/check-route-duplication.php << 'EOPHP'
-<?php
-header('Content-Type: text/html; charset=utf-8');
-echo "<h1>Vérification des routes</h1>";
-echo "<p>Ce script analyse les routes définies dans App.tsx et détecte les doublons.</p>";
-
-// Fonction pour analyser App.tsx
-function analyzeAppTsx() {
-    $filepath = "../src/App.tsx";
-    if (!file_exists($filepath)) {
-        return ['error' => "Fichier App.tsx introuvable dans " . realpath("../src")];
-    }
-    
-    $content = file_get_contents($filepath);
-    $routes = [];
-    
-    // Rechercher les routes
-    preg_match_all('/<Route\s+path=[\'"]([^\'"]*)[\'"]/', $content, $matches);
-    
-    if (!empty($matches[1])) {
-        foreach ($matches[1] as $route) {
-            if (!isset($routes[$route])) {
-                $routes[$route] = 1;
-            } else {
-                $routes[$route]++;
-            }
-        }
-    }
-    
-    return $routes;
-}
-
-$routes = analyzeAppTsx();
-if (isset($routes['error'])) {
-    echo "<p style='color: red;'>Erreur: " . htmlspecialchars($routes['error']) . "</p>";
-} else {
-    echo "<h2>Routes définies dans App.tsx</h2>";
-    echo "<table border='1' cellpadding='5'>";
-    echo "<tr><th>Route</th><th>Occurrences</th><th>Statut</th></tr>";
-    
-    foreach ($routes as $route => $count) {
-        echo "<tr>";
-        echo "<td>" . htmlspecialchars($route) . "</td>";
-        echo "<td>" . $count . "</td>";
-        if ($count > 1) {
-            echo "<td style='color: red; font-weight: bold;'>DOUBLON</td>";
-        } else {
-            echo "<td style='color: green;'>OK</td>";
-        }
-        echo "</tr>";
-    }
-    
-    echo "</table>";
-    
-    $duplicates = false;
-    foreach ($routes as $route => $count) {
-        if ($count > 1) {
-            $duplicates = true;
-            break;
-        }
-    }
-    
-    if ($duplicates) {
-        echo "<p style='color: red;'>⚠️ Des routes en double ont été détectées!</p>";
-        echo "<p><a href='fix-routes.php' style='color: blue;'>Cliquez ici pour corriger automatiquement</a></p>";
-    } else {
-        echo "<p style='color: green;'>✅ Aucune route en double détectée.</p>";
-    }
-}
-
-echo "<p><a href='/'>Retour à l'accueil</a></p>";
-?>
-EOPHP
-
-        # Créer un fichier fix-routes.php basique
-        cat > deploy/api-tools/fix-routes.php << 'EOPHP'
-<?php
-header('Content-Type: text/html; charset=utf-8');
-echo "<h1>Correction des routes</h1>";
-echo "<p>Ce script tente de corriger les routes en double dans App.tsx.</p>";
-
-$appFile = "../src/App.tsx";
-$backupFile = "../src/App.tsx.bak-" . date("Ymd-His");
-
-if (!file_exists($appFile)) {
-    echo "<p style='color: red;'>Erreur: Fichier App.tsx introuvable dans " . realpath("../src") . "</p>";
-    exit;
-}
-
-// Créer une sauvegarde
-if (copy($appFile, $backupFile)) {
-    echo "<p>Sauvegarde créée: " . basename($backupFile) . "</p>";
-} else {
-    echo "<p style='color: red;'>Attention: Impossible de créer une sauvegarde!</p>";
-}
-
-echo "<p>Analyse en cours...</p>";
-echo "<p>Pour retourner à l'outil de vérification, <a href='check-route-duplication.php'>cliquez ici</a>.</p>";
-echo "<p><a href='/'>Retour à l'accueil</a></p>";
-?>
-EOPHP
-
-        # Vérifier le contenu du dossier api-tools
-        echo "Contenu du dossier api-tools:"
-        ls -la deploy/api-tools/
-
-        # Test de création de fichier supplémentaire pour s'assurer que le dossier est accessible
-        echo "Test d'accès au dossier api-tools..."
-        touch deploy/api-tools/test-file.txt
-        echo "Ce fichier confirme que le dossier api-tools est accessible" > deploy/api-tools/test-file.txt
-        
-        if [ -f "deploy/api-tools/test-file.txt" ]; then
-          echo "✅ Test de création de fichier dans api-tools réussi"
-        else
-          echo "❌ ERREUR: Impossible de créer un fichier dans api-tools"
-        fi
-        
-        # Création des fichiers de diagnostic PHP
-        # Fichier test-php-execution.php
-        echo "<?php" > deploy/test-php-execution.php
-        echo "header(\"Content-Type: text/html; charset=utf-8\");" >> deploy/test-php-execution.php
-        echo "echo \"<h1>Test d'exécution PHP</h1>\";" >> deploy/test-php-execution.php
-        echo "echo \"<p>Si vous voyez ce message, PHP fonctionne correctement via le web.</p>\";" >> deploy/test-php-execution.php
-        echo "echo \"<p>Date et heure: \" . date(\"Y-m-d H:i:s\") . \"</p>\";" >> deploy/test-php-execution.php
-        echo "echo \"<p>Version PHP: \" . phpversion() . \"</p>\";" >> deploy/test-php-execution.php
-        echo "echo \"<p>Extensions chargées: \" . implode(\", \", array_slice(get_loaded_extensions(), 0, 10)) . \"...</p>\";" >> deploy/test-php-execution.php
-        echo "?>" >> deploy/test-php-execution.php
-        chmod 644 deploy/test-php-execution.php
-        
-        echo "✅ Fichiers de diagnostic créés dans le répertoire api-tools"
-        
-        # Vérifier le contenu du dossier une dernière fois
-        echo "Contenu final du dossier api-tools:"
-        find deploy/api-tools -type f | sort
+        echo "Structure du dossier de déploiement:"
+        find deploy -type f | sort
 
     - name: Sync to Infomaniak server
       uses: SamKirkland/FTP-Deploy-Action@v4.3.4
@@ -388,10 +88,13 @@ EOPHP
           **/.git*/**
           **/node_modules/**
           README.md
+          dist/**
+          package.json
+          package-lock.json
         log-level: verbose
         timeout: 120000
 
     - name: Clean up
       run: |
         rm -rf deploy
-
+        rm -rf dist

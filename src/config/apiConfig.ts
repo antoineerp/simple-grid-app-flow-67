@@ -1,172 +1,117 @@
 
-/**
- * Configuration centralisée de l'API
- */
+// Configuration de l'API
+const apiUrl = getApiBaseUrl();
 
-// URL de base de l'API pour l'environnement de production
-const PROD_API_URL = 'https://qualiopi.ch/api';
+// Fonction pour déterminer l'URL de base de l'API en fonction de l'environnement
+function getApiBaseUrl(): string {
+  // Toujours utiliser le chemin relatif pour la production et le développement
+  return '/api';
+}
 
-// URL de base de l'API
-const API_BASE_URL = PROD_API_URL;
+// Obtenir l'URL de l'API
+export function getApiUrl(): string {
+  return apiUrl;
+}
 
-/**
- * Obtient l'URL de l'API
- * @returns URL de l'API
- */
-export const getApiUrl = (): string => {
-  return API_BASE_URL;
-};
+// Obtenir l'URL complète de l'API (avec le hostname)
+export function getFullApiUrl(): string {
+  return `${window.location.protocol}//${window.location.host}${apiUrl}`;
+}
 
-/**
- * Obtient l'URL complète de l'API
- */
-export const getFullApiUrl = (): string => {
-  return API_BASE_URL;
-};
-
-/**
- * Construit une URL d'API complète
- * @param endpoint Point de terminaison de l'API (sans le slash initial)
- * @returns URL complète
- */
-export const buildApiUrl = (endpoint: string): string => {
-  // S'assurer que l'endpoint ne commence pas par un slash
-  const cleanEndpoint = endpoint.startsWith('/') ? endpoint.substring(1) : endpoint;
-  return `${API_BASE_URL}/${cleanEndpoint}`;
-};
-
-/**
- * Effectue une requête fetch avec gestion d'erreur
- */
-export const fetchWithErrorHandling = async (url: string, options: RequestInit = {}): Promise<any> => {
+// Diagnostic de l'API simple
+export async function testApiConnection(): Promise<{ success: boolean; message: string; details?: any }> {
   try {
-    // Ajouter un timeout de 15 secondes pour éviter les attentes infinies
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 15000);
+    console.log(`Test de connexion à l'API: ${getFullApiUrl()}`);
     
-    console.log(`Requête API vers: ${url}`, options);
-    
-    // S'assurer que les en-têtes appropriés sont toujours inclus
-    const headers = {
-      'Content-Type': 'application/json',
-      'Cache-Control': 'no-cache, no-store, must-revalidate',
-      'Pragma': 'no-cache',
-      'Accept': 'application/json',
-      ...(options.headers || {})
-    };
-    
-    // Ajouter l'origine pour Infomaniak CORS
-    headers['Origin'] = window.location.origin;
-    
-    const response = await fetch(url, {
-      ...options,
-      headers,
-      mode: 'cors',
-      credentials: 'include',
-      signal: controller.signal
+    // Créer un nouveau fichier info.php pour le test de connectivité
+    const response = await fetch(`${getApiUrl()}/diagnose-connection.php`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Cache-Control': 'no-cache, no-store, must-revalidate'
+      }
     });
     
-    clearTimeout(timeoutId);
-    
-    // Log détaillé de la réponse pour le débogage
-    console.log(`Réponse de ${url}:`, {
-      status: response.status,
-      statusText: response.statusText,
-      headers: Object.fromEntries([...response.headers.entries()])
-    });
+    console.log('Réponse du test API:', response.status, response.statusText);
     
     if (!response.ok) {
-      console.error(`Erreur HTTP: ${response.status} ${response.statusText}`);
+      // Si l'API renvoie une erreur, essayer une requête alternative vers un autre point de terminaison
+      console.log("Tentative avec un point de terminaison alternatif...");
+      const fallbackResponse = await fetch(`${getApiUrl()}/db-info.php`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache, no-store, must-revalidate'
+        }
+      });
+      
+      if (fallbackResponse.ok) {
+        console.info("Connexion alternative réussie");
+        const data = await fallbackResponse.json();
+        return {
+          success: true,
+          message: "Connexion API établie via un point de terminaison alternatif",
+          details: data
+        };
+      }
+      
       throw new Error(`Erreur HTTP: ${response.status}`);
     }
     
-    // Pour les réponses vides (204 No Content)
-    if (response.status === 204) {
-      return { success: true };
-    }
+    const responseText = await response.text();
     
-    // Tente de parser la réponse comme JSON
     try {
-      const data = await response.json();
-      return data;
-    } catch (jsonError) {
-      console.error("Erreur de parsing JSON:", jsonError);
-      // Si ce n'est pas du JSON, retourner le texte brut
-      const textData = await response.text();
-      console.log("Réponse texte:", textData);
-      return { rawText: textData };
-    }
-  } catch (error) {
-    console.error("Erreur de requête:", error);
-    throw error;
-  }
-};
-
-/**
- * Teste la connexion à l'API
- */
-export const testApiConnection = async () => {
-  try {
-    // Essayer plusieurs endpoints pour trouver celui qui fonctionne
-    const endpoints = [
-      'check.php',
-      'test.php',
-      'index.php',
-      'auth-test.php'
-    ];
-    
-    let lastError = null;
-    
-    for (const endpoint of endpoints) {
-      try {
-        console.log(`Tentative de connexion sur ${endpoint}...`);
-        const response = await fetch(`${API_BASE_URL}/${endpoint}`, {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-            'Cache-Control': 'no-cache',
-            'Accept': 'application/json',
-            'Origin': window.location.origin
-          },
-          mode: 'cors'
-        });
-        
-        console.log(`Réponse de ${endpoint}:`, {
-          status: response.status,
-          statusText: response.statusText
-        });
-        
-        if (response.ok) {
-          const data = await response.json();
-          return {
-            success: true,
-            message: data.message || "API accessible",
-            details: data.details || null
-          };
+      const data = JSON.parse(responseText);
+      return {
+        success: true,
+        message: data.message || 'API connectée',
+        details: data
+      };
+    } catch (e) {
+      return {
+        success: false,
+        message: 'Réponse non-JSON',
+        details: {
+          error: e instanceof Error ? e.message : String(e),
+          responseText: responseText.substring(0, 300)
         }
-      } catch (err) {
-        lastError = err;
-        console.log(`Échec avec ${endpoint}, essai suivant...`);
-      }
+      };
     }
-    
-    throw lastError || new Error("Tous les endpoints ont échoué");
   } catch (error) {
-    console.error("Erreur de test de connexion:", error);
+    console.error('Erreur lors du test API:', error);
     return {
       success: false,
-      message: error instanceof Error ? error.message : "Erreur de connexion à l'API",
-      details: null
+      message: error instanceof Error ? error.message : 'Erreur inconnue',
+      details: { error }
     };
   }
-};
+}
 
-// Délai maximal pour les requêtes API (en ms)
-export const API_TIMEOUT = 15000;
-
-// Statut de l'API (pour les tests)
-export const API_STATUS = {
-  ONLINE: 'online',
-  OFFLINE: 'offline',
-  DEGRADED: 'degraded'
-};
+// Fonction utilitaire pour les requêtes fetch avec gestion d'erreur
+export async function fetchWithErrorHandling(url: string, options?: RequestInit): Promise<any> {
+  try {
+    console.log(`Requête vers: ${url}`, options);
+    const response = await fetch(url, options);
+    
+    console.log(`Réponse reçue: ${response.status} ${response.statusText}`);
+    
+    if (!response.ok) {
+      throw new Error(`Erreur HTTP: ${response.status}`);
+    }
+    
+    const text = await response.text();
+    if (!text) {
+      return {};
+    }
+    
+    try {
+      return JSON.parse(text);
+    } catch (e) {
+      console.error("Erreur de parsing JSON:", e);
+      throw new Error(`Réponse invalide: ${text.substring(0, 100)}...`);
+    }
+  } catch (error) {
+    console.error("Erreur lors de la requête:", error);
+    throw error;
+  }
+}

@@ -1,131 +1,8 @@
+
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { Membre } from '@/types/membres';
 import { Document, DocumentGroup } from '@/types/documents';
-import { getCurrentUserId } from '@/services/core/userService';
-
-// Helper function to create the current date
-const now = new Date();
-
-// Test data for antcirier@gmail.com
-const testDataForAntcirier = {
-  membres: [
-    { 
-      id: "ac-mem1", 
-      nom: "Dupont", 
-      prenom: "Jean", 
-      email: "jean.dupont@formacert.fr", 
-      fonction: "Formateur principal",
-      userId: "p71x6d_cirier"
-    },
-    { 
-      id: "ac-mem2", 
-      nom: "Martin", 
-      prenom: "Sophie", 
-      email: "sophie.martin@formacert.fr", 
-      fonction: "Responsable qualité",
-      userId: "p71x6d_cirier"
-    }
-  ],
-  documents: [
-    { 
-      id: "ac-doc1", 
-      nom: "Procédure Qualité", 
-      fichier_path: "procedure_qualite.pdf",
-      responsabilites: { r: [], a: [], c: [], i: [] },
-      etat: "C" as const, 
-      date_creation: now,
-      date_modification: now,
-      userId: "p71x6d_cirier" 
-    },
-    { 
-      id: "ac-doc2", 
-      nom: "Plan de formation", 
-      fichier_path: "plan_formation.docx",
-      responsabilites: { r: [], a: [], c: [], i: [] },
-      etat: "PC" as const, 
-      date_creation: now,
-      date_modification: now,
-      userId: "p71x6d_cirier"
-    },
-    { 
-      id: "ac-doc3", 
-      nom: "Manuel d'utilisation", 
-      fichier_path: "manuel.pdf",
-      responsabilites: { r: [], a: [], c: [], i: [] },
-      etat: "NC" as const, 
-      date_creation: now,
-      date_modification: now,
-      userId: "p71x6d_cirier"
-    }
-  ],
-  documentGroups: [
-    {
-      id: "ac-grp1",
-      name: "Documents qualité",
-      expanded: true,
-      items: [],
-      userId: "p71x6d_cirier"
-    },
-    {
-      id: "ac-grp2",
-      name: "Documents formation",
-      expanded: true,
-      items: [],
-      userId: "p71x6d_cirier"
-    }
-  ],
-  bibliothequeDocuments: [
-    {
-      id: "ac-bibdoc1",
-      titre: "Référentiel Qualiopi",
-      description: "Référentiel national qualité",
-      groupeId: "ac-bibgrp1",
-      fichier: "referentiel_qualiopi.pdf",
-      userId: "p71x6d_cirier"
-    },
-    {
-      id: "ac-bibdoc2",
-      titre: "Guide d'audit",
-      description: "Guide pour réaliser l'audit interne",
-      groupeId: "ac-bibgrp1",
-      fichier: "guide_audit.pdf",
-      userId: "p71x6d_cirier"
-    },
-    {
-      id: "ac-bibdoc3",
-      titre: "Support Formation",
-      description: "Support pour les formations Qualiopi",
-      groupeId: "ac-bibgrp2",
-      fichier: "support_formation.pptx",
-      userId: "p71x6d_cirier"
-    }
-  ],
-  bibliothequeGroups: [
-    {
-      id: "ac-bibgrp1",
-      nom: "Référentiels",
-      description: "Documents de référence",
-      ordre: 1,
-      userId: "p71x6d_cirier"
-    },
-    {
-      id: "ac-bibgrp2",
-      nom: "Formations",
-      description: "Supports de formation",
-      ordre: 2,
-      userId: "p71x6d_cirier"
-    }
-  ]
-};
-
-// Default test data
-const defaultTestData = {
-  membres: [],
-  documents: [],
-  documentGroups: [],
-  bibliothequeDocuments: [],
-  bibliothequeGroups: []
-};
+import { getCurrentUser } from '@/services/auth/authService';
 
 interface GlobalDataContextType {
   // Membres (collaborateurs)
@@ -172,21 +49,18 @@ export const useGlobalData = () => {
 // Provider du contexte
 export const GlobalDataProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   // Obtenir l'identifiant utilisateur actuel
-  const currentUserId = getCurrentUserId();
-  const storagePrefix = `global_data_${currentUserId || 'default'}`;
-  
-  // Déterminer si nous utilisons les données de test pour antcirier
-  const useAntcirierData = currentUserId === 'p71x6d_cirier';
+  const currentUser = getCurrentUser() || 'p71x6d_system';
+  const storagePrefix = `global_data_${currentUser}`;
   
   // États pour les différents types de données
-  const [membres, setMembres] = useState<Membre[]>(useAntcirierData ? testDataForAntcirier.membres : []);
-  const [documents, setDocuments] = useState<Document[]>(useAntcirierData ? testDataForAntcirier.documents : []);
-  const [documentGroups, setDocumentGroups] = useState<DocumentGroup[]>(useAntcirierData ? testDataForAntcirier.documentGroups : []);
-  const [bibliothequeDocuments, setBibliothequeDocuments] = useState<any[]>(useAntcirierData ? testDataForAntcirier.bibliothequeDocuments : []);
-  const [bibliothequeGroups, setBibliothequeGroups] = useState<any[]>(useAntcirierData ? testDataForAntcirier.bibliothequeGroups : []);
+  const [membres, setMembres] = useState<Membre[]>([]);
+  const [documents, setDocuments] = useState<Document[]>([]);
+  const [documentGroups, setDocumentGroups] = useState<DocumentGroup[]>([]);
+  const [bibliothequeDocuments, setBibliothequeDocuments] = useState<any[]>([]);
+  const [bibliothequeGroups, setBibliothequeGroups] = useState<any[]>([]);
   
   // États pour la synchronisation
-  const [lastSynced, setLastSynced] = useState<Date | null>(new Date());
+  const [lastSynced, setLastSynced] = useState<Date | null>(null);
   const [syncFailed, setSyncFailed] = useState<boolean>(false);
   const [isSyncing, setIsSyncing] = useState<boolean>(false);
   
@@ -214,42 +88,37 @@ export const GlobalDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   // Charger toutes les données depuis le localStorage
   const loadFromLocalStorage = () => {
     try {
-      // Si nous utilisons les données de test pour antcirier, on les utilise directement
-      if (useAntcirierData) {
-        setMembres(testDataForAntcirier.membres);
-        setDocuments(testDataForAntcirier.documents);
-        setDocumentGroups(testDataForAntcirier.documentGroups);
-        setBibliothequeDocuments(testDataForAntcirier.bibliothequeDocuments);
-        setBibliothequeGroups(testDataForAntcirier.bibliothequeGroups);
-        return;
-      }
-      
-      // Sinon, charger depuis localStorage
+      // Charger les membres
       const storedMembres = localStorage.getItem(`${storagePrefix}_membres`);
       if (storedMembres) {
         setMembres(JSON.parse(storedMembres));
       }
       
+      // Charger les documents
       const storedDocuments = localStorage.getItem(`${storagePrefix}_documents`);
       if (storedDocuments) {
         setDocuments(JSON.parse(storedDocuments));
       }
       
+      // Charger les groupes de documents
       const storedDocumentGroups = localStorage.getItem(`${storagePrefix}_document_groups`);
       if (storedDocumentGroups) {
         setDocumentGroups(JSON.parse(storedDocumentGroups));
       }
       
+      // Charger les documents de la bibliothèque
       const storedBibliothequeDocuments = localStorage.getItem(`${storagePrefix}_bibliotheque_documents`);
       if (storedBibliothequeDocuments) {
         setBibliothequeDocuments(JSON.parse(storedBibliothequeDocuments));
       }
       
+      // Charger les groupes de la bibliothèque
       const storedBibliothequeGroups = localStorage.getItem(`${storagePrefix}_bibliotheque_groups`);
       if (storedBibliothequeGroups) {
         setBibliothequeGroups(JSON.parse(storedBibliothequeGroups));
       }
       
+      // Charger l'état de synchronisation
       const storedLastSynced = localStorage.getItem(`${storagePrefix}_last_synced`);
       if (storedLastSynced) {
         setLastSynced(new Date(storedLastSynced));

@@ -2,126 +2,117 @@
 import { getApiUrl } from '@/config/apiConfig';
 import { getAuthHeaders } from '../auth/authService';
 import { getDatabaseConnectionCurrentUser } from '../core/databaseConnectionService';
-import { getDeviceId } from '../core/userService';
-import { Utilisateur } from '@/types/user';
+import { Utilisateur } from '@/services';
 
-// Un cache simple pour les utilisateurs
-let userCache: Utilisateur[] | null = null;
-let lastFetchTime: number = 0;
-const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
-
-/**
- * Class UserManager pour gérer les opérations liées aux utilisateurs
- */
-export class UserManager {
-  /**
-   * Récupère la liste des utilisateurs depuis l'API
-   */
-  static async getUtilisateurs(forceRefresh: boolean = false): Promise<Utilisateur[]> {
-    // Si forceRefresh est true ou si le cache n'est pas disponible ou expiré
-    if (forceRefresh || !userCache || (Date.now() - lastFetchTime > CACHE_DURATION)) {
-      return refreshUtilisateurs();
-    }
-    
-    console.log("Utilisation du cache pour getUtilisateurs");
-    return userCache;
-  }
-  
-  /**
-   * Vide le cache des utilisateurs
-   */
-  static clearCache(): void {
-    userCache = null;
-    lastFetchTime = 0;
-    console.log("Cache des utilisateurs vidé");
-  }
-  
-  /**
-   * Synchronise les utilisateurs (force un rechargement)
-   */
-  static async synchronizeUsers(): Promise<Utilisateur[]> {
-    return refreshUtilisateurs();
-  }
-}
+// Un cache pour les utilisateurs
+let usersCache: Utilisateur[] | null = null;
+let lastFetchTimestamp: number | null = null;
+const CACHE_DURATION = 60000; // 1 minute de cache
 
 /**
- * Récupère la liste des utilisateurs depuis l'API
+ * Service centralisé pour la gestion des utilisateurs
  */
-export const getUtilisateurs = async (): Promise<Utilisateur[]> => {
-  // Utiliser le cache si disponible et récent
-  if (userCache && (Date.now() - lastFetchTime < CACHE_DURATION)) {
-    console.log("Utilisation du cache pour getUtilisateurs");
-    return userCache;
-  }
-
-  try {
-    console.log("Récupération des utilisateurs depuis l'API");
-    const API_URL = getApiUrl();
-    
-    if (!API_URL) {
-      throw new Error("URL de l'API non configurée");
+export const UserManager = {
+  /**
+   * Récupère tous les utilisateurs avec gestion de cache
+   */
+  async getUtilisateurs(forceRefresh: boolean = false): Promise<Utilisateur[]> {
+    // Retourner les données du cache si disponibles et pas encore expirées
+    if (!forceRefresh && usersCache && lastFetchTimestamp && (Date.now() - lastFetchTimestamp < CACHE_DURATION)) {
+      console.log("Utilisation du cache pour les utilisateurs", usersCache.length);
+      return usersCache;
     }
-    
-    const response = await fetch(`${API_URL}/check-users.php`, {
-      method: 'GET',
-      headers: {
-        ...getAuthHeaders(),
-        'Accept': 'application/json',
-        'Cache-Control': 'no-cache'
+
+    try {
+      const token = localStorage.getItem('authToken') || sessionStorage.getItem('authToken');
+      if (!token) {
+        throw new Error("Utilisateur non authentifié");
       }
-    });
-    
-    if (!response.ok) {
-      throw new Error(`Erreur HTTP: ${response.status}`);
+      
+      const currentDatabaseUser = getDatabaseConnectionCurrentUser();
+      const currentApiUrl = getApiUrl();
+      
+      console.log(`Récupération des utilisateurs depuis: ${currentApiUrl}/check-users?source=${currentDatabaseUser}`);
+      
+      // Utiliser uniquement le endpoint check-users qui est le plus fiable
+      const response = await fetch(`${currentApiUrl}/check-users?source=${currentDatabaseUser}`, {
+        method: 'GET',
+        headers: {
+          ...getAuthHeaders(),
+          'Accept': 'application/json',
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0'
+        },
+        cache: 'no-store'
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Erreur HTTP: ${response.status} - ${response.statusText}`);
+      }
+      
+      const responseText = await response.text();
+      
+      if (!responseText || !responseText.trim()) {
+        throw new Error("Réponse vide du serveur");
+      }
+      
+      if (responseText.includes('<?php') || responseText.includes('<br />') || responseText.includes('<!DOCTYPE')) {
+        throw new Error("La réponse contient du PHP/HTML au lieu de JSON");
+      }
+      
+      const data = JSON.parse(responseText);
+      
+      // Extraire les utilisateurs selon la structure de la réponse
+      let users: Utilisateur[] = [];
+      
+      if (data && data.records && Array.isArray(data.records)) {
+        users = data.records;
+      } else if (data && Array.isArray(data)) {
+        users = data;
+      } else {
+        throw new Error("Format de données invalide: aucun utilisateur trouvé");
+      }
+      
+      // Mettre à jour le cache
+      usersCache = users;
+      lastFetchTimestamp = Date.now();
+      
+      return users;
+    } catch (error) {
+      console.error("Erreur lors de la récupération des utilisateurs:", error);
+      throw error;
     }
-    
-    const data = await response.json();
-    
-    // Vérifier le format de la réponse et extraire les utilisateurs
-    if (data && data.records && Array.isArray(data.records)) {
-      userCache = data.records;
-      lastFetchTime = Date.now();
-      return data.records;
-    } else if (data && Array.isArray(data)) {
-      userCache = data;
-      lastFetchTime = Date.now();
-      return data;
+  },
+  
+  /**
+   * Effacer le cache d'utilisateurs
+   */
+  clearCache() {
+    usersCache = null;
+    lastFetchTimestamp = null;
+    console.log("Cache utilisateurs effacé");
+  },
+  
+  /**
+   * Vérifie si un utilisateur avec le rôle spécifié existe
+   */
+  async hasUserWithRole(role: string): Promise<boolean> {
+    try {
+      const users = await this.getUtilisateurs();
+      return users.some(user => user.role === role);
+    } catch (error) {
+      console.error(`Erreur lors de la vérification des utilisateurs avec rôle ${role}:`, error);
+      return false;
     }
-    
-    throw new Error("Format de réponse invalide");
-  } catch (error) {
-    console.error("Erreur lors de la récupération des utilisateurs:", error);
-    
-    // En cas d'erreur, retourner le cache s'il existe, même s'il est périmé
-    if (userCache) {
-      console.log("Utilisation du cache périmé après erreur");
-      return userCache;
-    }
-    
-    throw error;
   }
 };
 
-/**
- * Rafraîchit la liste des utilisateurs en ignorant le cache
- */
-export const refreshUtilisateurs = async (): Promise<Utilisateur[]> => {
-  // Réinitialiser le cache
-  userCache = null;
-  lastFetchTime = 0;
-  
-  // Récupérer les données fraîches
-  return getUtilisateurs();
+// Export des fonctions simplifiées
+export const getUtilisateurs = (forceRefresh: boolean = false): Promise<Utilisateur[]> => {
+  return UserManager.getUtilisateurs(forceRefresh);
 };
 
-// Fonction pour vider le cache des utilisateurs
-export const clearUsersCache = () => {
-  userCache = null;
-  lastFetchTime = 0;
-  console.log("Cache des utilisateurs vidé");
-};
-
-// Fonction pour synchroniser les utilisateurs (force un rechargement)
-export const synchronizeUsers = async (): Promise<Utilisateur[]> => {
-  return refreshUtilisateurs();
+export const clearUsersCache = (): void => {
+  UserManager.clearCache();
 };

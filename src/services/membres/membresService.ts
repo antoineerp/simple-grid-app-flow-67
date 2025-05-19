@@ -1,322 +1,242 @@
-
 import { Membre } from '@/types/membres';
-import { triggerSync } from '@/services/sync';
 import { getApiUrl } from '@/config/apiConfig';
-import { getCurrentUserId, getDeviceId } from '@/services/core/userService';
-import { toast } from '@/components/ui/use-toast';
-
-// Cache local pour optimiser les performances
-let membresCache: Membre[] | null = null;
-let lastFetchTime: number = 0;
-const CACHE_DURATION = 2 * 60 * 1000; // 2 minutes
+import { getAuthHeaders } from '@/services/auth/authService';
 
 /**
- * Récupère les membres depuis l'API ou le cache si disponible
+ * Extrait un identifiant utilisateur valide pour les requêtes
  */
-export const getMembres = async (): Promise<Membre[]> => {
-  // Utiliser le cache si disponible et récent
-  if (membresCache && (Date.now() - lastFetchTime < CACHE_DURATION)) {
-    console.log("Utilisation du cache pour getMembres");
-    return membresCache;
-  }
-
-  try {
-    const userId = getCurrentUserId() || '999'; // Valeur par défaut si non défini
-    const deviceId = getDeviceId() || 'unknown_device';
-    const API_URL = getApiUrl() || window.location.origin + '/api';
-    
-    console.log(`Chargement des membres pour l'utilisateur: ${userId}`);
-    
-    const response = await fetch(`${API_URL}/membres-load.php?userId=${encodeURIComponent(userId)}&deviceId=${encodeURIComponent(deviceId)}`, {
-      method: 'GET',
-      headers: {
-        'Accept': 'application/json',
-        'Cache-Control': 'no-cache'
-      },
-      // Ajouter un timeout pour éviter les attentes trop longues
-      signal: AbortSignal.timeout(5000) // 5 secondes de timeout
-    });
-
-    if (!response.ok) {
-      console.error(`Erreur HTTP: ${response.status}`);
-      // En cas d'erreur, retourner les données du cache ou des données locales par défaut
-      return getLocalMembres();
-    }
-
-    const data = await response.json();
-    
-    if (!data.success) {
-      console.error(data.message || "Erreur lors du chargement des membres");
-      return getLocalMembres();
-    }
-
-    const membres = data.membres || [];
-    
-    // Mise à jour du cache
-    membresCache = membres;
-    lastFetchTime = Date.now();
-    
-    console.log(`${membres.length} membres chargés pour l'utilisateur ${userId}`);
-    return membres;
-  } catch (error) {
-    console.error("Erreur lors du chargement des membres:", error);
-    
-    // Retourner le cache ou des données locales par défaut
-    return getLocalMembres();
-  }
-};
-
-/**
- * Récupère des données locales par défaut si aucune donnée n'est disponible
- */
-const getLocalMembres = (): Membre[] => {
-  // Retourner le cache même périmé si disponible
-  if (membresCache) {
-    console.log("Utilisation du cache périmé après échec");
-    return membresCache;
+const extractValidUserId = (userId: any): string => {
+  // Si l'entrée est undefined ou null
+  if (userId === undefined || userId === null) {
+    console.log("userId invalide (null/undefined), utilisation de l'ID par défaut");
+    return 'p71x6d_system';
   }
   
-  // Si aucun cache disponible, retourner des données par défaut
-  const defaultMembres: Membre[] = [
-    {
-      id: 'membre_default_1',
-      nom: 'Dupont',
-      prenom: 'Jean',
-      fonction: 'Directeur',
-      initiales: 'JD',
-      email: 'jean.dupont@example.com',
-      telephone: '+33 6 12 34 56 78',
-      date_creation: new Date()
-    },
-    {
-      id: 'membre_default_2',
-      nom: 'Martin',
-      prenom: 'Sophie',
-      fonction: 'Responsable RH',
-      initiales: 'SM',
-      email: 'sophie.martin@example.com',
-      telephone: '+33 6 23 45 67 89',
-      date_creation: new Date()
+  // Si c'est déjà une chaîne, la retourner directement (mais vérifier si c'est [object Object])
+  if (typeof userId === 'string') {
+    // Vérifier si la chaîne est [object Object]
+    if (userId === '[object Object]' || userId.includes('object')) {
+      console.log("userId est la chaîne '[object Object]', utilisation de l'ID par défaut");
+      return 'p71x6d_system';
     }
-  ];
-  
-  // Stocker ces données dans le cache
-  membresCache = defaultMembres;
-  lastFetchTime = Date.now();
-  
-  return defaultMembres;
-};
-
-/**
- * Rafraîchit les membres depuis l'API en ignorant le cache
- */
-export const refreshMembres = async (): Promise<Membre[]> => {
-  // Réinitialiser le cache
-  membresCache = null;
-  lastFetchTime = 0;
-  
-  // Récupérer les données fraîches
-  return getMembres();
-};
-
-/**
- * Obtient un membre spécifique par son ID
- */
-export const getMembre = async (id: string): Promise<Membre | undefined> => {
-  const membres = await getMembres();
-  return membres.find(membre => membre.id === id);
-};
-
-/**
- * Crée un nouveau membre et le synchronise avec le serveur
- */
-export const createMembre = async (membre: Omit<Membre, 'id'>): Promise<Membre> => {
-  try {
-    // Récupérer les membres actuels
-    const membres = await getMembres();
-    
-    // Générer un ID unique
-    const newId = `membre_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
-    
-    // Créer le nouveau membre
-    const newMembre: Membre = {
-      ...membre,
-      id: newId,
-      date_creation: new Date(),
-      // Assurer que le membre a des initiales
-      initiales: membre.initiales || `${membre.prenom?.charAt(0) || ''}${membre.nom?.charAt(0) || ''}`.toUpperCase()
-    };
-    
-    // Ajouter au cache local
-    if (membresCache) {
-      membresCache.push(newMembre);
-    } else {
-      membresCache = [newMembre];
-      lastFetchTime = Date.now();
-    }
-    
-    // Synchroniser avec le serveur
-    try {
-      await syncMembres();
-    } catch (syncError) {
-      console.warn("Erreur de synchronisation, mais le membre a été créé localement:", syncError);
-    }
-    
-    return newMembre;
-  } catch (error) {
-    console.error("Erreur lors de la création d'un membre:", error);
-    toast({
-      variant: "destructive",
-      title: "Erreur",
-      description: "Impossible de créer le membre. Veuillez réessayer."
-    });
-    throw error;
+    return userId;
   }
-};
-
-/**
- * Met à jour un membre existant
- */
-export const updateMembre = async (id: string, membre: Partial<Membre>): Promise<Membre> => {
-  try {
-    // Récupérer les membres actuels
-    const membres = await getMembres();
-    const existingIndex = membres.findIndex(m => m.id === id);
+  
+  // Si c'est un objet, essayer d'extraire un identifiant
+  if (typeof userId === 'object') {
+    // Journaliser l'identifiant reçu pour débogage
+    console.log("Identifiant objet reçu:", JSON.stringify(userId));
     
-    if (existingIndex === -1) {
-      throw new Error(`Membre avec l'ID ${id} non trouvé`);
+    // Propriétés potentielles pour extraire un ID
+    const idProperties = ['identifiant_technique', 'email', 'id'];
+    
+    for (const prop of idProperties) {
+      if (userId[prop] && typeof userId[prop] === 'string' && userId[prop].length > 0) {
+        console.log(`ID utilisateur extrait de l'objet: ${prop}=${userId[prop]}`);
+        return userId[prop];
+      }
     }
     
-    // Mettre à jour le membre
-    const updatedMembre: Membre = {
-      ...membres[existingIndex],
-      ...membre,
-      id, // Maintenir le même ID
-      date_modification: new Date()
-    };
-    
-    // Mettre à jour le cache local
-    if (membresCache) {
-      membresCache[existingIndex] = updatedMembre;
+    // Si toString() renvoie quelque chose d'autre que [object Object], l'utiliser
+    const userIdString = String(userId);
+    if (userIdString !== '[object Object]' && userIdString !== 'null' && userIdString !== 'undefined') {
+      console.log(`Conversion de l'objet en chaîne: ${userIdString}`);
+      return userIdString;
     }
-    
-    // Synchroniser avec le serveur
-    try {
-      await syncMembres();
-    } catch (syncError) {
-      console.warn("Erreur de synchronisation, mais le membre a été mis à jour localement:", syncError);
-    }
-    
-    return updatedMembre;
-  } catch (error) {
-    console.error("Erreur lors de la mise à jour d'un membre:", error);
-    toast({
-      variant: "destructive",
-      title: "Erreur",
-      description: "Impossible de mettre à jour le membre. Veuillez réessayer."
-    });
-    throw error;
   }
+  
+  console.log(`Utilisation de l'ID par défaut: p71x6d_system`);
+  return 'p71x6d_system'; // Valeur par défaut si rien n'est valide
 };
 
 /**
- * Supprime un membre par son ID
+ * Charge les membres depuis le serveur Infomaniak uniquement
  */
-export const deleteMembre = async (id: string): Promise<boolean> => {
+export const loadMembresFromServer = async (currentUser: any): Promise<Membre[]> => {
   try {
-    // Mettre à jour le cache local
-    if (membresCache) {
-      membresCache = membresCache.filter(m => m.id !== id);
+    const API_URL = getApiUrl();
+    
+    // Extraire l'identifiant technique ou email de l'utilisateur
+    const userId = extractValidUserId(currentUser);
+    console.log(`Chargement des membres depuis le serveur pour l'utilisateur ${userId}`);
+    
+    // Vérifier que l'ID est bien une chaîne et non un objet
+    if (typeof userId !== 'string') {
+      throw new Error(`ID utilisateur invalide: ${typeof userId}`);
     }
     
-    // Synchroniser avec le serveur
-    try {
-      await syncMembres();
-    } catch (syncError) {
-      console.warn("Erreur de synchronisation, mais le membre a été supprimé localement:", syncError);
-    }
+    // Utiliser encodeURIComponent pour encoder l'ID utilisateur en toute sécurité
+    const encodedUserId = encodeURIComponent(userId);
+    const url = `${API_URL}/membres-load.php?userId=${encodedUserId}`;
     
-    return true;
-  } catch (error) {
-    console.error("Erreur lors de la suppression d'un membre:", error);
-    toast({
-      variant: "destructive",
-      title: "Erreur",
-      description: "Impossible de supprimer le membre. Veuillez réessayer."
-    });
-    throw error;
-  }
-};
-
-/**
- * Synchronise les membres avec le serveur
- */
-export const syncMembres = async (): Promise<boolean> => {
-  try {
-    // Si pas de données à synchroniser, terminer sans erreur
-    if (!membresCache || membresCache.length === 0) {
-      console.log("Aucune donnée à synchroniser");
-      return true;
-    }
+    // Ajouter un timestamp pour éviter la mise en cache
+    const urlWithTimestamp = `${url}&_t=${new Date().getTime()}`;
     
-    // Récupérer l'ID de l'utilisateur et de l'appareil
-    const userId = getCurrentUserId();
-    const deviceId = getDeviceId();
+    // Ajout d'un logging pour déboguer
+    console.log(`Requête membres: ${urlWithTimestamp}`);
     
-    // Si des informations essentielles sont manquantes, signaler l'erreur mais ne pas faire échouer l'application
-    if (!userId || !deviceId) {
-      console.error("Informations manquantes pour la synchronisation");
-      return false;
-    }
-    
-    const API_URL = getApiUrl() || window.location.origin + '/api';
-    
-    console.log(`Synchronisation de ${membresCache.length} membres pour l'utilisateur ${userId}`);
-    
-    // Préparer les données pour la synchronisation
-    const syncData = {
-      userId,
-      deviceId,
-      membres: membresCache
-    };
-    
-    // Envoyer les données au serveur avec un timeout
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 secondes timeout
+    const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 secondes de timeout
     
     try {
+      const response = await fetch(urlWithTimestamp, {
+        method: 'GET',
+        headers: getAuthHeaders(),
+        cache: 'no-store',
+        signal: controller.signal
+      });
+      
+      clearTimeout(timeoutId);
+      
+      // Debug: Journaliser le statut et le texte de la réponse
+      console.log(`Réponse membres statut: ${response.status}`);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`Erreur serveur (${response.status}) lors du chargement des membres:`, errorText);
+        throw new Error(`Erreur serveur: ${response.status}`);
+      }
+      
+      const responseText = await response.text();
+      
+      // Debug: Journaliser les 200 premiers caractères de la réponse 
+      console.log(`Réponse membres début: ${responseText.substring(0, 200)}`);
+      
+      // Vérifier si la réponse est vide
+      if (!responseText || !responseText.trim()) {
+        console.warn("Réponse vide du serveur");
+        return [];
+      }
+      
+      // Vérifier si la réponse contient du HTML ou PHP (erreur)
+      if (responseText.includes('<?php') || responseText.includes('<html') || responseText.includes('<br')) {
+        console.error("La réponse contient du HTML/PHP au lieu de JSON:", responseText.substring(0, 200));
+        throw new Error("Le serveur a renvoyé une page HTML au lieu de données JSON");
+      }
+      
+      try {
+        const result = JSON.parse(responseText);
+        
+        if (!result.success) {
+          throw new Error(result.message || "Erreur inconnue lors du chargement des membres");
+        }
+        
+        // Transformer les dates string en objets Date
+        const membres = result.membres || [];
+        return membres.map((membre: any) => ({
+          ...membre,
+          date_creation: membre.date_creation ? new Date(membre.date_creation) : new Date()
+        }));
+      } catch (jsonError) {
+        console.error("Erreur lors du parsing JSON:", jsonError);
+        console.error("Réponse brute:", responseText.substring(0, 500));
+        throw new Error("Format de réponse invalide");
+      }
+    } catch (error) {
+      if (error.name === 'AbortError') {
+        throw new Error("Délai d'attente dépassé lors du chargement des membres");
+      }
+      throw error;
+    }
+  } catch (error) {
+    console.error('Erreur lors du chargement des membres depuis le serveur:', error);
+    throw error;
+  }
+};
+
+/**
+ * Synchronise les membres avec le serveur Infomaniak uniquement
+ */
+export const syncMembresWithServer = async (membres: Membre[], currentUser: any): Promise<boolean> => {
+  try {
+    const API_URL = getApiUrl();
+    
+    // Extraire l'identifiant technique ou email de l'utilisateur
+    const userId = extractValidUserId(currentUser);
+    console.log(`Synchronisation des membres pour l'utilisateur ${userId}`);
+    
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 20000); // 20 secondes de timeout
+    
+    try {
+      // Préparer les données à envoyer - convertir les objets Date en chaînes
+      const membresForSync = membres.map(membre => ({
+        ...membre,
+        date_creation: membre.date_creation instanceof Date 
+          ? membre.date_creation.toISOString() 
+          : membre.date_creation
+      }));
+      
+      // Journaliser pour le débogage
+      console.log(`Envoi de ${membresForSync.length} membres pour synchronisation`);
+      
       const response = await fetch(`${API_URL}/membres-sync.php`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-          'Cache-Control': 'no-cache'
+          ...getAuthHeaders(),
+          'Content-Type': 'application/json'
         },
-        body: JSON.stringify(syncData),
+        body: JSON.stringify({ userId, membres: membresForSync }),
         signal: controller.signal
       });
       
       clearTimeout(timeoutId);
       
       if (!response.ok) {
-        throw new Error(`Erreur HTTP: ${response.status}`);
+        console.error(`Erreur lors de la synchronisation des membres: ${response.status}`);
+        
+        // Essayer de récupérer les détails de l'erreur
+        const errorText = await response.text();
+        console.error("Détails de l'erreur:", errorText);
+        
+        if (errorText.trim().startsWith('{')) {
+          try {
+            const errorJson = JSON.parse(errorText);
+            throw new Error(errorJson.message || `Échec de la synchronisation: ${response.statusText}`);
+          } catch (e) {
+            console.error("Impossible de parser l'erreur JSON:", e);
+          }
+        }
+        
+        throw new Error(`Échec de la synchronisation: ${response.statusText}`);
       }
       
-      const result = await response.json();
+      const responseText = await response.text();
       
-      if (!result.success) {
-        throw new Error(result.message || "Erreur lors de la synchronisation");
+      // Vérifier si la réponse est vide
+      if (!responseText || !responseText.trim()) {
+        console.warn("Réponse vide du serveur lors de la synchronisation");
+        return false;
       }
       
-      console.log("Synchronisation des membres réussie");
-      return true;
-    } catch (fetchError) {
-      clearTimeout(timeoutId);
-      throw fetchError;
+      // Vérifier si la réponse contient du HTML ou PHP (erreur)
+      if (responseText.includes('<?php') || responseText.includes('<html') || responseText.includes('<br')) {
+        console.error("La réponse de synchronisation contient du HTML/PHP au lieu de JSON:", responseText.substring(0, 200));
+        throw new Error("Le serveur a renvoyé une page HTML au lieu de données JSON");
+      }
+      
+      try {
+        const result = JSON.parse(responseText);
+        console.log("Résultat de la synchronisation des membres:", result);
+        
+        if (!result.success) {
+          throw new Error(result.message || "Erreur de synchronisation inconnue");
+        }
+        
+        return true;
+      } catch (e) {
+        console.error("Erreur lors du parsing de la réponse:", e);
+        console.error("Réponse brute reçue:", responseText);
+        throw new Error("Impossible de traiter la réponse du serveur");
+      }
+    } catch (error) {
+      if (error.name === 'AbortError') {
+        throw new Error("Délai d'attente dépassé lors de la synchronisation");
+      }
+      throw error;
     }
   } catch (error) {
-    // Ne pas faire échouer l'application si la synchronisation échoue
-    console.error("Erreur lors de la synchronisation des membres:", error);
-    return false;
+    console.error('Erreur de synchronisation des membres:', error);
+    throw error;
   }
 };

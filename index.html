@@ -1,60 +1,16 @@
 
 <!DOCTYPE html>
 <html lang="fr">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta http-equiv="X-UA-Compatible" content="ie=edge" />
-  <meta name="description" content="Application de gestion de certification Qualiopi - FormaCert" />
-  <title>FormaCert - Qualité.cloud</title>
-  <link rel="icon" type="image/x-icon" href="/favicon.ico" />
-  <!-- Force MIME Type for CSS -->
-  <link rel="stylesheet" href="/assets/main.css" type="text/css" />
-  
-  <!-- Références dynamiques aux fichiers CSS -->
-  <link rel="stylesheet" href="/assets/index.css" type="text/css" />
-  
-  <!-- Préchargement des scripts principaux -->
-  <link rel="preload" href="/assets/index.js" as="script" />
-  <link rel="preload" href="/assets/react.DRd396Ms.js" as="script" />
-  <link rel="preload" href="/assets/main.CyAZZjgK.js" as="script" />
-</head>
-<body>
-  <div id="root">
-    <!-- Contenu de chargement initial pour éviter la page blanche -->
-    <div style="display: flex; justify-content: center; align-items: center; height: 100vh; flex-direction: column;">
-      <img src="/public/lovable-uploads/formacert-logo.png" alt="FormaCert" style="max-width: 200px; margin-bottom: 20px;" />
-      <p>Chargement de l'application...</p>
-    </div>
-  </div>
-  
-  <!-- GPTEngineer script - Must come BEFORE application scripts -->
-  <script src="https://cdn.gpteng.co/gptengineer.js" type="module"></script>
-  
-  <!-- Script principal avec modules ES6 -->
-  <script type="module" src="/assets/index.js"></script>
-  
-  <!-- Script de secours en cas d'échec du chargement du module - DÉSACTIVÉ POUR FORCER L'UTILISATION DES VRAIES DONNÉES -->
-  <script>
-    window.addEventListener('error', function(e) {
-      // Détecter les erreurs liées au chargement des modules
-      if (e.filename && e.filename.includes('index.')) {
-        console.error('Erreur de chargement du module ES6');
-        
-        // Afficher un message d'erreur au lieu de charger le fallback
-        document.getElementById('root').innerHTML = `
-          <div style="max-width: 600px; margin: 2rem auto; padding: 2rem; text-align: center; font-family: system-ui, sans-serif; border: 2px solid #f44336; border-radius: 8px;">
-            <h2 style="color: #f44336;">Erreur de connexion</h2>
-            <p>Impossible d'établir une connexion avec la base de données.</p>
-            <p style="font-weight: bold;">Le mode secours est désactivé - les vraies données sont nécessaires.</p>
-            <p>Message technique: ${e.message || 'Erreur de chargement du module'}</p>
-            <button onclick="window.location.reload()" style="background: #0057b7; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; margin-top: 1rem;">
-              Réessayer
-            </button>
-          </div>
-        `;
-      }
-    }, true);
-  </script>
-</body>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Qualite.cloud - Système de Management de la Qualité</title>
+    <meta name="description" content="Application web pour la gestion de la qualité et la conformité ISO 27001" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.ico" />
+    <script src="https://cdn.gpteng.co/gptengineer.js" type="module"></script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
 </html>

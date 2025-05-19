@@ -1,5 +1,5 @@
 
-import React, { useEffect } from 'react';
+import React from 'react';
 import { FileText, FolderPlus } from 'lucide-react';
 import { MembresProvider } from '@/contexts/MembresContext';
 import ExigenceForm from '@/components/exigences/ExigenceForm';
@@ -11,7 +11,7 @@ import { exportExigencesToPdf } from '@/services/pdfExport';
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { getDeviceId } from '@/services/core/userService';
+import SyncIndicator from '@/components/common/SyncIndicator';
 
 const ExigencesContent = () => {
   const {
@@ -26,7 +26,6 @@ const ExigencesContent = () => {
     isOnline,
     lastSynced,
     syncFailed,
-    deviceId,
     loadError,
     setDialogOpen,
     setGroupDialogOpen,
@@ -44,26 +43,11 @@ const ExigencesContent = () => {
     handleDeleteGroup,
     handleGroupReorder,
     handleToggleGroup,
+    handleResetLoadAttempts,
     handleSync
   } = useExigences();
   
   const { toast } = useToast();
-
-  // Synchronisation initiale et périodique
-  useEffect(() => {
-    // Synchronisation à l'ouverture de la page
-    handleSync();
-    
-    // Synchronisation périodique toutes les 5 minutes
-    const syncInterval = setInterval(() => {
-      if (isOnline && !isSyncing) {
-        console.log("Exigences: Synchronisation périodique");
-        handleSync();
-      }
-    }, 300000); // 5 minutes
-    
-    return () => clearInterval(syncInterval);
-  }, [isOnline, isSyncing]);
 
   const handleExportPdf = () => {
     exportExigencesToPdf(exigences, groups);
@@ -73,42 +57,13 @@ const ExigencesContent = () => {
     });
   };
 
-  // Création d'une fonction adaptateur qui correspond à la signature attendue par ExigenceTable
-  const handleExclusionChangeAdapter = (id: string) => {
-    handleExclusionChange(id, true);
-  };
-
-  // Adapter for handleEdit to match the expected signature
-  const handleEditAdapter = (id: string) => {
-    const exigenceToEdit = exigences.find(e => e.id === id);
-    if (exigenceToEdit) {
-      handleEdit(exigenceToEdit);
-    }
-  };
-
-  // Récupérer l'ID de l'appareil actuel
-  const currentDeviceId = deviceId || getDeviceId();
-
   return (
     <div className="p-8">
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center justify-between mb-2">
         <div>
           <h1 className="text-3xl font-bold text-app-blue">Exigences</h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            Gérez vos exigences et leurs conformités
-          </p>
         </div>
-        <div className="flex space-x-2 items-center">
-          <Button 
-            variant="outline"
-            size="sm"
-            title="Synchroniser maintenant"
-            onClick={() => handleSync()}
-            disabled={isSyncing || !isOnline}
-            className="hidden" // Masquer le bouton de synchronisation
-          >
-            <span className="mr-2">Synchroniser</span>
-          </Button>
+        <div className="flex space-x-2">
           <button 
             onClick={handleExportPdf}
             className="text-red-600 p-2 rounded-md hover:bg-red-50 transition-colors"
@@ -119,8 +74,17 @@ const ExigencesContent = () => {
         </div>
       </div>
 
-      {/* Supprimons le SyncIndicator qui causait l'erreur */}
-      
+      <div className="mb-4">
+        <SyncIndicator 
+          isSyncing={isSyncing}
+          isOnline={isOnline}
+          syncFailed={syncFailed || !!loadError}
+          lastSynced={lastSynced}
+          onSync={handleSync}
+          showOnlyErrors={true}
+        />
+      </div>
+
       {loadError && (
         <Alert variant="destructive" className="mb-4">
           <AlertTitle>Erreur de chargement</AlertTitle>
@@ -146,8 +110,8 @@ const ExigencesContent = () => {
           groups={groups}
           onResponsabiliteChange={handleResponsabiliteChange}
           onAtteinteChange={handleAtteinteChange}
-          onExclusionChange={handleExclusionChangeAdapter}
-          onEdit={handleEditAdapter}
+          onExclusionChange={handleExclusionChange}
+          onEdit={handleEdit}
           onDelete={handleDelete}
           onReorder={handleReorder}
           onGroupReorder={handleGroupReorder}

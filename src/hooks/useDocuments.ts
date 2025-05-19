@@ -1,271 +1,420 @@
 
 import { useState, useEffect, useCallback } from 'react';
+import { Document, DocumentStats, DocumentGroup } from '@/types/documents';
+import { useToast } from '@/hooks/use-toast';
+import { calculateDocumentStats } from '@/services/documents/documentStatsService';
+import { useDocumentMutations } from '@/features/documents/hooks/useDocumentMutations';
+import { useDocumentGroups } from '@/features/documents/hooks/useDocumentGroups';
+import { getCurrentUser } from '@/services/core/databaseConnectionService';
 import { useSync } from './useSync';
-import { Document, DocumentGroup } from '@/types/documents';
-import { useToast } from './use-toast';
-import { v4 as uuidv4 } from 'uuid';
-import { getCurrentUserId } from '@/services/auth/authService';
+import { useGlobalData } from '@/contexts/GlobalDataContext';
+import { useNetworkStatus } from '@/hooks/useNetworkStatus';
+import { 
+  loadDocumentsFromServer, 
+  syncDocumentsWithServer,
+  getLocalDocuments
+} from '@/services/documents/documentSyncService';
+import {
+  saveLocalData,
+  loadLocalData
+} from '@/features/sync/utils/syncStorageManager';
+
+// Clé pour stocker l'état global dans sessionStorage (persistance entre les pages)
+const SESSION_STORAGE_KEY = 'documents_page_state';
 
 export const useDocuments = () => {
-  const [documents, setDocuments] = useState<Document[]>([]);
-  const [groups, setGroups] = useState<DocumentGroup[]>([]);
-  const [selectedDocument, setSelectedDocument] = useState<Document | null>(null);
-  const { syncStatus, startSync, endSync, loading, error } = useSync('documents');
   const { toast } = useToast();
-  const [isSyncing, setIsSyncing] = useState(false);
+  const { isOnline } = useNetworkStatus();
   
-  // Fonction de chargement des documents sécurisée
-  const loadDocuments = useCallback(async () => {
-    try {
-      startSync();
-      setIsSyncing(true);
-      
-      // Simulation de chargement des documents (à remplacer par votre logique réelle)
-      const loadedDocuments = localStorage.getItem('documents');
-      const parsedDocuments = loadedDocuments ? JSON.parse(loadedDocuments) : [];
-      
-      // Assurez-vous que parsedDocuments est un tableau
-      const safeDocuments = Array.isArray(parsedDocuments) ? parsedDocuments : [];
-      
-      setDocuments(safeDocuments);
-      
-      // Extraire les groupes
-      const documentGroups: DocumentGroup[] = [];
-      const groupIds = new Set<string>();
-      
-      safeDocuments.forEach(doc => {
-        if (doc.groupId && !groupIds.has(doc.groupId)) {
-          groupIds.add(doc.groupId);
-          documentGroups.push({
-            id: doc.groupId,
-            name: doc.groupId, // Default name is the ID
-            expanded: true,
-            items: [],
-            userId: getCurrentUserId() || ''
-          });
-        }
-      });
-      
-      setGroups(documentGroups);
-      
-      endSync();
-      return true;
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
-      endSync(errorMessage);
-      console.error("Erreur lors du chargement des documents:", errorMessage);
-      return false;
-    } finally {
-      setIsSyncing(false);
-    }
-  }, [startSync, endSync]);
+  // Utiliser le contexte global au lieu des états locaux
+  const { 
+    documents, 
+    setDocuments, 
+    documentGroups: groups, 
+    setDocumentGroups: setGroups,
+    lastSynced,
+    setLastSynced,
+    syncFailed,
+    setSyncFailed,
+    isSyncing,
+    setIsSyncing
+  } = useGlobalData();
+  
+  const [editingDocument, setEditingDocument] = useState<Document | null>(null);
+  const [editingGroup, setEditingGroup] = useState<DocumentGroup | null>(null);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [groupDialogOpen, setGroupDialogOpen] = useState(false);
+  const [stats, setStats] = useState<DocumentStats>(() => calculateDocumentStats(documents));
+  const [initialLoadDone, setInitialLoadDone] = useState(false);
 
-  // Load initial data
+  // Utiliser le hook de synchronisation central
+  const { syncAndProcess } = useSync('documents');
+
+  // Calculer les statistiques lorsque les documents changent
   useEffect(() => {
-    loadDocuments();
-  }, [loadDocuments]);
+    setStats(calculateDocumentStats(documents));
+    
+    // AMÉLIORATION: Utiliser le système de stockage centralisé pour sauvegarder
+    if (documents.length > 0) {
+      const currentUser = getCurrentUser() || 'default';
+      // Sauvegarder à la fois dans localStorage ET sessionStorage pour persistance
+      saveLocalData('documents', documents, currentUser);
+      saveLocalData('document_groups', groups, currentUser);
+      
+      // Sauvegarder également dans l'état global de session
+      sessionStorage.setItem(`${SESSION_STORAGE_KEY}_${currentUser}`, JSON.stringify({
+        documents,
+        groups,
+        timestamp: new Date().toISOString()
+      }));
+      
+      console.log(`${documents.length} documents sauvegardés dans le stockage local et session`);
+    }
+  }, [documents, groups]);
 
-  // Fonction pour forcer le rechargement
-  const forceReload = async () => {
-    return await loadDocuments();
-  };
-
-  // Handle document mutations
-  const handleResponsabiliteChange = (id: string, type: 'r' | 'a' | 'c' | 'i', values: string[]) => {
-    setDocuments(prevDocs => 
-      prevDocs.map(doc => 
-        doc.id === id 
-          ? {
-              ...doc,
-              responsabilites: {
-                ...doc.responsabilites || { r: [], a: [], c: [], i: [] },
-                [type]: values
+  // Charger les documents au démarrage
+  useEffect(() => {
+    if (!initialLoadDone) {
+      const loadInitialData = async () => {
+        setIsSyncing(true);
+        try {
+          const currentUser = getCurrentUser() || 'default';
+          
+          // AMÉLIORATION MAJEURE: D'abord vérifier si des données existent dans sessionStorage
+          // (cela garantira la persistance entre les pages)
+          const sessionData = sessionStorage.getItem(`${SESSION_STORAGE_KEY}_${currentUser}`);
+          if (sessionData) {
+            try {
+              const parsedData = JSON.parse(sessionData);
+              if (parsedData.documents && parsedData.documents.length > 0) {
+                console.log(`${parsedData.documents.length} documents chargés depuis sessionStorage`);
+                setDocuments(parsedData.documents);
+                
+                if (parsedData.groups && parsedData.groups.length > 0) {
+                  console.log(`${parsedData.groups.length} groupes chargés depuis sessionStorage`);
+                  setGroups(parsedData.groups);
+                }
+                
+                // Définir le délai avant de tenter une synchronisation avec le serveur
+                setTimeout(() => {
+                  if (isOnline) {
+                    syncWithServer().catch(err => {
+                      console.error("Erreur lors de la synchronisation après chargement depuis sessionStorage:", err);
+                    });
+                  }
+                }, 2000);
+                
+                setIsSyncing(false);
+                setInitialLoadDone(true);
+                return; // Sortir tôt si les données sont chargées depuis sessionStorage
               }
+            } catch (e) {
+              console.error('Erreur lors du parsing des données de session:', e);
             }
-          : doc
-      )
-    );
+          }
+          
+          // Si aucune donnée n'est trouvée dans sessionStorage, passer aux autres sources
+          // Charger d'abord les documents locaux pour affichage immédiat
+          let localDocs = loadLocalData<Document>('documents', currentUser);
+          
+          // Si aucun document n'est trouvé avec le nouveau système, essayer l'ancien
+          if (localDocs.length === 0) {
+            localDocs = getLocalDocuments();
+          }
+          
+          if (localDocs.length > 0) {
+            console.log(`${localDocs.length} documents chargés depuis le stockage local`);
+            setDocuments(localDocs);
+            
+            // Charger également les groupes
+            const localGroups = loadLocalData<DocumentGroup>('document_groups', currentUser);
+            if (localGroups.length > 0) {
+              console.log(`${localGroups.length} groupes chargés depuis le stockage local`);
+              setGroups(localGroups);
+            }
+            
+            // Sauvegarder dans sessionStorage pour persistance entre les pages
+            sessionStorage.setItem(`${SESSION_STORAGE_KEY}_${currentUser}`, JSON.stringify({
+              documents: localDocs,
+              groups: localGroups,
+              timestamp: new Date().toISOString()
+            }));
+          }
+          
+          // Ensuite, essayer de charger depuis le serveur si en ligne
+          if (isOnline) {
+            console.log("Chargement initial des documents depuis le serveur");
+            const loadedDocs = await loadDocumentsFromServer();
+            if (loadedDocs && loadedDocs.length > 0) {
+              console.log(`${loadedDocs.length} documents chargés depuis le serveur`);
+              setDocuments(loadedDocs);
+              
+              // Sauvegarder dans sessionStorage pour persistance entre les pages
+              sessionStorage.setItem(`${SESSION_STORAGE_KEY}_${currentUser}`, JSON.stringify({
+                documents: loadedDocs,
+                groups,
+                timestamp: new Date().toISOString()
+              }));
+            } else {
+              console.log("Aucun document chargé depuis le serveur");
+            }
+            setLastSynced(new Date());
+            setSyncFailed(false);
+          } else {
+            console.log("Mode hors ligne, utilisation des documents locaux uniquement");
+          }
+        } catch (error) {
+          console.error("Erreur lors du chargement initial des documents:", error);
+          setSyncFailed(true);
+          
+          toast({
+            variant: "destructive",
+            title: "Erreur de chargement",
+            description: "Une erreur est survenue lors du chargement des documents. Mode hors-ligne activé.",
+          });
+        } finally {
+          setIsSyncing(false);
+          setInitialLoadDone(true);
+        }
+      };
+      
+      loadInitialData();
+    }
+  }, [initialLoadDone, isOnline, setDocuments, setGroups, setIsSyncing, setLastSynced, setSyncFailed, toast]);
+
+  const syncWithServer = async (): Promise<boolean> => {
+    try {
+      setIsSyncing(true);
+      const result = await syncDocumentsWithServer(documents);
+      
+      if (result) {
+        setLastSynced(new Date());
+        setSyncFailed(false);
+        
+        // Assurer la persistance dans sessionStorage après une synchronisation réussie
+        const currentUser = getCurrentUser() || 'default';
+        sessionStorage.setItem(`${SESSION_STORAGE_KEY}_${currentUser}`, JSON.stringify({
+          documents,
+          groups,
+          timestamp: new Date().toISOString()
+        }));
+      } else {
+        setSyncFailed(true);
+      }
+      
+      setIsSyncing(false);
+      return result;
+    } catch (error) {
+      console.error("Erreur lors de la synchronisation des documents:", error);
+      setSyncFailed(true);
+      setIsSyncing(false);
+      return false;
+    }
   };
 
-  const handleAtteinteChange = (id: string, atteinte: 'NC' | 'PC' | 'C' | null) => {
-    setDocuments(prevDocs => 
-      prevDocs.map(doc => 
-        doc.id === id 
-          ? { ...doc, etat: atteinte || undefined }
-          : doc
-      )
-    );
-  };
+  const documentMutations = useDocumentMutations(documents, setDocuments);
+  const groupOperations = useDocumentGroups(groups, setGroups);
 
-  const handleExclusionChange = (id: string) => {
-    setDocuments(prevDocs => 
-      prevDocs.map(doc => 
-        doc.id === id 
-          ? { ...doc, etat: doc.etat === 'EX' ? null : 'EX' }
-          : doc
-      )
-    );
-  };
+  const handleEdit = useCallback((id: string) => {
+    const documentToEdit = documents.find(doc => doc.id === id);
+    if (documentToEdit) {
+      setEditingDocument(documentToEdit);
+      setDialogOpen(true);
+    } else {
+      toast({
+        title: "Erreur",
+        description: `Le document ${id} n'a pas été trouvé`,
+        variant: "destructive"
+      });
+    }
+  }, [documents, toast]);
 
-  const handleDelete = (id: string) => {
-    setDocuments(prevDocs => prevDocs.filter(doc => doc.id !== id));
+  const handleSaveDocument = useCallback(
+    (updatedDocument: Document) => {
+      const newDoc = {
+        ...updatedDocument,
+        date_modification: new Date(),
+      };
+
+      setDocuments((prev) => prev.map((doc) => (doc.id === newDoc.id ? newDoc : doc)));
+
+      // AMÉLIORATION: Sauvegarde locale immédiate ET lancement de la synchronisation
+      const currentUser = getCurrentUser() || 'default';
+      const allDocs = documents.map(doc => doc.id === newDoc.id ? newDoc : doc);
+      
+      // Sauvegarder dans localStorage ET sessionStorage
+      saveLocalData('documents', allDocs, currentUser);
+      
+      // Sauvegarder également dans l'état global de session
+      sessionStorage.setItem(`${SESSION_STORAGE_KEY}_${currentUser}`, JSON.stringify({
+        documents: allDocs,
+        groups,
+        timestamp: new Date().toISOString()
+      }));
+      
+      // Lancer la synchronisation
+      syncWithServer().catch(error => {
+        console.error("Erreur lors de la synchronisation après mise à jour:", error);
+      });
+
+      toast({
+        title: "Document mis à jour",
+        description: `Le document ${newDoc.id} a été mis à jour avec succès`,
+      });
+    },
+    [documents, groups, setDocuments, toast]
+  );
+
+  const handleAddDocument = useCallback(() => {
+    const maxId = documents.length > 0 
+      ? Math.max(...documents.map(d => parseInt(d.id.toString())))
+      : 0;
+    
+    const newId = (maxId + 1).toString();
+    const newDocument: Document = {
+      id: newId,
+      nom: `Document ${newId}`,
+      fichier_path: null,
+      responsabilites: { r: [], a: [], c: [], i: [] },
+      etat: null,
+      date_creation: new Date(),
+      date_modification: new Date()
+    };
+    
+    const updatedDocuments = [...documents, newDocument];
+    setDocuments(updatedDocuments);
+    
+    // AMÉLIORATION: Sauvegarde locale immédiate dans TOUS les systèmes de stockage
+    const currentUser = getCurrentUser() || 'default';
+    
+    // 1. Sauvegarder dans le système central
+    saveLocalData('documents', updatedDocuments, currentUser);
+    
+    // 2. Sauvegarder dans sessionStorage pour persistance entre pages
+    sessionStorage.setItem(`${SESSION_STORAGE_KEY}_${currentUser}`, JSON.stringify({
+      documents: updatedDocuments,
+      groups,
+      timestamp: new Date().toISOString()
+    }));
+    
+    // 3. Lancer la synchronisation avec le serveur
+    syncWithServer().catch(error => {
+      console.error("Erreur lors de la synchronisation après ajout:", error);
+    });
     
     toast({
-      title: "Document supprimé",
-      description: "Le document a été supprimé"
+      title: "Nouveau document",
+      description: `Le document ${newId} a été ajouté et sauvegardé localement`,
     });
-  };
+  }, [documents, groups, toast, setDocuments, syncWithServer]);
 
-  // Handle document editing
-  const handleEdit = (id: string) => {
-    const document = documents.find(doc => doc.id === id);
-    if (document) {
-      setSelectedDocument(document);
-    }
-  };
-
-  // Handle document reordering
   const handleReorder = useCallback((startIndex: number, endIndex: number, targetGroupId?: string) => {
     setDocuments(prev => {
       const result = Array.from(prev);
       const [removed] = result.splice(startIndex, 1);
       
-      // If target group is provided, update the document's group
-      const updatedDoc = targetGroupId !== undefined ? { ...removed, groupId: targetGroupId === 'none' ? undefined : targetGroupId } : removed;
+      // Mettre à jour le groupId du document
+      if (targetGroupId !== undefined) {
+        removed.groupId = targetGroupId === 'null' ? undefined : targetGroupId;
+      } else if (removed.groupId) {
+        // Si le document est déplacé hors d'un groupe, supprimer la propriété groupId
+        delete removed.groupId;
+      }
       
-      result.splice(endIndex, 0, updatedDoc);
-      return result;
-    });
-  }, []);
-
-  // Handle group reordering
-  const handleGroupReorder = useCallback((startIndex: number, endIndex: number) => {
-    setGroups(prev => {
-      const result = Array.from(prev);
-      const [removed] = result.splice(startIndex, 1);
       result.splice(endIndex, 0, removed);
+      
+      // Log pour le débogage
+      console.log(`Document ${removed.id} déplacé: groupId=${removed.groupId || 'aucun'}`);
+      
+      // AMÉLIORATION: Sauvegarde locale immédiate dans TOUS les systèmes de stockage
+      const currentUser = getCurrentUser() || 'default';
+      
+      // 1. Sauvegarder dans le système central
+      saveLocalData('documents', result, currentUser);
+      
+      // 2. Sauvegarder dans sessionStorage pour persistance entre pages
+      sessionStorage.setItem(`${SESSION_STORAGE_KEY}_${currentUser}`, JSON.stringify({
+        documents: result,
+        groups,
+        timestamp: new Date().toISOString()
+      }));
+      
+      // Synchroniser les changements
+      syncWithServer().catch(error => {
+        console.error("Erreur lors de la synchronisation après réorganisation:", error);
+      });
+      
       return result;
     });
-  }, []);
+  }, [groups, setDocuments, syncWithServer]);
 
-  // Handle toggling group expansion
-  const handleToggleGroup = useCallback((id: string) => {
-    setGroups(prev => 
-      prev.map(group => 
-        group.id === id 
-          ? { ...group, expanded: !group.expanded }
-          : group
-      )
-    );
-  }, []);
-
-  // Handle creating/editing group
-  const handleEditGroup = (group: DocumentGroup) => {
-    // Find if group already exists
-    const existingIndex = groups.findIndex(g => g.id === group.id);
-    
-    if (existingIndex >= 0) {
-      // Update existing group
-      setGroups(prev => {
-        const updated = [...prev];
-        updated[existingIndex] = { ...updated[existingIndex], ...group };
-        return updated;
-      });
-    } else {
-      // Create new group
-      setGroups(prev => [...prev, { ...group, id: group.id || uuidv4() }]);
-    }
-  };
-
-  // Handle deleting a group
-  const handleDeleteGroup = (id: string) => {
-    // Remove the group
-    setGroups(prev => prev.filter(group => group.id !== id));
-    
-    // Update documents that were in this group to have no group
-    setDocuments(prev => 
-      prev.map(doc => 
-        doc.groupId === id 
-          ? { ...doc, groupId: undefined }
-          : doc
-      )
-    );
-    
-    toast({
-      title: "Groupe supprimé",
-      description: "Le groupe et ses associations ont été supprimés"
-    });
-  };
-
-  // Handle adding a new document
-  const handleAddDocument = useCallback(() => {
-    const now = new Date();
-    const newDoc: Document = {
-      id: uuidv4(),
-      nom: "Nouveau document",
-      fichier_path: null,
-      responsabilites: { r: [], a: [], c: [], i: [] },
-      etat: null,
-      date_creation: now,
-      date_modification: now,
-      userId: getCurrentUserId() || ''
-    };
-    
-    setDocuments(prev => [...prev, newDoc]);
-    setSelectedDocument(newDoc);
-    
-    toast({
-      title: "Document créé",
-      description: "Un nouveau document a été créé"
-    });
-    
-    return newDoc;
-  }, [toast]);
-
-  // Handle adding a new group
   const handleAddGroup = useCallback(() => {
-    const newGroup: DocumentGroup = {
-      id: uuidv4(),
-      name: "Nouveau groupe",
-      expanded: true,
-      items: [],
-      userId: getCurrentUserId() || ''
-    };
-    
-    setGroups(prev => [...prev, newGroup]);
-    
-    toast({
-      title: "Groupe créé",
-      description: "Un nouveau groupe a été créé"
-    });
-    
-    return newGroup;
-  }, [toast]);
+    setEditingGroup(null);
+    setGroupDialogOpen(true);
+  }, []);
+
+  const handleEditGroup = useCallback((group: DocumentGroup) => {
+    setEditingGroup(group);
+    setGroupDialogOpen(true);
+  }, []);
+
+  const forceReload = useCallback(async () => {
+    setIsSyncing(true);
+    try {
+      const loadedDocs = await loadDocumentsFromServer();
+      if (loadedDocs && loadedDocs.length > 0) {
+        setDocuments(loadedDocs);
+        setLastSynced(new Date());
+        setSyncFailed(false);
+        toast({
+          title: "Rechargement réussi",
+          description: `${loadedDocs.length} documents chargés depuis le serveur Infomaniak`,
+        });
+        
+        // Sauvegarder dans sessionStorage pour persistance entre pages
+        const currentUser = getCurrentUser() || 'default';
+        sessionStorage.setItem(`${SESSION_STORAGE_KEY}_${currentUser}`, JSON.stringify({
+          documents: loadedDocs,
+          groups,
+          timestamp: new Date().toISOString()
+        }));
+      }
+    } catch (error) {
+      console.error("Erreur lors du rechargement forcé:", error);
+      setSyncFailed(true);
+      toast({
+        variant: "destructive",
+        title: "Erreur de rechargement",
+        description: "Impossible de recharger les documents depuis le serveur.",
+      });
+    } finally {
+      setIsSyncing(false);
+    }
+  }, [groups, setDocuments, setIsSyncing, setLastSynced, setSyncFailed, toast]);
 
   return {
     documents,
     groups,
-    selectedDocument,
-    loading,
-    error,
-    syncStatus,
+    stats,
+    editingDocument,
+    editingGroup,
+    dialogOpen,
+    groupDialogOpen,
     isSyncing,
-    selectDocument: (id: string) => {
-      const document = documents.find(doc => doc.id === id);
-      setSelectedDocument(document || null);
-    },
-    handleResponsabiliteChange,
-    handleAtteinteChange,
-    handleExclusionChange,
-    handleDelete,
+    syncFailed,
+    lastSynced,
+    isOnline,
+    setDialogOpen,
+    setGroupDialogOpen,
+    ...documentMutations,
     handleEdit,
-    handleReorder,
-    handleGroupReorder,
-    handleToggleGroup,
-    handleEditGroup,
-    handleDeleteGroup,
+    handleSaveDocument,
     handleAddDocument,
+    handleReorder,
     handleAddGroup,
+    handleEditGroup,
+    ...groupOperations,
+    syncWithServer,
     forceReload
   };
 };

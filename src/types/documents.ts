@@ -4,7 +4,6 @@ export interface DocumentGroup {
   name: string;
   expanded: boolean;
   items: Document[];
-  userId?: string; // Added userId as optional to match components/documents/DocumentGroupDialog.tsx
 }
 
 export interface Document {
@@ -21,7 +20,6 @@ export interface Document {
   date_creation: Date;
   date_modification: Date;
   groupId?: string;
-  userId?: string; // Added userId as optional
 }
 
 export interface DocumentStats {

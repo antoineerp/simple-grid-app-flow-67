@@ -1,25 +1,21 @@
 
 import { useState } from 'react';
 import { Document, DocumentGroup } from '@/types/bibliotheque';
-import { getCurrentUser } from '@/services/auth/authService';
 
 export const useBibliothequeDialogs = () => {
-  const currentUser = getCurrentUser()?.identifiant_technique || 'system';
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isGroupDialogOpen, setIsGroupDialogOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [currentDocument, setCurrentDocument] = useState<Document>({
     id: '',
     name: '',
-    link: null,
-    userId: currentUser
+    link: null
   });
   const [currentGroup, setCurrentGroup] = useState<DocumentGroup>({
     id: '',
     name: '',
     expanded: false,
-    items: [],
-    userId: currentUser
+    items: []
   });
 
   const handleDocumentInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {

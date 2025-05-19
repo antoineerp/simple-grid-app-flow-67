@@ -2,7 +2,7 @@
 import { useState, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
-import { login, validateAndFixToken } from '@/services/auth/authService';
+import { login } from '@/services/auth/authService';
 import { useToast } from '@/hooks/use-toast';
 
 export interface LoginFormValues {
@@ -36,99 +36,15 @@ export const useLoginForm = () => {
     console.log('Tentative de connexion pour:', values.username);
     
     try {
-      // Utilisez un compte de test en mode développement ou test
-      const useTestCredentials = 
-        process.env.NODE_ENV === 'development' || 
-        window.location.hostname === 'localhost' ||
-        window.location.hostname.includes('lovableproject.com');
+      const result = await login(values.username, values.password);
       
-      // Si en mode test/dev et pas de mot de passe fourni, utilisez un mot de passe de test
-      const username = values.username || 'antcirier@gmail.com';
-      const password = values.password || (useTestCredentials ? 'Trottinette43!' : values.password);
-      
-      let result;
-      let tokenSource = 'auth.php';
-      
-      // Essayer d'abord auth.php
-      try {
-        console.log("Tentative avec auth.php");
-        result = await login(username, password);
-      } catch (initialError) {
-        console.log("Échec avec auth.php, tentative avec login-alt.php");
-        tokenSource = 'login-alt.php';
-        
-        // Essayer login-alt.php
-        const altApiUrl = import.meta.env.VITE_API_URL || '/api';
-        const altEndpoint = `${altApiUrl}/login-alt.php`;
-        
-        try {
-          // Appel direct à login-alt.php
-          const response = await fetch(altEndpoint, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ username, email: username, password })
-          });
-          
-          if (!response.ok) {
-            const errorText = await response.text();
-            throw new Error(`Erreur HTTP ${response.status}: ${errorText}`);
-          }
-          
-          result = await response.json();
-        } catch (altError) {
-          console.log("Échec avec login-alt.php, tentative avec controllers/AuthController.php");
-          tokenSource = 'AuthController.php';
-          
-          // Essayer controllers/AuthController.php comme dernier recours
-          const authControllerUrl = window.location.origin.includes('lovableproject.com')
-            ? 'https://qualiopi.ch/api/controllers/AuthController.php'
-            : 'https://qualiopi.ch/api/controllers/AuthController.php';
-            
-          const controllerResponse = await fetch(authControllerUrl, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ username, email: username, password })
-          });
-          
-          if (!controllerResponse.ok) {
-            const errorText = await controllerResponse.text();
-            throw new Error(`Erreur HTTP ${controllerResponse.status}: ${errorText}`);
-          }
-          
-          result = await controllerResponse.json();
-        }
-      }
-      
-      // Vérifier si la réponse indique un succès
-      if ((result && result.success) || (result && result.token && !result.message?.includes('Erreur'))) {
-        console.log(`Connexion réussie via ${tokenSource}, token reçu:`, result.token?.substring(0, 20) + "...");
+      if (result.success && result.token) {
+        console.log("Connexion réussie, token reçu:", result.token.substring(0, 20) + "...");
         console.log("Données utilisateur:", result.user);
         
-        // Vérifier et corriger le format du token avant de le stocker
-        if (result.token) {
-          const validToken = validateAndFixToken(result.token);
-          
-          if (!validToken) {
-            console.error("Format de token invalide reçu du serveur:", result.token);
-            setError('Format de token invalide reçu du serveur');
-            setHasAuthError(true);
-            
-            toast({
-              title: "Erreur de connexion",
-              description: "Format de token invalide reçu du serveur",
-              variant: "destructive",
-            });
-            setIsLoading(false);
-            return;
-          }
-          
-          // Enregistrer le token valide avant la navigation
-          sessionStorage.setItem('authToken', validToken);
-          localStorage.setItem('authToken', validToken);
-          
-          // Log le token stocké pour débogage
-          console.log("Token stocké:", validToken.substring(0, 20) + "...");
-        }
+        // Enregistrer le token avant la navigation
+        sessionStorage.setItem('authToken', result.token);
+        localStorage.setItem('authToken', result.token);
         
         // Stocker les données utilisateur et le rôle explicitement
         if (result.user) {
@@ -162,12 +78,12 @@ export const useLoginForm = () => {
           window.location.href = '/pilotage';
         }
       } else {
-        console.error("Échec de connexion:", result?.message || "Raison inconnue");
-        setError(result?.message || 'Échec de la connexion');
+        console.error("Échec de connexion:", result.message);
+        setError(result.message || 'Échec de la connexion');
         
-        if (result?.message?.includes('base de données') || result?.message?.includes('database')) {
+        if (result.message?.includes('base de données') || result.message?.includes('database')) {
           setHasDbError(true);
-        } else if (result?.message?.includes('serveur') || result?.message?.includes('server') || result?.message?.includes('env.php')) {
+        } else if (result.message?.includes('serveur') || result.message?.includes('server') || result.message?.includes('env.php')) {
           setHasServerError(true);
         } else {
           setHasAuthError(true);
@@ -175,7 +91,7 @@ export const useLoginForm = () => {
         
         toast({
           title: "Erreur de connexion",
-          description: result?.message || "Identifiants invalides",
+          description: result.message || "Identifiants invalides",
           variant: "destructive",
         });
       }

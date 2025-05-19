@@ -1,8 +1,6 @@
-
 import { getApiUrl } from '@/config/apiConfig';
 import { getAuthHeaders } from '../auth/authService';
-import { toast } from '@/hooks/use-toast';
-import { initializeUserTables } from '../core/userInitializationService';
+import { useToast } from '@/hooks/use-toast';
 
 interface CreateUserData {
   nom: string;
@@ -10,53 +8,6 @@ interface CreateUserData {
   email: string;
   role: string;
   mot_de_passe: string;
-}
-
-// Génère un UUID v4
-function generateUUID(): string {
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-    const r = Math.random() * 16 | 0;
-    const v = c == 'x' ? r : (r & 0x3 | 0x8);
-    return v.toString(16);
-  });
-}
-
-// Tentative de création d'utilisateur via le endpoint de diagnostic
-async function createUserViaDiagnostic(userData: any) {
-  const apiUrl = getApiUrl();
-  const diagnosticUrl = `${apiUrl}/api-diagnostic.php?action=createUser`;
-  
-  console.log("Tentative via diagnostic endpoint:", diagnosticUrl);
-  
-  const response = await fetch(diagnosticUrl, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Cache-Control': 'no-cache'
-    },
-    body: JSON.stringify(userData)
-  });
-  
-  if (!response.ok) {
-    throw new Error(`Erreur ${response.status} lors de la création via diagnostic`);
-  }
-  
-  const responseText = await response.text();
-  
-  try {
-    return JSON.parse(responseText);
-  } catch (e) {
-    // Si la réponse n'est pas du JSON valide mais que la requête a réussi
-    if (response.ok) {
-      return {
-        success: true,
-        message: "Utilisateur créé (réponse non-JSON)",
-        identifiant_technique: userData.identifiant_technique
-      };
-    } else {
-      throw new Error("Réponse invalide du serveur de diagnostic");
-    }
-  }
 }
 
 export const createUser = async (userData: CreateUserData) => {
@@ -144,9 +95,6 @@ export const createUser = async (userData: CreateUserData) => {
       if (response.ok || response.status === 201) {
         // Si la réponse est vide mais le statut est OK, considérer comme un succès
         
-        // Initialiser les tables de l'utilisateur
-        await initializeUserTables(identifiantTechnique);
-        
         // Force un rechargement complet après création
         console.log("Rechargement forcé dans 2 secondes pour refléter la création de l'utilisateur");
         setTimeout(() => {
@@ -173,9 +121,13 @@ export const createUser = async (userData: CreateUserData) => {
         throw new Error(responseData.message || `Erreur ${response.status}: ${response.statusText}`);
       }
       
-      // Initialiser les tables de l'utilisateur
-      await initializeUserTables(identifiantTechnique);
+      // Force un rechargement de l'application après création
+      console.log("Rechargement forcé dans 2 secondes pour refléter la cr��tion de l'utilisateur");
+      setTimeout(() => {
+        window.location.reload();
+      }, 2000);
       
+      // Succès avec réponse JSON
       return {
         ...responseData,
         success: true,
@@ -191,8 +143,11 @@ export const createUser = async (userData: CreateUserData) => {
       
       // Si la réponse semble être un succès malgré le format incorrect
       if (response.ok || response.status === 201) {
-        // Initialiser les tables de l'utilisateur
-        await initializeUserTables(identifiantTechnique);
+        // Force un rechargement de l'application après création
+        console.log("Rechargement forcé dans 2 secondes pour refléter la création de l'utilisateur");
+        setTimeout(() => {
+          window.location.reload();
+        }, 2000);
         
         return {
           success: true,
@@ -215,13 +170,67 @@ export const createUser = async (userData: CreateUserData) => {
         identifiant_technique: identifiantTechnique
       });
       
-      // Initialiser les tables de l'utilisateur
-      await initializeUserTables(identifiantTechnique);
+      // Force un rechargement de la page après un court délai
+      console.log("Rechargement forcé dans 2 secondes suite à la création via diagnostic");
+      setTimeout(() => {
+        window.location.reload();
+      }, 2000);
       
       return diagnosticResult;
     } catch (fallbackError) {
       console.error("Échec de la création via le endpoint de diagnostic:", fallbackError);
-      throw error; // Renvoyer l'erreur originale
+      throw error; // Renvoyer l'erreur d'origine si la solution de secours échoue également
     }
+  }
+};
+
+// Fonction pour générer un UUID conforme au format varchar(36)
+function generateUUID() {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    var r = Math.random() * 16 | 0,
+        v = c === 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+}
+
+// Fonction de secours pour créer un utilisateur via le endpoint de diagnostic
+const createUserViaDiagnostic = async (userData: any) => {
+  console.log("Tentative de création d'utilisateur via le endpoint de diagnostic");
+  const apiUrl = getApiUrl();
+  const url = `${apiUrl}/test-create-user`;
+  
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      ...getAuthHeaders(),
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+      'Cache-Control': 'no-cache'
+    },
+    body: JSON.stringify(userData)
+  });
+  
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error("Erreur de réponse du diagnostic:", errorText);
+    throw new Error(`Erreur HTTP: ${response.status}`);
+  }
+  
+  try {
+    const result = await response.json();
+    return {
+      ...result,
+      success: true,
+      identifiant_technique: userData.identifiant_technique
+    };
+  } catch (e) {
+    const responseText = await response.text();
+    console.log("Réponse non-JSON du diagnostic:", responseText);
+    
+    return {
+      success: response.ok,
+      message: "Opération terminée (réponse non-JSON)",
+      identifiant_technique: userData.identifiant_technique
+    };
   }
 };

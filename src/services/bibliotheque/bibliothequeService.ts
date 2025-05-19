@@ -19,8 +19,8 @@ export const loadBibliothequeFromStorage = (currentUser: string): { documents: D
       documents = JSON.parse(defaultDocuments);
     } else {
       documents = [
-        { id: "1", name: 'Organigramme', link: 'Voir le document', userId: currentUser },
-        { id: "2", name: 'Administration', link: 'Voir le document', userId: currentUser },
+        { id: "1", name: 'Organigramme', link: 'Voir le document' },
+        { id: "2", name: 'Administration', link: 'Voir le document' },
       ];
     }
   }
@@ -33,86 +33,49 @@ export const loadBibliothequeFromStorage = (currentUser: string): { documents: D
       groups = JSON.parse(defaultGroups);
     } else {
       groups = [
-        { id: "1", name: 'Documents organisationnels', expanded: false, items: [], userId: currentUser },
-        { id: "2", name: 'Documents administratifs', expanded: false, items: [], userId: currentUser },
+        { id: "1", name: 'Documents organisationnels', expanded: false, items: [] },
+        { id: "2", name: 'Documents administratifs', expanded: false, items: [] },
       ];
     }
   }
   
-  // Process groups and maintain correct types
-  const processedGroups: DocumentGroup[] = groups.map(group => {
-    // Find documents that belong to this group
-    const groupDocuments = documents.filter(doc => doc.groupId === group.id);
-    
-    // Extract just the IDs for the items array
-    const documentIds = groupDocuments.map(doc => doc.id);
-    
-    return {
-      id: group.id,
-      name: group.name,
-      expanded: group.expanded,
-      items: documentIds,
-      userId: group.userId
-    };
+  // Associer les documents aux groupes
+  groups = groups.map(group => {
+    const items = documents.filter(doc => doc.groupId === group.id);
+    return { ...group, items };
   });
   
-  // Filter documents that are not in any group (standalone)
-  const standaloneDocuments = documents.filter(doc => !doc.groupId);
+  // Retirer les documents déjà associés à des groupes
+  documents = documents.filter(doc => !doc.groupId);
   
-  return { documents: standaloneDocuments, groups: processedGroups };
+  return { documents, groups };
 };
 
 /**
  * Saves collaboration documents to localStorage for a specific user
  */
 export const saveBibliothequeToStorage = (documents: Document[], groups: DocumentGroup[], currentUser: string): void => {
-  // We need to combine standalone documents with documents from groups
-  // and ensure the groupId is preserved
+  // Extraction des documents des groupes
+  const groupDocuments = groups.flatMap(group => 
+    group.items.map(item => ({...item, groupId: group.id}))
+  );
   
-  // First, let's collect all the documents from groups
-  const documentMap: {[key: string]: Document} = {};
+  // Combiner les documents indépendants et ceux des groupes
+  const allDocuments = [...documents, ...groupDocuments];
   
-  // Add standalone documents to the map
-  documents.forEach(doc => {
-    documentMap[doc.id] = doc;
-  });
+  // Groupes sans les items (pour éviter une duplication)
+  const groupsWithoutItems = groups.map(({items, ...rest}) => rest);
   
-  // Process groups and add their documents to the map
-  groups.forEach(group => {
-    group.items.forEach(docId => {
-      // If we don't have this document in our map, create a placeholder
-      if (!documentMap[docId]) {
-        documentMap[docId] = {
-          id: docId,
-          name: 'Unknown document',
-          link: '',
-          userId: currentUser,
-          groupId: group.id
-        };
-      } else {
-        // Set the groupId of the existing document
-        documentMap[docId] = {
-          ...documentMap[docId],
-          groupId: group.id
-        };
-      }
-    });
-  });
-  
-  // Convert map back to array
-  const allDocuments = Object.values(documentMap);
-  
-  // Save to localStorage
   localStorage.setItem(`collaboration_documents_${currentUser}`, JSON.stringify(allDocuments));
-  localStorage.setItem(`collaboration_groups_${currentUser}`, JSON.stringify(groups));
+  localStorage.setItem(`collaboration_groups_${currentUser}`, JSON.stringify(groupsWithoutItems));
   
-  // If the user is admin, also save as template
+  // Si l'utilisateur est admin, aussi sauvegarder comme template
   const userRole = localStorage.getItem('userRole');
   if (userRole === 'admin' || userRole === 'administrateur') {
     localStorage.setItem('collaboration_documents_template', JSON.stringify(allDocuments));
-    localStorage.setItem('collaboration_groups_template', JSON.stringify(groups));
+    localStorage.setItem('collaboration_groups_template', JSON.stringify(groupsWithoutItems));
   }
   
-  // Notify on library update
+  // Notifier sur la mise à jour de la bibliothèque
   window.dispatchEvent(new Event('collaborationUpdate'));
 };

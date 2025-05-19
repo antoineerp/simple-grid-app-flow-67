@@ -1,38 +1,19 @@
 
-# Configuration des types MIME pour les assets
-AddType text/css .css
+# Activer le moteur de réécriture
+RewriteEngine On
+
+# Configuration des types MIME
 AddType application/javascript .js
 AddType application/javascript .mjs
-AddType application/javascript .es.js
-AddType image/svg+xml .svg
-AddType font/ttf .ttf
-AddType font/woff .woff
-AddType font/woff2 .woff2
+AddType text/css .css
 
-# Force le type MIME pour CSS
-<FilesMatch "\.css$">
-    ForceType text/css
-    Header set Content-Type "text/css; charset=utf-8"
-    Header set X-Content-Type-Options "nosniff"
+# En-têtes de cache pour les assets
+<FilesMatch "\.(js|mjs|css)$">
+    Header set Cache-Control "max-age=31536000, public"
 </FilesMatch>
 
-# Force le type MIME pour JavaScript
-<FilesMatch "\.(js|mjs|es\.js)$">
-    ForceType application/javascript
-    Header set Content-Type "application/javascript; charset=utf-8"
-    Header set X-Content-Type-Options "nosniff"
-</FilesMatch>
-
-# Désactiver la mise en cache pendant le développement
-<IfModule mod_headers.c>
-    Header unset Cache-Control
-    Header set Cache-Control "no-cache, no-store, must-revalidate"
-    Header set Pragma "no-cache"
-    Header set Expires 0
-</IfModule>
-
-# Autoriser l'accès depuis toutes les origines pour les assets
-<IfModule mod_headers.c>
-    Header set Access-Control-Allow-Origin "*"
-    Header set X-Content-Type-Options "nosniff"
-</IfModule>
+# Autoriser l'accès aux fichiers
+<Files *>
+    Order Allow,Deny
+    Allow from all
+</Files>

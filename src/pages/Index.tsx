@@ -5,8 +5,7 @@ import LoginForm from '@/components/auth/LoginForm';
 import { getApiUrl, getFullApiUrl, testApiConnection } from '@/config/apiConfig';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { AlertCircle, ExternalLink, Server, RefreshCw, Bug, Wrench } from 'lucide-react';
-import { runApiDiagnostic } from '@/utils/apiDiagnostic';
+import { AlertCircle, ExternalLink, Server, RefreshCw } from 'lucide-react';
 
 const Index = () => {
   const [apiStatus, setApiStatus] = useState<'loading' | 'success' | 'error'>('loading');
@@ -15,7 +14,6 @@ const Index = () => {
   const [version, setVersion] = useState<string>('1.0.7');
   const [isInfomaniak, setIsInfomaniak] = useState<boolean>(false);
   const [isRetesting, setIsRetesting] = useState<boolean>(false);
-  const [isRunningDiagnostic, setIsRunningDiagnostic] = useState<boolean>(false);
   
   const checkApi = async () => {
     try {
@@ -37,32 +35,6 @@ const Index = () => {
       setApiDetails(null);
     } finally {
       setIsRetesting(false);
-      setIsRunningDiagnostic(false);
-    }
-  };
-  
-  const runDiagnostic = async () => {
-    try {
-      setIsRunningDiagnostic(true);
-      setApiStatus('loading');
-      setApiMessage('Diagnostic en cours...');
-      
-      const result = await runApiDiagnostic();
-      
-      if (result.success) {
-        setApiStatus('success');
-        setApiMessage(result.message);
-      } else {
-        setApiStatus('error');
-        setApiMessage(result.message);
-      }
-      
-      setApiDetails(result.details || null);
-    } catch (error) {
-      setApiStatus('error');
-      setApiMessage(error instanceof Error ? error.message : 'Erreur du diagnostic');
-    } finally {
-      setIsRunningDiagnostic(false);
     }
   };
   
@@ -73,20 +45,8 @@ const Index = () => {
                              hostname.includes('qualiopi.ch');
     setIsInfomaniak(infomaniakDetected);
     
-    // Faire plusieurs tentatives pour vérifier l'API
-    const checkApiWithRetry = async (retries = 3) => {
-      try {
-        await checkApi();
-      } catch (error) {
-        if (retries > 0) {
-          // Attendre avant de réessayer
-          setTimeout(() => checkApiWithRetry(retries - 1), 2000);
-        }
-      }
-    };
-    
-    checkApiWithRetry();
-    setVersion(`1.0.9 - ${new Date().toLocaleDateString()}`);
+    checkApi();
+    setVersion(`1.0.7 - ${new Date().toLocaleDateString()}`);
   }, []);
 
   return (
@@ -109,37 +69,19 @@ const Index = () => {
                 )}
               </div>
               
-              <div className="flex flex-wrap gap-2 mt-2">
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  onClick={() => {
-                    setIsRetesting(true);
-                    checkApi();
-                  }}
-                  disabled={isRetesting || isRunningDiagnostic}
-                >
-                  <RefreshCw className={`h-3 w-3 mr-1 ${isRetesting ? 'animate-spin' : ''}`} />
-                  {isRetesting ? 'Test en cours...' : 'Tester à nouveau'}
-                </Button>
-                
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  onClick={runDiagnostic}
-                  disabled={isRetesting || isRunningDiagnostic}
-                >
-                  <Bug className={`h-3 w-3 mr-1 ${isRunningDiagnostic ? 'animate-spin' : ''}`} />
-                  {isRunningDiagnostic ? 'Diagnostic...' : 'Diagnostic avancé'}
-                </Button>
-                
-                <a href="/api-diagnostic.php" target="_blank" rel="noopener noreferrer">
-                  <Button variant="secondary" size="sm">
-                    <Wrench className="h-3 w-3 mr-1" />
-                    Outil de diagnostic
-                  </Button>
-                </a>
-              </div>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="mt-2" 
+                onClick={() => {
+                  setIsRetesting(true);
+                  checkApi();
+                }}
+                disabled={isRetesting}
+              >
+                <RefreshCw className={`h-3 w-3 mr-1 ${isRetesting ? 'animate-spin' : ''}`} />
+                {isRetesting ? 'Test en cours...' : 'Tester à nouveau'}
+              </Button>
             </AlertDescription>
           </Alert>
         )}
@@ -149,14 +91,16 @@ const Index = () => {
         <div className="mt-6 text-xs text-gray-500 border-t pt-4">
           <div className="flex justify-between">
             <span>API: {apiStatus === 'loading' ? 'Vérification...' : apiStatus === 'success' ? '✅ Connectée' : '❌ Erreur'}</span>
-            <a 
-              href="/api-diagnostic.php" 
-              target="_blank" 
-              rel="noopener noreferrer"
-              className="flex items-center text-blue-500 hover:underline"
-            >
-              Diagnostic API <ExternalLink className="h-3 w-3 ml-1" />
-            </a>
+            {apiStatus === 'error' && (
+              <a 
+                href={`${getApiUrl()}/check-users.php`} 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="flex items-center text-blue-500 hover:underline"
+              >
+                Vérifier utilisateurs <ExternalLink className="h-3 w-3 ml-1" />
+              </a>
+            )}
           </div>
         </div>
       </div>

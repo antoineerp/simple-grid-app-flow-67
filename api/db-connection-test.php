@@ -19,11 +19,11 @@ error_log("=== EXÉCUTION DE db-connection-test.php ===");
 try {
     // Tester la connexion PDO directement
     $host = "p71x6d.myd.infomaniak.com";
-    $dbname = "p71x6d_richard";
-    $username = "p71x6d_richard";
+    $dbname = "p71x6d_system";
+    $username = "p71x6d_system";
     $password = "Trottinette43!";
     
-    $dsn = "mysql:host={$host};dbname={$dbname};charset=utf8";
+    $dsn = "mysql:host={$host};dbname={$dbname};charset=utf8mb4";
     $options = [
         PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
         PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
@@ -69,15 +69,11 @@ try {
 } catch (PDOException $e) {
     error_log("Erreur de connexion PDO: " . $e->getMessage());
     
-    // Envoyer une erreur HTTP 503 (Service indisponible) au lieu de 500
-    // pour indiquer clairement que le problème est avec la base de données
-    http_response_code(503);
+    http_response_code(500);
     echo json_encode([
         'status' => 'error',
         'message' => 'Échec de la connexion PDO directe',
-        'error' => $e->getMessage(),
-        'solution' => 'Aucune solution de secours disponible - connexion requise',
-        'require_connection' => true
+        'error' => $e->getMessage()
     ]);
     exit;
 } catch (Exception $e) {
@@ -87,9 +83,7 @@ try {
     echo json_encode([
         'status' => 'error',
         'message' => 'Erreur lors du test de connexion',
-        'error' => $e->getMessage(),
-        'solution' => 'Aucune solution de secours disponible - connexion requise',
-        'require_connection' => true
+        'error' => $e->getMessage()
     ]);
     exit;
 }

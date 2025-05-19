@@ -2,7 +2,6 @@
 import { useState, useEffect } from 'react';
 import { useMembres } from '@/contexts/MembresContext';
 import { Membre } from '@/types/membres';
-import { getCurrentUserId } from '@/services/core/userService';
 
 interface ResponsabiliteCount {
   r: number;
@@ -19,31 +18,24 @@ export interface MembreResponsabilite extends Membre {
 export const useResponsabilityMatrix = () => {
   const { membres } = useMembres();
   const [membreResponsabilites, setMembreResponsabilites] = useState<MembreResponsabilite[]>([]);
-  const userId = getCurrentUserId();
+  const currentUser = localStorage.getItem('currentUser') || 'default';
 
   useEffect(() => {
     const calculateResponsabilites = () => {
       // Charger les exigences et documents depuis le localStorage spécifiques à l'utilisateur actuel
-      const storedExigences = localStorage.getItem(`exigences_${userId}`);
-      const storedDocuments = localStorage.getItem(`documents_${userId}`);
+      const storedExigences = localStorage.getItem(`exigences_${currentUser}`);
+      const storedDocuments = localStorage.getItem(`documents_${currentUser}`);
       
       const exigences = storedExigences ? JSON.parse(storedExigences) : [];
       const documents = storedDocuments ? JSON.parse(storedDocuments) : [];
       
-      console.log(`Exigences chargées pour ${userId}:`, exigences.length);
-      console.log(`Documents chargés pour ${userId}:`, documents.length);
+      console.log("Exigences chargées:", exigences.length);
+      console.log("Documents chargés:", documents.length);
 
       // Calculer les responsabilités pour chaque membre
       const membresWithResponsabilites = membres.map(membre => {
         const initiales = membre.initiales;
-        if (!initiales) {
-          console.warn(`Membre sans initiales: ${membre.prenom} ${membre.nom}`);
-          return {
-            ...membre,
-            exigences: { r: 0, a: 0, c: 0, i: 0 },
-            documents: { r: 0, a: 0, c: 0, i: 0 }
-          } as MembreResponsabilite;
-        }
+        console.log(`Calcul des responsabilités pour ${membre.prenom} ${membre.nom} (${initiales})`);
         
         // Initialiser les compteurs
         const exigencesCount = { r: 0, a: 0, c: 0, i: 0 };
@@ -52,7 +44,7 @@ export const useResponsabilityMatrix = () => {
         // Compter les occurrences dans les exigences (en excluant les exigences exclues)
         if (Array.isArray(exigences)) {
           exigences
-            .filter((exigence: any) => !exigence.exclusion && exigence.userId === userId)
+            .filter((exigence: any) => !exigence.exclusion)
             .forEach((exigence: any) => {
               if (exigence.responsabilites) {
                 // Vérifier si les initiales du membre sont dans chaque type de responsabilité
@@ -75,7 +67,7 @@ export const useResponsabilityMatrix = () => {
         // Compter les occurrences dans les documents (en excluant les documents exclus)
         if (Array.isArray(documents)) {
           documents
-            .filter((document: any) => document.etat !== 'EX' && document.userId === userId)
+            .filter((document: any) => document.etat !== 'EX')
             .forEach((document: any) => {
               if (document.responsabilites) {
                 // Vérifier si les initiales du membre sont dans chaque type de responsabilité
@@ -95,6 +87,8 @@ export const useResponsabilityMatrix = () => {
             });
         }
 
+        console.log(`Résultats pour ${initiales}:`, { exigences: exigencesCount, documents: documentsCount });
+
         // Inclure toutes les propriétés du membre et ajouter les nouvelles propriétés
         return {
           ...membre,
@@ -112,13 +106,15 @@ export const useResponsabilityMatrix = () => {
     // Écouter les mises à jour des exigences, documents et membres
     window.addEventListener('exigenceUpdate', calculateResponsabilites);
     window.addEventListener('documentUpdate', calculateResponsabilites);
+    window.addEventListener('storage', calculateResponsabilites);
     
     // Nettoyer les event listeners
     return () => {
       window.removeEventListener('exigenceUpdate', calculateResponsabilites);
       window.removeEventListener('documentUpdate', calculateResponsabilites);
+      window.removeEventListener('storage', calculateResponsabilites);
     };
-  }, [membres, userId]);
+  }, [membres, currentUser]);
 
   return { membreResponsabilites };
 };

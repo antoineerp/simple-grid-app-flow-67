@@ -3,22 +3,34 @@
 // Force output buffering to prevent output before headers
 ob_start();
 
-// Initialiser la gestion de synchronisation
-require_once 'services/DataSyncService.php';
+// Fichier pour synchroniser les exigences avec le serveur
+header("Content-Type: application/json; charset=UTF-8");
+header("Access-Control-Allow-Origin: *");
+header("Access-Control-Allow-Methods: POST, OPTIONS");
+header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With");
+header("Cache-Control: no-cache, no-store, must-revalidate");
 
-// Créer le service de synchronisation
-$service = new DataSyncService('exigences');
-$service->setStandardHeaders("POST, OPTIONS");
-$service->handleOptionsRequest();
+// Journalisation
+error_log("=== DEBUT DE L'EXÉCUTION DE exigences-sync.php ===");
+error_log("Méthode: " . $_SERVER['REQUEST_METHOD'] . " - URI: " . $_SERVER['REQUEST_URI']);
 
-// Vérifier la méthode
-if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-    http_response_code(405);
-    echo json_encode(['success' => false, 'message' => 'Méthode non autorisée. Utilisez POST.']);
+// Gestion des requêtes OPTIONS (preflight)
+if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
+    http_response_code(200);
+    echo json_encode(['status' => 'success', 'message' => 'Preflight OK']);
     exit;
 }
 
+// Configuration de la base de données
+$host = "p71x6d.myd.infomaniak.com";
+$dbname = "p71x6d_system";
+$username = "p71x6d_system";
+$password = "Trottinette43!";
+
 try {
+    // Nettoyer le buffer
+    if (ob_get_level()) ob_clean();
+    
     // Récupérer les données POST JSON
     $json = file_get_contents('php://input');
     $data = json_decode($json, true);
@@ -30,52 +42,29 @@ try {
     error_log("Données reçues pour synchronisation des exigences");
     
     // Vérifier si les données nécessaires sont présentes
-    if (!isset($data['userId'])) {
-        throw new Exception("Données incomplètes. 'userId' est requis");
+    if (!isset($data['userId']) || !isset($data['exigences']) || !isset($data['groups'])) {
+        throw new Exception("Données incomplètes. 'userId', 'exigences' et 'groups' sont requis");
     }
     
-    // Récupérer les données de base
-    $userId = $service->sanitizeUserId($data['userId']);
-    $deviceId = isset($data['deviceId']) ? $data['deviceId'] : 'unknown';
-    $exigences = isset($data['exigences']) && is_array($data['exigences']) ? $data['exigences'] : [];
-    $groups = isset($data['groups']) && is_array($data['groups']) ? $data['groups'] : [];
+    $userId = $data['userId'];
+    $exigences = $data['exigences'];
+    $groups = $data['groups'];
     
-    error_log("Synchronisation des exigences pour l'utilisateur: {$userId} depuis l'appareil: {$deviceId}");
+    error_log("Synchronisation pour l'utilisateur: {$userId}");
     error_log("Nombre d'exigences: " . count($exigences) . ", Nombre de groupes: " . count($groups));
     
     // Connexion à la base de données
-    if (!$service->connectToDatabase()) {
-        throw new Exception("Impossible de se connecter à la base de données");
-    }
+    $pdo = new PDO("mysql:host={$host};dbname={$dbname};charset=utf8mb4", $username, $password, [
+        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+        PDO::ATTR_EMULATE_PREPARES => false,
+    ]);
     
     // Nom des tables spécifiques à l'utilisateur
-    $exigencesTableName = "exigences_" . preg_replace('/[^a-zA-Z0-9_]/', '_', $userId);
-    $groupsTableName = "exigence_groups_" . preg_replace('/[^a-zA-Z0-9_]/', '_', $userId);
-    
-    // Enregistrer cette synchronisation dans l'historique
-    try {
-        $pdo = $service->getPdo();
-        
-        // Créer la table d'historique de synchronisation si elle n'existe pas
-        $pdo->exec("CREATE TABLE IF NOT EXISTS `sync_history` (
-            `id` INT AUTO_INCREMENT PRIMARY KEY,
-            `table_name` VARCHAR(100) NOT NULL,
-            `user_id` VARCHAR(50) NOT NULL,
-            `device_id` VARCHAR(100) NOT NULL,
-            `record_count` INT NOT NULL,
-            `sync_timestamp` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            INDEX `idx_user_device` (`user_id`, `device_id`)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
-        
-        // Insérer l'enregistrement
-        $stmt = $pdo->prepare("INSERT INTO `sync_history` 
-                              (table_name, user_id, device_id, record_count, sync_timestamp) 
-                              VALUES (?, ?, ?, ?, NOW())");
-        $stmt->execute(['exigences', $userId, $deviceId, count($exigences) + count($groups)]);
-    } catch (Exception $e) {
-        // Continuer même si l'enregistrement de l'historique échoue
-        error_log("Erreur lors de l'enregistrement de l'historique de synchronisation: " . $e->getMessage());
-    }
+    $safeUserId = preg_replace('/[^a-zA-Z0-9_]/', '_', $userId);
+    $exigencesTableName = "exigences_" . $safeUserId;
+    $groupsTableName = "exigence_groups_" . $safeUserId;
+    error_log("Tables à utiliser: {$exigencesTableName}, {$groupsTableName}");
     
     // Créer les tables si elles n'existent pas
     
@@ -87,12 +76,11 @@ try {
         `exclusion` TINYINT(1) DEFAULT 0,
         `atteinte` VARCHAR(5),
         `groupId` VARCHAR(36),
-        `userId` VARCHAR(50) NOT NULL,
-        `last_sync_device` VARCHAR(100) NULL,
         `date_creation` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
         `date_modification` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
     
+    error_log("Création de la table des exigences si nécessaire");
     $pdo->exec($createExigencesTableQuery);
     
     // Table des groupes
@@ -100,114 +88,52 @@ try {
         `id` VARCHAR(36) PRIMARY KEY,
         `name` VARCHAR(255) NOT NULL,
         `expanded` TINYINT(1) DEFAULT 1,
-        `userId` VARCHAR(50) NOT NULL,
-        `last_sync_device` VARCHAR(100) NULL,
         `date_creation` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
         `date_modification` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
     
+    error_log("Création de la table des groupes si nécessaire");
     $pdo->exec($createGroupsTableQuery);
     
-    // Vérifier si la colonne last_sync_device existe et l'ajouter si nécessaire
-    try {
-        $columnsResultExigences = $pdo->query("SHOW COLUMNS FROM `{$exigencesTableName}` LIKE 'last_sync_device'");
-        if ($columnsResultExigences->rowCount() === 0) {
-            $pdo->exec("ALTER TABLE `{$exigencesTableName}` ADD COLUMN `last_sync_device` VARCHAR(100) NULL");
-            error_log("Colonne last_sync_device ajoutée à la table {$exigencesTableName}");
-        }
-        
-        $columnsResultGroups = $pdo->query("SHOW COLUMNS FROM `{$groupsTableName}` LIKE 'last_sync_device'");
-        if ($columnsResultGroups->rowCount() === 0) {
-            $pdo->exec("ALTER TABLE `{$groupsTableName}` ADD COLUMN `last_sync_device` VARCHAR(100) NULL");
-            error_log("Colonne last_sync_device ajoutée à la table {$groupsTableName}");
-        }
-    } catch (Exception $e) {
-        error_log("Erreur lors de la vérification/ajout de la colonne last_sync_device: " . $e->getMessage());
-    }
-    
     // Démarrer une transaction
-    $service->beginTransaction();
+    error_log("Début de la transaction");
+    $pdo->beginTransaction();
+    $transaction_active = true;
     
     try {
-        // Supprimer les anciens enregistrements qui sont spécifiques à cet utilisateur
-        // On ne supprime que les données qui viennent de cet appareil spécifique pour la résolution de conflits
-        if (count($exigences) > 0) {
-            $stmt = $pdo->prepare("DELETE FROM `{$exigencesTableName}` WHERE userId = ? AND (last_sync_device = ? OR last_sync_device IS NULL)");
-            $stmt->execute([$userId, $deviceId]);
-            error_log("Suppression des anciennes exigences pour {$userId} de l'appareil {$deviceId}");
-        }
+        // Vider les tables avant d'insérer les nouvelles données
+        $pdo->exec("TRUNCATE TABLE `{$exigencesTableName}`");
+        error_log("Table des exigences vidée");
         
+        $pdo->exec("TRUNCATE TABLE `{$groupsTableName}`");
+        error_log("Table des groupes vidée");
+        
+        // Insérer les groupes
         if (count($groups) > 0) {
-            $stmt = $pdo->prepare("DELETE FROM `{$groupsTableName}` WHERE userId = ? AND (last_sync_device = ? OR last_sync_device IS NULL)");
-            $stmt->execute([$userId, $deviceId]);
-            error_log("Suppression des anciens groupes pour {$userId} de l'appareil {$deviceId}");
-        }
-        
-        // Récupérer les données des autres appareils pour fusion
-        $stmt = $pdo->prepare("SELECT * FROM `{$exigencesTableName}` WHERE userId = ? AND last_sync_device != ?");
-        $stmt->execute([$userId, $deviceId]);
-        $otherDevicesExigences = $stmt->fetchAll(PDO::FETCH_ASSOC);
-        
-        $stmt = $pdo->prepare("SELECT * FROM `{$groupsTableName}` WHERE userId = ? AND last_sync_device != ?");
-        $stmt->execute([$userId, $deviceId]);
-        $otherDevicesGroups = $stmt->fetchAll(PDO::FETCH_ASSOC);
-        
-        // Fusionner les données - commencer par créer des index par ID
-        $exigencesById = [];
-        foreach ($exigences as $exigence) {
-            $exigencesById[$exigence['id']] = $exigence;
-        }
-        
-        $groupsById = [];
-        foreach ($groups as $group) {
-            $groupsById[$group['id']] = $group;
-        }
-        
-        // Ajouter les données des autres appareils qui n'existent pas dans les données actuelles
-        foreach ($otherDevicesExigences as $otherExigence) {
-            if (!isset($exigencesById[$otherExigence['id']])) {
-                $exigences[] = $otherExigence;
-                $exigencesById[$otherExigence['id']] = $otherExigence;
-            }
-        }
-        
-        foreach ($otherDevicesGroups as $otherGroup) {
-            if (!isset($groupsById[$otherGroup['id']])) {
-                $groups[] = $otherGroup;
-                $groupsById[$otherGroup['id']] = $otherGroup;
-            }
-        }
-        
-        // Maintenant insérer tous les groupes
-        if (count($groups) > 0) {
-            $insertGroupQuery = "INSERT INTO `{$groupsTableName}` 
-                (id, name, expanded, userId, last_sync_device) 
-                VALUES (:id, :name, :expanded, :userId, :deviceId)";
+            $insertGroupQuery = "INSERT INTO `{$groupsTableName}` (id, name, expanded) VALUES (:id, :name, :expanded)";
             $stmtGroup = $pdo->prepare($insertGroupQuery);
             
             foreach ($groups as $group) {
                 $stmtGroup->execute([
                     'id' => $group['id'],
                     'name' => $group['name'],
-                    'expanded' => $group['expanded'] ? 1 : 0,
-                    'userId' => $userId,
-                    'deviceId' => $deviceId
+                    'expanded' => $group['expanded'] ? 1 : 0
                 ]);
             }
             error_log("Groupes insérés: " . count($groups));
         }
         
-        // Insérer toutes les exigences
+        // Insérer les exigences
         if (count($exigences) > 0) {
             $insertExigenceQuery = "INSERT INTO `{$exigencesTableName}` 
-                (id, nom, responsabilites, exclusion, atteinte, groupId, userId, last_sync_device, date_creation) 
-                VALUES (:id, :nom, :responsabilites, :exclusion, :atteinte, :groupId, :userId, :deviceId, :date_creation)";
+                (id, nom, responsabilites, exclusion, atteinte, groupId, date_creation) 
+                VALUES (:id, :nom, :responsabilites, :exclusion, :atteinte, :groupId, :date_creation)";
             $stmtExigence = $pdo->prepare($insertExigenceQuery);
             
             foreach ($exigences as $exigence) {
                 // Préparer les données de l'exigence
                 $responsabilitesJson = isset($exigence['responsabilites']) ? 
-                    (is_string($exigence['responsabilites']) ? $exigence['responsabilites'] : json_encode($exigence['responsabilites'])) : 
+                    json_encode($exigence['responsabilites']) : 
                     json_encode(['r' => [], 'a' => [], 'c' => [], 'i' => []]);
                 
                 // Convertir la date au format SQL si nécessaire
@@ -224,8 +150,6 @@ try {
                     'exclusion' => $exigence['exclusion'] ? 1 : 0,
                     'atteinte' => $exigence['atteinte'],
                     'groupId' => $exigence['groupId'] ?? null,
-                    'userId' => $userId,
-                    'deviceId' => $deviceId,
                     'date_creation' => $dateCreation
                 ]);
             }
@@ -233,23 +157,28 @@ try {
         }
         
         // Valider la transaction
-        $service->commitTransaction();
+        if ($transaction_active && $pdo->inTransaction()) {
+            $pdo->commit();
+            $transaction_active = false;
+            error_log("Transaction validée");
+        }
         
-        // Réponse réussie
         echo json_encode([
             'success' => true,
             'message' => 'Synchronisation réussie',
             'count' => [
                 'exigences' => count($exigences),
                 'groups' => count($groups)
-            ],
-            'deviceId' => $deviceId,
-            'timestamp' => date('c')
+            ]
         ]);
         
     } catch (Exception $e) {
         // Annuler la transaction en cas d'erreur
-        $service->rollbackTransaction();
+        if ($transaction_active && $pdo->inTransaction()) {
+            $pdo->rollBack();
+            $transaction_active = false;
+            error_log("Transaction annulée suite à une erreur");
+        }
         throw $e;
     }
     
@@ -268,8 +197,14 @@ try {
         'message' => $e->getMessage()
     ]);
 } finally {
-    if (isset($service)) {
-        $service->finalize();
+    // S'assurer que la transaction est terminée si elle est encore active
+    if (isset($pdo) && isset($transaction_active) && $transaction_active && $pdo->inTransaction()) {
+        try {
+            error_log("Annulation de la transaction qui était encore active dans le bloc finally");
+            $pdo->rollBack();
+        } catch (Exception $e) {
+            error_log("Erreur lors du rollback final: " . $e->getMessage());
+        }
     }
     
     error_log("=== FIN DE L'EXÉCUTION DE exigences-sync.php ===");

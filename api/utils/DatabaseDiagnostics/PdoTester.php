@@ -1,3 +1,4 @@
+
 <?php
 class PdoTester {
     private $config;
@@ -16,7 +17,7 @@ class PdoTester {
                 ];
             }
             
-            $dsn = "mysql:host={$this->config['host']};dbname={$this->config['db_name']};charset=utf8";
+            $dsn = "mysql:host={$this->config['host']};dbname={$this->config['db_name']};charset=utf8mb4";
             $options = [
                 PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
                 PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,

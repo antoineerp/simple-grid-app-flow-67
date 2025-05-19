@@ -1,38 +1,22 @@
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useToast } from "@/hooks/use-toast";
-import { getCurrentUserId } from '@/services/core/userService';
 
 interface Document {
   id: number;
   ordre: number;
   nom: string;
   lien: string | null;
-  userId?: string;
 }
-
-// Test data sets
-const antcirierDocuments: Document[] = [
-  { id: 1, ordre: 1, nom: 'Politique qualité', lien: 'politique-qualite.pdf', userId: 'p71x6d_cirier' },
-  { id: 2, ordre: 2, nom: 'Manuel qualité', lien: 'manuel-qualite.pdf', userId: 'p71x6d_cirier' },
-  { id: 3, ordre: 3, nom: 'Plan d\'action', lien: null, userId: 'p71x6d_cirier' },
-  { id: 4, ordre: 4, nom: 'Analyse des risques', lien: 'analyse-risques.xlsx', userId: 'p71x6d_cirier' },
-];
-
-const defaultDocuments: Document[] = [
-  { id: 1, ordre: 1, nom: 'Document test 1', lien: null, userId: undefined },
-  { id: 2, ordre: 2, nom: 'Document test 2', lien: 'document-test.pdf', userId: undefined },
-];
 
 export const usePilotageDocuments = () => {
   const { toast } = useToast();
-  const currentUser = getCurrentUserId();
-  const isAntcirier = currentUser === 'p71x6d_cirier';
-  
-  // Initialiser avec les données de test appropriées
-  const [documents, setDocuments] = useState<Document[]>(
-    isAntcirier ? antcirierDocuments : defaultDocuments
-  );
+  const [documents, setDocuments] = useState<Document[]>([
+    { id: 1, ordre: 1, nom: 'Charte institutionnelle', lien: 'Voir le document' },
+    { id: 2, ordre: 2, nom: 'Objectifs stratégiques', lien: null },
+    { id: 3, ordre: 3, nom: 'Objectifs opérationnels', lien: 'Voir le document' },
+    { id: 4, ordre: 4, nom: 'Risques', lien: null },
+  ]);
 
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -40,29 +24,20 @@ export const usePilotageDocuments = () => {
     id: 0,
     ordre: 0,
     nom: '',
-    lien: null,
-    userId: undefined
+    lien: null
   });
-
-  // Effect pour mettre à jour les documents quand l'utilisateur change
-  useEffect(() => {
-    setDocuments(isAntcirier ? antcirierDocuments : defaultDocuments);
-  }, [isAntcirier]);
 
   const handleAddDocument = () => {
     const nextOrdre = documents.length > 0 
       ? Math.max(...documents.map(doc => doc.ordre)) + 1 
       : 1;
     
-    const newDocument: Document = {
+    setCurrentDocument({
       id: 0,
       ordre: nextOrdre,
       nom: '',
-      lien: null,
-      userId: isAntcirier ? 'p71x6d_cirier' : undefined
-    };
-    
-    setCurrentDocument(newDocument);
+      lien: null
+    });
     setIsEditing(false);
     setIsDialogOpen(true);
   };
@@ -112,14 +87,7 @@ export const usePilotageDocuments = () => {
         ? Math.max(...documents.map(doc => doc.id)) + 1 
         : 1;
       
-      // Créer une copie complète avec l'ID et s'assurer que userId est défini
-      const newDoc: Document = { 
-        ...currentDocument, 
-        id: newId,
-        userId: isAntcirier ? 'p71x6d_cirier' : currentDocument.userId
-      };
-      
-      setDocuments([...documents, newDoc]);
+      setDocuments([...documents, { ...currentDocument, id: newId }]);
       toast({
         title: "Document ajouté",
         description: "Le nouveau document a été ajouté avec succès",

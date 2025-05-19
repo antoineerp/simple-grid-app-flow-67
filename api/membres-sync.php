@@ -1,89 +1,119 @@
 
 <?php
-/**
- * API de synchronisation des membres
- * Format standardisé pour toutes les API de l'application
- */
+require_once 'services/DataSyncService.php';
 
-// En-têtes communs pour tous les endpoints API
-header('Content-Type: application/json; charset=utf-8');
-header('Access-Control-Allow-Origin: *');
-header('Access-Control-Allow-Methods: POST, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type, Authorization, X-Device-ID');
+// Initialiser le service
+$service = new DataSyncService('membres');
+$service->setStandardHeaders("POST, OPTIONS");
+$service->handleOptionsRequest();
 
-// Inclure la classe ResponseHandler
-require_once __DIR__ . '/utils/ResponseHandler.php';
-
-// Vérifier si la requête est OPTIONS (preflight CORS)
-if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-    http_response_code(200);
+// Vérifier la méthode
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    http_response_code(405);
+    echo json_encode(['success' => false, 'message' => 'Méthode non autorisée. Utilisez POST.']);
+    $service->finalize();
     exit;
 }
 
-// Vérifier que la méthode HTTP est POST
-if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-    ResponseHandler::error(
-        "Méthode non autorisée. Utilisez POST.",
-        405
-    );
-}
-
-// Lire les données JSON envoyées
-$inputData = file_get_contents('php://input');
-$data = json_decode($inputData, true);
-
-// Vérifier si les données JSON sont valides
-if (json_last_error() !== JSON_ERROR_NONE) {
-    ResponseHandler::error(
-        'Données JSON invalides: ' . json_last_error_msg(),
-        400
-    );
-}
-
-// Vérifier si les données nécessaires sont présentes
-if (!isset($data['userId']) || !isset($data['deviceId']) || !isset($data['membres'])) {
-    ResponseHandler::error(
-        'Données incomplètes. userId, deviceId et membres sont requis.',
-        400,
-        ['received' => array_keys($data)]
-    );
-}
-
 try {
-    // Traitement de la synchronisation (simulé)
-    $userId = $data['userId'];
-    $deviceId = $data['deviceId'];
-    $membres = $data['membres'];
-
-    // Créer le dossier data s'il n'existe pas
-    $dataDir = __DIR__ . '/data';
-    if (!is_dir($dataDir)) {
-        mkdir($dataDir, 0755, true);
+    // Récupérer les données POST
+    $json = file_get_contents('php://input');
+    $data = json_decode($json, true);
+    
+    if (!$json || !$data) {
+        throw new Exception("Aucune donnée reçue ou format JSON invalide");
     }
-
-    // Enregistrer la synchronisation dans un fichier JSON
-    $syncData = [
-        'userId' => $userId,
-        'deviceId' => $deviceId,
-        'membres' => $membres,
-        'timestamp' => date('Y-m-d\TH:i:s\Z')
-    ];
-
-    $filename = $dataDir . '/membres_sync_' . $userId . '_' . date('Ymd_His') . '.json';
-    file_put_contents($filename, json_encode($syncData, JSON_PRETTY_PRINT));
-
-    // Réponse standard de succès
-    ResponseHandler::success([
-        'sync_id' => basename($filename, '.json'),
-        'records_count' => count($membres),
-        'userId' => $userId,
-        'deviceId' => $deviceId
-    ], 200, 'Synchronisation des membres réussie');
+    
+    if (!isset($data['userId']) || !isset($data['membres'])) {
+        throw new Exception("Données incomplètes. 'userId' et 'membres' sont requis");
+    }
+    
+    $userId = $service->sanitizeUserId($data['userId']);
+    $membres = $data['membres'];
+    
+    // Journaliser les données reçues pour le débogage
+    error_log("Données de membres reçues: " . json_encode(array_slice($membres, 0, 2)));
+    
+    // Connecter à la base de données
+    if (!$service->connectToDatabase()) {
+        throw new Exception("Impossible de se connecter à la base de données");
+    }
+    
+    // Schéma de la table membres - Mise à jour pour inclure tous les champs nécessaires
+    $schema = "CREATE TABLE IF NOT EXISTS `membres_{$userId}` (
+        `id` VARCHAR(36) PRIMARY KEY,
+        `nom` VARCHAR(100) NOT NULL,
+        `prenom` VARCHAR(100) NOT NULL,
+        `email` VARCHAR(255) NULL,
+        `telephone` VARCHAR(20) NULL,
+        `fonction` VARCHAR(100) NULL,
+        `organisation` VARCHAR(255) NULL,
+        `notes` TEXT NULL,
+        `initiales` VARCHAR(10) NULL,
+        `date_creation` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        `date_modification` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
+    
+    // Créer la table si nécessaire
+    if (!$service->ensureTableExists($schema)) {
+        throw new Exception("Impossible de créer ou vérifier la table");
+    }
+    
+    // Avant la synchronisation, vérifier et adapter les données si nécessaire
+    foreach ($membres as &$membre) {
+        // S'assurer que tous les champs nécessaires sont présents
+        if (!isset($membre['id']) || empty($membre['id'])) {
+            $membre['id'] = 'mem-' . bin2hex(random_bytes(8));
+        }
+        
+        // Convertir les dates si nécessaires
+        if (isset($membre['date_creation']) && $membre['date_creation'] instanceof \DateTime) {
+            $membre['date_creation'] = $membre['date_creation']->format('Y-m-d\TH:i:s');
+        }
+        
+        // Générer les initiales si elles ne sont pas définies
+        if ((!isset($membre['initiales']) || empty($membre['initiales'])) && isset($membre['prenom']) && isset($membre['nom'])) {
+            $membre['initiales'] = strtoupper(substr($membre['prenom'], 0, 1) . substr($membre['nom'], 0, 1));
+        }
+    }
+    
+    // Démarrer une transaction explicite
+    $service->beginTransaction();
+    
+    try {
+        // Synchroniser les données
+        $service->syncData($membres);
+        
+        // Valider la transaction
+        $service->commitTransaction();
+        
+        // Réponse réussie
+        echo json_encode([
+            'success' => true,
+            'message' => 'Synchronisation des membres réussie',
+            'count' => count($membres)
+        ]);
+        
+    } catch (Exception $innerEx) {
+        // Annuler la transaction en cas d'erreur
+        $service->rollbackTransaction();
+        throw $innerEx;
+    }
     
 } catch (Exception $e) {
-    ResponseHandler::error(
-        'Erreur lors de la synchronisation des membres: ' . $e->getMessage(),
-        500
-    );
+    error_log("Erreur dans membres-sync.php: " . $e->getMessage());
+    
+    // S'assurer que tout buffer de sortie est nettoyé
+    if (ob_get_level()) {
+        ob_clean();
+    }
+    
+    http_response_code(500);
+    echo json_encode([
+        'success' => false,
+        'message' => 'Erreur serveur: ' . $e->getMessage()
+    ]);
+} finally {
+    $service->finalize();
 }
 ?>

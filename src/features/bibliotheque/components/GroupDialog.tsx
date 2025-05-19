@@ -1,45 +1,54 @@
 
 import React from 'react';
-import { 
-  Dialog, 
-  DialogContent, 
-  DialogHeader, 
-  DialogTitle, 
-  DialogFooter
-} from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
 import { DocumentGroup } from '@/types/bibliotheque';
 
 interface GroupDialogProps {
   isOpen: boolean;
-  onOpenChange: (open: boolean) => void;
-  onClose: () => void;
-  group: DocumentGroup;
-  isEditing: boolean;
-  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onClose?: () => void;
+  onOpenChange?: (open: boolean) => void;
+  group: DocumentGroup | null;
   onSave: () => void;
+  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  isEditing: boolean;
 }
 
-const GroupDialog: React.FC<GroupDialogProps> = ({
+export const GroupDialog = ({
   isOpen,
-  onOpenChange,
   onClose,
+  onOpenChange,
   group,
-  isEditing,
+  onSave,
   onChange,
-  onSave
-}) => {
+  isEditing,
+}: GroupDialogProps) => {
+  // Handle both styles of dialog closing
+  const handleOpenChange = (open: boolean) => {
+    if (!open && onClose) {
+      onClose();
+    }
+    if (onOpenChange) {
+      onOpenChange(open);
+    }
+  };
+
   return (
-    <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px]">
+    <Dialog open={isOpen} onOpenChange={handleOpenChange}>
+      <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>
-            {isEditing ? "Modifier le groupe" : "Nouveau groupe"}
+            {isEditing ? 'Modifier le groupe' : 'Ajouter un groupe'}
           </DialogTitle>
         </DialogHeader>
-        
         <div className="grid gap-4 py-4">
           <div className="grid grid-cols-4 items-center gap-4">
             <Label htmlFor="name" className="text-right">
@@ -48,17 +57,18 @@ const GroupDialog: React.FC<GroupDialogProps> = ({
             <Input
               id="name"
               name="name"
-              value={group.name}
+              value={group?.name || ''}
               onChange={onChange}
               className="col-span-3"
             />
           </div>
         </div>
-        
         <DialogFooter>
-          <Button variant="outline" onClick={onClose}>Annuler</Button>
+          <Button variant="outline" onClick={onClose}>
+            Annuler
+          </Button>
           <Button onClick={onSave}>
-            {isEditing ? "Enregistrer" : "Créer"}
+            {isEditing ? 'Mettre à jour' : 'Ajouter'}
           </Button>
         </DialogFooter>
       </DialogContent>

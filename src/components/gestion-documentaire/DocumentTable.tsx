@@ -1,10 +1,16 @@
 
 import React from 'react';
-import { Document, DocumentGroup } from '@/types/documents';
+import { Table, TableBody } from "@/components/ui/table";
+import { Document } from '@/types/documents';
+import type { DocumentGroup as DocumentGroupType } from '@/types/documents';
+import DocumentTableHeader from './table/TableHeader';
+import DocumentRow from './table/DocumentRow';
+import DocumentGroupComponent from './table/DocumentGroup';
+import { useDragAndDrop } from './table/useDragAndDrop';
 
 interface DocumentTableProps {
   documents: Document[];
-  groups: DocumentGroup[];
+  groups: DocumentGroupType[];
   onResponsabiliteChange: (id: string, type: 'r' | 'a' | 'c' | 'i', values: string[]) => void;
   onAtteinteChange: (id: string, atteinte: 'NC' | 'PC' | 'C' | null) => void;
   onExclusionChange: (id: string) => void;
@@ -13,7 +19,7 @@ interface DocumentTableProps {
   onReorder: (startIndex: number, endIndex: number, targetGroupId?: string) => void;
   onGroupReorder: (startIndex: number, endIndex: number) => void;
   onToggleGroup: (id: string) => void;
-  onEditGroup: (group: DocumentGroup) => void;
+  onEditGroup: (group: DocumentGroupType) => void;
   onDeleteGroup: (id: string) => void;
 }
 
@@ -31,73 +37,84 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
   onEditGroup,
   onDeleteGroup
 }) => {
-  if (!documents || documents.length === 0) {
-    return (
-      <div className="bg-white rounded-md p-6 text-center">
-        <p className="text-gray-500">Aucun document disponible. Utilisez le bouton ci-dessous pour en ajouter.</p>
-      </div>
-    );
-  }
+  // Filtrer les documents qui n'appartiennent à aucun groupe
+  const ungroupedDocuments = documents.filter(d => !d.groupId);
+  
+  // Pour chaque groupe, ajouter les documents correspondants
+  const groupsWithItems = groups.map(group => {
+    // Trouver tous les documents appartenant à ce groupe
+    const groupItems = documents.filter(doc => doc.groupId === group.id);
+    
+    // Retourner le groupe avec ses documents
+    return {
+      ...group,
+      items: groupItems
+    };
+  });
+  
+  const {
+    draggedItem,
+    handleDragStart,
+    handleDragOver,
+    handleDragLeave,
+    handleDrop,
+    handleDragEnd,
+    handleGroupDrop
+  } = useDragAndDrop(documents, onReorder);
+
+  const handleGroupDragStart = (e: React.DragEvent<HTMLTableRowElement>, groupId: string) => {
+    e.dataTransfer.setData('text/plain', JSON.stringify({ groupId }));
+    e.currentTarget.classList.add('opacity-50');
+  };
 
   return (
-    <div className="bg-white rounded-md shadow-sm">
-      <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
-            <tr>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Nom du document
-              </th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Responsabilités
-              </th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                État
-              </th>
-              <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Actions
-              </th>
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
-            {documents.map((doc, index) => (
-              <tr key={doc.id}>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm font-medium text-gray-900">{doc.nom}</div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm text-gray-500">
-                    {/* Placeholder pour les responsabilités */}
-                    RACI
-                  </div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
-                    {doc.etat === 'NC' ? 'Non conforme' :
-                     doc.etat === 'PC' ? 'Partiellement conforme' :
-                     doc.etat === 'C' ? 'Conforme' :
-                     doc.etat === 'EX' ? 'Exclus' : 'Non défini'}
-                  </span>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                  <button
-                    onClick={() => onEdit(doc.id)}
-                    className="text-indigo-600 hover:text-indigo-900 mr-3"
-                  >
-                    Éditer
-                  </button>
-                  <button
-                    onClick={() => onDelete(doc.id)}
-                    className="text-red-600 hover:text-red-900"
-                  >
-                    Supprimer
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+    <div className="bg-white rounded-md shadow overflow-hidden">
+      <Table>
+        <DocumentTableHeader />
+        
+        <TableBody>
+          {groupsWithItems.map((group) => (
+            <DocumentGroupComponent
+              key={group.id}
+              group={group}
+              onResponsabiliteChange={onResponsabiliteChange}
+              onAtteinteChange={onAtteinteChange}
+              onExclusionChange={onExclusionChange}
+              onEdit={onEdit}
+              onDelete={onDelete}
+              onToggleGroup={onToggleGroup}
+              onEditGroup={onEditGroup}
+              onDeleteGroup={onDeleteGroup}
+              onDragStart={handleDragStart}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+              onDragEnd={handleDragEnd}
+              onGroupDragStart={handleGroupDragStart}
+              onGroupDrop={handleGroupDrop}
+            />
+          ))}
+        </TableBody>
+        
+        <TableBody>
+          {ungroupedDocuments.map((doc) => (
+            <DocumentRow
+              key={doc.id}
+              doc={doc}
+              onResponsabiliteChange={onResponsabiliteChange}
+              onAtteinteChange={onAtteinteChange}
+              onExclusionChange={onExclusionChange}
+              onEdit={onEdit}
+              onDelete={onDelete}
+              onDragStart={handleDragStart}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+              onDragEnd={handleDragEnd}
+            />
+          ))}
+        </TableBody>
+      </Table>
     </div>
   );
 };

@@ -7,11 +7,11 @@ import { ApiConfig } from '@/types/api-config';
 export const useApiConfig = () => {
   const [config, setConfig] = useState<ApiConfig>({
     api_urls: {
-      development: 'https://qualiopi.ch/api',
+      development: 'http://localhost:8080/api',
       production: 'https://qualiopi.ch/api'
     },
     allowed_origins: {
-      development: 'https://qualiopi.ch',
+      development: 'http://localhost:8080',
       production: 'https://qualiopi.ch'
     }
   });
@@ -29,11 +29,6 @@ export const useApiConfig = () => {
     env: 'development' | 'production',
     value: string
   ) => {
-    // En production, ne permettre que des modifications qui gardent qualiopi.ch
-    if (!value.includes('qualiopi.ch')) {
-      return;
-    }
-    
     setConfig(prevConfig => ({
       ...prevConfig,
       [section]: {

@@ -40,7 +40,7 @@ export default defineConfig(({ mode }) => {
           main: path.resolve(__dirname, 'index.html'),
         },
         output: {
-          // Configurer les noms de fichiers pour qu'ils soient cohérents
+          // Configuration spécifique pour Infomaniak
           assetFileNames: (assetInfo) => {
             if (!assetInfo.name) {
               return 'assets/[name].[hash].[ext]';
@@ -52,28 +52,16 @@ export default defineConfig(({ mode }) => {
           },
           chunkFileNames: 'assets/[name].[hash].js',
           entryFileNames: 'assets/[name].[hash].js',
-          manualChunks: {
-            react: ['react', 'react-dom'],
-            ui: ['@radix-ui/react-dialog', '@radix-ui/react-toast', '@radix-ui/react-tooltip']
-          }
         },
-        // Définir explicitement les fichiers à traiter comme externes pour éviter les erreurs
-        external: [
-          // Fichiers de assets qui doivent être traités comme externes
-          '/assets/gptengineer.js',
-          '/assets/main.js',
-          '/assets/hashed-file-loader.js',
-          // Motif pour les fichiers avec hash
-          '/assets/*.js',
-          // Ressources CDN
-          'https://cdn.gpteng.co/gptengineer.js'
-        ]
+        // Configuration explicite des dépendances externes pour éviter les erreurs de compilation
+        external: []
       }
-    },
-    optimizeDeps: {
-      include: ['react', 'react-dom', 'react-router-dom', 'jspdf', 'jspdf-autotable']
     },
     publicDir: 'public',
     base: basePath,
+    optimizeDeps: {
+      // Inclure jspdf et jspdf-autotable pour s'assurer qu'ils sont correctement traités
+      include: ['jspdf', 'jspdf-autotable']
+    }
   };
 });
