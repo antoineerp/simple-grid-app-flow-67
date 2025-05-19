@@ -44,17 +44,21 @@ jobs:
         cp -r dist deploy/
         echo "✅ Dossier dist/ copié entièrement"
         
-        # Création des dossiers essentiels AVANT le déploiement FTP
-        # SUPPRESSION DE LA CRÉATION DU DOSSIER api-tools qui cause des problèmes
+        # Création EXPLICITE de TOUS les dossiers nécessaires avant le déploiement FTP
         mkdir -p deploy/assets
         mkdir -p deploy/api/config
         mkdir -p deploy/api/utils
+        mkdir -p deploy/api/documentation
         mkdir -p deploy/public/lovable-uploads
+        
+        # Ajouter un fichier README dans api/documentation pour éviter les erreurs
+        echo "# Documentation API\n\nCe dossier contient la documentation de l'API FormaCert." > deploy/api/documentation/README.md
         
         # S'assurer que les dossiers sont correctement créés
         echo "Vérification des dossiers créés:"
         ls -la deploy/
         ls -la deploy/api/
+        ls -la deploy/api/documentation/
         
         # Copier les fichiers racine essentiels
         cp index.php deploy/ 2>/dev/null || echo "index.php copié depuis dist/"
@@ -123,6 +127,7 @@ RewriteRule ^(.*)$ index.php [QSA,L]" > deploy/api/.htaccess
           "deploy/api/config/db_config.json"
           "deploy/api/config/env.php"
           "deploy/api/.htaccess"
+          "deploy/api/documentation/README.md"
         )
         
         all_ok=true
