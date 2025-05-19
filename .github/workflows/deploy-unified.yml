@@ -32,7 +32,7 @@ jobs:
     - name: Construction de l'application React
       run: npm run build
       
-    - name: Préparation du déploiement (SIMPLIFIÉ)
+    - name: Préparation du déploiement
       run: |
         echo "=== Déploiement Simplifié vers Infomaniak ==="
         echo "Date: $(date)"
@@ -40,7 +40,7 @@ jobs:
         # Création du dossier de déploiement
         mkdir -p deploy
         
-        # Copie DIRECTE du dossier dist complet (CRUCIAL)
+        # Copie DIRECTE du dossier dist complet
         cp -r dist deploy/
         echo "✅ Dossier dist/ copié entièrement"
         
@@ -51,26 +51,22 @@ jobs:
         mkdir -p deploy/api-tools
         mkdir -p deploy/public/lovable-uploads
         
-        # Créer le fichier .gitkeep dans api-tools pour s'assurer que le dossier existe
+        # Créer le fichier .gitkeep dans api-tools
         touch deploy/api-tools/.gitkeep
         
         # Créer index.php dans api-tools
-        cat > deploy/api-tools/index.php << 'EOF'
-<?php
+        echo "<?php
 // Redirection vers la vérification des routes
 header('Location: check-routes.php');
 exit;
-?>
-EOF
+?>" > deploy/api-tools/index.php
         
         # Créer check-routes.php
-        cat > deploy/api-tools/check-routes.php << 'EOF'
-<?php
+        echo "<?php
 header('Content-Type: text/html; charset=utf-8');
-echo "<h1>Vérification des Routes</h1>";
-echo "<p>Cet outil permet de vérifier les routes définies dans l'application.</p>";
-?>
-EOF
+echo \"<h1>Vérification des Routes</h1>\";
+echo \"<p>Cet outil permet de vérifier les routes définies dans l'application.</p>\";
+?>" > deploy/api-tools/check-routes.php
         
         # Copier les fichiers racine essentiels
         cp index.php deploy/ 2>/dev/null || echo "index.php copié depuis dist/"
@@ -89,52 +85,46 @@ EOF
         fi
         
         # Configuration de la base de données
-        cat > deploy/api/config/db_config.json << 'EOF'
-{
-    "host": "p71x6d.myd.infomaniak.com",
-    "db_name": "p71x6d_richard",
-    "username": "p71x6d_richard",
-    "password": "Trottinette43!"
-}
-EOF
+        echo '{
+            "host": "p71x6d.myd.infomaniak.com",
+            "db_name": "p71x6d_richard",
+            "username": "p71x6d_richard",
+            "password": "Trottinette43!"
+        }' > deploy/api/config/db_config.json
         
         # Configuration PHP
-        cat > deploy/api/config/env.php << 'EOF'
-<?php
+        echo "<?php
 // Configuration des variables d'environnement pour Infomaniak
-define("DB_HOST", "p71x6d.myd.infomaniak.com");
-define("DB_NAME", "p71x6d_richard");
-define("DB_USER", "p71x6d_richard");
-define("DB_PASS", "Trottinette43!");
-define("API_BASE_URL", "/api");
-define("APP_ENV", "production");
+define(\"DB_HOST\", \"p71x6d.myd.infomaniak.com\");
+define(\"DB_NAME\", \"p71x6d_richard\");
+define(\"DB_USER\", \"p71x6d_richard\");
+define(\"DB_PASS\", \"Trottinette43!\");
+define(\"API_BASE_URL\", \"/api\");
+define(\"APP_ENV\", \"production\");
 
 // Fonction d'aide pour récupérer les variables d'environnement
-function get_env($key, $default = null) {
-    $const_name = strtoupper($key);
-    if (defined($const_name)) {
-        return constant($const_name);
+function get_env(\$key, \$default = null) {
+    \$const_name = strtoupper(\$key);
+    if (defined(\$const_name)) {
+        return constant(\$const_name);
     }
-    return $default;
+    return \$default;
 }
-?>
-EOF
+?>" > deploy/api/config/env.php
         
         # Créer .htaccess pour l'API
-        cat > deploy/api/.htaccess << 'EOF'
-# Activer la réécriture d'URL
+        echo "# Activer la réécriture d'URL
 RewriteEngine On
 
 # Configuration CORS
-Header set Access-Control-Allow-Origin "*"
-Header set Access-Control-Allow-Methods "GET, POST, OPTIONS, PUT, DELETE"
-Header set Access-Control-Allow-Headers "Content-Type, Authorization, X-Requested-With"
+Header set Access-Control-Allow-Origin \"*\"
+Header set Access-Control-Allow-Methods \"GET, POST, OPTIONS, PUT, DELETE\"
+Header set Access-Control-Allow-Headers \"Content-Type, Authorization, X-Requested-With\"
 
 # Rediriger toutes les requêtes vers index.php
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
-RewriteRule ^(.*)$ index.php [QSA,L]
-EOF
+RewriteRule ^(.*)$ index.php [QSA,L]" > deploy/api/.htaccess
         
         # Vérifier les dossiers et fichiers critiques
         echo ""
