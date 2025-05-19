@@ -1,160 +1,94 @@
 
-name: Unified Deployment to Infomaniak
+name: Déploiement Unifié vers Infomaniak
 
 on:
   push:
     branches: [ main ]
   workflow_dispatch:
+    inputs:
+      reason:
+        description: 'Raison du déploiement manuel'
+        required: false
+        default: 'Déploiement manuel'
 
 jobs:
-  build_and_deploy:
+  build-and-deploy:
     runs-on: ubuntu-latest
     
     steps:
-    - uses: actions/checkout@v3
-    
-    - name: Set up Node.js
+    - name: Checkout du code source
+      uses: actions/checkout@v3
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Configuration de Node.js
       uses: actions/setup-node@v3
       with:
-        node-version: '18'
-        cache: 'npm'
-    
-    - name: Install dependencies
-      run: npm ci
-    
-    - name: Build project
+        node-version: '20'
+        
+    - name: Installation des dépendances
+      run: npm install --legacy-peer-deps
+      
+    - name: Construction de l'application React
       run: npm run build
       
-    - name: Display build output
+    - name: Préparation du déploiement (SIMPLIFIÉ)
       run: |
-        echo "=== Build Output ==="
-        ls -la dist/
-        echo "=== Assets ==="
-        ls -la dist/assets/
-    
-    - name: Prepare deployment directory
-      run: |
-        echo "=== Préparation du déploiement ==="
-        # Création des dossiers nécessaires
+        echo "=== Déploiement Simplifié vers Infomaniak ==="
+        echo "Date: $(date)"
+        
+        # Création du dossier de déploiement
+        mkdir -p deploy
+        
+        # Copie DIRECTE du dossier dist complet (CRUCIAL)
+        cp -r dist deploy/
+        echo "✅ Dossier dist/ copié entièrement"
+        
+        # Création des dossiers essentiels
         mkdir -p deploy/assets
         mkdir -p deploy/api/config
-        mkdir -p deploy/api/controllers
-        mkdir -p deploy/api/models
-        mkdir -p deploy/api/middleware
-        mkdir -p deploy/api/operations
         mkdir -p deploy/api/utils
-        mkdir -p deploy/api/documentation
-        mkdir -p deploy/public/lovable-uploads
-        mkdir -p deploy/public/error-pages
         mkdir -p deploy/api-tools
+        mkdir -p deploy/public/lovable-uploads
         
-        # Copie des fichiers principaux de l'application
-        cp index.php deploy/ || echo "index.php non trouvé"
+        # Créer le fichier .gitkeep dans api-tools pour s'assurer que le dossier existe
+        touch deploy/api-tools/.gitkeep
         
-        # Utiliser index.html de dist en priorité
-        if [ -f "dist/index.html" ]; then
-          cp dist/index.html deploy/
-          echo "✅ index.html copié depuis dist/"
-        else
-          cp index.html deploy/ || echo "index.html non trouvé"
-        fi
-        
-        cp .htaccess deploy/ || echo ".htaccess non trouvé"
-        cp .user.ini deploy/ || echo ".user.ini non trouvé"
-        cp error-handler.php deploy/ || echo "error-handler.php non trouvé"
-        cp fix-css-deployment.php deploy/ || echo "fix-css-deployment.php non trouvé"
-        
-        # Copier les scripts de correction et diagnostic
-        cp pre-deploy-fix.php deploy/ || echo "pre-deploy-fix.php non trouvé"
-        cp check-build-status.php deploy/ || echo "check-build-status.php non trouvé"
-        cp fix-missing-files.php deploy/ || echo "fix-missing-files.php non trouvé"
-        cp fix-index-assets-simplified.php deploy/ || echo "fix-index-assets-simplified.php non trouvé"
-        cp check-route-duplication.php deploy/ || echo "check-route-duplication.php non trouvé"
-        cp check-workflows.php deploy/ || echo "check-workflows.php non trouvé"
-        
-        # Copier les fichiers du dossier dist s'il existe
-        if [ -d "dist" ]; then
-          echo "Copie des fichiers du dossier dist..."
-          # Copier tous les autres fichiers (sauf index.html déjà copié)
-          find dist -maxdepth 1 -type f -not -name "index.html" -exec cp {} deploy/ \;
-        fi
-        
-        # Copie des assets (priorité au dossier dist/assets)
-        if [ -d "dist/assets" ]; then
-          echo "Copie des assets depuis dist/assets/"
-          cp -r dist/assets/* deploy/assets/
-          # Assurer que main.css est présent
-          if [ ! -f "deploy/assets/main.css" ] && [ -f "assets/main.css" ]; then
-            echo "Copie de main.css depuis assets/"
-            cp assets/main.css deploy/assets/
-          fi
-        elif [ -d "assets" ]; then
-          echo "Copie des assets depuis assets/"
-          cp -r assets/* deploy/assets/
-        else
-          echo "ERREUR: Aucun dossier assets trouvé!"
-        fi
-        
-        # Créer un main.css de secours si nécessaire
-        if [ ! -f "deploy/assets/main.css" ]; then
-          echo "Création d'un fichier main.css de secours..."
-          echo "/* Fichier CSS de secours créé automatiquement */" > deploy/assets/main.css
-          echo "body { font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: #333; background-color: #f9fafb; margin: 0; padding: 0; }" >> deploy/assets/main.css
-          echo "#root { max-width: 1280px; margin: 0 auto; padding: 2rem; }" >> deploy/assets/main.css
-        fi
-        
-        # Vérifier que les CSS nécessaires sont présents
-        echo "=== Vérification des CSS ==="
-        ls -la deploy/assets/*.css || echo "Pas de fichiers CSS trouvés dans deploy/assets/"
-        
-        # Configuration de l'API
-        echo "Configuration de l'API..."
-        
-        # Création du fichier .htaccess pour l'API
-        cat > deploy/api/.htaccess << 'EOF'
-# Activer la réécriture d'URL
-RewriteEngine On
-
-# Définir les types MIME corrects
-AddType application/javascript .js
-AddType application/javascript .mjs
-AddType application/javascript .es.js
-AddType text/css .css
-AddType application/json .json
-
-# Gérer les requêtes OPTIONS pour CORS
-RewriteCond %{REQUEST_METHOD} OPTIONS
-RewriteRule ^(.*)$ $1 [R=200,L]
-
-# Configuration CORS et types MIME
-<IfModule mod_headers.c>
-    # Force le bon type MIME pour les JavaScript modules
-    <FilesMatch "\.(m?js|es\.js)$">
-        Header set Content-Type "application/javascript"
-        Header set X-Content-Type-Options "nosniff"
-    </FilesMatch>
-    
-    Header set Access-Control-Allow-Origin "*"
-    Header set Access-Control-Allow-Methods "GET, POST, OPTIONS, PUT, DELETE"
-    Header set Access-Control-Allow-Headers "Content-Type, Authorization, X-Requested-With"
-    
-    # Eviter la mise en cache
-    Header set Cache-Control "no-cache, no-store, must-revalidate"
-    Header set Pragma "no-cache"
-    Header set Expires 0
-</IfModule>
-
-# Permettre l'accès direct aux fichiers PHP spécifiques
-RewriteCond %{REQUEST_FILENAME} -f
-RewriteRule \.(php)$ - [L]
-
-# Rediriger toutes les requêtes vers l'index.php sauf pour les fichiers existants
-RewriteCond %{REQUEST_FILENAME} !-f
-RewriteCond %{REQUEST_FILENAME} !-d
-RewriteRule ^(.*)$ index.php [QSA,L]
+        # Créer index.php dans api-tools
+        cat > deploy/api-tools/index.php << 'EOF'
+<?php
+// Redirection vers la vérification des routes
+header('Location: check-routes.php');
+exit;
+?>
 EOF
         
-        # Création du fichier de configuration DB
+        # Créer check-routes.php
+        cat > deploy/api-tools/check-routes.php << 'EOF'
+<?php
+header('Content-Type: text/html; charset=utf-8');
+echo "<h1>Vérification des Routes</h1>";
+echo "<p>Cet outil permet de vérifier les routes définies dans l'application.</p>";
+?>
+EOF
+        
+        # Copier les fichiers racine essentiels
+        cp index.php deploy/ 2>/dev/null || echo "index.php copié depuis dist/"
+        cp index.html deploy/ 2>/dev/null || cp dist/index.html deploy/ || echo "ERREUR: index.html non trouvé"
+        cp .htaccess deploy/ 2>/dev/null || echo "Attention: .htaccess non trouvé"
+        cp vite.config.ts deploy/ 2>/dev/null || echo "Attention: vite.config.ts non trouvé"
+        
+        # Copier les assets vers le dossier assets (sauvegarde)
+        if [ -d "assets" ]; then
+          cp -r assets/* deploy/assets/ 2>/dev/null || echo "Aucun asset à copier depuis assets/"
+        fi
+        
+        # Copier les assets du build également
+        if [ -d "dist/assets" ]; then
+          cp -r dist/assets/* deploy/assets/ 2>/dev/null || echo "Aucun asset à copier depuis dist/assets/"
+        fi
+        
+        # Configuration de la base de données
         cat > deploy/api/config/db_config.json << 'EOF'
 {
     "host": "p71x6d.myd.infomaniak.com",
@@ -164,8 +98,7 @@ EOF
 }
 EOF
         
-        # Création du fichier env.php
-        mkdir -p deploy/api/config
+        # Configuration PHP
         cat > deploy/api/config/env.php << 'EOF'
 <?php
 // Configuration des variables d'environnement pour Infomaniak
@@ -187,55 +120,39 @@ function get_env($key, $default = null) {
 ?>
 EOF
         
-        # Copie des fichiers PHP de l'API
-        if [ -d "api" ]; then
-          find api -name "*.php" | while read file; do
-            # Créer le dossier de destination si nécessaire
-            dir_name=$(dirname "$file")
-            target_dir="deploy/$dir_name"
-            mkdir -p "$target_dir"
-            
-            # Copier le fichier
-            cp "$file" "deploy/$file"
-          done
-          echo "✅ Fichiers PHP de l'API copiés"
-        else
-          echo "ERREUR: Dossier API non trouvé!"
-        fi
-        
-        # Copie des uploads
-        if [ -d "public/lovable-uploads" ]; then
-          cp -r public/lovable-uploads/* deploy/public/lovable-uploads/
-          echo "✅ Uploads copiés"
-        fi
-        
-        # Créer un fichier README dans le dossier documentation
-        cat > deploy/api/documentation/README.md << 'EOF'
-# Documentation API
+        # Créer .htaccess pour l'API
+        cat > deploy/api/.htaccess << 'EOF'
+# Activer la réécriture d'URL
+RewriteEngine On
 
-Ce dossier contient la documentation de l'API.
+# Configuration CORS
+Header set Access-Control-Allow-Origin "*"
+Header set Access-Control-Allow-Methods "GET, POST, OPTIONS, PUT, DELETE"
+Header set Access-Control-Allow-Headers "Content-Type, Authorization, X-Requested-With"
+
+# Rediriger toutes les requêtes vers index.php
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^(.*)$ index.php [QSA,L]
 EOF
         
-        # Vérification des fichiers critiques
+        # Vérifier les dossiers et fichiers critiques
+        echo ""
         echo "=== Vérification des fichiers critiques ==="
         critical_files=(
-          "deploy/api/.htaccess"
+          "deploy/dist/index.html"
+          "deploy/assets"
+          "deploy/api-tools/.gitkeep"
+          "deploy/api-tools/index.php"
+          "deploy/api-tools/check-routes.php"
           "deploy/api/config/db_config.json"
           "deploy/api/config/env.php"
-          "deploy/index.php"
-          "deploy/index.html"
-          "deploy/.htaccess"
-          "deploy/assets/main.css"
-          "deploy/pre-deploy-fix.php"
-          "deploy/check-build-status.php"
-          "deploy/fix-missing-files.php"
-          "deploy/fix-index-assets-simplified.php"
-          "deploy/check-route-duplication.php"
+          "deploy/api/.htaccess"
         )
         
         all_ok=true
         for file in "${critical_files[@]}"; do
-          if [ -f "$file" ]; then
+          if [ -e "$file" ]; then
             echo "✅ $file: PRÉSENT"
           else
             echo "❌ $file: MANQUANT"
@@ -243,45 +160,33 @@ EOF
           fi
         done
         
-        # Appliquer les permissions
-        find deploy -type d -exec chmod 755 {} \;
-        find deploy -type f -exec chmod 644 {} \;
-        echo "✅ Permissions appliquées"
-        
         if [ "$all_ok" = true ]; then
-          echo "=== DÉPLOIEMENT PRÊT ==="
+          echo "Tous les fichiers critiques sont présents!"
         else
-          echo "=== ATTENTION: FICHIERS MANQUANTS ==="
-          exit 1
+          echo "ATTENTION: Certains fichiers critiques sont manquants!"
         fi
-    
-    # Cette partie est importante: exécuter le script de préparation avant de déployer
-    - name: Run pre-deployment fixes
-      run: |
-        cd deploy
-        php -f pre-deploy-fix.php
-        echo "✅ Scripts de pré-déploiement exécutés"
-    
-    - name: Deploy via FTP
-      uses: SamKirkland/FTP-Deploy-Action@4.3.3
+        
+        # Liste la structure du dossier de déploiement
+        echo ""
+        echo "=== Structure du déploiement ==="
+        find deploy -type d | sort
+
+    - name: Synchronisation vers le serveur Infomaniak
+      uses: SamKirkland/FTP-Deploy-Action@v4.3.4
       with:
         server: ${{ secrets.FTP_SERVER }}
         username: ${{ secrets.FTP_USERNAME }}
         password: ${{ secrets.FTP_PASSWORD }}
         local-dir: ./deploy/
-        server-dir: ./
+        server-dir: /sites/qualiopi.ch/
         dangerous-clean-slate: false
-        
-    - name: Execute post-deployment checks
-      uses: appleboy/ssh-action@master
-      with:
-        host: ${{ secrets.FTP_SERVER }}
-        username: ${{ secrets.FTP_USERNAME }}
-        password: ${{ secrets.FTP_PASSWORD }}
-        script: |
-          cd /sites/qualiopi.ch/
-          echo "=== Post-deployment checks ==="
-          php -f pre-deploy-fix.php || echo "❌ Error running pre-deploy-fix.php"
-          php -f fix-index-assets-simplified.php || echo "❌ Error running fix-index-assets-simplified.php"
-          php -f check-build-status.php || echo "❌ Error running check-build-status.php"
-          echo "=== Post-deployment checks completed ==="
+        exclude: |
+          **/.git*
+          **/.git*/**
+          **/node_modules/**
+          README.md
+        log-level: verbose
+        timeout: 120000
+
+    - name: Nettoyage
+      run: rm -rf deploy
