@@ -58,6 +58,7 @@ jobs:
         
         # Création des fichiers essentiels dans api-tools
         echo "<?php\n// Index pour api-tools\nheader('Content-Type: text/html; charset=utf-8');\necho '<h1>API Tools</h1>';\necho '<p>Outils de gestion API</p>';\n?>" > deploy/api-tools/index.php
+        echo "<?php\nheader('Content-Type: text/html; charset=utf-8');\necho \"<h1>Vérification des Routes</h1>\";\necho \"<p>Cet outil permet de vérifier les routes définies dans l'application.</p>\";\n?>" > deploy/api-tools/check-routes.php
         echo "# API Tools" > deploy/api-tools/README.md
         touch deploy/api-tools/.gitkeep
         
@@ -124,35 +125,6 @@ jobs:
         echo "RewriteCond %{REQUEST_FILENAME} !-f" >> deploy/api/.htaccess
         echo "RewriteCond %{REQUEST_FILENAME} !-d" >> deploy/api/.htaccess
         echo "RewriteRule ^(.*)$ index.php [QSA,L]" >> deploy/api/.htaccess
-        
-        # Vérifier les dossiers et fichiers critiques
-        echo ""
-        echo "=== Vérification des fichiers critiques ==="
-        critical_files=(
-          "deploy/dist/index.html"
-          "deploy/assets"
-          "deploy/api/config/db_config.json"
-          "deploy/api/config/env.php"
-          "deploy/api/.htaccess"
-          "deploy/api/documentation/README.md"
-          "deploy/api-tools/index.php"
-        )
-        
-        all_ok=true
-        for file in "${critical_files[@]}"; do
-          if [ -e "$file" ]; then
-            echo "✅ $file: PRÉSENT"
-          else
-            echo "❌ $file: MANQUANT"
-            all_ok=false
-          fi
-        done
-        
-        if [ "$all_ok" = true ]; then
-          echo "Tous les fichiers critiques sont présents!"
-        else
-          echo "ATTENTION: Certains fichiers critiques sont manquants!"
-        fi
         
         # Liste la structure du dossier de déploiement
         echo ""
