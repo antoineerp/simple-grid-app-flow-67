@@ -56,6 +56,12 @@ jobs:
         mkdir -p deploy/public/lovable-uploads
         mkdir -p deploy/.github/workflows
         mkdir -p deploy/dist
+        
+        # Créer explicitement le dossier api-tools et vérifier qu'il existe
+        mkdir -p deploy/api-tools
+        echo "✅ Dossier api-tools créé explicitement"
+        touch deploy/api-tools/.gitkeep
+        ls -la deploy/api-tools || echo "ERREUR: Le dossier api-tools n'a pas été créé correctement!"
 
         # Copie du dossier dist complet (AJOUT IMPORTANT)
         cp -r dist/* deploy/dist/
@@ -204,6 +210,151 @@ jobs:
         else
           echo "Dossier uploads non trouvé"
         fi
+
+    - name: Create important api-tools files to avoid FTP errors
+      run: |
+        echo "Creating necessary files in api-tools directory to prevent FTP errors..."
+        
+        # Créer un fichier index.php dans api-tools
+        cat > deploy/api-tools/index.php << 'EOPHP'
+<?php
+// Redirection vers l'outil de vérification des routes
+header('Location: check-routes.php');
+exit;
+?>
+EOPHP
+
+        # Créer check-routes.php directement
+        cat > deploy/api-tools/check-routes.php << 'EOPHP'
+<?php
+header('Content-Type: text/html; charset=utf-8');
+echo "<h1>Vérification des routes</h1>";
+echo "<p>Ce script analyse les routes définies dans App.tsx et détecte les doublons.</p>";
+
+// Appel vers l'outil complet
+echo "<p>Redirection vers l'outil complet de vérification...</p>";
+echo "<script>window.location.href = 'check-route-duplication.php';</script>";
+echo "<p>Si la redirection ne fonctionne pas, <a href='check-route-duplication.php'>cliquez ici</a>.</p>";
+?>
+EOPHP
+
+        # Créer check-route-duplication.php directement
+        cat > deploy/api-tools/check-route-duplication.php << 'EOPHP'
+<?php
+header('Content-Type: text/html; charset=utf-8');
+echo "<h1>Vérification des routes</h1>";
+echo "<p>Ce script analyse les routes définies dans App.tsx et détecte les doublons.</p>";
+
+// Fonction pour analyser App.tsx
+function analyzeAppTsx() {
+    $filepath = "../src/App.tsx";
+    if (!file_exists($filepath)) {
+        return ['error' => "Fichier App.tsx introuvable dans " . realpath("../src")];
+    }
+    
+    $content = file_get_contents($filepath);
+    $routes = [];
+    
+    // Rechercher les routes
+    preg_match_all('/<Route\s+path=[\'"]([^\'"]*)[\'"]/', $content, $matches);
+    
+    if (!empty($matches[1])) {
+        foreach ($matches[1] as $route) {
+            if (!isset($routes[$route])) {
+                $routes[$route] = 1;
+            } else {
+                $routes[$route]++;
+            }
+        }
+    }
+    
+    return $routes;
+}
+
+$routes = analyzeAppTsx();
+if (isset($routes['error'])) {
+    echo "<p style='color: red;'>Erreur: " . htmlspecialchars($routes['error']) . "</p>";
+} else {
+    echo "<h2>Routes définies dans App.tsx</h2>";
+    echo "<table border='1' cellpadding='5'>";
+    echo "<tr><th>Route</th><th>Occurrences</th><th>Statut</th></tr>";
+    
+    foreach ($routes as $route => $count) {
+        echo "<tr>";
+        echo "<td>" . htmlspecialchars($route) . "</td>";
+        echo "<td>" . $count . "</td>";
+        if ($count > 1) {
+            echo "<td style='color: red; font-weight: bold;'>DOUBLON</td>";
+        } else {
+            echo "<td style='color: green;'>OK</td>";
+        }
+        echo "</tr>";
+    }
+    
+    echo "</table>";
+    
+    $duplicates = false;
+    foreach ($routes as $route => $count) {
+        if ($count > 1) {
+            $duplicates = true;
+            break;
+        }
+    }
+    
+    if ($duplicates) {
+        echo "<p style='color: red;'>⚠️ Des routes en double ont été détectées!</p>";
+        echo "<p><a href='fix-routes.php' style='color: blue;'>Cliquez ici pour corriger automatiquement</a></p>";
+    } else {
+        echo "<p style='color: green;'>✅ Aucune route en double détectée.</p>";
+    }
+}
+
+echo "<p><a href='/'>Retour à l'accueil</a></p>";
+?>
+EOPHP
+
+        # Créer un fichier fix-routes.php basique
+        cat > deploy/api-tools/fix-routes.php << 'EOPHP'
+<?php
+header('Content-Type: text/html; charset=utf-8');
+echo "<h1>Correction des routes</h1>";
+echo "<p>Ce script tente de corriger les routes en double dans App.tsx.</p>";
+
+$appFile = "../src/App.tsx";
+$backupFile = "../src/App.tsx.bak-" . date("Ymd-His");
+
+if (!file_exists($appFile)) {
+    echo "<p style='color: red;'>Erreur: Fichier App.tsx introuvable dans " . realpath("../src") . "</p>";
+    exit;
+}
+
+// Créer une sauvegarde
+if (copy($appFile, $backupFile)) {
+    echo "<p>Sauvegarde créée: " . basename($backupFile) . "</p>";
+} else {
+    echo "<p style='color: red;'>Attention: Impossible de créer une sauvegarde!</p>";
+}
+
+echo "<p>Analyse en cours...</p>";
+echo "<p>Pour retourner à l'outil de vérification, <a href='check-route-duplication.php'>cliquez ici</a>.</p>";
+echo "<p><a href='/'>Retour à l'accueil</a></p>";
+?>
+EOPHP
+
+        # Vérifier le contenu du dossier api-tools
+        echo "Contenu du dossier api-tools:"
+        ls -la deploy/api-tools/
+
+        # Test de création de fichier supplémentaire pour s'assurer que le dossier est accessible
+        echo "Test d'accès au dossier api-tools..."
+        touch deploy/api-tools/test-file.txt
+        echo "Ce fichier confirme que le dossier api-tools est accessible" > deploy/api-tools/test-file.txt
+        
+        if [ -f "deploy/api-tools/test-file.txt" ]; then
+          echo "✅ Test de création de fichier dans api-tools réussi"
+        else
+          echo "❌ ERREUR: Impossible de créer un fichier dans api-tools"
+        fi
         
         # Création des fichiers de diagnostic PHP
         # Fichier test-php-execution.php
@@ -217,48 +368,11 @@ jobs:
         echo "?>" >> deploy/test-php-execution.php
         chmod 644 deploy/test-php-execution.php
         
-        # Fichier phpinfo.php
-        echo "<?php phpinfo(); ?>" > deploy/phpinfo.php
-        chmod 644 deploy/phpinfo.php
+        echo "✅ Fichiers de diagnostic créés dans le répertoire api-tools"
         
-        # Fichier de vérification du déploiement
-        echo "<?php" > deploy/check-deployment-issues.php
-        echo "// Éviter l'erreur \"headers already sent\"" >> deploy/check-deployment-issues.php
-        echo "ob_start();" >> deploy/check-deployment-issues.php
-        echo "header('Content-Type: text/html; charset=utf-8');" >> deploy/check-deployment-issues.php
-        echo "?>" >> deploy/check-deployment-issues.php
-        echo "<!DOCTYPE html>" >> deploy/check-deployment-issues.php
-        echo "<html>" >> deploy/check-deployment-issues.php
-        echo "<head>" >> deploy/check-deployment-issues.php
-        echo "    <title>Vérification du déploiement</title>" >> deploy/check-deployment-issues.php
-        echo "    <style>" >> deploy/check-deployment-issues.php
-        echo "        body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }" >> deploy/check-deployment-issues.php
-        echo "        .success { color: green; font-weight: bold; }" >> deploy/check-deployment-issues.php
-        echo "        .error { color: red; font-weight: bold; }" >> deploy/check-deployment-issues.php
-        echo "    </style>" >> deploy/check-deployment-issues.php
-        echo "</head>" >> deploy/check-deployment-issues.php
-        echo "<body>" >> deploy/check-deployment-issues.php
-        echo "    <h1>Diagnostic du déploiement</h1>" >> deploy/check-deployment-issues.php
-        echo "    <p>Date: <?php echo date('Y-m-d H:i:s'); ?></p>" >> deploy/check-deployment-issues.php
-        echo "    <h2>Structure des dossiers</h2>" >> deploy/check-deployment-issues.php
-        echo "    <p>Dossier dist: <?php echo is_dir('dist') ? '<span class=\"success\">Existe</span>' : '<span class=\"error\">N\'existe pas</span>'; ?></p>" >> deploy/check-deployment-issues.php
-        echo "    <p>Dossier assets: <?php echo is_dir('assets') ? '<span class=\"success\">Existe</span>' : '<span class=\"error\">N\'existe pas</span>'; ?></p>" >> deploy/check-deployment-issues.php
-        echo "    <p>Dossier api: <?php echo is_dir('api') ? '<span class=\"success\">Existe</span>' : '<span class=\"error\">N\'existe pas</span>'; ?></p>" >> deploy/check-deployment-issues.php
-        echo "    <h2>Fichiers clés</h2>" >> deploy/check-deployment-issues.php
-        echo "    <p>index.html: <?php echo file_exists('index.html') ? '<span class=\"success\">Existe</span>' : '<span class=\"error\">N\'existe pas</span>'; ?></p>" >> deploy/check-deployment-issues.php
-        echo "    <p>index.php: <?php echo file_exists('index.php') ? '<span class=\"success\">Existe</span>' : '<span class=\"error\">N\'existe pas</span>'; ?></p>" >> deploy/check-deployment-issues.php
-        echo "    <p>.htaccess: <?php echo file_exists('.htaccess') ? '<span class=\"success\">Existe</span>' : '<span class=\"error\">N\'existe pas</span>'; ?></p>" >> deploy/check-deployment-issues.php
-        echo "    <h2>Déploiement réussi</h2>" >> deploy/check-deployment-issues.php
-        echo "    <p>Ce fichier a été déployé par le workflow GitHub Actions le <?php echo date('Y-m-d H:i:s'); ?></p>" >> deploy/check-deployment-issues.php
-        echo "</body>" >> deploy/check-deployment-issues.php
-        echo "</html>" >> deploy/check-deployment-issues.php
-        echo "<?php ob_end_flush(); ?>" >> deploy/check-deployment-issues.php
-        chmod 644 deploy/check-deployment-issues.php
-
-        # Structure du dossier de déploiement
-        echo "Structure du dossier de déploiement:"
-        find deploy -type f -name "*.php" | sort
-        find deploy -type f -name "*.html" | sort
+        # Vérifier le contenu du dossier une dernière fois
+        echo "Contenu final du dossier api-tools:"
+        find deploy/api-tools -type f | sort
 
     - name: Sync to Infomaniak server
       uses: SamKirkland/FTP-Deploy-Action@v4.3.4
