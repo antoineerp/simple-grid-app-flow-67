@@ -61,13 +61,6 @@ jobs:
         echo "# API Tools" > deploy/api-tools/README.md
         touch deploy/api-tools/.gitkeep
         
-        # Créer le fichier check-routes.php dans api-tools sans utiliser heredoc (EOL)
-        echo "<?php" > deploy/api-tools/check-routes.php
-        echo "header('Content-Type: text/html; charset=utf-8');" >> deploy/api-tools/check-routes.php
-        echo "echo \"<h1>Vérification des Routes</h1>\";" >> deploy/api-tools/check-routes.php
-        echo "echo \"<p>Cet outil permet de vérifier les routes définies dans l'application.</p>\";" >> deploy/api-tools/check-routes.php
-        echo "?>" >> deploy/api-tools/check-routes.php
-        
         # S'assurer que les dossiers sont correctement créés
         echo "Vérification des dossiers créés:"
         ls -la deploy/
@@ -88,11 +81,6 @@ jobs:
         # Copier les assets du build également
         if [ -d "dist/assets" ]; then
           cp -r dist/assets/* deploy/assets/ 2>/dev/null || echo "Aucun asset à copier depuis dist/assets/"
-        fi
-        
-        # Copier les fichiers api-tools s'ils existent déjà
-        if [ -d "api-tools" ]; then
-          cp -r api-tools/* deploy/api-tools/ 2>/dev/null || echo "Aucun fichier à copier depuis api-tools/"
         fi
         
         # Configuration de la base de données
@@ -148,7 +136,6 @@ jobs:
           "deploy/api/.htaccess"
           "deploy/api/documentation/README.md"
           "deploy/api-tools/index.php"
-          "deploy/api-tools/check-routes.php"
         )
         
         all_ok=true
