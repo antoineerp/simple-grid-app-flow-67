@@ -44,14 +44,20 @@ jobs:
         cp -r dist deploy/
         echo "✅ Dossier dist/ copié entièrement"
         
-        # Création des dossiers essentiels
+        # Création des dossiers essentiels AVANT le déploiement FTP
         mkdir -p deploy/assets
         mkdir -p deploy/api/config
         mkdir -p deploy/api/utils
         mkdir -p deploy/api-tools
         mkdir -p deploy/public/lovable-uploads
         
-        # Créer le fichier .gitkeep dans api-tools
+        # S'assurer que les dossiers sont correctement créés
+        echo "Vérification des dossiers créés:"
+        ls -la deploy/
+        ls -la deploy/api/
+        ls -la deploy/api-tools/
+        
+        # Créer le fichier .gitkeep dans api-tools pour préserver le dossier
         touch deploy/api-tools/.gitkeep
         
         # Créer index.php dans api-tools
