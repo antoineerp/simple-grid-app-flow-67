@@ -45,20 +45,36 @@ jobs:
         echo "✅ Dossier dist/ copié entièrement"
         
         # Création EXPLICITE de TOUS les dossiers nécessaires avant le déploiement FTP
+        # IMPORTANT: Créer les dossiers avec un chemin relatif (sans le slash initial)
         mkdir -p deploy/assets
         mkdir -p deploy/api/config
         mkdir -p deploy/api/utils
         mkdir -p deploy/api/documentation
         mkdir -p deploy/public/lovable-uploads
+        mkdir -p deploy/api-tools
         
         # Ajouter un fichier README dans api/documentation pour éviter les erreurs
         echo "# Documentation API\n\nCe dossier contient la documentation de l'API FormaCert." > deploy/api/documentation/README.md
+        
+        # Création des fichiers essentiels dans api-tools
+        echo "<?php\n// Index pour api-tools\nheader('Content-Type: text/html; charset=utf-8');\necho '<h1>API Tools</h1>';\necho '<p>Outils de gestion API</p>';\n?>" > deploy/api-tools/index.php
+        echo "# API Tools" > deploy/api-tools/README.md
+        touch deploy/api-tools/.gitkeep
+        
+        # Créer le fichier check-routes.php dans api-tools
+        cat > deploy/api-tools/check-routes.php << 'EOL'
+<?php
+header('Content-Type: text/html; charset=utf-8');
+echo "<h1>Vérification des Routes</h1>";
+echo "<p>Cet outil permet de vérifier les routes définies dans l'application.</p>";
+?>
+EOL
         
         # S'assurer que les dossiers sont correctement créés
         echo "Vérification des dossiers créés:"
         ls -la deploy/
         ls -la deploy/api/
-        ls -la deploy/api/documentation/
+        ls -la deploy/api-tools/
         
         # Copier les fichiers racine essentiels
         cp index.php deploy/ 2>/dev/null || echo "index.php copié depuis dist/"
@@ -74,6 +90,11 @@ jobs:
         # Copier les assets du build également
         if [ -d "dist/assets" ]; then
           cp -r dist/assets/* deploy/assets/ 2>/dev/null || echo "Aucun asset à copier depuis dist/assets/"
+        fi
+        
+        # Copier les fichiers api-tools s'ils existent déjà
+        if [ -d "api-tools" ]; then
+          cp -r api-tools/* deploy/api-tools/ 2>/dev/null || echo "Aucun fichier à copier depuis api-tools/"
         fi
         
         # Configuration de la base de données
@@ -128,6 +149,8 @@ RewriteRule ^(.*)$ index.php [QSA,L]" > deploy/api/.htaccess
           "deploy/api/config/env.php"
           "deploy/api/.htaccess"
           "deploy/api/documentation/README.md"
+          "deploy/api-tools/index.php"
+          "deploy/api-tools/check-routes.php"
         )
         
         all_ok=true
