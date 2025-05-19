@@ -394,3 +394,4 @@ EOPHP
     - name: Clean up
       run: |
         rm -rf deploy
+
