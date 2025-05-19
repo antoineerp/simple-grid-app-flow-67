@@ -53,40 +53,40 @@ jobs:
         
         # Créer un script PHP simple pour la création de la structure - SANS AUCUNE RÉFÉRENCE À API-TOOLS
         echo "<?php
-        // Script de création de dossiers et fichiers
-        \$directories = [
-            './api',
-            './api/config',
-            './api/utils',
-            './api/documentation',
-            './api/admin',
-            './api/logs',
-            './assets',
-            './public',
-            './public/lovable-uploads'
-        ];
-        
-        foreach (\$directories as \$dir) {
-            if (!is_dir(\$dir)) {
-                mkdir(\$dir, 0755, true);
-                echo \"Dossier créé: {\$dir}\\n\";
-            }
-        }
-        
-        // Créer un fichier .htaccess dans api/admin
-        if (!file_exists('./api/admin/.htaccess')) {
-            file_put_contents('./api/admin/.htaccess', '# Fichier htaccess pour admin');
-            echo \"Fichier api/admin/.htaccess créé\\n\";
-        }
-        
-        // Créer README dans api/documentation
-        if (!file_exists('./api/documentation/README.md')) {
-            file_put_contents('./api/documentation/README.md', \"# Documentation API\\n\\nCe dossier contient la documentation de l'API FormaCert.\");
-            echo \"Fichier api/documentation/README.md créé\\n\";
-        }
-        
-        echo \"Configuration terminée! Tous les dossiers ont été créés.\";
-        ?>" > deploy/create_directories.php
+// Script de création de dossiers et fichiers
+\$directories = [
+    './api',
+    './api/config',
+    './api/utils',
+    './api/documentation',
+    './api/admin',
+    './api/logs',
+    './assets',
+    './public',
+    './public/lovable-uploads'
+];
+
+foreach (\$directories as \$dir) {
+    if (!is_dir(\$dir)) {
+        mkdir(\$dir, 0755, true);
+        echo \"Dossier créé: {\$dir}\\n\";
+    }
+}
+
+// Créer un fichier .htaccess dans api/admin
+if (!file_exists('./api/admin/.htaccess')) {
+    file_put_contents('./api/admin/.htaccess', '# Fichier htaccess pour admin');
+    echo \"Fichier api/admin/.htaccess créé\\n\";
+}
+
+// Créer README dans api/documentation
+if (!file_exists('./api/documentation/README.md')) {
+    file_put_contents('./api/documentation/README.md', \"# Documentation API\\n\\nCe dossier contient la documentation de l'API FormaCert.\");
+    echo \"Fichier api/documentation/README.md créé\\n\";
+}
+
+echo \"Configuration terminée! Tous les dossiers ont été créés.\";
+?>" > deploy/create_directories.php
         
         # Configuration de la base de données
         mkdir -p deploy/api/config
