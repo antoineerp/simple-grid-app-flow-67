@@ -1,42 +1,41 @@
 
 <?php
-// Redirection vers check-users.php pour l'authentification
+// En-têtes et configuration initiale
 header('Content-Type: application/json; charset=utf-8');
 header("Access-Control-Allow-Origin: *");
 header("Access-Control-Allow-Methods: POST, OPTIONS");
 header("Access-Control-Allow-Headers: Content-Type, Authorization");
 header("Cache-Control: no-cache, no-store, must-revalidate");
 
-// Journaliser la redirection
-error_log("=== REDIRECTION de auth.php vers check-users.php ===");
+// Journalisation des requêtes
+error_log("=== EXÉCUTION DE auth.php ===");
 error_log("Méthode: " . $_SERVER['REQUEST_METHOD'] . " - URI: " . $_SERVER['REQUEST_URI']);
 
-// Si c'est une requête OPTIONS (preflight), nous la terminons ici
+// Gestion du preflight CORS
 if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
     http_response_code(200);
     echo json_encode(['status' => 'success', 'message' => 'Preflight OK']);
     exit;
 }
 
-// Vérifier si la méthode est POST
+// Vérification de la méthode POST
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-    error_log("Méthode non autorisée: " . $_SERVER['REQUEST_METHOD']);
     http_response_code(405);
-    echo json_encode(['message' => 'Méthode non autorisée. Utilisez POST pour l\'authentification.', 'status' => 405]);
+    echo json_encode(['message' => 'Méthode non autorisée. Utilisez POST.', 'status' => 405]);
     exit;
 }
 
-// Récupérer le contenu de la requête
-$json_input = file_get_contents("php://input");
-$data = json_decode($json_input, true);
+// Récupération des données JSON
+$json = file_get_contents('php://input');
+$data = json_decode($json, true);
 
-// Journaliser les données reçues (masquer les infos sensibles)
+// Journalisation sécurisée (masquer le mot de passe)
 $log_data = $data;
 if (isset($log_data['password'])) {
-    $log_data['password'] = '********';
+    $log_data['password'] = '******';
 }
-error_log("Données reçues par auth.php: " . json_encode($log_data));
+error_log("Données reçues: " . json_encode($log_data));
 
-// Inclure le fichier check-users.php pour l'authentification
+// Inclure le fichier check-users.php qui contient la logique d'authentification
 require_once __DIR__ . '/check-users.php';
 ?>

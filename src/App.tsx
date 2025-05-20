@@ -1,13 +1,10 @@
 
-/**
- * Point d'entrée principal de l'application
- * Initialise les services de synchronisation
- */
 import React, { useEffect } from 'react';
-import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
+import { BrowserRouter as Router, Route, Routes, Navigate } from 'react-router-dom';
 import { Toaster } from '@/components/ui/toaster';
 import Layout from '@/components/layout/Layout';
 import Dashboard from '@/pages/Dashboard';
+import Index from '@/pages/Index';
 import Exigences from '@/pages/Exigences';
 import Pilotage from '@/pages/Pilotage';
 import RessourcesHumaines from '@/pages/RessourcesHumaines';
@@ -22,6 +19,19 @@ import { MembresProvider } from '@/contexts/MembresContext';
 // Importer le service de synchronisation automatique centralisée
 import { startAutoSync } from '@/services/sync/AutoSyncService';
 import { SyncProvider } from '@/features/sync/hooks/useSyncContext';
+import { getIsLoggedIn } from './services/auth/authService';
+
+// Composant pour protéger les routes
+const ProtectedRoute = ({ children }) => {
+  const isLoggedIn = getIsLoggedIn();
+  
+  if (!isLoggedIn) {
+    // Rediriger vers la page de connexion si non connecté
+    return <Navigate to="/" replace />;
+  }
+  
+  return children;
+};
 
 const App = () => {
   // Initialiser la synchronisation automatique au démarrage
@@ -57,8 +67,16 @@ const App = () => {
         <Router>
           <div className="min-h-screen bg-slate-50">
             <Routes>
-              <Route path="/" element={<Layout />}>
-                <Route index element={<Dashboard />} />
+              {/* Route de connexion accessible sans authentification */}
+              <Route path="/" element={<Index />} />
+              
+              {/* Routes protégées nécessitant une authentification */}
+              <Route path="/" element={
+                <ProtectedRoute>
+                  <Layout />
+                </ProtectedRoute>
+              }>
+                <Route path="dashboard" element={<Dashboard />} />
                 <Route path="exigences" element={<Exigences />} />
                 <Route path="pilotage" element={<Pilotage />} />
                 <Route path="ressources-humaines" element={<RessourcesHumaines />} />

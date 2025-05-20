@@ -1,66 +1,24 @@
 
 import React, { useEffect, useState } from 'react';
-import { Outlet, useNavigate, useLocation } from 'react-router-dom';
+import { Outlet, useLocation } from 'react-router-dom';
 import { Toaster } from "@/components/ui/toaster";
 import Sidebar from '../Sidebar';
 import { Header } from './Header';
 import { GlobalDataProvider } from '@/contexts/GlobalDataContext';
 import { GlobalSyncProvider } from '@/contexts/GlobalSyncContext';
 import GlobalSyncManager from '@/components/common/GlobalSyncManager';
-import { getIsLoggedIn, getCurrentUser } from '@/services/auth/authService';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { Loader2 } from 'lucide-react';
 
 const Layout = () => {
-  const navigate = useNavigate();
   const location = useLocation();
   const [isLoading, setIsLoading] = useState(true);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [authCheckAttempts, setAuthCheckAttempts] = useState(0);
   
   useEffect(() => {
-    const checkAuth = async () => {
-      // Journalisation détaillée pour le débogage
-      console.log("Layout - Vérification de l'authentification, chemin actuel:", location.pathname);
-      
-      try {
-        // Vérifier si l'utilisateur est connecté
-        const isLoggedIn = getIsLoggedIn();
-        const currentUser = getCurrentUser();
-        
-        console.log("Layout - État de connexion:", isLoggedIn);
-        console.log("Layout - Utilisateur actuel:", currentUser);
-        
-        if (!isLoggedIn) {
-          console.log("Layout - Utilisateur non connecté, redirection vers la page de connexion");
-          navigate('/', { replace: true });
-          return;
-        }
-        
-        console.log("Layout - Utilisateur authentifié");
-        setIsAuthenticated(true);
-        
-        console.log("Layout - Initialisation du composant Layout terminée");
-        
-        // Après avoir confirmé l'authentification, marquer comme "non chargement"
-        setIsLoading(false);
-        
-      } catch (error) {
-        console.error("Layout - Erreur lors de la vérification de l'authentification:", error);
-        
-        // En cas d'erreur, augmenter le compteur de tentatives
-        setAuthCheckAttempts(prevAttempts => prevAttempts + 1);
-        
-        // Si trop de tentatives, considérer comme non authentifié
-        if (authCheckAttempts >= 3) {
-          console.log("Layout - Trop de tentatives échouées, redirection vers la page de connexion");
-          navigate('/', { replace: true });
-        }
-      }
-    };
-    
-    checkAuth();
-  }, [navigate, location.pathname, authCheckAttempts]);
+    // Simplifier l'initialisation du Layout - ne pas vérifier l'authentification ici
+    console.log("Layout - Initialisation simplifiée");
+    setIsLoading(false);
+  }, [location.pathname]);
 
   if (isLoading) {
     return (

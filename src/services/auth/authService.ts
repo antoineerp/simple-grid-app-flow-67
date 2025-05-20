@@ -50,13 +50,12 @@ export const getCurrentUser = (): User | null => {
 };
 
 export const getAuthToken = (): string | null => {
-  return sessionStorage.getItem('authToken');
+  return sessionStorage.getItem('authToken') || localStorage.getItem('authToken');
 };
 
 export const getIsLoggedIn = (): boolean => {
   const token = getAuthToken();
-  const user = getCurrentUser();
-  return !!(token && user && user.identifiant_technique);
+  return !!token;
 };
 
 export const getAuthHeaders = () => {
@@ -72,7 +71,7 @@ export const getAuthHeaders = () => {
 export const login = async (username: string, password: string): Promise<AuthResponse> => {
   try {
     const API_URL = getApiUrl();
-    console.log(`Tentative de connexion à: ${API_URL}/auth.php avec l'utilisateur: ${username}`);
+    console.log(`Tentative de connexion à: ${API_URL}/check-users.php avec l'utilisateur: ${username}`);
     
     const response = await fetch(`${API_URL}/check-users.php`, {
       method: 'POST',
