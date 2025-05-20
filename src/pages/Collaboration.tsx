@@ -16,7 +16,7 @@ const Collaboration = () => {
     isOnline, 
     syncFailed,
     lastSynced,
-    syncWithServer,
+    handleSyncDocuments,
     setIsDialogOpen,
     setIsGroupDialogOpen
   } = useCollaboration();
@@ -36,7 +36,7 @@ const Collaboration = () => {
 
   // Create a wrapper function that returns Promise<void> for SyncIndicator
   const handleSync = async () => {
-    await syncWithServer();
+    await handleSyncDocuments();
   };
 
   return (
