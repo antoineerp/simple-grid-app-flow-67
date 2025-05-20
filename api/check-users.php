@@ -1,4 +1,3 @@
-
 <?php
 // Forcer l'output buffering pour éviter tout output avant les headers
 ob_start();
@@ -40,9 +39,9 @@ try {
         $password = "Trottinette43!";
         error_log("Utilisation de l'identifiant technique fourni: " . $username);
     } else {
-        $username = "p71x6d_system";
+        $username = "p71x6d_richard";  // Modification pour utiliser p71x6d_richard par défaut
         $password = "Trottinette43!";
-        error_log("Utilisation de l'identifiant par défaut: p71x6d_system");
+        error_log("Utilisation de l'identifiant par défaut: p71x6d_richard");
     }
     
     $dsn = "mysql:host={$host};dbname={$dbname};charset=utf8mb4";

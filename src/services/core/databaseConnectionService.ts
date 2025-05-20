@@ -49,7 +49,7 @@ export const getCurrentUser = (): string | null => {
 export const setCurrentUser = (userId: string): void => {
   if (!userId || typeof userId !== 'string' || !userId.startsWith('p71x6d_')) {
     console.error(`Tentative d'utilisation d'un identifiant technique invalide: ${userId}`);
-    userId = 'p71x6d_system';
+    userId = 'p71x6d_richard';
   }
   
   currentDatabaseUser = userId;
@@ -139,7 +139,7 @@ export const getDatabaseConnectionCurrentUser = (): string | null => {
   }
   
   // Si rien n'est trouvé, utiliser l'utilisateur par défaut
-  return 'p71x6d_system';
+  return 'p71x6d_richard';
 };
 
 // Interface pour les informations de base de données
@@ -296,6 +296,6 @@ export const initializeCurrentUser = (): void => {
   }
   
   // Si aucun utilisateur n'est trouvé, utiliser la valeur par défaut
-  setCurrentUser('p71x6d_system');
-  console.log(`Utilisateur initialisé avec la valeur par défaut: p71x6d_system`);
+  setCurrentUser('p71x6d_richard');
+  console.log(`Utilisateur initialisé avec la valeur par défaut: p71x6d_richard`);
 };

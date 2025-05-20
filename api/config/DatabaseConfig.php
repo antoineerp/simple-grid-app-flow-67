@@ -17,7 +17,7 @@ class DatabaseConfig {
         // Utiliser uniquement les valeurs d'Infomaniak
         $this->host = "p71x6d.myd.infomaniak.com";
         $this->db_name = "p71x6d_system";
-        $this->username = "p71x6d_system";
+        $this->username = "p71x6d_richard";  // Modification pour utiliser p71x6d_richard
         $this->password = "Trottinette43!";
     }
 
