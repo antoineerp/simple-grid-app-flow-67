@@ -1,487 +1,259 @@
-import React, { useState, useEffect } from 'react';
-import { Card } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Pencil, Trash, ExternalLink, ChevronDown, ChevronUp, FolderPlus, Plus } from 'lucide-react';
-import { useBibliotheque } from '@/hooks/useBibliotheque';
-import { Document, DocumentGroup } from '@/types/bibliotheque';
-import { useDragAndDrop } from '@/components/gestion-documentaire/table/useDragAndDrop';
-import SyncIndicator from '@/components/common/SyncIndicator';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 
-// Simplified document dialog component
-const DocumentDialog = ({ 
-  isOpen, 
-  onOpenChange, 
-  onClose, 
-  document, 
-  isEditing, 
-  onChange, 
-  onSave 
-}: { 
-  isOpen: boolean;
-  onOpenChange: (open: boolean) => void;
-  onClose: () => void;
-  document: Document | null;
-  isEditing: boolean;
-  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  onSave: () => void;
-}) => {
-  if (!document) return null;
-  
-  return (
-    <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>{isEditing ? "Modifier le document" : "Ajouter un document"}</DialogTitle>
-        </DialogHeader>
-        <div className="space-y-4 py-4">
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="name" className="text-right">Nom</Label>
-            <Input 
-              id="name" 
-              name="name" 
-              value={document.name} 
-              onChange={onChange} 
-              className="col-span-3" 
-            />
-          </div>
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="link" className="text-right">Lien</Label>
-            <Input 
-              id="link" 
-              name="link" 
-              value={document.link || ''} 
-              onChange={onChange} 
-              className="col-span-3"
-              placeholder="https://..." 
-            />
-          </div>
-        </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>Annuler</Button>
-          <Button onClick={onSave}>{isEditing ? "Mettre à jour" : "Ajouter"}</Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-};
+import React from 'react';
+import { Plus, FolderPlus, FileText, Folder, Search, FolderOpen, Download } from 'lucide-react';
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { useCollaboration } from "@/hooks/useCollaboration";
+import { Document, DocumentGroup } from "@/types/bibliotheque";
+import DocumentForm from "@/components/bibliotheque/DocumentForm";
+import GroupForm from "@/components/bibliotheque/GroupForm";
+import SyncIndicator from "@/components/common/SyncIndicator";
+import { exportCollaborationDocsToPdf } from "@/services/collaborationExport";
 
-// Simplified group dialog component
-const GroupDialog = ({ 
-  isOpen, 
-  onOpenChange, 
-  group, 
-  isEditing, 
-  onChange, 
-  onSave 
-}: { 
-  isOpen: boolean;
-  onOpenChange: (open: boolean) => void;
-  group: DocumentGroup | null;
-  isEditing: boolean;
-  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  onSave: () => void;
-}) => {
-  if (!group) return null;
-  
-  return (
-    <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>{isEditing ? "Modifier le groupe" : "Ajouter un groupe"}</DialogTitle>
-        </DialogHeader>
-        <div className="space-y-4 py-4">
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="name" className="text-right">Nom</Label>
-            <Input 
-              id="name" 
-              name="name" 
-              value={group.name} 
-              onChange={onChange} 
-              className="col-span-3" 
-            />
-          </div>
-        </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Annuler</Button>
-          <Button onClick={onSave}>{isEditing ? "Mettre à jour" : "Ajouter"}</Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-};
-
-const Collaboration = () => {
-  const {
-    documents,
-    groups,
+const Collaboration: React.FC = () => {
+  const { 
+    documents, 
+    groups, 
+    isDialogOpen, 
+    isGroupDialogOpen, 
+    isEditing,
+    currentDocument, 
+    currentGroup,
+    setIsDialogOpen, 
+    setIsGroupDialogOpen,
+    setIsEditing,
+    setCurrentDocument,
+    setCurrentGroup,
+    handleAddDocument,
+    handleUpdateDocument,
+    handleDeleteDocument,
+    handleAddGroup,
+    handleUpdateGroup,
+    handleDeleteGroup,
+    handleToggleGroup,
+    handleSyncDocuments,
+    isSyncing,
     isOnline,
     lastSynced,
-    syncFailed,
-    isSyncing,
-    handleToggleGroup,
-    handleEditDocument,
-    handleDeleteDocument,
-    handleEditGroup,
-    handleDeleteGroup,
-    handleAddGroup,
-    handleAddDocument,
-    syncWithServer,
-  } = useBibliotheque();
-
-  const [isDocumentDialogOpen, setIsDocumentDialogOpen] = useState(false);
-  const [isGroupDialogOpen, setIsGroupDialogOpen] = useState(false);
-  const [currentDocument, setCurrentDocument] = useState<Document | null>(null);
-  const [currentGroup, setCurrentGroup] = useState<DocumentGroup | null>(null);
-  const [isEditing, setIsEditing] = useState(false);
+    syncFailed
+  } = useCollaboration();
   
-  // Use the useDragAndDrop hook for drag and drop functionality - but with the proper document type
-  const { 
-    draggedItem,
-    handleDragStart,
-    handleDragOver,
-    handleDragLeave,
-    handleDrop,
-    handleDragEnd,
-    handleGroupDrop
-  } = useDragAndDrop(documents as any[], (sourceIndex, targetIndex, targetGroupId) => {
-    // Handle reordering through the useBibliotheque hook
-    console.log('Reordering:', sourceIndex, targetIndex, targetGroupId);
-  });
-
-  // Handle document changes
-  const handleDocumentChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (currentDocument) {
-      setCurrentDocument({
-        ...currentDocument,
-        [e.target.name]: e.target.value
-      });
-    }
-  };
-
-  // Handle group changes
-  const handleGroupChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (currentGroup) {
-      setCurrentGroup({
-        ...currentGroup,
-        [e.target.name]: e.target.value
-      });
-    }
-  };
-
-  // Handle edit document button click
-  const handleEditDocumentClick = (doc: Document) => {
-    setCurrentDocument(doc);
-    setIsEditing(true);
-    setIsDocumentDialogOpen(true);
-  };
-
-  // Handle add document button click
-  const handleAddDocumentClick = () => {
-    setCurrentDocument({ id: '', name: '', link: null });
+  const [searchTerm, setSearchTerm] = React.useState("");
+  
+  // Filtrer les documents en fonction du terme de recherche
+  const filteredDocuments = React.useMemo(() => {
+    if (!searchTerm.trim()) return documents;
+    
+    const term = searchTerm.toLowerCase();
+    return documents.filter(doc => 
+      doc.name.toLowerCase().includes(term) ||
+      groups.find(g => g.id === doc.groupId)?.name.toLowerCase().includes(term)
+    );
+  }, [documents, groups, searchTerm]);
+  
+  // Fonction pour créer un nouveau document
+  const handleNewDocument = () => {
+    setCurrentDocument({
+      id: `doc-${Date.now()}`,
+      name: "",
+      link: "",
+      groupId: undefined
+    });
     setIsEditing(false);
-    setIsDocumentDialogOpen(true);
+    setIsDialogOpen(true);
   };
-
-  // Handle save document
-  const handleSaveDocument = () => {
-    if (currentDocument) {
-      if (isEditing) {
-        handleEditDocument(currentDocument);
-      } else {
-        handleAddDocument(currentDocument);
-      }
-      setIsDocumentDialogOpen(false);
-    }
-  };
-
-  // Handle edit group button click
-  const handleEditGroupClick = (group: DocumentGroup) => {
-    setCurrentGroup(group);
-    setIsEditing(true);
-    setIsGroupDialogOpen(true);
-  };
-
-  // Handle add group button click
-  const handleAddGroupClick = () => {
-    const newId = Date.now().toString();
+  
+  // Fonction pour créer un nouveau groupe
+  const handleNewGroup = () => {
     setCurrentGroup({
-      id: newId,
-      name: '',
+      id: `group-${Date.now()}`,
+      name: "",
       expanded: false,
       items: []
     });
     setIsEditing(false);
     setIsGroupDialogOpen(true);
   };
-
-  // Handle save group
-  const handleSaveGroup = () => {
-    if (currentGroup) {
-      if (isEditing) {
-        handleEditGroup(currentGroup);
-      } else {
-        // Fixed: Call handleAddGroup with the currentGroup
-        handleAddGroup(currentGroup);
-      }
-      setIsGroupDialogOpen(false);
-    }
+  
+  // Fonction pour éditer un document existant
+  const handleEditDocument = (doc: Document) => {
+    setCurrentDocument({ ...doc });
+    setIsEditing(true);
+    setIsDialogOpen(true);
   };
-
-  // Create a wrapper function that converts Promise<boolean> to Promise<void>
-  const handleSync = async (): Promise<void> => {
-    try {
-      console.log("Initiating manual sync from Collaboration page");
-      // Pass the required parameters to syncWithServer - documents and groups
-      await syncWithServer(documents, groups);
-      console.log("Manual sync completed");
-    } catch (error) {
-      console.error('Sync error:', error);
-    }
+  
+  // Fonction pour éditer un groupe existant
+  const handleEditGroup = (group: DocumentGroup) => {
+    setCurrentGroup({ ...group });
+    setIsEditing(true);
+    setIsGroupDialogOpen(true);
   };
-
-  // Synchronize on component mount and when network status changes
-  useEffect(() => {
-    console.log("Collaboration component mounted, checking for data");
-    // Initialize synchronization if necessary
-    if (isOnline) {
-      console.log("Network is online, initiating sync");
-      handleSync();
-    }
-  }, [isOnline]);
-
-  // Add periodic sync (every 30 seconds) when the component is active
-  useEffect(() => {
-    const syncInterval = setInterval(() => {
-      if (isOnline && !isSyncing) {
-        console.log("Periodic sync triggered");
-        handleSync();
-      }
-    }, 30000); // 30 seconds
+  
+  // Fonction pour exporter en PDF
+  const handleExport = () => {
+    // Récupérer tous les documents (y compris ceux dans les groupes)
+    const allDocuments = [...documents];
+    groups.forEach(group => {
+      group.items.forEach(item => {
+        allDocuments.push(item);
+      });
+    });
     
-    return () => clearInterval(syncInterval);
-  }, [isOnline, isSyncing]);
-
+    exportCollaborationDocsToPdf(allDocuments, groups, "Documents de collaboration");
+  };
+  
   return (
-    <div className="w-full px-6 py-6">
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold text-blue-600">Collaboration</h1>
+    <div className="p-8 w-full">
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-3xl font-bold text-app-blue">Documents de collaboration</h1>
+        <div className="flex space-x-2">
+          <Button variant="outline" onClick={handleExport}>
+            <Download className="mr-2 h-4 w-4" />
+            Exporter
+          </Button>
+          <Button variant="outline" onClick={handleNewGroup}>
+            <FolderPlus className="mr-2 h-4 w-4" />
+            Nouveau groupe
+          </Button>
+          <Button onClick={handleNewDocument}>
+            <Plus className="mr-2 h-4 w-4" />
+            Nouveau document
+          </Button>
+        </div>
       </div>
-
-      {/* Show sync indicator always to give feedback about sync status */}
+      
       <div className="mb-4">
         <SyncIndicator
           isSyncing={isSyncing}
           isOnline={isOnline}
           syncFailed={syncFailed}
           lastSynced={lastSynced}
-          onSync={handleSync}
-          showOnlyErrors={false} // Changed to always show status
+          onSync={handleSyncDocuments}
         />
       </div>
-
-      <div className="bg-white rounded-md shadow overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="bg-gray-50">
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Nom du document
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Lien
-                </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-200">
-              {/* Afficher les groupes et leurs documents */}
-              {groups.map((group) => (
-                <React.Fragment key={group.id}>
-                  <tr 
-                    className="bg-gray-50 cursor-pointer" 
-                    onClick={() => handleToggleGroup(group.id)}
-                    draggable
-                    onDragOver={(e) => {
-                      e.preventDefault();
-                      e.currentTarget.classList.add('border-dashed', 'border-2', 'border-primary');
-                    }}
-                    onDragLeave={(e) => {
-                      e.currentTarget.classList.remove('border-dashed', 'border-2', 'border-primary');
-                    }}
-                    onDrop={(e) => handleGroupDrop(e, group.id)}
-                  >
-                    <td className="px-6 py-4 whitespace-nowrap" colSpan={2}>
-                      <div className="flex items-center">
-                        {group.expanded ? (
-                          <ChevronDown className="h-4 w-4 mr-2" />
-                        ) : (
-                          <ChevronUp className="h-4 w-4 mr-2" />
-                        )}
-                        <span className="font-semibold text-app-blue">{group.name}</span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleEditGroupClick(group);
-                        }}
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDeleteGroup(group.id);
-                        }}
-                      >
-                        <Trash className="h-4 w-4" />
-                      </Button>
-                    </td>
-                  </tr>
-                  {group.expanded && group.items && group.items.map((item) => (
-                    <tr 
-                      key={item.id} 
-                      className="bg-white"
-                      draggable
-                      onDragStart={(e) => handleDragStart(e, item.id, group.id)}
-                      onDragOver={(e) => handleDragOver(e)}
-                      onDragLeave={(e) => handleDragLeave(e)}
-                      onDrop={(e) => handleDrop(e, item.id, group.id)}
-                      onDragEnd={handleDragEnd}
-                    >
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="pl-8">{item.name}</div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        {item.link && (
-                          <a href={item.link} target="_blank" rel="noopener noreferrer" className="flex items-center text-blue-600 hover:underline">
-                            Voir le document <ExternalLink className="h-4 w-4 ml-1" />
-                          </a>
-                        )}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
-                          onClick={(e) => {
-                            e.preventDefault();
-                            handleEditDocumentClick(item);
-                          }}
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
-                          onClick={(e) => {
-                            e.preventDefault();
-                            handleDeleteDocument(item.id);
-                          }}
-                        >
-                          <Trash className="h-4 w-4" />
-                        </Button>
-                      </td>
-                    </tr>
-                  ))}
-                </React.Fragment>
-              ))}
-
-              {/* Afficher les documents qui ne sont pas dans un groupe */}
-              {documents.filter(doc => !doc.groupId).map((doc) => (
-                <tr 
-                  key={doc.id} 
-                  className="bg-white"
-                  draggable
-                  onDragStart={(e) => handleDragStart(e, doc.id)}
-                  onDragOver={(e) => handleDragOver(e)}
-                  onDragLeave={(e) => handleDragLeave(e)}
-                  onDrop={(e) => handleDrop(e, doc.id)}
-                  onDragEnd={handleDragEnd}
-                >
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    {doc.name}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    {doc.link && (
-                      <a href={doc.link} target="_blank" rel="noopener noreferrer" className="flex items-center text-blue-600 hover:underline">
-                        Voir le document <ExternalLink className="h-4 w-4 ml-1" />
-                      </a>
-                    )}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    <Button 
-                      variant="ghost" 
-                      size="icon" 
-                      onClick={(e) => {
-                        e.preventDefault();
-                        handleEditDocumentClick(doc);
-                      }}
-                    >
-                      <Pencil className="h-4 w-4" />
-                    </Button>
-                    <Button 
-                      variant="ghost" 
-                      size="icon" 
-                      onClick={(e) => {
-                        e.preventDefault();
-                        handleDeleteDocument(doc.id);
-                      }}
-                    >
-                      <Trash className="h-4 w-4" />
-                    </Button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      
+      <div className="mb-4">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+          <Input
+            className="pl-10"
+            placeholder="Rechercher un document..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
         </div>
       </div>
-
-      <div className="mt-6 flex justify-end gap-2">
-        <Button 
-          variant="outline"
-          className="flex items-center gap-1"
-          onClick={handleAddGroupClick}
-        >
-          <FolderPlus className="h-4 w-4" /> Nouveau groupe
-        </Button>
-        <Button 
-          className="flex items-center gap-1"
-          onClick={handleAddDocumentClick}
-        >
-          <Plus className="h-4 w-4" /> Nouveau document
-        </Button>
+      
+      <div className="bg-white rounded-lg shadow">
+        {/* Documents sans groupe */}
+        <div className="p-4 border-b">
+          <h2 className="font-medium mb-2">Documents non classés</h2>
+          <div className="space-y-2">
+            {filteredDocuments
+              .filter(doc => !doc.groupId)
+              .map((doc) => (
+                <div
+                  key={doc.id}
+                  className="flex items-center p-2 hover:bg-gray-50 rounded-md cursor-pointer"
+                  onClick={() => handleEditDocument(doc)}
+                >
+                  <FileText className="mr-2 h-4 w-4 text-gray-500" />
+                  <span>{doc.name}</span>
+                </div>
+              ))}
+          </div>
+        </div>
+        
+        {/* Groupes et leurs documents */}
+        {groups.map(group => {
+          const groupDocs = filteredDocuments.filter(doc => doc.groupId === group.id);
+          
+          return (
+            <div key={group.id} className="p-4 border-b">
+              <div 
+                className="flex items-center justify-between mb-2 cursor-pointer"
+                onClick={() => handleToggleGroup(group.id)}
+              >
+                <div className="flex items-center">
+                  {group.expanded ? 
+                    <FolderOpen className="mr-2 h-4 w-4 text-app-blue" /> : 
+                    <Folder className="mr-2 h-4 w-4 text-app-blue" />
+                  }
+                  <h2 className="font-medium">{group.name}</h2>
+                  <span className="ml-2 text-xs text-gray-500">
+                    ({groupDocs.length})
+                  </span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleEditGroup(group);
+                    }}
+                  >
+                    Éditer
+                  </Button>
+                </div>
+              </div>
+              
+              {group.expanded && (
+                <div className="space-y-2 ml-6 mt-2">
+                  {groupDocs.map((doc) => (
+                    <div
+                      key={doc.id}
+                      className="flex items-center p-2 hover:bg-gray-50 rounded-md cursor-pointer"
+                      onClick={() => handleEditDocument(doc)}
+                    >
+                      <FileText className="mr-2 h-4 w-4 text-gray-500" />
+                      <span>{doc.name}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
-
-      {/* Dialog components */}
-      <DocumentDialog 
-        isOpen={isDocumentDialogOpen} 
-        onOpenChange={setIsDocumentDialogOpen}
-        onClose={() => setIsDocumentDialogOpen(false)}
-        document={currentDocument}
-        isEditing={isEditing}
-        onChange={handleDocumentChange}
-        onSave={handleSaveDocument}
-      />
-
-      <GroupDialog 
-        isOpen={isGroupDialogOpen}
-        onOpenChange={setIsGroupDialogOpen}
-        group={currentGroup}
-        isEditing={isEditing}
-        onChange={handleGroupChange}
-        onSave={handleSaveGroup}
-      />
+      
+      {/* Dialog for document form */}
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {isEditing ? "Modifier le document" : "Ajouter un document"}
+            </DialogTitle>
+          </DialogHeader>
+          <DocumentForm 
+            document={currentDocument}
+            isEditing={isEditing}
+            groups={groups}
+            onSave={isEditing ? handleUpdateDocument : handleAddDocument}
+            onCancel={() => setIsDialogOpen(false)}
+            onDelete={isEditing ? handleDeleteDocument : undefined}
+          />
+        </DialogContent>
+      </Dialog>
+      
+      {/* Dialog for group form */}
+      <Dialog open={isGroupDialogOpen} onOpenChange={setIsGroupDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {isEditing ? "Modifier le groupe" : "Ajouter un groupe"}
+            </DialogTitle>
+          </DialogHeader>
+          <GroupForm 
+            group={currentGroup}
+            isEditing={isEditing}
+            onSave={isEditing ? handleUpdateGroup : handleAddGroup}
+            onCancel={() => setIsGroupDialogOpen(false)}
+            onDelete={isEditing ? handleDeleteGroup : undefined}
+          />
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

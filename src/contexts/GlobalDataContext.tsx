@@ -15,11 +15,11 @@ interface GlobalDataContextType {
   documentGroups: DocumentGroup[];
   setDocumentGroups: React.Dispatch<React.SetStateAction<DocumentGroup[]>>;
   
-  // Bibliothèque
-  bibliothequeDocuments: any[];
-  setBibliothequeDocuments: React.Dispatch<React.SetStateAction<any[]>>;
-  bibliothequeGroups: any[];
-  setBibliothequeGroups: React.Dispatch<React.SetStateAction<any[]>>;
+  // Collaboration
+  collaborationDocuments: any[];
+  setCollaborationDocuments: React.Dispatch<React.SetStateAction<any[]>>;
+  collaborationGroups: any[];
+  setCollaborationGroups: React.Dispatch<React.SetStateAction<any[]>>;
   
   // État de synchronisation
   lastSynced: Date | null;
@@ -94,8 +94,8 @@ export const GlobalDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const [membres, setMembres] = useState<Membre[]>([]);
   const [documents, setDocuments] = useState<Document[]>([]);
   const [documentGroups, setDocumentGroups] = useState<DocumentGroup[]>([]);
-  const [bibliothequeDocuments, setBibliothequeDocuments] = useState<any[]>([]);
-  const [bibliothequeGroups, setBibliothequeGroups] = useState<any[]>([]);
+  const [collaborationDocuments, setCollaborationDocuments] = useState<any[]>([]);
+  const [collaborationGroups, setCollaborationGroups] = useState<any[]>([]);
   
   // États pour la synchronisation
   const [lastSynced, setLastSynced] = useState<Date | null>(null);
@@ -108,8 +108,8 @@ export const GlobalDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       localStorage.setItem(`${storagePrefix}_membres`, JSON.stringify(membres));
       localStorage.setItem(`${storagePrefix}_documents`, JSON.stringify(documents));
       localStorage.setItem(`${storagePrefix}_document_groups`, JSON.stringify(documentGroups));
-      localStorage.setItem(`${storagePrefix}_bibliotheque_documents`, JSON.stringify(bibliothequeDocuments));
-      localStorage.setItem(`${storagePrefix}_bibliotheque_groups`, JSON.stringify(bibliothequeGroups));
+      localStorage.setItem(`${storagePrefix}_collaboration_documents`, JSON.stringify(collaborationDocuments));
+      localStorage.setItem(`${storagePrefix}_collaboration_groups`, JSON.stringify(collaborationGroups));
       
       // Sauvegarder également l'état de synchronisation
       if (lastSynced) {
@@ -146,16 +146,16 @@ export const GlobalDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         setDocumentGroups(JSON.parse(storedDocumentGroups));
       }
       
-      // Charger les documents de la bibliothèque
-      const storedBibliothequeDocuments = localStorage.getItem(`${storagePrefix}_bibliotheque_documents`);
-      if (storedBibliothequeDocuments) {
-        setBibliothequeDocuments(JSON.parse(storedBibliothequeDocuments));
+      // Charger les documents de collaboration
+      const storedCollaborationDocuments = localStorage.getItem(`${storagePrefix}_collaboration_documents`);
+      if (storedCollaborationDocuments) {
+        setCollaborationDocuments(JSON.parse(storedCollaborationDocuments));
       }
       
-      // Charger les groupes de la bibliothèque
-      const storedBibliothequeGroups = localStorage.getItem(`${storagePrefix}_bibliotheque_groups`);
-      if (storedBibliothequeGroups) {
-        setBibliothequeGroups(JSON.parse(storedBibliothequeGroups));
+      // Charger les groupes de collaboration
+      const storedCollaborationGroups = localStorage.getItem(`${storagePrefix}_collaboration_groups`);
+      if (storedCollaborationGroups) {
+        setCollaborationGroups(JSON.parse(storedCollaborationGroups));
       }
       
       // Charger l'état de synchronisation
@@ -183,7 +183,7 @@ export const GlobalDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   // Sauvegarder les données lorsqu'elles changent
   useEffect(() => {
     saveToLocalStorage();
-  }, [membres, documents, documentGroups, bibliothequeDocuments, bibliothequeGroups, lastSynced, syncFailed]);
+  }, [membres, documents, documentGroups, collaborationDocuments, collaborationGroups, lastSynced, syncFailed]);
   
   // Créer l'objet de contexte avec toutes les valeurs
   const value = {
@@ -193,10 +193,10 @@ export const GlobalDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     setDocuments,
     documentGroups,
     setDocumentGroups,
-    bibliothequeDocuments,
-    setBibliothequeDocuments,
-    bibliothequeGroups,
-    setBibliothequeGroups,
+    collaborationDocuments,
+    setCollaborationDocuments,
+    collaborationGroups,
+    setCollaborationGroups,
     lastSynced,
     setLastSynced,
     syncFailed,

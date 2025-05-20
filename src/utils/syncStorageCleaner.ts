@@ -46,8 +46,10 @@ export const cleanSyncStorage = () => {
     'documents_p71x6d_system_last_sync',
     'collaboration_p71x6d_system_last_sync',
     'exigences_p71x6d_system_last_sync',
-    'global_data_[object Object]_last_synced',  // Ajout de l'entrée spécifique signalée dans l'erreur
-    'global_data_[object Object]_last_saved'
+    'global_data_[object Object]_last_synced',
+    'global_data_[object Object]_last_saved',
+    'bibliotheque_documents_p71x6d_system',  // Anciennes clés de bibliothèque
+    'bibliotheque_groups_p71x6d_system'      // Anciennes clés de bibliothèque
   ];
   
   specificKeys.forEach(key => {
