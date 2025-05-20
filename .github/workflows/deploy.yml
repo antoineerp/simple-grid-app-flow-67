@@ -47,6 +47,11 @@ jobs:
         mkdir -p deploy/api/operations
         mkdir -p deploy/api/utils
         mkdir -p deploy/public/lovable-uploads
+        mkdir -p deploy/dist
+        
+        # Copie du dossier dist complet
+        echo "Copie du dossier dist complet..."
+        cp -r dist/ deploy/dist/
         
         # Copie des fichiers compilés directement dans assets
         cp -r dist/assets/* deploy/assets/
@@ -91,7 +96,6 @@ jobs:
           **/api/admin/**
           **/api/documentation/**
           README.md
-          dist/**
           package.json
           package-lock.json
         log-level: verbose
@@ -101,3 +105,4 @@ jobs:
       run: |
         rm -rf deploy
         rm -rf dist
+
