@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 
 const Logo = () => {
   const [imageError, setImageError] = useState(false);
-  const logoPath = "/lovable-uploads/4c7adb52-3da0-4757-acbf-50a1eb1d4bf5.png";
+  const logoPath = "/public/lovable-uploads/formacert-logo.png";
   const fallbackText = "FormaCert";
 
   return (

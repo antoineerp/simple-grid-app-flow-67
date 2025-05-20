@@ -21,7 +21,7 @@ import SyncHealthIndicator from './components/common/SyncHealthIndicator';
 // Composant de route protégée avec gestion des erreurs améliorée
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const location = useLocation();
-  const navigate = useNavigate(); // Ajout du hook useNavigate
+  const navigate = useNavigate();
   const [isChecking, setIsChecking] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [authCheckAttempts, setAuthCheckAttempts] = useState(0);
