@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+
+import { useState, useEffect, useCallback } from 'react';
 import { Exigence, ExigenceStats, ExigenceGroup } from '@/types/exigences';
 import { useExigenceMutations } from './useExigenceMutations';
 import { useExigenceGroups } from './useExigenceGroups';
@@ -59,7 +60,7 @@ export const useExigences = () => {
     }
     
     console.warn("Type d'utilisateur non pris en charge, utilisation de l'ID système");
-    return 'p71x6d_system';
+    return 'p71x6d_richard'; // Modifié pour utiliser l'ID fixe qui fonctionne
   };
 
   // Récupérer l'utilisateur et extraire un ID valide
@@ -244,14 +245,36 @@ export const useExigences = () => {
         return { success: false, message: "Point de terminaison API invalide" };
       }
 
-      // Utiliser le nouveau système de synchronisation centralisé
-      const success = await syncWithServer(tableName, exigences);
+      // Préparer les données pour la synchronisation
+      const syncData = {
+        userId: 'p71x6d_richard', // Utilisez toujours cet ID
+        exigences: exigences,
+        groups: groups
+      };
+
+      console.log("Synchronisation des exigences avec:", syncData);
+
+      // Effectuer la requête direct vers exigences-sync.php
+      const response = await fetch(`${process.env.API_URL || ''}/api/exigences-sync.php`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify(syncData)
+      });
+
+      if (!response.ok) {
+        throw new Error(`Erreur HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      const result = await response.json();
       
-      if (success) {
+      if (result.success) {
         setDataChanged(false);
         return { success: true, message: "Synchronisation réussie" };
       } else {
-        return { success: false, message: "Échec de la synchronisation" };
+        return { success: false, message: result.message || "Échec de la synchronisation" };
       }
     } catch (error) {
       console.error('Erreur lors de la synchronisation:', error);

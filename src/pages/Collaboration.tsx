@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { FileText, Plus, FolderPlus } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -18,7 +18,6 @@ const Collaboration = () => {
     syncFailed,
     lastSynced,
     handleSyncDocuments,
-    setIsDialogOpen,
     handleAddDocument,
     handleUpdateDocument,
     handleAddGroup
@@ -113,6 +112,47 @@ const Collaboration = () => {
     setIsGroupDialogOpen(false);
   };
 
+  // Rendu des groupes et documents
+  const renderGroupsAndDocuments = () => {
+    if (!groups || groups.length === 0) {
+      return null;
+    }
+    
+    return (
+      <div className="mb-8">
+        <h2 className="text-xl font-semibold mb-4">Groupes</h2>
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {groups.map((group) => (
+            <div key={group.id} className="border rounded-lg p-4 bg-white shadow-sm">
+              <h3 className="font-medium text-lg mb-2">{group.name}</h3>
+              {group.items && group.items.length > 0 ? (
+                <div className="space-y-2">
+                  {group.items.map((item) => (
+                    <div key={item.id} className="p-2 bg-gray-50 rounded border">
+                      <p className="font-medium">{item.name}</p>
+                      {item.link && (
+                        <a 
+                          href={item.link} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="text-sm text-blue-500 hover:underline"
+                        >
+                          {item.link}
+                        </a>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-gray-500 italic">Aucun document dans ce groupe</p>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="p-8">
       <div className="flex items-center justify-between mb-2">
@@ -162,19 +202,39 @@ const Collaboration = () => {
         <div className="text-center p-8 border border-dashed rounded-md mt-4 bg-gray-50">
           <p className="text-gray-500">Chargement des données de collaboration...</p>
         </div>
-      ) : documents && documents.length > 0 ? (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {documents.map((item) => (
-            <div key={item.id} className="border rounded-md p-4 hover:border-blue-300 transition-colors">
-              <h3 className="font-medium">{item.name || "Document sans nom"}</h3>
-              <p className="text-sm text-gray-500">{item.link || "Pas de lien"}</p>
-            </div>
-          ))}
-        </div>
       ) : (
-        <div className="text-center p-8 border border-dashed rounded-md mt-4 bg-gray-50">
-          <p className="text-gray-500">Aucune donnée de collaboration disponible</p>
-        </div>
+        <>
+          {/* Affichage des groupes */}
+          {renderGroupsAndDocuments()}
+          
+          {/* Affichage des documents hors groupe */}
+          <div>
+            <h2 className="text-xl font-semibold mb-4">Documents</h2>
+            {documents && documents.length > 0 ? (
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {documents.map((item) => (
+                  <div key={item.id} className="border rounded-md p-4 hover:border-blue-300 transition-colors bg-white shadow-sm">
+                    <h3 className="font-medium">{item.name || "Document sans nom"}</h3>
+                    {item.link && (
+                      <a 
+                        href={item.link} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="text-sm text-blue-500 hover:underline"
+                      >
+                        {item.link}
+                      </a>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center p-8 border border-dashed rounded-md mt-4 bg-gray-50">
+                <p className="text-gray-500">Aucune donnée de collaboration disponible</p>
+              </div>
+            )}
+          </div>
+        </>
       )}
 
       <div className="flex justify-end mt-4 space-x-2">

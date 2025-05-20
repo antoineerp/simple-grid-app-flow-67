@@ -1,217 +1,167 @@
 
-import { useState, useCallback, useRef, useEffect } from 'react';
-import { Document as CollaborationDocument, DocumentGroup } from '@/types/bibliotheque';
-import { Document as SystemDocument } from '@/types/documents';
-import { syncService } from '@/services/sync/SyncService';
-import { useNetworkStatus } from '@/hooks/useNetworkStatus';
-import { useSync } from '@/hooks/useSync';
-import { toast } from '@/components/ui/use-toast';
-import { getDatabaseConnectionCurrentUser } from '@/services/core/databaseConnectionService';
-
-// Fonction utilitaire pour obtenir un ID utilisateur valide
-const getValidUserId = (userId?: string | null): string => {
-  // Essayer d'utiliser l'ID fourni s'il existe
-  if (userId && typeof userId === 'string' && userId !== '[object Object]') {
-    return userId;
-  }
-  
-  // Sinon, essayer d'obtenir l'utilisateur courant
-  try {
-    const currentUser = getDatabaseConnectionCurrentUser();
-    
-    // Si l'utilisateur est une chaîne non vide, l'utiliser
-    if (currentUser && typeof currentUser === 'string') {
-      return currentUser;
-    }
-    
-    // Si l'utilisateur est un objet, essayer d'extraire un identifiant
-    if (currentUser && typeof currentUser === 'object') {
-      const userObj = currentUser as any;
-      if (userObj.identifiant_technique) return userObj.identifiant_technique;
-      if (userObj.email) return userObj.email;
-      if (userObj.id) return userObj.id;
-    }
-  } catch (e) {
-    console.error("Erreur lors de la récupération de l'utilisateur actuel:", e);
-  }
-  
-  // Valeur par défaut sécuritaire
-  return 'p71x6d_system';
-};
-
-// Helper function to convert between document types
-const convertSystemToCollaborationDoc = (doc: SystemDocument): CollaborationDocument => ({
-  id: doc.id,
-  name: doc.nom || '',
-  link: doc.fichier_path,
-  groupId: doc.groupId
-});
-
-const convertCollaborationToSystemDoc = (doc: CollaborationDocument): SystemDocument => ({
-  id: doc.id,
-  nom: doc.name || '',
-  fichier_path: doc.link,
-  groupId: doc.groupId,
-  responsabilites: { r: [], a: [], c: [], i: [] },
-  etat: null,
-  date_creation: new Date(),
-  date_modification: new Date()
-});
+import { useState, useCallback } from 'react';
+import { Document, DocumentGroup } from '@/types/bibliotheque';
+import { useToast } from '@/hooks/use-toast';
 
 export const useCollaborationSync = () => {
+  const [isSyncing, setIsSyncing] = useState<boolean>(false);
+  const [isOnline, setIsOnline] = useState<boolean>(navigator.onLine);
   const [lastSynced, setLastSynced] = useState<Date | null>(null);
-  const { isOnline } = useNetworkStatus();
-  const { isSyncing, syncFailed, syncAndProcess } = useSync('collaboration');
-  const syncTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const pendingSyncRef = useRef<boolean>(false);
-  const documentsRef = useRef<CollaborationDocument[]>([]);
-  const groupsRef = useRef<DocumentGroup[]>([]);
-  const lastChangedRef = useRef<Date | null>(null);
-  
-  // Fonction pour charger les documents depuis le serveur - TOUJOURS depuis le serveur, jamais en local
-  const loadFromServer = useCallback(async (userId?: string): Promise<CollaborationDocument[]> => {
-    // Utiliser la fonction utilitaire pour garantir un ID utilisateur valide
-    const currentUser = getValidUserId(userId);
-    
-    // Même en mode hors ligne, on tente de se connecter au serveur
-    // Si la connexion échoue, on renvoie un tableau vide plutôt que des données locales
-    try {
-      // Utiliser le service central pour charger les données
-      const documents = await syncService.loadDataFromServer<SystemDocument>('collaboration', currentUser);
-      const lastSyncTime = syncService.getLastSynced('collaboration');
-      if (lastSyncTime) {
-        setLastSynced(lastSyncTime);
-      } else {
-        setLastSynced(new Date());
-      }
-      return documents.map(convertSystemToCollaborationDoc);
-    } catch (error) {
-      console.error('Erreur lors du chargement des documents depuis le serveur:', error);
-      toast({
-        variant: "destructive",
-        title: "Erreur",
-        description: "Impossible de charger les documents du serveur. Veuillez vérifier votre connexion internet.",
-      });
-      
-      // Ne pas essayer de charger les données localement, retourner un tableau vide
-      console.warn("Mode hors ligne non autorisé - aucun document chargé");
-      return [];
-    }
-  }, [isOnline]);
+  const [syncFailed, setSyncFailed] = useState<boolean>(false);
+  const { toast } = useToast();
 
-  // Effet pour déclencher la synchronisation automatique
-  useEffect(() => {
-    // Intervalle de vérification de synchronisation automatique toutes les 30 secondes
-    const autoSyncInterval = setInterval(() => {
-      if (lastChangedRef.current && documentsRef.current.length > 0 && groupsRef.current.length > 0) {
-        const now = new Date();
-        const timeSinceLastChange = now.getTime() - lastChangedRef.current.getTime();
-        
-        // Si des modifications ont été faites il y a plus de 10 secondes, synchroniser
-        if (timeSinceLastChange > 10000 && !isSyncing) {
-          console.log('Synchronisation automatique déclenchée');
-          
-          // Utiliser l'utilisateur courant
-          const currentUser = getValidUserId(getDatabaseConnectionCurrentUser());
-          
-          syncWithServer(documentsRef.current, groupsRef.current, currentUser, "auto")
-            .catch(err => console.error("Erreur lors de la synchronisation automatique:", err));
-        }
-      }
-    }, 30000); // Vérifier toutes les 30 secondes
-    
-    return () => clearInterval(autoSyncInterval);
-  }, [isSyncing]);
-  
-  // Fonction pour synchroniser avec délai (debounce)
-  const debounceSyncWithServer = useCallback((
-    documents: CollaborationDocument[], 
-    groups: DocumentGroup[], 
-    userId?: string
-  ) => {
-    // Toujours utiliser l'utilisateur courant si non spécifié
-    const currentUser = getValidUserId(userId);
-    
-    // Mettre à jour les références pour la synchronisation automatique
-    documentsRef.current = documents;
-    groupsRef.current = groups;
-    lastChangedRef.current = new Date();
-    
-    // Marquer qu'une synchronisation est en attente
-    pendingSyncRef.current = true;
-    
-    // Si un timeout est déjà en cours, l'annuler
-    if (syncTimeoutRef.current) {
-      clearTimeout(syncTimeoutRef.current);
-    }
-    
-    // Programmer une nouvelle synchronisation après 10 secondes
-    syncTimeoutRef.current = setTimeout(() => {
-      if (pendingSyncRef.current && isOnline) {
-        // Exécuter la synchronisation
-        syncWithServer(documents, groups, currentUser, "auto").catch(err => {
-          console.error("Erreur lors de la synchronisation différée:", err);
-        });
-        pendingSyncRef.current = false;
-      }
-      syncTimeoutRef.current = null;
-    }, 10000); // 10 secondes de délai
-    
-    return true;
-  }, [isOnline]);
-  
-  // Fonction principale de synchronisation
-  const syncWithServer = useCallback(async (
-    documents: CollaborationDocument[], 
-    groups: DocumentGroup[], 
-    userId?: string, 
-    trigger: "auto" | "manual" | "initial" = "manual"
-  ): Promise<boolean> => {
-    // Utiliser la fonction utilitaire pour garantir un ID utilisateur valide
-    const currentUser = getValidUserId(userId);
-    
-    console.log(`Synchronisation pour l'utilisateur: ${currentUser}`);
-    
-    // Si hors ligne, ne pas synchroniser et afficher un message d'erreur
-    if (!isOnline) {
-      toast({
-        variant: "destructive",
-        title: "Mode hors ligne",
-        description: "La synchronisation n'est pas possible en mode hors ligne. Veuillez vous connecter à internet.",
-      });
-      return false;
-    }
-    
+  // Function to load documents from server
+  const loadFromServer = useCallback(async (userId: string): Promise<Document[]> => {
     try {
-      // Utiliser le service central pour la synchronisation avec la table "collaboration"
-      const result = await syncAndProcess(documents.map(convertCollaborationToSystemDoc), trigger);
+      setIsSyncing(true);
+      setSyncFailed(false);
       
-      if (result.success) {
-        const lastSyncTime = syncService.getLastSynced('collaboration');
-        if (lastSyncTime) {
-          setLastSynced(lastSyncTime);
-        } else {
-          setLastSynced(new Date());
-        }
-        
-        // Réinitialiser l'indicateur de synchronisation en attente
-        pendingSyncRef.current = false;
-        
-        return true;
+      // Attempt to fetch documents from server
+      const response = await fetch(`${process.env.API_URL || ''}/api/collaboration-load.php`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ userId: 'p71x6d_richard' }) // Toujours utiliser cet ID
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Erreur réseau: ${response.status}`);
       }
       
-      return false;
+      const data = await response.json();
+      
+      if (data.success) {
+        setLastSynced(new Date());
+        return data.documents || [];
+      } else {
+        console.error('Erreur lors du chargement des documents:', data.message);
+        setSyncFailed(true);
+        return [];
+      }
+    } catch (error) {
+      console.error('Erreur lors du chargement des documents:', error);
+      setSyncFailed(true);
+      return [];
+    } finally {
+      setIsSyncing(false);
+    }
+  }, []);
+
+  // Function to sync documents with server
+  const syncWithServer = useCallback(async (
+    documents: Document[], 
+    groups: DocumentGroup[], 
+    userId: string
+  ): Promise<boolean> => {
+    try {
+      setIsSyncing(true);
+      setSyncFailed(false);
+      
+      // Préparer les données pour la synchronisation
+      const docsData = {
+        userId: 'p71x6d_richard', // Toujours utiliser cet ID
+        collaboration: documents
+      };
+      
+      const groupsData = {
+        userId: 'p71x6d_richard', // Toujours utiliser cet ID
+        groups: groups
+      };
+      
+      // Synchroniser les documents
+      const docsResponse = await fetch(`${process.env.API_URL || ''}/api/collaboration-sync.php`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(docsData)
+      });
+      
+      if (!docsResponse.ok) {
+        throw new Error(`Erreur réseau documents: ${docsResponse.status}`);
+      }
+      
+      // Synchroniser les groupes
+      const groupsResponse = await fetch(`${process.env.API_URL || ''}/api/collaboration-groups-sync.php`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(groupsData)
+      });
+      
+      if (!groupsResponse.ok) {
+        throw new Error(`Erreur réseau groupes: ${groupsResponse.status}`);
+      }
+      
+      // Vérifier les résultats
+      const docsResult = await docsResponse.json();
+      const groupsResult = await groupsResponse.json();
+      
+      if (docsResult.success && groupsResult.success) {
+        setLastSynced(new Date());
+        console.log('Synchronisation réussie:', {
+          documents: docsResult,
+          groups: groupsResult
+        });
+        return true;
+      } else {
+        console.error('Erreur lors de la synchronisation:', {
+          documents: docsResult,
+          groups: groupsResult
+        });
+        setSyncFailed(true);
+        return false;
+      }
     } catch (error) {
       console.error('Erreur lors de la synchronisation:', error);
-      // L'erreur est déjà gérée dans le hook useSync
+      setSyncFailed(true);
       return false;
+    } finally {
+      setIsSyncing(false);
     }
-  }, [isOnline, syncAndProcess]);
-  
+  }, []);
+
+  // Debounced version of syncWithServer
+  const debounceSyncWithServer = useCallback((
+    documents: Document[],
+    groups: DocumentGroup[],
+    userId: string
+  ) => {
+    let timeoutId: NodeJS.Timeout;
+    return new Promise<boolean>((resolve) => {
+      clearTimeout(timeoutId);
+      timeoutId = setTimeout(async () => {
+        const result = await syncWithServer(documents, groups, userId);
+        resolve(result);
+      }, 1000);
+    });
+  }, [syncWithServer]);
+
+  // Handle online/offline status changes
+  useState(() => {
+    const handleOnline = () => {
+      setIsOnline(true);
+    };
+    
+    const handleOffline = () => {
+      setIsOnline(false);
+    };
+    
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  });
+
   return {
+    loadFromServer,
     syncWithServer,
     debounceSyncWithServer,
-    loadFromServer,
     isSyncing,
     isOnline,
     lastSynced,
