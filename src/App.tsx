@@ -32,9 +32,9 @@ const App = () => {
             <MembresProvider>
               <Layout>
                 <Routes>
+                  <Route path="/" element={<Index />} />
                   <Route path="/login" element={<Index />} />
                   <Route path="/register" element={<Index />} />
-                  <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
                   <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
                   <Route path="/membres" element={<ProtectedRoute><RessourcesHumaines /></ProtectedRoute>} />
                   <Route path="/projets" element={<ProtectedRoute><DbTest /></ProtectedRoute>} />

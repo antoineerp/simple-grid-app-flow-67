@@ -50,7 +50,7 @@ export const getCurrentUser = (): User | null => {
 };
 
 export const getAuthToken = (): string | null => {
-  return sessionStorage.getItem('authToken');
+  return sessionStorage.getItem('authToken') || localStorage.getItem('authToken');
 };
 
 export const getIsLoggedIn = (): boolean => {
@@ -144,11 +144,18 @@ export const login = async (username: string, password: string): Promise<AuthRes
           // Initialiser l'utilisateur courant pour la base de données
           if (data.user && data.user.identifiant_technique) {
             setDbUser(data.user.identifiant_technique);
+            localStorage.setItem('userId', data.user.identifiant_technique);
+            sessionStorage.setItem('userId', data.user.identifiant_technique);
           }
           
           // Stocker explicitement le rôle utilisateur
           if (data.user && data.user.role) {
             localStorage.setItem('userRole', data.user.role);
+          }
+          
+          // Stocker l'utilisateur complet
+          if (data.user) {
+            localStorage.setItem('currentUser', JSON.stringify(data.user));
           }
           
           return { 
@@ -192,4 +199,6 @@ export const logout = () => {
   localStorage.removeItem('authToken');
   localStorage.removeItem('userRole');
   localStorage.removeItem('currentUser');
+  localStorage.removeItem('userId');
+  sessionStorage.removeItem('userId');
 };

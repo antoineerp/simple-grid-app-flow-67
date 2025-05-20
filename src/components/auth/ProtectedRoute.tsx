@@ -31,7 +31,6 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   }
   
   // Une fois le chargement terminé, vérifier l'authentification
-  // Utiliser getIsLoggedIn comme vérification supplémentaire
   if (!isAuthenticated && !getIsLoggedIn()) {
     console.log("ProtectedRoute - Redirection vers /login");
     return <Navigate to="/login" state={{ from: location }} replace />;

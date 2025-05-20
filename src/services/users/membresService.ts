@@ -15,7 +15,7 @@ export const getMembres = async (forceRefresh: boolean = false): Promise<Membre[
   // Vérifier l'authentification avant toute opération
   if (!getIsLoggedIn()) {
     console.log("membresService: Utilisateur non authentifié, impossible de charger les membres");
-    throw new Error("Utilisateur non authentifié");
+    return [];  // Retourner un tableau vide au lieu de lever une exception
   }
 
   // Retourner les données du cache si disponibles et pas encore expirées
@@ -27,7 +27,8 @@ export const getMembres = async (forceRefresh: boolean = false): Promise<Membre[
   try {
     const token = localStorage.getItem('authToken') || sessionStorage.getItem('authToken');
     if (!token) {
-      throw new Error("Utilisateur non authentifié");
+      console.log("Pas de token d'authentification trouvé");
+      return [];  // Retourner un tableau vide au lieu de lever une exception
     }
 
     const API_URL = getApiUrl();
@@ -49,7 +50,7 @@ export const getMembres = async (forceRefresh: boolean = false): Promise<Membre[
     if (!response.ok) {
       const errorText = await response.text();
       console.error(`Erreur HTTP ${response.status}: ${errorText}`);
-      throw new Error(`Erreur HTTP: ${response.status} - ${response.statusText}`);
+      return []; // Retourner un tableau vide en cas d'erreur
     }
 
     const data = await response.json();
@@ -104,8 +105,8 @@ export const getMembres = async (forceRefresh: boolean = false): Promise<Membre[
       }
     }
     
-    // Relancer l'erreur pour que l'appelant puisse la gérer
-    throw error;
+    // Retourner un tableau vide en cas d'erreur pour éviter les plantages
+    return [];
   }
 };
 
