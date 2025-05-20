@@ -4,6 +4,7 @@ import { useToast } from "@/hooks/use-toast";
 import { MembresProvider } from '@/contexts/MembresContext';
 import { exportPilotageToOdf } from "@/services/pdfExport";
 import { usePilotageDocuments } from '@/hooks/usePilotageDocuments';
+import { useSyncContext } from '@/features/sync/hooks/useSyncContext';
 import PilotageHeader from '@/components/pilotage/PilotageHeader';
 import PilotageActions from '@/components/pilotage/PilotageActions';
 import PilotageDocumentsTable from '@/components/pilotage/PilotageDocumentsTable';
@@ -28,6 +29,16 @@ const Pilotage = () => {
     handleReorder,
   } = usePilotageDocuments();
 
+  // Utilisation du contexte de synchronisation global
+  const { syncTable, isOnline, syncStates } = useSyncContext();
+  
+  // Obtenir l'état de synchronisation pour les documents de pilotage
+  const pilotageSync = syncStates['pilotage_documents'] || {
+    isSyncing: false,
+    lastSynced: null,
+    syncFailed: false
+  };
+
   const handleExportPdf = () => {
     exportPilotageToOdf(documents);
     toast({
@@ -36,10 +47,44 @@ const Pilotage = () => {
     });
   };
 
+  // Fonction pour déclencher la synchronisation manuelle
+  const handleSync = async () => {
+    try {
+      if (documents && documents.length > 0) {
+        await syncTable('pilotage_documents', documents, 'manual');
+        toast({
+          title: "Synchronisation",
+          description: "Les documents ont été synchronisés avec succès",
+        });
+      } else {
+        toast({
+          title: "Synchronisation",
+          description: "Aucun document à synchroniser",
+        });
+      }
+      return true;
+    } catch (error) {
+      console.error("Erreur lors de la synchronisation:", error);
+      toast({
+        title: "Erreur de synchronisation",
+        description: "Une erreur est survenue lors de la synchronisation",
+        variant: "destructive"
+      });
+      return false;
+    }
+  };
+
   return (
     <MembresProvider>
       <div className="p-8">
-        <PilotageHeader onExport={handleExportPdf} />
+        <PilotageHeader 
+          onExport={handleExportPdf}
+          onSync={handleSync}
+          isSyncing={pilotageSync.isSyncing}
+          syncFailed={pilotageSync.syncFailed}
+          lastSynced={pilotageSync.lastSynced}
+          isOnline={isOnline}
+        />
 
         <PilotageDocumentsTable 
           documents={documents}
