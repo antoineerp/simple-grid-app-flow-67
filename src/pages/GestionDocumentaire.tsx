@@ -4,6 +4,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import DashboardLayout from '@/components/layouts/DashboardLayout';
 import DocumentTable from '@/components/gestion-documentaire/DocumentTable';
 import { useDocuments } from '@/hooks/useDocuments';
+import { Button } from "@/components/ui/button";
+import { Plus, FolderPlus } from 'lucide-react';
 
 const GestionDocumentaire = () => {
   const {
@@ -19,6 +21,10 @@ const GestionDocumentaire = () => {
     handleToggleGroup,
     handleEditGroup,
     handleDeleteGroup,
+    handleAddDocument,
+    handleAddGroup,
+    setDialogOpen,
+    setGroupDialogOpen,
   } = useDocuments();
 
   return (
@@ -30,6 +36,24 @@ const GestionDocumentaire = () => {
             <CardDescription>Gérez vos documents et fichiers importants</CardDescription>
           </CardHeader>
           <CardContent>
+            <div className="flex justify-end mb-4 space-x-2">
+              <Button 
+                variant="outline"
+                className="hover:bg-gray-100 transition-colors"
+                onClick={() => setGroupDialogOpen(true)}
+              >
+                <FolderPlus className="h-4 w-4 mr-2" />
+                Nouveau groupe
+              </Button>
+              <Button 
+                variant="default"
+                onClick={() => setDialogOpen(true)}
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Nouveau document
+              </Button>
+            </div>
+            
             <DocumentTable 
               documents={documents}
               groups={groups}

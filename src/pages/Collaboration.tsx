@@ -3,6 +3,8 @@ import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
 import { useCollaboration } from '@/hooks/useCollaboration';
+import { Button } from "@/components/ui/button";
+import { Plus, FolderPlus } from 'lucide-react';
 
 const Collaboration = () => {
   const { 
@@ -10,7 +12,9 @@ const Collaboration = () => {
     groups, 
     isSyncing, 
     isOnline, 
-    syncFailed 
+    syncFailed,
+    setIsDialogOpen,
+    setIsGroupDialogOpen
   } = useCollaboration();
   
   // Simuler les états de loading et d'erreur à partir des données disponibles
@@ -26,6 +30,24 @@ const Collaboration = () => {
             <CardDescription>Travaillez ensemble sur vos projets</CardDescription>
           </CardHeader>
           <CardContent>
+            <div className="flex justify-end mb-4 space-x-2">
+              <Button 
+                variant="outline"
+                className="hover:bg-gray-100 transition-colors"
+                onClick={() => setIsGroupDialogOpen(true)}
+              >
+                <FolderPlus className="h-4 w-4 mr-2" />
+                Nouveau groupe
+              </Button>
+              <Button 
+                variant="default"
+                onClick={() => setIsDialogOpen(true)}
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Nouveau document
+              </Button>
+            </div>
+
             {isLoading ? (
               <div className="p-4 border border-gray-200 rounded-md bg-gray-50">
                 <p className="text-center text-gray-500">Chargement des données de collaboration...</p>
