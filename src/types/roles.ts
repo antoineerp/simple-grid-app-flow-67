@@ -8,3 +8,11 @@ export const hasPermission: Record<UserRole, { isAdmin: boolean }> = {
   gestionnaire: { isAdmin: false },
   utilisateur: { isAdmin: false }
 };
+
+// Function to check permissions based on role
+export const checkPermission = (role: UserRole, permission: keyof typeof hasPermission[UserRole]): boolean => {
+  if (!hasPermission[role]) {
+    return false;
+  }
+  return hasPermission[role][permission] === true;
+};

@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { connectAsUser, testDatabaseConnection, Utilisateur } from '@/services';
 import { useToast } from "@/hooks/use-toast";
-import { hasPermission, UserRole } from '@/types/roles';
+import { checkPermission, UserRole } from '@/types/roles';
 import { getDatabaseConnectionCurrentUser } from '@/services/core/databaseConnectionService';
 import { UserManager } from '@/services/users/userManager';
 
@@ -34,7 +34,7 @@ export const useAdminUsers = () => {
     const currentDatabaseUser = getDatabaseConnectionCurrentUser();
     
     // Vérifier les permissions avant de charger les utilisateurs
-    if (!hasPermission(currentUserRole, 'accessAdminPanel')) {
+    if (!checkPermission(currentUserRole, 'isAdmin')) {
       toast({
         title: "Accès refusé",
         description: "Vous n'avez pas les autorisations nécessaires pour voir la liste des utilisateurs.",
@@ -82,7 +82,7 @@ export const useAdminUsers = () => {
     const currentUserRole = localStorage.getItem('userRole') as UserRole;
     
     // Vérifier les permissions de connexion
-    if (!hasPermission(currentUserRole, 'accessAdminPanel')) {
+    if (!checkPermission(currentUserRole, 'isAdmin')) {
       toast({
         title: "Accès refusé",
         description: "Vous n'avez pas les autorisations nécessaires pour changer d'utilisateur.",

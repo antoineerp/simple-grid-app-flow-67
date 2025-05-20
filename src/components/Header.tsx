@@ -18,7 +18,7 @@ import {
   getCurrentUser as getDatabaseUser,
 } from '@/services/core/databaseConnectionService';
 import { logout, getCurrentUser } from '@/services/auth/authService';
-import { hasPermission, UserRole } from '@/types/roles';
+import { UserRole, checkPermission } from '@/types/roles';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 
 const Header = () => {
@@ -77,7 +77,7 @@ const Header = () => {
     setLogo(newLogo);
   };
 
-  const canAccessAdminPanel = hasPermission(userRole, 'accessAdminPanel');
+  const canAccessAdminPanel = checkPermission(userRole, 'isAdmin');
   console.log("Header: permission d'accès à l'administration:", canAccessAdminPanel);
 
   return (
