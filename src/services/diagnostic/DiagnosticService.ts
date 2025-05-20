@@ -1,4 +1,3 @@
-
 import { toast } from "@/components/ui/use-toast";
 import { getApiUrl } from "@/config/apiConfig";
 import { getAuthHeaders } from "../auth/authService";
@@ -21,31 +20,42 @@ export const DiagnosticService = {
    */
   async runCompleteDiagnostic(): Promise<DiagnosticReport> {
     try {
-      const apiUrl = getApiUrl();
+      const baseUrl = getApiUrl();
+      // Utiliser le chemin direct vers le fichier PHP 
+      // plutôt que de passer par le routeur API
+      // Retirer le /api final de l'URL si présent
+      const apiUrl = baseUrl.endsWith('/api') ? baseUrl : baseUrl;
+      
       console.log("Lancement du diagnostic complet via", `${apiUrl}/diagnostic-complet.php`);
       
       // Ajouter un timestamp pour éviter le cache
       const timestamp = new Date().getTime();
       const url = `${apiUrl}/diagnostic-complet.php?nocache=${timestamp}`;
       
-      console.log("URL complète:", url);
+      console.log("URL complète pour diagnostic:", url);
       
       const response = await fetch(url, {
         method: 'GET',
         headers: {
-          ...getAuthHeaders(),
+          // Ne pas inclure les headers d'authentification pour ce diagnostic spécifique
           'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
         },
+        // Ajouter un signal pour un timeout plus long que par défaut
+        signal: AbortSignal.timeout(30000), // 30 secondes
       });
       
       if (!response.ok) {
         console.error(`Erreur HTTP: ${response.status}`);
+        console.error("URL utilisée:", url);
+        console.error("Headers:", response.headers);
         throw new Error(`Erreur HTTP: ${response.status}`);
       }
       
       // Extraction du texte pour debug
       const responseText = await response.text();
       console.log("Réponse reçue, longueur:", responseText.length);
+      console.log("Premiers caractères de la réponse:", responseText.substring(0, 100));
       
       // Analyse du contenu HTML pour extraire les informations importantes
       const report = DiagnosticService.parseHtmlDiagnostic(responseText);
@@ -56,7 +66,11 @@ export const DiagnosticService = {
       return {
         status: "error",
         message: error instanceof Error ? error.message : "Erreur inconnue lors du diagnostic",
-        recommendations: ["Vérifiez que le serveur API est accessible", "Vérifiez les permissions d'accès aux fichiers"]
+        recommendations: [
+          "Vérifiez que le serveur API est accessible", 
+          "Vérifiez les permissions d'accès aux fichiers",
+          "Essayez d'accéder directement à l'URL: qualiopi.ch/api/diagnostic-complet.php"
+        ]
       };
     }
   },

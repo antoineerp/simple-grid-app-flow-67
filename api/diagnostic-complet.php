@@ -1,5 +1,6 @@
 
 <?php
+// Forcer les headers pour permettre l'accès direct sans authentification
 header('Content-Type: text/html; charset=utf-8');
 header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
@@ -12,6 +13,9 @@ function logDebug($message) {
 }
 
 logDebug('Début du diagnostic complet');
+
+// Désactiver explicitement toute redirection d'authentification
+$bypass_auth = true;
 
 ?>
 <!DOCTYPE html>
