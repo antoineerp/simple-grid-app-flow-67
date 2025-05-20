@@ -26,16 +26,17 @@ const getValidUserId = (userId?: string | null): string => {
     
     // Si l'utilisateur est un objet, essayer d'extraire un identifiant
     if (currentUser && typeof currentUser === 'object') {
-      if (currentUser.identifiant_technique) return currentUser.identifiant_technique;
-      if (currentUser.email) return currentUser.email;
-      if (currentUser.id) return currentUser.id;
+      const userObj = currentUser as any;
+      if (userObj.identifiant_technique) return userObj.identifiant_technique;
+      if (userObj.email) return userObj.email;
+      if (userObj.id) return userObj.id;
     }
   } catch (e) {
     console.error("Erreur lors de la récupération de l'utilisateur actuel:", e);
   }
   
   // Valeur par défaut sécuritaire
-  return 'default';
+  return 'p71x6d_system';
 };
 
 // Helper function to convert between document types
@@ -67,27 +68,13 @@ export const useBibliothequeSync = () => {
   const groupsRef = useRef<DocumentGroup[]>([]);
   const lastChangedRef = useRef<Date | null>(null);
   
-  // Fonction pour charger les documents depuis le serveur
+  // Fonction pour charger les documents depuis le serveur - TOUJOURS depuis le serveur, jamais en local
   const loadFromServer = useCallback(async (userId?: string): Promise<BibliothequeDocument[]> => {
     // Utiliser la fonction utilitaire pour garantir un ID utilisateur valide
     const currentUser = getValidUserId(userId);
     
-    if (!isOnline) {
-      console.log('Mode hors ligne - chargement des documents locaux');
-      try {
-        // UNIQUEMENT chercher sous le nouveau nom (collaboration)
-        const localData = localStorage.getItem(`collaboration_${currentUser}`);
-        
-        if (localData) {
-          const localDocs = JSON.parse(localData);
-          return localDocs.map(convertSystemToBibliothequeDoc);
-        }
-      } catch (e) {
-        console.error('Erreur lors du chargement des documents locaux:', e);
-      }
-      return [];
-    }
-    
+    // Même en mode hors ligne, on tente de se connecter au serveur
+    // Si la connexion échoue, on renvoie un tableau vide plutôt que des données locales
     try {
       // Utiliser le service central pour charger les données
       const documents = await syncService.loadDataFromServer<SystemDocument>('collaboration', currentUser);
@@ -99,25 +86,15 @@ export const useBibliothequeSync = () => {
       }
       return documents.map(convertSystemToBibliothequeDoc);
     } catch (error) {
-      console.error('Erreur lors du chargement des documents:', error);
+      console.error('Erreur lors du chargement des documents depuis le serveur:', error);
       toast({
         variant: "destructive",
         title: "Erreur",
-        description: "Impossible de charger les documents du serveur. Mode hors-ligne activé.",
+        description: "Impossible de charger les documents du serveur. Veuillez vérifier votre connexion internet.",
       });
       
-      // En cas d'erreur, chargement des documents locaux comme solution de secours
-      try {
-        // UNIQUEMENT chercher sous le nouveau nom (collaboration)
-        const localData = localStorage.getItem(`collaboration_${currentUser}`);
-        
-        if (localData) {
-          const localDocs = JSON.parse(localData);
-          return localDocs.map(convertSystemToBibliothequeDoc);
-        }
-      } catch (e) {
-        console.error('Erreur lors du chargement des documents locaux:', e);
-      }
+      // Ne pas essayer de charger les données localement, retourner un tableau vide
+      console.warn("Mode hors ligne non autorisé - aucun document chargé");
       return [];
     }
   }, [isOnline]);
@@ -153,17 +130,12 @@ export const useBibliothequeSync = () => {
     userId?: string
   ) => {
     // Toujours utiliser l'utilisateur courant si non spécifié
-    const currentUser = getValidUserId(userId || getDatabaseConnectionCurrentUser());
+    const currentUser = getValidUserId(userId);
     
     // Mettre à jour les références pour la synchronisation automatique
     documentsRef.current = documents;
     groupsRef.current = groups;
     lastChangedRef.current = new Date();
-    
-    // Toujours sauvegarder localement immédiatement
-    const systemDocs = documents.map(convertBibliothequeToSystemDoc);
-    localStorage.setItem(`collaboration_${currentUser}`, JSON.stringify(systemDocs));
-    localStorage.setItem(`collaboration_groups_${currentUser}`, JSON.stringify(groups));
     
     // Marquer qu'une synchronisation est en attente
     pendingSyncRef.current = true;
@@ -200,32 +172,19 @@ export const useBibliothequeSync = () => {
     
     console.log(`Synchronisation pour l'utilisateur: ${currentUser}`);
     
+    // Si hors ligne, ne pas synchroniser et afficher un message d'erreur
     if (!isOnline) {
-      // Mode hors ligne - enregistrement local uniquement
-      const systemDocs = documents.map(convertBibliothequeToSystemDoc);
-      localStorage.setItem(`collaboration_${currentUser}`, JSON.stringify(systemDocs));
-      localStorage.setItem(`collaboration_groups_${currentUser}`, JSON.stringify(groups));
-      
-      if (trigger !== "auto") {
-        toast({
-          variant: "destructive",
-          title: "Mode hors ligne",
-          description: "Les modifications ont été enregistrées localement uniquement.",
-        });
-      }
-      
+      toast({
+        variant: "destructive",
+        title: "Mode hors ligne",
+        description: "La synchronisation n'est pas possible en mode hors ligne. Veuillez vous connecter à internet.",
+      });
       return false;
     }
     
     try {
-      // Toujours enregistrer localement d'abord pour éviter la perte de données
-      const systemDocs = documents.map(convertBibliothequeToSystemDoc);
-      localStorage.setItem(`collaboration_${currentUser}`, JSON.stringify(systemDocs));
-      localStorage.setItem(`collaboration_groups_${currentUser}`, JSON.stringify(groups));
-      
       // Utiliser le service central pour la synchronisation avec la table "collaboration"
-      // Correct : passer seulement les arguments requis à syncAndProcess
-      const result = await syncAndProcess(systemDocs, trigger);
+      const result = await syncAndProcess(documents.map(convertBibliothequeToSystemDoc), trigger);
       
       if (result.success) {
         const lastSyncTime = syncService.getLastSynced('collaboration');
