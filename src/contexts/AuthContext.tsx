@@ -2,9 +2,11 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { getIsLoggedIn, getCurrentUser, login, logout } from '@/services/auth/authService';
 
+type User = string | null;
+
 type AuthContextType = {
   isAuthenticated: boolean;
-  user: string | null;
+  user: User;
   login: (username: string, password: string) => Promise<boolean>;
   logout: () => void;
   loading: boolean;
@@ -22,7 +24,7 @@ export const useAuth = () => useContext(AuthContext);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(getIsLoggedIn());
-  const [user, setUser] = useState<string | null>(getCurrentUser());
+  const [user, setUser] = useState<User>(getCurrentUser());
   const [loading, setLoading] = useState<boolean>(true);
 
   useEffect(() => {
@@ -37,12 +39,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     checkAuth();
   }, []);
 
-  const handleLogin = async (username: string, password: string) => {
+  const handleLogin = async (username: string, password: string): Promise<boolean> => {
     try {
       const result = await login(username, password);
-      setIsAuthenticated(result);
+      setIsAuthenticated(!!result);
       setUser(getCurrentUser());
-      return result;
+      return !!result;
     } catch (error) {
       console.error('Erreur de connexion:', error);
       return false;

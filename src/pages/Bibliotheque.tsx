@@ -113,6 +113,10 @@ const Bibliotheque: React.FC = () => {
   // Fonction pour gérer le drag and drop
   const handleDragEnd = (result: any) => {
     // À implémenter si nécessaire
+    if (!result.destination) return; // Dropped outside a valid drop area
+    
+    console.log('Drag result:', result);
+    // Here you would implement the actual reordering logic
   };
   
   return (

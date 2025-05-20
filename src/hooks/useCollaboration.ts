@@ -1,274 +1,180 @@
 
-import { useState, useCallback } from 'react';
-import { v4 as uuidv4 } from 'uuid';
-import { Document, DocumentGroup } from '@/types/bibliotheque';
+import { useState, useEffect, useCallback } from 'react';
 import { useToast } from '@/hooks/use-toast';
+import { Document } from '@/types/collaboration';
 import { useUnifiedSync } from '@/hooks/useUnifiedSync';
 
 export const useCollaboration = () => {
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [isGroupDialogOpen, setIsGroupDialogOpen] = useState(false);
-  const [isEditing, setIsEditing] = useState(false);
-  const [currentDocument, setCurrentDocument] = useState<Document>({
-    id: '',
-    name: '',
-    link: ''
-  });
-  const [currentGroup, setCurrentGroup] = useState<DocumentGroup>({
-    id: '',
-    name: '',
-    expanded: false,
-    items: []
-  });
   const { toast } = useToast();
-  
-  // Utiliser notre hook de synchronisation unifié
+  const [documents, setDocuments] = useState<Document[]>([]);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [currentDocument, setCurrentDocument] = useState<Document | null>(null);
+  const [isDialogOpen, setIsDialogOpen] = useState<boolean>(false);
+  const [isEditing, setIsEditing] = useState<boolean>(false);
+
+  // Use the unified sync hook for data synchronization
   const {
-    data: documents,
-    setData: setDocuments,
-    syncState: {
-      isSyncing,
-      lastSynced,
-      syncFailed,
-      pendingSync
-    },
-    isOnline,
-    syncWithServer,
+    data,
+    setData,
+    loadFromLocalStorage,
     loadFromServer,
-    saveToLocalStorage
-  } = useUnifiedSync<Document[]>('collaboration', []);
-  
-  // Le hook séparé pour les groupes
-  const {
-    data: groups,
-    setData: setGroups,
-    syncWithServer: syncGroups
-  } = useUnifiedSync<DocumentGroup[]>('collaboration-groups', []);
+    syncWithServer,
+    syncState,
+    isOnline,
+  } = useUnifiedSync<Document>('collaboration');
 
-  // Fonction pour synchroniser les documents et les groupes avec le serveur
-  const handleSyncDocuments = useCallback(async () => {
-    try {
-      // Synchroniser les documents
-      const docsResult = await syncWithServer(documents);
-      
-      // Synchroniser les groupes séparément
-      const groupsResult = await syncGroups(groups);
-      
-      return docsResult.success && groupsResult.success;
-    } catch (error) {
-      console.error('Erreur lors de la synchronisation:', error);
-      toast({
-        variant: "destructive",
-        title: "Erreur de synchronisation",
-        description: "Une erreur est survenue lors de la synchronisation des documents.",
-      });
-      return false;
+  // Load initial data
+  useEffect(() => {
+    const initializeData = async () => {
+      setIsLoading(true);
+      try {
+        // First try to load from localStorage
+        const localData = loadFromLocalStorage();
+        if (localData && localData.length > 0) {
+          setDocuments(localData);
+        }
+
+        // Then try to fetch from server
+        if (isOnline) {
+          try {
+            await loadFromServer({ showToast: false });
+          } catch (error) {
+            console.error('Failed to load from server:', error);
+          }
+        }
+      } catch (error) {
+        console.error('Failed to initialize data:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    initializeData();
+  }, [isOnline]);
+
+  // Update local state when data from sync changes
+  useEffect(() => {
+    if (data) {
+      setDocuments(data);
     }
-  }, [documents, groups, syncWithServer, syncGroups, toast]);
+  }, [data]);
 
-  // Fonctions CRUD pour les documents
-  const handleAddDocument = useCallback((doc: Document) => {
-    const newDoc = { 
-      ...doc, 
-      id: doc.id || `doc-${uuidv4()}`
+  // Sync data when documents change
+  const syncDocuments = useCallback(async () => {
+    if (!isOnline) {
+      toast({
+        title: "Hors connexion",
+        description: "Impossible de synchroniser en mode hors connexion",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    try {
+      await syncWithServer(documents, { showToast: true });
+      toast({
+        title: "Synchronisation réussie",
+        description: "Les documents ont été synchronisés avec succès"
+      });
+    } catch (error) {
+      console.error('Failed to sync documents:', error);
+      toast({
+        title: "Erreur de synchronisation",
+        description: "Impossible de synchroniser les documents",
+        variant: "destructive"
+      });
+    }
+  }, [documents, isOnline, syncWithServer, toast]);
+
+  // CRUD operations
+  const handleAddDocument = useCallback(async (doc: Document) => {
+    const newDocument = {
+      ...doc,
+      id: `doc-${Date.now()}`,
+      date_creation: new Date(),
+      date_modification: new Date()
     };
     
-    const updatedDocuments = [...documents, newDoc];
-    setDocuments(updatedDocuments);
+    const updatedDocs = [...documents, newDocument];
+    setDocuments(updatedDocs);
+    setData(updatedDocs, { showToast: true });
     setIsDialogOpen(false);
     
-    // Synchroniser avec le serveur
-    syncWithServer(updatedDocuments, { showToasts: true });
+    if (isOnline) {
+      try {
+        await syncWithServer(updatedDocs, { showToast: true });
+      } catch (error) {
+        console.error('Failed to sync after adding document:', error);
+      }
+    }
     
     toast({
       title: "Document ajouté",
-      description: `Le document ${newDoc.name} a été ajouté.`,
+      description: `Le document ${newDocument.title} a été créé`
     });
-  }, [documents, setDocuments, syncWithServer, toast]);
+  }, [documents, setData, isOnline, syncWithServer, toast]);
 
-  const handleUpdateDocument = useCallback((doc: Document) => {
-    let updatedDocuments = [...documents];
-    let updatedGroups = [...groups];
+  const handleUpdateDocument = useCallback(async (doc: Document) => {
+    const updatedDoc = {
+      ...doc,
+      date_modification: new Date()
+    };
     
-    if (doc.groupId) {
-      // Mettre à jour un document dans un groupe
-      updatedGroups = groups.map(group => 
-        group.id === doc.groupId 
-          ? { 
-              ...group, 
-              items: group.items.map(item => 
-                item.id === doc.id ? doc : item
-              ) 
-            }
-          : group
-      );
-      setGroups(updatedGroups);
-      
-      // Synchroniser les groupes
-      syncGroups(updatedGroups, { showToasts: true });
-    } else {
-      // Mettre à jour un document hors groupe
-      updatedDocuments = documents.map(d => d.id === doc.id ? doc : d);
-      setDocuments(updatedDocuments);
-      
-      // Synchroniser les documents
-      syncWithServer(updatedDocuments, { showToasts: true });
-    }
-    
+    const updatedDocs = documents.map(d => d.id === doc.id ? updatedDoc : d);
+    setDocuments(updatedDocs);
+    setData(updatedDocs, { showToast: true });
     setIsDialogOpen(false);
+    
+    if (isOnline) {
+      try {
+        await syncWithServer(updatedDocs, { showToast: true });
+      } catch (error) {
+        console.error('Failed to sync after updating document:', error);
+      }
+    }
     
     toast({
       title: "Document mis à jour",
-      description: `Le document ${doc.name} a été mis à jour.`,
+      description: `Le document ${doc.title} a été mis à jour`
     });
-  }, [documents, groups, setDocuments, setGroups, syncWithServer, syncGroups, toast]);
+  }, [documents, setData, isOnline, syncWithServer, toast]);
 
-  const handleDeleteDocument = useCallback((id: string) => {
-    // Vérifier si le document est dans un groupe
-    let documentInGroup = false;
-    let updatedGroups = [...groups];
-    
-    updatedGroups = updatedGroups.map(group => {
-      const documentIndex = group.items.findIndex(item => item.id === id);
-      if (documentIndex !== -1) {
-        documentInGroup = true;
-        return {
-          ...group,
-          items: group.items.filter(item => item.id !== id)
-        };
-      }
-      return group;
-    });
-    
-    let updatedDocuments = [...documents];
-    
-    if (documentInGroup) {
-      setGroups(updatedGroups);
-      
-      // Synchroniser les groupes
-      syncGroups(updatedGroups, { showToasts: true });
-    } else {
-      updatedDocuments = documents.filter(d => d.id !== id);
-      setDocuments(updatedDocuments);
-      
-      // Synchroniser les documents
-      syncWithServer(updatedDocuments, { showToasts: true });
-    }
-    
+  const handleDeleteDocument = useCallback(async (id: string) => {
+    const updatedDocs = documents.filter(d => d.id !== id);
+    setDocuments(updatedDocs);
+    setData(updatedDocs, { showToast: true });
     setIsDialogOpen(false);
+    
+    if (isOnline) {
+      try {
+        await syncWithServer(updatedDocs, { showToast: true });
+      } catch (error) {
+        console.error('Failed to sync after deleting document:', error);
+      }
+    }
     
     toast({
       title: "Document supprimé",
-      description: "Le document a été supprimé.",
+      description: "Le document a été supprimé"
     });
-  }, [documents, groups, setDocuments, setGroups, syncWithServer, syncGroups, toast]);
-
-  // Fonctions CRUD pour les groupes
-  const handleAddGroup = useCallback((group: DocumentGroup) => {
-    const newGroup = { 
-      ...group, 
-      id: group.id || `group-${uuidv4()}`,
-      items: [],
-      expanded: false
-    };
-    
-    const updatedGroups = [...groups, newGroup];
-    setGroups(updatedGroups);
-    setIsGroupDialogOpen(false);
-    
-    // Synchroniser les groupes
-    syncGroups(updatedGroups, { showToasts: true });
-    
-    toast({
-      title: "Groupe ajouté",
-      description: `Le groupe ${newGroup.name} a été ajouté.`,
-    });
-  }, [groups, setGroups, syncGroups, toast]);
-
-  const handleUpdateGroup = useCallback((group: DocumentGroup) => {
-    const updatedGroups = groups.map(g => 
-      g.id === group.id 
-        ? { ...group, items: g.items } 
-        : g
-    );
-    
-    setGroups(updatedGroups);
-    setIsGroupDialogOpen(false);
-    
-    // Synchroniser les groupes
-    syncGroups(updatedGroups, { showToasts: true });
-    
-    toast({
-      title: "Groupe mis à jour",
-      description: `Le groupe ${group.name} a été mis à jour.`,
-    });
-  }, [groups, setGroups, syncGroups, toast]);
-
-  const handleDeleteGroup = useCallback((id: string) => {
-    // Libérer les documents du groupe avant de le supprimer
-    const groupToDelete = groups.find(g => g.id === id);
-    let docsToMove: Document[] = [];
-    
-    if (groupToDelete) {
-      docsToMove = groupToDelete.items.map(item => ({
-        ...item,
-        groupId: undefined
-      }));
-    }
-    
-    const updatedGroups = groups.filter(g => g.id !== id);
-    const updatedDocuments = [...documents, ...docsToMove];
-    
-    setGroups(updatedGroups);
-    setDocuments(updatedDocuments);
-    setIsGroupDialogOpen(false);
-    
-    // Synchroniser les deux collections
-    syncGroups(updatedGroups, { silent: true });
-    syncWithServer(updatedDocuments, { showToasts: true });
-    
-    toast({
-      title: "Groupe supprimé",
-      description: "Le groupe a été supprimé et ses documents ont été déplacés.",
-    });
-  }, [documents, groups, setDocuments, setGroups, syncWithServer, syncGroups, toast]);
-
-  const handleToggleGroup = useCallback((id: string) => {
-    const updatedGroups = groups.map(group => 
-      group.id === id ? { ...group, expanded: !group.expanded } : group
-    );
-    
-    setGroups(updatedGroups);
-    
-    // Sauvegarder l'état d'expansion dans le stockage local seulement
-    // (pas besoin de synchroniser avec le serveur pour cela)
-    saveToLocalStorage(updatedGroups, 'collaboration-groups');
-  }, [groups, setGroups, saveToLocalStorage]);
+  }, [documents, setData, isOnline, syncWithServer, toast]);
 
   return {
     documents,
-    groups,
-    isDialogOpen,
-    isGroupDialogOpen,
-    isEditing,
+    isLoading,
     currentDocument,
-    currentGroup,
-    isSyncing,
-    isOnline,
-    lastSynced,
-    syncFailed,
-    setIsDialogOpen,
-    setIsGroupDialogOpen,
-    setIsEditing,
     setCurrentDocument,
-    setCurrentGroup,
+    isDialogOpen,
+    setIsDialogOpen,
+    isEditing,
+    setIsEditing,
     handleAddDocument,
     handleUpdateDocument,
     handleDeleteDocument,
-    handleAddGroup,
-    handleUpdateGroup,
-    handleDeleteGroup,
-    handleToggleGroup,
-    handleSyncDocuments
+    syncDocuments,
+    isSyncing: syncState.isSyncing,
+    lastSynced: syncState.lastSynced,
+    syncFailed: syncState.syncFailed,
+    isOnline
   };
 };
