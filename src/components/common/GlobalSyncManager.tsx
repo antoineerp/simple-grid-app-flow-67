@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState, useRef } from 'react';
 import { useSyncContext } from '@/features/sync/hooks/useSyncContext';
 import SyncDebugger from '@/features/sync/components/SyncDebugger';
@@ -14,8 +13,8 @@ const GlobalSyncManager: React.FC = () => {
   const lastSyncRef = useRef<number>(Date.now());
   const forceSyncRequiredRef = useRef<boolean>(false);
   
-  // Séquence minimum entre deux synchronisations complètes (10 minutes)
-  const MIN_SYNC_INTERVAL = 600000;
+  // Séquence minimum entre deux synchronisations complètes (5 minutes)
+  const MIN_SYNC_INTERVAL = 300000;
   
   // Assurer que le composant est bien monté avant d'exécuter des effets
   useEffect(() => {
@@ -128,14 +127,14 @@ const GlobalSyncManager: React.FC = () => {
         }
       }, 5000);
       
-      // Synchronisations périodiques (toutes les 30 minutes)
+      // Synchronisations périodiques (toutes les 5 minutes)
       const periodicSyncInterval = setInterval(() => {
         if (!mountedRef.current) return;
         
         const now = Date.now();
         
-        // N'exécuter que si en ligne et dernier sync > 30 min
-        if (isOnline && now - lastSyncRef.current > 1800000) {
+        // N'exécuter que si en ligne et dernier sync > 5 min
+        if (isOnline && now - lastSyncRef.current > 300000) {
           console.log("GlobalSyncManager - Démarrage de la synchronisation périodique");
           
           syncAll()
@@ -150,7 +149,7 @@ const GlobalSyncManager: React.FC = () => {
               }
             });
         }
-      }, 1800000); // 30 minutes
+      }, 300000); // 5 minutes au lieu de 30 minutes
       
       return () => {
         clearTimeout(initialSyncTimeout);

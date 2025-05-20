@@ -21,7 +21,7 @@ const syncTimestamps: Record<string, number> = {};
 const initialDataLoaded: Record<string, boolean> = {};
 
 // Intervalles de synchronisation (en ms)
-const SYNC_INTERVAL = 10000; // 10 secondes
+const SYNC_INTERVAL = 5000; // 5 secondes (réduit de 10 secondes)
 const RETRY_INTERVAL = 30000; // 30 secondes
 
 // État global de la synchronisation
