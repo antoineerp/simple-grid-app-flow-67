@@ -49,6 +49,12 @@ const GestionDocumentaire = () => {
     });
   };
 
+  // Create a wrapper function that returns Promise<void> instead of Promise<boolean>
+  const handleSync = async () => {
+    await syncWithServer();
+    // No return value, which implicitly returns void
+  };
+
   return (
     <div className="p-8">
       <div className="flex items-center justify-between mb-2">
@@ -72,7 +78,7 @@ const GestionDocumentaire = () => {
           isOnline={isOnline}
           syncFailed={syncFailed}
           lastSynced={lastSynced}
-          onSync={syncWithServer}
+          onSync={handleSync}
           showOnlyErrors={true}
         />
       </div>
@@ -85,7 +91,7 @@ const GestionDocumentaire = () => {
             <Button 
               variant="outline" 
               size="sm" 
-              onClick={() => syncWithServer()}
+              onClick={handleSync}
               className="ml-4"
             >
               Réessayer
