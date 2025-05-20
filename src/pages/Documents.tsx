@@ -6,6 +6,8 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
 import { useDocuments } from '@/hooks/useDocuments';
 import DocumentTable from '@/components/documents/DocumentTable';
+import DocumentForm from '@/components/gestion-documentaire/DocumentForm';
+import { DocumentGroupDialog } from '@/components/gestion-documentaire/DocumentGroupDialog';
 import SyncIndicator from '@/components/common/SyncIndicator';
 import { exportDocumentsToPdf } from '@/services/documentsExport';
 
@@ -13,22 +15,31 @@ const Documents = () => {
   const {
     documents,
     groups,
-    handleEdit,
-    handleDelete,
-    handleResponsabiliteChange,
-    handleAtteinteChange,
-    handleExclusionChange,
-    handleReorder,
-    handleGroupReorder,
-    handleToggleGroup,
-    handleEditGroup,
-    handleDeleteGroup,
-    setDialogOpen,
-    setGroupDialogOpen,
+    stats,
+    editingDocument,
+    editingGroup,
+    dialogOpen,
+    groupDialogOpen,
     isSyncing,
     isOnline,
     syncFailed,
     lastSynced,
+    setDialogOpen,
+    setGroupDialogOpen,
+    handleResponsabiliteChange,
+    handleAtteinteChange,
+    handleExclusionChange,
+    handleEdit,
+    handleSaveDocument,
+    handleDelete,
+    handleAddDocument,
+    handleReorder,
+    handleGroupReorder,
+    handleToggleGroup,
+    handleEditGroup,
+    handleSaveGroup,
+    handleDeleteGroup,
+    handleAddGroup,
     syncWithServer
   } = useDocuments();
 
@@ -37,6 +48,10 @@ const Documents = () => {
   const handleExportPdf = () => {
     if (documents && documents.length > 0) {
       exportDocumentsToPdf(documents, groups, "Liste des documents");
+      toast({
+        title: "Export PDF réussi",
+        description: "Le document a été généré et téléchargé",
+      });
     } else {
       toast({
         title: "Export impossible",
@@ -119,7 +134,7 @@ const Documents = () => {
           <div className="flex justify-end mt-4 space-x-2">
             <Button 
               variant="outline"
-              onClick={() => setGroupDialogOpen(true)}
+              onClick={handleAddGroup}
               className="hover:bg-gray-100 transition-colors mr-2"
               title="Nouveau groupe"
             >
@@ -128,7 +143,7 @@ const Documents = () => {
             </Button>
             <Button 
               variant="default"
-              onClick={() => setDialogOpen(true)}
+              onClick={handleAddDocument}
             >
               <Plus className="h-5 w-5 mr-2" />
               Nouveau document
@@ -136,6 +151,21 @@ const Documents = () => {
           </div>
         </>
       )}
+
+      <DocumentForm 
+        document={editingDocument}
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        onSave={handleSaveDocument}
+      />
+
+      <DocumentGroupDialog
+        group={editingGroup}
+        open={groupDialogOpen}
+        onOpenChange={setGroupDialogOpen}
+        onSave={handleSaveGroup}
+        isEditing={!!editingGroup}
+      />
     </div>
   );
 };

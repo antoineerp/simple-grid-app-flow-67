@@ -1,13 +1,16 @@
 
 import React from 'react';
-import { FileText, FolderPlus } from 'lucide-react';
+import { FileText, Plus, FolderPlus } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useDocuments } from '@/hooks/useDocuments';
 import DocumentTable from '@/components/gestion-documentaire/DocumentTable';
+import DocumentForm from '@/components/gestion-documentaire/DocumentForm';
+import { DocumentGroupDialog } from '@/components/gestion-documentaire/DocumentGroupDialog';
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
 import SyncIndicator from '@/components/common/SyncIndicator';
+import { exportDocumentsToPdf } from '@/services/documentsExport';
 
 const GestionDocumentaire = () => {
   const {
@@ -28,13 +31,15 @@ const GestionDocumentaire = () => {
     handleAtteinteChange,
     handleExclusionChange,
     handleEdit,
+    handleSaveDocument,
     handleDelete,
+    handleAddDocument,
     handleReorder,
     handleGroupReorder,
     handleToggleGroup,
     handleEditGroup,
+    handleSaveGroup,
     handleDeleteGroup,
-    handleAddDocument,
     handleAddGroup,
     syncWithServer
   } = useDocuments();
@@ -42,14 +47,21 @@ const GestionDocumentaire = () => {
   const { toast } = useToast();
 
   const handleExportPdf = () => {
-    // Future functionality
-    toast({
-      title: "Export PDF",
-      description: "La fonctionnalité d'export sera disponible prochainement",
-    });
+    if (documents && documents.length > 0) {
+      exportDocumentsToPdf(documents, groups, "Liste des documents");
+      toast({
+        title: "Export PDF réussi",
+        description: "Le document a été généré et téléchargé",
+      });
+    } else {
+      toast({
+        title: "Export impossible",
+        description: "Aucun document disponible à exporter",
+      });
+    }
   };
 
-  // Create a wrapper function that returns Promise<void> instead of Promise<boolean>
+  // Create a wrapper function that returns Promise<void> for SyncIndicator
   const handleSync = async () => {
     await syncWithServer();
     // No return value, which implicitly returns void
@@ -100,8 +112,6 @@ const GestionDocumentaire = () => {
         </Alert>
       )}
 
-      {/* Stats section could go here in future */}
-
       {documents.length > 0 ? (
         <DocumentTable 
           documents={documents}
@@ -141,9 +151,25 @@ const GestionDocumentaire = () => {
           variant="default"
           onClick={handleAddDocument}
         >
+          <Plus className="h-5 w-5 mr-2" />
           Ajouter un document
         </Button>
       </div>
+
+      <DocumentForm 
+        document={editingDocument}
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        onSave={handleSaveDocument}
+      />
+
+      <DocumentGroupDialog
+        group={editingGroup}
+        open={groupDialogOpen}
+        onOpenChange={setGroupDialogOpen}
+        onSave={handleSaveGroup}
+        isEditing={!!editingGroup}
+      />
     </div>
   );
 };
