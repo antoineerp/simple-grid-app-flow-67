@@ -1,4 +1,3 @@
-
 /**
  * Service de synchronisation automatique centralisée
  * Ce service gère la synchronisation des données entre toutes les pages de l'application
@@ -411,7 +410,7 @@ export const useAutoSync = <T>(tableName: string) => {
       toast({
         title: "Hors ligne",
         description: "Vous êtes actuellement hors ligne. Les données sont sauvegardées localement et seront synchronisées dès que la connexion sera rétablie.",
-        variant: "warning"
+        variant: "destructive"
       });
       return false;
     }
