@@ -52,7 +52,7 @@ export const useCollaboration = () => {
         if (isOnline) {
           console.log("Tentative de chargement depuis le serveur avec userId:", fixedUserId);
           
-          const serverDocuments = await loadFromServer(fixedUserId);
+          const serverDocuments = await loadFromServer();
           
           if (serverDocuments && serverDocuments.length > 0) {
             // Si on a des documents du serveur, on les utilise
@@ -124,6 +124,9 @@ export const useCollaboration = () => {
     
     debounceSyncWithServer([...documents, newDoc], groups);
     
+    // Sauvegarder aussi dans le stockage local
+    saveCollaborationToStorage([...documents, newDoc], groups);
+    
     toast({
       title: "Document ajouté",
       description: `Le document ${newDoc.name} a été ajouté.`,
@@ -154,6 +157,9 @@ export const useCollaboration = () => {
     
     const updatedDocuments = documents.map(d => d.id === doc.id ? doc : d);
     debounceSyncWithServer(updatedDocuments, groups);
+    
+    // Sauvegarder aussi dans le stockage local
+    saveCollaborationToStorage(updatedDocuments, groups);
     
     toast({
       title: "Document mis à jour",
@@ -189,6 +195,9 @@ export const useCollaboration = () => {
     const updatedDocuments = documents.filter(d => d.id !== id);
     debounceSyncWithServer(updatedDocuments, documentInGroup ? updatedGroups : groups);
     
+    // Sauvegarder aussi dans le stockage local
+    saveCollaborationToStorage(updatedDocuments, documentInGroup ? updatedGroups : groups);
+    
     toast({
       title: "Document supprimé",
       description: "Le document a été supprimé.",
@@ -210,6 +219,9 @@ export const useCollaboration = () => {
     
     debounceSyncWithServer(documents, [...groups, newGroup]);
     
+    // Sauvegarder aussi dans le stockage local
+    saveCollaborationToStorage(documents, [...groups, newGroup]);
+    
     toast({
       title: "Groupe ajouté",
       description: `Le groupe ${newGroup.name} a été ajouté.`,
@@ -229,6 +241,9 @@ export const useCollaboration = () => {
     
     const updatedGroups = groups.map(g => g.id === group.id ? { ...group, items: g.items } : g);
     debounceSyncWithServer(documents, updatedGroups);
+    
+    // Sauvegarder aussi dans le stockage local
+    saveCollaborationToStorage(documents, updatedGroups);
     
     toast({
       title: "Groupe mis à jour",
@@ -255,6 +270,9 @@ export const useCollaboration = () => {
     const updatedGroups = groups.filter(g => g.id !== id);
     const updatedDocuments = [...documents, ...docsToMove];
     debounceSyncWithServer(updatedDocuments, updatedGroups);
+    
+    // Sauvegarder aussi dans le stockage local
+    saveCollaborationToStorage(updatedDocuments, updatedGroups);
     
     toast({
       title: "Groupe supprimé",

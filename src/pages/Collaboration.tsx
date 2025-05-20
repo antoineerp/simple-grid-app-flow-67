@@ -11,6 +11,7 @@ import { BibliothequeHeader } from '@/features/bibliotheque/components/Bibliothe
 import { BibliothequeActions } from '@/features/bibliotheque/components/BibliothequeActions';
 import { DocumentDialog } from '@/features/bibliotheque/components/DocumentDialog';
 import { GroupDialog } from '@/features/bibliotheque/components/GroupDialog';
+import { saveCollaborationToStorage } from '@/services/collaboration/collaborationService';
 
 const Collaboration = () => {
   const { 
@@ -122,12 +123,16 @@ const Collaboration = () => {
   const handleReorder = (startIndex: number, endIndex: number, targetGroupId?: string) => {
     console.log(`Réorganisation de l'élément ${startIndex} à ${endIndex}${targetGroupId ? ` dans le groupe ${targetGroupId}` : ''}`);
     // Implémentation à faire si nécessaire
+    // Sauvegarder l'état après réorganisation
+    saveCollaborationToStorage(documents, groups);
   };
 
   // Gestionnaire de réorganisation de groupe
   const handleGroupReorder = (startIndex: number, endIndex: number) => {
     console.log(`Réorganisation du groupe ${startIndex} à ${endIndex}`);
     // Implémentation à faire si nécessaire
+    // Sauvegarder l'état après réorganisation
+    saveCollaborationToStorage(documents, groups);
   };
 
   // Gestion des changements de champs du document

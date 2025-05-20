@@ -3,6 +3,7 @@ import { useState, useCallback } from 'react';
 import { Document, DocumentGroup } from '@/types/bibliotheque';
 import { useToast } from '@/hooks/use-toast';
 import { getApiUrl } from '@/config/apiConfig';
+import { saveCollaborationToStorage } from '@/services/collaboration/collaborationService';
 
 // ID utilisateur fixe pour toute l'application
 const FIXED_USER_ID = 'p71x6d_richard';
@@ -44,6 +45,12 @@ export const useCollaborationSync = () => {
       if (data.success) {
         setLastSynced(new Date());
         console.log("Données chargées avec succès:", data);
+        
+        // Sauvegarder en local
+        if (data.documents && data.documents.length > 0) {
+          saveCollaborationToStorage(data.documents.filter((doc: Document) => !doc.groupId), []);
+        }
+        
         return data.documents || [];
       } else {
         console.error('Erreur lors du chargement des documents:', data.message);
@@ -119,6 +126,10 @@ export const useCollaborationSync = () => {
           documents: docsResult,
           groups: groupsResult
         });
+        
+        // Sauvegarder en local après synchronisation réussie
+        saveCollaborationToStorage(documents, groups);
+        
         return true;
       } else {
         console.error('Erreur lors de la synchronisation:', {
@@ -146,6 +157,9 @@ export const useCollaborationSync = () => {
     return new Promise<boolean>((resolve) => {
       clearTimeout(timeoutId);
       timeoutId = setTimeout(async () => {
+        // Sauvegarder d'abord localement avant de tenter la synchro
+        saveCollaborationToStorage(documents, groups);
+        
         const result = await syncWithServer(documents, groups);
         resolve(result);
       }, 1000);
