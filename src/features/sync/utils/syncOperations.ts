@@ -25,7 +25,8 @@ const cleanupRecentlySynced = (tableName: string) => {
  */
 export const isSynchronizing = (tableName: string): boolean => {
   // Vérifier si la table a un verrou actif
-  return acquireLock(tableName, true);
+  // Check if a sync lock exists without trying to acquire it
+  return localStorage.getItem(`sync_in_progress_${tableName}`) === 'true';
 };
 
 // Execute a sync operation with proper locking
