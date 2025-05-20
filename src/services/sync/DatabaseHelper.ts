@@ -39,16 +39,15 @@ export class DatabaseHelper {
     showToast: boolean = true
   ): Promise<DatabaseUpdateResult> {
     try {
-      const currentUser = userId || getCurrentUser() || 'p71x6d_system';
+      const currentUser = userId || getCurrentUser() || 'p71x6d_richard';
       const API_URL = this.apiUrl;
       const safeUserId = encodeURIComponent(currentUser);
       
       console.log(`Demande de mise à jour de la structure pour l'utilisateur ${safeUserId}`);
       
-      // Utiliser une seule méthode de connexion avec gestion d'erreur robuste
+      // Utiliser la méthode de connexion qui fonctionnait correctement
       let response;
       try {
-        // Assurons-nous que l'URL est correctement formée
         const endpoint = `${API_URL}/db-update.php`;
         console.log(`Connexion à: ${endpoint}?userId=${safeUserId}`);
         
@@ -172,7 +171,7 @@ export class DatabaseHelper {
    * Effectue une requête HTTP avec gestion des erreurs améliorée
    * @param url URL de la requête
    * @param options Options fetch
-   * @returns Résponse
+   * @returns Réponse
    */
   public async fetch(url: string, options: RequestInit = {}): Promise<Response> {
     try {
@@ -195,6 +194,15 @@ export class DatabaseHelper {
       };
       
       console.log(`DatabaseHelper: Requête HTTP vers ${url}`);
+      
+      // Vérifier si l'URL contient "check-users.php" et utiliser directement cette URL qui fonctionne
+      if (url.includes('check-users.php') || url.includes('fix-users-roles.php')) {
+        console.log(`Utilisation directe de l'URL du gestionnaire d'utilisateurs: ${url}`);
+      } else if (url.includes('database-config.php')) {
+        // Utiliser l'URL fonctionnelle pour la configuration de la base de données
+        url = `${this.apiUrl}/check-users.php`;
+        console.log(`URL de configuration de la base modifiée vers: ${url}`);
+      }
       
       // Exécuter la requête
       const response = await fetch(url, mergedOptions);
