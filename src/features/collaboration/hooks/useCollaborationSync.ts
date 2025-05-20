@@ -16,13 +16,16 @@ export const useCollaborationSync = () => {
       setIsSyncing(true);
       setSyncFailed(false);
       
-      // Attempt to fetch documents from server
-      const response = await fetch(`${process.env.API_URL || ''}/api/collaboration-load.php`, {
-        method: 'POST',
+      // Modifier pour utiliser GET au lieu de POST et envoyer userId comme paramètre d'URL
+      const url = `${process.env.API_URL || ''}/api/collaboration-load.php?userId=p71x6d_richard`;
+      console.log("Tentative de chargement depuis:", url);
+      
+      const response = await fetch(url, {
+        method: 'GET',
         headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ userId: 'p71x6d_richard' }) // Toujours utiliser cet ID
+          'Accept': 'application/json',
+          'Cache-Control': 'no-store, no-cache, must-revalidate'
+        }
       });
       
       if (!response.ok) {
@@ -33,6 +36,7 @@ export const useCollaborationSync = () => {
       
       if (data.success) {
         setLastSynced(new Date());
+        console.log("Données chargées avec succès:", data);
         return data.documents || [];
       } else {
         console.error('Erreur lors du chargement des documents:', data.message);
@@ -74,6 +78,8 @@ export const useCollaborationSync = () => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'Cache-Control': 'no-store, no-cache, must-revalidate'
         },
         body: JSON.stringify(docsData)
       });
@@ -87,6 +93,8 @@ export const useCollaborationSync = () => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'Cache-Control': 'no-store, no-cache, must-revalidate'
         },
         body: JSON.stringify(groupsData)
       });

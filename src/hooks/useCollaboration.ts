@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { Document, DocumentGroup } from '@/types/bibliotheque';
@@ -45,36 +44,52 @@ export const useCollaboration = () => {
       if (userObj.email) return userObj.email;
       if (userObj.id) return userObj.id;
     }
-    return 'p71x6d_system';
+    return 'p71x6d_richard'; // Utiliser une valeur par défaut valide
   }, []);
 
   // Chargement initial des données
   useEffect(() => {
     const loadDocuments = async () => {
       try {
-        const userId = getCurrentUserId();
-        const serverDocuments = await loadFromServer(userId);
+        console.log("Chargement initial des documents de collaboration");
         
-        if (serverDocuments.length > 0) {
-          // Si on a des documents du serveur, on les utilise
-          const groupedDocs = serverDocuments.filter(doc => doc.groupId);
-          const ungroupedDocs = serverDocuments.filter(doc => !doc.groupId);
+        // Charger d'abord depuis le stockage local
+        const { documents: localDocs, groups: localGroups } = loadCollaborationFromStorage();
+        setDocuments(localDocs);
+        setGroups(localGroups);
+        
+        // Puis essayer de charger depuis le serveur si en ligne
+        if (isOnline) {
+          const userId = getCurrentUserId();
+          console.log("Tentative de chargement depuis le serveur avec userId:", userId);
           
-          // Créer les groupes à partir des documents groupés
-          const uniqueGroups = Array.from(new Set(groupedDocs.map(doc => doc.groupId))).filter(Boolean);
-          const newGroups = uniqueGroups.map(groupId => {
-            const docs = groupedDocs.filter(doc => doc.groupId === groupId);
-            const groupName = docs.length > 0 ? `Groupe ${groupId}` : `Groupe ${groupId}`;
-            return {
-              id: groupId as string,
-              name: groupName,
-              expanded: false,
-              items: docs
-            };
-          });
+          const serverDocuments = await loadFromServer(userId);
           
-          setGroups(newGroups);
-          setDocuments(ungroupedDocs);
+          if (serverDocuments && serverDocuments.length > 0) {
+            // Si on a des documents du serveur, on les utilise
+            console.log("Documents chargés depuis le serveur:", serverDocuments.length);
+            
+            const groupedDocs = serverDocuments.filter(doc => doc.groupId);
+            const ungroupedDocs = serverDocuments.filter(doc => !doc.groupId);
+            
+            // Créer les groupes à partir des documents groupés
+            const uniqueGroups = Array.from(new Set(groupedDocs.map(doc => doc.groupId))).filter(Boolean);
+            const newGroups = uniqueGroups.map(groupId => {
+              const docs = groupedDocs.filter(doc => doc.groupId === groupId);
+              const groupName = docs.length > 0 ? `Groupe ${groupId}` : `Groupe ${groupId}`;
+              return {
+                id: groupId as string,
+                name: groupName,
+                expanded: false,
+                items: docs
+              };
+            });
+            
+            setGroups(newGroups);
+            setDocuments(ungroupedDocs);
+          } else {
+            console.log("Aucun document reçu du serveur, utilisation des données locales");
+          }
         }
       } catch (error) {
         console.error('Erreur lors du chargement des documents:', error);
@@ -87,7 +102,7 @@ export const useCollaboration = () => {
     };
     
     loadDocuments();
-  }, [loadFromServer, toast, getCurrentUserId]);
+  }, [loadFromServer, toast, getCurrentUserId, isOnline]);
 
   // Fonction pour synchroniser les documents avec le serveur
   const handleSyncDocuments = useCallback(async () => {
