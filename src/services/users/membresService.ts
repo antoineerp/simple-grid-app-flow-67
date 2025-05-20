@@ -1,7 +1,7 @@
 
 import { Membre } from '@/types/membres';
 import { getApiUrl } from '@/config/apiConfig';
-import { getAuthHeaders } from '../auth/authService';
+import { getAuthHeaders, getIsLoggedIn } from '../auth/authService';
 
 // Cache pour les membres
 let membresCache: Membre[] | null = null;
@@ -12,6 +12,12 @@ const CACHE_DURATION = 60000; // 1 minute de cache
  * Service pour la gestion des membres (ressources humaines)
  */
 export const getMembres = async (forceRefresh: boolean = false): Promise<Membre[]> => {
+  // Vérifier l'authentification avant toute opération
+  if (!getIsLoggedIn()) {
+    console.log("membresService: Utilisateur non authentifié, impossible de charger les membres");
+    throw new Error("Utilisateur non authentifié");
+  }
+
   // Retourner les données du cache si disponibles et pas encore expirées
   if (!forceRefresh && membresCache && lastFetchTimestamp && (Date.now() - lastFetchTimestamp < CACHE_DURATION)) {
     console.log("Utilisation du cache pour les membres", membresCache.length);
@@ -81,22 +87,25 @@ export const getMembres = async (forceRefresh: boolean = false): Promise<Membre[
   } catch (error) {
     console.error("Erreur lors de la récupération des membres:", error);
     
-    // Essayer de récupérer depuis le stockage local
-    try {
-      const userId = localStorage.getItem('userId') || sessionStorage.getItem('userId') || 'p71x6d_system';
-      const localData = localStorage.getItem(`membres_${userId}`);
-      
-      if (localData) {
-        const parsedData = JSON.parse(localData);
-        console.log("Utilisation des données locales pour les membres");
-        return parsedData;
+    // Essayer de récupérer depuis le stockage local si l'utilisateur est authentifié
+    // mais que la requête a échoué (par exemple en mode hors ligne)
+    if (getIsLoggedIn()) {
+      try {
+        const userId = localStorage.getItem('userId') || sessionStorage.getItem('userId') || 'p71x6d_system';
+        const localData = localStorage.getItem(`membres_${userId}`);
+        
+        if (localData) {
+          const parsedData = JSON.parse(localData);
+          console.log("Utilisation des données locales pour les membres");
+          return parsedData;
+        }
+      } catch (localError) {
+        console.error("Erreur lors de la lecture des données locales des membres:", localError);
       }
-    } catch (localError) {
-      console.error("Erreur lors de la lecture des données locales des membres:", localError);
     }
     
-    // En cas d'erreur, retourner un tableau vide pour éviter de bloquer l'UI
-    return [];
+    // Relancer l'erreur pour que l'appelant puisse la gérer
+    throw error;
   }
 };
 

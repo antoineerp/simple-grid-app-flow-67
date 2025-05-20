@@ -4,6 +4,7 @@ import { Membre } from '@/types/membres';
 import { getMembres as getMembresService } from '@/services/users/membresService';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface MembresContextProps {
   membres: Membre[];
@@ -53,10 +54,11 @@ const defaultMembres: Membre[] = [
 export const MembresProvider: React.FC<MembresProviderProps> = ({ children }) => {
   const [membres, setMembres] = useState<Membre[]>(defaultMembres);
   const [lastSynced, setLastSynced] = useState<Date | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(false); // Start as false to avoid immediate loading state
+  const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<Error | null>(null);
   const [syncFailed, setSyncFailed] = useState<boolean>(false);
   const { isOnline } = useNetworkStatus();
+  const { isAuthenticated } = useAuth(); // Utiliser l'état d'authentification
   const initialized = useRef<boolean>(false);
   const mountedRef = useRef<boolean>(true);
   const loadingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -81,6 +83,12 @@ export const MembresProvider: React.FC<MembresProviderProps> = ({ children }) =>
   // Utiliser un useCallback pour rendre la fonction réutilisable et stable
   const loadMembres = useCallback(async (forceRefresh = false) => {
     if (!mountedRef.current) return;
+    
+    // Vérifier si l'utilisateur est authentifié
+    if (!isAuthenticated) {
+      console.log("MembresProvider: Utilisateur non authentifié, chargement des membres ignoré");
+      return;
+    }
     
     // Si déjà en chargement, ne pas lancer un nouveau chargement
     if (isLoading) {
@@ -198,10 +206,16 @@ export const MembresProvider: React.FC<MembresProviderProps> = ({ children }) =>
         }
       }
     }
-  }, [isOnline, isLoading, membres.length, toast]);
+  }, [isAuthenticated, isOnline, isLoading, membres.length, toast]);
 
   // Charger les membres au démarrage avec un délai pour éviter les conflits d'initialisation
   useEffect(() => {
+    // Ne charger les membres que si l'utilisateur est authentifié
+    if (!isAuthenticated) {
+      console.log("MembresProvider: Utilisateur non authentifié, initialisation ignorée");
+      return;
+    }
+    
     const initTimeout = setTimeout(() => {
       if (!mountedRef.current) return;
       
@@ -213,12 +227,12 @@ export const MembresProvider: React.FC<MembresProviderProps> = ({ children }) =>
     }, 500); // petit délai pour laisser les autres composants s'initialiser
     
     return () => clearTimeout(initTimeout);
-  }, [loadMembres]);
+  }, [loadMembres, isAuthenticated]);
 
-  // Effet supplémentaire pour surveiller les changements de connectivité
+  // Effet supplémentaire pour surveiller les changements de connectivité et d'authentification
   useEffect(() => {
-    if (isOnline && lastSynced === null && !isLoading) {
-      console.log("MembresProvider: Connexion rétablie, tentative de rechargement des membres");
+    if (isOnline && isAuthenticated && lastSynced === null && !isLoading) {
+      console.log("MembresProvider: Connexion rétablie et utilisateur authentifié, tentative de rechargement des membres");
       
       // Délai avant de recharger pour laisser le temps à la connexion de se stabiliser
       const reconnectTimeout = setTimeout(() => {
@@ -231,7 +245,7 @@ export const MembresProvider: React.FC<MembresProviderProps> = ({ children }) =>
       
       return () => clearTimeout(reconnectTimeout);
     }
-  }, [isOnline, lastSynced, isLoading, loadMembres]);
+  }, [isOnline, isAuthenticated, lastSynced, isLoading, loadMembres]);
 
   const resetSyncFailed = useCallback(() => {
     setSyncFailed(false);
@@ -240,9 +254,20 @@ export const MembresProvider: React.FC<MembresProviderProps> = ({ children }) =>
   }, []);
 
   const refreshMembres = useCallback(async () => {
+    // Ne rafraîchir que si l'utilisateur est authentifié
+    if (!isAuthenticated) {
+      toast({
+        title: "Action impossible",
+        description: "Vous devez être connecté pour actualiser les membres",
+        variant: "destructive",
+        duration: 3000
+      });
+      return;
+    }
+    
     console.log("MembresProvider: Rechargement forcé des membres");
     await loadMembres(true);
-  }, [loadMembres]);
+  }, [loadMembres, isAuthenticated, toast]);
 
   const value = {
     membres,

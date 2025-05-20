@@ -1,11 +1,13 @@
 
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Logo from '@/components/auth/Logo';
 import LoginForm from '@/components/auth/LoginForm';
 import { getApiUrl, getFullApiUrl, testApiConnection } from '@/config/apiConfig';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle, ExternalLink, Server, RefreshCw } from 'lucide-react';
+import { getIsLoggedIn } from '@/services/auth/authService';
 
 const Index = () => {
   const [apiStatus, setApiStatus] = useState<'loading' | 'success' | 'error'>('loading');
@@ -14,6 +16,14 @@ const Index = () => {
   const [version, setVersion] = useState<string>('1.0.7');
   const [isInfomaniak, setIsInfomaniak] = useState<boolean>(false);
   const [isRetesting, setIsRetesting] = useState<boolean>(false);
+  const navigate = useNavigate();
+  
+  useEffect(() => {
+    // Si déjà connecté, rediriger vers le tableau de bord
+    if (getIsLoggedIn()) {
+      navigate('/', { replace: true });
+    }
+  }, [navigate]);
   
   const checkApi = async () => {
     try {
