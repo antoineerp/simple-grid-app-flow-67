@@ -81,7 +81,7 @@ jobs:
         username: ${{ secrets.FTP_USERNAME }}
         password: ${{ secrets.FTP_PASSWORD }}
         local-dir: ./deploy/
-        server-dir: /sites/qualiopi.ch/
+        server-dir: /
         dangerous-clean-slate: false
         exclude: |
           **/.git*
@@ -90,6 +90,8 @@ jobs:
           **/api-tools/**
           **/api/admin/**
           **/api/documentation/**
+          **/sites/**
+          **/site/**
           README.md
           dist/**
           package.json
@@ -101,4 +103,3 @@ jobs:
       run: |
         rm -rf deploy
         rm -rf dist
-
