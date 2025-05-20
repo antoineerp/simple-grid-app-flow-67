@@ -6,6 +6,9 @@ import { checkPermission, UserRole } from '@/types/roles';
 import { getDatabaseConnectionCurrentUser } from '@/services/core/databaseConnectionService';
 import { UserManager } from '@/services/users/userManager';
 
+// ID utilisateur fixe pour toute l'application
+const FIXED_USER_ID = 'p71x6d_richard';
+
 export const useAdminUsers = () => {
   const { toast } = useToast();
   const [utilisateurs, setUtilisateurs] = useState<Utilisateur[]>([]);
@@ -31,7 +34,6 @@ export const useAdminUsers = () => {
 
   const loadUtilisateurs = useCallback(async () => {
     const currentUserRole = localStorage.getItem('userRole') as UserRole;
-    const currentDatabaseUser = getDatabaseConnectionCurrentUser();
     
     // Vérifier les permissions avant de charger les utilisateurs
     if (!checkPermission(currentUserRole, 'isAdmin')) {
@@ -48,7 +50,7 @@ export const useAdminUsers = () => {
     
     try {
       console.log("Début du chargement des utilisateurs...");
-      console.log("Utilisateur base de données actuel:", currentDatabaseUser);
+      console.log(`Utilisateur base de données actuel: ${FIXED_USER_ID}`);
       
       // Vérifier d'abord la connexion à la base de données
       const dbConnected = await testDatabaseConnection();
@@ -91,7 +93,7 @@ export const useAdminUsers = () => {
       return false;
     }
     
-    console.log(`Tentative de connexion en tant que: ${identifiantTechnique}`);
+    console.log(`Tentative de connexion en tant que: ${identifiantTechnique} (utilisera toujours ${FIXED_USER_ID})`);
 
     try {
       // Vérifier d'abord la connexion à la base de données
@@ -102,14 +104,14 @@ export const useAdminUsers = () => {
       
       const success = await connectAsUser(identifiantTechnique);
       if (success) {
-        console.log(`Connexion réussie en tant que: ${identifiantTechnique}`);
+        console.log(`Connexion réussie (simulée avec ${FIXED_USER_ID})`);
         toast({
           title: "Connexion réussie",
-          description: `Connecté en tant que ${identifiantTechnique}`,
+          description: `Connecté en tant que ${FIXED_USER_ID}`,
         });
         
-        // Mettre à jour explicitement localStorage
-        localStorage.setItem('currentDatabaseUser', identifiantTechnique);
+        // Mettre à jour explicitement localStorage pour la cohérence de l'interface
+        localStorage.setItem('currentDatabaseUser', FIXED_USER_ID);
       } else {
         console.error(`Échec de connexion en tant que: ${identifiantTechnique}`);
       }

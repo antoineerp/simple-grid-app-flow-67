@@ -8,6 +8,9 @@ import { AlertCircle, Loader2 } from 'lucide-react';
 import { DiagnosticResult } from '@/types/database-diagnostic';
 import { getApiUrl } from '@/config/apiConfig';
 
+// ID utilisateur fixe pour toute l'application
+const FIXED_USER_ID = 'p71x6d_richard';
+
 const DatabaseDiagnostic = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -19,9 +22,9 @@ const DatabaseDiagnostic = () => {
     
     try {
       const apiUrl = getApiUrl();
-      console.log(`Exécution du diagnostic de BDD depuis: ${apiUrl}/db-diagnostic.php`);
+      console.log(`Exécution du diagnostic de BDD depuis: ${apiUrl}/db-diagnostic.php?userId=${FIXED_USER_ID}`);
       
-      const response = await fetch(`${apiUrl}/db-diagnostic.php`, {
+      const response = await fetch(`${apiUrl}/db-diagnostic.php?userId=${FIXED_USER_ID}`, {
         method: 'GET',
         headers: {
           'Accept': 'application/json',

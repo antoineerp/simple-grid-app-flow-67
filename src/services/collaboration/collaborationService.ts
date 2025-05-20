@@ -7,9 +7,8 @@ const FIXED_USER_ID = 'p71x6d_richard';
 /**
  * Loads collaboration documents from localStorage for a specific user
  */
-export const loadCollaborationFromStorage = (currentUser: string = FIXED_USER_ID): { documents: Document[], groups: DocumentGroup[] } => {
-  // Forcer l'utilisation de l'ID utilisateur fixe
-  currentUser = FIXED_USER_ID;
+export const loadCollaborationFromStorage = (): { documents: Document[], groups: DocumentGroup[] } => {
+  const currentUser = FIXED_USER_ID;
   
   const storedDocuments = localStorage.getItem(`collaboration_documents_${currentUser}`);
   const storedGroups = localStorage.getItem(`collaboration_groups_${currentUser}`);
@@ -60,9 +59,8 @@ export const loadCollaborationFromStorage = (currentUser: string = FIXED_USER_ID
 /**
  * Saves collaboration documents to localStorage for a specific user
  */
-export const saveCollaborationToStorage = (documents: Document[], groups: DocumentGroup[], currentUser: string = FIXED_USER_ID): void => {
-  // Forcer l'utilisation de l'ID utilisateur fixe
-  currentUser = FIXED_USER_ID;
+export const saveCollaborationToStorage = (documents: Document[], groups: DocumentGroup[]): void => {
+  const currentUser = FIXED_USER_ID;
   
   // Extraction des documents des groupes
   const groupDocuments = groups.flatMap(group => 

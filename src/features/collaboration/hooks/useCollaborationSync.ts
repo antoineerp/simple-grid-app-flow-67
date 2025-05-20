@@ -4,6 +4,9 @@ import { Document, DocumentGroup } from '@/types/bibliotheque';
 import { useToast } from '@/hooks/use-toast';
 import { getApiUrl } from '@/config/apiConfig';
 
+// ID utilisateur fixe pour toute l'application
+const FIXED_USER_ID = 'p71x6d_richard';
+
 export const useCollaborationSync = () => {
   const [isSyncing, setIsSyncing] = useState<boolean>(false);
   const [isOnline, setIsOnline] = useState<boolean>(navigator.onLine);
@@ -13,18 +16,15 @@ export const useCollaborationSync = () => {
   
   // Base URL pour les requêtes API
   const baseApiUrl = getApiUrl();
-  
-  // ID utilisateur fixe pour toute l'application
-  const fixedUserId = 'p71x6d_richard';
 
   // Function to load documents from server
-  const loadFromServer = useCallback(async (userId: string): Promise<Document[]> => {
+  const loadFromServer = useCallback(async (): Promise<Document[]> => {
     try {
       setIsSyncing(true);
       setSyncFailed(false);
       
       // Utilisation cohérente des chemins avec getApiUrl et GET pour le chargement
-      const url = `${baseApiUrl}/collaboration-load.php?userId=${fixedUserId}`;
+      const url = `${baseApiUrl}/collaboration-load.php?userId=${FIXED_USER_ID}`;
       console.log("Tentative de chargement depuis:", url);
       
       const response = await fetch(url, {
@@ -62,8 +62,7 @@ export const useCollaborationSync = () => {
   // Function to sync documents with server
   const syncWithServer = useCallback(async (
     documents: Document[], 
-    groups: DocumentGroup[], 
-    userId: string
+    groups: DocumentGroup[]
   ): Promise<boolean> => {
     try {
       setIsSyncing(true);
@@ -71,12 +70,12 @@ export const useCollaborationSync = () => {
       
       // Préparer les données pour la synchronisation avec l'ID utilisateur fixe
       const docsData = {
-        userId: fixedUserId,
+        userId: FIXED_USER_ID,
         collaboration: documents
       };
       
       const groupsData = {
-        userId: fixedUserId,
+        userId: FIXED_USER_ID,
         groups: groups
       };
       
@@ -141,14 +140,13 @@ export const useCollaborationSync = () => {
   // Debounced version of syncWithServer
   const debounceSyncWithServer = useCallback((
     documents: Document[],
-    groups: DocumentGroup[],
-    userId: string
+    groups: DocumentGroup[]
   ) => {
     let timeoutId: NodeJS.Timeout;
     return new Promise<boolean>((resolve) => {
       clearTimeout(timeoutId);
       timeoutId = setTimeout(async () => {
-        const result = await syncWithServer(documents, groups, fixedUserId);
+        const result = await syncWithServer(documents, groups);
         resolve(result);
       }, 1000);
     });

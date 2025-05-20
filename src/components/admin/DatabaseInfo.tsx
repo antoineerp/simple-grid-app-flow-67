@@ -9,12 +9,13 @@ import { useAdminDatabase } from '@/hooks/useAdminDatabase';
 import DatabaseConfig from './DatabaseConfig';
 import DatabaseGuide from './DatabaseGuide';
 import DatabaseDiagnostic from './DatabaseDiagnostic';
-import { getDatabaseConnectionCurrentUser } from '@/services';
+
+// ID utilisateur fixe pour toute l'application
+const FIXED_USER_ID = 'p71x6d_richard';
 
 const DatabaseInfo = () => {
   const { dbInfo, loading, testingConnection, loadDatabaseInfo, handleTestConnection, error } = useAdminDatabase();
   const [activeTab, setActiveTab] = useState("info");
-  const currentUser = getDatabaseConnectionCurrentUser();
   
   // Charger les informations de la base de données au chargement du composant
   useEffect(() => {
@@ -29,7 +30,7 @@ const DatabaseInfo = () => {
   }, []);
 
   const getStatusBadge = (status: string) => {
-    if (status === "Online" || (currentUser && status !== "Offline")) {
+    if (status === "Online") {
       return (
         <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
           <CheckCircle2 className="h-3 w-3 mr-1" />
@@ -89,16 +90,15 @@ const DatabaseInfo = () => {
             </div>
           </CardHeader>
           <CardContent>
-            {error && !currentUser && (
-              <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
-                <h3 className="text-sm font-medium text-red-800 mb-1">Erreur de connexion</h3>
-                <p className="text-sm text-red-700">{error}</p>
-                <p className="text-xs text-red-600 mt-2">
-                  Vérifiez la configuration de la base de données dans l'onglet "Configuration".
-                  Consultez également le guide de configuration pour plus d'informations.
+            {error && (
+              <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                <h3 className="text-sm font-medium text-yellow-800 mb-1">Note importante</h3>
+                <p className="text-sm text-yellow-700">
+                  Cette application utilise toujours la base de données <strong>{FIXED_USER_ID}</strong> 
+                  pour des raisons de compatibilité.
                 </p>
                 <div className="mt-3">
-                  <Button variant="outline" size="sm" onClick={() => setActiveTab("diagnostic")} className="flex items-center text-red-700">
+                  <Button variant="outline" size="sm" onClick={() => setActiveTab("diagnostic")} className="flex items-center text-yellow-700">
                     <Stethoscope className="h-3 w-3 mr-1" />
                     Exécuter un diagnostic complet
                   </Button>
@@ -106,14 +106,12 @@ const DatabaseInfo = () => {
               </div>
             )}
             
-            {currentUser && (
-              <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
-                <h3 className="text-sm font-medium text-green-800 mb-1">Connexion active</h3>
-                <p className="text-sm text-green-700">
-                  Vous êtes actuellement connecté à la base de données en tant que <strong>{currentUser}</strong>.
-                </p>
-              </div>
-            )}
+            <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
+              <h3 className="text-sm font-medium text-green-800 mb-1">Connexion active</h3>
+              <p className="text-sm text-green-700">
+                Vous êtes actuellement connecté à la base de données en tant que <strong>{FIXED_USER_ID}</strong>.
+              </p>
+            </div>
             
             {dbInfo ? (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -122,23 +120,23 @@ const DatabaseInfo = () => {
                     <h3 className="text-sm font-medium text-muted-foreground">Configuration</h3>
                     <div className="mt-2 grid grid-cols-2 gap-2 text-sm">
                       <div className="font-medium">Hôte:</div>
-                      <div>{currentUser ? `${currentUser}.myd.infomaniak.com` : dbInfo.host}</div>
+                      <div>{`${FIXED_USER_ID}.myd.infomaniak.com`}</div>
                       <div className="font-medium">Base de données:</div>
-                      <div>{currentUser || dbInfo.database}</div>
+                      <div>{FIXED_USER_ID}</div>
                       <div className="font-medium">Statut:</div>
                       <div>
-                        {currentUser ? getStatusBadge("Online") : getStatusBadge(dbInfo.status)}
+                        {getStatusBadge("Online")}
                       </div>
                       {dbInfo.encoding && (
                         <>
                           <div className="font-medium">Encodage:</div>
-                          <div>{currentUser ? "UTF-8" : dbInfo.encoding}</div>
+                          <div>UTF-8</div>
                         </>
                       )}
                       {dbInfo.collation && (
                         <>
                           <div className="font-medium">Collation:</div>
-                          <div>{currentUser ? "utf8mb4_unicode_ci" : dbInfo.collation}</div>
+                          <div>utf8mb4_unicode_ci</div>
                         </>
                       )}
                     </div>
@@ -184,7 +182,7 @@ const DatabaseInfo = () => {
           </CardContent>
           <CardFooter className="flex justify-between bg-muted/10">
             <p className="text-xs text-muted-foreground">
-              Les informations présentées ici sont obtenues en temps réel depuis la base de données.
+              Toujours connecté à la base de données {FIXED_USER_ID}
             </p>
             <p className="text-xs text-muted-foreground">
               Dernière mise à jour: {new Date().toLocaleString()}

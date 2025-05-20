@@ -3,25 +3,23 @@ import { getApiUrl } from '@/config/apiConfig';
 import { getAuthHeaders } from '@/services/auth/authService';
 
 // Variable en mémoire pour stocker l'utilisateur actuel
-// Toujours initialiser avec l'utilisateur richard
-let currentDatabaseUser: string = 'p71x6d_richard';
+// Toujours utiliser p71x6d_richard comme utilisateur par défaut
+const FIXED_USER_ID = 'p71x6d_richard';
 
-// Fonction pour récupérer l'utilisateur actuel depuis la mémoire
+// Fonction pour récupérer l'utilisateur actuel
 export const getCurrentUser = (): string => {
   // Toujours utiliser p71x6d_richard comme utilisateur par défaut
-  return 'p71x6d_richard';
+  return FIXED_USER_ID;
 };
 
 // Fonction pour définir l'utilisateur actuel (ignorée dans cette version)
 export const setCurrentUser = (userId: string): void => {
-  console.log(`Tentative de définir l'utilisateur à ${userId} - Ignorée, utilisation de p71x6d_richard`);
+  console.log(`Tentative de définir l'utilisateur à ${userId} - Ignorée, utilisation de ${FIXED_USER_ID}`);
   // Ne change pas l'utilisateur actuel, on garde toujours p71x6d_richard
-  currentDatabaseUser = 'p71x6d_richard';
 };
 
-// Fonction pour supprimer l'utilisateur actuel (reset à p71x6d_richard)
+// Fonction pour supprimer l'utilisateur actuel (reste toujours p71x6d_richard)
 export const removeCurrentUser = (): void => {
-  currentDatabaseUser = 'p71x6d_richard';
   try {
     localStorage.removeItem('currentDatabaseUser');
   } catch (error) {
@@ -47,11 +45,11 @@ export const setLastConnectionError = (error: string): void => {
 // Cette fonction simule une connexion réussie mais utilise toujours p71x6d_richard
 export const connectAsUser = async (userId: string): Promise<boolean> => {
   try {
-    console.log(`Connexion simulée en tant que ${userId} (utilise en réalité p71x6d_richard)`);
+    console.log(`Connexion simulée en tant que ${userId} (utilise en réalité ${FIXED_USER_ID})`);
     
     // Mettre à jour l'interface utilisateur immédiatement
     window.dispatchEvent(new CustomEvent('database-user-changed', {
-      detail: { user: 'p71x6d_richard' }
+      detail: { user: FIXED_USER_ID }
     }));
     
     return true;
@@ -72,7 +70,7 @@ export const disconnectUser = (): void => {
 // Fonction pour obtenir l'utilisateur actuel de la connexion à la base de données
 export const getDatabaseConnectionCurrentUser = (): string => {
   // Toujours renvoyer p71x6d_richard
-  return 'p71x6d_richard';
+  return FIXED_USER_ID;
 };
 
 // Interface pour les informations de base de données
@@ -91,9 +89,9 @@ export interface DatabaseInfo {
 // Fonction pour tester la connexion à la base de données
 export const testDatabaseConnection = async (): Promise<boolean> => {
   try {
-    console.log("Test de connexion à la base de données via check-users.php");
-    // Utiliser check-users.php avec p71x6d_richard
-    const response = await fetch(`${getApiUrl()}/check-users?source=p71x6d_richard`, {
+    console.log(`Test de connexion à la base de données via check-users.php avec ${FIXED_USER_ID}`);
+    // Toujours utiliser check-users.php avec p71x6d_richard
+    const response = await fetch(`${getApiUrl()}/check-users.php?source=${FIXED_USER_ID}`, {
       headers: getAuthHeaders()
     });
     
@@ -121,10 +119,10 @@ export const testDatabaseConnection = async (): Promise<boolean> => {
 // Fonction pour récupérer les informations de la base de données
 export const getDatabaseInfo = async (): Promise<DatabaseInfo> => {
   try {
-    console.log("Récupération des informations de base de données pour: p71x6d_richard");
+    console.log(`Récupération des informations de base de données pour: ${FIXED_USER_ID}`);
     
     // Appel direct à check-users avec p71x6d_richard
-    const response = await fetch(`${getApiUrl()}/check-users?source=p71x6d_richard`, {
+    const response = await fetch(`${getApiUrl()}/check-users.php?source=${FIXED_USER_ID}`, {
       headers: {
         ...getAuthHeaders(),
         'Accept': 'application/json',
@@ -158,14 +156,14 @@ export const getDatabaseInfo = async (): Promise<DatabaseInfo> => {
     // Extraire et formater les informations de la base de données
     const dbInfo: DatabaseInfo = {
       host: data.database_info?.host || "p71x6d.myd.infomaniak.com",
-      database: data.database_info?.database || "p71x6d_system",
-      size: '0 MB',
+      database: FIXED_USER_ID, // Utiliser toujours p71x6d_richard comme nom de base de données
+      size: data.database_info?.size || '0 MB',
       tables: data.records ? data.records.length : 0,
       lastBackup: new Date().toISOString().split('T')[0] + ' 00:00:00',
       status: data.status === 'success' ? 'Online' : 'Offline',
       encoding: data.database_info?.encoding || 'utf8mb4',
       collation: data.database_info?.collation || 'utf8mb4_unicode_ci',
-      tableList: ['utilisateurs']
+      tableList: data.tables || ['utilisateurs']
     };
     
     console.log("Informations de base de données reçues:", dbInfo);
@@ -181,6 +179,5 @@ export const getDatabaseInfo = async (): Promise<DatabaseInfo> => {
 
 // Fonction pour initialiser l'utilisateur actuel - toujours p71x6d_richard
 export const initializeCurrentUser = (): void => {
-  currentDatabaseUser = 'p71x6d_richard';
-  console.log("Utilisateur initialisé avec la valeur par défaut: p71x6d_richard");
+  console.log(`Utilisateur initialisé avec la valeur par défaut: ${FIXED_USER_ID}`);
 };
