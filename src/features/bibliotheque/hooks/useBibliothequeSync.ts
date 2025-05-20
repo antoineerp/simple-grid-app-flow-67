@@ -1,3 +1,4 @@
+
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { Document as BibliothequeDocument, DocumentGroup } from '@/types/bibliotheque';
 import { Document as SystemDocument } from '@/types/documents';
@@ -134,7 +135,7 @@ export const useBibliothequeSync = () => {
           console.log('Synchronisation automatique déclenchée');
           
           // Utiliser l'utilisateur courant
-          const currentUser = getDatabaseConnectionCurrentUser() || 'default';
+          const currentUser = getValidUserId(getDatabaseConnectionCurrentUser());
           
           syncWithServer(documentsRef.current, groupsRef.current, currentUser, "auto")
             .catch(err => console.error("Erreur lors de la synchronisation automatique:", err));
@@ -152,7 +153,7 @@ export const useBibliothequeSync = () => {
     userId?: string
   ) => {
     // Toujours utiliser l'utilisateur courant si non spécifié
-    const currentUser = userId || getDatabaseConnectionCurrentUser() || 'default';
+    const currentUser = getValidUserId(userId || getDatabaseConnectionCurrentUser());
     
     // Mettre à jour les références pour la synchronisation automatique
     documentsRef.current = documents;
