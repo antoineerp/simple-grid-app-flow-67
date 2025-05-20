@@ -42,6 +42,10 @@ class DatabaseConfig {
             } catch (Exception $e) {
                 error_log("Error loading database configuration: " . $e->getMessage());
             }
+        } else {
+            // Créer le fichier de configuration s'il n'existe pas
+            $this->saveConfig();
+            error_log("Le fichier de configuration n'existe pas. Un fichier par défaut a été créé à " . $this->configFile);
         }
     }
 
@@ -52,6 +56,12 @@ class DatabaseConfig {
             'username' => $this->username,
             'password' => $this->password
         ];
+        
+        // S'assurer que le dossier existe
+        $dir = dirname($this->configFile);
+        if (!is_dir($dir)) {
+            mkdir($dir, 0755, true);
+        }
         
         return file_put_contents($this->configFile, json_encode($config, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
     }

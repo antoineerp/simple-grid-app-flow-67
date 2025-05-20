@@ -32,6 +32,31 @@ error_log("===== DEBUT EXECUTION database-config.php =====");
 error_log("Méthode: " . $_SERVER['REQUEST_METHOD'] . " - URI: " . $_SERVER['REQUEST_URI']);
 
 try {
+    // Créer un fichier de configuration par défaut si nécessaire
+    $dbConfigDir = __DIR__ . '/config';
+    $dbConfigFile = $dbConfigDir . '/db_config.json';
+    
+    if (!is_dir($dbConfigDir)) {
+        if (!mkdir($dbConfigDir, 0755, true)) {
+            throw new Exception("Impossible de créer le répertoire de configuration");
+        }
+        error_log("Répertoire de configuration créé: " . $dbConfigDir);
+    }
+    
+    if (!file_exists($dbConfigFile)) {
+        $defaultConfig = [
+            'host' => 'p71x6d.myd.infomaniak.com',
+            'db_name' => 'p71x6d_system',
+            'username' => 'p71x6d_richard',
+            'password' => 'Trottinette43!'
+        ];
+        
+        if (!file_put_contents($dbConfigFile, json_encode($defaultConfig, JSON_PRETTY_PRINT))) {
+            throw new Exception("Impossible de créer le fichier de configuration par défaut");
+        }
+        error_log("Fichier de configuration par défaut créé: " . $dbConfigFile);
+    }
+
     // Inclure la base de données si elle existe
     if (file_exists(__DIR__ . '/config/database.php')) {
         require_once __DIR__ . '/config/database.php';
