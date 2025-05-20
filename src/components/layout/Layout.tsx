@@ -1,6 +1,6 @@
 
 import React, { useEffect, useState } from 'react';
-import { Outlet, useLocation } from 'react-router-dom';
+import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { Toaster } from "@/components/ui/toaster";
 import Sidebar from '../Sidebar';
 import { Header } from './Header';
@@ -9,16 +9,32 @@ import { GlobalSyncProvider } from '@/contexts/GlobalSyncContext';
 import GlobalSyncManager from '@/components/common/GlobalSyncManager';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { Loader2 } from 'lucide-react';
+import { getIsLoggedIn } from '@/services/auth/authService';
 
 const Layout = () => {
   const location = useLocation();
+  const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(true);
   
   useEffect(() => {
-    // Simplifier l'initialisation du Layout - ne pas vérifier l'authentification ici
-    console.log("Layout - Initialisation simplifiée");
-    setIsLoading(false);
-  }, [location.pathname]);
+    // Vérifier l'authentification et rediriger si nécessaire
+    const checkAuth = () => {
+      if (!getIsLoggedIn()) {
+        console.log("Layout - Utilisateur non authentifié, redirection vers la page de connexion");
+        navigate('/', { replace: true });
+        return false;
+      }
+      return true;
+    };
+    
+    // Initialiser le layout uniquement si authentifié
+    const isAuth = checkAuth();
+    if (isAuth) {
+      console.log("Layout - Initialisation simplifiée");
+      // Courte période de chargement pour l'effet visuel
+      setTimeout(() => setIsLoading(false), 300);
+    }
+  }, [location.pathname, navigate]);
 
   if (isLoading) {
     return (

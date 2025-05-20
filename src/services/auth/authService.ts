@@ -140,8 +140,10 @@ export const login = async (username: string, password: string): Promise<AuthRes
           sessionStorage.setItem('authToken', data.token);
           localStorage.setItem('authToken', data.token);
           
-          // Initialiser l'utilisateur courant pour la base de données
+          // Sauvegarder l'identifiant utilisateur
           if (data.user && data.user.identifiant_technique) {
+            localStorage.setItem('userId', data.user.identifiant_technique);
+            sessionStorage.setItem('userId', data.user.identifiant_technique);
             setDbUser(data.user.identifiant_technique);
           }
           
@@ -191,4 +193,9 @@ export const logout = () => {
   localStorage.removeItem('authToken');
   localStorage.removeItem('userRole');
   localStorage.removeItem('currentUser');
+  localStorage.removeItem('userId');
+  sessionStorage.removeItem('userId');
+  
+  // Rediriger vers la page de connexion
+  window.location.href = '/';
 };

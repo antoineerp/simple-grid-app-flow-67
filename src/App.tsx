@@ -38,8 +38,12 @@ const App = () => {
   useEffect(() => {
     console.log('App - Initialisation du service de synchronisation automatique');
     
-    // Démarrer la synchronisation automatique
-    startAutoSync();
+    // Démarrer la synchronisation automatique seulement si l'utilisateur est connecté
+    if (getIsLoggedIn()) {
+      startAutoSync();
+    } else {
+      console.log('App - Utilisateur non connecté, synchronisation automatique non démarrée');
+    }
     
     // Nettoyer lors de la fermeture de l'application
     return () => {

@@ -4,6 +4,7 @@ import { Membre } from '@/types/membres';
 import { getMembres as getMembresService } from '@/services/users/membresService';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { useToast } from '@/hooks/use-toast';
+import { getIsLoggedIn } from '@/services/auth/authService';
 
 interface MembresContextProps {
   membres: Membre[];
@@ -80,6 +81,12 @@ export const MembresProvider: React.FC<MembresProviderProps> = ({ children }) =>
 
   // Utiliser un useCallback pour rendre la fonction réutilisable et stable
   const loadMembres = useCallback(async (forceRefresh = false) => {
+    // Ne pas charger les membres si l'utilisateur n'est pas connecté
+    if (!getIsLoggedIn()) {
+      console.log("MembresProvider: Utilisateur non connecté, chargement des membres ignoré");
+      return;
+    }
+
     if (!mountedRef.current) return;
     
     // Si déjà en chargement, ne pas lancer un nouveau chargement
@@ -201,7 +208,13 @@ export const MembresProvider: React.FC<MembresProviderProps> = ({ children }) =>
   }, [isOnline, isLoading, membres.length, toast]);
 
   // Charger les membres au démarrage avec un délai pour éviter les conflits d'initialisation
+  // Mais seulement si l'utilisateur est connecté
   useEffect(() => {
+    if (!getIsLoggedIn()) {
+      console.log("MembresProvider: Utilisateur non connecté, pas de chargement initial");
+      return;
+    }
+
     const initTimeout = setTimeout(() => {
       if (!mountedRef.current) return;
       
@@ -216,7 +229,10 @@ export const MembresProvider: React.FC<MembresProviderProps> = ({ children }) =>
   }, [loadMembres]);
 
   // Effet supplémentaire pour surveiller les changements de connectivité
+  // Mais seulement si l'utilisateur est connecté
   useEffect(() => {
+    if (!getIsLoggedIn()) return;
+
     if (isOnline && lastSynced === null && !isLoading) {
       console.log("MembresProvider: Connexion rétablie, tentative de rechargement des membres");
       
@@ -240,6 +256,12 @@ export const MembresProvider: React.FC<MembresProviderProps> = ({ children }) =>
   }, []);
 
   const refreshMembres = useCallback(async () => {
+    // Ne pas tenter de rafraîchir si l'utilisateur n'est pas connecté
+    if (!getIsLoggedIn()) {
+      console.log("MembresProvider: Utilisateur non connecté, rafraîchissement ignoré");
+      return;
+    }
+
     console.log("MembresProvider: Rechargement forcé des membres");
     await loadMembres(true);
   }, [loadMembres]);

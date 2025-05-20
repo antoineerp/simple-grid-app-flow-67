@@ -21,14 +21,16 @@ export const getMembres = async (forceRefresh: boolean = false): Promise<Membre[
   try {
     const token = localStorage.getItem('authToken') || sessionStorage.getItem('authToken');
     if (!token) {
-      throw new Error("Utilisateur non authentifié");
+      console.log("Aucun token d'authentification trouvé, retour d'un tableau vide");
+      // Au lieu de lancer une erreur, retourner un tableau vide
+      return [];
     }
 
     const API_URL = getApiUrl();
     const userId = localStorage.getItem('userId') || sessionStorage.getItem('userId') || 'p71x6d_system';
     console.log(`Chargement des membres pour l'utilisateur: ${userId}`);
 
-    const response = await fetch(`${API_URL}/membres-load.php?userId=${userId}`, {
+    const response = await fetch(`${API_URL}/check-users.php?userId=${userId}`, {
       method: 'GET',
       headers: {
         ...getAuthHeaders(),
@@ -43,11 +45,11 @@ export const getMembres = async (forceRefresh: boolean = false): Promise<Membre[
     if (!response.ok) {
       const errorText = await response.text();
       console.error(`Erreur HTTP ${response.status}: ${errorText}`);
-      throw new Error(`Erreur HTTP: ${response.status} - ${response.statusText}`);
+      return []; // Retourner un tableau vide en cas d'erreur
     }
 
     const data = await response.json();
-    console.log("Réponse brute de membres-load.php:", data);
+    console.log("Réponse brute de check-users.php:", data);
     
     // Si les données sont vides, retourner un tableau vide
     if (!data) {
