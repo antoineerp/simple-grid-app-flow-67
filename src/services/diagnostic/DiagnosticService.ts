@@ -24,7 +24,13 @@ export const DiagnosticService = {
       const apiUrl = getApiUrl();
       console.log("Lancement du diagnostic complet via", `${apiUrl}/diagnostic-complet.php`);
       
-      const response = await fetch(`${apiUrl}/diagnostic-complet.php`, {
+      // Ajouter un timestamp pour éviter le cache
+      const timestamp = new Date().getTime();
+      const url = `${apiUrl}/diagnostic-complet.php?nocache=${timestamp}`;
+      
+      console.log("URL complète:", url);
+      
+      const response = await fetch(url, {
         method: 'GET',
         headers: {
           ...getAuthHeaders(),
@@ -33,11 +39,13 @@ export const DiagnosticService = {
       });
       
       if (!response.ok) {
+        console.error(`Erreur HTTP: ${response.status}`);
         throw new Error(`Erreur HTTP: ${response.status}`);
       }
       
       // Extraction du texte pour debug
       const responseText = await response.text();
+      console.log("Réponse reçue, longueur:", responseText.length);
       
       // Analyse du contenu HTML pour extraire les informations importantes
       const report = DiagnosticService.parseHtmlDiagnostic(responseText);

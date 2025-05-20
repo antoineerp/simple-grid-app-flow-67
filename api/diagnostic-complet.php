@@ -1,6 +1,18 @@
 
 <?php
 header('Content-Type: text/html; charset=utf-8');
+header('Access-Control-Allow-Origin: *');
+header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
+header('Access-Control-Allow-Headers: Content-Type, Authorization');
+header('Cache-Control: no-cache, no-store, must-revalidate');
+
+// Fonction pour log les erreurs
+function logDebug($message) {
+    error_log('[DIAGNOSTIC] ' . $message);
+}
+
+logDebug('Début du diagnostic complet');
+
 ?>
 <!DOCTYPE html>
 <html>
@@ -27,6 +39,7 @@ header('Content-Type: text/html; charset=utf-8');
     <h1>Diagnostic Complet FormaCert</h1>
     <p>Cet outil permet de diagnostiquer l'état du déploiement de l'application FormaCert et de son API.</p>
     
+    <?php logDebug('Section informations serveur'); ?>
     <div class="section">
         <h2>1. Informations Serveur</h2>
         <table>
@@ -41,6 +54,7 @@ header('Content-Type: text/html; charset=utf-8');
         </table>
     </div>
     
+    <?php logDebug('Section structure des fichiers'); ?>
     <div class="section">
         <h2>2. Structure des Fichiers</h2>
         <table>
@@ -86,6 +100,16 @@ header('Content-Type: text/html; charset=utf-8');
         </table>
     </div>
     
+    <?php
+    logDebug('Section configuration environnement');
+    // Fonction d'aide pour la sécurité
+    function env($key, $default = null) {
+        if (defined($key)) {
+            return constant($key);
+        }
+        return $default;
+    }
+    ?>
     <div class="section">
         <h2>3. Configuration Environment</h2>
         <?php
@@ -99,17 +123,24 @@ header('Content-Type: text/html; charset=utf-8');
                 echo "<table>";
                 echo "<tr><th>Variable</th><th>Valeur</th></tr>";
                 
-                // Afficher les variables d'environnement principales
+                // Afficher les variables d'environnement principales sans exposer les mots de passe
                 $env_vars = [
-                    'APP_ENV' => env('APP_ENV', 'non défini'),
-                    'API_URL_DEV' => env('API_URL_DEV', 'non défini'),
-                    'API_URL_PROD' => env('API_URL_PROD', 'non défini'),
-                    'ALLOWED_ORIGIN_DEV' => env('ALLOWED_ORIGIN_DEV', 'non défini'),
-                    'ALLOWED_ORIGIN_PROD' => env('ALLOWED_ORIGIN_PROD', 'non défini')
+                    'APP_ENV' => get_env('APP_ENV', 'non défini'),
+                    'API_BASE_URL' => get_env('API_BASE_URL', 'non défini'),
+                    'DB_HOST' => get_env('DB_HOST', 'non défini'),
+                    'DB_NAME' => get_env('DB_NAME', 'non défini'),
+                    'DB_USER' => get_env('DB_USER', 'non défini'),
                 ];
                 
                 foreach ($env_vars as $key => $value) {
-                    echo "<tr><td>$key</td><td>$value</td></tr>";
+                    echo "<tr><td>$key</td><td>";
+                    // Masquer partiellement les informations sensibles
+                    if (in_array($key, ['DB_HOST', 'DB_USER']) && strlen($value) > 5) {
+                        echo substr($value, 0, 3) . "..." . substr($value, -2);
+                    } else {
+                        echo $value;
+                    }
+                    echo "</td></tr>";
                 }
                 
                 echo "</table>";
@@ -123,6 +154,7 @@ header('Content-Type: text/html; charset=utf-8');
         ?>
     </div>
     
+    <?php logDebug('Section test API'); ?>
     <div class="section">
         <h2>4. Test API</h2>
         <?php
@@ -179,6 +211,7 @@ header('Content-Type: text/html; charset=utf-8');
         </div>
     </div>
     
+    <?php logDebug('Section test assets'); ?>
     <div class="section">
         <h2>5. Test de Chargement des Assets</h2>
         <?php
@@ -221,8 +254,112 @@ header('Content-Type: text/html; charset=utf-8');
         </div>
     </div>
     
+    <?php
+    logDebug('Section utilisateurs');
+    
+    // Vérification de la table utilisateurs si possible
+    $users_count = 0;
+    $users_status = "error";
+    $users_message = "Impossible de vérifier la table utilisateurs";
+    
+    // Essayer de se connecter à la base de données
+    if (defined('DB_HOST') && defined('DB_NAME') && defined('DB_USER') && defined('DB_PASS')) {
+        try {
+            $dsn = "mysql:host=" . DB_HOST . ";dbname=" . DB_NAME . ";charset=utf8mb4";
+            $pdo = new PDO($dsn, DB_USER, DB_PASS, [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
+            
+            // Vérifier l'existence de la table utilisateurs
+            $stmt = $pdo->query("SHOW TABLES LIKE 'utilisateurs'");
+            if ($stmt->rowCount() > 0) {
+                $count_stmt = $pdo->query("SELECT COUNT(*) as total FROM utilisateurs");
+                $users_count = $count_stmt->fetch(PDO::FETCH_ASSOC)['total'];
+                $users_status = "success";
+                $users_message = "Table utilisateurs trouvée avec $users_count utilisateur(s)";
+                
+                // Obtenir la structure de la table
+                $struct_stmt = $pdo->query("DESCRIBE utilisateurs");
+                $table_structure = $struct_stmt->fetchAll(PDO::FETCH_ASSOC);
+            } else {
+                $users_status = "warning";
+                $users_message = "La table utilisateurs n'existe pas";
+            }
+        } catch (PDOException $e) {
+            $users_message = "Erreur de connexion à la base de données: " . $e->getMessage();
+        }
+    }
+    ?>
+    
     <div class="section">
-        <h2>6. Actions de Correction</h2>
+        <h2>6. Vérification des utilisateurs</h2>
+        <p class="<?php echo $users_status === 'success' ? 'success' : 'error'; ?>">
+            <?php echo $users_message; ?>
+        </p>
+        
+        <?php if ($users_status === 'success' && isset($table_structure)): ?>
+            <h3>Structure de la table utilisateurs:</h3>
+            <table>
+                <tr>
+                    <th>Champ</th>
+                    <th>Type</th>
+                    <th>Nullable</th>
+                    <th>Clé</th>
+                </tr>
+                <?php foreach ($table_structure as $column): ?>
+                <tr>
+                    <td><?php echo $column['Field']; ?></td>
+                    <td><?php echo $column['Type']; ?></td>
+                    <td><?php echo $column['Null']; ?></td>
+                    <td><?php echo $column['Key']; ?></td>
+                </tr>
+                <?php endforeach; ?>
+            </table>
+            
+            <h3>Vérification des rôles:</h3>
+            <?php
+            try {
+                $roles_query = $pdo->query("SELECT role, COUNT(*) as count FROM utilisateurs GROUP BY role");
+                $roles = $roles_query->fetchAll(PDO::FETCH_ASSOC);
+                
+                echo "<table>";
+                echo "<tr><th>Rôle</th><th>Nombre</th></tr>";
+                
+                foreach ($roles as $role) {
+                    echo "<tr>";
+                    echo "<td>{$role['role']}</td>";
+                    echo "<td>{$role['count']}</td>";
+                    echo "</tr>";
+                }
+                
+                echo "</table>";
+                
+                // Vérifier s'il y a un administrateur
+                $admin_query = $pdo->query("SELECT COUNT(*) as count FROM utilisateurs WHERE role = 'administrateur'");
+                $admin_count = $admin_query->fetch(PDO::FETCH_ASSOC)['count'];
+                
+                if ($admin_count == 0) {
+                    echo "<p class='error'>Attention: Aucun utilisateur avec le rôle 'administrateur' n'a été trouvé!</p>";
+                } else {
+                    echo "<p class='success'>$admin_count utilisateur(s) avec le rôle administrateur trouvé(s).</p>";
+                }
+                
+            } catch (Exception $e) {
+                echo "<p class='error'>Erreur lors de la vérification des rôles: " . $e->getMessage() . "</p>";
+            }
+            ?>
+        <?php endif; ?>
+        
+        <div class="actions">
+            <h3>Recommandations</h3>
+            <ul>
+                <li>Assurez-vous qu'il existe au moins un utilisateur avec le rôle 'administrateur'</li>
+                <li>Vérifiez que les rôles sont correctement assignés selon votre structure d'organisation</li>
+                <li>Si vous avez des problèmes d'authentification, vérifiez les colonnes 'identifiant_technique' et 'mot_de_passe'</li>
+            </ul>
+        </div>
+    </div>
+    
+    <div class="section">
+        <h2>7. Actions de Correction</h2>
         <p>Sur la base du diagnostic ci-dessus, voici les actions recommandées pour résoudre les problèmes courants:</p>
         
         <ol>
@@ -231,14 +368,10 @@ header('Content-Type: text/html; charset=utf-8');
             <li>Assurez-vous que les chemins relatifs sont corrects dans tous les fichiers de configuration</li>
             <li>Vérifiez que l'URL de l'API dans le front-end pointe vers le bon endpoint</li>
             <li>Consultez les logs d'erreur du serveur pour obtenir plus de détails sur les erreurs 500</li>
-        </ol>
-        
-        <p>Pour corriger l'erreur de chargement du logo:</p>
-        <ol>
-            <li>Vérifiez que le fichier logo existe dans le dossier public/lovable-uploads/</li>
-            <li>Assurez-vous que le chemin d'accès est correct et qu'il n'y a pas de double slash</li>
-            <li>Validez que les permissions de fichier permettent la lecture par le serveur web</li>
+            <li>Si vous avez des problèmes d'authentification, vérifiez la configuration et la structure de la table utilisateurs</li>
         </ol>
     </div>
+
+    <?php logDebug('Fin du diagnostic complet'); ?>
 </body>
 </html>

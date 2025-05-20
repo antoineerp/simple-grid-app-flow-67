@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -62,8 +61,11 @@ export const SystemDiagnostic = () => {
   
   const runCompleteDiagnostic = async () => {
     setLoading(true);
+    setActiveTab("complete");
     try {
+      console.log("Lancement du diagnostic complet...");
       const report = await DiagnosticService.runCompleteDiagnostic();
+      console.log("Diagnostic complet terminé:", report);
       setCompleteReport(report);
       toast({
         title: "Diagnostic complet terminé",
@@ -71,12 +73,12 @@ export const SystemDiagnostic = () => {
         variant: report.status === 'success' ? 'default' : 'destructive',
       });
     } catch (error) {
+      console.error("Erreur lors du diagnostic complet:", error);
       toast({
         title: "Erreur",
-        description: "Une erreur s'est produite lors du diagnostic complet",
+        description: error instanceof Error ? error.message : "Une erreur s'est produite lors du diagnostic complet",
         variant: "destructive",
       });
-      console.error("Erreur lors du diagnostic complet:", error);
     } finally {
       setLoading(false);
     }
