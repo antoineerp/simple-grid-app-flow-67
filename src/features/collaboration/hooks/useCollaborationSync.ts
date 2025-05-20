@@ -2,6 +2,7 @@
 import { useState, useCallback } from 'react';
 import { Document, DocumentGroup } from '@/types/bibliotheque';
 import { useToast } from '@/hooks/use-toast';
+import { getApiUrl } from '@/config/apiConfig';
 
 export const useCollaborationSync = () => {
   const [isSyncing, setIsSyncing] = useState<boolean>(false);
@@ -9,6 +10,12 @@ export const useCollaborationSync = () => {
   const [lastSynced, setLastSynced] = useState<Date | null>(null);
   const [syncFailed, setSyncFailed] = useState<boolean>(false);
   const { toast } = useToast();
+  
+  // Base URL pour les requêtes API
+  const baseApiUrl = getApiUrl();
+  
+  // ID utilisateur fixe pour toute l'application
+  const fixedUserId = 'p71x6d_richard';
 
   // Function to load documents from server
   const loadFromServer = useCallback(async (userId: string): Promise<Document[]> => {
@@ -16,8 +23,8 @@ export const useCollaborationSync = () => {
       setIsSyncing(true);
       setSyncFailed(false);
       
-      // Modifier pour utiliser GET au lieu de POST et envoyer userId comme paramètre d'URL
-      const url = `${process.env.API_URL || ''}/api/collaboration-load.php?userId=p71x6d_richard`;
+      // Utilisation cohérente des chemins avec getApiUrl et GET pour le chargement
+      const url = `${baseApiUrl}/collaboration-load.php?userId=${fixedUserId}`;
       console.log("Tentative de chargement depuis:", url);
       
       const response = await fetch(url, {
@@ -50,7 +57,7 @@ export const useCollaborationSync = () => {
     } finally {
       setIsSyncing(false);
     }
-  }, []);
+  }, [baseApiUrl]);
 
   // Function to sync documents with server
   const syncWithServer = useCallback(async (
@@ -62,19 +69,19 @@ export const useCollaborationSync = () => {
       setIsSyncing(true);
       setSyncFailed(false);
       
-      // Préparer les données pour la synchronisation
+      // Préparer les données pour la synchronisation avec l'ID utilisateur fixe
       const docsData = {
-        userId: 'p71x6d_richard', // Toujours utiliser cet ID
+        userId: fixedUserId,
         collaboration: documents
       };
       
       const groupsData = {
-        userId: 'p71x6d_richard', // Toujours utiliser cet ID
+        userId: fixedUserId,
         groups: groups
       };
       
-      // Synchroniser les documents
-      const docsResponse = await fetch(`${process.env.API_URL || ''}/api/collaboration-sync.php`, {
+      // Synchroniser les documents - chemin cohérent
+      const docsResponse = await fetch(`${baseApiUrl}/collaboration-sync.php`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -88,8 +95,8 @@ export const useCollaborationSync = () => {
         throw new Error(`Erreur réseau documents: ${docsResponse.status}`);
       }
       
-      // Synchroniser les groupes
-      const groupsResponse = await fetch(`${process.env.API_URL || ''}/api/collaboration-groups-sync.php`, {
+      // Synchroniser les groupes - chemin cohérent
+      const groupsResponse = await fetch(`${baseApiUrl}/collaboration-groups-sync.php`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -129,7 +136,7 @@ export const useCollaborationSync = () => {
     } finally {
       setIsSyncing(false);
     }
-  }, []);
+  }, [baseApiUrl]);
 
   // Debounced version of syncWithServer
   const debounceSyncWithServer = useCallback((
@@ -141,7 +148,7 @@ export const useCollaborationSync = () => {
     return new Promise<boolean>((resolve) => {
       clearTimeout(timeoutId);
       timeoutId = setTimeout(async () => {
-        const result = await syncWithServer(documents, groups, userId);
+        const result = await syncWithServer(documents, groups, fixedUserId);
         resolve(result);
       }, 1000);
     });

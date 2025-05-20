@@ -4,7 +4,6 @@ import { Document, DocumentGroup } from '@/types/bibliotheque';
 import { useCollaborationSync } from '@/features/collaboration/hooks/useCollaborationSync';
 import { useToast } from '@/hooks/use-toast';
 import { loadCollaborationFromStorage, saveCollaborationToStorage } from '@/services/collaboration/collaborationService';
-import { getDatabaseConnectionCurrentUser } from '@/services/core/databaseConnectionService';
 
 export const useCollaboration = () => {
   const [documents, setDocuments] = useState<Document[]>([]);
@@ -34,18 +33,8 @@ export const useCollaboration = () => {
     syncFailed
   } = useCollaborationSync();
 
-  // Fonction pour obtenir l'ID utilisateur actuel
-  const getCurrentUserId = useCallback(() => {
-    const user = getDatabaseConnectionCurrentUser();
-    if (typeof user === 'string') return user;
-    if (user && typeof user === 'object') {
-      const userObj = user as any;
-      if (userObj.identifiant_technique) return userObj.identifiant_technique;
-      if (userObj.email) return userObj.email;
-      if (userObj.id) return userObj.id;
-    }
-    return 'p71x6d_richard'; // Utiliser une valeur par défaut valide
-  }, []);
+  // ID utilisateur fixe pour toute l'application
+  const fixedUserId = 'p71x6d_richard';
 
   // Chargement initial des données
   useEffect(() => {
@@ -54,16 +43,15 @@ export const useCollaboration = () => {
         console.log("Chargement initial des documents de collaboration");
         
         // Charger d'abord depuis le stockage local
-        const { documents: localDocs, groups: localGroups } = loadCollaborationFromStorage();
+        const { documents: localDocs, groups: localGroups } = loadCollaborationFromStorage(fixedUserId);
         setDocuments(localDocs);
         setGroups(localGroups);
         
         // Puis essayer de charger depuis le serveur si en ligne
         if (isOnline) {
-          const userId = getCurrentUserId();
-          console.log("Tentative de chargement depuis le serveur avec userId:", userId);
+          console.log("Tentative de chargement depuis le serveur avec userId:", fixedUserId);
           
-          const serverDocuments = await loadFromServer(userId);
+          const serverDocuments = await loadFromServer(fixedUserId);
           
           if (serverDocuments && serverDocuments.length > 0) {
             // Si on a des documents du serveur, on les utilise
@@ -102,13 +90,12 @@ export const useCollaboration = () => {
     };
     
     loadDocuments();
-  }, [loadFromServer, toast, getCurrentUserId, isOnline]);
+  }, [loadFromServer, toast, isOnline]);
 
   // Fonction pour synchroniser les documents avec le serveur
   const handleSyncDocuments = useCallback(async () => {
     try {
-      const userId = getCurrentUserId();
-      await syncWithServer(documents, groups, userId);
+      await syncWithServer(documents, groups, fixedUserId);
       toast({
         title: "Synchronisation réussie",
         description: "Les documents ont été synchronisés avec succès.",
@@ -121,27 +108,26 @@ export const useCollaboration = () => {
         description: "Une erreur est survenue lors de la synchronisation des documents.",
       });
     }
-  }, [documents, groups, syncWithServer, toast, getCurrentUserId]);
+  }, [documents, groups, syncWithServer, toast]);
 
   // Fonctions CRUD pour les documents
   const handleAddDocument = useCallback((doc: Document) => {
     const newDoc = { 
       ...doc, 
       id: doc.id || `doc-${uuidv4()}`,
-      userId: getCurrentUserId()
+      userId: fixedUserId
     };
     
     setDocuments(prev => [...prev, newDoc]);
     setIsDialogOpen(false);
     
-    const userId = getCurrentUserId();
-    debounceSyncWithServer([...documents, newDoc], groups, userId);
+    debounceSyncWithServer([...documents, newDoc], groups, fixedUserId);
     
     toast({
       title: "Document ajouté",
       description: `Le document ${newDoc.name} a été ajouté.`,
     });
-  }, [documents, groups, debounceSyncWithServer, toast, getCurrentUserId]);
+  }, [documents, groups, debounceSyncWithServer, toast]);
 
   const handleUpdateDocument = useCallback((doc: Document) => {
     if (doc.groupId) {
@@ -165,7 +151,7 @@ export const useCollaboration = () => {
     
     setIsDialogOpen(false);
     
-    const userId = getCurrentUserId();
+    const userId = fixedUserId;
     const updatedDocuments = documents.map(d => d.id === doc.id ? doc : d);
     debounceSyncWithServer(updatedDocuments, groups, userId);
     
@@ -173,7 +159,7 @@ export const useCollaboration = () => {
       title: "Document mis à jour",
       description: `Le document ${doc.name} a été mis à jour.`,
     });
-  }, [documents, groups, debounceSyncWithServer, toast, getCurrentUserId]);
+  }, [documents, groups, debounceSyncWithServer, toast]);
 
   const handleDeleteDocument = useCallback((id: string) => {
     // Vérifier si le document est dans un groupe
@@ -200,7 +186,7 @@ export const useCollaboration = () => {
     
     setIsDialogOpen(false);
     
-    const userId = getCurrentUserId();
+    const userId = fixedUserId;
     const updatedDocuments = documents.filter(d => d.id !== id);
     debounceSyncWithServer(updatedDocuments, documentInGroup ? updatedGroups : groups, userId);
     
@@ -208,7 +194,7 @@ export const useCollaboration = () => {
       title: "Document supprimé",
       description: "Le document a été supprimé.",
     });
-  }, [documents, groups, debounceSyncWithServer, toast, getCurrentUserId]);
+  }, [documents, groups, debounceSyncWithServer, toast]);
 
   // Fonctions CRUD pour les groupes
   const handleAddGroup = useCallback((group: DocumentGroup) => {
@@ -217,20 +203,20 @@ export const useCollaboration = () => {
       id: group.id || `group-${uuidv4()}`,
       items: [],
       expanded: false,
-      userId: getCurrentUserId()
+      userId: fixedUserId
     };
     
     setGroups(prev => [...prev, newGroup]);
     setIsGroupDialogOpen(false);
     
-    const userId = getCurrentUserId();
+    const userId = fixedUserId;
     debounceSyncWithServer(documents, [...groups, newGroup], userId);
     
     toast({
       title: "Groupe ajouté",
       description: `Le groupe ${newGroup.name} a été ajouté.`,
     });
-  }, [documents, groups, debounceSyncWithServer, toast, getCurrentUserId]);
+  }, [documents, groups, debounceSyncWithServer, toast]);
 
   const handleUpdateGroup = useCallback((group: DocumentGroup) => {
     setGroups(prev => 
@@ -243,7 +229,7 @@ export const useCollaboration = () => {
     
     setIsGroupDialogOpen(false);
     
-    const userId = getCurrentUserId();
+    const userId = fixedUserId;
     const updatedGroups = groups.map(g => g.id === group.id ? { ...group, items: g.items } : g);
     debounceSyncWithServer(documents, updatedGroups, userId);
     
@@ -251,7 +237,7 @@ export const useCollaboration = () => {
       title: "Groupe mis à jour",
       description: `Le groupe ${group.name} a été mis à jour.`,
     });
-  }, [documents, groups, debounceSyncWithServer, toast, getCurrentUserId]);
+  }, [documents, groups, debounceSyncWithServer, toast]);
 
   const handleDeleteGroup = useCallback((id: string) => {
     // Libérer les documents du groupe avant de le supprimer
@@ -269,7 +255,7 @@ export const useCollaboration = () => {
     setDocuments(prev => [...prev, ...docsToMove]);
     setIsGroupDialogOpen(false);
     
-    const userId = getCurrentUserId();
+    const userId = fixedUserId;
     const updatedGroups = groups.filter(g => g.id !== id);
     const updatedDocuments = [...documents, ...docsToMove];
     debounceSyncWithServer(updatedDocuments, updatedGroups, userId);
@@ -278,7 +264,7 @@ export const useCollaboration = () => {
       title: "Groupe supprimé",
       description: "Le groupe a été supprimé et ses documents ont été déplacés.",
     });
-  }, [documents, groups, debounceSyncWithServer, toast, getCurrentUserId]);
+  }, [documents, groups, debounceSyncWithServer, toast]);
 
   const handleToggleGroup = useCallback((id: string) => {
     setGroups(prev => 
