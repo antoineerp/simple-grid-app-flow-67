@@ -60,7 +60,8 @@ export const verifyJsonEndpoint = async (): Promise<boolean> => {
  */
 const syncData = async <T>(type: string, data: T[], options: SyncOptions = {}): Promise<SyncResult> => {
   const { retryCount = 1, validate = true, silent = false } = options;
-  const userId = getCurrentUser() || 'default';
+  // Toujours utiliser p71x6d_richard comme userId
+  const userId = 'p71x6d_richard';
   const endpoint = `${getApiUrl()}/${type}-sync.php`;
   
   console.log(`Synchronisation ${type} pour l'utilisateur ${userId}, ${data.length} éléments, ${retryCount} tentatives`);

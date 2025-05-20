@@ -4,7 +4,10 @@ import { Document, DocumentGroup } from '@/types/bibliotheque';
 /**
  * Loads collaboration documents from localStorage for a specific user
  */
-export const loadCollaborationFromStorage = (currentUser: string): { documents: Document[], groups: DocumentGroup[] } => {
+export const loadCollaborationFromStorage = (currentUser: string = 'p71x6d_richard'): { documents: Document[], groups: DocumentGroup[] } => {
+  // Force currentUser to p71x6d_richard for consistency
+  currentUser = 'p71x6d_richard';
+  
   const storedDocuments = localStorage.getItem(`collaboration_documents_${currentUser}`);
   const storedGroups = localStorage.getItem(`collaboration_groups_${currentUser}`);
   
@@ -54,7 +57,10 @@ export const loadCollaborationFromStorage = (currentUser: string): { documents: 
 /**
  * Saves collaboration documents to localStorage for a specific user
  */
-export const saveCollaborationToStorage = (documents: Document[], groups: DocumentGroup[], currentUser: string): void => {
+export const saveCollaborationToStorage = (documents: Document[], groups: DocumentGroup[], currentUser: string = 'p71x6d_richard'): void => {
+  // Force currentUser to p71x6d_richard for consistency
+  currentUser = 'p71x6d_richard';
+  
   // Extraction des documents des groupes
   const groupDocuments = groups.flatMap(group => 
     group.items.map(item => ({...item, groupId: group.id}))
