@@ -9,6 +9,7 @@ import { useGlobalSync } from '@/contexts/GlobalSyncContext';
 import { triggerSync } from '@/services/sync/triggerSync';
 import { verifyJsonEndpoint } from '@/services/sync/robustSyncService';
 import { saveLocalData, loadLocalData, syncWithServer } from '@/services/sync/AutoSyncService';
+import { databaseHelper } from '@/services/sync/DatabaseHelper';
 
 export const useExigences = () => {
   const { toast } = useToast();
@@ -194,44 +195,70 @@ export const useExigences = () => {
         return { success: false, message: "Point de terminaison API invalide" };
       }
 
-      // Préparer les données pour la synchronisation
+      // S'assurer que les données sont valides et dans le bon format
+      if (!Array.isArray(exigences)) {
+        console.error("Les exigences ne sont pas un tableau valide");
+        return { success: false, message: "Format de données invalide" };
+      }
+
+      // Préparer les données pour la synchronisation - s'assurer que les objets sont bien formatés
+      const cleanedExigences = exigences.map(e => ({
+        id: e.id,
+        nom: e.nom || "",
+        responsabilites: e.responsabilites || { r: [], a: [], c: [], i: [] },
+        exclusion: !!e.exclusion,
+        atteinte: e.atteinte || null,
+        groupId: e.groupId || null,
+        date_creation: e.date_creation || new Date()
+      }));
+
+      const cleanedGroups = groups.map(g => ({
+        id: g.id,
+        name: g.name || "",
+        expanded: !!g.expanded,
+        items: [] // On n'envoie pas les items car ils sont déjà dans les exigences
+      }));
+
       const syncData = {
         userId: currentUser,
-        exigences: exigences,
-        groups: groups
+        exigences: cleanedExigences,
+        groups: cleanedGroups
       };
 
       console.log("Synchronisation des exigences avec:", syncData);
 
-      // Utiliser l'API URL correctement définie
+      // Utiliser l'API URL correctement définie avec les nouvelles méthodes robustes
       const apiUrl = process.env.API_URL || '';
-      const response = await fetch(`${apiUrl}/api/exigences-sync.php`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-          'Cache-Control': 'no-store, no-cache, must-revalidate'
-        },
-        body: JSON.stringify(syncData)
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error(`Erreur HTTP ${response.status}: ${errorText}`);
-        throw new Error(`Erreur HTTP ${response.status}: ${response.statusText}`);
-      }
-
-      const result = await response.json();
       
-      if (result.success) {
-        setDataChanged(false);
-        return { success: true, message: "Synchronisation réussie" };
-      } else {
-        return { success: false, message: result.message || "Échec de la synchronisation" };
+      try {
+        // Utiliser la méthode fetch améliorée de DatabaseHelper
+        const response = await databaseHelper.fetch(`${apiUrl}/api/exigences-sync.php`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'Cache-Control': 'no-store, no-cache, must-revalidate'
+          },
+          body: JSON.stringify(syncData)
+        });
+
+        const result = await response.json();
+        
+        if (result.success) {
+          setDataChanged(false);
+          return { success: true, message: "Synchronisation réussie" };
+        } else {
+          return { success: false, message: result.message || "Échec de la synchronisation" };
+        }
+      } catch (error) {
+        console.error('Erreur lors de la requête de synchronisation:', error);
+        return { 
+          success: false, 
+          message: error instanceof Error ? error.message : 'Erreur de requête'
+        };
       }
     } catch (error) {
       console.error('Erreur lors de la synchronisation:', error);
-      // Don't clear local data on sync failure
       return { 
         success: false, 
         message: error instanceof Error ? error.message : 'Erreur inconnue'
@@ -246,11 +273,9 @@ export const useExigences = () => {
       if (loadError && result.success) {
         await handleResetLoadAttempts();
       }
-      return Promise.resolve();
     } catch (error) {
       console.error("Erreur lors de la synchronisation:", error);
       console.error("Synchronisation échouée, données conservées localement:", error);
-      return Promise.resolve();
     }
   };
 

@@ -1,3 +1,4 @@
+
 import { getApiUrl } from '@/config/apiConfig';
 import { getCurrentUser } from '@/services/core/databaseConnectionService';
 import { toast } from '@/components/ui/use-toast';
@@ -14,9 +15,11 @@ export interface DatabaseUpdateResult {
 export class DatabaseHelper {
   private static instance: DatabaseHelper;
   private lastUpdateCheck: Record<string, Date> = {};
+  private apiUrl: string;
   
   private constructor() {
     console.log('DatabaseHelper initialisé');
+    this.apiUrl = getApiUrl();
   }
   
   public static getInstance(): DatabaseHelper {
@@ -37,7 +40,7 @@ export class DatabaseHelper {
   ): Promise<DatabaseUpdateResult> {
     try {
       const currentUser = userId || getCurrentUser() || 'p71x6d_system';
-      const API_URL = getApiUrl();
+      const API_URL = this.apiUrl;
       const safeUserId = encodeURIComponent(currentUser);
       
       console.log(`Demande de mise à jour de la structure pour l'utilisateur ${safeUserId}`);
@@ -45,10 +48,15 @@ export class DatabaseHelper {
       // Utiliser une seule méthode de connexion avec gestion d'erreur robuste
       let response;
       try {
-        response = await fetch(`${API_URL}/db-update.php?userId=${safeUserId}`, {
+        // Assurons-nous que l'URL est correctement formée
+        const endpoint = `${API_URL}/db-update.php`;
+        console.log(`Connexion à: ${endpoint}?userId=${safeUserId}`);
+        
+        response = await fetch(`${endpoint}?userId=${safeUserId}`, {
           method: 'GET',
           headers: {
-            'Cache-Control': 'no-cache, no-store, must-revalidate'
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Accept': 'application/json'
           }
         });
       } catch (error) {
@@ -57,7 +65,9 @@ export class DatabaseHelper {
       }
       
       if (!response.ok) {
-        throw new Error(`Erreur HTTP: ${response.status}`);
+        const errorText = await response.text();
+        console.error(`Erreur HTTP ${response.status}: ${errorText}`);
+        throw new Error(`Erreur HTTP ${response.status}: ${response.statusText}`);
       }
       
       const result = await response.json();
@@ -156,6 +166,51 @@ export class DatabaseHelper {
    */
   public async forceUpdateAllTables(): Promise<DatabaseUpdateResult> {
     return this.updateDatabaseStructure(undefined, true);
+  }
+  
+  /**
+   * Effectue une requête HTTP avec gestion des erreurs améliorée
+   * @param url URL de la requête
+   * @param options Options fetch
+   * @returns Résponse
+   */
+  public async fetch(url: string, options: RequestInit = {}): Promise<Response> {
+    try {
+      // Assurer que les options de base sont définies
+      const defaultOptions: RequestInit = {
+        headers: {
+          'Accept': 'application/json',
+          'Cache-Control': 'no-cache, no-store, must-revalidate'
+        }
+      };
+      
+      // Fusionner les options par défaut avec celles fournies
+      const mergedOptions = {
+        ...defaultOptions,
+        ...options,
+        headers: {
+          ...defaultOptions.headers,
+          ...(options.headers || {})
+        }
+      };
+      
+      console.log(`DatabaseHelper: Requête HTTP vers ${url}`);
+      
+      // Exécuter la requête
+      const response = await fetch(url, mergedOptions);
+      
+      // Vérifier si la réponse est OK
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`Erreur HTTP ${response.status}: ${errorText}`);
+        throw new Error(`Erreur HTTP ${response.status}: ${response.statusText}`);
+      }
+      
+      return response;
+    } catch (error) {
+      console.error(`Erreur lors de la requête vers ${url}:`, error);
+      throw error;
+    }
   }
 }
 
