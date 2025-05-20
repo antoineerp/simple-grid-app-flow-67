@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -10,8 +10,22 @@ import ImageConfiguration from '@/components/admin/ImageConfiguration';
 import DatabaseDiagnostic from '@/components/admin/DatabaseDiagnostic';
 import { SystemDiagnostic } from '@/components/admin/SystemDiagnostic';
 import DatabaseGuide from '@/components/admin/DatabaseGuide';
+import { getDatabaseConnectionCurrentUser, connectAsUser } from '@/services/core/databaseConnectionService';
 
 const Admin = () => {
+  const [currentDatabaseUser, setCurrentDatabaseUser] = useState<string | null>(null);
+  
+  useEffect(() => {
+    // Récupérer l'utilisateur actuel au chargement du composant
+    const currentUser = getDatabaseConnectionCurrentUser();
+    setCurrentDatabaseUser(currentUser);
+  }, []);
+  
+  const handleUserConnect = (identifiant: string) => {
+    // Mettre à jour l'état local lors de la connexion d'un utilisateur
+    setCurrentDatabaseUser(identifiant);
+  };
+
   return (
     <DashboardLayout>
       <div className="space-y-6 p-6 pb-16 w-full max-w-7xl mx-auto">
@@ -32,7 +46,10 @@ const Admin = () => {
             </TabsList>
             
             <TabsContent value="users" className="space-y-6">
-              <UserManagement />
+              <UserManagement 
+                currentDatabaseUser={currentDatabaseUser}
+                onUserConnect={handleUserConnect}
+              />
             </TabsContent>
             
             <TabsContent value="database" className="space-y-6">
