@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -41,6 +42,8 @@ const ServerTest = () => {
   const [usersMessage, setUsersMessage] = useState<string>('');
   const [users, setUsers] = useState<Utilisateur[]>([]);
   const [fallbackUsers, setFallbackUsers] = useState<FallbackUser[]>([]);
+  const [richardUserStatus, setRichardUserStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
+  const [richardMessage, setRichardMessage] = useState<string>('');
 
   const testApiConnection = async () => {
     setApiStatus('loading');
@@ -67,14 +70,49 @@ const ServerTest = () => {
     }
   };
 
+  const testRichardUser = async () => {
+    setRichardUserStatus('loading');
+    try {
+      const API_URL = getApiUrl();
+      console.log("Test spécifique de connexion avec p71x6d_richard");
+      
+      const response = await fetch(`${API_URL}/richard-user-check.php`, {
+        method: 'GET',
+        headers: {
+          ...getAuthHeaders(),
+          'Cache-Control': 'no-cache'
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Erreur HTTP: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      
+      console.log("Richard user test response:", data);
+      
+      if (data.status === 'success' || data.status === 'warning') {
+        setRichardMessage(`Test p71x6d_richard réussi (${data.message}). Table utilisateurs: ${data.tableExists ? 'Existe' : 'N\'existe pas'}`);
+        setRichardUserStatus('success');
+      } else {
+        throw new Error(data.message || 'Échec du test p71x6d_richard');
+      }
+    } catch (error) {
+      console.error("Erreur test p71x6d_richard:", error);
+      setRichardMessage(`Échec du test p71x6d_richard: ${error instanceof Error ? error.message : 'Erreur inconnue'}`);
+      setRichardUserStatus('error');
+    }
+  };
+
   const testDatabaseConnection = async () => {
     setDbStatus('loading');
     try {
       const API_URL = getApiUrl();
       console.log("Testing database connection using check-users endpoint");
       
-      // Utiliser le même endpoint que celui qui fonctionne pour les utilisateurs
-      const response = await fetch(`${API_URL}/check-users.php`, {
+      // Utiliser le endpoint des utilisateurs avec p71x6d_richard
+      const response = await fetch(`${API_URL}/check-users.php?source=p71x6d_richard`, {
         method: 'GET',
         headers: getAuthHeaders()
       });
@@ -116,8 +154,7 @@ const ServerTest = () => {
       
       setFallbackUsers([
         { identifiant_technique: "admin", mot_de_passe: "admin123", role: "admin" },
-        { identifiant_technique: "antcirier@gmail.com", mot_de_passe: "password123", role: "admin" },
-        { identifiant_technique: "p71x6d_system", mot_de_passe: "admin123", role: "admin" }
+        { identifiant_technique: "p71x6d_richard", mot_de_passe: "Trottinette43!", role: "admin" }
       ]);
     }
   };
@@ -159,6 +196,38 @@ const ServerTest = () => {
                 <div>
                   <AlertTitle>{apiStatus === 'success' ? 'Succès' : 'Erreur'}</AlertTitle>
                   <AlertDescription>{apiMessage}</AlertDescription>
+                </div>
+              </div>
+            </Alert>
+          )}
+        </div>
+
+        <div>
+          <div className="flex justify-between items-center mb-2">
+            <span className="font-medium flex items-center">
+              <Database className="h-4 w-4 mr-2" />
+              Test utilisateur p71x6d_richard:
+            </span>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={testRichardUser} 
+              disabled={richardUserStatus === 'loading'}
+            >
+              {richardUserStatus === 'loading' ? 'Test en cours...' : 'Tester'}
+            </Button>
+          </div>
+          
+          {richardUserStatus !== 'idle' && (
+            <Alert variant={richardUserStatus === 'success' ? 'default' : 'destructive'} className="mt-2">
+              <div className="flex items-start">
+                {richardUserStatus === 'success' ? 
+                  <CheckCircle className="h-4 w-4 mr-2 mt-0.5" /> : 
+                  <AlertCircle className="h-4 w-4 mr-2 mt-0.5" />
+                }
+                <div>
+                  <AlertTitle>{richardUserStatus === 'success' ? 'Succès' : 'Erreur'}</AlertTitle>
+                  <AlertDescription>{richardMessage}</AlertDescription>
                 </div>
               </div>
             </Alert>

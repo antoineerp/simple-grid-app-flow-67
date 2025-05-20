@@ -3,70 +3,25 @@ import { getApiUrl } from '@/config/apiConfig';
 import { getAuthHeaders } from '@/services/auth/authService';
 
 // Variable en mémoire pour stocker l'utilisateur actuel
-let currentDatabaseUser: string | null = null;
+// Toujours initialiser avec l'utilisateur par défaut
+let currentDatabaseUser: string = 'p71x6d_richard';
 
-// Fonction pour récupérer l'utilisateur actuel depuis la mémoire ou token JWT
-export const getCurrentUser = (): string | null => {
-  // Si nous avons déjà récupéré l'utilisateur, le renvoyer
-  if (currentDatabaseUser) return currentDatabaseUser;
-  
-  // Essayer de récupérer depuis l'authentification
-  try {
-    const authToken = sessionStorage.getItem('authToken') || localStorage.getItem('authToken');
-    if (authToken) {
-      // Vérifier que le token a le bon format avant de le traiter
-      const parts = authToken.split('.');
-      if (parts && parts.length >= 2 && parts[1]) {
-        try {
-          const base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
-          const rawPayload = atob(base64);
-          const jsonPayload = decodeURIComponent(
-            Array.from(rawPayload)
-              .map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
-              .join('')
-          );
-
-          const userData = JSON.parse(jsonPayload);
-          if (userData.user && userData.user.identifiant_technique) {
-            currentDatabaseUser = userData.user.identifiant_technique;
-            return userData.user.identifiant_technique;
-          }
-        } catch (decodeError) {
-          console.error("Erreur lors du décodage du token:", decodeError);
-        }
-      } else {
-        console.error("Format de token invalide lors de l'initialisation");
-      }
-    }
-  } catch (error) {
-    console.error("Erreur lors de la récupération de l'utilisateur depuis le token:", error);
-  }
-  
-  // Valeur par défaut pour les opérations sans authentification
+// Fonction pour récupérer l'utilisateur actuel depuis la mémoire
+export const getCurrentUser = (): string => {
+  // Toujours utiliser p71x6d_richard comme utilisateur par défaut
   return 'p71x6d_richard';
 };
 
-// Fonction pour définir l'utilisateur actuel
+// Fonction pour définir l'utilisateur actuel (ignorée dans cette version)
 export const setCurrentUser = (userId: string): void => {
-  if (!userId || typeof userId !== 'string' || !userId.startsWith('p71x6d_')) {
-    console.error(`Tentative d'utilisation d'un identifiant technique invalide: ${userId}`);
-    userId = 'p71x6d_richard';
-  }
-  
-  currentDatabaseUser = userId;
-  console.log(`Utilisateur défini: ${userId}`);
-  
-  // Stocker aussi dans le localStorage pour la persistance entre les rechargements
-  try {
-    localStorage.setItem('currentDatabaseUser', userId);
-  } catch (error) {
-    console.error("Erreur lors de la sauvegarde de l'utilisateur dans localStorage:", error);
-  }
+  console.log(`Tentative de définir l'utilisateur à ${userId} - Ignorée, utilisation de p71x6d_richard`);
+  // Ne change pas l'utilisateur actuel, on garde toujours p71x6d_richard
+  currentDatabaseUser = 'p71x6d_richard';
 };
 
-// Fonction pour supprimer l'utilisateur actuel
+// Fonction pour supprimer l'utilisateur actuel (reset à p71x6d_richard)
 export const removeCurrentUser = (): void => {
-  currentDatabaseUser = null;
+  currentDatabaseUser = 'p71x6d_richard';
   try {
     localStorage.removeItem('currentDatabaseUser');
   } catch (error) {
@@ -89,17 +44,10 @@ export const setLastConnectionError = (error: string): void => {
 };
 
 // Fonction pour se connecter en tant qu'utilisateur spécifique
+// Cette fonction simule une connexion réussie mais utilise toujours p71x6d_richard
 export const connectAsUser = async (userId: string): Promise<boolean> => {
   try {
-    console.log(`Tentative de connexion en tant que: ${userId}`);
-    
-    // S'assurer que l'identifiant est bien formaté
-    if (!userId || !userId.startsWith('p71x6d_')) {
-      setLastConnectionError(`Identifiant technique invalide: ${userId}`);
-      return false;
-    }
-    
-    setCurrentUser(userId);
+    console.log(`Connexion simulée en tant que ${userId} (utilise en réalité p71x6d_richard)`);
     
     // Mettre à jour l'interface utilisateur immédiatement
     window.dispatchEvent(new CustomEvent('database-user-changed', {
@@ -122,24 +70,8 @@ export const disconnectUser = (): void => {
 };
 
 // Fonction pour obtenir l'utilisateur actuel de la connexion à la base de données
-export const getDatabaseConnectionCurrentUser = (): string | null => {
-  // Vérifier d'abord la variable en mémoire
-  if (currentDatabaseUser) {
-    return currentDatabaseUser;
-  }
-  
-  // Sinon, essayer de récupérer depuis localStorage
-  try {
-    const savedUser = localStorage.getItem('currentDatabaseUser');
-    if (savedUser) {
-      currentDatabaseUser = savedUser;
-      return savedUser;
-    }
-  } catch (error) {
-    console.error("Erreur lors de la récupération de l'utilisateur depuis localStorage:", error);
-  }
-  
-  // Si rien n'est trouvé, utiliser l'utilisateur par défaut
+export const getDatabaseConnectionCurrentUser = (): string => {
+  // Toujours renvoyer p71x6d_richard
   return 'p71x6d_richard';
 };
 
@@ -160,9 +92,8 @@ export interface DatabaseInfo {
 export const testDatabaseConnection = async (): Promise<boolean> => {
   try {
     console.log("Test de connexion à la base de données via check-users.php");
-    // Utiliser check-users.php au lieu de direct-db-test.php car il fonctionne mieux
-    const currentUser = getDatabaseConnectionCurrentUser();
-    const response = await fetch(`${getApiUrl()}/check-users?source=${currentUser}`, {
+    // Utiliser check-users.php avec p71x6d_richard
+    const response = await fetch(`${getApiUrl()}/check-users?source=p71x6d_richard`, {
       headers: getAuthHeaders()
     });
     
@@ -190,11 +121,10 @@ export const testDatabaseConnection = async (): Promise<boolean> => {
 // Fonction pour récupérer les informations de la base de données
 export const getDatabaseInfo = async (): Promise<DatabaseInfo> => {
   try {
-    const currentUser = getDatabaseConnectionCurrentUser();
-    console.log(`Récupération des informations de base de données pour: ${currentUser || 'utilisateur par défaut'}`);
+    console.log("Récupération des informations de base de données pour: p71x6d_richard");
     
-    // Appel direct à check-users pour obtenir des informations réelles (le même endpoint qui fonctionne)
-    const response = await fetch(`${getApiUrl()}/check-users?source=${currentUser}`, {
+    // Appel direct à check-users avec p71x6d_richard
+    const response = await fetch(`${getApiUrl()}/check-users?source=p71x6d_richard`, {
       headers: {
         ...getAuthHeaders(),
         'Accept': 'application/json',
@@ -249,54 +179,9 @@ export const getDatabaseInfo = async (): Promise<DatabaseInfo> => {
   }
 };
 
-// Fonction pour initialiser l'utilisateur actuel
+// Fonction pour initialiser l'utilisateur actuel - toujours p71x6d_richard
 export const initializeCurrentUser = (): void => {
-  // D'abord, essayer de récupérer depuis localStorage
-  try {
-    const savedUser = localStorage.getItem('currentDatabaseUser');
-    if (savedUser && savedUser.startsWith('p71x6d_')) {
-      currentDatabaseUser = savedUser;
-      console.log(`Utilisateur récupéré depuis localStorage: ${savedUser}`);
-      return;
-    }
-  } catch (error) {
-    console.error("Erreur lors de la récupération de l'utilisateur depuis localStorage:", error);
-  }
-  
-  // Sinon, essayer depuis le token d'authentification
-  try {
-    const authToken = sessionStorage.getItem('authToken') || localStorage.getItem('authToken');
-    if (authToken) {
-      // Vérifier que le token est correctement formaté (format JWT)
-      const parts = authToken.split('.');
-      if (parts && parts.length >= 3) { // Un token JWT valide a 3 parties
-        try {
-          const base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
-          const rawPayload = atob(base64);
-          const jsonPayload = decodeURIComponent(
-            Array.from(rawPayload)
-              .map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
-              .join('')
-          );
-
-          const userData = JSON.parse(jsonPayload);
-          if (userData.user && userData.user.identifiant_technique) {
-            setCurrentUser(userData.user.identifiant_technique);
-            console.log(`Utilisateur initialisé depuis le token JWT: ${userData.user.identifiant_technique}`);
-            return;
-          }
-        } catch (decodeError) {
-          console.error("Erreur lors du décodage du token:", decodeError);
-        }
-      } else {
-        console.error("Format de token invalide lors de l'initialisation");
-      }
-    }
-  } catch (error) {
-    console.error("Erreur lors de l'initialisation de l'utilisateur depuis le token:", error);
-  }
-  
-  // Si aucun utilisateur n'est trouvé, utiliser la valeur par défaut
-  setCurrentUser('p71x6d_richard');
-  console.log(`Utilisateur initialisé avec la valeur par défaut: p71x6d_richard`);
+  currentDatabaseUser = 'p71x6d_richard';
+  console.log("Utilisateur initialisé avec la valeur par défaut: p71x6d_richard");
 };
+
