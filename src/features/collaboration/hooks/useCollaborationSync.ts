@@ -37,6 +37,8 @@ export const useCollaborationSync = () => {
       });
       
       if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`Erreur HTTP ${response.status}: ${errorText}`);
         throw new Error(`Erreur réseau: ${response.status}`);
       }
       
@@ -86,6 +88,9 @@ export const useCollaborationSync = () => {
         groups: groups
       };
       
+      console.log("Synchronisation des documents:", docsData);
+      console.log("Synchronisation des groupes:", groupsData);
+      
       // Synchroniser les documents - chemin cohérent
       const docsResponse = await fetch(`${baseApiUrl}/collaboration-sync.php`, {
         method: 'POST',
@@ -98,6 +103,8 @@ export const useCollaborationSync = () => {
       });
       
       if (!docsResponse.ok) {
+        const errorText = await docsResponse.text();
+        console.error(`Erreur HTTP documents ${docsResponse.status}: ${errorText}`);
         throw new Error(`Erreur réseau documents: ${docsResponse.status}`);
       }
       
@@ -113,6 +120,8 @@ export const useCollaborationSync = () => {
       });
       
       if (!groupsResponse.ok) {
+        const errorText = await groupsResponse.text();
+        console.error(`Erreur HTTP groupes ${groupsResponse.status}: ${errorText}`);
         throw new Error(`Erreur réseau groupes: ${groupsResponse.status}`);
       }
       

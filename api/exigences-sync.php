@@ -10,6 +10,10 @@ header("Access-Control-Allow-Methods: POST, OPTIONS");
 header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With");
 header("Cache-Control: no-cache, no-store, must-revalidate");
 
+// Activer la journalisation d'erreurs détaillée
+ini_set('display_errors', '0');
+error_reporting(E_ALL);
+
 // Journalisation
 error_log("=== DEBUT DE L'EXÉCUTION DE exigences-sync.php ===");
 error_log("Méthode: " . $_SERVER['REQUEST_METHOD'] . " - URI: " . $_SERVER['REQUEST_URI']);
@@ -33,16 +37,21 @@ try {
     
     // Récupérer les données POST JSON
     $json = file_get_contents('php://input');
+    error_log("Données brutes reçues: " . substr($json, 0, 500) . "...");
+    
     $data = json_decode($json, true);
     
     if (!$json || !$data) {
-        throw new Exception("Aucune donnée reçue ou format JSON invalide");
+        $jsonError = json_last_error_msg();
+        error_log("Erreur JSON: " . $jsonError . " - Données reçues: " . substr($json, 0, 500));
+        throw new Exception("Aucune donnée reçue ou format JSON invalide: " . $jsonError);
     }
     
-    error_log("Données reçues pour synchronisation des exigences");
+    error_log("Données JSON décodées avec succès");
     
     // Vérifier si les données nécessaires sont présentes
     if (!isset($data['userId']) || !isset($data['exigences']) || !isset($data['groups'])) {
+        error_log("Données incomplètes: " . json_encode(array_keys($data)));
         throw new Exception("Données incomplètes. 'userId', 'exigences' et 'groups' sont requis");
     }
     
@@ -59,6 +68,8 @@ try {
         PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
         PDO::ATTR_EMULATE_PREPARES => false,
     ]);
+    
+    error_log("Connexion à la base de données réussie");
     
     // Nom des tables spécifiques à l'utilisateur
     $safeUserId = preg_replace('/[^a-zA-Z0-9_]/', '_', $userId);
@@ -109,28 +120,42 @@ try {
         error_log("Table des groupes vidée");
         
         // Insérer les groupes
-        if (count($groups) > 0) {
+        if (is_array($groups) && count($groups) > 0) {
             $insertGroupQuery = "INSERT INTO `{$groupsTableName}` (id, name, expanded) VALUES (:id, :name, :expanded)";
             $stmtGroup = $pdo->prepare($insertGroupQuery);
             
             foreach ($groups as $group) {
+                if (!isset($group['id']) || !isset($group['name'])) {
+                    error_log("Groupe invalide: " . json_encode($group));
+                    continue; // Ignorer ce groupe et continuer
+                }
+                
+                $expanded = isset($group['expanded']) ? (bool)$group['expanded'] : false;
+                
                 $stmtGroup->execute([
                     'id' => $group['id'],
                     'name' => $group['name'],
-                    'expanded' => $group['expanded'] ? 1 : 0
+                    'expanded' => $expanded ? 1 : 0
                 ]);
             }
             error_log("Groupes insérés: " . count($groups));
+        } else {
+            error_log("Aucun groupe à insérer ou format invalide");
         }
         
         // Insérer les exigences
-        if (count($exigences) > 0) {
+        if (is_array($exigences) && count($exigences) > 0) {
             $insertExigenceQuery = "INSERT INTO `{$exigencesTableName}` 
                 (id, nom, responsabilites, exclusion, atteinte, groupId, date_creation) 
                 VALUES (:id, :nom, :responsabilites, :exclusion, :atteinte, :groupId, :date_creation)";
             $stmtExigence = $pdo->prepare($insertExigenceQuery);
             
             foreach ($exigences as $exigence) {
+                if (!isset($exigence['id']) || !isset($exigence['nom'])) {
+                    error_log("Exigence invalide: " . json_encode($exigence));
+                    continue; // Ignorer cette exigence et continuer
+                }
+                
                 // Préparer les données de l'exigence
                 $responsabilitesJson = isset($exigence['responsabilites']) ? 
                     json_encode($exigence['responsabilites']) : 
@@ -143,17 +168,22 @@ try {
                     $dateCreation = date('Y-m-d H:i:s');
                 }
                 
+                // S'assurer que les valeurs booléennes sont bien gérées
+                $exclusion = isset($exigence['exclusion']) ? (bool)$exigence['exclusion'] : false;
+                
                 $stmtExigence->execute([
                     'id' => $exigence['id'],
                     'nom' => $exigence['nom'],
                     'responsabilites' => $responsabilitesJson,
-                    'exclusion' => $exigence['exclusion'] ? 1 : 0,
-                    'atteinte' => $exigence['atteinte'],
+                    'exclusion' => $exclusion ? 1 : 0,
+                    'atteinte' => $exigence['atteinte'] ?? null,
                     'groupId' => $exigence['groupId'] ?? null,
                     'date_creation' => $dateCreation
                 ]);
             }
             error_log("Exigences insérées: " . count($exigences));
+        } else {
+            error_log("Aucune exigence à insérer ou format invalide");
         }
         
         // Valider la transaction
@@ -163,6 +193,8 @@ try {
             error_log("Transaction validée");
         }
         
+        // Succès de l'opération
+        error_log("Synchronisation réussie");
         echo json_encode([
             'success' => true,
             'message' => 'Synchronisation réussie',
@@ -177,7 +209,7 @@ try {
         if ($transaction_active && $pdo->inTransaction()) {
             $pdo->rollBack();
             $transaction_active = false;
-            error_log("Transaction annulée suite à une erreur");
+            error_log("Transaction annulée suite à une erreur: " . $e->getMessage());
         }
         throw $e;
     }

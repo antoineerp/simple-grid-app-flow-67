@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from 'react';
 import { Exigence, ExigenceStats, ExigenceGroup } from '@/types/exigences';
 import { useExigenceMutations } from './useExigenceMutations';
@@ -15,58 +14,8 @@ export const useExigences = () => {
   const { toast } = useToast();
   const { syncTable, syncStates, isOnline } = useGlobalSync();
   
-  // Extraire un identifiant utilisateur valide
-  const extractValidUserId = (user: any): string => {
-    if (!user) {
-      console.warn("Aucun utilisateur fourni, utilisation de l'ID système");
-      return 'p71x6d_system';
-    }
-    
-    // Si c'est déjà une chaîne, la retourner directement
-    if (typeof user === 'string') {
-      return user;
-    }
-    
-    // Si c'est un objet, essayer d'extraire un identifiant
-    if (typeof user === 'object') {
-      // Vérifier si l'objet n'est pas null
-      if (user === null) {
-        console.warn("Objet utilisateur null, utilisation de l'ID système");
-        return 'p71x6d_system';
-      }
-      
-      // Identifiants potentiels par ordre de priorité
-      const possibleIds = ['identifiant_technique', 'email', 'id'];
-      
-      for (const idField of possibleIds) {
-        if (user[idField] && typeof user[idField] === 'string') {
-          console.log(`ID utilisateur extrait: ${idField} = ${user[idField]}`);
-          return user[idField];
-        }
-      }
-      
-      // Si l'objet est stringifiable, l'utiliser comme identifiant (éviter [object Object])
-      try {
-        const userId = JSON.stringify(user);
-        if (userId !== '{}' && userId !== '[object Object]') {
-          console.warn("Utilisation d'un identifiant utilisateur stringifié:", userId.substring(0, 20));
-          return `user_${Math.random().toString(36).substring(2, 9)}`;
-        }
-      } catch (err) {
-        console.error("Erreur lors de la stringification de l'utilisateur:", err);
-      }
-      
-      console.warn("Aucun identifiant valide trouvé dans l'objet utilisateur:", user);
-    }
-    
-    console.warn("Type d'utilisateur non pris en charge, utilisation de l'ID système");
-    return 'p71x6d_richard'; // Modifié pour utiliser l'ID fixe qui fonctionne
-  };
-
-  // Récupérer l'utilisateur et extraire un ID valide
-  const user = getCurrentUser();
-  const currentUser = extractValidUserId(user);
-  console.log("ID utilisateur extrait pour les exigences:", currentUser);
+  // Toujours utiliser cet ID utilisateur fixe pour toute l'application
+  const currentUser = 'p71x6d_richard';
   
   const [exigences, setExigences] = useState<Exigence[]>([]);
   const [groups, setGroups] = useState<ExigenceGroup[]>([]);
@@ -247,24 +196,28 @@ export const useExigences = () => {
 
       // Préparer les données pour la synchronisation
       const syncData = {
-        userId: 'p71x6d_richard', // Utilisez toujours cet ID
+        userId: currentUser,
         exigences: exigences,
         groups: groups
       };
 
       console.log("Synchronisation des exigences avec:", syncData);
 
-      // Effectuer la requête direct vers exigences-sync.php
-      const response = await fetch(`${process.env.API_URL || ''}/api/exigences-sync.php`, {
+      // Utiliser l'API URL correctement définie
+      const apiUrl = process.env.API_URL || '';
+      const response = await fetch(`${apiUrl}/api/exigences-sync.php`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Accept': 'application/json'
+          'Accept': 'application/json',
+          'Cache-Control': 'no-store, no-cache, must-revalidate'
         },
         body: JSON.stringify(syncData)
       });
 
       if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`Erreur HTTP ${response.status}: ${errorText}`);
         throw new Error(`Erreur HTTP ${response.status}: ${response.statusText}`);
       }
 
