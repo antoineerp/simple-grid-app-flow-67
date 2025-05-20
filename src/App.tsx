@@ -1,6 +1,6 @@
 
 import React, { useEffect, useState } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import DbAdmin from '@/pages/DbAdmin';
@@ -21,6 +21,7 @@ import SyncHealthIndicator from './components/common/SyncHealthIndicator';
 // Composant de route protégée avec gestion des erreurs améliorée
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const location = useLocation();
+  const navigate = useNavigate(); // Ajout du hook useNavigate
   const [isChecking, setIsChecking] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [authCheckAttempts, setAuthCheckAttempts] = useState(0);
@@ -87,7 +88,6 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
     );
   }
   
-  // Si l'utilisateur n'est pas authentifié, le useEffect se chargera de rediriger
   if (!isAuthenticated) {
     return (
       <div className="h-screen w-full flex items-center justify-center bg-background">
