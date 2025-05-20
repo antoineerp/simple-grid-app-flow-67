@@ -1,7 +1,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useToast } from '@/hooks/use-toast';
-import { Document } from '@/types/collaboration';
+import { Document, DocumentGroup } from '@/types/collaboration';
 import { useUnifiedSync } from '@/hooks/useUnifiedSync';
 
 export const useCollaboration = () => {
@@ -11,6 +11,9 @@ export const useCollaboration = () => {
   const [currentDocument, setCurrentDocument] = useState<Document | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState<boolean>(false);
   const [isEditing, setIsEditing] = useState<boolean>(false);
+  const [groups, setGroups] = useState<DocumentGroup[]>([]);
+  const [currentGroup, setCurrentGroup] = useState<DocumentGroup | null>(null);
+  const [isGroupDialogOpen, setIsGroupDialogOpen] = useState<boolean>(false);
 
   // Use the unified sync hook for data synchronization
   const {
@@ -21,7 +24,7 @@ export const useCollaboration = () => {
     syncWithServer,
     syncState,
     isOnline,
-  } = useUnifiedSync<Document>('collaboration');
+  } = useUnifiedSync<Document[]>('collaboration', []);
 
   // Load initial data
   useEffect(() => {
@@ -110,7 +113,7 @@ export const useCollaboration = () => {
     
     toast({
       title: "Document ajouté",
-      description: `Le document ${newDocument.title} a été créé`
+      description: `Le document ${newDocument.name} a été créé`
     });
   }, [documents, setData, isOnline, syncWithServer, toast]);
 
@@ -135,7 +138,7 @@ export const useCollaboration = () => {
     
     toast({
       title: "Document mis à jour",
-      description: `Le document ${doc.title} a été mis à jour`
+      description: `Le document ${doc.name} a été mis à jour`
     });
   }, [documents, setData, isOnline, syncWithServer, toast]);
 
@@ -159,18 +162,75 @@ export const useCollaboration = () => {
     });
   }, [documents, setData, isOnline, syncWithServer, toast]);
 
+  // Group operations - added to fix the missing properties in the Collaboration component
+  const handleAddGroup = useCallback(async (group: DocumentGroup) => {
+    const newGroup = {
+      ...group,
+      id: group.id || `group-${Date.now()}`
+    };
+    
+    const updatedGroups = [...groups, newGroup];
+    setGroups(updatedGroups);
+    
+    toast({
+      title: "Groupe ajouté",
+      description: `Le groupe ${newGroup.name} a été créé`
+    });
+  }, [groups, toast]);
+
+  const handleUpdateGroup = useCallback(async (group: DocumentGroup) => {
+    const updatedGroups = groups.map(g => g.id === group.id ? group : g);
+    setGroups(updatedGroups);
+    
+    toast({
+      title: "Groupe mis à jour",
+      description: `Le groupe ${group.name} a été mis à jour`
+    });
+  }, [groups, toast]);
+
+  const handleDeleteGroup = useCallback(async (id: string) => {
+    const updatedGroups = groups.filter(g => g.id !== id);
+    setGroups(updatedGroups);
+    
+    toast({
+      title: "Groupe supprimé",
+      description: "Le groupe a été supprimé"
+    });
+  }, [groups, toast]);
+
+  const handleToggleGroup = useCallback((groupId: string) => {
+    const updatedGroups = groups.map(group => 
+      group.id === groupId ? { ...group, expanded: !group.expanded } : group
+    );
+    setGroups(updatedGroups);
+  }, [groups]);
+
+  const handleSyncDocuments = useCallback(async () => {
+    return await syncDocuments();
+  }, [syncDocuments]);
+
   return {
     documents,
+    groups,
     isLoading,
     currentDocument,
-    setCurrentDocument,
+    currentGroup,
     isDialogOpen,
-    setIsDialogOpen,
+    isGroupDialogOpen,
     isEditing,
+    setCurrentDocument,
+    setCurrentGroup,
+    setIsDialogOpen,
+    setIsGroupDialogOpen,
     setIsEditing,
     handleAddDocument,
     handleUpdateDocument,
     handleDeleteDocument,
+    handleAddGroup,
+    handleUpdateGroup,
+    handleDeleteGroup,
+    handleToggleGroup,
+    handleSyncDocuments,
     syncDocuments,
     isSyncing: syncState.isSyncing,
     lastSynced: syncState.lastSynced,

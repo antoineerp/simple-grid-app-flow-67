@@ -1,12 +1,11 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { getIsLoggedIn, getCurrentUser, login, logout } from '@/services/auth/authService';
-
-type User = string | null;
+import { User } from '@/types/auth';
 
 type AuthContextType = {
   isAuthenticated: boolean;
-  user: User;
+  user: User | null;
   login: (username: string, password: string) => Promise<boolean>;
   logout: () => void;
   loading: boolean;
@@ -24,7 +23,7 @@ export const useAuth = () => useContext(AuthContext);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(getIsLoggedIn());
-  const [user, setUser] = useState<User>(getCurrentUser());
+  const [user, setUser] = useState<User | null>(getCurrentUser() as User | null);
   const [loading, setLoading] = useState<boolean>(true);
 
   useEffect(() => {
@@ -32,7 +31,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const checkAuth = async () => {
       const isLoggedIn = getIsLoggedIn();
       setIsAuthenticated(isLoggedIn);
-      setUser(getCurrentUser());
+      setUser(getCurrentUser() as User | null);
       setLoading(false);
     };
     
@@ -43,7 +42,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const result = await login(username, password);
       setIsAuthenticated(!!result);
-      setUser(getCurrentUser());
+      setUser(getCurrentUser() as User | null);
       return !!result;
     } catch (error) {
       console.error('Erreur de connexion:', error);
