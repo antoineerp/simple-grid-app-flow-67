@@ -1,7 +1,7 @@
 
 import { Membre } from '@/types/membres';
 import { getApiUrl } from '@/config/apiConfig';
-import { getAuthHeaders, getIsLoggedIn } from '../auth/authService';
+import { getAuthHeaders } from '../auth/authService';
 
 // Cache pour les membres
 let membresCache: Membre[] | null = null;
@@ -12,12 +12,6 @@ const CACHE_DURATION = 60000; // 1 minute de cache
  * Service pour la gestion des membres (ressources humaines)
  */
 export const getMembres = async (forceRefresh: boolean = false): Promise<Membre[]> => {
-  // Vérifier l'authentification avant toute opération
-  if (!getIsLoggedIn()) {
-    console.log("membresService: Utilisateur non authentifié, impossible de charger les membres");
-    return [];  // Retourner un tableau vide au lieu de lever une exception
-  }
-
   // Retourner les données du cache si disponibles et pas encore expirées
   if (!forceRefresh && membresCache && lastFetchTimestamp && (Date.now() - lastFetchTimestamp < CACHE_DURATION)) {
     console.log("Utilisation du cache pour les membres", membresCache.length);
@@ -27,8 +21,7 @@ export const getMembres = async (forceRefresh: boolean = false): Promise<Membre[
   try {
     const token = localStorage.getItem('authToken') || sessionStorage.getItem('authToken');
     if (!token) {
-      console.log("Pas de token d'authentification trouvé");
-      return [];  // Retourner un tableau vide au lieu de lever une exception
+      throw new Error("Utilisateur non authentifié");
     }
 
     const API_URL = getApiUrl();
@@ -50,7 +43,7 @@ export const getMembres = async (forceRefresh: boolean = false): Promise<Membre[
     if (!response.ok) {
       const errorText = await response.text();
       console.error(`Erreur HTTP ${response.status}: ${errorText}`);
-      return []; // Retourner un tableau vide en cas d'erreur
+      throw new Error(`Erreur HTTP: ${response.status} - ${response.statusText}`);
     }
 
     const data = await response.json();
@@ -88,24 +81,21 @@ export const getMembres = async (forceRefresh: boolean = false): Promise<Membre[
   } catch (error) {
     console.error("Erreur lors de la récupération des membres:", error);
     
-    // Essayer de récupérer depuis le stockage local si l'utilisateur est authentifié
-    // mais que la requête a échoué (par exemple en mode hors ligne)
-    if (getIsLoggedIn()) {
-      try {
-        const userId = localStorage.getItem('userId') || sessionStorage.getItem('userId') || 'p71x6d_system';
-        const localData = localStorage.getItem(`membres_${userId}`);
-        
-        if (localData) {
-          const parsedData = JSON.parse(localData);
-          console.log("Utilisation des données locales pour les membres");
-          return parsedData;
-        }
-      } catch (localError) {
-        console.error("Erreur lors de la lecture des données locales des membres:", localError);
+    // Essayer de récupérer depuis le stockage local
+    try {
+      const userId = localStorage.getItem('userId') || sessionStorage.getItem('userId') || 'p71x6d_system';
+      const localData = localStorage.getItem(`membres_${userId}`);
+      
+      if (localData) {
+        const parsedData = JSON.parse(localData);
+        console.log("Utilisation des données locales pour les membres");
+        return parsedData;
       }
+    } catch (localError) {
+      console.error("Erreur lors de la lecture des données locales des membres:", localError);
     }
     
-    // Retourner un tableau vide en cas d'erreur pour éviter les plantages
+    // En cas d'erreur, retourner un tableau vide pour éviter de bloquer l'UI
     return [];
   }
 };

@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState } from 'react';
 import { FileText, Plus } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -9,14 +9,13 @@ import { getMembres } from '@/services/users/membresService';
 import SyncIndicator from '@/components/common/SyncIndicator';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { v4 as uuidv4 } from 'uuid';
-import { useSyncContext } from '@/contexts/SyncContext';
-import { useNetworkStatus } from '@/hooks/useNetworkStatus';
-import { getCurrentUser } from '@/services/auth/authService';
 
 const RessourcesHumaines = () => {
-  // State management
-  const [membres, setMembres] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [membres, setMembres] = React.useState([]);
+  const [isLoading, setIsLoading] = React.useState(true);
+  const [syncFailed, setSyncFailed] = React.useState(false);
+  const [isOnline, setIsOnline] = React.useState(navigator.onLine);
+  const [lastSynced, setLastSynced] = React.useState(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [currentMember, setCurrentMember] = useState({
     id: '',
@@ -27,139 +26,46 @@ const RessourcesHumaines = () => {
     telephone: ''
   });
   
-  // Use global synchronization
-  const { syncStates, registerSync, updateSyncState, syncAll } = useSyncContext();
-  const { isOnline } = useNetworkStatus();
   const { toast } = useToast();
-  
-  // Get sync state for membres
-  const syncState = syncStates.membres || {
-    isSyncing: false,
-    lastSynced: null,
-    syncFailed: false
-  };
-  
-  const isSyncing = syncState.isSyncing;
-  const lastSynced = syncState.lastSynced;
-  const syncFailed = syncState.syncFailed;
 
-  // Register for synchronization and load initial data
-  useEffect(() => {
-    registerSync('membres');
-    loadMembres();
-  }, [registerSync]);
-
-  // Load membres from API or localStorage
   const loadMembres = async () => {
     try {
       setIsLoading(true);
-      updateSyncState('membres', { isSyncing: true });
-      
-      // Try to get data from API
-      if (isOnline) {
-        try {
-          const data = await getMembres(true);
-          if (Array.isArray(data)) {
-            setMembres(data);
-            
-            // Save to localStorage for offline access
-            const currentUser = getCurrentUser() || 'p71x6d_system';
-            localStorage.setItem(`membres_${currentUser}`, JSON.stringify(data));
-            
-            updateSyncState('membres', { 
-              isSyncing: false,
-              lastSynced: new Date(),
-              syncFailed: false
-            });
-            
-            setIsLoading(false);
-            return;
-          }
-        } catch (error) {
-          console.error("Error loading members from API:", error);
-        }
-      }
-      
-      // Fallback to localStorage if API failed or offline
-      try {
-        const currentUser = getCurrentUser() || 'p71x6d_system';
-        const storedData = localStorage.getItem(`membres_${currentUser}`);
-        
-        if (storedData) {
-          const parsedData = JSON.parse(storedData);
-          if (Array.isArray(parsedData)) {
-            setMembres(parsedData);
-            updateSyncState('membres', { 
-              isSyncing: false,
-              syncFailed: !isOnline ? false : true
-            });
-          }
-        } else {
-          // No data in localStorage
-          setMembres([]);
-          updateSyncState('membres', { 
-            isSyncing: false,
-            syncFailed: isOnline
-          });
-        }
-      } catch (error) {
-        console.error("Error loading members from localStorage:", error);
-        setMembres([]);
-        updateSyncState('membres', { 
-          isSyncing: false,
-          syncFailed: true
-        });
-      }
-    } finally {
+      const data = await getMembres(true);
+      setMembres(data);
       setIsLoading(false);
+      setSyncFailed(false);
+      setLastSynced(new Date());
+    } catch (error) {
+      console.error("Erreur lors du chargement des membres:", error);
+      setIsLoading(false);
+      setSyncFailed(true);
     }
   };
 
-  // Synchronization handler
-  const handleSync = useCallback(async () => {
-    if (!isOnline) {
-      toast({
-        title: "Mode hors ligne",
-        description: "La synchronisation n'est pas disponible en mode hors ligne",
-        variant: "destructive"
-      });
-      return;
-    }
+  React.useEffect(() => {
+    loadMembres();
     
-    updateSyncState('membres', { isSyncing: true });
+    const handleOnlineStatus = () => {
+      setIsOnline(navigator.onLine);
+    };
     
-    try {
-      // Save current members to localStorage
-      const currentUser = getCurrentUser() || 'p71x6d_system';
-      localStorage.setItem(`membres_${currentUser}`, JSON.stringify(membres));
-      
-      // Try to sync with server
-      await syncAll();
-      
-      // Reload members from the API
-      await loadMembres();
-      
-      toast({
-        title: "Synchronisation réussie",
-        description: "Les membres ont été synchronisés avec succès"
-      });
-    } catch (error) {
-      console.error("Error syncing members:", error);
-      
-      updateSyncState('membres', {
-        isSyncing: false,
-        syncFailed: true
-      });
-      
-      toast({
-        title: "Erreur de synchronisation",
-        description: "Impossible de synchroniser les membres",
-        variant: "destructive"
-      });
-    }
-  }, [membres, isOnline, updateSyncState, syncAll, toast]);
+    window.addEventListener('online', handleOnlineStatus);
+    window.addEventListener('offline', handleOnlineStatus);
+    
+    return () => {
+      window.removeEventListener('online', handleOnlineStatus);
+      window.removeEventListener('offline', handleOnlineStatus);
+    };
+  }, []);
 
-  // Member CRUD operations
+  const handleExportPdf = () => {
+    toast({
+      title: "Export PDF",
+      description: "La fonctionnalité d'export sera disponible prochainement",
+    });
+  };
+
   const handleAddMember = () => {
     setCurrentMember({
       id: '',
@@ -172,9 +78,12 @@ const RessourcesHumaines = () => {
     setIsDialogOpen(true);
   };
 
+  // This is the fixed function for editing a member
   const handleEditMember = (id) => {
+    // Find the member in the array
     const memberToEdit = membres.find(m => m.id === id);
     if (memberToEdit) {
+      // Set all the member data to the currentMember state
       setCurrentMember({
         id: memberToEdit.id || '',
         nom: memberToEdit.nom || '',
@@ -187,55 +96,30 @@ const RessourcesHumaines = () => {
     }
   };
 
-  const handleDeleteMember = (id) => {
-    const updatedMembers = membres.filter(m => m.id !== id);
-    setMembres(updatedMembers);
-    
-    // Save to local storage and synchronize
-    const currentUser = getCurrentUser() || 'p71x6d_system';
-    localStorage.setItem(`membres_${currentUser}`, JSON.stringify(updatedMembers));
-    
-    if (isOnline) {
-      handleSync();
-    }
-    
-    toast({
-      title: "Membre supprimé",
-      description: "Le membre a été supprimé avec succès."
-    });
-  };
-
   const handleSaveMember = () => {
     const newMember = {
       ...currentMember,
       id: currentMember.id || uuidv4()
     };
     
-    let updatedMembers;
-    
     if (currentMember.id) {
       // Update existing member
-      updatedMembers = membres.map(m => m.id === newMember.id ? newMember : m);
+      setMembres(prev => prev.map(m => m.id === newMember.id ? newMember : m));
     } else {
       // Add new member
-      updatedMembers = [...membres, newMember];
+      setMembres(prev => [...prev, newMember]);
     }
     
-    setMembres(updatedMembers);
     setIsDialogOpen(false);
-    
-    // Save to local storage and synchronize
-    const currentUser = getCurrentUser() || 'p71x6d_system';
-    localStorage.setItem(`membres_${currentUser}`, JSON.stringify(updatedMembers));
-    
-    if (isOnline) {
-      handleSync();
-    }
-    
     toast({
       title: "Membre enregistré",
       description: `Le membre ${newMember.prenom} ${newMember.nom} a été ${currentMember.id ? 'mis à jour' : 'ajouté'}.`
     });
+  };
+
+  // Create a wrapper function that returns Promise<void> for SyncIndicator
+  const handleSync = async () => {
+    await loadMembres();
   };
 
   return (
@@ -246,10 +130,7 @@ const RessourcesHumaines = () => {
         </div>
         <div className="flex space-x-2">
           <button 
-            onClick={() => toast({
-              title: "Export PDF",
-              description: "La fonctionnalité d'export sera disponible prochainement",
-            })}
+            onClick={handleExportPdf}
             className="text-red-600 p-2 rounded-md hover:bg-red-50 transition-colors"
             title="Exporter en PDF"
           >
@@ -260,7 +141,7 @@ const RessourcesHumaines = () => {
 
       <div className="mb-4">
         <SyncIndicator 
-          isSyncing={isSyncing}
+          isSyncing={isLoading}
           isOnline={isOnline}
           syncFailed={syncFailed}
           lastSynced={lastSynced}
@@ -286,7 +167,7 @@ const RessourcesHumaines = () => {
         </Alert>
       )}
 
-      {isLoading || isSyncing ? (
+      {isLoading ? (
         <div className="text-center p-8 border border-dashed rounded-md mt-4 bg-gray-50">
           <p className="text-gray-500">Chargement des membres...</p>
         </div>
@@ -294,7 +175,13 @@ const RessourcesHumaines = () => {
         <MemberList 
           membres={membres} 
           onEdit={handleEditMember} 
-          onDelete={handleDeleteMember}
+          onDelete={(id) => {
+            setMembres(prev => prev.filter(m => m.id !== id));
+            toast({
+              title: "Membre supprimé",
+              description: "Le membre a été supprimé avec succès."
+            });
+          }} 
         />
       ) : (
         <div className="text-center p-8 border border-dashed rounded-md mt-4 bg-gray-50">

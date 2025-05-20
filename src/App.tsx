@@ -1,63 +1,80 @@
 
-import React from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+/**
+ * Point d'entrée principal de l'application
+ * Initialise les services de synchronisation
+ */
+import React, { useEffect } from 'react';
+import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
 import { Toaster } from '@/components/ui/toaster';
 import Layout from '@/components/layout/Layout';
-import { SyncProvider } from '@/contexts/SyncContext';
-import Collaboration from '@/pages/Collaboration';
 import Dashboard from '@/pages/Dashboard';
-import Documents from '@/pages/Documents';
-import NotFound from '@/pages/NotFound';
-import { MembresProvider } from '@/contexts/MembresContext';
-import GlobalSyncManager from '@/components/common/GlobalSyncManager';
-import RessourcesHumaines from '@/pages/RessourcesHumaines';
-import Admin from '@/pages/Admin';
-import ProtectedRoute from '@/components/auth/ProtectedRoute';
-import { AuthProvider } from '@/contexts/AuthContext';
-import { ThemeProvider } from '@/contexts/ThemeContext';
-import Index from '@/pages/Index';
-import GestionDocumentaire from '@/pages/GestionDocumentaire';
 import Exigences from '@/pages/Exigences';
-import Bibliotheque from '@/pages/Bibliotheque';
-import DbTest from '@/pages/DbTest';
-import DbAdmin from '@/pages/DbAdmin';
 import Pilotage from '@/pages/Pilotage';
+import RessourcesHumaines from '@/pages/RessourcesHumaines';
+import Collaboration from '@/pages/Collaboration';
+import GestionDocumentaire from '@/pages/GestionDocumentaire';
+import Settings from '@/pages/Settings';
+import Members from '@/pages/Members';
+import Administration from '@/pages/Administration';
+import DbAdmin from '@/pages/DbAdmin';
+import { MembresProvider } from '@/contexts/MembresContext';
+
+// Importer le service de synchronisation automatique centralisée
+import { startAutoSync } from '@/services/sync/AutoSyncService';
+import { SyncProvider } from '@/features/sync/hooks/useSyncContext';
 
 const App = () => {
+  // Initialiser la synchronisation automatique au démarrage
+  useEffect(() => {
+    console.log('App - Initialisation du service de synchronisation automatique');
+    
+    // Démarrer la synchronisation automatique
+    startAutoSync();
+    
+    // Nettoyer lors de la fermeture de l'application
+    return () => {
+      console.log('App - Nettoyage du service de synchronisation');
+      // Les services de synchronisation seront automatiquement nettoyés
+    };
+  }, []);
+  
+  // Log de démarrage
+  useEffect(() => {
+    console.log('Application starting...');
+    console.log('React version:', React.version);
+    console.log('Environment:', process.env.NODE_ENV);
+    console.log('Root element found, mounting React application');
+    console.log('App component mounted successfully');
+    
+    return () => {
+      console.log('Application unmounting...');
+    };
+  }, []);
+
   return (
-    <Router>
-      <ThemeProvider>
-        <AuthProvider>
-          <SyncProvider>
-            <MembresProvider>
-              <Layout>
-                <Routes>
-                  <Route path="/" element={<Index />} />
-                  <Route path="/login" element={<Index />} />
-                  <Route path="/register" element={<Index />} />
-                  <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-                  <Route path="/membres" element={<ProtectedRoute><RessourcesHumaines /></ProtectedRoute>} />
-                  <Route path="/projets" element={<ProtectedRoute><DbTest /></ProtectedRoute>} />
-                  <Route path="/taches" element={<ProtectedRoute><Pilotage /></ProtectedRoute>} />
-                  <Route path="/documents" element={<ProtectedRoute><Documents /></ProtectedRoute>} />
-                  <Route path="/collaboration" element={<ProtectedRoute><Collaboration /></ProtectedRoute>} />
-                  <Route path="/parametres" element={<ProtectedRoute><Admin /></ProtectedRoute>} />
-                  <Route path="/profil" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-                  <Route path="/gestion-documentaire" element={<ProtectedRoute><GestionDocumentaire /></ProtectedRoute>} />
-                  <Route path="/exigences" element={<ProtectedRoute><Exigences /></ProtectedRoute>} />
-                  <Route path="/bibliotheque" element={<ProtectedRoute><Bibliotheque /></ProtectedRoute>} />
-                  <Route path="/db-admin" element={<ProtectedRoute><DbAdmin /></ProtectedRoute>} />
-                  <Route path="/admin" element={<ProtectedRoute><Admin /></ProtectedRoute>} />
-                  <Route path="*" element={<NotFound />} />
-                </Routes>
-                <Toaster />
-                <GlobalSyncManager />
-              </Layout>
-            </MembresProvider>
-          </SyncProvider>
-        </AuthProvider>
-      </ThemeProvider>
-    </Router>
+    <SyncProvider>
+      <MembresProvider>
+        <Router>
+          <div className="min-h-screen bg-slate-50">
+            <Routes>
+              <Route path="/" element={<Layout />}>
+                <Route index element={<Dashboard />} />
+                <Route path="exigences" element={<Exigences />} />
+                <Route path="pilotage" element={<Pilotage />} />
+                <Route path="ressources-humaines" element={<RessourcesHumaines />} />
+                <Route path="collaboration" element={<Collaboration />} />
+                <Route path="gestion-documentaire" element={<GestionDocumentaire />} />
+                <Route path="administration" element={<Administration />} />
+                <Route path="settings" element={<Settings />} />
+                <Route path="membres" element={<Members />} />
+                <Route path="dbadmin" element={<DbAdmin />} />
+              </Route>
+            </Routes>
+            <Toaster />
+          </div>
+        </Router>
+      </MembresProvider>
+    </SyncProvider>
   );
 };
 

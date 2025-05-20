@@ -42,27 +42,40 @@ export const useLoginForm = () => {
         console.log("Connexion réussie, token reçu:", result.token.substring(0, 20) + "...");
         console.log("Données utilisateur:", result.user);
         
+        // Enregistrer le token avant la navigation
+        sessionStorage.setItem('authToken', result.token);
+        localStorage.setItem('authToken', result.token);
+        
+        // Stocker les données utilisateur et le rôle explicitement
+        if (result.user) {
+          localStorage.setItem('currentUser', JSON.stringify(result.user));
+          // S'assurer que le rôle est correctement enregistré pour les vérifications de permissions
+          if (result.user.role) {
+            localStorage.setItem('userRole', result.user.role);
+          }
+        }
+        
         toast({
           title: "Connexion réussie",
           description: `Bienvenue ${result.user?.prenom || ''} ${result.user?.nom || ''}`,
         });
         
-        console.log("Connexion réussie, redirection vers /dashboard");
+        console.log("Connexion réussie, redirection vers /pilotage");
         
         try {
-          // Navigation vers le tableau de bord
-          navigate('/dashboard', { replace: true });
+          // Navigation simplifiée, plus robuste
+          navigate('/pilotage', { replace: true });
           
           // Fallback si la navigation ne fonctionne pas
           setTimeout(() => {
-            if (window.location.pathname === '/login') {
+            if (window.location.pathname === '/') {
               console.log("Fallback: redirection par window.location");
-              window.location.href = '/dashboard';
+              window.location.href = '/pilotage';
             }
           }, 500);
         } catch (navError) {
           console.error("Erreur lors de la navigation:", navError);
-          window.location.href = '/dashboard';
+          window.location.href = '/pilotage';
         }
       } else {
         console.error("Échec de connexion:", result.message);

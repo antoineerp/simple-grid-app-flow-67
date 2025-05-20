@@ -1,122 +1,81 @@
 
 import React from 'react';
-import { Badge } from '@/components/ui/badge';
-import { Loader2, CheckCircle, AlertCircle, CloudOff } from 'lucide-react';
-import { useNetworkStatus } from '@/hooks/useNetworkStatus';
-import { Button } from '@/components/ui/button';
+import { CheckCircle } from 'lucide-react';
 
 interface SyncIndicatorProps {
-  isSyncing: boolean;
-  lastSynced: Date | null;
-  syncFailed?: boolean;
-  className?: string;
-  onSync?: () => Promise<void>;
-  showButton?: boolean;
-  label?: string;
-  size?: 'sm' | 'md' | 'lg';
+  isSyncing?: boolean;
   isOnline?: boolean;
+  syncFailed?: boolean;
+  lastSynced?: Date | null;
+  onSync?: () => Promise<void>;
   showOnlyErrors?: boolean;
 }
 
-const SyncIndicator = ({ 
-  isSyncing, 
-  lastSynced, 
+// Composant indicateur de synchronisation qui n'affiche rien par défaut
+const SyncIndicator: React.FC<SyncIndicatorProps> = ({
+  isSyncing = false,
+  isOnline = true,
   syncFailed = false,
-  className = '',
+  lastSynced = null,
   onSync,
-  showButton = true,
-  label = 'Synchroniser',
-  size = 'md',
-  isOnline: externalIsOnline,
   showOnlyErrors = false
-}: SyncIndicatorProps) => {
-  const networkStatus = useNetworkStatus();
-  const isOnline = externalIsOnline !== undefined ? externalIsOnline : networkStatus.isOnline;
-
-  // Format relative time
-  const formatTimeAgo = (date: Date) => {
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffSec = Math.floor(diffMs / 1000);
-    const diffMin = Math.floor(diffSec / 60);
-    const diffHrs = Math.floor(diffMin / 60);
-    
-    if (diffSec < 60) {
-      return "à l'instant";
-    } else if (diffMin < 60) {
-      return `il y a ${diffMin} min`;
-    } else if (diffHrs < 24) {
-      return `il y a ${diffHrs} h`;
-    } else {
-      const options: Intl.DateTimeFormatOptions = { 
-        day: '2-digit', 
-        month: '2-digit', 
-        hour: '2-digit', 
-        minute: '2-digit' 
-      };
-      return new Intl.DateTimeFormat('fr-FR', options).format(date);
-    }
-  };
-
-  // Déterminer le contenu du badge
-  let statusIcon = null;
-  let statusText = '';
-  let variant: 'default' | 'secondary' | 'destructive' | 'outline' = 'default';
-  
-  if (!isOnline) {
-    statusIcon = <CloudOff className={`${size === 'sm' ? 'h-3 w-3' : 'h-4 w-4'} mr-1`} />;
-    statusText = 'Hors ligne';
-    variant = 'outline';
-  } else if (isSyncing) {
-    statusIcon = <Loader2 className={`${size === 'sm' ? 'h-3 w-3' : 'h-4 w-4'} mr-1 animate-spin`} />;
-    statusText = 'Synchronisation...';
-    variant = 'secondary';
-  } else if (syncFailed) {
-    statusIcon = <AlertCircle className={`${size === 'sm' ? 'h-3 w-3' : 'h-4 w-4'} mr-1`} />;
-    statusText = 'Échec sync';
-    variant = 'destructive';
-  } else if (lastSynced) {
-    statusIcon = <CheckCircle className={`${size === 'sm' ? 'h-3 w-3' : 'h-4 w-4'} mr-1`} />;
-    statusText = `Synchro ${formatTimeAgo(lastSynced)}`;
-    variant = 'default';
-  } else {
-    statusIcon = <AlertCircle className={`${size === 'sm' ? 'h-3 w-3' : 'h-4 w-4'} mr-1`} />;
-    statusText = 'Non synchronisé';
-    variant = 'outline';
-  }
-
-  // Si on ne veut afficher que les erreurs et qu'il n'y a pas d'erreur, on n'affiche rien
-  if (showOnlyErrors && !syncFailed && !(!isOnline)) {
+}) => {
+  // Si on est en mode "afficher uniquement les erreurs" et qu'il n'y a pas d'erreur,
+  // ou si on est en ligne et pas en train de synchroniser, ne rien afficher
+  if ((showOnlyErrors && !syncFailed) || (isOnline && !syncFailed && !isSyncing)) {
     return null;
   }
+  
+  // En mode production, ne rien afficher du tout
+  return null;
 
+  // Le code ci-dessous est conservé mais rendu inactif pour suivre votre demande
+  /*
   return (
-    <div className={`flex items-center gap-2 ${className}`}>
-      <Badge variant={variant} className={`flex items-center ${size === 'sm' ? 'text-xs py-0' : ''}`}>
-        {statusIcon}
-        <span>{statusText}</span>
-      </Badge>
-      
-      {showButton && onSync && (
-        <Button 
-          variant="outline" 
-          size={size === 'sm' ? 'sm' : 'default'} 
-          onClick={onSync}
-          disabled={isSyncing || !isOnline}
-          className={size === 'sm' ? 'h-7 px-2 text-xs' : ''}
-        >
-          {isSyncing ? (
-            <>
-              <Loader2 className={`${size === 'sm' ? 'h-3 w-3' : 'h-4 w-4'} mr-1 animate-spin`} />
-              <span>Synchro...</span>
-            </>
-          ) : (
-            <>{label}</>
-          )}
-        </Button>
+    <div className="hidden">
+      {syncFailed && (
+        <div className="bg-red-50 border border-red-200 rounded-md p-3 mb-4">
+          <div className="flex">
+            <div className="flex-shrink-0">
+              <AlertCircle className="h-5 w-5 text-red-400" />
+            </div>
+            <div className="ml-3">
+              <h3 className="text-sm font-medium text-red-800">Erreur de synchronisation</h3>
+              <div className="mt-2 text-sm text-red-700">
+                <p>Les données n'ont pas pu être synchronisées avec le serveur.</p>
+              </div>
+              {onSync && (
+                <div className="mt-4">
+                  <div className="-mx-2 -my-1.5 flex">
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={() => onSync()}
+                      className="ml-auto"
+                      disabled={isSyncing}
+                    >
+                      {isSyncing ? (
+                        <>
+                          <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                          Synchronisation...
+                        </>
+                      ) : (
+                        <>
+                          <RefreshCw className="h-4 w-4 mr-2" />
+                          Réessayer
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
+  */
 };
 
 export default SyncIndicator;

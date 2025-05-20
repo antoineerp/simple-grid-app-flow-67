@@ -1,9 +1,9 @@
 
 import React from 'react';
+import { FileText } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { useSyncContext } from '@/contexts/SyncContext';
-import { useNetworkStatus } from '@/hooks/useNetworkStatus';
+import { useCollaboration } from '@/hooks/useCollaboration';
 import SyncIndicator from '@/components/common/SyncIndicator';
 import { exportCollaborationDocsToPdf } from '@/services/collaborationExport';
 import { BibliothequeTable } from '@/features/bibliotheque/components/BibliothequeTable';
@@ -12,210 +12,51 @@ import { BibliothequeActions } from '@/features/bibliotheque/components/Biblioth
 import { DocumentDialog } from '@/features/bibliotheque/components/DocumentDialog';
 import { GroupDialog } from '@/features/bibliotheque/components/GroupDialog';
 import { saveCollaborationToStorage } from '@/services/collaboration/collaborationService';
-import { useState, useEffect, useCallback } from 'react';
-import { getCurrentUser } from '@/services/auth/authService';
 
 const Collaboration = () => {
-  // State management
-  const [documents, setDocuments] = useState([]);
-  const [groups, setGroups] = useState([]);
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [isGroupDialogOpen, setIsGroupDialogOpen] = useState(false);
-  const [isEditing, setIsEditing] = useState(false);
-  const [currentDocument, setCurrentDocument] = useState(null);
-  const [currentGroup, setCurrentGroup] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
-  
-  // Use global synchronization
-  const { syncStates, registerSync, updateSyncState, syncAll } = useSyncContext();
-  const { isOnline } = useNetworkStatus();
-  
-  // Get sync state for collaboration
-  const syncState = syncStates.collaboration || {
-    isSyncing: false,
-    lastSynced: null,
-    syncFailed: false
+  const { 
+    documents, 
+    groups, 
+    isDialogOpen,
+    isGroupDialogOpen,
+    isEditing,
+    currentDocument,
+    currentGroup,
+    isSyncing, 
+    isOnline, 
+    syncFailed,
+    lastSynced,
+    setIsDialogOpen,
+    setIsGroupDialogOpen,
+    setIsEditing,
+    setCurrentDocument,
+    setCurrentGroup,
+    handleSyncDocuments,
+    handleAddDocument,
+    handleUpdateDocument,
+    handleDeleteDocument,
+    handleAddGroup,
+    handleUpdateGroup,
+    handleDeleteGroup,
+    handleToggleGroup
+  } = useCollaboration();
+
+  // Fonction de gestion pour l'exportation PDF
+  const handleExportPdf = () => {
+    if (documents.length > 0 || groups.length > 0) {
+      exportCollaborationDocsToPdf(documents, groups, "Documents de collaboration");
+    } else {
+      console.log("Aucun document à exporter");
+    }
   };
-  
-  const isSyncing = syncState.isSyncing;
-  const lastSynced = syncState.lastSynced;
-  const syncFailed = syncState.syncFailed;
-
-  // Register for synchronization on mount
-  useEffect(() => {
-    registerSync('collaboration');
-    
-    // Load data on mount
-    const loadData = async () => {
-      setIsLoading(true);
-      try {
-        // First try to load from localStorage
-        const currentUser = getCurrentUser() || 'p71x6d_system';
-        const storageKey = `collaboration_${currentUser}`;
-        const storedData = localStorage.getItem(storageKey);
-        
-        if (storedData) {
-          try {
-            const parsed = JSON.parse(storedData);
-            setDocuments(Array.isArray(parsed) ? parsed : []);
-          } catch (error) {
-            console.error("Error parsing collaboration data:", error);
-          }
-        }
-        
-        // Load groups if available
-        const groupsKey = `collaboration_groups_${currentUser}`;
-        const storedGroups = localStorage.getItem(groupsKey);
-        
-        if (storedGroups) {
-          try {
-            const parsed = JSON.parse(storedGroups);
-            setGroups(Array.isArray(parsed) ? parsed : []);
-          } catch (error) {
-            console.error("Error parsing groups data:", error);
-          }
-        }
-      } catch (error) {
-        console.error("Error loading collaboration data:", error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    
-    loadData();
-  }, [registerSync]);
-
-  // Synchronization handler
-  const handleSyncDocuments = useCallback(async () => {
-    if (!isOnline) {
-      return false;
-    }
-    
-    updateSyncState('collaboration', { isSyncing: true });
-    
-    try {
-      // Save documents to localStorage
-      const currentUser = getCurrentUser() || 'p71x6d_system';
-      localStorage.setItem(`collaboration_${currentUser}`, JSON.stringify(documents));
-      localStorage.setItem(`collaboration_groups_${currentUser}`, JSON.stringify(groups));
-      
-      // Sync with server through global sync context
-      await syncAll();
-      
-      updateSyncState('collaboration', { 
-        isSyncing: false,
-        lastSynced: new Date(),
-        syncFailed: false
-      });
-      
-      return true;
-    } catch (error) {
-      console.error("Error syncing documents:", error);
-      updateSyncState('collaboration', { 
-        isSyncing: false,
-        syncFailed: true
-      });
-      return false;
-    }
-  }, [documents, groups, isOnline, updateSyncState, syncAll]);
 
   // Create a wrapper function that returns Promise<void> for SyncIndicator
   const handleSync = async () => {
     await handleSyncDocuments();
   };
 
-  // Document operations
-  const handleAddDocument = useCallback((document) => {
-    const newDocument = {
-      ...document,
-      id: document.id || `doc-${Date.now()}`,
-      date_creation: new Date(),
-      date_modification: new Date()
-    };
-    
-    setDocuments(prev => [...prev, newDocument]);
-    setIsDialogOpen(false);
-    
-    // Save and sync
-    saveCollaborationToStorage(
-      [...documents, newDocument], 
-      groups
-    );
-    handleSyncDocuments();
-  }, [documents, groups, handleSyncDocuments]);
-
-  const handleUpdateDocument = useCallback((document) => {
-    const updatedDoc = {
-      ...document,
-      date_modification: new Date()
-    };
-    
-    setDocuments(prev => prev.map(d => d.id === document.id ? updatedDoc : d));
-    setIsDialogOpen(false);
-    
-    // Save and sync
-    const updatedDocs = documents.map(d => d.id === document.id ? updatedDoc : d);
-    saveCollaborationToStorage(updatedDocs, groups);
-    handleSyncDocuments();
-  }, [documents, groups, handleSyncDocuments]);
-
-  const handleDeleteDocument = useCallback((id) => {
-    setDocuments(prev => prev.filter(d => d.id !== id));
-    
-    // Save and sync
-    const updatedDocs = documents.filter(d => d.id !== id);
-    saveCollaborationToStorage(updatedDocs, groups);
-    handleSyncDocuments();
-  }, [documents, groups, handleSyncDocuments]);
-
-  // Group operations
-  const handleAddGroup = useCallback((group) => {
-    const newGroup = {
-      ...group,
-      id: group.id || `group-${Date.now()}`
-    };
-    
-    setGroups(prev => [...prev, newGroup]);
-    setIsGroupDialogOpen(false);
-    
-    // Save and sync
-    saveCollaborationToStorage(documents, [...groups, newGroup]);
-    handleSyncDocuments();
-  }, [documents, groups, handleSyncDocuments]);
-
-  const handleUpdateGroup = useCallback((group) => {
-    setGroups(prev => prev.map(g => g.id === group.id ? group : g));
-    setIsGroupDialogOpen(false);
-    
-    // Save and sync
-    const updatedGroups = groups.map(g => g.id === group.id ? group : g);
-    saveCollaborationToStorage(documents, updatedGroups);
-    handleSyncDocuments();
-  }, [documents, groups, handleSyncDocuments]);
-
-  const handleDeleteGroup = useCallback((id) => {
-    setGroups(prev => prev.filter(g => g.id !== id));
-    
-    // Save and sync
-    const updatedGroups = groups.filter(g => g.id !== id);
-    saveCollaborationToStorage(documents, updatedGroups);
-    handleSyncDocuments();
-  }, [documents, groups, handleSyncDocuments]);
-
-  const handleToggleGroup = useCallback((groupId) => {
-    setGroups(prev => prev.map(group => 
-      group.id === groupId ? { ...group, expanded: !group.expanded } : group
-    ));
-    
-    // Save local preference but don't sync (UI state only)
-    const updatedGroups = groups.map(group => 
-      group.id === groupId ? { ...group, expanded: !group.expanded } : group
-    );
-    saveCollaborationToStorage(documents, updatedGroups);
-  }, [documents, groups]);
-
-  // Handlers for dialogs
-  const handleOpenDocumentDialog = (document = null) => {
+  // Gestionnaires pour l'ouverture des dialogues
+  const handleOpenDocumentDialog = (document: any = null, group: any = null) => {
     setIsEditing(!!document);
     
     if (document) {
@@ -231,7 +72,7 @@ const Collaboration = () => {
     setIsDialogOpen(true);
   };
   
-  const handleOpenGroupDialog = (group = null) => {
+  const handleOpenGroupDialog = (group: any = null) => {
     setIsEditing(!!group);
     
     if (group) {
@@ -248,26 +89,9 @@ const Collaboration = () => {
     setIsGroupDialogOpen(true);
   };
 
-  // Handlers for input changes
-  const handleDocumentInputChange = (e) => {
-    const { name, value } = e.target;
-    setCurrentDocument(prev => ({
-      ...prev,
-      [name]: value
-    }));
-  };
-
-  const handleGroupInputChange = (e) => {
-    const { name, value } = e.target;
-    setCurrentGroup(prev => ({
-      ...prev,
-      [name]: value
-    }));
-  };
-
-  // Save handlers
+  // Sauvegarde du document
   const handleSaveDocument = () => {
-    if (!currentDocument?.name) {
+    if (!currentDocument.name) {
       return;
     }
     
@@ -278,8 +102,9 @@ const Collaboration = () => {
     }
   };
 
+  // Sauvegarde du groupe
   const handleSaveGroup = () => {
-    if (!currentGroup?.name) {
+    if (!currentGroup.name) {
       return;
     }
     
@@ -290,8 +115,8 @@ const Collaboration = () => {
     }
   };
 
-  // Reorder handlers
-  const handleReorder = (startIndex, endIndex, targetGroupId) => {
+  // Gestionnaire de réorganisation amélioré pour sauvegarder et synchroniser
+  const handleReorder = (startIndex: number, endIndex: number, targetGroupId?: string) => {
     console.log(`Réorganisation de l'élément ${startIndex} à ${endIndex}${targetGroupId ? ` dans le groupe ${targetGroupId}` : ''}`);
     
     // Copie des listes actuelles
@@ -310,6 +135,7 @@ const Collaboration = () => {
     } else {
       // Parcourir les groupes pour trouver le document
       let adjustedIndex = startIndex - updatedDocuments.length;
+      let currentIndex = 0;
       
       for (const group of updatedGroups) {
         if (adjustedIndex < group.items.length) {
@@ -319,6 +145,7 @@ const Collaboration = () => {
           break;
         }
         adjustedIndex -= group.items.length;
+        currentIndex += group.items.length;
       }
     }
     
@@ -361,25 +188,43 @@ const Collaboration = () => {
       }
     }
     
-    // Save updated data
-    setDocuments(updatedDocuments);
-    setGroups(updatedGroups);
+    // Mettre à jour les états
+    // Use the useCollaboration hooks to update the state - they will handle the sync
     
     // Sauvegarder et synchroniser avec le serveur
     saveCollaborationToStorage(updatedDocuments, updatedGroups);
     handleSyncDocuments();
   };
 
-  const handleGroupReorder = (startIndex, endIndex) => {
+  // Gestionnaire de réorganisation de groupe
+  const handleGroupReorder = (startIndex: number, endIndex: number) => {
+    console.log(`Réorganisation du groupe ${startIndex} à ${endIndex}`);
+    
     const updatedGroups = [...groups];
     const [removed] = updatedGroups.splice(startIndex, 1);
     updatedGroups.splice(endIndex, 0, removed);
     
-    setGroups(updatedGroups);
-    
     // Sauvegarder et synchroniser avec le serveur
     saveCollaborationToStorage(documents, updatedGroups);
     handleSyncDocuments();
+  };
+
+  // Gestion des changements de champs du document
+  const handleDocumentInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setCurrentDocument(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  // Gestion des changements de champs du groupe
+  const handleGroupInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setCurrentGroup(prev => ({
+      ...prev,
+      [name]: value
+    }));
   };
 
   return (
@@ -408,7 +253,7 @@ const Collaboration = () => {
         </Alert>
       )}
 
-      {isSyncing || isLoading ? (
+      {isSyncing ? (
         <div className="text-center p-8 border border-dashed rounded-md mt-4 bg-gray-50">
           <p className="text-gray-500">Chargement des données de collaboration...</p>
         </div>
