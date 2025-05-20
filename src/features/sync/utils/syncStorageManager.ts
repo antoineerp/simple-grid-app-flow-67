@@ -266,6 +266,7 @@ export const getLastSavedTimestamp = (tableName: string, syncKey?: string): Date
 export const cleanupLocalStorage = (): void => {
   try {
     const keys = Object.keys(localStorage);
+    let cleanupCount = 0;
     
     // Nettoyage des entrées potentiellement corrompues
     keys.forEach(key => {
@@ -274,13 +275,30 @@ export const cleanupLocalStorage = (): void => {
         if (key.includes('[object Object]')) {
           console.log(`SyncStorageManager: Suppression de l'entrée malformée dans localStorage: ${key}`);
           localStorage.removeItem(key);
+          cleanupCount++;
+          return;
+        }
+        
+        // Vérifier les clés de synchronisation pour des formats de date invalides
+        if (key.startsWith('last_synced_') || key.endsWith('_last_synced') || key.endsWith('_last_modified')) {
+          const value = localStorage.getItem(key);
+          if (value) {
+            // Essayer de parser comme une date
+            const date = new Date(value);
+            if (isNaN(date.getTime())) {
+              console.error(`SyncStorageManager: Date invalide détectée dans '${key}': '${value}'. Suppression.`);
+              localStorage.removeItem(key);
+              cleanupCount++;
+              return;
+            }
+          }
         }
         
         // Essayer de lire la valeur pour détecter les erreurs JSON
         const value = localStorage.getItem(key);
         if (value) {
           // Si la clé semble être une clé de données JSON, essayer de l'analyser
-          if (key.includes('_') && !key.startsWith('sync_') && !key.endsWith('_last_saved')) {
+          if (key.includes('_') && !key.startsWith('sync_') && !key.endsWith('_last_saved') && value.startsWith('{') || value.startsWith('[')) {
             JSON.parse(value);
           }
         }
@@ -288,10 +306,15 @@ export const cleanupLocalStorage = (): void => {
         // Si une erreur se produit lors de l'analyse, supprimer l'entrée corrompue
         console.error(`SyncStorageManager: Entrée corrompue détectée dans localStorage: ${key}. Suppression.`, e);
         localStorage.removeItem(key);
+        cleanupCount++;
       }
     });
     
-    console.log(`SyncStorageManager: Nettoyage de localStorage terminé`);
+    if (cleanupCount > 0) {
+      console.log(`SyncStorageManager: Nettoyage de localStorage terminé - ${cleanupCount} entrées supprimées`);
+    } else {
+      console.log(`SyncStorageManager: Nettoyage de localStorage terminé - aucune entrée corrompue trouvée`);
+    }
   } catch (error) {
     console.error(`SyncStorageManager: Erreur lors du nettoyage de localStorage:`, error);
   }

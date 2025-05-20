@@ -14,9 +14,9 @@ import robustSync, { verifyJsonEndpoint } from '@/services/sync/robustSyncServic
 
 // Sauvegarde des documents en local (maintenu pour compatibilité)
 export const saveLocalDocuments = (docs: Document[]): void => {
-  const currentUser = getCurrentUser() || 'default';
-  
   try {
+    const currentUser = getCurrentUser() || 'default';
+    
     // Utiliser le nouveau système de stockage centralisé
     saveLocalData('documents', docs);
     console.log(`${docs.length} documents sauvegardés en local pour ${currentUser}`);
@@ -34,11 +34,11 @@ export const getLocalDocuments = (): Document[] => {
     return docs;
   } catch (error) {
     console.error('Erreur lors de la récupération locale des documents:', error);
+    return [];
   }
-  return [];
 };
 
-// Synchronisation des documents avec le serveur
+// Synchronisation des documents avec le serveur avec gestion d'erreur améliorée
 export const syncDocumentsWithServer = async (docs: Document[]): Promise<boolean> => {
   if (!docs || docs.length === 0) {
     console.log('Aucun document à synchroniser');
@@ -47,8 +47,28 @@ export const syncDocumentsWithServer = async (docs: Document[]): Promise<boolean
   
   console.log(`Début de la synchronisation de ${docs.length} documents...`);
   
-  // Utiliser le nouveau système de synchronisation automatique
-  return syncWithServer('documents', docs);
+  try {
+    // Utiliser le nouveau système de synchronisation automatique
+    return await syncWithServer('documents', docs);
+  } catch (error) {
+    console.error('Erreur lors de la synchronisation des documents:', error);
+    
+    // Si c'est une erreur de parsing JSON, sauvegarder une copie de sauvegarde des données
+    if (error instanceof SyntaxError && error.message.includes('JSON')) {
+      console.warn('Erreur de parsing JSON détectée, sauvegarde des données en mode récupération');
+      try {
+        // Sauvegarder une copie de sauvegarde avec un timestamp
+        const timestamp = new Date().getTime();
+        const recoveryKey = `documents_recovery_${timestamp}`;
+        localStorage.setItem(recoveryKey, JSON.stringify(docs));
+        console.log(`Sauvegarde de récupération créée: ${recoveryKey}`);
+      } catch (backupError) {
+        console.error('Échec de la sauvegarde de récupération:', backupError);
+      }
+    }
+    
+    return false;
+  }
 };
 
 // Force une synchronisation complète de tous les documents
@@ -102,7 +122,12 @@ export const loadDocumentsFromServer = async (userId?: string): Promise<Document
   
   console.log(`Chargement des documents pour ${currentUser} depuis le serveur...`);
   
-  // Pour cette version simplifiée, on récupère simplement les données locales
-  // Dans une implémentation réelle, il faudrait faire une requête au serveur
-  return loadLocalData<Document>('documents');
+  try {
+    // Pour cette version simplifiée, on récupère simplement les données locales
+    // Dans une implémentation réelle, il faudrait faire une requête au serveur
+    return loadLocalData<Document>('documents');
+  } catch (error) {
+    console.error('Erreur lors du chargement des documents depuis le serveur:', error);
+    return null;
+  }
 };
