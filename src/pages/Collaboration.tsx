@@ -100,8 +100,6 @@ const Collaboration = () => {
     } else {
       handleAddDocument(currentDocument);
     }
-    
-    setIsDialogOpen(false);
   };
 
   // Sauvegarde du groupe
@@ -115,24 +113,100 @@ const Collaboration = () => {
     } else {
       handleAddGroup(currentGroup);
     }
-    
-    setIsGroupDialogOpen(false);
   };
 
-  // Gestionnaire de réorganisation
+  // Gestionnaire de réorganisation amélioré pour sauvegarder et synchroniser
   const handleReorder = (startIndex: number, endIndex: number, targetGroupId?: string) => {
     console.log(`Réorganisation de l'élément ${startIndex} à ${endIndex}${targetGroupId ? ` dans le groupe ${targetGroupId}` : ''}`);
-    // Implémentation à faire si nécessaire
-    // Sauvegarder l'état après réorganisation
-    saveCollaborationToStorage(documents, groups);
+    
+    // Copie des listes actuelles
+    const updatedDocuments = [...documents];
+    const updatedGroups = [...groups];
+    
+    // Déterminer la source du document (groupe ou liste principale)
+    let sourceDoc;
+    let sourceGroupId;
+    
+    // Trouver le document source et sa provenance
+    if (startIndex < updatedDocuments.length) {
+      // Le document vient de la liste principale
+      sourceDoc = { ...updatedDocuments[startIndex] };
+      updatedDocuments.splice(startIndex, 1);
+    } else {
+      // Parcourir les groupes pour trouver le document
+      let adjustedIndex = startIndex - updatedDocuments.length;
+      let currentIndex = 0;
+      
+      for (const group of updatedGroups) {
+        if (adjustedIndex < group.items.length) {
+          sourceDoc = { ...group.items[adjustedIndex] };
+          sourceGroupId = group.id;
+          group.items.splice(adjustedIndex, 1);
+          break;
+        }
+        adjustedIndex -= group.items.length;
+        currentIndex += group.items.length;
+      }
+    }
+    
+    if (sourceDoc) {
+      // Si un groupe cible est spécifié, ajouter le document à ce groupe
+      if (targetGroupId) {
+        if (targetGroupId === 'null') {
+          // Ajouter à la liste principale
+          sourceDoc.groupId = undefined;
+          updatedDocuments.splice(endIndex, 0, sourceDoc);
+        } else {
+          // Ajouter au groupe spécifié
+          sourceDoc.groupId = targetGroupId;
+          
+          const targetGroup = updatedGroups.find(g => g.id === targetGroupId);
+          if (targetGroup) {
+            // Calculer la position dans le groupe
+            if (endIndex <= updatedDocuments.length) {
+              targetGroup.items.unshift(sourceDoc);
+            } else {
+              // Ajuster l'index pour les groupes
+              let adjustedEndIndex = endIndex - updatedDocuments.length;
+              let currentIndex = 0;
+              
+              for (const group of updatedGroups) {
+                if (group.id === targetGroupId) {
+                  const insertPosition = Math.min(adjustedEndIndex - currentIndex, group.items.length);
+                  group.items.splice(insertPosition, 0, sourceDoc);
+                  break;
+                }
+                currentIndex += group.items.length;
+              }
+            }
+          }
+        }
+      } else {
+        // Pas de groupe cible spécifié, ajouter à la liste principale
+        sourceDoc.groupId = undefined;
+        updatedDocuments.splice(endIndex, 0, sourceDoc);
+      }
+    }
+    
+    // Mettre à jour les états
+    // Use the useCollaboration hooks to update the state - they will handle the sync
+    
+    // Sauvegarder et synchroniser avec le serveur
+    saveCollaborationToStorage(updatedDocuments, updatedGroups);
+    handleSyncDocuments();
   };
 
   // Gestionnaire de réorganisation de groupe
   const handleGroupReorder = (startIndex: number, endIndex: number) => {
     console.log(`Réorganisation du groupe ${startIndex} à ${endIndex}`);
-    // Implémentation à faire si nécessaire
-    // Sauvegarder l'état après réorganisation
-    saveCollaborationToStorage(documents, groups);
+    
+    const updatedGroups = [...groups];
+    const [removed] = updatedGroups.splice(startIndex, 1);
+    updatedGroups.splice(endIndex, 0, removed);
+    
+    // Sauvegarder et synchroniser avec le serveur
+    saveCollaborationToStorage(documents, updatedGroups);
+    handleSyncDocuments();
   };
 
   // Gestion des changements de champs du document
