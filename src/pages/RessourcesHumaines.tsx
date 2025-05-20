@@ -78,6 +78,24 @@ const RessourcesHumaines = () => {
     setIsDialogOpen(true);
   };
 
+  // This is the fixed function for editing a member
+  const handleEditMember = (id) => {
+    // Find the member in the array
+    const memberToEdit = membres.find(m => m.id === id);
+    if (memberToEdit) {
+      // Set all the member data to the currentMember state
+      setCurrentMember({
+        id: memberToEdit.id || '',
+        nom: memberToEdit.nom || '',
+        prenom: memberToEdit.prenom || '',
+        fonction: memberToEdit.fonction || '',
+        email: memberToEdit.email || '',
+        telephone: memberToEdit.telephone || ''
+      });
+      setIsDialogOpen(true);
+    }
+  };
+
   const handleSaveMember = () => {
     const newMember = {
       ...currentMember,
@@ -154,16 +172,17 @@ const RessourcesHumaines = () => {
           <p className="text-gray-500">Chargement des membres...</p>
         </div>
       ) : membres.length > 0 ? (
-        <MemberList membres={membres} onEdit={(member) => {
-          setCurrentMember(member);
-          setIsDialogOpen(true);
-        }} onDelete={(id) => {
-          setMembres(prev => prev.filter(m => m.id !== id));
-          toast({
-            title: "Membre supprimé",
-            description: "Le membre a été supprimé avec succès."
-          });
-        }} />
+        <MemberList 
+          membres={membres} 
+          onEdit={handleEditMember} 
+          onDelete={(id) => {
+            setMembres(prev => prev.filter(m => m.id !== id));
+            toast({
+              title: "Membre supprimé",
+              description: "Le membre a été supprimé avec succès."
+            });
+          }} 
+        />
       ) : (
         <div className="text-center p-8 border border-dashed rounded-md mt-4 bg-gray-50">
           <p className="text-gray-500">Aucun membre trouvé. Cliquez sur "Ajouter un membre" pour commencer.</p>
