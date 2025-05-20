@@ -172,48 +172,13 @@ function App() {
               
               {/* Routes protégées dans le Layout */}
               <Route path="/" element={<Layout />}>
-                <Route path="pilotage" element={
-                  <ProtectedRoute>
-                    <Pilotage />
-                  </ProtectedRoute>
-                } />
-                
-                <Route path="db-admin" element={
-                  <ProtectedRoute>
-                    <DbAdmin />
-                  </ProtectedRoute>
-                } />
-                
-                {/* Routes vers les pages réelles */}
-                <Route path="exigences" element={
-                  <ProtectedRoute>
-                    <Exigences />
-                  </ProtectedRoute>
-                } />
-                
-                <Route path="gestion-documentaire" element={
-                  <ProtectedRoute>
-                    <GestionDocumentaire />
-                  </ProtectedRoute>
-                } />
-                
-                <Route path="ressources-humaines" element={
-                  <ProtectedRoute>
-                    <RessourcesHumaines />
-                  </ProtectedRoute>
-                } />
-                
-                <Route path="collaboration" element={
-                  <ProtectedRoute>
-                    <Collaboration />
-                  </ProtectedRoute>
-                } />
-                
-                <Route path="administration" element={
-                  <ProtectedRoute>
-                    <Administration />
-                  </ProtectedRoute>
-                } />
+                <Route path="pilotage" element={<ProtectedRoute><Pilotage /></ProtectedRoute>} />
+                <Route path="db-admin" element={<ProtectedRoute><DbAdmin /></ProtectedRoute>} />
+                <Route path="exigences" element={<ProtectedRoute><Exigences /></ProtectedRoute>} />
+                <Route path="gestion-documentaire" element={<ProtectedRoute><GestionDocumentaire /></ProtectedRoute>} />
+                <Route path="ressources-humaines" element={<ProtectedRoute><RessourcesHumaines /></ProtectedRoute>} />
+                <Route path="collaboration" element={<ProtectedRoute><Collaboration /></ProtectedRoute>} />
+                <Route path="administration" element={<ProtectedRoute><Administration /></ProtectedRoute>} />
               </Route>
               
               {/* Redirection pour les routes inconnues */}
