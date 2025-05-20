@@ -1,4 +1,3 @@
-
 <?php
 include_once '../utils/JwtHandler.php';
 
@@ -13,6 +12,12 @@ class Auth {
     }
 
     public function isAuth() {
+        // Vérifier si l'authentification doit être ignorée
+        global $bypass_auth;
+        if (isset($bypass_auth) && $bypass_auth === true) {
+            return ["bypass" => true];
+        }
+        
         if (isset($this->headers['Authorization'])) {
             $this->token = str_replace('Bearer ', '', $this->headers['Authorization']);
             $data = $this->jwt->decode($this->token);

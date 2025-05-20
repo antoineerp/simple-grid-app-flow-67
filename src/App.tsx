@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { Toaster } from '@/components/ui/toaster';
@@ -22,47 +23,82 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const location = useLocation();
   const [isChecking, setIsChecking] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [authCheckAttempts, setAuthCheckAttempts] = useState(0);
   
   useEffect(() => {
-    const checkAuth = () => {
+    const checkAuth = async () => {
+      // Journalisation détaillée pour le débogage
+      console.log("ProtectedRoute - Vérification de l'authentification, chemin actuel:", location.pathname);
+      
       try {
+        // Vérifier si l'utilisateur est connecté
         const isLoggedIn = getIsLoggedIn();
         const currentUser = getCurrentUser();
         
-        console.log('ProtectedRoute - Vérification de connexion:', isLoggedIn);
-        console.log('ProtectedRoute - Chemin demandé:', location.pathname);
+        console.log("ProtectedRoute - État de connexion:", isLoggedIn);
+        console.log("ProtectedRoute - Chemin demandé:", location.pathname);
         
         if (currentUser) {
-          console.log('ProtectedRoute - Détails utilisateur:', currentUser.email || 'inconnu');
+          console.log("ProtectedRoute - Détails utilisateur:", currentUser.email || 'inconnu');
         }
         
-        setIsAuthenticated(isLoggedIn);
+        if (!isLoggedIn) {
+          console.log("ProtectedRoute - Utilisateur non connecté, redirection vers la page de connexion");
+          navigate('/', { replace: true });
+          return;
+        }
+        
+        console.log("ProtectedRoute - Utilisateur authentifié");
+        setIsAuthenticated(true);
+        
+        console.log("ProtectedRoute - Initialisation du composant Layout pour un utilisateur connecté");
+        console.log("ProtectedRoute - Nom d'utilisateur:", currentUser?.email);
+        console.log("ProtectedRoute - Rôle utilisateur:", currentUser?.role);
+        console.log("ProtectedRoute - Identifiant technique:", currentUser?.identifiant_technique);
       } catch (error) {
-        console.error('ProtectedRoute - Erreur lors de la vérification:', error);
-        setIsAuthenticated(false);
+        console.error("ProtectedRoute - Erreur lors de la vérification de l'authentification:", error);
+        // Augmenter le nombre d'essais
+        setAuthCheckAttempts(prev => prev + 1);
+        
+        // Si nous avons essayé plus de 3 fois sans succès, rediriger vers la page de connexion
+        if (authCheckAttempts >= 3) {
+          console.log("ProtectedRoute - Trop d'essais échoués, redirection vers la page de connexion");
+          navigate('/', { replace: true });
+          return;
+        }
       } finally {
         setIsChecking(false);
       }
     };
     
+    // Exécuter la vérification immédiatement
     checkAuth();
-  }, [location.pathname]);
+  }, [navigate, location.pathname, authCheckAttempts]);
   
   // Afficher un indicateur de chargement pendant la vérification
   if (isChecking) {
     return (
-      <div className="h-screen w-full flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      <div className="h-screen w-full flex items-center justify-center bg-background">
+        <div className="flex flex-col items-center">
+          <Loader2 className="h-12 w-12 animate-spin text-primary" />
+          <p className="mt-4 text-lg text-muted-foreground">Chargement de l'application...</p>
+        </div>
       </div>
     );
   }
   
+  // Si l'utilisateur n'est pas authentifié, le useEffect se chargera de rediriger
   if (!isAuthenticated) {
-    console.log('ProtectedRoute - Accès non autorisé, redirection vers la page de connexion');
-    return <Navigate to="/" />;
+    return (
+      <div className="h-screen w-full flex items-center justify-center bg-background">
+        <div className="flex flex-col items-center">
+          <Loader2 className="h-12 w-12 animate-spin text-primary" />
+          <p className="mt-4 text-lg text-muted-foreground">Vérification des identifiants...</p>
+        </div>
+      </div>
+    );
   }
-  
-  console.log('ProtectedRoute - Accès autorisé, affichage du contenu');
+
   return <>{children}</>;
 };
 
