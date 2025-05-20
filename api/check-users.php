@@ -1,3 +1,4 @@
+
 <?php
 // Forcer l'output buffering pour éviter tout output avant les headers
 ob_start();

@@ -1,3 +1,4 @@
+
 import { getApiUrl } from '@/config/apiConfig';
 import { getAuthHeaders } from '@/services/auth/authService';
 
@@ -42,7 +43,7 @@ export const getCurrentUser = (): string | null => {
   }
   
   // Valeur par défaut pour les opérations sans authentification
-  return 'p71x6d_system';
+  return 'p71x6d_richard';
 };
 
 // Fonction pour définir l'utilisateur actuel
