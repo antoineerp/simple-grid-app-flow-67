@@ -1,435 +1,420 @@
 
-import { useState, useCallback, useEffect, useRef } from 'react';
-import { useToast } from '@/hooks/use-toast';
-import { useNetworkStatus } from '@/hooks/useNetworkStatus';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { getApiUrl } from '@/config/apiConfig';
-import { getAuthHeaders } from '@/services/auth/authService';
-import { getCurrentUser } from '@/services/core/databaseConnectionService';
+import { useNetworkStatus } from '@/hooks/useNetworkStatus';
+import { useToast } from '@/hooks/use-toast';
+import { getCurrentUser } from '@/services/auth/authService';
 
-export interface SyncOptions {
-  showToasts?: boolean;
-  silent?: boolean;
-  forceRefresh?: boolean;
-}
-
-export interface SyncState {
-  isSyncing: boolean;
-  lastSynced: Date | null;
-  syncFailed: boolean;
-  dataChanged: boolean;
-  pendingSync: boolean;
-}
-
-export interface SyncResult<T = any> {
+interface SyncResult<T> {
   success: boolean;
   message: string;
   data?: T;
+  details?: any;
 }
 
-/**
- * Hook unifié pour la synchronisation des données avec le serveur
- * Compatible avec toutes les entités de l'application
- */
-export const useUnifiedSync = <T extends Array<any>>(entityName: string, initialData: T = [] as unknown as T) => {
-  const [data, setData] = useState<T>(initialData);
-  const [syncState, setSyncState] = useState<SyncState>({
-    isSyncing: false,
-    lastSynced: null,
-    syncFailed: false,
-    dataChanged: false,
-    pendingSync: false
-  });
+interface SyncOptions {
+  showToast?: boolean;
+  silent?: boolean;
+  forceRefresh?: boolean;
+  skipLocalStorage?: boolean;
+}
+
+export const useUnifiedSync = <T>(entityName: string, defaultData: T) => {
+  const [data, setData] = useState<T>(defaultData);
+  const [isSyncing, setIsSyncing] = useState<boolean>(false);
+  const [lastSynced, setLastSynced] = useState<Date | null>(null);
+  const [syncFailed, setSyncFailed] = useState<boolean>(false);
+  const [pendingSync, setPendingSync] = useState<boolean>(false);
+  const [error, setError] = useState<Error | null>(null);
+  const [loadAttempts, setLoadAttempts] = useState<number>(0);
+  const abortControllerRef = useRef<AbortController | null>(null);
   const { isOnline } = useNetworkStatus();
   const { toast } = useToast();
-  const syncLocksRef = useRef<Record<string, boolean>>({});
-  const operationsQueueRef = useRef<Array<{ entityName: string, data: any[] }>>([]);
-  const mountedRef = useRef<boolean>(true);
-  const baseApiUrl = getApiUrl();
-  const FIXED_USER_ID = getCurrentUser() || 'p71x6d_system';
+  
+  const getUserStorageKey = useCallback((userId?: string) => {
+    const user = userId || getCurrentUser() || 'default';
+    return `${entityName}_${user}`;
+  }, [entityName]);
 
-  // Cleanup on unmount
-  useEffect(() => {
-    mountedRef.current = true;
-    return () => {
-      mountedRef.current = false;
-    };
-  }, []);
+  const getPendingSyncKey = useCallback(() => {
+    return `sync_pending_${entityName}`;
+  }, [entityName]);
 
-  /**
-   * Charger les données depuis le stockage local
-   */
-  const loadFromLocalStorage = useCallback((entity: string = entityName): T => {
+  const loadFromLocalStorage = useCallback((userId?: string): T => {
     try {
-      const storageKey = `${entity}_${FIXED_USER_ID}`;
-      const storedData = localStorage.getItem(storageKey);
-
+      const key = getUserStorageKey(userId);
+      const storedData = localStorage.getItem(key);
+      
       if (storedData) {
-        return JSON.parse(storedData) as T;
+        // Analyser les données stockées
+        const parsed = JSON.parse(storedData);
+        console.log(`useUnifiedSync(${entityName}): Données chargées depuis le stockage local`, parsed);
+        return parsed;
       }
-    } catch (error) {
-      console.error(`useUnifiedSync: Erreur lors du chargement local de ${entity}:`, error);
+    } catch (err) {
+      console.error(`useUnifiedSync(${entityName}): Erreur lors du chargement depuis le stockage local`, err);
     }
+    
+    return defaultData;
+  }, [defaultData, entityName, getUserStorageKey]);
 
-    return [] as unknown as T;
-  }, [entityName, FIXED_USER_ID]);
-
-  /**
-   * Sauvegarder les données dans le stockage local
-   */
-  const saveToLocalStorage = useCallback((dataToSave: T, entity: string = entityName): void => {
+  const saveToLocalStorage = useCallback((newData: T, userId?: string): void => {
     try {
-      const storageKey = `${entity}_${FIXED_USER_ID}`;
-      localStorage.setItem(storageKey, JSON.stringify(dataToSave));
-    } catch (error) {
-      console.error(`useUnifiedSync: Erreur lors de la sauvegarde locale de ${entity}:`, error);
+      const key = getUserStorageKey(userId);
+      localStorage.setItem(key, JSON.stringify(newData));
+      console.log(`useUnifiedSync(${entityName}): Données sauvegardées dans le stockage local`, newData);
+    } catch (err) {
+      console.error(`useUnifiedSync(${entityName}): Erreur lors de la sauvegarde dans le stockage local`, err);
     }
-  }, [entityName, FIXED_USER_ID]);
+  }, [entityName, getUserStorageKey]);
 
-  /**
-   * Acquérir un verrou pour éviter les synchronisations simultanées
-   */
-  const acquireSyncLock = useCallback((entity: string = entityName): boolean => {
-    if (syncLocksRef.current[entity]) {
+  const markPendingSync = useCallback((isPending: boolean = true): void => {
+    try {
+      const key = getPendingSyncKey();
+      if (isPending) {
+        localStorage.setItem(key, 'true');
+        setPendingSync(true);
+        console.log(`useUnifiedSync(${entityName}): Marqué comme en attente de synchronisation`);
+      } else {
+        localStorage.removeItem(key);
+        setPendingSync(false);
+        console.log(`useUnifiedSync(${entityName}): Marqueur de synchronisation effacé`);
+      }
+    } catch (err) {
+      console.error(`useUnifiedSync(${entityName}): Erreur lors de la manipulation du marqueur de synchronisation`, err);
+    }
+  }, [entityName, getPendingSyncKey]);
+
+  const checkPendingSync = useCallback((): boolean => {
+    try {
+      const key = getPendingSyncKey();
+      const isPending = localStorage.getItem(key) === 'true';
+      setPendingSync(isPending);
+      return isPending;
+    } catch (err) {
+      console.error(`useUnifiedSync(${entityName}): Erreur lors de la vérification du marqueur de synchronisation`, err);
       return false;
     }
-    
-    syncLocksRef.current[entity] = true;
-    return true;
-  }, [entityName]);
+  }, [entityName, getPendingSyncKey]);
 
-  /**
-   * Libérer un verrou de synchronisation
-   */
-  const releaseSyncLock = useCallback((entity: string = entityName): void => {
-    syncLocksRef.current[entity] = false;
-  }, [entityName]);
-
-  /**
-   * Charger les données depuis le serveur
-   */
   const loadFromServer = useCallback(async (options: SyncOptions = {}): Promise<SyncResult<T>> => {
+    const { showToast = true, silent = false, forceRefresh = false } = options;
+    
     if (!isOnline) {
-      console.log(`useUnifiedSync: Mode hors ligne, chargement impossible pour ${entityName}`);
-      
-      if (!options.silent) {
-        toast({
-          title: "Mode hors ligne",
-          description: `Impossible de charger les données de ${entityName} depuis le serveur`,
-          variant: "destructive"
-        });
+      if (!silent) {
+        console.log(`useUnifiedSync(${entityName}): Mode hors ligne, utilisation des données locales`);
       }
-      
-      return { success: false, message: "Mode hors ligne" };
+      return { success: false, message: "Mode hors ligne, utilisation des données locales" };
     }
     
-    if (!acquireSyncLock()) {
-      console.log(`useUnifiedSync: Synchronisation déjà en cours pour ${entityName}`);
+    if (isSyncing && !forceRefresh) {
+      if (!silent) {
+        console.log(`useUnifiedSync(${entityName}): Synchronisation déjà en cours`);
+      }
       return { success: false, message: "Synchronisation déjà en cours" };
     }
     
-    setSyncState(prev => ({ ...prev, isSyncing: true }));
-    
     try {
-      console.log(`useUnifiedSync: Chargement des données de ${entityName} depuis le serveur`);
-      
-      // Construire l'URL en fonction de l'entité
-      const url = `${baseApiUrl}/${entityName}-load.php?userId=${FIXED_USER_ID}`;
-      console.log(`useUnifiedSync: URL de chargement: ${url}`);
-      
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: {
-          ...getAuthHeaders(),
-          'Accept': 'application/json',
-          'Cache-Control': 'no-store, no-cache, must-revalidate'
-        }
-      });
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error(`useUnifiedSync: Erreur HTTP ${response.status} pour ${entityName}: ${errorText}`);
-        throw new Error(`Erreur réseau: ${response.status}`);
+      if (!silent) {
+        setIsSyncing(true);
+        setError(null);
       }
       
+      // Annuler toute requête en cours
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+      
+      // Créer un nouveau contrôleur pour cette requête
+      abortControllerRef.current = new AbortController();
+      
+      // Construire l'endpoint en fonction de l'entité
+      const endpoint = `${getApiUrl()}/${entityName.toLowerCase()}-load.php`;
+      
+      const userId = getCurrentUser();
+      if (!userId) {
+        throw new Error("Utilisateur non connecté");
+      }
+      
+      // Exécuter la requête fetch
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          user_id: userId,
+        }),
+        signal: abortControllerRef.current.signal,
+      });
+      
+      // Vérifier si la requête a réussi
+      if (!response.ok) {
+        throw new Error(`Erreur HTTP ${response.status}: ${response.statusText}`);
+      }
+      
+      // Analyser la réponse JSON
       const result = await response.json();
       
       if (result.success) {
-        console.log(`useUnifiedSync: Données de ${entityName} chargées avec succès:`, result);
-        
-        // Mise à jour des données locales
-        const loadedData = result[entityName] || result.data || [];
-        
-        if (mountedRef.current) {
-          setData(loadedData);
-          saveToLocalStorage(loadedData);
+        if (!silent) {
+          const receivedData = result.data || defaultData;
+          console.log(`useUnifiedSync(${entityName}): Données reçues du serveur`, receivedData);
           
-          setSyncState(prev => ({
-            ...prev,
-            isSyncing: false,
-            lastSynced: new Date(),
-            syncFailed: false,
-            pendingSync: false
-          }));
+          // Mettre à jour l'état
+          setData(receivedData);
+          setLastSynced(new Date());
+          setSyncFailed(false);
+          
+          // Sauvegarder en local
+          saveToLocalStorage(receivedData);
+          
+          // Marquer comme synchronisé
+          markPendingSync(false);
         }
         
-        return { 
-          success: true, 
-          message: `Données de ${entityName} chargées avec succès`, 
-          data: loadedData as T
-        };
+        return { success: true, message: "Données chargées avec succès", data: result.data };
       } else {
-        throw new Error(result.message || `Échec du chargement des données de ${entityName}`);
+        throw new Error(result.message || "Erreur lors du chargement des données");
       }
-    } catch (error) {
-      console.error(`useUnifiedSync: Erreur lors du chargement de ${entityName}:`, error);
+    } catch (err: any) {
+      if (err.name === 'AbortError') {
+        console.log(`useUnifiedSync(${entityName}): Requête annulée`);
+        return { success: false, message: "Requête annulée" };
+      }
       
-      if (mountedRef.current) {
-        setSyncState(prev => ({
-          ...prev,
-          isSyncing: false,
-          syncFailed: true
-        }));
+      if (!silent) {
+        console.error(`useUnifiedSync(${entityName}): Erreur lors du chargement depuis le serveur`, err);
+        setError(err);
+        setSyncFailed(true);
         
-        if (!options.silent) {
+        if (showToast) {
           toast({
-            title: "Erreur de chargement",
-            description: error instanceof Error ? error.message : `Impossible de charger les données de ${entityName}`,
-            variant: "destructive"
+            title: "Erreur de synchronisation",
+            description: err.message || "Impossible de synchroniser les données avec le serveur",
+            variant: "destructive",
           });
         }
       }
       
       return { 
         success: false, 
-        message: error instanceof Error ? error.message : `Erreur lors du chargement de ${entityName}`
+        message: err.message || "Erreur lors du chargement des données",
+        details: { error: err.toString() }
       };
     } finally {
-      releaseSyncLock();
+      if (!silent) {
+        setIsSyncing(false);
+      }
     }
-  }, [entityName, isOnline, baseApiUrl, FIXED_USER_ID, acquireSyncLock, releaseSyncLock, saveToLocalStorage, toast]);
+  }, [defaultData, entityName, isOnline, isSyncing, markPendingSync, saveToLocalStorage, toast]);
 
-  /**
-   * Synchroniser les données avec le serveur
-   */
-  const syncWithServer = useCallback(async (dataToSync: T, options: SyncOptions = {}): Promise<SyncResult> => {
-    // Toujours sauvegarder localement pour éviter les pertes de données
-    saveToLocalStorage(dataToSync);
+  const syncWithServer = useCallback(async (dataToSync?: T, options: SyncOptions = {}): Promise<SyncResult<boolean>> => {
+    const { showToast = true, silent = false } = options;
     
     if (!isOnline) {
-      console.log(`useUnifiedSync: Mode hors ligne, synchronisation impossible pour ${entityName}`);
-      
-      if (!options.silent) {
-        toast({
-          title: "Mode hors ligne",
-          description: `Les données de ${entityName} sont sauvegardées localement`,
-          variant: "warning"
-        });
+      if (dataToSync) {
+        saveToLocalStorage(dataToSync);
+        markPendingSync(true);
+        
+        if (showToast) {
+          toast({
+            title: "Mode hors ligne",
+            description: "Les modifications seront synchronisées lorsque la connexion sera rétablie",
+          });
+        }
       }
       
-      // Ajouter à la file d'attente pour synchronisation ultérieure
-      operationsQueueRef.current.push({ entityName, data: dataToSync });
-      
-      setSyncState(prev => ({
-        ...prev,
-        pendingSync: true,
-        dataChanged: true
-      }));
-      
-      return { success: false, message: "Mode hors ligne, données sauvegardées localement" };
+      return { 
+        success: false, 
+        message: "Mode hors ligne, les données seront synchronisées plus tard" 
+      };
     }
     
-    if (!acquireSyncLock()) {
-      console.log(`useUnifiedSync: Synchronisation déjà en cours pour ${entityName}`);
+    if (isSyncing) {
       return { success: false, message: "Synchronisation déjà en cours" };
     }
     
-    setSyncState(prev => ({ ...prev, isSyncing: true }));
-    
     try {
-      console.log(`useUnifiedSync: Synchronisation des données de ${entityName} avec le serveur`);
+      if (!silent) {
+        setIsSyncing(true);
+        setError(null);
+      }
       
-      // Construire l'URL en fonction de l'entité
-      const url = `${baseApiUrl}/${entityName}-sync.php`;
-      console.log(`useUnifiedSync: URL de synchronisation: ${url}`);
+      // Si aucune donnée n'est fournie, utiliser les données actuelles
+      const dataToPush = dataToSync || data;
       
-      // Préparer les données à envoyer
-      const payload = {
-        userId: FIXED_USER_ID,
-        [entityName]: dataToSync
-      };
+      // Construire l'endpoint en fonction de l'entité
+      const endpoint = `${getApiUrl()}/${entityName.toLowerCase()}-sync.php`;
       
-      const response = await fetch(url, {
+      const userId = getCurrentUser();
+      if (!userId) {
+        throw new Error("Utilisateur non connecté");
+      }
+      
+      // Exécuter la requête fetch
+      const response = await fetch(endpoint, {
         method: 'POST',
         headers: {
-          ...getAuthHeaders(),
           'Content-Type': 'application/json',
-          'Accept': 'application/json',
-          'Cache-Control': 'no-store, no-cache, must-revalidate'
         },
-        body: JSON.stringify(payload)
+        body: JSON.stringify({
+          user_id: userId,
+          data: dataToPush,
+        }),
       });
       
+      // Vérifier si la requête a réussi
       if (!response.ok) {
-        const errorText = await response.text();
-        console.error(`useUnifiedSync: Erreur HTTP ${response.status} pour ${entityName}: ${errorText}`);
         throw new Error(`Erreur HTTP ${response.status}: ${response.statusText}`);
       }
       
+      // Analyser la réponse JSON
       const result = await response.json();
       
       if (result.success) {
-        console.log(`useUnifiedSync: Données de ${entityName} synchronisées avec succès`);
+        // Si des données ont été fournies, mettre à jour l'état local
+        if (dataToSync) {
+          setData(dataToSync);
+          saveToLocalStorage(dataToSync);
+        }
         
-        if (mountedRef.current) {
-          // Mise à jour de l'état
-          setSyncState(prev => ({
-            ...prev,
-            isSyncing: false,
-            lastSynced: new Date(),
-            syncFailed: false,
-            pendingSync: false,
-            dataChanged: false
-          }));
+        if (!silent) {
+          setLastSynced(new Date());
+          setSyncFailed(false);
           
-          if (!options.silent && options.showToasts) {
+          // Marquer comme synchronisé
+          markPendingSync(false);
+          
+          if (showToast) {
             toast({
               title: "Synchronisation réussie",
-              description: `Les données de ${entityName} ont été synchronisées avec succès`,
+              description: "Les données ont été synchronisées avec succès",
             });
           }
         }
         
-        return { success: true, message: `Données de ${entityName} synchronisées avec succès` };
+        return { success: true, message: "Données synchronisées avec succès" };
       } else {
-        throw new Error(result.message || `Échec de la synchronisation des données de ${entityName}`);
+        throw new Error(result.message || "Erreur lors de la synchronisation des données");
       }
-    } catch (error) {
-      console.error(`useUnifiedSync: Erreur lors de la synchronisation de ${entityName}:`, error);
-      
-      if (mountedRef.current) {
-        setSyncState(prev => ({
-          ...prev,
-          isSyncing: false,
-          syncFailed: true,
-          pendingSync: true
-        }));
+    } catch (err: any) {
+      if (!silent) {
+        console.error(`useUnifiedSync(${entityName}): Erreur lors de la synchronisation avec le serveur`, err);
+        setError(err);
+        setSyncFailed(true);
         
-        if (!options.silent) {
+        if (showToast) {
           toast({
             title: "Erreur de synchronisation",
-            description: error instanceof Error ? error.message : `Impossible de synchroniser les données de ${entityName}`,
-            variant: "destructive"
+            description: err.message || "Impossible de synchroniser les données avec le serveur",
+            variant: "destructive",
           });
         }
       }
       
-      return { 
-        success: false, 
-        message: error instanceof Error ? error.message : `Erreur lors de la synchronisation de ${entityName}`
-      };
-    } finally {
-      releaseSyncLock();
-    }
-  }, [entityName, isOnline, baseApiUrl, FIXED_USER_ID, acquireSyncLock, releaseSyncLock, saveToLocalStorage, toast]);
-
-  /**
-   * Initialiser les données locales et tenter de les synchroniser avec le serveur
-   */
-  useEffect(() => {
-    const initializeData = async () => {
-      console.log(`useUnifiedSync: Initialisation des données pour ${entityName}`);
-      
-      // Charger d'abord depuis le stockage local
-      const localData = loadFromLocalStorage();
-      if (localData.length > 0) {
-        console.log(`useUnifiedSync: Données locales trouvées pour ${entityName}:`, localData.length);
-        setData(localData);
+      // Si des données ont été fournies, les sauvegarder localement malgré l'erreur
+      if (dataToSync) {
+        saveToLocalStorage(dataToSync);
+        markPendingSync(true);
       }
       
-      // Puis essayer de charger depuis le serveur si en ligne
-      if (isOnline) {
-        const serverResult = await loadFromServer({ silent: true });
-        if (serverResult.success && serverResult.data) {
-          console.log(`useUnifiedSync: Données serveur chargées pour ${entityName}:`, serverResult.data.length);
+      return { 
+        success: false, 
+        message: err.message || "Erreur lors de la synchronisation des données",
+        details: { error: err.toString() }
+      };
+    } finally {
+      if (!silent) {
+        setIsSyncing(false);
+      }
+    }
+  }, [data, entityName, isOnline, isSyncing, markPendingSync, saveToLocalStorage, toast]);
+
+  // Fonction d'API pour mettre à jour les données
+  const setDataAndSync = useCallback(async (newData: T, options: SyncOptions = {}): Promise<void> => {
+    // Mettre à jour l'état local
+    setData(newData);
+    
+    // Sauvegarder dans le stockage local
+    saveToLocalStorage(newData);
+    
+    // Si en ligne, synchroniser avec le serveur
+    if (isOnline) {
+      await syncWithServer(newData, options);
+    } else {
+      // Marquer comme ayant besoin de synchronisation
+      markPendingSync(true);
+      
+      if (options.showToast !== false) {
+        toast({
+          title: "Sauvegarde locale",
+          description: "Les modifications seront synchronisées lorsque la connexion sera rétablie",
+        });
+      }
+    }
+  }, [isOnline, markPendingSync, saveToLocalStorage, syncWithServer, toast]);
+
+  // Tentatives de chargement des données
+  useEffect(() => {
+    const initializeData = async () => {
+      try {
+        // Charger depuis le stockage local
+        const localData = loadFromLocalStorage();
+        
+        // Utiliser les données locales si disponibles
+        if (localData !== defaultData) {
+          setData(localData);
+          console.log(`useUnifiedSync(${entityName}): Utilisation des données locales`, localData);
         }
+        
+        // Vérifier s'il y a des synchronisations en attente
+        const hasPendingSync = checkPendingSync();
+        
+        // Si en ligne, essayer de charger depuis le serveur
+        if (isOnline) {
+          if (hasPendingSync) {
+            // Synchroniser les données locales avec le serveur
+            await syncWithServer(localData, { silent: true });
+          } else {
+            // Charger les données depuis le serveur
+            await loadFromServer({ silent: true });
+          }
+        }
+      } catch (err) {
+        console.error(`useUnifiedSync(${entityName}): Erreur lors de l'initialisation`, err);
+        setError(err instanceof Error ? err : new Error(String(err)));
       }
     };
     
     initializeData();
-  }, [entityName, isOnline, loadFromLocalStorage, loadFromServer]);
+  }, [checkPendingSync, defaultData, entityName, isOnline, loadFromLocalStorage, loadFromServer, syncWithServer]);
 
-  /**
-   * Tenter de synchroniser les données en attente lorsque la connexion est rétablie
-   */
+  // Synchronisation automatique lorsque la connexion est rétablie
   useEffect(() => {
-    if (isOnline && syncState.pendingSync && !syncState.isSyncing) {
-      console.log(`useUnifiedSync: Tentative de synchronisation des données en attente pour ${entityName}`);
-      
-      const syncPendingData = setTimeout(() => {
-        syncWithServer(data).catch(error => {
-          console.error(`useUnifiedSync: Erreur lors de la synchronisation différée:`, error);
-        });
-      }, 2000);
-      
-      return () => clearTimeout(syncPendingData);
+    if (isOnline && checkPendingSync()) {
+      console.log(`useUnifiedSync(${entityName}): Connexion rétablie, synchronisation des données en attente`);
+      syncWithServer(data, { silent: true });
     }
-  }, [isOnline, syncState.pendingSync, syncState.isSyncing, data, entityName, syncWithServer]);
-
-  /**
-   * Traiter la file d'attente des opérations en attente
-   */
-  const processQueue = useCallback(async () => {
-    if (!isOnline || operationsQueueRef.current.length === 0) {
-      return;
-    }
-    
-    console.log(`useUnifiedSync: Traitement de la file d'attente (${operationsQueueRef.current.length} opérations)`);
-    
-    const operations = [...operationsQueueRef.current];
-    operationsQueueRef.current = [];
-    
-    for (const operation of operations) {
-      try {
-        const { entityName: entity, data: entityData } = operation;
-        await syncWithServer(entityData as T, { silent: true, entityName: entity });
-      } catch (error) {
-        console.error(`useUnifiedSync: Erreur lors du traitement de la file d'attente:`, error);
-        // Remettre l'opération dans la file si elle échoue
-        operationsQueueRef.current.push(operation);
-      }
-    }
-  }, [isOnline, syncWithServer]);
-
-  /**
-   * Déclencher le traitement de la file d'attente lorsque la connexion est rétablie
-   */
-  useEffect(() => {
-    if (isOnline && operationsQueueRef.current.length > 0) {
-      const queueTimeout = setTimeout(() => {
-        processQueue().catch(error => {
-          console.error(`useUnifiedSync: Erreur lors du traitement de la file:`, error);
-        });
-      }, 3000);
-      
-      return () => clearTimeout(queueTimeout);
-    }
-  }, [isOnline, processQueue]);
+  }, [checkPendingSync, data, entityName, isOnline, syncWithServer]);
 
   return {
     data,
-    setData,
-    syncState: {
-      isSyncing: syncState.isSyncing,
-      lastSynced: syncState.lastSynced,
-      syncFailed: syncState.syncFailed,
-      pendingSync: syncState.pendingSync,
-      dataChanged: syncState.dataChanged
-    },
-    isOnline,
+    setData: setDataAndSync,
+    loadFromLocalStorage,
     loadFromServer,
     syncWithServer,
-    loadFromLocalStorage,
-    saveToLocalStorage,
-    processQueue
+    syncState: {
+      isSyncing,
+      lastSynced,
+      syncFailed,
+      pendingSync,
+      error,
+      loadAttempts,
+      setLoadAttempts
+    },
+    isOnline
   };
 };
+
+export default useUnifiedSync;

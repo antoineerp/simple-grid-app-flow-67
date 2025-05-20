@@ -14,6 +14,8 @@ interface SyncIndicatorProps {
   showButton?: boolean;
   label?: string;
   size?: 'sm' | 'md' | 'lg';
+  isOnline?: boolean;
+  showOnlyErrors?: boolean;
 }
 
 const SyncIndicator = ({ 
@@ -24,9 +26,12 @@ const SyncIndicator = ({
   onSync,
   showButton = true,
   label = 'Synchroniser',
-  size = 'md'
+  size = 'md',
+  isOnline: externalIsOnline,
+  showOnlyErrors = false
 }: SyncIndicatorProps) => {
-  const { isOnline } = useNetworkStatus();
+  const networkStatus = useNetworkStatus();
+  const isOnline = externalIsOnline !== undefined ? externalIsOnline : networkStatus.isOnline;
 
   // Format relative time
   const formatTimeAgo = (date: Date) => {
@@ -78,6 +83,11 @@ const SyncIndicator = ({
     statusIcon = <AlertCircle className={`${size === 'sm' ? 'h-3 w-3' : 'h-4 w-4'} mr-1`} />;
     statusText = 'Non synchronisé';
     variant = 'outline';
+  }
+
+  // Si on ne veut afficher que les erreurs et qu'il n'y a pas d'erreur, on n'affiche rien
+  if (showOnlyErrors && !syncFailed && !(!isOnline)) {
+    return null;
   }
 
   return (
