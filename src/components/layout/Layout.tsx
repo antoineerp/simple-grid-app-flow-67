@@ -10,6 +10,7 @@ import GlobalSyncManager from '@/components/common/GlobalSyncManager';
 import { getIsLoggedIn, getCurrentUser } from '@/services/auth/authService';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { Loader2 } from 'lucide-react';
+import { MembresProvider } from '@/contexts/MembresContext'; // Important d'importer MembresProvider
 
 const Layout = () => {
   const navigate = useNavigate();
@@ -40,75 +41,59 @@ const Layout = () => {
         console.log("Layout - Utilisateur authentifié");
         setIsAuthenticated(true);
         
-        console.log("Layout - Initialisation du composant Layout pour un utilisateur connecté");
-        console.log("Layout - Nom d'utilisateur:", currentUser?.email);
-        console.log("Layout - Rôle utilisateur:", currentUser?.role);
-        console.log("Layout - Identifiant technique:", currentUser?.identifiant_technique);
+        console.log("Layout - Initialisation du composant Layout terminée");
+        
+        // Après avoir confirmé l'authentification, marquer comme "non chargement"
+        setIsLoading(false);
+        
       } catch (error) {
         console.error("Layout - Erreur lors de la vérification de l'authentification:", error);
-        // Augmenter le nombre d'essais
-        setAuthCheckAttempts(prev => prev + 1);
         
-        // Si nous avons essayé plus de 3 fois sans succès, rediriger vers la page de connexion
+        // En cas d'erreur, augmenter le compteur de tentatives
+        setAuthCheckAttempts(prevAttempts => prevAttempts + 1);
+        
+        // Si trop de tentatives, considérer comme non authentifié
         if (authCheckAttempts >= 3) {
-          console.log("Layout - Trop d'essais échoués, redirection vers la page de connexion");
+          console.log("Layout - Trop de tentatives échouées, redirection vers la page de connexion");
           navigate('/', { replace: true });
-          return;
         }
-      } finally {
-        setIsLoading(false);
       }
     };
     
-    // Exécuter la vérification immédiatement
     checkAuth();
   }, [navigate, location.pathname, authCheckAttempts]);
-  
-  // Afficher un indicateur de chargement pendant la vérification
+
   if (isLoading) {
     return (
-      <div className="h-screen w-full flex items-center justify-center bg-background">
-        <div className="flex flex-col items-center">
-          <Loader2 className="h-12 w-12 animate-spin text-primary" />
-          <p className="mt-4 text-lg text-muted-foreground">Chargement de l'application...</p>
-        </div>
-      </div>
-    );
-  }
-  
-  // Si l'utilisateur n'est pas authentifié, le useEffect se chargera de rediriger
-  if (!isAuthenticated) {
-    return (
-      <div className="h-screen w-full flex items-center justify-center bg-background">
-        <div className="flex flex-col items-center">
-          <Loader2 className="h-12 w-12 animate-spin text-primary" />
-          <p className="mt-4 text-lg text-muted-foreground">Vérification des identifiants...</p>
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <div className="text-center">
+          <Loader2 className="h-12 w-12 animate-spin text-app-blue mx-auto mb-4" />
+          <p className="text-gray-600">Chargement de l'application...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <GlobalDataProvider>
-      <GlobalSyncProvider>
-        <TooltipProvider>
-          <div className="flex flex-col h-screen bg-background">
-            <Header />
-            <div className="flex flex-1 overflow-hidden">
+    <TooltipProvider>
+      <GlobalDataProvider>
+        <GlobalSyncProvider>
+          <MembresProvider>
+            <div className="flex h-screen overflow-hidden bg-slate-50">
               <Sidebar />
-              <main className="flex-1 overflow-auto bg-slate-50 w-full">
-                <div data-testid="layout-content">
+              <div className="flex flex-col flex-1 overflow-y-auto">
+                <Header />
+                <main className="flex-1">
                   <Outlet />
-                </div>
-              </main>
+                </main>
+                <GlobalSyncManager />
+              </div>
+              <Toaster />
             </div>
-            <Toaster />
-            <GlobalSyncManager />
-            <div data-testid="global-sync-initialized" className="hidden" />
-          </div>
-        </TooltipProvider>
-      </GlobalSyncProvider>
-    </GlobalDataProvider>
+          </MembresProvider>
+        </GlobalSyncProvider>
+      </GlobalDataProvider>
+    </TooltipProvider>
   );
 };
 

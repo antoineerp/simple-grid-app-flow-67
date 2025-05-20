@@ -3,7 +3,7 @@ import { getApiUrl } from '@/config/apiConfig';
 import { getAuthHeaders } from '@/services/auth/authService';
 
 // Variable en mémoire pour stocker l'utilisateur actuel
-// Toujours initialiser avec l'utilisateur par défaut
+// Toujours initialiser avec l'utilisateur richard
 let currentDatabaseUser: string = 'p71x6d_richard';
 
 // Fonction pour récupérer l'utilisateur actuel depuis la mémoire
@@ -51,7 +51,7 @@ export const connectAsUser = async (userId: string): Promise<boolean> => {
     
     // Mettre à jour l'interface utilisateur immédiatement
     window.dispatchEvent(new CustomEvent('database-user-changed', {
-      detail: { user: userId }
+      detail: { user: 'p71x6d_richard' }
     }));
     
     return true;
@@ -184,4 +184,3 @@ export const initializeCurrentUser = (): void => {
   currentDatabaseUser = 'p71x6d_richard';
   console.log("Utilisateur initialisé avec la valeur par défaut: p71x6d_richard");
 };
-

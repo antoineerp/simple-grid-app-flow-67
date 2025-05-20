@@ -1,42 +1,19 @@
-
 /**
  * Utility for managing data storage during synchronization
  */
 
 import { getCurrentUser } from '@/services/core/databaseConnectionService';
 
-// Fonction pour obtenir un identifiant utilisateur valide
+// Fonction pour obtenir un identifiant utilisateur valide - toujours p71x6d_richard
 const getValidUserId = (user: any): string => {
-  if (!user) return 'default';
-  
-  // Si c'est une chaîne, l'utiliser directement
-  if (typeof user === 'string') return user;
-  
-  // Si c'est un objet, essayer d'extraire un identifiant
-  if (typeof user === 'object' && user !== null) {
-    // Essayer d'extraire des identifiants courants
-    if ('identifiant_technique' in user && typeof user.identifiant_technique === 'string') {
-      return user.identifiant_technique;
-    }
-    if ('email' in user && typeof user.email === 'string') {
-      return user.email;
-    }
-    if ('id' in user && typeof user.id === 'string') {
-      return user.id;
-    }
-    
-    // Générer un identifiant unique basé sur un timestamp
-    console.warn("Aucun identifiant valide trouvé dans l'objet utilisateur:", user);
-    return `user_${Date.now().toString(36)}`;
-  }
-  
-  return 'default';
+  // Toujours utiliser p71x6d_richard
+  return 'p71x6d_richard';
 };
 
 // Generate a unique storage key for a table
 export const getStorageKey = (tableName: string, syncKey?: string): string => {
-  const currentUserObj = getCurrentUser();
-  const userId = getValidUserId(currentUserObj);
+  // Utiliser un utilisateur fixe
+  const userId = 'p71x6d_richard';
   
   // S'assurer que la clé est une chaîne valide
   const safeTableName = typeof tableName === 'string' ? tableName : String(tableName);
