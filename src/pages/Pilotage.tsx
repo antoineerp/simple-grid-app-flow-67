@@ -62,7 +62,6 @@ const Pilotage = () => {
           description: "Aucun document à synchroniser",
         });
       }
-      return true;
     } catch (error) {
       console.error("Erreur lors de la synchronisation:", error);
       toast({
@@ -70,7 +69,6 @@ const Pilotage = () => {
         description: "Une erreur est survenue lors de la synchronisation",
         variant: "destructive"
       });
-      return false;
     }
   };
 

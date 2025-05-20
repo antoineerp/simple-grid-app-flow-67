@@ -6,7 +6,7 @@ import SyncStatus from '@/components/SyncStatus';
 
 interface PilotageHeaderProps {
   onExport: () => void;
-  onSync?: () => Promise<void>;
+  onSync?: () => Promise<boolean | void>;
   isSyncing?: boolean;
   syncFailed?: boolean;
   lastSynced?: Date | null;
