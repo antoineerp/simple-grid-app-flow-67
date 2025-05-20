@@ -10,7 +10,6 @@ import GlobalSyncManager from '@/components/common/GlobalSyncManager';
 import { getIsLoggedIn, getCurrentUser } from '@/services/auth/authService';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { Loader2 } from 'lucide-react';
-import { MembresProvider } from '@/contexts/MembresContext'; // Important d'importer MembresProvider
 
 const Layout = () => {
   const navigate = useNavigate();
@@ -78,19 +77,17 @@ const Layout = () => {
     <TooltipProvider>
       <GlobalDataProvider>
         <GlobalSyncProvider>
-          <MembresProvider>
-            <div className="flex h-screen overflow-hidden bg-slate-50">
-              <Sidebar />
-              <div className="flex flex-col flex-1 overflow-y-auto">
-                <Header />
-                <main className="flex-1">
-                  <Outlet />
-                </main>
-                <GlobalSyncManager />
-              </div>
-              <Toaster />
+          <div className="flex h-screen overflow-hidden bg-slate-50">
+            <Sidebar />
+            <div className="flex flex-col flex-1 overflow-y-auto">
+              <Header />
+              <main className="flex-1">
+                <Outlet />
+              </main>
+              <GlobalSyncManager />
             </div>
-          </MembresProvider>
+            <Toaster />
+          </div>
         </GlobalSyncProvider>
       </GlobalDataProvider>
     </TooltipProvider>

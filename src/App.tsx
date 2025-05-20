@@ -21,6 +21,7 @@ import { MembresProvider } from '@/contexts/MembresContext';
 
 // Importer le service de synchronisation automatique centralisée
 import { startAutoSync } from '@/services/sync/AutoSyncService';
+import { SyncProvider } from '@/features/sync/hooks/useSyncContext';
 
 const App = () => {
   // Initialiser la synchronisation automatique au démarrage
@@ -51,27 +52,29 @@ const App = () => {
   }, []);
 
   return (
-    <MembresProvider>
-      <Router>
-        <div className="min-h-screen bg-slate-50">
-          <Routes>
-            <Route path="/" element={<Layout />}>
-              <Route index element={<Dashboard />} />
-              <Route path="exigences" element={<Exigences />} />
-              <Route path="pilotage" element={<Pilotage />} />
-              <Route path="ressources-humaines" element={<RessourcesHumaines />} />
-              <Route path="collaboration" element={<Collaboration />} />
-              <Route path="gestion-documentaire" element={<GestionDocumentaire />} />
-              <Route path="administration" element={<Administration />} />
-              <Route path="settings" element={<Settings />} />
-              <Route path="membres" element={<Members />} />
-              <Route path="dbadmin" element={<DbAdmin />} />
-            </Route>
-          </Routes>
-          <Toaster />
-        </div>
-      </Router>
-    </MembresProvider>
+    <SyncProvider>
+      <MembresProvider>
+        <Router>
+          <div className="min-h-screen bg-slate-50">
+            <Routes>
+              <Route path="/" element={<Layout />}>
+                <Route index element={<Dashboard />} />
+                <Route path="exigences" element={<Exigences />} />
+                <Route path="pilotage" element={<Pilotage />} />
+                <Route path="ressources-humaines" element={<RessourcesHumaines />} />
+                <Route path="collaboration" element={<Collaboration />} />
+                <Route path="gestion-documentaire" element={<GestionDocumentaire />} />
+                <Route path="administration" element={<Administration />} />
+                <Route path="settings" element={<Settings />} />
+                <Route path="membres" element={<Members />} />
+                <Route path="dbadmin" element={<DbAdmin />} />
+              </Route>
+            </Routes>
+            <Toaster />
+          </div>
+        </Router>
+      </MembresProvider>
+    </SyncProvider>
   );
 };
 
