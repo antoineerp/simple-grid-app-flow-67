@@ -9,7 +9,7 @@ import { toast } from '@/components/ui/use-toast';
 import { getDatabaseConnectionCurrentUser } from '@/services/core/databaseConnectionService';
 
 // Fonction utilitaire pour obtenir un ID utilisateur valide
-const getValidUserId = (userId?: string): string => {
+const getValidUserId = (userId?: string | null): string => {
   // Essayer d'utiliser l'ID fourni s'il existe
   if (userId && typeof userId === 'string' && userId !== '[object Object]') {
     return userId;
