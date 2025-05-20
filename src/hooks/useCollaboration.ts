@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { Document, DocumentGroup } from '@/types/bibliotheque';
@@ -43,7 +44,7 @@ export const useCollaboration = () => {
         console.log("Chargement initial des documents de collaboration");
         
         // Charger d'abord depuis le stockage local
-        const { documents: localDocs, groups: localGroups } = loadCollaborationFromStorage(fixedUserId);
+        const { documents: localDocs, groups: localGroups } = loadCollaborationFromStorage();
         setDocuments(localDocs);
         setGroups(localGroups);
         
@@ -95,7 +96,7 @@ export const useCollaboration = () => {
   // Fonction pour synchroniser les documents avec le serveur
   const handleSyncDocuments = useCallback(async () => {
     try {
-      await syncWithServer(documents, groups, fixedUserId);
+      await syncWithServer(documents, groups);
       toast({
         title: "Synchronisation réussie",
         description: "Les documents ont été synchronisés avec succès.",
@@ -121,7 +122,7 @@ export const useCollaboration = () => {
     setDocuments(prev => [...prev, newDoc]);
     setIsDialogOpen(false);
     
-    debounceSyncWithServer([...documents, newDoc], groups, fixedUserId);
+    debounceSyncWithServer([...documents, newDoc], groups);
     
     toast({
       title: "Document ajouté",
@@ -151,9 +152,8 @@ export const useCollaboration = () => {
     
     setIsDialogOpen(false);
     
-    const userId = fixedUserId;
     const updatedDocuments = documents.map(d => d.id === doc.id ? doc : d);
-    debounceSyncWithServer(updatedDocuments, groups, userId);
+    debounceSyncWithServer(updatedDocuments, groups);
     
     toast({
       title: "Document mis à jour",
@@ -186,9 +186,8 @@ export const useCollaboration = () => {
     
     setIsDialogOpen(false);
     
-    const userId = fixedUserId;
     const updatedDocuments = documents.filter(d => d.id !== id);
-    debounceSyncWithServer(updatedDocuments, documentInGroup ? updatedGroups : groups, userId);
+    debounceSyncWithServer(updatedDocuments, documentInGroup ? updatedGroups : groups);
     
     toast({
       title: "Document supprimé",
@@ -209,8 +208,7 @@ export const useCollaboration = () => {
     setGroups(prev => [...prev, newGroup]);
     setIsGroupDialogOpen(false);
     
-    const userId = fixedUserId;
-    debounceSyncWithServer(documents, [...groups, newGroup], userId);
+    debounceSyncWithServer(documents, [...groups, newGroup]);
     
     toast({
       title: "Groupe ajouté",
@@ -229,9 +227,8 @@ export const useCollaboration = () => {
     
     setIsGroupDialogOpen(false);
     
-    const userId = fixedUserId;
     const updatedGroups = groups.map(g => g.id === group.id ? { ...group, items: g.items } : g);
-    debounceSyncWithServer(documents, updatedGroups, userId);
+    debounceSyncWithServer(documents, updatedGroups);
     
     toast({
       title: "Groupe mis à jour",
@@ -255,10 +252,9 @@ export const useCollaboration = () => {
     setDocuments(prev => [...prev, ...docsToMove]);
     setIsGroupDialogOpen(false);
     
-    const userId = fixedUserId;
     const updatedGroups = groups.filter(g => g.id !== id);
     const updatedDocuments = [...documents, ...docsToMove];
-    debounceSyncWithServer(updatedDocuments, updatedGroups, userId);
+    debounceSyncWithServer(updatedDocuments, updatedGroups);
     
     toast({
       title: "Groupe supprimé",
