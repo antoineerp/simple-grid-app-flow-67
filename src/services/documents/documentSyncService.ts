@@ -1,39 +1,44 @@
 
+/**
+ * Service de synchronisation des documents
+ * Utilise le nouveau système de synchronisation automatique centralisée
+ */
+
 import { Document } from '@/types/documents';
 import { getCurrentUser } from '@/services/auth/authService';
 import { toast } from '@/components/ui/use-toast';
 import { getApiUrl } from '@/config/apiConfig';
 import { validateJsonResponse, extractValidJson } from '@/utils/jsonValidator';
+import { saveLocalData, loadLocalData, syncWithServer } from '@/services/sync/AutoSyncService';
 import robustSync, { verifyJsonEndpoint } from '@/services/sync/robustSyncService';
 
-// Sauvegarde des documents en local
+// Sauvegarde des documents en local (maintenu pour compatibilité)
 export const saveLocalDocuments = (docs: Document[]): void => {
   const currentUser = getCurrentUser() || 'default';
+  
   try {
-    localStorage.setItem(`documents_${currentUser}`, JSON.stringify(docs));
+    // Utiliser le nouveau système de stockage centralisé
+    saveLocalData('documents', docs);
     console.log(`${docs.length} documents sauvegardés en local pour ${currentUser}`);
   } catch (error) {
     console.error('Erreur lors de la sauvegarde locale des documents:', error);
   }
 };
 
-// Récupération des documents en local
+// Récupération des documents en local (maintenu pour compatibilité)
 export const getLocalDocuments = (): Document[] => {
-  const currentUser = getCurrentUser() || 'default';
   try {
-    const storedDocs = localStorage.getItem(`documents_${currentUser}`);
-    if (storedDocs) {
-      const docs = JSON.parse(storedDocs);
-      console.log(`${docs.length} documents récupérés en local pour ${currentUser}`);
-      return docs;
-    }
+    // Utiliser le nouveau système de stockage centralisé
+    const docs = loadLocalData<Document>('documents');
+    console.log(`${docs.length} documents récupérés en local`);
+    return docs;
   } catch (error) {
     console.error('Erreur lors de la récupération locale des documents:', error);
   }
   return [];
 };
 
-// Synchronisation des documents avec le serveur - Utilise le système robuste
+// Synchronisation des documents avec le serveur
 export const syncDocumentsWithServer = async (docs: Document[]): Promise<boolean> => {
   if (!docs || docs.length === 0) {
     console.log('Aucun document à synchroniser');
@@ -42,30 +47,8 @@ export const syncDocumentsWithServer = async (docs: Document[]): Promise<boolean
   
   console.log(`Début de la synchronisation de ${docs.length} documents...`);
   
-  // Vérifier d'abord si le point de terminaison est valide pour éviter les réponses HTML
-  const isEndpointValid = await verifyJsonEndpoint();
-  if (!isEndpointValid) {
-    console.error("Le point d'accès API ne renvoie pas de JSON valide. Synchronisation annulée.");
-    toast({
-      variant: "destructive",
-      title: "Erreur de synchronisation",
-      description: "Le serveur ne répond pas correctement. Vérifiez votre connexion réseau."
-    });
-    return false;
-  }
-  
-  const result = await robustSync.syncData('documents', docs, {
-    retryCount: 3, 
-    validate: true
-  });
-  
-  if (result.success) {
-    console.log('Synchronisation réussie:', result.message);
-    return true;
-  } else {
-    console.error('Échec de la synchronisation:', result.message);
-    return false;
-  }
+  // Utiliser le nouveau système de synchronisation automatique
+  return syncWithServer('documents', docs);
 };
 
 // Force une synchronisation complète de tous les documents
@@ -119,33 +102,7 @@ export const loadDocumentsFromServer = async (userId?: string): Promise<Document
   
   console.log(`Chargement des documents pour ${currentUser} depuis le serveur...`);
   
-  try {
-    // Vérifier d'abord la validité de l'API
-    const isApiValid = await verifyJsonEndpoint();
-    
-    if (!isApiValid) {
-      console.error('Le point de terminaison JSON n\'est pas valide');
-      toast({
-        variant: "destructive",
-        title: "Erreur de communication",
-        description: "Le serveur ne répond pas correctement en format JSON."
-      });
-      return null;
-    }
-    
-    // Ici on utiliserait idéalement une API pour charger les documents
-    // Pour l'instant, on retourne les documents locaux comme solution temporaire
-    const localDocs = getLocalDocuments();
-    console.log(`Retour des ${localDocs.length} documents locaux (chargement serveur non implémenté)`);
-    return localDocs;
-    
-  } catch (error) {
-    console.error('Erreur lors du chargement des documents depuis le serveur:', error);
-    toast({
-      variant: "destructive",
-      title: "Erreur de chargement",
-      description: error instanceof Error ? error.message : "Erreur inconnue"
-    });
-    return null;
-  }
+  // Pour cette version simplifiée, on récupère simplement les données locales
+  // Dans une implémentation réelle, il faudrait faire une requête au serveur
+  return loadLocalData<Document>('documents');
 };

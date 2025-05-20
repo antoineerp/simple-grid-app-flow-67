@@ -8,6 +8,7 @@ import { useSync } from './useSync';
 import { useGlobalSync } from '@/contexts/GlobalSyncContext';
 import { triggerSync } from '@/services/sync/triggerSync';
 import { verifyJsonEndpoint } from '@/services/sync/robustSyncService';
+import { saveLocalData, loadLocalData, syncWithServer } from '@/services/sync/AutoSyncService';
 
 export const useExigences = () => {
   const { toast } = useToast();
@@ -99,21 +100,20 @@ export const useExigences = () => {
 
   // Load data from local storage on initial render
   useEffect(() => {
-    const loadLocalData = () => {
+    const loadLocalDataFromStorage = () => {
       try {
-        const storedExigences = localStorage.getItem(`${tableName}_${currentUser}`);
-        const storedGroups = localStorage.getItem(`${tableName}_groups_${currentUser}`);
+        // Utiliser le nouveau système de chargement centralisé
+        const localExigences = loadLocalData<Exigence>(tableName);
+        const localGroups = loadLocalData<ExigenceGroup>(`${tableName}_groups`);
         
-        if (storedExigences) {
-          const parsedExigences = JSON.parse(storedExigences);
-          setExigences(parsedExigences);
-          console.log(`Loaded ${parsedExigences.length} exigences from local storage`);
+        if (localExigences.length > 0) {
+          setExigences(localExigences);
+          console.log(`Loaded ${localExigences.length} exigences from local storage`);
         }
         
-        if (storedGroups) {
-          const parsedGroups = JSON.parse(storedGroups);
-          setGroups(parsedGroups);
-          console.log(`Loaded ${parsedGroups.length} groups from local storage`);
+        if (localGroups.length > 0) {
+          setGroups(localGroups);
+          console.log(`Loaded ${localGroups.length} groups from local storage`);
         }
       } catch (error) {
         console.error("Error loading data from local storage:", error);
@@ -121,10 +121,10 @@ export const useExigences = () => {
       }
     };
     
-    loadLocalData();
+    loadLocalDataFromStorage();
     
-    // Try to load from server after loading from local storage
-    syncWithServer().catch(error => {
+    // Try to sync with server after loading from local storage
+    syncWithServerWrapper().catch(error => {
       console.error("Error during initial sync:", error);
     });
   }, [currentUser]);
@@ -132,14 +132,16 @@ export const useExigences = () => {
   // Save data to local storage whenever it changes
   useEffect(() => {
     if (exigences.length > 0) {
-      localStorage.setItem(`${tableName}_${currentUser}`, JSON.stringify(exigences));
+      // Utiliser le nouveau système de sauvegarde centralisé
+      saveLocalData(tableName, exigences);
       setDataChanged(true);
     }
   }, [exigences, currentUser]);
   
   useEffect(() => {
     if (groups.length > 0) {
-      localStorage.setItem(`${tableName}_groups_${currentUser}`, JSON.stringify(groups));
+      // Utiliser le nouveau système de sauvegarde centralisé
+      saveLocalData(`${tableName}_groups`, groups);
       setDataChanged(true);
     }
   }, [groups, currentUser]);
@@ -163,8 +165,11 @@ export const useExigences = () => {
   useEffect(() => {
     const handleBeforeUnload = () => {
       if (dataChanged) {
-        // Store the data that needs to be synced
-        triggerSync.notifyDataChange(tableName, exigences);
+        // Sauvegarder les données localement avant de quitter
+        saveLocalData(tableName, exigences);
+        if (groups.length > 0) {
+          saveLocalData(`${tableName}_groups`, groups);
+        }
       }
     };
     
@@ -173,7 +178,7 @@ export const useExigences = () => {
     return () => {
       window.removeEventListener('beforeunload', handleBeforeUnload);
     };
-  }, [dataChanged, exigences]);
+  }, [dataChanged, exigences, groups]);
 
   const handleEdit = (id: string) => {
     const exigenceToEdit = exigences.find(exigence => exigence.id === id);
@@ -207,71 +212,71 @@ export const useExigences = () => {
     });
   };
 
-  // Asynchrone et retourne une Promise<void>
+  // Réinitialisation des tentatives de chargement
   const handleResetLoadAttempts = async (): Promise<void> => {
     setLoadError(null);
     setLoadAttempts(0);
     return Promise.resolve();
   };
 
-const syncWithServer = async () => {
-  if (!isOnline) {
-    return { success: false, message: "Vous êtes hors ligne" };
-  }
-  
-  // Only sync if there are actual changes
-  if (!dataChanged && !syncFailed) {
-    console.log("No changes to sync for exigences");
-    return { success: true, message: "Aucun changement à synchroniser" };
-  }
-
-  try {
-    // Verify the JSON endpoint before syncing
-    const isEndpointValid = await verifyJsonEndpoint();
-    if (!isEndpointValid) {
-      console.error("API endpoint is not returning valid JSON");
-      toast({
-        variant: "destructive",
-        title: "Erreur de synchronisation",
-        description: "Le serveur ne répond pas correctement. Les données sont sauvegardées localement uniquement."
-      });
-      return { success: false, message: "Point de terminaison API invalide" };
+  // Synchronisation avec le serveur en utilisant le nouveau système centralisé
+  const syncWithServerWrapper = async () => {
+    if (!isOnline) {
+      return { success: false, message: "Vous êtes hors ligne" };
     }
-
-    const syncResult = await syncTable(tableName, exigences);
     
-    if (syncResult) {
-      setDataChanged(false);
-      return { success: true, message: "Synchronisation réussie" };
-    } else {
-      return { success: false, message: "Échec de la synchronisation" };
+    // Only sync if there are actual changes
+    if (!dataChanged && !syncFailed) {
+      console.log("No changes to sync for exigences");
+      return { success: true, message: "Aucun changement à synchroniser" };
     }
-  } catch (error) {
-    console.error('Erreur lors de la synchronisation:', error);
-    // Don't clear local data on sync failure
-    return { 
-      success: false, 
-      message: error instanceof Error ? error.message : 'Erreur inconnue'
-    };
-  }
-};
 
-// Function for synchronization with Promise return
-const handleSync = async (): Promise<void> => {
-  try {
-    const result = await syncWithServer();
-    if (loadError && result.success) {
-      await handleResetLoadAttempts();
+    try {
+      // Vérifier que l'endpoint JSON est valide
+      const isEndpointValid = await verifyJsonEndpoint();
+      if (!isEndpointValid) {
+        console.error("API endpoint is not returning valid JSON");
+        toast({
+          variant: "destructive",
+          title: "Erreur de synchronisation",
+          description: "Le serveur ne répond pas correctement. Les données sont sauvegardées localement uniquement."
+        });
+        return { success: false, message: "Point de terminaison API invalide" };
+      }
+
+      // Utiliser le nouveau système de synchronisation centralisé
+      const success = await syncWithServer(tableName, exigences);
+      
+      if (success) {
+        setDataChanged(false);
+        return { success: true, message: "Synchronisation réussie" };
+      } else {
+        return { success: false, message: "Échec de la synchronisation" };
+      }
+    } catch (error) {
+      console.error('Erreur lors de la synchronisation:', error);
+      // Don't clear local data on sync failure
+      return { 
+        success: false, 
+        message: error instanceof Error ? error.message : 'Erreur inconnue'
+      };
     }
-    return Promise.resolve();
-  } catch (error) {
-    console.error("Erreur lors de la synchronisation:", error);
-    // Important: Don't reject the promise as it can lead to unhandled rejection
-    // Instead, log the error and resolve with a message
-    console.error("Synchronisation échouée, données conservées localement:", error);
-    return Promise.resolve();
-  }
-};
+  };
+
+  // Function for synchronization with Promise return
+  const handleSync = async (): Promise<void> => {
+    try {
+      const result = await syncWithServerWrapper();
+      if (loadError && result.success) {
+        await handleResetLoadAttempts();
+      }
+      return Promise.resolve();
+    } catch (error) {
+      console.error("Erreur lors de la synchronisation:", error);
+      console.error("Synchronisation échouée, données conservées localement:", error);
+      return Promise.resolve();
+    }
+  };
 
   return {
     exigences,
@@ -295,7 +300,7 @@ const handleSync = async (): Promise<void> => {
     handleResetLoadAttempts,
     ...mutations,
     ...groupOperations,
-    syncWithServer,
+    syncWithServer: syncWithServerWrapper,
     handleSync
   };
 };
