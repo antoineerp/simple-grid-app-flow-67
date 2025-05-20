@@ -33,7 +33,7 @@ export const getLocalDocuments = (): Document[] => {
   return [];
 };
 
-// Synchronisation des documents avec le serveur - Utilise le nouveau système robuste
+// Synchronisation des documents avec le serveur - Utilise le système robuste
 export const syncDocumentsWithServer = async (docs: Document[]): Promise<boolean> => {
   if (!docs || docs.length === 0) {
     console.log('Aucun document à synchroniser');
@@ -41,6 +41,18 @@ export const syncDocumentsWithServer = async (docs: Document[]): Promise<boolean
   }
   
   console.log(`Début de la synchronisation de ${docs.length} documents...`);
+  
+  // Vérifier d'abord si le point de terminaison est valide pour éviter les réponses HTML
+  const isEndpointValid = await verifyJsonEndpoint();
+  if (!isEndpointValid) {
+    console.error("Le point d'accès API ne renvoie pas de JSON valide. Synchronisation annulée.");
+    toast({
+      variant: "destructive",
+      title: "Erreur de synchronisation",
+      description: "Le serveur ne répond pas correctement. Vérifiez votre connexion réseau."
+    });
+    return false;
+  }
   
   const result = await robustSync.syncData('documents', docs, {
     retryCount: 3, 

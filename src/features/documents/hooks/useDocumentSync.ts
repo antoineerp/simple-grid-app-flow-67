@@ -11,7 +11,7 @@ export const useDocumentSync = () => {
   const { isOnline } = useNetworkStatus();
   const { toast } = useToast();
   
-  const syncWithServer = async (documents: Document[], userId: string): Promise<boolean> => {
+  const syncWithServer = async (documents: Document[]): Promise<boolean> => {
     if (!isOnline) {
       toast({
         title: "Connexion hors ligne",
@@ -28,8 +28,8 @@ export const useDocumentSync = () => {
     
     setIsSyncing(true);
     try {
-      console.log(`Synchronisation de ${documents.length} documents pour l'utilisateur ${userId}`);
-      const success = await syncDocumentsWithServer(documents, userId);
+      console.log(`Synchronisation de ${documents.length} documents`);
+      const success = await syncDocumentsWithServer(documents);
       
       if (success) {
         setLastSynced(new Date());

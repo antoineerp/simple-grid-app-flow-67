@@ -7,6 +7,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useSync } from './useSync';
 import { useGlobalSync } from '@/contexts/GlobalSyncContext';
 import { triggerSync } from '@/services/sync/triggerSync';
+import { verifyJsonEndpoint } from '@/services/sync/robustSyncService';
 
 export const useExigences = () => {
   const { toast } = useToast();
@@ -213,48 +214,64 @@ export const useExigences = () => {
     return Promise.resolve();
   };
 
-  const syncWithServer = async () => {
-    if (!isOnline) {
-      return { success: false, message: "Vous êtes hors ligne" };
+const syncWithServer = async () => {
+  if (!isOnline) {
+    return { success: false, message: "Vous êtes hors ligne" };
+  }
+  
+  // Only sync if there are actual changes
+  if (!dataChanged && !syncFailed) {
+    console.log("No changes to sync for exigences");
+    return { success: true, message: "Aucun changement à synchroniser" };
+  }
+
+  try {
+    // Verify the JSON endpoint before syncing
+    const isEndpointValid = await verifyJsonEndpoint();
+    if (!isEndpointValid) {
+      console.error("API endpoint is not returning valid JSON");
+      toast({
+        variant: "destructive",
+        title: "Erreur de synchronisation",
+        description: "Le serveur ne répond pas correctement. Les données sont sauvegardées localement uniquement."
+      });
+      return { success: false, message: "Point de terminaison API invalide" };
     }
+
+    const syncResult = await syncTable(tableName, exigences);
     
-    // Only sync if there are actual changes
-    if (!dataChanged && !syncFailed) {
-      console.log("No changes to sync for exigences");
-      return { success: true, message: "Aucun changement à synchroniser" };
+    if (syncResult) {
+      setDataChanged(false);
+      return { success: true, message: "Synchronisation réussie" };
+    } else {
+      return { success: false, message: "Échec de la synchronisation" };
     }
+  } catch (error) {
+    console.error('Erreur lors de la synchronisation:', error);
+    // Don't clear local data on sync failure
+    return { 
+      success: false, 
+      message: error instanceof Error ? error.message : 'Erreur inconnue'
+    };
+  }
+};
 
-    try {
-      const syncResult = await syncTable(tableName, exigences);
-      
-      if (syncResult) {
-        setDataChanged(false);
-        return { success: true, message: "Synchronisation réussie" };
-      } else {
-        return { success: false, message: "Échec de la synchronisation" };
-      }
-    } catch (error) {
-      console.error('Erreur lors de la synchronisation:', error);
-      return { 
-        success: false, 
-        message: error instanceof Error ? error.message : 'Erreur inconnue'
-      };
+// Function for synchronization with Promise return
+const handleSync = async (): Promise<void> => {
+  try {
+    const result = await syncWithServer();
+    if (loadError && result.success) {
+      await handleResetLoadAttempts();
     }
-  };
-
-  // Fonction pour la synchronisation avec retour de Promise
-  const handleSync = async (): Promise<void> => {
-    try {
-      const result = await syncWithServer();
-      if (loadError && result.success) {
-        await handleResetLoadAttempts();
-      }
-      return Promise.resolve();
-    } catch (error) {
-      console.error("Erreur lors de la synchronisation:", error);
-      return Promise.reject(error);
-    }
-  };
+    return Promise.resolve();
+  } catch (error) {
+    console.error("Erreur lors de la synchronisation:", error);
+    // Important: Don't reject the promise as it can lead to unhandled rejection
+    // Instead, log the error and resolve with a message
+    console.error("Synchronisation échouée, données conservées localement:", error);
+    return Promise.resolve();
+  }
+};
 
   return {
     exigences,
