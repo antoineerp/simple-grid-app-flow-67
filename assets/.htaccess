@@ -2,7 +2,7 @@
 # Activer le moteur de réécriture
 RewriteEngine On
 
-# Configuration des types MIME
+# Configuration explicite des types MIME pour JavaScript
 AddType application/javascript .js
 AddType application/javascript .mjs
 AddType text/css .css
@@ -10,6 +10,17 @@ AddType text/css .css
 # En-têtes de cache pour les assets
 <FilesMatch "\.(js|mjs|css)$">
     Header set Cache-Control "max-age=31536000, public"
+    Header set Content-Type "application/javascript" env=IS_JS
+    Header set X-Content-Type-Options "nosniff"
+</FilesMatch>
+
+# Définition des variables d'environnement pour la détection JavaScript
+<FilesMatch "\.js$">
+    SetEnvIf Request_URI "\.js$" IS_JS
+</FilesMatch>
+
+<FilesMatch "\.mjs$">
+    SetEnvIf Request_URI "\.mjs$" IS_JS
 </FilesMatch>
 
 # Autoriser l'accès aux fichiers
