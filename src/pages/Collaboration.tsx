@@ -1,6 +1,5 @@
 
 import React from 'react';
-import { FileText } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useCollaboration } from '@/hooks/useCollaboration';
@@ -187,9 +186,6 @@ const Collaboration = () => {
         updatedDocuments.splice(endIndex, 0, sourceDoc);
       }
     }
-    
-    // Mettre à jour les états
-    // Use the useCollaboration hooks to update the state - they will handle the sync
     
     // Sauvegarder et synchroniser avec le serveur
     saveCollaborationToStorage(updatedDocuments, updatedGroups);

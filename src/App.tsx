@@ -1,80 +1,52 @@
-
-/**
- * Point d'entrée principal de l'application
- * Initialise les services de synchronisation
- */
-import React, { useEffect } from 'react';
-import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
+import React from 'react';
+import { Routes, Route } from 'react-router-dom';
 import { Toaster } from '@/components/ui/toaster';
-import Layout from '@/components/layout/Layout';
-import Dashboard from '@/pages/Dashboard';
-import Exigences from '@/pages/Exigences';
-import Pilotage from '@/pages/Pilotage';
-import RessourcesHumaines from '@/pages/RessourcesHumaines';
+import { Layout } from '@/components/layout/Layout';
+import { SyncProvider } from '@/contexts/SyncContext';
 import Collaboration from '@/pages/Collaboration';
-import GestionDocumentaire from '@/pages/GestionDocumentaire';
-import Settings from '@/pages/Settings';
-import Members from '@/pages/Members';
-import Administration from '@/pages/Administration';
-import DbAdmin from '@/pages/DbAdmin';
-import { MembresProvider } from '@/contexts/MembresContext';
-
-// Importer le service de synchronisation automatique centralisée
-import { startAutoSync } from '@/services/sync/AutoSyncService';
-import { SyncProvider } from '@/features/sync/hooks/useSyncContext';
+import Dashboard from '@/pages/Dashboard';
+import Membres from '@/pages/Membres';
+import Projets from '@/pages/Projets';
+import Taches from '@/pages/Taches';
+import Documents from '@/pages/Documents';
+import Parametres from '@/pages/Parametres';
+import Profil from '@/pages/Profil';
+import Login from '@/pages/Login';
+import Register from '@/pages/Register';
+import NotFound from '@/pages/NotFound';
+import ProtectedRoute from '@/components/auth/ProtectedRoute';
+import { AuthProvider } from '@/contexts/AuthContext';
+import { ThemeProvider } from '@/contexts/ThemeContext';
+import MembresProvider from '@/contexts/MembresContext';
+import GlobalSyncManager from '@/components/common/GlobalSyncManager';
 
 const App = () => {
-  // Initialiser la synchronisation automatique au démarrage
-  useEffect(() => {
-    console.log('App - Initialisation du service de synchronisation automatique');
-    
-    // Démarrer la synchronisation automatique
-    startAutoSync();
-    
-    // Nettoyer lors de la fermeture de l'application
-    return () => {
-      console.log('App - Nettoyage du service de synchronisation');
-      // Les services de synchronisation seront automatiquement nettoyés
-    };
-  }, []);
-  
-  // Log de démarrage
-  useEffect(() => {
-    console.log('Application starting...');
-    console.log('React version:', React.version);
-    console.log('Environment:', process.env.NODE_ENV);
-    console.log('Root element found, mounting React application');
-    console.log('App component mounted successfully');
-    
-    return () => {
-      console.log('Application unmounting...');
-    };
-  }, []);
-
   return (
-    <SyncProvider>
-      <MembresProvider>
-        <Router>
-          <div className="min-h-screen bg-slate-50">
-            <Routes>
-              <Route path="/" element={<Layout />}>
-                <Route index element={<Dashboard />} />
-                <Route path="exigences" element={<Exigences />} />
-                <Route path="pilotage" element={<Pilotage />} />
-                <Route path="ressources-humaines" element={<RessourcesHumaines />} />
-                <Route path="collaboration" element={<Collaboration />} />
-                <Route path="gestion-documentaire" element={<GestionDocumentaire />} />
-                <Route path="administration" element={<Administration />} />
-                <Route path="settings" element={<Settings />} />
-                <Route path="membres" element={<Members />} />
-                <Route path="dbadmin" element={<DbAdmin />} />
-              </Route>
-            </Routes>
-            <Toaster />
-          </div>
-        </Router>
-      </MembresProvider>
-    </SyncProvider>
+    <ThemeProvider>
+      <AuthProvider>
+        <SyncProvider>
+          <MembresProvider>
+            <Layout>
+              <Routes>
+                <Route path="/login" element={<Login />} />
+                <Route path="/register" element={<Register />} />
+                <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+                <Route path="/membres" element={<ProtectedRoute><Membres /></ProtectedRoute>} />
+                <Route path="/projets" element={<ProtectedRoute><Projets /></ProtectedRoute>} />
+                <Route path="/taches" element={<ProtectedRoute><Taches /></ProtectedRoute>} />
+                <Route path="/documents" element={<ProtectedRoute><Documents /></ProtectedRoute>} />
+                <Route path="/collaboration" element={<ProtectedRoute><Collaboration /></ProtectedRoute>} />
+                <Route path="/parametres" element={<ProtectedRoute><Parametres /></ProtectedRoute>} />
+                <Route path="/profil" element={<ProtectedRoute><Profil /></ProtectedRoute>} />
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+              <Toaster />
+              <GlobalSyncManager />
+            </Layout>
+          </MembresProvider>
+        </SyncProvider>
+      </AuthProvider>
+    </ThemeProvider>
   );
 };
 

@@ -1,88 +1,112 @@
 
+/**
+ * Service pour la gestion de la collaboration
+ */
 import { Document, DocumentGroup } from '@/types/bibliotheque';
-
-// ID utilisateur fixe pour toute l'application
-const FIXED_USER_ID = 'p71x6d_richard';
+import { getCurrentUser } from '@/services/core/databaseConnectionService';
 
 /**
- * Loads collaboration documents from localStorage for a specific user
+ * Charge les données de collaboration depuis le stockage local
  */
 export const loadCollaborationFromStorage = (): { documents: Document[], groups: DocumentGroup[] } => {
-  const currentUser = FIXED_USER_ID;
-  
-  const storedDocuments = localStorage.getItem(`collaboration_documents_${currentUser}`);
-  const storedGroups = localStorage.getItem(`collaboration_groups_${currentUser}`);
-  
-  let documents: Document[] = [];
-  let groups: DocumentGroup[] = [];
-  
-  if (storedDocuments) {
-    documents = JSON.parse(storedDocuments);
-  } else {
-    const defaultDocuments = localStorage.getItem('collaboration_documents_template') || localStorage.getItem('collaboration_documents');
-    if (defaultDocuments) {
-      documents = JSON.parse(defaultDocuments);
-    } else {
-      documents = [
-        { id: "1", name: 'Document de référence', link: 'Voir le document' },
-        { id: "2", name: 'Document technique', link: 'Voir le document' },
-      ];
-    }
+  try {
+    const userId = getCurrentUser() || 'p71x6d_system';
+    const documentsKey = `collaboration_${userId}`;
+    const groupsKey = `collaboration-groups_${userId}`;
+    
+    // Charger les documents
+    const storedDocuments = localStorage.getItem(documentsKey);
+    const documents = storedDocuments ? JSON.parse(storedDocuments) : [];
+    
+    // Charger les groupes
+    const storedGroups = localStorage.getItem(groupsKey);
+    const groups = storedGroups ? JSON.parse(storedGroups) : [];
+    
+    console.log(`collaborationService: Chargement local - ${documents.length} documents, ${groups.length} groupes`);
+    
+    return { documents, groups };
+  } catch (error) {
+    console.error('collaborationService: Erreur lors du chargement local:', error);
+    return { documents: [], groups: [] };
   }
-  
-  if (storedGroups) {
-    groups = JSON.parse(storedGroups);
-  } else {
-    const defaultGroups = localStorage.getItem('collaboration_groups_template') || localStorage.getItem('collaboration_groups');
-    if (defaultGroups) {
-      groups = JSON.parse(defaultGroups);
-    } else {
-      groups = [
-        { id: "1", name: 'Documents organisationnels', expanded: false, items: [] },
-        { id: "2", name: 'Documents techniques', expanded: false, items: [] },
-      ];
-    }
-  }
-  
-  // Associer les documents aux groupes
-  groups = groups.map(group => {
-    const items = documents.filter(doc => doc.groupId === group.id);
-    return { ...group, items };
-  });
-  
-  // Retirer les documents déjà associés à des groupes
-  documents = documents.filter(doc => !doc.groupId);
-  
-  return { documents, groups };
 };
 
 /**
- * Saves collaboration documents to localStorage for a specific user
+ * Sauvegarde les données de collaboration dans le stockage local
  */
 export const saveCollaborationToStorage = (documents: Document[], groups: DocumentGroup[]): void => {
-  const currentUser = FIXED_USER_ID;
-  
-  // Extraction des documents des groupes
-  const groupDocuments = groups.flatMap(group => 
-    group.items.map(item => ({...item, groupId: group.id}))
-  );
-  
-  // Combiner les documents indépendants et ceux des groupes
-  const allDocuments = [...documents, ...groupDocuments];
-  
-  // Groupes sans les items (pour éviter une duplication)
-  const groupsWithoutItems = groups.map(({items, ...rest}) => rest);
-  
-  localStorage.setItem(`collaboration_documents_${currentUser}`, JSON.stringify(allDocuments));
-  localStorage.setItem(`collaboration_groups_${currentUser}`, JSON.stringify(groupsWithoutItems));
-  
-  // Si l'utilisateur est admin, aussi sauvegarder comme template
-  const userRole = localStorage.getItem('userRole');
-  if (userRole === 'admin' || userRole === 'administrateur') {
-    localStorage.setItem('collaboration_documents_template', JSON.stringify(allDocuments));
-    localStorage.setItem('collaboration_groups_template', JSON.stringify(groupsWithoutItems));
+  try {
+    const userId = getCurrentUser() || 'p71x6d_system';
+    const documentsKey = `collaboration_${userId}`;
+    const groupsKey = `collaboration-groups_${userId}`;
+    
+    // Sauvegarder les documents
+    localStorage.setItem(documentsKey, JSON.stringify(documents));
+    
+    // Sauvegarder les groupes
+    localStorage.setItem(groupsKey, JSON.stringify(groups));
+    
+    console.log(`collaborationService: Sauvegarde locale - ${documents.length} documents, ${groups.length} groupes`);
+  } catch (error) {
+    console.error('collaborationService: Erreur lors de la sauvegarde locale:', error);
   }
-  
-  // Notifier sur la mise à jour de la collaboration
-  window.dispatchEvent(new Event('collaborationUpdate'));
+};
+
+/**
+ * Nettoie les données de synchronisation en attente
+ */
+export const clearPendingSyncFlags = (entityNames: string[] = ['collaboration', 'collaboration-groups']): void => {
+  entityNames.forEach(entityName => {
+    try {
+      localStorage.removeItem(`sync_pending_${entityName}`);
+      console.log(`collaborationService: Marqueur de synchronisation effacé pour ${entityName}`);
+    } catch (error) {
+      console.error(`collaborationService: Erreur lors du nettoyage des marqueurs pour ${entityName}:`, error);
+    }
+  });
+};
+
+/**
+ * Convertit les documents plats en structure hiérarchique avec groupes
+ */
+export const organizeDocumentsInGroups = (
+  allDocuments: Document[]
+): { documents: Document[], groups: DocumentGroup[] } => {
+  try {
+    // Séparer les documents des groupes
+    const nonGroupedDocs = allDocuments.filter(doc => !doc.groupId);
+    const groupedDocs = allDocuments.filter(doc => doc.groupId);
+    
+    // Créer une map des groupes uniques
+    const groupMap = new Map<string, DocumentGroup>();
+    
+    // Regrouper les documents par groupe
+    groupedDocs.forEach(doc => {
+      if (doc.groupId) {
+        if (!groupMap.has(doc.groupId)) {
+          // Créer un nouveau groupe
+          groupMap.set(doc.groupId, {
+            id: doc.groupId,
+            name: `Groupe ${doc.groupId}`,
+            expanded: false,
+            items: []
+          });
+        }
+        
+        // Ajouter le document au groupe
+        const group = groupMap.get(doc.groupId);
+        if (group) {
+          group.items.push(doc);
+        }
+      }
+    });
+    
+    // Convertir la map en array de groupes
+    const groups = Array.from(groupMap.values());
+    
+    return { documents: nonGroupedDocs, groups };
+  } catch (error) {
+    console.error('collaborationService: Erreur lors de l\'organisation des documents:', error);
+    return { documents: [], groups: [] };
+  }
 };
