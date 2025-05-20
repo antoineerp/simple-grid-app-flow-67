@@ -23,5 +23,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
 
 // Redirection vers le nouveau endpoint
 error_log("bibliotheque-load.php: Redirection vers collaboration-load.php");
+// Copier les paramètres GET vers le nouvel endpoint
+$_GET['userId'] = isset($_GET['userId']) ? $_GET['userId'] : 'p71x6d_richard';
 include_once 'collaboration-load.php';
 ?>
