@@ -74,7 +74,7 @@ export const login = async (username: string, password: string): Promise<AuthRes
     const API_URL = getApiUrl();
     console.log(`Tentative de connexion à: ${API_URL}/auth.php avec l'utilisateur: ${username}`);
     
-    const response = await fetch(`${API_URL}/auth.php`, {
+    const response = await fetch(`${API_URL}/check-users.php`, {
       method: 'POST',
       headers: { 
         'Content-Type': 'application/json', 
