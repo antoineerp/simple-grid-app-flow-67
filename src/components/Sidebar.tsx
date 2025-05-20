@@ -1,7 +1,7 @@
 
 import React from 'react';
 import SidebarNavItem from './sidebar/SidebarNavItem';
-import { navigationItems } from './sidebar/sidebarConfig';
+import { navigationItems, adminNavigationItems } from './sidebar/sidebarConfig';
 import { hasPermission } from '@/types/roles';
 import { getCurrentUser } from '@/services/auth/authService';
 
@@ -11,10 +11,23 @@ const Sidebar = () => {
   const user = getCurrentUser();
   const userRole = (user?.role || 'utilisateur');
 
+  const canAccessAdmin = user && hasPermission[userRole as keyof typeof hasPermission]?.isAdmin;
+
   return (
     <aside className="w-64 bg-gray-50 border-r min-h-screen">
       <nav className="flex flex-col p-4">
+        {/* Items de navigation standards */}
         {navigationItems.map((item) => (
+          <SidebarNavItem
+            key={item.path}
+            to={item.path}
+            icon={item.icon}
+            label={item.label}
+          />
+        ))}
+        
+        {/* Items de navigation admin conditionnels */}
+        {canAccessAdmin && adminNavigationItems.map((item) => (
           <SidebarNavItem
             key={item.path}
             to={item.path}

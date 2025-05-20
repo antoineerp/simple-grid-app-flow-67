@@ -34,12 +34,15 @@ export const navigationItems: NavItem[] = [
     path: '/collaboration',
     icon: Handshake,
     label: 'Collaboration'
-  },
-  {
-    path: '/administration',
-    icon: Settings,
-    label: 'Administration'
   }
 ];
 
-// Ajout de l'élément Administration à la liste principale
+// Navigation items réservés à l'administration
+export const adminNavigationItems: NavItem[] = [
+  {
+    path: '/administration',
+    icon: Settings,
+    label: 'Administration',
+    requiredPermission: 'isAdmin'
+  }
+];

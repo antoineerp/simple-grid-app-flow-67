@@ -2,6 +2,7 @@
 import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
+import { MemberList } from '@/components/ressources-humaines/MemberList';
 
 const RessourcesHumaines = () => {
   return (
@@ -13,9 +14,7 @@ const RessourcesHumaines = () => {
             <CardDescription>Gérez les membres de votre équipe</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="p-4 border border-gray-200 rounded-md bg-gray-50">
-              <p className="text-center text-gray-500">Chargement des membres...</p>
-            </div>
+            <MemberList />
           </CardContent>
         </Card>
       </div>
