@@ -193,19 +193,23 @@ export class DatabaseHelper {
         }
       };
       
-      console.log(`DatabaseHelper: Requête HTTP vers ${url}`);
+      // CORRECTION: Remplacer toutes les URL qui utilisent database-config.php par check-users.php
+      let modifiedUrl = url;
       
-      // Vérifier si l'URL contient "check-users.php" et utiliser directement cette URL qui fonctionne
-      if (url.includes('check-users.php') || url.includes('fix-users-roles.php')) {
-        console.log(`Utilisation directe de l'URL du gestionnaire d'utilisateurs: ${url}`);
-      } else if (url.includes('database-config.php')) {
+      if (url.includes('database-config.php')) {
         // Utiliser l'URL fonctionnelle pour la configuration de la base de données
-        url = `${this.apiUrl}/check-users.php`;
-        console.log(`URL de configuration de la base modifiée vers: ${url}`);
+        modifiedUrl = `${this.apiUrl}/check-users.php`;
+        console.log(`URL modifiée: database-config.php -> check-users.php: ${modifiedUrl}`);
+      } else if (!url.includes('check-users.php') && (url.includes('database') || url.includes('db-'))) {
+        // Pour tout autre appel lié à la base de données, utiliser check-users.php
+        modifiedUrl = `${this.apiUrl}/check-users.php`;
+        console.log(`URL database généralisée vers check-users.php: ${modifiedUrl}`);
       }
       
+      console.log(`DatabaseHelper: Requête HTTP vers ${modifiedUrl}`);
+      
       // Exécuter la requête
-      const response = await fetch(url, mergedOptions);
+      const response = await fetch(modifiedUrl, mergedOptions);
       
       // Vérifier si la réponse est OK
       if (!response.ok) {
@@ -216,7 +220,7 @@ export class DatabaseHelper {
       
       return response;
     } catch (error) {
-      console.error(`Erreur lors de la requête vers ${url}:`, error);
+      console.error(`Erreur lors de la requête:`, error);
       throw error;
     }
   }
