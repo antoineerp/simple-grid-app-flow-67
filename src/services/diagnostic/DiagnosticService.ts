@@ -47,7 +47,8 @@ export const DiagnosticService = {
       console.error("Erreur lors de l'exécution du diagnostic:", error);
       return {
         status: "error",
-        message: error instanceof Error ? error.message : "Erreur inconnue lors du diagnostic"
+        message: error instanceof Error ? error.message : "Erreur inconnue lors du diagnostic",
+        recommendations: ["Vérifiez que le serveur API est accessible", "Vérifiez les permissions d'accès aux fichiers"]
       };
     }
   },
@@ -86,7 +87,8 @@ export const DiagnosticService = {
       console.error("Erreur lors de l'analyse de structure:", error);
       return {
         status: "error",
-        message: error instanceof Error ? error.message : "Erreur inconnue lors de l'analyse de structure"
+        message: error instanceof Error ? error.message : "Erreur inconnue lors de l'analyse de structure",
+        recommendations: ["Vérifiez que le serveur API est accessible", "Vérifiez les permissions d'accès aux fichiers"]
       };
     }
   },
@@ -124,7 +126,8 @@ export const DiagnosticService = {
       console.error("Erreur lors de la vérification du déploiement:", error);
       return {
         status: "error",
-        message: error instanceof Error ? error.message : "Erreur inconnue lors de la vérification"
+        message: error instanceof Error ? error.message : "Erreur inconnue lors de la vérification",
+        recommendations: ["Vérifiez que le serveur API est accessible", "Vérifiez les permissions d'accès aux fichiers"]
       };
     }
   },
@@ -159,7 +162,11 @@ export const DiagnosticService = {
         "Diagnostic terminé avec succès",
       errors_found: errorCount,
       warnings,
-      recommendations
+      recommendations: recommendations.length > 0 ? recommendations : [
+        "Vérifiez les permissions d'accès aux fichiers",
+        "Assurez-vous que la base de données 'utilisateurs' est correctement configurée",
+        "Vérifiez la configuration des dossiers d'upload"
+      ]
     };
   }
 };

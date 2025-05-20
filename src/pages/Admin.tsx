@@ -1,14 +1,15 @@
+
 import React from 'react';
-import { DashboardLayout } from '@/components/layouts/DashboardLayout';
+import DashboardLayout from '@/components/layouts/DashboardLayout';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { DatabaseConfig } from '@/components/admin/DatabaseConfig';
-import { UserManagement } from '@/components/admin/UserManagement';
-import { ApiConfiguration } from '@/components/admin/ApiConfiguration';
-import { ImageConfiguration } from '@/components/admin/ImageConfiguration';
-import { DatabaseDiagnostic } from '@/components/admin/DatabaseDiagnostic';
+import DatabaseConfig from '@/components/admin/DatabaseConfig';
+import UserManagement from '@/components/admin/UserManagement';
+import ApiConfiguration from '@/components/admin/ApiConfiguration';
+import ImageConfiguration from '@/components/admin/ImageConfiguration';
+import DatabaseDiagnostic from '@/components/admin/DatabaseDiagnostic';
 import { SystemDiagnostic } from '@/components/admin/SystemDiagnostic';
-import { DatabaseGuide } from '@/components/admin/DatabaseGuide';
+import DatabaseGuide from '@/components/admin/DatabaseGuide';
 
 const Admin = () => {
   return (
