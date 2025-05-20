@@ -1,4 +1,3 @@
-
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { Document as BibliothequeDocument, DocumentGroup } from '@/types/bibliotheque';
 import { Document as SystemDocument } from '@/types/documents';
@@ -7,6 +6,36 @@ import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { useSync } from '@/hooks/useSync';
 import { toast } from '@/components/ui/use-toast';
 import { getDatabaseConnectionCurrentUser } from '@/services/core/databaseConnectionService';
+
+// Fonction utilitaire pour obtenir un ID utilisateur valide
+const getValidUserId = (userId?: string): string => {
+  // Essayer d'utiliser l'ID fourni s'il existe
+  if (userId && typeof userId === 'string' && userId !== '[object Object]') {
+    return userId;
+  }
+  
+  // Sinon, essayer d'obtenir l'utilisateur courant
+  try {
+    const currentUser = getDatabaseConnectionCurrentUser();
+    
+    // Si l'utilisateur est une chaîne non vide, l'utiliser
+    if (currentUser && typeof currentUser === 'string') {
+      return currentUser;
+    }
+    
+    // Si l'utilisateur est un objet, essayer d'extraire un identifiant
+    if (currentUser && typeof currentUser === 'object') {
+      if (currentUser.identifiant_technique) return currentUser.identifiant_technique;
+      if (currentUser.email) return currentUser.email;
+      if (currentUser.id) return currentUser.id;
+    }
+  } catch (e) {
+    console.error("Erreur lors de la récupération de l'utilisateur actuel:", e);
+  }
+  
+  // Valeur par défaut sécuritaire
+  return 'default';
+};
 
 // Helper function to convert between document types
 const convertSystemToBibliothequeDoc = (doc: SystemDocument): BibliothequeDocument => ({
@@ -39,8 +68,8 @@ export const useBibliothequeSync = () => {
   
   // Fonction pour charger les documents depuis le serveur
   const loadFromServer = useCallback(async (userId?: string): Promise<BibliothequeDocument[]> => {
-    // Toujours utiliser l'utilisateur courant si non spécifié
-    const currentUser = userId || getDatabaseConnectionCurrentUser() || 'default';
+    // Utiliser la fonction utilitaire pour garantir un ID utilisateur valide
+    const currentUser = getValidUserId(userId);
     
     if (!isOnline) {
       console.log('Mode hors ligne - chargement des documents locaux');
@@ -165,8 +194,8 @@ export const useBibliothequeSync = () => {
     userId?: string, 
     trigger: "auto" | "manual" | "initial" = "manual"
   ): Promise<boolean> => {
-    // Toujours utiliser l'utilisateur courant si non spécifié
-    const currentUser = userId || getDatabaseConnectionCurrentUser() || 'default';
+    // Utiliser la fonction utilitaire pour garantir un ID utilisateur valide
+    const currentUser = getValidUserId(userId);
     
     console.log(`Synchronisation pour l'utilisateur: ${currentUser}`);
     

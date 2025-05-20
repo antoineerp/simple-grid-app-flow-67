@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Exigence, ExigenceStats, ExigenceGroup } from '@/types/exigences';
 import { useExigenceMutations } from './useExigenceMutations';
@@ -41,6 +40,17 @@ export const useExigences = () => {
           console.log(`ID utilisateur extrait: ${idField} = ${user[idField]}`);
           return user[idField];
         }
+      }
+      
+      // Si l'objet est stringifiable, l'utiliser comme identifiant (éviter [object Object])
+      try {
+        const userId = JSON.stringify(user);
+        if (userId !== '{}' && userId !== '[object Object]') {
+          console.warn("Utilisation d'un identifiant utilisateur stringifié:", userId.substring(0, 20));
+          return `user_${Math.random().toString(36).substring(2, 9)}`;
+        }
+      } catch (err) {
+        console.error("Erreur lors de la stringification de l'utilisateur:", err);
       }
       
       console.warn("Aucun identifiant valide trouvé dans l'objet utilisateur:", user);

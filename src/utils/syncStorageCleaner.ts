@@ -11,7 +11,8 @@ export const cleanSyncStorage = () => {
     key.includes('sync_states_') ||
     key.includes('sync_pending_') ||
     key.includes('sync_failed_') ||
-    key.includes('sync_in_progress_')
+    key.includes('sync_in_progress_') ||
+    key.includes('global_data_')
   );
   
   let cleanedCount = 0;
@@ -19,6 +20,14 @@ export const cleanSyncStorage = () => {
   // Vérifier et nettoyer les entrées malformées
   syncKeys.forEach(key => {
     try {
+      // Vérifier si la clé contient [object Object] (problème de stringification)
+      if (key.includes('[object Object]')) {
+        console.warn(`Suppression de l'entrée malformée avec objet au lieu de chaîne: ${key}`);
+        localStorage.removeItem(key);
+        cleanedCount++;
+        return;
+      }
+      
       const value = localStorage.getItem(key);
       if (value) {
         // Tenter de parser le JSON pour vérifier qu'il est valide
@@ -36,19 +45,20 @@ export const cleanSyncStorage = () => {
     'membres_p71x6d_system_last_sync',
     'documents_p71x6d_system_last_sync',
     'collaboration_p71x6d_system_last_sync',
-    'exigences_p71x6d_system_last_sync'
+    'exigences_p71x6d_system_last_sync',
+    'global_data_[object Object]_last_synced',  // Ajout de l'entrée spécifique signalée dans l'erreur
+    'global_data_[object Object]_last_saved'
   ];
   
   specificKeys.forEach(key => {
     try {
-      const value = localStorage.getItem(key);
-      if (value) {
-        JSON.parse(value);
+      if (localStorage.getItem(key) !== null) {
+        console.warn(`Suppression de l'entrée spécifique potentiellement problématique: ${key}`);
+        localStorage.removeItem(key);
+        cleanedCount++;
       }
     } catch (e) {
-      console.warn(`Suppression de l'entrée spécifique malformée: ${key}`);
-      localStorage.removeItem(key);
-      cleanedCount++;
+      console.warn(`Erreur lors de la suppression de l'entrée spécifique: ${key}`);
     }
   });
   

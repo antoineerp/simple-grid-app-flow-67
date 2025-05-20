@@ -46,11 +46,49 @@ export const useGlobalData = () => {
   return context;
 };
 
+// Fonction utilitaire pour obtenir un identifiant utilisateur valide
+const getValidUserId = (): string => {
+  const userInfo = getCurrentUser();
+  
+  // Si l'utilisateur n'existe pas, utiliser une valeur par défaut
+  if (!userInfo) {
+    return 'p71x6d_system';
+  }
+  
+  // Si c'est une chaîne, l'utiliser directement
+  if (typeof userInfo === 'string') {
+    return userInfo;
+  }
+  
+  // Si c'est un objet, essayer d'extraire un identifiant valide
+  if (typeof userInfo === 'object' && userInfo !== null) {
+    // Identifiants potentiels par ordre de priorité
+    if ('identifiant_technique' in userInfo && typeof userInfo.identifiant_technique === 'string') {
+      return userInfo.identifiant_technique;
+    }
+    if ('email' in userInfo && typeof userInfo.email === 'string') {
+      return userInfo.email;
+    }
+    if ('id' in userInfo && typeof userInfo.id === 'string') {
+      return userInfo.id;
+    }
+    
+    // Si aucun identifiant valide n'est trouvé, utiliser le fallback
+    console.warn("Aucun identifiant valide trouvé dans l'objet utilisateur, utilisation de l'ID système");
+  }
+  
+  // Fallback
+  return 'p71x6d_system';
+};
+
 // Provider du contexte
 export const GlobalDataProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  // Obtenir l'identifiant utilisateur actuel
-  const currentUser = getCurrentUser() || 'p71x6d_system';
+  // Obtenir l'identifiant utilisateur actuel (format sûr)
+  const currentUser = getValidUserId();
   const storagePrefix = `global_data_${currentUser}`;
+  
+  console.log("GlobalDataProvider - Utilisateur actuel:", currentUser);
+  console.log("GlobalDataProvider - Préfixe de stockage:", storagePrefix);
   
   // États pour les différents types de données
   const [membres, setMembres] = useState<Membre[]>([]);
@@ -79,7 +117,7 @@ export const GlobalDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       }
       localStorage.setItem(`${storagePrefix}_sync_failed`, String(syncFailed));
       
-      console.log('Toutes les données ont été sauvegardées dans le localStorage');
+      console.log('Toutes les données ont été sauvegardées dans le localStorage avec le préfixe:', storagePrefix);
     } catch (error) {
       console.error('Erreur lors de la sauvegarde des données:', error);
     }
@@ -88,6 +126,8 @@ export const GlobalDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   // Charger toutes les données depuis le localStorage
   const loadFromLocalStorage = () => {
     try {
+      console.log('Chargement des données depuis le localStorage avec le préfixe:', storagePrefix);
+      
       // Charger les membres
       const storedMembres = localStorage.getItem(`${storagePrefix}_membres`);
       if (storedMembres) {
