@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { FileText, Plus, FolderPlus } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -7,6 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useCollaboration } from '@/hooks/useCollaboration';
 import SyncIndicator from '@/components/common/SyncIndicator';
 import { exportCollaborationDocsToPdf } from '@/services/collaborationExport';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 const Collaboration = () => {
   const { 
@@ -18,10 +19,30 @@ const Collaboration = () => {
     lastSynced,
     handleSyncDocuments,
     setIsDialogOpen,
-    setIsGroupDialogOpen
+    setIsGroupDialogOpen,
+    handleAddDocument,
+    handleUpdateDocument,
+    handleAddGroup
   } = useCollaboration();
   
   const { toast } = useToast();
+
+  // State for document dialog
+  const [newDocument, setNewDocument] = useState({
+    id: '',
+    name: '',
+    link: ''
+  });
+  
+  // State for group dialog
+  const [newGroup, setNewGroup] = useState({
+    id: '',
+    name: ''
+  });
+  
+  // Dialog states
+  const [isDocDialogOpen, setIsDocDialogOpen] = useState(false);
+  const [isGroupDialogOpen, setIsGroupDialogOpen] = useState(false);
 
   const handleExportPdf = () => {
     if (documents && documents.length > 0) {
@@ -37,6 +58,60 @@ const Collaboration = () => {
   // Create a wrapper function that returns Promise<void> for SyncIndicator
   const handleSync = async () => {
     await handleSyncDocuments();
+  };
+  
+  // Handle document dialog open
+  const openDocumentDialog = () => {
+    setNewDocument({
+      id: '',
+      name: '',
+      link: ''
+    });
+    setIsDocDialogOpen(true);
+  };
+  
+  // Handle group dialog open
+  const openGroupDialog = () => {
+    setNewGroup({
+      id: '',
+      name: ''
+    });
+    setIsGroupDialogOpen(true);
+  };
+  
+  // Handle document save
+  const saveDocument = () => {
+    if (!newDocument.name) {
+      toast({
+        title: "Erreur",
+        description: "Le nom du document est obligatoire",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    handleAddDocument(newDocument);
+    setIsDocDialogOpen(false);
+  };
+  
+  // Handle group save
+  const saveGroup = () => {
+    if (!newGroup.name) {
+      toast({
+        title: "Erreur",
+        description: "Le nom du groupe est obligatoire",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    handleAddGroup({
+      id: newGroup.id,
+      name: newGroup.name,
+      expanded: false,
+      items: []
+    });
+    setIsGroupDialogOpen(false);
   };
 
   return (
@@ -106,7 +181,7 @@ const Collaboration = () => {
       <div className="flex justify-end mt-4 space-x-2">
         <Button 
           variant="outline"
-          onClick={() => setIsGroupDialogOpen(true)}
+          onClick={openGroupDialog}
           className="hover:bg-gray-100 transition-colors mr-2"
           title="Nouveau groupe"
         >
@@ -115,12 +190,83 @@ const Collaboration = () => {
         </Button>
         <Button 
           variant="default"
-          onClick={() => setIsDialogOpen(true)}
+          onClick={openDocumentDialog}
         >
           <Plus className="h-5 w-5 mr-2" />
           Nouveau document
         </Button>
       </div>
+      
+      {/* Dialog for adding/editing documents */}
+      <Dialog open={isDocDialogOpen} onOpenChange={setIsDocDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Nouveau document</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div>
+              <label htmlFor="doc-name" className="block text-sm font-medium text-gray-700">Nom du document</label>
+              <input
+                id="doc-name"
+                type="text"
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                value={newDocument.name}
+                onChange={e => setNewDocument({...newDocument, name: e.target.value})}
+                placeholder="Nom du document"
+              />
+            </div>
+            <div>
+              <label htmlFor="doc-link" className="block text-sm font-medium text-gray-700">Lien</label>
+              <input
+                id="doc-link"
+                type="text"
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                value={newDocument.link}
+                onChange={e => setNewDocument({...newDocument, link: e.target.value})}
+                placeholder="Lien vers le document"
+              />
+            </div>
+          </div>
+          <div className="flex justify-end space-x-2">
+            <Button variant="outline" onClick={() => setIsDocDialogOpen(false)}>
+              Annuler
+            </Button>
+            <Button onClick={saveDocument}>
+              Enregistrer
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Dialog for adding/editing groups */}
+      <Dialog open={isGroupDialogOpen} onOpenChange={setIsGroupDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Nouveau groupe</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div>
+              <label htmlFor="group-name" className="block text-sm font-medium text-gray-700">Nom du groupe</label>
+              <input
+                id="group-name"
+                type="text"
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                value={newGroup.name}
+                onChange={e => setNewGroup({...newGroup, name: e.target.value})}
+                placeholder="Nom du groupe"
+              />
+            </div>
+          </div>
+          <div className="flex justify-end space-x-2">
+            <Button variant="outline" onClick={() => setIsGroupDialogOpen(false)}>
+              Annuler
+            </Button>
+            <Button onClick={saveGroup}>
+              Enregistrer
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
