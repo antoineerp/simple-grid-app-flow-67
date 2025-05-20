@@ -19,7 +19,6 @@ const Collaboration = () => {
     lastSynced,
     handleSyncDocuments,
     setIsDialogOpen,
-    setIsGroupDialogOpen,
     handleAddDocument,
     handleUpdateDocument,
     handleAddGroup
