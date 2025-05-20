@@ -34,7 +34,12 @@ export const navigationItems: NavItem[] = [
     path: '/collaboration',
     icon: Handshake,
     label: 'Collaboration'
+  },
+  {
+    path: '/administration',
+    icon: Settings,
+    label: 'Administration'
   }
 ];
 
-// L'élément Administration a été retiré de la liste principale
+// Ajout de l'élément Administration à la liste principale

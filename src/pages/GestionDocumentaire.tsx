@@ -1,239 +1,25 @@
 
-import React, { useEffect, useState } from 'react';
-import DocumentTable from '@/components/documents/DocumentTable';
-import { useDocuments } from '@/hooks/useDocuments';
-import { getDatabaseConnectionCurrentUser } from '@/services/core/databaseConnectionService';
-import { Button } from '@/components/ui/button';
-import { Plus, FileText, RefreshCw, FolderPlus, Save, Check, AlertTriangle } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
-import SyncHealthIndicator from '@/components/common/SyncHealthIndicator';
+import React from 'react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import DashboardLayout from '@/components/layouts/DashboardLayout';
 
 const GestionDocumentaire = () => {
-  const { 
-    documents, 
-    groups, 
-    handleEdit, 
-    handleDelete, 
-    handleReorder, 
-    handleToggleGroup, 
-    handleEditGroup, 
-    handleDeleteGroup, 
-    handleResponsabiliteChange, 
-    handleAtteinteChange, 
-    handleExclusionChange, 
-    handleAddDocument, 
-    handleAddGroup,
-    handleGroupReorder,
-    forceReload,
-    isSyncing,
-    syncWithServer,
-    lastSynced
-  } = useDocuments();
-  
-  const [currentUser, setCurrentUser] = useState<string>(getDatabaseConnectionCurrentUser() || 'default');
-  const [saveSuccess, setSaveSuccess] = useState<boolean | null>(null);
-  const { toast } = useToast();
-  
-  // Écouter les changements d'utilisateur
-  useEffect(() => {
-    const handleUserChange = (event: Event) => {
-      const customEvent = event as CustomEvent;
-      if (customEvent.detail?.user) {
-        setCurrentUser(customEvent.detail.user);
-        console.log(`GestionDocumentaire: Changement d'utilisateur - ${customEvent.detail.user}`);
-      }
-    };
-    
-    window.addEventListener('database-user-changed', handleUserChange);
-    
-    return () => {
-      window.removeEventListener('database-user-changed', handleUserChange);
-    };
-  }, []);
-
-  // Synchronisation automatique périodique
-  useEffect(() => {
-    // Synchroniser automatiquement toutes les 2 minutes si des documents existent
-    if (documents.length > 0) {
-      const autoSyncTimer = setInterval(() => {
-        if (!isSyncing) {
-          console.log("Synchronisation automatique programmée");
-          syncWithServer().catch(err => {
-            console.error("Erreur lors de la synchronisation automatique:", err);
-          });
-        }
-      }, 120000); // Toutes les 2 minutes
-      
-      return () => clearInterval(autoSyncTimer);
-    }
-  }, [documents, isSyncing, syncWithServer]);
-
-  // Effet pour sauvegarder avant de quitter la page
-  useEffect(() => {
-    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
-      // Vérifier s'il y a des documents non synchronisés
-      if (documents.length > 0 && !lastSynced) {
-        // Message personnalisé (ne fonctionne pas sur tous les navigateurs)
-        const message = "Vos modifications n'ont pas été sauvegardées. Voulez-vous vraiment quitter la page?";
-        event.returnValue = message; // Standard
-        return message; // Pour les navigateurs plus anciens
-      }
-    };
-    
-    window.addEventListener('beforeunload', handleBeforeUnload);
-    
-    return () => {
-      window.removeEventListener('beforeunload', handleBeforeUnload);
-    };
-  }, [documents, lastSynced]);
-
-  // Sauvegarde automatique lors des modifications
-  useEffect(() => {
-    if (documents.length > 0) {
-      // Initialiser la synchronisation après le chargement initial
-      const timer = setTimeout(() => {
-        if (!isSyncing) {
-          console.log("Synchronisation automatique initiale");
-          syncWithServer().catch(err => {
-            console.error("Erreur lors de la synchronisation automatique initiale:", err);
-          });
-        }
-      }, 5000); // 5 secondes après le chargement
-      
-      return () => clearTimeout(timer);
-    }
-  }, [documents, isSyncing, syncWithServer]);
-
-  const handleRefresh = () => {
-    forceReload();
-  };
-
-  const handleSaveManually = async () => {
-    try {
-      // Montrer l'état de sauvegarde en cours
-      setSaveSuccess(null);
-      
-      // Forcer une synchronisation
-      const result = await syncWithServer();
-      
-      // Montrer le résultat
-      setSaveSuccess(result);
-      
-      // Afficher un toast avec le résultat
-      if (result) {
-        toast({
-          title: "Sauvegarde réussie",
-          description: "Vos documents ont été sauvegardés avec succès sur le serveur Infomaniak et seront disponibles lors de votre prochaine connexion.",
-          variant: "default"
-        });
-      } else {
-        toast({
-          title: "Échec de la sauvegarde",
-          description: "Vos documents sont sauvegardés localement mais la synchronisation avec le serveur Infomaniak a échoué.",
-          variant: "destructive"
-        });
-      }
-      
-      // Réinitialiser l'indicateur après 3 secondes
-      setTimeout(() => {
-        setSaveSuccess(null);
-      }, 3000);
-    } catch (error) {
-      console.error("Erreur lors de la sauvegarde manuelle:", error);
-      setSaveSuccess(false);
-      toast({
-        title: "Erreur",
-        description: "Une erreur s'est produite lors de la sauvegarde sur le serveur Infomaniak.",
-        variant: "destructive"
-      });
-    }
-  };
-
   return (
-    <div className="container mx-auto py-6 px-4">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">Gestion Documentaire</h1>
-        <div className="flex items-center space-x-2">
-          <Button
-            onClick={handleSaveManually}
-            variant="outline"
-            size="sm"
-            className="flex items-center"
-            disabled={isSyncing}
-          >
-            {saveSuccess === null ? (
-              <>
-                <Save className="h-4 w-4 mr-1" />
-                Sauvegarder
-              </>
-            ) : saveSuccess ? (
-              <>
-                <Check className="h-4 w-4 mr-1 text-green-500" />
-                Sauvegardé
-              </>
-            ) : (
-              <>
-                <Save className="h-4 w-4 mr-1 text-red-500" />
-                Réessayer
-              </>
-            )}
-          </Button>
-          <Button
-            onClick={handleRefresh}
-            variant="outline"
-            size="sm"
-            className="flex items-center"
-            disabled={isSyncing}
-          >
-            <RefreshCw className={`h-4 w-4 mr-1 ${isSyncing ? 'animate-spin' : ''}`} />
-            Actualiser
-          </Button>
-        </div>
+    <DashboardLayout>
+      <div className="container px-4 py-6 space-y-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>Gestion Documentaire</CardTitle>
+            <CardDescription>Gérez vos documents et fichiers importants</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="p-4 border border-gray-200 rounded-md bg-gray-50">
+              <p className="text-center text-gray-500">Chargement des documents...</p>
+            </div>
+          </CardContent>
+        </Card>
       </div>
-      
-      {lastSynced && (
-        <div className="text-sm text-gray-500 mb-4">
-          Dernière synchronisation: {new Date(lastSynced).toLocaleString()}
-          <span className="ml-2 text-green-600">(Sauvegarde automatique activée)</span>
-        </div>
-      )}
-      
-      <DocumentTable 
-        documents={documents}
-        groups={groups}
-        onResponsabiliteChange={handleResponsabiliteChange}
-        onAtteinteChange={handleAtteinteChange}
-        onExclusionChange={handleExclusionChange}
-        onEdit={handleEdit}
-        onDelete={handleDelete}
-        onReorder={handleReorder}
-        onGroupReorder={handleGroupReorder}
-        onToggleGroup={handleToggleGroup}
-        onEditGroup={handleEditGroup}
-        onDeleteGroup={handleDeleteGroup}
-      />
-      
-      <div className="mt-4 flex justify-end space-x-2">
-        <Button
-          onClick={handleAddGroup}
-          variant="outline"
-          className="flex items-center hover:bg-gray-100 transition-colors"
-        >
-          <FolderPlus className="h-4 w-4 mr-2" />
-          Nouveau groupe
-        </Button>
-        <Button
-          onClick={handleAddDocument}
-          className="flex items-center bg-app-blue hover:bg-app-blue/90"
-        >
-          <Plus className="h-4 w-4 mr-1" />
-          Ajouter un document
-        </Button>
-      </div>
-      
-      {/* Ajout de l'indicateur de santé de synchronisation */}
-      <SyncHealthIndicator />
-    </div>
+    </DashboardLayout>
   );
 };
 
