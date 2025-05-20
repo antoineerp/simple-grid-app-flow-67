@@ -1,4 +1,3 @@
-
 import { getApiUrl } from '@/config/apiConfig';
 import { getCurrentUser } from '@/services/core/databaseConnectionService';
 import { toast } from '@/components/ui/use-toast';
@@ -43,7 +42,7 @@ export class DatabaseHelper {
       
       console.log(`Demande de mise à jour de la structure pour l'utilisateur ${safeUserId}`);
       
-      // Tentative avec l'URL principale
+      // Utiliser une seule méthode de connexion avec gestion d'erreur robuste
       let response;
       try {
         response = await fetch(`${API_URL}/db-update.php?userId=${safeUserId}`, {
@@ -52,24 +51,9 @@ export class DatabaseHelper {
             'Cache-Control': 'no-cache, no-store, must-revalidate'
           }
         });
-      } catch (primaryError) {
-        console.warn("Erreur avec l'URL principale:", primaryError);
-        
-        // Tentative avec l'URL alternative
-        try {
-          const alternativeUrl = `/sites/qualiopi.ch/api/db-update.php`;
-          console.log(`Tentative avec URL alternative: ${alternativeUrl}`);
-          
-          response = await fetch(`${alternativeUrl}?userId=${safeUserId}`, {
-            method: 'GET',
-            headers: {
-              'Cache-Control': 'no-cache, no-store, must-revalidate'
-            }
-          });
-        } catch (altError) {
-          console.error("Erreur avec l'URL alternative:", altError);
-          throw new Error(`Erreur de connexion: ${primaryError}`);
-        }
+      } catch (error) {
+        console.error("Erreur de connexion:", error);
+        throw new Error("Impossible de se connecter au serveur de base de données");
       }
       
       if (!response.ok) {

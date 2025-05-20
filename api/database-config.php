@@ -3,11 +3,6 @@
 // Force output buffering to prevent output before headers
 ob_start();
 
-// Inclure la configuration de base
-if (file_exists(__DIR__ . '/config/index.php')) {
-    require_once __DIR__ . '/config/index.php';
-}
-
 // Configuration des headers
 header("Content-Type: application/json; charset=UTF-8");
 header("Access-Control-Allow-Origin: *");
@@ -57,6 +52,13 @@ try {
         error_log("Fichier de configuration par défaut créé: " . $dbConfigFile);
     }
 
+    // Inclure la classe DatabaseConfig si elle existe
+    if (file_exists(__DIR__ . '/config/DatabaseConfig.php')) {
+        require_once __DIR__ . '/config/DatabaseConfig.php';
+    } else {
+        throw new Exception("Le fichier DatabaseConfig.php est introuvable");
+    }
+    
     // Inclure la base de données si elle existe
     if (file_exists(__DIR__ . '/config/database.php')) {
         require_once __DIR__ . '/config/database.php';

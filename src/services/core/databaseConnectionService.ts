@@ -89,10 +89,13 @@ export interface DatabaseInfo {
 // Fonction pour tester la connexion à la base de données
 export const testDatabaseConnection = async (): Promise<boolean> => {
   try {
-    console.log(`Test de connexion à la base de données via check-users.php avec ${FIXED_USER_ID}`);
-    // Toujours utiliser check-users.php avec p71x6d_richard
-    const response = await fetch(`${getApiUrl()}/check-users.php?source=${FIXED_USER_ID}`, {
-      headers: getAuthHeaders()
+    console.log(`Test de connexion à la base de données via database-config.php avec ${FIXED_USER_ID}`);
+    
+    // Utiliser database-config.php pour tester la connexion
+    const response = await fetch(`${getApiUrl()}/database-config.php`, {
+      headers: getAuthHeaders(),
+      method: 'GET',
+      cache: 'no-store'
     });
     
     if (!response.ok) {
@@ -102,11 +105,13 @@ export const testDatabaseConnection = async (): Promise<boolean> => {
       setLastConnectionError(errorMessage);
       return false;
     }
+    
     const result = await response.json();
-    if (result.status !== 'success') {
-      setLastConnectionError(result.message || "Échec de la connexion");
+    if (!result.connection.is_connected) {
+      setLastConnectionError(result.connection.error || "Échec de la connexion");
       return false;
     }
+    
     return true;
   } catch (error) {
     console.error("Erreur lors du test de connexion à la base de données:", error);
@@ -121,8 +126,8 @@ export const getDatabaseInfo = async (): Promise<DatabaseInfo> => {
   try {
     console.log(`Récupération des informations de base de données pour: ${FIXED_USER_ID}`);
     
-    // Appel direct à check-users avec p71x6d_richard
-    const response = await fetch(`${getApiUrl()}/check-users.php?source=${FIXED_USER_ID}`, {
+    // Appel direct à database-config.php
+    const response = await fetch(`${getApiUrl()}/database-config.php`, {
       headers: {
         ...getAuthHeaders(),
         'Accept': 'application/json',
@@ -141,29 +146,29 @@ export const getDatabaseInfo = async (): Promise<DatabaseInfo> => {
     // Essayer d'analyser la réponse JSON
     const data = await response.json();
     
-    if (data.status !== 'success') {
-      const errorMessage = data.message || "Échec de la récupération des informations de la base de données";
+    if (!data.connection || !data.connection.is_connected) {
+      const errorMessage = data.connection?.error || "Échec de la récupération des informations de la base de données";
       setLastConnectionError(errorMessage);
       throw new Error(errorMessage);
     }
     
     // S'assurer que les valeurs critiques ne sont pas "localhost"
-    if (data.database_info && data.database_info.host && data.database_info.host.includes('localhost')) {
+    if (data.config && data.config.host && data.config.host.includes('localhost')) {
       console.error("ALERTE: Host 'localhost' détecté dans la réponse API. Correction forcée vers Infomaniak.");
-      data.database_info.host = "p71x6d.myd.infomaniak.com";
+      data.config.host = "p71x6d.myd.infomaniak.com";
     }
     
     // Extraire et formater les informations de la base de données
     const dbInfo: DatabaseInfo = {
-      host: data.database_info?.host || "p71x6d.myd.infomaniak.com",
+      host: data.config?.host || "p71x6d.myd.infomaniak.com",
       database: FIXED_USER_ID, // Utiliser toujours p71x6d_richard comme nom de base de données
       size: data.database_info?.size || '0 MB',
-      tables: data.records ? data.records.length : 0,
+      tables: data.available_databases ? data.available_databases.length : 0,
       lastBackup: new Date().toISOString().split('T')[0] + ' 00:00:00',
-      status: data.status === 'success' ? 'Online' : 'Offline',
+      status: data.connection?.is_connected ? 'Online' : 'Offline',
       encoding: data.database_info?.encoding || 'utf8mb4',
       collation: data.database_info?.collation || 'utf8mb4_unicode_ci',
-      tableList: data.tables || ['utilisateurs']
+      tableList: data.available_databases || ['utilisateurs']
     };
     
     console.log("Informations de base de données reçues:", dbInfo);
