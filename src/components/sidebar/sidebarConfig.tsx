@@ -1,12 +1,12 @@
 
 import { BarChart2, FileCheck, FileText, Users, Handshake, Settings } from 'lucide-react';
-import { hasPermission, UserRole } from '@/types/roles';
+import { UserRole } from '@/types/roles';
 
 export interface NavItem {
   path: string;
   icon: typeof BarChart2;
   label: string;
-  requiredPermission?: keyof typeof hasPermission;
+  requiredPermission?: 'isAdmin';
 }
 
 export const navigationItems: NavItem[] = [

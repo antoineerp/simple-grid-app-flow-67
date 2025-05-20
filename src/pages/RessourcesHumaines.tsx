@@ -2,7 +2,7 @@
 import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
-import { MemberList } from '@/components/ressources-humaines/MemberList';
+import MemberList from '@/components/ressources-humaines/MemberList';
 
 const RessourcesHumaines = () => {
   return (
@@ -14,7 +14,7 @@ const RessourcesHumaines = () => {
             <CardDescription>Gérez les membres de votre équipe</CardDescription>
           </CardHeader>
           <CardContent>
-            <MemberList />
+            <MemberList membres={[]} onEdit={() => {}} onDelete={() => {}} />
           </CardContent>
         </Card>
       </div>

@@ -3,8 +3,8 @@ import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
-import { UserManagement } from '@/components/admin/UserManagement';
-import { DatabaseConfig } from '@/components/admin/DatabaseConfig';
+import UserManagement from '@/components/admin/UserManagement';
+import DatabaseConfig from '@/components/admin/DatabaseConfig';
 import { SystemDiagnostic } from '@/components/admin/SystemDiagnostic';
 
 const Administration = () => {

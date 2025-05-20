@@ -2,7 +2,7 @@
 import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import DashboardLayout from '@/components/layouts/DashboardLayout';
-import { DocumentTable } from '@/components/gestion-documentaire/DocumentTable';
+import DocumentTable from '@/components/gestion-documentaire/DocumentTable';
 
 const GestionDocumentaire = () => {
   return (

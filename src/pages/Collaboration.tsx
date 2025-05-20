@@ -5,7 +5,17 @@ import DashboardLayout from '@/components/layouts/DashboardLayout';
 import { useCollaboration } from '@/hooks/useCollaboration';
 
 const Collaboration = () => {
-  const { data, isLoading, error } = useCollaboration();
+  const { 
+    documents, 
+    groups, 
+    isSyncing, 
+    isOnline, 
+    syncFailed 
+  } = useCollaboration();
+  
+  // Simuler les états de loading et d'erreur à partir des données disponibles
+  const isLoading = isSyncing;
+  const error = syncFailed ? new Error("Erreur de synchronisation") : null;
   
   return (
     <DashboardLayout>
@@ -26,12 +36,12 @@ const Collaboration = () => {
               </div>
             ) : (
               <div className="space-y-4">
-                {data && data.length > 0 ? (
+                {documents && documents.length > 0 ? (
                   <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                    {data.map((item) => (
+                    {documents.map((item) => (
                       <div key={item.id} className="border rounded-md p-4">
-                        <h3 className="font-medium">{item.titre || item.nom}</h3>
-                        <p className="text-sm text-gray-500">{item.description}</p>
+                        <h3 className="font-medium">{item.name || "Document sans nom"}</h3>
+                        <p className="text-sm text-gray-500">{item.link || "Pas de lien"}</p>
                       </div>
                     ))}
                   </div>
