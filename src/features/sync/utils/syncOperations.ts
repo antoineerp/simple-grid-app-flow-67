@@ -20,6 +20,14 @@ const cleanupRecentlySynced = (tableName: string) => {
   }, 5000); // 5 secondes de "cooldown" entre les synchronisations
 };
 
+/**
+ * Vérifie si une table est en cours de synchronisation
+ */
+export const isSynchronizing = (tableName: string): boolean => {
+  // Vérifier si la table a un verrou actif
+  return acquireLock(tableName, true);
+};
+
 // Execute a sync operation with proper locking
 export const executeSyncOperation = async <T>(
   tableName: string, 

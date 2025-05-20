@@ -1,9 +1,10 @@
+
 /**
  * Centralised sync context to manage synchronization across the application
  */
 
 import { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
-import { executeSyncOperation, isSynchronizing } from '../utils/syncOperations';
+import { executeSyncOperation } from '../utils/syncOperations';
 import { SyncHookOptions, SyncState, SyncOperationResult, SyncMonitorStatus } from '../types/syncTypes';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { getDatabaseConnectionCurrentUser } from '@/services/core/databaseConnectionService';
