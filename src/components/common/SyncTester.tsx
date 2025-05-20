@@ -3,8 +3,8 @@ import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { robustSync, verifyJsonEndpoint } from "@/services/sync/robustSyncService";
 import { Loader2, AlertTriangle, CheckCircle, XCircle } from "lucide-react";
+import robustSync, { verifyJsonEndpoint } from "@/services/sync/robustSyncService";
 
 /**
  * Composant pour tester et déboguer la synchronisation

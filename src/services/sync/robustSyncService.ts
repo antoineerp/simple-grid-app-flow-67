@@ -50,7 +50,7 @@ export const verifyJsonEndpoint = async (): Promise<boolean> => {
 };
 
 // Service principal de synchronisation robuste
-export const robustSync = {
+const robustSync = {
   /**
    * Synchronise les données avec le serveur
    */
