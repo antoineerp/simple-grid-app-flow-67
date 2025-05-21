@@ -73,7 +73,7 @@ export const AppSyncManager: React.FC = () => {
   return (
     <div className="space-y-4">
       {verificationStatus === 'warning' && (
-        <Alert variant="warning">
+        <Alert variant="default" className="border-amber-500 bg-amber-50 text-amber-900">
           <AlertCircle className="h-4 w-4" />
           <AlertTitle>Attention</AlertTitle>
           <AlertDescription>

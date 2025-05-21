@@ -1,6 +1,6 @@
 
 import React, { useEffect } from 'react';
-import AppSyncManager from './AppSyncManager';
+import { AppSyncManager } from './AppSyncManager';
 import { getCurrentUser } from '@/services/core/databaseConnectionService';
 import { ensureCorrectUserId } from '@/services/core/userIdConverter';
 

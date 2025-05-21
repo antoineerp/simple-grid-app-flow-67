@@ -1,6 +1,6 @@
 
 import { toast } from '@/components/ui/use-toast';
-import { Exigence } from '@/types/exigence';
+import { Exigence } from '@/types/exigences';
 import { validateUserId } from '@/services/core/apiInterceptor';
 import { getApiUrl } from '@/config/apiConfig';
 
@@ -180,7 +180,7 @@ export const loadExigencesFromServer = async (userId: string): Promise<Exigence[
     console.error('Erreur lors du chargement des exigences depuis le serveur:', error);
     
     toast({
-      variant: 'warning',
+      variant: 'default',
       title: 'Erreur de chargement',
       description: 'Utilisation des données locales suite à une erreur réseau'
     });

@@ -70,7 +70,7 @@ export const SyncDebugger = () => {
         });
       } else {
         toast({
-          variant: "warning",
+          variant: "default",
           title: "Synchronisation partielle",
           description: `${syncedCount} tables sur ${Object.keys(results).length} ont été synchronisées.`,
         });
@@ -124,7 +124,7 @@ export const SyncDebugger = () => {
                 <TableCell className="font-medium">{table.tableName}</TableCell>
                 <TableCell>
                   {table.hasPending ? (
-                    <Badge variant="warning" className="flex items-center gap-1">
+                    <Badge variant="secondary" className="flex items-center gap-1 bg-amber-100 text-amber-800 border-amber-300">
                       <XCircle className="h-3 w-3" />
                       En attente
                     </Badge>
