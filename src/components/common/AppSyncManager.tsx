@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { ArrowUpDown, Check, CloudOff, CloudSync } from 'lucide-react';
+import { ArrowUpDown, Check, CloudOff, CloudUpload } from 'lucide-react';
 import { getCurrentUser } from '@/services/core/databaseConnectionService';
 import SyncDebugger from '@/components/sync/SyncDebugger';
 
@@ -206,9 +206,9 @@ const AppSyncManager: React.FC<AppSyncManagerProps> = ({
                 disabled={!isOnline || isSyncing}
               >
                 {isSyncing ? (
-                  <CloudSync className="h-4 w-4 mr-2 animate-spin" />
+                  <CloudUpload className="h-4 w-4 mr-2 animate-spin" />
                 ) : isOnline ? (
-                  <CloudSync className="h-4 w-4 mr-2" />
+                  <CloudUpload className="h-4 w-4 mr-2" />
                 ) : (
                   <CloudOff className="h-4 w-4 mr-2" />
                 )}
