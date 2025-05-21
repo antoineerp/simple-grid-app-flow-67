@@ -61,39 +61,42 @@ jobs:
           echo "ERREUR: Le dossier dist/assets n'existe pas!"
         fi
         
-        # IMPORTANT: Copie directe des fichiers critiques
+        # IMPORTANT: Copie directe des fichiers JavaScript essentiels
         echo "Copie des fichiers critiques à partir des sources..."
         
-        # Copier index.js et main.js depuis le répertoire source vers le répertoire de déploiement
-        echo "Copie des fichiers JavaScript essentiels..."
-        cp src/main.js deploy/assets/main.js || echo "Avertissement: src/main.js non trouvé"
-        cp src/main.tsx deploy/assets/main.tsx || echo "Avertissement: src/main.tsx non trouvé"
-        cp src/assets/index.js deploy/assets/index.js || echo "Avertissement: src/assets/index.js non trouvé"
-        cp assets/index.js deploy/assets/index.js || echo "Avertissement: assets/index.js non trouvé"
+        # Copier les fichiers de secours
+        echo "Création de fichiers JavaScript essentiels..."
         cp assets/main.js deploy/assets/main.js || echo "Avertissement: assets/main.js non trouvé"
+        cp assets/index.js deploy/assets/index.js || echo "Avertissement: assets/index.js non trouvé"
+        cp src/main.js deploy/assets/src-main.js || echo "Avertissement: src/main.js non trouvé"
         
-        # En cas d'échec, créer une version minimale des fichiers JavaScript essentiels
-        if [ ! -f "deploy/assets/main.js" ]; then
-          echo "Création d'un fichier main.js minimal..."
-          echo "// Fallback main.js created during deployment" > deploy/assets/main.js
-          echo "console.log('Fallback main.js loaded');" >> deploy/assets/main.js
-        fi
-        
-        if [ ! -f "deploy/assets/index.js" ]; then
-          echo "Création d'un fichier index.js minimal..."
-          echo "// Fallback index.js created during deployment" > deploy/assets/index.js
-          echo "console.log('Fallback index.js loaded');" >> deploy/assets/index.js
-          echo "if(document.readyState === 'complete') {" >> deploy/assets/index.js
-          echo "  const script = document.createElement('script');" >> deploy/assets/index.js
-          echo "  script.src = './main.js';" >> deploy/assets/index.js
-          echo "  script.type = 'text/javascript';" >> deploy/assets/index.js
-          echo "  document.body.appendChild(script);" >> deploy/assets/index.js
-          echo "}" >> deploy/assets/index.js
-        fi
-        
-        # Copie des autres fichiers nécessaires
+        # S'assurer que les fichiers .htaccess existent
+        cp assets/.htaccess deploy/assets/ || echo "Avertissement: assets/.htaccess non trouvé"
         cp .htaccess deploy/ || echo "Fichier .htaccess non trouvé"
-        cp fix-assets-auto.php deploy/ || echo "Fichier fix-assets-auto.php non trouvé"
+        
+        # Créer des fichiers .htaccess essentiels s'ils n'existent pas
+        if [ ! -f "deploy/assets/.htaccess" ]; then
+          echo "Création d'un fichier .htaccess pour assets..."
+          echo "AddType application/javascript .js" > deploy/assets/.htaccess
+          echo "AddType application/javascript .mjs" >> deploy/assets/.htaccess
+          echo "AddType text/css .css" >> deploy/assets/.htaccess
+          echo "<Files *.js>" >> deploy/assets/.htaccess
+          echo "  ForceType application/javascript" >> deploy/assets/.htaccess
+          echo "</Files>" >> deploy/assets/.htaccess
+        fi
+        
+        # Copier le script de correction des types MIME
+        cp fix-mime-types-auto.php deploy/ || echo "Création d'un script minimal pour les types MIME..."
+        if [ ! -f "deploy/fix-mime-types-auto.php" ]; then
+          cat > deploy/fix-mime-types-auto.php << 'EOL'
+<?php
+header('Content-Type: application/json');
+$htaccess = "AddType application/javascript .js\nAddType application/javascript .mjs\n";
+file_put_contents('./assets/.htaccess', $htaccess);
+echo json_encode(['success' => true, 'message' => 'MIME types fixed']);
+?>
+EOL
+        fi
 
     - name: Sync to Infomaniak server
       uses: SamKirkland/FTP-Deploy-Action@v4.3.4
@@ -117,10 +120,10 @@ jobs:
         log-level: verbose
         timeout: 120000
     
-    - name: Run Fix-Assets Script (if server supports it)
+    - name: Run Fix-MIME Script
       run: |
-        echo "Exécution du script de réparation des assets via curl..."
-        curl -s "${{ secrets.SITE_URL }}/fix-assets-auto.php" || echo "Échec de l'exécution du script de réparation"
+        echo "Exécution du script de réparation des types MIME via curl..."
+        curl -s "${{ secrets.SITE_URL }}/fix-mime-types-auto.php" || echo "Échec de l'exécution du script de réparation"
         echo "Script de réparation terminé"
 
     - name: Clean up

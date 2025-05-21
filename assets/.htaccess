@@ -10,18 +10,17 @@ AddType text/css .css
 # En-têtes de cache pour les assets
 <FilesMatch "\.(js|mjs|css)$">
     Header set Cache-Control "max-age=31536000, public"
-    Header set Content-Type "application/javascript" env=IS_JS
-    Header set X-Content-Type-Options "nosniff"
+    # Ne pas définir Content-Type ici car cela peut entrer en conflit avec le module
 </FilesMatch>
 
-# Définition des variables d'environnement pour la détection JavaScript
-<FilesMatch "\.js$">
-    SetEnvIf Request_URI "\.js$" IS_JS
-</FilesMatch>
+# Forcer le type MIME pour JavaScript
+<Files *.js>
+    ForceType application/javascript
+</Files>
 
-<FilesMatch "\.mjs$">
-    SetEnvIf Request_URI "\.mjs$" IS_JS
-</FilesMatch>
+<Files *.mjs>
+    ForceType application/javascript
+</Files>
 
 # Autoriser l'accès aux fichiers
 <Files *>
