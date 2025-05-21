@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -69,10 +68,10 @@ const UserManagement = ({ currentDatabaseUser, onUserConnect }: UserManagementPr
     return `${prenom.charAt(0)}${nom.charAt(0)}`.toUpperCase();
   };
 
-  const togglePasswordVisibility = (userId: number) => {
+  const togglePasswordVisibility = (userId: string | number) => {
     setShowPasswords(prev => ({
       ...prev,
-      [userId]: !prev[userId]
+      [userId.toString()]: !prev[userId.toString()]
     }));
   };
 
@@ -137,12 +136,12 @@ const UserManagement = ({ currentDatabaseUser, onUserConnect }: UserManagementPr
     }
   };
   
-  const handleDeleteUser = async (userId: number) => {
+  const handleDeleteUser = async (userId: string | number) => {
     if (!window.confirm("Êtes-vous sûr de vouloir supprimer cet utilisateur ?")) {
       return;
     }
     
-    setDeletingUserId(userId);
+    setDeletingUserId(userId.toString());
     
     try {
       const response = await fetch(`${getApiUrl()}/users`, {

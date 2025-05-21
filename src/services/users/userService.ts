@@ -1,161 +1,127 @@
 
 import { getApiUrl } from '@/config/apiConfig';
 import { getAuthHeaders } from '../auth/authService';
-import { Utilisateur } from '@/types/auth';
+import { getCurrentUser } from '../core/databaseConnectionService';
 
-// Variable to store the users cache
-let usersCache: Utilisateur[] | null = null;
-
-/**
- * Clears the users cache
- */
-export const clearUsersCache = (): void => {
-  usersCache = null;
-};
-
-/**
- * Get a user by ID
- */
-export const getUser = async (userId: string): Promise<Utilisateur | null> => {
+// Récupérer un utilisateur par son ID
+export const getUser = async (userId: string) => {
   try {
     const API_URL = getApiUrl();
-    const response = await fetch(`${API_URL}/users?id=${userId}`, {
+    
+    const response = await fetch(`${API_URL}/users/${userId}`, {
       method: 'GET',
       headers: getAuthHeaders()
     });
 
     if (!response.ok) {
-      throw new Error(`HTTP Error: ${response.status}`);
+      throw new Error(`Erreur HTTP: ${response.status}`);
     }
 
-    const data = await response.json();
-    return data.user || null;
+    return await response.json();
   } catch (error) {
-    console.error("Error fetching user:", error);
+    console.error("Erreur lors de la récupération de l'utilisateur:", error);
     return null;
   }
 };
 
-/**
- * Update a user
- */
-export const updateUser = async (user: Utilisateur): Promise<boolean> => {
+// Mettre à jour un utilisateur
+export const updateUser = async (userId: string, userData: any) => {
   try {
     const API_URL = getApiUrl();
-    const response = await fetch(`${API_URL}/users`, {
+    
+    const response = await fetch(`${API_URL}/users/${userId}`, {
       method: 'PUT',
       headers: {
         ...getAuthHeaders(),
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify(user)
+      body: JSON.stringify(userData)
     });
 
     if (!response.ok) {
-      throw new Error(`HTTP Error: ${response.status}`);
+      throw new Error(`Erreur HTTP: ${response.status}`);
     }
 
-    const result = await response.json();
-    
-    if (result.success) {
-      clearUsersCache(); // Clear cache on successful update
-    }
-    
-    return result.success;
+    return await response.json();
   } catch (error) {
-    console.error("Error updating user:", error);
-    return false;
+    console.error("Erreur lors de la mise à jour de l'utilisateur:", error);
+    throw error;
   }
 };
 
-/**
- * Delete a user
- */
-export const deleteUser = async (userId: string | number): Promise<boolean> => {
+// Supprimer un utilisateur
+export const deleteUser = async (userId: string) => {
   try {
     const API_URL = getApiUrl();
-    const response = await fetch(`${API_URL}/users`, {
+    
+    const response = await fetch(`${API_URL}/users/${userId}`, {
       method: 'DELETE',
-      headers: {
-        ...getAuthHeaders(),
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ id: userId })
+      headers: getAuthHeaders()
     });
 
     if (!response.ok) {
-      throw new Error(`HTTP Error: ${response.status}`);
+      throw new Error(`Erreur HTTP: ${response.status}`);
     }
 
-    const result = await response.json();
-    
-    if (result.success) {
-      clearUsersCache(); // Clear cache on successful deletion
-    }
-    
-    return result.success;
+    return await response.json();
   } catch (error) {
-    console.error("Error deleting user:", error);
-    return false;
+    console.error("Erreur lors de la suppression de l'utilisateur:", error);
+    throw error;
   }
 };
 
-/**
- * Get all users
- */
-export const getAllUsers = async (forceRefresh: boolean = false): Promise<Utilisateur[]> => {
-  if (!forceRefresh && usersCache !== null) {
-    return usersCache;
-  }
-  
+// Récupérer tous les utilisateurs
+export const getAllUsers = async () => {
   try {
     const API_URL = getApiUrl();
+    
     const response = await fetch(`${API_URL}/users`, {
       method: 'GET',
       headers: getAuthHeaders()
     });
 
     if (!response.ok) {
-      throw new Error(`HTTP Error: ${response.status}`);
+      throw new Error(`Erreur HTTP: ${response.status}`);
     }
 
-    const data = await response.json();
-    usersCache = data.users || [];
-    return usersCache;
+    return await response.json();
   } catch (error) {
-    console.error("Error fetching users:", error);
+    console.error("Erreur lors de la récupération des utilisateurs:", error);
     return [];
   }
 };
 
-/**
- * Create a new user
- */
-export const createUser = async (user: Partial<Utilisateur>): Promise<boolean> => {
+// Créer un nouvel utilisateur
+export const createUser = async (userData: any) => {
   try {
     const API_URL = getApiUrl();
+    
     const response = await fetch(`${API_URL}/users`, {
       method: 'POST',
       headers: {
         ...getAuthHeaders(),
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify(user)
+      body: JSON.stringify(userData)
     });
 
     if (!response.ok) {
-      throw new Error(`HTTP Error: ${response.status}`);
+      throw new Error(`Erreur HTTP: ${response.status}`);
     }
 
-    const result = await response.json();
-    
-    if (result.success) {
-      clearUsersCache(); // Clear cache on successful creation
-    }
-    
-    return result.success;
+    return await response.json();
   } catch (error) {
-    console.error("Error creating user:", error);
-    return false;
+    console.error("Erreur lors de la création de l'utilisateur:", error);
+    throw error;
   }
+};
+
+// Cache management - clear users cache
+let usersCache: any = null;
+let usersCacheTimestamp: number = 0;
+
+export const clearUsersCache = () => {
+  usersCache = null;
+  usersCacheTimestamp = 0;
+  console.log('Users cache cleared');
 };

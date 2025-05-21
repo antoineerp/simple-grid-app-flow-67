@@ -9,7 +9,7 @@ export {
   verifyToken,
   getIsLoggedIn,
   ensureUserIdFromToken,
-  getCurrentUser as getAuthCurrentUser,
+  getAuthCurrentUser,
   getCurrentUser
 } from './auth/authService';
 
@@ -59,7 +59,8 @@ export {
 export {
   syncData,
   loadData,
-  saveData
+  saveData,
+  syncService
 } from './sync/syncService';
 
 // dataStorageService
