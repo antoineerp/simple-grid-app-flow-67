@@ -1,3 +1,4 @@
+
 // authService
 export {
   getAuthHeaders,
@@ -84,7 +85,8 @@ export {
   disconnectUser,
   testDatabaseConnection,
   getDatabaseInfo,
-  getDatabaseConnectionCurrentUser
+  getDatabaseConnectionCurrentUser,
+  Utilisateur
 } from './core/databaseConnectionService';
 
 // userInitializationService

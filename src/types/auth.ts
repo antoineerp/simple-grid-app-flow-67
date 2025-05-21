@@ -1,17 +1,10 @@
 
-export interface User {
+export interface Utilisateur {
   id: string;
-  username?: string;
-  identifiant_technique?: string;
+  username: string;
   email?: string;
   role?: string;
-  nom?: string;
-  prenom?: string;
-}
-
-export interface AuthResponse {
-  success: boolean;
-  token?: string;
-  user?: User;
-  message?: string;
+  status?: 'active' | 'inactive';
+  last_login?: string;
+  created_at?: string;
 }
