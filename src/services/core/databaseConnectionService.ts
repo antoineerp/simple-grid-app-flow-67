@@ -1,6 +1,7 @@
 // Importation des dépendances nécessaires
 import { toast } from "@/hooks/use-toast";
-import { getApiUrl, getAuthHeaders } from "@/config/apiConfig";
+import { getApiUrl } from "@/config/apiConfig";
+import { getAuthHeaders } from "@/config/apiConfig";
 
 // Fonction pour récupérer l'utilisateur actuel
 export const getCurrentUser = (): string => {
@@ -181,43 +182,6 @@ export interface DatabaseInfo {
   tableList?: string[];
 }
 
-// Fonction pour tester la connexion à la base de données
-export const testDatabaseConnection = async (): Promise<boolean> => {
-  try {
-    const userId = getCurrentUser();
-    console.log(`Test de connexion à la base de données via check-users.php avec ${userId}`);
-    
-    // Utiliser check-users.php qui fonctionne pour tester la connexion
-    const response = await fetch(`${getApiUrl()}/check-users.php`, {
-      headers: getAuthHeaders(),
-      method: 'GET',
-      cache: 'no-store'
-    });
-    
-    if (!response.ok) {
-      const errorData = await response.json();
-      const errorMessage = errorData.message || response.statusText;
-      console.error("Erreur de connexion à la base de données:", errorMessage);
-      setLastConnectionError(errorMessage);
-      return false;
-    }
-    
-    const result = await response.json();
-    if (!result || !result.records) {
-      setLastConnectionError("Réponse de l'API invalide");
-      return false;
-    }
-    
-    console.log("Connexion à la base de données réussie via check-users.php");
-    return true;
-  } catch (error) {
-    console.error("Erreur lors du test de connexion à la base de données:", error);
-    const errorMessage = error instanceof Error ? error.message : "Erreur inconnue";
-    setLastConnectionError(errorMessage);
-    return false;
-  }
-};
-
 // Fonction pour récupérer les informations de la base de données
 export const getDatabaseInfo = async (): Promise<DatabaseInfo> => {
   try {
@@ -229,7 +193,7 @@ export const getDatabaseInfo = async (): Promise<DatabaseInfo> => {
       headers: {
         ...getAuthHeaders(),
         'Accept': 'application/json',
-        'Cache-Control': 'no-cache, no-store, must-revalidate'
+        'Cache-Control': 'no-cache, no-store'
       }
     });
     

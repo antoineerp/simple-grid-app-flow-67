@@ -1,9 +1,8 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { AlertCircle, CheckCircle, Database, Server, Users } from "lucide-react";
-import { getApiUrl, fetchWithErrorHandling } from '@/config/apiConfig';
+import { getApiUrl } from '@/config/apiConfig';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { getAuthHeaders } from '@/services/auth/authService';
 import { UserManager } from '@/services/users/userManager';
@@ -51,13 +50,19 @@ const ServerTest = () => {
       const API_URL = getApiUrl();
       console.log("Testing API connection to:", API_URL);
       
-      const data = await fetchWithErrorHandling(`${API_URL}/test.php`, {
+      const response = await fetch(`${API_URL}/test.php`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
           'Cache-Control': 'no-cache'
         }
       });
+      
+      if (!response.ok) {
+        throw new Error(`Erreur HTTP: ${response.status}`);
+      }
+      
+      const data = await response.json();
       
       console.log("API response:", data);
       

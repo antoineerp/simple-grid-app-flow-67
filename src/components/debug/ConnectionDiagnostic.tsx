@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Loader2, DatabaseIcon, RefreshCw, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { getCurrentUser } from '@/services/core/databaseConnectionService';
-import { getApiUrl, getFullApiUrl } from '@/config/apiConfig';
+import { getApiUrl } from '@/config/apiConfig';
 import { getAuthHeaders } from '@/services/auth/authService';
 import { toast } from '@/components/ui/use-toast';
 

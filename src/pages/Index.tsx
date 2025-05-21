@@ -1,7 +1,8 @@
+
 import React, { useState, useEffect } from 'react';
 import Logo from '@/components/auth/Logo';
 import LoginForm from '@/components/auth/LoginForm';
-import { getApiUrl, getFullApiUrl, testApiConnection } from '@/config/apiConfig';
+import { getApiUrl, testApiConnection } from '@/config/apiConfig';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle, ExternalLink, Server, RefreshCw } from 'lucide-react';
@@ -59,7 +60,7 @@ const Index = () => {
             <AlertDescription>
               <div className="font-semibold mb-1">Connexion à l'API impossible: {apiMessage}</div>
               <div className="mt-2 text-xs">
-                URL d'API actuelle: <span className="font-mono">{getFullApiUrl()}</span>
+                URL d'API actuelle: <span className="font-mono">{getApiUrl()}</span>
                 
                 {apiDetails && apiDetails.tip && (
                   <div className="mt-1 p-2 bg-red-100 rounded">
