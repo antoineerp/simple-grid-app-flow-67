@@ -10,7 +10,7 @@ const Sidebar = () => {
   const user = getCurrentUser();
 
   return (
-    <aside className="w-64 bg-gray-50 border-r min-h-screen">
+    <aside className="w-64 bg-gray-50 border-r h-full overflow-y-auto">
       <nav className="flex flex-col p-4">
         {/* Items de navigation standards */}
         {navigationItems.map((item) => (

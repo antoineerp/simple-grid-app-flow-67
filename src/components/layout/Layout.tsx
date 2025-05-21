@@ -55,14 +55,16 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     <TooltipProvider>
       <GlobalDataProvider>
         <GlobalSyncProvider>
-          <div className="flex h-screen overflow-hidden bg-slate-50">
-            <Sidebar />
-            <div className="flex flex-col flex-1 overflow-y-auto">
-              <Header />
-              <main className="flex-1">
-                {children}
-              </main>
-              <GlobalSyncManager />
+          <div className="flex flex-col h-screen overflow-hidden bg-slate-50">
+            <Header />
+            <div className="flex flex-1 overflow-hidden">
+              <Sidebar />
+              <div className="flex flex-col flex-1 overflow-y-auto">
+                <main className="flex-1">
+                  {children}
+                </main>
+                <GlobalSyncManager />
+              </div>
             </div>
             <Toaster />
           </div>
