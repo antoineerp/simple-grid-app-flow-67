@@ -21,6 +21,7 @@ interface DocumentTableProps {
   onToggleGroup: (id: string) => void;
   onEditGroup: (group: DocumentGroupType) => void;
   onDeleteGroup: (id: string) => void;
+  onAddDocument: () => void; // Ajout de cette propriété manquante
 }
 
 const DocumentTable: React.FC<DocumentTableProps> = ({
@@ -35,7 +36,8 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
   onGroupReorder,
   onToggleGroup,
   onEditGroup,
-  onDeleteGroup
+  onDeleteGroup,
+  onAddDocument // Ajout de cette propriété manquante
 }) => {
   // Filtrer les documents qui n'appartiennent à aucun groupe
   const ungroupedDocuments = documents.filter(d => !d.groupId);
@@ -54,6 +56,7 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
   });
   
   const {
+    dragState,
     handleDragStart,
     handleDragOver,
     handleDragLeave,
@@ -70,7 +73,7 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
   return (
     <div className="bg-white rounded-md shadow overflow-hidden">
       <Table>
-        <DocumentTableHeader />
+        <DocumentTableHeader onAddDocument={onAddDocument} />
         
         <TableBody>
           {groupsWithItems.map((group) => (
