@@ -135,6 +135,11 @@ export const getConnectionError = (): string | null => {
 };
 
 /**
+ * Alias pour getConnectionError pour compatibilité
+ */
+export const getLastConnectionError = getConnectionError;
+
+/**
  * Réinitialise l'état de connexion
  */
 export const resetConnectionState = (): void => {
@@ -211,6 +216,66 @@ export const connectAsUser = async (userId: string): Promise<boolean> => {
     return false;
   }
 };
+
+/**
+ * Déconnecte l'utilisateur (pour compatibilité avec le code existant)
+ */
+export const disconnectUser = async (): Promise<boolean> => {
+  try {
+    // Reset to default user
+    currentUser = DEFAULT_DB_USER;
+    localStorage.removeItem('originalUserId');
+    localStorage.removeItem('userPrefix');
+    
+    return true;
+  } catch (error) {
+    console.error("Erreur lors de la déconnexion:", error);
+    return false;
+  }
+};
+
+/**
+ * Vérifie si un utilisateur est un utilisateur système (pour compatibilité)
+ */
+export const isSystemUser = (userId: string): boolean => {
+  return RESTRICTED_IDS.includes(userId);
+};
+
+/**
+ * Force l'utilisation d'un utilisateur sécurisé (pour compatibilité)
+ */
+export const forceSafeUser = (): string => {
+  return DEFAULT_DB_USER;
+};
+
+/**
+ * Récupère des informations sur la base de données
+ */
+export const getDatabaseInfo = async (): Promise<any> => {
+  try {
+    const response = await fetch(`${getApiUrl()}/db-info.php`, {
+      method: 'GET',
+      headers: {
+        ...getAuthHeaders(),
+        'Cache-Control': 'no-cache'
+      }
+    });
+    
+    if (!response.ok) {
+      throw new Error(`HTTP error ${response.status}`);
+    }
+    
+    return await response.json();
+  } catch (error) {
+    console.error("Erreur lors de la récupération des informations de la base de données:", error);
+    return { error: true, message: error instanceof Error ? error.message : "Erreur inconnue" };
+  }
+};
+
+/**
+ * Alias pour getCurrentUser pour compatibilité API
+ */
+export const getDatabaseConnectionCurrentUser = getCurrentUser;
 
 // Initialiser l'utilisateur au démarrage si nécessaire
 export const initializeUser = () => {

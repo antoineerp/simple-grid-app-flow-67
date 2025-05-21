@@ -1,4 +1,3 @@
-
 /**
  * Service unifié de synchronisation des documents
  * Utilise exclusivement la base p71x6d_richard sur Infomaniak
@@ -179,5 +178,39 @@ export const fetchDocumentsFromServer = async (): Promise<Document[]> => {
     
     // En cas d'erreur, retourner les documents du cache local
     return getLocalDocuments();
+  }
+};
+
+// Forcer une synchronisation complète avec le serveur
+export const forceFullSync = async (): Promise<boolean> => {
+  console.log("DocumentSyncService: Démarrage d'une synchronisation forcée");
+  
+  try {
+    // D'abord récupérer les données du serveur
+    const serverDocuments = await fetchDocumentsFromServer();
+    
+    if (!serverDocuments || serverDocuments.length === 0) {
+      console.log("DocumentSyncService: Aucun document sur le serveur");
+      return true;
+    }
+    
+    // Enregistrer localement
+    saveLocalDocuments(serverDocuments);
+    
+    console.log(`DocumentSyncService: Synchronisation forcée réussie pour ${serverDocuments.length} documents`);
+    
+    // Notifier l'application
+    const syncEvent = new CustomEvent('documents-sync-complete', {
+      detail: { 
+        timestamp: new Date().toISOString(),
+        count: serverDocuments.length
+      }
+    });
+    window.dispatchEvent(syncEvent);
+    
+    return true;
+  } catch (error) {
+    console.error("DocumentSyncService: Erreur lors de la synchronisation forcée:", error);
+    return false;
   }
 };

@@ -81,13 +81,14 @@ export {
   getCurrentUser as getDatabaseCurrentUser,
   setCurrentUser,
   connectAsUser,
-  isSystemUser,
-  forceSafeUser,
-  getLastConnectionError,
   disconnectUser,
+  getConnectionError,
+  getLastConnectionError,
   testDatabaseConnection,
   getDatabaseInfo,
-  getCurrentUser as getDatabaseConnectionCurrentUser
+  getCurrentUser as getDatabaseConnectionCurrentUser,
+  isSystemUser,
+  forceSafeUser
 } from './core/databaseConnectionService';
 
 // userInitializationService
