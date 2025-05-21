@@ -24,7 +24,7 @@ export const validateUserId = (userId: string | undefined | null, serviceName: s
     // Afficher un toast d'avertissement pour les développeurs
     if (process.env.NODE_ENV === 'development') {
       toast({
-        variant: "warning",
+        variant: "default",
         title: "Attention",
         description: `ID utilisateur vide détecté dans ${serviceName}, utilisation de l'ID courant: ${currentUser}`
       });
