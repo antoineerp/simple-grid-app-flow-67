@@ -6,7 +6,7 @@ import type { DocumentGroup as DocumentGroupType } from '@/types/documents';
 import DocumentTableHeader from '@/components/gestion-documentaire/table/TableHeader';
 import DocumentRow from '@/components/gestion-documentaire/table/DocumentRow';
 import DocumentGroupComponent from '@/components/gestion-documentaire/table/DocumentGroup';
-import { useDragAndDrop } from '@/components/gestion-documentaire/table/useDragAndDrop';
+import { useDragAndDropTable } from '@/hooks/useDragAndDropTable';
 
 interface DocumentTableProps {
   documents: Document[];
@@ -41,14 +41,15 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
   const ungroupedDocuments = documents.filter(d => !d.groupId);
   
   // Pour chaque groupe, ajouter les documents correspondants
-  const groupsWithItems = groups.map(group => {
+  const groupsWithItems = groups.map((group, index) => {
     // Trouver tous les documents appartenant à ce groupe
     const groupItems = documents.filter(doc => doc.groupId === group.id);
     
     // Retourner le groupe avec ses documents
     return {
       ...group,
-      items: groupItems
+      items: groupItems,
+      index
     };
   });
   
@@ -60,7 +61,7 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
     handleDrop,
     handleDragEnd,
     handleGroupDrop
-  } = useDragAndDrop(documents, onReorder);
+  } = useDragAndDropTable(documents, onReorder);
 
   const handleGroupDragStart = (e: React.DragEvent<HTMLTableRowElement>, groupId: string) => {
     e.dataTransfer.setData('text/plain', JSON.stringify({ groupId }));
@@ -77,6 +78,7 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
             <DocumentGroupComponent
               key={group.id}
               group={group}
+              groupIndex={group.index}
               onResponsabiliteChange={onResponsabiliteChange}
               onAtteinteChange={onAtteinteChange}
               onExclusionChange={onExclusionChange}
@@ -85,10 +87,10 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
               onToggleGroup={onToggleGroup}
               onEditGroup={onEditGroup}
               onDeleteGroup={onDeleteGroup}
-              onDragStart={handleDragStart}
+              onDragStart={(e, id, gId) => handleDragStart(e, id, gId)}
               onDragOver={handleDragOver}
               onDragLeave={handleDragLeave}
-              onDrop={handleDrop}
+              onDrop={(e, id, gId) => handleDrop(e, id, gId)}
               onDragEnd={handleDragEnd}
               onGroupDragStart={handleGroupDragStart}
               onGroupDrop={handleGroupDrop}
@@ -97,19 +99,20 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
         </TableBody>
         
         <TableBody>
-          {ungroupedDocuments.map((doc) => (
+          {ungroupedDocuments.map((doc, index) => (
             <DocumentRow
               key={doc.id}
               doc={doc}
+              index={index}
               onResponsabiliteChange={onResponsabiliteChange}
               onAtteinteChange={onAtteinteChange}
               onExclusionChange={onExclusionChange}
               onEdit={onEdit}
               onDelete={onDelete}
-              onDragStart={handleDragStart}
+              onDragStart={(e, id, gId) => handleDragStart(e, id, gId)}
               onDragOver={handleDragOver}
               onDragLeave={handleDragLeave}
-              onDrop={handleDrop}
+              onDrop={(e, id, gId) => handleDrop(e, id, gId)}
               onDragEnd={handleDragEnd}
             />
           ))}

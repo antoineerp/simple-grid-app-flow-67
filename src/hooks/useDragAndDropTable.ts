@@ -12,12 +12,14 @@ export function useDragAndDropTable<T extends { id: string | number }>(
 ) {
   const [dragState, setDragState] = useState<DragAndDropState>({ draggedItem: null });
 
-  const handleDragStart = (e: React.DragEvent<HTMLTableRowElement>, id: string | number, index: number, groupId?: string) => {
+  const handleDragStart = (e: React.DragEvent<HTMLTableRowElement>, id: string, groupId?: string, index?: number) => {
+    const realIndex = typeof index === 'number' ? index : items.findIndex(item => String(item.id) === id);
+    
     setDragState({
-      draggedItem: { id: String(id), groupId, index }
+      draggedItem: { id: String(id), groupId, index: realIndex }
     });
     
-    e.dataTransfer.setData('text/plain', JSON.stringify({ id, groupId, index }));
+    e.dataTransfer.setData('text/plain', JSON.stringify({ id, groupId, index: realIndex }));
     e.currentTarget.classList.add('opacity-50');
   };
 
@@ -30,7 +32,7 @@ export function useDragAndDropTable<T extends { id: string | number }>(
     e.currentTarget.classList.remove('border-dashed', 'border-2', 'border-primary');
   };
 
-  const handleDrop = (e: React.DragEvent<HTMLTableRowElement>, targetId: string | number, targetIndex: number, targetGroupId?: string) => {
+  const handleDrop = (e: React.DragEvent<HTMLTableRowElement>, targetId: string, targetGroupId?: string) => {
     e.preventDefault();
     e.currentTarget.classList.remove('border-dashed', 'border-2', 'border-primary');
     
@@ -42,8 +44,13 @@ export function useDragAndDropTable<T extends { id: string | number }>(
     
     if (sourceId === String(targetId) && sourceGroupId === targetGroupId) return;
     
-    console.log(`Moving item from index ${sourceIndex} to ${targetIndex} (group: ${targetGroupId || 'none'})`);
-    onReorder(sourceIndex, targetIndex, targetGroupId);
+    // Find target index
+    const targetIndex = items.findIndex(item => String(item.id) === targetId);
+    
+    if (targetIndex !== -1) {
+      console.log(`Moving item from index ${sourceIndex} to ${targetIndex} (group: ${targetGroupId || 'none'})`);
+      onReorder(sourceIndex, targetIndex, targetGroupId);
+    }
     
     setDragState({ draggedItem: null });
   };
@@ -71,14 +78,11 @@ export function useDragAndDropTable<T extends { id: string | number }>(
     if (groupItems.length > 0) {
       const lastGroupItem = groupItems[groupItems.length - 1];
       const lastGroupItemIndex = items.findIndex(item => 
-        item.id === lastGroupItem.id
+        String(item.id) === String(lastGroupItem.id)
       );
       if (lastGroupItemIndex !== -1) {
         targetIndex = lastGroupItemIndex + 1;
       }
-    } else {
-      // If no items in group yet, insert at the end
-      targetIndex = items.length;
     }
     
     console.log(`Moving item from index ${sourceIndex} to group ${groupId} at index ${targetIndex}`);

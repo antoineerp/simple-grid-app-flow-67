@@ -3,7 +3,7 @@ import React from 'react';
 import { Pencil, Trash, GripVertical } from 'lucide-react';
 import { TableCell, TableRow } from "@/components/ui/table";
 import { Document } from '@/types/documents';
-import ResponsabiliteSelector from './ResponsabiliteSelector';
+import ResponsabiliteSelector from '../ResponsabiliteSelector';
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 

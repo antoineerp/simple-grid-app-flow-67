@@ -64,17 +64,18 @@ export const BibliothequeTable: React.FC<BibliothequeTableProps> = ({
           </TableRow>
         </TableHeader>
         <TableBody>
-          {groups.map(group => (
+          {groups.map((group, groupIndex) => (
             <BibliothequeGroup
               key={group.id}
               group={group}
+              groupIndex={groupIndex}
               onEdit={onEdit}
               onDelete={onDelete}
               onToggleGroup={onToggleGroup}
-              onDragStart={handleDragStart}
+              onDragStart={(e, id, groupId) => handleDragStart(e, id, groupId)}
               onDragOver={handleDragOver}
               onDragLeave={handleDragLeave}
-              onDrop={handleDrop}
+              onDrop={(e, id, groupId) => handleDrop(e, id, groupId)}
               onDragEnd={handleDragEnd}
               onGroupDragStart={handleGroupDragStart}
               onGroupDrop={handleGroupDrop}
@@ -89,10 +90,10 @@ export const BibliothequeTable: React.FC<BibliothequeTableProps> = ({
               index={index}
               onEdit={onEdit}
               onDelete={onDelete}
-              onDragStart={handleDragStart}
+              onDragStart={(e, id, groupId) => handleDragStart(e, id, groupId, index)}
               onDragOver={handleDragOver}
               onDragLeave={handleDragLeave}
-              onDrop={handleDrop}
+              onDrop={(e, id, groupId) => handleDrop(e, id, groupId)}
               onDragEnd={handleDragEnd}
             />
           ))}

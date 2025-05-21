@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Pencil, Trash, GripVertical, ChevronDown } from 'lucide-react';
 import ResponsableSelector from '@/components/ResponsableSelector';
@@ -62,6 +61,13 @@ const ExigenceTable: React.FC<ExigenceTableProps> = ({
   const handleGroupDragStart = (e: React.DragEvent<HTMLTableRowElement>, groupId: string) => {
     e.dataTransfer.setData('text/plain', JSON.stringify({ groupId, isGroup: true }));
     e.currentTarget.classList.add('opacity-50');
+  };
+
+  // Helper function to safely convert string to number when needed
+  const safeNumberConversion = (value: string | number): number => {
+    if (typeof value === 'number') return value;
+    const num = Number(value);
+    return isNaN(num) ? 0 : num;
   };
 
   return (

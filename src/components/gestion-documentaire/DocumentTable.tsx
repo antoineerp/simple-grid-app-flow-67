@@ -76,6 +76,7 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
                   ...group,
                   items: groupItems
                 }}
+                groupIndex={groupIndex}
                 onResponsabiliteChange={onResponsabiliteChange}
                 onAtteinteChange={onAtteinteChange}
                 onExclusionChange={onExclusionChange}
@@ -84,14 +85,13 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
                 onToggleGroup={onToggleGroup}
                 onEditGroup={onEditGroup}
                 onDeleteGroup={onDeleteGroup}
-                onDragStart={handleDragStart}
+                onDragStart={(e, id, groupId) => handleDragStart(e, id, groupId)}
                 onDragOver={handleDragOver}
                 onDragLeave={handleDragLeave}
-                onDrop={handleDrop}
+                onDrop={(e, id, groupId) => handleDrop(e, id, groupId)}
                 onDragEnd={handleDragEnd}
                 onGroupDragStart={handleGroupDragStart}
                 onGroupDrop={handleGroupDrop}
-                groupIndex={groupIndex}
               />
             );
           })}
@@ -108,10 +108,10 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
               onExclusionChange={onExclusionChange}
               onEdit={onEdit}
               onDelete={onDelete}
-              onDragStart={handleDragStart}
+              onDragStart={(e, id, groupId) => handleDragStart(e, id, groupId)}
               onDragOver={handleDragOver}
               onDragLeave={handleDragLeave}
-              onDrop={handleDrop}
+              onDrop={(e, id, groupId) => handleDrop(e, id, groupId)}
               onDragEnd={handleDragEnd}
             />
           ))}
