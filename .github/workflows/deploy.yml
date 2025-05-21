@@ -32,13 +32,12 @@ jobs:
         ls -la dist/
         echo "Liste des fichiers assets:"
         ls -la dist/assets/ || echo "Dossier assets non trouvé"
-        echo "Contenu de index.html:"
-        cat dist/index.html || echo "Fichier index.html non trouvé"
 
     - name: Prepare deployment directory
       run: |
         # Création des dossiers nécessaires
         mkdir -p deploy/assets
+        mkdir -p deploy/api
         mkdir -p deploy/api/config
         mkdir -p deploy/api/services
         mkdir -p deploy/api/controllers
@@ -48,58 +47,21 @@ jobs:
         mkdir -p deploy/api/operations
         mkdir -p deploy/api/utils
         mkdir -p deploy/public/lovable-uploads
+        mkdir -p deploy/dist
         
-        # Vérification des fichiers JS et CSS critiques dans dist/assets
-        echo "Vérification des fichiers JS et CSS principaux..."
-        MAIN_JS=$(find dist/assets -name "main*.js" | head -n 1)
-        INDEX_JS=$(find dist/assets -name "index*.js" | head -n 1)
-        MAIN_CSS=$(find dist/assets -name "*.css" | head -n 1)
+        # Copie du dossier dist complet
+        echo "Copie du dossier dist complet..."
+        cp -r dist/ deploy/dist/
         
-        if [ -z "$MAIN_JS" ] && [ -z "$INDEX_JS" ]; then
-          echo "ATTENTION: Aucun fichier main.js ou index.js trouvé dans dist/assets!"
-        else
-          echo "Fichier JS principal trouvé: ${MAIN_JS:-$INDEX_JS}"
-        fi
-        
-        if [ -z "$MAIN_CSS" ]; then
-          echo "ATTENTION: Aucun fichier CSS trouvé dans dist/assets!"
-        else
-          echo "Fichier CSS principal trouvé: $MAIN_CSS"
-        fi
-        
-        # Copie du contenu du dossier dist à la racine du déploiement
-        echo "Copie de index.html à la racine..."
-        cp dist/index.html deploy/
-        
-        # Copie des fichiers assets avec vérification et feedback
-        echo "Copie des assets..."
-        mkdir -p deploy/assets
-        if [ -d "dist/assets" ]; then
-          cp -rv dist/assets/* deploy/assets/
-          echo "Nombre de fichiers copiés dans deploy/assets: $(find deploy/assets -type f | wc -l)"
-        else
-          echo "ERREUR: Le dossier dist/assets n'existe pas!"
-        fi
-        
-        # Créer des fichiers statiques de fallback si nécessaire
-        if [ ! -f "deploy/assets/main.js" ] && [ ! -f "deploy/assets/index.js" ]; then
-          echo "Création d'un fichier index.js de fallback..."
-          echo "console.log('Fichier de fallback chargé. Veuillez vider le cache du navigateur.');" > deploy/assets/index.js
-        fi
-        
-        # Création d'un backup des assets pour référence
-        mkdir -p deploy/dist/assets
-        cp -r dist/assets/* deploy/dist/assets/ || echo "Aucun fichier à copier pour le backup"
+        # Copie des fichiers compilés directement dans assets
+        cp -r dist/assets/* deploy/assets/
         
         # Copie des autres fichiers nécessaires
+        cp dist/index.html deploy/
         cp .htaccess deploy/ || echo "Fichier .htaccess non trouvé"
-        cp fix-assets-auto.php deploy/ || echo "Fichier fix-assets-auto.php non trouvé"
         
-        # Vérifier la présence du fichier assets/index.js (important)
-        if [ ! -f "deploy/assets/index.js" ] && [ -f "src/assets/index.js" ]; then
-          echo "Copie manuelle du fichier src/assets/index.js vers deploy/assets/..."
-          cp src/assets/index.js deploy/assets/
-        fi
+        # Copie des fichiers PHP de correction automatique
+        cp fix-assets-auto.php deploy/ || echo "Fichier fix-assets-auto.php non trouvé"
         
         # Copie des fichiers de l'API
         if [ -d "api" ]; then
@@ -117,12 +79,8 @@ jobs:
           echo "Dossier uploads non trouvé"
         fi
         
-        # Vérification finale des assets
-        echo "Contenu final du dossier assets:"
-        ls -la deploy/assets/
-        
         echo "Structure du dossier de déploiement:"
-        find deploy -type f | sort | head -n 20
+        find deploy -type f | sort
 
     - name: Sync to Infomaniak server
       uses: SamKirkland/FTP-Deploy-Action@v4.3.4
@@ -147,10 +105,19 @@ jobs:
         timeout: 120000
     
     - name: Run Fix-Assets Script (if server supports it)
-      run: |
-        echo "Exécution du script de réparation des assets via curl..."
-        curl -s "${{ secrets.SITE_URL }}/fix-assets-auto.php" || echo "Échec de l'exécution du script de réparation"
-        echo "Script de réparation terminé"
+      uses: SamKirkland/FTP-Deploy-Action@v4.3.4
+      with:
+        server: ${{ secrets.FTP_SERVER }}
+        username: ${{ secrets.FTP_USERNAME }}
+        password: ${{ secrets.FTP_PASSWORD }}
+        local-dir: ./deploy/
+        server-dir: /sites/qualiopi.ch/
+        dangerous-clean-slate: false
+        exclude: |
+          **/*
+          !fix-assets-auto.php
+        log-level: verbose
+        timeout: 30000
 
     - name: Clean up
       run: |
