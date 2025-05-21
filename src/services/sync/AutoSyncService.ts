@@ -1,3 +1,4 @@
+
 /**
  * Service de synchronisation automatique centralisée
  * Ce service gère la synchronisation des données entre toutes les pages de l'application
@@ -21,13 +22,39 @@ const syncTimestamps: Record<string, number> = {};
 const initialDataLoaded: Record<string, boolean> = {};
 
 // Intervalles de synchronisation (en ms)
-const SYNC_INTERVAL = 5000; // 5 secondes (réduit de 10 secondes)
-const RETRY_INTERVAL = 30000; // 30 secondes
+const SYNC_INTERVAL = 60000; // 60 secondes (augmenté de 5 secondes)
+const RETRY_INTERVAL = 120000; // 2 minutes (augmenté de 30 secondes)
 
 // État global de la synchronisation
 let isSyncInProgress = false;
 let lastSyncAttempt = 0;
 let syncIntervalId: number | null = null;
+let syncEnabled = true; // Indicateur pour activer/désactiver la synchronisation
+
+// Événements de synchronisation
+export const SYNC_EVENTS = {
+  SYNC_START: 'sync-start',
+  SYNC_SUCCESS: 'sync-success', 
+  SYNC_ERROR: 'sync-error',
+  DATA_CHANGED: 'data-changed',
+  SYNC_COMPLETED: 'sync-completed'
+};
+
+/**
+ * Active ou désactive la synchronisation automatique
+ */
+export const setSyncEnabled = (enabled: boolean): void => {
+  syncEnabled = enabled;
+  if (enabled) {
+    console.log('AutoSync: Synchronisation automatique activée');
+    if (!syncIntervalId) {
+      startAutoSync();
+    }
+  } else {
+    console.log('AutoSync: Synchronisation automatique désactivée');
+    stopAutoSync();
+  }
+};
 
 /**
  * Enregistre les données localement
@@ -55,7 +82,7 @@ export const saveLocalData = <T>(tableName: string, data: T[]): void => {
     syncTimestamps[tableName] = Date.now();
     
     // Émettre un événement pour notification
-    window.dispatchEvent(new CustomEvent('data-changed', { 
+    window.dispatchEvent(new CustomEvent(SYNC_EVENTS.DATA_CHANGED, { 
       detail: { tableName, count: data.length }
     }));
   } catch (error) {
@@ -101,12 +128,22 @@ export const loadLocalData = <T>(tableName: string): T[] => {
  * Effectue la synchronisation des données avec le serveur
  */
 export const syncWithServer = async <T>(tableName: string, data: T[]): Promise<boolean> => {
+  if (!syncEnabled) {
+    console.log(`AutoSync: Synchronisation désactivée, ignorée pour ${tableName}`);
+    return false;
+  }
+  
   if (isSyncInProgress) {
     console.log(`AutoSync: Synchronisation déjà en cours, ignorée pour ${tableName}`);
     return false;
   }
   
   const currentUser = getCurrentUser() || 'default';
+  
+  // Diffuser un événement de début de synchronisation
+  window.dispatchEvent(new CustomEvent(SYNC_EVENTS.SYNC_START, { 
+    detail: { tableName, count: data.length }
+  }));
   
   try {
     isSyncInProgress = true;
@@ -117,6 +154,12 @@ export const syncWithServer = async <T>(tableName: string, data: T[]): Promise<b
     if (!isEndpointValid) {
       console.error(`AutoSync: Point d'accès API invalide pour ${tableName}`);
       isSyncInProgress = false;
+      
+      // Diffuser un événement d'erreur
+      window.dispatchEvent(new CustomEvent(SYNC_EVENTS.SYNC_ERROR, { 
+        detail: { tableName, error: "Point d'accès API invalide" }
+      }));
+      
       return false;
     }
     
@@ -160,7 +203,7 @@ export const syncWithServer = async <T>(tableName: string, data: T[]): Promise<b
         localStorage.setItem(`${tableName}_${currentUser}_last_synced`, syncTime);
         
         // Diffuser un événement de synchronisation réussie
-        window.dispatchEvent(new CustomEvent('sync-success', { 
+        window.dispatchEvent(new CustomEvent(SYNC_EVENTS.SYNC_SUCCESS, { 
           detail: { tableName, timestamp: syncTime }
         }));
         
@@ -177,13 +220,18 @@ export const syncWithServer = async <T>(tableName: string, data: T[]): Promise<b
     console.error(`AutoSync: Erreur lors de la synchronisation de ${tableName}:`, error);
     
     // Diffuser un événement d'erreur
-    window.dispatchEvent(new CustomEvent('sync-error', { 
+    window.dispatchEvent(new CustomEvent(SYNC_EVENTS.SYNC_ERROR, { 
       detail: { tableName, error: error instanceof Error ? error.message : String(error) }
     }));
     
     return false;
   } finally {
     isSyncInProgress = false;
+    
+    // Diffuser un événement de fin de synchronisation
+    window.dispatchEvent(new CustomEvent(SYNC_EVENTS.SYNC_COMPLETED, { 
+      detail: { tableName, timestamp: new Date().toISOString() }
+    }));
   }
 };
 
@@ -196,6 +244,11 @@ export const startAutoSync = (): void => {
   }
   
   syncIntervalId = window.setInterval(() => {
+    // Ne pas déclencher si la synchronisation est désactivée
+    if (!syncEnabled) {
+      return;
+    }
+    
     // Ne pas déclencher si une synchronisation est déjà en cours
     if (isSyncInProgress) {
       return;
@@ -227,7 +280,7 @@ export const startAutoSync = (): void => {
     }
   }, SYNC_INTERVAL);
   
-  console.log(`AutoSync: Synchronisation automatique démarrée (intervalle: ${SYNC_INTERVAL}ms)`);
+  console.log(`AutoSync: Synchronisation automatique démarrée (intervalle: ${SYNC_INTERVAL/1000}s)`);
   
   // Ajouter aussi des écouteurs pour les événements réseau
   window.addEventListener('online', handleOnline);
@@ -260,6 +313,11 @@ export const stopAutoSync = (): void => {
 function handleOnline() {
   console.log('AutoSync: Connexion rétablie, tentative de synchronisation');
   
+  // Ne pas synchroniser si la synchronisation est désactivée
+  if (!syncEnabled) {
+    return;
+  }
+  
   // Synchroniser toutes les tables modifiées
   const tablesWithChanges = Object.keys(pendingChanges);
   
@@ -289,15 +347,74 @@ function handleOffline() {
  * Gère l'événement de changement de visibilité de la page
  */
 function handleVisibilityChange() {
+  if (!syncEnabled) {
+    return;
+  }
+  
   if (document.visibilityState === 'visible') {
     console.log('AutoSync: Onglet actif, vérification des synchronisations en attente');
     
-    // Si la dernière tentative date de plus de 30 secondes, réessayer
+    // Si la dernière tentative date de plus de l'intervalle de réessai, réessayer
     if (Date.now() - lastSyncAttempt > RETRY_INTERVAL) {
       handleOnline();
     }
   }
 }
+
+/**
+ * Vérifie s'il y a des modifications en attente de synchronisation
+ */
+export const hasPendingChanges = (tableName?: string): boolean => {
+  if (tableName) {
+    return !!pendingChanges[tableName];
+  }
+  return Object.keys(pendingChanges).length > 0;
+};
+
+/**
+ * Obtient l'horodatage de la dernière synchronisation pour une table
+ */
+export const getLastSynced = (tableName: string): Date | null => {
+  try {
+    const currentUser = getCurrentUser() || 'default';
+    const lastSyncedStr = localStorage.getItem(`${tableName}_${currentUser}_last_synced`);
+    return lastSyncedStr ? new Date(lastSyncedStr) : null;
+  } catch (error) {
+    return null;
+  }
+};
+
+/**
+ * Force la synchronisation de toutes les tables avec des changements en attente
+ */
+export const forceSync = async (): Promise<Record<string, boolean>> => {
+  if (!syncEnabled) {
+    return {};
+  }
+  
+  const results: Record<string, boolean> = {};
+  const tablesWithChanges = Object.keys(pendingChanges);
+  
+  if (tablesWithChanges.length === 0) {
+    return results;
+  }
+  
+  console.log(`AutoSync: Forçage de la synchronisation pour ${tablesWithChanges.length} tables`);
+  
+  for (const tableName of tablesWithChanges) {
+    if (pendingChanges[tableName]) {
+      try {
+        const success = await syncWithServer(tableName, pendingChanges[tableName]);
+        results[tableName] = success;
+      } catch (error) {
+        console.error(`AutoSync: Erreur lors du forçage de la synchronisation de ${tableName}:`, error);
+        results[tableName] = false;
+      }
+    }
+  }
+  
+  return results;
+};
 
 /**
  * Hook personnalisé pour utiliser le service de synchronisation automatique
@@ -306,7 +423,7 @@ export const useAutoSync = <T>(tableName: string) => {
   const { isOnline } = useNetworkStatus();
   const { toast } = useToast();
   const [data, setData] = useState<T[]>([]);
-  const [lastSynced, setLastSynced] = useState<Date | null>(null);
+  const [lastSynced, setLastSynced] = useState<Date | null>(getLastSynced(tableName));
   const [isSyncing, setIsSyncing] = useState<boolean>(false);
   
   // Charger les données initiales
@@ -324,16 +441,14 @@ export const useAutoSync = <T>(tableName: string) => {
         setData(localData);
         
         // Récupérer la date de dernière synchronisation
-        const currentUser = getCurrentUser() || 'default';
-        const lastSyncedStr = localStorage.getItem(`${tableName}_${currentUser}_last_synced`);
-        
-        if (lastSyncedStr) {
-          setLastSynced(new Date(lastSyncedStr));
+        const lastSyncDate = getLastSynced(tableName);
+        if (lastSyncDate) {
+          setLastSynced(lastSyncDate);
         }
       }
       
-      // Si en ligne, essayer de synchroniser
-      if (isOnline) {
+      // Si en ligne et que la synchronisation est activée, essayer de synchroniser
+      if (isOnline && syncEnabled) {
         setIsSyncing(true);
         try {
           const success = await syncWithServer(tableName, localData);
@@ -342,11 +457,7 @@ export const useAutoSync = <T>(tableName: string) => {
           }
         } catch (error) {
           console.error(`useAutoSync: Erreur lors de la synchronisation initiale de ${tableName}:`, error);
-          toast({
-            title: "Erreur de synchronisation",
-            description: "Impossible de synchroniser les données avec le serveur. Les modifications sont sauvegardées localement.",
-            variant: "destructive"
-          });
+          // Ne pas afficher de toast pour les erreurs initiales
         } finally {
           setIsSyncing(false);
         }
@@ -356,8 +467,20 @@ export const useAutoSync = <T>(tableName: string) => {
     loadInitialData();
   }, [tableName, isOnline, toast]);
   
-  // Écouter les événements de changement de données
+  // Écouter les événements de synchronisation
   useEffect(() => {
+    const handleSyncStart = (event: CustomEvent) => {
+      if (event.detail?.tableName === tableName) {
+        setIsSyncing(true);
+      }
+    };
+    
+    const handleSyncCompleted = (event: CustomEvent) => {
+      if (event.detail?.tableName === tableName) {
+        setIsSyncing(false);
+      }
+    };
+    
     const handleDataChanged = (event: CustomEvent) => {
       if (event.detail?.tableName === tableName) {
         // Recharger les données
@@ -369,47 +492,55 @@ export const useAutoSync = <T>(tableName: string) => {
     const handleSyncSuccess = (event: CustomEvent) => {
       if (event.detail?.tableName === tableName) {
         setLastSynced(new Date(event.detail.timestamp));
-        setIsSyncing(false);
       }
     };
     
     const handleSyncError = (event: CustomEvent) => {
       if (event.detail?.tableName === tableName) {
-        setIsSyncing(false);
-        toast({
-          title: "Erreur de synchronisation",
-          description: event.detail.error || "Impossible de synchroniser avec le serveur",
-          variant: "destructive"
-        });
+        // Ne pas afficher automatiquement les erreurs de synchronisation
+        // sauf pour les synchronisations manuelles
       }
     };
     
     // Ajouter les écouteurs
-    window.addEventListener('data-changed', handleDataChanged as EventListener);
-    window.addEventListener('sync-success', handleSyncSuccess as EventListener);
-    window.addEventListener('sync-error', handleSyncError as EventListener);
+    window.addEventListener(SYNC_EVENTS.SYNC_START, handleSyncStart as EventListener);
+    window.addEventListener(SYNC_EVENTS.SYNC_COMPLETED, handleSyncCompleted as EventListener);
+    window.addEventListener(SYNC_EVENTS.DATA_CHANGED, handleDataChanged as EventListener);
+    window.addEventListener(SYNC_EVENTS.SYNC_SUCCESS, handleSyncSuccess as EventListener);
+    window.addEventListener(SYNC_EVENTS.SYNC_ERROR, handleSyncError as EventListener);
     
     // Nettoyage
     return () => {
-      window.removeEventListener('data-changed', handleDataChanged as EventListener);
-      window.removeEventListener('sync-success', handleSyncSuccess as EventListener);
-      window.removeEventListener('sync-error', handleSyncError as EventListener);
+      window.removeEventListener(SYNC_EVENTS.SYNC_START, handleSyncStart as EventListener);
+      window.removeEventListener(SYNC_EVENTS.SYNC_COMPLETED, handleSyncCompleted as EventListener);
+      window.removeEventListener(SYNC_EVENTS.DATA_CHANGED, handleDataChanged as EventListener);
+      window.removeEventListener(SYNC_EVENTS.SYNC_SUCCESS, handleSyncSuccess as EventListener);
+      window.removeEventListener(SYNC_EVENTS.SYNC_ERROR, handleSyncError as EventListener);
     };
   }, [tableName, toast]);
   
-  // Fonction pour sauvegarder et synchroniser les données
-  const saveData = (newData: T[]) => {
+  // Fonction pour sauvegarder les données
+  const saveData = useCallback((newData: T[]) => {
     // Sauvegarder localement
     saveLocalData(tableName, newData);
     setData(newData);
-  };
+  }, [tableName]);
   
   // Fonction pour forcer une synchronisation
-  const forceSyncWithServer = async () => {
+  const forceSyncWithServer = useCallback(async (): Promise<boolean> => {
     if (!isOnline) {
       toast({
         title: "Hors ligne",
         description: "Vous êtes actuellement hors ligne. Les données sont sauvegardées localement et seront synchronisées dès que la connexion sera rétablie.",
+        variant: "destructive"
+      });
+      return false;
+    }
+    
+    if (!syncEnabled) {
+      toast({
+        title: "Synchronisation désactivée",
+        description: "La synchronisation automatique est actuellement désactivée.",
         variant: "destructive"
       });
       return false;
@@ -444,7 +575,7 @@ export const useAutoSync = <T>(tableName: string) => {
     } finally {
       setIsSyncing(false);
     }
-  };
+  }, [tableName, data, isOnline, toast]);
   
   return {
     data,
@@ -452,7 +583,8 @@ export const useAutoSync = <T>(tableName: string) => {
     isSyncing,
     isOnline,
     lastSynced,
-    syncWithServer: forceSyncWithServer
+    syncWithServer: forceSyncWithServer,
+    hasPendingChanges: () => hasPendingChanges(tableName)
   };
 };
 
@@ -461,6 +593,7 @@ if (typeof window !== 'undefined') {
   // Attendre un peu pour permettre à l'application de se charger
   setTimeout(() => {
     startAutoSync();
+    console.log('AutoSync: Service de synchronisation initialisé');
   }, 2000);
 }
 
@@ -471,5 +604,10 @@ export default {
   syncWithServer,
   startAutoSync,
   stopAutoSync,
-  useAutoSync
+  useAutoSync,
+  setSyncEnabled,
+  forceSync,
+  hasPendingChanges,
+  getLastSynced,
+  SYNC_EVENTS
 };
