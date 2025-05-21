@@ -49,51 +49,80 @@ jobs:
         mkdir -p deploy/api/utils
         mkdir -p deploy/public/lovable-uploads
         
+        # Vérification des fichiers JS et CSS critiques dans dist/assets
+        echo "Vérification des fichiers JS et CSS principaux..."
+        MAIN_JS=$(find dist/assets -name "main*.js" | head -n 1)
+        INDEX_JS=$(find dist/assets -name "index*.js" | head -n 1)
+        MAIN_CSS=$(find dist/assets -name "*.css" | head -n 1)
+        
+        if [ -z "$MAIN_JS" ] && [ -z "$INDEX_JS" ]; then
+          echo "ATTENTION: Aucun fichier main.js ou index.js trouvé dans dist/assets!"
+        else
+          echo "Fichier JS principal trouvé: ${MAIN_JS:-$INDEX_JS}"
+        fi
+        
+        if [ -z "$MAIN_CSS" ]; then
+          echo "ATTENTION: Aucun fichier CSS trouvé dans dist/assets!"
+        else
+          echo "Fichier CSS principal trouvé: $MAIN_CSS"
+        fi
+        
         # Copie du contenu du dossier dist à la racine du déploiement
         echo "Copie de index.html à la racine..."
         cp dist/index.html deploy/
         
-        # Copie des assets
+        # Copie des fichiers assets avec vérification et feedback
         echo "Copie des assets..."
+        mkdir -p deploy/assets
         if [ -d "dist/assets" ]; then
           cp -rv dist/assets/* deploy/assets/
+          echo "Nombre de fichiers copiés dans deploy/assets: $(find deploy/assets -type f | wc -l)"
         else
           echo "ERREUR: Le dossier dist/assets n'existe pas!"
         fi
         
-        # IMPORTANT: Copie directe des fichiers critiques
-        echo "Copie des fichiers critiques à partir des sources..."
-        
-        # Copier index.js et main.js depuis le répertoire source vers le répertoire de déploiement
-        echo "Copie des fichiers JavaScript essentiels..."
-        cp src/main.js deploy/assets/main.js || echo "Avertissement: src/main.js non trouvé"
-        cp src/main.tsx deploy/assets/main.tsx || echo "Avertissement: src/main.tsx non trouvé"
-        cp src/assets/index.js deploy/assets/index.js || echo "Avertissement: src/assets/index.js non trouvé"
-        cp assets/index.js deploy/assets/index.js || echo "Avertissement: assets/index.js non trouvé"
-        cp assets/main.js deploy/assets/main.js || echo "Avertissement: assets/main.js non trouvé"
-        
-        # En cas d'échec, créer une version minimale des fichiers JavaScript essentiels
-        if [ ! -f "deploy/assets/main.js" ]; then
-          echo "Création d'un fichier main.js minimal..."
-          echo "// Fallback main.js created during deployment" > deploy/assets/main.js
-          echo "console.log('Fallback main.js loaded');" >> deploy/assets/main.js
+        # Créer des fichiers statiques de fallback si nécessaire
+        if [ ! -f "deploy/assets/main.js" ] && [ ! -f "deploy/assets/index.js" ]; then
+          echo "Création d'un fichier index.js de fallback..."
+          echo "console.log('Fichier de fallback chargé. Veuillez vider le cache du navigateur.');" > deploy/assets/index.js
         fi
         
-        if [ ! -f "deploy/assets/index.js" ]; then
-          echo "Création d'un fichier index.js minimal..."
-          echo "// Fallback index.js created during deployment" > deploy/assets/index.js
-          echo "console.log('Fallback index.js loaded');" >> deploy/assets/index.js
-          echo "if(document.readyState === 'complete') {" >> deploy/assets/index.js
-          echo "  const script = document.createElement('script');" >> deploy/assets/index.js
-          echo "  script.src = './main.js';" >> deploy/assets/index.js
-          echo "  script.type = 'text/javascript';" >> deploy/assets/index.js
-          echo "  document.body.appendChild(script);" >> deploy/assets/index.js
-          echo "}" >> deploy/assets/index.js
-        fi
+        # Création d'un backup des assets pour référence
+        mkdir -p deploy/dist/assets
+        cp -r dist/assets/* deploy/dist/assets/ || echo "Aucun fichier à copier pour le backup"
         
         # Copie des autres fichiers nécessaires
         cp .htaccess deploy/ || echo "Fichier .htaccess non trouvé"
         cp fix-assets-auto.php deploy/ || echo "Fichier fix-assets-auto.php non trouvé"
+        
+        # Vérifier la présence du fichier assets/index.js (important)
+        if [ ! -f "deploy/assets/index.js" ] && [ -f "src/assets/index.js" ]; then
+          echo "Copie manuelle du fichier src/assets/index.js vers deploy/assets/..."
+          cp src/assets/index.js deploy/assets/
+        fi
+        
+        # Copie des fichiers de l'API
+        if [ -d "api" ]; then
+          echo "Copie des fichiers API..."
+          cp -r api/* deploy/api/
+        else
+          echo "Dossier API non trouvé"
+        fi
+        
+        # Copie des uploads si existants
+        if [ -d "public/lovable-uploads" ]; then
+          echo "Copie des uploads..."
+          cp -r public/lovable-uploads/* deploy/public/lovable-uploads/ || echo "Copie des uploads échouée"
+        else
+          echo "Dossier uploads non trouvé"
+        fi
+        
+        # Vérification finale des assets
+        echo "Contenu final du dossier assets:"
+        ls -la deploy/assets/
+        
+        echo "Structure du dossier de déploiement:"
+        find deploy -type f | sort | head -n 20
 
     - name: Sync to Infomaniak server
       uses: SamKirkland/FTP-Deploy-Action@v4.3.4
