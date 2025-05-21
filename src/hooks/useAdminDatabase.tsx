@@ -1,5 +1,5 @@
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useToast } from "@/hooks/use-toast";
 import { getApiUrl } from '@/config/apiConfig';
 import { getAuthHeaders } from '@/services/auth/authService';
@@ -17,6 +17,7 @@ export interface DbInfo {
   collation?: string;
   tableList?: string[];
   lastBackup: string;
+  lastSync?: Date | null;
 }
 
 export const useAdminDatabase = () => {
@@ -25,6 +26,25 @@ export const useAdminDatabase = () => {
   const [loading, setLoading] = useState(false);
   const [testingConnection, setTestingConnection] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [lastSync, setLastSync] = useState<Date | null>(null);
+
+  // Vérifier si les données sont synchronisées entre appareils
+  useEffect(() => {
+    // Enregistrer un gestionnaire d'événements pour recevoir les mises à jour
+    const handleStorageChange = (event: StorageEvent) => {
+      if (event.key && event.key.includes('dbSync_timestamp')) {
+        console.log("Détection d'une synchronisation de base de données depuis un autre appareil");
+        loadDatabaseInfo(); // Recharger les informations
+      }
+    };
+    
+    window.addEventListener('storage', handleStorageChange);
+    
+    // Nettoyer lors du démontage
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+    };
+  }, []);
 
   const loadDatabaseInfo = useCallback(async () => {
     setLoading(true);
@@ -62,7 +82,7 @@ export const useAdminDatabase = () => {
       if (data && data.tables) {
         const tableList = data.tables;
         
-        setDbInfo({
+        const newInfo = {
           host: "p71x6d.myd.infomaniak.com",
           database: FIXED_USER_ID,
           username: FIXED_USER_ID,
@@ -71,8 +91,19 @@ export const useAdminDatabase = () => {
           tableList: tableList,
           lastBackup: new Date().toLocaleDateString(),
           encoding: "UTF-8",
-          collation: "utf8mb4_unicode_ci"
-        });
+          collation: "utf8mb4_unicode_ci",
+          lastSync: new Date()
+        };
+        
+        setDbInfo(newInfo);
+        setLastSync(new Date());
+        
+        // Enregistrer le timestamp de synchronisation pour les autres appareils
+        localStorage.setItem('dbSync_timestamp', new Date().toISOString());
+        // Déclencher un événement personnalisé pour informer les autres composants
+        window.dispatchEvent(new CustomEvent('database-synced', { 
+          detail: { timestamp: new Date().toISOString() } 
+        }));
       } else {
         throw new Error("Format de données invalide ou aucune table trouvée");
       }
@@ -129,6 +160,14 @@ export const useAdminDatabase = () => {
         
         // Recharger les informations après un test réussi
         loadDatabaseInfo();
+        
+        // Enregistrer le timestamp de test réussi pour les autres appareils
+        localStorage.setItem('dbTest_timestamp', new Date().toISOString());
+        
+        // Déclencher un événement personnalisé pour informer les autres composants
+        window.dispatchEvent(new CustomEvent('database-test-succeeded', { 
+          detail: { timestamp: new Date().toISOString() } 
+        }));
       } else {
         throw new Error(data.message || "Test de connexion échoué");
       }
@@ -151,6 +190,7 @@ export const useAdminDatabase = () => {
     testingConnection,
     error,
     loadDatabaseInfo,
-    handleTestConnection
+    handleTestConnection,
+    lastSync
   };
 };

@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { getApiUrl } from '@/config/apiConfig';
 import { getAuthHeaders } from '@/services/auth/authService';
 import { useToast } from "@/hooks/use-toast";
@@ -42,6 +43,36 @@ const DatabaseConfig = () => {
     'p71x6d_dev'
   ]);
   const [testResult, setTestResult] = useState<{success: boolean, message: string} | null>(null);
+  const [showDialog, setShowDialog] = useState(false);
+  const [dialogContent, setDialogContent] = useState({
+    title: "",
+    description: ""
+  });
+
+  // Écouter les événements de synchronisation depuis d'autres instances
+  useEffect(() => {
+    const handleStorageChange = (event: StorageEvent) => {
+      if (event.key && event.key.includes('dbTest_timestamp')) {
+        console.log("Détection d'un test de connexion réussi depuis un autre appareil");
+        loadConfig();
+      }
+    };
+    
+    window.addEventListener('storage', handleStorageChange);
+    
+    // Écouter également l'événement personnalisé
+    const handleDatabaseTest = (event: CustomEvent) => {
+      console.log("Événement de test de base de données reçu:", event.detail);
+      loadConfig();
+    };
+    
+    window.addEventListener('database-test-succeeded' as any, handleDatabaseTest as EventListener);
+    
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('database-test-succeeded' as any, handleDatabaseTest as EventListener);
+    };
+  }, []);
 
   // Charger la configuration depuis l'API
   const loadConfig = async () => {
@@ -139,15 +170,26 @@ const DatabaseConfig = () => {
       console.log("Résultat du test:", data);
       
       if (data.status === 'success') {
-        setTestResult({
+        const successResult = {
           success: true,
           message: `Connexion réussie à la base de données ${FIXED_USER_ID}`
-        });
+        };
+        
+        setTestResult(successResult);
         
         toast({
           title: "Test réussi",
           description: `La connexion à la base de données ${FIXED_USER_ID} est établie.`,
         });
+        
+        // Stocker le résultat du test pour les autres appareils
+        localStorage.setItem('dbTest_result', JSON.stringify(successResult));
+        localStorage.setItem('dbTest_timestamp', new Date().toISOString());
+        
+        // Déclencher un événement pour informer les autres composants
+        window.dispatchEvent(new CustomEvent('database-test-succeeded', { 
+          detail: { timestamp: new Date().toISOString() } 
+        }));
       } else {
         setTestResult({
           success: false,
@@ -181,10 +223,11 @@ const DatabaseConfig = () => {
   const saveConfig = async () => {
     // Pour cette version simplifiée, nous ne sauvegardons pas réellement la configuration
     // puisque nous utilisons toujours FIXED_USER_ID
-    toast({
+    setDialogContent({
       title: "Information",
-      description: `L'application utilise toujours la base de données ${FIXED_USER_ID} pour la compatibilité.`,
+      description: `L'application utilise toujours la base de données ${FIXED_USER_ID} pour la compatibilité.`
     });
+    setShowDialog(true);
     
     // Effectuer un test de connexion pour vérifier que tout fonctionne
     await testConnection();
@@ -286,6 +329,16 @@ const DatabaseConfig = () => {
           </Button>
         </div>
       </CardFooter>
+
+      {/* Dialog pour afficher des messages */}
+      <Dialog open={showDialog} onOpenChange={setShowDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{dialogContent.title}</DialogTitle>
+            <DialogDescription>{dialogContent.description}</DialogDescription>
+          </DialogHeader>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 };

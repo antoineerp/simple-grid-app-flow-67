@@ -3,7 +3,7 @@ import React, { useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { ensureUserIdFromToken } from '@/services/auth/authService';
 import { getCurrentUser, setCurrentUser } from '@/services/core/databaseConnectionService';
-import { toast } from '@/components/ui/use-toast';
+import { useToast } from '@/hooks/use-toast';
 
 /**
  * Composant qui initialise l'identifiant utilisateur au chargement de l'application
@@ -11,6 +11,7 @@ import { toast } from '@/components/ui/use-toast';
  */
 export const UserInitializer: React.FC = () => {
   const { isLoggedIn } = useAuth();
+  const { toast } = useToast();
   
   useEffect(() => {
     // Initialiser l'identifiant utilisateur
@@ -84,6 +85,14 @@ export const UserInitializer: React.FC = () => {
           }));
         } else {
           console.log("UserInitializer: Identifiant utilisateur cohérent");
+          
+          // Stocker l'information de dernière vérification d'ID utilisateur
+          localStorage.setItem('user_id_last_verified', new Date().toISOString());
+          
+          // Émettre un événement pour informer que l'initialisation est terminée
+          window.dispatchEvent(new CustomEvent('user-initialized', {
+            detail: { userId, timestamp: new Date().toISOString() }
+          }));
         }
       } else {
         const currentUser = getCurrentUser();
@@ -113,12 +122,20 @@ export const UserInitializer: React.FC = () => {
           window.location.reload();
         } else {
           console.log(`UserInitializer: Utilisateur initialisé: ${currentUser}`);
+          
+          // Stocker l'information de dernière vérification d'ID utilisateur
+          localStorage.setItem('user_id_last_verified', new Date().toISOString());
         }
       }
+      
+      // Diffuser un événement de synchronisation pour les autres composants
+      window.dispatchEvent(new CustomEvent('user-id-verified', {
+        detail: { userId: getCurrentUser(), timestamp: new Date().toISOString() }
+      }));
     } else {
       console.log("UserInitializer: Aucun utilisateur connecté");
     }
-  }, [isLoggedIn]);
+  }, [isLoggedIn, toast]);
   
   // Composant invisible, ne rend rien
   return null;
