@@ -6,7 +6,7 @@ ob_start();
 // Headers pour CORS et Content-Type
 header("Content-Type: application/json; charset=UTF-8");
 header("Access-Control-Allow-Origin: *");
-header("Access-Control-Allow-Methods: POST, OPTIONS");
+header("Access-Control-Allow-Methods: GET, POST, OPTIONS");
 header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With, User-Agent");
 header("Cache-Control: no-cache, no-store, must-revalidate");
 
@@ -25,6 +25,107 @@ if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
 try {
     // Nettoyer le buffer
     if (ob_get_level()) ob_clean();
+    
+    // Configuration de la base de données
+    $host = "p71x6d.myd.infomaniak.com";
+    $dbname = "p71x6d_system";
+    $username = "p71x6d_richard";
+    $password = "Trottinette43!";
+    
+    // Essayer de se connecter à la base de données
+    $pdo = new PDO("mysql:host={$host};dbname={$dbname};charset=utf8mb4", $username, $password, [
+        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION
+    ]);
+    
+    error_log("Connexion à la base de données réussie");
+    
+    // Déterminer l'action en fonction de la méthode HTTP
+    switch ($_SERVER['REQUEST_METHOD']) {
+        case 'GET':
+            // Récupération des documents
+            handleGetRequest($pdo);
+            break;
+            
+        case 'POST':
+            // Synchronisation des documents
+            handlePostRequest($pdo);
+            break;
+            
+        default:
+            throw new Exception("Méthode HTTP non supportée: " . $_SERVER['REQUEST_METHOD']);
+    }
+} catch (Exception $e) {
+    error_log("Exception dans documents-sync.php: " . $e->getMessage());
+    http_response_code(400);
+    $errorResponse = [
+        'success' => false,
+        'message' => $e->getMessage()
+    ];
+    echo json_encode($errorResponse);
+    error_log("Réponse d'erreur: " . json_encode($errorResponse));
+} finally {
+    error_log("=== FIN DE L'EXÉCUTION DE documents-sync.php ===");
+    if (ob_get_level()) ob_end_flush();
+}
+
+// Fonction pour gérer les requêtes GET
+function handleGetRequest($pdo) {
+    error_log("Traitement de la requête GET pour récupérer les documents");
+    
+    if (!isset($_GET['userId'])) {
+        throw new Exception("Le paramètre userId est requis");
+    }
+    
+    $userId = $_GET['userId'];
+    error_log("Récupération des documents pour l'utilisateur: {$userId}");
+    
+    // Traiter l'userId si c'est un email
+    if (filter_var($userId, FILTER_VALIDATE_EMAIL)) {
+        $username = strtolower(explode('@', $userId)[0]);
+        $username = preg_replace('/[^a-z0-9]/', '', $username);
+        $userId = "p71x6d_" . $username;
+        error_log("Email converti en ID technique: {$userId}");
+    }
+    
+    // Forcer l'utilisation de p71x6d_richard comme base de données pour tous
+    $userId = "p71x6d_richard";
+    error_log("ID forcé à: {$userId} pour la base de données");
+    
+    // Vérifier si la table existe
+    $safeUserId = preg_replace('/[^a-zA-Z0-9_]/', '_', $userId);
+    $tableName = "documents_{$safeUserId}";
+    
+    // Créer la table si elle n'existe pas
+    $pdo->exec("CREATE TABLE IF NOT EXISTS `{$tableName}` (
+        `id` VARCHAR(36) PRIMARY KEY,
+        `nom` VARCHAR(255) NOT NULL,
+        `fichier_path` VARCHAR(255) NULL,
+        `responsabilites` TEXT NULL,
+        `etat` VARCHAR(50) NULL,
+        `groupId` VARCHAR(36) NULL,
+        `date_creation` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        `date_modification` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    )");
+    
+    // Récupérer tous les documents de la table
+    $stmt = $pdo->query("SELECT * FROM `{$tableName}`");
+    $documents = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    
+    error_log("Nombre de documents récupérés: " . count($documents));
+    
+    // Réponse JSON
+    http_response_code(200);
+    echo json_encode([
+        'success' => true,
+        'documents' => $documents,
+        'count' => count($documents),
+        'timestamp' => date('c')
+    ]);
+}
+
+// Fonction pour gérer les requêtes POST
+function handlePostRequest($pdo) {
+    error_log("Traitement de la requête POST pour synchroniser les documents");
     
     // Récupérer les données POST JSON
     $json = file_get_contents('php://input');
@@ -73,83 +174,56 @@ try {
     $userId = "p71x6d_richard";
     error_log("ID forcé à: {$userId} pour la base de données");
     
-    // Essayer de se connecter à la base de données
-    $host = "p71x6d.myd.infomaniak.com";
-    $dbname = "p71x6d_system";
-    $username = "p71x6d_richard";
-    $password = "Trottinette43!";
+    // Créer la table si elle n'existe pas
+    $safeUserId = preg_replace('/[^a-zA-Z0-9_]/', '_', $userId);
+    $tableName = "documents_{$safeUserId}";
     
-    try {
-        $pdo = new PDO("mysql:host={$host};dbname={$dbname};charset=utf8mb4", $username, $password, [
-            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION
-        ]);
+    $pdo->exec("CREATE TABLE IF NOT EXISTS `{$tableName}` (
+        `id` VARCHAR(36) PRIMARY KEY,
+        `nom` VARCHAR(255) NOT NULL,
+        `fichier_path` VARCHAR(255) NULL,
+        `responsabilites` TEXT NULL,
+        `etat` VARCHAR(50) NULL,
+        `groupId` VARCHAR(36) NULL,
+        `date_creation` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        `date_modification` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    )");
+    
+    // Vider la table pour une synchronisation complète
+    $pdo->exec("TRUNCATE TABLE `{$tableName}`");
+    
+    // Préparer l'insertion des documents
+    if (!empty($documents)) {
+        $stmt = $pdo->prepare("INSERT INTO `{$tableName}` (id, nom, fichier_path, responsabilites, etat, groupId) 
+                              VALUES (?, ?, ?, ?, ?, ?)");
         
-        error_log("Connexion à la base de données réussie");
-        
-        // Si la connexion à la base de données est réussie, essayer de sauvegarder les données
-        try {
-            $safeUserId = preg_replace('/[^a-zA-Z0-9_]/', '_', $userId);
-            $tableName = "documents_{$safeUserId}";
-            
-            // Créer la table si elle n'existe pas
-            $pdo->exec("CREATE TABLE IF NOT EXISTS `{$tableName}` (
-                `id` VARCHAR(36) PRIMARY KEY,
-                `nom` VARCHAR(255) NOT NULL,
-                `fichier_path` VARCHAR(255) NULL,
-                `responsabilites` TEXT NULL,
-                `etat` VARCHAR(50) NULL,
-                `groupId` VARCHAR(36) NULL,
-                `date_creation` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                `date_modification` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-            )");
-            
-            // Vider la table pour une synchronisation complète
-            $pdo->exec("TRUNCATE TABLE `{$tableName}`");
-            
-            // Préparer l'insertion des documents
-            if (!empty($documents)) {
-                $stmt = $pdo->prepare("INSERT INTO `{$tableName}` (id, nom, fichier_path, responsabilites, etat, groupId) 
-                                      VALUES (?, ?, ?, ?, ?, ?)");
-                
-                foreach ($documents as $doc) {
-                    // Vérifier que l'ID existe
-                    if (!isset($doc['id'])) {
-                        error_log("Document sans ID trouvé, génération d'un UUID");
-                        $doc['id'] = uniqid('doc_', true);
-                    }
-                    
-                    // Vérifier que le nom existe
-                    $nom = isset($doc['nom']) ? $doc['nom'] : 'Document sans nom';
-                    
-                    // Traiter les responsabilités (gérer les formats possibles)
-                    $responsabilites = null;
-                    if (isset($doc['responsabilites'])) {
-                        $responsabilites = is_array($doc['responsabilites']) ? 
-                            json_encode($doc['responsabilites']) : $doc['responsabilites'];
-                    }
-                    
-                    // Exécuter l'insertion
-                    $stmt->execute([
-                        $doc['id'],
-                        $nom,
-                        $doc['fichier_path'] ?? null,
-                        $responsabilites,
-                        $doc['etat'] ?? null,
-                        $doc['groupId'] ?? null
-                    ]);
-                }
+        foreach ($documents as $doc) {
+            // Vérifier que l'ID existe
+            if (!isset($doc['id'])) {
+                error_log("Document sans ID trouvé, génération d'un UUID");
+                $doc['id'] = uniqid('doc_', true);
             }
             
-            error_log("Documents synchronisés avec succès pour {$userId}");
+            // Vérifier que le nom existe
+            $nom = isset($doc['nom']) ? $doc['nom'] : 'Document sans nom';
             
-        } catch (PDOException $e) {
-            error_log("Erreur lors de la sauvegarde des documents: " . $e->getMessage());
-            throw new Exception("Erreur lors de la sauvegarde des documents: " . $e->getMessage());
+            // Traiter les responsabilités (gérer les formats possibles)
+            $responsabilites = null;
+            if (isset($doc['responsabilites'])) {
+                $responsabilites = is_array($doc['responsabilites']) ? 
+                    json_encode($doc['responsabilites']) : $doc['responsabilites'];
+            }
+            
+            // Exécuter l'insertion
+            $stmt->execute([
+                $doc['id'],
+                $nom,
+                $doc['fichier_path'] ?? null,
+                $responsabilites,
+                $doc['etat'] ?? null,
+                $doc['groupId'] ?? null
+            ]);
         }
-        
-    } catch (PDOException $e) {
-        error_log("Erreur de connexion à la base de données: " . $e->getMessage());
-        throw new Exception("Erreur de connexion à la base de données: " . $e->getMessage());
     }
     
     // Réponse de succès
@@ -163,18 +237,5 @@ try {
     http_response_code(200);
     echo json_encode($response);
     error_log("Réponse de documents-sync.php : " . json_encode($response));
-    
-} catch (Exception $e) {
-    error_log("Exception dans documents-sync.php: " . $e->getMessage());
-    http_response_code(400);
-    $errorResponse = [
-        'success' => false,
-        'message' => $e->getMessage()
-    ];
-    echo json_encode($errorResponse);
-    error_log("Réponse d'erreur: " . json_encode($errorResponse));
-} finally {
-    error_log("=== FIN DE L'EXÉCUTION DE documents-sync.php ===");
-    if (ob_get_level()) ob_end_flush();
 }
 ?>

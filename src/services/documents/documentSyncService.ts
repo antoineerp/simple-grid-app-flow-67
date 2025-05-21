@@ -188,17 +188,48 @@ export const forceFullSync = async (): Promise<boolean> => {
 };
 
 // Chargement des documents depuis le serveur
-export const loadDocumentsFromServer = async (userId?: string): Promise<Document[] | null> => {
+export const loadDocumentsFromServer = async (userId?: string): Promise<Document[]> => {
   const currentUser = ensureCorrectUserId(userId || getCurrentUser()) || 'default';
   
   console.log(`Chargement des documents pour ${currentUser} depuis le serveur...`);
   
   try {
-    // Pour cette version simplifiée, on récupère simplement les données locales
-    // Dans une implémentation réelle, il faudrait faire une requête au serveur
-    return loadLocalData<Document>('documents');
+    const apiUrl = getApiUrl();
+    const loadUrl = `${apiUrl}/documents-sync.php?userId=${currentUser}`;
+    
+    console.log(`Envoi de la requête GET à ${loadUrl}`);
+    
+    const response = await fetch(loadUrl, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'User-Agent': 'FormaCert-App/1.0 (Chargement; QualiAPI)'
+      },
+      cache: 'no-store'
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Erreur HTTP ${response.status}: ${response.statusText}`);
+    }
+    
+    const data = await response.json();
+    
+    if (!data.success) {
+      throw new Error(data.message || 'Échec du chargement des documents');
+    }
+    
+    // Sauvegarder les documents en local
+    const documents = data.documents || [];
+    saveLocalDocuments(documents);
+    
+    console.log(`${documents.length} documents récupérés du serveur`);
+    return documents;
   } catch (error) {
     console.error('Erreur lors du chargement des documents depuis le serveur:', error);
-    return null;
+    
+    // En cas d'erreur, récupérer les données locales
+    console.log('Utilisation des données locales suite à une erreur réseau');
+    return loadLocalData<Document>('documents');
   }
 };

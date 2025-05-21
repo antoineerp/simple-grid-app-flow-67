@@ -3,20 +3,17 @@
 // Force output buffering to prevent output before headers
 ob_start();
 
-// Fichier pour synchroniser les exigences avec le serveur
+// Headers pour CORS et Content-Type
 header("Content-Type: application/json; charset=UTF-8");
 header("Access-Control-Allow-Origin: *");
-header("Access-Control-Allow-Methods: POST, OPTIONS");
-header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With");
+header("Access-Control-Allow-Methods: GET, POST, OPTIONS");
+header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With, User-Agent");
 header("Cache-Control: no-cache, no-store, must-revalidate");
 
-// Activer la journalisation d'erreurs détaillée
-ini_set('display_errors', '0');
-error_reporting(E_ALL);
-
-// Journalisation
+// Journalisation détaillée
 error_log("=== DEBUT DE L'EXÉCUTION DE exigences-sync.php ===");
 error_log("Méthode: " . $_SERVER['REQUEST_METHOD'] . " - URI: " . $_SERVER['REQUEST_URI']);
+error_log("User-Agent: " . (isset($_SERVER['HTTP_USER_AGENT']) ? $_SERVER['HTTP_USER_AGENT'] : 'Non défini'));
 
 // Gestion des requêtes OPTIONS (preflight)
 if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
@@ -25,220 +22,220 @@ if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
     exit;
 }
 
-// Configuration de la base de données
-$host = "p71x6d.myd.infomaniak.com";
-$dbname = "p71x6d_system";
-$username = "p71x6d_system";
-$password = "Trottinette43!";
-
 try {
     // Nettoyer le buffer
     if (ob_get_level()) ob_clean();
     
-    // Récupérer les données POST JSON
-    $json = file_get_contents('php://input');
-    error_log("Données brutes reçues: " . substr($json, 0, 500) . "...");
+    // Configuration de la base de données
+    $host = "p71x6d.myd.infomaniak.com";
+    $dbname = "p71x6d_system";
+    $username = "p71x6d_richard";
+    $password = "Trottinette43!";
     
-    $data = json_decode($json, true);
-    
-    if (!$json || !$data) {
-        $jsonError = json_last_error_msg();
-        error_log("Erreur JSON: " . $jsonError . " - Données reçues: " . substr($json, 0, 500));
-        throw new Exception("Aucune donnée reçue ou format JSON invalide: " . $jsonError);
-    }
-    
-    error_log("Données JSON décodées avec succès");
-    
-    // Vérifier si les données nécessaires sont présentes
-    if (!isset($data['userId']) || !isset($data['exigences']) || !isset($data['groups'])) {
-        error_log("Données incomplètes: " . json_encode(array_keys($data)));
-        throw new Exception("Données incomplètes. 'userId', 'exigences' et 'groups' sont requis");
-    }
-    
-    $userId = $data['userId'];
-    $exigences = $data['exigences'];
-    $groups = $data['groups'];
-    
-    error_log("Synchronisation pour l'utilisateur: {$userId}");
-    error_log("Nombre d'exigences: " . count($exigences) . ", Nombre de groupes: " . count($groups));
-    
-    // Connexion à la base de données
+    // Essayer de se connecter à la base de données
     $pdo = new PDO("mysql:host={$host};dbname={$dbname};charset=utf8mb4", $username, $password, [
-        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-        PDO::ATTR_EMULATE_PREPARES => false,
+        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION
     ]);
     
     error_log("Connexion à la base de données réussie");
     
-    // Nom des tables spécifiques à l'utilisateur
-    $safeUserId = preg_replace('/[^a-zA-Z0-9_]/', '_', $userId);
-    $exigencesTableName = "exigences_" . $safeUserId;
-    $groupsTableName = "exigence_groups_" . $safeUserId;
-    error_log("Tables à utiliser: {$exigencesTableName}, {$groupsTableName}");
-    
-    // Créer les tables si elles n'existent pas
-    
-    // Table des exigences
-    $createExigencesTableQuery = "CREATE TABLE IF NOT EXISTS `{$exigencesTableName}` (
-        `id` VARCHAR(36) PRIMARY KEY,
-        `nom` VARCHAR(255) NOT NULL,
-        `responsabilites` TEXT,
-        `exclusion` TINYINT(1) DEFAULT 0,
-        `atteinte` VARCHAR(5),
-        `groupId` VARCHAR(36),
-        `date_creation` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        `date_modification` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
-    
-    error_log("Création de la table des exigences si nécessaire");
-    $pdo->exec($createExigencesTableQuery);
-    
-    // Table des groupes
-    $createGroupsTableQuery = "CREATE TABLE IF NOT EXISTS `{$groupsTableName}` (
-        `id` VARCHAR(36) PRIMARY KEY,
-        `name` VARCHAR(255) NOT NULL,
-        `expanded` TINYINT(1) DEFAULT 1,
-        `date_creation` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        `date_modification` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
-    
-    error_log("Création de la table des groupes si nécessaire");
-    $pdo->exec($createGroupsTableQuery);
-    
-    // Démarrer une transaction
-    error_log("Début de la transaction");
-    $pdo->beginTransaction();
-    $transaction_active = true;
-    
-    try {
-        // Vider les tables avant d'insérer les nouvelles données
-        $pdo->exec("TRUNCATE TABLE `{$exigencesTableName}`");
-        error_log("Table des exigences vidée");
-        
-        $pdo->exec("TRUNCATE TABLE `{$groupsTableName}`");
-        error_log("Table des groupes vidée");
-        
-        // Insérer les groupes
-        if (is_array($groups) && count($groups) > 0) {
-            $insertGroupQuery = "INSERT INTO `{$groupsTableName}` (id, name, expanded) VALUES (:id, :name, :expanded)";
-            $stmtGroup = $pdo->prepare($insertGroupQuery);
+    // Déterminer l'action en fonction de la méthode HTTP
+    switch ($_SERVER['REQUEST_METHOD']) {
+        case 'GET':
+            // Récupération des exigences
+            handleGetRequest($pdo);
+            break;
             
-            foreach ($groups as $group) {
-                if (!isset($group['id']) || !isset($group['name'])) {
-                    error_log("Groupe invalide: " . json_encode($group));
-                    continue; // Ignorer ce groupe et continuer
-                }
-                
-                $expanded = isset($group['expanded']) ? (bool)$group['expanded'] : false;
-                
-                $stmtGroup->execute([
-                    'id' => $group['id'],
-                    'name' => $group['name'],
-                    'expanded' => $expanded ? 1 : 0
-                ]);
-            }
-            error_log("Groupes insérés: " . count($groups));
-        } else {
-            error_log("Aucun groupe à insérer ou format invalide");
-        }
-        
-        // Insérer les exigences
-        if (is_array($exigences) && count($exigences) > 0) {
-            $insertExigenceQuery = "INSERT INTO `{$exigencesTableName}` 
-                (id, nom, responsabilites, exclusion, atteinte, groupId, date_creation) 
-                VALUES (:id, :nom, :responsabilites, :exclusion, :atteinte, :groupId, :date_creation)";
-            $stmtExigence = $pdo->prepare($insertExigenceQuery);
+        case 'POST':
+            // Synchronisation des exigences
+            handlePostRequest($pdo);
+            break;
             
-            foreach ($exigences as $exigence) {
-                if (!isset($exigence['id']) || !isset($exigence['nom'])) {
-                    error_log("Exigence invalide: " . json_encode($exigence));
-                    continue; // Ignorer cette exigence et continuer
-                }
-                
-                // Préparer les données de l'exigence
-                $responsabilitesJson = isset($exigence['responsabilites']) ? 
-                    json_encode($exigence['responsabilites']) : 
-                    json_encode(['r' => [], 'a' => [], 'c' => [], 'i' => []]);
-                
-                // Convertir la date au format SQL si nécessaire
-                if (isset($exigence['date_creation']) && is_string($exigence['date_creation'])) {
-                    $dateCreation = date('Y-m-d H:i:s', strtotime($exigence['date_creation']));
-                } else {
-                    $dateCreation = date('Y-m-d H:i:s');
-                }
-                
-                // S'assurer que les valeurs booléennes sont bien gérées
-                $exclusion = isset($exigence['exclusion']) ? (bool)$exigence['exclusion'] : false;
-                
-                $stmtExigence->execute([
-                    'id' => $exigence['id'],
-                    'nom' => $exigence['nom'],
-                    'responsabilites' => $responsabilitesJson,
-                    'exclusion' => $exclusion ? 1 : 0,
-                    'atteinte' => $exigence['atteinte'] ?? null,
-                    'groupId' => $exigence['groupId'] ?? null,
-                    'date_creation' => $dateCreation
-                ]);
-            }
-            error_log("Exigences insérées: " . count($exigences));
-        } else {
-            error_log("Aucune exigence à insérer ou format invalide");
-        }
-        
-        // Valider la transaction
-        if ($transaction_active && $pdo->inTransaction()) {
-            $pdo->commit();
-            $transaction_active = false;
-            error_log("Transaction validée");
-        }
-        
-        // Succès de l'opération
-        error_log("Synchronisation réussie");
-        echo json_encode([
-            'success' => true,
-            'message' => 'Synchronisation réussie',
-            'count' => [
-                'exigences' => count($exigences),
-                'groups' => count($groups)
-            ]
-        ]);
-        
-    } catch (Exception $e) {
-        // Annuler la transaction en cas d'erreur
-        if ($transaction_active && $pdo->inTransaction()) {
-            $pdo->rollBack();
-            $transaction_active = false;
-            error_log("Transaction annulée suite à une erreur: " . $e->getMessage());
-        }
-        throw $e;
+        default:
+            throw new Exception("Méthode HTTP non supportée: " . $_SERVER['REQUEST_METHOD']);
     }
-    
-} catch (PDOException $e) {
-    error_log("Erreur PDO dans exigences-sync.php: " . $e->getMessage());
-    http_response_code(500);
-    echo json_encode([
-        'success' => false,
-        'message' => 'Erreur de base de données: ' . $e->getMessage()
-    ]);
 } catch (Exception $e) {
     error_log("Exception dans exigences-sync.php: " . $e->getMessage());
     http_response_code(400);
-    echo json_encode([
+    $errorResponse = [
         'success' => false,
         'message' => $e->getMessage()
-    ]);
+    ];
+    echo json_encode($errorResponse);
+    error_log("Réponse d'erreur: " . json_encode($errorResponse));
 } finally {
-    // S'assurer que la transaction est terminée si elle est encore active
-    if (isset($pdo) && isset($transaction_active) && $transaction_active && $pdo->inTransaction()) {
-        try {
-            error_log("Annulation de la transaction qui était encore active dans le bloc finally");
-            $pdo->rollBack();
-        } catch (Exception $e) {
-            error_log("Erreur lors du rollback final: " . $e->getMessage());
-        }
-    }
-    
     error_log("=== FIN DE L'EXÉCUTION DE exigences-sync.php ===");
     if (ob_get_level()) ob_end_flush();
 }
+
+// Fonction pour gérer les requêtes GET
+function handleGetRequest($pdo) {
+    error_log("Traitement de la requête GET pour récupérer les exigences");
+    
+    if (!isset($_GET['userId'])) {
+        throw new Exception("Le paramètre userId est requis");
+    }
+    
+    $userId = $_GET['userId'];
+    error_log("Récupération des exigences pour l'utilisateur: {$userId}");
+    
+    // Traiter l'userId si c'est un email
+    if (filter_var($userId, FILTER_VALIDATE_EMAIL)) {
+        $username = strtolower(explode('@', $userId)[0]);
+        $username = preg_replace('/[^a-z0-9]/', '', $username);
+        $userId = "p71x6d_" . $username;
+        error_log("Email converti en ID technique: {$userId}");
+    }
+    
+    // Forcer l'utilisation de p71x6d_richard comme base de données pour tous
+    $userId = "p71x6d_richard";
+    error_log("ID forcé à: {$userId} pour la base de données");
+    
+    // Vérifier si la table existe
+    $safeUserId = preg_replace('/[^a-zA-Z0-9_]/', '_', $userId);
+    $tableName = "exigences_{$safeUserId}";
+    
+    // Créer la table si elle n'existe pas
+    $pdo->exec("CREATE TABLE IF NOT EXISTS `{$tableName}` (
+        `id` VARCHAR(36) PRIMARY KEY,
+        `titre` VARCHAR(255) NOT NULL,
+        `description` TEXT NULL,
+        `niveau` VARCHAR(50) NULL,
+        `groupId` VARCHAR(36) NULL,
+        `indicateurs` TEXT NULL,
+        `date_creation` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        `date_modification` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    )");
+    
+    // Récupérer toutes les exigences de la table
+    $stmt = $pdo->query("SELECT * FROM `{$tableName}`");
+    $exigences = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    
+    error_log("Nombre d'exigences récupérées: " . count($exigences));
+    
+    // Réponse JSON
+    http_response_code(200);
+    echo json_encode([
+        'success' => true,
+        'exigences' => $exigences,
+        'count' => count($exigences),
+        'timestamp' => date('c')
+    ]);
+}
+
+// Fonction pour gérer les requêtes POST
+function handlePostRequest($pdo) {
+    error_log("Traitement de la requête POST pour synchroniser les exigences");
+    
+    // Récupérer les données POST JSON
+    $json = file_get_contents('php://input');
+    error_log("Données reçues (brut): " . substr($json, 0, 500) . "...");
+    
+    $data = json_decode($json, true);
+    
+    if ($json === false || $json === "") {
+        throw new Exception("Aucune donnée reçue. Input vide.");
+    }
+    
+    if ($data === null) {
+        error_log("Erreur JSON: " . json_last_error_msg() . " - JSON reçu: " . substr($json, 0, 500));
+        throw new Exception("Format JSON invalide: " . json_last_error_msg());
+    }
+    
+    error_log("Données décodées: " . print_r($data, true));
+    
+    // Vérifier si les données nécessaires sont présentes
+    if (!isset($data['userId']) && !isset($data['user_id'])) {
+        throw new Exception("Données incomplètes. 'userId' ou 'user_id' est requis");
+    }
+    
+    // Récupérer l'ID utilisateur du bon champ
+    $userId = isset($data['userId']) ? $data['userId'] : $data['user_id'];
+    $exigences = isset($data['exigences']) ? $data['exigences'] : [];
+    
+    if (!is_array($exigences)) {
+        error_log("Format d'exigences invalide: " . gettype($exigences) . " au lieu d'un tableau");
+        error_log("Contenu: " . print_r($exigences, true));
+        throw new Exception("Le champ 'exigences' doit être un tableau");
+    }
+    
+    error_log("Synchronisation pour l'utilisateur: {$userId}");
+    error_log("Nombre d'exigences: " . count($exigences));
+    
+    // Traiter l'userId si c'est un email
+    if (filter_var($userId, FILTER_VALIDATE_EMAIL)) {
+        $username = strtolower(explode('@', $userId)[0]);
+        $username = preg_replace('/[^a-z0-9]/', '', $username);
+        $userId = "p71x6d_" . $username;
+        error_log("Email converti en ID technique: {$userId}");
+    }
+    
+    // Forcer l'utilisation de p71x6d_richard comme base de données pour tous
+    $userId = "p71x6d_richard";
+    error_log("ID forcé à: {$userId} pour la base de données");
+    
+    // Créer la table si elle n'existe pas
+    $safeUserId = preg_replace('/[^a-zA-Z0-9_]/', '_', $userId);
+    $tableName = "exigences_{$safeUserId}";
+    
+    $pdo->exec("CREATE TABLE IF NOT EXISTS `{$tableName}` (
+        `id` VARCHAR(36) PRIMARY KEY,
+        `titre` VARCHAR(255) NOT NULL,
+        `description` TEXT NULL,
+        `niveau` VARCHAR(50) NULL,
+        `groupId` VARCHAR(36) NULL,
+        `indicateurs` TEXT NULL,
+        `date_creation` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        `date_modification` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    )");
+    
+    // Vider la table pour une synchronisation complète
+    $pdo->exec("TRUNCATE TABLE `{$tableName}`");
+    
+    // Préparer l'insertion des exigences
+    if (!empty($exigences)) {
+        $stmt = $pdo->prepare("INSERT INTO `{$tableName}` (id, titre, description, niveau, groupId, indicateurs) 
+                              VALUES (?, ?, ?, ?, ?, ?)");
+        
+        foreach ($exigences as $exigence) {
+            // Vérifier que l'ID existe
+            if (!isset($exigence['id'])) {
+                error_log("Exigence sans ID trouvée, génération d'un UUID");
+                $exigence['id'] = uniqid('exig_', true);
+            }
+            
+            // Vérifier que le titre existe
+            $titre = isset($exigence['titre']) ? $exigence['titre'] : 'Exigence sans titre';
+            
+            // Traiter les indicateurs (gérer les formats possibles)
+            $indicateurs = null;
+            if (isset($exigence['indicateurs'])) {
+                $indicateurs = is_array($exigence['indicateurs']) ? 
+                    json_encode($exigence['indicateurs']) : $exigence['indicateurs'];
+            }
+            
+            // Exécuter l'insertion
+            $stmt->execute([
+                $exigence['id'],
+                $titre,
+                $exigence['description'] ?? null,
+                $exigence['niveau'] ?? null,
+                $exigence['groupId'] ?? null,
+                $indicateurs
+            ]);
+        }
+    }
+    
+    // Réponse de succès
+    $response = [
+        'success' => true,
+        'message' => 'Synchronisation réussie',
+        'count' => count($exigences),
+        'timestamp' => date('c')
+    ];
+    
+    http_response_code(200);
+    echo json_encode($response);
+    error_log("Réponse de exigences-sync.php : " . json_encode($response));
+}
+?>
