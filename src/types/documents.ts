@@ -9,6 +9,7 @@ export interface DocumentGroup {
 export interface Document {
   id: string;
   nom: string;
+  name?: string; // Adding name property for compatibility
   fichier_path: string | null;
   responsabilites: {
     r: string[];
@@ -17,9 +18,11 @@ export interface Document {
     i: string[];
   };
   etat: 'NC' | 'PC' | 'C' | 'EX' | null;
+  statut?: string; // Adding statut property for compatibility
   date_creation: Date;
   date_modification: Date;
   groupId?: string;
+  excluded?: boolean; // Adding excluded property
 }
 
 export interface DocumentStats {

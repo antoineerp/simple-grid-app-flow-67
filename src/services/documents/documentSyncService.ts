@@ -1,4 +1,3 @@
-
 /**
  * Service de synchronisation des documents
  * Utilise le nouveau système de synchronisation automatique centralisée
