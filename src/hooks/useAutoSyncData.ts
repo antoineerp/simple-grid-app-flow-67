@@ -52,7 +52,7 @@ export function useAutoSyncData<T>(tableName: string, options?: {
         });
       } else if (!isOnline) {
         toast({
-          variant: "warning",
+          variant: "destructive", // Changed from "warning" to "destructive"
           title: "Mode hors ligne",
           description: "Les données seront synchronisées lorsque vous serez en ligne."
         });

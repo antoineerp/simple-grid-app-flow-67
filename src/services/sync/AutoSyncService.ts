@@ -1,4 +1,3 @@
-
 /**
  * Service de synchronisation automatique centralisée
  * Ce service gère la synchronisation des données entre toutes les pages de l'application
@@ -520,14 +519,14 @@ export const useAutoSync = <T>(tableName: string) => {
   }, [tableName, toast]);
   
   // Fonction pour sauvegarder les données
-  const saveData = useCallback((newData: T[]) => {
+  const saveData = (newData: T[]) => {
     // Sauvegarder localement
     saveLocalData(tableName, newData);
     setData(newData);
-  }, [tableName]);
+  };
   
   // Fonction pour forcer une synchronisation
-  const forceSyncWithServer = useCallback(async (): Promise<boolean> => {
+  const forceSyncWithServer = async (): Promise<boolean> => {
     if (!isOnline) {
       toast({
         title: "Hors ligne",
@@ -575,7 +574,7 @@ export const useAutoSync = <T>(tableName: string) => {
     } finally {
       setIsSyncing(false);
     }
-  }, [tableName, data, isOnline, toast]);
+  };
   
   return {
     data,
