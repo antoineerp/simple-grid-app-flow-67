@@ -156,11 +156,28 @@ export const testDatabaseConnection = async (): Promise<boolean> => {
     const API_URL = getApiUrl();
     const response = await fetch(`${API_URL}/db-test.php`, {
       method: 'GET',
-      headers: getAuthHeaders()
+      headers: getAuthHeaders(),
+      cache: 'no-store'
     });
     
-    const data = await response.json();
-    return data.success;
+    if (!response.ok) {
+      throw new Error(`Erreur HTTP ${response.status}: ${response.statusText}`);
+    }
+    
+    // Vérifier si la réponse est un texte vide
+    const responseText = await response.text();
+    if (!responseText.trim()) {
+      throw new Error("Réponse vide du serveur");
+    }
+    
+    // Tenter de parser le JSON
+    try {
+      const data = JSON.parse(responseText);
+      return !!data.success;
+    } catch (parseError) {
+      console.error("Erreur de parsing JSON:", parseError, "Contenu:", responseText.substring(0, 100));
+      throw new Error("Format de réponse invalide");
+    }
   } catch (error) {
     console.error("Erreur lors du test de connexion à la base de données:", error);
     return false;
@@ -175,11 +192,27 @@ export const getDatabaseInfo = async (): Promise<any> => {
     const API_URL = getApiUrl();
     const response = await fetch(`${API_URL}/db-info.php`, {
       method: 'GET',
-      headers: getAuthHeaders()
+      headers: getAuthHeaders(),
+      cache: 'no-store'
     });
     
-    const data = await response.json();
-    return data;
+    if (!response.ok) {
+      throw new Error(`Erreur HTTP ${response.status}: ${response.statusText}`);
+    }
+    
+    // Vérifier si la réponse est un texte vide
+    const responseText = await response.text();
+    if (!responseText.trim()) {
+      throw new Error("Réponse vide du serveur");
+    }
+    
+    // Tenter de parser le JSON
+    try {
+      return JSON.parse(responseText);
+    } catch (parseError) {
+      console.error("Erreur de parsing JSON:", parseError, "Contenu:", responseText.substring(0, 100));
+      throw new Error("Format de réponse invalide");
+    }
   } catch (error) {
     console.error("Erreur lors de la récupération des informations de la base de données:", error);
     return { error: "Impossible de récupérer les informations" };

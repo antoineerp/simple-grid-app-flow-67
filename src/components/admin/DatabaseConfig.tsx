@@ -52,55 +52,58 @@ const DatabaseConfig = () => {
         headers: getAuthHeaders()
       });
       
-      if (response.ok) {
-        const responseText = await response.text();
-        console.log("Réponse brute reçue:", responseText.substring(0, 200));
-        
-        let data;
-        try {
-          data = JSON.parse(responseText);
-          console.log("Configuration reçue:", data);
-        } catch (parseError) {
-          console.error("Erreur de parsing JSON:", parseError);
-          throw new Error(`Erreur dans la réponse JSON: ${parseError.message}. Réponse reçue: ${responseText.substring(0, 100)}...`);
-        }
-        
-        // Mettre à jour les bases de données disponibles
-        if (data.available_databases && data.available_databases.length > 0) {
-          setAvailableDatabases(data.available_databases);
-        }
-        
-        // Mettre à jour la configuration
-        setDbConfig(prev => ({
-          ...prev,
-          host: data.host || prev.host,
-          db_name: data.db_name || prev.db_name,
-          username: data.username || prev.username,
-          // Ne pas mettre à jour le mot de passe
-        }));
-        
-        // Vérifier si la base de données actuelle est dans la liste des bases disponibles
-        const isCustom = !availableDatabases.includes(data.db_name);
-        setCustomDbName(isCustom);
-        
-        toast({
-          title: "Configuration chargée",
-          description: "La configuration de la base de données a été chargée avec succès.",
-        });
-      } else {
-        console.error("Erreur lors du chargement de la configuration:", response.status, response.statusText);
-        
+      if (!response.ok) {
         const errorText = await response.text();
-        console.error("Contenu de l'erreur:", errorText.substring(0, 200));
-        
-        toast({
-          title: "Erreur",
-          description: `Impossible de charger la configuration de la base de données. (${response.status})`,
-          variant: "destructive",
-        });
+        throw new Error(`Erreur HTTP ${response.status}: ${errorText.substring(0, 100)}`);
       }
+      
+      const responseText = await response.text();
+      console.log("Réponse brute reçue:", responseText.substring(0, 200));
+      
+      if (!responseText.trim()) {
+        throw new Error("Réponse vide du serveur");
+      }
+      
+      // Vérifier si la réponse est du HTML au lieu de JSON
+      if (responseText.trim().toLowerCase().startsWith('<!doctype') || 
+          responseText.trim().toLowerCase().startsWith('<html')) {
+        throw new Error("Le serveur a retourné une page HTML au lieu de JSON");
+      }
+      
+      let data;
+      try {
+        data = JSON.parse(responseText);
+        console.log("Configuration reçue:", data);
+      } catch (parseError) {
+        console.error("Erreur de parsing JSON:", parseError);
+        throw new Error(`Erreur dans la réponse JSON: ${parseError.message}`);
+      }
+      
+      // Mettre à jour les bases de données disponibles
+      if (data.available_databases && data.available_databases.length > 0) {
+        setAvailableDatabases(data.available_databases);
+      }
+      
+      // Mettre à jour la configuration
+      setDbConfig(prev => ({
+        ...prev,
+        host: data.host || prev.host,
+        db_name: data.db_name || prev.db_name,
+        username: data.username || prev.username,
+        // Ne pas mettre à jour le mot de passe
+      }));
+      
+      // Vérifier si la base de données actuelle est dans la liste des bases disponibles
+      const isCustom = data.db_name && !availableDatabases.includes(data.db_name);
+      setCustomDbName(isCustom);
+      
+      toast({
+        title: "Configuration chargée",
+        description: "La configuration de la base de données a été chargée avec succès.",
+      });
     } catch (error) {
       console.error("Erreur:", error);
+      
       toast({
         title: "Erreur",
         description: error instanceof Error ? error.message : "Une erreur s'est produite lors du chargement de la configuration.",
@@ -126,11 +129,25 @@ const DatabaseConfig = () => {
           ...getAuthHeaders(),
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify(dbConfig)
+        body: JSON.stringify({
+          host: dbConfig.host,
+          db_name: dbConfig.db_name,
+          username: dbConfig.username,
+          password: dbConfig.password
+        })
       });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Erreur HTTP ${response.status}: ${errorText.substring(0, 100)}`);
+      }
       
       const responseText = await response.text();
       console.log("Réponse brute du test:", responseText.substring(0, 200));
+      
+      if (!responseText.trim()) {
+        throw new Error("Réponse vide du serveur");
+      }
       
       let data;
       try {
@@ -188,17 +205,36 @@ const DatabaseConfig = () => {
       const API_URL = getApiUrl();
       console.log("Sauvegarde de la configuration de la base de données:", dbConfig);
       
+      // Créer un objet propre pour l'envoi, sans propriétés non nécessaires
+      const configToSave = {
+        host: dbConfig.host,
+        db_name: dbConfig.db_name,
+        username: dbConfig.username,
+        password: dbConfig.password
+      };
+      
+      console.log("Données envoyées:", JSON.stringify(configToSave));
+      
       const response = await fetch(`${API_URL}/database-config`, {
         method: 'POST',
         headers: {
           ...getAuthHeaders(),
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify(dbConfig)
+        body: JSON.stringify(configToSave)
       });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Erreur HTTP ${response.status}: ${errorText.substring(0, 100)}`);
+      }
       
       const responseText = await response.text();
       console.log("Réponse brute de la sauvegarde:", responseText.substring(0, 200));
+      
+      if (!responseText.trim()) {
+        throw new Error("Réponse vide du serveur");
+      }
       
       let result;
       try {
@@ -208,32 +244,16 @@ const DatabaseConfig = () => {
         throw new Error(`Erreur dans la réponse JSON de sauvegarde: ${parseError.message}`);
       }
       
-      if (response.ok) {
-        console.log("Résultat de la sauvegarde:", result);
-        
-        if (result.status === 'success') {
-          toast({
-            title: "Configuration sauvegardée",
-            description: "La configuration de la base de données a été sauvegardée avec succès.",
-          });
-          
-          // Tester la connexion après la sauvegarde
-          await testConnection();
-        } else {
-          toast({
-            title: "Avertissement",
-            description: result.message || "La configuration a été sauvegardée mais il y a un problème.",
-            variant: "destructive",
-          });
-        }
-      } else {
-        console.error("Erreur lors de la sauvegarde:", response.status, response.statusText);
-        toast({
-          title: "Erreur",
-          description: result?.message || `Impossible de sauvegarder la configuration de la base de données. (${response.status})`,
-          variant: "destructive",
-        });
-      }
+      console.log("Résultat de la sauvegarde:", result);
+      
+      toast({
+        title: "Configuration sauvegardée",
+        description: "La configuration de la base de données a été sauvegardée avec succès.",
+      });
+      
+      // Tester la connexion après la sauvegarde
+      await testConnection();
+      
     } catch (error) {
       console.error("Erreur:", error);
       toast({
