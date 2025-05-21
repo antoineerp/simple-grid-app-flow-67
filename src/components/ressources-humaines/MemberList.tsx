@@ -26,7 +26,7 @@ const MemberList = ({ membres, onEdit, onDelete, onExport }: MemberListProps) =>
       <tbody>
         {membres.map((membre) => (
           <tr key={membre.id} className="border-b hover:bg-gray-50">
-            <td className="py-3 px-4 text-sm">{membre.nom}</td>
+            <td className="py-3 px-4 text-sm"><span className="font-bold">{membre.nom}</span></td>
             <td className="py-3 px-4 text-sm">{membre.prenom}</td>
             <td className="py-3 px-4 text-sm">{membre.fonction}</td>
             <td className="py-3 px-4 text-sm">{membre.initiales}</td>

@@ -1,6 +1,6 @@
 
-import React, { useState } from 'react';
-import { FileText, Plus } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { FileText, Plus, UserPlus } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -8,22 +8,23 @@ import MemberList from '@/components/ressources-humaines/MemberList';
 import { getMembres } from '@/services/users/membresService';
 import SyncIndicator from '@/components/common/SyncIndicator';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { v4 as uuidv4 } from 'uuid';
 
 const RessourcesHumaines = () => {
-  const [membres, setMembres] = React.useState([]);
-  const [isLoading, setIsLoading] = React.useState(true);
-  const [syncFailed, setSyncFailed] = React.useState(false);
-  const [isOnline, setIsOnline] = React.useState(navigator.onLine);
-  const [lastSynced, setLastSynced] = React.useState(null);
+  const [membres, setMembres] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [syncFailed, setSyncFailed] = useState(false);
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [lastSynced, setLastSynced] = useState(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [currentMember, setCurrentMember] = useState({
     id: '',
     nom: '',
     prenom: '',
     fonction: '',
-    email: '',
-    telephone: ''
+    initiales: ''
   });
   
   const { toast } = useToast();
@@ -43,7 +44,7 @@ const RessourcesHumaines = () => {
     }
   };
 
-  React.useEffect(() => {
+  useEffect(() => {
     loadMembres();
     
     const handleOnlineStatus = () => {
@@ -72,34 +73,73 @@ const RessourcesHumaines = () => {
       nom: '',
       prenom: '',
       fonction: '',
-      email: '',
-      telephone: ''
+      initiales: ''
     });
     setIsDialogOpen(true);
   };
 
-  // This is the fixed function for editing a member
   const handleEditMember = (id) => {
-    // Find the member in the array
     const memberToEdit = membres.find(m => m.id === id);
     if (memberToEdit) {
-      // Set all the member data to the currentMember state
       setCurrentMember({
         id: memberToEdit.id || '',
         nom: memberToEdit.nom || '',
         prenom: memberToEdit.prenom || '',
         fonction: memberToEdit.fonction || '',
-        email: memberToEdit.email || '',
-        telephone: memberToEdit.telephone || ''
+        initiales: memberToEdit.initiales || ''
       });
       setIsDialogOpen(true);
     }
   };
 
+  const generateInitiales = (prenom, nom) => {
+    const prenomInitial = prenom ? prenom.charAt(0).toUpperCase() : '';
+    const nomInitial = nom ? nom.charAt(0).toUpperCase() : '';
+    return prenomInitial + nomInitial;
+  };
+
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setCurrentMember(prev => ({
+      ...prev,
+      [name]: value
+    }));
+
+    // Générer automatiquement les initiales si le nom ou prénom change
+    if (name === 'nom' || name === 'prenom') {
+      const prenom = name === 'prenom' ? value : currentMember.prenom;
+      const nom = name === 'nom' ? value : currentMember.nom;
+      
+      // Ne mettre à jour les initiales que si elles n'ont pas été modifiées manuellement
+      if (!currentMember.initiales || 
+          currentMember.initiales === generateInitiales(currentMember.prenom, currentMember.nom)) {
+        setCurrentMember(prev => ({
+          ...prev,
+          initiales: generateInitiales(prenom, nom)
+        }));
+      }
+    }
+  };
+
   const handleSaveMember = () => {
+    // Vérifier que les champs obligatoires sont remplis
+    if (!currentMember.nom || !currentMember.prenom || !currentMember.fonction) {
+      toast({
+        variant: "destructive",
+        title: "Champs manquants",
+        description: "Veuillez remplir tous les champs obligatoires (nom, prénom, fonction)."
+      });
+      return;
+    }
+    
+    // Générer les initiales si champ vide
+    const initiales = currentMember.initiales || generateInitiales(currentMember.prenom, currentMember.nom);
+    
     const newMember = {
       ...currentMember,
-      id: currentMember.id || uuidv4()
+      initiales,
+      id: currentMember.id || uuidv4(),
+      date_creation: new Date()
     };
     
     if (currentMember.id) {
@@ -193,70 +233,76 @@ const RessourcesHumaines = () => {
         <Button 
           variant="default"
           onClick={handleAddMember}
+          className="flex items-center gap-2"
         >
-          <Plus className="h-5 w-5 mr-2" />
-          Ajouter un membre
+          <UserPlus className="h-5 w-5" />
+          Ajouter un collaborateur
         </Button>
       </div>
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>{currentMember.id ? 'Modifier' : 'Ajouter'} un membre</DialogTitle>
+            <DialogTitle>{currentMember.id ? 'Modifier' : 'Ajouter'} un collaborateur</DialogTitle>
           </DialogHeader>
           <div className="grid gap-4 py-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label htmlFor="nom" className="block text-sm font-medium text-gray-700">Nom</label>
-                <input
-                  id="nom"
-                  type="text"
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                  value={currentMember.nom}
-                  onChange={e => setCurrentMember({...currentMember, nom: e.target.value})}
-                />
-              </div>
-              <div>
-                <label htmlFor="prenom" className="block text-sm font-medium text-gray-700">Prénom</label>
-                <input
-                  id="prenom"
-                  type="text"
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                  value={currentMember.prenom}
-                  onChange={e => setCurrentMember({...currentMember, prenom: e.target.value})}
-                />
-              </div>
-            </div>
-            <div>
-              <label htmlFor="fonction" className="block text-sm font-medium text-gray-700">Fonction</label>
-              <input
-                id="fonction"
-                type="text"
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                value={currentMember.fonction}
-                onChange={e => setCurrentMember({...currentMember, fonction: e.target.value})}
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="nom" className="text-right">
+                Nom*
+              </Label>
+              <Input
+                id="nom"
+                name="nom"
+                className="col-span-3"
+                value={currentMember.nom}
+                onChange={handleInputChange}
+                required
               />
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label htmlFor="email" className="block text-sm font-medium text-gray-700">Email</label>
-                <input
-                  id="email"
-                  type="email"
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                  value={currentMember.email}
-                  onChange={e => setCurrentMember({...currentMember, email: e.target.value})}
+            
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="prenom" className="text-right">
+                Prénom*
+              </Label>
+              <Input
+                id="prenom"
+                name="prenom"
+                className="col-span-3"
+                value={currentMember.prenom}
+                onChange={handleInputChange}
+                required
+              />
+            </div>
+            
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="fonction" className="text-right">
+                Fonction*
+              </Label>
+              <Input
+                id="fonction"
+                name="fonction"
+                className="col-span-3"
+                value={currentMember.fonction}
+                onChange={handleInputChange}
+                required
+              />
+            </div>
+            
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="initiales" className="text-right">
+                Initiales
+              </Label>
+              <div className="col-span-3 space-y-1">
+                <Input
+                  id="initiales"
+                  name="initiales"
+                  className="col-span-3"
+                  value={currentMember.initiales}
+                  onChange={handleInputChange}
+                  placeholder="Générées automatiquement"
+                  maxLength={4}
                 />
-              </div>
-              <div>
-                <label htmlFor="telephone" className="block text-sm font-medium text-gray-700">Téléphone</label>
-                <input
-                  id="telephone"
-                  type="text"
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                  value={currentMember.telephone}
-                  onChange={e => setCurrentMember({...currentMember, telephone: e.target.value})}
-                />
+                <p className="text-xs text-gray-500">Laissez vide pour générer automatiquement</p>
               </div>
             </div>
           </div>
@@ -265,7 +311,7 @@ const RessourcesHumaines = () => {
               Annuler
             </Button>
             <Button onClick={handleSaveMember}>
-              Enregistrer
+              {currentMember.id ? 'Mettre à jour' : 'Ajouter'}
             </Button>
           </div>
         </DialogContent>
