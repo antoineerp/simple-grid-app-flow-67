@@ -4,24 +4,61 @@
 
 import { getCurrentUser } from '@/services/core/databaseConnectionService';
 
-// Fonction pour obtenir un identifiant utilisateur valide - toujours p71x6d_richard
+// Fonction pour obtenir un identifiant utilisateur valide
 const getValidUserId = (user: any): string => {
-  // Toujours utiliser p71x6d_richard
-  return 'p71x6d_richard';
+  // Si l'entrée est undefined ou null
+  if (user === undefined || user === null) {
+    console.log("userId invalide (null/undefined), utilisation de getCurrentUser()");
+    return getCurrentUser();
+  }
+  
+  // Si c'est déjà une chaîne, la retourner directement (mais vérifier si c'est [object Object])
+  if (typeof user === 'string') {
+    // Vérifier si la chaîne est [object Object]
+    if (user === '[object Object]' || user.includes('object')) {
+      console.log("userId est la chaîne '[object Object]', utilisation de getCurrentUser()");
+      return getCurrentUser();
+    }
+    return user;
+  }
+  
+  // Si c'est un objet, essayer d'extraire un identifiant
+  if (typeof user === 'object') {
+    // Journaliser l'identifiant reçu pour débogage
+    console.log("Identifiant objet reçu:", JSON.stringify(user));
+    
+    // Propriétés potentielles pour extraire un ID
+    const idProperties = ['identifiant_technique', 'email', 'id'];
+    
+    for (const prop of idProperties) {
+      if (user[prop] && typeof user[prop] === 'string' && user[prop].length > 0) {
+        console.log(`ID utilisateur extrait de l'objet: ${prop}=${user[prop]}`);
+        return user[prop];
+      }
+    }
+    
+    // Si toString() renvoie quelque chose d'autre que [object Object], l'utiliser
+    const userIdString = String(user);
+    if (userIdString !== '[object Object]' && userIdString !== 'null' && userIdString !== 'undefined') {
+      console.log(`Conversion de l'objet en chaîne: ${userIdString}`);
+      return userIdString;
+    }
+  }
+  
+  // Utiliser getCurrentUser() comme valeur par défaut
+  return getCurrentUser();
 };
 
 // Generate a unique storage key for a table
 export const getStorageKey = (tableName: string, syncKey?: string): string => {
-  // Utiliser un utilisateur fixe
-  const userId = 'p71x6d_richard';
+  // Utiliser l'ID de l'utilisateur connecté
+  const userId = syncKey || getCurrentUser();
   
   // S'assurer que la clé est une chaîne valide
   const safeTableName = typeof tableName === 'string' ? tableName : String(tableName);
-  const safeSyncKey = syncKey && typeof syncKey === 'string' ? syncKey : '';
+  const safeSyncKey = userId && typeof userId === 'string' ? userId : getCurrentUser();
   
-  return safeSyncKey ? 
-    `${safeTableName}_${safeSyncKey}_${userId}` : 
-    `${safeTableName}_${userId}`;
+  return `${safeTableName}_${safeSyncKey}`;
 };
 
 // Save data to local storage and session storage for redundancy

@@ -1,4 +1,3 @@
-
 /**
  * Core synchronization operations
  */
@@ -8,6 +7,7 @@ import { saveLocalData } from './syncStorageManager';
 import { SyncOperationResult } from '../types/syncTypes';
 import { syncQueue } from './syncQueue';
 import { syncMonitor } from './syncMonitor';
+import { getCurrentUser } from '@/services/core/databaseConnectionService';
 
 // Tableau pour stocker les noms des tables synchronisées récemment (pour éviter les doublons)
 const recentlySyncedTables = new Set<string>();
@@ -37,8 +37,8 @@ export const executeSyncOperation = async <T>(
   syncKey?: string,
   trigger: "auto" | "manual" | "initial" = "auto"
 ): Promise<SyncOperationResult> => {
-  // Force using p71x6d_richard for all sync operations
-  const userId = 'p71x6d_richard';
+  // Utiliser l'ID de l'utilisateur connecté
+  const userId = getCurrentUser();
   
   // Check if the data is valid
   if (!data || !Array.isArray(data)) {

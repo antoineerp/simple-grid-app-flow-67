@@ -2,6 +2,7 @@
 import { Membre } from '@/types/membres';
 import { getApiUrl } from '@/config/apiConfig';
 import { getAuthHeaders } from '../auth/authService';
+import { getCurrentUser } from '../core/databaseConnectionService';
 
 // Cache pour les membres
 let membresCache: Membre[] | null = null;
@@ -27,7 +28,7 @@ export const getMembres = async (forceRefresh: boolean = false): Promise<Membre[
     }
 
     const API_URL = getApiUrl();
-    const userId = localStorage.getItem('userId') || sessionStorage.getItem('userId') || 'p71x6d_system';
+    const userId = getCurrentUser();
     console.log(`Chargement des membres pour l'utilisateur: ${userId}`);
 
     const response = await fetch(`${API_URL}/check-users.php?userId=${userId}`, {
@@ -85,7 +86,7 @@ export const getMembres = async (forceRefresh: boolean = false): Promise<Membre[
     
     // Essayer de récupérer depuis le stockage local
     try {
-      const userId = localStorage.getItem('userId') || sessionStorage.getItem('userId') || 'p71x6d_system';
+      const userId = getCurrentUser();
       const localData = localStorage.getItem(`membres_${userId}`);
       
       if (localData) {

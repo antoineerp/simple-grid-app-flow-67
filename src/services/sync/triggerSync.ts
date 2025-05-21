@@ -241,11 +241,11 @@ export const triggerSync = {
    */
   syncWithServer: async <T>(tableName: string, data: T[]): Promise<boolean> => {
     try {
-      const currentUser = getCurrentUser() || 'p71x6d_system';
+      const currentUser = getCurrentUser();
       const API_URL = getApiUrl();
       const endpoint = `${API_URL}/${tableName}-sync.php`;
       
-      console.log(`TriggerSync: Envoi des données à ${endpoint}`);
+      console.log(`TriggerSync: Envoi des données à ${endpoint} pour l'utilisateur ${currentUser}`);
       
       const response = await fetch(endpoint, {
         method: 'POST',
@@ -279,11 +279,11 @@ export const triggerSync = {
       
       // Essayer l'URL alternative si la première échoue
       try {
-        const currentUser = getCurrentUser() || 'p71x6d_system';
+        const currentUser = getCurrentUser();
         const apiAltUrl = `/sites/qualiopi.ch/api`;
         const endpoint = `${apiAltUrl}/${tableName}-sync.php`;
         
-        console.log(`TriggerSync: Tentative avec URL alternative: ${endpoint}`);
+        console.log(`TriggerSync: Tentative avec URL alternative: ${endpoint} pour l'utilisateur ${currentUser}`);
         
         const response = await fetch(endpoint, {
           method: 'POST',

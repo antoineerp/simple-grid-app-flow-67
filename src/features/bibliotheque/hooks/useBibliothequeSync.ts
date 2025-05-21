@@ -1,4 +1,3 @@
-
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { Document as BibliothequeDocument, DocumentGroup } from '@/types/bibliotheque';
 import { Document as SystemDocument } from '@/types/documents';
@@ -6,7 +5,7 @@ import { syncService } from '@/services/sync/SyncService';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { useSync } from '@/hooks/useSync';
 import { toast } from '@/components/ui/use-toast';
-import { getDatabaseConnectionCurrentUser } from '@/services/core/databaseConnectionService';
+import { getCurrentUser } from '@/services/core/databaseConnectionService';
 
 // Fonction utilitaire pour obtenir un ID utilisateur valide
 const getValidUserId = (userId?: string | null): string => {
@@ -15,28 +14,8 @@ const getValidUserId = (userId?: string | null): string => {
     return userId;
   }
   
-  // Sinon, essayer d'obtenir l'utilisateur courant
-  try {
-    const currentUser = getDatabaseConnectionCurrentUser();
-    
-    // Si l'utilisateur est une chaîne non vide, l'utiliser
-    if (currentUser && typeof currentUser === 'string') {
-      return currentUser;
-    }
-    
-    // Si l'utilisateur est un objet, essayer d'extraire un identifiant
-    if (currentUser && typeof currentUser === 'object') {
-      const userObj = currentUser as any;
-      if (userObj.identifiant_technique) return userObj.identifiant_technique;
-      if (userObj.email) return userObj.email;
-      if (userObj.id) return userObj.id;
-    }
-  } catch (e) {
-    console.error("Erreur lors de la récupération de l'utilisateur actuel:", e);
-  }
-  
-  // Valeur par défaut sécuritaire
-  return 'p71x6d_system';
+  // Sinon, obtenir l'utilisateur courant
+  return getCurrentUser();
 };
 
 // Helper function to convert between document types
@@ -112,7 +91,7 @@ export const useBibliothequeSync = () => {
           console.log('Synchronisation automatique déclenchée');
           
           // Utiliser l'utilisateur courant
-          const currentUser = getValidUserId(getDatabaseConnectionCurrentUser());
+          const currentUser = getValidUserId(getCurrentUser());
           
           syncWithServer(documentsRef.current, groupsRef.current, currentUser, "auto")
             .catch(err => console.error("Erreur lors de la synchronisation automatique:", err));
@@ -129,7 +108,7 @@ export const useBibliothequeSync = () => {
     groups: DocumentGroup[], 
     userId?: string
   ) => {
-    // Toujours utiliser l'utilisateur courant si non spécifié
+    // Utiliser l'utilisateur courant si non spécifié
     const currentUser = getValidUserId(userId);
     
     // Mettre à jour les références pour la synchronisation automatique
@@ -167,7 +146,7 @@ export const useBibliothequeSync = () => {
     userId?: string, 
     trigger: "auto" | "manual" | "initial" = "manual"
   ): Promise<boolean> => {
-    // Utiliser la fonction utilitaire pour garantir un ID utilisateur valide
+    // Utiliser l'utilisateur actuel
     const currentUser = getValidUserId(userId);
     
     console.log(`Synchronisation pour l'utilisateur: ${currentUser}`);
