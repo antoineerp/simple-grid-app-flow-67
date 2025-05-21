@@ -5,24 +5,34 @@
 
 import { getCurrentUser } from '@/services/core/databaseConnectionService';
 
+// Constantes pour la validation
+const RESTRICTED_IDS = ['system', 'admin', 'root', 'p71x6d_system', 'p71x6d_system2', '[object Object]', 'null', 'undefined'];
+const DEFAULT_USER_ID = 'anonymous';
+
+/**
+ * Vérifie si un ID est valide
+ */
+const isValidUserId = (userId: string | null | undefined): boolean => {
+  if (!userId || typeof userId !== 'string') return false;
+  if (RESTRICTED_IDS.includes(userId)) return false;
+  if (userId === 'null' || userId === 'undefined') return false;
+  return true;
+};
+
 // Génère une clé de stockage unique pour une table et un utilisateur
 export const getStorageKey = (tableName: string, userId?: string | null): string => {
   // Si aucun ID n'est fourni, utiliser l'ID de l'utilisateur connecté
   const currentUserId = userId || getCurrentUser();
   
   // Vérifier que l'ID utilisateur est valide
-  if (!currentUserId || typeof currentUserId !== 'string') {
-    console.error(`syncStorageManager: ID utilisateur invalide pour ${tableName}`, currentUserId);
-    return `${tableName}_error`;
-  }
-  
-  // S'assurer que l'ID n'est pas 'p71x6d_system2' par erreur
-  if (currentUserId === 'p71x6d_system2' && process.env.NODE_ENV === 'production') {
-    console.warn(`syncStorageManager: Utilisateur système détecté pour ${tableName}, vérification nécessaire`);
+  if (!isValidUserId(currentUserId)) {
+    console.error(`syncStorageManager: ID utilisateur invalide pour ${tableName}:`, currentUserId);
+    console.warn(`syncStorageManager: Utilisation de l'ID par défaut pour ${tableName}`);
+    return `${tableName}_${DEFAULT_USER_ID}`;
   }
   
   // Remplacer les caractères problématiques dans l'identifiant utilisateur
-  const safeUserId = currentUserId.replace(/[^a-zA-Z0-9_]/g, '_');
+  const safeUserId = String(currentUserId).replace(/[^a-zA-Z0-9_]/g, '_');
   
   return `${tableName}_${safeUserId}`;
 };
@@ -31,7 +41,13 @@ export const getStorageKey = (tableName: string, userId?: string | null): string
 export const saveLocalData = <T>(tableName: string, data: T[], userId?: string): void => {
   try {
     const storageKey = getStorageKey(tableName, userId);
-    console.log(`syncStorageManager: Sauvegarde des données pour ${tableName} avec utilisateur ${userId || getCurrentUser()}`);
+    const currentUserId = userId || getCurrentUser();
+    
+    console.log(`syncStorageManager: Sauvegarde des données pour ${tableName} avec utilisateur ${currentUserId}`);
+    
+    if (!isValidUserId(currentUserId)) {
+      console.warn(`syncStorageManager: Tentative de sauvegarde avec ID invalide: ${currentUserId}`);
+    }
     
     localStorage.setItem(storageKey, JSON.stringify(data));
     localStorage.setItem(`${storageKey}_last_modified`, Date.now().toString());
@@ -45,7 +61,14 @@ export const saveLocalData = <T>(tableName: string, data: T[], userId?: string):
 export const loadLocalData = <T>(tableName: string, userId?: string): T[] => {
   try {
     const storageKey = getStorageKey(tableName, userId);
-    console.log(`syncStorageManager: Chargement des données pour ${tableName} avec utilisateur ${userId || getCurrentUser()}`);
+    const currentUserId = userId || getCurrentUser();
+    
+    console.log(`syncStorageManager: Chargement des données pour ${tableName} avec utilisateur ${currentUserId}`);
+    
+    if (!isValidUserId(currentUserId)) {
+      console.warn(`syncStorageManager: Tentative de chargement avec ID invalide: ${currentUserId}`);
+      return [];
+    }
     
     const data = localStorage.getItem(storageKey);
     if (!data) {
@@ -104,18 +127,20 @@ export const cleanupStorage = (): void => {
   try {
     let entriesRemoved = 0;
     
-    // Rechercher les clés contenant [object Object] ou autres problèmes
+    // Rechercher les clés contenant des identifiants problématiques
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i);
-      if (key && (
-        key.includes('[object Object]') || 
-        key.includes('undefined') ||
-        key.includes('null') ||
-        key.includes('p71x6d_system2')  // Ajouter la détection de cet ID problématique
-      )) {
+      if (!key) continue;
+      
+      // Vérifier si la clé contient un identifiant système ou problématique
+      const hasRestrictedId = RESTRICTED_IDS.some(id => key.includes(id));
+      const hasInvalidFormat = key.includes('[object Object]') || key.includes('undefined') || key.includes('null');
+      
+      if (hasRestrictedId || hasInvalidFormat) {
         console.log(`SyncStorageManager: Suppression de l'entrée malformée dans localStorage: ${key}`);
         localStorage.removeItem(key);
         entriesRemoved++;
+        i--; // Ajuster l'index car la longueur du localStorage a changé
       }
     }
     
@@ -128,6 +153,11 @@ export const cleanupStorage = (): void => {
 // Nettoyer les données d'un utilisateur spécifique
 export const cleanupUserData = (userId: string): void => {
   console.log(`SyncStorageManager: Nettoyage des données pour l'utilisateur ${userId}`);
+  
+  if (!isValidUserId(userId)) {
+    console.warn(`SyncStorageManager: Tentative de nettoyage avec ID invalide: ${userId}, opération annulée`);
+    return;
+  }
   
   try {
     let entriesRemoved = 0;

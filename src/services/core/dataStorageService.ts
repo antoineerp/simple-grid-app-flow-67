@@ -1,6 +1,5 @@
 
 import { getCurrentUser } from './databaseConnectionService';
-import { syncService } from '@/services/sync/syncService';
 
 /**
  * Charge des données depuis le stockage local

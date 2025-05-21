@@ -1,4 +1,3 @@
-
 import { getApiUrl } from '@/config/apiConfig';
 import { toast } from '@/components/ui/use-toast';
 import { LoginResponse } from '@/types/auth';
@@ -36,9 +35,40 @@ export const getCurrentUser = (): string => {
   
   // Sinon, essayer de le récupérer du localStorage
   const storedUser = localStorage.getItem('user_id');
-  if (storedUser) {
+  if (storedUser && storedUser !== 'null' && storedUser !== 'undefined' && storedUser !== '[object Object]') {
+    // Vérifier que ce n'est pas un ID système
+    if (storedUser === 'p71x6d_system' || storedUser === 'p71x6d_system2' || storedUser === 'system' || storedUser === 'admin') {
+      console.warn("Tentative d'utilisation d'un ID système restreint, déclencher une déconnexion de sécurité");
+      logout(); // Déconnecter l'utilisateur pour éviter tout problème
+      return 'anonymous';
+    }
+    
     currentUser = storedUser;
     return storedUser;
+  }
+  
+  // Tenter de récupérer l'ID depuis le token JWT
+  try {
+    const token = localStorage.getItem('auth_token');
+    if (token) {
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      if (payload && payload.user_id) {
+        // Vérifier que ce n'est pas un ID système
+        if (payload.user_id !== 'p71x6d_system' && 
+            payload.user_id !== 'p71x6d_system2' && 
+            payload.user_id !== 'system' && 
+            payload.user_id !== 'admin') {
+          localStorage.setItem('user_id', payload.user_id);
+          currentUser = payload.user_id;
+          return payload.user_id;
+        } else {
+          console.warn("Token contient un ID système restreint, déconnexion pour sécurité");
+          logout();
+        }
+      }
+    }
+  } catch (error) {
+    console.error("Erreur lors de la récupération de l'ID depuis le token:", error);
   }
   
   // Valeur par défaut sécurisée
@@ -49,8 +79,13 @@ export const getCurrentUser = (): string => {
  * Connecte un utilisateur
  */
 export const login = async (username: string, password: string): Promise<LoginResponse> => {
+  // Nettoyer tout état utilisateur précédent
+  logout();
+  
   try {
     const API_URL = getApiUrl();
+    
+    console.log(`Tentative de connexion au serveur pour l'utilisateur ${username}`);
     
     const response = await fetch(`${API_URL}/login.php`, {
       method: 'POST',
@@ -63,11 +98,29 @@ export const login = async (username: string, password: string): Promise<LoginRe
     const data = await response.json();
     
     if (data.success && data.token) {
+      // Vérifier que l'ID utilisateur est valide et non restreint
+      const userId = data.user_id || username;
+      
+      if (userId === 'p71x6d_system' || userId === 'p71x6d_system2' || userId === 'system' || userId === 'admin') {
+        console.warn(`Tentative de connexion avec un ID restreint: ${userId}`);
+        toast({
+          variant: "destructive",
+          title: "Erreur de connexion",
+          description: "Connexion avec cet identifiant non autorisée"
+        });
+        return {
+          success: false,
+          message: "Utilisateur non autorisé"
+        };
+      }
+      
       localStorage.setItem('auth_token', data.token);
-      localStorage.setItem('user_id', data.user_id || username);
-      currentUser = data.user_id || username;
+      localStorage.setItem('user_id', userId);
+      currentUser = userId;
       currentToken = data.token;
       isLoggedIn = true;
+      
+      console.log(`Connexion réussie pour l'utilisateur ${userId}`);
       
       return data;
     } else {
@@ -104,6 +157,14 @@ export const logout = (): void => {
   currentUser = null;
   currentToken = null;
   isLoggedIn = false;
+  
+  // Nettoyer également les données utilisateur du localStorage
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (key && (key.includes('data_') || key.includes('sync_'))) {
+      localStorage.removeItem(key);
+    }
+  }
 };
 
 /**

@@ -8,31 +8,50 @@ import { Utilisateur } from '@/types/auth';
 let currentUser: string | null = null;
 let lastConnectionError: string | null = null;
 
+// Constantes pour la validation
+const RESTRICTED_IDS = ['system', 'admin', 'root', 'p71x6d_system', 'p71x6d_system2', '[object Object]', 'null', 'undefined'];
+const ANONYMOUS_ID = 'anonymous';
+
+/**
+ * Vérifie si un ID est restreint/système
+ */
+const isRestrictedId = (id: string | null): boolean => {
+  if (!id) return true;
+  return RESTRICTED_IDS.includes(id) || id === 'null' || id === 'undefined';
+}
+
+/**
+ * Génère un ID utilisateur aléatoire sécurisé
+ */
+const generateSafeUserId = (): string => {
+  return 'user_' + Math.random().toString(36).substring(2, 12);
+}
+
 /**
  * Récupère l'identifiant de l'utilisateur actuellement connecté
  */
 export const getCurrentUser = (): string => {
-  // Si déjà mis en cache, le retourner
-  if (currentUser) {
+  // Si déjà mis en cache et valide, le retourner
+  if (currentUser && !isRestrictedId(currentUser)) {
     return currentUser;
   }
   
   // Sinon, essayer de le récupérer du localStorage
   const storedUser = localStorage.getItem('user_id');
-  if (storedUser) {
-    // Vérifier si c'est un ID système
-    if (isSystemUser(storedUser)) {
-      console.log("ID système détecté dans le token, vérification nécessaire");
-      const safeUser = forceSafeUser();
-      console.log("Tentative de définir l'ID système problématique");
-      return safeUser;
-    }
+  
+  // Vérifier que l'ID est valide et non restreint
+  if (storedUser && !isRestrictedId(storedUser)) {
     currentUser = storedUser;
     return storedUser;
   }
   
-  // Valeur par défaut sécurisée
-  return forceSafeUser();
+  // Si l'ID est restreint, logger l'erreur
+  if (storedUser && isRestrictedId(storedUser)) {
+    console.error(`ID système détecté: ${storedUser}, utilisation de l'anonyme`);
+  }
+  
+  // Valeur anonyme par défaut
+  return ANONYMOUS_ID;
 };
 
 /**
@@ -47,9 +66,9 @@ export const getDatabaseConnectionCurrentUser = (): string => {
  */
 export const setCurrentUser = (userId: string): void => {
   // Vérifier si c'est un ID système dangereux
-  if (isSystemUser(userId)) {
-    console.log("ID système problématique détecté", userId);
-    const safeUser = forceSafeUser();
+  if (isRestrictedId(userId)) {
+    console.error(`Tentative de définir un ID restreint: ${userId}, utilisation d'un ID sécurisé`);
+    const safeUser = generateSafeUserId();
     currentUser = safeUser;
     localStorage.setItem('user_id', safeUser);
     return;
@@ -63,6 +82,13 @@ export const setCurrentUser = (userId: string): void => {
  * Connecte l'application à la base de données en tant qu'utilisateur spécifique
  */
 export const connectAsUser = async (userId: string): Promise<boolean> => {
+  // Vérifier que l'ID n'est pas restreint
+  if (isRestrictedId(userId)) {
+    console.error(`Tentative de connexion avec un ID restreint: ${userId}`);
+    lastConnectionError = "Identifiant utilisateur non autorisé";
+    return false;
+  }
+  
   try {
     setCurrentUser(userId);
     
@@ -95,16 +121,14 @@ export const connectAsUser = async (userId: string): Promise<boolean> => {
  * Vérifie si l'ID d'utilisateur est un utilisateur système
  */
 export const isSystemUser = (userId: string): boolean => {
-  // Liste des ID système sensibles
-  const systemIds = ['system', 'admin', 'root', '[object Object]', 'null', 'undefined'];
-  return systemIds.includes(userId) || !userId || userId === 'null' || userId === 'undefined';
+  return isRestrictedId(userId);
 };
 
 /**
  * Force l'utilisation d'un ID utilisateur sécurisé
  */
 export const forceSafeUser = (): string => {
-  const safeId = 'user_' + Math.random().toString(36).substr(2, 9);
+  const safeId = generateSafeUserId();
   setCurrentUser(safeId);
   return safeId;
 };

@@ -1,3 +1,4 @@
+
 /**
  * Core synchronization operations
  */
@@ -39,6 +40,12 @@ export const executeSyncOperation = async <T>(
 ): Promise<SyncOperationResult> => {
   // Utiliser l'ID de l'utilisateur connecté
   const userId = getCurrentUser();
+  
+  // S'assurer que l'ID utilisateur n'est jamais "system" ou un autre identifiant en dur
+  if (!userId || userId === 'system' || userId === 'p71x6d_system' || userId === 'p71x6d_system2') {
+    console.error(`SyncOperations: ID utilisateur invalide - ${userId || 'non défini'}, synchronisation impossible`);
+    return { success: false, message: "Invalid user ID" };
+  }
   
   // Check if the data is valid
   if (!data || !Array.isArray(data)) {
