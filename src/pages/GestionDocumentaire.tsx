@@ -4,7 +4,6 @@ import { FileText, Plus, FolderPlus } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useDocuments } from '@/hooks/useDocuments';
 import DocumentTable from '@/components/gestion-documentaire/DocumentTable';
-import DocumentForm from '@/components/gestion-documentaire/DocumentForm';
 import { DocumentGroupDialog } from '@/components/gestion-documentaire/DocumentGroupDialog';
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -20,9 +19,7 @@ const GestionDocumentaire = () => {
     documents,
     groups,
     stats,
-    editingDocument,
     editingGroup,
-    dialogOpen,
     groupDialogOpen,
     isSyncing,
     setIsSyncing,
@@ -30,13 +27,11 @@ const GestionDocumentaire = () => {
     lastSynced,
     setLastSynced,
     syncFailed,
-    setDialogOpen,
     setGroupDialogOpen,
     handleResponsabiliteChange,
     handleAtteinteChange,
     handleExclusionChange,
     handleEdit,
-    handleSaveDocument,
     handleDelete,
     handleAddDocument,
     handleReorder,
@@ -52,7 +47,6 @@ const GestionDocumentaire = () => {
   
   const { toast } = useToast();
 
-  // Calculate document stats
   const documentStats = calculateDocumentStats(documents);
 
   const handleExportPdf = () => {
@@ -68,12 +62,6 @@ const GestionDocumentaire = () => {
         description: "Aucun document disponible à exporter",
       });
     }
-  };
-
-  // New handler to add document directly in the table
-  const handleAddDirectDocument = () => {
-    const newDocument = handleAddDocument();
-    // No need to open the dialog form
   };
 
   return (
@@ -102,7 +90,7 @@ const GestionDocumentaire = () => {
         lastSynced={lastSynced}
         setLastSynced={setLastSynced}
       >
-        {documents.length > 0 ? (
+        {documents.length > 0 || isSyncing ? (
           <DocumentTable 
             documents={documents}
             groups={groups}
@@ -116,11 +104,8 @@ const GestionDocumentaire = () => {
             onToggleGroup={handleToggleGroup}
             onEditGroup={handleEditGroup}
             onDeleteGroup={handleDeleteGroup}
+            onAddDocument={handleAddDocument}
           />
-        ) : isSyncing ? (
-          <div className="text-center p-8 border border-dashed rounded-md mt-4 bg-gray-50">
-            <p className="text-gray-500">Chargement des documents...</p>
-          </div>
         ) : (
           <div className="text-center p-8 border border-dashed rounded-md mt-4 bg-gray-50">
             <p className="text-gray-500">Aucun document trouvé. Cliquez sur "Ajouter un document" pour commencer.</p>
@@ -146,13 +131,6 @@ const GestionDocumentaire = () => {
           </Button>
         </div>
       </DataSyncManager>
-
-      <DocumentForm 
-        document={editingDocument}
-        open={dialogOpen}
-        onOpenChange={setDialogOpen}
-        onSave={handleSaveDocument}
-      />
 
       <DocumentGroupDialog
         group={editingGroup}

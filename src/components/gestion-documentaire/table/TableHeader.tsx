@@ -1,36 +1,34 @@
 
 import React from 'react';
+import { Plus } from 'lucide-react';
 import { TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Button } from "@/components/ui/button";
 
-const DocumentTableHeader = () => {
+interface DocumentTableHeaderProps {
+  onAddDocument: () => void;
+}
+
+const DocumentTableHeader: React.FC<DocumentTableHeaderProps> = ({ onAddDocument }) => {
   return (
     <TableHeader>
       <TableRow className="bg-app-light-blue">
         <TableHead className="w-10"></TableHead>
-        <TableHead className="py-3 px-4 text-app-blue font-medium text-sm w-1/3">Document</TableHead>
-        <TableHead className="py-3 px-4 text-app-blue font-medium text-sm">Fichier</TableHead>
-        <TableHead className="py-3 px-4 text-app-blue font-medium text-sm text-center" colSpan={4}>
-          Responsabilités
+        <TableHead className="py-3 px-4 text-app-blue font-semibold">
+          <div className="flex items-center justify-between">
+            <span>Nom du document</span>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onAddDocument}
+              className="h-8 px-2 hover:bg-app-blue/10"
+            >
+              <Plus className="h-4 w-4" />
+            </Button>
+          </div>
         </TableHead>
-        <TableHead className="py-3 px-4 text-app-blue font-medium text-sm">Exclusion</TableHead>
-        <TableHead className="py-3 px-4 text-app-blue font-medium text-sm text-center" colSpan={3}>
-          Atteinte
-        </TableHead>
-        <TableHead className="py-3 px-4 text-app-blue font-medium text-sm text-right">Actions</TableHead>
-      </TableRow>
-      <TableRow className="bg-app-light-blue">
-        <TableHead></TableHead>
-        <TableHead></TableHead>
-        <TableHead></TableHead>
-        <TableHead className="py-2 px-2 text-center text-sm font-medium">R</TableHead>
-        <TableHead className="py-2 px-2 text-center text-sm font-medium">A</TableHead>
-        <TableHead className="py-2 px-2 text-center text-sm font-medium">C</TableHead>
-        <TableHead className="py-2 px-2 text-center text-sm font-medium">I</TableHead>
-        <TableHead></TableHead>
-        <TableHead className="py-2 px-2 text-center text-sm font-medium text-red-500">NC</TableHead>
-        <TableHead className="py-2 px-2 text-center text-sm font-medium text-yellow-500">PC</TableHead>
-        <TableHead className="py-2 px-2 text-center text-sm font-medium text-green-500">C</TableHead>
-        <TableHead></TableHead>
+        <TableHead className="py-3 px-4 text-app-blue font-semibold">R.A.C.I</TableHead>
+        <TableHead className="py-3 px-4 text-app-blue font-semibold">État</TableHead>
+        <TableHead className="py-3 px-4 text-app-blue font-semibold text-right">Actions</TableHead>
       </TableRow>
     </TableHeader>
   );
