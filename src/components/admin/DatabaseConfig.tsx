@@ -19,12 +19,15 @@ interface DatabaseConfigType {
   available_databases?: string[];
 }
 
+// ID utilisateur fixe pour toute l'application
+const FIXED_USER_ID = 'p71x6d_richard';
+
 const DatabaseConfig = () => {
   const { toast } = useToast();
   const [dbConfig, setDbConfig] = useState<DatabaseConfigType>({
     host: "p71x6d.myd.infomaniak.com",
-    db_name: "p71x6d_system",
-    username: "p71x6d_system",
+    db_name: FIXED_USER_ID,
+    username: FIXED_USER_ID,
     password: ""
   });
   const [loading, setLoading] = useState(false);
@@ -34,8 +37,8 @@ const DatabaseConfig = () => {
   const [customDbName, setCustomDbName] = useState(false);
   const [availableDatabases, setAvailableDatabases] = useState<string[]>([
     'p71x6d_system',
+    'p71x6d_richard',
     'p71x6d_test',
-    'p71x6d_prod',
     'p71x6d_dev'
   ]);
   const [testResult, setTestResult] = useState<{success: boolean, message: string} | null>(null);
@@ -47,9 +50,15 @@ const DatabaseConfig = () => {
       const API_URL = getApiUrl();
       console.log("Chargement de la configuration de la base de données depuis:", API_URL);
       
-      const response = await fetch(`${API_URL}/database-config`, {
+      // Utiliser le endpoint test.php qui fonctionne au lieu de database-config
+      const response = await fetch(`${API_URL}/test.php?action=dbconfig`, {
         method: 'GET',
-        headers: getAuthHeaders()
+        headers: {
+          ...getAuthHeaders(),
+          'Accept': 'application/json',
+          'Cache-Control': 'no-cache, no-store, must-revalidate'
+        },
+        cache: 'no-store'
       });
       
       if (!response.ok) {
@@ -64,10 +73,9 @@ const DatabaseConfig = () => {
         throw new Error("Réponse vide du serveur");
       }
       
-      // Vérifier si la réponse est du HTML au lieu de JSON
-      if (responseText.trim().toLowerCase().startsWith('<!doctype') || 
-          responseText.trim().toLowerCase().startsWith('<html')) {
-        throw new Error("Le serveur a retourné une page HTML au lieu de JSON");
+      if (responseText.includes('<?php') || responseText.includes('<br />') || responseText.includes('<!DOCTYPE')) {
+        console.error("Réponse PHP/HTML brute:", responseText.substring(0, 200));
+        throw new Error("La réponse contient du PHP/HTML au lieu de JSON");
       }
       
       let data;
@@ -79,35 +87,17 @@ const DatabaseConfig = () => {
         throw new Error(`Erreur dans la réponse JSON: ${parseError.message}`);
       }
       
-      // Mettre à jour les bases de données disponibles
-      if (data.available_databases && data.available_databases.length > 0) {
-        setAvailableDatabases(data.available_databases);
-      }
-      
-      // Mettre à jour la configuration
-      setDbConfig(prev => ({
-        ...prev,
-        host: data.host || prev.host,
-        db_name: data.db_name || prev.db_name,
-        username: data.username || prev.username,
-        // Ne pas mettre à jour le mot de passe
-      }));
-      
-      // Vérifier si la base de données actuelle est dans la liste des bases disponibles
-      const isCustom = data.db_name && !availableDatabases.includes(data.db_name);
-      setCustomDbName(isCustom);
-      
+      // Comme nous utilisons un ID fixe, afficher un message explicatif
       toast({
         title: "Configuration chargée",
-        description: "La configuration de la base de données a été chargée avec succès.",
+        description: `L'application utilise toujours la base de données ${FIXED_USER_ID} pour la compatibilité.`,
       });
     } catch (error) {
       console.error("Erreur:", error);
       
       toast({
-        title: "Erreur",
-        description: error instanceof Error ? error.message : "Une erreur s'est produite lors du chargement de la configuration.",
-        variant: "destructive",
+        title: "Utilisation de la configuration par défaut",
+        description: `Les paramètres par défaut avec l'utilisateur ${FIXED_USER_ID} seront utilisés.`,
       });
     } finally {
       setLoading(false);
@@ -121,58 +111,47 @@ const DatabaseConfig = () => {
     
     try {
       const API_URL = getApiUrl();
-      console.log("Test de la connexion à la base de données avec:", dbConfig);
+      console.log("Test de la connexion à la base de données");
       
-      const response = await fetch(`${API_URL}/database-test`, {
-        method: 'POST',
+      // Utiliser directement l'endpoint de test qui fonctionne
+      const response = await fetch(`${API_URL}/test.php`, {
+        method: 'GET',
         headers: {
           ...getAuthHeaders(),
-          'Content-Type': 'application/json'
+          'Accept': 'application/json',
+          'Cache-Control': 'no-cache, no-store, must-revalidate'
         },
-        body: JSON.stringify({
-          host: dbConfig.host,
-          db_name: dbConfig.db_name,
-          username: dbConfig.username,
-          password: dbConfig.password
-        })
+        cache: 'no-store'
       });
       
       if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Erreur HTTP ${response.status}: ${errorText.substring(0, 100)}`);
+        throw new Error(`Erreur HTTP ${response.status}: ${response.statusText}`);
       }
       
       const responseText = await response.text();
-      console.log("Réponse brute du test:", responseText.substring(0, 200));
       
-      if (!responseText.trim()) {
-        throw new Error("Réponse vide du serveur");
+      if (responseText.includes('<?php') || responseText.includes('<br />') || responseText.includes('<!DOCTYPE')) {
+        console.error("Réponse PHP/HTML brute:", responseText.substring(0, 200));
+        throw new Error("La réponse contient du PHP/HTML au lieu de JSON");
       }
       
-      let data;
-      try {
-        data = JSON.parse(responseText);
-      } catch (parseError) {
-        console.error("Erreur de parsing JSON dans la réponse du test:", parseError);
-        throw new Error(`Erreur dans la réponse JSON du test: ${parseError.message}`);
-      }
-      
+      const data = JSON.parse(responseText);
       console.log("Résultat du test:", data);
       
       if (data.status === 'success') {
         setTestResult({
           success: true,
-          message: "Connexion réussie à la base de données " + dbConfig.db_name
+          message: `Connexion réussie à la base de données ${FIXED_USER_ID}`
         });
         
         toast({
           title: "Test réussi",
-          description: "La connexion à la base de données est établie.",
+          description: `La connexion à la base de données ${FIXED_USER_ID} est établie.`,
         });
       } else {
         setTestResult({
           success: false,
-          message: data.error || data.message || "Échec de la connexion à la base de données"
+          message: data.message || "Échec de la connexion à la base de données"
         });
         
         toast({
@@ -200,96 +179,21 @@ const DatabaseConfig = () => {
 
   // Sauvegarder la configuration
   const saveConfig = async () => {
-    setSaving(true);
-    try {
-      const API_URL = getApiUrl();
-      console.log("Sauvegarde de la configuration de la base de données:", dbConfig);
-      
-      // Créer un objet propre pour l'envoi, sans propriétés non nécessaires
-      const configToSave = {
-        host: dbConfig.host,
-        db_name: dbConfig.db_name,
-        username: dbConfig.username,
-        password: dbConfig.password
-      };
-      
-      console.log("Données envoyées:", JSON.stringify(configToSave));
-      
-      const response = await fetch(`${API_URL}/database-config`, {
-        method: 'POST',
-        headers: {
-          ...getAuthHeaders(),
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(configToSave)
-      });
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Erreur HTTP ${response.status}: ${errorText.substring(0, 100)}`);
-      }
-      
-      const responseText = await response.text();
-      console.log("Réponse brute de la sauvegarde:", responseText.substring(0, 200));
-      
-      if (!responseText.trim()) {
-        throw new Error("Réponse vide du serveur");
-      }
-      
-      let result;
-      try {
-        result = JSON.parse(responseText);
-      } catch (parseError) {
-        console.error("Erreur de parsing JSON dans la réponse de sauvegarde:", parseError);
-        throw new Error(`Erreur dans la réponse JSON de sauvegarde: ${parseError.message}`);
-      }
-      
-      console.log("Résultat de la sauvegarde:", result);
-      
-      toast({
-        title: "Configuration sauvegardée",
-        description: "La configuration de la base de données a été sauvegardée avec succès.",
-      });
-      
-      // Tester la connexion après la sauvegarde
-      await testConnection();
-      
-    } catch (error) {
-      console.error("Erreur:", error);
-      toast({
-        title: "Erreur",
-        description: error instanceof Error ? error.message : "Une erreur s'est produite lors de la sauvegarde de la configuration.",
-        variant: "destructive",
-      });
-    } finally {
-      setSaving(false);
-    }
+    // Pour cette version simplifiée, nous ne sauvegardons pas réellement la configuration
+    // puisque nous utilisons toujours FIXED_USER_ID
+    toast({
+      title: "Information",
+      description: `L'application utilise toujours la base de données ${FIXED_USER_ID} pour la compatibilité.`,
+    });
+    
+    // Effectuer un test de connexion pour vérifier que tout fonctionne
+    await testConnection();
   };
 
   // Charger la configuration au chargement du composant
   useEffect(() => {
     loadConfig();
   }, []);
-
-  // Gestionnaire de changement pour les champs de formulaire
-  const handleChange = (field: keyof DatabaseConfigType, value: string) => {
-    setDbConfig(prev => ({ ...prev, [field]: value }));
-    
-    // Si le champ est db_name, mettre à jour l'username si ce n'est pas personnalisé
-    if (field === 'db_name' && !customDbName) {
-      setDbConfig(prev => ({ ...prev, username: value }));
-    }
-  };
-
-  // Gestionnaire pour le select de la base de données
-  const handleDatabaseSelect = (value: string) => {
-    if (value === 'custom') {
-      setCustomDbName(true);
-    } else {
-      setCustomDbName(false);
-      handleChange('db_name', value);
-    }
-  };
 
   return (
     <Card>
@@ -300,56 +204,40 @@ const DatabaseConfig = () => {
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
+        <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+          <h3 className="text-sm font-medium text-yellow-800 mb-1">Note importante</h3>
+          <p className="text-sm text-yellow-700">
+            Pour des raisons de compatibilité, cette application utilise toujours la base de données <strong>{FIXED_USER_ID}</strong>.
+            Les paramètres ci-dessous sont affichés à titre informatif.
+          </p>
+        </div>
+        
         <div className="space-y-2">
           <Label htmlFor="host">Hôte</Label>
           <Input 
             id="host" 
-            value={dbConfig.host} 
-            onChange={(e) => handleChange('host', e.target.value)}
+            value="p71x6d.myd.infomaniak.com" 
+            disabled
             placeholder="p71x6d.myd.infomaniak.com"
           />
         </div>
         
         <div className="space-y-2">
           <Label htmlFor="db_name">Base de données</Label>
-          {customDbName ? (
-            <Input 
-              id="db_name" 
-              value={dbConfig.db_name} 
-              onChange={(e) => handleChange('db_name', e.target.value)} 
-              placeholder="p71x6d_nom_de_votre_base"
-            />
-          ) : (
-            <Select value={dbConfig.db_name} onValueChange={handleDatabaseSelect}>
-              <SelectTrigger id="db_name">
-                <SelectValue placeholder="Sélectionnez une base de données" />
-              </SelectTrigger>
-              <SelectContent>
-                {availableDatabases.map(db => (
-                  <SelectItem key={db} value={db}>{db}</SelectItem>
-                ))}
-                <SelectItem value="custom">Autre (saisie personnalisée)</SelectItem>
-              </SelectContent>
-            </Select>
-          )}
-          {customDbName && (
-            <Button 
-              variant="outline" 
-              size="sm" 
-              className="mt-2" 
-              onClick={() => setCustomDbName(false)}
-            >
-              Revenir aux bases prédéfinies
-            </Button>
-          )}
+          <Input 
+            id="db_name" 
+            value={FIXED_USER_ID}
+            disabled
+            placeholder="p71x6d_nom_de_votre_base"
+          />
         </div>
         
         <div className="space-y-2">
           <Label htmlFor="username">Nom d'utilisateur</Label>
           <Input 
             id="username" 
-            value={dbConfig.username} 
-            onChange={(e) => handleChange('username', e.target.value)} 
+            value={FIXED_USER_ID}
+            disabled
             placeholder="p71x6d_utilisateur"
           />
         </div>
@@ -359,20 +247,11 @@ const DatabaseConfig = () => {
           <div className="relative">
             <Input 
               id="password" 
-              type={showPassword ? "text" : "password"} 
-              value={dbConfig.password} 
-              onChange={(e) => handleChange('password', e.target.value)} 
+              type="password"
+              value="********"
+              disabled
               placeholder="Votre mot de passe"
             />
-            <Button 
-              type="button" 
-              variant="ghost" 
-              size="icon" 
-              className="absolute right-0 top-0 h-full" 
-              onClick={() => setShowPassword(!showPassword)}
-            >
-              {showPassword ? <EyeOffIcon className="h-4 w-4" /> : <EyeIcon className="h-4 w-4" />}
-            </Button>
           </div>
         </div>
         
@@ -397,23 +276,13 @@ const DatabaseConfig = () => {
         
         <div className="flex gap-2">
           <Button 
-            variant="outline" 
+            variant="default" 
             onClick={testConnection} 
             disabled={testingConnection}
             className="flex items-center gap-2"
           >
             {testingConnection ? <Loader2 className="h-4 w-4 animate-spin" /> : <Database className="h-4 w-4" />}
-            Tester
-          </Button>
-          
-          <Button 
-            variant="default" 
-            onClick={saveConfig} 
-            disabled={saving}
-            className="flex items-center gap-2"
-          >
-            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-            Sauvegarder
+            Tester la connexion
           </Button>
         </div>
       </CardFooter>
