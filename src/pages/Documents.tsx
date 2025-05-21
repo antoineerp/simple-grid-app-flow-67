@@ -129,6 +129,7 @@ const Documents = () => {
             onToggleGroup={handleToggleGroup}
             onEditGroup={handleEditGroup}
             onDeleteGroup={handleDeleteGroup}
+            onAddDocument={handleAddDocument}
           />
           
           <div className="flex justify-end mt-4 space-x-2">
