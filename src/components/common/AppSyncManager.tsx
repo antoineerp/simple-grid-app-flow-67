@@ -8,10 +8,20 @@ import { Button } from '@/components/ui/button';
 import { CloudUpload, AlertCircle, RefreshCw } from 'lucide-react';
 import { SyncDebugger } from '@/components/sync/SyncDebugger';
 
+interface AppSyncManagerProps {
+  showControls?: boolean;
+  className?: string;
+  enableDebugger?: boolean;
+}
+
 /**
  * Composant qui gère la synchronisation et la vérification des tables utilisateur
  */
-export const AppSyncManager: React.FC = () => {
+export const AppSyncManager: React.FC<AppSyncManagerProps> = ({ 
+  showControls = true, 
+  className = "",
+  enableDebugger = false
+}) => {
   const [isVerifying, setIsVerifying] = useState(false);
   const [showDebugger, setShowDebugger] = useState(false);
   const [verificationStatus, setVerificationStatus] = useState<'idle' | 'success' | 'warning' | 'error'>('idle');
@@ -71,7 +81,7 @@ export const AppSyncManager: React.FC = () => {
   };
   
   return (
-    <div className="space-y-4">
+    <div className={`space-y-4 ${className}`}>
       {verificationStatus === 'warning' && (
         <Alert variant="default" className="border-amber-500 bg-amber-50 text-amber-900">
           <AlertCircle className="h-4 w-4" />
@@ -92,39 +102,43 @@ export const AppSyncManager: React.FC = () => {
         </Alert>
       )}
       
-      <div className="flex justify-between items-center">
-        <Button 
-          variant="outline" 
-          size="sm"
-          onClick={handleVerifyTables} 
-          disabled={isVerifying}
-          className="flex items-center gap-2"
-        >
-          {isVerifying ? (
-            <>
-              <RefreshCw className="h-4 w-4 animate-spin" />
-              Vérification...
-            </>
-          ) : (
-            <>
-              <RefreshCw className="h-4 w-4" />
-              Vérifier les tables
-            </>
+      {showControls && (
+        <div className="flex justify-between items-center">
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={handleVerifyTables} 
+            disabled={isVerifying}
+            className="flex items-center gap-2"
+          >
+            {isVerifying ? (
+              <>
+                <RefreshCw className="h-4 w-4 animate-spin" />
+                Vérification...
+              </>
+            ) : (
+              <>
+                <RefreshCw className="h-4 w-4" />
+                Vérifier les tables
+              </>
+            )}
+          </Button>
+          
+          {enableDebugger && (
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={toggleDebugger}
+              className="flex items-center gap-2"
+            >
+              <CloudUpload className="h-4 w-4" />
+              {showDebugger ? "Masquer le moniteur" : "Afficher le moniteur"}
+            </Button>
           )}
-        </Button>
-        
-        <Button 
-          variant="ghost" 
-          size="sm" 
-          onClick={toggleDebugger}
-          className="flex items-center gap-2"
-        >
-          <CloudUpload className="h-4 w-4" />
-          {showDebugger ? "Masquer le moniteur" : "Afficher le moniteur"}
-        </Button>
-      </div>
+        </div>
+      )}
       
-      {showDebugger && <SyncDebugger />}
+      {enableDebugger && showDebugger && <SyncDebugger />}
     </div>
   );
 };
