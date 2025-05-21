@@ -5,6 +5,7 @@ import { ThemeProvider } from '@/components/theme/theme-provider';
 import { Toaster } from '@/components/ui/toaster';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { GlobalSyncProvider } from '@/contexts/GlobalSyncContext';
+import MembresProvider from '@/contexts/MembresContext';
 import router from './router';
 
 function App() {
@@ -20,8 +21,10 @@ function App() {
     <ThemeProvider defaultTheme="light" storageKey="vite-ui-theme">
       <AuthProvider>
         <GlobalSyncProvider>
-          <RouterProvider router={router} />
-          <Toaster />
+          <MembresProvider>
+            <RouterProvider router={router} />
+            <Toaster />
+          </MembresProvider>
         </GlobalSyncProvider>
       </AuthProvider>
     </ThemeProvider>

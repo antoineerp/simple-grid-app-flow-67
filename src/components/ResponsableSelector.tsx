@@ -31,10 +31,10 @@ const ResponsableSelector = ({ selectedInitiales, onChange, type }: ResponsableS
     }
   };
 
-  // Make sure we have some default data if membres is empty
+  // S'assurer qu'on a des données par défaut si les membres sont vides ou en cours de chargement
   const membresData = membres && membres.length > 0 ? membres : [
-    { id: '1', prenom: 'Jean', nom: 'Dupont', initiales: 'JD' },
-    { id: '2', prenom: 'Marie', nom: 'Martin', initiales: 'MM' }
+    { id: '1', prenom: 'Jean', nom: 'Dupont', initiales: 'JD', fonction: 'Directeur', date_creation: new Date() },
+    { id: '2', prenom: 'Marie', nom: 'Martin', initiales: 'MM', fonction: 'Responsable', date_creation: new Date() }
   ];
 
   return (
