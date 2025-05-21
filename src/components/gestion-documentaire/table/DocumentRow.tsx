@@ -1,29 +1,30 @@
 
 import React from 'react';
-import { TableRow, TableCell } from "@/components/ui/table";
-import { Document } from '@/types/documents';
 import { Pencil, Trash, GripVertical } from 'lucide-react';
+import { TableCell, TableRow } from "@/components/ui/table";
+import { Document } from '@/types/documents';
+import ResponsabiliteSelector from './ResponsabiliteSelector';
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import FileLink from './FileLink';
-import ResponsableSelector from '@/components/ResponsableSelector';
 
 interface DocumentRowProps {
   doc: Document;
+  index: number;
   onResponsabiliteChange: (id: string, type: 'r' | 'a' | 'c' | 'i', values: string[]) => void;
   onAtteinteChange: (id: string, atteinte: 'NC' | 'PC' | 'C' | null) => void;
   onExclusionChange: (id: string) => void;
   onEdit: (id: string) => void;
   onDelete: (id: string) => void;
-  onDragStart?: (e: React.DragEvent<HTMLTableRowElement>, id: string, groupId?: string) => void;
-  onDragOver?: (e: React.DragEvent<HTMLTableRowElement>) => void;
-  onDragLeave?: (e: React.DragEvent<HTMLTableRowElement>) => void;
-  onDrop?: (e: React.DragEvent<HTMLTableRowElement>, id: string, groupId?: string) => void;
-  onDragEnd?: (e: React.DragEvent<HTMLTableRowElement>) => void;
+  onDragStart: (e: React.DragEvent<HTMLTableRowElement>, id: string, groupId?: string) => void;
+  onDragOver: (e: React.DragEvent<HTMLTableRowElement>) => void;
+  onDragLeave: (e: React.DragEvent<HTMLTableRowElement>) => void;
+  onDrop: (e: React.DragEvent<HTMLTableRowElement>, id: string, groupId?: string) => void;
+  onDragEnd: (e: React.DragEvent<HTMLTableRowElement>) => void;
 }
 
-const DocumentRow: React.FC<DocumentRowProps> = ({
+const DocumentRow: React.FC<DocumentRowProps> = ({ 
   doc,
+  index,
   onResponsabiliteChange,
   onAtteinteChange,
   onExclusionChange,
@@ -35,135 +36,112 @@ const DocumentRow: React.FC<DocumentRowProps> = ({
   onDrop,
   onDragEnd
 }) => {
-  const handleResponsabiliteChange = (type: 'r' | 'a' | 'c' | 'i', values: string[]) => {
-    onResponsabiliteChange(doc.id, type, values);
-  };
-  
-  const handleAtteinteChange = (value: 'NC' | 'PC' | 'C' | null) => {
-    onAtteinteChange(doc.id, value);
-  };
-  
-  const handleExclusionChange = () => {
-    onExclusionChange(doc.id);
-  };
-  
-  // Calculate if the document is excluded
-  const isExcluded = doc.etat === 'EX';
-  
   return (
-    <TableRow 
-      className={`border-b ${isExcluded ? 'bg-gray-100' : 'bg-white'}`}
+    <TableRow
+      className={`border-b hover:bg-gray-50 ${doc.groupId ? 'bg-gray-50' : ''}`}
       draggable
-      onDragStart={e => onDragStart && onDragStart(e, doc.id, doc.groupId)}
-      onDragOver={e => onDragOver && onDragOver(e)}
-      onDragLeave={e => onDragLeave && onDragLeave(e)}
-      onDrop={e => onDrop && onDrop(e, doc.id, doc.groupId)}
-      onDragEnd={onDragEnd}
+      onDragStart={(e) => onDragStart(e, doc.id, doc.groupId)}
+      onDragOver={(e) => onDragOver(e)}
+      onDragLeave={(e) => onDragLeave(e)}
+      onDrop={(e) => onDrop(e, doc.id, doc.groupId)}
+      onDragEnd={(e) => onDragEnd(e)}
+      data-index={index}
+      data-id={doc.id}
     >
-      <TableCell className="w-10 p-2">
-        <div className="flex justify-center cursor-grab">
-          <GripVertical className="h-4 w-4 text-gray-400" />
-        </div>
+      <TableCell className="w-10 py-3 px-2">
+        <GripVertical className="h-5 w-5 text-gray-400 cursor-move" />
       </TableCell>
-      
-      <TableCell className="py-3 px-4 font-medium">{doc.nom}</TableCell>
-      
       <TableCell className="py-3 px-4">
-        <FileLink filePath={doc.fichier_path} />
+        {doc.nom}
       </TableCell>
-      
-      {/* RACI Columns - these are the ones that were missing or not rendering */}
-      <TableCell className="py-3 px-2 text-center">
-        <ResponsableSelector
+
+      <TableCell className="py-3 px-4 text-center">
+        <ResponsabiliteSelector 
           selectedInitiales={doc.responsabilites?.r || []}
-          onChange={(values) => handleResponsabiliteChange('r', values)}
+          onChange={(values) => onResponsabiliteChange(doc.id, 'r', values)}
           type="r"
+          disabled={doc.excluded}
         />
       </TableCell>
-      
-      <TableCell className="py-3 px-2 text-center">
-        <ResponsableSelector
+      <TableCell className="py-3 px-4 text-center">
+        <ResponsabiliteSelector 
           selectedInitiales={doc.responsabilites?.a || []}
-          onChange={(values) => handleResponsabiliteChange('a', values)}
+          onChange={(values) => onResponsabiliteChange(doc.id, 'a', values)}
           type="a"
+          disabled={doc.excluded}
         />
       </TableCell>
-      
-      <TableCell className="py-3 px-2 text-center">
-        <ResponsableSelector
+      <TableCell className="py-3 px-4 text-center">
+        <ResponsabiliteSelector 
           selectedInitiales={doc.responsabilites?.c || []}
-          onChange={(values) => handleResponsabiliteChange('c', values)}
+          onChange={(values) => onResponsabiliteChange(doc.id, 'c', values)}
           type="c"
+          disabled={doc.excluded}
         />
       </TableCell>
-      
-      <TableCell className="py-3 px-2 text-center">
-        <ResponsableSelector
+      <TableCell className="py-3 px-4 text-center">
+        <ResponsabiliteSelector 
           selectedInitiales={doc.responsabilites?.i || []}
-          onChange={(values) => handleResponsabiliteChange('i', values)}
+          onChange={(values) => onResponsabiliteChange(doc.id, 'i', values)}
           type="i"
+          disabled={doc.excluded}
         />
       </TableCell>
-      
+
       <TableCell className="py-3 px-4 text-center">
         <Checkbox 
-          checked={isExcluded} 
-          onCheckedChange={handleExclusionChange}
+          checked={doc.excluded}
+          onCheckedChange={() => onExclusionChange(doc.id)}
         />
       </TableCell>
-      
-      <TableCell className="py-3 px-1 text-center">
-        <Button
+
+      <TableCell className="py-3 px-4 text-center">
+        <Button 
           variant={doc.etat === 'NC' ? "default" : "outline"}
           size="sm"
           className="h-8 w-8 p-0 rounded-full border-red-200 text-red-500"
-          onClick={() => handleAtteinteChange(doc.etat === 'NC' ? null : 'NC')}
+          onClick={() => onAtteinteChange(doc.id, doc.etat === 'NC' ? null : 'NC')}
+          disabled={doc.excluded}
         >
           NC
         </Button>
       </TableCell>
-      
-      <TableCell className="py-3 px-1 text-center">
-        <Button
+      <TableCell className="py-3 px-4 text-center">
+        <Button 
           variant={doc.etat === 'PC' ? "default" : "outline"}
           size="sm"
           className="h-8 w-8 p-0 rounded-full border-yellow-200 text-yellow-500"
-          onClick={() => handleAtteinteChange(doc.etat === 'PC' ? null : 'PC')}
+          onClick={() => onAtteinteChange(doc.id, doc.etat === 'PC' ? null : 'PC')}
+          disabled={doc.excluded}
         >
           PC
         </Button>
       </TableCell>
-      
-      <TableCell className="py-3 px-1 text-center">
-        <Button
+      <TableCell className="py-3 px-4 text-center">
+        <Button 
           variant={doc.etat === 'C' ? "default" : "outline"}
           size="sm"
           className="h-8 w-8 p-0 rounded-full border-green-200 text-green-500"
-          onClick={() => handleAtteinteChange(doc.etat === 'C' ? null : 'C')}
+          onClick={() => onAtteinteChange(doc.id, doc.etat === 'C' ? null : 'C')}
+          disabled={doc.excluded}
         >
           C
         </Button>
       </TableCell>
       
       <TableCell className="py-3 px-4 text-right">
-        <div className="flex justify-end space-x-1">
-          <Button 
-            variant="ghost" 
-            size="sm"
-            className="h-8 w-8 p-0" 
-            onClick={() => onEdit(doc.id)}
-          >
-            <Pencil className="h-4 w-4" />
-          </Button>
-          <Button 
-            variant="ghost" 
-            size="sm"
-            className="h-8 w-8 p-0 text-red-500" 
-            onClick={() => onDelete(doc.id)}
-          >
-            <Trash className="h-4 w-4" />
-          </Button>
-        </div>
+        <button 
+          className="text-gray-600 hover:text-app-blue mr-3"
+          onClick={() => onEdit(doc.id)}
+        >
+          <Pencil className="h-5 w-5 inline-block" />
+        </button>
+        <button 
+          className="text-gray-600 hover:text-red-500"
+          onClick={() => onDelete(doc.id)}
+        >
+          <Trash className="h-5 w-5 inline-block" />
+        </button>
       </TableCell>
     </TableRow>
   );

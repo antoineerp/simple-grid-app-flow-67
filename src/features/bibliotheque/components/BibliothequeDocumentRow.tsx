@@ -14,6 +14,7 @@ interface BibliothequeDocumentRowProps {
   onDragLeave: (e: React.DragEvent<HTMLTableRowElement>) => void;
   onDrop: (e: React.DragEvent<HTMLTableRowElement>, id: string, groupId?: string) => void;
   onDragEnd: (e: React.DragEvent<HTMLTableRowElement>) => void;
+  index: number;
 }
 
 export const BibliothequeDocumentRow: React.FC<BibliothequeDocumentRowProps> = ({
@@ -25,7 +26,8 @@ export const BibliothequeDocumentRow: React.FC<BibliothequeDocumentRowProps> = (
   onDragOver,
   onDragLeave,
   onDrop,
-  onDragEnd
+  onDragEnd,
+  index
 }) => {
   return (
     <TableRow
@@ -41,9 +43,10 @@ export const BibliothequeDocumentRow: React.FC<BibliothequeDocumentRowProps> = (
       data-group-id={groupId || ""}
       data-sync-table="collaboration"
       data-sync-owner={document.userId || "default"}
+      data-index={index}
     >
       <TableCell className="py-3 px-2 w-10">
-        <GripVertical className="h-5 w-5 text-gray-400" />
+        <GripVertical className="h-5 w-5 text-gray-400 cursor-move" />
       </TableCell>
       <TableCell className="py-3 px-4">
         {document.name}

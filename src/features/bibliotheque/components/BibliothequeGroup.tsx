@@ -7,6 +7,7 @@ import { BibliothequeDocumentRow } from './BibliothequeDocumentRow';
 
 interface BibliothequeGroupProps {
   group: DocumentGroup;
+  documents: Document[];
   onEdit: (document: Document | null, group?: DocumentGroup) => void;
   onDelete: (id: string, isGroup?: boolean) => void;
   onToggleGroup: (id: string) => void;
@@ -21,6 +22,7 @@ interface BibliothequeGroupProps {
 
 export const BibliothequeGroup: React.FC<BibliothequeGroupProps> = ({ 
   group,
+  documents,
   onEdit,
   onDelete,
   onToggleGroup,
@@ -65,7 +67,7 @@ export const BibliothequeGroup: React.FC<BibliothequeGroupProps> = ({
         data-sync-owner={group.userId || "default"}
       >
         <TableCell className="py-3 px-2 w-10">
-          <GripVertical className="h-5 w-5 text-gray-400" />
+          <GripVertical className="h-5 w-5 text-gray-400 cursor-move" />
         </TableCell>
         <TableCell className="py-3 px-4 w-full text-left" colSpan={2}>
           <div className="flex items-center">
@@ -97,10 +99,11 @@ export const BibliothequeGroup: React.FC<BibliothequeGroupProps> = ({
         </TableCell>
       </TableRow>
       
-      {group.expanded && group.items.map((doc) => (
+      {group.expanded && documents.map((doc, index) => (
         <BibliothequeDocumentRow
           key={doc.id}
           document={doc}
+          index={index}
           onEdit={onEdit}
           onDelete={onDelete}
           onDragStart={onDragStart}

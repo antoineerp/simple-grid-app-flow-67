@@ -1,17 +1,27 @@
 
 import React from 'react';
-import { Pencil, Trash, FileDown } from 'lucide-react';
+import { Pencil, Trash, FileDown, GripVertical } from 'lucide-react';
 import { Membre } from '@/types/membres';
 import { Button } from "@/components/ui/button";
+import { useDragAndDropTable } from '@/hooks/useDragAndDropTable';
 
 interface MemberListProps {
   membres: Membre[];
   onEdit: (id: string) => void;
   onDelete: (id: string) => void;
-  onExport?: (id: string) => void; // Rendre optionnel
+  onExport?: (id: string) => void;
+  onReorder?: (startIndex: number, endIndex: number) => void;
 }
 
-const MemberList = ({ membres, onEdit, onDelete, onExport }: MemberListProps) => {
+const MemberList = ({ membres, onEdit, onDelete, onExport, onReorder = () => {} }: MemberListProps) => {
+  const {
+    handleDragStart,
+    handleDragOver,
+    handleDragLeave,
+    handleDrop,
+    handleDragEnd
+  } = useDragAndDropTable(membres, onReorder);
+
   return (
     <table className="w-full">
       <thead>
@@ -24,9 +34,23 @@ const MemberList = ({ membres, onEdit, onDelete, onExport }: MemberListProps) =>
         </tr>
       </thead>
       <tbody>
-        {membres.map((membre) => (
-          <tr key={membre.id} className="border-b hover:bg-gray-50">
-            <td className="py-3 px-4 text-sm"><span className="font-bold">{membre.nom}</span></td>
+        {membres.map((membre, index) => (
+          <tr 
+            key={membre.id} 
+            className="border-b hover:bg-gray-50"
+            draggable
+            onDragStart={(e) => handleDragStart(e, membre.id, index)}
+            onDragOver={(e) => handleDragOver(e)}
+            onDragLeave={(e) => handleDragLeave(e)}
+            onDrop={(e) => handleDrop(e, membre.id, index)}
+            onDragEnd={(e) => handleDragEnd(e)}
+          >
+            <td className="py-3 px-4 text-sm">
+              <div className="flex items-center">
+                <GripVertical className="h-5 w-5 text-gray-400 mr-2 flex-shrink-0 cursor-move" />
+                <span className="font-bold">{membre.nom}</span>
+              </div>
+            </td>
             <td className="py-3 px-4 text-sm">{membre.prenom}</td>
             <td className="py-3 px-4 text-sm">{membre.fonction}</td>
             <td className="py-3 px-4 text-sm">{membre.initiales}</td>

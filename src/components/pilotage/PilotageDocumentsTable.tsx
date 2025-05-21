@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React from 'react';
 import { Pencil, Trash, GripVertical } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import {
@@ -11,6 +11,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
+import { useDragAndDropTable } from '@/hooks/useDragAndDropTable';
 
 interface Document {
   id: number;
@@ -33,7 +34,15 @@ const PilotageDocumentsTable: React.FC<PilotageDocumentsTableProps> = ({
   onReorder
 }) => {
   const { toast } = useToast();
-  const [draggedItem, setDraggedItem] = useState<number | null>(null);
+  const sortedDocuments = [...documents].sort((a, b) => a.ordre - b.ordre);
+  
+  const {
+    handleDragStart,
+    handleDragOver,
+    handleDragLeave,
+    handleDrop,
+    handleDragEnd
+  } = useDragAndDropTable(sortedDocuments, onReorder);
 
   const handleLinkClick = (lien: string) => {
     if (!lien.startsWith('http://') && !lien.startsWith('https://')) {
@@ -41,48 +50,6 @@ const PilotageDocumentsTable: React.FC<PilotageDocumentsTableProps> = ({
     } else {
       window.open(lien, '_blank');
     }
-  };
-
-  const handleDragStart = (e: React.DragEvent, index: number) => {
-    setDraggedItem(index);
-    e.dataTransfer.effectAllowed = 'move';
-    e.dataTransfer.setData('text/plain', index.toString());
-    
-    // Ajout d'un délai pour permettre à l'image du drag d'être visible
-    setTimeout(() => {
-      e.currentTarget.classList.add('opacity-50');
-    }, 0);
-  };
-
-  const handleDragOver = (e: React.DragEvent, index: number) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
-    e.currentTarget.classList.add('border-dashed', 'border-2', 'border-primary');
-  };
-
-  const handleDragLeave = (e: React.DragEvent) => {
-    e.currentTarget.classList.remove('border-dashed', 'border-2', 'border-primary');
-  };
-
-  const handleDrop = (e: React.DragEvent, dropIndex: number) => {
-    e.preventDefault();
-    e.currentTarget.classList.remove('border-dashed', 'border-2', 'border-primary');
-    
-    const dragIndex = parseInt(e.dataTransfer.getData('text/plain'));
-    
-    if (dragIndex !== dropIndex) {
-      onReorder(dragIndex, dropIndex);
-      toast({
-        description: `Document déplacé avec succès`,
-      });
-    }
-    
-    setDraggedItem(null);
-  };
-
-  const handleDragEnd = (e: React.DragEvent) => {
-    e.currentTarget.classList.remove('opacity-50');
-    setDraggedItem(null);
   };
 
   return (
@@ -96,55 +63,53 @@ const PilotageDocumentsTable: React.FC<PilotageDocumentsTableProps> = ({
           </TableRow>
         </TableHeader>
         <TableBody>
-          {documents
-            .sort((a, b) => a.ordre - b.ordre)
-            .map((doc, index) => (
-              <TableRow 
-                key={doc.id} 
-                className="border-b hover:bg-gray-50"
-                draggable
-                onDragStart={(e) => handleDragStart(e, index)}
-                onDragOver={(e) => handleDragOver(e, index)}
-                onDragLeave={handleDragLeave}
-                onDrop={(e) => handleDrop(e, index)}
-                onDragEnd={handleDragEnd}
-              >
-                <TableCell className="flex items-center text-sm">
-                  <GripVertical className="h-5 w-5 text-gray-400 mr-2 flex-shrink-0 cursor-move" />
-                  {doc.nom}
-                </TableCell>
-                <TableCell className="text-sm">
-                  {doc.lien ? (
-                    <button 
-                      onClick={() => handleLinkClick(doc.lien as string)}
-                      className="text-app-blue hover:underline"
-                    >
-                      Voir le document
-                    </button>
-                  ) : (
-                    <span className="text-gray-500">Aucun lien</span>
-                  )}
-                </TableCell>
-                <TableCell className="text-right">
-                  <Button 
-                    variant="ghost" 
-                    size="icon" 
-                    className="text-gray-600 hover:text-app-blue"
-                    onClick={() => onEditDocument(doc)}
+          {sortedDocuments.map((doc, index) => (
+            <TableRow 
+              key={doc.id} 
+              className="border-b hover:bg-gray-50"
+              draggable
+              onDragStart={(e) => handleDragStart(e, doc.id, index)}
+              onDragOver={(e) => handleDragOver(e)}
+              onDragLeave={(e) => handleDragLeave(e)}
+              onDrop={(e) => handleDrop(e, doc.id, index)}
+              onDragEnd={(e) => handleDragEnd(e)}
+            >
+              <TableCell className="flex items-center text-sm">
+                <GripVertical className="h-5 w-5 text-gray-400 mr-2 flex-shrink-0 cursor-move" />
+                {doc.nom}
+              </TableCell>
+              <TableCell className="text-sm">
+                {doc.lien ? (
+                  <button 
+                    onClick={() => handleLinkClick(doc.lien as string)}
+                    className="text-app-blue hover:underline"
                   >
-                    <Pencil className="h-5 w-5" />
-                  </Button>
-                  <Button 
-                    variant="ghost" 
-                    size="icon" 
-                    className="text-gray-600 hover:text-red-500"
-                    onClick={() => onDeleteDocument(doc.id)}
-                  >
-                    <Trash className="h-5 w-5" />
-                  </Button>
-                </TableCell>
-              </TableRow>
-            ))}
+                    Voir le document
+                  </button>
+                ) : (
+                  <span className="text-gray-500">Aucun lien</span>
+                )}
+              </TableCell>
+              <TableCell className="text-right">
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  className="text-gray-600 hover:text-app-blue"
+                  onClick={() => onEditDocument(doc)}
+                >
+                  <Pencil className="h-5 w-5" />
+                </Button>
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  className="text-gray-600 hover:text-red-500"
+                  onClick={() => onDeleteDocument(doc.id)}
+                >
+                  <Trash className="h-5 w-5" />
+                </Button>
+              </TableCell>
+            </TableRow>
+          ))}
         </TableBody>
       </Table>
     </div>

@@ -6,7 +6,7 @@ import type { DocumentGroup as DocumentGroupType } from '@/types/documents';
 import DocumentTableHeader from './table/TableHeader';
 import DocumentRow from './table/DocumentRow';
 import DocumentGroupComponent from './table/DocumentGroup';
-import { useDragAndDrop } from './table/useDragAndDrop';
+import { useDragAndDropTable } from '@/hooks/useDragAndDropTable';
 
 interface DocumentTableProps {
   documents: Document[];
@@ -40,30 +40,22 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
   // Filtrer les documents qui n'appartiennent à aucun groupe
   const ungroupedDocuments = documents.filter(d => !d.groupId);
   
-  // Pour chaque groupe, ajouter les documents correspondants
-  const groupsWithItems = groups.map(group => {
-    // Trouver tous les documents appartenant à ce groupe
-    const groupItems = documents.filter(doc => doc.groupId === group.id);
-    
-    // Retourner le groupe avec ses documents
-    return {
-      ...group,
-      items: groupItems
-    };
-  });
-  
+  // Utiliser notre hook de drag-and-drop
   const {
-    draggedItem,
     handleDragStart,
     handleDragOver,
     handleDragLeave,
     handleDrop,
     handleDragEnd,
     handleGroupDrop
-  } = useDragAndDrop(documents, onReorder);
+  } = useDragAndDropTable(
+    documents, 
+    onReorder,
+    (doc) => doc.groupId
+  );
 
   const handleGroupDragStart = (e: React.DragEvent<HTMLTableRowElement>, groupId: string) => {
-    e.dataTransfer.setData('text/plain', JSON.stringify({ groupId }));
+    e.dataTransfer.setData('text/plain', JSON.stringify({ groupId, isGroup: true }));
     e.currentTarget.classList.add('opacity-50');
   };
 
@@ -73,34 +65,44 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
         <DocumentTableHeader />
         
         <TableBody>
-          {groupsWithItems.map((group) => (
-            <DocumentGroupComponent
-              key={group.id}
-              group={group}
-              onResponsabiliteChange={onResponsabiliteChange}
-              onAtteinteChange={onAtteinteChange}
-              onExclusionChange={onExclusionChange}
-              onEdit={onEdit}
-              onDelete={onDelete}
-              onToggleGroup={onToggleGroup}
-              onEditGroup={onEditGroup}
-              onDeleteGroup={onDeleteGroup}
-              onDragStart={handleDragStart}
-              onDragOver={handleDragOver}
-              onDragLeave={handleDragLeave}
-              onDrop={handleDrop}
-              onDragEnd={handleDragEnd}
-              onGroupDragStart={handleGroupDragStart}
-              onGroupDrop={handleGroupDrop}
-            />
-          ))}
+          {groups.map((group, groupIndex) => {
+            // Trouver tous les documents appartenant à ce groupe
+            const groupItems = documents.filter(doc => doc.groupId === group.id);
+            
+            return (
+              <DocumentGroupComponent
+                key={group.id}
+                group={{
+                  ...group,
+                  items: groupItems
+                }}
+                onResponsabiliteChange={onResponsabiliteChange}
+                onAtteinteChange={onAtteinteChange}
+                onExclusionChange={onExclusionChange}
+                onEdit={onEdit}
+                onDelete={onDelete}
+                onToggleGroup={onToggleGroup}
+                onEditGroup={onEditGroup}
+                onDeleteGroup={onDeleteGroup}
+                onDragStart={handleDragStart}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+                onDragEnd={handleDragEnd}
+                onGroupDragStart={handleGroupDragStart}
+                onGroupDrop={handleGroupDrop}
+                groupIndex={groupIndex}
+              />
+            );
+          })}
         </TableBody>
         
         <TableBody>
-          {ungroupedDocuments.map((doc) => (
+          {ungroupedDocuments.map((doc, index) => (
             <DocumentRow
               key={doc.id}
               doc={doc}
+              index={index + groups.reduce((acc, g) => acc + documents.filter(d => d.groupId === g.id).length, 0)}
               onResponsabiliteChange={onResponsabiliteChange}
               onAtteinteChange={onAtteinteChange}
               onExclusionChange={onExclusionChange}

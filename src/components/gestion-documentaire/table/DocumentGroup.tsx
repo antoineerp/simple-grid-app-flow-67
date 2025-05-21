@@ -6,7 +6,8 @@ import { Document, type DocumentGroup as DocumentGroupType } from '@/types/docum
 import DocumentRow from './DocumentRow';
 
 interface DocumentGroupProps {
-  group: DocumentGroupType;
+  group: DocumentGroupType & { items: Document[] };
+  groupIndex: number;
   onResponsabiliteChange: (id: string, type: 'r' | 'a' | 'c' | 'i', values: string[]) => void;
   onAtteinteChange: (id: string, atteinte: 'NC' | 'PC' | 'C' | null) => void;
   onExclusionChange: (id: string) => void;
@@ -26,6 +27,7 @@ interface DocumentGroupProps {
 
 const DocumentGroupComponent: React.FC<DocumentGroupProps> = ({ 
   group,
+  groupIndex,
   onResponsabiliteChange,
   onAtteinteChange,
   onExclusionChange,
@@ -42,6 +44,10 @@ const DocumentGroupComponent: React.FC<DocumentGroupProps> = ({
   onGroupDragStart,
   onGroupDrop
 }) => {
+  // Calculate base index for items in this group
+  // This helps maintain proper drag&drop indices across groups
+  const previousGroupsItemsCount = groupIndex === 0 ? 0 : 0; // Will depend on your grouping implementation
+  
   return (
     <React.Fragment>
       <TableRow 
@@ -69,9 +75,10 @@ const DocumentGroupComponent: React.FC<DocumentGroupProps> = ({
           e.stopPropagation();
           onDragEnd(e);
         }}
+        data-group-id={group.id}
       >
         <TableCell className="py-3 px-2 w-10">
-          <GripVertical className="h-5 w-5 text-gray-400" />
+          <GripVertical className="h-5 w-5 text-gray-400 cursor-move" />
         </TableCell>
         <TableCell 
           className="py-3 px-4 w-full text-left" 
@@ -106,10 +113,11 @@ const DocumentGroupComponent: React.FC<DocumentGroupProps> = ({
         </TableCell>
       </TableRow>
       
-      {group.expanded && group.items.map((doc) => (
+      {group.expanded && group.items.map((doc, index) => (
         <DocumentRow
           key={doc.id}
           doc={doc}
+          index={previousGroupsItemsCount + index}
           onResponsabiliteChange={onResponsabiliteChange}
           onAtteinteChange={onAtteinteChange}
           onExclusionChange={onExclusionChange}

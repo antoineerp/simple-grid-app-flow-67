@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React from 'react';
 import { Pencil, Trash, GripVertical, ChevronDown } from 'lucide-react';
 import ResponsableSelector from '@/components/ResponsableSelector';
 import { Exigence, ExigenceGroup } from '@/types/exigences';
@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { useDragAndDropTable } from '@/hooks/useDragAndDropTable';
 
 interface ExigenceTableProps {
   exigences: Exigence[];
@@ -44,159 +45,22 @@ const ExigenceTable: React.FC<ExigenceTableProps> = ({
   onDeleteGroup
 }) => {
   const ungroupedExigences = exigences.filter(e => !e.groupId);
-  const [draggedItem, setDraggedItem] = useState<{ id: string, groupId?: string } | null>(null);
-
-  const prepareItems = () => {
-    let allItems: { id: string; groupId?: string; index: number }[] = 
-      ungroupedExigences.map((item, index) => ({
-        id: item.id,
-        groupId: undefined,
-        index
-      }));
-
-    groups.forEach(group => {
-      const groupItems = exigences.filter(item => item.groupId === group.id)
-        .map((item, groupIndex) => ({
-          id: item.id,
-          groupId: group.id,
-          index: groupIndex
-        }));
-      allItems = [...allItems, ...groupItems];
-    });
-
-    return allItems;
-  };
-
-  const handleDragStart = (e: React.DragEvent<HTMLTableRowElement>, id: string, groupId?: string) => {
-    setDraggedItem({ id, groupId });
-    e.dataTransfer.setData('text/plain', JSON.stringify({ id, groupId }));
-    e.currentTarget.classList.add('opacity-50');
-  };
-
-  const handleDragOver = (e: React.DragEvent<HTMLTableRowElement>) => {
-    e.preventDefault();
-    e.currentTarget.classList.add('border-dashed', 'border-2', 'border-primary');
-  };
-
-  const handleDragLeave = (e: React.DragEvent<HTMLTableRowElement>) => {
-    e.currentTarget.classList.remove('border-dashed', 'border-2', 'border-primary');
-  };
-
-  const handleDrop = (e: React.DragEvent<HTMLTableRowElement>, targetId: string, targetGroupId?: string) => {
-    e.preventDefault();
-    e.currentTarget.classList.remove('border-dashed', 'border-2', 'border-primary');
-    
-    const data = JSON.parse(e.dataTransfer.getData('text/plain'));
-    const { id: sourceId, groupId: sourceGroupId } = data;
-    
-    if (sourceId === targetId) return;
-    
-    const allItems = prepareItems();
-    const sourceItem = allItems.find(item => item.id === sourceId);
-    const targetItem = allItems.find(item => item.id === targetId);
-    
-    if (!sourceItem || !targetItem) return;
-    
-    let sourceIndex = sourceItem.index;
-    let targetIndex = targetItem.index;
-    
-    let adjustedSourceIndex = sourceIndex;
-    if (sourceGroupId) {
-      const groupStartIndex = ungroupedExigences.length;
-      const previousGroupsItemCount = groups
-        .slice(0, groups.findIndex(g => g.id === sourceGroupId))
-        .reduce((total, g) => {
-          return total + exigences.filter(e => e.groupId === g.id).length;
-        }, 0);
-      
-      adjustedSourceIndex = groupStartIndex + previousGroupsItemCount + sourceIndex;
-    }
-    
-    let adjustedTargetIndex = targetIndex;
-    if (targetGroupId) {
-      const groupStartIndex = ungroupedExigences.length;
-      const previousGroupsItemCount = groups
-        .slice(0, groups.findIndex(g => g.id === targetGroupId))
-        .reduce((total, g) => {
-          return total + exigences.filter(e => e.groupId === g.id).length;
-        }, 0);
-      
-      adjustedTargetIndex = groupStartIndex + previousGroupsItemCount + targetIndex;
-    }
-    
-    onReorder(adjustedSourceIndex, adjustedTargetIndex, targetGroupId);
-    setDraggedItem(null);
-  };
-
-  const handleGroupDrop = (e: React.DragEvent<HTMLTableRowElement>, groupId: string) => {
-    e.preventDefault();
-    e.currentTarget.classList.remove('border-dashed', 'border-2', 'border-primary');
-    
-    try {
-      const data = JSON.parse(e.dataTransfer.getData('text/plain'));
-      
-      if (data.id) {
-        const sourceId = data.id;
-        const sourceGroupId = data.groupId;
-        
-        if (sourceGroupId === groupId) return;
-        
-        const sourceExigence = exigences.find(e => e.id === sourceId);
-        if (!sourceExigence) return;
-        
-        let sourceIndex = -1;
-        if (!sourceGroupId) {
-          sourceIndex = ungroupedExigences.findIndex(e => e.id === sourceId);
-        } else {
-          const groupIndex = groups.findIndex(g => g.id === sourceGroupId);
-          if (groupIndex === -1) return;
-          
-          const groupItems = exigences.filter(e => e.groupId === sourceGroupId);
-          const indexInGroup = groupItems.findIndex(e => e.id === sourceId);
-          
-          sourceIndex = ungroupedExigences.length + 
-            groups.slice(0, groupIndex).reduce((total, g) => {
-              return total + exigences.filter(e => e.groupId === g.id).length;
-            }, 0) + indexInGroup;
-        }
-        
-        if (sourceIndex === -1) return;
-        
-        const targetGroup = groups.find(g => g.id === groupId);
-        if (!targetGroup) return;
-        
-        const targetGroupIndex = groups.findIndex(g => g.id === groupId);
-        const targetGroupItems = exigences.filter(e => e.groupId === groupId);
-        
-        const targetIndex = ungroupedExigences.length + 
-          groups.slice(0, targetGroupIndex).reduce((total, g) => {
-            return total + exigences.filter(e => e.groupId === g.id).length;
-          }, 0) + targetGroupItems.length;
-        
-        onReorder(sourceIndex, targetIndex, groupId);
-      } else if (data.groupId) {
-        const sourceGroupId = data.groupId;
-        const sourceIndex = groups.findIndex(g => g.id === sourceGroupId);
-        const targetIndex = groups.findIndex(g => g.id === groupId);
-        
-        if (sourceIndex !== -1 && targetIndex !== -1) {
-          onGroupReorder(sourceIndex, targetIndex);
-        }
-      }
-    } catch (error) {
-      console.error("Erreur lors du drop:", error);
-    }
-    
-    setDraggedItem(null);
-  };
-
-  const handleDragEnd = (e: React.DragEvent<HTMLTableRowElement>) => {
-    e.currentTarget.classList.remove('opacity-50');
-    setDraggedItem(null);
-  };
+  
+  const {
+    handleDragStart,
+    handleDragOver,
+    handleDragLeave,
+    handleDrop,
+    handleDragEnd,
+    handleGroupDrop
+  } = useDragAndDropTable(
+    exigences, 
+    onReorder,
+    (exigence) => exigence.groupId
+  );
 
   const handleGroupDragStart = (e: React.DragEvent<HTMLTableRowElement>, groupId: string) => {
-    e.dataTransfer.setData('text/plain', JSON.stringify({ groupId }));
+    e.dataTransfer.setData('text/plain', JSON.stringify({ groupId, isGroup: true }));
     e.currentTarget.classList.add('opacity-50');
   };
 
@@ -231,69 +95,73 @@ const ExigenceTable: React.FC<ExigenceTableProps> = ({
           </TableRow>
         </TableHeader>
         <TableBody>
-          {groups.map((group) => (
-            <React.Fragment key={group.id}>
-              {/* Group Row */}
-              <TableRow 
-                className="border-b hover:bg-gray-50 cursor-pointer" 
-                onClick={() => onToggleGroup(group.id)}
-                draggable
-                onDragStart={(e) => {
-                  e.stopPropagation();
-                  handleGroupDragStart(e, group.id);
-                }}
-                onDragOver={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  handleDragOver(e);
-                }}
-                onDragLeave={(e) => {
-                  e.stopPropagation();
-                  handleDragLeave(e);
-                }}
-                onDrop={(e) => {
-                  e.stopPropagation();
-                  handleGroupDrop(e, group.id);
-                }}
-                onDragEnd={(e) => {
-                  e.stopPropagation();
-                  handleDragEnd(e);
-                }}
-              >
-                <TableCell className="py-3 px-2 w-10">
-                  <GripVertical className="h-5 w-5 text-gray-400" />
-                </TableCell>
-                <TableCell className="py-3 px-4 w-full text-left" colSpan={9}>
-                  <div className="flex items-center">
-                    <ChevronDown 
-                      className={`h-4 w-4 mr-2 inline-block transition-transform ${group.expanded ? 'rotate-180' : ''}`} 
-                    />
-                    <span className="font-bold text-app-blue text-sm">{group.name}</span>
-                  </div>
-                </TableCell>
-                <TableCell className="py-3 px-4 text-right">
-                  <button 
-                    className="text-gray-600 hover:text-app-blue mr-3"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onEditGroup(group);
-                    }}
-                  >
-                    <Pencil className="h-5 w-5 inline-block" />
-                  </button>
-                  <button 
-                    className="text-gray-600 hover:text-red-500"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onDeleteGroup(group.id);
-                    }}
-                  >
-                    <Trash className="h-5 w-5 inline-block" />
-                  </button>
-                </TableCell>
-              </TableRow>
-              {group.expanded && (
-                group.items.map((exigence, index) => (
+          {groups.map((group, groupIndex) => {
+            // For each group, get its items
+            const groupItems = exigences.filter(e => e.groupId === group.id);
+            
+            return (
+              <React.Fragment key={group.id}>
+                {/* Group Row */}
+                <TableRow 
+                  className="border-b hover:bg-gray-50 cursor-pointer" 
+                  onClick={() => onToggleGroup(group.id)}
+                  draggable
+                  onDragStart={(e) => {
+                    e.stopPropagation();
+                    handleGroupDragStart(e, group.id);
+                  }}
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    handleDragOver(e);
+                  }}
+                  onDragLeave={(e) => {
+                    e.stopPropagation();
+                    handleDragLeave(e);
+                  }}
+                  onDrop={(e) => {
+                    e.stopPropagation();
+                    handleGroupDrop(e, group.id);
+                  }}
+                  onDragEnd={(e) => {
+                    e.stopPropagation();
+                    handleDragEnd(e);
+                  }}
+                >
+                  <TableCell className="py-3 px-2 w-10">
+                    <GripVertical className="h-5 w-5 text-gray-400 cursor-move" />
+                  </TableCell>
+                  <TableCell className="py-3 px-4 w-full text-left" colSpan={9}>
+                    <div className="flex items-center">
+                      <ChevronDown 
+                        className={`h-4 w-4 mr-2 inline-block transition-transform ${group.expanded ? 'rotate-180' : ''}`} 
+                      />
+                      <span className="font-bold text-app-blue text-sm">{group.name}</span>
+                    </div>
+                  </TableCell>
+                  <TableCell className="py-3 px-4 text-right">
+                    <button 
+                      className="text-gray-600 hover:text-app-blue mr-3"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onEditGroup(group);
+                      }}
+                    >
+                      <Pencil className="h-5 w-5 inline-block" />
+                    </button>
+                    <button 
+                      className="text-gray-600 hover:text-red-500"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onDeleteGroup(group.id);
+                      }}
+                    >
+                      <Trash className="h-5 w-5 inline-block" />
+                    </button>
+                  </TableCell>
+                </TableRow>
+
+                {group.expanded && groupItems.map((exigence, index) => (
                   <TableRow 
                     key={exigence.id} 
                     className="border-b hover:bg-gray-50 bg-gray-50"
@@ -321,7 +189,7 @@ const ExigenceTable: React.FC<ExigenceTableProps> = ({
                     }}
                   >
                     <TableCell className="py-3 px-2 w-10">
-                      <GripVertical className="h-5 w-5 text-gray-400" />
+                      <GripVertical className="h-5 w-5 text-gray-400 cursor-move" />
                     </TableCell>
                     <TableCell className="py-3 px-4">{exigence.nom}</TableCell>
                     
@@ -362,7 +230,6 @@ const ExigenceTable: React.FC<ExigenceTableProps> = ({
                       />
                     </TableCell>
 
-                    {/* Nouveaux boutons d'atteinte comme dans DocumentRow */}
                     <TableCell className="py-3 px-1 text-center">
                       <Button
                         variant={exigence.atteinte === 'NC' ? "default" : "outline"}
@@ -418,25 +285,25 @@ const ExigenceTable: React.FC<ExigenceTableProps> = ({
                       </button>
                     </TableCell>
                   </TableRow>
-                ))
-              )}
-            </React.Fragment>
-          ))}
-        </TableBody>
-        <TableBody>
+                ))}
+              </React.Fragment>
+            );
+          })}
+
+          {/* Ungrouped exigences */}
           {ungroupedExigences.map((exigence, index) => (
             <TableRow 
               key={exigence.id} 
               className="border-b hover:bg-gray-50"
               draggable
-              onDragStart={(e) => handleDragStart(e, exigence.id)}
-              onDragOver={handleDragOver}
-              onDragLeave={handleDragLeave}
-              onDrop={(e) => handleDrop(e, exigence.id)}
-              onDragEnd={handleDragEnd}
+              onDragStart={(e) => handleDragStart(e, exigence.id, undefined)}
+              onDragOver={(e) => handleDragOver(e)}
+              onDragLeave={(e) => handleDragLeave(e)}
+              onDrop={(e) => handleDrop(e, exigence.id, undefined)}
+              onDragEnd={(e) => handleDragEnd(e)}
             >
               <TableCell className="py-3 px-2 w-10">
-                <GripVertical className="h-5 w-5 text-gray-400" />
+                <GripVertical className="h-5 w-5 text-gray-400 cursor-move" />
               </TableCell>
               <TableCell className="py-3 px-4">{exigence.nom}</TableCell>
               
@@ -477,7 +344,6 @@ const ExigenceTable: React.FC<ExigenceTableProps> = ({
                 />
               </TableCell>
 
-              {/* Nouveaux boutons d'atteinte comme dans DocumentRow */}
               <TableCell className="py-3 px-1 text-center">
                 <Button
                   variant={exigence.atteinte === 'NC' ? "default" : "outline"}
@@ -515,19 +381,13 @@ const ExigenceTable: React.FC<ExigenceTableProps> = ({
               <TableCell className="py-3 px-4 text-right">
                 <button 
                   className="text-gray-600 hover:text-app-blue mr-3"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onEdit(exigence.id);
-                  }}
+                  onClick={() => onEdit(exigence.id)}
                 >
                   <Pencil className="h-5 w-5 inline-block" />
                 </button>
                 <button 
                   className="text-gray-600 hover:text-red-500"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onDelete(exigence.id);
-                  }}
+                  onClick={() => onDelete(exigence.id)}
                 >
                   <Trash className="h-5 w-5 inline-block" />
                 </button>
