@@ -1,3 +1,4 @@
+
 import { getApiUrl } from '@/config/apiConfig';
 import { User, AuthResponse } from '@/types/auth';
 import { setCurrentUser as setDbUser } from '@/services/core/databaseConnectionService';
@@ -39,6 +40,11 @@ export const getCurrentUser = (): string | null => {
           : (typeof userData.user === 'string' ? userData.user : null);
           
         if (userId) {
+          // Ne pas accepter l'ID system2 si ce n'est pas volontaire
+          if (userId === 'p71x6d_system2' && !sessionStorage.getItem('force_system2')) {
+            console.warn("ID système détecté dans le token, vérification nécessaire");
+          }
+          
           // Synchroniser l'ID utilisateur avec le service de base de données
           setDbUser(userId);
           
@@ -180,6 +186,17 @@ export const login = async (username: string, password: string): Promise<AuthRes
             };
           }
           
+          // Ne pas accepter l'ID system2 si on ne le force pas explicitement
+          if (userId === 'p71x6d_system2' && !sessionStorage.getItem('force_system2')) {
+            console.warn("Attention: ID système détecté dans le token");
+          }
+          
+          // Nettoyer les données anciennes d'abord
+          localStorage.removeItem('userId');
+          sessionStorage.removeItem('userId');
+          localStorage.removeItem('authToken');
+          sessionStorage.removeItem('authToken');
+          
           // Token validé, on peut le sauvegarder
           sessionStorage.setItem('authToken', data.token);
           localStorage.setItem('authToken', data.token);
@@ -195,12 +212,6 @@ export const login = async (username: string, password: string): Promise<AuthRes
             localStorage.setItem('userRole', decodedPayload.role);
           }
           
-          // Extraire les informations utilisateur
-          const user = data.user ? {
-            id: userId,
-            ...data.user
-          } : { id: userId };
-          
           // Déclencher un événement pour informer l'application du changement d'utilisateur
           window.dispatchEvent(new CustomEvent('userChanged', { 
             detail: { userId } 
@@ -209,7 +220,7 @@ export const login = async (username: string, password: string): Promise<AuthRes
           return { 
             success: true, 
             token: data.token,
-            user: user,
+            user: { id: userId, ...data.user },
             message: data.message || 'Connexion réussie'
           };
         } catch (decodeError) {
@@ -243,24 +254,32 @@ export const login = async (username: string, password: string): Promise<AuthRes
 };
 
 export const logout = () => {
-  sessionStorage.removeItem('authToken');
-  localStorage.removeItem('authToken');
-  localStorage.removeItem('userRole');
-  localStorage.removeItem('userId');
-  sessionStorage.removeItem('userId');
-  
   // Nettoyer les données spécifiques à l'utilisateur dans le localStorage
+  const userId = getCurrentUser();
   const keysToRemove = [];
+  
+  // Récupérer toutes les clés à supprimer
   for (let i = 0; i < localStorage.length; i++) {
     const key = localStorage.key(i);
-    if (key && (key.includes('_p71x6d_'))) {
+    // Supprimer les clés spécifiques à cet utilisateur
+    if (key && userId && key.includes(userId)) {
+      keysToRemove.push(key);
+    }
+    // Supprimer aussi les clés génériques d'authentification
+    if (key && (key === 'authToken' || key === 'userId' || key === 'userRole')) {
       keysToRemove.push(key);
     }
   }
   
+  // Supprimer les clés
   keysToRemove.forEach(key => {
     localStorage.removeItem(key);
   });
+  
+  // Nettoyer aussi le sessionStorage
+  sessionStorage.removeItem('authToken');
+  sessionStorage.removeItem('userId');
+  sessionStorage.removeItem('userRole');
   
   console.log(`Déconnexion effectuée, ${keysToRemove.length} clés de stockage nettoyées`);
   
@@ -312,6 +331,11 @@ export const ensureUserIdFromToken = (): string | null => {
       return null;
     }
     
+    // Vérifier si c'est l'ID système problématique
+    if (userId === 'p71x6d_system2' && !sessionStorage.getItem('force_system2')) {
+      console.warn("ID système détecté lors de l'extraction depuis le token");
+    }
+    
     // Synchroniser l'identifiant avec le service de base de données
     setDbUser(userId);
     
@@ -326,4 +350,24 @@ export const ensureUserIdFromToken = (): string | null => {
     console.error("Erreur lors de l'extraction de l'identifiant utilisateur:", error);
     return null;
   }
+}
+
+// Fonction pour détecter et corriger l'ID utilisateur s'il est incorrect
+export const sanitizeUserId = (userId: string): string => {
+  // Vérifier si c'est l'ID système problématique
+  if (userId === 'p71x6d_system2' && !sessionStorage.getItem('force_system2')) {
+    console.warn("ID système détecté, tentative de correction");
+    
+    // Tenter de récupérer un ID valide depuis le token
+    const tokenId = ensureUserIdFromToken();
+    if (tokenId && tokenId !== 'p71x6d_system2') {
+      console.log(`ID corrigé depuis le token: ${tokenId}`);
+      return tokenId;
+    }
+    
+    // Si pas d'ID valide dans le token, utiliser l'ID de secours
+    return 'p71x6d_richard';
+  }
+  
+  return userId;
 }

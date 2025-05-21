@@ -10,25 +10,22 @@ import ImageConfiguration from '@/components/admin/ImageConfiguration';
 import DatabaseDiagnostic from '@/components/admin/DatabaseDiagnostic';
 import { SystemDiagnostic } from '@/components/admin/SystemDiagnostic';
 import DatabaseGuide from '@/components/admin/DatabaseGuide';
-import { getDatabaseConnectionCurrentUser } from '@/services/core/databaseConnectionService';
-
-// ID utilisateur fixe pour toute l'application
-const FIXED_USER_ID = 'p71x6d_richard';
+import { getCurrentUser } from '@/services/core/databaseConnectionService';
 
 const Admin = () => {
-  const [currentDatabaseUser, setCurrentDatabaseUser] = useState<string>(FIXED_USER_ID);
+  const [currentDatabaseUser, setCurrentDatabaseUser] = useState<string>('');
   
   useEffect(() => {
-    // Toujours définir l'utilisateur fixe au chargement
-    setCurrentDatabaseUser(FIXED_USER_ID);
+    // Récupérer le vrai ID utilisateur au chargement
+    const userId = getCurrentUser();
+    setCurrentDatabaseUser(userId);
   }, []);
   
   // Fonction de rappel pour la connexion en tant qu'utilisateur
-  // Simule le changement mais conserve toujours l'utilisateur fixe
-  const handleUserConnect = (identifiant: string) => {
-    console.log(`Simulation de connexion en tant que ${identifiant} (utilisera toujours ${FIXED_USER_ID})`);
-    // Mettre à jour l'état local - toujours avec l'utilisateur fixe
-    setCurrentDatabaseUser(FIXED_USER_ID);
+  const handleUserConnect = (identifiant: string): void => {
+    console.log(`Connexion en tant que ${identifiant}`);
+    // Mettre à jour l'état local avec l'identifiant fourni
+    setCurrentDatabaseUser(identifiant);
   };
 
   return (
@@ -52,7 +49,7 @@ const Admin = () => {
             
             <TabsContent value="users" className="space-y-6">
               <UserManagement 
-                currentDatabaseUser={FIXED_USER_ID}
+                currentDatabaseUser={currentDatabaseUser}
                 onUserConnect={handleUserConnect}
               />
             </TabsContent>

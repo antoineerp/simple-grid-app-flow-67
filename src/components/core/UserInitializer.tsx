@@ -29,6 +29,10 @@ export const UserInitializer: React.FC = () => {
         if (currentUser !== userId) {
           console.warn(`UserInitializer: Incohérence d'identifiant utilisateur: JWT=${userId}, DB=${currentUser}`);
           
+          // Nettoyer les stockages locaux avant de définir la nouvelle valeur
+          localStorage.removeItem('userId');
+          sessionStorage.removeItem('userId');
+          
           // Mettre à jour le stockage local avec l'ID correct issu du token
           localStorage.setItem('userId', userId);
           sessionStorage.setItem('userId', userId);
@@ -56,7 +60,7 @@ export const UserInitializer: React.FC = () => {
       } else {
         const currentUser = getCurrentUser();
         
-        if (currentUser === 'p71x6d_richard') {
+        if (currentUser === 'p71x6d_richard' || currentUser === 'p71x6d_system2') {
           console.warn("UserInitializer: Utilisateur connecté mais utilisant l'ID par défaut");
           toast({
             variant: "destructive",

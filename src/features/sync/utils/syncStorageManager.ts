@@ -16,6 +16,11 @@ export const getStorageKey = (tableName: string, userId?: string | null): string
     return `${tableName}_error`;
   }
   
+  // S'assurer que l'ID n'est pas 'p71x6d_system2' par erreur
+  if (currentUserId === 'p71x6d_system2' && process.env.NODE_ENV === 'production') {
+    console.warn(`syncStorageManager: Utilisateur système détecté pour ${tableName}, vérification nécessaire`);
+  }
+  
   // Remplacer les caractères problématiques dans l'identifiant utilisateur
   const safeUserId = currentUserId.replace(/[^a-zA-Z0-9_]/g, '_');
   
@@ -105,7 +110,8 @@ export const cleanupStorage = (): void => {
       if (key && (
         key.includes('[object Object]') || 
         key.includes('undefined') ||
-        key.includes('null')
+        key.includes('null') ||
+        key.includes('p71x6d_system2')  // Ajouter la détection de cet ID problématique
       )) {
         console.log(`SyncStorageManager: Suppression de l'entrée malformée dans localStorage: ${key}`);
         localStorage.removeItem(key);
@@ -116,6 +122,30 @@ export const cleanupStorage = (): void => {
     console.log(`SyncStorageManager: Nettoyage de localStorage terminé - ${entriesRemoved} entrées supprimées`);
   } catch (e) {
     console.error("SyncStorageManager: Erreur lors du nettoyage du localStorage:", e);
+  }
+};
+
+// Nettoyer les données d'un utilisateur spécifique
+export const cleanupUserData = (userId: string): void => {
+  console.log(`SyncStorageManager: Nettoyage des données pour l'utilisateur ${userId}`);
+  
+  try {
+    let entriesRemoved = 0;
+    
+    // Parcourir toutes les clés et supprimer celles qui contiennent l'ID utilisateur
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.includes(userId)) {
+        console.log(`SyncStorageManager: Suppression de la clé ${key}`);
+        localStorage.removeItem(key);
+        entriesRemoved++;
+        i--; // Ajuster l'index car la longueur du localStorage a changé
+      }
+    }
+    
+    console.log(`SyncStorageManager: Nettoyage terminé - ${entriesRemoved} entrées supprimées pour l'utilisateur ${userId}`);
+  } catch (e) {
+    console.error(`SyncStorageManager: Erreur lors du nettoyage des données utilisateur:`, e);
   }
 };
 

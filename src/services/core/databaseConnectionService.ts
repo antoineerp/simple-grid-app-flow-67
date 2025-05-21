@@ -20,10 +20,24 @@ export const getCurrentUser = (): string => {
         if (payload && payload.user) {
           if (typeof payload.user === 'object' && payload.user.identifiant_technique) {
             console.log(`ID utilisateur récupéré depuis le token JWT: ${payload.user.identifiant_technique}`);
-            return payload.user.identifiant_technique;
+            
+            // Vérifier si c'est l'ID problématique
+            const userId = payload.user.identifiant_technique;
+            if (userId === 'p71x6d_system2' && !sessionStorage.getItem('force_system2')) {
+              console.warn("ID système problématique détecté dans le token");
+            }
+            
+            return userId;
           } else if (typeof payload.user === 'string') {
             console.log(`ID utilisateur récupéré depuis le token JWT: ${payload.user}`);
-            return payload.user;
+            
+            // Vérifier si c'est l'ID problématique
+            const userId = payload.user;
+            if (userId === 'p71x6d_system2' && !sessionStorage.getItem('force_system2')) {
+              console.warn("ID système problématique détecté dans le token");
+            }
+            
+            return userId;
           }
         }
       }
@@ -36,6 +50,12 @@ export const getCurrentUser = (): string => {
   const userId = sessionStorage.getItem('userId') || localStorage.getItem('userId');
   if (userId && userId !== 'undefined' && userId !== 'null') {
     console.log(`ID utilisateur récupéré depuis le storage local: ${userId}`);
+    
+    // Vérifier si c'est l'ID problématique
+    if (userId === 'p71x6d_system2' && !sessionStorage.getItem('force_system2')) {
+      console.warn("ID système problématique détecté dans le stockage local");
+    }
+    
     return userId;
   }
   
@@ -62,7 +82,18 @@ export const setCurrentUser = (userId: string): void => {
       return;
     }
     
+    // Vérifier si c'est l'ID problématique
+    if (userId === 'p71x6d_system2' && !sessionStorage.getItem('force_system2')) {
+      console.warn("Tentative de définir l'ID système problématique");
+    }
+    
     console.log(`Définition de l'utilisateur courant: ${userId}`);
+    
+    // Nettoyer d'abord les anciennes valeurs
+    localStorage.removeItem('userId');
+    sessionStorage.removeItem('userId');
+    
+    // Définir les nouvelles valeurs
     localStorage.setItem('userId', userId);
     sessionStorage.setItem('userId', userId);
     
@@ -71,19 +102,124 @@ export const setCurrentUser = (userId: string): void => {
       detail: { userId } 
     }));
     
+    // Déclencher un événement spécifique à la base de données
+    window.dispatchEvent(new CustomEvent('database-user-changed', { 
+      detail: { userId } 
+    }));
+    
   } catch (error) {
     console.error("Erreur lors de la définition de l'utilisateur:", error);
+  }
+};
+
+// Fonction pour purger toutes les données utilisateur du localStorage
+export const purgeAllUserData = (): void => {
+  try {
+    console.log("Purge de toutes les données utilisateur du localStorage");
+    
+    // Lister toutes les clés à supprimer
+    const keysToRemove = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && (
+        key.includes('p71x6d_') || 
+        key === 'userId' || 
+        key === 'authToken' || 
+        key === 'userRole' ||
+        key.endsWith('_last_synced') ||
+        key.endsWith('_last_modified')
+      )) {
+        keysToRemove.push(key);
+      }
+    }
+    
+    // Supprimer toutes les clés
+    keysToRemove.forEach(key => {
+      localStorage.removeItem(key);
+    });
+    
+    // Nettoyer aussi le sessionStorage
+    sessionStorage.removeItem('userId');
+    sessionStorage.removeItem('authToken');
+    sessionStorage.removeItem('userRole');
+    
+    console.log(`Purge terminée: ${keysToRemove.length} clés supprimées`);
+    
+    // Notification
+    toast({
+      title: "Données nettoyées",
+      description: `${keysToRemove.length} entrées ont été supprimées du stockage local.`,
+      duration: 3000
+    });
+    
+  } catch (error) {
+    console.error("Erreur lors de la purge des données:", error);
+  }
+};
+
+// Fonction spécifique pour purger les données de l'ID problématique
+export const purgeSystem2Data = (): void => {
+  try {
+    console.log("Purge des données liées à l'ID système problématique");
+    
+    // Lister toutes les clés à supprimer
+    const keysToRemove = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.includes('p71x6d_system2')) {
+        keysToRemove.push(key);
+      }
+    }
+    
+    // Supprimer toutes les clés
+    keysToRemove.forEach(key => {
+      localStorage.removeItem(key);
+    });
+    
+    console.log(`Purge terminée: ${keysToRemove.length} clés supprimées pour l'ID système`);
+    
+    if (keysToRemove.length > 0) {
+      // Notification
+      toast({
+        title: "Données système nettoyées",
+        description: `${keysToRemove.length} entrées système ont été supprimées.`,
+        duration: 3000
+      });
+    }
+    
+  } catch (error) {
+    console.error("Erreur lors de la purge des données système:", error);
   }
 };
 
 // Fonction pour supprimer l'utilisateur actuel
 export const removeCurrentUser = (): void => {
   try {
+    const currentUser = getCurrentUser();
+    
     localStorage.removeItem('userId');
     sessionStorage.removeItem('userId');
     
     // Informer l'application que l'utilisateur a été supprimé
     window.dispatchEvent(new Event('userRemoved'));
+    
+    // Supprimer aussi les données associées à cet utilisateur
+    if (currentUser) {
+      const keysToRemove = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.includes(currentUser)) {
+          keysToRemove.push(key);
+        }
+      }
+      
+      keysToRemove.forEach(key => {
+        localStorage.removeItem(key);
+      });
+      
+      console.log(`${keysToRemove.length} entrées supprimées pour l'utilisateur ${currentUser}`);
+    }
+    
   } catch (error) {
     console.error("Erreur lors de la suppression de l'utilisateur du localStorage:", error);
   }
@@ -305,3 +441,7 @@ export const isDefaultUser = (): boolean => {
   const currentUser = getCurrentUser();
   return currentUser === 'p71x6d_richard';
 };
+
+// Ajouter une fonction pour forcer la purge au démarrage de l'application
+// Exécution automatique pour nettoyer les données de l'ID problématique
+purgeSystem2Data();
