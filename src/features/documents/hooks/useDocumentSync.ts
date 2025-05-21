@@ -35,7 +35,7 @@ export const useDocumentSync = () => {
       // Sauvegarder localement d'abord avec l'userId
       saveLocalData('documents', documents, userId);
       
-      // Utiliser db-fetch.php au lieu de documents-sync.php
+      // Utiliser db-fetch.php avec des paramètres clairement définis
       const apiUrl = new URL(`${window.location.origin}/api/db-fetch.php`);
       apiUrl.searchParams.append('table', 'documents');
       apiUrl.searchParams.append('userId', userId);
@@ -43,8 +43,21 @@ export const useDocumentSync = () => {
       
       console.log(`Tentative de synchronisation avec: ${apiUrl.toString()}`);
       
-      // Pour l'instant, simuler une synchronisation réussie
-      const success = true; 
+      // Effectuer une vraie synchronisation avec le serveur
+      const response = await fetch(apiUrl.toString(), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ documents })
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Erreur HTTP ${response.status}`);
+      }
+      
+      const result = await response.json();
+      const success = result.status === 'success';
       
       if (success) {
         setLastSynced(new Date());
@@ -55,7 +68,7 @@ export const useDocumentSync = () => {
         return true;
       }
       
-      throw new Error("Le serveur a signalé un échec de synchronisation");
+      throw new Error(result.message || "Le serveur a signalé un échec de synchronisation");
     } catch (error) {
       console.error("Erreur pendant la synchronisation:", error);
       toast({
@@ -83,7 +96,7 @@ export const useDocumentSync = () => {
     try {
       console.log(`Chargement des documents pour l'utilisateur ${userId}`);
       
-      // Utiliser db-fetch.php au lieu de documents-fetch.php
+      // Utiliser db-fetch.php avec des paramètres clairement définis
       const apiUrl = new URL(`${window.location.origin}/api/db-fetch.php`);
       apiUrl.searchParams.append('table', 'documents');
       apiUrl.searchParams.append('userId', userId);
@@ -107,7 +120,15 @@ export const useDocumentSync = () => {
         
         const data = await response.json();
         console.log("Documents récupérés du serveur:", data);
-        return data.records || [];
+        
+        // Extraction correcte des documents depuis la réponse
+        if (data.status === 'success' && data.raw_records && Array.isArray(data.raw_records)) {
+          return data.raw_records || [];
+        } else if (data.records && Array.isArray(data.records)) {
+          return data.records || [];
+        }
+        
+        return [];
       } catch (fetchError) {
         console.warn("Erreur lors de la récupération depuis le serveur, utilisation des données locales", fetchError);
         // En cas d'erreur, récupérer les données locales

@@ -17,6 +17,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
 // Récupérer les paramètres
 $table = isset($_GET['table']) ? $_GET['table'] : '';
 $userId = isset($_GET['userId']) ? $_GET['userId'] : '';
+$action = isset($_GET['action']) ? $_GET['action'] : 'fetch'; // Default action is fetch
 
 if (empty($table) || empty($userId)) {
     echo json_encode([
@@ -48,8 +49,9 @@ try {
     $pdo = new PDO($dsn, $username, $password, $options);
     
     // Vérifier si la table existe
-    $stmt = $pdo->prepare("SHOW TABLES LIKE ?");
-    $stmt->execute([$tableName]);
+    $stmt = $pdo->prepare("SHOW TABLES LIKE :tableName");
+    $stmt->bindParam(':tableName', $tableName, PDO::PARAM_STR);
+    $stmt->execute();
     $tableExists = $stmt->rowCount() > 0;
     
     if ($tableExists) {
@@ -91,8 +93,10 @@ try {
         ]);
     } else {
         // Vérifier les tables associées qui pourraient contenir des données
-        $stmt = $pdo->prepare("SHOW TABLES LIKE ?");
-        $stmt->execute(["%{$table}%"]);
+        $likePattern = "%{$table}%";
+        $stmt = $pdo->prepare("SHOW TABLES LIKE :likePattern");
+        $stmt->bindParam(':likePattern', $likePattern, PDO::PARAM_STR);
+        $stmt->execute();
         $relatedTables = [];
         
         while ($row = $stmt->fetch(PDO::FETCH_NUM)) {
