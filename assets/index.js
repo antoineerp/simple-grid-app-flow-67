@@ -47,7 +47,7 @@ function loadScript(url) {
         console.log(`Chargement du script: ${url}`);
         
         const script = document.createElement('script');
-        script.type = 'text/javascript'; // Modified: Changed from 'module' to 'text/javascript'
+        script.type = 'module'; // Modified: Changed to module for ES imports
         script.src = url;
         script.onload = () => {
             console.log(`Script chargé avec succès: ${url}`);
@@ -60,7 +60,7 @@ function loadScript(url) {
             console.log(`Tentative avec chemin alternatif: ${alternateUrl}`);
             
             const fallbackScript = document.createElement('script');
-            fallbackScript.type = 'text/javascript';
+            fallbackScript.type = 'module'; // Modified: Changed to module
             fallbackScript.src = alternateUrl;
             fallbackScript.onload = () => {
                 console.log(`Script chargé avec succès via chemin alternatif: ${alternateUrl}`);
