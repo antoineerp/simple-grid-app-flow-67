@@ -1,7 +1,7 @@
 
 // Re-export functions from document service files with explicit naming to avoid conflicts
 export { calculateDocumentStats } from './documentStatsService';
-export { loadDocumentsFromServer, syncDocumentsWithServer } from './documentSyncService';
+export { fetchDocumentsFromServer as loadDocumentsFromServer, syncDocumentsWithServer } from './documentSyncService';
 
 // Export other functions from documentService that don't conflict
 export { 

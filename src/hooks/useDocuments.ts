@@ -1,10 +1,11 @@
+
 import { useState, useEffect, useCallback } from 'react';
 import { Document, DocumentGroup, DocumentStats } from '@/types/documents';
 import { v4 as uuidv4 } from 'uuid';
 import { useNetworkStatus } from './useNetworkStatus';
 import { toast } from '@/hooks/use-toast';
 import { getCurrentUser } from '@/services/core/databaseConnectionService';
-import { saveLocalDocuments, getLocalDocuments, syncDocumentsWithServer, loadDocumentsFromServer } from '@/services/documents/documentSyncService';
+import { saveLocalDocuments, getLocalDocuments, syncDocumentsWithServer, fetchDocumentsFromServer } from '@/services/documents/documentSyncService';
 import { calculateDocumentStats } from '@/services/documents/documentStatsService';
 
 export function useDocuments() {
@@ -35,20 +36,20 @@ export function useDocuments() {
       
       // Si en ligne et rafraîchissement forcé, charger depuis le serveur
       if (isOnline && forceRefresh) {
-        const serverDocs = await loadDocumentsFromServer(userId);
+        const serverDocs = await fetchDocumentsFromServer();
         if (serverDocs && serverDocs.length > 0) {
           setDocuments(serverDocs);
           
           // Extraire les groupes des documents
           const groupIds = new Set(serverDocs.filter(d => d.groupId).map(d => d.groupId));
-          const extractedGroups = Array.from(groupIds).map(groupId => {
+          const extractedGroups: DocumentGroup[] = Array.from(groupIds).map(groupId => {
             const docsInGroup = serverDocs.filter(d => d.groupId === groupId);
             const groupName = docsInGroup[0]?.nom || 'Groupe sans nom';
             return {
-              id: groupId!,
-              name: groupName, // Utiliser 'name' au lieu de 'nom' pour correspondre au type DocumentGroup
+              id: groupId as string, // Cast to string to ensure type compatibility
+              name: groupName,
               expanded: true,
-              items: [] // Initialiser le tableau items vide, sera rempli plus tard
+              items: []
             };
           });
           
@@ -65,14 +66,14 @@ export function useDocuments() {
       
       // Extraire les groupes des documents locaux
       const groupIds = new Set(localDocs.filter(d => d.groupId).map(d => d.groupId));
-      const extractedGroups = Array.from(groupIds).map(groupId => {
+      const extractedGroups: DocumentGroup[] = Array.from(groupIds).map(groupId => {
         const docsInGroup = localDocs.filter(d => d.groupId === groupId);
         const groupName = docsInGroup[0]?.nom || 'Groupe sans nom';
         return {
-          id: groupId!,
-          name: groupName, // Utiliser 'name' au lieu de 'nom' pour correspondre au type DocumentGroup
+          id: groupId as string, // Cast to string to ensure type compatibility
+          name: groupName,
           expanded: true,
-          items: [] // Initialiser le tableau items vide, sera rempli plus tard
+          items: []
         };
       });
       
