@@ -48,7 +48,7 @@ const MemberList = ({ membres, onEdit, onDelete, onExport, onReorder = () => {} 
             <td className="py-3 px-4 text-sm">
               <div className="flex items-center">
                 <GripVertical className="h-5 w-5 text-gray-400 mr-2 flex-shrink-0 cursor-move" />
-                <span className="font-bold">{membre.nom}</span>
+                <span className="uppercase">{membre.nom}</span>
               </div>
             </td>
             <td className="py-3 px-4 text-sm">{membre.prenom}</td>
