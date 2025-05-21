@@ -1,11 +1,43 @@
+
 import { getApiUrl } from '@/config/apiConfig';
 import { toast } from '@/components/ui/use-toast';
 import { LoginResponse } from '@/types/auth';
+import { convertEmailToTechnicalId } from '../core/userIdConverter';
 
 // Variable pour stocker l'utilisateur connecté
 let currentUser: string | null = null;
 let currentToken: string | null = null;
 let isLoggedIn = false;
+
+// Mapping d'emails vers des identifiants techniques
+const EMAIL_TO_ID_MAPPING: Record<string, string> = {
+  'antcirier@gmail.com': 'p71x6d_cirier',
+  'admin@example.com': 'p71x6d_system'
+};
+
+/**
+ * Vérifie si l'entrée est une adresse email
+ */
+const isEmail = (input: string): boolean => {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input);
+}
+
+/**
+ * Convertit un email en identifiant technique
+ */
+const convertEmailToId = (email: string): string => {
+  if (EMAIL_TO_ID_MAPPING[email]) {
+    return EMAIL_TO_ID_MAPPING[email];
+  }
+  
+  // Si c'est un email mais pas dans le mapping, créer un ID technique
+  if (isEmail(email)) {
+    const username = email.split('@')[0];
+    return `p71x6d_${username.toLowerCase()}`;
+  }
+  
+  return email;
+}
 
 /**
  * Récupère les en-têtes d'authentification pour les requêtes API
@@ -99,7 +131,13 @@ export const login = async (username: string, password: string): Promise<LoginRe
     
     if (data.success && data.token) {
       // Vérifier que l'ID utilisateur est valide et non restreint
-      const userId = data.user_id || username;
+      let userId = data.user?.identifiant_technique || username;
+      
+      // Si c'est un email, le convertir en ID technique
+      if (isEmail(userId)) {
+        userId = convertEmailToId(userId);
+        console.log(`ID converti d'email à identifiant technique: ${userId}`);
+      }
       
       if (userId === 'p71x6d_system' || userId === 'p71x6d_system2' || userId === 'system' || userId === 'admin') {
         console.warn(`Tentative de connexion avec un ID restreint: ${userId}`);
@@ -263,26 +301,36 @@ export const getIsLoggedIn = (): boolean => {
 export const ensureUserIdFromToken = (): string => {
   const userId = localStorage.getItem('user_id');
   if (userId) {
+    // Si c'est un email, le convertir
+    if (isEmail(userId)) {
+      const technicalId = convertEmailToId(userId);
+      localStorage.setItem('user_id', technicalId);
+      currentUser = technicalId;
+      return technicalId;
+    }
     return userId;
   }
   
   // Si pas d'ID utilisateur, vérifier le token
   const token = localStorage.getItem('auth_token');
   if (!token) {
-    return 'anonymous';
+    return 'p71x6d_richard'; // Valeur par défaut sécurisée
   }
   
   try {
     // Décodage simple du JWT (sans vérification de signature)
     const payload = JSON.parse(atob(token.split('.')[1]));
     if (payload && payload.user_id) {
-      localStorage.setItem('user_id', payload.user_id);
-      currentUser = payload.user_id;
-      return payload.user_id;
+      // Si c'est un email, le convertir
+      const finalId = isEmail(payload.user_id) ? convertEmailToId(payload.user_id) : payload.user_id;
+      localStorage.setItem('user_id', finalId);
+      currentUser = finalId;
+      return finalId;
     }
   } catch (error) {
     console.error("Erreur lors du décodage du token:", error);
   }
   
-  return 'anonymous';
+  return 'p71x6d_richard'; // Valeur par défaut sécurisée
 };
+

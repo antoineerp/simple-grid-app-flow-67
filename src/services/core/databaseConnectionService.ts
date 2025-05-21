@@ -13,12 +13,45 @@ const RESTRICTED_IDS = ['system', 'admin', 'root', 'p71x6d_system', 'p71x6d_syst
 const ANONYMOUS_ID = 'p71x6d_richard'; // Changement de 'anonymous' à 'p71x6d_richard' comme valeur par défaut
 const DEFAULT_DB_USER = 'p71x6d_richard'; // Utilisateur par défaut pour la base de données
 
+// Mapping d'emails vers des identifiants techniques
+const EMAIL_TO_ID_MAPPING: Record<string, string> = {
+  'antcirier@gmail.com': 'p71x6d_cirier',
+  'admin@example.com': 'p71x6d_system'
+};
+
 /**
  * Vérifie si un ID est restreint/système
  */
 const isRestrictedId = (id: string | null): boolean => {
   if (!id) return true;
   return RESTRICTED_IDS.includes(id) || id === 'null' || id === 'undefined';
+}
+
+/**
+ * Vérifie si l'entrée est une adresse email
+ */
+const isEmail = (input: string): boolean => {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input);
+}
+
+/**
+ * Convertit un email en identifiant technique si possible
+ */
+const convertEmailToId = (email: string): string => {
+  if (EMAIL_TO_ID_MAPPING[email]) {
+    console.log(`Conversion de l'email ${email} vers l'identifiant technique ${EMAIL_TO_ID_MAPPING[email]}`);
+    return EMAIL_TO_ID_MAPPING[email];
+  }
+  
+  // Si c'est un email mais pas dans le mapping, créer un ID technique
+  if (isEmail(email)) {
+    const username = email.split('@')[0];
+    const technicalId = `p71x6d_${username.toLowerCase()}`;
+    console.log(`Création d'identifiant technique ${technicalId} pour l'email ${email}`);
+    return technicalId;
+  }
+  
+  return email;
 }
 
 /**
@@ -33,25 +66,34 @@ const generateSafeUserId = (): string => {
  */
 export const getCurrentUser = (): string => {
   // Si déjà mis en cache et valide, le retourner
-  if (currentUser && !isRestrictedId(currentUser) && currentUser === DEFAULT_DB_USER) {
+  if (currentUser && !isRestrictedId(currentUser) && currentUser !== null) {
     return currentUser;
   }
   
   // Sinon, essayer de le récupérer du localStorage
   const storedUser = localStorage.getItem('user_id');
   
-  // Vérifier que l'ID est valide, non restreint, et correspond à l'utilisateur richard
-  if (storedUser && !isRestrictedId(storedUser) && storedUser === DEFAULT_DB_USER) {
+  // Si c'est un email, le convertir en identifiant technique
+  if (storedUser && isEmail(storedUser)) {
+    const technicalId = convertEmailToId(storedUser);
+    console.log(`Email détecté comme ID: ${storedUser}, converti en ${technicalId}`);
+    localStorage.setItem('user_id', technicalId);
+    currentUser = technicalId;
+    return technicalId;
+  }
+  
+  // Vérifier que l'ID est valide, non restreint
+  if (storedUser && !isRestrictedId(storedUser)) {
     currentUser = storedUser;
     return storedUser;
   }
   
-  // Si l'ID est restreint ou différent de richard, logger l'erreur
-  if (storedUser && (isRestrictedId(storedUser) || storedUser !== DEFAULT_DB_USER)) {
+  // Si l'ID est restreint, logger l'erreur
+  if (storedUser && isRestrictedId(storedUser)) {
     console.error(`ID non valide détecté: ${storedUser}, utilisation de ${DEFAULT_DB_USER}`);
   }
   
-  // Force l'utilisation de l'utilisateur richard
+  // Force l'utilisation de l'utilisateur richard comme fallback
   currentUser = DEFAULT_DB_USER;
   localStorage.setItem('user_id', DEFAULT_DB_USER);
   return DEFAULT_DB_USER;
