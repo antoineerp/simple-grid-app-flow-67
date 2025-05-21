@@ -3,7 +3,7 @@
 // Ce fichier est utilisé comme point d'entrée pour l'application
 console.log("Chargement de l'application FormaCert...");
 
-// Import dynamique du fichier principal
+// Import dynamique du fichier principal avec chemin absolu
 try {
     // Recherche du script principal dans les assets
     const scripts = document.querySelectorAll('script[src*="main-"]');
@@ -12,16 +12,24 @@ try {
     } else {
         console.log("Script principal non trouvé, tentative de chargement dynamique");
         
-        // Tentative d'import dynamique
-        import('./main.js')
+        // Tentative d'import dynamique avec chemin absolu
+        import('/src/main.js')
             .then(() => console.log("Module ES6 principal chargé avec succès"))
             .catch(err => {
                 console.error("Erreur de chargement du module principal", err);
-                // Fallback pour les navigateurs qui ne prennent pas en charge les modules ES6
-                const script = document.createElement('script');
-                script.src = './main.js';
-                script.type = 'text/javascript';
-                document.head.appendChild(script);
+                
+                // Tentative avec chemin relatif
+                import('../main.js')
+                    .then(() => console.log("Module ES6 principal chargé avec succès (chemin relatif)"))
+                    .catch(err2 => {
+                        console.error("Erreur de chargement du module principal (chemin relatif)", err2);
+                        
+                        // Fallback pour les navigateurs qui ne prennent pas en charge les modules ES6
+                        const script = document.createElement('script');
+                        script.src = '/assets/main.js';
+                        script.type = 'application/javascript';
+                        document.head.appendChild(script);
+                    });
             });
     }
 } catch (e) {

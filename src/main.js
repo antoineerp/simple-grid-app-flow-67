@@ -1,8 +1,8 @@
 
 // Main entry point for the application
 // This file provides a fallback for browsers that might have issues with direct ES imports
-import React from 'react';
-import { createRoot } from 'react-dom/client';
+import React from '/node_modules/react/index.js';
+import { createRoot } from '/node_modules/react-dom/client.js';
 import App from './App.tsx';
 import './index.css';
 

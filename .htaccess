@@ -9,7 +9,7 @@ Options +FollowSymLinks
 # Définir le point d'entrée principal
 DirectoryIndex index.html index.php
 
-# Définir les types MIME corrects
+# Définir les types MIME corrects - CRUCIAL pour ES modules
 AddType application/javascript .js
 AddType application/javascript .mjs
 AddType application/javascript .es.js
@@ -63,7 +63,7 @@ RewriteRule ^(.*)$ index.html [QSA,L]
 
 # Configuration de sécurité et CORS
 <IfModule mod_headers.c>
-    # Headers pour les assets statiques
+    # Headers pour les assets statiques avec durée de cache plus courte pour le débogage
     <FilesMatch "\.(js|mjs|es\.js|css|json)$">
         Header set Cache-Control "no-cache, no-store, must-revalidate"
         Header set Pragma "no-cache"
@@ -71,8 +71,19 @@ RewriteRule ^(.*)$ index.html [QSA,L]
         Header set Access-Control-Allow-Origin "*"
         Header set Access-Control-Allow-Methods "GET, OPTIONS"
         Header set Access-Control-Allow-Headers "Content-Type"
+        # Force le bon type MIME pour JavaScript
+        Header set Content-Type "application/javascript" env=IS_JS
     </FilesMatch>
 </IfModule>
+
+# Définition des variables d'environnement pour la détection JavaScript
+<FilesMatch "\.js$">
+    SetEnvIf Request_URI "\.js$" IS_JS
+</FilesMatch>
+
+<FilesMatch "\.mjs$">
+    SetEnvIf Request_URI "\.mjs$" IS_JS
+</FilesMatch>
 
 # Gestion des erreurs personnalisée
 ErrorDocument 404 /index.html
