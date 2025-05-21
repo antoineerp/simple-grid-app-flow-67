@@ -1,8 +1,11 @@
-
 import { Exigence } from '@/types/exigences';
 import { getApiUrl } from '@/config/apiConfig';
-import { getAuthHeaders } from '../auth/authService';
-import { getCurrentUser } from '../auth/authService';
+import { getAuthHeaders } from '@/services/auth/authService';
+import { getCurrentUser } from '@/services/core/databaseConnectionService';
+import { loadDataFromStorage, saveDataToStorage } from '@/services/core/dataStorageService';
+import { loadData, saveData } from '@/services/sync/syncService';
+import { toast } from '@/components/ui/use-toast';
+import { getUserStorageKey } from '@/services/core/userIdValidator';
 
 // Récupère toutes les exigences
 export const getExigences = async (): Promise<Exigence[]> => {

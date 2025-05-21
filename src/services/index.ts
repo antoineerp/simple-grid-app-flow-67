@@ -9,8 +9,8 @@ export {
   verifyToken,
   getIsLoggedIn,
   ensureUserIdFromToken,
-  getAuthCurrentUser,
-  getCurrentUser
+  getCurrentUser,
+  getCurrentUser as getAuthCurrentUser
 } from './auth/authService';
 
 // userService
@@ -55,7 +55,7 @@ export {
   deleteTache
 } from './taches/tacheService';
 
-// syncService
+// syncService - Use lowercase filename consistently
 export {
   syncData,
   loadData,

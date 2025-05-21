@@ -4,6 +4,20 @@ import { getAuthHeaders } from '../auth/authService';
 import { getCurrentUser } from '../core/databaseConnectionService';
 import { toast } from '@/components/ui/use-toast';
 
+// Type for generic data table
+export type DataTable<T> = {
+  tableName: string;
+  data: T[];
+  groups?: any[];
+};
+
+// Type for sync result
+export type SyncResult = {
+  success: boolean;
+  message: string;
+  count?: number;
+};
+
 // Service object that can be imported by other modules
 export const syncService = {
   // Fonction pour synchroniser des données avec le serveur
@@ -97,6 +111,89 @@ export const syncService = {
   setLastSynced: (tableId: string, date: Date): void => {
     const key = `last_synced_${tableId}`;
     localStorage.setItem(key, date.toISOString());
+  },
+
+  // Methods from SyncService.ts class
+  isSyncingTable: (tableName: string): boolean => {
+    // Implementation - simplified from the class version
+    const pendingSyncKey = `sync_pending_${tableName}`;
+    return localStorage.getItem(pendingSyncKey) === 'true';
+  },
+
+  getSyncTrigger: (tableName: string): "auto" | "manual" | "initial" | null => {
+    // Implementation - simplified from the class version
+    const triggerKey = `sync_trigger_${tableName}`;
+    const savedTrigger = localStorage.getItem(triggerKey);
+    return (savedTrigger as "auto" | "manual" | "initial" | null);
+  },
+
+  syncTable: async <T>(
+    tableName: string,
+    data: T[],
+    userId?: string | null,
+    trigger: "auto" | "manual" | "initial" = "auto"
+  ): Promise<SyncResult> => {
+    try {
+      // Store trigger information
+      localStorage.setItem(`sync_trigger_${tableName}`, trigger);
+      localStorage.setItem(`sync_pending_${tableName}`, 'true');
+      
+      console.log(`Synchronisation ${trigger} de ${tableName} demandée avec ${data?.length || 0} éléments`);
+      
+      const validUserId = userId || getCurrentUser();
+      
+      // Perform sync operation
+      const API_URL = getApiUrl();
+      
+      const response = await fetch(`${API_URL}/${tableName}-sync.php`, {
+        method: 'POST',
+        headers: {
+          ...getAuthHeaders(),
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          userId: validUserId,
+          data
+        })
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Erreur HTTP: ${response.status}`);
+      }
+      
+      const result = await response.json();
+      
+      // Update last sync timestamp
+      if (result.success) {
+        localStorage.setItem(`last_synced_${tableName}`, new Date().toISOString());
+      }
+      
+      // Clear pending sync flag
+      localStorage.removeItem(`sync_pending_${tableName}`);
+      
+      return {
+        success: result.success,
+        message: result.message || "Synchronisation réussie",
+        count: result.count || data.length
+      };
+      
+    } catch (error) {
+      // Handle errors
+      console.error(`Erreur lors de la synchronisation de ${tableName}:`, error);
+      
+      localStorage.setItem(`sync_failed_${tableName}`, JSON.stringify({
+        timestamp: new Date().toISOString(),
+        error: error instanceof Error ? error.message : "Erreur inconnue"
+      }));
+      
+      // Clear pending sync flag
+      localStorage.removeItem(`sync_pending_${tableName}`);
+      
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : "Erreur inconnue"
+      };
+    }
   }
 };
 

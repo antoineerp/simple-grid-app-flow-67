@@ -5,18 +5,18 @@ import { getCurrentUser } from './databaseConnectionService';
  * Charge des données depuis le stockage local
  */
 export const loadDataFromStorage = <T>(key: string): T[] => {
+  const storageKey = `data_${getCurrentUser()}_${key}`;
+  
   try {
-    const userId = getCurrentUser();
-    const storageKey = `data_${userId}_${key}`;
-    
     const storedData = localStorage.getItem(storageKey);
     if (!storedData) {
       return [];
     }
     
-    return JSON.parse(storedData);
+    const parsedData = JSON.parse(storedData);
+    return Array.isArray(parsedData) ? parsedData : [];
   } catch (error) {
-    console.error(`Erreur lors du chargement des données ${key}:`, error);
+    console.error(`Erreur lors du chargement des données locales:`, error);
     return [];
   }
 };
@@ -24,15 +24,16 @@ export const loadDataFromStorage = <T>(key: string): T[] => {
 /**
  * Sauvegarde des données dans le stockage local
  */
-export const saveDataToStorage = <T>(key: string, data: T[]): boolean => {
+export const saveDataToStorage = <T>(key: string, data: T[]): void => {
+  const storageKey = `data_${getCurrentUser()}_${key}`;
+  
   try {
-    const userId = getCurrentUser();
-    const storageKey = `data_${userId}_${key}`;
-    
     localStorage.setItem(storageKey, JSON.stringify(data));
-    return true;
   } catch (error) {
-    console.error(`Erreur lors de la sauvegarde des données ${key}:`, error);
-    return false;
+    console.error(`Erreur lors de la sauvegarde des données locales:`, error);
+    // Optionally add toast notification here
   }
 };
+
+// Add the missing exports that are referenced in exigencesService.ts
+export { loadData, saveData } from '@/services/sync/syncService';

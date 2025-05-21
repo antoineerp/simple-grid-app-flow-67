@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -14,7 +15,8 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { adminImportFromManager } from '@/services/core/userInitializationService';
 import { getApiUrl } from '@/config/apiConfig';
 import { getAuthHeaders } from '@/services/auth/authService';
-import { clearUsersCache, type Utilisateur } from '@/services';
+import { clearUsersCache } from '@/services';
+import type { Utilisateur } from '@/types/auth';
 
 interface UserManagementProps {
   currentDatabaseUser: string | null;
@@ -75,7 +77,7 @@ const UserManagement = ({ currentDatabaseUser, onUserConnect }: UserManagementPr
     }));
   };
 
-  const connectUser = async (identifiantTechnique: string) => {
+  const connectUser = async (identifiantTechnique: string): Promise<boolean> => {
     setConnectionError(null);
     setConnectingUser(identifiantTechnique);
     
@@ -141,7 +143,9 @@ const UserManagement = ({ currentDatabaseUser, onUserConnect }: UserManagementPr
       return;
     }
     
-    setDeletingUserId(userId.toString());
+    // Convert userId to number if necessary - fixing the type issue
+    const userIdNumber = typeof userId === 'string' ? parseInt(userId, 10) : userId;
+    setDeletingUserId(userIdNumber);
     
     try {
       const response = await fetch(`${getApiUrl()}/users`, {
