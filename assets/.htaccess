@@ -9,9 +9,7 @@ AddType text/css .css
 
 # En-têtes de cache pour les assets
 <FilesMatch "\.(js|mjs|css)$">
-    Header set Cache-Control "no-cache, no-store, must-revalidate"
-    Header set Pragma "no-cache"
-    Header set Expires "0"
+    Header set Cache-Control "max-age=31536000, public"
     Header set Content-Type "application/javascript" env=IS_JS
     Header set X-Content-Type-Options "nosniff"
 </FilesMatch>
