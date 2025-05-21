@@ -32,7 +32,7 @@ function findMainScriptInAssets() {
     console.log("Recherche du script principal dans le dossier assets...");
 
     // Créer un élément de script pour charger dynamiquement le script principal
-    return '/assets/main.js'; // Ceci sera utilisé comme fallback
+    return './main.js'; // Modified: Using relative path instead of absolute
 }
 
 // Fonction pour charger un script
@@ -47,7 +47,7 @@ function loadScript(url) {
         console.log(`Chargement du script: ${url}`);
         
         const script = document.createElement('script');
-        script.type = 'module';
+        script.type = 'text/javascript'; // Modified: Changed from 'module' to 'text/javascript'
         script.src = url;
         script.onload = () => {
             console.log(`Script chargé avec succès: ${url}`);
@@ -55,7 +55,21 @@ function loadScript(url) {
         };
         script.onerror = (error) => {
             console.error(`Erreur lors du chargement du script: ${url}`, error);
-            reject(error);
+            // Try with an alternate path if the first one fails
+            const alternateUrl = url.startsWith('./') ? url.replace('./', '/assets/') : './main.js';
+            console.log(`Tentative avec chemin alternatif: ${alternateUrl}`);
+            
+            const fallbackScript = document.createElement('script');
+            fallbackScript.type = 'text/javascript';
+            fallbackScript.src = alternateUrl;
+            fallbackScript.onload = () => {
+                console.log(`Script chargé avec succès via chemin alternatif: ${alternateUrl}`);
+                resolve();
+            };
+            fallbackScript.onerror = () => {
+                reject(error);
+            };
+            document.body.appendChild(fallbackScript);
         };
         document.body.appendChild(script);
     });
