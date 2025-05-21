@@ -30,12 +30,15 @@ export const useBibliotheque = () => {
   
   // S'assurer que currentUser est toujours une chaîne
   const [currentUser, setCurrentUser] = useState<string>(() => {
+    // Priorité à l'utilisateur de la base de données
     const dbUser = getDatabaseConnectionCurrentUser();
     if (dbUser) return dbUser;
     
+    // Fallback sur l'utilisateur authentifié
     const authUser = getCurrentUser();
-    if (authUser && typeof authUser === 'object' && 'identifiant_technique' in authUser) {
-      return String(authUser.identifiant_technique);
+    // Ici, authUser est maintenant un string (id technique) ou null
+    if (authUser) {
+      return authUser;
     }
     
     return 'default';

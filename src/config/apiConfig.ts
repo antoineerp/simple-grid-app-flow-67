@@ -1,117 +1,20 @@
 
-// Configuration de l'API
-const apiUrl = getApiBaseUrl();
+// Configuration API
 
-// Fonction pour déterminer l'URL de base de l'API en fonction de l'environnement
-function getApiBaseUrl(): string {
-  // Toujours utiliser le chemin relatif pour la production et le développement
-  return '/api';
-}
+// Récupère l'URL de base de l'API
+export const getApiUrl = (): string => {
+  // Utilise l'URL actuelle comme base pour l'API
+  const baseUrl = window.location.origin;
+  return `${baseUrl}/api`;
+};
 
-// Obtenir l'URL de l'API
-export function getApiUrl(): string {
-  return apiUrl;
-}
-
-// Obtenir l'URL complète de l'API (avec le hostname)
-export function getFullApiUrl(): string {
-  return `${window.location.protocol}//${window.location.host}${apiUrl}`;
-}
-
-// Diagnostic de l'API simple
-export async function testApiConnection(): Promise<{ success: boolean; message: string; details?: any }> {
-  try {
-    console.log(`Test de connexion à l'API: ${getFullApiUrl()}`);
-    
-    // Créer un nouveau fichier info.php pour le test de connectivité
-    const response = await fetch(`${getApiUrl()}/diagnose-connection.php`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        'Cache-Control': 'no-cache, no-store, must-revalidate'
-      }
-    });
-    
-    console.log('Réponse du test API:', response.status, response.statusText);
-    
-    if (!response.ok) {
-      // Si l'API renvoie une erreur, essayer une requête alternative vers un autre point de terminaison
-      console.log("Tentative avec un point de terminaison alternatif...");
-      const fallbackResponse = await fetch(`${getApiUrl()}/db-info.php`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          'Cache-Control': 'no-cache, no-store, must-revalidate'
-        }
-      });
-      
-      if (fallbackResponse.ok) {
-        console.info("Connexion alternative réussie");
-        const data = await fallbackResponse.json();
-        return {
-          success: true,
-          message: "Connexion API établie via un point de terminaison alternatif",
-          details: data
-        };
-      }
-      
-      throw new Error(`Erreur HTTP: ${response.status}`);
-    }
-    
-    const responseText = await response.text();
-    
-    try {
-      const data = JSON.parse(responseText);
-      return {
-        success: true,
-        message: data.message || 'API connectée',
-        details: data
-      };
-    } catch (e) {
-      return {
-        success: false,
-        message: 'Réponse non-JSON',
-        details: {
-          error: e instanceof Error ? e.message : String(e),
-          responseText: responseText.substring(0, 300)
-        }
-      };
-    }
-  } catch (error) {
-    console.error('Erreur lors du test API:', error);
-    return {
-      success: false,
-      message: error instanceof Error ? error.message : 'Erreur inconnue',
-      details: { error }
-    };
-  }
-}
-
-// Fonction utilitaire pour les requêtes fetch avec gestion d'erreur
-export async function fetchWithErrorHandling(url: string, options?: RequestInit): Promise<any> {
-  try {
-    console.log(`Requête vers: ${url}`, options);
-    const response = await fetch(url, options);
-    
-    console.log(`Réponse reçue: ${response.status} ${response.statusText}`);
-    
-    if (!response.ok) {
-      throw new Error(`Erreur HTTP: ${response.status}`);
-    }
-    
-    const text = await response.text();
-    if (!text) {
-      return {};
-    }
-    
-    try {
-      return JSON.parse(text);
-    } catch (e) {
-      console.error("Erreur de parsing JSON:", e);
-      throw new Error(`Réponse invalide: ${text.substring(0, 100)}...`);
-    }
-  } catch (error) {
-    console.error("Erreur lors de la requête:", error);
-    throw error;
-  }
-}
+// Récupère les en-têtes d'authentification
+export const getAuthHeaders = () => {
+  const token = localStorage.getItem('authToken') || sessionStorage.getItem('authToken');
+  return token ? {
+    'Authorization': `Bearer ${token}`,
+    'Content-Type': 'application/json'
+  } : {
+    'Content-Type': 'application/json'
+  };
+};

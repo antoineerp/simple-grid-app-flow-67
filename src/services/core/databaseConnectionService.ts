@@ -1,3 +1,6 @@
+// Importation des dépendances nécessaires
+import { toast } from "@/hooks/use-toast";
+import { getApiUrl, getAuthHeaders } from "@/config/apiConfig";
 
 // Fonction pour récupérer l'utilisateur actuel
 export const getCurrentUser = (): string => {

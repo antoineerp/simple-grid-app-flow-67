@@ -28,13 +28,15 @@ export const Header = () => {
   const [currentDatabaseUser, setCurrentDatabaseUser] = useState<string | null>(getDatabaseUser());
   const { isOnline } = useNetworkStatus();
   
-  // Obtenir les informations utilisateur depuis le token JWT
-  const user = getCurrentUser();
-  // Utiliser le rôle stocké dans localStorage ou celui de l'utilisateur courant
-  const userRole = (localStorage.getItem('userRole') || user?.role || 'utilisateur') as UserRole;
+  // Obtenir l'ID utilisateur depuis le service d'authentification
+  const userId = getCurrentUser();
+  
+  // Utiliser le rôle stocké dans localStorage 
+  const userRole = (localStorage.getItem('userRole') || 'utilisateur') as UserRole;
   console.log("Header: rôle utilisateur détecté:", userRole);
   
-  const userDisplayName = user ? `${user.prenom || ''} ${user.nom || ''}`.trim() : 'Utilisateur';
+  // Utiliser un nom d'affichage par défaut
+  const userDisplayName = 'Utilisateur';
 
   useEffect(() => {
     const checkDatabaseUser = () => {
