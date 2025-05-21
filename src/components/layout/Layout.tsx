@@ -1,6 +1,6 @@
 
-import React, { useEffect, useState } from 'react';
-import { Outlet, useLocation, useNavigate } from 'react-router-dom';
+import React, { useEffect, useState, ReactNode } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { Toaster } from "@/components/ui/toaster";
 import Sidebar from '../Sidebar';
 import { Header } from './Header';
@@ -11,7 +11,11 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 import { Loader2 } from 'lucide-react';
 import { getIsLoggedIn } from '@/services/auth/authService';
 
-const Layout = () => {
+interface LayoutProps {
+  children: ReactNode;
+}
+
+const Layout: React.FC<LayoutProps> = ({ children }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(true);
@@ -56,7 +60,7 @@ const Layout = () => {
             <div className="flex flex-col flex-1 overflow-y-auto">
               <Header />
               <main className="flex-1">
-                <Outlet />
+                {children}
               </main>
               <GlobalSyncManager />
             </div>
