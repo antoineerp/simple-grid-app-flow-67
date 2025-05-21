@@ -1,4 +1,3 @@
-
 import { getApiUrl } from '@/config/apiConfig';
 import { getAuthHeaders } from '../auth/authService';
 import { toast } from '@/components/ui/use-toast';
@@ -10,15 +9,8 @@ let lastConnectionError: string | null = null;
 
 // Constantes pour la validation
 const RESTRICTED_IDS = ['system', 'admin', 'root', 'p71x6d_system', 'p71x6d_system2', '[object Object]', 'null', 'undefined'];
-const ANONYMOUS_ID = 'p71x6d_richard'; // ID par défaut
 const DEFAULT_DB_USER = 'p71x6d_richard'; // Utilisateur fixe pour la base de données
 const DEFAULT_DB_NAME = 'p71x6d_richard'; // Nom de la base de données fixe
-
-// Mapping d'emails vers des identifiants techniques
-const EMAIL_TO_ID_MAPPING: Record<string, string> = {
-  'antcirier@gmail.com': 'p71x6d_richard', // Associé à l'utilisateur richard pour l'administrateur
-  'admin@example.com': 'p71x6d_richard'
-};
 
 /**
  * Vérifie si un ID est restreint/système
@@ -36,68 +28,21 @@ const isEmail = (input: string): boolean => {
 }
 
 /**
- * Convertit un email en identifiant technique si possible
- * Toujours associer à la base de données p71x6d_richard
- */
-const convertEmailToId = (email: string): string => {
-  if (EMAIL_TO_ID_MAPPING[email]) {
-    console.log(`Conversion de l'email ${email} vers l'identifiant technique ${EMAIL_TO_ID_MAPPING[email]}`);
-    return EMAIL_TO_ID_MAPPING[email];
-  }
-  
-  // Si c'est un email mais pas dans le mapping, associer au compte richard avec un préfixe utilisateur
-  if (isEmail(email)) {
-    console.log(`Association de l'email ${email} à la base ${DEFAULT_DB_NAME}`);
-    return DEFAULT_DB_USER;
-  }
-  
-  return DEFAULT_DB_USER;
-}
-
-/**
  * Récupère l'identifiant de l'utilisateur actuellement connecté
+ * TOUJOURS retourne p71x6d_richard
  */
 export const getCurrentUser = (): string => {
+  // Vérifier si c'est l'administrateur antcirier@gmail.com
+  const storedEmail = localStorage.getItem('userEmail');
+  if (storedEmail === 'antcirier@gmail.com') {
+    console.log("Email administrateur détecté: antcirier@gmail.com - Utilisation de p71x6d_richard");
+    return DEFAULT_DB_USER;
+  }
+  
   console.log("Demande d'utilisateur actuel, forcé à utiliser la base de données:", DEFAULT_DB_NAME);
   
-  // Si un utilisateur est déjà défini, on le retourne
-  if (currentUser && !isRestrictedId(currentUser)) {
-    // Mais on force toujours l'utilisation de p71x6d_richard comme base
-    return DEFAULT_DB_USER;
-  }
-  
-  try {
-    // Tentative de récupération depuis le stockage local
-    const storedUser = localStorage.getItem('userId') || sessionStorage.getItem('userId');
-    
-    if (storedUser && !isRestrictedId(storedUser)) {
-      currentUser = convertEmailToId(storedUser); // Convertir et toujours utiliser p71x6d_richard
-    } else {
-      // Récupérer depuis les données utilisateur si disponible
-      const userData = localStorage.getItem('currentUser');
-      if (userData) {
-        try {
-          const user = JSON.parse(userData) as Utilisateur;
-          if (user && user.email) {
-            currentUser = convertEmailToId(user.email); // Convertir et toujours utiliser p71x6d_richard
-          } else {
-            currentUser = DEFAULT_DB_USER;
-          }
-        } catch {
-          currentUser = DEFAULT_DB_USER;
-        }
-      } else {
-        // Utiliser l'ID par défaut
-        currentUser = DEFAULT_DB_USER;
-      }
-    }
-    
-    // Par sécurité, forcer p71x6d_richard
-    return DEFAULT_DB_USER;
-  } catch (error) {
-    console.error("Erreur lors de la récupération de l'identifiant utilisateur:", error);
-    return DEFAULT_DB_USER;
-  }
+  // TOUJOURS utiliser p71x6d_richard
+  return DEFAULT_DB_USER;
 };
 
 /**
@@ -105,9 +50,19 @@ export const getCurrentUser = (): string => {
  * Note: L'identifiant est stocké mais on continue d'utiliser p71x6d_richard comme base
  */
 export const setCurrentUser = (userId: string): void => {
+  // Vérifier si c'est l'administrateur antcirier@gmail.com
+  const storedEmail = localStorage.getItem('userEmail');
+  if (storedEmail === 'antcirier@gmail.com') {
+    console.log("Email administrateur détecté lors de setCurrentUser - Utilisation de p71x6d_richard");
+    currentUser = DEFAULT_DB_USER;
+    localStorage.setItem('userId', DEFAULT_DB_USER);
+    localStorage.setItem('user_id', DEFAULT_DB_USER);
+    return;
+  }
+  
   if (!userId || isRestrictedId(userId)) {
     console.error("Tentative de définir un identifiant invalide:", userId);
-    return;
+    userId = DEFAULT_DB_USER;
   }
   
   try {
@@ -116,6 +71,10 @@ export const setCurrentUser = (userId: string): void => {
     
     // Mais toujours utiliser p71x6d_richard pour la base de données
     currentUser = DEFAULT_DB_USER;
+    
+    // Stocker l'ID utilisateur sécurisé
+    localStorage.setItem('userId', DEFAULT_DB_USER);
+    localStorage.setItem('user_id', DEFAULT_DB_USER);
     
     // Stocker également le préfixe utilisateur pour distinguer les données
     const userPrefix = userId.replace(/[^a-zA-Z0-9]/g, '_').substring(0, 10);
@@ -192,6 +151,7 @@ export const testDatabaseConnection = async (): Promise<{ success: boolean; mess
 
 /**
  * Se connecte avec un identifiant utilisateur spécifique
+ * Toujours utilise p71x6d_richard
  */
 export const connectAsUser = async (userId: string): Promise<boolean> => {
   try {
@@ -279,9 +239,21 @@ export const getDatabaseConnectionCurrentUser = getCurrentUser;
 
 // Initialiser l'utilisateur au démarrage si nécessaire
 export const initializeUser = () => {
+  // Vérifier si c'est l'administrateur antcirier@gmail.com
+  const storedEmail = localStorage.getItem('userEmail');
+  if (storedEmail === 'antcirier@gmail.com') {
+    console.log("Email administrateur détecté lors de l'initialisation - Utilisation de p71x6d_richard");
+    currentUser = DEFAULT_DB_USER;
+    localStorage.setItem('userId', DEFAULT_DB_USER);
+    localStorage.setItem('user_id', DEFAULT_DB_USER);
+    console.log(`Utilisateur administrateur initialisé avec ${DEFAULT_DB_USER}`);
+    return;
+  }
+  
+  // Pour tous les autres utilisateurs, utiliser également p71x6d_richard
   if (!currentUser) {
-    currentUser = getCurrentUser();
-    console.log(`Utilisateur initialisé: ${currentUser}`);
+    currentUser = DEFAULT_DB_USER;
+    console.log(`Utilisateur standard initialisé avec ${DEFAULT_DB_USER}`);
   }
 };
 

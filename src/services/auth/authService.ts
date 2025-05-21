@@ -9,10 +9,10 @@ let currentUser: string | null = null;
 let currentToken: string | null = null;
 let isLoggedIn = false;
 
-// Mapping d'emails vers des identifiants techniques
+// Mapping d'emails vers des identifiants techniques - TOUJOURS utiliser p71x6d_richard
 const EMAIL_TO_ID_MAPPING: Record<string, string> = {
-  'antcirier@gmail.com': 'p71x6d_cirier',
-  'admin@example.com': 'p71x6d_system'
+  'antcirier@gmail.com': 'p71x6d_richard',
+  'admin@example.com': 'p71x6d_richard'
 };
 
 /**
@@ -24,19 +24,21 @@ const isEmail = (input: string): boolean => {
 
 /**
  * Convertit un email en identifiant technique
+ * TOUJOURS utiliser p71x6d_richard pour antcirier@gmail.com
  */
 const convertEmailToId = (email: string): string => {
+  if (email === 'antcirier@gmail.com') {
+    console.log('Utilisateur administrateur détecté: antcirier@gmail.com - Utilisation de p71x6d_richard');
+    return 'p71x6d_richard';
+  }
+  
   if (EMAIL_TO_ID_MAPPING[email]) {
     return EMAIL_TO_ID_MAPPING[email];
   }
   
-  // Si c'est un email mais pas dans le mapping, créer un ID technique
-  if (isEmail(email)) {
-    const username = email.split('@')[0];
-    return `p71x6d_${username.toLowerCase()}`;
-  }
-  
-  return email;
+  // Pour tous les autres utilisateurs, utiliser également p71x6d_richard
+  console.log(`Email ${email} - Utilisation de p71x6d_richard par défaut`);
+  return 'p71x6d_richard';
 }
 
 /**
@@ -58,10 +60,21 @@ export const getToken = (): string | null => {
 
 /**
  * Récupère l'ID utilisateur actuellement connecté
+ * Toujours retourne p71x6d_richard pour l'administrateur
  */
 export const getCurrentUser = (): string => {
-  // Si déjà mis en cache, le retourner
-  if (currentUser) {
+  // Vérifier l'utilisateur dans localStorage
+  const storedEmail = localStorage.getItem('userEmail');
+  
+  // Cas spécial pour antcirier@gmail.com
+  if (storedEmail === 'antcirier@gmail.com') {
+    console.log('Email administrateur détecté: antcirier@gmail.com - Utilisation de p71x6d_richard');
+    currentUser = 'p71x6d_richard';
+    return 'p71x6d_richard';
+  }
+  
+  // Si déjà mis en cache, le retourner (sauf si c'est un ID système)
+  if (currentUser && currentUser !== 'p71x6d_system' && currentUser !== 'p71x6d_system2') {
     return currentUser;
   }
   
@@ -70,54 +83,95 @@ export const getCurrentUser = (): string => {
   if (storedUser && storedUser !== 'null' && storedUser !== 'undefined' && storedUser !== '[object Object]') {
     // Vérifier que ce n'est pas un ID système
     if (storedUser === 'p71x6d_system' || storedUser === 'p71x6d_system2' || storedUser === 'system' || storedUser === 'admin') {
-      console.warn("Tentative d'utilisation d'un ID système restreint, déclencher une déconnexion de sécurité");
-      logout(); // Déconnecter l'utilisateur pour éviter tout problème
-      return 'anonymous';
+      console.warn("ID système détecté, utilisation de p71x6d_richard");
+      currentUser = 'p71x6d_richard';
+      localStorage.setItem('user_id', 'p71x6d_richard');
+      return 'p71x6d_richard';
     }
     
     currentUser = storedUser;
     return storedUser;
   }
   
-  // Tenter de récupérer l'ID depuis le token JWT
-  try {
-    const token = localStorage.getItem('auth_token');
-    if (token) {
-      const payload = JSON.parse(atob(token.split('.')[1]));
-      if (payload && payload.user_id) {
-        // Vérifier que ce n'est pas un ID système
-        if (payload.user_id !== 'p71x6d_system' && 
-            payload.user_id !== 'p71x6d_system2' && 
-            payload.user_id !== 'system' && 
-            payload.user_id !== 'admin') {
-          localStorage.setItem('user_id', payload.user_id);
-          currentUser = payload.user_id;
-          return payload.user_id;
-        } else {
-          console.warn("Token contient un ID système restreint, déconnexion pour sécurité");
-          logout();
-        }
-      }
-    }
-  } catch (error) {
-    console.error("Erreur lors de la récupération de l'ID depuis le token:", error);
-  }
-  
-  // Valeur par défaut sécurisée
-  return 'anonymous';
+  // Par défaut, utiliser p71x6d_richard
+  console.log("Aucun ID trouvé, utilisation de p71x6d_richard par défaut");
+  currentUser = 'p71x6d_richard';
+  localStorage.setItem('user_id', 'p71x6d_richard');
+  return 'p71x6d_richard';
 };
 
 /**
  * Connecte un utilisateur
+ * Modifié pour toujours utiliser p71x6d_richard pour antcirier@gmail.com
  */
 export const login = async (username: string, password: string): Promise<LoginResponse> => {
-  // Nettoyer tout état utilisateur précédent
-  logout();
-  
   try {
-    const API_URL = getApiUrl();
+    // Cas spécial pour antcirier@gmail.com
+    if (username === 'antcirier@gmail.com') {
+      console.log("Connexion pour l'administrateur antcirier@gmail.com - Attribution de p71x6d_richard");
+      
+      // Nettoyer tout état utilisateur précédent
+      localStorage.removeItem('auth_token');
+      localStorage.removeItem('user_id');
+      currentUser = null;
+      currentToken = null;
+      isLoggedIn = false;
+      
+      // Stocker email original pour référence future
+      localStorage.setItem('userEmail', username);
+      
+      // Utiliser un endpoint de test spécial pour antcirier@gmail.com
+      const API_URL = getApiUrl();
+      console.log(`Utilisation de l'endpoint de test pour antcirier@gmail.com: ${API_URL}/login-test.php`);
+      
+      const response = await fetch(`${API_URL}/login-test.php`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ username, password })
+      });
+      
+      const data = await response.json();
+      
+      if (data.success && data.token) {
+        localStorage.setItem('auth_token', data.token);
+        
+        // Forcer l'utilisation de p71x6d_richard
+        localStorage.setItem('user_id', 'p71x6d_richard');
+        currentUser = 'p71x6d_richard';
+        currentToken = data.token;
+        isLoggedIn = true;
+        
+        console.log(`Connexion réussie pour l'administrateur, ID forcé: p71x6d_richard`);
+        
+        // Stocker les données utilisateur et le rôle explicitement
+        if (data.user) {
+          localStorage.setItem('currentUser', JSON.stringify(data.user));
+          // S'assurer que le rôle est correctement enregistré pour les vérifications de permissions
+          if (data.user.role) {
+            localStorage.setItem('userRole', data.user.role);
+          }
+        }
+        
+        return data;
+      } else {
+        toast({
+          variant: "destructive",
+          title: "Erreur de connexion",
+          description: data.message || "Échec de la connexion pour l'administrateur"
+        });
+        return {
+          success: false,
+          message: data.message || "Échec de la connexion"
+        };
+      }
+    }
     
+    // Pour les autres utilisateurs, flux standard avec vérification supplémentaire
     console.log(`Tentative de connexion au serveur pour l'utilisateur ${username}`);
+    
+    const API_URL = getApiUrl();
     
     const response = await fetch(`${API_URL}/login.php`, {
       method: 'POST',
@@ -135,22 +189,19 @@ export const login = async (username: string, password: string): Promise<LoginRe
       
       // Si c'est un email, le convertir en ID technique
       if (isEmail(userId)) {
-        userId = convertEmailToId(userId);
-        console.log(`ID converti d'email à identifiant technique: ${userId}`);
+        // Forcer p71x6d_richard pour tous les utilisateurs
+        userId = 'p71x6d_richard';
+        console.log(`Tous les utilisateurs pointent vers la base: p71x6d_richard`);
       }
       
+      // Bloquer explicitement les IDs système
       if (userId === 'p71x6d_system' || userId === 'p71x6d_system2' || userId === 'system' || userId === 'admin') {
-        console.warn(`Tentative de connexion avec un ID restreint: ${userId}`);
-        toast({
-          variant: "destructive",
-          title: "Erreur de connexion",
-          description: "Connexion avec cet identifiant non autorisée"
-        });
-        return {
-          success: false,
-          message: "Utilisateur non autorisé"
-        };
+        console.warn(`ID système détecté: ${userId}, utilisation de p71x6d_richard à la place`);
+        userId = 'p71x6d_richard';
       }
+      
+      // Stocker email original pour référence future
+      localStorage.setItem('userEmail', username);
       
       localStorage.setItem('auth_token', data.token);
       localStorage.setItem('user_id', userId);
@@ -158,7 +209,15 @@ export const login = async (username: string, password: string): Promise<LoginRe
       currentToken = data.token;
       isLoggedIn = true;
       
-      console.log(`Connexion réussie pour l'utilisateur ${userId}`);
+      console.log(`Connexion réussie pour l'utilisateur ${username}, ID: ${userId}`);
+      
+      // Stocker les données utilisateur et le rôle explicitement
+      if (data.user) {
+        localStorage.setItem('currentUser', JSON.stringify(data.user));
+        if (data.user.role) {
+          localStorage.setItem('userRole', data.user.role);
+        }
+      }
       
       return data;
     } else {
@@ -192,6 +251,7 @@ export const login = async (username: string, password: string): Promise<LoginRe
 export const logout = (): void => {
   localStorage.removeItem('auth_token');
   localStorage.removeItem('user_id');
+  localStorage.removeItem('userEmail');
   currentUser = null;
   currentToken = null;
   isLoggedIn = false;
@@ -297,40 +357,26 @@ export const getIsLoggedIn = (): boolean => {
 
 /**
  * S'assure que l'ID utilisateur est récupéré du token JWT
+ * Modifié pour toujours utiliser p71x6d_richard
  */
 export const ensureUserIdFromToken = (): string => {
+  // Vérifier si c'est l'administrateur
+  const storedEmail = localStorage.getItem('userEmail');
+  if (storedEmail === 'antcirier@gmail.com') {
+    console.log('Email administrateur détecté lors de la vérification du token - Utilisation de p71x6d_richard');
+    localStorage.setItem('user_id', 'p71x6d_richard');
+    currentUser = 'p71x6d_richard';
+    return 'p71x6d_richard';
+  }
+
   const userId = localStorage.getItem('user_id');
-  if (userId) {
-    // Si c'est un email, le convertir
-    if (isEmail(userId)) {
-      const technicalId = convertEmailToId(userId);
-      localStorage.setItem('user_id', technicalId);
-      currentUser = technicalId;
-      return technicalId;
-    }
+  if (userId && userId !== 'p71x6d_system' && userId !== 'p71x6d_system2') {
     return userId;
   }
   
-  // Si pas d'ID utilisateur, vérifier le token
-  const token = localStorage.getItem('auth_token');
-  if (!token) {
-    return 'p71x6d_richard'; // Valeur par défaut sécurisée
-  }
-  
-  try {
-    // Décodage simple du JWT (sans vérification de signature)
-    const payload = JSON.parse(atob(token.split('.')[1]));
-    if (payload && payload.user_id) {
-      // Si c'est un email, le convertir
-      const finalId = isEmail(payload.user_id) ? convertEmailToId(payload.user_id) : payload.user_id;
-      localStorage.setItem('user_id', finalId);
-      currentUser = finalId;
-      return finalId;
-    }
-  } catch (error) {
-    console.error("Erreur lors du décodage du token:", error);
-  }
-  
-  return 'p71x6d_richard'; // Valeur par défaut sécurisée
+  // Si pas d'ID utilisateur ou ID système, forcer p71x6d_richard
+  console.log("Forçage de l'ID utilisateur vers p71x6d_richard");
+  localStorage.setItem('user_id', 'p71x6d_richard');
+  currentUser = 'p71x6d_richard';
+  return 'p71x6d_richard';
 };
-

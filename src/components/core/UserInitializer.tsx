@@ -5,9 +5,12 @@ import { ensureUserIdFromToken } from '@/services/auth/authService';
 import { getCurrentUser, setCurrentUser } from '@/services/core/databaseConnectionService';
 import { useToast } from '@/hooks/use-toast';
 
+// ID sécurisé à utiliser pour tous les utilisateurs
+const SAFE_DB_USER = 'p71x6d_richard';
+
 /**
  * Composant qui initialise l'identifiant utilisateur au chargement de l'application
- * en s'assurant que l'ID utilisateur est cohérent entre le token JWT et le service de base de données
+ * en s'assurant que l'ID utilisateur est cohérent et utilise toujours p71x6d_richard
  */
 export const UserInitializer: React.FC = () => {
   const { isLoggedIn } = useAuth();
@@ -18,119 +21,83 @@ export const UserInitializer: React.FC = () => {
     if (isLoggedIn) {
       console.log("UserInitializer: Démarrage de l'initialisation de l'utilisateur");
       
-      // Forcer la récupération de l'ID utilisateur depuis le token JWT
+      // Vérifier si c'est l'administrateur antcirier@gmail.com
+      const storedEmail = localStorage.getItem('userEmail');
+      if (storedEmail === 'antcirier@gmail.com') {
+        console.log("UserInitializer: Administrateur antcirier@gmail.com détecté - Utilisation de p71x6d_richard");
+        
+        // Nettoyer les stockages locaux avant de définir la nouvelle valeur
+        localStorage.removeItem('userId');
+        sessionStorage.removeItem('userId');
+        
+        // Définir explicitement l'ID sécurisé pour l'administrateur
+        localStorage.setItem('userId', SAFE_DB_USER);
+        sessionStorage.setItem('userId', SAFE_DB_USER);
+        localStorage.setItem('user_id', SAFE_DB_USER);
+        setCurrentUser(SAFE_DB_USER);
+        
+        console.log(`UserInitializer: ID administrateur défini à ${SAFE_DB_USER}`);
+        
+        // Stocker l'information de dernière vérification d'ID utilisateur
+        localStorage.setItem('user_id_last_verified', new Date().toISOString());
+        
+        // Émettre un événement pour informer que l'initialisation est terminée
+        window.dispatchEvent(new CustomEvent('user-initialized', {
+          detail: { userId: SAFE_DB_USER, timestamp: new Date().toISOString() }
+        }));
+        
+        return;
+      }
+      
+      // Pour les autres utilisateurs, forcer la récupération de l'ID utilisateur
       const userId = ensureUserIdFromToken();
       
       if (userId) {
         console.log(`UserInitializer: Utilisateur connecté avec l'ID: ${userId}`);
         
-        // Vérification supplémentaire pour s'assurer que l'ID est bien enregistré
-        const currentUser = getCurrentUser();
+        // Mais toujours utiliser p71x6d_richard
+        const safeId = SAFE_DB_USER;
         
-        // Bloquer explicitement l'utilisation de p71x6d_system2
-        if (userId === 'p71x6d_system2' || currentUser === 'p71x6d_system2') {
-          console.error("UserInitializer: Identifiant système p71x6d_system2 détecté et bloqué");
-          
-          // Définir un identifiant sûr par défaut
-          const safeId = 'p71x6d_richard';
-          
-          // Nettoyer les stockages locaux avant de définir la nouvelle valeur
-          localStorage.removeItem('userId');
-          sessionStorage.removeItem('userId');
-          
-          // Mettre à jour avec l'identifiant sûr
-          localStorage.setItem('userId', safeId);
-          sessionStorage.setItem('userId', safeId);
-          setCurrentUser(safeId);
-          
-          toast({
-            variant: "destructive",
-            title: "ID système bloqué",
-            description: "Un ID système problématique a été détecté et remplacé"
-          });
-          
-          // Forcer un rechargement pour appliquer les modifications
-          window.location.reload();
-          
-          return;
-        }
+        // Nettoyer les stockages locaux avant de définir la nouvelle valeur
+        localStorage.removeItem('userId');
+        sessionStorage.removeItem('userId');
         
-        if (currentUser !== userId) {
-          console.warn(`UserInitializer: Incohérence d'identifiant utilisateur: JWT=${userId}, DB=${currentUser}`);
-          
-          // Nettoyer les stockages locaux avant de définir la nouvelle valeur
-          localStorage.removeItem('userId');
-          sessionStorage.removeItem('userId');
-          
-          // Mettre à jour le stockage local avec l'ID correct issu du token
-          localStorage.setItem('userId', userId);
-          sessionStorage.setItem('userId', userId);
-          setCurrentUser(userId);
-          
-          toast({
-            title: "Correction d'identifiant",
-            description: `L'identifiant utilisateur a été corrigé: ${userId}`
-          });
-          
-          // Déclencher un événement pour informer l'application du changement d'utilisateur
-          window.dispatchEvent(new CustomEvent('userChanged', { 
-            detail: { userId } 
-          }));
-          
-          console.log(`UserInitializer: ID utilisateur corrigé et synchronisé: ${userId}`);
-          
-          // Force un rechargement des données avec le bon utilisateur
-          window.dispatchEvent(new CustomEvent('force-sync-required', {
-            detail: { reason: 'userId_changed', timestamp: new Date().toISOString() }
-          }));
-        } else {
-          console.log("UserInitializer: Identifiant utilisateur cohérent");
-          
-          // Stocker l'information de dernière vérification d'ID utilisateur
-          localStorage.setItem('user_id_last_verified', new Date().toISOString());
-          
-          // Émettre un événement pour informer que l'initialisation est terminée
-          window.dispatchEvent(new CustomEvent('user-initialized', {
-            detail: { userId, timestamp: new Date().toISOString() }
-          }));
-        }
+        // Mettre à jour avec l'identifiant sûr
+        localStorage.setItem('userId', safeId);
+        sessionStorage.setItem('userId', safeId);
+        setCurrentUser(safeId);
+        
+        console.log(`UserInitializer: ID utilisateur forcé vers ${safeId} (original: ${userId})`);
+        
+        // Stocker l'information de dernière vérification d'ID utilisateur
+        localStorage.setItem('user_id_last_verified', new Date().toISOString());
+        
+        // Émettre un événement pour informer que l'initialisation est terminée
+        window.dispatchEvent(new CustomEvent('user-initialized', {
+          detail: { userId: safeId, timestamp: new Date().toISOString() }
+        }));
       } else {
-        const currentUser = getCurrentUser();
+        // Si aucun ID n'est récupéré, utiliser l'ID sécurisé par défaut
+        console.log("UserInitializer: Aucun ID récupéré, utilisation de l'ID par défaut");
         
-        // Si l'ID est un système problématique, forcer l'utilisation d'un ID sûr
-        if (currentUser === 'p71x6d_system' || currentUser === 'p71x6d_system2') {
-          console.warn("UserInitializer: Utilisateur système détecté, forçage d'un ID sûr");
-          
-          const safeId = 'p71x6d_richard';
-          
-          // Nettoyer les stockages locaux
-          localStorage.removeItem('userId');
-          sessionStorage.removeItem('userId');
-          
-          // Mettre à jour avec l'ID sûr
-          localStorage.setItem('userId', safeId);
-          sessionStorage.setItem('userId', safeId);
-          setCurrentUser(safeId);
-          
-          toast({
-            variant: "destructive",
-            title: "ID utilisateur système",
-            description: "L'ID système a été remplacé par un ID utilisateur valide."
-          });
-          
-          // Forcer un rechargement
-          window.location.reload();
-        } else {
-          console.log(`UserInitializer: Utilisateur initialisé: ${currentUser}`);
-          
-          // Stocker l'information de dernière vérification d'ID utilisateur
-          localStorage.setItem('user_id_last_verified', new Date().toISOString());
-        }
+        // Nettoyer les stockages locaux
+        localStorage.removeItem('userId');
+        sessionStorage.removeItem('userId');
+        
+        // Mettre à jour avec l'ID sûr
+        localStorage.setItem('userId', SAFE_DB_USER);
+        sessionStorage.setItem('userId', SAFE_DB_USER);
+        setCurrentUser(SAFE_DB_USER);
+        
+        console.log(`UserInitializer: ID utilisateur défini par défaut à ${SAFE_DB_USER}`);
+        
+        // Stocker l'information de dernière vérification d'ID utilisateur
+        localStorage.setItem('user_id_last_verified', new Date().toISOString());
       }
       
       // Diffuser un événement de synchronisation pour les autres composants
       window.dispatchEvent(new CustomEvent('user-id-verified', {
-        detail: { userId: getCurrentUser(), timestamp: new Date().toISOString() }
+        detail: { userId: SAFE_DB_USER, timestamp: new Date().toISOString() }
       }));
     } else {
       console.log("UserInitializer: Aucun utilisateur connecté");

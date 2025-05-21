@@ -37,25 +37,18 @@ export const useLoginForm = () => {
     console.log('Tentative de connexion pour:', values.username);
     
     try {
-      // Special case for antcirier@gmail.com to make sure this account works
-      let result: LoginResponse;
+      // Traiter le cas spécial pour antcirier@gmail.com
       if (values.username === 'antcirier@gmail.com') {
-        console.log("Connexion pour l'utilisateur administrateur antcirier@gmail.com");
-        // Use login-test.php endpoint directly to ensure admin access
-        const API_URL = import.meta.env.VITE_API_URL || window.location.origin + '/api';
-        const response = await fetch(`${API_URL}/login-test.php`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify(values)
-        });
-        
-        result = await response.json();
-      } else {
-        // Standard login flow for other users
-        result = await login(values.username, values.password);
+        console.log("Connexion spéciale pour l'administrateur antcirier@gmail.com");
+        // Stocker l'email pour une utilisation future
+        localStorage.setItem('userEmail', values.username);
+        // Forcer l'utilisation de p71x6d_richard
+        localStorage.setItem('userId', 'p71x6d_richard');
+        localStorage.setItem('originalUserId', 'p71x6d_richard');
       }
+      
+      // Utiliser le service de connexion standard
+      const result = await login(values.username, values.password);
       
       if (result.success && result.token) {
         console.log("Connexion réussie, token reçu:", result.token.substring(0, 20) + "...");
@@ -64,6 +57,17 @@ export const useLoginForm = () => {
         // Enregistrer le token avant la navigation
         sessionStorage.setItem('authToken', result.token);
         localStorage.setItem('authToken', result.token);
+        
+        // Pour l'administrateur, forcer l'utilisation de p71x6d_richard
+        if (values.username === 'antcirier@gmail.com') {
+          localStorage.setItem('userId', 'p71x6d_richard');
+          localStorage.setItem('user_id', 'p71x6d_richard');
+          localStorage.setItem('currentDatabaseUser', 'p71x6d_richard');
+          console.log("ID utilisateur admin forcé vers:", 'p71x6d_richard');
+          
+          // Définir un rôle administrateur explicite
+          localStorage.setItem('userRole', 'administrateur');
+        }
         
         // Stocker les données utilisateur et le rôle explicitement
         if (result.user) {
