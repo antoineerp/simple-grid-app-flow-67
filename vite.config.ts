@@ -57,11 +57,10 @@ export default defineConfig(({ mode }) => {
         external: []
       }
     },
+    optimizeDeps: {
+      include: ['jspdf', 'jspdf-autotable', 'react-beautiful-dnd']
+    },
     publicDir: 'public',
     base: basePath,
-    optimizeDeps: {
-      // Inclure jspdf et jspdf-autotable pour s'assurer qu'ils sont correctement traités
-      include: ['jspdf', 'jspdf-autotable']
-    }
   };
 });

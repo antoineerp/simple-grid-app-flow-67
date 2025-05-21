@@ -8,7 +8,6 @@ import {
   Search,
   FolderOpen
 } from 'lucide-react';
-import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { 
@@ -110,11 +109,6 @@ const Bibliotheque: React.FC = () => {
     setIsGroupDialogOpen(true);
   };
   
-  // Fonction pour gérer le drag and drop
-  const handleDragEnd = (result: any) => {
-    // À implémenter si nécessaire
-  };
-  
   return (
     <div className="p-8 w-full">
       <div className="flex justify-between items-center mb-6">
@@ -153,100 +147,79 @@ const Bibliotheque: React.FC = () => {
         </div>
       </div>
       
-      <DragDropContext onDragEnd={handleDragEnd}>
-        <div className="bg-white rounded-lg shadow">
-          <Droppable droppableId="documents">
-            {(provided) => (
-              <div {...provided.droppableProps} ref={provided.innerRef}>
-                {/* Documents sans groupe */}
-                <div className="p-4 border-b">
-                  <h2 className="font-medium mb-2">Documents non classés</h2>
-                  <div className="space-y-2">
-                    {filteredDocuments
-                      .filter(doc => !doc.groupId)
-                      .map((doc, index) => (
-                        <Draggable key={doc.id} draggableId={doc.id} index={index}>
-                          {(provided) => (
-                            <div
-                              ref={provided.innerRef}
-                              {...provided.draggableProps}
-                              {...provided.dragHandleProps}
-                              className="flex items-center p-2 hover:bg-gray-50 rounded-md cursor-pointer"
-                              onClick={() => handleEditDocument(doc)}
-                            >
-                              <FileText className="mr-2 h-4 w-4 text-gray-500" />
-                              <span>{doc.name}</span>
-                            </div>
-                          )}
-                        </Draggable>
-                      ))}
-                  </div>
+      <div className="bg-white rounded-lg shadow">
+        {/* Documents sans groupe */}
+        <div className="p-4 border-b">
+          <h2 className="font-medium mb-2">Documents non classés</h2>
+          <div className="space-y-2">
+            {filteredDocuments
+              .filter(doc => !doc.groupId)
+              .map((doc) => (
+                <div
+                  key={doc.id}
+                  className="flex items-center p-2 hover:bg-gray-50 rounded-md cursor-pointer"
+                  onClick={() => handleEditDocument(doc)}
+                >
+                  <FileText className="mr-2 h-4 w-4 text-gray-500" />
+                  <span>{doc.name}</span>
                 </div>
-                
-                {/* Groupes et leurs documents */}
-                {groups.map(group => {
-                  const groupDocs = filteredDocuments.filter(doc => doc.groupId === group.id);
-                  const isOpen = openGroups[group.id] || false;
-                  
-                  return (
-                    <div key={group.id} className="p-4 border-b">
-                      <div 
-                        className="flex items-center justify-between mb-2 cursor-pointer"
-                        onClick={() => toggleGroup(group.id)}
-                      >
-                        <div className="flex items-center">
-                          {isOpen ? 
-                            <FolderOpen className="mr-2 h-4 w-4 text-app-blue" /> : 
-                            <Folder className="mr-2 h-4 w-4 text-app-blue" />
-                          }
-                          <h2 className="font-medium">{group.name}</h2>
-                          <span className="ml-2 text-xs text-gray-500">
-                            ({groupDocs.length})
-                          </span>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <Button 
-                            variant="ghost" 
-                            size="sm" 
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleEditGroup(group);
-                            }}
-                          >
-                            Éditer
-                          </Button>
-                        </div>
-                      </div>
-                      
-                      {isOpen && (
-                        <div className="space-y-2 ml-6 mt-2">
-                          {groupDocs.map((doc, index) => (
-                            <Draggable key={doc.id} draggableId={doc.id} index={index}>
-                              {(provided) => (
-                                <div
-                                  ref={provided.innerRef}
-                                  {...provided.draggableProps}
-                                  {...provided.dragHandleProps}
-                                  className="flex items-center p-2 hover:bg-gray-50 rounded-md cursor-pointer"
-                                  onClick={() => handleEditDocument(doc)}
-                                >
-                                  <FileText className="mr-2 h-4 w-4 text-gray-500" />
-                                  <span>{doc.name}</span>
-                                </div>
-                              )}
-                            </Draggable>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-                {provided.placeholder}
-              </div>
-            )}
-          </Droppable>
+              ))}
+          </div>
         </div>
-      </DragDropContext>
+        
+        {/* Groupes et leurs documents */}
+        {groups.map(group => {
+          const groupDocs = filteredDocuments.filter(doc => doc.groupId === group.id);
+          const isOpen = openGroups[group.id] || false;
+          
+          return (
+            <div key={group.id} className="p-4 border-b">
+              <div 
+                className="flex items-center justify-between mb-2 cursor-pointer"
+                onClick={() => toggleGroup(group.id)}
+              >
+                <div className="flex items-center">
+                  {isOpen ? 
+                    <FolderOpen className="mr-2 h-4 w-4 text-app-blue" /> : 
+                    <Folder className="mr-2 h-4 w-4 text-app-blue" />
+                  }
+                  <h2 className="font-medium">{group.name}</h2>
+                  <span className="ml-2 text-xs text-gray-500">
+                    ({groupDocs.length})
+                  </span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleEditGroup(group);
+                    }}
+                  >
+                    Éditer
+                  </Button>
+                </div>
+              </div>
+              
+              {isOpen && (
+                <div className="space-y-2 ml-6 mt-2">
+                  {groupDocs.map((doc) => (
+                    <div
+                      key={doc.id}
+                      className="flex items-center p-2 hover:bg-gray-50 rounded-md cursor-pointer"
+                      onClick={() => handleEditDocument(doc)}
+                    >
+                      <FileText className="mr-2 h-4 w-4 text-gray-500" />
+                      <span>{doc.name}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
       
       {/* Dialog for document form */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
