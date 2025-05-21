@@ -1,447 +1,143 @@
-// Importation des dépendances nécessaires
-import { toast } from "@/components/ui/use-toast";
-import { getApiUrl, getAuthHeaders } from "@/config/apiConfig";
 
-// Fonction pour récupérer l'utilisateur actuel
+/**
+ * Service qui gère la connexion à la base de données et l'identifiant utilisateur
+ */
+
+// Constantes pour les identifiants utilisateur
+const DEFAULT_USER_ID = 'p71x6d_richard';
+const SYSTEM_IDS = ['p71x6d_system2', 'p71x6d_system'];
+
+/**
+ * Obtient l'identifiant de l'utilisateur actuel depuis le stockage local
+ * Cette fonction bloque les IDs système problématiques
+ * @returns L'identifiant utilisateur ou l'ID par défaut
+ */
 export const getCurrentUser = (): string => {
-  console.log("Récupération de l'utilisateur actuel");
-  
-  // Récupérer l'ID utilisateur depuis le token JWT (le plus fiable)
-  const authToken = sessionStorage.getItem('authToken') || localStorage.getItem('authToken');
-  if (authToken) {
-    try {
-      // Décodage sécurisé du token JWT
-      const parts = authToken.split('.');
-      if (parts.length === 3) {
-        const payload = JSON.parse(atob(parts[1]));
-        console.log("Payload du token:", payload);
-        
-        // Extraction selon différents formats possibles
-        if (payload && payload.user) {
-          if (typeof payload.user === 'object' && payload.user.identifiant_technique) {
-            console.log(`ID utilisateur récupéré depuis le token JWT: ${payload.user.identifiant_technique}`);
-            
-            // Vérifier si c'est l'ID problématique
-            const userId = payload.user.identifiant_technique;
-            if (userId === 'p71x6d_system2' && !sessionStorage.getItem('force_system2')) {
-              console.warn("ID système problématique détecté dans le token");
-            }
-            
-            return userId;
-          } else if (typeof payload.user === 'string') {
-            console.log(`ID utilisateur récupéré depuis le token JWT: ${payload.user}`);
-            
-            // Vérifier si c'est l'ID problématique
-            const userId = payload.user;
-            if (userId === 'p71x6d_system2' && !sessionStorage.getItem('force_system2')) {
-              console.warn("ID système problématique détecté dans le token");
-            }
-            
-            return userId;
-          }
-        }
-      }
-    } catch (error) {
-      console.error("Erreur lors du décodage du token:", error);
-    }
-  }
-  
-  // Fallback sur l'ID stocké (moins fiable)
-  const userId = sessionStorage.getItem('userId') || localStorage.getItem('userId');
-  if (userId && userId !== 'undefined' && userId !== 'null') {
-    console.log(`ID utilisateur récupéré depuis le storage local: ${userId}`);
+  try {
+    // Récupérer l'ID depuis le localStorage puis le sessionStorage
+    const localId = localStorage.getItem('userId');
+    const sessionId = sessionStorage.getItem('userId');
     
-    // Vérifier si c'est l'ID problématique
-    if (userId === 'p71x6d_system2' && !sessionStorage.getItem('force_system2')) {
-      console.warn("ID système problématique détecté dans le stockage local");
+    // Utiliser l'ID de session en priorité s'il existe
+    let userId = sessionId || localId || DEFAULT_USER_ID;
+    
+    // Bloquer les IDs système problématiques
+    if (SYSTEM_IDS.includes(userId)) {
+      console.error(`ID système problématique détecté: ${userId}, utilisation de l'ID par défaut`);
+      
+      // Nettoyer les stockages locaux
+      localStorage.removeItem('userId');
+      sessionStorage.removeItem('userId');
+      
+      // Remplacer par l'ID par défaut
+      localStorage.setItem('userId', DEFAULT_USER_ID);
+      sessionStorage.setItem('userId', DEFAULT_USER_ID);
+      
+      userId = DEFAULT_USER_ID;
     }
     
     return userId;
+  } catch (error) {
+    console.error('Erreur lors de la récupération de l\'identifiant utilisateur:', error);
+    return DEFAULT_USER_ID;
   }
-  
-  console.warn("Aucun userId valide trouvé, utilisation de p71x6d_richard comme identifiant par défaut");
-  return 'p71x6d_richard'; // ID par défaut comme solution de secours
 };
 
-// Fonction pour définir l'utilisateur actuel
-export const setCurrentUser = (userId: string): void => {
-  if (!userId) {
-    console.warn("Tentative de définir un userId invalide");
-    return;
-  }
-  
+/**
+ * Définit l'identifiant de l'utilisateur actuel dans le stockage local
+ * @param userId L'identifiant à définir
+ * @returns true si l'opération a réussi, false sinon
+ */
+export const setCurrentUser = (userId: string): boolean => {
   try {
-    // Vérification que l'ID utilisateur est au format valide
-    if (!userId.startsWith('p71x6d_')) {
-      console.error(`Format d'identifiant utilisateur invalide: ${userId}`);
-      toast({
-        variant: "destructive",
-        title: "Erreur d'identifiant",
-        description: `Format d'identifiant technique invalide: ${userId}`
-      });
-      return;
+    if (!userId || typeof userId !== 'string' || userId.length < 3) {
+      console.error('Tentative de définir un identifiant utilisateur invalide:', userId);
+      return false;
     }
     
-    // Vérifier si c'est l'ID problématique
-    if (userId === 'p71x6d_system2' && !sessionStorage.getItem('force_system2')) {
-      console.warn("Tentative de définir l'ID système problématique");
+    // Bloquer les IDs système problématiques
+    if (SYSTEM_IDS.includes(userId)) {
+      console.error(`Tentative de définir l'ID système problématique: ${userId}`);
+      return false;
     }
     
-    console.log(`Définition de l'utilisateur courant: ${userId}`);
-    
-    // Nettoyer d'abord les anciennes valeurs
+    // Nettoyer les stockages locaux d'abord
     localStorage.removeItem('userId');
     sessionStorage.removeItem('userId');
     
-    // Définir les nouvelles valeurs
+    // Définir le nouvel ID
     localStorage.setItem('userId', userId);
     sessionStorage.setItem('userId', userId);
     
-    // Déclencher un événement pour informer l'application du changement d'utilisateur
-    window.dispatchEvent(new CustomEvent('userChanged', { 
-      detail: { userId } 
+    // Déclencher un événement pour informer l'application du changement
+    window.dispatchEvent(new CustomEvent('database-user-changed', {
+      detail: { userId }
     }));
     
-    // Déclencher un événement spécifique à la base de données
-    window.dispatchEvent(new CustomEvent('database-user-changed', { 
-      detail: { userId } 
-    }));
-    
-  } catch (error) {
-    console.error("Erreur lors de la définition de l'utilisateur:", error);
-  }
-};
-
-// Fonction pour purger toutes les données utilisateur du localStorage
-export const purgeAllUserData = (): void => {
-  try {
-    console.log("Purge de toutes les données utilisateur du localStorage");
-    
-    // Lister toutes les clés à supprimer
-    const keysToRemove = [];
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i);
-      if (key && (
-        key.includes('p71x6d_') || 
-        key === 'userId' || 
-        key === 'authToken' || 
-        key === 'userRole' ||
-        key.endsWith('_last_synced') ||
-        key.endsWith('_last_modified')
-      )) {
-        keysToRemove.push(key);
-      }
-    }
-    
-    // Supprimer toutes les clés
-    keysToRemove.forEach(key => {
-      localStorage.removeItem(key);
-    });
-    
-    // Nettoyer aussi le sessionStorage
-    sessionStorage.removeItem('userId');
-    sessionStorage.removeItem('authToken');
-    sessionStorage.removeItem('userRole');
-    
-    console.log(`Purge terminée: ${keysToRemove.length} clés supprimées`);
-    
-    // Notification
-    toast({
-      title: "Données nettoyées",
-      description: `${keysToRemove.length} entrées ont été supprimées du stockage local.`,
-      duration: 3000
-    });
-    
-  } catch (error) {
-    console.error("Erreur lors de la purge des données:", error);
-  }
-};
-
-// Fonction spécifique pour purger les données de l'ID problématique
-export const purgeSystem2Data = (): void => {
-  try {
-    console.log("Purge des données liées à l'ID système problématique");
-    
-    // Lister toutes les clés à supprimer
-    const keysToRemove = [];
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i);
-      if (key && key.includes('p71x6d_system2')) {
-        keysToRemove.push(key);
-      }
-    }
-    
-    // Supprimer toutes les clés
-    keysToRemove.forEach(key => {
-      localStorage.removeItem(key);
-    });
-    
-    console.log(`Purge terminée: ${keysToRemove.length} clés supprimées pour l'ID système`);
-    
-    if (keysToRemove.length > 0) {
-      // Notification
-      toast({
-        title: "Données système nettoyées",
-        description: `${keysToRemove.length} entrées système ont été supprimées.`,
-        duration: 3000
-      });
-    }
-    
-  } catch (error) {
-    console.error("Erreur lors de la purge des données système:", error);
-  }
-};
-
-// Fonction pour supprimer l'utilisateur actuel
-export const removeCurrentUser = (): void => {
-  try {
-    const currentUser = getCurrentUser();
-    
-    localStorage.removeItem('userId');
-    sessionStorage.removeItem('userId');
-    
-    // Informer l'application que l'utilisateur a été supprimé
-    window.dispatchEvent(new Event('userRemoved'));
-    
-    // Supprimer aussi les données associées à cet utilisateur
-    if (currentUser) {
-      const keysToRemove = [];
-      for (let i = 0; i < localStorage.length; i++) {
-        const key = localStorage.key(i);
-        if (key && key.includes(currentUser)) {
-          keysToRemove.push(key);
-        }
-      }
-      
-      keysToRemove.forEach(key => {
-        localStorage.removeItem(key);
-      });
-      
-      console.log(`${keysToRemove.length} entrées supprimées pour l'utilisateur ${currentUser}`);
-    }
-    
-  } catch (error) {
-    console.error("Erreur lors de la suppression de l'utilisateur du localStorage:", error);
-  }
-};
-
-// Variable pour stocker la dernière erreur de connexion
-let lastConnectionError: string | null = null;
-
-// Fonction pour obtenir la dernière erreur de connexion
-export const getLastConnectionError = (): string | null => {
-  return lastConnectionError;
-};
-
-// Fonction pour définir la dernière erreur de connexion
-export const setLastConnectionError = (error: string): void => {
-  lastConnectionError = error;
-  console.error("Erreur de connexion enregistrée:", error);
-};
-
-// Ajout de la fonction testDatabaseConnection manquante
-export const testDatabaseConnection = async (): Promise<boolean> => {
-  try {
-    const userId = getCurrentUser();
-    console.log(`Test de connexion à la base de données pour utilisateur: ${userId}`);
-    
-    // Appel à l'API pour tester la connexion à la base de données
-    const response = await fetch(`${getApiUrl()}/check-users.php?source=${userId}`, {
-      method: 'GET',
-      headers: {
-        ...getAuthHeaders(),
-        'Cache-Control': 'no-cache, no-store, must-revalidate'
-      }
-    });
-    
-    if (!response.ok) {
-      const errorData = await response.json();
-      const errorMessage = errorData.message || `Erreur de connexion à la base de données: ${response.statusText}`;
-      setLastConnectionError(errorMessage);
-      return false;
-    }
-    
-    const data = await response.json();
-    
-    if (!data || !data.records) {
-      const errorMessage = "Échec de la récupération des données de la base de données";
-      setLastConnectionError(errorMessage);
-      return false;
-    }
-    
-    console.log("Test de connexion à la base de données réussi pour utilisateur:", userId);
     return true;
   } catch (error) {
-    console.error('Erreur lors du test de connexion à la base de données:', error);
-    const errorMessage = error instanceof Error ? error.message : "Erreur inconnue";
-    setLastConnectionError(errorMessage);
+    console.error('Erreur lors de la définition de l\'identifiant utilisateur:', error);
     return false;
   }
 };
 
-// Fonction pour se connecter en tant qu'utilisateur spécifique
+/**
+ * Se connecte en tant qu'utilisateur spécifié
+ * @param userId L'identifiant utilisateur
+ * @returns true si l'opération a réussi, false sinon
+ */
 export const connectAsUser = async (userId: string): Promise<boolean> => {
   try {
-    if (!userId) {
-      throw new Error("ID utilisateur invalide");
+    if (!userId || typeof userId !== 'string' || userId.length < 3) {
+      console.error('Tentative de connexion avec un identifiant utilisateur invalide:', userId);
+      return false;
     }
     
-    console.log(`Connexion en tant que: ${userId}`);
-    
-    // Enregistrer l'ID dans le stockage
-    setCurrentUser(userId);
-    
-    // Vérifier que l'identifiant est bien enregistré
-    const currentUser = getCurrentUser();
-    if (currentUser !== userId) {
-      throw new Error(`Échec de l'enregistrement de l'identifiant: ${currentUser} != ${userId}`);
+    // Bloquer les IDs système problématiques
+    if (SYSTEM_IDS.includes(userId)) {
+      console.error(`Tentative de connexion avec l'ID système problématique: ${userId}`);
+      return false;
     }
     
-    // Tester la connexion à la base de données après le changement d'utilisateur
-    const connectionTest = await testDatabaseConnection();
-    if (!connectionTest) {
-      throw new Error("Échec du test de connexion après changement d'utilisateur");
+    // Définir l'ID utilisateur
+    const success = setCurrentUser(userId);
+    
+    if (success) {
+      // Déclencher un événement pour forcer la mise à jour des données
+      window.dispatchEvent(new CustomEvent('userChanged', {
+        detail: { userId }
+      }));
+      
+      // Forcer une synchronisation
+      window.dispatchEvent(new CustomEvent('force-sync-required', {
+        detail: { reason: 'user_switch', timestamp: new Date().toISOString() }
+      }));
     }
     
-    // Mettre à jour l'interface utilisateur
-    window.dispatchEvent(new CustomEvent('database-user-changed', {
-      detail: { user: userId }
-    }));
-    
-    // Notification de succès
-    toast({
-      title: "Connexion réussie",
-      description: `Connecté en tant que: ${userId}`
-    });
-    
-    return true;
+    return success;
   } catch (error) {
-    console.error("Erreur lors de la connexion en tant qu'utilisateur:", error);
-    const errorMessage = error instanceof Error ? error.message : "Erreur inconnue";
-    setLastConnectionError(errorMessage);
-    
-    toast({
-      variant: "destructive",
-      title: "Erreur de connexion",
-      description: errorMessage
-    });
-    
+    console.error('Erreur lors de la connexion en tant qu\'utilisateur:', error);
     return false;
   }
 };
 
-// Fonction pour déconnecter l'utilisateur
-export const disconnectUser = (): void => {
-  removeCurrentUser();
-  console.log("Utilisateur déconnecté de la base de données");
-  
-  // Notification de déconnexion
-  toast({
-    title: "Déconnexion",
-    description: "Utilisateur déconnecté de la base de données"
-  });
+/**
+ * Vérifie si l'identifiant utilisateur actuel est un ID système
+ * @returns true si c'est un ID système, false sinon
+ */
+export const isSystemUser = (): boolean => {
+  const userId = getCurrentUser();
+  return SYSTEM_IDS.includes(userId);
 };
 
-// Fonction pour obtenir l'utilisateur actuel de la connexion à la base de données
-export const getDatabaseConnectionCurrentUser = (): string => {
+/**
+ * Force l'utilisation d'un ID utilisateur sûr, non système
+ * @returns Le nouvel ID utilisateur
+ */
+export const forceSafeUser = (): string => {
+  if (isSystemUser()) {
+    setCurrentUser(DEFAULT_USER_ID);
+    return DEFAULT_USER_ID;
+  }
   return getCurrentUser();
 };
-
-// Interface pour les informations de base de données
-export interface DatabaseInfo {
-  host: string;
-  database: string;
-  size: string;
-  tables: number;
-  lastBackup: string;
-  status: string;
-  encoding?: string;
-  collation?: string;
-  tableList?: string[];
-}
-
-// Fonction pour récupérer les informations de la base de données
-export const getDatabaseInfo = async (): Promise<DatabaseInfo> => {
-  try {
-    const userId = getCurrentUser();
-    console.log(`Récupération des informations de base de données pour: ${userId}`);
-    
-    // Appel direct à check-users.php qui fonctionne
-    const response = await fetch(`${getApiUrl()}/check-users.php?source=${userId}`, {
-      headers: {
-        ...getAuthHeaders(),
-        'Accept': 'application/json',
-        'Cache-Control': 'no-cache, no-store'
-      }
-    });
-    
-    // Si la requête échoue, lancer une erreur
-    if (!response.ok) {
-      const errorData = await response.json();
-      const errorMessage = errorData.message || `Erreur de connexion à la base de données: ${response.statusText}`;
-      setLastConnectionError(errorMessage);
-      throw new Error(errorMessage);
-    }
-    
-    // Essayer d'analyser la réponse JSON
-    const data = await response.json();
-    
-    if (!data || !data.records) {
-      const errorMessage = "Échec de la récupération des informations de la base de données";
-      setLastConnectionError(errorMessage);
-      throw new Error(errorMessage);
-    }
-    
-    // Extraire et formater les informations de la base de données
-    const dbInfo: DatabaseInfo = {
-      host: "p71x6d.myd.infomaniak.com",
-      database: userId,
-      size: '10 MB',
-      tables: data.records ? data.records.length : 0,
-      lastBackup: new Date().toISOString().split('T')[0] + ' 00:00:00',
-      status: 'Online',
-      encoding: 'utf8mb4',
-      collation: 'utf8mb4_unicode_ci',
-      tableList: ['utilisateurs']
-    };
-    
-    console.log("Informations de base de données reçues:", dbInfo);
-    return dbInfo;
-  } catch (error) {
-    console.error('Erreur lors de la récupération des informations de la base de données:', error);
-    const errorMessage = error instanceof Error ? error.message : "Erreur inconnue";
-    setLastConnectionError(errorMessage);
-    // Lancer l'erreur pour la propager au composant appelant
-    throw error;
-  }
-};
-
-// Fonction pour initialiser l'utilisateur actuel
-export const initializeCurrentUser = (): void => {
-  const currentUser = getCurrentUser();
-  console.log(`Utilisateur initialisé: ${currentUser}`);
-  
-  // Vérifier si l'utilisateur est valide et afficher une notification si nécessaire
-  if (currentUser === 'p71x6d_richard') {
-    toast({
-      variant: "destructive",
-      title: "Utilisateur par défaut",
-      description: "Vous utilisez l'utilisateur par défaut du système. Connectez-vous pour accéder à vos données."
-    });
-  } else {
-    toast({
-      title: "Utilisateur initialisé",
-      description: `Utilisateur actif: ${currentUser}`
-    });
-  }
-};
-
-// Fonction pour vérifier si l'utilisateur actuel est l'utilisateur par défaut
-export const isDefaultUser = (): boolean => {
-  const currentUser = getCurrentUser();
-  return currentUser === 'p71x6d_richard';
-};
-
-// Ajouter une fonction pour forcer la purge au démarrage de l'application
-// Exécution automatique pour nettoyer les données de l'ID problématique
-purgeSystem2Data();

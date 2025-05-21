@@ -1,12 +1,16 @@
-
 import { getApiUrl } from '@/config/apiConfig';
 import { User, AuthResponse } from '@/types/auth';
 import { setCurrentUser as setDbUser } from '@/services/core/databaseConnectionService';
 
+// Liste des IDs système à bloquer
+const SYSTEM_IDS = ['p71x6d_system2', 'p71x6d_system'];
+const DEFAULT_SAFE_ID = 'p71x6d_richard';
+
 /**
- * Récupère l'utilisateur actuel à partir du token d'authentification
+ * Assure que l'ID utilisateur est extrait du token JWT et retourné
+ * Cette fonction ne modifie aucun stockage
  */
-export const getCurrentUser = (): string | null => {
+export const ensureUserIdFromToken = (): string | null => {
   const token = sessionStorage.getItem('authToken') || localStorage.getItem('authToken');
   if (!token) return null;
 
@@ -30,34 +34,19 @@ export const getCurrentUser = (): string | null => {
       const jsonPayload = atob(paddedBase64);
       const userData = JSON.parse(jsonPayload);
       
-      console.log("Données utilisateur extraites du token:", userData);
-      
-      // Synchroniser avec le service de base de données
+      // Si userData.user est un objet, extraire l'identifiant_technique
       if (userData.user) {
-        // Si userData.user est un objet, extraire l'identifiant_technique
         const userId = typeof userData.user === 'object' && userData.user.identifiant_technique 
           ? userData.user.identifiant_technique 
           : (typeof userData.user === 'string' ? userData.user : null);
           
         if (userId) {
-          // Ne pas accepter l'ID system2 si ce n'est pas volontaire
-          if (userId === 'p71x6d_system2' && !sessionStorage.getItem('force_system2')) {
-            console.warn("ID système détecté dans le token, vérification nécessaire");
+          // Bloquer les IDs système problématiques
+          if (SYSTEM_IDS.includes(userId)) {
+            console.warn(`ID système problématique détecté dans le token: ${userId}`);
+            return DEFAULT_SAFE_ID;
           }
           
-          // Synchroniser l'ID utilisateur avec le service de base de données
-          setDbUser(userId);
-          
-          // Stocker l'ID utilisateur dans le localStorage pour un accès plus facile
-          localStorage.setItem('userId', userId);
-          sessionStorage.setItem('userId', userId);
-          
-          // Stocker le rôle dans le localStorage pour faciliter l'accès
-          if (userData.role) {
-            localStorage.setItem('userRole', userData.role);
-          }
-          
-          console.log(`ID utilisateur extrait et synchronisé: ${userId}`);
           return userId;
         }
       }
@@ -71,6 +60,37 @@ export const getCurrentUser = (): string | null => {
     console.error("Erreur lors du décodage du token:", error);
     return null;
   }
+};
+
+/**
+ * Récupère l'utilisateur actuel à partir du token d'authentification
+ * et met à jour les stockages si nécessaire
+ */
+export const getCurrentUser = (): string | null => {
+  const userId = ensureUserIdFromToken();
+  
+  if (userId) {
+    // Bloquer les IDs système problématiques
+    if (SYSTEM_IDS.includes(userId)) {
+      console.warn(`ID système problématique détecté: ${userId}`);
+      
+      // Utiliser un ID sûr à la place
+      setDbUser(DEFAULT_SAFE_ID);
+      localStorage.setItem('userId', DEFAULT_SAFE_ID);
+      sessionStorage.setItem('userId', DEFAULT_SAFE_ID);
+      
+      return DEFAULT_SAFE_ID;
+    }
+    
+    // Synchroniser avec le service de base de données
+    setDbUser(userId);
+    localStorage.setItem('userId', userId);
+    sessionStorage.setItem('userId', userId);
+    
+    return userId;
+  }
+  
+  return null;
 };
 
 export const getAuthToken = (): string | null => {
@@ -144,6 +164,12 @@ export const login = async (username: string, password: string): Promise<AuthRes
     console.log('Réponse de l\'authentification:', data);
     
     if (data.token) {
+      // Nettoyer les anciennes données d'abord
+      localStorage.removeItem('userId');
+      sessionStorage.removeItem('userId');
+      localStorage.removeItem('authToken');
+      sessionStorage.removeItem('authToken');
+      
       // Vérifier que le token a bien le format d'un JWT
       if (data.token.split('.').length === 3) {
         // Test de décodage pour vérifier que le token est valide
@@ -154,10 +180,8 @@ export const login = async (username: string, password: string): Promise<AuthRes
           const paddedBase64 = pad ? base64Payload + '='.repeat(4 - pad) : base64Payload;
           
           const decodedPayload = JSON.parse(atob(paddedBase64));
-          console.log("Token décodé:", decodedPayload);
           
           if (!decodedPayload) {
-            console.error("Décodage du token réussi mais structure invalide:", decodedPayload);
             return {
               success: false,
               message: "Le token reçu du serveur a une structure invalide"
@@ -171,31 +195,23 @@ export const login = async (username: string, password: string): Promise<AuthRes
           if (decodedPayload.user) {
             if (typeof decodedPayload.user === 'object' && decodedPayload.user.identifiant_technique) {
               userId = decodedPayload.user.identifiant_technique;
-              console.log(`ID technique extrait du token (objet): ${userId}`);
             } else if (typeof decodedPayload.user === 'string') {
               userId = decodedPayload.user;
-              console.log(`ID technique extrait du token (string): ${userId}`);
             }
           }
           
           if (!userId) {
-            console.error("ID utilisateur non trouvé dans le token");
             return {
               success: false,
               message: "Identifiant utilisateur manquant dans le token"
             };
           }
           
-          // Ne pas accepter l'ID system2 si on ne le force pas explicitement
-          if (userId === 'p71x6d_system2' && !sessionStorage.getItem('force_system2')) {
-            console.warn("Attention: ID système détecté dans le token");
+          // Bloquer les IDs système problématiques
+          if (SYSTEM_IDS.includes(userId)) {
+            console.warn(`Tentative de connexion avec ID système bloqué: ${userId}`);
+            userId = DEFAULT_SAFE_ID;
           }
-          
-          // Nettoyer les données anciennes d'abord
-          localStorage.removeItem('userId');
-          sessionStorage.removeItem('userId');
-          localStorage.removeItem('authToken');
-          sessionStorage.removeItem('authToken');
           
           // Token validé, on peut le sauvegarder
           sessionStorage.setItem('authToken', data.token);
@@ -205,50 +221,40 @@ export const login = async (username: string, password: string): Promise<AuthRes
           localStorage.setItem('userId', userId);
           sessionStorage.setItem('userId', userId);
           setDbUser(userId);
-          console.log(`ID technique de l'utilisateur sauvegardé: ${userId}`);
           
-          // Stocker explicitement le rôle utilisateur
-          if (decodedPayload.role) {
-            localStorage.setItem('userRole', decodedPayload.role);
-          }
-          
-          // Déclencher un événement pour informer l'application du changement d'utilisateur
-          window.dispatchEvent(new CustomEvent('userChanged', { 
-            detail: { userId } 
-          }));
-          
-          return { 
-            success: true, 
+          return {
+            success: true,
+            message: "Connexion réussie",
             token: data.token,
-            user: { id: userId, ...data.user },
-            message: data.message || 'Connexion réussie'
+            user: {
+              ...data.user,
+              id: userId
+            }
           };
-        } catch (decodeError) {
-          console.error("Token de format invalide reçu:", data.token);
-          console.error("Erreur lors du décodage:", decodeError);
+        } catch (tokenError) {
+          console.error("Erreur lors de la validation du token:", tokenError);
           return {
             success: false,
-            message: "Le format du token reçu est invalide"
+            message: "Erreur lors de la validation du token d'authentification"
           };
         }
       } else {
-        console.error("Token de format invalide reçu:", data.token);
         return {
           success: false,
-          message: "Le format du token reçu est invalide (doit contenir 3 parties)"
+          message: "Le format du token d'authentification est invalide"
         };
       }
     }
     
-    return { 
-      success: false, 
-      message: data.message || data.error || 'Identifiants invalides' 
+    return {
+      success: false,
+      message: data.message || "Échec de l'authentification: réponse invalide du serveur"
     };
   } catch (error) {
-    console.error('Erreur lors de la connexion:', error);
-    return { 
-      success: false, 
-      message: error instanceof Error ? error.message : 'Erreur lors de la connexion' 
+    console.error('Erreur lors de la tentative de connexion:', error);
+    return {
+      success: false,
+      message: error instanceof Error ? error.message : "Erreur inconnue lors de la connexion"
     };
   }
 };
@@ -288,71 +294,8 @@ export const logout = () => {
 };
 
 /**
- * Récupère l'identifiant technique de l'utilisateur connecté 
- * à partir du token JWT et assure qu'il est synchronisé
+ * Fonction pour détecter et corriger l'ID utilisateur s'il est incorrect
  */
-export const ensureUserIdFromToken = (): string | null => {
-  try {
-    const token = getAuthToken();
-    if (!token) {
-      console.warn("Aucun token d'authentification trouvé");
-      return null;
-    }
-    
-    // Décodage du token JWT
-    const parts = token.split('.');
-    if (parts.length !== 3) {
-      console.error("Format de token invalide");
-      return null;
-    }
-    
-    const base64Payload = parts[1].replace(/-/g, '+').replace(/_/g, '/');
-    const pad = base64Payload.length % 4;
-    const paddedBase64 = pad ? base64Payload + '='.repeat(4 - pad) : base64Payload;
-    
-    const payload = JSON.parse(atob(paddedBase64));
-    console.log("Payload du token lors de l'extraction de l'ID:", payload);
-    
-    // Extraction selon différents formats possibles
-    let userId = null;
-    
-    if (payload && payload.user) {
-      if (typeof payload.user === 'object' && payload.user.identifiant_technique) {
-        userId = payload.user.identifiant_technique;
-        console.log(`ID utilisateur extrait du token (format objet): ${userId}`);
-      } else if (typeof payload.user === 'string') {
-        userId = payload.user;
-        console.log(`ID utilisateur extrait du token (format string): ${userId}`);
-      }
-    }
-    
-    if (!userId) {
-      console.warn("Aucun ID utilisateur dans le payload du token");
-      return null;
-    }
-    
-    // Vérifier si c'est l'ID système problématique
-    if (userId === 'p71x6d_system2' && !sessionStorage.getItem('force_system2')) {
-      console.warn("ID système détecté lors de l'extraction depuis le token");
-    }
-    
-    // Synchroniser l'identifiant avec le service de base de données
-    setDbUser(userId);
-    
-    // Mettre à jour le stockage local
-    localStorage.setItem('userId', userId);
-    sessionStorage.setItem('userId', userId);
-    
-    console.log(`Identifiant utilisateur synchronisé depuis le token: ${userId}`);
-    
-    return userId;
-  } catch (error) {
-    console.error("Erreur lors de l'extraction de l'identifiant utilisateur:", error);
-    return null;
-  }
-}
-
-// Fonction pour détecter et corriger l'ID utilisateur s'il est incorrect
 export const sanitizeUserId = (userId: string): string => {
   // Vérifier si c'est l'ID système problématique
   if (userId === 'p71x6d_system2' && !sessionStorage.getItem('force_system2')) {

@@ -26,6 +26,34 @@ export const UserInitializer: React.FC = () => {
         // Vérification supplémentaire pour s'assurer que l'ID est bien enregistré
         const currentUser = getCurrentUser();
         
+        // Bloquer explicitement l'utilisation de p71x6d_system2
+        if (userId === 'p71x6d_system2' || currentUser === 'p71x6d_system2') {
+          console.error("UserInitializer: Identifiant système p71x6d_system2 détecté et bloqué");
+          
+          // Définir un identifiant sûr par défaut
+          const safeId = 'p71x6d_richard';
+          
+          // Nettoyer les stockages locaux avant de définir la nouvelle valeur
+          localStorage.removeItem('userId');
+          sessionStorage.removeItem('userId');
+          
+          // Mettre à jour avec l'identifiant sûr
+          localStorage.setItem('userId', safeId);
+          sessionStorage.setItem('userId', safeId);
+          setCurrentUser(safeId);
+          
+          toast({
+            variant: "destructive",
+            title: "ID système bloqué",
+            description: "Un ID système problématique a été détecté et remplacé"
+          });
+          
+          // Forcer un rechargement pour appliquer les modifications
+          window.location.reload();
+          
+          return;
+        }
+        
         if (currentUser !== userId) {
           console.warn(`UserInitializer: Incohérence d'identifiant utilisateur: JWT=${userId}, DB=${currentUser}`);
           
@@ -60,13 +88,29 @@ export const UserInitializer: React.FC = () => {
       } else {
         const currentUser = getCurrentUser();
         
-        if (currentUser === 'p71x6d_richard' || currentUser === 'p71x6d_system2') {
-          console.warn("UserInitializer: Utilisateur connecté mais utilisant l'ID par défaut");
+        // Si l'ID est un système problématique, forcer l'utilisation d'un ID sûr
+        if (currentUser === 'p71x6d_system' || currentUser === 'p71x6d_system2') {
+          console.warn("UserInitializer: Utilisateur système détecté, forçage d'un ID sûr");
+          
+          const safeId = 'p71x6d_richard';
+          
+          // Nettoyer les stockages locaux
+          localStorage.removeItem('userId');
+          sessionStorage.removeItem('userId');
+          
+          // Mettre à jour avec l'ID sûr
+          localStorage.setItem('userId', safeId);
+          sessionStorage.setItem('userId', safeId);
+          setCurrentUser(safeId);
+          
           toast({
             variant: "destructive",
-            title: "ID utilisateur par défaut",
-            description: "Vous utilisez l'utilisateur par défaut. Déconnectez-vous et reconnectez-vous."
+            title: "ID utilisateur système",
+            description: "L'ID système a été remplacé par un ID utilisateur valide."
           });
+          
+          // Forcer un rechargement
+          window.location.reload();
         } else {
           console.log(`UserInitializer: Utilisateur initialisé: ${currentUser}`);
         }
