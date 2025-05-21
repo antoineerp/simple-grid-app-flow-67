@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Table, TableBody } from "@/components/ui/table";
 import { Document } from '@/types/documents';
@@ -72,7 +71,7 @@ const DocumentTable: React.FC<DocumentTableProps> = ({
 
   return (
     <div className="bg-white rounded-md shadow overflow-hidden">
-      <Table>
+      <Table className="table-fixed">
         <DocumentTableHeader onAddDocument={onAddDocument} />
         
         <TableBody>

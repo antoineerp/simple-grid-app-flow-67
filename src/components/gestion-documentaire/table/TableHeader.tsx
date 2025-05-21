@@ -12,7 +12,7 @@ const DocumentTableHeader: React.FC<DocumentTableHeaderProps> = ({ onAddDocument
   return (
     <TableHeader>
       <TableRow className="bg-app-light-blue">
-        <TableHead className="w-10"></TableHead>
+        <TableHead className="w-10"></TableHead> {/* Gripable column */}
         <TableHead className="py-3 px-4 text-app-blue font-semibold">
           <div className="flex items-center justify-between">
             <span>Nom du document</span>
@@ -26,8 +26,16 @@ const DocumentTableHeader: React.FC<DocumentTableHeaderProps> = ({ onAddDocument
             </Button>
           </div>
         </TableHead>
-        <TableHead className="py-3 px-4 text-app-blue font-semibold">R.A.C.I</TableHead>
-        <TableHead className="py-3 px-4 text-app-blue font-semibold">État</TableHead>
+        <TableHead className="py-3 px-4 text-app-blue font-semibold">
+          <div className="flex items-center justify-center text-center">
+            <span>R.A.C.I</span>
+          </div>
+        </TableHead>
+        <TableHead className="py-3 px-4 text-app-blue font-semibold">
+          <div className="flex items-center justify-center text-center">
+            <span>État</span>
+          </div>
+        </TableHead>
         <TableHead className="py-3 px-4 text-app-blue font-semibold text-right">Actions</TableHead>
       </TableRow>
     </TableHeader>
