@@ -8,7 +8,8 @@ import { checkPermission } from '@/types/roles';
 import { UserRole } from '@/types/roles';
 
 const Sidebar = () => {
-  const sidebarImageUrl = '/lovable-uploads/83a21258-cc8b-4419-a39a-d36cbdb8222f.png';
+  // Utilisation d'une URL absolue pour l'image
+  const sidebarImageUrl = 'https://qualite.cloud/assets/images/logo-qualite-cloud.png';
   const sidebarLinkUrl = 'https://qualite.cloud';
   const userId = getCurrentUser();
   const { user } = useAuth();
@@ -51,6 +52,12 @@ const Sidebar = () => {
               src={sidebarImageUrl}
               alt="Qualite.cloud - Couteau suisse de la qualité"
               className="w-32 h-auto opacity-90 transition-all duration-200 hover:opacity-100"
+              onError={(e) => {
+                console.log("Erreur de chargement de l'image du sidebar");
+                const target = e.target as HTMLImageElement;
+                // Fallback vers une autre image ou masquer en cas d'erreur
+                target.style.display = 'none';
+              }}
             />
           </a>
         </div>

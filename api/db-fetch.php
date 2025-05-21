@@ -3,7 +3,7 @@
 // Fichier pour récupérer des données de tables spécifiques à un utilisateur
 header("Content-Type: application/json; charset=UTF-8");
 header("Access-Control-Allow-Origin: *");
-header("Access-Control-Allow-Methods: GET, OPTIONS");
+header("Access-Control-Allow-Methods: GET, POST, OPTIONS");
 header("Access-Control-Allow-Headers: Content-Type, Authorization");
 header("Cache-Control: no-cache, no-store, must-revalidate");
 
@@ -48,6 +48,69 @@ try {
     
     $pdo = new PDO($dsn, $username, $password, $options);
     
+    // Gérer le POST pour la synchronisation
+    if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'sync') {
+        $json = file_get_contents('php://input');
+        $data = json_decode($json, true);
+        
+        if (!$data || !isset($data['documents'])) {
+            echo json_encode([
+                'status' => 'error',
+                'message' => 'Données invalides pour la synchronisation'
+            ]);
+            exit;
+        }
+        
+        // Vérifier si la table existe, sinon la créer
+        $stmt = $pdo->prepare("SHOW TABLES LIKE :tableName");
+        $stmt->bindParam(':tableName', $tableName, PDO::PARAM_STR);
+        $stmt->execute();
+        
+        if ($stmt->rowCount() === 0) {
+            // Créer la table si elle n'existe pas
+            $pdo->exec("CREATE TABLE `{$tableName}` (
+                `id` VARCHAR(36) PRIMARY KEY,
+                `json_data` TEXT,
+                `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+            )");
+        }
+        
+        // Insertion ou mise à jour des documents
+        $pdo->beginTransaction();
+        try {
+            $updateStmt = $pdo->prepare("INSERT INTO `{$tableName}` (`id`, `json_data`) VALUES (:id, :json_data) 
+                                         ON DUPLICATE KEY UPDATE `json_data` = :json_data_update");
+            
+            $count = 0;
+            foreach ($data['documents'] as $doc) {
+                if (!isset($doc['id'])) continue;
+                
+                $jsonData = json_encode($doc, JSON_UNESCAPED_UNICODE);
+                
+                $updateStmt->bindParam(':id', $doc['id'], PDO::PARAM_STR);
+                $updateStmt->bindParam(':json_data', $jsonData, PDO::PARAM_STR);
+                $updateStmt->bindParam(':json_data_update', $jsonData, PDO::PARAM_STR);
+                $updateStmt->execute();
+                
+                $count++;
+            }
+            
+            $pdo->commit();
+            
+            echo json_encode([
+                'status' => 'success',
+                'message' => "Synchronisation réussie",
+                'count' => $count
+            ]);
+            exit;
+        } catch (Exception $e) {
+            $pdo->rollBack();
+            throw $e;
+        }
+    }
+    
+    // Procéder avec GET pour la récupération des données
     // Vérifier si la table existe
     $stmt = $pdo->prepare("SHOW TABLES LIKE :tableName");
     $stmt->bindParam(':tableName', $tableName, PDO::PARAM_STR);

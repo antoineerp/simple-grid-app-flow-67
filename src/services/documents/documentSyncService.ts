@@ -84,13 +84,14 @@ export const syncDocumentsWithServer = async (docs: Document[]): Promise<boolean
     const syncData = {
       userId: userId,
       userPrefix: userPrefix,
-      originalUserId: origUserId, // Envoyer l'ID original pour le suivi
+      originalUserId: origUserId,
       documents: normalizedDocs,
       timestamp: new Date().toISOString()
     };
     
     const apiUrl = getApiUrl();
-    const syncUrl = `${apiUrl}/documents-sync.php`;
+    // Utiliser db-fetch.php avec action=sync au lieu de documents-sync.php
+    const syncUrl = `${apiUrl}/db-fetch.php?table=documents&userId=${userId}&action=sync`;
     
     console.log(`DocumentSyncService: Envoi à ${syncUrl}`);
     console.log(`DocumentSyncService: Base: ${FIXED_DB_USER}, Préfixe: ${userPrefix}, ID original: ${origUserId}`);
@@ -111,7 +112,7 @@ export const syncDocumentsWithServer = async (docs: Document[]): Promise<boolean
     
     const result = await response.json();
     
-    if (!result.success) {
+    if (!result.success && result.status !== 'success') {
       throw new Error(result.message || 'Échec de la synchronisation');
     }
     
@@ -140,9 +141,8 @@ export const fetchDocumentsFromServer = async (): Promise<Document[]> => {
     
     console.log(`DocumentSyncService: Récupération depuis le serveur avec Base: ${userId}, Préfixe: ${userPrefix}, ID original: ${origUserId}`);
     
-    // MODIFICATION: Utiliser db-fetch.php au lieu de documents-fetch.php
     const apiUrl = getApiUrl();
-    const fetchUrl = `${apiUrl}/db-fetch.php?table=documents&userId=${userId}`;
+    const fetchUrl = `${apiUrl}/db-fetch.php?table=documents&userId=${userId}&action=fetch`;
     
     console.log(`DocumentSyncService: Récupération depuis ${fetchUrl}`);
     
@@ -170,11 +170,26 @@ export const fetchDocumentsFromServer = async (): Promise<Document[]> => {
     if (data.records && Array.isArray(data.records)) {
       documents = data.records.map((record: any) => {
         // Si le record a un champ json_data, le parser
-        if (record.json_data) {
+        if (record.data && record.data.id) {
+          // Format de données structuré
+          const jsonData = record.data;
+          return {
+            id: jsonData.id || record.id || '',
+            nom: jsonData.nom || jsonData.name || 'Document sans nom',
+            fichier_path: jsonData.fichier_path || null,
+            responsabilites: jsonData.responsabilites || { r: [], a: [], c: [], i: [] },
+            etat: jsonData.etat || null,
+            groupId: jsonData.groupId || null,
+            excluded: jsonData.excluded || false,
+            date_creation: record.created_at ? new Date(record.created_at) : new Date(),
+            date_modification: record.updated_at ? new Date(record.updated_at) : new Date()
+          };
+        } else if (record.json_data) {
+          // Format de données JSON
           try {
             const jsonData = JSON.parse(record.json_data);
             return {
-              id: record.id || jsonData.id,
+              id: record.id || jsonData.id || '',
               nom: jsonData.nom || jsonData.name || 'Document sans nom',
               fichier_path: jsonData.fichier_path || null,
               responsabilites: jsonData.responsabilites || { r: [], a: [], c: [], i: [] },
@@ -190,6 +205,40 @@ export const fetchDocumentsFromServer = async (): Promise<Document[]> => {
           }
         }
         // Sinon, utiliser les champs directement
+        return {
+          id: record.id || '',
+          nom: record.nom || record.name || 'Document sans nom',
+          fichier_path: record.fichier_path || null,
+          responsabilites: record.responsabilites || { r: [], a: [], c: [], i: [] },
+          etat: record.etat || null,
+          groupId: record.groupId || null,
+          excluded: record.excluded || false,
+          date_creation: record.created_at ? new Date(record.created_at) : new Date(),
+          date_modification: record.updated_at ? new Date(record.updated_at) : new Date()
+        };
+      }).filter(Boolean) as Document[];
+    } else if (data.raw_records && Array.isArray(data.raw_records)) {
+      // Format de données brut
+      documents = data.raw_records.map((record: any) => {
+        if (record.json_data) {
+          try {
+            const jsonData = JSON.parse(record.json_data);
+            return {
+              id: record.id || jsonData.id || '',
+              nom: jsonData.nom || jsonData.name || 'Document sans nom',
+              fichier_path: jsonData.fichier_path || null,
+              responsabilites: jsonData.responsabilites || { r: [], a: [], c: [], i: [] },
+              etat: jsonData.etat || null,
+              groupId: jsonData.groupId || null,
+              excluded: jsonData.excluded || false,
+              date_creation: record.created_at ? new Date(record.created_at) : new Date(),
+              date_modification: record.updated_at ? new Date(record.updated_at) : new Date()
+            };
+          } catch (e) {
+            console.error('Erreur parsing JSON:', e);
+            return null;
+          }
+        }
         return {
           id: record.id || '',
           nom: record.nom || record.name || 'Document sans nom',
