@@ -4,9 +4,11 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Database, RefreshCw } from 'lucide-react';
+import { Loader2, Database, RefreshCw, AlertCircle } from 'lucide-react';
 import { getUserTables } from '@/services/users/userManager';
 import { useToast } from "@/hooks/use-toast";
+import { getApiUrl } from '@/config/apiConfig';
+import { getAuthHeaders } from '@/services/auth/authService';
 
 interface UserTablesProps {
   userId: string;
@@ -28,10 +30,43 @@ const UserTables = ({ userId }: UserTablesProps) => {
     setError(null);
 
     try {
-      const userTables = await getUserTables(userId);
-      setTables(userTables);
+      // Récupération directe depuis l'API qui fonctionne
+      const API_URL = getApiUrl();
+      console.log(`Chargement direct des tables depuis: ${API_URL}/test.php?action=tables&userId=${encodeURIComponent(userId)}`);
+      
+      const response = await fetch(`${API_URL}/test.php?action=tables&userId=${encodeURIComponent(userId)}`, {
+        method: 'GET',
+        headers: {
+          ...getAuthHeaders(),
+          'Accept': 'application/json',
+          'Cache-Control': 'no-cache, no-store, must-revalidate'
+        },
+        cache: 'no-store'
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Erreur HTTP: ${response.status} - ${response.statusText}`);
+      }
+      
+      const responseText = await response.text();
+      
+      if (responseText.includes('<?php') || responseText.includes('<br />') || responseText.includes('<!DOCTYPE')) {
+        console.error("Réponse PHP/HTML brute:", responseText.substring(0, 200));
+        throw new Error("La réponse contient du PHP/HTML au lieu de JSON");
+      }
+      
+      const data = JSON.parse(responseText);
+      console.log("Données de tables reçues:", data);
+      
+      if (data.tables && Array.isArray(data.tables)) {
+        setTables(data.tables);
+      } else {
+        setTables([]);
+        console.warn("Format de données invalide pour les tables");
+      }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "Erreur lors du chargement des tables";
+      console.error("Erreur de chargement des tables:", errorMessage);
       setError(errorMessage);
       toast({
         title: "Erreur",
@@ -65,7 +100,8 @@ const UserTables = ({ userId }: UserTablesProps) => {
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
           </div>
         ) : error ? (
-          <div className="py-4 text-center text-destructive">
+          <div className="flex items-center py-4 text-center text-destructive">
+            <AlertCircle className="h-5 w-5 mr-2" />
             <p>{error}</p>
           </div>
         ) : tables.length === 0 ? (

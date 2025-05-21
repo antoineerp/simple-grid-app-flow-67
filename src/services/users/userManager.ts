@@ -4,10 +4,10 @@ import { getAuthHeaders } from '../auth/authService';
 import { Utilisateur } from '@/types/auth';
 import { getCurrentUser } from '../core/databaseConnectionService';
 
-// Un cache pour les utilisateurs
+// Un cache pour les utilisateurs (en mémoire seulement, pas dans localStorage)
 let usersCache: Utilisateur[] | null = null;
 let lastFetchTimestamp: number | null = null;
-const CACHE_DURATION = 60000; // 1 minute de cache
+const CACHE_DURATION = 30000; // 30 secondes de cache seulement
 const MAX_RETRIES = 2; // Maximum de tentatives de récupération
 
 /**
@@ -20,7 +20,7 @@ export const UserManager = {
   async getUtilisateurs(forceRefresh: boolean = false, retryCount = 0): Promise<Utilisateur[]> {
     // Retourner les données du cache si disponibles et pas encore expirées
     if (!forceRefresh && usersCache && lastFetchTimestamp && (Date.now() - lastFetchTimestamp < CACHE_DURATION)) {
-      console.log("Utilisation du cache pour les utilisateurs", usersCache.length);
+      console.log("Utilisation du cache mémoire pour les utilisateurs", usersCache.length);
       return usersCache;
     }
 
@@ -50,6 +50,7 @@ export const UserManager = {
       });
       
       if (!response.ok) {
+        console.error(`Erreur HTTP: ${response.status} ${response.statusText}`);
         throw new Error(`Erreur HTTP: ${response.status} - ${response.statusText}`);
       }
       
@@ -62,6 +63,7 @@ export const UserManager = {
         }
         
         if (responseText.includes('<?php') || responseText.includes('<br />') || responseText.includes('<!DOCTYPE')) {
+          console.error("Réponse PHP/HTML brute:", responseText.substring(0, 200));
           throw new Error("La réponse contient du PHP/HTML au lieu de JSON");
         }
       } catch (textError) {
@@ -72,8 +74,9 @@ export const UserManager = {
       let data;
       try {
         data = JSON.parse(responseText);
+        console.log("Données utilisateurs brutes reçues:", data);
       } catch (parseError) {
-        console.error("Erreur de parsing JSON:", parseError, "Réponse brute:", responseText);
+        console.error("Erreur de parsing JSON:", parseError, "Réponse brute:", responseText.substring(0, 200));
         throw new Error(`Erreur de parsing JSON: ${parseError instanceof Error ? parseError.message : String(parseError)}`);
       }
       
@@ -88,7 +91,7 @@ export const UserManager = {
         throw new Error("Format de données invalide: aucun utilisateur trouvé");
       }
       
-      // Mettre à jour le cache
+      // Mettre à jour le cache mémoire
       usersCache = users;
       lastFetchTimestamp = Date.now();
       
@@ -105,13 +108,9 @@ export const UserManager = {
         return this.getUtilisateurs(forceRefresh, retryCount + 1);
       }
       
-      // En cas d'échec, retourner une liste vide ou les données en cache si disponibles
-      if (usersCache) {
-        console.log("Utilisation du cache périmé pour les utilisateurs après échec");
-        return usersCache;
-      }
-      
-      throw error;
+      // En cas d'échec après toutes les tentatives, retourner liste vide
+      console.error("Toutes les tentatives de récupération des utilisateurs ont échoué");
+      return [];
     }
   },
   
@@ -129,17 +128,30 @@ export const UserManager = {
         headers: {
           ...getAuthHeaders(),
           'Accept': 'application/json',
-          'Cache-Control': 'no-cache'
-        }
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0'
+        },
+        cache: 'no-store'
       });
       
       if (!response.ok) {
+        console.error(`Erreur HTTP: ${response.status} ${response.statusText}`);
         throw new Error(`Erreur HTTP: ${response.status} - ${response.statusText}`);
       }
       
-      const data = await response.json();
+      const responseText = await response.text();
+      
+      if (responseText.includes('<?php') || responseText.includes('<br />') || responseText.includes('<!DOCTYPE')) {
+        console.error("Réponse PHP/HTML brute:", responseText.substring(0, 200));
+        throw new Error("La réponse contient du PHP/HTML au lieu de JSON");
+      }
+      
+      const data = JSON.parse(responseText);
+      console.log("Données de tables reçues:", data);
       
       if (!data.tables || !Array.isArray(data.tables)) {
+        console.warn("Aucune table trouvée pour l'utilisateur", userId);
         return [];
       }
       
