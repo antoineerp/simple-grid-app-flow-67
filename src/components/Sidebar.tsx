@@ -3,11 +3,20 @@ import React from 'react';
 import SidebarNavItem from './sidebar/SidebarNavItem';
 import { navigationItems, adminNavigationItems } from './sidebar/sidebarConfig';
 import { getCurrentUser } from '@/services/auth/authService';
+import { useAuth } from '@/hooks/useAuth';
+import { checkPermission, UserRole } from '@/types/roles';
 
 const Sidebar = () => {
   const sidebarImageUrl = '/lovable-uploads/c6d7246d-1cb1-4d6c-8579-dd12df4a1047.png';
   const sidebarLinkUrl = 'https://qualite.cloud';
-  const user = getCurrentUser();
+  const userId = getCurrentUser();
+  const { user } = useAuth();
+  
+  // Get user role from context or localStorage as fallback
+  const userRole = user?.role || localStorage.getItem('userRole') as UserRole || 'utilisateur';
+  
+  // Check if user has admin permissions
+  const isAdmin = checkPermission(userRole, 'isAdmin');
 
   return (
     <aside className="w-64 bg-gray-50 border-r h-full overflow-y-auto">
@@ -23,7 +32,7 @@ const Sidebar = () => {
         ))}
         
         {/* Items de navigation pour administrateurs */}
-        {user?.isAdmin && adminNavigationItems.map((item) => (
+        {isAdmin && adminNavigationItems.map((item) => (
           <SidebarNavItem
             key={item.path}
             to={item.path}
