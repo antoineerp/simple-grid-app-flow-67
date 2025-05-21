@@ -1,12 +1,12 @@
 
 import React from 'react';
 import SidebarNavItem from './sidebar/SidebarNavItem';
-import { navigationItems } from './sidebar/sidebarConfig';
+import { navigationItems, adminNavigationItems } from './sidebar/sidebarConfig';
 import { getCurrentUser } from '@/services/auth/authService';
 
 const Sidebar = () => {
-  const sidebarImageUrl = localStorage.getItem('sidebarImageUrl') || '/lovable-uploads/swiss-army-knife-logo.png';
-  const sidebarLinkUrl = localStorage.getItem('sidebarLinkUrl') || '';
+  const sidebarImageUrl = '/lovable-uploads/c6d7246d-1cb1-4d6c-8579-dd12df4a1047.png';
+  const sidebarLinkUrl = 'https://qualite.cloud';
   const user = getCurrentUser();
 
   return (
@@ -22,22 +22,24 @@ const Sidebar = () => {
           />
         ))}
         
+        {/* Items de navigation pour administrateurs */}
+        {user?.isAdmin && adminNavigationItems.map((item) => (
+          <SidebarNavItem
+            key={item.path}
+            to={item.path}
+            icon={item.icon}
+            label={item.label}
+          />
+        ))}
+        
         <div className="mt-auto pt-8 flex items-center justify-center">
-          {sidebarLinkUrl ? (
-            <a href={sidebarLinkUrl} target="_blank" rel="noopener noreferrer">
-              <img 
-                src={sidebarImageUrl}
-                alt="Logo personnalisé"
-                className="w-24 h-auto opacity-90 transition-all duration-200"
-              />
-            </a>
-          ) : (
+          <a href={sidebarLinkUrl} target="_blank" rel="noopener noreferrer">
             <img 
               src={sidebarImageUrl}
-              alt="Logo personnalisé"
-              className="w-24 h-auto opacity-90 transition-all duration-200"
+              alt="Qualite.cloud - Couteau suisse de la qualité"
+              className="w-32 h-auto opacity-90 transition-all duration-200 hover:opacity-100"
             />
-          )}
+          </a>
         </div>
       </nav>
     </aside>
