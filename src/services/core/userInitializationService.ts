@@ -1,7 +1,7 @@
 
 import { getApiUrl } from '@/config/apiConfig';
 import { getAuthHeaders } from '../auth/authService';
-import { getDatabaseConnectionCurrentUser } from './databaseConnectionService';
+import { getCurrentUser as getDatabaseConnectionCurrentUser } from './databaseConnectionService';
 import { Utilisateur } from '@/services';
 
 export const adminImportFromManager = async (): Promise<boolean> => {

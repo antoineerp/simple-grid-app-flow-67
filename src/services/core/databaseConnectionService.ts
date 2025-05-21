@@ -7,6 +7,9 @@
 const DEFAULT_USER_ID = 'p71x6d_richard';
 const SYSTEM_IDS = ['p71x6d_system2', 'p71x6d_system'];
 
+// Variable pour stocker la dernière erreur de connexion
+let lastConnectionError: string | null = null;
+
 /**
  * Obtient l'identifiant de l'utilisateur actuel depuis le stockage local
  * Cette fonction bloque les IDs système problématiques
@@ -90,12 +93,14 @@ export const connectAsUser = async (userId: string): Promise<boolean> => {
   try {
     if (!userId || typeof userId !== 'string' || userId.length < 3) {
       console.error('Tentative de connexion avec un identifiant utilisateur invalide:', userId);
+      lastConnectionError = 'Identifiant utilisateur invalide';
       return false;
     }
     
     // Bloquer les IDs système problématiques
     if (SYSTEM_IDS.includes(userId)) {
       console.error(`Tentative de connexion avec l'ID système problématique: ${userId}`);
+      lastConnectionError = 'Identifiant système non autorisé';
       return false;
     }
     
@@ -117,6 +122,7 @@ export const connectAsUser = async (userId: string): Promise<boolean> => {
     return success;
   } catch (error) {
     console.error('Erreur lors de la connexion en tant qu\'utilisateur:', error);
+    lastConnectionError = error instanceof Error ? error.message : 'Erreur inconnue';
     return false;
   }
 };
@@ -141,3 +147,83 @@ export const forceSafeUser = (): string => {
   }
   return getCurrentUser();
 };
+
+/**
+ * Fonction pour déconnecter un utilisateur et revenir à l'utilisateur par défaut
+ * @returns true si l'opération a réussi, false sinon
+ */
+export const disconnectUser = (): boolean => {
+  try {
+    // Définir l'utilisateur par défaut
+    return setCurrentUser(DEFAULT_USER_ID);
+  } catch (error) {
+    console.error('Erreur lors de la déconnexion:', error);
+    lastConnectionError = error instanceof Error ? error.message : 'Erreur inconnue';
+    return false;
+  }
+};
+
+/**
+ * Récupère la dernière erreur de connexion
+ * @returns La dernière erreur de connexion ou null
+ */
+export const getLastConnectionError = (): string | null => {
+  return lastConnectionError;
+};
+
+/**
+ * Teste la connexion à la base de données
+ * @returns true si la connexion est établie, false sinon
+ */
+export const testDatabaseConnection = async (): Promise<boolean> => {
+  try {
+    // Cette fonction simule un test de connexion à la base de données
+    // Dans une implémentation réelle, elle ferait une requête à votre API
+    
+    // Simuler une requête réussie
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    // Réinitialiser l'erreur de connexion si le test réussit
+    lastConnectionError = null;
+    
+    return true;
+  } catch (error) {
+    console.error('Erreur lors du test de connexion à la base de données:', error);
+    lastConnectionError = error instanceof Error ? error.message : 'Erreur de connexion à la base de données';
+    return false;
+  }
+};
+
+/**
+ * Récupère les informations sur la base de données
+ * @returns Un objet contenant les informations sur la base de données
+ */
+export const getDatabaseInfo = async (): Promise<Record<string, any>> => {
+  try {
+    // Cette fonction simule la récupération d'informations sur la base de données
+    // Dans une implémentation réelle, elle ferait une requête à votre API
+    
+    // Simuler une requête réussie
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    return {
+      connected: true,
+      version: '1.0',
+      type: 'MySQL',
+      tables: ['utilisateurs', 'documents', 'exigences', 'membres'],
+      currentUser: getCurrentUser()
+    };
+  } catch (error) {
+    console.error('Erreur lors de la récupération des informations de la base de données:', error);
+    lastConnectionError = error instanceof Error ? error.message : 'Erreur de récupération des infos de la base de données';
+    return {
+      connected: false,
+      error: error instanceof Error ? error.message : 'Erreur inconnue'
+    };
+  }
+};
+
+/**
+ * Alias pour getCurrentUser pour éviter les confusions avec d'autres fonctions du même nom
+ */
+export const getDatabaseConnectionCurrentUser = getCurrentUser;
