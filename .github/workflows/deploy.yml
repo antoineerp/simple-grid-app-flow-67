@@ -32,6 +32,8 @@ jobs:
         ls -la dist/
         echo "Liste des fichiers assets:"
         ls -la dist/assets/ || echo "Dossier assets non trouvé"
+        echo "Contenu de index.html:"
+        cat dist/index.html || echo "Fichier index.html non trouvé"
 
     - name: Prepare deployment directory
       run: |
@@ -47,20 +49,22 @@ jobs:
         mkdir -p deploy/api/operations
         mkdir -p deploy/api/utils
         mkdir -p deploy/public/lovable-uploads
-        mkdir -p deploy/dist
         
-        # Copie du dossier dist complet
-        echo "Copie du dossier dist complet..."
-        cp -r dist/ deploy/dist/
+        # Copie du contenu du dossier dist à la racine du déploiement
+        echo "Copie de index.html à la racine..."
+        cp dist/index.html deploy/
         
-        # Copie des fichiers compilés directement dans assets
+        # Copie des fichiers assets AVANT tout script de correction
+        echo "Copie des assets..."
         cp -r dist/assets/* deploy/assets/
+        ls -la deploy/assets/
+        
+        # Création d'un backup des assets pour référence
+        mkdir -p deploy/dist/assets
+        cp -r dist/assets/* deploy/dist/assets/
         
         # Copie des autres fichiers nécessaires
-        cp dist/index.html deploy/
         cp .htaccess deploy/ || echo "Fichier .htaccess non trouvé"
-        
-        # Copie des fichiers PHP de correction automatique
         cp fix-assets-auto.php deploy/ || echo "Fichier fix-assets-auto.php non trouvé"
         
         # Copie des fichiers de l'API
@@ -79,8 +83,12 @@ jobs:
           echo "Dossier uploads non trouvé"
         fi
         
+        # Vérification finale des assets
+        echo "Contenu final du dossier assets:"
+        ls -la deploy/assets/
+        
         echo "Structure du dossier de déploiement:"
-        find deploy -type f | sort
+        find deploy -type f | sort | head -n 20
 
     - name: Sync to Infomaniak server
       uses: SamKirkland/FTP-Deploy-Action@v4.3.4
@@ -105,19 +113,10 @@ jobs:
         timeout: 120000
     
     - name: Run Fix-Assets Script (if server supports it)
-      uses: SamKirkland/FTP-Deploy-Action@v4.3.4
-      with:
-        server: ${{ secrets.FTP_SERVER }}
-        username: ${{ secrets.FTP_USERNAME }}
-        password: ${{ secrets.FTP_PASSWORD }}
-        local-dir: ./deploy/
-        server-dir: /sites/qualiopi.ch/
-        dangerous-clean-slate: false
-        exclude: |
-          **/*
-          !fix-assets-auto.php
-        log-level: verbose
-        timeout: 30000
+      run: |
+        echo "Exécution du script de réparation des assets via curl..."
+        curl -s "${{ secrets.SITE_URL }}/fix-assets-auto.php" || echo "Échec de l'exécution du script de réparation"
+        echo "Script de réparation terminé"
 
     - name: Clean up
       run: |
