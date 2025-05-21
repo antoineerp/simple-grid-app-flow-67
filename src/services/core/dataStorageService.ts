@@ -35,5 +35,5 @@ export const saveDataToStorage = <T>(key: string, data: T[]): void => {
   }
 };
 
-// Use the exported functions from syncService with correct casing
+// Import with the correct casing
 export { loadData, saveData } from '@/services/sync/syncService';
