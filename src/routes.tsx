@@ -10,6 +10,7 @@ import Collaboration from './pages/Collaboration';
 import Admin from './pages/Admin';
 import DiagnosticPage from './pages/diagnostic';
 import Documents from './pages/Documents';
+import GestionDocumentaire from './pages/GestionDocumentaire';
 
 // Définition des routes de l'application - maintenue pour la compatibilité avec d'éventuels imports
 // La configuration principale des routes est désormais dans router.tsx
@@ -25,6 +26,10 @@ const routes = [
   {
     path: '/settings',
     element: <Settings />,
+  },
+  {
+    path: '/ressources-humaines',
+    element: <RessourcesHumaines />,
   },
   {
     path: '/membres',
@@ -43,6 +48,10 @@ const routes = [
     element: <Collaboration />,
   },
   {
+    path: '/administration',
+    element: <Admin />,
+  },
+  {
     path: '/admin',
     element: <Admin />,
   },
@@ -53,6 +62,10 @@ const routes = [
   {
     path: '/documents',
     element: <Documents />,
+  },
+  {
+    path: '/gestion-documentaire',
+    element: <GestionDocumentaire />,
   },
 ];
 

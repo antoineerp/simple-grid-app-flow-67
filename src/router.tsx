@@ -12,6 +12,8 @@ import Collaboration from './pages/Collaboration';
 import Admin from './pages/Admin';
 import DiagnosticPage from './pages/diagnostic';
 import Documents from './pages/Documents';
+import GestionDocumentaire from './pages/GestionDocumentaire';
+import NotFound from './pages/NotFound';
 import UserInitializer from './components/core/UserInitializer';
 
 const router = createBrowserRouter([
@@ -43,6 +45,15 @@ const router = createBrowserRouter([
       <Layout>
         <UserInitializer />
         <Settings />
+      </Layout>
+    ),
+  },
+  {
+    path: '/ressources-humaines',
+    element: (
+      <Layout>
+        <UserInitializer />
+        <RessourcesHumaines />
       </Layout>
     ),
   },
@@ -92,6 +103,15 @@ const router = createBrowserRouter([
     ),
   },
   {
+    path: '/administration',
+    element: (
+      <Layout>
+        <UserInitializer />
+        <Admin />
+      </Layout>
+    ),
+  },
+  {
     path: '/diagnostic',
     element: (
       <Layout>
@@ -106,6 +126,23 @@ const router = createBrowserRouter([
       <Layout>
         <UserInitializer />
         <Documents />
+      </Layout>
+    ),
+  },
+  {
+    path: '/gestion-documentaire',
+    element: (
+      <Layout>
+        <UserInitializer />
+        <GestionDocumentaire />
+      </Layout>
+    ),
+  },
+  {
+    path: '*',
+    element: (
+      <Layout>
+        <NotFound />
       </Layout>
     ),
   },
