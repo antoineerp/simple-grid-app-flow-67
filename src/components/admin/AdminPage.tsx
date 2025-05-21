@@ -7,7 +7,7 @@ import SystemStatus from "@/components/admin/SystemStatus";
 import DatabaseDiagnostic from "@/components/admin/DatabaseDiagnostic";
 import { Card } from "@/components/ui/card";
 import AdminUserList from "@/components/admin/AdminUserList";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import DatabaseSyncMonitor from "@/components/admin/DatabaseSyncMonitor";
 
 export default function AdminPage() {
@@ -56,7 +56,6 @@ export default function AdminPage() {
         </TabsContent>
       </Tabs>
       
-      {/* Dialog avec DialogDescription pour éviter les warnings */}
       <Dialog open={showDialog} onOpenChange={setShowDialog}>
         <DialogContent>
           <DialogHeader>

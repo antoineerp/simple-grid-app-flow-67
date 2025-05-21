@@ -4,6 +4,9 @@ import { getApiUrl } from '@/config/apiConfig';
 import { getAuthHeaders } from '@/services/auth/authService';
 import { useToast } from '@/hooks/use-toast';
 
+// ID utilisateur fixe pour toute l'application
+const FIXED_USER_ID = 'p71x6d_richard';
+
 // Interface pour les informations de base de données
 export interface DatabaseInfo {
   host: string;
@@ -22,6 +25,7 @@ export const useAdminDatabase = () => {
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [testingConnection, setTestingConnection] = useState<boolean>(false);
+  const [lastSync, setLastSync] = useState<Date | null>(null);
   const { toast } = useToast();
 
   // Fonction pour charger les informations de la base de données (utiliser l'endpoint direct)
@@ -32,7 +36,7 @@ export const useAdminDatabase = () => {
     try {
       const API_URL = getApiUrl();
       // Utiliser uniquement l'endpoint direct-db-test qui est fiable
-      const response = await fetch(`${API_URL}/direct-db-test.php`, {
+      const response = await fetch(`${API_URL}/test.php?action=tables&userId=${FIXED_USER_ID}`, {
         method: 'GET',
         headers: {
           'Cache-Control': 'no-cache, no-store, must-revalidate'
@@ -43,28 +47,44 @@ export const useAdminDatabase = () => {
         throw new Error(`Erreur HTTP ${response.status}: ${response.statusText}`);
       }
       
-      const result = await response.json();
+      const responseText = await response.text();
+      
+      if (responseText.includes('<?php') || responseText.includes('<br />') || responseText.includes('<!DOCTYPE')) {
+        console.error("Réponse PHP/HTML brute:", responseText.substring(0, 200));
+        throw new Error("La réponse contient du PHP/HTML au lieu de JSON");
+      }
+      
+      const result = JSON.parse(responseText);
       console.log("Informations de la base de données:", result);
       
       // Vérifier si la connexion à la base de données est réussie
-      if (!result.database || result.database.status === 'error') {
-        throw new Error(result.database?.error || "Échec de connexion à la base de données");
+      if (!result.tables) {
+        throw new Error(result.message || "Échec de connexion à la base de données");
       }
       
       // Formater les données pour notre interface
       const info: DatabaseInfo = {
-        host: result.database.host || '',
-        database: result.database.database || '',
+        host: "p71x6d.myd.infomaniak.com",
+        database: FIXED_USER_ID,
         size: '0 MB', // Valeur par défaut
-        tables: result.database.tables_count || 0,
+        tables: result.tables.length || 0,
         lastBackup: new Date().toISOString().split('T')[0] + ' 00:00:00', // Date du jour
-        status: result.database.connected ? 'Online' : 'Offline',
+        status: 'Online',
         encoding: 'utf8mb4', // Valeur par défaut
         collation: 'utf8mb4_unicode_ci', // Valeur par défaut
-        tableList: result.database.tables || []
+        tableList: result.tables || []
       };
       
       setDbInfo(info);
+      setLastSync(new Date());
+      
+      // Enregistrer le timestamp de synchronisation pour les autres appareils
+      localStorage.setItem('dbSync_timestamp', new Date().toISOString());
+      
+      // Déclencher un événement personnalisé pour informer les autres composants
+      window.dispatchEvent(new CustomEvent('database-synced', { 
+        detail: { timestamp: new Date().toISOString() } 
+      }));
     } catch (err) {
       console.error("Erreur lors du chargement des informations de la base de données:", err);
       const errorMessage = err instanceof Error ? err.message : "Erreur inconnue";
@@ -87,8 +107,8 @@ export const useAdminDatabase = () => {
     
     try {
       const API_URL = getApiUrl();
-      // Utiliser uniquement l'endpoint direct-db-test qui est fiable
-      const response = await fetch(`${API_URL}/direct-db-test.php`, {
+      // Utiliser uniquement l'endpoint test.php qui est fiable
+      const response = await fetch(`${API_URL}/test.php`, {
         method: 'GET',
         headers: {
           'Cache-Control': 'no-cache, no-store, must-revalidate'
@@ -99,17 +119,24 @@ export const useAdminDatabase = () => {
         throw new Error(`Erreur HTTP ${response.status}: ${response.statusText}`);
       }
       
-      const result = await response.json();
+      const responseText = await response.text();
+      
+      if (responseText.includes('<?php') || responseText.includes('<br />') || responseText.includes('<!DOCTYPE')) {
+        console.error("Réponse PHP/HTML brute:", responseText.substring(0, 200));
+        throw new Error("La réponse contient du PHP/HTML au lieu de JSON");
+      }
+      
+      const result = JSON.parse(responseText);
       console.log("Résultat du test de connexion:", result);
       
       // Vérifier si la connexion à la base de données est réussie
-      if (!result.database || !result.database.connected) {
-        throw new Error(result.database?.error || "Échec de connexion à la base de données");
+      if (result.status !== 'success') {
+        throw new Error(result.message || "Échec de connexion à la base de données");
       }
       
       toast({
         title: "Connexion réussie",
-        description: `Connexion établie à ${result.database.host || 'la base de données'}.`,
+        description: `Connexion établie à la base de données.`,
       });
       
       // Recharger les informations après le test
@@ -140,6 +167,7 @@ export const useAdminDatabase = () => {
     error,
     testingConnection,
     loadDatabaseInfo,
-    handleTestConnection
+    handleTestConnection,
+    lastSync
   };
 };
