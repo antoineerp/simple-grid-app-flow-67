@@ -5,15 +5,19 @@ import { navigationItems, adminNavigationItems } from './sidebar/sidebarConfig';
 import { getCurrentUser } from '@/services/auth/authService';
 import { useAuth } from '@/hooks/useAuth';
 import { checkPermission } from '@/types/roles';
+import { UserRole } from '@/types/roles';
 
 const Sidebar = () => {
-  const sidebarImageUrl = '/lovable-uploads/c6d7246d-1cb1-4d6c-8579-dd12df4a1047.png';
+  const sidebarImageUrl = '/lovable-uploads/83a21258-cc8b-4419-a39a-d36cbdb8222f.png';
   const sidebarLinkUrl = 'https://qualite.cloud';
   const userId = getCurrentUser();
   const { user } = useAuth();
   
   // Get user role from context or localStorage as fallback
-  const userRole = user?.role || localStorage.getItem('userRole') || 'utilisateur';
+  const userRoleString = user?.role || localStorage.getItem('userRole') || 'utilisateur';
+  
+  // Convert string to UserRole type
+  const userRole = userRoleString as UserRole;
   
   // Check if user has admin permissions
   const isAdmin = checkPermission(userRole, 'isAdmin');

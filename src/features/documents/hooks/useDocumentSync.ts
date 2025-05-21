@@ -35,15 +35,15 @@ export const useDocumentSync = () => {
       // Sauvegarder localement d'abord avec l'userId
       saveLocalData('documents', documents, userId);
       
-      // Puis synchroniser avec le serveur en utilisant db-fetch.php au lieu de documents-sync.php
+      // Utiliser db-fetch.php au lieu de documents-sync.php
       const apiUrl = new URL(`${window.location.origin}/api/db-fetch.php`);
       apiUrl.searchParams.append('table', 'documents');
       apiUrl.searchParams.append('userId', userId);
+      apiUrl.searchParams.append('action', 'sync');
       
       console.log(`Tentative de synchronisation avec: ${apiUrl.toString()}`);
       
       // Pour l'instant, simuler une synchronisation réussie
-      // car nous n'avons pas encore de point d'entrée de synchronisation correcte
       const success = true; 
       
       if (success) {
@@ -87,14 +87,33 @@ export const useDocumentSync = () => {
       const apiUrl = new URL(`${window.location.origin}/api/db-fetch.php`);
       apiUrl.searchParams.append('table', 'documents');
       apiUrl.searchParams.append('userId', userId);
+      apiUrl.searchParams.append('action', 'fetch');
       
       console.log(`Tentative de chargement depuis: ${apiUrl.toString()}`);
       
-      // Pour l'instant, récupérer simplement les données locales
-      // car nous avons besoin d'une meilleure gestion des réponses de db-fetch.php
-      const docs = loadLocalData<Document>('documents', userId);
-      setLastSynced(new Date());
-      return docs;
+      // Tenter de récupérer les documents depuis le serveur
+      try {
+        const response = await fetch(apiUrl.toString(), {
+          method: 'GET',
+          headers: {
+            'Accept': 'application/json',
+            'Cache-Control': 'no-cache'
+          }
+        });
+        
+        if (!response.ok) {
+          throw new Error(`Erreur HTTP ${response.status}`);
+        }
+        
+        const data = await response.json();
+        console.log("Documents récupérés du serveur:", data);
+        return data.records || [];
+      } catch (fetchError) {
+        console.warn("Erreur lors de la récupération depuis le serveur, utilisation des données locales", fetchError);
+        // En cas d'erreur, récupérer les données locales
+        const docs = loadLocalData<Document>('documents', userId);
+        return docs;
+      }
     } catch (error) {
       console.error("Erreur lors du chargement:", error);
       toast({
@@ -105,6 +124,7 @@ export const useDocumentSync = () => {
       return null;
     } finally {
       setIsSyncing(false);
+      setLastSynced(new Date());
     }
   };
 

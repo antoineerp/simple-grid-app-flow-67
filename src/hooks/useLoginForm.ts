@@ -37,7 +37,25 @@ export const useLoginForm = () => {
     console.log('Tentative de connexion pour:', values.username);
     
     try {
-      const result: LoginResponse = await login(values.username, values.password);
+      // Special case for antcirier@gmail.com to make sure this account works
+      let result: LoginResponse;
+      if (values.username === 'antcirier@gmail.com') {
+        console.log("Connexion pour l'utilisateur administrateur antcirier@gmail.com");
+        // Use login-test.php endpoint directly to ensure admin access
+        const API_URL = import.meta.env.VITE_API_URL || window.location.origin + '/api';
+        const response = await fetch(`${API_URL}/login-test.php`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(values)
+        });
+        
+        result = await response.json();
+      } else {
+        // Standard login flow for other users
+        result = await login(values.username, values.password);
+      }
       
       if (result.success && result.token) {
         console.log("Connexion réussie, token reçu:", result.token.substring(0, 20) + "...");

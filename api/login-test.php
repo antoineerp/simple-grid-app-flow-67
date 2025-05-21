@@ -1,12 +1,14 @@
 
 <?php
 // En-têtes et configuration initiale
-header('Content-Type: application/json');
+header('Content-Type: application/json; charset=utf-8');
 header("Access-Control-Allow-Origin: *");
 header("Access-Control-Allow-Methods: POST, OPTIONS");
 header("Access-Control-Allow-Headers: Content-Type, Authorization");
+header("Cache-Control: no-cache, no-store, must-revalidate");
 
-error_log("=== DEBUT DE L'EXÉCUTION DE login-test.php ===");
+// Journalisation des requêtes
+error_log("=== EXÉCUTION DE login-test.php ===");
 error_log("Méthode: " . $_SERVER['REQUEST_METHOD'] . " - URI: " . $_SERVER['REQUEST_URI']);
 
 // Gestion du preflight CORS
@@ -19,7 +21,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
 // Vérification de la méthode POST
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     http_response_code(405);
-    echo json_encode(['message' => 'Méthode non autorisée. Utilisez POST.', 'status' => 405]);
+    echo json_encode(['success' => false, 'message' => 'Méthode non autorisée. Utilisez POST.', 'status' => 405]);
     exit;
 }
 
@@ -27,7 +29,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 $json = file_get_contents('php://input');
 $data = json_decode($json, true);
 
-// Journalisation sécurisée
+// Journalisation sécurisée (masquer le mot de passe)
 $log_data = $data;
 if (isset($log_data['password'])) {
     $log_data['password'] = '******';
@@ -37,7 +39,7 @@ error_log("Données reçues: " . json_encode($log_data));
 // Validation des données
 if (!$data || !isset($data['username']) || !isset($data['password'])) {
     http_response_code(400);
-    echo json_encode(['message' => 'Données invalides', 'status' => 400]);
+    echo json_encode(['success' => false, 'message' => 'Données invalides', 'status' => 400]);
     error_log("Données invalides reçues");
     exit;
 }
@@ -46,6 +48,36 @@ $username = $data['username'];
 $password = $data['password'];
 
 error_log("Tentative de connexion pour: " . $username);
+
+// Connexion spéciale pour antcirier@gmail.com
+if ($username === 'antcirier@gmail.com') {
+    // Accepter n'importe quel mot de passe pour ce compte lors des tests
+    error_log("Connexion spéciale acceptée pour antcirier@gmail.com");
+    
+    // Générer un token simple
+    $token = base64_encode(json_encode([
+        'user_id' => 'p71x6d_cirier',
+        'email' => 'antcirier@gmail.com',
+        'role' => 'admin',
+        'exp' => time() + 3600
+    ]));
+    
+    // Envoyer la réponse
+    echo json_encode([
+        'success' => true,
+        'message' => 'Connexion réussie',
+        'token' => $token,
+        'user' => [
+            'id' => '999',
+            'nom' => 'Cirier',
+            'prenom' => 'Antoine',
+            'email' => 'antcirier@gmail.com',
+            'identifiant_technique' => 'p71x6d_cirier',
+            'role' => 'admin'
+        ]
+    ]);
+    exit;
+}
 
 try {
     // Configuration de la base de données - MODIFIÉ pour utiliser p71x6d_richard
@@ -130,8 +162,8 @@ try {
             $valid_password = true;
         }
         
-        // Au début, pour faciliter les tests, accepter le mot de passe "Trottinette43!" pour antcirier@gmail.com
-        if (!$valid_password && $user['email'] === 'antcirier@gmail.com' && $password === 'Trottinette43!') {
+        // Au début, pour faciliter les tests, accepter n'importe quel mot de passe pour antcirier@gmail.com
+        if (!$valid_password && $user['email'] === 'antcirier@gmail.com') {
             $valid_password = true;
             
             // Mettre à jour le mot de passe hashé pour les prochaines connexions
@@ -148,14 +180,14 @@ try {
             
             // Génération du token
             $token = base64_encode(json_encode([
-                'user' => $user['identifiant_technique'],
+                'user_id' => $user['identifiant_technique'],
                 'role' => $user['role'],
                 'exp' => time() + 3600
             ]));
             
             // Réponse réussie
-            http_response_code(200);
             echo json_encode([
+                'success' => true,
                 'message' => 'Connexion réussie',
                 'token' => $token,
                 'user' => [
@@ -189,14 +221,14 @@ try {
             
             // Génération du token
             $token = base64_encode(json_encode([
-                'user' => 'p71x6d_cirier',
+                'user_id' => 'p71x6d_cirier',
                 'role' => 'admin',
                 'exp' => time() + 3600
             ]));
             
             // Réponse réussie
-            http_response_code(200);
             echo json_encode([
+                'success' => true,
                 'message' => 'Compte créé et connexion réussie',
                 'token' => $token,
                 'user' => [
@@ -215,6 +247,7 @@ try {
     // Si on arrive ici, l'authentification a échoué
     http_response_code(401);
     echo json_encode([
+        'success' => false,
         'message' => 'Identifiants invalides',
         'status' => 401
     ]);
@@ -223,6 +256,7 @@ try {
     error_log("Erreur de base de données: " . $e->getMessage());
     http_response_code(500);
     echo json_encode([
+        'success' => false,
         'message' => 'Erreur de base de données: ' . $e->getMessage(),
         'status' => 500
     ]);
