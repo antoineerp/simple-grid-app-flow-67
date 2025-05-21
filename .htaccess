@@ -2,18 +2,16 @@
 # Activer le moteur de réécriture
 RewriteEngine On
 
-# Configuration spécifique pour Infomaniak
+# Configuration de base
 Options -MultiViews
 Options +FollowSymLinks
 
 # Définir le point d'entrée principal
 DirectoryIndex index.html index.php
 
-# Définir les types MIME corrects
+# Définir les types MIME sans les forcer
 AddType application/javascript .js
 AddType application/javascript .mjs
-AddType application/javascript .tsx
-AddType application/javascript .ts
 AddType text/css .css
 
 # Règles pour les assets statiques
@@ -30,7 +28,7 @@ RewriteCond %{REQUEST_FILENAME} !-d
 RewriteCond %{REQUEST_URI} !^/api/
 RewriteRule ^(.*)$ index.html [QSA,L]
 
-# Configuration de sécurité et CORS
+# Configuration CORS simplifiée
 <IfModule mod_headers.c>
     Header set Access-Control-Allow-Origin "*"
     Header set Access-Control-Allow-Methods "GET, OPTIONS"
