@@ -5,15 +5,14 @@ import Pilotage from './pages/Pilotage';
 import Index from './pages/Index';
 import Dashboard from './pages/Dashboard';
 import Settings from './pages/Settings';
-import MembresList from './pages/MembresList';
-import MembreDetail from './pages/MembreDetail';
-import ExigencesList from './pages/ExigencesList';
-import ExigenceDetail from './pages/ExigenceDetail';
-import Audit from './pages/Audit';
-import Admin from './pages/Admin';
+import Members from './pages/Members';
 import Bibliotheque from './pages/Bibliotheque';
 import Collaboration from './pages/Collaboration';
 import DiagnosticPage from './pages/diagnostic';
+import RessourcesHumaines from './pages/RessourcesHumaines';
+import Documents from './pages/Documents';
+import Exigences from './pages/Exigences';
+import Admin from './pages/Admin';
 
 const router = createBrowserRouter([
   {
@@ -38,19 +37,11 @@ const router = createBrowserRouter([
       },
       {
         path: 'membres',
-        element: <MembresList />,
-      },
-      {
-        path: 'membres/:id',
-        element: <MembreDetail />,
+        element: <RessourcesHumaines />,
       },
       {
         path: 'exigences',
-        element: <ExigencesList />,
-      },
-      {
-        path: 'exigences/:id',
-        element: <ExigenceDetail />,
+        element: <Exigences />,
       },
       {
         path: 'bibliotheque',
@@ -61,16 +52,16 @@ const router = createBrowserRouter([
         element: <Collaboration />,
       },
       {
-        path: 'audit',
-        element: <Audit />,
-      },
-      {
         path: 'admin',
         element: <Admin />,
       },
       {
         path: 'diagnostic',
         element: <DiagnosticPage />,
+      },
+      {
+        path: 'documents',
+        element: <Documents />,
       },
     ],
   },
