@@ -98,11 +98,11 @@ function handleGetRequest($pdo) {
     // Créer la table si elle n'existe pas
     $pdo->exec("CREATE TABLE IF NOT EXISTS `{$tableName}` (
         `id` VARCHAR(36) PRIMARY KEY,
-        `titre` VARCHAR(255) NOT NULL,
-        `description` TEXT NULL,
-        `niveau` VARCHAR(50) NULL,
+        `nom` VARCHAR(255) NOT NULL,
+        `responsabilites` TEXT NULL,
+        `exclusion` TINYINT(1) DEFAULT 0,
+        `atteinte` ENUM('NC', 'PC', 'C') NULL,
         `groupId` VARCHAR(36) NULL,
-        `indicateurs` TEXT NULL,
         `date_creation` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
         `date_modification` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
     )");
@@ -180,11 +180,11 @@ function handlePostRequest($pdo) {
     
     $pdo->exec("CREATE TABLE IF NOT EXISTS `{$tableName}` (
         `id` VARCHAR(36) PRIMARY KEY,
-        `titre` VARCHAR(255) NOT NULL,
-        `description` TEXT NULL,
-        `niveau` VARCHAR(50) NULL,
+        `nom` VARCHAR(255) NOT NULL,
+        `responsabilites` TEXT NULL,
+        `exclusion` TINYINT(1) DEFAULT 0,
+        `atteinte` ENUM('NC', 'PC', 'C') NULL,
         `groupId` VARCHAR(36) NULL,
-        `indicateurs` TEXT NULL,
         `date_creation` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
         `date_modification` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
     )");
@@ -194,8 +194,8 @@ function handlePostRequest($pdo) {
     
     // Préparer l'insertion des exigences
     if (!empty($exigences)) {
-        $stmt = $pdo->prepare("INSERT INTO `{$tableName}` (id, titre, description, niveau, groupId, indicateurs) 
-                              VALUES (?, ?, ?, ?, ?, ?)");
+        $stmt = $pdo->prepare("INSERT INTO `{$tableName}` (id, nom, responsabilites, exclusion, atteinte, groupId, date_creation) 
+                              VALUES (?, ?, ?, ?, ?, ?, ?)");
         
         foreach ($exigences as $exigence) {
             // Vérifier que l'ID existe
@@ -204,24 +204,30 @@ function handlePostRequest($pdo) {
                 $exigence['id'] = uniqid('exig_', true);
             }
             
-            // Vérifier que le titre existe
-            $titre = isset($exigence['titre']) ? $exigence['titre'] : 'Exigence sans titre';
+            // Vérifier que le nom existe (au lieu de titre)
+            $nom = isset($exigence['nom']) ? $exigence['nom'] : 'Exigence sans titre';
             
-            // Traiter les indicateurs (gérer les formats possibles)
-            $indicateurs = null;
-            if (isset($exigence['indicateurs'])) {
-                $indicateurs = is_array($exigence['indicateurs']) ? 
-                    json_encode($exigence['indicateurs']) : $exigence['indicateurs'];
+            // Traiter les responsabilités (gérer les formats possibles)
+            $responsabilites = null;
+            if (isset($exigence['responsabilites'])) {
+                $responsabilites = is_array($exigence['responsabilites']) ? 
+                    json_encode($exigence['responsabilites']) : $exigence['responsabilites'];
             }
+            
+            // Préparer la date de création
+            $dateCreation = isset($exigence['date_creation']) && !empty($exigence['date_creation']) 
+                ? date('Y-m-d H:i:s', strtotime($exigence['date_creation']))
+                : date('Y-m-d H:i:s');
             
             // Exécuter l'insertion
             $stmt->execute([
                 $exigence['id'],
-                $titre,
-                $exigence['description'] ?? null,
-                $exigence['niveau'] ?? null,
+                $nom,
+                $responsabilites,
+                isset($exigence['exclusion']) ? (int)$exigence['exclusion'] : 0,
+                $exigence['atteinte'] ?? null,
                 $exigence['groupId'] ?? null,
-                $indicateurs
+                $dateCreation
             ]);
         }
     }

@@ -74,11 +74,12 @@ export const syncExigencesWithServer = async (exigences: Exigence[]): Promise<bo
     // Normaliser les exigences pour la synchronisation
     const normalizedExigences = exigences.map(exig => ({
       id: exig.id,
-      titre: exig.titre || 'Sans titre',
-      description: exig.description || null,
-      niveau: exig.niveau || null,
+      nom: exig.nom || 'Sans titre', // Utiliser nom au lieu de titre
+      responsabilites: exig.responsabilites || { r: [], a: [], c: [], i: [] },
+      exclusion: exig.exclusion || false,
+      atteinte: exig.atteinte || null,
       groupId: exig.groupId || null,
-      indicateurs: exig.indicateurs || null
+      date_creation: exig.date_creation || new Date()
     }));
     
     const response = await fetch(`${API_URL}/exigences-sync.php`, {
