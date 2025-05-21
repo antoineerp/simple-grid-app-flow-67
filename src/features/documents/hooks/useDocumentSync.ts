@@ -4,12 +4,14 @@ import { useToast } from '@/hooks/use-toast';
 import { Document } from '@/types/documents';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { saveLocalData, syncWithServer, loadLocalData } from '@/services/sync/AutoSyncService';
+import { getCurrentUser } from '@/services/core/databaseConnectionService';
 
 export const useDocumentSync = () => {
   const [isSyncing, setIsSyncing] = useState(false);
   const [lastSynced, setLastSynced] = useState<Date | undefined>(undefined);
   const { isOnline } = useNetworkStatus();
   const { toast } = useToast();
+  const userId = getCurrentUser();
   
   const syncWithServerWrapper = async (documents: Document[]): Promise<boolean> => {
     if (!isOnline) {
@@ -30,11 +32,11 @@ export const useDocumentSync = () => {
     try {
       console.log(`Synchronisation de ${documents.length} documents`);
       
-      // Sauvegarder localement d'abord
-      saveLocalData('documents', documents);
+      // Sauvegarder localement d'abord avec l'userId
+      saveLocalData('documents', documents, userId);
       
       // Puis synchroniser avec le serveur
-      const success = await syncWithServer('documents', documents);
+      const success = await syncWithServer('documents', documents, userId);
       
       if (success) {
         setLastSynced(new Date());
@@ -75,7 +77,7 @@ export const useDocumentSync = () => {
       
       // Essayer de charger depuis le serveur
       // Pour cette version simplifiée, on récupère simplement les données locales
-      const docs = loadLocalData<Document>('documents');
+      const docs = loadLocalData<Document>('documents', userId);
       setLastSynced(new Date());
       return docs;
     } catch (error) {

@@ -42,7 +42,8 @@ export function useAutoSyncData<T>(tableName: string, options?: {
     if (options?.showToasts) {
       toast({
         title: "Données sauvegardées",
-        description: `${newData.length} éléments sauvegardés localement${isOnline ? ' et en attente de synchronisation' : ''}.`
+        description: `${newData.length} éléments sauvegardés localement${isOnline ? ' et en attente de synchronisation' : ''}.`,
+        variant: "default"
       });
     }
   };

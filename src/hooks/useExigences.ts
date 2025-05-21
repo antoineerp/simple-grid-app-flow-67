@@ -54,8 +54,8 @@ export const useExigences = () => {
     const loadLocalDataFromStorage = () => {
       try {
         // Utiliser le nouveau système de chargement centralisé
-        const localExigences = loadLocalData<Exigence>(tableName);
-        const localGroups = loadLocalData<ExigenceGroup>(`${tableName}_groups`);
+        const localExigences = loadLocalData<Exigence>(tableName, currentUser);
+        const localGroups = loadLocalData<ExigenceGroup>(`${tableName}_groups`, currentUser);
         
         if (localExigences.length > 0) {
           setExigences(localExigences);
@@ -84,7 +84,7 @@ export const useExigences = () => {
   useEffect(() => {
     if (exigences.length > 0) {
       // Utiliser le nouveau système de sauvegarde centralisé
-      saveLocalData(tableName, exigences);
+      saveLocalData(tableName, exigences, currentUser);
       setDataChanged(true);
     }
   }, [exigences, currentUser]);
@@ -92,7 +92,7 @@ export const useExigences = () => {
   useEffect(() => {
     if (groups.length > 0) {
       // Utiliser le nouveau système de sauvegarde centralisé
-      saveLocalData(`${tableName}_groups`, groups);
+      saveLocalData(`${tableName}_groups`, groups, currentUser);
       setDataChanged(true);
     }
   }, [groups, currentUser]);
@@ -117,9 +117,9 @@ export const useExigences = () => {
     const handleBeforeUnload = () => {
       if (dataChanged) {
         // Sauvegarder les données localement avant de quitter
-        saveLocalData(tableName, exigences);
+        saveLocalData(tableName, exigences, currentUser);
         if (groups.length > 0) {
-          saveLocalData(`${tableName}_groups`, groups);
+          saveLocalData(`${tableName}_groups`, groups, currentUser);
         }
       }
     };
@@ -220,43 +220,15 @@ export const useExigences = () => {
       }));
 
       // Utiliser l'utilisateur actuellement connecté
-      const syncData = {
-        userId: currentUser,  // Utiliser l'utilisateur connecté, pas un ID en dur
-        exigences: cleanedExigences,
-        groups: cleanedGroups
-      };
+      const success = await syncWithServer(tableName, cleanedExigences, currentUser);
 
-      console.log("Synchronisation des exigences avec:", syncData);
-
-      // Utiliser l'API URL correctement définie avec les nouvelles méthodes robustes
-      const apiUrl = process.env.API_URL || '';
-      
-      try {
-        // Utiliser la méthode fetch améliorée de DatabaseHelper
-        const response = await databaseHelper.fetch(`${apiUrl}/api/exigences-sync.php`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json',
-            'Cache-Control': 'no-store, no-cache, must-revalidate'
-          },
-          body: JSON.stringify(syncData)
-        });
-
-        const result = await response.json();
-        
-        if (result.success) {
-          setDataChanged(false);
-          return { success: true, message: "Synchronisation réussie" };
-        } else {
-          return { success: false, message: result.message || "Échec de la synchronisation" };
-        }
-      } catch (error) {
-        console.error('Erreur lors de la requête de synchronisation:', error);
-        return { 
-          success: false, 
-          message: error instanceof Error ? error.message : 'Erreur de requête'
-        };
+      if (success) {
+        // Si la syncronisation des exigences a réussi, synchroniser aussi les groupes
+        await syncWithServer(`${tableName}_groups`, cleanedGroups, currentUser);
+        setDataChanged(false);
+        return { success: true, message: "Synchronisation réussie" };
+      } else {
+        return { success: false, message: "Échec de la synchronisation" };
       }
     } catch (error) {
       console.error('Erreur lors de la synchronisation:', error);

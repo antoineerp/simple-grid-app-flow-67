@@ -18,8 +18,8 @@ export const saveLocalDocuments = (docs: Document[]): void => {
   try {
     const currentUser = ensureCorrectUserId(getCurrentUser()) || 'default';
     
-    // Utiliser le nouveau système de stockage centralisé
-    saveLocalData('documents', docs);
+    // Utiliser le nouveau système de stockage centralisé avec l'ID utilisateur
+    saveLocalData('documents', docs, currentUser);
     console.log(`${docs.length} documents sauvegardés en local pour ${currentUser}`);
   } catch (error) {
     console.error('Erreur lors de la sauvegarde locale des documents:', error);
@@ -29,8 +29,9 @@ export const saveLocalDocuments = (docs: Document[]): void => {
 // Récupération des documents en local (maintenu pour compatibilité)
 export const getLocalDocuments = (): Document[] => {
   try {
-    // Utiliser le nouveau système de stockage centralisé
-    const docs = loadLocalData<Document>('documents');
+    const currentUser = ensureCorrectUserId(getCurrentUser()) || 'default';
+    // Utiliser le nouveau système de stockage centralisé avec l'ID utilisateur
+    const docs = loadLocalData<Document>('documents', currentUser);
     console.log(`${docs.length} documents récupérés en local`);
     return docs;
   } catch (error) {
@@ -230,6 +231,6 @@ export const loadDocumentsFromServer = async (userId?: string): Promise<Document
     
     // En cas d'erreur, récupérer les données locales
     console.log('Utilisation des données locales suite à une erreur réseau');
-    return loadLocalData<Document>('documents');
+    return loadLocalData<Document>('documents', currentUser);
   }
 };

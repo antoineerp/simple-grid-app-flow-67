@@ -24,6 +24,7 @@ const SESSION_STORAGE_KEY = 'documents_page_state';
 export const useDocuments = () => {
   const { toast } = useToast();
   const { isOnline } = useNetworkStatus();
+  const userId = getCurrentUser();
   
   // Utiliser le contexte global au lieu des états locaux
   const { 
@@ -55,15 +56,15 @@ export const useDocuments = () => {
     
     // Sauvegarder les documents avec le nouveau système centralisé
     if (documents.length > 0) {
-      saveLocalData('documents', documents);
+      saveLocalData('documents', documents, userId);
       
       if (groups.length > 0) {
-        saveLocalData('document_groups', groups);
+        saveLocalData('document_groups', groups, userId);
       }
       
       console.log(`${documents.length} documents sauvegardés dans le stockage centralisé`);
     }
-  }, [documents, groups]);
+  }, [documents, groups, userId]);
 
   // Charger les documents au démarrage
   useEffect(() => {
@@ -72,14 +73,14 @@ export const useDocuments = () => {
         setIsSyncing(true);
         try {
           // Charger les documents depuis le stockage centralisé
-          const localDocs = loadLocalData<Document>('documents');
+          const localDocs = loadLocalData<Document>('documents', userId);
           
           if (localDocs.length > 0) {
             console.log(`${localDocs.length} documents chargés depuis le stockage centralisé`);
             setDocuments(localDocs);
             
             // Charger également les groupes
-            const localGroups = loadLocalData<DocumentGroup>('document_groups');
+            const localGroups = loadLocalData<DocumentGroup>('document_groups', userId);
             if (localGroups.length > 0) {
               console.log(`${localGroups.length} groupes chargés depuis le stockage centralisé`);
               setGroups(localGroups);
@@ -107,7 +108,7 @@ export const useDocuments = () => {
       
       loadInitialData();
     }
-  }, [initialLoadDone, isOnline, setDocuments, setGroups, setIsSyncing, setLastSynced, setSyncFailed, toast]);
+  }, [initialLoadDone, isOnline, setDocuments, setGroups, setIsSyncing, setLastSynced, setSyncFailed, toast, userId]);
 
   // Fonction de synchronisation avec le serveur
   const syncWithServer = async (): Promise<boolean> => {
@@ -164,7 +165,7 @@ export const useDocuments = () => {
 
       // Sauvegarder avec le nouveau système centralisé
       const allDocs = documents.map(doc => doc.id === newDoc.id ? newDoc : doc);
-      saveLocalData('documents', allDocs);
+      saveLocalData('documents', allDocs, userId);
       
       // Synchroniser automatiquement
       syncWithServer().catch(error => {
@@ -176,7 +177,7 @@ export const useDocuments = () => {
         description: `Le document ${newDoc.id} a été mis à jour avec succès`,
       });
     },
-    [documents, toast]
+    [documents, toast, userId]
   );
 
   // Fonction d'ajout d'un document
@@ -200,7 +201,7 @@ export const useDocuments = () => {
     setDocuments(updatedDocuments);
     
     // Sauvegarder avec le nouveau système centralisé
-    saveLocalData('documents', updatedDocuments);
+    saveLocalData('documents', updatedDocuments, userId);
     
     // Synchroniser automatiquement
     syncWithServer().catch(error => {
@@ -211,7 +212,7 @@ export const useDocuments = () => {
       title: "Nouveau document",
       description: `Le document ${newId} a été ajouté et sauvegardé localement`,
     });
-  }, [documents, toast]);
+  }, [documents, toast, userId]);
 
   // Fonction de réorganisation des documents
   const handleReorder = useCallback((startIndex: number, endIndex: number, targetGroupId?: string) => {
@@ -229,7 +230,7 @@ export const useDocuments = () => {
       result.splice(endIndex, 0, removed);
       
       // Sauvegarder avec le nouveau système centralisé
-      saveLocalData('documents', result);
+      saveLocalData('documents', result, userId);
       
       // Synchroniser automatiquement
       syncWithServer().catch(error => {

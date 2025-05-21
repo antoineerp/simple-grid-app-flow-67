@@ -49,7 +49,7 @@ export const loadExigencesFromServer = async (forceRefresh: boolean = false): Pr
     const exigences = data.exigences || [];
     
     // Mise à jour du stockage local avec AutoSyncService
-    saveLocalData(TABLE_NAME, exigences);
+    saveLocalData(TABLE_NAME, exigences, userId);
     
     console.log(`${exigences.length} exigences récupérées du serveur`);
     return exigences;
@@ -73,6 +73,7 @@ export const syncExigencesWithServer = async (exigences: Exigence[]): Promise<bo
   }
   
   console.log(`Début de la synchronisation de ${exigences.length} exigences...`);
+  const userId = getCurrentUser();
   
   try {
     // Normaliser les exigences pour la synchronisation
@@ -87,7 +88,7 @@ export const syncExigencesWithServer = async (exigences: Exigence[]): Promise<bo
     }));
     
     // Utiliser AutoSyncService pour synchroniser
-    const success = await syncWithServer(TABLE_NAME, normalizedExigences);
+    const success = await syncWithServer(TABLE_NAME, normalizedExigences, userId);
     
     if (success) {
       console.log(`Synchronisation réussie de ${normalizedExigences.length} exigences`);
@@ -112,7 +113,8 @@ export const syncExigencesWithServer = async (exigences: Exigence[]): Promise<bo
  */
 export const loadExigencesFromStorage = (): Exigence[] => {
   try {
-    const storedExigences = loadLocalData<Exigence>(TABLE_NAME);
+    const userId = getCurrentUser();
+    const storedExigences = loadLocalData<Exigence>(TABLE_NAME, userId);
     console.log(`${storedExigences.length} exigences récupérées depuis le stockage local`);
     return storedExigences;
   } catch (error) {
@@ -126,7 +128,8 @@ export const loadExigencesFromStorage = (): Exigence[] => {
  */
 export const saveExigencesToStorage = (exigences: Exigence[]): void => {
   try {
-    saveLocalData(TABLE_NAME, exigences);
+    const userId = getCurrentUser();
+    saveLocalData(TABLE_NAME, exigences, userId);
     console.log(`${exigences.length} exigences sauvegardées en local`);
   } catch (error) {
     console.error(`${SERVICE_NAME}: Erreur lors de la sauvegarde des données locales:`, error);

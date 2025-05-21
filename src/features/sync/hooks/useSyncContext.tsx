@@ -13,6 +13,7 @@ import {
   hasPendingChanges, 
   getLastSynced 
 } from '@/services/sync/AutoSyncService';
+import { getCurrentUser } from '@/services/core/databaseConnectionService';
 import { SyncHookOptions, SyncState, SyncOperationResult, SyncMonitorStatus } from '../types/syncTypes';
 
 // Type minimal pour le contexte pour maintenir la compatibilité
@@ -29,14 +30,16 @@ interface SyncContextType {
 
 // Créer des valeurs par défaut qui redirigent vers le nouveau système
 const defaultContext: SyncContextType = {
-  syncTable: async (tableName, data) => {
+  syncTable: async (tableName, data, trigger = "manual") => {
     console.log("useSyncContext (redirecteur): syncTable -> AutoSyncService");
-    const success = await syncWithServer(tableName, data);
+    const userId = getCurrentUser();
+    const success = await syncWithServer(tableName, data, userId);
     return { success, message: success ? "success" : "error" };
   },
   syncAll: async () => {
     console.log("useSyncContext (redirecteur): syncAll -> AutoSyncService");
-    const results = await forceSync();
+    const userId = getCurrentUser();
+    const results = await forceSync(userId);
     return results;
   },
   syncStates: {},
@@ -50,12 +53,13 @@ const defaultContext: SyncContextType = {
   },
   forceProcessQueue: () => {
     console.log("useSyncContext (redirecteur): forceProcessQueue -> AutoSyncService.forceSync");
-    forceSync().catch(err => console.error("Erreur lors du forçage de la synchronisation:", err));
+    const userId = getCurrentUser();
+    forceSync(userId).catch(err => console.error("Erreur lors du forçage de la synchronisation:", err));
   },
-  syncWithServer: async (data, additionalData) => {
+  syncWithServer: async (data, additionalData, userId = getCurrentUser()) => {
     console.log("useSyncContext (redirecteur): syncWithServer -> AutoSyncService");
     const tableName = additionalData?.tableName || 'default';
-    return await syncWithServer(tableName, data);
+    return await syncWithServer(tableName, data, userId);
   },
   notifyChanges: () => {
     console.log("useSyncContext (redirecteur): notifyChanges -> AutoSyncService (no-op)");
