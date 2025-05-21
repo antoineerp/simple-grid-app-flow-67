@@ -1,14 +1,12 @@
 
 import { Document, DocumentGroup } from '@/types/bibliotheque';
-
-// ID utilisateur fixe pour toute l'application
-const FIXED_USER_ID = 'p71x6d_richard';
+import { getCurrentUser } from '@/services/core/databaseConnectionService';
 
 /**
  * Loads collaboration documents from localStorage for a specific user
  */
 export const loadCollaborationFromStorage = (): { documents: Document[], groups: DocumentGroup[] } => {
-  const currentUser = FIXED_USER_ID;
+  const currentUser = getCurrentUser();
   
   const storedDocuments = localStorage.getItem(`collaboration_documents_${currentUser}`);
   const storedGroups = localStorage.getItem(`collaboration_groups_${currentUser}`);
@@ -60,7 +58,7 @@ export const loadCollaborationFromStorage = (): { documents: Document[], groups:
  * Saves collaboration documents to localStorage for a specific user
  */
 export const saveCollaborationToStorage = (documents: Document[], groups: DocumentGroup[]): void => {
-  const currentUser = FIXED_USER_ID;
+  const currentUser = getCurrentUser();
   
   // Extraction des documents des groupes
   const groupDocuments = groups.flatMap(group => 

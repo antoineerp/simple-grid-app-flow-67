@@ -1,10 +1,13 @@
 
 import { Document, DocumentGroup } from '@/types/bibliotheque';
+import { getCurrentUser } from '@/services/core/databaseConnectionService';
 
 /**
  * Loads collaboration documents from localStorage for a specific user
  */
-export const loadBibliothequeFromStorage = (currentUser: string): { documents: Document[], groups: DocumentGroup[] } => {
+export const loadBibliothequeFromStorage = (): { documents: Document[], groups: DocumentGroup[] } => {
+  const currentUser = getCurrentUser();
+  
   const storedDocuments = localStorage.getItem(`collaboration_documents_${currentUser}`);
   const storedGroups = localStorage.getItem(`collaboration_groups_${currentUser}`);
   
@@ -54,7 +57,9 @@ export const loadBibliothequeFromStorage = (currentUser: string): { documents: D
 /**
  * Saves collaboration documents to localStorage for a specific user
  */
-export const saveBibliothequeToStorage = (documents: Document[], groups: DocumentGroup[], currentUser: string): void => {
+export const saveBibliothequeToStorage = (documents: Document[], groups: DocumentGroup[]): void => {
+  const currentUser = getCurrentUser();
+  
   // Extraction des documents des groupes
   const groupDocuments = groups.flatMap(group => 
     group.items.map(item => ({...item, groupId: group.id}))

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import Logo from '@/components/auth/Logo';
 import LoginForm from '@/components/auth/LoginForm';
@@ -11,7 +10,7 @@ const Index = () => {
   const [apiStatus, setApiStatus] = useState<'loading' | 'success' | 'error'>('loading');
   const [apiMessage, setApiMessage] = useState<string>('');
   const [apiDetails, setApiDetails] = useState<any>(null);
-  const [version, setVersion] = useState<string>('1.0.7');
+  const [version, setVersion] = useState<string>('1.0.8');
   const [isInfomaniak, setIsInfomaniak] = useState<boolean>(false);
   const [isRetesting, setIsRetesting] = useState<boolean>(false);
   
@@ -46,7 +45,7 @@ const Index = () => {
     setIsInfomaniak(infomaniakDetected);
     
     checkApi();
-    setVersion(`1.0.7 - ${new Date().toLocaleDateString()}`);
+    setVersion(`1.0.8 - ${new Date().toLocaleDateString()}`);
   }, []);
 
   return (

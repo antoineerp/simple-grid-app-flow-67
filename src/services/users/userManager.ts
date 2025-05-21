@@ -1,7 +1,7 @@
-
 import { getApiUrl } from '@/config/apiConfig';
 import { getAuthHeaders } from '../auth/authService';
 import { Utilisateur } from '@/services';
+import { getCurrentUser } from '@/services/core/databaseConnectionService';
 
 // Un cache pour les utilisateurs
 let usersCache: Utilisateur[] | null = null;
@@ -29,13 +29,14 @@ export const UserManager = {
         throw new Error("Utilisateur non authentifié");
       }
       
-      // Utiliser p71x6d_richard comme utilisateur par défaut
+      // Récupérer l'identifiant utilisateur courant
+      const userId = getCurrentUser();
       const currentApiUrl = getApiUrl();
       
-      console.log(`Récupération des utilisateurs depuis: ${currentApiUrl}/check-users?source=p71x6d_richard`);
+      console.log(`Récupération des utilisateurs depuis: ${currentApiUrl}/check-users?source=${userId}`);
       
       // Utiliser uniquement le endpoint check-users qui est le plus fiable
-      const response = await fetch(`${currentApiUrl}/check-users?source=p71x6d_richard`, {
+      const response = await fetch(`${currentApiUrl}/check-users?source=${userId}`, {
         method: 'GET',
         headers: {
           ...getAuthHeaders(),
@@ -144,4 +145,3 @@ export const getUtilisateurs = (forceRefresh: boolean = false): Promise<Utilisat
 export const clearUsersCache = (): void => {
   UserManager.clearCache();
 };
-
