@@ -1,18 +1,19 @@
 
 import { createBrowserRouter } from 'react-router-dom';
 import App from './App';
+import Layout from './components/layout/Layout';
 import Pilotage from './pages/Pilotage';
 import Index from './pages/Index';
 import Dashboard from './pages/Dashboard';
 import Settings from './pages/Settings';
-import Members from './pages/Members';
+import RessourcesHumaines from './pages/RessourcesHumaines';
+import Exigences from './pages/Exigences';
 import Bibliotheque from './pages/Bibliotheque';
 import Collaboration from './pages/Collaboration';
-import DiagnosticPage from './pages/diagnostic';
-import RessourcesHumaines from './pages/RessourcesHumaines';
-import Documents from './pages/Documents';
-import Exigences from './pages/Exigences';
 import Admin from './pages/Admin';
+import DiagnosticPage from './pages/diagnostic';
+import Documents from './pages/Documents';
+import UserInitializer from './components/core/UserInitializer';
 
 const router = createBrowserRouter([
   {
@@ -21,49 +22,93 @@ const router = createBrowserRouter([
   },
   {
     path: '/pilotage',
-    element: <App />,
-    children: [
-      {
-        path: '',
-        element: <Pilotage />,
-      },
-      {
-        path: 'dashboard',
-        element: <Dashboard />,
-      },
-      {
-        path: 'settings',
-        element: <Settings />,
-      },
-      {
-        path: 'membres',
-        element: <RessourcesHumaines />,
-      },
-      {
-        path: 'exigences',
-        element: <Exigences />,
-      },
-      {
-        path: 'bibliotheque',
-        element: <Bibliotheque />,
-      },
-      {
-        path: 'collaboration',
-        element: <Collaboration />,
-      },
-      {
-        path: 'admin',
-        element: <Admin />,
-      },
-      {
-        path: 'diagnostic',
-        element: <DiagnosticPage />,
-      },
-      {
-        path: 'documents',
-        element: <Documents />,
-      },
-    ],
+    element: (
+      <Layout>
+        <UserInitializer />
+        <Pilotage />
+      </Layout>
+    ),
+  },
+  {
+    path: '/dashboard',
+    element: (
+      <Layout>
+        <UserInitializer />
+        <Dashboard />
+      </Layout>
+    ),
+  },
+  {
+    path: '/settings',
+    element: (
+      <Layout>
+        <UserInitializer />
+        <Settings />
+      </Layout>
+    ),
+  },
+  {
+    path: '/membres',
+    element: (
+      <Layout>
+        <UserInitializer />
+        <RessourcesHumaines />
+      </Layout>
+    ),
+  },
+  {
+    path: '/exigences',
+    element: (
+      <Layout>
+        <UserInitializer />
+        <Exigences />
+      </Layout>
+    ),
+  },
+  {
+    path: '/bibliotheque',
+    element: (
+      <Layout>
+        <UserInitializer />
+        <Bibliotheque />
+      </Layout>
+    ),
+  },
+  {
+    path: '/collaboration',
+    element: (
+      <Layout>
+        <UserInitializer />
+        <Collaboration />
+      </Layout>
+    ),
+  },
+  {
+    path: '/admin',
+    element: (
+      <Layout>
+        <UserInitializer />
+        <Admin />
+      </Layout>
+    ),
+  },
+  {
+    path: '/diagnostic',
+    element: (
+      <Layout>
+        <UserInitializer />
+        <DiagnosticPage />
+      </Layout>
+    ),
+  },
+  {
+    path: '/documents',
+    element: (
+      <Layout>
+        <UserInitializer />
+        <Documents />
+      </Layout>
+    ),
   },
 ]);
 

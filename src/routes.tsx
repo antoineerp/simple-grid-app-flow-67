@@ -11,10 +11,11 @@ import Admin from './pages/Admin';
 import DiagnosticPage from './pages/diagnostic';
 import Documents from './pages/Documents';
 
-// Définition des routes de l'application
+// Définition des routes de l'application - maintenue pour la compatibilité avec d'éventuels imports
+// La configuration principale des routes est désormais dans router.tsx
 const routes = [
   {
-    path: '/',
+    path: '/pilotage',
     element: <Pilotage />,
   },
   {
